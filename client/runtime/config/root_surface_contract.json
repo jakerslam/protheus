@@ -41,6 +41,7 @@
     "vitest.config.ts"
   ],
   "allowed_root_dirs": [
+    ".infring",
     ".cargo",
     ".githooks",
     ".github",
@@ -58,6 +59,7 @@
     "packages",
     "planes",
     "proofs",
+    "releases",
     "setup",
     "surface",
     "tests",

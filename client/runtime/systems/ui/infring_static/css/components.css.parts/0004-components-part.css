@@ -137,7 +137,7 @@
   font-weight: 600;
   line-height: 1.2;
   color: var(--text);
-  text-align: center;
+  text-align: left;
   max-width: 240px;
   white-space: nowrap;
   overflow: hidden;
@@ -148,7 +148,12 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  max-width: 320px;
+  max-width: min(52vw, 320px);
+  min-width: 0;
+}
+
+.chat-thread-profile-info-pill .chat-thread-heart-meter {
+  margin-top: 0;
 }
 
 .chat-sidebar-item-name-wrap {
@@ -431,9 +436,9 @@ body[data-theme='dark'] .chat-event-divider .chat-event-info-icon {
   border-radius: 22px;
   max-width: min(76ch, 85%);
   display: inline-block;
-  backdrop-filter: blur(10px) saturate(1.1);
-  -webkit-backdrop-filter: blur(10px) saturate(1.1);
-  box-shadow: -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2);
+  backdrop-filter: var(--overlay-surface-filter-strong);
+  -webkit-backdrop-filter: var(--overlay-surface-filter-strong);
+  box-shadow: var(--overlay-surface-shell-shadow);
   z-index: 1;
 }
 

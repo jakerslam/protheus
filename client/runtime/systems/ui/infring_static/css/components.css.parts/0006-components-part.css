@@ -136,11 +136,18 @@
   --chat-map-surface-background: var(--drag-bar-background, var(--overlay-shared-surface-background, var(--overlay-surface-background, transparent)));
   --chat-map-surface-radius: var(--drag-bar-radius, var(--overlay-shared-surface-radius, var(--overlay-surface-radius, 18px)));
   --chat-map-surface-shadow: var(--drag-bar-shadow, var(--overlay-shared-surface-shadow, var(--overlay-surface-shadow, -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2))));
+  --chat-map-surface-rim-shadow: var(--drag-bar-rim-shadow, var(--overlay-shared-surface-rim-shadow, var(--overlay-surface-rim-shadow)));
   --chat-map-surface-blur: var(--drag-bar-blur, var(--overlay-shared-surface-blur, var(--overlay-surface-blur, 6px)));
   --chat-map-surface-saturate: var(--drag-bar-saturate, var(--overlay-shared-surface-saturate, var(--overlay-surface-saturate, 1.05)));
   --chat-map-surface-brightness: var(--drag-bar-brightness, var(--overlay-shared-surface-brightness, var(--overlay-surface-brightness, 1)));
   --chat-map-surface-contrast: var(--drag-bar-contrast, var(--overlay-shared-surface-contrast, var(--overlay-surface-contrast, 1)));
   --chat-map-surface-distortion: var(--drag-bar-distortion, var(--overlay-shared-surface-distortion, var(--overlay-surface-distortion, url(#infring-overlay-glass-pass))));
+  --chat-map-surface-filter:
+    var(--chat-map-surface-distortion)
+    blur(var(--chat-map-surface-blur))
+    saturate(var(--chat-map-surface-saturate))
+    brightness(var(--chat-map-surface-brightness))
+    contrast(var(--chat-map-surface-contrast));
   position: relative;
   display: flex;
   flex-direction: column;
@@ -156,22 +163,12 @@
   border-left-color: var(--drag-bar-border-left-color, var(--chat-map-surface-border));
   border-radius: var(--chat-map-surface-radius);
   background: var(--chat-map-surface-background);
-  box-shadow: var(--chat-map-surface-shadow);
+  box-shadow: var(--chat-map-surface-shadow), var(--chat-map-surface-rim-shadow);
   transition:
     border-radius var(--drag-bar-radius-transition),
     border-color var(--drag-bar-border-transition-duration) linear var(--drag-bar-border-transition-delay);
-  backdrop-filter:
-    var(--chat-map-surface-distortion)
-    blur(var(--chat-map-surface-blur))
-    saturate(var(--chat-map-surface-saturate))
-    brightness(var(--chat-map-surface-brightness))
-    contrast(var(--chat-map-surface-contrast));
-  -webkit-backdrop-filter:
-    var(--chat-map-surface-distortion)
-    blur(var(--chat-map-surface-blur))
-    saturate(var(--chat-map-surface-saturate))
-    brightness(var(--chat-map-surface-brightness))
-    contrast(var(--chat-map-surface-contrast));
+  backdrop-filter: var(--chat-map-surface-filter);
+  -webkit-backdrop-filter: var(--chat-map-surface-filter);
   background-clip: padding-box;
   overflow: hidden;
   pointer-events: auto;

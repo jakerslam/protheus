@@ -72,7 +72,7 @@
         side: 'left',
         body: this.messageMapPopupBody(msg),
         meta_origin: 'Chat map',
-        meta_time: String(this.messageTs(msg) || '').trim()
+        meta_time: String(this.messageTimestampLabel(msg) || '').trim()
       });
     },
 

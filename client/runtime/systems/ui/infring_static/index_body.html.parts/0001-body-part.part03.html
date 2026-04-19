@@ -42,6 +42,11 @@
         <filter id="infring-overlay-glass-pass" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
           <feGaussianBlur in="SourceGraphic" stdDeviation="0"></feGaussianBlur>
         </filter>
+        <filter id="infring-overlay-magnified-glass-distortion" x="-24%" y="-24%" width="148%" height="148%" color-interpolation-filters="sRGB">
+          <feTurbulence type="fractalNoise" baseFrequency="0.0018 0.0018" numOctaves="1" seed="27" stitchTiles="stitch" result="lensNoise"></feTurbulence>
+          <feDisplacementMap in="SourceGraphic" in2="lensNoise" scale="22" xChannelSelector="R" yChannelSelector="G" result="lensWarp"></feDisplacementMap>
+          <feGaussianBlur in="lensWarp" stdDeviation="0.02"></feGaussianBlur>
+        </filter>
         <filter id="infring-overlay-liquid-glass-distortion" x="-24%" y="-24%" width="148%" height="148%" color-interpolation-filters="sRGB">
           <feTurbulence type="fractalNoise" baseFrequency="0.0085 0.021" numOctaves="2" seed="13" stitchTiles="stitch" result="noiseA"></feTurbulence>
           <feTurbulence type="fractalNoise" baseFrequency="0.0026 0.0062" numOctaves="1" seed="31" stitchTiles="stitch" result="noiseB"></feTurbulence>
@@ -106,7 +111,7 @@
       @mouseleave="clearBottomDockHover()"
     >
       <div class="bottom-dock-track">
-        <div class="dock-tile-slot dashboard-preview-trigger" :class="{ active: page === 'chat', hovered: bottomDockHoverId === 'chat', 'neighbor-hover': bottomDockIsNeighbor('chat'), 'second-neighbor-hover': bottomDockIsSecondNeighbor('chat') }" :style="bottomDockSlotStyle('chat')" data-dock-slot-id="chat" :data-tooltip="bottomDockTileData('chat', 'tooltip', '')" @mouseenter="setBottomDockHover('chat')" @mouseleave="clearBottomDockHover('chat')">
+        <div class="dock-tile-slot dashboard-preview-trigger" :class="{ active: page === 'chat', hovered: bottomDockHoverId === 'chat', 'neighbor-hover': bottomDockIsNeighbor('chat'), 'second-neighbor-hover': bottomDockIsSecondNeighbor('chat') }" :style="bottomDockSlotStyle('chat')" data-dock-slot-id="chat" :data-tooltip="bottomDockTileData('chat', 'tooltip', '')" @mouseenter="setBottomDockHover('chat', $event)" @mouseleave="clearBottomDockHover('chat')">
           <button
             type="button"
             class="bottom-dock-btn dock-tile"
@@ -135,7 +140,7 @@
             </svg>
           </button>
         </div>
-        <div class="dock-tile-slot dashboard-preview-trigger" :class="{ active: page === 'analytics' || page === 'overview', hovered: bottomDockHoverId === 'overview', 'neighbor-hover': bottomDockIsNeighbor('overview'), 'second-neighbor-hover': bottomDockIsSecondNeighbor('overview') }" :style="bottomDockSlotStyle('overview')" data-dock-slot-id="overview" :data-tooltip="bottomDockTileData('overview', 'tooltip', '')" @mouseenter="setBottomDockHover('overview')" @mouseleave="clearBottomDockHover('overview')">
+        <div class="dock-tile-slot dashboard-preview-trigger" :class="{ active: page === 'analytics' || page === 'overview', hovered: bottomDockHoverId === 'overview', 'neighbor-hover': bottomDockIsNeighbor('overview'), 'second-neighbor-hover': bottomDockIsSecondNeighbor('overview') }" :style="bottomDockSlotStyle('overview')" data-dock-slot-id="overview" :data-tooltip="bottomDockTileData('overview', 'tooltip', '')" @mouseenter="setBottomDockHover('overview', $event)" @mouseleave="clearBottomDockHover('overview')">
           <button
             type="button"
             class="bottom-dock-btn dock-tile"
@@ -160,7 +165,7 @@
             </svg>
           </button>
         </div>
-        <div class="dock-tile-slot dashboard-preview-trigger" :class="{ active: ['agents','sessions','approvals'].indexOf(page) >= 0, hovered: bottomDockHoverId === 'agents', 'neighbor-hover': bottomDockIsNeighbor('agents'), 'second-neighbor-hover': bottomDockIsSecondNeighbor('agents') }" :style="bottomDockSlotStyle('agents')" data-dock-slot-id="agents" :data-tooltip="bottomDockTileData('agents', 'tooltip', '')" @mouseenter="setBottomDockHover('agents')" @mouseleave="clearBottomDockHover('agents')">
+        <div class="dock-tile-slot dashboard-preview-trigger" :class="{ active: ['agents','sessions','approvals'].indexOf(page) >= 0, hovered: bottomDockHoverId === 'agents', 'neighbor-hover': bottomDockIsNeighbor('agents'), 'second-neighbor-hover': bottomDockIsSecondNeighbor('agents') }" :style="bottomDockSlotStyle('agents')" data-dock-slot-id="agents" :data-tooltip="bottomDockTileData('agents', 'tooltip', '')" @mouseenter="setBottomDockHover('agents', $event)" @mouseleave="clearBottomDockHover('agents')">
           <button
             type="button"
             class="bottom-dock-btn dock-tile"
@@ -181,7 +186,7 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           </button>
         </div>
-        <div class="dock-tile-slot dashboard-preview-trigger" :class="{ active: ['scheduler','workflows'].indexOf(page) >= 0, hovered: bottomDockHoverId === 'scheduler', 'neighbor-hover': bottomDockIsNeighbor('scheduler'), 'second-neighbor-hover': bottomDockIsSecondNeighbor('scheduler') }" :style="bottomDockSlotStyle('scheduler')" data-dock-slot-id="scheduler" :data-tooltip="bottomDockTileData('scheduler', 'tooltip', '')" @mouseenter="setBottomDockHover('scheduler')" @mouseleave="clearBottomDockHover('scheduler')">
+        <div class="dock-tile-slot dashboard-preview-trigger" :class="{ active: ['scheduler','workflows'].indexOf(page) >= 0, hovered: bottomDockHoverId === 'scheduler', 'neighbor-hover': bottomDockIsNeighbor('scheduler'), 'second-neighbor-hover': bottomDockIsSecondNeighbor('scheduler') }" :style="bottomDockSlotStyle('scheduler')" data-dock-slot-id="scheduler" :data-tooltip="bottomDockTileData('scheduler', 'tooltip', '')" @mouseenter="setBottomDockHover('scheduler', $event)" @mouseleave="clearBottomDockHover('scheduler')">
           <button
             type="button"
             class="bottom-dock-btn dock-tile"
@@ -217,7 +222,7 @@
             </svg>
           </button>
         </div>
-        <div class="dock-tile-slot dashboard-preview-trigger" :class="{ active: ['channels','eyes','skills','hands'].indexOf(page) >= 0, hovered: bottomDockHoverId === 'skills', 'neighbor-hover': bottomDockIsNeighbor('skills'), 'second-neighbor-hover': bottomDockIsSecondNeighbor('skills') }" :style="bottomDockSlotStyle('skills')" data-dock-slot-id="skills" :data-tooltip="bottomDockTileData('skills', 'tooltip', '')" @mouseenter="setBottomDockHover('skills')" @mouseleave="clearBottomDockHover('skills')">
+        <div class="dock-tile-slot dashboard-preview-trigger" :class="{ active: ['channels','eyes','skills','hands'].indexOf(page) >= 0, hovered: bottomDockHoverId === 'skills', 'neighbor-hover': bottomDockIsNeighbor('skills'), 'second-neighbor-hover': bottomDockIsSecondNeighbor('skills') }" :style="bottomDockSlotStyle('skills')" data-dock-slot-id="skills" :data-tooltip="bottomDockTileData('skills', 'tooltip', '')" @mouseenter="setBottomDockHover('skills', $event)" @mouseleave="clearBottomDockHover('skills')">
           <button
             type="button"
             class="bottom-dock-btn dock-tile"
@@ -257,7 +262,7 @@
             </svg>
           </button>
         </div>
-        <div class="dock-tile-slot dashboard-preview-trigger" :class="{ active: ['runtime','analytics','logs'].indexOf(page) >= 0, hovered: bottomDockHoverId === 'runtime', 'neighbor-hover': bottomDockIsNeighbor('runtime'), 'second-neighbor-hover': bottomDockIsSecondNeighbor('runtime') }" :style="bottomDockSlotStyle('runtime')" data-dock-slot-id="runtime" :data-tooltip="bottomDockTileData('runtime', 'tooltip', '')" @mouseenter="setBottomDockHover('runtime')" @mouseleave="clearBottomDockHover('runtime')">
+        <div class="dock-tile-slot dashboard-preview-trigger" :class="{ active: ['runtime','analytics','logs'].indexOf(page) >= 0, hovered: bottomDockHoverId === 'runtime', 'neighbor-hover': bottomDockIsNeighbor('runtime'), 'second-neighbor-hover': bottomDockIsSecondNeighbor('runtime') }" :style="bottomDockSlotStyle('runtime')" data-dock-slot-id="runtime" :data-tooltip="bottomDockTileData('runtime', 'tooltip', '')" @mouseenter="setBottomDockHover('runtime', $event)" @mouseleave="clearBottomDockHover('runtime')">
           <button
             type="button"
             class="bottom-dock-btn dock-tile"
@@ -284,7 +289,7 @@
             </span>
           </button>
         </div>
-        <div class="dock-tile-slot dashboard-preview-trigger" :class="{ active: page === 'settings', hovered: bottomDockHoverId === 'settings', 'neighbor-hover': bottomDockIsNeighbor('settings'), 'second-neighbor-hover': bottomDockIsSecondNeighbor('settings') }" :style="bottomDockSlotStyle('settings')" data-dock-slot-id="settings" :data-tooltip="bottomDockTileData('settings', 'tooltip', '')" @mouseenter="setBottomDockHover('settings')" @mouseleave="clearBottomDockHover('settings')">
+        <div class="dock-tile-slot dashboard-preview-trigger" :class="{ active: page === 'settings', hovered: bottomDockHoverId === 'settings', 'neighbor-hover': bottomDockIsNeighbor('settings'), 'second-neighbor-hover': bottomDockIsSecondNeighbor('settings') }" :style="bottomDockSlotStyle('settings')" data-dock-slot-id="settings" :data-tooltip="bottomDockTileData('settings', 'tooltip', '')" @mouseenter="setBottomDockHover('settings', $event)" @mouseleave="clearBottomDockHover('settings')">
           <button
             type="button"
             class="bottom-dock-btn dock-tile"

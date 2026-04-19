@@ -1,4 +1,4 @@
-#![recursion_limit = "2048"]
+#![recursion_limit = "16384"]
 // Layer ownership: core/layer0/ops
 
 // Auto-segmented for file-size policy: implementation moved to adjacent .inc source.

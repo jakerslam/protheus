@@ -71,7 +71,7 @@ function inferWsBase(apiBaseUrl: string): string {
   }
 }
 
-function parseFeatureFlags(rawValue: unknown): Record<string, boolean> {
+function parseFeatureFlagCsvList(rawValue: unknown): Record<string, boolean> {
   const out: Record<string, boolean> = {};
   const raw = String(rawValue ?? '').trim();
   if (!raw) return out;
@@ -136,11 +136,11 @@ export function buildRuntimeConfig(env: RuntimeEnv = readRuntimeEnv()): Dashboar
       60_000
     ),
     telemetryEnabled: normalizeBoolean(env.VITE_INFRING_TELEMETRY_ENABLED, true),
-    featureFlags: parseFeatureFlags(env.VITE_INFRING_FEATURE_FLAGS)
+    featureFlags: parseFeatureFlagCsvList(env.VITE_INFRING_FEATURE_FLAGS)
   };
 }
 
-export function pickPublicRuntimeConfig(config: DashboardRuntimeConfig): DashboardRuntimePublicConfig {
+export function toPublicRuntimeConfig(config: DashboardRuntimeConfig): DashboardRuntimePublicConfig {
   return {
     apiBaseUrl: config.apiBaseUrl,
     wsBaseUrl: config.wsBaseUrl,
@@ -149,4 +149,9 @@ export function pickPublicRuntimeConfig(config: DashboardRuntimeConfig): Dashboa
     telemetryEnabled: config.telemetryEnabled,
     featureFlags: Object.assign({}, config.featureFlags)
   };
+}
+
+// Backward-compat shim for legacy callers during naming migration.
+export function pickPublicRuntimeConfig(config: DashboardRuntimeConfig): DashboardRuntimePublicConfig {
+  return toPublicRuntimeConfig(config);
 }

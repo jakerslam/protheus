@@ -1,8 +1,14 @@
-    setBottomDockHover(id) {
+    setBottomDockHover(id, ev) {
       if (String(this.bottomDockDragId || '').trim()) return;
       if (this.bottomDockContainerDragActive || this._bottomDockContainerPointerActive) return;
       var key = String(id || '').trim();
       this.bottomDockHoverId = key;
+      if (ev) {
+        var evX = Number(ev.clientX || 0);
+        var evY = Number(ev.clientY || 0);
+        if (Number.isFinite(evX) && evX > 0) this.bottomDockPointerX = evX;
+        if (Number.isFinite(evY) && evY > 0) this.bottomDockPointerY = evY;
+      }
       if (this._bottomDockPreviewHideTimer) {
         try { clearTimeout(this._bottomDockPreviewHideTimer); } catch(_) {}
         this._bottomDockPreviewHideTimer = 0;

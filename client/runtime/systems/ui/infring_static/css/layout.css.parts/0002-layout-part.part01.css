@@ -322,7 +322,13 @@
   --dashboard-preview-surface-brightness: var(--drag-bar-brightness, var(--overlay-shared-surface-brightness, var(--overlay-surface-brightness, 1)));
   --dashboard-preview-surface-contrast: var(--drag-bar-contrast, var(--overlay-shared-surface-contrast, var(--overlay-surface-contrast, 1)));
   --dashboard-preview-surface-distortion: var(--drag-bar-distortion, var(--overlay-shared-surface-distortion, var(--overlay-surface-distortion, url(#infring-overlay-glass-pass))));
-  --pulltab-surface-shadow-inherited: var(--dashboard-preview-surface-shadow);
+  --dashboard-preview-surface-filter:
+    var(--dashboard-preview-surface-distortion)
+    blur(var(--dashboard-preview-surface-blur))
+    saturate(var(--dashboard-preview-surface-saturate))
+    brightness(var(--dashboard-preview-surface-brightness))
+    contrast(var(--dashboard-preview-surface-contrast));
+  --pulltab-surface-shadow-inherited: var(--dashboard-preview-surface-shadow), var(--dashboard-preview-surface-rim-shadow, var(--overlay-surface-rim-shadow));
   --pulltab-surface-shadow-right-only:
     6px 0 12px -14px rgba(0, 0, 0, 0.32),
     1px 10px 18px -18px rgba(0, 0, 0, 0.55),
@@ -366,18 +372,8 @@
   box-shadow: var(--pulltab-surface-shadow);
   filter: none;
   background-clip: padding-box;
-  backdrop-filter:
-    var(--dashboard-preview-surface-distortion)
-    blur(var(--dashboard-preview-surface-blur))
-    saturate(var(--dashboard-preview-surface-saturate))
-    brightness(var(--dashboard-preview-surface-brightness))
-    contrast(var(--dashboard-preview-surface-contrast));
-  -webkit-backdrop-filter:
-    var(--dashboard-preview-surface-distortion)
-    blur(var(--dashboard-preview-surface-blur))
-    saturate(var(--dashboard-preview-surface-saturate))
-    brightness(var(--dashboard-preview-surface-brightness))
-    contrast(var(--dashboard-preview-surface-contrast));
+  backdrop-filter: var(--dashboard-preview-surface-filter);
+  -webkit-backdrop-filter: var(--dashboard-preview-surface-filter);
   will-change: backdrop-filter;
   transition:
     color var(--transition-fast),

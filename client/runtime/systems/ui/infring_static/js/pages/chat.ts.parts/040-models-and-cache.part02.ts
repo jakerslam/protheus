@@ -5,7 +5,7 @@
       }, 80);
     },
 
-    availableModelRowsCount: function(rows) {
+    countAvailableModelRows: function(rows) {
       var list = Array.isArray(rows) ? rows : [];
       var count = 0;
       for (var i = 0; i < list.length; i += 1) {
@@ -13,6 +13,11 @@
         if (row.available !== false) count += 1;
       }
       return count;
+    },
+
+    // Backward-compat shim for legacy callers during naming migration.
+    availableModelRowsCount: function(rows) {
+      return this.countAvailableModelRows(rows);
     },
 
     providerPayloadToModelCatalogRows: function(payload) {
@@ -338,7 +343,7 @@
         rows = [];
       }
       rows = this.sanitizeModelCatalogRows(rows);
-      return this.availableModelRowsCount(rows);
+      return this.countAvailableModelRows(rows);
     },
 
     ensureUsableModelsForChatSend: async function(reason) {
@@ -346,7 +351,7 @@
       if (available > 0) return available;
       try {
         var models = await this.refreshModelCatalogAndGuidance({ discover: true, guidance: true });
-        available = this.availableModelRowsCount(models);
+        available = this.countAvailableModelRows(models);
       } catch (_) {
         available = this.currentAvailableModelCount();
       }
@@ -367,7 +372,7 @@
         }
         var data = await InfringAPI.get('/api/models');
         var models = this.sanitizeModelCatalogRows((data && data.models) || []);
-        var available = this.availableModelRowsCount(models);
+        var available = this.countAvailableModelRows(models);
         // Recover from partial catalog responses by rebuilding rows from provider model_profiles.
         if (models.length < 8 || available < 4) {
           var providersPayload = await InfringAPI.get('/api/providers').catch(function() { return null; });
@@ -377,7 +382,7 @@
             );
             if (providerRows.length) {
               models = this.mergeModelCatalogRows(models, providerRows);
-              available = this.availableModelRowsCount(models);
+              available = this.countAvailableModelRows(models);
             }
           }
         }

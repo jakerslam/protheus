@@ -14,6 +14,9 @@ type AdapterLane = {
   id: string;
   bridgeCommand: string;
   framework: string;
+  tier: string;
+  readinessTrack: string;
+  requiredForGraduation: boolean;
 };
 
 type ScenarioRow = {
@@ -33,6 +36,9 @@ type GraduationManifest = {
     framework: string;
     bridge_command: string;
     tier?: string;
+    readiness_track?: string;
+    required_for_graduation?: boolean;
+    notes?: string;
   }>;
 };
 
@@ -53,7 +59,7 @@ type AdapterGraduationResult = {
 const OPS_CARGO_BUILD_ARGS = ['build', '-q', '-p', 'protheus-ops-core', '--bin', 'protheus-ops'];
 const BRIDGE_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
 
-const ADAPTERS: AdapterLane[] = [
+const LEGACY_REQUIRED_ADAPTERS: Array<Pick<AdapterLane, 'id' | 'framework' | 'bridgeCommand'>> = [
   { id: 'langgraph', bridgeCommand: 'workflow_graph-bridge', framework: 'langgraph' },
   { id: 'crewai', bridgeCommand: 'crewai-bridge', framework: 'crewai' },
   { id: 'openai_agents', bridgeCommand: 'pydantic-ai-bridge', framework: 'openai_agents' },
@@ -219,11 +225,34 @@ function loadGraduationManifest(root: string, relPath: string): GraduationManife
   return parsed;
 }
 
+function adaptersFromManifest(manifest: GraduationManifest): AdapterLane[] {
+  const rows = Array.isArray(manifest.adapters) ? manifest.adapters : [];
+  const dedup = new Set<string>();
+  const out: AdapterLane[] = [];
+  for (const row of rows) {
+    const id = cleanText(row?.id || '', 80);
+    const framework = cleanText(row?.framework || '', 80);
+    const bridgeCommand = cleanText(row?.bridge_command || '', 120);
+    if (!id || !framework || !bridgeCommand || dedup.has(id)) continue;
+    dedup.add(id);
+    out.push({
+      id,
+      framework,
+      bridgeCommand,
+      tier: cleanText(row?.tier || 'candidate', 40).toLowerCase(),
+      readinessTrack: cleanText(row?.readiness_track || 'unclassified', 80),
+      requiredForGraduation: row?.required_for_graduation !== false,
+    });
+  }
+  return out;
+}
+
 function hasScenarioPass(chaosRows: ScenarioRow[], adapterId: string, scenarioId: string): boolean {
   return chaosRows.some((row) => row.adapter === adapterId && row.scenario === scenarioId && row.ok);
 }
 
 function buildGraduationResults(
+  graduationAdapters: AdapterLane[],
   manifest: GraduationManifest,
   baselineRows: ScenarioRow[],
   chaosRows: ScenarioRow[],
@@ -234,7 +263,7 @@ function buildGraduationResults(
   const requiredScenarios = Array.isArray(manifest.required_scenarios) ? manifest.required_scenarios : [];
   const requiredHooks = Array.isArray(manifest.required_hooks) ? manifest.required_hooks : [];
 
-  return ADAPTERS.map((adapter) => {
+  return graduationAdapters.map((adapter) => {
     const baselineRow = baselineRows.find((row) => row.adapter === adapter.id);
     const declared = manifestByAdapter.has(adapter.id);
     const scenarioPassCount = requiredScenarios.filter((id) => hasScenarioPass(chaosRows, adapter.id, id)).length;
@@ -315,10 +344,15 @@ function buildGraduationResults(
   });
 }
 
-function manifestConformanceViolations(manifest: GraduationManifest): string[] {
+function manifestConformanceViolations(manifest: GraduationManifest, adapters: AdapterLane[]): string[] {
   const violations: string[] = [];
-  const byId = new Map((manifest.adapters || []).map((row) => [cleanText(row.id || '', 80), row]));
-  for (const adapter of ADAPTERS) {
+  const manifestRows = Array.isArray(manifest.adapters) ? manifest.adapters : [];
+  const ids = manifestRows.map((row) => cleanText(row?.id || '', 80)).filter(Boolean);
+  const duplicates = ids.filter((id, idx) => ids.indexOf(id) !== idx);
+  duplicates.forEach((id) => violations.push(`manifest_duplicate_adapter_id:${id}`));
+
+  const byId = new Map(manifestRows.map((row) => [cleanText(row.id || '', 80), row]));
+  for (const adapter of LEGACY_REQUIRED_ADAPTERS) {
     const declared = byId.get(adapter.id);
     if (!declared) {
       violations.push(`manifest_missing_adapter:${adapter.id}`);
@@ -330,6 +364,9 @@ function manifestConformanceViolations(manifest: GraduationManifest): string[] {
     if (cleanText(declared.bridge_command || '', 120) !== adapter.bridgeCommand) {
       violations.push(`manifest_bridge_command_mismatch:${adapter.id}`);
     }
+  }
+  if (adapters.length === 0) {
+    violations.push('manifest_contains_no_executable_adapters');
   }
   return violations;
 }
@@ -370,6 +407,22 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     });
   }
 
+  const manifestAdapters = adaptersFromManifest(graduationManifest);
+  const graduationAdapters = manifestAdapters.filter((row) => row.requiredForGraduation);
+  if (graduationAdapters.length === 0) {
+    const payload = {
+      ok: false,
+      type: 'adapter_runtime_chaos_gate',
+      error: 'adapter_graduation_manifest_has_no_required_adapters',
+      manifest_path: args.graduationManifestPath,
+    };
+    return emitStructuredResult(payload, {
+      outPath: args.outPath,
+      strict: args.strict,
+      ok: false,
+    });
+  }
+
   let opsBinary: OpsBinary;
   try {
     opsBinary = resolveOpsBinary(root);
@@ -391,7 +444,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const chaosRows: ScenarioRow[] = [];
   const runtimeStateRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'infring-adapter-chaos-'));
 
-  for (const adapter of ADAPTERS) {
+  for (const adapter of graduationAdapters) {
     const baseline = runBridgeCommand(
       root,
       opsBinary,
@@ -453,10 +506,24 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const baselinePassRatio = baselineTotal === 0 ? 0 : baselinePassed / baselineTotal;
   const chaosFailClosedRatio = chaosTotal === 0 ? 0 : chaosPassed / chaosTotal;
 
-  const graduationResults = buildGraduationResults(graduationManifest, baselineRows, chaosRows);
+  const graduationResults = buildGraduationResults(
+    graduationAdapters,
+    graduationManifest,
+    baselineRows,
+    chaosRows,
+  );
   const graduationPassed = graduationResults.filter((row) => row.graduated).length;
   const graduationRatio = graduationResults.length === 0 ? 0 : graduationPassed / graduationResults.length;
-  const manifestViolations = manifestConformanceViolations(graduationManifest);
+  const manifestViolations = manifestConformanceViolations(graduationManifest, graduationAdapters);
+  const pendingRoadmapAdapters = manifestAdapters
+    .filter((row) => !row.requiredForGraduation)
+    .map((row) => ({
+      id: row.id,
+      framework: row.framework,
+      bridge_command: row.bridgeCommand,
+      tier: row.tier,
+      readiness_track: row.readinessTrack,
+    }));
 
   const failures = allRows
     .filter((row) => !row.ok)
@@ -494,7 +561,9 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     revision: currentRevision(root),
     graduation_manifest_path: args.graduationManifestPath,
     summary: {
-      adapters_total: ADAPTERS.length,
+      adapters_total: manifestAdapters.length,
+      adapters_required_for_graduation: graduationAdapters.length,
+      adapters_pending_roadmap: pendingRoadmapAdapters.length,
       baseline_total: baselineTotal,
       baseline_passed: baselinePassed,
       chaos_total: chaosTotal,
@@ -505,11 +574,15 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       manifest_violations: manifestViolations.length,
     },
     metrics,
-    adapters: ADAPTERS.map((row) => ({
+    adapters: manifestAdapters.map((row) => ({
       id: row.id,
       bridge_command: row.bridgeCommand,
       framework: row.framework,
+      tier: row.tier,
+      readiness_track: row.readinessTrack,
+      required_for_graduation: row.requiredForGraduation,
     })),
+    pending_roadmap_adapters: pendingRoadmapAdapters,
     baseline_results: baselineRows,
     chaos_results: chaosRows,
     graduation_results: graduationResults,

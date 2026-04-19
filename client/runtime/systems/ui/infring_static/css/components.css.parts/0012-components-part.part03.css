@@ -16,11 +16,24 @@
   --dashboard-preview-surface-line-height: 1.2;
   --dashboard-preview-surface-letter-spacing: 0.01em;
   --dashboard-preview-surface-shadow: var(--drag-bar-shadow, var(--overlay-shared-surface-shadow, var(--overlay-surface-shadow, -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2))));
+  --dashboard-preview-surface-bottom-rim-color: var(--drag-bar-bottom-rim-color, var(--overlay-shared-surface-bottom-rim-color, var(--overlay-surface-bottom-rim-color)));
+  --dashboard-preview-surface-bottom-rim-glow: var(--drag-bar-bottom-rim-glow, var(--overlay-shared-surface-bottom-rim-glow, var(--overlay-surface-bottom-rim-glow)));
+  --dashboard-preview-surface-bottom-rim-width: var(--drag-bar-bottom-rim-width, var(--overlay-shared-surface-bottom-rim-width, var(--overlay-surface-bottom-rim-width)));
+  --dashboard-preview-surface-bottom-rim-blur: var(--drag-bar-bottom-rim-blur, var(--overlay-shared-surface-bottom-rim-blur, var(--overlay-surface-bottom-rim-blur)));
   --dashboard-preview-surface-blur: var(--drag-bar-blur, var(--overlay-shared-surface-blur, var(--overlay-surface-blur, 6px)));
   --dashboard-preview-surface-saturate: var(--drag-bar-saturate, var(--overlay-shared-surface-saturate, var(--overlay-surface-saturate, 1.05)));
   --dashboard-preview-surface-brightness: var(--drag-bar-brightness, var(--overlay-shared-surface-brightness, var(--overlay-surface-brightness, 1)));
   --dashboard-preview-surface-contrast: var(--drag-bar-contrast, var(--overlay-shared-surface-contrast, var(--overlay-surface-contrast, 1)));
   --dashboard-preview-surface-distortion: var(--drag-bar-distortion, var(--overlay-shared-surface-distortion, var(--overlay-surface-distortion, url(#infring-overlay-glass-pass))));
+  --dashboard-preview-surface-rim-shadow:
+    inset 0 calc(-1 * var(--dashboard-preview-surface-bottom-rim-width)) 0 var(--dashboard-preview-surface-bottom-rim-color),
+    inset 0 calc(-1 * var(--dashboard-preview-surface-bottom-rim-width)) var(--dashboard-preview-surface-bottom-rim-blur) calc(-1 * var(--dashboard-preview-surface-bottom-rim-blur)) var(--dashboard-preview-surface-bottom-rim-glow);
+  --dashboard-preview-surface-filter:
+    var(--dashboard-preview-surface-distortion)
+    blur(var(--dashboard-preview-surface-blur))
+    saturate(var(--dashboard-preview-surface-saturate))
+    brightness(var(--dashboard-preview-surface-brightness))
+    contrast(var(--dashboard-preview-surface-contrast));
   --dashboard-preview-surface-specular: var(--drag-bar-specular, var(--overlay-shared-surface-specular, var(--overlay-surface-specular, none)));
   --dashboard-preview-surface-specular-opacity: var(--drag-bar-specular-opacity, var(--overlay-shared-surface-specular-opacity, var(--overlay-surface-specular-opacity, 0)));
   --dashboard-preview-surface-caustic: var(--drag-bar-caustic, var(--overlay-shared-surface-caustic, var(--overlay-surface-caustic, none)));
@@ -36,19 +49,9 @@
   border: 1px solid var(--dashboard-preview-surface-border);
   border-radius: var(--dashboard-preview-surface-radius);
   background: var(--dashboard-preview-surface-background);
-  box-shadow: var(--dashboard-preview-surface-shadow);
-  backdrop-filter:
-    var(--dashboard-preview-surface-distortion)
-    blur(var(--dashboard-preview-surface-blur))
-    saturate(var(--dashboard-preview-surface-saturate))
-    brightness(var(--dashboard-preview-surface-brightness))
-    contrast(var(--dashboard-preview-surface-contrast));
-  -webkit-backdrop-filter:
-    var(--dashboard-preview-surface-distortion)
-    blur(var(--dashboard-preview-surface-blur))
-    saturate(var(--dashboard-preview-surface-saturate))
-    brightness(var(--dashboard-preview-surface-brightness))
-    contrast(var(--dashboard-preview-surface-contrast));
+  box-shadow: var(--dashboard-preview-surface-shadow), var(--dashboard-preview-surface-rim-shadow);
+  backdrop-filter: var(--dashboard-preview-surface-filter);
+  -webkit-backdrop-filter: var(--dashboard-preview-surface-filter);
   background-clip: padding-box;
 }
 
@@ -213,16 +216,48 @@
   transform: translateX(-50%) translateY(calc(-100% - 8px));
 }
 
+.dashboard-popup-overlay.is-side-top.is-inline-away-right {
+  transform: translateX(0) translateY(calc(-100% - 8px));
+}
+
+.dashboard-popup-overlay.is-side-top.is-inline-away-left {
+  transform: translateX(-100%) translateY(calc(-100% - 8px));
+}
+
 .dashboard-popup-overlay.is-side-bottom {
   transform: translateX(-50%) translateY(8px);
+}
+
+.dashboard-popup-overlay.is-side-bottom.is-inline-away-right {
+  transform: translateX(0) translateY(8px);
+}
+
+.dashboard-popup-overlay.is-side-bottom.is-inline-away-left {
+  transform: translateX(-100%) translateY(8px);
 }
 
 .dashboard-popup-overlay.is-side-left {
   transform: translateX(calc(-100% - 8px)) translateY(-50%);
 }
 
+.dashboard-popup-overlay.is-side-left.is-block-away-bottom {
+  transform: translateX(calc(-100% - 8px)) translateY(0);
+}
+
+.dashboard-popup-overlay.is-side-left.is-block-away-top {
+  transform: translateX(calc(-100% - 8px)) translateY(-100%);
+}
+
 .dashboard-popup-overlay.is-side-right {
   transform: translateX(8px) translateY(-50%);
+}
+
+.dashboard-popup-overlay.is-side-right.is-block-away-bottom {
+  transform: translateX(8px) translateY(0);
+}
+
+.dashboard-popup-overlay.is-side-right.is-block-away-top {
+  transform: translateX(8px) translateY(-100%);
 }
 
 .dashboard-popup-overlay.is-visible {
@@ -233,16 +268,48 @@
   transform: translateX(-50%) translateY(calc(-100% - 14px));
 }
 
+.dashboard-popup-overlay.is-visible.is-side-top.is-inline-away-right {
+  transform: translateX(0) translateY(calc(-100% - 14px));
+}
+
+.dashboard-popup-overlay.is-visible.is-side-top.is-inline-away-left {
+  transform: translateX(-100%) translateY(calc(-100% - 14px));
+}
+
 .dashboard-popup-overlay.is-visible.is-side-bottom {
   transform: translateX(-50%) translateY(14px);
+}
+
+.dashboard-popup-overlay.is-visible.is-side-bottom.is-inline-away-right {
+  transform: translateX(0) translateY(14px);
+}
+
+.dashboard-popup-overlay.is-visible.is-side-bottom.is-inline-away-left {
+  transform: translateX(-100%) translateY(14px);
 }
 
 .dashboard-popup-overlay.is-visible.is-side-left {
   transform: translateX(calc(-100% - 14px)) translateY(-50%);
 }
 
+.dashboard-popup-overlay.is-visible.is-side-left.is-block-away-bottom {
+  transform: translateX(calc(-100% - 14px)) translateY(0);
+}
+
+.dashboard-popup-overlay.is-visible.is-side-left.is-block-away-top {
+  transform: translateX(calc(-100% - 14px)) translateY(-100%);
+}
+
 .dashboard-popup-overlay.is-visible.is-side-right {
   transform: translateX(14px) translateY(-50%);
+}
+
+.dashboard-popup-overlay.is-visible.is-side-right.is-block-away-bottom {
+  transform: translateX(14px) translateY(0);
+}
+
+.dashboard-popup-overlay.is-visible.is-side-right.is-block-away-top {
+  transform: translateX(14px) translateY(-100%);
 }
 
 .dashboard-popup-meta-row {
@@ -410,22 +477,12 @@
   border-left-color: var(--drag-bar-border-left-color, var(--drag-bar-border, var(--overlay-shared-surface-border, var(--overlay-surface-border, color-mix(in srgb, #fff 24%, transparent)))));
   border-radius: var(--drag-bar-radius, var(--overlay-shared-surface-radius, var(--overlay-surface-radius, 18px)));
   background: var(--drag-bar-background, var(--overlay-shared-surface-background, var(--overlay-surface-background, transparent)));
-  box-shadow: var(--drag-bar-shadow, var(--overlay-shared-surface-shadow, var(--overlay-surface-shadow, -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2))));
+  box-shadow: var(--drag-bar-shadow, var(--overlay-shared-surface-shadow, var(--overlay-surface-shadow, -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2)))), var(--drag-bar-rim-shadow, var(--overlay-shared-surface-rim-shadow, var(--overlay-surface-rim-shadow)));
   transition:
     border-radius var(--drag-bar-radius-transition),
     border-color var(--drag-bar-border-transition-duration, 0ms) linear var(--drag-bar-border-transition-delay, 0ms);
-  backdrop-filter:
-    var(--drag-bar-distortion, var(--overlay-shared-surface-distortion, var(--overlay-surface-distortion, url(#infring-overlay-glass-pass))))
-    blur(var(--drag-bar-blur, var(--overlay-shared-surface-blur, var(--overlay-surface-blur, 6px))))
-    saturate(var(--drag-bar-saturate, var(--overlay-shared-surface-saturate, var(--overlay-surface-saturate, 1.05))))
-    brightness(var(--drag-bar-brightness, var(--overlay-shared-surface-brightness, var(--overlay-surface-brightness, 1))))
-    contrast(var(--drag-bar-contrast, var(--overlay-shared-surface-contrast, var(--overlay-surface-contrast, 1))));
-  -webkit-backdrop-filter:
-    var(--drag-bar-distortion, var(--overlay-shared-surface-distortion, var(--overlay-surface-distortion, url(#infring-overlay-glass-pass))))
-    blur(var(--drag-bar-blur, var(--overlay-shared-surface-blur, var(--overlay-surface-blur, 6px))))
-    saturate(var(--drag-bar-saturate, var(--overlay-shared-surface-saturate, var(--overlay-surface-saturate, 1.05))))
-    brightness(var(--drag-bar-brightness, var(--overlay-shared-surface-brightness, var(--overlay-surface-brightness, 1))))
-    contrast(var(--drag-bar-contrast, var(--overlay-shared-surface-contrast, var(--overlay-surface-contrast, 1))));
+  backdrop-filter: var(--drag-bar-filter, var(--overlay-shared-surface-filter, var(--overlay-surface-filter-soft)));
+  -webkit-backdrop-filter: var(--drag-bar-filter, var(--overlay-shared-surface-filter, var(--overlay-surface-filter-soft)));
   background-clip: padding-box;
 }
 

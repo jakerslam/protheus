@@ -18,7 +18,7 @@
     },
 
     derivePromptSuggestionFallback(agent, hint, gateContext) {
-      var context = this.collectPromptSuggestionContext();
+      var context = this.buildPromptSuggestionContextSnapshot();
       var typedHistory = (Array.isArray(context.history) ? context.history : [])
         .map(function(entry, index) {
           var role = String((entry && entry.role) || 'agent').trim().toLowerCase();
@@ -74,7 +74,7 @@
       );
     },
 
-    collectPromptSuggestionContext() {
+    buildPromptSuggestionContextSnapshot() {
       var out = { lastUser: '', lastAgent: '', history: [], signature: '' };
       var history = Array.isArray(this.messages) ? this.messages : [];
       var compact = function(value, maxLen) {
@@ -126,6 +126,11 @@
       return out;
     },
 
+    // Backward-compat shim for legacy callers during naming migration.
+    collectPromptSuggestionContext() {
+      return this.buildPromptSuggestionContextSnapshot();
+    },
+
     recentUserSuggestionSamples() {
       var history = Array.isArray(this.messages) ? this.messages : [];
       var out = [];
@@ -143,7 +148,7 @@
 
     hasConversationSuggestionSeed() {
       if (this.isSystemThreadAgent && this.isSystemThreadAgent(this.currentAgent)) return false;
-      var context = this.collectPromptSuggestionContext();
+      var context = this.buildPromptSuggestionContextSnapshot();
       var count = Array.isArray(context && context.history) ? context.history.length : 0;
       return count >= 7;
     },

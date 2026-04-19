@@ -138,6 +138,10 @@ function resolveLocalSpec(fromFile, spec) {
   return null;
 }
 
+function isVirtualGeneratedLocalImport(spec) {
+  return spec === './$types' || spec.endsWith('/$types');
+}
+
 export function run(rawArgs = {}) {
   const strict = String(rawArgs.strict || '0') === '1';
   const policy = readJson(POLICY_PATH, null) || {};
@@ -174,6 +178,7 @@ export function run(rawArgs = {}) {
 
     for (const spec of specs) {
       if (!spec.startsWith('.')) continue;
+      if (isVirtualGeneratedLocalImport(spec)) continue;
       const resolved = resolveLocalSpec(filePath, spec);
       if (!resolved) {
         missingLocalImports.push({ file: relPath, spec });

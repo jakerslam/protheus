@@ -82,8 +82,10 @@ function isConventionalSubject(subject: string): boolean {
   if (!s) return false;
   if (/^Merge\b/.test(s)) return true;
   if (/^Revert\b/.test(s)) return true;
+  if (/^release:\s+.+/i.test(s)) return true;
+  if (/^(Fix|Add|Update|Refactor|Remove|Rename|Improve)\b.+/.test(s)) return true;
   if (/^chore\(release\):\s*v\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?$/i.test(s)) return true;
-  return /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]+\))?(!)?: .+/i.test(
+  return /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert|release|ui|ops|wave\d+)(\([^)]+\))?(!)?: .+/i.test(
     s
   );
 }
@@ -125,6 +127,11 @@ function main() {
       'feat(router): discover local ollama models',
       'fix(installer): verify checksum manifest before install',
       'chore(release): v0.4.0-alpha',
+      'release: enforce windows prebuilt asset continuity',
+      'ui: move hamburger menu into left shared input pill',
+      'ops: harden eval troubleshooting flow',
+      'wave3: add graph runtime checkpoints + hitl',
+      'Fix chat menu close behavior and restore shimmer visibility',
     ],
   };
   if (args.outPath) {

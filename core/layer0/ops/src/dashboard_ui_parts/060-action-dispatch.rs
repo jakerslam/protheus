@@ -102,23 +102,27 @@ fn app_chat_requests_live_web(raw_input_lower: &str) -> bool {
     if lowered.is_empty() {
         return false;
     }
-    if app_chat_has_explicit_web_intent(&lowered) {
+    let explicit_web_intent = app_chat_has_explicit_web_intent(&lowered);
+    if explicit_web_intent {
         return true;
     }
     if app_chat_is_meta_diagnostic_request(&lowered) {
         return false;
     }
-    ((lowered.contains("framework") || lowered.contains("frameworks"))
-        && (lowered.contains("current")
-            || lowered.contains("latest")
+    let inferred_online_research = (lowered.contains("latest")
+        || lowered.contains("current")
+        || lowered.contains("today"))
+        && (lowered.contains("framework")
+            || lowered.contains("frameworks")
+            || lowered.contains("news")
+            || lowered.contains("price")
+            || lowered.contains("release"))
+        && (lowered.contains("what")
+            || lowered.contains("which")
             || lowered.contains("top")
-            || lowered.contains("best")))
-        || (lowered.contains("search")
-            && (lowered.contains("latest")
-                || lowered.contains("current")
-                || lowered.contains("framework")
-                || lowered.contains("recipes")
-                || lowered.contains("update")))
+            || lowered.contains("best")
+            || lowered.contains("compare"));
+    inferred_online_research
 }
 
 fn app_chat_extract_web_query(raw_input: &str) -> String {

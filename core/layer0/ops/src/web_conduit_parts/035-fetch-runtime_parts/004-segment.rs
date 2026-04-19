@@ -1,5 +1,343 @@
+fn fetch_early_validation_payload(
+    error: &str,
+    requested_url: &str,
+    provider_hint: &str,
+    cache_status: &str,
+    cache_skip_reason: &str,
+    validation_route: &str,
+    summary: Option<&str>,
+    override_hint: Option<&str>,
+    requested_provider: Option<&str>,
+    provider_catalog: Option<Value>,
+    receipt: Value,
+) -> Value {
+    let early_gate = json!({
+        "should_execute": false,
+        "mode": "blocked",
+        "reason": validation_route,
+        "source": "early_validation"
+    });
+    let early_replay_guard = json!({
+        "blocked": false,
+        "reason": "not_evaluated"
+    });
+    let mut out_obj = serde_json::Map::<String, Value>::new();
+    out_obj.insert("ok".to_string(), json!(false));
+    out_obj.insert("error".to_string(), json!(error));
+    out_obj.insert("type".to_string(), json!("web_conduit_fetch"));
+    out_obj.insert(
+        "requested_url".to_string(),
+        Value::String(clean_text(requested_url, 2_200)),
+    );
+    out_obj.insert("resolved_url".to_string(), Value::String(String::new()));
+    out_obj.insert("citation_redirect_resolved".to_string(), json!(false));
+    out_obj.insert("provider".to_string(), json!("none"));
+    out_obj.insert(
+        "provider_hint".to_string(),
+        Value::String(clean_text(provider_hint, 40).to_ascii_lowercase()),
+    );
+    out_obj.insert("provider_chain".to_string(), json!([]));
+    out_obj.insert(
+        "provider_resolution".to_string(),
+        json!({
+            "status": "not_evaluated",
+            "reason": validation_route,
+            "source": "early_validation",
+            "tool_surface_health": {
+                "status": "not_evaluated",
+                "selected_provider_ready": false,
+                "blocking_reason": "early_validation"
+            }
+        }),
+    );
+    out_obj.insert("tool_surface_status".to_string(), json!("not_evaluated"));
+    out_obj.insert("tool_surface_ready".to_string(), json!(false));
+    out_obj.insert(
+        "tool_surface_blocking_reason".to_string(),
+        json!("early_validation"),
+    );
+    out_obj.insert("tool_execution_attempted".to_string(), json!(false));
+    out_obj.insert(
+        "tool_execution_gate".to_string(),
+        json!({
+            "should_execute": false,
+            "reason": validation_route,
+            "source": "early_validation"
+        }),
+    );
+    out_obj.insert(
+        "meta_query_blocked".to_string(),
+        json!(validation_route == "meta_query_blocked"),
+    );
+    out_obj.insert("cache_status".to_string(), json!(cache_status));
+    out_obj.insert("cache_store_allowed".to_string(), json!(false));
+    out_obj.insert("cache_write_attempted".to_string(), json!(false));
+    out_obj.insert("cache_skip_reason".to_string(), json!(cache_skip_reason));
+    out_obj.insert(
+        "process_summary".to_string(),
+        runtime_web_process_summary(
+            "web_fetch",
+            validation_route,
+            false,
+            &early_gate,
+            &early_replay_guard,
+            &json!([]),
+            "none",
+            Some(error),
+        ),
+    );
+    if let Some(text) = summary {
+        out_obj.insert("summary".to_string(), json!(clean_text(text, 900)));
+    }
+    if let Some(text) = override_hint {
+        out_obj.insert("override_hint".to_string(), json!(clean_text(text, 120)));
+    }
+    if let Some(text) = requested_provider {
+        let cleaned = clean_text(text, 120);
+        if !cleaned.is_empty() {
+            out_obj.insert("requested_provider".to_string(), json!(cleaned));
+        }
+    }
+    if let Some(catalog) = provider_catalog {
+        out_obj.insert("fetch_provider_catalog".to_string(), catalog);
+    }
+    out_obj.insert("receipt".to_string(), receipt);
+    Value::Object(out_obj)
+}
+
+fn fetch_truthy_value(value: &Value) -> bool {
+    value.as_bool().unwrap_or_else(|| {
+        value
+            .as_str()
+            .map(|raw| {
+                let lowered = clean_text(raw, 24).to_ascii_lowercase();
+                matches!(lowered.as_str(), "1" | "true" | "yes" | "on")
+            })
+            .or_else(|| value.as_i64().map(|raw| raw != 0))
+            .unwrap_or(false)
+    })
+}
+
+fn fetch_url_shape_override(policy: &Value, request: &Value) -> bool {
+    for key in [
+        "/allow_fetch_url_blob",
+        "/allowFetchUrlBlob",
+        "/allow_fetch_url_shape_override",
+        "/allowFetchUrlShapeOverride",
+        "/force_fetch_url_shape_override",
+        "/forceFetchUrlShapeOverride",
+        "/force_web_fetch",
+        "/forceWebFetch",
+    ] {
+        if let Some(value) = request.pointer(key) {
+            if fetch_truthy_value(value) {
+                return true;
+            }
+        }
+    }
+    for key in [
+        "/web_conduit/fetch_policy/allow_fetch_url_blob",
+        "/web_conduit/fetch_policy/allowFetchUrlBlob",
+        "/web_conduit/fetch_policy/allow_fetch_url_shape_override",
+        "/web_conduit/fetch_policy/allowFetchUrlShapeOverride",
+        "/web_conduit/fetch_policy/force_fetch_url_shape_override",
+        "/web_conduit/fetch_policy/forceFetchUrlShapeOverride",
+    ] {
+        if let Some(value) = policy.pointer(key) {
+            if fetch_truthy_value(value) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn fetch_url_shape_override_source(policy: &Value, request: &Value) -> &'static str {
+    for key in [
+        "/allow_fetch_url_blob",
+        "/allowFetchUrlBlob",
+        "/allow_fetch_url_shape_override",
+        "/allowFetchUrlShapeOverride",
+        "/force_fetch_url_shape_override",
+        "/forceFetchUrlShapeOverride",
+        "/force_web_fetch",
+        "/forceWebFetch",
+    ] {
+        if let Some(value) = request.pointer(key) {
+            if fetch_truthy_value(value) {
+                return "request";
+            }
+        }
+    }
+    for key in [
+        "/web_conduit/fetch_policy/allow_fetch_url_blob",
+        "/web_conduit/fetch_policy/allowFetchUrlBlob",
+        "/web_conduit/fetch_policy/allow_fetch_url_shape_override",
+        "/web_conduit/fetch_policy/allowFetchUrlShapeOverride",
+        "/web_conduit/fetch_policy/force_fetch_url_shape_override",
+        "/web_conduit/fetch_policy/forceFetchUrlShapeOverride",
+    ] {
+        if let Some(value) = policy.pointer(key) {
+            if fetch_truthy_value(value) {
+                return "policy";
+            }
+        }
+    }
+    "none"
+}
+
+fn fetch_url_shape_error_code(raw_requested_url: &str) -> &'static str {
+    let lowered = clean_text(raw_requested_url, 2_400).to_ascii_lowercase();
+    let trimmed = lowered.trim();
+    if trimmed.is_empty() {
+        return "fetch_url_required";
+    }
+    if (trimmed.starts_with('{') && trimmed.contains(':'))
+        || (trimmed.starts_with('[') && trimmed.contains('{'))
+    {
+        return "fetch_url_payload_dump_detected";
+    }
+    if trimmed.contains("```")
+        || trimmed.contains("diff --git")
+        || trimmed.contains("[patch v")
+        || trimmed.contains("input specification")
+        || trimmed.contains("sample output")
+        || trimmed.contains("you are an expert")
+    {
+        return "fetch_url_payload_dump_detected";
+    }
+    if trimmed.contains(' ') {
+        return "fetch_url_shape_invalid";
+    }
+    let line_count = trimmed.lines().count();
+    if line_count > 6 || trimmed.len() > 2_100 {
+        return "fetch_url_shape_invalid";
+    }
+    if !(trimmed.starts_with("http://") || trimmed.starts_with("https://")) {
+        return "fetch_url_invalid_scheme";
+    }
+    "none"
+}
+
+fn normalize_fetch_requested_url_input(raw_requested_url: &str) -> String {
+    let mut out = clean_text(raw_requested_url, 2_400).trim().to_string();
+    if out.starts_with('<') && out.ends_with('>') && out.len() > 2 {
+        out = out[1..out.len() - 1].trim().to_string();
+    }
+    if ((out.starts_with('"') && out.ends_with('"'))
+        || (out.starts_with('\'') && out.ends_with('\''))
+        || (out.starts_with('`') && out.ends_with('`')))
+        && out.len() > 1
+    {
+        out = out[1..out.len() - 1].trim().to_string();
+    }
+    if out.starts_with('[') && out.contains("](") && out.ends_with(')') {
+        if let Some(start) = out.find("](") {
+            let candidate = out[start + 2..out.len() - 1].trim().to_string();
+            if !candidate.is_empty() {
+                out = candidate;
+            }
+        }
+    }
+    if out.starts_with('(') && out.ends_with(')') && out.len() > 2 {
+        let candidate = out[1..out.len() - 1].trim().to_string();
+        if candidate.starts_with("http://") || candidate.starts_with("https://") {
+            out = candidate;
+        }
+    }
+    out = out.replace("&amp;", "&");
+    while out.ends_with('.')
+        || out.ends_with(',')
+        || out.ends_with('!')
+        || out.ends_with('?')
+        || out.ends_with(';')
+        || out.ends_with(':')
+        || out.ends_with(')')
+        || out.ends_with(']')
+    {
+        out.pop();
+    }
+    clean_text(&out, 2_200)
+}
+
+fn fetch_url_shape_category(reason: &str) -> &'static str {
+    match reason {
+        "fetch_url_required" => "missing_input",
+        "fetch_url_payload_dump_detected" => "payload_dump",
+        "fetch_url_invalid_scheme" => "invalid_scheme",
+        "fetch_url_shape_invalid" => "invalid_shape",
+        _ => "none",
+    }
+}
+
+fn fetch_url_shape_recommended_action(reason: &str) -> &'static str {
+    match reason {
+        "fetch_url_required" => "provide an http(s) URL to fetch",
+        "fetch_url_payload_dump_detected" => {
+            "replace pasted text with a single http(s) URL; keep diagnostics in normal chat"
+        }
+        "fetch_url_invalid_scheme" => "use a URL starting with http:// or https://",
+        "fetch_url_shape_invalid" => {
+            "submit one concise URL only (no spaces/newlines/payload wrappers)"
+        }
+        _ => "none",
+    }
+}
+
+fn fetch_url_shape_route_hint(reason: &str) -> &'static str {
+    if reason == "none" {
+        "web_fetch"
+    } else if reason == "fetch_url_payload_dump_detected" {
+        "chat_or_web_search"
+    } else {
+        "web_fetch"
+    }
+}
+
+fn fetch_url_shape_contract(
+    requested_url_input: &str,
+    normalized_requested_url: &str,
+    reason: &str,
+    override_used: bool,
+    override_source: &str,
+) -> Value {
+    json!({
+        "blocked": reason != "none" && !override_used,
+        "error": reason,
+        "category": fetch_url_shape_category(reason),
+        "recommended_action": fetch_url_shape_recommended_action(reason),
+        "route_hint": fetch_url_shape_route_hint(reason),
+        "override_used": override_used,
+        "override_source": override_source,
+        "stats": fetch_url_shape_stats(normalized_requested_url),
+        "input_char_count": clean_text(requested_url_input, 2_400).len()
+    })
+}
+
+fn fetch_url_shape_stats(raw_requested_url: &str) -> Value {
+    let lowered = clean_text(raw_requested_url, 2_400).to_ascii_lowercase();
+    let mut total_terms = 0usize;
+    let mut unique = Vec::<String>::new();
+    for token in lowered.split(|ch: char| !ch.is_ascii_alphanumeric()) {
+        let trimmed = token.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        total_terms += 1;
+        if !unique.iter().any(|existing| existing == trimmed) {
+            unique.push(trimmed.to_string());
+        }
+    }
+    json!({
+        "line_count": lowered.lines().count(),
+        "char_count": lowered.len(),
+        "total_terms": total_terms,
+        "unique_terms": unique.len(),
+    })
+}
+
 fn execute_fetch_request(root: &Path, request: &Value) -> Value {
-    let raw_requested_url = clean_text(
+    let requested_url_input = clean_text(
         request
             .get("requested_url")
             .or_else(|| request.get("url"))
@@ -7,6 +345,7 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
             .unwrap_or(""),
         2200,
     );
+    let raw_requested_url = normalize_fetch_requested_url_input(&requested_url_input);
     let summary_only = request
         .get("summary_only")
         .or_else(|| request.get("summary"))
@@ -55,6 +394,83 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
         40,
     )
     .to_ascii_lowercase();
+    let fetch_url_override_source = fetch_url_shape_override_source(&policy, request);
+    let fetch_url_override_used = fetch_url_shape_override(&policy, request);
+    let fetch_url_shape_error = fetch_url_shape_error_code(&raw_requested_url);
+    if fetch_url_shape_error != "none" && !fetch_url_override_used {
+        let receipt = build_receipt(
+            &raw_requested_url,
+            "deny",
+            None,
+            0,
+            fetch_url_shape_error,
+            Some(fetch_url_shape_error),
+        );
+        let _ = append_jsonl(&receipts_path(root), &receipt);
+        let summary = if fetch_url_shape_error == "fetch_url_payload_dump_detected" {
+            Some("Requested URL appears to be pasted output/log content instead of a valid URL.")
+        } else if fetch_url_shape_error == "fetch_url_invalid_scheme" {
+            Some("Requested URL must start with http:// or https://.")
+        } else if fetch_url_shape_error == "fetch_url_required" {
+            Some("Requested URL is required for web fetch.")
+        } else {
+            Some("Requested URL shape is invalid for web fetch.")
+        };
+        let mut out = fetch_early_validation_payload(
+            fetch_url_shape_error,
+            &raw_requested_url,
+            &provider_hint,
+            "skipped_validation",
+            fetch_url_shape_error,
+            fetch_url_shape_error,
+            summary,
+            Some("submit a concise http(s) URL; set force_fetch_url_shape_override=true only for controlled diagnostics"),
+            None,
+            None,
+            receipt,
+        );
+        if let Some(obj) = out.as_object_mut() {
+            obj.insert("fetch_url_shape_blocked".to_string(), json!(true));
+            obj.insert("fetch_url_shape_error".to_string(), json!(fetch_url_shape_error));
+            obj.insert(
+                "fetch_url_shape_stats".to_string(),
+                fetch_url_shape_stats(&raw_requested_url),
+            );
+            obj.insert(
+                "fetch_url_shape_category".to_string(),
+                json!(fetch_url_shape_category(fetch_url_shape_error)),
+            );
+            obj.insert(
+                "fetch_url_shape_recommended_action".to_string(),
+                json!(fetch_url_shape_recommended_action(fetch_url_shape_error)),
+            );
+            obj.insert(
+                "fetch_url_shape_route_hint".to_string(),
+                json!(fetch_url_shape_route_hint(fetch_url_shape_error)),
+            );
+            obj.insert("fetch_url_shape_override_allowed".to_string(), json!(false));
+            obj.insert("fetch_url_shape_override_used".to_string(), json!(false));
+            obj.insert(
+                "fetch_url_shape_override_source".to_string(),
+                json!(fetch_url_override_source),
+            );
+            obj.insert(
+                "requested_url_input".to_string(),
+                Value::String(requested_url_input.clone()),
+            );
+            obj.insert(
+                "fetch_url_shape".to_string(),
+                fetch_url_shape_contract(
+                    &requested_url_input,
+                    &raw_requested_url,
+                    fetch_url_shape_error,
+                    false,
+                    fetch_url_override_source,
+                ),
+            );
+        }
+        return out;
+    }
     if !fetch_meta_query_override(request)
         && fetch_requested_url_looks_meta_diagnostic(&raw_requested_url)
     {
@@ -67,63 +483,36 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
             Some("meta_diagnostic_url_input"),
         );
         let _ = append_jsonl(&receipts_path(root), &receipt);
-        return json!({
-            "ok": false,
-            "error": "non_fetch_meta_query",
-            "type": "web_conduit_fetch",
-            "requested_url": raw_requested_url,
-            "resolved_url": "",
-            "citation_redirect_resolved": false,
-            "provider": "none",
-            "provider_hint": provider_hint,
-            "provider_chain": [],
-            "provider_resolution": {
-                "status": "not_evaluated",
-                "reason": "meta_query_blocked",
-                "source": "early_validation",
-                "tool_surface_health": {
-                    "status": "not_evaluated",
-                    "selected_provider_ready": false,
-                    "blocking_reason": "early_validation"
-                }
-            },
-            "tool_surface_status": "not_evaluated",
-            "tool_surface_ready": false,
-            "tool_surface_blocking_reason": "early_validation",
-            "tool_execution_attempted": false,
-            "tool_execution_gate": {
-                "should_execute": false,
-                "reason": "meta_query_blocked",
-                "source": "early_validation"
-            },
-            "meta_query_blocked": true,
-            "cache_status": "blocked_meta_query",
-            "cache_store_allowed": false,
-            "cache_write_attempted": false,
-            "cache_skip_reason": "meta_query_blocked",
-            "process_summary": runtime_web_process_summary(
-                "web_fetch",
-                "early_validation",
-                false,
-                &json!({
-                    "should_execute": false,
-                    "mode": "blocked",
-                    "reason": "meta_query_blocked",
-                    "source": "early_validation"
-                }),
-                &json!({
-                    "blocked": false,
-                    "reason": "not_evaluated"
-                }),
-                &json!([]),
-                "none",
-                Some("non_fetch_meta_query")
-            ),
-            "summary": "Requested fetch URL appears to be conversational/tooling diagnostics rather than a valid web URL. Answer directly without running web fetch. To force fetch evaluation, set force_web_fetch=true or force_web_search=true.",
-            "content": "",
-            "override_hint": "force_web_fetch=true|force_web_search=true",
-            "receipt": receipt
-        });
+        let mut out = fetch_early_validation_payload(
+            "non_fetch_meta_query",
+            &raw_requested_url,
+            &provider_hint,
+            "blocked_meta_query",
+            "meta_query_blocked",
+            "meta_query_blocked",
+            Some("Requested fetch URL appears to be conversational/tooling diagnostics rather than a valid web URL. Answer directly without running web fetch. To force fetch evaluation, set force_web_fetch=true or force_web_search=true."),
+            Some("force_web_fetch=true|force_web_search=true"),
+            None,
+            None,
+            receipt,
+        );
+        if let Some(obj) = out.as_object_mut() {
+            obj.insert(
+                "requested_url_input".to_string(),
+                Value::String(requested_url_input.clone()),
+            );
+            obj.insert(
+                "fetch_url_shape".to_string(),
+                fetch_url_shape_contract(
+                    &requested_url_input,
+                    &raw_requested_url,
+                    fetch_url_shape_error,
+                    fetch_url_override_used,
+                    fetch_url_override_source,
+                ),
+            );
+        }
+        return out;
     }
     if let Some(unknown_provider) = validate_explicit_fetch_provider_hint(&provider_hint) {
         let receipt = build_receipt(
@@ -135,62 +524,36 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
             Some(&unknown_provider),
         );
         let _ = append_jsonl(&receipts_path(root), &receipt);
-        return json!({
-            "ok": false,
-            "error": "unknown_fetch_provider",
-            "type": "web_conduit_fetch",
-            "requested_url": raw_requested_url,
-            "resolved_url": "",
-            "citation_redirect_resolved": false,
-            "provider": "none",
-            "provider_hint": provider_hint,
-            "provider_chain": [],
-            "provider_resolution": {
-                "status": "not_evaluated",
-                "reason": "unknown_fetch_provider",
-                "source": "early_validation",
-                "tool_surface_health": {
-                    "status": "not_evaluated",
-                    "selected_provider_ready": false,
-                    "blocking_reason": "early_validation"
-                }
-            },
-            "tool_surface_status": "not_evaluated",
-            "tool_surface_ready": false,
-            "tool_surface_blocking_reason": "early_validation",
-            "tool_execution_attempted": false,
-            "tool_execution_gate": {
-                "should_execute": false,
-                "reason": "unknown_fetch_provider",
-                "source": "early_validation"
-            },
-            "meta_query_blocked": false,
-            "cache_status": "skipped_validation",
-            "cache_store_allowed": false,
-            "cache_write_attempted": false,
-            "cache_skip_reason": "unknown_fetch_provider",
-            "process_summary": runtime_web_process_summary(
-                "web_fetch",
-                "request_contract_blocked",
-                false,
-                &json!({
-                    "should_execute": false,
-                    "mode": "blocked",
-                    "reason": "unknown_fetch_provider",
-                    "source": "early_validation"
-                }),
-                &json!({
-                    "blocked": false,
-                    "reason": "not_evaluated"
-                }),
-                &json!([]),
-                "none",
-                Some("unknown_fetch_provider")
-            ),
-            "requested_provider": unknown_provider,
-            "fetch_provider_catalog": fetch_provider_catalog_snapshot(root, &policy),
-            "receipt": receipt
-        });
+        let mut out = fetch_early_validation_payload(
+            "unknown_fetch_provider",
+            &raw_requested_url,
+            &provider_hint,
+            "skipped_validation",
+            "unknown_fetch_provider",
+            "request_contract_blocked",
+            None,
+            None,
+            Some(&unknown_provider),
+            Some(fetch_provider_catalog_snapshot(root, &policy)),
+            receipt,
+        );
+        if let Some(obj) = out.as_object_mut() {
+            obj.insert(
+                "requested_url_input".to_string(),
+                Value::String(requested_url_input.clone()),
+            );
+            obj.insert(
+                "fetch_url_shape".to_string(),
+                fetch_url_shape_contract(
+                    &requested_url_input,
+                    &raw_requested_url,
+                    fetch_url_shape_error,
+                    fetch_url_override_used,
+                    fetch_url_override_source,
+                ),
+            );
+        }
+        return out;
     }
     let (provider_resolution, fetch_provider_chain, selected_provider) =
         resolved_fetch_provider_selection(root, &policy, request, &provider_hint);
@@ -552,6 +915,48 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
             obj.insert(
                 "provider_resolution".to_string(),
                 provider_resolution.clone(),
+            );
+            obj.insert(
+                "fetch_url_shape_stats".to_string(),
+                fetch_url_shape_stats(&raw_requested_url),
+            );
+            obj.insert(
+                "fetch_url_shape_error".to_string(),
+                json!(fetch_url_shape_error),
+            );
+            obj.insert(
+                "fetch_url_shape_category".to_string(),
+                json!(fetch_url_shape_category(fetch_url_shape_error)),
+            );
+            obj.insert(
+                "fetch_url_shape_recommended_action".to_string(),
+                json!(fetch_url_shape_recommended_action(fetch_url_shape_error)),
+            );
+            obj.insert(
+                "fetch_url_shape_route_hint".to_string(),
+                json!(fetch_url_shape_route_hint(fetch_url_shape_error)),
+            );
+            obj.insert(
+                "fetch_url_shape_override_used".to_string(),
+                json!(fetch_url_override_used),
+            );
+            obj.insert(
+                "fetch_url_shape_override_source".to_string(),
+                json!(fetch_url_override_source),
+            );
+            obj.insert(
+                "requested_url_input".to_string(),
+                Value::String(requested_url_input.clone()),
+            );
+            obj.insert(
+                "fetch_url_shape".to_string(),
+                fetch_url_shape_contract(
+                    &requested_url_input,
+                    &raw_requested_url,
+                    fetch_url_shape_error,
+                    fetch_url_override_used,
+                    fetch_url_override_source,
+                ),
             );
             obj.insert(
                 "provider_health".to_string(),
@@ -1059,6 +1464,10 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
         Value::String(raw_requested_url.clone()),
     );
     out_obj.insert(
+        "requested_url_input".to_string(),
+        Value::String(requested_url_input.clone()),
+    );
+    out_obj.insert(
         "resolved_url".to_string(),
         Value::String(resolved_url.clone()),
     );
@@ -1098,6 +1507,44 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
         Value::String(fetch_attempt_signature.clone()),
     );
     out_obj.insert("extractor".to_string(), Value::String(extractor.clone()));
+    out_obj.insert(
+        "fetch_url_shape_stats".to_string(),
+        fetch_url_shape_stats(&raw_requested_url),
+    );
+    out_obj.insert(
+        "fetch_url_shape_error".to_string(),
+        json!(fetch_url_shape_error),
+    );
+    out_obj.insert(
+        "fetch_url_shape_category".to_string(),
+        json!(fetch_url_shape_category(fetch_url_shape_error)),
+    );
+    out_obj.insert(
+        "fetch_url_shape_recommended_action".to_string(),
+        json!(fetch_url_shape_recommended_action(fetch_url_shape_error)),
+    );
+    out_obj.insert(
+        "fetch_url_shape_route_hint".to_string(),
+        json!(fetch_url_shape_route_hint(fetch_url_shape_error)),
+    );
+    out_obj.insert(
+        "fetch_url_shape_override_used".to_string(),
+        json!(fetch_url_override_used),
+    );
+    out_obj.insert(
+        "fetch_url_shape_override_source".to_string(),
+        json!(fetch_url_override_source),
+    );
+    out_obj.insert(
+        "fetch_url_shape".to_string(),
+        fetch_url_shape_contract(
+            &requested_url_input,
+            &raw_requested_url,
+            fetch_url_shape_error,
+            fetch_url_override_used,
+            fetch_url_override_source,
+        ),
+    );
     out_obj.insert("status_code".to_string(), json!(status_code));
     out_obj.insert("content_type".to_string(), content_type_value);
     out_obj.insert("extract_mode".to_string(), Value::String(extract_mode.clone()));

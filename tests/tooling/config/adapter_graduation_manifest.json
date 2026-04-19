@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "required_hooks": [
     "health_check",
     "startup_timeout_policy",
@@ -21,31 +21,86 @@
       "id": "langgraph",
       "framework": "langgraph",
       "bridge_command": "workflow_graph-bridge",
-      "tier": "production"
+      "tier": "production",
+      "readiness_track": "framework_bridge",
+      "required_for_graduation": true
     },
     {
       "id": "crewai",
       "framework": "crewai",
       "bridge_command": "crewai-bridge",
-      "tier": "production"
+      "tier": "production",
+      "readiness_track": "framework_bridge",
+      "required_for_graduation": true
     },
     {
       "id": "openai_agents",
       "framework": "openai_agents",
       "bridge_command": "pydantic-ai-bridge",
-      "tier": "production"
+      "tier": "production",
+      "readiness_track": "framework_bridge",
+      "required_for_graduation": true
     },
     {
       "id": "mastra",
       "framework": "mastra",
       "bridge_command": "mastra-bridge",
-      "tier": "production"
+      "tier": "production",
+      "readiness_track": "framework_bridge",
+      "required_for_graduation": true
     },
     {
       "id": "semantic_kernel",
       "framework": "semantic_kernel",
       "bridge_command": "semantic-kernel-bridge",
-      "tier": "production"
+      "tier": "production",
+      "readiness_track": "framework_bridge",
+      "required_for_graduation": true
+    },
+    {
+      "id": "ollama",
+      "framework": "ollama",
+      "bridge_command": "ollama-bridge",
+      "tier": "candidate",
+      "readiness_track": "roadmap_production",
+      "required_for_graduation": false,
+      "notes": "roadmap adapter tracked in graduation manifest; bridge lane pending"
+    },
+    {
+      "id": "llama_cpp",
+      "framework": "llama_cpp",
+      "bridge_command": "llama-cpp-bridge",
+      "tier": "candidate",
+      "readiness_track": "roadmap_production",
+      "required_for_graduation": false,
+      "notes": "roadmap adapter tracked in graduation manifest; bridge lane pending"
+    },
+    {
+      "id": "mcp_baseline",
+      "framework": "mcp",
+      "bridge_command": "mcp-bridge",
+      "tier": "candidate",
+      "readiness_track": "roadmap_production",
+      "required_for_graduation": false,
+      "notes": "roadmap adapter tracked in graduation manifest; baseline contract pending"
+    },
+    {
+      "id": "otlp_exporter",
+      "framework": "otlp",
+      "bridge_command": "otlp-export-bridge",
+      "tier": "candidate",
+      "readiness_track": "roadmap_production",
+      "required_for_graduation": false,
+      "notes": "roadmap adapter tracked in graduation manifest; export lane pending"
+    },
+    {
+      "id": "durable_memory_local",
+      "framework": "durable_memory_local",
+      "bridge_command": "durable-memory-bridge",
+      "tier": "candidate",
+      "readiness_track": "roadmap_production",
+      "required_for_graduation": false,
+      "notes": "roadmap adapter tracked in graduation manifest; local durability lane pending"
     }
   ]
 }

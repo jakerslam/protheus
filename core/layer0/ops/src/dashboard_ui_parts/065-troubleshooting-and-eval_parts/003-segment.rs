@@ -102,6 +102,20 @@ fn dashboard_troubleshooting_enqueue_outbox(
     eval_report: &Value,
 ) -> Value {
     let mut items = dashboard_troubleshooting_read_issue_outbox(root);
+    let request_signature = dashboard_troubleshooting_issue_request_signature(&json!({
+        "issue_request": issue_request.clone(),
+        "snapshot_id": clean_text(snapshot.get("snapshot_id").and_then(Value::as_str).unwrap_or(""), 80),
+        "eval_report_id": clean_text(eval_report.get("report_id").and_then(Value::as_str).unwrap_or(""), 80)
+    }));
+    if let Some(existing) = items.iter().find(|row| {
+        dashboard_troubleshooting_issue_request_signature(*row) == request_signature
+    }) {
+        let mut deduped = existing.clone();
+        if let Some(obj) = deduped.as_object_mut() {
+            obj.insert("deduped".to_string(), json!(true));
+        }
+        return deduped;
+    }
     let outbox_row = json!({
         "id": format!(
             "outbox_{}",
@@ -116,8 +130,11 @@ fn dashboard_troubleshooting_enqueue_outbox(
         ),
         "created_at": now_iso(),
         "attempts": 0,
+        "retry_after_seconds": 0,
+        "next_retry_after_epoch_s": 0,
         "snapshot_id": clean_text(snapshot.get("snapshot_id").and_then(Value::as_str).unwrap_or(""), 80),
         "eval_report_id": clean_text(eval_report.get("report_id").and_then(Value::as_str).unwrap_or(""), 80),
+        "request_signature": request_signature,
         "issue_request": issue_request.clone(),
         "last_error": issue_lane.payload.clone().unwrap_or_else(|| json!({})),
         "last_status": issue_lane.status

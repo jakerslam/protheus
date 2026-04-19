@@ -55,15 +55,18 @@ body[data-theme='dark'] .prompt-suggestion-chip {
 .model-switcher-chevron.open { transform: rotate(180deg); }
 .model-switcher-dropdown {
   position: absolute;
-  bottom: calc(100% + 6px);
-  left: 0;
+  left: var(--taskbar-overlay-left, 0);
+  right: var(--taskbar-overlay-right, auto);
+  top: var(--taskbar-overlay-top, auto);
+  bottom: var(--taskbar-overlay-bottom, calc(100% + 6px));
+  transform: var(--taskbar-overlay-transform, none);
   width: 340px;
   z-index: 12000;
   overflow: hidden;
 }
 .model-switcher-dropdown-inline {
-  left: auto;
-  right: 0;
+  --taskbar-overlay-left: auto;
+  --taskbar-overlay-right: 0;
 }
 .composer-model-btn.active {
   color: var(--text);

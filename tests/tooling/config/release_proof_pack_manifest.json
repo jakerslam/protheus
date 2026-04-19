@@ -15,6 +15,8 @@
     "release_governance": [
       "core/local/artifacts/production_readiness_closure_gate_current.json",
       "core/local/artifacts/runtime_trusted_core_report_current.json",
+      "core/local/artifacts/node_critical_path_inventory_current.json",
+      "core/local/artifacts/agent_surface_status_guard_current.json",
       "core/local/artifacts/support_bundle_latest.json"
     ],
     "workload_and_quality": [
@@ -32,6 +34,8 @@
     "core/local/artifacts/layer2_lane_parity_guard_current.json",
     "core/local/artifacts/layer2_receipt_replay_current.json",
     "core/local/artifacts/runtime_trusted_core_report_current.json",
+    "core/local/artifacts/node_critical_path_inventory_current.json",
+    "core/local/artifacts/agent_surface_status_guard_current.json",
     "core/local/artifacts/production_readiness_closure_gate_current.json",
     "core/local/artifacts/support_bundle_latest.json",
     "artifacts/web_tooling_context_soak_report_latest.json",
@@ -43,6 +47,8 @@
     "local/workspace/reports/LAYER2_LANE_PARITY_GUARD_CURRENT.md",
     "local/workspace/reports/LAYER2_RECEIPT_REPLAY_CURRENT.md",
     "local/workspace/reports/RUNTIME_TRUSTED_CORE_REPORT_CURRENT.md",
+    "local/workspace/reports/NODE_CRITICAL_PATH_INVENTORY_CURRENT.md",
+    "local/workspace/reports/AGENT_SURFACE_STATUS_GUARD_CURRENT.md",
     "local/workspace/reports/RELEASE_SCORECARD_CURRENT.md"
   ]
 }

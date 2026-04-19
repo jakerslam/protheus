@@ -37,8 +37,8 @@ profiles:
   pure:
     proof_tracks:
       synthetic_required: 1
-      empirical_required: 0
-      empirical_min_sample_points: 0
+      empirical_required: 1
+      empirical_min_sample_points: 8
     memory:
       peak_rss_mb_max: 1000
     queue:
@@ -71,8 +71,8 @@ profiles:
   tiny-max:
     proof_tracks:
       synthetic_required: 1
-      empirical_required: 0
-      empirical_min_sample_points: 0
+      empirical_required: 1
+      empirical_min_sample_points: 6
     memory:
       peak_rss_mb_max: 720
     queue:

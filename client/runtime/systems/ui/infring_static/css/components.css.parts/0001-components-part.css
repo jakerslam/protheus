@@ -92,11 +92,11 @@ body.theme-switching *::after {
   border-top-color: color-mix(in srgb, var(--accent) 68%, transparent);
   border-bottom-color: color-mix(in srgb, var(--accent) 90%, #000 10%);
   border-right-color: color-mix(in srgb, var(--accent) 90%, #000 10%);
-  box-shadow: var(--shadow-xs), var(--shadow-inset);
-  backdrop-filter: blur(10px) saturate(1.08);
-  -webkit-backdrop-filter: blur(10px) saturate(1.08);
+  box-shadow: var(--shadow-xs), var(--shadow-inset), var(--overlay-surface-rim-shadow);
+  backdrop-filter: var(--overlay-surface-filter-strong);
+  -webkit-backdrop-filter: var(--overlay-surface-filter-strong);
 }
-.btn-primary:hover { background: var(--accent-dim); box-shadow: var(--shadow-sm), var(--shadow-accent); transform: translateY(-1px); }
+.btn-primary:hover { background: var(--accent-dim); box-shadow: var(--shadow-sm), var(--shadow-accent), var(--overlay-surface-rim-shadow); transform: translateY(-1px); }
 
 .btn-revive-user {
   background: color-mix(in srgb, var(--user-bg) 72%, transparent);
@@ -105,14 +105,14 @@ body.theme-switching *::after {
   border-top-color: color-mix(in srgb, var(--accent) 34%, transparent);
   border-bottom-color: color-mix(in srgb, #fff 38%, transparent);
   border-right-color: color-mix(in srgb, #fff 38%, transparent);
-  box-shadow: var(--shadow-xs), var(--shadow-inset);
-  backdrop-filter: blur(10px) saturate(1.08);
-  -webkit-backdrop-filter: blur(10px) saturate(1.08);
+  box-shadow: var(--shadow-xs), var(--shadow-inset), var(--overlay-surface-rim-shadow);
+  backdrop-filter: var(--overlay-surface-filter-strong);
+  -webkit-backdrop-filter: var(--overlay-surface-filter-strong);
 }
 
 .btn-revive-user:hover {
   background: color-mix(in srgb, var(--user-bg) 80%, transparent);
-  box-shadow: var(--shadow-sm), var(--shadow-accent);
+  box-shadow: var(--shadow-sm), var(--shadow-accent), var(--overlay-surface-rim-shadow);
   transform: translateY(-1px);
 }
 .btn-success {
@@ -122,11 +122,11 @@ body.theme-switching *::after {
   border-top-color: color-mix(in srgb, var(--success) 68%, transparent);
   border-bottom-color: color-mix(in srgb, var(--success) 90%, #000 10%);
   border-right-color: color-mix(in srgb, var(--success) 90%, #000 10%);
-  box-shadow: var(--shadow-xs);
-  backdrop-filter: blur(10px) saturate(1.08);
-  -webkit-backdrop-filter: blur(10px) saturate(1.08);
+  box-shadow: var(--shadow-xs), var(--overlay-surface-rim-shadow);
+  backdrop-filter: var(--overlay-surface-filter-strong);
+  -webkit-backdrop-filter: var(--overlay-surface-filter-strong);
 }
-.btn-success:hover { background: var(--success-dim); box-shadow: var(--shadow-sm); transform: translateY(-1px); }
+.btn-success:hover { background: var(--success-dim); box-shadow: var(--shadow-sm), var(--overlay-surface-rim-shadow); transform: translateY(-1px); }
 .btn-danger {
   background: color-mix(in srgb, var(--error) 14%, transparent);
   color: color-mix(in srgb, var(--error) 88%, var(--text) 12%);
@@ -134,14 +134,14 @@ body.theme-switching *::after {
   border-top-color: color-mix(in srgb, var(--error) 42%, transparent);
   border-bottom-color: color-mix(in srgb, var(--error) 55%, transparent);
   border-right-color: color-mix(in srgb, var(--error) 55%, transparent);
-  box-shadow: var(--shadow-xs);
-  backdrop-filter: blur(10px) saturate(1.08);
-  -webkit-backdrop-filter: blur(10px) saturate(1.08);
+  box-shadow: var(--shadow-xs), var(--overlay-surface-rim-shadow);
+  backdrop-filter: var(--overlay-surface-filter-strong);
+  -webkit-backdrop-filter: var(--overlay-surface-filter-strong);
 }
 .btn-danger:hover {
   background: color-mix(in srgb, var(--error) 20%, transparent);
   color: color-mix(in srgb, var(--error) 94%, var(--text) 6%);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-sm), var(--overlay-surface-rim-shadow);
   transform: translateY(-1px);
 }
 .btn-ghost {
@@ -422,7 +422,8 @@ tr:hover td { background: var(--surface2); }
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  backdrop-filter: blur(8px);
+  backdrop-filter: var(--overlay-backdrop-dimmer-filter);
+  -webkit-backdrop-filter: var(--overlay-backdrop-dimmer-filter);
   animation: fadeIn 0.15s var(--ease-smooth);
 }
 

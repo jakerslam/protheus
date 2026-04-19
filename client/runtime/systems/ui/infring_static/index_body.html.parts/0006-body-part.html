@@ -56,8 +56,8 @@
                 <div class="input-row">
                 <input type="file" x-ref="fileInput" multiple accept="image/*,.txt,.pdf,.md,.json,.csv,.mp3,.wav,.ogg,.webm,.m4a,.flac" @change="handleAttachInputChange($event)" style="display:none">
                 <div class="composer-shell" :class="{ 'composer-shell-disabled': isFreshInitComposerLocked(), 'system-thread-active': isSystemThreadActive() }">
-                  <div class="composer-plus-wrap composer-icon-left" x-show="!isSystemThreadActive()" @click.outside="showAttachMenu = false">
-                    <button class="composer-icon-btn composer-hamburger-btn" @click="showAttachMenu = !showAttachMenu" title="Add files and more (Ctrl+F)" aria-label="Add files and more" :aria-expanded="showAttachMenu ? 'true' : 'false'">
+                  <div class="composer-plus-wrap composer-icon-left" :class="taskbarAnchoredDropdownClass($el, 'bottom')" x-show="!isSystemThreadActive()" @click.outside="showAttachMenu = false">
+                    <button class="composer-icon-btn composer-hamburger-btn" @click="toggleAttachMenu()" title="Add files and more (Ctrl+F)" aria-label="Add files and more" :aria-expanded="showAttachMenu ? 'true' : 'false'">
                       <svg class="composer-hamburger-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
                     </button>
                     <infring-taskbar-menu-shell class="composer-plus-menu dashboard-dropdown-surface" x-show="showAttachMenu || showModelSwitcher || showGitTreeMenu" x-transition:enter="transition ease-out duration-140" x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-0" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
@@ -106,7 +106,7 @@
                       </button>
                       <div class="input-box-column input-box-column-selectors composer-plus-inline-controls" x-show="(showAttachMenu || showGitTreeMenu || showModelSwitcher) && currentAgent && !terminalMode">
                         <div class="input-box-selector-row" x-show="activeGitBranchMenuLabel && (showAttachMenu || showGitTreeMenu)">
-                          <div class="chat-branch-picker model-switcher-inline input-box-selector-control" @keydown.escape.prevent.stop="closeGitTreeMenu()" @click.outside="closeGitTreeMenu()">
+                          <div class="chat-branch-picker model-switcher-inline input-box-selector-control" :class="taskbarAnchoredDropdownClass($el, 'top')" @keydown.escape.prevent.stop="closeGitTreeMenu()" @click.outside="closeGitTreeMenu()">
                             <button
                               type="button"
                               class="input-box-selector-activator composer-plus-menu-entry"
@@ -150,7 +150,7 @@
                           </div>
                         </div>
                         <div class="input-box-selector-row" x-show="showAttachMenu || showModelSwitcher">
-                          <div class="model-switcher-inline input-box-selector-control" x-show="currentAgent && !terminalMode" style="position:relative" @click.outside="showModelSwitcher = false" @keydown.escape.window="showModelSwitcher = false">
+                          <div class="model-switcher-inline input-box-selector-control" :class="taskbarAnchoredDropdownClass($el, 'top')" x-show="currentAgent && !terminalMode" style="position:relative" @click.outside="showModelSwitcher = false" @keydown.escape.window="showModelSwitcher = false">
                         <button type="button" class="input-box-selector-activator composer-plus-menu-entry" :aria-expanded="showModelSwitcher ? 'true' : 'false'" @click="toggleModelSwitcher()" :title="'Active model: ' + modelDisplayName">
                           <span class="composer-icon-btn composer-model-btn input-box-selector-trigger" :class="{ 'active': showModelSwitcher }" aria-hidden="true">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
@@ -389,11 +389,7 @@
           </div>
         </div>
         <div class="page-body" style="overflow-y:auto;padding:24px">
-          <div x-show="$store.app.agentsLoading || !$store.app.agentsHydrated" class="loading-state" style="padding:72px 24px">
-            <div class="spinner"></div>
-            <span>Loading agents...</span>
-          </div>
-          <div x-show="!($store.app.agentsLoading || !$store.app.agentsHydrated)">
+          <div>
 
           <!-- Running agents — click to chat -->
           <div style="margin-bottom:28px">

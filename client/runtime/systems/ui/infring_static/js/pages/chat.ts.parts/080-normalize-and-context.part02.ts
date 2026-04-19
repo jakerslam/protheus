@@ -49,14 +49,19 @@
       } catch {}
     },
 
-    modelUsageTs: function(modelId) {
+    modelUsageTimestamp: function(modelId) {
       var key = this.normalizeModelUsageKey(modelId);
       if (!key || !this.modelUsageCache || typeof this.modelUsageCache !== 'object') return 0;
       var ts = Number(this.modelUsageCache[key] || 0);
       return Number.isFinite(ts) && ts > 0 ? ts : 0;
     },
 
-    touchModelUsage: function(modelId, ts) {
+    // Backward-compat shim for legacy callers during naming migration.
+    modelUsageTs: function(modelId) {
+      return this.modelUsageTimestamp(modelId);
+    },
+
+    recordModelUsageTimestamp: function(modelId, ts) {
       var key = this.normalizeModelUsageKey(modelId);
       if (!key) return;
       if (!this.modelUsageCache || typeof this.modelUsageCache !== 'object') {
@@ -65,6 +70,11 @@
       var stamp = Number(ts || Date.now());
       this.modelUsageCache[key] = Number.isFinite(stamp) && stamp > 0 ? stamp : Date.now();
       this.persistModelUsageCache();
+    },
+
+    // Backward-compat shim for legacy callers during naming migration.
+    touchModelUsage: function(modelId, ts) {
+      this.recordModelUsageTimestamp(modelId, ts);
     },
 
     loadModelNoticeCache: function() {

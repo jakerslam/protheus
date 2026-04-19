@@ -39,10 +39,10 @@
           await self.runSlashContinuity();
           break;
         case '/aliases':
-          self.runSlashAliases();
+          self.executeSlashAliases();
           break;
         case '/alias':
-          self.runSlashAliasCommand(cmdArgs);
+          self.executeSlashAliasCommand(cmdArgs);
           break;
         case '/opt':
           await self.runSlashOptimizeWorkers();
@@ -277,7 +277,7 @@
           return;
         }
         this.currentAgent = this.applyAgentGitTreeState(resolved, resolved) || resolved;
-        this.touchModelUsage(resolved.model_name || resolved.runtime_model || '');
+        this.recordModelUsageTimestamp(resolved.model_name || resolved.runtime_model || '');
         if (forceFreshSession) {
           this.applyConversationInputMode(resolved.id, { force_terminal: false });
           this.messages = [];
@@ -320,7 +320,7 @@
       }
       this.currentAgent = this.applyAgentGitTreeState(resolved, resolved) || resolved;
       if (store) this.setStoreActiveAgentId(resolved.id || null);
-      this.touchModelUsage(resolved.model_name || resolved.runtime_model || '');
+      this.recordModelUsageTimestamp(resolved.model_name || resolved.runtime_model || '');
       // Reset context meter on agent switch to avoid stale carry-over from prior threads.
       this.contextApproxTokens = 0;
       this.contextPressure = 'low';

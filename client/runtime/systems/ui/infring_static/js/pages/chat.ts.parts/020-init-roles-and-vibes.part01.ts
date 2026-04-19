@@ -159,13 +159,18 @@
         '; --terminal-cursor-row:' + this.terminalCursorRow + ';';
     },
 
-    formatTokenK(value) {
+    formatTokenThousands(value) {
       var raw = Number(value || 0);
       if (!Number.isFinite(raw) || raw <= 0) return '0k';
       var k = raw / 1000;
       if (k >= 100) return Math.round(k) + 'k';
       if (k >= 10) return (Math.round(k * 10) / 10).toFixed(1).replace(/\.0$/, '') + 'k';
       return (Math.round(k * 100) / 100).toFixed(2).replace(/0$/, '').replace(/\.$/, '') + 'k';
+    },
+
+    // Backward-compat shim for legacy callers during naming migration.
+    formatTokenK(value) {
+      return this.formatTokenThousands(value);
     },
 
     get contextUsagePercent() {
@@ -201,13 +206,13 @@
     get contextRingTooltip() {
       return 'Context window\n' +
         this.contextUsagePercent + '% full\n' +
-        ' ' + this.formatTokenK(this.contextApproxTokens) + ' / ' + this.formatTokenK(this.contextWindow) + ' tokens used\n\n' +
+        ' ' + this.formatTokenThousands(this.contextApproxTokens) + ' / ' + this.formatTokenThousands(this.contextWindow) + ' tokens used\n\n' +
         ' Infring dynamically prunes its context';
     },
 
     get contextRingCompactLabel() {
       return 'Context: ' + this.contextUsagePercent + '%, ' +
-        this.formatTokenK(this.contextApproxTokens) + '/' + this.formatTokenK(this.contextWindow);
+        this.formatTokenThousands(this.contextApproxTokens) + '/' + this.formatTokenThousands(this.contextWindow);
     },
 
     get activeGitBranchLabel() {
@@ -237,6 +242,19 @@
         .replace(/\/+/g, '/')
         .replace(/^[-./]+|[-./]+$/g, '');
       return normalized;
+    },
+
+    closeComposerMenus: function(options) {
+      var keep = options && typeof options === 'object' ? options : {};
+      if (!keep.attach) this.showAttachMenu = false;
+      if (!keep.model) this.showModelSwitcher = false;
+      if (!keep.git) this.closeGitTreeMenu();
+    },
+
+    toggleAttachMenu: function() {
+      var nextOpen = !this.showAttachMenu;
+      this.closeComposerMenus(nextOpen ? { attach: true } : {});
+      this.showAttachMenu = nextOpen;
     },
 
     closeGitTreeMenu: function() {
@@ -280,8 +298,7 @@
         this.closeGitTreeMenu();
         return;
       }
-      this.showAttachMenu = false;
-      this.showModelSwitcher = false;
+      this.closeComposerMenus({ git: true });
       this.showGitTreeMenu = true;
       await this.refreshGitTreeMenu(true);
     },

@@ -272,7 +272,7 @@
       }
     },
 
-    _messageDisplayScopeKey: function() {
+    messageDisplayScopeKey: function() {
       var agentId = String((this.currentAgent && this.currentAgent.id) || '').trim();
       var sessionId = '';
       if (Array.isArray(this.sessions)) {
@@ -288,10 +288,15 @@
       return agentId + '|' + sessionId + '|' + search;
     },
 
+    // Backward-compat shim for legacy callers during naming migration.
+    _messageDisplayScopeKey: function() {
+      return this.messageDisplayScopeKey();
+    },
+
     ensureMessageDisplayWindow: function(totalCount) {
       var total = Number(totalCount || 0);
       if (!Number.isFinite(total) || total < 0) total = 0;
-      var key = this._messageDisplayScopeKey();
+      var key = this.messageDisplayScopeKey();
       if (String(this._messageDisplayKey || '') !== key) {
         this._messageDisplayKey = key;
         this.messageDisplayCount = Number(this.messageDisplayInitialLimit || 10);
@@ -363,7 +368,7 @@
       return html.replace(regex, '<mark style="background:var(--warning);color:var(--bg);border-radius:2px;padding:0 2px">$1</mark>');
     },
 
-    messageLineWindow: function(msg, idx) {
+    messageVisibleLineWindow: function(msg, idx) {
       var row = msg && typeof msg === 'object' ? msg : {};
       var text = String(row.text || '');
       if (!text || row._typingVisual || row.isHtml) return { text: text, truncated: false, key: '', shown: 0, total: 0 };
@@ -379,12 +384,17 @@
       return { text: lines.slice(0, shown).join('\n'), truncated: true, key: key, shown: shown, total: total };
     },
 
+    // Backward-compat shim for legacy callers during naming migration.
+    messageLineWindow: function(msg, idx) {
+      return this.messageVisibleLineWindow(msg, idx);
+    },
+
     messageHasLineOverflow: function(msg, idx) {
-      return !!this.messageLineWindow(msg, idx).truncated;
+      return !!this.messageVisibleLineWindow(msg, idx).truncated;
     },
 
     expandMessageLines: function(msg, idx) {
-      var window = this.messageLineWindow(msg, idx);
+      var window = this.messageVisibleLineWindow(msg, idx);
       if (!window.truncated || !window.key) return;
       var step = Number(this.messageLineExpandStep || 20);
       if (!Number.isFinite(step) || step < 20) step = 20;
@@ -399,7 +409,7 @@
         }
         return this.escapeHtml(String(msg.text || ''));
       }
-      var lineWindow = this.messageLineWindow(msg, idx);
+      var lineWindow = this.messageVisibleLineWindow(msg, idx);
       var displayText = String(lineWindow.text || '');
       var baseHtml = '';
       if (msg.isHtml) {

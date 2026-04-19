@@ -229,26 +229,33 @@
       var self = this;
       if (this.isSystemThreadAgent && this.isSystemThreadAgent(this.currentAgent)) {
         this.terminalMode = true;
-        this.showAttachMenu = false;
+        if (typeof this.closeComposerMenus === 'function') this.closeComposerMenus();
+        else {
+          this.showAttachMenu = false;
+          this.showModelSwitcher = false;
+          if (typeof this.closeGitTreeMenu === 'function') this.closeGitTreeMenu();
+          else this.showGitTreeMenu = false;
+        }
         this.showSlashMenu = false;
         this.showModelPicker = false;
-        this.showModelSwitcher = false;
-        if (typeof this.closeGitTreeMenu === 'function') this.closeGitTreeMenu();
-        else this.showGitTreeMenu = false;
         this.terminalCursorFocused = false;
         this.$nextTick(function() {
+          if (typeof self.closeComposerMenus === 'function') self.closeComposerMenus();
           var input = document.getElementById('msg-input');
           if (input) input.focus();
           self.refreshChatInputOverlayMetrics();
         });
         return;
       }
-      this.showAttachMenu = false;
+      if (typeof this.closeComposerMenus === 'function') this.closeComposerMenus();
+      else {
+        this.showAttachMenu = false;
+        this.showModelSwitcher = false;
+        if (typeof this.closeGitTreeMenu === 'function') this.closeGitTreeMenu();
+        else this.showGitTreeMenu = false;
+      }
       this.showSlashMenu = false;
       this.showModelPicker = false;
-      this.showModelSwitcher = false;
-      if (typeof this.closeGitTreeMenu === 'function') this.closeGitTreeMenu();
-      else this.showGitTreeMenu = false;
       this.terminalMode = !this.terminalMode;
       this.resetInputHistoryNavigation('chat');
       this.resetInputHistoryNavigation('terminal');
@@ -269,6 +276,7 @@
         this.attachments = [];
       }
       this.$nextTick(function() {
+        if (typeof self.closeComposerMenus === 'function') self.closeComposerMenus();
         var input = document.getElementById('msg-input');
         if (input) {
           input.focus();

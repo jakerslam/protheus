@@ -15,6 +15,8 @@
       left: 0,
       top: 0,
       side: 'bottom',
+      inline_away: 'right',
+      block_away: 'bottom',
       compact: false
     },
     confirmArchiveAgentId: '',

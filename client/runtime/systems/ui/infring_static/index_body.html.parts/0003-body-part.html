@@ -206,17 +206,6 @@
               <button class="btn btn-primary btn-sm" @click="navigate('agents')">Open agents</button>
             </infring-chat-stream-shell>
           </template>
-          <template x-if="!currentAgent && ($store.app.agentsLoading || !$store.app.agentsHydrated)">
-            <div class="chat-loading-overlay">
-                <div class="chat-loading-overlay-content">
-                  <div class="chat-loading-fairy" aria-hidden="true">
-                    <span class="chat-loading-fairy-avatar agent-working-pulse"><span class="agent-mark infring-logo infring-logo--agent-default"><span class="infring-logo-glyph" aria-hidden="true">&infin;</span></span></span>
-                  </div>
-                  <span>Loading agents...</span>
-                </div>
-              </div>
-          </template>
-
           <template x-if="currentAgent">
             <div class="chat-thread-shell">
               <div class="chat-loading-overlay" x-show="showFreshArchetypeTiles && freshInitLaunching">

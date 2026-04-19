@@ -15999,3 +15999,231 @@ Source summary:
   - `install.ps1`
   - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime.rs`
   - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration.rs`
+
+### 2026-04-18 Release Closure Hardening Addendum (V11-RELEASE-CLOSURE-HARDENING-002)
+
+- Intent:
+  - Promote empirical runtime proof from rich-only posture toward profile-wide enforcement, align adapter graduation with roadmap visibility, and freeze Rust-native agent-surface support semantics behind an explicit release guard.
+- Acceptance criteria:
+  - `release_gates.yaml` requires empirical proof for `pure` and `tiny-max` with explicit empirical sample-point minimums.
+  - Runtime proof release gate enforces profile-aware empirical source/metric completeness (rich keeps dashboard-source requirement; constrained profiles require boundedness + soak + support-bundle empirical evidence).
+  - Adapter chaos gate derives executable graduation adapters from `adapter_graduation_manifest.json` and supports staged non-blocking roadmap adapter entries (`required_for_graduation=false`) without drift from production graduation ratios.
+  - Adapter graduation manifest carries roadmap production adapters (`ollama`, `llama_cpp`, `mcp_baseline`, `otlp_exporter`, `durable_memory_local`) as tracked staged entries.
+  - Release verification includes an explicit agent-surface status guard and proof packs include both node critical-path inventory and agent-surface status artifacts.
+  - README current-state contract reflects profile-scoped empirical enforcement, staged adapter graduation tracking, and agent-surface status manifest guarding.
+- Regression evidence pointers:
+  - `tests/tooling/config/release_gates.yaml`
+  - `tests/tooling/scripts/ci/runtime_proof_release_gate.ts`
+  - `tests/tooling/config/adapter_graduation_manifest.json`
+  - `tests/tooling/scripts/ci/adapter_runtime_chaos_gate.ts`
+  - `tests/tooling/config/agent_surface_status_manifest.json`
+  - `tests/tooling/scripts/ci/agent_surface_status_guard.ts`
+  - `tests/tooling/config/release_proof_pack_manifest.json`
+  - `tests/tooling/config/tooling_gate_registry.json`
+  - `tests/tooling/config/verify_profiles.json`
+  - `package.json`
+  - `README.md`
+
+### 2026-04-18 Workflow Reliability + Troubleshooting Hardening Addendum (V11-WORKFLOW-RELIABILITY-003)
+
+- Intent:
+  - Reduce web-tooling misfires and no-output hallucination lanes by tightening tool-selection gates, adding fail-closed final-output guards, and improving troubleshooting/eval queue determinism.
+- Acceptance criteria:
+  - Tool decision tree requires explicit web intent before `requires_live_web=true`; status/meta turns remain direct-answer paths.
+  - Tool-gate prompt includes explicit web-intent contract and reiterates that web tools are never the default path.
+  - Info-route turns fail closed when final assistant text is context-mismatched against the immediate user message (coherence guard).
+  - Final-output guard guarantees non-empty/non-placeholder assistant output even after downstream fallbacks.
+  - Web search orchestration blocks query blobs/dumps (`query_shape_invalid` / `query_payload_dump_detected`) before provider execution.
+  - Fetch early-validation branches use compact helper payload construction to reduce deep nested `json!` expansion risk.
+  - Troubleshooting exchange traces capture freshness contract fields (`source_sequence`, `age_seconds`, `stale`) and workflow gate trace snapshots.
+  - Troubleshooting eval queue deduplicates queued items by `snapshot_id+reason` and avoids duplicate report churn.
+  - Troubleshooting outbox flush applies retry cooldown/backoff (`retry_after_seconds`, `next_retry_after_epoch_s`) to prevent rapid failure loops.
+  - Troubleshooting state lane exposes `stale_count` and `max_source_sequence` for operator auditability.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/app_plane_parts/030-run-chat-ui.rs`
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/001-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/003-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/004-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+
+### 2026-04-18 Workflow Reliability Input-Shape + Outbox Control Addendum (V11-WORKFLOW-RELIABILITY-004)
+
+- Intent:
+  - Fail closed earlier on malformed web-input blobs and improve troubleshooting outbox operator control under retry cooldown conditions.
+- Acceptance criteria:
+  - Search query-shape gate supports deterministic override controls (`allow_query_blob_search` + aliases) for controlled diagnostics while defaulting to fail-closed.
+  - Search query-shape gate detects repeated low-entropy query spam and dump-pattern payloads with stable error codes (`query_shape_invalid`, `query_payload_dump_detected`).
+  - Search query-shape early failures expose `query_shape_blocked=true` and `query_shape_error` for downstream diagnostics.
+  - Fetch lane blocks malformed URL payloads before provider routing with stable fail-closed codes (`fetch_url_required`, `fetch_url_invalid_scheme`, `fetch_url_shape_invalid`, `fetch_url_payload_dump_detected`).
+  - Fetch lane supports explicit URL-shape override controls (`allow_fetch_url_blob` + aliases) for operator-controlled diagnostics.
+  - App-plane web-intent inference is tightened so web tooling is not selected from broad heuristic keywords alone.
+  - Troubleshooting outbox flush supports explicit cooldown bypass (`force` or `ignore_cooldown`) for operator intervention.
+  - Troubleshooting outbox flush reports skipped cooldown rows count (`skipped_due_cooldown_count`) for auditability.
+  - Troubleshooting state exposes outbox cooldown metrics (`cooldown_blocked_count`, `next_retry_after_epoch_s`).
+  - Regression tests cover query-shape dump detection, shape-invalid early block precedence, and override progression to next validation phase.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch.rs`
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/004-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+
+### 2026-04-18 Workflow Reliability Policy-Override + Eval Signal Depth Addendum (V11-WORKFLOW-RELIABILITY-005)
+
+- Intent:
+  - Improve fail-closed web tooling control and troubleshooting operator insight with policy-aware shape overrides, richer shape telemetry, queue prioritization, and outbox terminal handling.
+- Acceptance criteria:
+  - Search query-shape override accepts policy-level controls under `/web_conduit/search_policy/*` in addition to per-request flags.
+  - Search query-shape blocked responses include deterministic shape telemetry (`query_shape_stats`) and explicit override availability metadata.
+  - Fetch URL-shape override accepts policy-level controls under `/web_conduit/fetch_policy/*` in addition to per-request flags.
+  - Fetch URL-shape blocked responses include deterministic shape telemetry (`fetch_url_shape_stats`) and explicit override availability metadata.
+  - Eval queue deduped re-enqueue returns a `deduped=true` marker and preserves queued item identity.
+  - Eval queue items include priority ordering (`user_report` > `auto_failure` > default) with deterministic persisted queue order.
+  - Eval report includes stale and missing-web-call metrics (`stale_count`, `web_required_without_calls_count`) and ratio telemetry.
+  - Troubleshooting state exposes recent failure counts and last observed error code for rapid triage.
+  - Outbox flush supports configurable max-attempt quarantine behavior with explicit quarantine reporting.
+  - Report-message issue hint is auth-specific when GitHub auth is missing (`no github auth token, please input your token first`).
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/001-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/002-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/004-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+
+### 2026-04-18 Workflow Reliability Malformed Input + Outbox Deadletter Addendum (V11-WORKFLOW-RELIABILITY-006)
+
+- Intent:
+  - Further reduce hallucination-triggering malformed inputs and improve failure-forensics for issue submission retries.
+- Acceptance criteria:
+  - Search query-shape classification treats raw JSON-like query payloads as dump-pattern input (`query_payload_dump_detected`).
+  - Search query-shape override emits deterministic source metadata (`request|policy|none`) and tracks usage status on fail-closed outputs.
+  - Search cache-hit outputs preserve query-shape telemetry (`query_shape_stats`) and override metadata for cross-turn diagnostics.
+  - Fetch URL-shape classification treats raw JSON-like input as dump-pattern input and treats whitespace URLs as invalid shape.
+  - Fetch URL-shape override emits deterministic source metadata (`request|policy|none`) and tracks usage status on fail-closed outputs.
+  - Fetch fail-closed URL-shape outputs include deterministic shape telemetry (`fetch_url_shape_stats`) for operator triage.
+  - Troubleshooting state adds outbox ready-count visibility (eligible rows not blocked by cooldown).
+  - Troubleshooting outbox flush appends quarantined rows to a dead-letter JSONL log for postmortem analysis.
+  - Troubleshooting outbox flush reports the next retry epoch and seconds for operator polling UX.
+  - Regression tests cover JSON/whitespace shape detection and override-source resolution for both search and fetch.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/004-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+
+### 2026-04-18 Troubleshooting Deadletter Recovery + Shape Telemetry Parity Addendum (V11-WORKFLOW-RELIABILITY-007)
+
+- Intent:
+  - Close operator recovery gaps by making deadletter queues directly inspectable/requeueable and aligning query/URL shape telemetry across blocked and non-blocked web lanes.
+- Acceptance criteria:
+  - Dashboard troubleshooting action family exposes deadletter state lane (`dashboard.troubleshooting.deadletter.state`) with bounded listing support.
+  - Dashboard troubleshooting action family exposes deadletter requeue lane (`dashboard.troubleshooting.deadletter.requeue`) that restores issue rows into outbox with reset retry counters.
+  - Troubleshooting state includes issue deadletter depth/items in the primary troubleshooting state payload.
+  - Outbox flush reports deadletter depth and next retry timing fields (`next_retry_after_epoch_s`, `next_retry_after_seconds`) after each run.
+  - Quarantined outbox rows append to deadletter JSONL and can be reintroduced through requeue without manual file editing.
+  - Search miss responses include query-shape override metadata and shape stats parity with cache-hit/blocked responses.
+  - Search shape override reports source (`request|policy|none`) and usage state on blocked outputs.
+  - Fetch cache-hit and miss responses include URL-shape override metadata and URL-shape stats parity with blocked outputs.
+  - Fetch shape override reports source (`request|policy|none`) and usage state on blocked outputs.
+  - Regression tests cover deadletter state/requeue flow, auth-missing troubleshooting hint behavior, retry-timing output, and shape telemetry fields on blocked responses.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/004-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+
+### 2026-04-18 Troubleshooting Control-Plane + URL/Query Shape Semantics Addendum (V11-WORKFLOW-RELIABILITY-008)
+
+- Intent:
+  - Improve operator control and diagnosability for troubleshooting issue pipelines while tightening web-input shape semantics for higher-signal fetch/search behavior.
+- Acceptance criteria:
+  - Search shape responses expose deterministic classification metadata (`query_shape_error`, `query_shape_category`, `query_shape_recommended_action`) on blocked and non-blocked paths.
+  - Fetch shape responses expose deterministic classification metadata (`fetch_url_shape_error`, `fetch_url_shape_category`, `fetch_url_shape_recommended_action`) on blocked and non-blocked paths.
+  - Fetch request normalization unwraps common URL wrappers (`<...>`, quotes, backticks, markdown link form `[label](url)`) before provider validation.
+  - Fetch outputs expose original URL input (`requested_url_input`) alongside normalized `requested_url` for troubleshooting parity.
+  - Outbox flush emits error-bucket counters (`auth_blocked_count`, `transport_failed_count`, `validation_failed_count`) and a failed-error histogram.
+  - Outbox auth-missing failures route to a long-cooldown retry lane (`retry_lane=auth_required`) to avoid rapid retry churn.
+  - Deadletter append path is deduped and bounded by max retention policy (`DASHBOARD_TROUBLESHOOTING_MAX_DEADLETTER`).
+  - Deadletter state supports reason filtering and reason histogram output for quick postmortem triage.
+  - Deadletter requeue supports selective `item_ids` restores and duplicate suppression against outbox request signatures.
+  - Dashboard troubleshooting action family exposes deadletter purge lane (`dashboard.troubleshooting.deadletter.purge`) for controlled cleanup.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/004-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+
+### 2026-04-18 Troubleshooting Backpressure Controls + URL Intent Routing Addendum (V11-WORKFLOW-RELIABILITY-009)
+
+- Intent:
+  - Tighten issue-pipeline backpressure behavior and reduce incorrect tool-route selection from URL-like query inputs.
+- Acceptance criteria:
+  - Search query-shape gate classifies direct URL inputs as fetch-intent (`query_prefers_fetch_url`) and fails closed with explicit action guidance.
+  - Search blocked outputs expose deterministic category/action telemetry for fetch-intent query cases.
+  - Fetch input normalization strips common wrapper and trailing punctuation artifacts from copied links before provider validation.
+  - Fetch outputs preserve both normalized URL (`requested_url`) and original input (`requested_url_input`) for auditability.
+  - Outbox enqueue deduplicates identical issue requests by deterministic request signature and returns dedup marker on repeats.
+  - Outbox flush annotates failed rows with deterministic `error_bucket` + `retry_lane` and emits aggregate failure histogram.
+  - Auth-missing outbox failures are routed to long-cooldown auth retry lane to avoid tight retry loops.
+  - Deadletter append is signature-deduplicated and bounded by explicit retention ceiling.
+  - Deadletter requeue supports item-id filtering and duplicate suppression against current outbox request signatures.
+  - Deadletter purge requires explicit selector (`all=true`, `reason`, or `item_ids`) and fails closed when selector is missing.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/003-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/004-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+
+### 2026-04-19 Troubleshooting Dry-Run Control Surface + Shape Contract Canonicalization Addendum (V11-WORKFLOW-RELIABILITY-010)
+
+- Intent:
+  - Improve operator safety with non-destructive queue operations and canonicalize shape telemetry contracts for both search and fetch lanes.
+- Acceptance criteria:
+  - Search responses expose canonical `query_shape` contract object with blocked/error/category/route-hint/override metadata and stats.
+  - URL-like search inputs fail closed as fetch-intent (`query_prefers_fetch_url`) with deterministic route hint (`web_fetch`).
+  - Fetch responses expose canonical `fetch_url_shape` contract object with blocked/error/category/route-hint/override metadata and stats.
+  - Fetch early-validation lanes (`non_fetch_meta_query`, `unknown_fetch_provider`) include `fetch_url_shape` and `requested_url_input` parity metadata.
+  - Fetch normalization handles wrapper punctuation and URL entity normalization (`&amp;` -> `&`) before provider validation.
+  - Outbox flush supports explicit dry-run/preview mode returning readiness/cooldown/quarantine projections without mutating state.
+  - Troubleshooting action family exposes `dashboard.troubleshooting.outbox.preview` alias for preview-mode outbox evaluation.
+  - Deadletter requeue supports preview mode and exposes projected requeue/skip counts without mutating state.
+  - Deadletter purge supports preview mode and selector-required fail-close behavior before destructive removal.
+  - Troubleshooting action family exposes preview aliases for deadletter requeue/purge paths.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+
+### 2026-04-19 Windows Installer Asset-Compatibility Alias + Required-Stem Guard Addendum (V11-WINDOWS-INSTALL-RELIABILITY-002)
+
+- Intent:
+  - Improve Windows install success when release metadata uses legacy binary names and prevent optional daemon assets from blocking compatible-tag selection.
+- Acceptance criteria:
+  - Installer binary asset candidate resolution supports canonical + legacy stem aliases (`infring-*` and `protheus-*`) for preflight probes and download attempts.
+  - Compatible release resolution on Windows uses install-critical stems only (`infring-ops` for runtime mode, `infring-pure-workspace` for pure mode).
+  - Optional daemon assets (`infringd`, `conduit_daemon`, tiny-max daemon variants) no longer block compatible-tag fallback selection.
+  - Windows preflight diagnostics still report toolchain and asset reachability while preserving source-fallback gating behavior.
+- Regression evidence pointers:
+  - `install.ps1`

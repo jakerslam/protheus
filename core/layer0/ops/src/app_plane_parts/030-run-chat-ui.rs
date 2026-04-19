@@ -687,6 +687,19 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
             }
         }
     }
+    if !requires_live_web && assistant_context_mismatch {
+        assistant = "I could not produce a reliable response for your last message in this turn. Please retry and I will answer directly without running tools.".to_string();
+        hard_guard = json!({
+            "applied": true,
+            "status": "failed",
+            "error_code": "assistant_context_mismatch",
+            "classification": "info_route_context_mismatch",
+            "source": "coherence_guard"
+        });
+        if forced_web_error_code.is_empty() {
+            forced_web_error_code = "assistant_context_mismatch".to_string();
+        }
+    }
     let mut final_outcome = if forced_web_outcome.is_empty() {
         response_finalization_outcome.clone()
     } else {
@@ -779,6 +792,30 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
                 .unwrap_or("web_tool_surface_degraded"),
         )
         .to_string();
+    }
+    if assistant.trim().is_empty()
+        || crate::tool_output_match_filter::matches_ack_placeholder(&assistant)
+        || crate::tool_output_match_filter::contains_forbidden_runtime_context_markers(&assistant)
+    {
+        assistant = "I could not produce a reliable final answer in this turn. Please retry once; if it still fails, I will return a structured fail-closed diagnosis.".to_string();
+        if !hard_guard
+            .get("applied")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
+            hard_guard = json!({
+                "applied": true,
+                "status": "failed",
+                "error_code": "assistant_output_not_reliable",
+                "source": "final_output_guard"
+            });
+        }
+        if forced_web_error_code.is_empty() {
+            forced_web_error_code = "assistant_output_not_reliable".to_string();
+        }
+        if final_outcome == "unchanged" || final_outcome == "finalized" {
+            final_outcome = "final_output_guard_fail_closed".to_string();
+        }
     }
     if forced_web_error_code.is_empty() {
         if let Some(surface_error) = tool_surface_error_code.as_deref() {
@@ -1112,6 +1149,8 @@ fn chat_ui_turn_requires_local_lookup(raw_input: &str) -> bool {
 }
 
 fn chat_ui_turn_tool_decision_tree(raw_input: &str) -> Value {
+    let lowered = clean(raw_input, 1_200).to_ascii_lowercase();
+    let explicit_web_intent = chat_ui_has_explicit_web_intent(&lowered);
     let meta_control_message = chat_ui_turn_is_meta_control_message(raw_input);
     let status_check_message = if meta_control_message {
         false
@@ -1126,7 +1165,7 @@ fn chat_ui_turn_tool_decision_tree(raw_input: &str) -> Value {
     let requires_live_web = if meta_control_message || status_check_message {
         false
     } else {
-        chat_ui_requests_live_web(raw_input)
+        chat_ui_requests_live_web(raw_input) && explicit_web_intent
     };
     let requires_local_lookup = if meta_control_message || status_check_message {
         false
@@ -1156,10 +1195,11 @@ fn chat_ui_turn_tool_decision_tree(raw_input: &str) -> Value {
         "none"
     };
     json!({
-        "contract": "tool_decision_tree_v1",
+        "contract": "tool_decision_tree_v2",
         "requires_file_mutation": requires_file_mutation,
         "requires_local_lookup": requires_local_lookup,
         "requires_live_web": requires_live_web,
+        "explicit_web_intent": explicit_web_intent,
         "has_sufficient_information": has_sufficient_information,
         "should_call_tools": should_call_tools,
         "info_source": info_source,
@@ -1183,6 +1223,10 @@ fn chat_ui_tool_gate_system_prompt(raw_input: &str) -> String {
         .get("status_check_message")
         .and_then(Value::as_bool)
         .unwrap_or(false);
+    let explicit_web_intent = gate
+        .get("explicit_web_intent")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     let info_source = clean(
         gate.get("info_source")
             .and_then(Value::as_str)
@@ -1201,7 +1245,7 @@ fn chat_ui_tool_gate_system_prompt(raw_input: &str) -> String {
     );
     clean(
         &format!(
-            "Deterministic tool gate for this turn: requires_file_mutation={requires_file_mutation}, has_sufficient_information={has_sufficient_information}, status_check_message={status_check_message}, info_source={info_source}, should_call_tools={should_call_tools}, recommended_tool_family={recommended_tool_family}. Decision tree: (1) If file mutation is required, use file tools. (2) If enough information is already available, answer directly with no tool calls. (3) If information is missing, use local memory/workspace tools for local facts and web tools only for online/current facts. Meta/control or tooling status-check turns are direct-answer turns and should not trigger web tools.",
+            "Deterministic tool gate for this turn: requires_file_mutation={requires_file_mutation}, has_sufficient_information={has_sufficient_information}, status_check_message={status_check_message}, explicit_web_intent={explicit_web_intent}, info_source={info_source}, should_call_tools={should_call_tools}, recommended_tool_family={recommended_tool_family}. Decision tree: (1) If file mutation is required, use file tools. (2) If enough information is already available, answer directly with no tool calls. (3) If information is missing, use local memory/workspace tools for local facts and web tools only for online/current facts. (4) Web tools are never default; call them only when explicit web intent is present. Meta/control or tooling status-check turns are direct-answer turns and should not trigger web tools.",
         ),
         4_000,
     )
