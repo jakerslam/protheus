@@ -121,6 +121,12 @@ function windowsAndDocsCheck(): Check {
     gettingStarted.includes('infring --help') &&
     manualHelp.includes('install.ps1 -OutFile $tmp -ErrorAction Stop') &&
     manualHelp.includes('Remove-Item $tmp -Force -ErrorAction SilentlyContinue') &&
+    manualHelp.includes(windowsBuildToolsCommand) &&
+    manualHelp.includes(directBootstrapperUrl) &&
+    manualHelp.includes('$env:INFRING_INSTALL_AUTO_MSVC = "0"') &&
+    manualHelp.includes('$env:INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP = "0"') &&
+    manualHelp.includes('$env:INFRING_INSTALL_AUTO_RUSTUP = "0"') &&
+    manualHelp.includes('INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP') &&
     /& \$tmp(?:\s+-Repair)?\s+-Full/.test(manualHelp);
   return {
     id: 'windows_and_docs_contract',
