@@ -129,6 +129,12 @@ function windowsAndDocsCheck(): Check {
     '[infring install] preflight note: Cargo missing but auto Rust bootstrap is enabled; installer will attempt toolchain bootstrap during source fallback.';
   const preflightCargoAutoRustupDisabledThrow =
     'Windows installer preflight failed: prebuilt asset gaps detected for [$gapSummary], Cargo is unavailable, and auto Rust bootstrap is disabled (INFRING_INSTALL_AUTO_RUSTUP=0 or INFRING_AUTO_RUSTUP=0). Install Rust + MSVC build tools or publish missing Windows release assets.';
+  const preflightNoReachablePrebuiltMsvcMissingNote =
+    '[infring install] preflight note: no reachable Windows prebuilt and MSVC tools missing; attempting best-effort source fallback';
+  const preflightNoReachablePrebuiltMsvcMissingForcedNote =
+    '[infring install] preflight note: no reachable Windows prebuilt + MSVC tools missing; forcing best-effort source fallback despite INFRING_INSTALL_ALLOW_NO_MSVC_SOURCE_FALLBACK=0';
+  const preflightRecommendedBuildToolsFix =
+    '[infring install] recommended fix: winget install --id Microsoft.VisualStudio.2022.BuildTools -e --override "--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools"';
   const pureInstallFailureThrowPrefix =
     'Failed to install pure workspace binary for $triple ($resolvedVersionLabel). No compatible prebuilt asset was found and source fallback did not complete. Diagnostic: $failureHint';
   const coreInstallFailureThrowPrefix =
@@ -195,6 +201,9 @@ function windowsAndDocsCheck(): Check {
     installPs.includes(preflightLatestAssetGapWarning) &&
     installPs.includes(preflightCargoAutoRustupNote) &&
     installPs.includes(preflightCargoAutoRustupDisabledThrow) &&
+    installPs.includes(preflightNoReachablePrebuiltMsvcMissingNote) &&
+    installPs.includes(preflightNoReachablePrebuiltMsvcMissingForcedNote) &&
+    installPs.includes(preflightRecommendedBuildToolsFix) &&
     installPs.includes(pureInstallFailureThrowPrefix) &&
     installPs.includes(coreInstallFailureThrowPrefix) &&
     installPs.includes(windowsFailureRemediationSentence) &&
