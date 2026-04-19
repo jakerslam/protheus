@@ -1307,7 +1307,9 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
     }
   }
   $fallbackOk = $false
-  foreach ($sourceFallbackVersion in $sourceFallbackPlan) {
+  $sourceFallbackIndex = 0
+  while ($sourceFallbackIndex -lt $sourceFallbackPlan.Count) {
+    $sourceFallbackVersion = [string]$sourceFallbackPlan[$sourceFallbackIndex]
     $sourceFallbackVersions += [string]$sourceFallbackVersion
     if (
       $preferMainSourceFallback -and
@@ -1324,6 +1326,22 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
     if ($fallbackOk) {
       break
     }
+    $sourceFallbackReason = [string]$script:LastBinaryInstallFailureReason
+    $mainRetryEligible = (
+      $allowMainLastResortFallback -and
+      ($sourceFallbackVersion -ne "main") -and
+      ($Version -ne "main") -and
+      (-not @($sourceFallbackPlan).Contains("main")) -and
+      (
+        $sourceFallbackReason.StartsWith("cargo_build_failed") -or
+        ($sourceFallbackReason -eq "source_build_output_missing")
+      )
+    )
+    if ($mainRetryEligible) {
+      $sourceFallbackPlan.Add("main") | Out-Null
+      Write-Host ("[infring install] source fallback for {0} failed ({1}); appending main as last-resort source retry" -f [string]$sourceFallbackVersion, $sourceFallbackReason)
+    }
+    $sourceFallbackIndex += 1
   }
   if ($sourceFallbackPlan.Count -gt 0) {
     Write-Host ("[infring install] source fallback plan: {0}" -f (@($sourceFallbackPlan) -join ","))
