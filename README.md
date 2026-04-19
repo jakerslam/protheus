@@ -20,8 +20,9 @@ Client/runtime surfaces remain thin presentation wrappers around policy-governed
   - [x] Public/operator docs use `Kernel` as the canonical authority term.
   - [x] Boundary docs mark `Core` as a compatibility alias (not a separate authority).
   - [x] Tooling command IDs and guard names expose `kernel`-first aliases.
-  - [ ] Artifact/config naming migrates from `core_*` to `kernel_*` with compatibility mapping.
+  - [x] Artifact/config naming migrates from `core_*` to `kernel_*` with compatibility mapping.
   - [x] Release policy publishes a final alias removal target version/date.
+  - Compatibility mapping: `client/runtime/config/kernel_transition_alias_map.json`
 
 ## Terminology Transition (External Boundary Layer)
 

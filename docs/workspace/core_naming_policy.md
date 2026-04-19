@@ -31,9 +31,11 @@ The guard applies to:
 ## Automation
 
 - Guard script: `tests/tooling/scripts/ci/client_naming_policy_guard.ts`
-- Policy config: `client/runtime/config/core_naming_policy.json`
-- npm command: `npm run -s ops:core-naming:guard`
-- tooling registry gate id: `ops:core-naming:guard`
+- Policy config (canonical): `client/runtime/config/kernel_naming_policy.json`
+- Policy config (compat): `client/runtime/config/core_naming_policy.json`
+- npm command (canonical): `npm run -s ops:kernel-naming:guard`
+- npm command (compat): `npm run -s ops:core-naming:guard`
+- tooling registry gate id (compat): `ops:core-naming:guard`
 - CI workflow integration: `.github/workflows/ci.yml` (`Policy Baseline Contract` step)
 
 ## Transition Indicators
@@ -41,10 +43,12 @@ The guard applies to:
 - [x] Public docs use `Kernel` as the canonical authority term.
 - [x] This policy declares `Core` as compatibility alias only.
 - [x] Primary guard command renamed to `ops:kernel-naming:guard` (keep `ops:core-naming:guard` compatibility alias).
-- [ ] Policy/artifact filenames migrated from `core_naming_*` to `kernel_naming_*` with compatibility mirrors.
+- [x] Policy/artifact filenames migrated from `core_naming_*` to `kernel_naming_*` with compatibility mirrors.
 - [x] Alias retirement target published in release terminology policy (`v0.5.0` / `2026-07-15`).
 
 ## Artifacts
 
-- JSON: `core/local/artifacts/core_naming_policy_guard_current.json`
-- Markdown: `local/workspace/reports/CORE_NAMING_POLICY_GUARD_CURRENT.md`
+- JSON (canonical): `core/local/artifacts/kernel_naming_policy_guard_current.json`
+- Markdown (canonical): `local/workspace/reports/KERNEL_NAMING_POLICY_GUARD_CURRENT.md`
+- Compatibility mapping: `client/runtime/config/kernel_transition_alias_map.json`
+- Legacy compatibility artifacts: `core/local/artifacts/core_naming_policy_guard_current.json`, `local/workspace/reports/CORE_NAMING_POLICY_GUARD_CURRENT.md`
