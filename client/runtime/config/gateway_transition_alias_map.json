@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "status": "transition_active",
+  "canonical_public_term": "gateways",
+  "compatibility_alias_term": "adapters",
+  "repository_path_authority": "adapters/**",
+  "command_aliases": {
+    "legacy_to_canonical": {
+      "ops:adapter-runtime-chaos:gate": "ops:gateway-runtime-chaos:gate",
+      "test:ops:adapter-chaos:rust": "test:ops:gateway-chaos:rust",
+      "ops:orchestration:adapter-fallback:guard": "ops:orchestration:gateway-fallback:guard"
+    },
+    "canonical_to_legacy_runtime_binding": {
+      "ops:gateway-runtime-chaos:gate": "ops:adapter-runtime-chaos:gate",
+      "test:ops:gateway-chaos:rust": "test:ops:adapter-chaos:rust",
+      "ops:orchestration:gateway-fallback:guard": "ops:orchestration:adapter-fallback:guard"
+    }
+  },
+  "artifact_aliases": {
+    "legacy_to_canonical": {
+      "core/local/artifacts/adapter_runtime_chaos_gate_current.json": "core/local/artifacts/gateway_runtime_chaos_gate_current.json",
+      "core/local/artifacts/orchestration_adapter_fallback_guard_current.json": "core/local/artifacts/orchestration_gateway_fallback_guard_current.json"
+    }
+  },
+  "config_aliases": {
+    "legacy_to_canonical": {
+      "client/runtime/config/adapter_defragmentation_policy.json": "client/runtime/config/gateway_defragmentation_policy.json"
+    }
+  },
+  "notes": [
+    "Legacy adapter identifiers remain supported until alias retirement target is reached.",
+    "New public/operator docs should prefer gateway terminology."
+  ]
+}

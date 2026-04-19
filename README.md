@@ -19,9 +19,22 @@ Client/runtime surfaces remain thin presentation wrappers around policy-governed
 - Transition indicators:
   - [x] Public/operator docs use `Kernel` as the canonical authority term.
   - [x] Boundary docs mark `Core` as a compatibility alias (not a separate authority).
-  - [ ] Tooling command IDs and guard names expose `kernel`-first aliases.
+  - [x] Tooling command IDs and guard names expose `kernel`-first aliases.
   - [ ] Artifact/config naming migrates from `core_*` to `kernel_*` with compatibility mapping.
-  - [ ] Release policy publishes a final alias removal target version/date.
+  - [x] Release policy publishes a final alias removal target version/date.
+
+## Terminology Transition (External Boundary Layer)
+
+- Canonical public term: **Gateways**
+- Compatibility/internal alias: **Adapters** (legacy implementation term for the same external-boundary layer)
+- Canonical repository path remains `adapters/**` during compatibility transition.
+- Transition indicators:
+  - [x] Public/operator docs use `Gateways` as the canonical external-boundary term.
+  - [x] Boundary docs mark `Adapters` as a compatibility alias (not a separate layer).
+  - [x] Tooling command IDs and guard names expose `gateway`-first aliases.
+  - [x] Artifact/config naming migrates from `adapter_*` to `gateway_*` with compatibility mapping.
+  - [x] Release policy publishes a final adapter-alias removal target version/date.
+  - Compatibility mapping: `client/runtime/config/gateway_transition_alias_map.json`
 
 ## Why InfRing
 
@@ -44,6 +57,7 @@ Runtime split inside cognition:
 - Authoritative Kernel (compat alias: Core): `core/**`
 - Orchestration Surface: `surface/orchestration/**`
 - Presentation Client: `client/**`
+- Gateway Layer (compat alias: Adapters): `adapters/**`
 
 See [planes/README.md](planes/README.md) for the canonical architecture contract.
 See [docs/client/PUBLIC_OPERATOR_PROFILE.md](docs/client/PUBLIC_OPERATOR_PROFILE.md) for the public operator-facing surface and support expectations.
@@ -61,7 +75,7 @@ What is true in this repository today:
 - Production release channels are resident-IPC authoritative: process transport fallbacks are blocked (`process_transport_forbidden_in_production` / `process_fallback_forbidden_in_production`).
 - Release-closure evidence now includes topology diagnostics, live stateful upgrade/rollback rehearsal, recovery rehearsal, numeric release scorecards, and support-bundle export.
 - Runtime proof now supports dual-track evidence (`synthetic` canary + `empirical` live artifact track) with profile-scoped empirical sample budgets and required source/metric completeness enforced in release gating.
-- Adapter release readiness includes manifest-backed graduation checks (hooks + chaos scenarios) plus staged roadmap-adapter tracking under the same graduation manifest.
+- Gateway release readiness (adapter compatibility layer) includes manifest-backed graduation checks (hooks + chaos scenarios) plus staged roadmap-adapter tracking under the same graduation manifest.
 - Layer2 parity guard requires every listed lane to be explicitly marked `complete`; provisional lanes are release blockers.
 - Release proof packs are assembled as grouped, checksummed artifacts under `releases/proof-packs/<version>/`.
 - Dashboard runtime blocks now carry explicit freshness metadata fields (`source`, `source_sequence`, `age_seconds`, `stale`) and are guarded by the dashboard surface authority contract.
@@ -95,6 +109,8 @@ What is true in this repository today:
 - Support bundle is the single incident truth package for release closure.
 - Internal/maintenance lanes are not part of the public production SLA.
 - Operator diagnostics and incident export: `npm run -s ops:support-bundle:export`
+- Terminology transition release policy: `docs/workspace/policy/release_terminology_transition_policy.md`.
+- Alias retirement target (`Core`, `Adapters`): `v0.5.0` / `2026-07-15` (unless documented blocker exception).
 
 ## Quick Start
 

@@ -23,6 +23,7 @@ In practical terms, that means:
 - **Kernel truth lives in the Rust kernel.** Critical policy, receipts, execution, and safety decisions are authoritative in kernel lanes. (`Core` remains a compatibility alias for legacy wording.)
 - **The orchestration layer coordinates work.** It shapes requests, plans work, handles clarification, and packages results.
 - **The client/dashboard is a presentation surface.** It is there to help you operate the system, not to be the source of truth.
+- **External systems are reached through the Gateway layer.** (`Adapters` is retained as a compatibility alias during transition.)
 - **Operations are evidence-backed.** Important actions and outcomes are designed to be traceable.
 - **Failure is designed to be fail-closed.** If Infring is unsure or a required lane is unavailable, the correct result is often to stop, degrade safely, or ask for clarification instead of guessing.
 
@@ -346,6 +347,7 @@ Infring’s safety model is one of its defining traits.
 - Safety authority stays deterministic and fail-closed.
 - AI/probabilistic logic is not the root of correctness.
 - Kernel truth lives in the authoritative kernel.
+- External-system access must cross governed gateway contracts (adapter compatibility layer), never direct ad hoc bypasses.
 - Boundary crossing is explicit and governed.
 - Unsupported or unadmitted actions should stop or degrade safely.
 
