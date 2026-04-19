@@ -1606,6 +1606,20 @@ if ($HostIsWindows) {
   }
   Invoke-WindowsInstallerPreflight -VersionTag $version -Triple $triple -RequiredStems $requiredWindowsStems
   $allowPinnedCompatibleWindowsFallback = Install-AllowPinnedVersionCompatibleFallback
+  $preflightWindowsAssetGaps = @()
+  if ($script:WindowsInstallPreflight -and $script:WindowsInstallPreflight.assets) {
+    $preflightWindowsAssetGaps = @($script:WindowsInstallPreflight.assets | Where-Object {
+        (-not [bool]$_.asset_found) -or
+        (([bool]$_.asset_found) -and (-not [bool]$_.reachable))
+      })
+  }
+  if (
+    ($RequestedVersion -ne "latest") -and
+    (-not $allowPinnedCompatibleWindowsFallback) -and
+    ($preflightWindowsAssetGaps.Count -gt 0)
+  ) {
+    Write-Host "[infring install] pinned Windows compatible-release fallback is disabled; set INFRING_INSTALL_ALLOW_PINNED_VERSION_COMPATIBLE_FALLBACK=1 to allow compatible prebuilt selection when pinned tag assets are unavailable."
+  }
   if (($RequestedVersion -eq "latest") -or $allowPinnedCompatibleWindowsFallback) {
     $compatibleWindows = Resolve-AssetCompatibleVersionForTriple $triple $requiredWindowsStems
     if ($compatibleWindows -and ($compatibleWindows -ne $version)) {

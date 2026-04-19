@@ -147,6 +147,8 @@ function windowsAndDocsCheck(): Check {
     '[infring install] no compatible Windows prebuilt release found for required stems; source fallback remains a backup path only.';
   const pinnedCompatibleReleaseFallbackBanner =
     '[infring install] pinned release $version is missing one or more required Windows prebuilts for $triple; using compatible release $compatibleWindows (disable with INFRING_INSTALL_ALLOW_PINNED_VERSION_COMPATIBLE_FALLBACK=0)';
+  const pinnedCompatibleFallbackDisabledNote =
+    '[infring install] pinned Windows compatible-release fallback is disabled; set INFRING_INSTALL_ALLOW_PINNED_VERSION_COMPATIBLE_FALLBACK=1 to allow compatible prebuilt selection when pinned tag assets are unavailable.';
   const autoMsvcEnabledBanner =
     '[infring install] auto MSVC bootstrap is enabled; installer will attempt Build Tools install during source fallback if needed.';
   const autoMsvcDisabledBanner =
@@ -220,6 +222,7 @@ function windowsAndDocsCheck(): Check {
     installPs.includes(windowsFailureRemediationSentence) &&
     installPs.includes(noCompatiblePrebuiltBanner) &&
     installPs.includes(pinnedCompatibleReleaseFallbackBanner) &&
+    installPs.includes(pinnedCompatibleFallbackDisabledNote) &&
     installPs.includes(autoMsvcEnabledBanner) &&
     installPs.includes(autoMsvcDisabledBanner) &&
     installPs.includes(windowsBuildToolsHintWinget) &&
