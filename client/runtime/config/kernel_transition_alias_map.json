@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "status": "transition_active",
+  "canonical_public_term": "kernel",
+  "compatibility_alias_term": "core",
+  "repository_path_authority": "core/**",
+  "command_aliases": {
+    "legacy_to_canonical": {
+      "ops:core-naming:guard": "ops:kernel-naming:guard"
+    },
+    "canonical_to_legacy_runtime_binding": {
+      "ops:kernel-naming:guard": "ops:core-naming:guard"
+    }
+  },
+  "artifact_aliases": {
+    "legacy_to_canonical": {
+      "core/local/artifacts/core_naming_policy_guard_current.json": "core/local/artifacts/kernel_naming_policy_guard_current.json",
+      "local/workspace/reports/CORE_NAMING_POLICY_GUARD_CURRENT.md": "local/workspace/reports/KERNEL_NAMING_POLICY_GUARD_CURRENT.md"
+    }
+  },
+  "config_aliases": {
+    "legacy_to_canonical": {
+      "client/runtime/config/core_naming_policy.json": "client/runtime/config/kernel_naming_policy.json"
+    }
+  },
+  "notes": [
+    "Legacy core naming identifiers remain supported until alias retirement target is reached.",
+    "Public/operator docs should prefer kernel terminology."
+  ]
+}

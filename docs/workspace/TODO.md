@@ -709,7 +709,7 @@ Rewired (40):
 - [x] Public/operator docs declare `Core` as compatibility alias, not a separate authority plane.
 - [x] Ownership policy terminology switched to `Kernel (compat alias: Core)` while preserving `core/**` path authority.
 - [x] Add `kernel`-first command alias for naming guard (`ops:kernel-naming:guard`) while keeping `ops:core-naming:guard` for compatibility.
-- [ ] Migrate naming policy artifact/config labels from `core_*` to `kernel_*` with compatibility mapping.
+- [x] Migrate naming policy artifact/config labels from `core_*` to `kernel_*` with compatibility mapping.
 - [x] Publish alias-removal target version/date in release checklist and release policy docs.
 
 ## Gateway Canonical-Term Transition Indicators (External Boundary Layer)

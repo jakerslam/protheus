@@ -1,0 +1,43 @@
+{
+  "version": "1.0",
+  "description": "Kernel naming policy contract for enforceable CI gating.",
+  "include_prefixes": [
+    "core/layer0",
+    "core/layer1",
+    "core/layer2",
+    "core/layer3",
+    "core/layer_minus_one"
+  ],
+  "allowed_uppercase_filenames": [
+    "Cargo.toml",
+    "Cargo.lock",
+    "README.md",
+    "QUICKREF.md",
+    "GOVERNANCE.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "allowed_uppercase_paths": [],
+  "allowed_directory_segments": [
+    ".cargo"
+  ],
+  "allowed_special_stems": [],
+  "segment_regex": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+  "stem_regex": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+  "banned_generic_code_stems": [
+    "util",
+    "utils",
+    "helper",
+    "helpers",
+    "misc",
+    "temp",
+    "tmp",
+    "newfile"
+  ],
+  "code_extensions": [
+    "rs",
+    "ts",
+    "tsx",
+    "py"
+  ]
+}
