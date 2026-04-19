@@ -303,7 +303,7 @@
       "bucket": "keep_public_client",
       "reason": "sanctioned non-wrapper surface tracked by boundary policy"
     },
-    "client/runtime/systems/ui/dashboard_asset_router.ts": {
+    "client/runtime/systems/ui/dashboard_static_asset_router.ts": {
       "bucket": "keep_public_client",
       "reason": "sanctioned non-wrapper surface tracked by boundary policy"
     },

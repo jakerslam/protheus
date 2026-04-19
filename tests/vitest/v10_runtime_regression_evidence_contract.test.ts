@@ -53,7 +53,7 @@ const V10_RUNTIME_REGRESSION_EVIDENCE: RowEvidence[] = [
     id: 'V10-DASH-004.1',
     paths: [
       'client/runtime/systems/ui/infring_dashboard.ts',
-      'client/runtime/systems/ui/dashboard_asset_router.ts',
+      'client/runtime/systems/ui/dashboard_static_asset_router.ts',
       'tests/client-memory-tools/infring_dashboard_ui.test.ts',
     ],
   },

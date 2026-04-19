@@ -7,12 +7,12 @@ const {
   createCompatModuleExportBridge
 } = require('../../lib/compat_target_bridge.ts');
 
-const bridge = createCompatModuleExportBridge({
+const dashboardStaticAssetRouterBridge = createCompatModuleExportBridge({
   scriptDir: __dirname,
   targetRelativePath: '../../../../adapters/runtime/dashboard_asset_router.ts',
-  loadError: 'dashboard_asset_router_load_failed',
-  invalidError: 'dashboard_asset_router_invalid'
+  loadError: 'dashboard_static_asset_router_load_failed',
+  invalidError: 'dashboard_static_asset_router_invalid'
 });
 
-bridge.exitIfMain(module);
-module.exports = bridge.exported;
+dashboardStaticAssetRouterBridge.exitIfMain(module);
+module.exports = dashboardStaticAssetRouterBridge.exported;

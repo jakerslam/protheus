@@ -11,9 +11,9 @@ const ENTRYPOINT = path.resolve(ROOT, 'client/runtime/lib/ts_entrypoint.ts');
 const TARGET = path.resolve(ROOT, 'client/runtime/systems/ui/infring_dashboard.ts');
 const TARGET_SOURCE = path.resolve(ROOT, 'client/runtime/systems/ui/infring_dashboard.ts');
 const ADAPTER_DASHBOARD_HOST_TS_PATH = path.resolve(ROOT, 'adapters/runtime/infring_dashboard.ts');
-const DASHBOARD_ASSET_ROUTER_TS_PATH = path.resolve(
+const DASHBOARD_STATIC_ASSET_ROUTER_TS_PATH = path.resolve(
   ROOT,
-  'client/runtime/systems/ui/dashboard_asset_router.ts'
+  'client/runtime/systems/ui/dashboard_static_asset_router.ts'
 );
 const TS_BOOTSTRAP_TS_PATH = path.resolve(ROOT, 'client/runtime/lib/ts_bootstrap.ts');
 const DASHBOARD_STATIC_DIR = path.resolve(ROOT, 'client/runtime/systems/ui/infring_static');
@@ -59,9 +59,9 @@ const API_STATIC_TS_PATH = path.resolve(
   ROOT,
   'client/runtime/systems/ui/infring_static/js/api.ts'
 );
-const AGENT_WS_BRIDGE_TS_PATH = path.resolve(
+const DASHBOARD_AGENT_WS_BRIDGE_TS_PATH = path.resolve(
   ROOT,
-  'client/runtime/systems/ui/agent_ws_bridge.ts'
+  'client/runtime/systems/ui/dashboard_agent_ws_bridge.ts'
 );
 const AGENTS_PAGE_TS_PATH = path.resolve(
   ROOT,
@@ -217,7 +217,7 @@ function assertDashboardFileSizeCaps() {
 function assertPrimaryDashboardAuthorityContract() {
   const hostSource = readUtf8(ADAPTER_DASHBOARD_HOST_TS_PATH);
   const distBuildSource = readUtf8(path.resolve(ROOT, 'tests/tooling/scripts/ci/build_dashboard_dist.ts'));
-  const assetRouterSource = readUtf8(DASHBOARD_ASSET_ROUTER_TS_PATH);
+  const assetRouterSource = readUtf8(DASHBOARD_STATIC_ASSET_ROUTER_TS_PATH);
   const segmentedSources = [
     {
       wrapper: PRIMARY_DASHBOARD_HTML_PATH,
@@ -388,7 +388,7 @@ function assertChatSyntaxGuards() {
 function assertDashboardInlineScriptsParse() {
   const { installTsRequireHook } = require(TS_BOOTSTRAP_TS_PATH);
   installTsRequireHook();
-  const { buildPrimaryDashboardHtml } = require(DASHBOARD_ASSET_ROUTER_TS_PATH);
+  const { buildPrimaryDashboardHtml } = require(DASHBOARD_STATIC_ASSET_ROUTER_TS_PATH);
   const html = String(buildPrimaryDashboardHtml(DASHBOARD_STATIC_DIR) || '');
   assert.ok(html.includes('<script>'), 'dashboard html should include inline script blocks');
   const scriptMatches = Array.from(html.matchAll(/<script>([\s\S]*?)<\/script>/g));
@@ -434,7 +434,7 @@ function resolveExpectedDashboardBuildVersion() {
 function assertDashboardBuildVersionFresh() {
   const { installTsRequireHook } = require(TS_BOOTSTRAP_TS_PATH);
   installTsRequireHook();
-  const { buildPrimaryDashboardHtml } = require(DASHBOARD_ASSET_ROUTER_TS_PATH);
+  const { buildPrimaryDashboardHtml } = require(DASHBOARD_STATIC_ASSET_ROUTER_TS_PATH);
   const html = String(buildPrimaryDashboardHtml(DASHBOARD_STATIC_DIR) || '');
   const match = html.match(/window\.__INFRING_BUILD_INFO\s*=\s*(\{[\s\S]*?\});/);
   assert.ok(match, 'dashboard html should bootstrap build info');

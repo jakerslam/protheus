@@ -1,13 +1,16 @@
 import type { LayoutLoad } from './$types';
-import { buildRuntimeConfig, toPublicRuntimeConfig } from '$lib/runtime';
+import {
+  buildDashboardRuntimeConfig,
+  toPublicDashboardRuntimeConfig
+} from '$lib/dashboard_runtime_config';
 
 export const ssr = true;
 export const prerender = false;
 
 export const load: LayoutLoad = async () => {
-  const runtime = toPublicRuntimeConfig(buildRuntimeConfig());
+  const runtimeConfig = toPublicDashboardRuntimeConfig(buildDashboardRuntimeConfig());
   return {
-    runtime,
+    runtime: runtimeConfig,
     loadedAt: new Date().toISOString()
   };
 };

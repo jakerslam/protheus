@@ -7,12 +7,12 @@ const {
   createCompatModuleExportBridge
 } = require('../../lib/compat_target_bridge.ts');
 
-const bridge = createCompatModuleExportBridge({
+const dashboardAgentWsBridge = createCompatModuleExportBridge({
   scriptDir: __dirname,
   targetRelativePath: '../../../../adapters/runtime/agent_ws_bridge.ts',
-  loadError: 'agent_ws_bridge_load_failed',
-  invalidError: 'agent_ws_bridge_invalid'
+  loadError: 'dashboard_agent_ws_bridge_load_failed',
+  invalidError: 'dashboard_agent_ws_bridge_invalid'
 });
 
-bridge.exitIfMain(module);
-module.exports = bridge.exported;
+dashboardAgentWsBridge.exitIfMain(module);
+module.exports = dashboardAgentWsBridge.exported;
