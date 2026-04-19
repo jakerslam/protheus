@@ -1,3 +1,4 @@
+// Layer ownership: core/layer0/ops (web_conduit search orchestration)
 fn search_strip_invisible_unicode(raw: &str) -> String {
     raw.chars()
         .filter(|ch| {
@@ -140,10 +141,10 @@ fn search_query_fetch_url_candidate_with_kind(query: &str) -> Option<(String, &'
     {
         return Some((direct_candidate, "direct_url"));
     }
-    if trimmed.contains(char::is_whitespace)
-        && let Some(candidate) = search_extract_inline_http_url(trimmed)
-    {
-        return Some((candidate, "inline_url"));
+    if trimmed.contains(char::is_whitespace) {
+        if let Some(candidate) = search_extract_inline_http_url(trimmed) {
+            return Some((candidate, "inline_url"));
+        }
     }
     if direct_candidate.starts_with("www.") && !direct_candidate.chars().any(|ch| ch.is_whitespace()) {
         return Some((format!("https://{}", direct_candidate), "www_domain"));
@@ -310,17 +311,15 @@ fn search_retry_lane_for_error(error: &str) -> &'static str {
 }
 
 fn search_retry_reason_for_error(error: &str) -> &'static str {
-    if error == "query_prefers_fetch_url"
-        || error == "non_search_meta_query"
-        || error == "query_required"
-        || error == "conflicting_time_filters"
-        || error == "unknown_search_provider"
-        || error == "unsupported_search_filter"
-        || error == "query_shape_repetitive_loop"
-    {
-        error
-    } else {
-        "request_contract_adjustment_required"
+    match error {
+        "query_prefers_fetch_url" => "query_prefers_fetch_url",
+        "non_search_meta_query" => "non_search_meta_query",
+        "query_required" => "query_required",
+        "conflicting_time_filters" => "conflicting_time_filters",
+        "unknown_search_provider" => "unknown_search_provider",
+        "unsupported_search_filter" => "unsupported_search_filter",
+        "query_shape_repetitive_loop" => "query_shape_repetitive_loop",
+        _ => "request_contract_adjustment_required",
     }
 }
 
@@ -774,10 +773,10 @@ fn search_parse_nonnegative_i64(value: Option<&Value>) -> i64 {
     }
     if let Some(raw) = value.as_str() {
         let trimmed = clean_text(raw, 32);
-        if !trimmed.is_empty()
-            && let Ok(parsed) = trimmed.parse::<i64>()
-        {
-            return parsed.max(0);
+        if !trimmed.is_empty() {
+            if let Ok(parsed) = trimmed.parse::<i64>() {
+                return parsed.max(0);
+            }
         }
     }
     0
@@ -2390,7 +2389,7 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         .unwrap_or(false);
     let replay_retry_after_seconds = attempt_replay_guard.get("retry_after_seconds");
     let replay_retry_after_seconds =
-        search_retry_after_seconds_from_value(replay_retry_after_seconds) as u64;
+        search_retry_after_seconds_from_value(replay_retry_after_seconds);
     let replay_retry_lane = clean_text(
         attempt_replay_guard
             .get("retry_lane")

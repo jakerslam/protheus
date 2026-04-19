@@ -1,3 +1,4 @@
+// Layer ownership: core/layer0/ops (dashboard_ui_parts troubleshooting contracts)
 fn dashboard_response_gate_score_from_flags(
     final_response_contract_ok: bool,
     answer_contract_ok: bool,

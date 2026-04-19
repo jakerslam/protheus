@@ -12,7 +12,7 @@
     "core_rust": 500,
     "other_rust": 1000
   },
-  "exception_count_ceiling": 336,
+  "exception_count_ceiling": 349,
   "generated_at": "2026-04-18T23:15:29.127Z",
   "exceptions": [
     {
@@ -2662,6 +2662,110 @@
       "expires": "2026-04-23",
       "task_id": "TD-SIZE-OPS-L0",
       "planned_batch_date": "2026-04-23"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/css/components.css.parts/0003-chat-init-and-archetypes.css",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/css/components.css.parts/0005-chat-message-bubbles.part01.css",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/css/components.css.parts/0006-chat-map-and-message-stats.css",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/css/components.css.parts/0008-tool-cards-and-composer-layout.css",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/css/components.css.parts/0009-composer-plus-menu-and-controls.css",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/css/components.css.parts/0012-overlay-surfaces-and-popups.part03.css",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/css/components.css.parts/0018-taskbar-and-toggle-normalization.css",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/css/layout.css.parts/0001-app-shell-dragbar-and-sidebar.part01.css",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/css/layout.css.parts/0001-sidebar-agent-list-and-actions.part02.css",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-UI-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-CORE-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/004-segment.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-CORE-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-CORE-CLASSIC",
+      "planned_batch_date": "2026-06-15"
+    },
+    {
+      "path": "core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs",
+      "owner": "jay",
+      "reason": "legacy oversize debt; scheduled decomposition batch",
+      "expires": "2026-06-15",
+      "task_id": "TD-SIZE-CORE-CLASSIC",
+      "planned_batch_date": "2026-06-15"
     }
   ],
   "exception_metadata_required": [
