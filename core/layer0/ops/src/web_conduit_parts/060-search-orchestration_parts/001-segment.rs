@@ -1,3 +1,134 @@
+fn normalize_search_query_url_candidate(raw: &str) -> String {
+    let mut out = clean_text(raw, 2_200).trim().to_string();
+    if out.starts_with('<') && out.ends_with('>') && out.len() > 2 {
+        out = out[1..out.len() - 1].trim().to_string();
+    }
+    if ((out.starts_with('"') && out.ends_with('"'))
+        || (out.starts_with('\'') && out.ends_with('\''))
+        || (out.starts_with('`') && out.ends_with('`')))
+        && out.len() > 1
+    {
+        out = out[1..out.len() - 1].trim().to_string();
+    }
+    while out.ends_with('.')
+        || out.ends_with(',')
+        || out.ends_with('!')
+        || out.ends_with('?')
+        || out.ends_with(';')
+        || out.ends_with(':')
+        || out.ends_with(')')
+        || out.ends_with(']')
+    {
+        out.pop();
+    }
+    if out.starts_with("//") && out.len() > 2 {
+        out = format!("https:{}", out);
+    }
+    out = out.replace("&amp;", "&");
+    clean_text(&out, 2_100)
+}
+
+fn search_query_looks_like_bare_domain(raw: &str) -> bool {
+    let candidate = clean_text(raw, 2_100).trim().to_ascii_lowercase();
+    if candidate.is_empty() || candidate.contains(char::is_whitespace) {
+        return false;
+    }
+    if candidate.starts_with("http://") || candidate.starts_with("https://") {
+        return false;
+    }
+    let host = candidate
+        .split('/')
+        .next()
+        .unwrap_or("")
+        .split('?')
+        .next()
+        .unwrap_or("")
+        .split('#')
+        .next()
+        .unwrap_or("");
+    if host.is_empty() || !host.contains('.') {
+        return false;
+    }
+    let labels = host.split('.').collect::<Vec<_>>();
+    if labels.len() < 2 {
+        return false;
+    }
+    let tld = labels.last().copied().unwrap_or("");
+    if tld.len() < 2 || !tld.chars().all(|ch| ch.is_ascii_alphabetic()) {
+        return false;
+    }
+    labels.iter().all(|label| {
+        !label.is_empty()
+            && label.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '-')
+            && !label.starts_with('-')
+            && !label.ends_with('-')
+    })
+}
+
+fn search_extract_inline_http_url(raw: &str) -> Option<String> {
+    for token in clean_text(raw, 2_200).split_whitespace() {
+        let normalized = normalize_search_query_url_candidate(token);
+        if (normalized.starts_with("http://") || normalized.starts_with("https://"))
+            && !normalized.chars().any(|ch| ch.is_whitespace())
+        {
+            return Some(normalized);
+        }
+    }
+    None
+}
+
+fn search_query_fetch_url_candidate_with_kind(query: &str) -> Option<(String, &'static str)> {
+    let cleaned = clean_text(query, 2_200);
+    let trimmed = cleaned.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let direct_candidate = normalize_search_query_url_candidate(trimmed);
+    if direct_candidate.starts_with("https://") && trimmed.trim_start().starts_with("//") {
+        return Some((direct_candidate, "protocol_relative"));
+    }
+    if (direct_candidate.starts_with("http://") || direct_candidate.starts_with("https://"))
+        && !direct_candidate.chars().any(|ch| ch.is_whitespace())
+    {
+        return Some((direct_candidate, "direct_url"));
+    }
+    if trimmed.contains(char::is_whitespace)
+        && let Some(candidate) = search_extract_inline_http_url(trimmed)
+    {
+        return Some((candidate, "inline_url"));
+    }
+    if direct_candidate.starts_with("www.") && !direct_candidate.chars().any(|ch| ch.is_whitespace()) {
+        return Some((format!("https://{}", direct_candidate), "www_domain"));
+    }
+    if search_query_looks_like_bare_domain(&direct_candidate) {
+        return Some((format!("https://{}", direct_candidate), "bare_domain"));
+    }
+    if trimmed.starts_with('[') && trimmed.contains("](") && trimmed.ends_with(')') {
+        if let (Some(open_idx), Some(close_idx)) = (trimmed.rfind('('), trimmed.rfind(')')) {
+            if close_idx > open_idx + 1 {
+                let candidate =
+                    normalize_search_query_url_candidate(trimmed[open_idx + 1..close_idx].trim());
+                if (candidate.starts_with("http://") || candidate.starts_with("https://"))
+                    && !candidate.chars().any(|ch| ch.is_whitespace())
+                {
+                    return Some((candidate, "markdown_link"));
+                }
+            }
+        }
+    }
+    None
+}
+
+fn search_query_fetch_url_candidate(query: &str) -> Option<String> {
+    search_query_fetch_url_candidate_with_kind(query).map(|row| row.0)
+}
+
+fn search_query_fetch_url_candidate_kind(query: &str) -> &'static str {
+    search_query_fetch_url_candidate_with_kind(query)
+        .map(|row| row.1)
+        .unwrap_or("none")
+}
+
 fn search_query_shape_error_code(query: &str) -> &'static str {
     let lowered = clean_text(query, 1_200).to_ascii_lowercase();
     let trimmed = lowered.trim();
@@ -27,9 +158,7 @@ fn search_query_shape_error_code(query: &str) -> &'static str {
     {
         return "query_payload_dump_detected";
     }
-    if (trimmed.starts_with("http://") || trimmed.starts_with("https://"))
-        && !trimmed.chars().any(|ch| ch.is_whitespace())
-    {
+    if search_query_fetch_url_candidate(trimmed).is_some() {
         return "query_prefers_fetch_url";
     }
     let line_count = lowered.lines().count();
@@ -96,18 +225,363 @@ fn search_query_shape_route_hint(reason: &str) -> &'static str {
     }
 }
 
+fn search_retry_strategy_for_error(error: &str) -> &'static str {
+    if error == "query_prefers_fetch_url" {
+        "use_web_fetch_route"
+    } else if error == "non_search_meta_query" {
+        "answer_directly_without_web_search"
+    } else if error == "query_required" {
+        "provide_query_text"
+    } else if error == "conflicting_time_filters" {
+        "remove_conflicting_time_filters"
+    } else if error == "unknown_search_provider" {
+        "use_supported_provider_or_auto"
+    } else if error == "unsupported_search_filter" {
+        "remove_unsupported_filter"
+    } else {
+        "rewrite_query_shape"
+    }
+}
+
+fn search_retry_lane_for_error(error: &str) -> &'static str {
+    if error == "query_prefers_fetch_url" {
+        "web_fetch"
+    } else {
+        "web_search"
+    }
+}
+
+fn search_retry_reason_for_error(error: &str) -> &'static str {
+    if error == "query_prefers_fetch_url"
+        || error == "non_search_meta_query"
+        || error == "query_required"
+        || error == "conflicting_time_filters"
+        || error == "unknown_search_provider"
+        || error == "unsupported_search_filter"
+    {
+        error
+    } else {
+        "request_contract_adjustment_required"
+    }
+}
+
+fn search_retry_category_for_error(error: &str) -> &'static str {
+    if error == "query_prefers_fetch_url" || error == "query_required" {
+        "input_contract"
+    } else if error == "non_search_meta_query" {
+        "intent_contract"
+    } else if error == "conflicting_time_filters" || error == "unsupported_search_filter" {
+        "filter_contract"
+    } else if error == "unknown_search_provider" {
+        "provider_contract"
+    } else if error == "web_search_duplicate_attempt_suppressed" {
+        "replay_guard"
+    } else if error.starts_with("web_search_tool_surface_") {
+        "tool_surface"
+    } else {
+        "request_contract"
+    }
+}
+
+fn search_retry_recovery_mode_for_error(error: &str) -> &'static str {
+    if error == "query_prefers_fetch_url" {
+        "reroute_fetch"
+    } else if error == "non_search_meta_query" {
+        "answer_directly"
+    } else if error == "conflicting_time_filters" || error == "unsupported_search_filter" {
+        "adjust_filters"
+    } else if error == "unknown_search_provider" {
+        "switch_provider"
+    } else if error == "web_search_duplicate_attempt_suppressed" {
+        "adjust_query_or_provider"
+    } else if error.starts_with("web_search_tool_surface_") {
+        "restore_tool_surface"
+    } else {
+        "adjust_request"
+    }
+}
+
+fn search_retry_priority_for_error(error: &str) -> &'static str {
+    if error == "query_required" || error.starts_with("web_search_tool_surface_") {
+        "high"
+    } else if error == "non_search_meta_query" {
+        "low"
+    } else {
+        "medium"
+    }
+}
+
+fn search_retry_operator_action_hint_for_error(error: &str) -> &'static str {
+    if error == "query_prefers_fetch_url" {
+        "invoke_web_fetch_with_requested_url"
+    } else if error == "non_search_meta_query" {
+        "answer_without_web_search_or_set_force_web_search"
+    } else if error == "query_required" {
+        "provide_non_empty_query"
+    } else if error == "conflicting_time_filters" {
+        "remove_freshness_or_date_range_conflict"
+    } else if error == "unknown_search_provider" {
+        "set_provider_auto_or_supported_provider"
+    } else if error == "unsupported_search_filter" {
+        "remove_or_replace_unsupported_filter"
+    } else if error == "web_search_duplicate_attempt_suppressed" {
+        "adjust_query_or_wait_for_retry_window"
+    } else if error.starts_with("web_search_tool_surface_") {
+        "restore_web_tool_surface_and_retry"
+    } else {
+        "adjust_search_request_and_retry"
+    }
+}
+
+fn search_retry_operator_owner_for_error(error: &str) -> &'static str {
+    if error == "query_prefers_fetch_url"
+        || error == "non_search_meta_query"
+        || error == "query_required"
+        || error == "conflicting_time_filters"
+        || error == "unsupported_search_filter"
+    {
+        "user"
+    } else if error == "unknown_search_provider" {
+        "operator"
+    } else if error == "web_search_duplicate_attempt_suppressed"
+        || error.starts_with("web_search_tool_surface_")
+    {
+        "system_operator"
+    } else {
+        "operator"
+    }
+}
+
+fn search_retry_diagnostic_code_for_error(error: &str) -> &'static str {
+    if error == "query_prefers_fetch_url" {
+        "search_retry_query_prefers_fetch_url"
+    } else if error == "non_search_meta_query" {
+        "search_retry_non_search_meta_query"
+    } else if error == "query_required" {
+        "search_retry_query_required"
+    } else if error == "conflicting_time_filters" {
+        "search_retry_conflicting_time_filters"
+    } else if error == "unknown_search_provider" {
+        "search_retry_unknown_search_provider"
+    } else if error == "unsupported_search_filter" {
+        "search_retry_unsupported_search_filter"
+    } else if error == "web_search_duplicate_attempt_suppressed" {
+        "search_retry_duplicate_attempt_suppressed"
+    } else if error.starts_with("web_search_tool_surface_") {
+        "search_retry_tool_surface"
+    } else {
+        "search_retry_request_contract_adjustment_required"
+    }
+}
+
+fn search_retry_blocking_kind_for_error(error: &str) -> &'static str {
+    if error == "query_prefers_fetch_url"
+        || error == "query_required"
+        || error == "conflicting_time_filters"
+        || error == "unsupported_search_filter"
+    {
+        "input_adjustment_required"
+    } else if error == "non_search_meta_query" {
+        "direct_answer_required"
+    } else if error == "unknown_search_provider" {
+        "provider_configuration_required"
+    } else if error == "web_search_duplicate_attempt_suppressed" {
+        "cooldown_required"
+    } else if error.starts_with("web_search_tool_surface_") {
+        "tool_surface_restore_required"
+    } else {
+        "none"
+    }
+}
+
+fn search_retry_auto_retry_allowed_for_error(error: &str) -> bool {
+    matches!(
+        search_retry_blocking_kind_for_error(error),
+        "provider_configuration_required" | "cooldown_required" | "none"
+    )
+}
+
+fn search_retry_escalation_lane_for_error(error: &str) -> &'static str {
+    match search_retry_blocking_kind_for_error(error) {
+        "input_adjustment_required" | "direct_answer_required" => "user_input",
+        "provider_configuration_required" => "operations",
+        "cooldown_required" => "automation",
+        "tool_surface_restore_required" => "platform",
+        _ => "none",
+    }
+}
+
+fn search_retry_requires_manual_confirmation_for_error(error: &str) -> bool {
+    matches!(
+        search_retry_blocking_kind_for_error(error),
+        "input_adjustment_required"
+            | "direct_answer_required"
+            | "provider_configuration_required"
+            | "tool_surface_restore_required"
+    )
+}
+
+fn search_retry_execution_policy_for_error(error: &str) -> &'static str {
+    let blocking_kind = search_retry_blocking_kind_for_error(error);
+    if search_retry_requires_manual_confirmation_for_error(error) {
+        "manual_gate_required"
+    } else if blocking_kind == "cooldown_required" {
+        "deferred_auto_retry"
+    } else if search_retry_auto_retry_allowed_for_error(error) {
+        "auto_retry"
+    } else {
+        "manual_gate_required"
+    }
+}
+
+fn search_retry_manual_gate_reason_for_error(error: &str) -> &'static str {
+    match search_retry_blocking_kind_for_error(error) {
+        "input_adjustment_required" => "input_adjustment_required",
+        "direct_answer_required" => "direct_answer_required",
+        "provider_configuration_required" => "provider_configuration_required",
+        "tool_surface_restore_required" => "tool_surface_restore_required",
+        _ => "none",
+    }
+}
+
+fn search_retry_requeue_strategy_for_error(error: &str) -> &'static str {
+    match search_retry_execution_policy_for_error(error) {
+        "auto_retry" => "immediate",
+        "deferred_auto_retry" => "deferred",
+        _ => "manual",
+    }
+}
+
+fn search_retry_can_execute_without_human_for_error(error: &str) -> bool {
+    matches!(
+        search_retry_execution_policy_for_error(error),
+        "auto_retry" | "deferred_auto_retry"
+    )
+}
+
+fn search_retry_execution_window_for_error(error: &str, retry_after_seconds: i64) -> &'static str {
+    match search_retry_requeue_strategy_for_error(error) {
+        "immediate" => "now",
+        "deferred" => {
+            if retry_after_seconds.max(0) > 0 {
+                "after_retry_after"
+            } else {
+                "deferred"
+            }
+        }
+        _ => "after_manual_gate",
+    }
+}
+
+fn search_retry_manual_gate_timeout_seconds_for_error(error: &str) -> i64 {
+    match search_retry_manual_gate_reason_for_error(error) {
+        "input_adjustment_required" => 1800,
+        "direct_answer_required" => 900,
+        "provider_configuration_required" => 3600,
+        "tool_surface_restore_required" => 1200,
+        _ => 0,
+    }
+}
+
+fn search_retry_next_action_after_seconds_for_error(error: &str, retry_after_seconds: i64) -> i64 {
+    match search_retry_execution_window_for_error(error, retry_after_seconds) {
+        "now" => 0,
+        "after_retry_after" => retry_after_seconds.max(0),
+        "deferred" => 60,
+        _ => search_retry_manual_gate_timeout_seconds_for_error(error),
+    }
+}
+
+fn search_retry_readiness_state_for_error(error: &str, retry_after_seconds: i64) -> &'static str {
+    if !search_retry_can_execute_without_human_for_error(error) {
+        "manual_gate_pending"
+    } else if search_retry_next_action_after_seconds_for_error(error, retry_after_seconds) > 0 {
+        "deferred_retry_pending"
+    } else {
+        "ready_now"
+    }
+}
+
+fn search_retry_envelope_for_error(error: &str) -> Value {
+    search_retry_envelope_runtime(
+        search_retry_strategy_for_error(error),
+        search_retry_reason_for_error(error),
+        search_retry_lane_for_error(error),
+        0,
+    )
+}
+
+fn search_retry_envelope_runtime(
+    strategy: &str,
+    reason: &str,
+    lane: &str,
+    retry_after_seconds: i64,
+) -> Value {
+    json!({
+        "recommended": true,
+        "retryable": true,
+        "idempotent": true,
+        "contract_family": "web_retry_contract_v1",
+        "strategy": strategy,
+        "lane": lane,
+        "reason": reason,
+        "category": search_retry_category_for_error(reason),
+        "recovery_mode": search_retry_recovery_mode_for_error(reason),
+        "priority": search_retry_priority_for_error(reason),
+        "operator_action_hint": search_retry_operator_action_hint_for_error(reason),
+        "operator_owner": search_retry_operator_owner_for_error(reason),
+        "diagnostic_code": search_retry_diagnostic_code_for_error(reason),
+        "blocking_kind": search_retry_blocking_kind_for_error(reason),
+        "auto_retry_allowed": search_retry_auto_retry_allowed_for_error(reason),
+        "escalation_lane": search_retry_escalation_lane_for_error(reason),
+        "requires_manual_confirmation": search_retry_requires_manual_confirmation_for_error(reason),
+        "execution_policy": search_retry_execution_policy_for_error(reason),
+        "manual_gate_reason": search_retry_manual_gate_reason_for_error(reason),
+        "requeue_strategy": search_retry_requeue_strategy_for_error(reason),
+        "can_execute_without_human": search_retry_can_execute_without_human_for_error(reason),
+        "execution_window": search_retry_execution_window_for_error(reason, retry_after_seconds),
+        "manual_gate_timeout_seconds": search_retry_manual_gate_timeout_seconds_for_error(reason),
+        "next_action_after_seconds": search_retry_next_action_after_seconds_for_error(reason, retry_after_seconds),
+        "readiness_state": search_retry_readiness_state_for_error(reason, retry_after_seconds),
+        "contract_version": "v1",
+        "retry_after_seconds": retry_after_seconds.max(0)
+    })
+}
+
+fn search_query_shape_suggested_next_action(query: &str, reason: &str) -> Value {
+    if reason == "query_prefers_fetch_url" {
+        let requested_url = search_query_fetch_url_candidate(query)
+            .unwrap_or_else(|| clean_text(query, 2_200).trim().to_string());
+        json!({
+            "action": "web_conduit_fetch",
+            "payload": {
+                "requested_url": requested_url,
+                "requested_url_input": clean_text(query, 2_200),
+                "summary_only": true
+            }
+        })
+    } else {
+        Value::Null
+    }
+}
+
 fn search_query_shape_contract(
     query: &str,
     reason: &str,
     override_used: bool,
     override_source: &str,
 ) -> Value {
+    let fetch_url_candidate = search_query_fetch_url_candidate(query).unwrap_or_default();
+    let fetch_url_candidate_kind = search_query_fetch_url_candidate_kind(query);
     json!({
         "blocked": reason != "none" && !override_used,
         "error": reason,
         "category": search_query_shape_category(reason),
         "recommended_action": search_query_shape_recommended_action(reason),
         "route_hint": search_query_shape_route_hint(reason),
+        "suggested_next_action": search_query_shape_suggested_next_action(query, reason),
+        "fetch_url_candidate": fetch_url_candidate,
+        "fetch_url_candidate_kind": fetch_url_candidate_kind,
         "override_used": override_used,
         "override_source": override_source,
         "stats": search_query_shape_stats(query)
@@ -205,23 +679,628 @@ fn search_query_shape_stats(query: &str) -> Value {
             unique.push(trimmed.to_string());
         }
     }
+    let fetch_url_candidate = search_query_fetch_url_candidate(query).unwrap_or_default();
+    let fetch_url_candidate_kind = search_query_fetch_url_candidate_kind(query);
     json!({
         "line_count": cleaned.lines().count(),
         "char_count": cleaned.len(),
         "total_terms": total_terms,
         "unique_terms": unique.len(),
+        "url_candidate_detected": !fetch_url_candidate.is_empty(),
+        "url_candidate": fetch_url_candidate,
+        "url_candidate_kind": fetch_url_candidate_kind,
     })
 }
 
-pub fn api_search(root: &Path, request: &Value) -> Value {
-    let query = clean_text(
-        request
-            .get("query")
-            .or_else(|| request.get("q"))
+fn search_query_source_kind(source: &str) -> &'static str {
+    if source == "none" {
+        "none"
+    } else if source.starts_with("payload.request.") && source.contains('[') {
+        "request_array_field"
+    } else if source.starts_with("request.") && source.contains('[') {
+        "request_array_field"
+    } else if source.starts_with("payload.request.") || source.starts_with("request.") {
+        "request_field"
+    } else if source.starts_with("payload.") && source.contains('[') {
+        "payload_array_field"
+    } else if source.contains('[') {
+        "array_field"
+    } else if source.starts_with("payload.") {
+        "payload_field"
+    } else {
+        "direct_field"
+    }
+}
+
+fn search_query_source_confidence(source_kind: &str) -> &'static str {
+    match source_kind {
+        "none" => "none",
+        "array_field" | "payload_array_field" | "request_array_field" => "medium",
+        _ => "high",
+    }
+}
+
+fn search_query_source_recovery_mode(source: &str) -> &'static str {
+    if source == "none" {
+        "none"
+    } else if source.starts_with("query")
+        || source.starts_with("q")
+        || source.starts_with("search_query")
+        || source.starts_with("searchQuery")
+        || source.starts_with("prompt")
+    {
+        "direct"
+    } else {
+        "derived"
+    }
+}
+
+fn search_query_source_lineage(source: &str, source_kind: &str, source_confidence: &str) -> Value {
+    let normalized_source = clean_text(source, 180);
+    let source_lane = if normalized_source.starts_with("payload.request.") {
+        "payload_request"
+    } else if normalized_source.starts_with("request.") {
+        "request"
+    } else if normalized_source.starts_with("payload.") {
+        "payload"
+    } else if normalized_source == "none" {
+        "none"
+    } else {
+        "direct"
+    };
+    let path_depth = if normalized_source.is_empty() || normalized_source == "none" {
+        0usize
+    } else {
+        normalized_source.split('.').count()
+    };
+    json!({
+        "source": normalized_source,
+        "kind": source_kind,
+        "confidence": source_confidence,
+        "lane": source_lane,
+        "is_request_wrapped": source_lane == "request" || source_lane == "payload_request",
+        "is_payload_wrapped": source_lane == "payload" || source_lane == "payload_request",
+        "is_array_source": source.contains('['),
+        "path_depth": path_depth
+    })
+}
+
+fn search_query_and_source(request: &Value) -> (String, &'static str) {
+    for (key, source) in [
+        ("query", "query"),
+        ("q", "q"),
+        ("search_query", "search_query"),
+        ("searchQuery", "searchQuery"),
+        ("prompt", "prompt"),
+        ("input", "input"),
+        ("text", "text"),
+        ("message", "message"),
+        ("question", "question"),
+    ] {
+        let value = clean_text(request.get(key).and_then(Value::as_str).unwrap_or(""), 600);
+        if !value.trim().is_empty() {
+            return (value, source);
+        }
+    }
+    for (pointer, source) in [
+        ("/request/query", "request.query"),
+        ("/request/q", "request.q"),
+        ("/request/search_query", "request.search_query"),
+        ("/request/searchQuery", "request.searchQuery"),
+        ("/request/data/query", "request.data.query"),
+        ("/request/data/q", "request.data.q"),
+        ("/request/data/search_query", "request.data.search_query"),
+        ("/request/data/searchQuery", "request.data.searchQuery"),
+        ("/request/body/query", "request.body.query"),
+        ("/request/body/q", "request.body.q"),
+        ("/request/body/search_query", "request.body.search_query"),
+        ("/request/body/searchQuery", "request.body.searchQuery"),
+        ("/request/input", "request.input"),
+        ("/request/text", "request.text"),
+        ("/request/message", "request.message"),
+        ("/request/question", "request.question"),
+        ("/payload/request/query", "payload.request.query"),
+        ("/payload/request/q", "payload.request.q"),
+        ("/payload/request/search_query", "payload.request.search_query"),
+        ("/payload/request/searchQuery", "payload.request.searchQuery"),
+        ("/payload/request/data/query", "payload.request.data.query"),
+        ("/payload/request/data/q", "payload.request.data.q"),
+        (
+            "/payload/request/data/search_query",
+            "payload.request.data.search_query",
+        ),
+        (
+            "/payload/request/data/searchQuery",
+            "payload.request.data.searchQuery",
+        ),
+        ("/payload/request/body/query", "payload.request.body.query"),
+        ("/payload/request/body/q", "payload.request.body.q"),
+        ("/payload/request/body/search_query", "payload.request.body.search_query"),
+        ("/payload/request/body/searchQuery", "payload.request.body.searchQuery"),
+        ("/payload/request/input", "payload.request.input"),
+        ("/payload/request/text", "payload.request.text"),
+        ("/payload/request/message", "payload.request.message"),
+        ("/payload/request/question", "payload.request.question"),
+        ("/payload/query", "payload.query"),
+        ("/payload/q", "payload.q"),
+        ("/payload/search_query", "payload.search_query"),
+        ("/payload/searchQuery", "payload.searchQuery"),
+        ("/payload/data/query", "payload.data.query"),
+        ("/payload/data/q", "payload.data.q"),
+        ("/payload/data/search_query", "payload.data.search_query"),
+        ("/payload/data/searchQuery", "payload.data.searchQuery"),
+        ("/payload/body/query", "payload.body.query"),
+        ("/payload/body/q", "payload.body.q"),
+        ("/payload/body/search_query", "payload.body.search_query"),
+        ("/payload/body/searchQuery", "payload.body.searchQuery"),
+        ("/payload/input", "payload.input"),
+        ("/payload/text", "payload.text"),
+        ("/payload/message", "payload.message"),
+        ("/payload/question", "payload.question"),
+    ] {
+        let value = clean_text(request.pointer(pointer).and_then(Value::as_str).unwrap_or(""), 600);
+        if !value.trim().is_empty() {
+            return (value, source);
+        }
+    }
+    for (key, source) in [("queries", "queries[0]"), ("search_queries", "search_queries[0]")] {
+        if let Some(value) = request
+            .get(key)
+            .and_then(Value::as_array)
+            .and_then(|rows| rows.first())
             .and_then(Value::as_str)
-            .unwrap_or(""),
-        600,
-    );
+        {
+            let cleaned = clean_text(value, 600);
+            if !cleaned.trim().is_empty() {
+                return (cleaned, source);
+            }
+        }
+    }
+    for (pointer, source) in [
+        ("/request/queries/0", "request.queries[0]"),
+        ("/request/search_queries/0", "request.search_queries[0]"),
+        ("/payload/request/queries/0", "payload.request.queries[0]"),
+        (
+            "/payload/request/search_queries/0",
+            "payload.request.search_queries[0]",
+        ),
+    ] {
+        let value = clean_text(request.pointer(pointer).and_then(Value::as_str).unwrap_or(""), 600);
+        if !value.trim().is_empty() {
+            return (value, source);
+        }
+    }
+    for (pointer, source) in [
+        ("/request/body/queries/0", "request.body.queries[0]"),
+        (
+            "/request/body/search_queries/0",
+            "request.body.search_queries[0]",
+        ),
+        ("/payload/body/queries/0", "payload.body.queries[0]"),
+        (
+            "/payload/body/search_queries/0",
+            "payload.body.search_queries[0]",
+        ),
+        (
+            "/payload/request/body/queries/0",
+            "payload.request.body.queries[0]",
+        ),
+        (
+            "/payload/request/body/search_queries/0",
+            "payload.request.body.search_queries[0]",
+        ),
+    ] {
+        let value = clean_text(request.pointer(pointer).and_then(Value::as_str).unwrap_or(""), 600);
+        if !value.trim().is_empty() {
+            return (value, source);
+        }
+    }
+    for (key, source_prefix) in [("queries", "queries"), ("search_queries", "search_queries")] {
+        if let Some(first_row) = request
+            .get(key)
+            .and_then(Value::as_array)
+            .and_then(|rows| rows.first())
+        {
+            for (field, source) in [
+                ("query", "query"),
+                ("q", "q"),
+                ("text", "text"),
+                ("prompt", "prompt"),
+                ("input", "input"),
+                ("message", "message"),
+            ] {
+                let value = clean_text(first_row.get(field).and_then(Value::as_str).unwrap_or(""), 600);
+                if !value.trim().is_empty() {
+                    let source_name = if source_prefix == "queries" {
+                        match source {
+                            "query" => "queries[0].query",
+                            "q" => "queries[0].q",
+                            "text" => "queries[0].text",
+                            "prompt" => "queries[0].prompt",
+                            "input" => "queries[0].input",
+                            "message" => "queries[0].message",
+                            _ => "queries[0]",
+                        }
+                    } else {
+                        match source {
+                            "query" => "search_queries[0].query",
+                            "q" => "search_queries[0].q",
+                            "text" => "search_queries[0].text",
+                            "prompt" => "search_queries[0].prompt",
+                            "input" => "search_queries[0].input",
+                            "message" => "search_queries[0].message",
+                            _ => "search_queries[0]",
+                        }
+                    };
+                    return (value, source_name);
+                }
+            }
+        }
+    }
+    for (pointer, source) in [
+        ("/payload/queries/0", "payload.queries[0]"),
+        ("/payload/search_queries/0", "payload.search_queries[0]"),
+    ] {
+        let value = clean_text(request.pointer(pointer).and_then(Value::as_str).unwrap_or(""), 600);
+        if !value.trim().is_empty() {
+            return (value, source);
+        }
+    }
+    for (pointer, source_prefix) in [
+        ("/payload/queries/0", "payload.queries[0]"),
+        ("/payload/search_queries/0", "payload.search_queries[0]"),
+    ] {
+        for (field, source_suffix) in [
+            ("query", ".query"),
+            ("q", ".q"),
+            ("text", ".text"),
+            ("prompt", ".prompt"),
+            ("input", ".input"),
+            ("message", ".message"),
+        ] {
+            let pointer_with_field = format!("{}/{}", pointer, field);
+            let value = clean_text(
+                request.pointer(&pointer_with_field).and_then(Value::as_str).unwrap_or(""),
+                600,
+            );
+            if !value.trim().is_empty() {
+                let source_name = match (source_prefix, source_suffix) {
+                    ("payload.queries[0]", ".query") => "payload.queries[0].query",
+                    ("payload.queries[0]", ".q") => "payload.queries[0].q",
+                    ("payload.queries[0]", ".text") => "payload.queries[0].text",
+                    ("payload.queries[0]", ".prompt") => "payload.queries[0].prompt",
+                    ("payload.queries[0]", ".input") => "payload.queries[0].input",
+                    ("payload.queries[0]", ".message") => "payload.queries[0].message",
+                    ("payload.search_queries[0]", ".query") => "payload.search_queries[0].query",
+                    ("payload.search_queries[0]", ".q") => "payload.search_queries[0].q",
+                    ("payload.search_queries[0]", ".text") => "payload.search_queries[0].text",
+                    ("payload.search_queries[0]", ".prompt") => "payload.search_queries[0].prompt",
+                    ("payload.search_queries[0]", ".input") => "payload.search_queries[0].input",
+                    ("payload.search_queries[0]", ".message") => "payload.search_queries[0].message",
+                    _ => "none",
+                };
+                if source_name != "none" {
+                    return (value, source_name);
+                }
+            }
+        }
+    }
+    for (pointer, source_prefix) in [
+        ("/request/queries/0", "request.queries[0]"),
+        ("/request/search_queries/0", "request.search_queries[0]"),
+        ("/payload/request/queries/0", "payload.request.queries[0]"),
+        (
+            "/payload/request/search_queries/0",
+            "payload.request.search_queries[0]",
+        ),
+    ] {
+        for (field, source_suffix) in [
+            ("query", ".query"),
+            ("q", ".q"),
+            ("text", ".text"),
+            ("prompt", ".prompt"),
+            ("input", ".input"),
+            ("message", ".message"),
+        ] {
+            let pointer_with_field = format!("{}/{}", pointer, field);
+            let value = clean_text(
+                request.pointer(&pointer_with_field).and_then(Value::as_str).unwrap_or(""),
+                600,
+            );
+            if !value.trim().is_empty() {
+                let source_name = match (source_prefix, source_suffix) {
+                    ("request.queries[0]", ".query") => "request.queries[0].query",
+                    ("request.queries[0]", ".q") => "request.queries[0].q",
+                    ("request.queries[0]", ".text") => "request.queries[0].text",
+                    ("request.queries[0]", ".prompt") => "request.queries[0].prompt",
+                    ("request.queries[0]", ".input") => "request.queries[0].input",
+                    ("request.queries[0]", ".message") => "request.queries[0].message",
+                    ("request.search_queries[0]", ".query") => "request.search_queries[0].query",
+                    ("request.search_queries[0]", ".q") => "request.search_queries[0].q",
+                    ("request.search_queries[0]", ".text") => "request.search_queries[0].text",
+                    ("request.search_queries[0]", ".prompt") => "request.search_queries[0].prompt",
+                    ("request.search_queries[0]", ".input") => "request.search_queries[0].input",
+                    ("request.search_queries[0]", ".message") => "request.search_queries[0].message",
+                    ("payload.request.queries[0]", ".query") => "payload.request.queries[0].query",
+                    ("payload.request.queries[0]", ".q") => "payload.request.queries[0].q",
+                    ("payload.request.queries[0]", ".text") => "payload.request.queries[0].text",
+                    ("payload.request.queries[0]", ".prompt") => "payload.request.queries[0].prompt",
+                    ("payload.request.queries[0]", ".input") => "payload.request.queries[0].input",
+                    ("payload.request.queries[0]", ".message") => "payload.request.queries[0].message",
+                    ("payload.request.search_queries[0]", ".query") => {
+                        "payload.request.search_queries[0].query"
+                    }
+                    ("payload.request.search_queries[0]", ".q") => {
+                        "payload.request.search_queries[0].q"
+                    }
+                    ("payload.request.search_queries[0]", ".text") => {
+                        "payload.request.search_queries[0].text"
+                    }
+                    ("payload.request.search_queries[0]", ".prompt") => {
+                        "payload.request.search_queries[0].prompt"
+                    }
+                    ("payload.request.search_queries[0]", ".input") => {
+                        "payload.request.search_queries[0].input"
+                    }
+                    ("payload.request.search_queries[0]", ".message") => {
+                        "payload.request.search_queries[0].message"
+                    }
+                    _ => "none",
+                };
+                if source_name != "none" {
+                    return (value, source_name);
+                }
+            }
+        }
+    }
+    for (pointer, source_prefix) in [
+        ("/request/body/queries/0", "request.body.queries[0]"),
+        (
+            "/request/body/search_queries/0",
+            "request.body.search_queries[0]",
+        ),
+        ("/payload/body/queries/0", "payload.body.queries[0]"),
+        (
+            "/payload/body/search_queries/0",
+            "payload.body.search_queries[0]",
+        ),
+        (
+            "/payload/request/body/queries/0",
+            "payload.request.body.queries[0]",
+        ),
+        (
+            "/payload/request/body/search_queries/0",
+            "payload.request.body.search_queries[0]",
+        ),
+    ] {
+        for (field, source_suffix) in [
+            ("query", ".query"),
+            ("q", ".q"),
+            ("text", ".text"),
+            ("prompt", ".prompt"),
+            ("input", ".input"),
+            ("message", ".message"),
+            ("question", ".question"),
+            ("search_query", ".search_query"),
+            ("searchQuery", ".searchQuery"),
+        ] {
+            let pointer_with_field = format!("{}/{}", pointer, field);
+            let value = clean_text(
+                request.pointer(&pointer_with_field).and_then(Value::as_str).unwrap_or(""),
+                600,
+            );
+            if !value.trim().is_empty() {
+                let source_name = match (source_prefix, source_suffix) {
+                    ("request.body.queries[0]", ".query") => "request.body.queries[0].query",
+                    ("request.body.queries[0]", ".q") => "request.body.queries[0].q",
+                    ("request.body.queries[0]", ".text") => "request.body.queries[0].text",
+                    ("request.body.queries[0]", ".prompt") => "request.body.queries[0].prompt",
+                    ("request.body.queries[0]", ".input") => "request.body.queries[0].input",
+                    ("request.body.queries[0]", ".message") => "request.body.queries[0].message",
+                    ("request.body.queries[0]", ".question") => "request.body.queries[0].question",
+                    ("request.body.queries[0]", ".search_query") => {
+                        "request.body.queries[0].search_query"
+                    }
+                    ("request.body.queries[0]", ".searchQuery") => {
+                        "request.body.queries[0].searchQuery"
+                    }
+                    ("request.body.search_queries[0]", ".query") => {
+                        "request.body.search_queries[0].query"
+                    }
+                    ("request.body.search_queries[0]", ".q") => "request.body.search_queries[0].q",
+                    ("request.body.search_queries[0]", ".text") => {
+                        "request.body.search_queries[0].text"
+                    }
+                    ("request.body.search_queries[0]", ".prompt") => {
+                        "request.body.search_queries[0].prompt"
+                    }
+                    ("request.body.search_queries[0]", ".input") => {
+                        "request.body.search_queries[0].input"
+                    }
+                    ("request.body.search_queries[0]", ".message") => {
+                        "request.body.search_queries[0].message"
+                    }
+                    ("request.body.search_queries[0]", ".question") => {
+                        "request.body.search_queries[0].question"
+                    }
+                    ("request.body.search_queries[0]", ".search_query") => {
+                        "request.body.search_queries[0].search_query"
+                    }
+                    ("request.body.search_queries[0]", ".searchQuery") => {
+                        "request.body.search_queries[0].searchQuery"
+                    }
+                    ("payload.body.queries[0]", ".query") => "payload.body.queries[0].query",
+                    ("payload.body.queries[0]", ".q") => "payload.body.queries[0].q",
+                    ("payload.body.queries[0]", ".text") => "payload.body.queries[0].text",
+                    ("payload.body.queries[0]", ".prompt") => "payload.body.queries[0].prompt",
+                    ("payload.body.queries[0]", ".input") => "payload.body.queries[0].input",
+                    ("payload.body.queries[0]", ".message") => "payload.body.queries[0].message",
+                    ("payload.body.queries[0]", ".question") => "payload.body.queries[0].question",
+                    ("payload.body.queries[0]", ".search_query") => {
+                        "payload.body.queries[0].search_query"
+                    }
+                    ("payload.body.queries[0]", ".searchQuery") => {
+                        "payload.body.queries[0].searchQuery"
+                    }
+                    ("payload.body.search_queries[0]", ".query") => {
+                        "payload.body.search_queries[0].query"
+                    }
+                    ("payload.body.search_queries[0]", ".q") => "payload.body.search_queries[0].q",
+                    ("payload.body.search_queries[0]", ".text") => {
+                        "payload.body.search_queries[0].text"
+                    }
+                    ("payload.body.search_queries[0]", ".prompt") => {
+                        "payload.body.search_queries[0].prompt"
+                    }
+                    ("payload.body.search_queries[0]", ".input") => {
+                        "payload.body.search_queries[0].input"
+                    }
+                    ("payload.body.search_queries[0]", ".message") => {
+                        "payload.body.search_queries[0].message"
+                    }
+                    ("payload.body.search_queries[0]", ".question") => {
+                        "payload.body.search_queries[0].question"
+                    }
+                    ("payload.body.search_queries[0]", ".search_query") => {
+                        "payload.body.search_queries[0].search_query"
+                    }
+                    ("payload.body.search_queries[0]", ".searchQuery") => {
+                        "payload.body.search_queries[0].searchQuery"
+                    }
+                    ("payload.request.body.queries[0]", ".query") => {
+                        "payload.request.body.queries[0].query"
+                    }
+                    ("payload.request.body.queries[0]", ".q") => "payload.request.body.queries[0].q",
+                    ("payload.request.body.queries[0]", ".text") => {
+                        "payload.request.body.queries[0].text"
+                    }
+                    ("payload.request.body.queries[0]", ".prompt") => {
+                        "payload.request.body.queries[0].prompt"
+                    }
+                    ("payload.request.body.queries[0]", ".input") => {
+                        "payload.request.body.queries[0].input"
+                    }
+                    ("payload.request.body.queries[0]", ".message") => {
+                        "payload.request.body.queries[0].message"
+                    }
+                    ("payload.request.body.queries[0]", ".question") => {
+                        "payload.request.body.queries[0].question"
+                    }
+                    ("payload.request.body.queries[0]", ".search_query") => {
+                        "payload.request.body.queries[0].search_query"
+                    }
+                    ("payload.request.body.queries[0]", ".searchQuery") => {
+                        "payload.request.body.queries[0].searchQuery"
+                    }
+                    ("payload.request.body.search_queries[0]", ".query") => {
+                        "payload.request.body.search_queries[0].query"
+                    }
+                    ("payload.request.body.search_queries[0]", ".q") => {
+                        "payload.request.body.search_queries[0].q"
+                    }
+                    ("payload.request.body.search_queries[0]", ".text") => {
+                        "payload.request.body.search_queries[0].text"
+                    }
+                    ("payload.request.body.search_queries[0]", ".prompt") => {
+                        "payload.request.body.search_queries[0].prompt"
+                    }
+                    ("payload.request.body.search_queries[0]", ".input") => {
+                        "payload.request.body.search_queries[0].input"
+                    }
+                    ("payload.request.body.search_queries[0]", ".message") => {
+                        "payload.request.body.search_queries[0].message"
+                    }
+                    ("payload.request.body.search_queries[0]", ".question") => {
+                        "payload.request.body.search_queries[0].question"
+                    }
+                    ("payload.request.body.search_queries[0]", ".search_query") => {
+                        "payload.request.body.search_queries[0].search_query"
+                    }
+                    ("payload.request.body.search_queries[0]", ".searchQuery") => {
+                        "payload.request.body.search_queries[0].searchQuery"
+                    }
+                    _ => "none",
+                };
+                if source_name != "none" {
+                    return (value, source_name);
+                }
+            }
+        }
+    }
+    for (pointer, source) in [
+        ("/queries/0/question", "queries[0]"),
+        ("/queries/0/search_query", "queries[0]"),
+        ("/queries/0/searchQuery", "queries[0]"),
+        ("/search_queries/0/question", "search_queries[0]"),
+        ("/search_queries/0/search_query", "search_queries[0]"),
+        ("/search_queries/0/searchQuery", "search_queries[0]"),
+        ("/payload/queries/0/question", "payload.queries[0]"),
+        ("/payload/queries/0/search_query", "payload.queries[0]"),
+        ("/payload/queries/0/searchQuery", "payload.queries[0]"),
+        ("/payload/search_queries/0/question", "payload.search_queries[0]"),
+        (
+            "/payload/search_queries/0/search_query",
+            "payload.search_queries[0]",
+        ),
+        (
+            "/payload/search_queries/0/searchQuery",
+            "payload.search_queries[0]",
+        ),
+        ("/request/queries/0/question", "request.queries[0]"),
+        ("/request/queries/0/search_query", "request.queries[0]"),
+        ("/request/queries/0/searchQuery", "request.queries[0]"),
+        (
+            "/request/search_queries/0/question",
+            "request.search_queries[0]",
+        ),
+        (
+            "/request/search_queries/0/search_query",
+            "request.search_queries[0]",
+        ),
+        (
+            "/request/search_queries/0/searchQuery",
+            "request.search_queries[0]",
+        ),
+        (
+            "/payload/request/queries/0/question",
+            "payload.request.queries[0]",
+        ),
+        (
+            "/payload/request/queries/0/search_query",
+            "payload.request.queries[0]",
+        ),
+        (
+            "/payload/request/queries/0/searchQuery",
+            "payload.request.queries[0]",
+        ),
+        (
+            "/payload/request/search_queries/0/question",
+            "payload.request.search_queries[0]",
+        ),
+        (
+            "/payload/request/search_queries/0/search_query",
+            "payload.request.search_queries[0]",
+        ),
+        (
+            "/payload/request/search_queries/0/searchQuery",
+            "payload.request.search_queries[0]",
+        ),
+    ] {
+        let value = clean_text(request.pointer(pointer).and_then(Value::as_str).unwrap_or(""), 600);
+        if !value.trim().is_empty() {
+            return (value, source);
+        }
+    }
+    (String::new(), "none")
+}
+
+pub fn api_search(root: &Path, request: &Value) -> Value {
+    let (query, query_source) = search_query_and_source(request);
+    let query_source_kind = search_query_source_kind(query_source);
+    let query_source_confidence = search_query_source_confidence(query_source_kind);
+    let query_source_recovery_mode = search_query_source_recovery_mode(query_source);
+    let query_source_lineage =
+        search_query_source_lineage(query_source, query_source_kind, query_source_confidence);
     let provider_hint = clean_text(
         request
             .get("provider")
@@ -237,6 +1316,8 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
     let query_shape_override = search_query_shape_override(&policy, request);
     let query_shape_override_source = search_query_shape_override_source(&policy, request);
     let query_shape_error = search_query_shape_error_code(&query);
+    let query_shape_fetch_url_candidate = search_query_fetch_url_candidate(&query).unwrap_or_default();
+    let query_shape_fetch_url_candidate_kind = search_query_fetch_url_candidate_kind(&query);
     if query_shape_error != "none" && !query_shape_override {
         let reason = query_shape_error;
         let receipt = build_receipt("", "deny", None, 0, reason, Some(reason));
@@ -264,6 +1345,14 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
             obj.insert("query_shape_blocked".to_string(), json!(true));
             obj.insert("query_shape_error".to_string(), json!(reason));
             obj.insert("query_shape_stats".to_string(), search_query_shape_stats(&query));
+            obj.insert(
+                "query_shape_fetch_url_candidate".to_string(),
+                json!(query_shape_fetch_url_candidate.clone()),
+            );
+            obj.insert(
+                "query_shape_fetch_url_candidate_kind".to_string(),
+                json!(query_shape_fetch_url_candidate_kind),
+            );
             obj.insert("query_shape_override_allowed".to_string(), json!(false));
             obj.insert("query_shape_override_used".to_string(), json!(false));
             obj.insert(
@@ -286,10 +1375,84 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
                 "query_shape".to_string(),
                 search_query_shape_contract(&query, reason, false, query_shape_override_source),
             );
+            obj.insert("query_source".to_string(), json!(query_source));
+            obj.insert("query_source_kind".to_string(), json!(query_source_kind));
+            obj.insert(
+                "query_source_confidence".to_string(),
+                json!(query_source_confidence),
+            );
+            obj.insert(
+                "query_source_recovery_mode".to_string(),
+                json!(query_source_recovery_mode),
+            );
+            obj.insert("query_source_lineage".to_string(), query_source_lineage.clone());
+            obj.insert(
+                "suggested_next_action".to_string(),
+                search_query_shape_suggested_next_action(&query, reason),
+            );
+            obj.insert(
+                "retry".to_string(),
+                search_retry_envelope_for_error(reason),
+            );
         }
         return out;
     }
-    if let Some(early) = search_early_validation_response(root, request, &query) {
+    if let Some(mut early) = search_early_validation_response(root, request, &query) {
+        let early_error = clean_text(
+            early.get("error").and_then(Value::as_str).unwrap_or(""),
+            120,
+        );
+        if let Some(obj) = early.as_object_mut() {
+            obj.insert("query_source".to_string(), json!(query_source));
+            obj.insert("query_source_kind".to_string(), json!(query_source_kind));
+            obj.insert(
+                "query_source_confidence".to_string(),
+                json!(query_source_confidence),
+            );
+            obj.insert(
+                "query_source_recovery_mode".to_string(),
+                json!(query_source_recovery_mode),
+            );
+            obj.insert("query_source_lineage".to_string(), query_source_lineage.clone());
+            obj.insert(
+                "query_shape_fetch_url_candidate".to_string(),
+                json!(query_shape_fetch_url_candidate.clone()),
+            );
+            obj.insert(
+                "query_shape_fetch_url_candidate_kind".to_string(),
+                json!(query_shape_fetch_url_candidate_kind),
+            );
+            obj.insert("query_shape_error".to_string(), json!(query_shape_error));
+            obj.insert(
+                "query_shape_category".to_string(),
+                json!(search_query_shape_category(query_shape_error)),
+            );
+            obj.insert(
+                "query_shape_recommended_action".to_string(),
+                json!(search_query_shape_recommended_action(query_shape_error)),
+            );
+            obj.insert(
+                "query_shape_route_hint".to_string(),
+                json!(search_query_shape_route_hint(query_shape_error)),
+            );
+            obj.insert(
+                "query_shape".to_string(),
+                search_query_shape_contract(
+                    &query,
+                    query_shape_error,
+                    query_shape_override,
+                    query_shape_override_source,
+                ),
+            );
+            obj.insert(
+                "suggested_next_action".to_string(),
+                search_query_shape_suggested_next_action(&query, query_shape_error),
+            );
+            obj.insert(
+                "retry".to_string(),
+                search_retry_envelope_for_error(&early_error),
+            );
+        }
         return early;
     }
     let normalized_filters = normalized_search_filters(request);
@@ -343,12 +1506,43 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
             "ok": false,
             "error": "conflicting_time_filters",
             "query": query,
+            "query_source": query_source,
+            "query_source_kind": query_source_kind,
+            "query_source_confidence": query_source_confidence,
+            "query_source_recovery_mode": query_source_recovery_mode,
+            "query_source_lineage": query_source_lineage,
+            "query_shape_fetch_url_candidate": query_shape_fetch_url_candidate,
+            "query_shape_fetch_url_candidate_kind": query_shape_fetch_url_candidate_kind,
+            "query_shape_error": query_shape_error,
+            "query_shape_category": search_query_shape_category(query_shape_error),
+            "query_shape_recommended_action": search_query_shape_recommended_action(query_shape_error),
+            "query_shape_route_hint": search_query_shape_route_hint(query_shape_error),
+            "query_shape": search_query_shape_contract(
+                &query,
+                query_shape_error,
+                query_shape_override,
+                query_shape_override_source
+            ),
+            "suggested_next_action": search_query_shape_suggested_next_action(&query, query_shape_error),
             "freshness": raw_freshness,
             "date_after": raw_date_after,
             "date_before": raw_date_before,
             "summary": "freshness cannot be combined with date_after/date_before. Use either freshness or an explicit date range.",
             "filters": normalized_filters.clone(),
             "provider_hint": provider_hint.clone(),
+            "tool_execution_attempted": false,
+            "tool_execution_gate": {
+                "should_execute": false,
+                "mode": "blocked",
+                "reason": "conflicting_time_filters",
+                "source": "request_contract"
+            },
+            "meta_query_blocked": false,
+            "cache_status": "skipped_validation",
+            "cache_store_allowed": false,
+            "cache_write_attempted": false,
+            "cache_skip_reason": "conflicting_time_filters",
+            "retry": search_retry_envelope_for_error("conflicting_time_filters"),
             "provider_catalog": provider_catalog_snapshot(root, &policy),
             "process_summary": runtime_web_process_summary(
                 "web_search",
@@ -385,12 +1579,48 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
             "ok": false,
             "error": "unknown_search_provider",
             "query": query,
+            "query_source": query_source,
+            "query_source_kind": query_source_kind,
+            "query_source_confidence": query_source_confidence,
+            "query_source_recovery_mode": query_source_recovery_mode,
+            "query_source_lineage": query_source_lineage,
             "requested_provider": unknown_provider,
             "supported_filters": search_provider_request_contract(&policy)
                 .get("supports_filters")
                 .cloned()
                 .unwrap_or_else(|| json!({})),
+            "tool_execution_attempted": false,
+            "tool_execution_gate": {
+                "should_execute": false,
+                "mode": "blocked",
+                "reason": "unknown_search_provider",
+                "source": "request_contract"
+            },
+            "meta_query_blocked": false,
+            "cache_status": "skipped_validation",
+            "cache_store_allowed": false,
+            "cache_write_attempted": false,
+            "cache_skip_reason": "unknown_search_provider",
+            "retry": search_retry_envelope_for_error("unknown_search_provider"),
             "provider_catalog": provider_catalog_snapshot(root, &policy),
+            "process_summary": runtime_web_process_summary(
+                "web_search",
+                "request_contract_blocked",
+                false,
+                &json!({
+                    "should_execute": false,
+                    "mode": "blocked",
+                    "reason": "unknown_search_provider",
+                    "source": "request_contract"
+                }),
+                &json!({
+                    "blocked": false,
+                    "reason": "not_evaluated"
+                }),
+                &json!([]),
+                "none",
+                Some("unknown_search_provider")
+            ),
             "receipt": receipt
         });
     }
@@ -411,6 +1641,51 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         let _ = append_jsonl(&receipts_path(root), &receipt);
         if let Some(obj) = unsupported.as_object_mut() {
             obj.insert("query".to_string(), Value::String(query.clone()));
+            obj.insert("query_source".to_string(), json!(query_source));
+            obj.insert("query_source_kind".to_string(), json!(query_source_kind));
+            obj.insert(
+                "query_source_confidence".to_string(),
+                json!(query_source_confidence),
+            );
+            obj.insert(
+                "query_source_recovery_mode".to_string(),
+                json!(query_source_recovery_mode),
+            );
+            obj.insert("query_source_lineage".to_string(), query_source_lineage.clone());
+            obj.insert(
+                "query_shape_fetch_url_candidate".to_string(),
+                json!(query_shape_fetch_url_candidate.clone()),
+            );
+            obj.insert(
+                "query_shape_fetch_url_candidate_kind".to_string(),
+                json!(query_shape_fetch_url_candidate_kind),
+            );
+            obj.insert("query_shape_error".to_string(), json!(query_shape_error));
+            obj.insert(
+                "query_shape_category".to_string(),
+                json!(search_query_shape_category(query_shape_error)),
+            );
+            obj.insert(
+                "query_shape_recommended_action".to_string(),
+                json!(search_query_shape_recommended_action(query_shape_error)),
+            );
+            obj.insert(
+                "query_shape_route_hint".to_string(),
+                json!(search_query_shape_route_hint(query_shape_error)),
+            );
+            obj.insert(
+                "query_shape".to_string(),
+                search_query_shape_contract(
+                    &query,
+                    query_shape_error,
+                    query_shape_override,
+                    query_shape_override_source,
+                ),
+            );
+            obj.insert(
+                "suggested_next_action".to_string(),
+                search_query_shape_suggested_next_action(&query, query_shape_error),
+            );
             obj.insert(
                 "provider_hint".to_string(),
                 Value::String(provider_hint.clone()),
@@ -419,6 +1694,53 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
             obj.insert(
                 "provider_catalog".to_string(),
                 provider_catalog_snapshot(root, &policy),
+            );
+            obj.insert(
+                "supported_filters".to_string(),
+                search_provider_request_contract(&policy)
+                    .get("supports_filters")
+                    .cloned()
+                    .unwrap_or_else(|| json!({})),
+            );
+            obj.insert("tool_execution_attempted".to_string(), json!(false));
+            obj.insert(
+                "tool_execution_gate".to_string(),
+                json!({
+                    "should_execute": false,
+                    "mode": "blocked",
+                    "reason": "unsupported_search_filter",
+                    "source": "request_contract"
+                }),
+            );
+            obj.insert("meta_query_blocked".to_string(), json!(false));
+            obj.insert("cache_status".to_string(), json!("skipped_validation"));
+            obj.insert("cache_store_allowed".to_string(), json!(false));
+            obj.insert("cache_write_attempted".to_string(), json!(false));
+            obj.insert("cache_skip_reason".to_string(), json!("unsupported_search_filter"));
+            obj.insert(
+                "retry".to_string(),
+                search_retry_envelope_for_error("unsupported_search_filter"),
+            );
+            obj.insert(
+                "process_summary".to_string(),
+                runtime_web_process_summary(
+                    "web_search",
+                    "request_contract_blocked",
+                    false,
+                    &json!({
+                        "should_execute": false,
+                        "mode": "blocked",
+                        "reason": "unsupported_search_filter",
+                        "source": "request_contract"
+                    }),
+                    &json!({
+                        "blocked": false,
+                        "reason": "not_evaluated"
+                    }),
+                    &json!([]),
+                    "none",
+                    Some("unsupported_search_filter")
+                ),
             );
             obj.insert("receipt".to_string(), receipt);
         }
@@ -479,6 +1801,8 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
                 "provider_hint".to_string(),
                 Value::String(provider_hint.clone()),
             );
+            obj.insert("query_source".to_string(), json!(query_source));
+            obj.insert("query_source_kind".to_string(), json!(query_source_kind));
             obj.insert("provider_chain".to_string(), json!(provider_chain));
             obj.insert(
                 "provider_resolution".to_string(),
@@ -495,6 +1819,14 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
             obj.insert(
                 "query_shape_stats".to_string(),
                 search_query_shape_stats(&query),
+            );
+            obj.insert(
+                "query_shape_fetch_url_candidate".to_string(),
+                json!(query_shape_fetch_url_candidate.clone()),
+            );
+            obj.insert(
+                "query_shape_fetch_url_candidate_kind".to_string(),
+                json!(query_shape_fetch_url_candidate_kind),
             );
             obj.insert(
                 "query_shape_error".to_string(),
@@ -520,6 +1852,10 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
                     query_shape_override,
                     query_shape_override_source,
                 ),
+            );
+            obj.insert(
+                "suggested_next_action".to_string(),
+                search_query_shape_suggested_next_action(&query, query_shape_error),
             );
             obj.insert(
                 "provider_health".to_string(),
@@ -730,6 +2066,51 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
             "provider_hint".to_string(),
             Value::String(provider_hint.clone()),
         );
+        out.insert("query_source".to_string(), json!(query_source));
+        out.insert("query_source_kind".to_string(), json!(query_source_kind));
+        out.insert(
+            "query_source_confidence".to_string(),
+            json!(query_source_confidence),
+        );
+        out.insert(
+            "query_source_recovery_mode".to_string(),
+            json!(query_source_recovery_mode),
+        );
+        out.insert("query_source_lineage".to_string(), query_source_lineage.clone());
+        out.insert(
+            "query_shape_fetch_url_candidate".to_string(),
+            json!(query_shape_fetch_url_candidate.clone()),
+        );
+        out.insert(
+            "query_shape_fetch_url_candidate_kind".to_string(),
+            json!(query_shape_fetch_url_candidate_kind),
+        );
+        out.insert("query_shape_error".to_string(), json!(query_shape_error));
+        out.insert(
+            "query_shape_category".to_string(),
+            json!(search_query_shape_category(query_shape_error)),
+        );
+        out.insert(
+            "query_shape_recommended_action".to_string(),
+            json!(search_query_shape_recommended_action(query_shape_error)),
+        );
+        out.insert(
+            "query_shape_route_hint".to_string(),
+            json!(search_query_shape_route_hint(query_shape_error)),
+        );
+        out.insert(
+            "query_shape".to_string(),
+            search_query_shape_contract(
+                &query,
+                query_shape_error,
+                query_shape_override,
+                query_shape_override_source,
+            ),
+        );
+        out.insert(
+            "suggested_next_action".to_string(),
+            search_query_shape_suggested_next_action(&query, query_shape_error),
+        );
         out.insert("provider_chain".to_string(), json!(provider_chain.clone()));
         out.insert("provider_resolution".to_string(), provider_resolution);
         out.insert(
@@ -751,12 +2132,18 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         );
         out.insert(
             "retry".to_string(),
-            json!({
-                "recommended": true,
-                "strategy": "change_query_or_provider",
-                "lane": replay_retry_lane,
-                "retry_after_seconds": replay_retry_after_seconds
-            }),
+            search_retry_envelope_runtime(
+                if preflight_error == "web_search_tool_surface_unavailable" {
+                    "restore_tool_surface_or_use_supported_provider"
+                } else if preflight_error == "web_search_tool_surface_degraded" {
+                    "stabilize_provider_runtime_and_retry"
+                } else {
+                    "change_query_or_provider"
+                },
+                preflight_error,
+                &replay_retry_lane,
+                replay_retry_after_seconds,
+            ),
         );
         out.insert(
             "process_summary".to_string(),
@@ -837,6 +2224,51 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
             "provider_hint".to_string(),
             Value::String(provider_hint.clone()),
         );
+        out.insert("query_source".to_string(), json!(query_source));
+        out.insert("query_source_kind".to_string(), json!(query_source_kind));
+        out.insert(
+            "query_source_confidence".to_string(),
+            json!(query_source_confidence),
+        );
+        out.insert(
+            "query_source_recovery_mode".to_string(),
+            json!(query_source_recovery_mode),
+        );
+        out.insert("query_source_lineage".to_string(), query_source_lineage.clone());
+        out.insert(
+            "query_shape_fetch_url_candidate".to_string(),
+            json!(query_shape_fetch_url_candidate.clone()),
+        );
+        out.insert(
+            "query_shape_fetch_url_candidate_kind".to_string(),
+            json!(query_shape_fetch_url_candidate_kind),
+        );
+        out.insert("query_shape_error".to_string(), json!(query_shape_error));
+        out.insert(
+            "query_shape_category".to_string(),
+            json!(search_query_shape_category(query_shape_error)),
+        );
+        out.insert(
+            "query_shape_recommended_action".to_string(),
+            json!(search_query_shape_recommended_action(query_shape_error)),
+        );
+        out.insert(
+            "query_shape_route_hint".to_string(),
+            json!(search_query_shape_route_hint(query_shape_error)),
+        );
+        out.insert(
+            "query_shape".to_string(),
+            search_query_shape_contract(
+                &query,
+                query_shape_error,
+                query_shape_override,
+                query_shape_override_source,
+            ),
+        );
+        out.insert(
+            "suggested_next_action".to_string(),
+            search_query_shape_suggested_next_action(&query, query_shape_error),
+        );
         out.insert("provider_chain".to_string(), json!(provider_chain.clone()));
         out.insert("provider_resolution".to_string(), provider_resolution);
         out.insert(
@@ -855,6 +2287,15 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
         out.insert(
             "attempt_signature".to_string(),
             Value::String(search_attempt_signature.clone()),
+        );
+        out.insert(
+            "retry".to_string(),
+            search_retry_envelope_runtime(
+                "narrow_query_or_wait_for_replay_window",
+                "web_search_duplicate_attempt_suppressed",
+                &replay_retry_lane,
+                replay_retry_after_seconds,
+            ),
         );
         out.insert(
             "process_summary".to_string(),
@@ -1104,6 +2545,17 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
             Value::String("web_conduit_search".to_string()),
         );
         obj.insert("query".to_string(), Value::String(query.clone()));
+        obj.insert("query_source".to_string(), json!(query_source));
+        obj.insert("query_source_kind".to_string(), json!(query_source_kind));
+        obj.insert(
+            "query_source_confidence".to_string(),
+            json!(query_source_confidence),
+        );
+        obj.insert(
+            "query_source_recovery_mode".to_string(),
+            json!(query_source_recovery_mode),
+        );
+        obj.insert("query_source_lineage".to_string(), query_source_lineage);
         obj.insert(
             "effective_query".to_string(),
             Value::String(scoped_query.clone()),
@@ -1171,6 +2623,14 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
             "query_shape_stats".to_string(),
             search_query_shape_stats(&query),
         );
+        obj.insert(
+            "query_shape_fetch_url_candidate".to_string(),
+            json!(query_shape_fetch_url_candidate.clone()),
+        );
+        obj.insert(
+            "query_shape_fetch_url_candidate_kind".to_string(),
+            json!(query_shape_fetch_url_candidate_kind),
+        );
         obj.insert("query_shape_error".to_string(), json!(query_shape_error));
         obj.insert(
             "query_shape_category".to_string(),
@@ -1192,6 +2652,10 @@ pub fn api_search(root: &Path, request: &Value) -> Value {
                 query_shape_override,
                 query_shape_override_source,
             ),
+        );
+        obj.insert(
+            "suggested_next_action".to_string(),
+            search_query_shape_suggested_next_action(&query, query_shape_error),
         );
         obj.insert(
             "process_summary".to_string(),

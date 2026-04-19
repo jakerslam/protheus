@@ -196,6 +196,22 @@ mod tests {
                 .and_then(Value::as_str),
             Some("unknown_fetch_provider")
         );
+        assert_eq!(
+            out.pointer("/retry/recommended").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/retry/strategy").and_then(Value::as_str),
+            Some("use_supported_provider_or_auto")
+        );
+        assert_eq!(
+            out.pointer("/retry/reason").and_then(Value::as_str),
+            Some("unknown_fetch_provider")
+        );
+        assert_eq!(
+            out.pointer("/retry/contract_version").and_then(Value::as_str),
+            Some("v1")
+        );
         assert!(out
             .get("fetch_provider_catalog")
             .and_then(Value::as_array)
@@ -232,6 +248,23 @@ mod tests {
             out.pointer("/tool_execution_gate/reason")
                 .and_then(Value::as_str),
             Some("ssrf_blocked")
+        );
+        assert!(out.get("fetch_provider_catalog").is_some());
+        assert_eq!(
+            out.get("fetch_url_shape_route_hint").and_then(Value::as_str),
+            Some("web_fetch")
+        );
+        assert_eq!(
+            out.pointer("/retry/strategy").and_then(Value::as_str),
+            Some("use_public_http_or_https_target")
+        );
+        assert_eq!(
+            out.pointer("/retry/reason").and_then(Value::as_str),
+            Some("ssrf_blocked")
+        );
+        assert_eq!(
+            out.pointer("/retry/contract_version").and_then(Value::as_str),
+            Some("v1")
         );
         assert!(out.get("receipt").is_some());
     }
@@ -270,6 +303,26 @@ mod tests {
                 .and_then(Value::as_str),
             Some("meta_query_blocked")
         );
+        assert_eq!(
+            out.pointer("/retry/recommended").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/retry/strategy").and_then(Value::as_str),
+            Some("answer_directly_without_web_fetch")
+        );
+        assert_eq!(
+            out.pointer("/retry/reason").and_then(Value::as_str),
+            Some("non_fetch_meta_query")
+        );
+        assert_eq!(
+            out.pointer("/retry/contract_version").and_then(Value::as_str),
+            Some("v1")
+        );
+        assert_eq!(
+            out.pointer("/retry/lane").and_then(Value::as_str),
+            Some("web_fetch")
+        );
         assert!(out.get("receipt").is_some());
     }
 
@@ -297,6 +350,26 @@ mod tests {
         assert_eq!(
             out.get("error").and_then(Value::as_str),
             Some("query_required")
+        );
+        assert_eq!(
+            out.pointer("/retry/recommended").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/retry/strategy").and_then(Value::as_str),
+            Some("provide_query_text")
+        );
+        assert_eq!(
+            out.pointer("/retry/reason").and_then(Value::as_str),
+            Some("query_required")
+        );
+        assert_eq!(
+            out.pointer("/retry/contract_version").and_then(Value::as_str),
+            Some("v1")
+        );
+        assert_eq!(
+            out.pointer("/retry/lane").and_then(Value::as_str),
+            Some("web_search")
         );
         assert!(out.get("receipt").is_some());
     }
@@ -346,6 +419,43 @@ mod tests {
         assert_eq!(
             out.get("requested_provider").and_then(Value::as_str),
             Some("perplexity")
+        );
+        assert_eq!(
+            out.get("tool_execution_attempted").and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.get("cache_status").and_then(Value::as_str),
+            Some("skipped_validation")
+        );
+        assert_eq!(
+            out.get("cache_skip_reason").and_then(Value::as_str),
+            Some("unknown_search_provider")
+        );
+        assert_eq!(
+            out.pointer("/tool_execution_gate/reason")
+                .and_then(Value::as_str),
+            Some("unknown_search_provider")
+        );
+        assert_eq!(
+            out.get("meta_query_blocked").and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/retry/recommended").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/retry/strategy").and_then(Value::as_str),
+            Some("use_supported_provider_or_auto")
+        );
+        assert_eq!(
+            out.pointer("/retry/reason").and_then(Value::as_str),
+            Some("unknown_search_provider")
+        );
+        assert_eq!(
+            out.pointer("/retry/contract_version").and_then(Value::as_str),
+            Some("v1")
         );
         assert!(out
             .get("provider_catalog")
