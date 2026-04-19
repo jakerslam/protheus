@@ -111,6 +111,16 @@ function windowsAndDocsCheck(): Check {
     '[infring install] preflight asset probe ({0}): missing prebuilt in release metadata ({1})';
   const preflightCompatibleTripleNoteBanner =
     '[infring install] preflight note: using compatible Windows triple asset variant {0} for requested {1}';
+  const preflightMsvcMissingWarning =
+    '[infring install] preflight warning: MSVC build tools were not detected; source fallback may fail if Windows prebuilt assets are unavailable.';
+  const preflightMsvcBootstrapEnabledNote =
+    '[infring install] preflight note: auto MSVC bootstrap is enabled (INFRING_INSTALL_AUTO_MSVC=1 default); installer will attempt winget bootstrap first and direct bootstrapper fallback if needed.';
+  const preflightWingetUnavailableDirectEnabledNote =
+    '[infring install] preflight note: winget is unavailable; installer will attempt direct Build Tools bootstrapper download during source fallback.';
+  const preflightWingetUnavailableDirectDisabledWarning =
+    '[infring install] preflight warning: winget is unavailable and direct bootstrap fallback is disabled; install Build Tools manually.';
+  const preflightTarMissingWarning =
+    '[infring install] preflight warning: tar was not detected; archive prebuilt extraction and some source fallback paths may fail.';
   const noCompatiblePrebuiltBanner =
     '[infring install] no compatible Windows prebuilt release found for required stems; source fallback remains a backup path only.';
   const autoMsvcEnabledBanner =
@@ -162,6 +172,11 @@ function windowsAndDocsCheck(): Check {
     installPs.includes(preflightAssetFoundProbeBanner) &&
     installPs.includes(preflightAssetMissingProbeBanner) &&
     installPs.includes(preflightCompatibleTripleNoteBanner) &&
+    installPs.includes(preflightMsvcMissingWarning) &&
+    installPs.includes(preflightMsvcBootstrapEnabledNote) &&
+    installPs.includes(preflightWingetUnavailableDirectEnabledNote) &&
+    installPs.includes(preflightWingetUnavailableDirectDisabledWarning) &&
+    installPs.includes(preflightTarMissingWarning) &&
     installPs.includes(noCompatiblePrebuiltBanner) &&
     installPs.includes(autoMsvcEnabledBanner) &&
     installPs.includes(autoMsvcDisabledBanner) &&
