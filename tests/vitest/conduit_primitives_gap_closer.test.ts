@@ -228,11 +228,40 @@ describe('conduit primitive wrapper contract', () => {
     expect(source.includes('aka.ms/vs/17/release/vs_BuildTools.exe')).toBe(true);
   });
 
-  test('README Windows installer path supports flags without iex parameter binding traps', () => {
-    const source = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
-    expect(source.includes('install.ps1 -OutFile $tmp')).toBe(true);
-    expect(/& \$tmp(?:\s+-Repair)?\s+-Full/.test(source)).toBe(true);
-    expect(source.includes('| iex -Full')).toBe(false);
+  test('Windows installer docs keep no-file fallback and iex trap guards aligned', () => {
+    const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+    const gettingStarted = fs.readFileSync(path.join(ROOT, 'docs/client/GETTING_STARTED.md'), 'utf8');
+    const manual = fs.readFileSync(
+      path.join(ROOT, 'docs/workspace/manuals/infring_manual_help_tab.md'),
+      'utf8',
+    );
+
+    expect(readme.includes('install.ps1 -OutFile $tmp -ErrorAction Stop')).toBe(true);
+    expect(/& \$tmp(?:\s+-Repair)?\s+-Full/.test(readme)).toBe(true);
+    expect(readme.includes('$env:INFRING_INSTALL_REPAIR = "1"')).toBe(true);
+    expect(readme.includes('$env:INFRING_INSTALL_FULL = "1"')).toBe(true);
+    expect(readme.includes('irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 | iex')).toBe(
+      true,
+    );
+    expect(readme.includes('| iex -Full')).toBe(false);
+
+    expect(gettingStarted.includes('install.ps1 -OutFile $tmp -ErrorAction Stop')).toBe(true);
+    expect(/& \$tmp(?:\s+-Repair)?\s+-Full/.test(gettingStarted)).toBe(true);
+    expect(gettingStarted.includes('$env:INFRING_INSTALL_REPAIR = "1"')).toBe(true);
+    expect(gettingStarted.includes('$env:INFRING_INSTALL_FULL = "1"')).toBe(true);
+    expect(
+      gettingStarted.includes('irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 | iex'),
+    ).toBe(true);
+    expect(gettingStarted.includes('| iex -Full')).toBe(false);
+
+    expect(manual.includes('install.ps1 -OutFile $tmp -ErrorAction Stop')).toBe(true);
+    expect(/& \$tmp(?:\s+-Repair)?\s+-Full/.test(manual)).toBe(true);
+    expect(manual.includes('$env:INFRING_INSTALL_REPAIR = "1"')).toBe(true);
+    expect(manual.includes('$env:INFRING_INSTALL_FULL = "1"')).toBe(true);
+    expect(manual.includes('irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 | iex')).toBe(
+      true,
+    );
+    expect(manual.includes('| iex -Full')).toBe(false);
   });
 
   test('architecture doc includes conduit mermaid map', () => {
@@ -295,7 +324,7 @@ describe('conduit primitive wrapper contract', () => {
       ['client/runtime/systems/ops/rust50_migration_program.ts', 'adapters/runtime/protheus_cli_modules.ts'],
       ['client/runtime/systems/ops/rust_enterprise_productivity_program.ts', 'adapters/runtime/protheus_cli_modules.ts'],
       ['client/runtime/systems/security/venom_containment_layer.ts', 'adapters/runtime/protheus_cli_modules.ts'],
-      ['client/runtime/systems/spine/contract_check.ts', 'adapters/runtime/protheus_cli_modules.ts'],
+      ['client/runtime/systems/spine/contract_check_bridge.ts', 'adapters/runtime/protheus_cli_modules.ts'],
       ['client/runtime/systems/workflow/shannon_desktop_shell.ts', 'adapters/runtime/shannon_desktop_shell.ts'],
     ];
 
