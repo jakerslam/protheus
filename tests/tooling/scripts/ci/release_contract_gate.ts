@@ -99,6 +99,7 @@ function windowsAndDocsCheck(): Check {
   const directBootstrapperUrl = 'https://aka.ms/vs/17/release/vs_BuildTools.exe';
   const directGatewayFallbackCommand = '$HOME\\.infring\\bin\\infring.cmd gateway';
   const noFileFallbackIex = 'irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 | iex';
+  const executionPolicyBypassForce = 'Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force';
   const windowsReadmeInstallCommand =
     'Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; $tmp = Join-Path $env:TEMP "infring-install.ps1"; irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 -OutFile $tmp -ErrorAction Stop; & $tmp -Repair -Full; Remove-Item $tmp -Force -ErrorAction SilentlyContinue';
   const ok =
@@ -114,6 +115,7 @@ function windowsAndDocsCheck(): Check {
     installPs.includes(windowsReadmeInstallCommand) &&
     /& \$tmp(?:\s+-Repair)?\s+-Full/.test(readme) &&
     readme.includes('install.ps1 -OutFile $tmp -ErrorAction Stop') &&
+    readme.includes(executionPolicyBypassForce) &&
     readme.includes('Remove-Item $tmp -Force -ErrorAction SilentlyContinue') &&
     readme.includes(windowsBuildToolsCommand) &&
     readme.includes(directBootstrapperUrl) &&
@@ -128,6 +130,7 @@ function windowsAndDocsCheck(): Check {
     readme.includes('INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP') &&
     /& \$tmp(?:\s+-Repair)?\s+-Full/.test(gettingStarted) &&
     gettingStarted.includes('install.ps1 -OutFile $tmp -ErrorAction Stop') &&
+    gettingStarted.includes(executionPolicyBypassForce) &&
     gettingStarted.includes('Remove-Item $tmp -Force -ErrorAction SilentlyContinue') &&
     gettingStarted.includes(windowsBuildToolsCommand) &&
     gettingStarted.includes('$env:INFRING_INSTALL_AUTO_MSVC = "0"') &&
@@ -141,6 +144,7 @@ function windowsAndDocsCheck(): Check {
     gettingStarted.includes('INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP') &&
     gettingStarted.includes('infring --help') &&
     manualHelp.includes('install.ps1 -OutFile $tmp -ErrorAction Stop') &&
+    manualHelp.includes(executionPolicyBypassForce) &&
     manualHelp.includes('Remove-Item $tmp -Force -ErrorAction SilentlyContinue') &&
     manualHelp.includes(windowsBuildToolsCommand) &&
     manualHelp.includes(directBootstrapperUrl) &&
