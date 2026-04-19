@@ -169,9 +169,13 @@ function windowsAndDocsCheck(): Check {
   const windowsBuildToolsHintNoWinget =
     'fallback (no winget): `$vs = Join-Path `$env:TEMP ""vs_BuildTools.exe""; irm https://aka.ms/vs/17/release/vs_BuildTools.exe -OutFile `$vs; Start-Process -FilePath `$vs -ArgumentList ""--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"" -Wait';
   const failureHintRequiredTokens = [
-    'asset_probe=',
-    'attempted_assets=',
+    'asset_probe={0};reachable={1};status={2}',
+    'asset_probe=missing;status={0}',
+    'asset_probe_triple={0}',
+    'asset_probe_triple_candidates={0}',
+    'attempted_assets={0}',
     'source_fallback_attempted={0}',
+    'source_fallback_versions={0}',
     'source_fallback_reason={0}',
     'preflight_no_reachable_prebuilt_with_missing_msvc={0}',
     'source_fallback_plan={0}',
