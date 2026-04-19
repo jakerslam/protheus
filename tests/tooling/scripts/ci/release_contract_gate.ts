@@ -104,6 +104,12 @@ function windowsAndDocsCheck(): Check {
   const readmeCommandBanner = '[infring install] README Windows install command: $ReadmeWindowsInstallCommand';
   const preflightToolchainBanner =
     '[infring install] preflight windows toolchain: cargo={0}; rustc={1}; msvc_tools={2}; tar={3}; winget={4}';
+  const noCompatiblePrebuiltBanner =
+    '[infring install] no compatible Windows prebuilt release found for required stems; source fallback remains a backup path only.';
+  const autoMsvcEnabledBanner =
+    '[infring install] auto MSVC bootstrap is enabled; installer will attempt Build Tools install during source fallback if needed.';
+  const autoMsvcDisabledBanner =
+    '[infring install] auto MSVC bootstrap is disabled; enable with INFRING_INSTALL_AUTO_MSVC=1 for best-effort source fallback repair.';
   const failureHintRequiredTokens = [
     'asset_probe=',
     'attempted_assets=',
@@ -128,6 +134,9 @@ function windowsAndDocsCheck(): Check {
     installPs.includes(rerunReadmeInstallHint) &&
     installPs.includes(readmeCommandBanner) &&
     installPs.includes(preflightToolchainBanner) &&
+    installPs.includes(noCompatiblePrebuiltBanner) &&
+    installPs.includes(autoMsvcEnabledBanner) &&
+    installPs.includes(autoMsvcDisabledBanner) &&
     hasFailureHintTokenCoverage &&
     opsLib.includes('#![recursion_limit = "16384"]') &&
     installPs.includes(directBootstrapperUrl) &&

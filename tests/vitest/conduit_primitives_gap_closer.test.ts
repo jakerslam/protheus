@@ -238,6 +238,21 @@ describe('conduit primitive wrapper contract', () => {
         '[infring install] preflight windows toolchain: cargo={0}; rustc={1}; msvc_tools={2}; tar={3}; winget={4}',
       ),
     ).toBe(true);
+    expect(
+      source.includes(
+        '[infring install] no compatible Windows prebuilt release found for required stems; source fallback remains a backup path only.',
+      ),
+    ).toBe(true);
+    expect(
+      source.includes(
+        '[infring install] auto MSVC bootstrap is enabled; installer will attempt Build Tools install during source fallback if needed.',
+      ),
+    ).toBe(true);
+    expect(
+      source.includes(
+        '[infring install] auto MSVC bootstrap is disabled; enable with INFRING_INSTALL_AUTO_MSVC=1 for best-effort source fallback repair.',
+      ),
+    ).toBe(true);
     expect(source.includes('asset_probe=')).toBe(true);
     expect(source.includes('attempted_assets=')).toBe(true);
     expect(source.includes('source_fallback_attempted=')).toBe(true);
