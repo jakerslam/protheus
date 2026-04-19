@@ -243,6 +243,9 @@ describe('conduit primitive wrapper contract', () => {
     );
 
     expect(readme.includes('install.ps1 -OutFile $tmp -ErrorAction Stop')).toBe(true);
+    expect(readme.includes('Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force')).toBe(
+      true,
+    );
     expect(/& \$tmp(?:\s+-Repair)?\s+-Full/.test(readme)).toBe(true);
     expect(readme.includes('$env:INFRING_INSTALL_REPAIR = "1"')).toBe(true);
     expect(readme.includes('$env:INFRING_INSTALL_FULL = "1"')).toBe(true);
@@ -252,6 +255,9 @@ describe('conduit primitive wrapper contract', () => {
     expect(readme.includes('| iex -Full')).toBe(false);
 
     expect(gettingStarted.includes('install.ps1 -OutFile $tmp -ErrorAction Stop')).toBe(true);
+    expect(
+      gettingStarted.includes('Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force'),
+    ).toBe(true);
     expect(/& \$tmp(?:\s+-Repair)?\s+-Full/.test(gettingStarted)).toBe(true);
     expect(gettingStarted.includes('$env:INFRING_INSTALL_REPAIR = "1"')).toBe(true);
     expect(gettingStarted.includes('$env:INFRING_INSTALL_FULL = "1"')).toBe(true);
@@ -261,6 +267,9 @@ describe('conduit primitive wrapper contract', () => {
     expect(gettingStarted.includes('| iex -Full')).toBe(false);
 
     expect(manual.includes('install.ps1 -OutFile $tmp -ErrorAction Stop')).toBe(true);
+    expect(manual.includes('Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force')).toBe(
+      true,
+    );
     expect(/& \$tmp(?:\s+-Repair)?\s+-Full/.test(manual)).toBe(true);
     expect(manual.includes('$env:INFRING_INSTALL_REPAIR = "1"')).toBe(true);
     expect(manual.includes('$env:INFRING_INSTALL_FULL = "1"')).toBe(true);
