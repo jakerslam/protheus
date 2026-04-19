@@ -67,6 +67,8 @@ Get-Command infring -ErrorAction SilentlyContinue
 infring gateway
 ```
 
+If PATH has not refreshed in the same shell, run directly: `$HOME\.infring\bin\infring.cmd gateway`.
+
 If a release has no Windows prebuilt binary for your architecture, installer fallback may require local source build prerequisites:
 
 ```powershell
