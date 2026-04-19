@@ -299,6 +299,21 @@ describe('conduit primitive wrapper contract', () => {
     ).toBe(true);
     expect(
       source.includes(
+        '[infring install] preflight note: no reachable Windows prebuilt and MSVC tools missing; attempting best-effort source fallback',
+      ),
+    ).toBe(true);
+    expect(
+      source.includes(
+        '[infring install] preflight note: no reachable Windows prebuilt + MSVC tools missing; forcing best-effort source fallback despite INFRING_INSTALL_ALLOW_NO_MSVC_SOURCE_FALLBACK=0',
+      ),
+    ).toBe(true);
+    expect(
+      source.includes(
+        '[infring install] recommended fix: winget install --id Microsoft.VisualStudio.2022.BuildTools -e --override "--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools"',
+      ),
+    ).toBe(true);
+    expect(
+      source.includes(
         'Failed to install pure workspace binary for $triple ($resolvedVersionLabel). No compatible prebuilt asset was found and source fallback did not complete. Diagnostic: $failureHint',
       ),
     ).toBe(true);
