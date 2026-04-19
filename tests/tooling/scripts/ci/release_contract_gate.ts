@@ -129,6 +129,12 @@ function windowsAndDocsCheck(): Check {
     '[infring install] preflight note: Cargo missing but auto Rust bootstrap is enabled; installer will attempt toolchain bootstrap during source fallback.';
   const preflightCargoAutoRustupDisabledThrow =
     'Windows installer preflight failed: prebuilt asset gaps detected for [$gapSummary], Cargo is unavailable, and auto Rust bootstrap is disabled (INFRING_INSTALL_AUTO_RUSTUP=0 or INFRING_AUTO_RUSTUP=0). Install Rust + MSVC build tools or publish missing Windows release assets.';
+  const pureInstallFailureThrowPrefix =
+    'Failed to install pure workspace binary for $triple ($resolvedVersionLabel). No compatible prebuilt asset was found and source fallback did not complete. Diagnostic: $failureHint';
+  const coreInstallFailureThrowPrefix =
+    'Failed to install core ops runtime for $triple ($resolvedVersionLabel). Prebuilt asset download failed and source fallback did not complete. Diagnostic: $failureHint';
+  const windowsFailureRemediationSentence =
+    'Install Rust toolchain + C++ build tools, then rerun the README Windows install command: $ReadmeWindowsInstallCommand $windowsToolsHint';
   const noCompatiblePrebuiltBanner =
     '[infring install] no compatible Windows prebuilt release found for required stems; source fallback remains a backup path only.';
   const autoMsvcEnabledBanner =
@@ -189,6 +195,9 @@ function windowsAndDocsCheck(): Check {
     installPs.includes(preflightLatestAssetGapWarning) &&
     installPs.includes(preflightCargoAutoRustupNote) &&
     installPs.includes(preflightCargoAutoRustupDisabledThrow) &&
+    installPs.includes(pureInstallFailureThrowPrefix) &&
+    installPs.includes(coreInstallFailureThrowPrefix) &&
+    installPs.includes(windowsFailureRemediationSentence) &&
     installPs.includes(noCompatiblePrebuiltBanner) &&
     installPs.includes(autoMsvcEnabledBanner) &&
     installPs.includes(autoMsvcDisabledBanner) &&
