@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: core/layer0/ops (authoritative)
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::{json, Value};
 
@@ -44,6 +44,12 @@ pub struct CommandItem {
     script_rel: &'static str,
     read_only: bool,
     unsafe_surface: bool,
+}
+
+#[derive(Clone, Copy)]
+pub struct CommandAlias {
+    pub alias: &'static str,
+    pub canonical: &'static str,
 }
 
 #[derive(Clone, Copy)]
@@ -101,6 +107,42 @@ const COMMANDS: &[CommandItem] = &[
         unsafe_surface: false,
     },
     CommandItem {
+        synopsis: "dream",
+        desc: "Run autonomy dream/consolidation lane.",
+        tier: CommandTier::Experimental,
+        handler: CommandHandlerKind::CoreDomain,
+        script_rel: "core://autonomy-controller",
+        read_only: false,
+        unsafe_surface: false,
+    },
+    CommandItem {
+        synopsis: "compact",
+        desc: "Run autonomy compact lane.",
+        tier: CommandTier::Experimental,
+        handler: CommandHandlerKind::CoreDomain,
+        script_rel: "core://autonomy-controller",
+        read_only: false,
+        unsafe_surface: false,
+    },
+    CommandItem {
+        synopsis: "proactive_daemon [status|cycle|pause|resume]",
+        desc: "Run bounded KAIROS proactive daemon controls.",
+        tier: CommandTier::Experimental,
+        handler: CommandHandlerKind::CoreDomain,
+        script_rel: "core://autonomy-controller",
+        read_only: false,
+        unsafe_surface: false,
+    },
+    CommandItem {
+        synopsis: "speculate [run|status|merge|reject]",
+        desc: "Run autonomy speculation lane.",
+        tier: CommandTier::Experimental,
+        handler: CommandHandlerKind::CoreDomain,
+        script_rel: "core://autonomy-controller",
+        read_only: false,
+        unsafe_surface: false,
+    },
+    CommandItem {
         synopsis: "doctor",
         desc: "Run install/runtime diagnostics.",
         tier: CommandTier::Tier1,
@@ -150,7 +192,7 @@ const COMMANDS: &[CommandItem] = &[
         desc: "Experimental runtime assimilation lane. Requires Node.js 22+ full surface; known targets route to governed core bridges, unknown targets fail as unadmitted unless local simulation is explicitly enabled.",
         tier: CommandTier::Experimental,
         handler: CommandHandlerKind::RuntimeScript,
-        script_rel: "client/runtime/systems/tools/assimilate.ts",
+        script_rel: "client/runtime/systems/tools/assimilation_cli_bridge.ts",
         read_only: false,
         unsafe_surface: false,
     },
@@ -430,8 +472,72 @@ const TIER1_RUNTIME_ENTRYPOINTS: &[&str] = &[
     "client/runtime/systems/ops/protheus_unknown_guard.ts",
 ];
 
+const COMMAND_ALIASES: &[CommandAlias] = &[
+    CommandAlias {
+        alias: "--help",
+        canonical: "help",
+    },
+    CommandAlias {
+        alias: "-h",
+        canonical: "help",
+    },
+    CommandAlias {
+        alias: "dashboard-ui",
+        canonical: "dashboard",
+    },
+    CommandAlias {
+        alias: "boot",
+        canonical: "gateway",
+    },
+    CommandAlias {
+        alias: "start",
+        canonical: "gateway",
+    },
+    CommandAlias {
+        alias: "stop",
+        canonical: "gateway",
+    },
+    CommandAlias {
+        alias: "restart",
+        canonical: "gateway",
+    },
+    CommandAlias {
+        alias: "kairos",
+        canonical: "proactive_daemon",
+    },
+];
+
+impl CommandItem {
+    pub fn synopsis(self) -> &'static str {
+        self.synopsis
+    }
+
+    pub fn expected_script(self) -> &'static str {
+        self.script_rel
+    }
+
+    pub fn handler_kind(self) -> CommandHandlerKind {
+        self.handler
+    }
+
+    pub fn tier_kind(self) -> CommandTier {
+        self.tier
+    }
+
+    pub fn availability_flag(self) -> &'static str {
+        match self.handler {
+            CommandHandlerKind::CoreDomain => "core_native",
+            CommandHandlerKind::RuntimeScript => "runtime_wrapper_required",
+        }
+    }
+}
+
 pub fn command_registry() -> &'static [CommandItem] {
     COMMANDS
+}
+
+pub fn command_aliases() -> &'static [CommandAlias] {
+    COMMAND_ALIASES
 }
 
 pub fn tier1_route_contracts() -> &'static [Tier1RouteContract] {
@@ -452,9 +558,59 @@ pub fn tier1_command_synopses() -> Vec<&'static str> {
         .collect::<Vec<_>>()
 }
 
+fn command_token_from_synopsis(synopsis: &str) -> String {
+    synopsis
+        .split_whitespace()
+        .next()
+        .unwrap_or_default()
+        .trim()
+        .to_ascii_lowercase()
+}
+
+fn known_command_tokens() -> BTreeSet<String> {
+    COMMANDS
+        .iter()
+        .map(|row| command_token_from_synopsis(row.synopsis))
+        .filter(|token| !token.is_empty())
+        .collect::<BTreeSet<_>>()
+}
+
+pub fn canonical_command_name(raw: &str) -> Option<String> {
+    let token = raw.trim().to_ascii_lowercase();
+    if token.is_empty() {
+        return None;
+    }
+    let known = known_command_tokens();
+    if known.contains(&token) {
+        return Some(token);
+    }
+    let mut candidates = COMMAND_ALIASES
+        .iter()
+        .filter(|row| row.alias.eq_ignore_ascii_case(token.as_str()))
+        .map(|row| row.canonical.to_ascii_lowercase())
+        .collect::<Vec<_>>();
+    candidates.sort_unstable();
+    candidates.dedup();
+    if candidates.len() == 1 && known.contains(&candidates[0]) {
+        return candidates.into_iter().next();
+    }
+    None
+}
+
+pub fn command_registry_item(raw: &str) -> Option<CommandItem> {
+    let canonical = canonical_command_name(raw)?;
+    COMMANDS
+        .iter()
+        .copied()
+        .find(|row| command_token_from_synopsis(row.synopsis) == canonical)
+}
+
 pub fn command_registry_integrity() -> Value {
     let mut seen = BTreeSet::<String>::new();
     let mut duplicates = Vec::<String>::new();
+    let known = known_command_tokens();
+    let mut alias_collisions = BTreeMap::<String, BTreeSet<String>>::new();
+    let mut alias_unknown_targets = Vec::<String>::new();
     let mut tier1 = 0usize;
     let mut experimental = 0usize;
     for row in COMMANDS {
@@ -467,13 +623,40 @@ pub fn command_registry_integrity() -> Value {
             CommandTier::Experimental => experimental += 1,
         }
     }
+    for alias in COMMAND_ALIASES {
+        let key = alias.alias.to_ascii_lowercase();
+        alias_collisions
+            .entry(key)
+            .or_default()
+            .insert(alias.canonical.to_ascii_lowercase());
+        if !known.contains(&alias.canonical.to_ascii_lowercase()) {
+            alias_unknown_targets.push(format!("{}->{}", alias.alias, alias.canonical));
+        }
+    }
+    let alias_collisions = alias_collisions
+        .into_iter()
+        .filter_map(|(alias, targets)| {
+            if targets.len() > 1 {
+                Some(format!(
+                    "{}->{}",
+                    alias,
+                    targets.into_iter().collect::<Vec<_>>().join("|")
+                ))
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
     duplicates.sort_unstable();
+    alias_unknown_targets.sort_unstable();
     json!({
-        "ok": duplicates.is_empty(),
+        "ok": duplicates.is_empty() && alias_collisions.is_empty() && alias_unknown_targets.is_empty(),
         "total": COMMANDS.len(),
         "tier1": tier1,
         "experimental": experimental,
         "duplicates": duplicates,
+        "alias_collisions": alias_collisions,
+        "alias_unknown_targets": alias_unknown_targets,
         "tier1_runtime_entrypoints": tier1_runtime_entrypoints(),
     })
 }
@@ -513,9 +696,11 @@ fn commands_json() -> Value {
             .map(|row| {
                 json!({
                     "synopsis": row.synopsis,
+                    "command": command_token_from_synopsis(row.synopsis),
                     "desc": row.desc,
                     "tier": row.tier.as_str(),
                     "handler": row.handler.as_str(),
+                    "availability": row.availability_flag(),
                     "script_rel": row.script_rel,
                     "read_only": row.read_only,
                     "unsafe_surface": row.unsafe_surface
@@ -593,6 +778,10 @@ pub fn run(_root: &std::path::Path, argv: &[String]) -> i32 {
                             "expected_script": row.expected_script
                         })
                     })
+                    .collect::<Vec<_>>(),
+                "aliases": command_aliases()
+                    .iter()
+                    .map(|row| json!({"alias": row.alias, "canonical": row.canonical}))
                     .collect::<Vec<_>>(),
             })
         );

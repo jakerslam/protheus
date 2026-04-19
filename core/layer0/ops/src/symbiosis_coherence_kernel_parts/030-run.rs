@@ -82,6 +82,186 @@ fn recursion_request(root: &Path, payload: &Map<String, Value>) -> Result<Value,
     }))
 }
 
+fn profile_state_path(root: &Path, payload: &Map<String, Value>) -> PathBuf {
+    resolve_path(
+        root,
+        payload.get("profile_path"),
+        "local/state/symbiosis/coherence/profile_state.json",
+    )
+}
+
+fn default_profile_state() -> Value {
+    json!({
+        "version": "1.0",
+        "updated_at": now_iso(),
+        "settings": {
+            "tone": "collaborative",
+            "depth": 0.62,
+            "initiative": 0.54,
+            "tool_aggressiveness": 0.34
+        },
+        "deltas": []
+    })
+}
+
+fn normalize_tone(raw: Option<&Value>, fallback: &str) -> String {
+    let token = normalize_token(raw, 32);
+    if token.is_empty() {
+        return fallback.to_string();
+    }
+    match token.as_str() {
+        "direct" | "concise" => "direct".to_string(),
+        "neutral" | "balanced" => "neutral".to_string(),
+        "collaborative" | "supportive" => "collaborative".to_string(),
+        _ => fallback.to_string(),
+    }
+}
+
+fn signed_delta(value: Option<&Value>, fallback: f64) -> f64 {
+    as_f64(value).unwrap_or(fallback).clamp(-0.35, 0.35)
+}
+
+fn load_profile_state(path: &Path) -> Value {
+    let loaded = read_json_value(path, default_profile_state());
+    if loaded.is_object() {
+        loaded
+    } else {
+        default_profile_state()
+    }
+}
+
+fn profile_summary(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
+    let path = profile_state_path(root, payload);
+    let state = load_profile_state(&path);
+    let settings = state.get("settings").cloned().unwrap_or_else(|| json!({}));
+    let deltas = state
+        .get("deltas")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    Ok(json!({
+        "ok": true,
+        "type": "symbiosis_profile_summary",
+        "path_rel": rel_path(root, &path),
+        "settings": settings,
+        "delta_count": deltas.len(),
+        "last_delta": deltas.last().cloned().unwrap_or(Value::Null),
+        "updated_at": state.get("updated_at").cloned().unwrap_or(Value::Null)
+    }))
+}
+
+fn profile_update(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
+    let path = profile_state_path(root, payload);
+    let mut state = load_profile_state(&path);
+    let existing = state.get("settings").cloned().unwrap_or_else(|| json!({}));
+    let existing_tone = normalize_tone(existing.get("tone"), "collaborative");
+    let existing_depth = clamp_number(existing.get("depth"), 0.0, 1.0, 0.62);
+    let existing_initiative = clamp_number(existing.get("initiative"), 0.0, 1.0, 0.54);
+    let existing_tool = clamp_number(existing.get("tool_aggressiveness"), 0.0, 1.0, 0.34);
+
+    let explicit = payload.get("explicit_feedback").and_then(Value::as_object);
+    let implicit = payload.get("interaction_signals").and_then(Value::as_object);
+
+    let target_tone = normalize_tone(
+        payload
+            .get("tone")
+            .or_else(|| explicit.and_then(|row| row.get("tone"))),
+        existing_tone.as_str(),
+    );
+    let depth = (
+        clamp_number(
+            payload
+                .get("depth")
+                .or_else(|| explicit.and_then(|row| row.get("depth"))),
+            0.0,
+            1.0,
+            existing_depth,
+        ) + signed_delta(explicit.and_then(|row| row.get("depth_delta")), 0.0)
+            + signed_delta(implicit.and_then(|row| row.get("depth_delta")), 0.0)
+    )
+    .clamp(0.0, 1.0);
+    let initiative = (
+        clamp_number(
+            payload
+                .get("initiative")
+                .or_else(|| explicit.and_then(|row| row.get("initiative"))),
+            0.0,
+            1.0,
+            existing_initiative,
+        ) + signed_delta(explicit.and_then(|row| row.get("initiative_delta")), 0.0)
+            + signed_delta(implicit.and_then(|row| row.get("initiative_delta")), 0.0)
+    )
+    .clamp(0.0, 1.0);
+    let tool_aggressiveness = (
+        clamp_number(
+            payload
+                .get("tool_aggressiveness")
+                .or_else(|| explicit.and_then(|row| row.get("tool_aggressiveness"))),
+            0.0,
+            1.0,
+            existing_tool,
+        ) + signed_delta(
+            explicit.and_then(|row| row.get("tool_aggressiveness_delta")),
+            0.0,
+        ) + signed_delta(
+            implicit.and_then(|row| row.get("tool_aggressiveness_delta")),
+            0.0,
+        )
+    )
+    .clamp(0.0, 1.0);
+    let now = now_iso();
+    let next_settings = json!({
+        "tone": target_tone,
+        "depth": round_to(depth, 4),
+        "initiative": round_to(initiative, 4),
+        "tool_aggressiveness": round_to(tool_aggressiveness, 4)
+    });
+
+    let delta = json!({
+        "ts": now,
+        "source": normalize_token(payload.get("source"), 64),
+        "from": existing,
+        "to": next_settings,
+        "explicit_feedback": explicit.cloned().map(Value::Object).unwrap_or(Value::Null),
+        "interaction_signals": implicit.cloned().map(Value::Object).unwrap_or(Value::Null)
+    });
+    let mut deltas = state
+        .get("deltas")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    deltas.push(delta.clone());
+    let start = deltas.len().saturating_sub(120);
+    deltas = deltas[start..].to_vec();
+
+    state["version"] = Value::String("1.0".to_string());
+    state["updated_at"] = Value::String(now.clone());
+    state["settings"] = next_settings.clone();
+    state["deltas"] = Value::Array(deltas);
+    write_json(&path, &state)?;
+
+    Ok(json!({
+        "ok": true,
+        "type": "symbiosis_profile_update",
+        "path_rel": rel_path(root, &path),
+        "settings": next_settings,
+        "delta": delta
+    }))
+}
+
+fn profile_reset(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
+    let path = profile_state_path(root, payload);
+    let mut state = default_profile_state();
+    state["updated_at"] = Value::String(now_iso());
+    write_json(&path, &state)?;
+    Ok(json!({
+        "ok": true,
+        "type": "symbiosis_profile_reset",
+        "path_rel": rel_path(root, &path),
+        "settings": state.get("settings").cloned().unwrap_or(Value::Null)
+    }))
+}
+
 fn with_execution_receipt(command: &str, status: &str, payload: Value) -> Value {
     json!({
         "execution_receipt": {
@@ -118,6 +298,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "evaluate" => evaluate_signal(root, &payload),
         "load" => load_signal(root, &payload),
         "recursion-request" => recursion_request(root, &payload),
+        "profile-summary" => profile_summary(root, &payload),
+        "profile-update" => profile_update(root, &payload),
+        "profile-reset" => profile_reset(root, &payload),
         "help" | "--help" | "-h" => {
             usage();
             return 0;
@@ -245,5 +428,39 @@ mod tests {
             .unwrap()
             .iter()
             .any(|v| v == "symbiosis_depth_exceeds_allowed"));
+    }
+
+    #[test]
+    fn profile_update_and_reset_are_receipted_and_persisted() {
+        let dir = tempdir().unwrap();
+        let root = dir.path();
+        let update_payload = json!({
+            "source": "feedback",
+            "explicit_feedback": {
+                "tone": "direct",
+                "depth_delta": 0.1,
+                "initiative_delta": -0.05
+            },
+            "interaction_signals": {
+                "tool_aggressiveness_delta": 0.08
+            }
+        });
+        let updated = profile_update(root, update_payload.as_object().unwrap()).unwrap();
+        assert_eq!(updated["ok"], Value::Bool(true));
+        assert_eq!(
+            updated["settings"]["tone"].as_str(),
+            Some("direct")
+        );
+
+        let summary = profile_summary(root, &Map::new()).unwrap();
+        assert_eq!(summary["ok"], Value::Bool(true));
+        assert!(summary["delta_count"].as_u64().unwrap_or(0) >= 1);
+
+        let reset = profile_reset(root, &Map::new()).unwrap();
+        assert_eq!(reset["ok"], Value::Bool(true));
+        assert_eq!(
+            reset["settings"]["tone"].as_str(),
+            Some("collaborative")
+        );
     }
 }

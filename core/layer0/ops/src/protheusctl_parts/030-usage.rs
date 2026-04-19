@@ -1,4 +1,4 @@
-const ASSIMILATE_SCRIPT: &str = "client/runtime/systems/tools/assimilate.ts";
+const ASSIMILATE_SCRIPT: &str = "client/runtime/systems/tools/assimilation_cli_bridge.ts";
 const SETUP_WIZARD_SCRIPT: &str = "client/runtime/systems/ops/protheus_setup_wizard.ts";
 const DEMO_SCRIPT: &str = "client/runtime/systems/ops/protheus_demo.js";
 const EXAMPLES_SCRIPT: &str = "client/runtime/systems/ops/protheus_examples.js";
@@ -65,6 +65,7 @@ pub fn usage() {
     println!("  infring dream");
     println!("  infring compact");
     println!("  infring proactive_daemon");
+    println!("  infring kairos");
     println!("  infring speculate");
     println!("  infring dashboard");
     println!("  infring verify runtime-proof --profile=rich");
@@ -78,6 +79,154 @@ pub fn usage() {
     println!("  infring --help");
     println!("  infring setup");
 }
+
+fn route_script_exists(root: &Path, script_rel: &str) -> bool {
+    if script_rel.starts_with("core://") {
+        true
+    } else {
+        root.join(script_rel).exists()
+    }
+}
+
+fn command_mode_reason(cmd: &str, route: &Route) -> Option<&'static str> {
+    let first_arg = route
+        .args
+        .first()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    match cmd {
+        "gateway" => {
+            if route.script_rel == "core://daemon-control"
+                && ![
+                    "start",
+                    "stop",
+                    "restart",
+                    "status",
+                    "heal",
+                    "attach",
+                    "subscribe",
+                    "tick",
+                    "diagnostics",
+                    "watchdog",
+                ]
+                .contains(&first_arg.as_str())
+            {
+                return Some("gateway_mode_invalid");
+            }
+        }
+        "status" => {
+            if route.script_rel == "core://daemon-control" && first_arg != "status" {
+                return Some("status_mode_invalid");
+            }
+        }
+        "dashboard" => {
+            if route.script_rel == "core://daemon-control" && first_arg != "start" {
+                return Some("dashboard_mode_invalid");
+            }
+        }
+        "dream" | "compact" | "proactive_daemon" | "speculate" => {
+            if route.script_rel == "core://autonomy-controller" && first_arg != cmd {
+                return Some("autonomy_mode_invalid");
+            }
+        }
+        _ => {}
+    }
+    None
+}
+
+fn command_route_preflight(root: &Path, cmd: &str, route: &Route) -> Result<(), Value> {
+    let canonical = crate::command_list_kernel::canonical_command_name(cmd);
+    let Some(canonical_cmd) = canonical else {
+        return Ok(());
+    };
+    let Some(item) = crate::command_list_kernel::command_registry_item(&canonical_cmd) else {
+        return Ok(());
+    };
+    if route.script_rel == "core://unknown-command" {
+        return Err(json!({
+            "ok": false,
+            "type": "protheusctl_dispatch",
+            "error": "command_contract_preflight_failed",
+            "reason": "known_command_routed_to_unknown",
+            "root_cause_code": "INF-REGISTRY-004-KNOWN-ROUTED-UNKNOWN",
+            "command": clean(cmd, 120),
+            "canonical_command": canonical_cmd,
+            "expected_script": item.expected_script(),
+            "resolved_script": route.script_rel
+        }));
+    }
+    if route.script_rel != item.expected_script() {
+        return Err(json!({
+            "ok": false,
+            "type": "protheusctl_dispatch",
+            "error": "command_contract_preflight_failed",
+            "reason": "registry_expected_script_mismatch",
+            "root_cause_code": "INF-REGISTRY-005-EXPECTED-SCRIPT-MISMATCH",
+            "command": clean(cmd, 120),
+            "canonical_command": canonical_cmd,
+            "expected_script": item.expected_script(),
+            "resolved_script": route.script_rel
+        }));
+    }
+    match item.handler_kind() {
+        crate::command_list_kernel::CommandHandlerKind::CoreDomain
+            if !route.script_rel.starts_with("core://") =>
+        {
+            return Err(json!({
+                "ok": false,
+                "type": "protheusctl_dispatch",
+                "error": "command_contract_preflight_failed",
+                "reason": "core_domain_handler_must_resolve_to_core_route",
+                "root_cause_code": "INF-REGISTRY-006-HANDLER-ROUTE-MISMATCH",
+                "command": clean(cmd, 120),
+                "canonical_command": canonical_cmd,
+                "resolved_script": route.script_rel
+            }));
+        }
+        crate::command_list_kernel::CommandHandlerKind::RuntimeScript
+            if route.script_rel.starts_with("core://") =>
+        {
+            return Err(json!({
+                "ok": false,
+                "type": "protheusctl_dispatch",
+                "error": "command_contract_preflight_failed",
+                "reason": "runtime_script_handler_must_resolve_to_runtime_script",
+                "root_cause_code": "INF-REGISTRY-006-HANDLER-ROUTE-MISMATCH",
+                "command": clean(cmd, 120),
+                "canonical_command": canonical_cmd,
+                "resolved_script": route.script_rel
+            }));
+        }
+        _ => {}
+    }
+    if !route_script_exists(root, &route.script_rel) {
+        return Err(json!({
+            "ok": false,
+            "type": "protheusctl_dispatch",
+            "error": "command_contract_preflight_failed",
+            "reason": "runtime_script_missing",
+            "root_cause_code": "INF-REGISTRY-007-RUNTIME-SCRIPT-MISSING",
+            "command": clean(cmd, 120),
+            "canonical_command": canonical_cmd,
+            "resolved_script": route.script_rel
+        }));
+    }
+    if let Some(reason) = command_mode_reason(&canonical_cmd, route) {
+        return Err(json!({
+            "ok": false,
+            "type": "protheusctl_dispatch",
+            "error": "command_contract_preflight_failed",
+            "reason": reason,
+            "root_cause_code": "INF-REGISTRY-008-MODE-INCOMPATIBLE",
+            "command": clean(cmd, 120),
+            "canonical_command": canonical_cmd,
+            "resolved_script": route.script_rel,
+            "resolved_args": route.args
+        }));
+    }
+    Ok(())
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let workspace_root = effective_workspace_root(root);
     let root = workspace_root.as_path();
@@ -164,6 +313,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     if global_version {
         cmd = "version".to_string();
         rest.clear();
+    }
+
+    if cmd == "kairos" {
+        cmd = "proactive_daemon".to_string();
     }
 
     if global_help
@@ -656,7 +809,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 forward_stdin: false,
             },
             "tutorial" => Route {
-                script_rel: "client/runtime/systems/tools/cli_suggestion_engine.ts".to_string(),
+                script_rel: "client/runtime/systems/tools/cli_suggestion_engine_bridge.ts".to_string(),
                 args: if rest.is_empty() {
                     vec!["tutorial".to_string(), "status".to_string()]
                 } else {
@@ -808,7 +961,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             | "client/runtime/systems/ops/protheus_status_dashboard.ts"
             | "client/runtime/systems/ops/protheus_debug_diagnostics.ts"
             | "client/runtime/systems/personas/shadow_cli.ts"
-            | "client/runtime/systems/tools/cli_suggestion_engine.ts"
+            | "client/runtime/systems/tools/cli_suggestion_engine_bridge.ts"
     ) || [
         SETUP_WIZARD_SCRIPT,
         DEMO_SCRIPT,
@@ -852,25 +1005,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         route.args.push("--quiet=1".to_string());
     }
 
-    if let Some(expected) = crate::command_list_kernel::tier1_route_contracts()
-        .iter()
-        .find(|row| row.cmd == cmd)
-        .map(|row| row.expected_script)
-    {
-        if route.script_rel != expected {
-            eprintln!(
-                "{}",
-                json!({
-                    "ok": false,
-                    "type": "protheusctl_dispatch",
-                    "error": "tier1_route_contract_failed",
-                    "command": clean(cmd, 120),
-                    "expected_script": expected,
-                    "resolved_script": route.script_rel
-                })
-            );
-            return 2;
-        }
+    if let Err(payload) = command_route_preflight(root, &cmd, &route) {
+        eprintln!("{}", payload);
+        return 2;
     }
 
     if let Err(reason) = enforce_command_center_boundary(&cmd, &route) {
