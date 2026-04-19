@@ -309,7 +309,7 @@
   --overlay-template-fogged-glass-background: var(--overlay-template-simple-glass-background);
   --overlay-template-fogged-glass-radius: var(--overlay-template-simple-glass-radius);
   --overlay-template-fogged-glass-shadow: var(--overlay-template-simple-glass-shadow);
-  --overlay-template-fogged-glass-blur: calc(var(--overlay-template-glass-base-blur) * 0.5);
+  --overlay-template-fogged-glass-blur: calc(var(--overlay-template-glass-base-blur) * 0.35);
   --overlay-template-fogged-glass-saturate: var(--overlay-template-glass-base-saturate);
   --overlay-template-fogged-glass-brightness: var(--overlay-template-glass-base-brightness);
   --overlay-template-fogged-glass-contrast: var(--overlay-template-glass-base-contrast);

@@ -16227,3 +16227,810 @@ Source summary:
   - Windows preflight diagnostics still report toolchain and asset reachability while preserving source-fallback gating behavior.
 - Regression evidence pointers:
   - `install.ps1`
+
+### 2026-04-19 Windows Triple-Variant Probe + Troubleshooting Operator Lanes Addendum (V11-WORKFLOW-RELIABILITY-011)
+
+- Intent:
+  - Increase Windows installer compatibility across release artifact variants and improve troubleshooting operator observability with dedicated outbox/deadletter lanes.
+- Acceptance criteria:
+  - Installer resolves binary asset candidates across Windows triple variants (`*-pc-windows-msvc`, `*-pc-windows-gnu`) for preflight probes and download attempts.
+  - Installer preflight emits triple candidate diagnostics and notes when a compatible non-requested Windows triple variant is selected.
+  - Installer asset probe metadata includes selected triple and candidate triple list in failure hints for operator diagnostics.
+  - Troubleshooting outbox preview includes error histogram parity metadata without mutating queue state.
+  - Troubleshooting exposes dedicated outbox state lane (`dashboard.troubleshooting.outbox.state`) with depth/readiness/cooldown/error histogram reporting.
+  - Troubleshooting action family exposes deadletter inspect alias (`dashboard.troubleshooting.deadletter.inspect`) with parity to deadletter state lane.
+  - Regression tests cover outbox-state lane, preview histogram parity, and deadletter inspect alias equivalence.
+- Regression evidence pointers:
+  - `install.ps1`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+### 2026-04-19 Installer Archive-Compatible Asset Intake + Troubleshooting Summary Lane Addendum (V11-WORKFLOW-RELIABILITY-012)
+
+- Intent:
+  - Improve install success across release artifact naming/packaging variants and provide a compact operator summary lane for troubleshooting health.
+- Acceptance criteria:
+  - Installer resolves binary asset candidates across canonical and underscore stem forms for alias-compatible release assets.
+  - Installer attempts zip-packaged asset candidates and can extract/install matching binary payloads from archives.
+  - Installer candidate generation includes Windows triple aliases and archive forms without regressing direct binary candidates.
+  - Installer preflight/failure diagnostics continue to expose attempted assets and source-fallback reasons with archive-aware failure reasons.
+  - Search shape contract emits suggested next action payload for direct URL inputs (`query_prefers_fetch_url`) to route users toward fetch lanes.
+  - Search blocked/cache-hit/miss responses expose consistent `suggested_next_action` metadata.
+  - Fetch URL shape contract emits normalization metadata (`normalized_requested_url`, `normalization_changed`) for copied-link diagnostics.
+  - Troubleshooting exposes a dedicated summary lane (`dashboard.troubleshooting.summary`) with recent failure/error/classification histograms.
+  - Troubleshooting summary lane includes queue-depth visibility and recommendation synthesis.
+  - Troubleshooting action family exposes `dashboard.troubleshooting.overview` alias with parity to summary lane.
+- Regression evidence pointers:
+  - `install.ps1`
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+### 2026-04-19 Search URL-Intent Canonicalization + Troubleshooting Filtered Summary Addendum (V11-WORKFLOW-RELIABILITY-013)
+
+- Intent:
+  - Reduce wrong tool-route selection for URL-like search prompts and improve troubleshooting triage with built-in filtered summary views.
+- Acceptance criteria:
+  - Search query-shape detection recognizes direct URL and markdown-link (`[label](url)`) inputs as fetch-intent (`query_prefers_fetch_url`).
+  - Search suggested-next-action payload normalizes markdown-link inputs to canonical `requested_url` in `web_conduit_fetch`.
+  - Search blocked responses for fetch-intent queries preserve deterministic route hint (`web_fetch`) and suggested-next-action payload parity.
+  - Dashboard troubleshooting summary lane accepts classification and error filters (`classification_filter`/`class_filter`, `error_filter`/`errors`) and reports filtered vs total entry counts.
+  - Troubleshooting summary payload emits explicit filter metadata (`filters.applied`, selected filters) for operator auditability.
+  - Troubleshooting action family exposes `dashboard.troubleshooting.summary.filtered` alias routed to the same summary lane behavior.
+  - Windows installer asset compatibility path resolves arch aliases (`x86_64/x64`, `aarch64/arm64`) when generating asset candidates.
+  - Windows installer downloaded-asset handling supports archive formats (`.zip`, `.tar.gz`, `.tar`) and extracts matching binaries before install.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `install.ps1`
+
+### 2026-04-19 Installer Archive Compatibility + Troubleshooting Cluster Surfacing Addendum (V11-WORKFLOW-RELIABILITY-014)
+
+- Intent:
+  - Increase installer compatibility across archive naming variants and improve troubleshooting observability for fastest failure-cluster triage.
+- Acceptance criteria:
+  - Installer binary candidate generation includes `.tgz` forms for triple-specific and stem-only assets.
+  - Installer archive intake supports `.tgz` extraction and fails closed with explicit `asset_archive_tar_unavailable` when `tar` is missing.
+  - Windows preflight toolchain report and failure diagnostics include `tar` availability alongside Cargo/RustC/MSVC status.
+  - Windows fatal install failures include explicit Build Tools remediation hint command (winget install for VS Build Tools).
+  - Search URL-intent detection normalizes wrapped/punctuated URL inputs and supports `www.` candidates for fetch-intent fail-close routing.
+  - Search query-shape contracts and stats include normalized URL-candidate visibility for operator diagnostics.
+  - Fetch request execution can recover URL intent from `query`/`q` when `requested_url`/`url` is absent.
+  - Troubleshooting summary supports wildcard filters (`*` suffix) for error/classification drill-down.
+  - Troubleshooting summary exposes `no_match` filter state and `top_failure_cluster` telemetry.
+  - Troubleshooting outbox state surfaces `oldest_age_seconds` and `max_attempts_observed`.
+  - Troubleshooting action family exposes `dashboard.troubleshooting.summary.by_error` and `dashboard.troubleshooting.summary.by_classification` aliases.
+- Regression evidence pointers:
+  - `install.ps1`
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+### 2026-04-19 URL-Intent Recovery + Troubleshooting Time Window Controls Addendum (V11-WORKFLOW-RELIABILITY-015)
+
+- Intent:
+  - Further reduce web-tool misrouting and accelerate operator triage with time-windowed troubleshooting analytics.
+- Acceptance criteria:
+  - Search URL-intent extraction supports bare-domain query forms (for example `example.com/path`) and canonicalizes them to `https://...`.
+  - Search query-shape contract/stats expose normalized URL-candidate metadata (`fetch_url_candidate_kind`, `url_candidate_kind`).
+  - Search fetch-intent suggested-next-action payload includes original URL input for debugging parity.
+  - Fetch URL normalization auto-prefixes bare-domain inputs with `https://` when host shape is valid.
+  - Fetch request resolution accepts additional URL-source fields (`target_url`, `href`) before query fallback.
+  - Troubleshooting summary supports optional time-window filtering (`window_seconds`, `since_epoch_s`) with deterministic `window` telemetry in output.
+  - Troubleshooting summary supports wildcard filter patterns (`*` suffix) for classification/error filters.
+  - Troubleshooting outbox state reports `ready_ratio` in addition to ready/cooldown counts.
+  - Troubleshooting action family supports summary aliases `dashboard.troubleshooting.summary.recent` and `dashboard.troubleshooting.summary.window`.
+  - Installer binary asset candidate set includes `.tar.xz` variants and extraction path supports `.tar.xz` archives.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `install.ps1`
+
+### 2026-04-19 URL-Source Attribution + Troubleshooting Window Drilldown Addendum (V11-WORKFLOW-RELIABILITY-016)
+
+- Intent:
+  - Improve deterministic tool routing telemetry and make troubleshooting summaries easier to slice by source, time, and filter shape.
+- Acceptance criteria:
+  - Search responses expose top-level URL-intent metadata (`query_shape_fetch_url_candidate`, `query_shape_fetch_url_candidate_kind`) in blocked/cache/miss lanes.
+  - Search query-shape suggested-next-action payload includes both normalized URL and original query input for route-debug parity.
+  - Search URL-intent detection supports bare-domain and preserves candidate-kind labeling (`bare_domain`, `www_domain`, `markdown_link`, `direct_url`).
+  - Fetch request input resolution attributes URL source (`requested_url`, `url`, `target_url`, `href`, `uri`, `query`, `q`) and emits `requested_url_source` in response payloads.
+  - Fetch URL-shape stats include host/path diagnostics (`host_candidate`, `path_present`) for troubleshooting clarity.
+  - Troubleshooting filter parsing accepts comma-separated filter strings in addition to array payloads.
+  - Troubleshooting summary supports `window_minutes` shorthand and reports `window.filtered_out_count`.
+  - Troubleshooting action family exposes `dashboard.troubleshooting.summary.by_time` alias.
+  - Installer asset candidate generation/extraction supports `.txz` forms alongside `.tar.xz`.
+  - Regression tests cover top-level URL-intent metadata, URI-source attribution, comma-separated filters, and window-by-time behavior.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `install.ps1`
+
+### 2026-04-19 Routing Metadata Parity + Troubleshooting Rate Signals Addendum (V11-WORKFLOW-RELIABILITY-017)
+
+- Intent:
+  - Improve route-decision explainability and operator summary quality with explicit source/rate telemetry and broader installer archive compatibility.
+- Acceptance criteria:
+  - Search query-shape URL intent detection supports protocol-relative query inputs (`//host/path`) and normalizes them to `https://` candidates.
+  - Search responses expose top-level query-shape URL-candidate metadata across blocked/cache/miss lanes.
+  - Fetch URL input normalization supports protocol-relative input (`//host/path`) and canonicalizes to `https://`.
+  - Fetch URL source resolution supports nested payload URL fields (`payload.requested_url`, `payload.url`, `payload.target_url`, `payload.href`, `payload.uri`).
+  - Fetch responses expose `requested_url_source` on early-validation and runtime result lanes.
+  - Troubleshooting outbox state reports ratio + ID context (`blocked_ratio`, `oldest_item_id`, `next_retry_item_id`) for faster queue triage.
+  - Troubleshooting summary reports `failure_rate` and `stale_rate` in recent lane metrics.
+  - Troubleshooting summary supports `window_minutes` shorthand and preserves explicit `window.filtered_out_count`.
+  - Troubleshooting action family exposes `dashboard.troubleshooting.summary.by_time` alias with parity to summary lane.
+  - Installer binary archive candidate generation and extraction support `.txz` variants.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `install.ps1`
+
+### 2026-04-19 Query-Source Attribution + Outbox Health Alias Addendum (V11-WORKFLOW-RELIABILITY-018)
+
+- Intent:
+  - Improve web routing explainability and operator outbox triage with clearer source metadata and compatibility expansions.
+- Acceptance criteria:
+  - Search query extraction supports top-level and payload query fields and emits deterministic `query_source` in search outputs.
+  - Search supports protocol-relative URL query normalization (`//host/path` -> `https://host/path`) with `protocol_relative` URL-candidate kind.
+  - Search blocked/cache/runtime response lanes expose top-level URL-candidate metadata (`query_shape_fetch_url_candidate`, `query_shape_fetch_url_candidate_kind`).
+  - Fetch source resolution supports camelCase URL keys (`requestedUrl`, `targetUrl`, `sourceUrl`) and payload camelCase equivalents.
+  - Fetch outputs expose deterministic `requested_url_source` for early-validation and runtime lanes.
+  - Troubleshooting action family exposes `dashboard.troubleshooting.outbox.health` alias with parity to outbox-state lane.
+  - Troubleshooting outbox-state telemetry includes ratio + key IDs (`blocked_ratio`, `oldest_item_id`, `next_retry_item_id`).
+  - Troubleshooting summary recent telemetry includes rates (`failure_rate`, `stale_rate`) and preserves window drilldown counters.
+  - Installer asset candidate generation/extraction supports `.tbz2` and `.tar.bz2` archive variants.
+  - Regression tests cover query-source attribution, payload URL-source attribution, and outbox-health alias parity.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `install.ps1`
+
+### 2026-04-19 Source-Kind Precision + Troubleshooting Severity Tier Addendum (V11-WORKFLOW-RELIABILITY-019)
+
+- Intent:
+  - Improve request-source explainability for web tooling, strengthen troubleshooting triage signals, and reduce Windows installer dead-end behavior when prebuilts are absent.
+- Acceptance criteria:
+  - Search request extraction supports additional top-level and payload aliases (`input`, `text`, `message`, `question`) and object-array query forms (`queries[0].query/q/text/prompt/input/message` and payload equivalents).
+  - Search responses expose deterministic `query_source_kind` (`direct_field`, `payload_field`, `array_field`, `payload_array_field`, `none`) alongside `query_source`.
+  - Fetch URL resolution supports nested `request.*` and `payload.request.*` URL fields plus payload query fallback URL extraction.
+  - Fetch responses expose refined `requested_url_source_kind` buckets including `payload_query_fallback` and `request_field`.
+  - Troubleshooting outbox-state lane exposes `retry_due_within_900s_count` and `health_reason` for faster cooldown triage.
+  - Troubleshooting summary lane emits `top_failure_cluster.severity_tier` based on failure/share concentration.
+  - Troubleshooting dispatch supports `dashboard.troubleshooting.outbox.overview` alias with outbox-state parity.
+  - Windows installer defaults to allowing source-fallback attempts even when MSVC tools are missing (with explicit operator warning and opt-out via `INFRING_INSTALL_ALLOW_NO_MSVC_SOURCE_FALLBACK=0`).
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `install.ps1`
+
+### 2026-04-19 Early-Validation Source Parity + Freshness Metadata Addendum (V11-WORKFLOW-RELIABILITY-020)
+
+- Intent:
+  - Close remaining source-attribution gaps in early-validation paths, expand fetch URL-source compatibility, and improve troubleshooting freshness/queue health observability.
+- Acceptance criteria:
+  - Search query extraction supports nested `request.*` aliases and `request.queries/search_queries` object-array rows.
+  - Search early-validation responses (`query_required`, `non_search_meta_query`, and related fail-closed lanes) include `query_source` and `query_source_kind` parity metadata.
+  - Search unsupported-filter fail-closed responses include `query_source` and `query_source_kind` for deterministic routing diagnostics.
+  - Fetch URL extraction supports additional source aliases (`target`, `link`) across top-level, `request.*`, and `payload.*` paths.
+  - Fetch URL extraction supports `urls[0]` arrays across top-level, `request.*`, `payload.*`, and `payload.request.*` paths.
+  - Fetch source-kind classification distinguishes array paths (`array_field`, `payload_array_field`, `request_array_field`) without regressing existing source kinds.
+  - Troubleshooting outbox-state items include deterministic freshness fields (`source_sequence`, `age_seconds`, `stale`) for each returned row.
+  - Troubleshooting summary queues include `outbox_health` snapshot (`ready_count`, `ready_ratio`, `blocked_ratio`, `health_tier`, `health_reason`).
+  - Troubleshooting action dispatch supports new aliases `dashboard.troubleshooting.outbox.queue` and `dashboard.troubleshooting.summary.metrics`.
+  - Installer preflight emits explicit warning when `tar` is missing under Windows asset-gap conditions and honors legacy env alias `INFRING_ALLOW_NO_MSVC_SOURCE_FALLBACK`.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `install.ps1`
+
+### 2026-04-19 Request-Lane Source Expansion + Outbox Freshness Health Addendum (V11-WORKFLOW-RELIABILITY-021)
+
+- Intent:
+  - Increase routing observability across request-wrapped inputs, make fetch source resolution more robust for nested query/url shapes, and expose richer outbox freshness health for operators.
+- Acceptance criteria:
+  - Search source-kind classification distinguishes request-wrapped sources (`request_field`, `request_array_field`) from payload/direct sources.
+  - Search source extraction supports `payload.request.*` query aliases and `payload.request.queries/search_queries` object-array rows.
+  - Search early-validation fail-closed lanes include canonical `query_shape` contract + `suggested_next_action` parity metadata.
+  - Search unsupported-filter fail-closed lane includes query-shape/source parity metadata for route-debug continuity.
+  - Fetch source extraction supports request-query fallback (`request.query/q/search_query/searchQuery`) and payload-request-query fallback.
+  - Fetch source-kind classification introduces `request_query_fallback` for request-scoped query-derived URL recovery.
+  - Outbox-state item rows include freshness metadata (`freshness_tier`) and explicit source marker (`source=issue_outbox`) in addition to sequence/age/stale fields.
+  - Outbox-state lane exposes top-level stale counters (`stale_count`, `stale_ratio`) for queue-quality triage.
+  - Summary queue health embeds outbox stale metrics (`queues.outbox_health.stale_count`, `stale_ratio`) and dispatch adds aliases `dashboard.troubleshooting.outbox.freshness` and `dashboard.troubleshooting.summary.health`.
+  - Installer supports legacy env alias `INFRING_AUTO_RUSTUP` and preflight error contract references both auto-rustup env forms when disabled.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `install.ps1`
+
+### 2026-04-19 Source-Confidence Parity + Queue Freshness Ratios Addendum (V11-WORKFLOW-RELIABILITY-022)
+
+- Intent:
+  - Improve confidence explainability for search/fetch source recovery, expand nested array/url extraction, and provide richer queue freshness health semantics for operator triage.
+- Acceptance criteria:
+  - Search source-kind taxonomy includes request-lane classification and emits deterministic source confidence (`high|medium|none`) in blocked/cache/miss lanes.
+  - Search extraction supports `payload.request.*` query aliases plus request-lane array rows under `payload.request.queries/search_queries`.
+  - Search early-validation and unsupported-filter fail-closed responses expose full query-shape parity (`query_shape`, `suggested_next_action`, route/category metadata).
+  - Fetch extraction supports URL object-array recovery (`*.urls[0].url|href|uri|link|target`) across top-level/request/payload/payload.request contexts.
+  - Fetch outputs expose deterministic `requested_url_source_confidence` for all early-validation/runtime response paths.
+  - Fetch source-kind taxonomy handles nested array-object URL sources without collapsing to generic direct/payload buckets.
+  - Outbox-state lane publishes freshness breakdown counters/ratios (`fresh_count`, `fresh_ratio`, `aging_count`, `aging_ratio`, `stale_count`, `stale_ratio`) and actionable queue hint (`queue_action_hint`).
+  - Outbox-state returned items include row-level freshness semantics (`freshness_tier`) and explicit source marker (`source=issue_outbox`).
+  - Troubleshooting summary queue-health snapshot includes outbox freshness breakdown (fresh/aging/stale counts + ratios) and dispatch adds aliases `dashboard.troubleshooting.outbox.health.metrics` and `dashboard.troubleshooting.summary.queue_health`.
+  - Installer preflight emits Cargo-bootstrap guidance when auto-rustup is enabled and no Cargo is detected under asset gaps, while no-MSVC source-fallback override supports `INFRING_ALLOW_NO_MSVC` alias.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `install.ps1`
+
+### 2026-04-19 Request-Text URL Recovery + Outbox Health Scoring Addendum (V11-WORKFLOW-RELIABILITY-023)
+
+- Intent:
+  - Reduce web-fetch routing misses from request-wrapped text lanes, improve troubleshooting queue-health actionability, and avoid premature Windows installer hard-stop behavior when prebuilts are unavailable.
+- Acceptance criteria:
+  - Search request-lane extraction accepts direct string rows from `request.queries[0]`, `request.search_queries[0]`, `payload.request.queries[0]`, and `payload.request.search_queries[0]`.
+  - Search request-array extraction supports additional object-row query aliases (`question`, `search_query`, `searchQuery`) across top-level, payload, request, and payload-request array lanes.
+  - Fetch URL recovery supports text-first fallbacks from top-level (`message`, `text`, `input`, `prompt`, `question`) and request/payload text lanes.
+  - Fetch source-kind classification includes request/payload text fallback routes without collapsing to generic direct-field semantics.
+  - Troubleshooting outbox-state lane exposes `health_score`, `retry_pressure_tier`, and `stale_oldest_age_seconds`.
+  - Troubleshooting summary queue-health lane exposes `health_score`, `queue_action_hint`, retry-due buckets (`60s`, `300s`, `900s`), and `retry_pressure_tier`.
+  - Outbox and summary health-tier/reason/action semantics are derived from shared helper functions to keep lane contracts deterministic.
+  - Troubleshooting dispatch supports aliases `dashboard.troubleshooting.outbox.health.summary`, `dashboard.troubleshooting.summary.health.metrics`, and `dashboard.troubleshooting.summary.outbox.health`.
+  - Windows installer no longer hard-fails pre-source-fallback solely because MSVC is missing when prebuilts are unreachable; it logs advisory context and continues best-effort source fallback.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `install.ps1`
+
+### 2026-04-19 Source-Lineage Contracts + Queue Compaction Signals Addendum (V11-WORKFLOW-RELIABILITY-024)
+
+- Intent:
+  - Strengthen routing explainability with deterministic source-lineage contracts and expand troubleshooting queue-health telemetry into actionable compaction/retry-pressure signals.
+- Acceptance criteria:
+  - Search extraction accepts additional body-nested query aliases under `request.body.*`, `payload.body.*`, and `payload.request.body.*`.
+  - Search request-array extraction supports direct string rows and alias fields (`question`, `search_query`, `searchQuery`) across request/payload-request lane arrays.
+  - Search outputs publish `query_source_lineage` in fail-closed, early-validation, unsupported-filter, and final result lanes.
+  - Fetch extraction accepts body-nested URL/query aliases under request/payload/payload-request lanes.
+  - Fetch extraction recovers URL intent from text-first fields (`message`, `text`, `input`, `prompt`, `question`) across top-level and request/payload wrappers.
+  - Fetch outputs publish `requested_url_source_lineage` across fail-closed, early-validation, cache-hit, policy/ssrf-denied, and final result lanes.
+  - Troubleshooting outbox state reports `age_p95_seconds`, `compaction_recommended`, and `compaction_reason`.
+  - Troubleshooting summary queue-health reports `oldest_age_seconds`, `age_p95_seconds`, retry-pressure buckets, and compaction recommendation/reason.
+  - Troubleshooting health tier/reason/action/score semantics are shared via deterministic helper functions to keep outbox and summary lanes in lockstep.
+  - Windows installer source-fallback plan now adds `main` as last-resort for non-latest versions when release metadata lacks matching Windows prebuilts.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `install.ps1`
+
+### 2026-04-19 Body-Lane Source Coverage + Queue Pressure Scoring Addendum (V11-WORKFLOW-RELIABILITY-025)
+
+- Intent:
+  - Close remaining body-wrapper source-resolution blind spots in web tooling and provide deterministic queue-pressure scoring for troubleshooting lanes.
+- Acceptance criteria:
+  - Search extraction supports body-wrapped array string lanes (`request.body.*`, `payload.body.*`, `payload.request.body.*`) for `queries/search_queries`.
+  - Search extraction supports body-wrapped array object aliases (`query/q/text/prompt/input/message/question/search_query/searchQuery`) across request/payload wrappers.
+  - Unknown-provider search fail-closed response includes query source attribution (`query_source`, `query_source_kind`, `query_source_confidence`, `query_source_lineage`).
+  - Fetch URL extraction supports body-wrapped `urls[0]` string/object lanes for request/payload/payload-request wrappers.
+  - Fetch early-validation and denied lanes preserve source-lineage contract in output.
+  - Troubleshooting outbox state emits `queue_pressure_score` and `queue_pressure_tier`.
+  - Troubleshooting summary queue health emits `queue_pressure_score` and `queue_pressure_tier`.
+  - Troubleshooting dispatch adds pressure aliases for outbox and summary lanes.
+  - Installer source-fallback planning supports explicit env control for main last-resort fallback (`INFRING_INSTALL_ALLOW_MAIN_LAST_RESORT_SOURCE_FALLBACK` with legacy alias).
+  - Installer retains fail-closed behavior while preserving explicit operator override semantics.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `install.ps1`
+
+### 2026-04-19 Source-Recovery Mode Contracts + Pressure Action Hints Addendum (V11-WORKFLOW-RELIABILITY-026)
+
+- Intent:
+  - Make source attribution easier to reason about at runtime with explicit source-recovery mode contracts and expose actionable pressure response guidance in troubleshooting lanes.
+- Acceptance criteria:
+  - Search source extraction supports nested `data` wrappers under request/payload (`request.data.*`, `payload.data.*`, `payload.request.data.*`).
+  - Search outputs include `query_source_recovery_mode` across early-validation, unsupported-filter, unknown-provider, and final response lanes.
+  - Fetch source extraction supports nested `data` wrappers for URL and query aliases across request/payload/payload-request lanes.
+  - Fetch outputs include `requested_url_source_recovery_mode` across early-validation, denied (policy/ssrf), cache-hit, and final response lanes.
+  - Troubleshooting outbox-state and summary queue-health outputs include `queue_pressure_action_hint`.
+  - Troubleshooting dispatch aliases include pressure action views for outbox and summary lanes.
+  - Installer diagnostics include `main_last_resort_fallback` in failure hints when applicable.
+  - Installer source-fallback policy logs whether main last-resort fallback is active when assets are missing.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `install.ps1`
+
+### 2026-04-19 Preflight Contract Parity + Windows Source-Fallback Bootstrap Addendum (V11-WORKFLOW-RELIABILITY-027)
+
+- Intent:
+  - Close remaining parity gaps in search/fetch preflight and replay fail-closed envelopes, reduce URL-source extraction blind spots, and harden Windows source fallback with explicit MSVC bootstrap and diagnostics.
+- Acceptance criteria:
+  - Search `conflicting_time_filters` fail-closed response includes query-shape and suggested-next-action contract fields (route/category/recommendation/suggested action + fetch candidate metadata).
+  - Search preflight-blocked and replay-suppressed fail-closed responses include full query source lineage and query-shape contract fields for deterministic troubleshooting.
+  - Fetch URL extraction supports conversational text fallback from `request.data.*`, `payload.data.*`, and `payload.request.data.*` message/text/input/prompt/question lanes.
+  - Duplicate fetch text-fallback extraction loops are removed while preserving deterministic source selection semantics.
+  - Fetch preflight-blocked and replay-suppressed responses include `requested_url_input`, source-kind/confidence/recovery/lineage fields, and full fetch-shape contract metadata.
+  - Troubleshooting dispatch recognizes pressure-priority and pressure-lane aliases for both outbox and summary routes.
+  - Windows installer preflight logs whether auto MSVC bootstrap is enabled and announces fallback behavior accordingly.
+  - Windows installer source-fallback path attempts winget-based Build Tools bootstrap when MSVC tools are missing (controllable by `INFRING_INSTALL_AUTO_MSVC` / `INFRING_AUTO_MSVC`).
+  - Binary-install failure diagnostics include `source_fallback_plan` alongside fallback reason/version metadata.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `install.ps1`
+
+### 2026-04-19 Contract-Gate Determinism + Pressure Escalation Semantics Addendum (V11-WORKFLOW-RELIABILITY-028)
+
+- Intent:
+  - Tighten fail-closed web contract determinism, enrich operator pressure routing semantics, and improve installer diagnostics for Windows fallback decisioning.
+- Acceptance criteria:
+  - Search request-contract fail-closed exits (`conflicting_time_filters`, `unknown_search_provider`, unsupported filter paths) include explicit non-execution gate metadata and cache-skip contract fields.
+  - Search request-contract fail-closed exits publish deterministic `meta_query_blocked=false` parity and process-summary telemetry.
+  - Fetch preflight-blocked and replay-suppressed outputs include fetch provider catalog snapshots for faster operator troubleshooting.
+  - Fetch URL extraction supports nested data text wrappers (`request.data.*`, `payload.data.*`, `payload.request.data.*`) for conversational URL recovery.
+  - Duplicate fetch text-fallback extraction lanes are removed without changing source precedence behavior.
+  - Troubleshooting outbox/summary queue pressure includes explicit escalation semantics (`queue_pressure_escalation_required`, `queue_pressure_escalation_reason`).
+  - Troubleshooting dispatch supports escalation aliases for both outbox and summary pressure views.
+  - Installer failure hints include auto-bootstrap policy signals (`auto_rustup`, `auto_msvc`) and fallback plan chain visibility.
+  - Installer failure state captures `source_fallback_plan` and `auto_msvc_bootstrap_enabled` for post-mortem diagnostics.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `install.ps1`
+  - `README.md`
+
+### 2026-04-19 Request-Contract Retry Semantics + Installer Bootstrap Diagnostics Addendum (V11-WORKFLOW-RELIABILITY-029)
+
+- Intent:
+  - Improve fail-closed operator guidance via deterministic retry semantics, expand fetch input recovery coverage, and harden Windows installer diagnostics/auto-bootstrap signaling.
+- Acceptance criteria:
+  - Search request-contract blocks (`conflicting_time_filters`, `unknown_search_provider`, unsupported filter exits) include explicit retry strategy envelopes.
+  - Fetch request-contract blocks for SSRF and policy-denied paths include explicit retry envelopes and fetch provider catalog snapshots.
+  - Fetch URL source extraction supports body-data conversational lanes (`request.body.data.*`, `payload.body.data.*`, `payload.request.body.data.*`).
+  - Fetch preflight-blocked responses include retry strategy guidance for surface restoration/recovery.
+  - Troubleshooting outbox and summary queue pressure contracts expose runbook and escalation owner fields.
+  - Troubleshooting dispatch supports pressure runbook aliases for outbox and summary lanes.
+  - Windows installer preflight toolchain line includes `winget` visibility and warns when auto-MSVC is enabled but winget is unavailable.
+  - Windows installer auto-MSVC resolver accepts compatibility alias `INFRING_AUTO_MSVC_BOOTSTRAP`.
+  - Windows installer failure hints include captured `auto_msvc_bootstrap_enabled` state.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `install.ps1`
+  - `README.md`
+
+### 2026-04-19 Contract-Retry Normalization + Queue Pressure SLA Surfaces Addendum (V11-WORKFLOW-RELIABILITY-030)
+
+- Intent:
+  - Normalize request-contract retry guidance across search/fetch fail-closed lanes, improve queue-pressure operator routing semantics, and tighten installer failure diagnostics for Windows supportability.
+- Acceptance criteria:
+  - Search preflight-blocked and replay-suppressed responses include deterministic retry strategies aligned to tool-surface state.
+  - Search unsupported-filter fail-close includes `supported_filters` contract metadata and retry guidance.
+  - Fetch SSRF and policy-denied fail-close responses include fetch URL shape contract fields and retry guidance.
+  - Fetch fail-close contracts include provider catalog snapshots in policy/ssrf/preflight-limited paths.
+  - Troubleshooting outbox and summary queue-pressure health include SLA and escalation-lane fields.
+  - Troubleshooting dispatch includes pressure alias routes for SLA and escalation lane projections.
+  - Installer failure hint toolchain contract includes winget visibility.
+  - Installer docs explicitly call out winget + auto-bootstrap visibility in diagnostics.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `install.ps1`
+  - `README.md`
+
+### 2026-04-19 Source-Fallback Binary Discovery + Fail-Closed Retry Envelope Parity Addendum (V11-WORKFLOW-RELIABILITY-031)
+
+- Intent:
+  - Reduce Windows source-fallback dead-ends, tighten fail-closed retry envelopes across request-contract blocks, and improve operator pressure routing metadata.
+- Acceptance criteria:
+  - Installer source fallback searches `target/release` for compatible binary stems when exact `<bin>.exe` path is missing before declaring `source_build_output_missing`.
+  - Installer failure hint toolchain diagnostics include winget visibility and preserve auto-bootstrap policy telemetry.
+  - Search unknown-provider/preflight/replay fail-closed paths expose deterministic retry envelopes for operator-guided recovery.
+  - Search unsupported-filter fail-close includes supported filter contract metadata.
+  - Fetch early-validation fail-close paths (shape block, meta block, unknown provider) expose deterministic retry envelopes.
+  - Fetch policy/ssrf fail-close responses include fetch URL shape contract metadata and retry guidance.
+  - Fetch extraction supports nested body-data text wrapper sources and preserves source lineage.
+  - Troubleshooting pressure health includes SLA + escalation lane semantics and supports corresponding route aliases.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `install.ps1`
+  - `README.md`
+
+### 2026-04-19 Retry-Strategy Canonicalization + Queue-Pressure Deadline/Breach Contract Coverage Addendum (V11-WORKFLOW-RELIABILITY-032)
+
+- Intent:
+  - Reduce retry-contract drift in search fail-closed paths, compact duplicated queue-pressure deadline/breach logic, and close alias/contract coverage gaps for deadline and breach projections.
+- Acceptance criteria:
+  - Search fail-closed retry strategy/lane selection is canonicalized behind helper functions and reused across query-shape and early-validation exits.
+  - Troubleshooting outbox-state and summary queue-health deadline/breach semantics are computed through a shared helper to prevent divergence.
+  - Dashboard troubleshooting action dispatch supports deadline/breach aliases for outbox and summary lanes with explicit regression coverage.
+  - Outbox-state contract tests assert `queue_pressure_deadline_epoch_s`, `queue_pressure_breach`, and `queue_pressure_breach_reason`.
+  - Summary queue-health tests assert deadline/breach fields for both empty and high-pressure outbox conditions.
+  - Search/fetch early-validation and shape-block tests assert deterministic retry strategy + lane values (`use_web_fetch_route`, `answer_directly_without_web_search`, `answer_directly_without_web_fetch`, `provide_http_or_https_scheme`).
+  - Windows Build Tools remediation hint string uses the same explicit VCTools `winget --override` command surfaced in README prerequisites.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `install.ps1`
+  - `README.md`
+
+### 2026-04-19 Retry-Reason Contracts + Pressure Deadline-Remaining/Breach-Timestamp Surfaces Addendum (V11-WORKFLOW-RELIABILITY-033)
+
+- Intent:
+  - Improve operator-grade failure triage by adding explicit retry reasons in web fail-closed contracts and surfacing countdown/timestamp pressure fields for troubleshooting pressure workflows.
+- Acceptance criteria:
+  - Search retry envelopes include deterministic `retry.reason` for query-shape and early-validation fail-close paths.
+  - Fetch early-validation retry envelopes include deterministic `retry.reason`, and preflight-blocked retry envelopes include reason parity.
+  - Outbox-state and summary outbox-health queue-pressure outputs include `queue_pressure_deadline_remaining_seconds`.
+  - Outbox-state and summary outbox-health queue-pressure outputs include `queue_pressure_breach_detected_at_epoch_s`.
+  - Troubleshooting dispatch includes aliases for pressure deadline-remaining and breach-detected views on both outbox and summary lanes.
+  - Regression tests assert retry-reason contracts for search/fetch fail-close scenarios and deadline-remaining/breach-timestamp telemetry in dashboard lanes.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+### 2026-04-19 Retry Contract-Version Lock + Pressure Snapshot/Reason Alias Expansion Addendum (V11-WORKFLOW-RELIABILITY-034)
+
+- Intent:
+  - Make fail-closed retry envelopes and troubleshooting pressure payloads safer for downstream automation by pinning explicit contract versions and reason/alias coverage.
+- Acceptance criteria:
+  - Search retry envelopes expose deterministic `retry.contract_version="v1"` and reason codes through canonical helper paths.
+  - Fetch retry envelopes expose deterministic `retry.contract_version="v1"` for early-validation and preflight-blocked fail-close paths.
+  - Outbox-state pressure contract includes `queue_pressure_contract_version` and `queue_pressure_snapshot_epoch_s`.
+  - Summary outbox-health pressure contract includes `queue_pressure_contract_version` and `queue_pressure_snapshot_epoch_s`.
+  - Dashboard troubleshooting action bus recognizes pressure reason aliases for outbox and summary (`pressure.reason`, `pressure.breach_reason`).
+  - Regression tests lock retry contract-version + reason fields for key search/fetch fail-close scenarios and lock pressure contract-version/snapshot fields.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+### 2026-04-19 Retry Envelope Parity Expansion Across Request/Preflight/Replay Paths Addendum (V11-WORKFLOW-RELIABILITY-035)
+
+- Intent:
+  - Eliminate remaining retry-envelope drift so fail-closed web paths emit consistent machine-readable retry contracts.
+- Acceptance criteria:
+  - Search request-contract fail-closed responses for `conflicting_time_filters`, `unknown_search_provider`, and `unsupported_search_filter` emit deterministic retry reason + version fields.
+  - Search preflight-blocked and replay-suppressed responses emit retry reason + contract-version parity.
+  - Fetch SSRF/policy/replay fail-closed responses emit retry reason + contract-version parity.
+  - Dashboard troubleshooting pressure `breach_reason` aliases are routeable for both outbox and summary lanes with regression coverage.
+  - Web conduit regression tests assert retry reason/version parity on key fail-closed search and fetch scenarios.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+### 2026-04-19 Retry Envelope Builder Compaction + Pressure Contract Alias Expansion Addendum (V11-WORKFLOW-RELIABILITY-036)
+
+- Intent:
+  - Compact duplicated retry-envelope construction and expose pressure contract metadata through stable dashboard aliases for tooling/eval integrations.
+- Acceptance criteria:
+  - Search retry envelopes are built through shared helper paths for request-contract, unsupported-filter, preflight-blocked, and replay-suppressed branches.
+  - Fetch retry envelopes are built through shared helper paths for validation, SSRF, policy-denied, preflight-blocked, and replay-suppressed branches.
+  - Retry envelopes across these branches carry deterministic `strategy`, `reason`, `lane`, and `contract_version` fields.
+  - Dashboard troubleshooting action dispatch includes pressure aliases for contract and snapshot projections (`pressure.contract`, `pressure.snapshot`) on both outbox and summary lanes.
+  - Regression coverage includes helper-level retry envelope assertions and alias-route assertions for the new pressure contract/snapshot lanes.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+### 2026-04-19 Retry Envelope Category/Idempotency Lock + Pressure Contract-Object Parity Addendum (V11-WORKFLOW-RELIABILITY-037)
+
+- Intent:
+  - Tighten machine-readable retry semantics for downstream eval/tooling and close parity coverage for pressure contract-object aliases.
+- Acceptance criteria:
+  - Search fail-closed retry envelopes expose deterministic `retryable`, `idempotent`, `category`, and `lane` fields for validation paths.
+  - Fetch fail-closed retry envelopes expose deterministic `retryable`, `idempotent`, `category`, and `lane` fields for validation/execution paths.
+  - Troubleshooting outbox-state lane exposes `queue_pressure_contract` object fields (`version`, `snapshot_epoch_s`) with regression coverage.
+  - Troubleshooting summary queue-health lane exposes `queues.outbox_health.queue_pressure_contract` object fields (`version`, `snapshot_epoch_s`) with regression coverage.
+  - Dashboard aliases `dashboard.troubleshooting.outbox.pressure.contract_object` and `dashboard.troubleshooting.summary.pressure.contract_object` are parity-tested against their canonical lanes.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+### 2026-04-19 Retry Recovery-Mode Contracts + Pressure Contract Family Routing Addendum (V11-WORKFLOW-RELIABILITY-038)
+
+- Intent:
+  - Improve operator/eval recoverability by adding explicit retry recovery-mode/family metadata and exposing queue-pressure contract family through stable dashboard routes.
+- Acceptance criteria:
+  - Search retry envelopes include deterministic `contract_family` and `recovery_mode` fields for fail-closed validation/provider/filter paths.
+  - Fetch retry envelopes include deterministic `contract_family` and `recovery_mode` fields for fail-closed validation/provider/replay paths.
+  - Troubleshooting outbox-state exposes `queue_pressure_contract_family` and `queue_pressure_contract.family/producer`.
+  - Troubleshooting summary outbox-health exposes `queue_pressure_contract_family` and `queue_pressure_contract.family/producer`.
+  - Dashboard troubleshooting dispatch exposes alias parity routes for pressure contract-family/version projections (`outbox` + `summary`).
+  - Regression coverage asserts new retry metadata fields and alias-route behavior.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+### 2026-04-19 Retry Priority/Operator-Hint Contracts + Pressure Contract Action Routing Addendum (V11-WORKFLOW-RELIABILITY-039)
+
+- Intent:
+  - Improve operational recoverability by adding deterministic retry priority/action guidance and exposing queue-pressure contract priority/action aliases for tooling + eval consumers.
+- Acceptance criteria:
+  - Search retry envelopes expose deterministic `priority` and `operator_action_hint` fields alongside strategy/lane/category/recovery metadata.
+  - Fetch retry envelopes expose deterministic `priority` and `operator_action_hint` fields alongside strategy/lane/category/recovery metadata.
+  - Outbox-state queue-pressure contract object includes `priority` and `action_hint` aligned to top-level queue-pressure fields.
+  - Summary outbox-health queue-pressure contract object includes `priority` and `action_hint` aligned to top-level queue-pressure fields.
+  - Dashboard troubleshooting dispatch exposes alias parity routes for pressure contract priority/action projections on both outbox and summary lanes.
+  - Regression coverage asserts retry priority/hint semantics and alias-route parity for pressure contract priority/action lanes.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+### 2026-04-19 Retry Diagnostic/Owner Contracts + Pressure Contract Escalation Metadata Addendum (V11-WORKFLOW-RELIABILITY-040)
+
+- Intent:
+  - Improve downstream triage automation by adding explicit retry diagnostic ownership metadata and extending queue-pressure contract objects with escalation/runbook context.
+- Acceptance criteria:
+  - Search retry envelopes include deterministic `operator_owner` and `diagnostic_code` fields.
+  - Fetch retry envelopes include deterministic `operator_owner` and `diagnostic_code` fields.
+  - Outbox-state queue-pressure contract object includes `escalation_lane`, `runbook_id`, and `escalation_owner`.
+  - Summary outbox-health queue-pressure contract object includes `escalation_lane`, `runbook_id`, and `escalation_owner`.
+  - Dashboard troubleshooting dispatch exposes alias parity routes for pressure contract escalation/runbook/owner projections on both outbox and summary lanes.
+  - Regression coverage asserts new retry owner/diagnostic fields and pressure contract-object escalation metadata + alias parity.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+### 2026-04-19 Retry Blocking/Auto-Retry Contracts + Pressure Contract Deadline/Breach Metadata Addendum (V11-WORKFLOW-RELIABILITY-041)
+
+- Intent:
+  - Make retry governance explicitly automation-safe and preserve deadline/breach context inside pressure contract objects for downstream tooling/eval parity.
+- Acceptance criteria:
+  - Search retry envelopes include deterministic `blocking_kind` and `auto_retry_allowed` fields.
+  - Fetch retry envelopes include deterministic `blocking_kind` and `auto_retry_allowed` fields.
+  - Outbox-state queue-pressure contract object includes `deadline_epoch_s` and `breach_reason` with parity to top-level pressure fields.
+  - Summary outbox-health queue-pressure contract object includes `deadline_epoch_s` and `breach_reason` with parity to summary pressure fields.
+  - Dashboard troubleshooting dispatch exposes alias parity routes for pressure contract deadline and breach-reason projections on both outbox and summary lanes.
+  - Regression coverage asserts retry blocking/auto-retry semantics and pressure contract deadline/breach metadata + alias parity.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+### 2026-04-19 Retry Escalation/Manual-Confirmation Contracts + Pressure Blocking/Auto-Retry Routing Addendum (V11-WORKFLOW-RELIABILITY-042)
+
+- Intent:
+  - Improve workflow/eval automation safety by exposing explicit retry escalation/manual-confirmation metadata and by embedding queue-pressure blocking/auto-retry semantics directly into pressure contract objects.
+- Acceptance criteria:
+  - Search retry envelopes include deterministic `escalation_lane` and `requires_manual_confirmation` fields.
+  - Fetch retry envelopes include deterministic `escalation_lane` and `requires_manual_confirmation` fields.
+  - Outbox-state pressure payload includes top-level `queue_pressure_blocking_kind` and `queue_pressure_auto_retry_allowed`.
+  - Summary outbox-health pressure payload includes top-level `queue_pressure_blocking_kind` and `queue_pressure_auto_retry_allowed`.
+  - Pressure contract objects include `blocking_kind` and `auto_retry_allowed` for both outbox-state and summary outbox-health lanes.
+  - Troubleshooting dispatch supports alias routes for both top-level and contract-level blocking/auto-retry projections on outbox and summary pressure lanes.
+  - Regression coverage asserts retry escalation/manual-confirmation fields and pressure blocking/auto-retry parity + alias routing.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+### 2026-04-19 Retry Execution-Policy Contracts + Pressure Manual-Gate Routing Addendum (V11-WORKFLOW-RELIABILITY-043)
+
+- Intent:
+  - Improve deterministic automation behavior by exposing explicit retry execution policies and by projecting pressure execution-policy/manual-gate signals through both canonical payloads and dispatch aliases.
+- Acceptance criteria:
+  - Search retry envelopes include deterministic `execution_policy` derived from blocking kind + manual confirmation requirements.
+  - Fetch retry envelopes include deterministic `execution_policy` derived from blocking kind + manual confirmation requirements.
+  - Outbox-state pressure payload includes top-level `queue_pressure_execution_policy` and `queue_pressure_manual_gate_required`.
+  - Summary outbox-health pressure payload includes top-level `queue_pressure_execution_policy` and `queue_pressure_manual_gate_required`.
+  - Pressure contract object includes `execution_policy` and `manual_gate_required` for outbox-state and summary lanes.
+  - Troubleshooting dispatch supports aliases for top-level and contract-level execution-policy/manual-gate projections on outbox and summary pressure routes.
+  - Regression coverage asserts retry execution-policy semantics and pressure execution-policy/manual-gate parity + alias routing.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+### 2026-04-19 Retry Manual-Gate-Reason Contracts + Pressure Reason Alias Routing Addendum (V11-WORKFLOW-RELIABILITY-044)
+
+- Intent:
+  - Strengthen workflow/eval explainability by adding deterministic manual-gate reasons to retry contracts and by surfacing queue-pressure manual-gate reasons through canonical payload fields and action aliases.
+- Acceptance criteria:
+  - Search retry envelopes include deterministic `manual_gate_reason` aligned to retry blocking semantics.
+  - Fetch retry envelopes include deterministic `manual_gate_reason` aligned to retry blocking semantics.
+  - Outbox-state pressure payload includes top-level `queue_pressure_manual_gate_reason`.
+  - Summary outbox-health pressure payload includes top-level `queue_pressure_manual_gate_reason`.
+  - Outbox-state and summary pressure contract objects include `manual_gate_reason`.
+  - Troubleshooting dispatch supports outbox + summary aliases for top-level and contract-level manual-gate reason projections.
+  - Regression coverage asserts retry manual-gate reasons and pressure manual-gate reason parity + alias routing.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+### 2026-04-19 Retry Requeue/CAN-EXECUTE Contracts + Pressure Strategy Projection Addendum (V11-WORKFLOW-RELIABILITY-045)
+
+- Intent:
+  - Improve autonomous workflow reliability by exposing explicit requeue strategy and human-execution eligibility semantics in retry and queue-pressure contracts.
+- Acceptance criteria:
+  - Search retry envelopes include deterministic `requeue_strategy` and `can_execute_without_human`.
+  - Fetch retry envelopes include deterministic `requeue_strategy` and `can_execute_without_human`.
+  - Outbox-state pressure payload includes top-level `queue_pressure_requeue_strategy` and `queue_pressure_can_execute_without_human`.
+  - Summary outbox-health pressure payload includes top-level `queue_pressure_requeue_strategy` and `queue_pressure_can_execute_without_human`.
+  - Outbox-state and summary pressure contract objects include `requeue_strategy` and `can_execute_without_human`.
+  - Troubleshooting dispatch supports outbox + summary aliases for top-level and contract-level requeue/can-execute projections.
+  - Regression coverage asserts retry requeue/can-execute fields and pressure strategy parity + alias routing.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+### 2026-04-19 Retry Scheduling-Hint Contracts + Pressure Queue-Execution Hint Routing Addendum (V11-WORKFLOW-RELIABILITY-046)
+
+- Intent:
+  - Make retry and pressure contracts directly schedulable by automation/eval by adding explicit queue-execution hints that map policy semantics to immediate/deferred/manual execution handling.
+- Acceptance criteria:
+  - Search retry envelopes include deterministic `requeue_strategy` and `can_execute_without_human` derived from execution policy.
+  - Fetch retry envelopes include deterministic `requeue_strategy` and `can_execute_without_human` derived from execution policy.
+  - Outbox-state pressure payload includes top-level `queue_pressure_requeue_strategy` and `queue_pressure_can_execute_without_human`.
+  - Summary outbox-health pressure payload includes top-level `queue_pressure_requeue_strategy` and `queue_pressure_can_execute_without_human`.
+  - Outbox-state and summary pressure contract objects include `requeue_strategy` and `can_execute_without_human`.
+  - Troubleshooting dispatch supports outbox + summary aliases for top-level and contract-level requeue/can-execute projections.
+  - Regression coverage asserts retry scheduling-hint semantics and pressure queue-execution hint parity + alias routing.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+### 2026-04-19 Retry Execution-Window Contracts + Pressure Manual-Gate Timeout Routing Addendum (V11-WORKFLOW-RELIABILITY-047)
+
+- Intent:
+  - Make recovery orchestration timelines explicit by exposing deterministic execution windows and manual-gate timeouts in retry and pressure contracts.
+- Acceptance criteria:
+  - Search retry envelopes include deterministic `execution_window` and `manual_gate_timeout_seconds`.
+  - Fetch retry envelopes include deterministic `execution_window` and `manual_gate_timeout_seconds`.
+  - Outbox-state pressure payload includes top-level `queue_pressure_execution_window` and `queue_pressure_manual_gate_timeout_seconds`.
+  - Summary outbox-health pressure payload includes top-level `queue_pressure_execution_window` and `queue_pressure_manual_gate_timeout_seconds`.
+  - Outbox-state and summary pressure contract objects include `execution_window` and `manual_gate_timeout_seconds`.
+  - Troubleshooting dispatch supports outbox + summary aliases for top-level and contract-level execution-window/manual-gate-timeout projections.
+  - Regression coverage asserts retry execution-window/timeout semantics and pressure parity + alias routing.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment.rs`
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+
+### 2026-04-19 Retry Next-Action Timing + Readiness-State Routing Addendum (V11-WORKFLOW-RELIABILITY-048)
+
+- Intent:
+  - Make retry timing and execution readiness explicit for operators/eval by projecting `next_action_after_seconds` and `readiness_state` through search/fetch retry envelopes and dashboard troubleshooting pressure routes.
+- Acceptance criteria:
+  - Search retry envelope regressions assert deterministic `next_action_after_seconds` and `readiness_state` for manual-gate and deferred-retry scenarios.
+  - Fetch retry envelope regressions assert deterministic `next_action_after_seconds` and `readiness_state` for deferred cooldown scenarios.
+  - Outbox-state pressure contract parity verifies `next_action_after_seconds` + `readiness_state` between top-level fields and `queue_pressure_contract`.
+  - Summary outbox-health pressure contract parity verifies `next_action_after_seconds` + `readiness_state` between top-level fields and `queue_pressure_contract`.
+  - Troubleshooting dispatch routes include outbox + summary aliases for top-level and contract-level next-action/readiness projections.
+  - Regression coverage includes alias-route smoke for all new outbox/summary top-level + contract alias paths.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`

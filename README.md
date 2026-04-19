@@ -128,7 +128,18 @@ If a release does not publish Windows prebuilt binaries for your architecture, t
 winget install --id Git.Git -e
 winget install --id Rustlang.Rustup -e
 # Optional but often required for MSVC source builds:
-winget install --id Microsoft.VisualStudio.2022.BuildTools -e
+winget install --id Microsoft.VisualStudio.2022.BuildTools -e --override "--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools"
+```
+
+The installer now attempts MSVC Build Tools bootstrap automatically during source fallback when missing (`INFRING_INSTALL_AUTO_MSVC=1` by default; legacy aliases `INFRING_AUTO_MSVC` and `INFRING_AUTO_MSVC_BOOTSTRAP` are also honored; set to `0` to disable).
+Installer diagnostics now also report `winget` availability and auto-bootstrap policy in failure hints to speed remote triage.
+Source fallback now also performs target-directory binary discovery when exact binary naming differs, reducing false `source_build_output_missing` failures.
+
+For locked-down environments, you can explicitly disable auto-bootstrap and rely on manual prerequisites:
+
+```powershell
+$env:INFRING_INSTALL_AUTO_MSVC = "0"
+$env:INFRING_INSTALL_AUTO_RUSTUP = "0"
 ```
 
 ### Verify CLI Is Globally Available

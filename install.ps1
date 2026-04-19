@@ -114,7 +114,26 @@ function Installer-TruthyFlag([string]$RawValue, [bool]$DefaultValue = $false) {
 }
 
 function Install-AutoRustupEnabled {
-  return Installer-TruthyFlag $env:INFRING_INSTALL_AUTO_RUSTUP $true
+  if (-not [string]::IsNullOrWhiteSpace([string]$env:INFRING_INSTALL_AUTO_RUSTUP)) {
+    return Installer-TruthyFlag $env:INFRING_INSTALL_AUTO_RUSTUP $true
+  }
+  if (-not [string]::IsNullOrWhiteSpace([string]$env:INFRING_AUTO_RUSTUP)) {
+    return Installer-TruthyFlag $env:INFRING_AUTO_RUSTUP $true
+  }
+  return $true
+}
+
+function Install-AutoMsvcBootstrapEnabled {
+  if (-not [string]::IsNullOrWhiteSpace([string]$env:INFRING_INSTALL_AUTO_MSVC)) {
+    return Installer-TruthyFlag $env:INFRING_INSTALL_AUTO_MSVC $true
+  }
+  if (-not [string]::IsNullOrWhiteSpace([string]$env:INFRING_AUTO_MSVC_BOOTSTRAP)) {
+    return Installer-TruthyFlag $env:INFRING_AUTO_MSVC_BOOTSTRAP $true
+  }
+  if (-not [string]::IsNullOrWhiteSpace([string]$env:INFRING_AUTO_MSVC)) {
+    return Installer-TruthyFlag $env:INFRING_AUTO_MSVC $true
+  }
+  return $true
 }
 
 function Resolve-Arch {
@@ -330,15 +349,101 @@ function Get-BinaryStemAliases([string]$Stem) {
   }
 }
 
+function Get-BinaryStemForms([string]$Stem) {
+  $forms = New-Object System.Collections.Generic.List[string]
+  foreach ($alias in (Get-BinaryStemAliases $Stem)) {
+    if ([string]::IsNullOrWhiteSpace([string]$alias)) { continue }
+    if (-not $forms.Contains([string]$alias)) {
+      $forms.Add([string]$alias) | Out-Null
+    }
+    $underscoreAlias = ([string]$alias) -replace "-", "_"
+    if (-not [string]::IsNullOrWhiteSpace([string]$underscoreAlias) -and (-not $forms.Contains([string]$underscoreAlias))) {
+      $forms.Add([string]$underscoreAlias) | Out-Null
+    }
+  }
+  return @($forms)
+}
+
+function Get-InstallTripleAliases([string]$Triple) {
+  if ([string]::IsNullOrWhiteSpace([string]$Triple)) {
+    return @()
+  }
+  $aliases = New-Object System.Collections.Generic.List[string]
+  $aliases.Add([string]$Triple) | Out-Null
+  if ($Triple -like "x86_64-*") {
+    $x64Triple = $Triple -replace "^x86_64-", "x64-"
+    if (-not $aliases.Contains($x64Triple)) {
+      $aliases.Add($x64Triple) | Out-Null
+    }
+  } elseif ($Triple -like "x64-*") {
+    $x86Triple = $Triple -replace "^x64-", "x86_64-"
+    if (-not $aliases.Contains($x86Triple)) {
+      $aliases.Add($x86Triple) | Out-Null
+    }
+  }
+  if ($Triple -like "aarch64-*") {
+    $arm64Triple = $Triple -replace "^aarch64-", "arm64-"
+    if (-not $aliases.Contains($arm64Triple)) {
+      $aliases.Add($arm64Triple) | Out-Null
+    }
+  } elseif ($Triple -like "arm64-*") {
+    $aarch64Triple = $Triple -replace "^arm64-", "aarch64-"
+    if (-not $aliases.Contains($aarch64Triple)) {
+      $aliases.Add($aarch64Triple) | Out-Null
+    }
+  }
+  if ($Triple -like "*-pc-windows-msvc") {
+    $gnuTriple = $Triple -replace "-pc-windows-msvc$", "-pc-windows-gnu"
+    if (-not $aliases.Contains($gnuTriple)) {
+      $aliases.Add($gnuTriple) | Out-Null
+    }
+  } elseif ($Triple -like "*-pc-windows-gnu") {
+    $msvcTriple = $Triple -replace "-pc-windows-gnu$", "-pc-windows-msvc"
+    if (-not $aliases.Contains($msvcTriple)) {
+      $aliases.Add($msvcTriple) | Out-Null
+    }
+  }
+  return @($aliases)
+}
+
 function Get-BinaryAssetCandidates([string]$Triple, [string]$Stem) {
   $variants = New-Object System.Collections.Generic.List[string]
-  foreach ($alias in (Get-BinaryStemAliases $Stem)) {
+  $tripleAliases = Get-InstallTripleAliases $Triple
+  foreach ($alias in (Get-BinaryStemForms $Stem)) {
+    foreach ($candidateTriple in $tripleAliases) {
+      foreach ($candidate in @(
+        "$alias-$candidateTriple.exe",
+        "$alias-$candidateTriple",
+        "$alias-$candidateTriple.bin",
+        "$alias-$candidateTriple.zip",
+        "$alias-$candidateTriple.tgz",
+        "$alias-$candidateTriple.txz",
+        "$alias-$candidateTriple.tzst",
+        "$alias-$candidateTriple.tbz2",
+        "$alias-$candidateTriple.tar.bz2",
+        "$alias-$candidateTriple.tar.zst",
+        "$alias-$candidateTriple.tar.xz",
+        "$alias-$candidateTriple.tar.gz",
+        "$alias-$candidateTriple.tar"
+      )) {
+        if (-not $variants.Contains([string]$candidate)) {
+          $variants.Add([string]$candidate) | Out-Null
+        }
+      }
+    }
     foreach ($candidate in @(
-      "$alias-$Triple.exe",
-      "$alias-$Triple",
-      "$alias-$Triple.bin",
       "$alias.exe",
-      "$alias"
+      "$alias",
+      "$alias.zip",
+      "$alias.tgz",
+      "$alias.txz",
+      "$alias.tzst",
+      "$alias.tbz2",
+      "$alias.tar.bz2",
+      "$alias.tar.zst",
+      "$alias.tar.xz",
+      "$alias.tar.gz",
+      "$alias.tar"
     )) {
       if (-not $variants.Contains([string]$candidate)) {
         $variants.Add([string]$candidate) | Out-Null
@@ -445,6 +550,7 @@ function Probe-ReleaseAssetReachability([string]$VersionTag, [string]$AssetName)
 function Resolve-ReleaseAssetProbe([string]$VersionTag, [string]$Triple, [string]$Stem) {
   $release = Resolve-ReleaseByTag $VersionTag
   $candidates = Get-BinaryAssetCandidates $Triple $Stem
+  $tripleAliases = Get-InstallTripleAliases $Triple
   if (-not $release) {
     return @{
       stem = $Stem
@@ -453,6 +559,7 @@ function Resolve-ReleaseAssetProbe([string]$VersionTag, [string]$Triple, [string
       asset_found = $false
       reachable = $false
       reachability_status = "release_metadata_unavailable"
+      candidate_triples = $tripleAliases
       candidates = $candidates
     }
   }
@@ -475,7 +582,15 @@ function Resolve-ReleaseAssetProbe([string]$VersionTag, [string]$Triple, [string
       asset_found = $false
       reachable = $false
       reachability_status = "asset_not_listed_in_release"
+      candidate_triples = $tripleAliases
       candidates = $candidates
+    }
+  }
+  $selectedTriple = ""
+  foreach ($candidateTriple in $tripleAliases) {
+    if ($selected -like "*$candidateTriple*") {
+      $selectedTriple = $candidateTriple
+      break
     }
   }
   $reachability = Probe-ReleaseAssetReachability $VersionTag $selected
@@ -483,10 +598,12 @@ function Resolve-ReleaseAssetProbe([string]$VersionTag, [string]$Triple, [string
     stem = $Stem
     version = $VersionTag
     selected_asset = $selected
+    selected_triple = $selectedTriple
     asset_found = $true
     reachable = [bool]$reachability.reachable
     reachability_status = [string]$reachability.status
     reachability_url = [string]$reachability.url
+    candidate_triples = $tripleAliases
     candidates = $candidates
   }
 }
@@ -496,6 +613,8 @@ function Get-WindowsBuildToolSummary {
   $rustcCmd = Get-Command rustc -ErrorAction SilentlyContinue
   $clCmd = Get-Command cl.exe -ErrorAction SilentlyContinue
   $vswhereCmd = Get-Command vswhere.exe -ErrorAction SilentlyContinue
+  $tarCmd = Get-Command tar -ErrorAction SilentlyContinue
+  $wingetCmd = Get-Command winget -ErrorAction SilentlyContinue
   $vsInstallDetected = $false
   if ($vswhereCmd) {
     try {
@@ -510,9 +629,15 @@ function Get-WindowsBuildToolSummary {
     cargo_present = [bool]$cargoCmd
     rustc_present = [bool]$rustcCmd
     cl_present = [bool]$clCmd
+    tar_present = [bool]$tarCmd
+    winget_present = [bool]$wingetCmd
     vs_install_detected = [bool]$vsInstallDetected
     msvc_tools_present = [bool]$clCmd -or [bool]$vsInstallDetected
   }
+}
+
+function Get-WindowsBuildToolsInstallHint {
+  return "Install Visual Studio Build Tools (MSVC+C++) via winget: winget install --id Microsoft.VisualStudio.2022.BuildTools -e --override \"--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools\""
 }
 
 function Invoke-WindowsInstallerPreflight([string]$VersionTag, [string]$Triple, [string[]]$RequiredStems) {
@@ -535,10 +660,13 @@ function Invoke-WindowsInstallerPreflight([string]$VersionTag, [string]$Triple, 
     toolchain = $toolchain
     assets = $assetProbes
   }
-  Write-Host ("[infring install] preflight windows toolchain: cargo={0}; rustc={1}; msvc_tools={2}" -f `
+  Write-Host ("[infring install] preflight windows toolchain: cargo={0}; rustc={1}; msvc_tools={2}; tar={3}; winget={4}" -f `
       ([string]$toolchain.cargo_present).ToLower(), `
       ([string]$toolchain.rustc_present).ToLower(), `
-      ([string]$toolchain.msvc_tools_present).ToLower())
+      ([string]$toolchain.msvc_tools_present).ToLower(), `
+      ([string]$toolchain.tar_present).ToLower(), `
+      ([string]$toolchain.winget_present).ToLower())
+  Write-Host ("[infring install] preflight triple candidates: {0}" -f ((Get-InstallTripleAliases $Triple) -join ","))
   foreach ($probe in $assetProbes) {
     if ([bool]$probe.asset_found) {
       Write-Host ("[infring install] preflight asset probe ({0}): found {1}; reachable={2} ({3})" -f `
@@ -546,6 +674,11 @@ function Invoke-WindowsInstallerPreflight([string]$VersionTag, [string]$Triple, 
           [string]$probe.selected_asset, `
           ([string][bool]$probe.reachable).ToLower(), `
           [string]$probe.reachability_status)
+      if (-not [string]::IsNullOrWhiteSpace([string]$probe.selected_triple) -and ([string]$probe.selected_triple -ne [string]$Triple)) {
+        Write-Host ("[infring install] preflight note: using compatible Windows triple asset variant {0} for requested {1}" -f `
+            [string]$probe.selected_triple, `
+            [string]$Triple)
+      }
     } else {
       Write-Host ("[infring install] preflight asset probe ({0}): missing prebuilt in release metadata ({1})" -f `
           [string]$probe.stem, `
@@ -563,10 +696,24 @@ function Invoke-WindowsInstallerPreflight([string]$VersionTag, [string]$Triple, 
       return
     }
     $gapSummary = ($assetGaps | ForEach-Object { [string]$_.stem }) -join ", "
-    throw "Windows installer preflight failed: prebuilt asset gaps detected for [$gapSummary], Cargo is unavailable, and auto Rust bootstrap is disabled (INFRING_INSTALL_AUTO_RUSTUP=0). Install Rust + MSVC build tools or publish missing Windows release assets."
+    throw "Windows installer preflight failed: prebuilt asset gaps detected for [$gapSummary], Cargo is unavailable, and auto Rust bootstrap is disabled (INFRING_INSTALL_AUTO_RUSTUP=0 or INFRING_AUTO_RUSTUP=0). Install Rust + MSVC build tools or publish missing Windows release assets."
+  }
+  if ($assetGaps.Count -gt 0 -and (-not [bool]$toolchain.cargo_present) -and $autoRustup) {
+    Write-Host "[infring install] preflight note: Cargo missing but auto Rust bootstrap is enabled; installer will attempt toolchain bootstrap during source fallback."
   }
   if ($assetGaps.Count -gt 0 -and (-not [bool]$toolchain.msvc_tools_present)) {
     Write-Host "[infring install] preflight warning: MSVC build tools were not detected; source fallback may fail if Windows prebuilt assets are unavailable."
+    if (Install-AutoMsvcBootstrapEnabled) {
+      Write-Host "[infring install] preflight note: auto MSVC bootstrap is enabled (INFRING_INSTALL_AUTO_MSVC=1 default); installer will attempt winget build-tools bootstrap during source fallback."
+      if (-not [bool]$toolchain.winget_present) {
+        Write-Host "[infring install] preflight warning: winget is unavailable; automatic Build Tools bootstrap cannot run. Install Build Tools manually."
+      }
+    } else {
+      Write-Host "[infring install] preflight note: auto MSVC bootstrap is disabled (set INFRING_INSTALL_AUTO_MSVC=1 to enable automatic Build Tools install attempts)."
+    }
+  }
+  if ($assetGaps.Count -gt 0 -and (-not [bool]$toolchain.tar_present)) {
+    Write-Host "[infring install] preflight warning: tar was not detected; archive prebuilt extraction and some source fallback paths may fail."
   }
 }
 
@@ -581,8 +728,14 @@ function Format-BinaryInstallFailureHint([string]$Stem, [string]$Triple, [string
             [string]$assetProbe.selected_asset, `
             ([string][bool]$assetProbe.reachable).ToLower(), `
             [string]$assetProbe.reachability_status))
+        if (-not [string]::IsNullOrWhiteSpace([string]$assetProbe.selected_triple)) {
+          $parts.Add(("asset_probe_triple={0}" -f [string]$assetProbe.selected_triple))
+        }
       } else {
         $parts.Add(("asset_probe=missing;status={0}" -f [string]$assetProbe.reachability_status))
+      }
+      if ($assetProbe.candidate_triples) {
+        $parts.Add(("asset_probe_triple_candidates={0}" -f ((@($assetProbe.candidate_triples) -join ","))))
       }
     }
     $attemptedAssets = @($failure.attempted_assets)
@@ -597,15 +750,30 @@ function Format-BinaryInstallFailureHint([string]$Stem, [string]$Triple, [string
     if (-not [string]::IsNullOrWhiteSpace([string]$failure.source_fallback_reason)) {
       $parts.Add(("source_fallback_reason={0}" -f [string]$failure.source_fallback_reason))
     }
+    $sourceFallbackPlan = @($failure.source_fallback_plan)
+    if ($sourceFallbackPlan.Count -gt 0) {
+      $parts.Add(("source_fallback_plan={0}" -f ($sourceFallbackPlan -join ",")))
+    }
+    if ($null -ne $failure.auto_msvc_bootstrap_enabled) {
+      $parts.Add(("auto_msvc_bootstrap_enabled={0}" -f ([string][bool]$failure.auto_msvc_bootstrap_enabled).ToLower()))
+    }
+    if ($null -ne $failure.main_last_resort_fallback) {
+      $parts.Add(("main_last_resort_fallback={0}" -f ([string][bool]$failure.main_last_resort_fallback).ToLower()))
+    }
   }
   if ($HostIsWindows -and $script:WindowsInstallPreflight) {
     $toolchain = $script:WindowsInstallPreflight.toolchain
     if ($toolchain) {
-      $parts.Add(("toolchain:cargo={0};rustc={1};msvc_tools={2}" -f `
+      $parts.Add(("toolchain:cargo={0};rustc={1};msvc_tools={2};tar={3};winget={4}" -f `
           ([string][bool]$toolchain.cargo_present).ToLower(), `
           ([string][bool]$toolchain.rustc_present).ToLower(), `
-          ([string][bool]$toolchain.msvc_tools_present).ToLower()))
+          ([string][bool]$toolchain.msvc_tools_present).ToLower(), `
+          ([string][bool]$toolchain.tar_present).ToLower(), `
+          ([string][bool]$toolchain.winget_present).ToLower()))
     }
+    $parts.Add(("auto_bootstrap:auto_rustup={0};auto_msvc={1}" -f `
+        ([string][bool](Install-AutoRustupEnabled)).ToLower(), `
+        ([string][bool](Install-AutoMsvcBootstrapEnabled)).ToLower()))
   }
   if ($parts.Count -eq 0) {
     return "No additional diagnostics captured."
@@ -735,9 +903,59 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
   }
 
   function Install-BinaryFromSourceFallback([string]$VersionTag, [string]$StemName, [string]$OutBinaryPath) {
+    function Ensure-WindowsBuildToolsForSourceFallback {
+      if (-not $HostIsWindows) {
+        return $true
+      }
+      $toolchain = Get-WindowsBuildToolSummary
+      if ([bool]$toolchain.msvc_tools_present) {
+        return $true
+      }
+      if (-not (Install-AutoMsvcBootstrapEnabled)) {
+        $script:LastBinaryInstallFailureReason = "msvc_tools_missing_auto_bootstrap_disabled"
+        return $false
+      }
+      $wingetCmd = Get-Command winget -ErrorAction SilentlyContinue
+      if (-not $wingetCmd) {
+        $script:LastBinaryInstallFailureReason = "msvc_tools_missing_winget_unavailable"
+        return $false
+      }
+      Write-Host "[infring install] attempting automatic MSVC Build Tools bootstrap via winget"
+      try {
+        $proc = Start-Process -FilePath $wingetCmd.Source -ArgumentList @(
+            "install",
+            "--id",
+            "Microsoft.VisualStudio.2022.BuildTools",
+            "-e",
+            "--override",
+            "--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools",
+            "--accept-package-agreements",
+            "--accept-source-agreements"
+          ) -Wait -PassThru -WindowStyle Hidden
+        if ($proc.ExitCode -ne 0) {
+          $script:LastBinaryInstallFailureReason = ("msvc_bootstrap_failed_exit_{0}" -f [string]$proc.ExitCode)
+          return $false
+        }
+      } catch {
+        $script:LastBinaryInstallFailureReason = "msvc_bootstrap_transport_error"
+        return $false
+      }
+      $postBootstrapToolchain = Get-WindowsBuildToolSummary
+      if (-not [bool]$postBootstrapToolchain.msvc_tools_present) {
+        $script:LastBinaryInstallFailureReason = "msvc_tools_still_missing_after_bootstrap"
+        return $false
+      }
+      Write-Host "[infring install] MSVC Build Tools detected after bootstrap"
+      return $true
+    }
+
     $binName = Resolve-SourceBinName $StemName
     if (-not $binName) {
       $script:LastBinaryInstallFailureReason = "unsupported_stem_for_source_fallback"
+      return $false
+    }
+
+    if (-not (Ensure-WindowsBuildToolsForSourceFallback)) {
       return $false
     }
 
@@ -763,11 +981,150 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
 
     $built = Join-Path $repoDir "target/release/$binName.exe"
     if (-not (Test-Path $built)) {
+      $targetReleaseDir = Join-Path $repoDir "target/release"
+      if (Test-Path $targetReleaseDir) {
+        $builtCandidates = @(Get-ChildItem -Path $targetReleaseDir -File -ErrorAction SilentlyContinue)
+        if ($builtCandidates.Count -gt 0) {
+          $candidateNames = New-Object System.Collections.Generic.List[string]
+          foreach ($stemForm in (Get-BinaryStemForms $StemName)) {
+            foreach ($name in @("$stemForm.exe", $stemForm)) {
+              if (-not $candidateNames.Contains([string]$name)) {
+                $candidateNames.Add([string]$name) | Out-Null
+              }
+            }
+          }
+          $selectedBuilt = $null
+          foreach ($candidate in $candidateNames) {
+            $match = $builtCandidates | Where-Object { [string]$_.Name -ieq [string]$candidate } | Select-Object -First 1
+            if ($match) {
+              $selectedBuilt = $match
+              break
+            }
+          }
+          if (-not $selectedBuilt) {
+            foreach ($stemForm in (Get-BinaryStemForms $StemName)) {
+              $match = $builtCandidates | Where-Object {
+                ([string]$_.Name -like "$stemForm*.exe") -or ([string]$_.Name -like "$stemForm*")
+              } | Select-Object -First 1
+              if ($match) {
+                $selectedBuilt = $match
+                break
+              }
+            }
+          }
+          if ($selectedBuilt) {
+            Copy-Item -Force $selectedBuilt.FullName $OutBinaryPath
+            Write-Host ("[infring install] built {0} from source fallback (discovered in target/release)" -f [string]$selectedBuilt.Name)
+            $script:LastBinaryInstallFailureReason = ""
+            return $true
+          }
+        }
+      }
       $script:LastBinaryInstallFailureReason = "source_build_output_missing"
       return $false
     }
     Copy-Item -Force $built $OutBinaryPath
     Write-Host "[infring install] built $binName from source fallback"
+    $script:LastBinaryInstallFailureReason = ""
+    return $true
+  }
+
+  function Install-BinaryFromDownloadedAsset([string]$DownloadedPath, [string]$AssetName, [string]$StemName, [string]$OutBinaryPath, [string]$TmpRoot) {
+    $assetLower = [string]$AssetName
+    if ($assetLower.EndsWith(".zip") -or $assetLower.EndsWith(".tgz") -or $assetLower.EndsWith(".txz") -or $assetLower.EndsWith(".tzst") -or $assetLower.EndsWith(".tbz2") -or $assetLower.EndsWith(".tar.bz2") -or $assetLower.EndsWith(".tar.zst") -or $assetLower.EndsWith(".tar.xz") -or $assetLower.EndsWith(".tar.gz") -or $assetLower.EndsWith(".tar")) {
+      $extractDir = Join-Path $TmpRoot ("extract-" + [System.IO.Path]::GetRandomFileName())
+      New-Item -ItemType Directory -Force -Path $extractDir | Out-Null
+      try {
+        if ($assetLower.EndsWith(".zip")) {
+          Expand-Archive -Path $DownloadedPath -DestinationPath $extractDir -Force
+        } elseif ($assetLower.EndsWith(".tzst") -or $assetLower.EndsWith(".tar.zst")) {
+          if (-not (Get-Command tar -ErrorAction SilentlyContinue)) {
+            $script:LastBinaryInstallFailureReason = "asset_archive_tar_unavailable"
+            return $false
+          }
+          try {
+            tar --zstd -xf $DownloadedPath -C $extractDir
+          } catch {
+            if (Get-Command zstd -ErrorAction SilentlyContinue) {
+              $tarPath = [System.IO.Path]::ChangeExtension($DownloadedPath, ".tar")
+              zstd -d --stdout $DownloadedPath > $tarPath
+              tar -xf $tarPath -C $extractDir
+            } else {
+              $script:LastBinaryInstallFailureReason = "asset_archive_zstd_unavailable"
+              return $false
+            }
+          }
+        } elseif ($assetLower.EndsWith(".tbz2") -or $assetLower.EndsWith(".tar.bz2")) {
+          if (-not (Get-Command tar -ErrorAction SilentlyContinue)) {
+            $script:LastBinaryInstallFailureReason = "asset_archive_tar_unavailable"
+            return $false
+          }
+          tar -xjf $DownloadedPath -C $extractDir
+        } elseif ($assetLower.EndsWith(".txz") -or $assetLower.EndsWith(".tar.xz")) {
+          if (-not (Get-Command tar -ErrorAction SilentlyContinue)) {
+            $script:LastBinaryInstallFailureReason = "asset_archive_tar_unavailable"
+            return $false
+          }
+          tar -xJf $DownloadedPath -C $extractDir
+        } elseif ($assetLower.EndsWith(".tgz") -or $assetLower.EndsWith(".tar.gz")) {
+          if (-not (Get-Command tar -ErrorAction SilentlyContinue)) {
+            $script:LastBinaryInstallFailureReason = "asset_archive_tar_unavailable"
+            return $false
+          }
+          tar -xzf $DownloadedPath -C $extractDir
+        } else {
+          if (-not (Get-Command tar -ErrorAction SilentlyContinue)) {
+            $script:LastBinaryInstallFailureReason = "asset_archive_tar_unavailable"
+            return $false
+          }
+          tar -xf $DownloadedPath -C $extractDir
+        }
+      } catch {
+        $script:LastBinaryInstallFailureReason = "asset_archive_extract_failed"
+        return $false
+      }
+      $files = @(Get-ChildItem -Path $extractDir -Recurse -File -ErrorAction SilentlyContinue)
+      if ($files.Count -eq 0) {
+        $script:LastBinaryInstallFailureReason = "asset_archive_empty"
+        return $false
+      }
+      $nameCandidates = New-Object System.Collections.Generic.List[string]
+      foreach ($stemForm in (Get-BinaryStemForms $StemName)) {
+        foreach ($name in @("$stemForm.exe", $stemForm)) {
+          if (-not $nameCandidates.Contains([string]$name)) {
+            $nameCandidates.Add([string]$name) | Out-Null
+          }
+        }
+      }
+      $selected = $null
+      foreach ($candidate in $nameCandidates) {
+        $match = $files | Where-Object { [string]$_.Name -ieq [string]$candidate } | Select-Object -First 1
+        if ($match) {
+          $selected = $match
+          break
+        }
+      }
+      if (-not $selected) {
+        foreach ($stemForm in (Get-BinaryStemForms $StemName)) {
+          $match = $files | Where-Object {
+            ([string]$_.Name -like "$stemForm*.exe") -or ([string]$_.Name -like "$stemForm*")
+          } | Select-Object -First 1
+          if ($match) {
+            $selected = $match
+            break
+          }
+        }
+      }
+      if (-not $selected) {
+        $script:LastBinaryInstallFailureReason = "asset_archive_binary_not_found"
+        return $false
+      }
+      Copy-Item -Force $selected.FullName $OutBinaryPath
+      Write-Host ("[infring install] extracted {0} from archive asset {1}" -f [string]$selected.Name, [string]$AssetName)
+      $script:LastBinaryInstallFailureReason = ""
+      return $true
+    }
+    Move-Item -Force $DownloadedPath $OutBinaryPath
     $script:LastBinaryInstallFailureReason = ""
     return $true
   }
@@ -778,58 +1135,83 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
 
   $assetProbe = Resolve-ReleaseAssetProbe $Version $Triple $Stem
   $attemptedAssets = New-Object System.Collections.Generic.List[string]
-  $raw = Join-Path $tmp.FullName "$Stem.exe"
+  $raw = Join-Path $tmp.FullName "$Stem.download"
   $assetCandidates = Get-BinaryAssetCandidates $Triple $Stem
   foreach ($assetName in $assetCandidates) {
     $attemptedAssets.Add([string]$assetName)
     if (Download-Asset $Version $assetName $raw) {
-      Move-Item -Force $raw $OutPath
-      $script:LastBinaryInstallFailure = @{
-        stem = $Stem
-        triple = $Triple
-        version = $Version
-        attempted_assets = @($attemptedAssets)
-        source_fallback_attempted = $false
-        source_fallback_reason = ""
-        asset_probe = $assetProbe
+      if (Install-BinaryFromDownloadedAsset $raw $assetName $Stem $OutPath $tmp.FullName) {
+        $script:LastBinaryInstallFailure = @{
+          stem = $Stem
+          triple = $Triple
+          version = $Version
+          attempted_assets = @($attemptedAssets)
+          source_fallback_attempted = $false
+          source_fallback_plan = @()
+          source_fallback_reason = ""
+          auto_msvc_bootstrap_enabled = [bool](Install-AutoMsvcBootstrapEnabled)
+          main_last_resort_fallback = $null
+          asset_probe = $assetProbe
+        }
+        return $true
       }
-      return $true
     }
   }
 
-  $allowNoMsvcSourceFallback = Installer-TruthyFlag $env:INFRING_INSTALL_ALLOW_NO_MSVC_SOURCE_FALLBACK $false
+  $allowNoMsvcSourceFallback = Installer-TruthyFlag $env:INFRING_INSTALL_ALLOW_NO_MSVC_SOURCE_FALLBACK $true
+  if (
+    [string]::IsNullOrWhiteSpace([string]$env:INFRING_INSTALL_ALLOW_NO_MSVC_SOURCE_FALLBACK) -and
+    (-not [string]::IsNullOrWhiteSpace([string]$env:INFRING_ALLOW_NO_MSVC_SOURCE_FALLBACK))
+  ) {
+    $allowNoMsvcSourceFallback = Installer-TruthyFlag $env:INFRING_ALLOW_NO_MSVC_SOURCE_FALLBACK $true
+  } elseif (
+    [string]::IsNullOrWhiteSpace([string]$env:INFRING_INSTALL_ALLOW_NO_MSVC_SOURCE_FALLBACK) -and
+    (-not [string]::IsNullOrWhiteSpace([string]$env:INFRING_ALLOW_NO_MSVC))
+  ) {
+    $allowNoMsvcSourceFallback = Installer-TruthyFlag $env:INFRING_ALLOW_NO_MSVC $true
+  }
   if (
     $HostIsWindows -and
     $script:WindowsInstallPreflight -and
     (-not [bool]$script:WindowsInstallPreflight.toolchain.msvc_tools_present) -and
-    (-not $allowNoMsvcSourceFallback) -and
+    $allowNoMsvcSourceFallback
+  ) {
+    Write-Host "[infring install] override enabled: proceeding with source fallback despite missing MSVC tools (set INFRING_INSTALL_ALLOW_NO_MSVC_SOURCE_FALLBACK=0 to disable)"
+  }
+  if (
+    $HostIsWindows -and
+    $script:WindowsInstallPreflight -and
+    (-not [bool]$script:WindowsInstallPreflight.toolchain.msvc_tools_present) -and
     (
       (-not [bool]$assetProbe.asset_found) -or
       (([bool]$assetProbe.asset_found) -and (-not [bool]$assetProbe.reachable))
     )
   ) {
-    $script:LastBinaryInstallFailureReason = "msvc_tools_missing_no_reachable_prebuilt_asset"
-    $script:LastBinaryInstallFailure = @{
-      stem = $Stem
-      triple = $Triple
-      version = $Version
-      attempted_assets = @($attemptedAssets)
-      source_fallback_attempted = $false
-      source_fallback_versions = @()
-      source_fallback_reason = [string]$script:LastBinaryInstallFailureReason
-      asset_probe = $assetProbe
+    if (-not $allowNoMsvcSourceFallback) {
+      Write-Host "[infring install] preflight note: no reachable Windows prebuilt + MSVC tools missing; forcing best-effort source fallback despite INFRING_INSTALL_ALLOW_NO_MSVC_SOURCE_FALLBACK=0"
+    } else {
+      Write-Host "[infring install] preflight note: no reachable Windows prebuilt and MSVC tools missing; attempting best-effort source fallback"
     }
-    return $false
+    Write-Host "[infring install] recommended fix: winget install --id Microsoft.VisualStudio.2022.BuildTools -e --override \"--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools\""
   }
 
   $script:LastBinaryInstallFailureReason = ""
   $sourceFallbackVersions = @()
   $sourceFallbackPlan = New-Object System.Collections.Generic.List[string]
+  $assetMissing = $assetProbe -and (-not [bool]$assetProbe.asset_found)
+  $allowMainLastResortFallback = $true
+  if (-not [string]::IsNullOrWhiteSpace([string]$env:INFRING_INSTALL_ALLOW_MAIN_LAST_RESORT_SOURCE_FALLBACK)) {
+    $allowMainLastResortFallback = Installer-TruthyFlag $env:INFRING_INSTALL_ALLOW_MAIN_LAST_RESORT_SOURCE_FALLBACK $true
+  } elseif (-not [string]::IsNullOrWhiteSpace([string]$env:INFRING_ALLOW_MAIN_LAST_RESORT_SOURCE_FALLBACK)) {
+    $allowMainLastResortFallback = Installer-TruthyFlag $env:INFRING_ALLOW_MAIN_LAST_RESORT_SOURCE_FALLBACK $true
+  }
+  if ($assetMissing -and $Version -ne "main") {
+    Write-Host ("[infring install] source fallback policy: main_last_resort_fallback={0}" -f ([string][bool]$allowMainLastResortFallback).ToLower())
+  }
   $preferMainSourceFallback = (
     ($RequestedVersion -eq "latest") -and
     ($Version -ne "main") -and
-    $assetProbe -and
-    (-not [bool]$assetProbe.asset_found)
+    $assetMissing
   )
   if ($preferMainSourceFallback) {
     $sourceFallbackPlan.Add("main") | Out-Null
@@ -840,6 +1222,14 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
       ($RequestedVersion -eq "latest") -and
       ($Version -ne "main")
     ) {
+      $sourceFallbackPlan.Add("main") | Out-Null
+    } elseif (
+      $allowMainLastResortFallback -and
+      $assetMissing -and
+      ($Version -ne "main")
+    ) {
+      # Non-latest installs can still encounter releases missing Windows prebuilts.
+      # Keep `main` as a last-resort source fallback to reduce dead-end installs.
       $sourceFallbackPlan.Add("main") | Out-Null
     }
   }
@@ -862,6 +1252,9 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
       break
     }
   }
+  if ($sourceFallbackPlan.Count -gt 0) {
+    Write-Host ("[infring install] source fallback plan: {0}" -f (@($sourceFallbackPlan) -join ","))
+  }
   $script:LastBinaryInstallFailure = @{
     stem = $Stem
     triple = $Triple
@@ -869,7 +1262,10 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
     attempted_assets = @($attemptedAssets)
     source_fallback_attempted = $true
     source_fallback_versions = @($sourceFallbackVersions)
+    source_fallback_plan = @($sourceFallbackPlan)
     source_fallback_reason = [string]$script:LastBinaryInstallFailureReason
+    auto_msvc_bootstrap_enabled = [bool](Install-AutoMsvcBootstrapEnabled)
+    main_last_resort_fallback = [bool]$allowMainLastResortFallback
     asset_probe = $assetProbe
   }
   return $fallbackOk
@@ -1093,6 +1489,11 @@ if ($HostIsWindows) {
       Invoke-WindowsInstallerPreflight -VersionTag $version -Triple $triple -RequiredStems $requiredWindowsStems
     } elseif (-not $compatibleWindows) {
       Write-Host "[infring install] no compatible Windows prebuilt release found for required stems; source fallback remains a backup path only."
+      if (Install-AutoMsvcBootstrapEnabled) {
+        Write-Host "[infring install] auto MSVC bootstrap is enabled; installer will attempt Build Tools install during source fallback if needed."
+      } else {
+        Write-Host "[infring install] auto MSVC bootstrap is disabled; enable with INFRING_INSTALL_AUTO_MSVC=1 for best-effort source fallback repair."
+      }
     }
   }
 }
@@ -1115,7 +1516,8 @@ if ($InstallPure) {
   }
   if (-not $pureInstalled) {
     $failureHint = Format-BinaryInstallFailureHint -Stem "infring-pure-workspace" -Triple $triple -VersionTag $version
-    throw "Failed to install pure workspace binary for $triple ($resolvedVersionLabel). No compatible prebuilt asset was found and source fallback did not complete. Diagnostic: $failureHint Install Rust toolchain + C++ build tools, then rerun the README Windows install command: $ReadmeWindowsInstallCommand"
+    $windowsToolsHint = if ($HostIsWindows) { (Get-WindowsBuildToolsInstallHint) } else { "" }
+    throw "Failed to install pure workspace binary for $triple ($resolvedVersionLabel). No compatible prebuilt asset was found and source fallback did not complete. Diagnostic: $failureHint Install Rust toolchain + C++ build tools, then rerun the README Windows install command: $ReadmeWindowsInstallCommand $windowsToolsHint"
   }
   if ($InstallTinyMax) {
     Write-Host "[infring install] tiny-max pure mode selected: Rust-only tiny profile installed"
@@ -1133,7 +1535,8 @@ if ($InstallPure) {
   }
   if (-not (Install-Binary $version $triple "infring-ops" $opsBin)) {
     $failureHint = Format-BinaryInstallFailureHint -Stem "infring-ops" -Triple $triple -VersionTag $version
-    throw "Failed to install core ops runtime for $triple ($resolvedVersionLabel). Prebuilt asset download failed and source fallback did not complete. Diagnostic: $failureHint Install Rust toolchain + C++ build tools, then rerun the README Windows install command: $ReadmeWindowsInstallCommand"
+    $windowsToolsHint = if ($HostIsWindows) { (Get-WindowsBuildToolsInstallHint) } else { "" }
+    throw "Failed to install core ops runtime for $triple ($resolvedVersionLabel). Prebuilt asset download failed and source fallback did not complete. Diagnostic: $failureHint Install Rust toolchain + C++ build tools, then rerun the README Windows install command: $ReadmeWindowsInstallCommand $windowsToolsHint"
   }
 }
 
