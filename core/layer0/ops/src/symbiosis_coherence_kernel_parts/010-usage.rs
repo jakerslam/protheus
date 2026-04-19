@@ -18,6 +18,15 @@ fn usage() {
     println!(
         "  protheus-ops symbiosis-coherence-kernel recursion-request [--payload-base64=<json>]"
     );
+    println!(
+        "  protheus-ops symbiosis-coherence-kernel profile-summary [--payload-base64=<json>]"
+    );
+    println!(
+        "  protheus-ops symbiosis-coherence-kernel profile-update [--payload-base64=<json>]"
+    );
+    println!(
+        "  protheus-ops symbiosis-coherence-kernel profile-reset [--payload-base64=<json>]"
+    );
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {

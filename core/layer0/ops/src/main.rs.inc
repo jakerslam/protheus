@@ -36,13 +36,18 @@ fn cli_error_receipt(
     domain: Option<&str>,
     command: Option<&str>,
 ) -> Value {
+    let error_code = match error {
+        "unknown_domain" | "unknown_command" | "command_not_found" => "command_not_found",
+        other => other,
+    };
     let ts = protheus_ops_core::now_iso();
     let mut out = json!({
         "ok": false,
-        "type": "infring_ops_cli_error",
+        "type": "protheus_ops_cli_error",
         "ts": ts,
         "date": ts[..10].to_string(),
         "error": error,
+        "error_code": error_code,
         "exit_code": exit_code,
         "domain": domain,
         "command": command,
@@ -1334,7 +1339,7 @@ fn main() {
             exit_domain!(&cwd, &args, protheus_ops_core_v1::srs_contract_runtime::run);
         }
         _ => {
-            print_json(&cli_error_receipt("unknown_domain", 1, Some(domain), None));
+            print_json(&cli_error_receipt("command_not_found", 1, Some(domain), None));
             std::process::exit(1);
         }
     }

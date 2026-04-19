@@ -224,8 +224,13 @@ fn resolve_core_shortcuts_family_ops1_group_2(cmd: &str, rest: &[String]) -> Opt
                 })
             }
         }
-        "dream" | "compact" | "proactive_daemon" | "speculate" => {
-            let mut args = vec![cmd.to_string()];
+        "dream" | "compact" | "proactive_daemon" | "speculate" | "kairos" => {
+            let routed_cmd = if cmd == "kairos" {
+                "proactive_daemon"
+            } else {
+                cmd
+            };
+            let mut args = vec![routed_cmd.to_string()];
             args.extend(rest.iter().cloned());
             Some(Route {
                 script_rel: "core://autonomy-controller".to_string(),

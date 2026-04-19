@@ -305,9 +305,13 @@ fn handle_primary_dashboard_routes_b(
                 .unwrap_or("user_archive_all"),
             120,
         );
+        let include_permanent = request
+            .get("include_permanent")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
         return Some(CompatApiResponse {
             status: 200,
-            payload: archive_all_visible_agents(root, snapshot, &reason),
+            payload: archive_all_visible_agents(root, snapshot, &reason, include_permanent),
         });
     }
 

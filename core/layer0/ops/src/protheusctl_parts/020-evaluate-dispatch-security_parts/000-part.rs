@@ -379,15 +379,23 @@ fn first_positional_command(args: &[String]) -> String {
 fn run_unknown_command_domain(args: &[String]) -> i32 {
     let json_mode = has_json_flag(args);
     let command = first_positional_command(args);
+    let canonical = crate::command_list_kernel::canonical_command_name(&command);
+    let hint = if canonical.is_some() {
+        "Run `infring help` and retry using the canonical command token."
+    } else {
+        "Run `infring help` to list available commands."
+    };
     if json_mode {
         println!(
             "{}",
             json!({
                 "ok": false,
                 "type": "protheusctl_dispatch",
-                "error": "unknown_command",
+                "error": "command_not_found",
+                "error_code": "command_not_found",
                 "command": clean(command, 120),
-                "hint": "Run `infring help` to list available commands."
+                "canonical_command": canonical,
+                "hint": hint
             })
         );
     } else if command.is_empty() {
