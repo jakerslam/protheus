@@ -227,6 +227,9 @@ describe('conduit primitive wrapper contract', () => {
     expect(source.includes('INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP')).toBe(true);
     expect(source.includes('aka.ms/vs/17/release/vs_BuildTools.exe')).toBe(true);
     expect(source.includes('Compatibility shim for operators accustomed to `-Force`.')).toBe(true);
+    expect(source.includes('rerun the README Windows install command: $ReadmeWindowsInstallCommand')).toBe(
+      true,
+    );
     expect(
       /if \(\$Force\)\s*\{[\s\S]*\$InstallRepair\s*=\s*\$true[\s\S]*if \(-not \$Minimal\)\s*\{[\s\S]*\$InstallFull\s*=\s*\$true/.test(
         source,
