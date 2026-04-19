@@ -1,0 +1,121 @@
+fn dashboard_response_gate_checks(response_gate: &Value) -> Value {
+    let response_gate_bool = |pointer: &str, default: bool| -> bool {
+        response_gate
+            .pointer(pointer)
+            .and_then(Value::as_bool)
+            .unwrap_or(default)
+    };
+    json!({
+        "tooling_response_gate_ready": response_gate_bool("/ready", false),
+        "tooling_response_gate_not_blocked": response_gate
+            .pointer("/severity")
+            .and_then(Value::as_str)
+            .is_some_and(|row| row != "blocked"),
+        "tooling_response_gate_score_consistent": response_gate_bool("/score_consistent", true),
+        "tooling_response_gate_score_band_consistent": response_gate_bool("/score_band_consistent", true),
+        "tooling_response_gate_score_band_known": response_gate_bool("/score_band_known", true),
+        "tooling_response_gate_score_vector_consistent": response_gate_bool("/score_vector_consistent", true),
+        "tooling_response_gate_score_band_vector_consistent": response_gate_bool("/score_band_vector_consistent", true),
+        "tooling_response_gate_score_band_severity_consistent": response_gate_bool("/score_band_severity_consistent", true),
+        "tooling_response_gate_score_band_severity_bucket_consistent": response_gate_bool("/score_band_severity_bucket_consistent", true),
+        "tooling_response_gate_score_band_severity_bucket_known": response_gate_bool("/score_band_severity_bucket_known", true),
+        "tooling_response_gate_escalation_routable": response_gate
+            .pointer("/escalation_lane")
+            .and_then(Value::as_str)
+            .is_some_and(|row| row != "none"),
+        "tooling_response_gate_escalation_lane_known": response_gate_bool("/escalation_lane_known", true),
+        "tooling_response_gate_escalation_reason_known": response_gate_bool("/escalation_reason_known", true),
+        "tooling_response_gate_escalation_vector_known": response_gate_bool("/escalation_vector_known", true),
+        "tooling_response_gate_escalation_signature_consistent": response_gate_bool("/escalation_signature_consistent", true),
+        "tooling_response_gate_decision_vector_known": response_gate_bool("/decision_vector_known", true),
+        "tooling_response_gate_decision_signature_consistent": response_gate_bool("/decision_signature_consistent", true),
+        "tooling_response_gate_blocker_budget_consistent": response_gate_bool("/blocker_budget_consistent", true),
+        "tooling_response_gate_manual_review_signature_consistent": response_gate_bool("/manual_review_signature_consistent", true),
+        "tooling_response_gate_manual_review_reason_consistent": response_gate_bool("/manual_review_reason_consistent", true),
+        "tooling_response_gate_manual_review_reason_known": response_gate_bool("/manual_review_reason_known", true),
+        "tooling_response_gate_manual_review_vector_consistent": response_gate_bool("/manual_review_vector_consistent", true),
+        "tooling_response_gate_manual_review_vector_known": response_gate_bool("/manual_review_vector_known", true),
+        "tooling_response_gate_primary_blocker_known": response_gate_bool("/primary_blocker_known", true),
+        "tooling_response_gate_blockers_consistent": response_gate_bool("/blockers_consistent", true),
+        "tooling_response_gate_severity_consistent": response_gate_bool("/severity_consistent", true),
+        "tooling_response_gate_manual_review_consistent": response_gate_bool("/manual_review_consistent", true),
+        "tooling_response_gate_blocker_priority_consistent": response_gate_bool("/blocker_priority_consistent", true),
+        "tooling_response_gate_blocker_set_consistent": response_gate_bool("/blocker_set_consistent", true),
+        "tooling_response_gate_blocker_set_key_consistent": response_gate_bool("/blocker_set_key_consistent", true),
+        "tooling_response_gate_blocker_count_key_consistent": response_gate_bool("/blocker_count_key_consistent", true),
+        "tooling_response_gate_expected_blocker_count_matches": response_gate_bool("/expected_blocker_count_matches", true),
+        "tooling_response_gate_blocker_vector_consistent": response_gate_bool("/blocker_vector_consistent", true),
+        "tooling_response_gate_signature_consistent": response_gate_bool("/signature_consistent", true),
+        "tooling_response_gate_blocker_flags_consistent": response_gate_bool("/blocker_flags_consistent", true),
+        "tooling_response_gate_contract_consistent": response_gate_bool("/contract_consistent", true)
+    })
+}
+
+fn dashboard_response_gate_allowed_score_bands_for_severity(
+    severity: &str,
+) -> &'static [&'static str] {
+    match severity {
+        "ready" => &["ready"],
+        "degraded" => &["strong", "watch"],
+        "blocked" => &["weak", "critical"],
+        _ => &[],
+    }
+}
+
+fn dashboard_response_gate_score_band_severity_bucket_known(
+    severity: &str,
+    score_band: &str,
+) -> bool {
+    dashboard_response_gate_allowed_score_bands_for_severity(severity)
+        .iter()
+        .any(|allowed| *allowed == score_band)
+}
+
+fn dashboard_response_gate_score_band_severity_bucket_consistent(
+    severity: &str,
+    score_band: &str,
+) -> bool {
+    dashboard_response_gate_score_band_severity_bucket_known(severity, score_band)
+}
+
+#[cfg(test)]
+mod dashboard_response_gate_score_band_bucket_matrix_tests {
+    use super::{
+        dashboard_response_gate_score_band_severity_bucket_consistent,
+        dashboard_response_gate_score_band_severity_bucket_known,
+    };
+
+    #[test]
+    fn response_gate_score_band_bucket_matrix_covers_ready_degraded_blocked() {
+        let valid = [
+            ("ready", "ready"),
+            ("degraded", "strong"),
+            ("degraded", "watch"),
+            ("blocked", "weak"),
+            ("blocked", "critical"),
+        ];
+        for (severity, band) in valid {
+            assert!(dashboard_response_gate_score_band_severity_bucket_known(
+                severity, band
+            ));
+            assert!(dashboard_response_gate_score_band_severity_bucket_consistent(
+                severity, band
+            ));
+        }
+
+        let invalid = [
+            ("ready", "strong"),
+            ("degraded", "weak"),
+            ("blocked", "watch"),
+            ("unknown", "critical"),
+        ];
+        for (severity, band) in invalid {
+            assert!(!dashboard_response_gate_score_band_severity_bucket_known(
+                severity, band
+            ));
+            assert!(!dashboard_response_gate_score_band_severity_bucket_consistent(
+                severity, band
+            ));
+        }
+    }
+}

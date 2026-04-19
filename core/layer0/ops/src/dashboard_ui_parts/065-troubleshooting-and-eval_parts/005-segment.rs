@@ -240,6 +240,8 @@ fn dashboard_troubleshooting_recent_recovery_hints(
     hints
 }
 
+include!("006-response-gate-checks.rs");
+
 fn dashboard_troubleshooting_recent_health_checks(
     lane_health: &Value,
     latest_loop_level: &str,
@@ -261,42 +263,7 @@ fn dashboard_troubleshooting_recent_health_checks(
     tooling_final_response_contract_ok: bool,
     tooling_no_result_pattern_not_detected: bool,
     tooling_answer_contract_ok: bool,
-    tooling_response_gate_ready: bool,
-    tooling_response_gate_not_blocked: bool,
-    tooling_response_gate_score_consistent: bool,
-    tooling_response_gate_score_band_consistent: bool,
-    tooling_response_gate_score_band_known: bool,
-    tooling_response_gate_score_vector_consistent: bool,
-    tooling_response_gate_score_band_vector_consistent: bool,
-    tooling_response_gate_score_band_severity_consistent: bool,
-    tooling_response_gate_score_band_severity_bucket_consistent: bool,
-    tooling_response_gate_score_band_severity_bucket_known: bool,
-    tooling_response_gate_escalation_routable: bool,
-    tooling_response_gate_escalation_lane_known: bool,
-    tooling_response_gate_escalation_reason_known: bool,
-    tooling_response_gate_escalation_vector_known: bool,
-    tooling_response_gate_escalation_signature_consistent: bool,
-    tooling_response_gate_decision_vector_known: bool,
-    tooling_response_gate_decision_signature_consistent: bool,
-    tooling_response_gate_blocker_budget_consistent: bool,
-    tooling_response_gate_manual_review_signature_consistent: bool,
-    tooling_response_gate_manual_review_reason_consistent: bool,
-    tooling_response_gate_manual_review_reason_known: bool,
-    tooling_response_gate_manual_review_vector_consistent: bool,
-    tooling_response_gate_manual_review_vector_known: bool,
-    tooling_response_gate_primary_blocker_known: bool,
-    tooling_response_gate_blockers_consistent: bool,
-    tooling_response_gate_severity_consistent: bool,
-    tooling_response_gate_manual_review_consistent: bool,
-    tooling_response_gate_blocker_priority_consistent: bool,
-    tooling_response_gate_blocker_set_consistent: bool,
-    tooling_response_gate_blocker_set_key_consistent: bool,
-    tooling_response_gate_blocker_count_key_consistent: bool,
-    tooling_response_gate_expected_blocker_count_matches: bool,
-    tooling_response_gate_blocker_vector_consistent: bool,
-    tooling_response_gate_signature_consistent: bool,
-    tooling_response_gate_blocker_flags_consistent: bool,
-    tooling_response_gate_contract_consistent: bool,
+    response_gate: &Value,
 ) -> Value {
     let lanes = ["continuity", "tool_completion", "liveness", "lifecycle", "e2e"];
     let lane_health_ok = lanes.iter().all(|lane| {
@@ -306,7 +273,7 @@ fn dashboard_troubleshooting_recent_health_checks(
             .unwrap_or(true)
     });
     let window_consistent = entry_count.saturating_add(filtered_out_count) == total_entry_count;
-    json!({
+    let mut checks = json!({
         "lane_health_ok": lane_health_ok,
         "critical_loop_absent": clean_text(latest_loop_level, 40) != "critical",
         "window_consistent": window_consistent,
@@ -324,44 +291,16 @@ fn dashboard_troubleshooting_recent_health_checks(
         "tooling_placeholder_output_not_detected": tooling_placeholder_output_not_detected,
         "tooling_final_response_contract_ok": tooling_final_response_contract_ok,
         "tooling_no_result_pattern_not_detected": tooling_no_result_pattern_not_detected,
-        "tooling_answer_contract_ok": tooling_answer_contract_ok,
-        "tooling_response_gate_ready": tooling_response_gate_ready,
-        "tooling_response_gate_not_blocked": tooling_response_gate_not_blocked,
-        "tooling_response_gate_score_consistent": tooling_response_gate_score_consistent,
-        "tooling_response_gate_score_band_consistent": tooling_response_gate_score_band_consistent,
-        "tooling_response_gate_score_band_known": tooling_response_gate_score_band_known,
-        "tooling_response_gate_score_vector_consistent": tooling_response_gate_score_vector_consistent,
-        "tooling_response_gate_score_band_vector_consistent": tooling_response_gate_score_band_vector_consistent,
-        "tooling_response_gate_score_band_severity_consistent": tooling_response_gate_score_band_severity_consistent,
-        "tooling_response_gate_score_band_severity_bucket_consistent": tooling_response_gate_score_band_severity_bucket_consistent,
-        "tooling_response_gate_score_band_severity_bucket_known": tooling_response_gate_score_band_severity_bucket_known,
-        "tooling_response_gate_escalation_routable": tooling_response_gate_escalation_routable,
-        "tooling_response_gate_escalation_lane_known": tooling_response_gate_escalation_lane_known,
-        "tooling_response_gate_escalation_reason_known": tooling_response_gate_escalation_reason_known,
-        "tooling_response_gate_escalation_vector_known": tooling_response_gate_escalation_vector_known,
-        "tooling_response_gate_escalation_signature_consistent": tooling_response_gate_escalation_signature_consistent,
-        "tooling_response_gate_decision_vector_known": tooling_response_gate_decision_vector_known,
-        "tooling_response_gate_decision_signature_consistent": tooling_response_gate_decision_signature_consistent,
-        "tooling_response_gate_blocker_budget_consistent": tooling_response_gate_blocker_budget_consistent,
-        "tooling_response_gate_manual_review_signature_consistent": tooling_response_gate_manual_review_signature_consistent,
-        "tooling_response_gate_manual_review_reason_consistent": tooling_response_gate_manual_review_reason_consistent,
-        "tooling_response_gate_manual_review_reason_known": tooling_response_gate_manual_review_reason_known,
-        "tooling_response_gate_manual_review_vector_consistent": tooling_response_gate_manual_review_vector_consistent,
-        "tooling_response_gate_manual_review_vector_known": tooling_response_gate_manual_review_vector_known,
-        "tooling_response_gate_primary_blocker_known": tooling_response_gate_primary_blocker_known,
-        "tooling_response_gate_blockers_consistent": tooling_response_gate_blockers_consistent,
-        "tooling_response_gate_severity_consistent": tooling_response_gate_severity_consistent,
-        "tooling_response_gate_manual_review_consistent": tooling_response_gate_manual_review_consistent,
-        "tooling_response_gate_blocker_priority_consistent": tooling_response_gate_blocker_priority_consistent,
-        "tooling_response_gate_blocker_set_consistent": tooling_response_gate_blocker_set_consistent,
-        "tooling_response_gate_blocker_set_key_consistent": tooling_response_gate_blocker_set_key_consistent,
-        "tooling_response_gate_blocker_count_key_consistent": tooling_response_gate_blocker_count_key_consistent,
-        "tooling_response_gate_expected_blocker_count_matches": tooling_response_gate_expected_blocker_count_matches,
-        "tooling_response_gate_blocker_vector_consistent": tooling_response_gate_blocker_vector_consistent,
-        "tooling_response_gate_signature_consistent": tooling_response_gate_signature_consistent,
-        "tooling_response_gate_blocker_flags_consistent": tooling_response_gate_blocker_flags_consistent,
-        "tooling_response_gate_contract_consistent": tooling_response_gate_contract_consistent
-    })
+        "tooling_answer_contract_ok": tooling_answer_contract_ok
+    });
+    if let Some(dest) = checks.as_object_mut() {
+        if let Some(src) = dashboard_response_gate_checks(response_gate).as_object() {
+            for (key, value) in src {
+                dest.insert(key.clone(), value.clone());
+            }
+        }
+    }
+    checks
 }
 
 fn dashboard_troubleshooting_recent_tooling_contract(rows: &[Value]) -> Value {
@@ -694,21 +633,16 @@ fn dashboard_troubleshooting_recent_tooling_contract(rows: &[Value]) -> Value {
     };
     let response_gate_score_band_severity_consistent =
         response_gate_severity == response_gate_expected_severity_from_score_band;
-    let response_gate_score_band_severity_bucket_consistent = if response_gate_severity == "ready" {
-        response_gate_score_band == "ready"
-    } else if response_gate_severity == "degraded" {
-        matches!(response_gate_score_band, "strong" | "watch")
-    } else {
-        matches!(response_gate_score_band, "weak" | "critical")
-    };
-    let response_gate_score_band_severity_bucket_known = matches!(
-        format!("{}|{}", response_gate_severity, response_gate_score_band).as_str(),
-        "ready|ready"
-            | "degraded|strong"
-            | "degraded|watch"
-            | "blocked|weak"
-            | "blocked|critical"
-    );
+    let response_gate_score_band_severity_bucket_consistent =
+        dashboard_response_gate_score_band_severity_bucket_consistent(
+            response_gate_severity,
+            response_gate_score_band,
+        );
+    let response_gate_score_band_severity_bucket_known =
+        dashboard_response_gate_score_band_severity_bucket_known(
+            response_gate_severity,
+            response_gate_score_band,
+        );
     let response_gate_blockers = [
         (!final_response_contract_ok, "final_response_contract"),
         (!answer_contract_ok, "answer_contract"),
@@ -2840,150 +2774,7 @@ fn dashboard_troubleshooting_summary_lane(root: &Path, payload: &Value) -> LaneR
         .get("answer_contract_ok")
         .and_then(Value::as_bool)
         .unwrap_or(true);
-    let tooling_response_gate_ready = tooling_contract
-        .pointer("/response_gate/ready")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let tooling_response_gate_not_blocked = tooling_contract
-        .pointer("/response_gate/severity")
-        .and_then(Value::as_str)
-        .is_some_and(|row| row != "blocked");
-    let tooling_response_gate_score_consistent = tooling_contract
-        .pointer("/response_gate/score_consistent")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_score_band_consistent = tooling_contract
-        .pointer("/response_gate/score_band_consistent")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_score_band_known = tooling_contract
-        .pointer("/response_gate/score_band_known")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_score_vector_consistent = tooling_contract
-        .pointer("/response_gate/score_vector_consistent")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_score_band_vector_consistent = tooling_contract
-        .pointer("/response_gate/score_band_vector_consistent")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_score_band_severity_consistent = tooling_contract
-        .pointer("/response_gate/score_band_severity_consistent")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_score_band_severity_bucket_consistent = tooling_contract
-        .pointer("/response_gate/score_band_severity_bucket_consistent")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_score_band_severity_bucket_known = tooling_contract
-        .pointer("/response_gate/score_band_severity_bucket_known")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_escalation_routable = tooling_contract
-        .pointer("/response_gate/escalation_lane")
-        .and_then(Value::as_str)
-        .is_some_and(|row| row != "none");
-    let tooling_response_gate_escalation_lane_known = tooling_contract
-        .pointer("/response_gate/escalation_lane_known")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_escalation_reason_known = tooling_contract
-        .pointer("/response_gate/escalation_reason_known")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_escalation_vector_known = tooling_contract
-        .pointer("/response_gate/escalation_vector_known")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_escalation_signature_consistent = tooling_contract
-        .pointer("/response_gate/escalation_signature_consistent")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_decision_vector_known = tooling_contract
-        .pointer("/response_gate/decision_vector_known")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_decision_signature_consistent = tooling_contract
-        .pointer("/response_gate/decision_signature_consistent")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_blocker_budget_consistent = tooling_contract
-        .pointer("/response_gate/blocker_budget_consistent")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_manual_review_signature_consistent = tooling_contract
-        .pointer("/response_gate/manual_review_signature_consistent")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_manual_review_reason_consistent = tooling_contract
-        .pointer("/response_gate/manual_review_reason_consistent")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_manual_review_reason_known = tooling_contract
-        .pointer("/response_gate/manual_review_reason_known")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_manual_review_vector_consistent = tooling_contract
-        .pointer("/response_gate/manual_review_vector_consistent")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_manual_review_vector_known = tooling_contract
-        .pointer("/response_gate/manual_review_vector_known")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_primary_blocker_known = tooling_contract
-        .pointer("/response_gate/primary_blocker_known")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_blockers_consistent = tooling_contract
-        .pointer("/response_gate/blockers_consistent")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_severity_consistent = tooling_contract
-        .pointer("/response_gate/severity_consistent")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_manual_review_consistent = tooling_contract
-        .pointer("/response_gate/manual_review_consistent")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_blocker_priority_consistent = tooling_contract
-        .pointer("/response_gate/blocker_priority_consistent")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_blocker_set_consistent = tooling_contract
-        .pointer("/response_gate/blocker_set_consistent")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_blocker_set_key_consistent = tooling_contract
-        .pointer("/response_gate/blocker_set_key_consistent")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_blocker_count_key_consistent = tooling_contract
-        .pointer("/response_gate/blocker_count_key_consistent")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_expected_blocker_count_matches = tooling_contract
-        .pointer("/response_gate/expected_blocker_count_matches")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_blocker_vector_consistent = tooling_contract
-        .pointer("/response_gate/blocker_vector_consistent")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_signature_consistent = tooling_contract
-        .pointer("/response_gate/signature_consistent")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_blocker_flags_consistent = tooling_contract
-        .pointer("/response_gate/blocker_flags_consistent")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let tooling_response_gate_contract_consistent = tooling_contract
-        .pointer("/response_gate/contract_consistent")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
+    let response_gate = tooling_contract.get("response_gate").unwrap_or(&Value::Null);
     let recent_recovery_hints =
         dashboard_troubleshooting_recent_recovery_hints(&lane_health, severity_tier);
     let recent_health_checks = dashboard_troubleshooting_recent_health_checks(
@@ -3007,42 +2798,7 @@ fn dashboard_troubleshooting_summary_lane(root: &Path, payload: &Value) -> LaneR
         tooling_final_response_contract_ok,
         tooling_no_result_pattern_not_detected,
         tooling_answer_contract_ok,
-        tooling_response_gate_ready,
-        tooling_response_gate_not_blocked,
-        tooling_response_gate_score_consistent,
-        tooling_response_gate_score_band_consistent,
-        tooling_response_gate_score_band_known,
-        tooling_response_gate_score_vector_consistent,
-        tooling_response_gate_score_band_vector_consistent,
-        tooling_response_gate_score_band_severity_consistent,
-        tooling_response_gate_score_band_severity_bucket_consistent,
-        tooling_response_gate_score_band_severity_bucket_known,
-        tooling_response_gate_escalation_routable,
-        tooling_response_gate_escalation_lane_known,
-        tooling_response_gate_escalation_reason_known,
-        tooling_response_gate_escalation_vector_known,
-        tooling_response_gate_escalation_signature_consistent,
-        tooling_response_gate_decision_vector_known,
-        tooling_response_gate_decision_signature_consistent,
-        tooling_response_gate_blocker_budget_consistent,
-        tooling_response_gate_manual_review_signature_consistent,
-        tooling_response_gate_manual_review_reason_consistent,
-        tooling_response_gate_manual_review_reason_known,
-        tooling_response_gate_manual_review_vector_consistent,
-        tooling_response_gate_manual_review_vector_known,
-        tooling_response_gate_primary_blocker_known,
-        tooling_response_gate_blockers_consistent,
-        tooling_response_gate_severity_consistent,
-        tooling_response_gate_manual_review_consistent,
-        tooling_response_gate_blocker_priority_consistent,
-        tooling_response_gate_blocker_set_consistent,
-        tooling_response_gate_blocker_set_key_consistent,
-        tooling_response_gate_blocker_count_key_consistent,
-        tooling_response_gate_expected_blocker_count_matches,
-        tooling_response_gate_blocker_vector_consistent,
-        tooling_response_gate_signature_consistent,
-        tooling_response_gate_blocker_flags_consistent,
-        tooling_response_gate_contract_consistent,
+        response_gate,
     );
     LaneResult {
         ok: true,
