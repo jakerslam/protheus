@@ -135,6 +135,7 @@ The installer now attempts MSVC Build Tools bootstrap automatically during sourc
 When `winget` is unavailable or fails, installer fallback now also tries the direct Visual Studio bootstrapper (`https://aka.ms/vs/17/release/vs_BuildTools.exe`) unless `INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP=0`.
 Installer diagnostics now also report `winget` availability and auto-bootstrap policy in failure hints to speed remote triage.
 Source fallback now also performs target-directory binary discovery when exact binary naming differs, reducing false `source_build_output_missing` failures.
+If you must install a pinned version that is missing required Windows prebuilts, opt in to compatible-release prebuilt fallback with `INFRING_INSTALL_ALLOW_PINNED_VERSION_COMPATIBLE_FALLBACK=1`. To disable all compatible-release fallback behavior, set `INFRING_INSTALL_ALLOW_COMPATIBLE_RELEASE_FALLBACK=0`.
 
 For locked-down environments, you can explicitly disable auto-bootstrap and rely on manual prerequisites:
 
@@ -142,6 +143,8 @@ For locked-down environments, you can explicitly disable auto-bootstrap and rely
 $env:INFRING_INSTALL_AUTO_MSVC = "0"
 $env:INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP = "0"
 $env:INFRING_INSTALL_AUTO_RUSTUP = "0"
+$env:INFRING_INSTALL_ALLOW_COMPATIBLE_RELEASE_FALLBACK = "0"
+$env:INFRING_INSTALL_ALLOW_PINNED_VERSION_COMPATIBLE_FALLBACK = "0"
 ```
 
 ### Verify CLI Is Globally Available

@@ -95,7 +95,12 @@ For locked-down environments, disable auto bootstrap lanes explicitly:
 $env:INFRING_INSTALL_AUTO_MSVC = "0"
 $env:INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP = "0"
 $env:INFRING_INSTALL_AUTO_RUSTUP = "0"
+$env:INFRING_INSTALL_ALLOW_COMPATIBLE_RELEASE_FALLBACK = "0"
+$env:INFRING_INSTALL_ALLOW_PINNED_VERSION_COMPATIBLE_FALLBACK = "0"
 ```
+
+If a pinned release lacks required Windows prebuilts, opt in to compatible-release prebuilt fallback:
+`$env:INFRING_INSTALL_ALLOW_PINNED_VERSION_COMPATIBLE_FALLBACK = "1"`.
 
 ### Verify the CLI
 ```bash

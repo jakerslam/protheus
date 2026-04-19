@@ -109,6 +109,8 @@ function windowsAndDocsCheck(): Check {
     '[infring install] preflight asset probe ({0}): found {1}; reachable={2} ({3})';
   const preflightAssetMissingProbeBanner =
     '[infring install] preflight asset probe ({0}): missing prebuilt in release metadata ({1})';
+  const preflightPolicyBanner =
+    '[infring install] preflight policy: allow_no_msvc_source_fallback={0}; compatible_release_fallback={1}; pinned_version_compatible_fallback={2}';
   const preflightCompatibleTripleNoteBanner =
     '[infring install] preflight note: using compatible Windows triple asset variant {0} for requested {1}';
   const preflightMsvcMissingWarning =
@@ -143,6 +145,8 @@ function windowsAndDocsCheck(): Check {
     'Install Rust toolchain + C++ build tools, then rerun the README Windows install command: $ReadmeWindowsInstallCommand $windowsToolsHint';
   const noCompatiblePrebuiltBanner =
     '[infring install] no compatible Windows prebuilt release found for required stems; source fallback remains a backup path only.';
+  const pinnedCompatibleReleaseFallbackBanner =
+    '[infring install] pinned release $version is missing one or more required Windows prebuilts for $triple; using compatible release $compatibleWindows (disable with INFRING_INSTALL_ALLOW_PINNED_VERSION_COMPATIBLE_FALLBACK=0)';
   const autoMsvcEnabledBanner =
     '[infring install] auto MSVC bootstrap is enabled; installer will attempt Build Tools install during source fallback if needed.';
   const autoMsvcDisabledBanner =
@@ -161,6 +165,7 @@ function windowsAndDocsCheck(): Check {
     'toolchain:cargo=',
     'auto_bootstrap:auto_rustup=',
     'auto_bootstrap:direct_msvc=',
+    'install_policy:allow_no_msvc_source_fallback=',
   ];
   const failureReasonTaxonomyTokens = [
     'cargo_missing',
@@ -182,6 +187,9 @@ function windowsAndDocsCheck(): Check {
   const ok =
     installPs.includes('protheus-ops.exe') &&
     installPs.includes('infringd.cmd') &&
+    installPs.includes('Install-AllowNoMsvcSourceFallback') &&
+    installPs.includes('Install-AllowCompatibleReleaseFallback') &&
+    installPs.includes('Install-AllowPinnedVersionCompatibleFallback') &&
     installPs.includes('Install-AllowDirectMsvcBootstrapEnabled') &&
     installPs.includes('INFRING_INSTALL_REPAIR') &&
     installPs.includes('INFRING_INSTALL_FULL') &&
@@ -193,6 +201,7 @@ function windowsAndDocsCheck(): Check {
     installPs.includes(preflightTripleCandidatesBanner) &&
     installPs.includes(preflightAssetFoundProbeBanner) &&
     installPs.includes(preflightAssetMissingProbeBanner) &&
+    installPs.includes(preflightPolicyBanner) &&
     installPs.includes(preflightCompatibleTripleNoteBanner) &&
     installPs.includes(preflightMsvcMissingWarning) &&
     installPs.includes(preflightMsvcBootstrapEnabledNote) &&
@@ -210,6 +219,7 @@ function windowsAndDocsCheck(): Check {
     installPs.includes(coreInstallFailureThrowPrefix) &&
     installPs.includes(windowsFailureRemediationSentence) &&
     installPs.includes(noCompatiblePrebuiltBanner) &&
+    installPs.includes(pinnedCompatibleReleaseFallbackBanner) &&
     installPs.includes(autoMsvcEnabledBanner) &&
     installPs.includes(autoMsvcDisabledBanner) &&
     installPs.includes(windowsBuildToolsHintWinget) &&
@@ -228,6 +238,8 @@ function windowsAndDocsCheck(): Check {
     readme.includes('$env:INFRING_INSTALL_AUTO_MSVC = "0"') &&
     readme.includes('$env:INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP = "0"') &&
     readme.includes('$env:INFRING_INSTALL_AUTO_RUSTUP = "0"') &&
+    readme.includes('$env:INFRING_INSTALL_ALLOW_COMPATIBLE_RELEASE_FALLBACK = "0"') &&
+    readme.includes('$env:INFRING_INSTALL_ALLOW_PINNED_VERSION_COMPATIBLE_FALLBACK = "0"') &&
     readme.includes('$env:INFRING_INSTALL_REPAIR = "1"') &&
     readme.includes('$env:INFRING_INSTALL_FULL = "1"') &&
     readme.includes(noFileFallbackIex) &&
@@ -242,6 +254,8 @@ function windowsAndDocsCheck(): Check {
     gettingStarted.includes('$env:INFRING_INSTALL_AUTO_MSVC = "0"') &&
     gettingStarted.includes('$env:INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP = "0"') &&
     gettingStarted.includes('$env:INFRING_INSTALL_AUTO_RUSTUP = "0"') &&
+    gettingStarted.includes('$env:INFRING_INSTALL_ALLOW_COMPATIBLE_RELEASE_FALLBACK = "0"') &&
+    gettingStarted.includes('$env:INFRING_INSTALL_ALLOW_PINNED_VERSION_COMPATIBLE_FALLBACK = "0"') &&
     gettingStarted.includes('$env:INFRING_INSTALL_REPAIR = "1"') &&
     gettingStarted.includes('$env:INFRING_INSTALL_FULL = "1"') &&
     gettingStarted.includes(noFileFallbackIex) &&
@@ -257,6 +271,8 @@ function windowsAndDocsCheck(): Check {
     manualHelp.includes('$env:INFRING_INSTALL_AUTO_MSVC = "0"') &&
     manualHelp.includes('$env:INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP = "0"') &&
     manualHelp.includes('$env:INFRING_INSTALL_AUTO_RUSTUP = "0"') &&
+    manualHelp.includes('$env:INFRING_INSTALL_ALLOW_COMPATIBLE_RELEASE_FALLBACK = "0"') &&
+    manualHelp.includes('$env:INFRING_INSTALL_ALLOW_PINNED_VERSION_COMPATIBLE_FALLBACK = "0"') &&
     manualHelp.includes('$env:INFRING_INSTALL_REPAIR = "1"') &&
     manualHelp.includes('$env:INFRING_INSTALL_FULL = "1"') &&
     manualHelp.includes(noFileFallbackIex) &&
