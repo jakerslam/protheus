@@ -17280,3 +17280,779 @@ Source summary:
   - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
   - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
   - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round E
+
+- Intent:
+  - Assimilate lane-oriented gate/soak/recorder patterns into troubleshooting summary authority so operators and evals get explicit per-lane health and recovery signals.
+- Assimilated source files:
+  - OpenClaw: `ops_ipc_bridge_stability_soak.ts`, `system_fitness_gate.ts`, `release_verdict_gate.ts`, `stateful_upgrade_rollback_gate.ts`, `reliability_turn_loop_gauntlet.ts`
+  - Codex(Cline ledger): `grpc-request-registry.ts`, `grpc-recorder.ts`, `grpc-recorder/types.ts`, `stream.ts`, `SessionSummary.tsx`
+- Acceptance criteria:
+  - Troubleshooting summary recent block exposes deterministic per-lane health (`continuity`, `tool_completion`, `liveness`, `lifecycle`, `e2e`) with `total`, `failed`, `passed`, and `ok`.
+  - Troubleshooting summary recent block exposes deterministic recovery hints based on failed lane clusters and severity tier.
+  - Troubleshooting summary recent block exposes explicit checks (`lane_health_ok`, `critical_loop_absent`, `window_consistent`, `stale_rate_ok`, `queue_pressure_not_high`).
+  - Regression coverage verifies lane health projections, checks block fields, and recovery-hint presence for degraded tool/continuity scenarios.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round F
+
+- Intent:
+  - Assimilate tooling-gate/provider-resolution/watchdog patterns into authoritative troubleshooting summary contracts so eval/operators can diagnose tool-chain health in one payload read.
+- Assimilated source files:
+  - OpenClaw: `config-presence.ts`, `command-gating.ts`, `stall-watchdog.ts`, `target-parsing.ts`, `session.ts`
+  - Codex(Cline ledger): `tools.ts`, `provider-config.ts`, `api/index.ts`, `session-summary.ts`, `TaskContext.tsx`
+- Acceptance criteria:
+  - Troubleshooting summary recent block exposes `tooling_contract` with deterministic counters for execution attempted/skipped, provider resolved/missing, policy/meta/unknown-provider blocks, and watchdog warning/critical levels.
+  - Troubleshooting summary recent checks include explicit tooling booleans: `tooling_gate_ok`, `provider_resolution_ok`, `tooling_watchdog_not_triggered`.
+  - Tooling contract publishes deterministic `next_action` remediation routing from gate/watchdog/provider outcomes.
+  - Regression coverage asserts tooling contract fields and checks parity for degraded tool + continuity clustered sample workloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round G
+
+- Intent:
+  - Assimilate completion-lifecycle/watchdog/provider-priority patterns into authoritative troubleshooting tooling contracts so failed web/tool flows are diagnosable and routeable without guesswork.
+- Assimilated source files:
+  - OpenClaw: `ack-reactions.ts`, `inbound-debounce-policy.ts`, `draft-stream-controls.ts`, `run-state-machine.ts`, `typing-lifecycle.ts`
+  - Codex(Cline ledger): `path.ts`, `providers.ts`, `fuzzy-search.ts`, `diff-editors.ts`, `CliCommentReviewController.ts`
+- Acceptance criteria:
+  - Troubleshooting summary `recent.tooling_contract` now exposes completion lifecycle quality fields (`completion_signal_missing_count`, `completion_signal_ok`).
+  - Tooling contract now exposes explicit control-plane quality fields (`provider_quality_tier`, `manual_intervention_required`).
+  - Tooling contract `next_action` routing now prioritizes watchdog/completion/provider/policy in deterministic order.
+  - Troubleshooting summary checks now include completion and intervention booleans (`tooling_completion_signal_ok`, `tooling_manual_intervention_not_required`).
+  - Regression coverage asserts new checks and tooling contract fields for mixed continuity/tool-degraded recent-entry scenarios.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round H
+
+- Intent:
+  - Assimilate provider-routing and lifecycle-gating patterns into troubleshooting tooling contracts so eval/operators get explicit contract-version support, decision confidence, and routable remediation lanes.
+- Assimilated source files:
+  - OpenClaw: `configured-binding-match.ts`, `target-parsing.test.ts`, `status-reactions.ts`, `command-gating.test.ts`, `session.types.ts`
+  - Codex(Cline ledger): `mcp.ts`, `import-configs.ts`, `litellm.ts`, `gemini.ts`, `openrouter.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract` exposes `contract_version` and marks `next_action_lane` + `next_action_routable` deterministically.
+  - Tooling contract exposes quantitative `decision_confidence` and explicit `requires_snapshot` signal from intervention/completion/provider conditions.
+  - Troubleshooting checks now include `tooling_contract_version_supported` and `tooling_next_action_routable`.
+  - Regression coverage asserts new tooling contract/check fields in mixed continuity + tool degradation summary samples.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round I
+
+- Intent:
+  - Assimilate LLM-output anomaly and lifecycle reliability patterns into authoritative troubleshooting tooling contracts so hallucination/context-drift/no-result failures are machine-visible and routable.
+- Assimilated source files:
+  - OpenClaw: `draft-stream-loop.ts`, `inbound-debounce-policy.test.ts`, `status-reactions.slack-lifecycle.test.ts`, `conversation-label.ts`, `chat-meta.ts`
+  - Codex(Cline ledger): `SubagentMessage.tsx`, `StatusBar.tsx`, `anthropic.ts`, `openai.ts`, `groq.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract` now exposes anomaly counters (`context_mismatch_count`, `hallucination_pattern_count`, `invalid_draft_count`, `placeholder_output_count`) and derived booleans/tier (`hallucination_pattern_detected`, `placeholder_output_detected`, `llm_reliability_tier`, `llm_reliability_not_low`).
+  - Troubleshooting checks now include LLM anomaly health gates (`tooling_llm_reliability_not_low`, `tooling_hallucination_pattern_not_detected`, `tooling_placeholder_output_not_detected`).
+  - Tooling contract remediation selection now prioritizes hallucination/placeholder anomalies ahead of lower-severity routing and keeps routable lane signaling.
+  - Regression coverage asserts the new anomaly/tier/check fields for mixed continuity + tooling degradation summary samples.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round J
+
+- Intent:
+  - Assimilate message/output quality and lane lifecycle patterns into authoritative troubleshooting tooling contracts so no-result and final-response contract failures become explicit, queryable diagnostics.
+- Assimilated source files:
+  - OpenClaw: `sender-label.ts`, `thread-binding-id.ts`, `typing.ts`, `location.ts`, `ack-reactions.test.ts`
+  - Codex(Cline ledger): `ChatMessage.tsx`, `HistoryPanelContent.tsx`, `bedrock.ts`, `lmstudio.ts`, `deepseek.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract` now exposes `no_result_pattern_count`, `no_result_pattern_detected`, `final_response_contract_violation_count`, and `final_response_contract_ok`.
+  - Troubleshooting checks now include `tooling_final_response_contract_ok` and `tooling_no_result_pattern_not_detected`.
+  - Snapshot requirement now includes final-response contract integrity (`final_response_contract_ok == false` triggers snapshot requirement).
+  - Regression coverage asserts new no-result/final-response fields and corresponding check booleans in summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round K
+
+- Intent:
+  - Assimilate completion/output integrity patterns into authoritative troubleshooting tooling contracts so “completed but no answer” failures are explicit and routeable.
+- Assimilated source files:
+  - OpenClaw: `draft-stream-controls.test.ts`, `conversation-label.test.ts`, `sender-label.test.ts`, `thread-binding-id.test.ts`, `typing.test.ts`
+  - Codex(Cline ledger): `TaskProgressIndicator.tsx`, `TaskSummaryDisplay.tsx`, `grpc-recorder.ts`, `grpc-request-registry.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract` now exposes answer integrity metrics (`answer_emitted_count`, `answer_missing_after_completion_count`, `answer_contract_ok`, `answer_signal_coverage`).
+  - Final-response contract violation accounting now includes answer-missing-after-completion events.
+  - Troubleshooting checks now include `tooling_answer_contract_ok`.
+  - Remediation routing prioritizes nonempty-answer enforcement when completion-like rows have no answer payload.
+  - Regression coverage asserts new answer-integrity and updated contract-violation fields.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round L
+
+- Intent:
+  - Assimilate completion/finalization integrity patterns into authoritative troubleshooting tooling contracts so completion-without-answer and final-response anomalies are explicitly diagnosable and routeable.
+- Assimilated source files:
+  - OpenClaw: `typing-lifecycle.ts`, `draft-stream-controls.ts`, `ack-reactions.ts`, `chat-meta-shared.ts`, `draft-stream-loop.ts`
+  - Codex(Cline ledger): `TaskHeader.tsx`, `ToolCallIndicator.tsx`, `grpc-recorder/types.ts`, `grpc-recorder.ts`, `context-window-utils.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract` exposes answer-integrity/finalization anomalies including completion-without-answer counters and final-response contract violations.
+  - Troubleshooting checks expose answer-contract health and no-result/finalization signal integrity booleans.
+  - Remediation routing prioritizes nonempty-answer enforcement when completion-like rows have no answer payload.
+  - Regression coverage pins answer-integrity/finalization fields and updated contract violation totals.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round M
+
+- Intent:
+  - Assimilate readiness/blocker gate patterns into authoritative troubleshooting tooling contracts so response trust can be evaluated through one deterministic contract object.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `SessionSummary.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `retry.ts`, `grpc-request-registry.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract` exposes `response_gate` with `ready`, `blockers`, and `requires_manual_review` fields.
+  - Troubleshooting checks include `tooling_response_gate_ready` and remain consistent with response-gate readiness.
+  - Response gate blocker set includes finalization/answer/reliability/watchdog causes as applicable.
+  - Regression coverage asserts response gate readiness/manual-review/blocker fields in mixed continuity + tooling degradation summary samples.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round N
+
+- Intent:
+  - Assimilate readiness scoring/severity patterns into authoritative troubleshooting tooling contracts so response trust can be prioritized consistently.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.test.ts`, `session.test.ts`, `status-reactions.test.ts`, `command-gating.test.ts`, `stall-watchdog.test.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `FileContextTracker.ts`, `tool-call-processor.ts`, `api/index.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes deterministic `score` and `severity` fields.
+  - Troubleshooting checks now include `tooling_response_gate_not_blocked` derived from response gate severity.
+  - Response gate severity classification differentiates `ready`, `degraded`, and `blocked` based on score/readiness.
+  - Regression coverage asserts response gate score/severity and check projections for mixed degradation sample payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round O
+
+- Intent:
+  - Assimilate blocker-priority/escalation routing patterns into authoritative troubleshooting response-gate contracts so operators and eval can route failures deterministically.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `api/index.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `blocker_count`, `primary_blocker`, and `escalation_lane`.
+  - Troubleshooting checks include `tooling_response_gate_escalation_routable` and align with response-gate escalation lane semantics.
+  - Response gate maintains deterministic blocker ordering and route mapping for known blocker classes.
+  - Regression coverage asserts blocker count/primary blocker/escalation lane and escalation-routable check behavior.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round P
+
+- Intent:
+  - Assimilate contract-consistency and escalation-integrity patterns into authoritative troubleshooting response-gate contracts so blocked lanes can be audited deterministically.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `blocker_count_matches`, `primary_blocker_matches`, `escalation_contract_ok`, and `contract_consistent`.
+  - Troubleshooting checks now include `tooling_response_gate_contract_consistent`.
+  - Response-gate escalation/primary-blocker contracts remain deterministic under blocked lanes and machine-routable for operator/eval flows.
+  - Regression coverage asserts response-gate consistency booleans and check projections in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round Q
+
+- Intent:
+  - Assimilate escalation-lane integrity patterns into authoritative troubleshooting response-gate contracts so routing remains deterministic and machine-verifiable.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `escalation_lane_known` in addition to existing escalation contract fields.
+  - Troubleshooting checks now include `tooling_response_gate_escalation_lane_known`.
+  - Response-gate contract consistency now requires known escalation-lane values for blocked/degraded routing paths.
+  - Regression coverage asserts escalation-lane-known and projected check semantics in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round R
+
+- Intent:
+  - Assimilate escalation-reason integrity patterns into authoritative troubleshooting response-gate contracts so escalation routes carry machine-stable reason semantics.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `escalation_reason_code` and `escalation_reason_known`.
+  - Troubleshooting checks now include `tooling_response_gate_escalation_reason_known`.
+  - Response-gate contract consistency now requires known escalation reason semantics in addition to lane and blocker consistency.
+  - Regression coverage asserts escalation reason fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round S
+
+- Intent:
+  - Assimilate escalation-vector canonicalization patterns into authoritative troubleshooting response-gate contracts so escalation semantics are machine-keyed and auditable.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `escalation_vector_key` and `escalation_vector_known`.
+  - Troubleshooting checks now include `tooling_response_gate_escalation_vector_known`.
+  - Response-gate contract consistency now requires canonical escalation-vector key recognition.
+  - Regression coverage asserts escalation-vector fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round T
+
+- Intent:
+  - Assimilate decision-vector parity patterns into authoritative troubleshooting response-gate contracts so ready/degraded/blocked decisions are machine-keyed and verifiable.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `decision_vector_key` and `decision_vector_known`.
+  - Troubleshooting checks now include `tooling_response_gate_decision_vector_known`.
+  - Response-gate contract consistency now requires known decision-vector semantics in addition to escalation invariants.
+  - Regression coverage asserts decision-vector fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round U
+
+- Intent:
+  - Assimilate primary-blocker taxonomy integrity patterns into authoritative troubleshooting response-gate contracts so blocker identity remains deterministic and machine-checkable.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `primary_blocker_known`.
+  - Troubleshooting checks now include `tooling_response_gate_primary_blocker_known`.
+  - Response-gate contract consistency now requires primary blocker identity to be from a canonical known taxonomy.
+  - Regression coverage asserts primary-blocker-known fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round V
+
+- Intent:
+  - Assimilate blocker-lane coherence patterns into authoritative troubleshooting response-gate contracts so ready vs blocked states remain mechanically consistent.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `blockers_consistent`.
+  - Troubleshooting checks now include `tooling_response_gate_blockers_consistent`.
+  - Response-gate contract consistency now requires blocker/lane coherence across ready and blocked/degraded states.
+  - Regression coverage asserts blocker-consistency fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round W
+
+- Intent:
+  - Assimilate severity/manual-review coherence patterns into authoritative troubleshooting response-gate contracts so gate outcome semantics are mechanically self-consistent.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `severity_consistent` and `manual_review_consistent`.
+  - Troubleshooting checks now include `tooling_response_gate_severity_consistent` and `tooling_response_gate_manual_review_consistent`.
+  - Response-gate contract consistency now requires severity and manual-review coherence in addition to existing blocker/escalation invariants.
+  - Regression coverage asserts severity/manual-review consistency fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round X
+
+- Intent:
+  - Assimilate blocker-priority ordering patterns into authoritative troubleshooting response-gate contracts so primary blocker selection remains deterministic and auditable.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `primary_blocker_expected` and `blocker_priority_consistent`.
+  - Troubleshooting checks now include `tooling_response_gate_blocker_priority_consistent`.
+  - Response-gate contract consistency now requires primary blocker to match canonical blocker-priority ordering.
+  - Regression coverage asserts blocker-priority expected/consistent fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round Y
+
+- Intent:
+  - Assimilate blocker-set determinism patterns into authoritative troubleshooting response-gate contracts so all active blockers are auditable as a canonical ordered set.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `expected_blockers`, `blocker_set_key`, and `blocker_set_consistent`.
+  - Troubleshooting checks now include `tooling_response_gate_blocker_set_consistent`.
+  - Response-gate contract consistency now requires canonical blocker-set equality, not just primary blocker alignment.
+  - Regression coverage asserts blocker-set fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round Z
+
+- Intent:
+  - Assimilate blocker-set key determinism patterns into authoritative troubleshooting response-gate contracts so blocker collections can be audited with a stable keyed signature.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `expected_blocker_set_key` and `blocker_set_key_consistent`.
+  - Troubleshooting checks now include `tooling_response_gate_blocker_set_key_consistent`.
+  - Response-gate contract consistency now requires keyed blocker-set parity in addition to vector/set invariants.
+  - Regression coverage asserts blocker-set-key fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round AA
+
+- Intent:
+  - Assimilate blocker-count/key coherence patterns into authoritative troubleshooting response-gate contracts so blocker cardinality and keyed representation cannot drift.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `blocker_count_key_consistent`.
+  - Troubleshooting checks now include `tooling_response_gate_blocker_count_key_consistent`.
+  - Response-gate contract consistency now requires blocker count to remain coherent with blocker-set key shape (`none` iff count is zero).
+  - Regression coverage asserts blocker-count/key consistency fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round AB
+
+- Intent:
+  - Assimilate blocker-count parity patterns into authoritative troubleshooting response-gate contracts so blocker cardinality and expected blocker set remain mechanically aligned.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `expected_blocker_count` and `expected_blocker_count_matches`.
+  - Troubleshooting checks now include `tooling_response_gate_expected_blocker_count_matches`.
+  - Response-gate contract consistency now requires expected blocker count to match active blocker count.
+  - Regression coverage asserts expected-blocker-count fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round AC
+
+- Intent:
+  - Assimilate blocker-vector determinism patterns into authoritative troubleshooting response-gate contracts so blocker count, blocker set, and primary blocker cannot drift independently.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `blocker_vector_key`, `expected_blocker_vector_key`, and `blocker_vector_consistent`.
+  - Troubleshooting checks now include `tooling_response_gate_blocker_vector_consistent`.
+  - Response-gate contract consistency now requires blocker-vector parity in addition to blocker count/set/priority invariants.
+  - Regression coverage asserts blocker-vector fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round AD
+
+- Intent:
+  - Assimilate response-signature determinism patterns into authoritative troubleshooting response-gate contracts so full gate state (severity, blocker, escalation, and blocker set) remains auditable as one canonical signature.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `signature_key`, `expected_signature_key`, and `signature_consistent`.
+  - Troubleshooting checks now include `tooling_response_gate_signature_consistent`.
+  - Response-gate contract consistency now requires signature parity in addition to blocker vector/count/set/priority invariants.
+  - Regression coverage asserts signature fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round AE
+
+- Intent:
+  - Assimilate blocker-flag parity patterns into authoritative troubleshooting response-gate contracts so blocker membership remains consistent with core contract failure flags.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `blocker_flags_key`, `expected_blocker_flags_key`, and `blocker_flags_consistent`.
+  - Troubleshooting checks now include `tooling_response_gate_blocker_flags_consistent`.
+  - Response-gate contract consistency now requires blocker-flag parity in addition to signature/vector/count/set invariants.
+  - Regression coverage asserts blocker-flag fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round AF
+
+- Intent:
+  - Assimilate escalation-signature determinism patterns into authoritative troubleshooting response-gate contracts so escalation blocker/lane/reason triplets remain coherent with canonical expected routes.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `expected_escalation_vector_key` and `escalation_signature_consistent`.
+  - Troubleshooting checks now include `tooling_response_gate_escalation_signature_consistent`.
+  - Response-gate contract consistency now requires escalation-signature parity in addition to signature/vector/count/set/flag invariants.
+  - Regression coverage asserts escalation-signature fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round AG
+
+- Intent:
+  - Assimilate decision-signature determinism patterns into authoritative troubleshooting response-gate contracts so decision vectors remain coherent with expected severity and ready/manual-review state.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `expected_decision_vector_key` and `decision_signature_consistent`.
+  - Troubleshooting checks now include `tooling_response_gate_decision_signature_consistent`.
+  - Response-gate contract consistency now requires decision-signature parity in addition to escalation/signature/vector/count/set/flag invariants.
+  - Regression coverage asserts decision-signature fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round AH
+
+- Intent:
+  - Assimilate blocker-budget determinism patterns into authoritative troubleshooting response-gate contracts so blocker cardinality remains within canonical policy bounds.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `blocker_budget_max` and `blocker_budget_consistent`.
+  - Troubleshooting checks now include `tooling_response_gate_blocker_budget_consistent`.
+  - Response-gate contract consistency now requires blocker-budget parity in addition to decision/escalation/signature/vector/count/set/flag invariants.
+  - Regression coverage asserts blocker-budget fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round AI
+
+- Intent:
+  - Assimilate manual-review signature parity patterns into authoritative troubleshooting response-gate contracts so manual-review requirements stay coherent with expected severity-derived review state.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `expected_requires_manual_review` and `manual_review_signature_consistent`.
+  - Troubleshooting checks now include `tooling_response_gate_manual_review_signature_consistent`.
+  - Response-gate contract consistency now requires manual-review signature parity in addition to blocker budget/decision/escalation/signature/vector/count/set/flag invariants.
+  - Regression coverage asserts manual-review-signature fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round AJ
+
+- Intent:
+  - Assimilate manual-review reason parity patterns into authoritative troubleshooting response-gate contracts so manual-review rationale remains deterministic and severity-aligned.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `manual_review_reason`, `expected_manual_review_reason`, and `manual_review_reason_consistent`.
+  - Troubleshooting checks now include `tooling_response_gate_manual_review_reason_consistent`.
+  - Response-gate contract consistency now requires manual-review reason parity in addition to existing signature/vector/count/set/flag invariants.
+  - Regression coverage asserts manual-review-reason fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round AK
+
+- Intent:
+  - Assimilate manual-review reason taxonomy integrity patterns into authoritative troubleshooting response-gate contracts so manual-review rationale remains known and fail-closed.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `manual_review_reason_known`.
+  - Troubleshooting checks now include `tooling_response_gate_manual_review_reason_known`.
+  - Response-gate contract consistency now requires manual-review reason taxonomy integrity in addition to existing parity/signature invariants.
+  - Regression coverage asserts manual-review-reason-known fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round AL
+
+- Intent:
+  - Assimilate manual-review vector determinism patterns into authoritative troubleshooting response-gate contracts so manual-review requirement + reason stay coherent as a canonical pair.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `manual_review_vector_key`, `expected_manual_review_vector_key`, and `manual_review_vector_consistent`.
+  - Troubleshooting checks now include `tooling_response_gate_manual_review_vector_consistent`.
+  - Response-gate contract consistency now requires manual-review vector parity in addition to existing signature/vector/count/set/flag invariants.
+  - Regression coverage asserts manual-review-vector fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round AM
+
+- Intent:
+  - Assimilate manual-review vector taxonomy integrity patterns into authoritative troubleshooting response-gate contracts so manual-review vectors stay constrained to canonical known forms.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `manual_review_vector_known`.
+  - Troubleshooting checks now include `tooling_response_gate_manual_review_vector_known`.
+  - Response-gate contract consistency now requires manual-review vector taxonomy integrity in addition to existing parity/signature invariants.
+  - Regression coverage asserts manual-review-vector-known fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round AN
+
+- Intent:
+  - Assimilate response-gate score consistency patterns into authoritative troubleshooting contracts so weighted gate scoring remains deterministic and auditable.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `expected_score` and `score_consistent`.
+  - Troubleshooting checks now include `tooling_response_gate_score_consistent`.
+  - Response-gate contract consistency now requires score parity in addition to existing signature/vector/count/set/flag/manual-review invariants.
+  - Regression coverage asserts score consistency fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round AO
+
+- Intent:
+  - Assimilate response-gate score-vector determinism patterns into authoritative troubleshooting contracts so score+severity coherence is auditable as a canonical vector.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `score_vector_key`, `expected_score_vector_key`, and `score_vector_consistent`.
+  - Troubleshooting checks now include `tooling_response_gate_score_vector_consistent`.
+  - Response-gate contract consistency now requires score-vector parity in addition to existing score/signature/vector/count/set/flag/manual-review invariants.
+  - Regression coverage asserts score-vector fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round AP
+
+- Intent:
+  - Assimilate response-gate score-band determinism patterns into authoritative troubleshooting contracts so score normalization buckets remain deterministic and auditable.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `score_band`, `expected_score_band`, and `score_band_consistent`.
+  - Troubleshooting checks now include `tooling_response_gate_score_band_consistent`.
+  - Response-gate contract consistency now requires score-band parity in addition to score/signature/vector/count/set/flag/manual-review invariants.
+  - Regression coverage asserts score-band fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round AQ
+
+- Intent:
+  - Assimilate response-gate score-band taxonomy integrity patterns into authoritative troubleshooting contracts so score-band values remain canonical and fail-closed.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `score_band_known`.
+  - Troubleshooting checks now include `tooling_response_gate_score_band_known`.
+  - Response-gate contract consistency now requires score-band taxonomy integrity in addition to existing score/signature/vector/count/set/flag/manual-review invariants.
+  - Regression coverage asserts score-band-known fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round AR
+
+- Intent:
+  - Assimilate response-gate score-band-vector determinism patterns into authoritative troubleshooting contracts so score-band and score-value coherence is auditable as one canonical vector.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `score_band_vector_key`, `expected_score_band_vector_key`, and `score_band_vector_consistent`.
+  - Troubleshooting checks now include `tooling_response_gate_score_band_vector_consistent`.
+  - Response-gate contract consistency now requires score-band-vector parity in addition to existing score-band/score/signature/vector/count/set/flag/manual-review invariants.
+  - Regression coverage asserts score-band-vector fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round AS
+
+- Intent:
+  - Assimilate response-gate score-band severity parity patterns into authoritative troubleshooting contracts so score bands map deterministically to severity tiers.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `expected_severity_from_score_band` and `score_band_severity_consistent`.
+  - Troubleshooting checks now include `tooling_response_gate_score_band_severity_consistent`.
+  - Response-gate contract consistency now requires score-band-to-severity parity in addition to existing score/signature/vector/count/set/flag/manual-review invariants.
+  - Regression coverage asserts score-band severity fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round AT
+
+- Intent:
+  - Assimilate response-gate score-band severity-bucket parity patterns into authoritative troubleshooting contracts so severity bands remain bounded to canonical score-band classes.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `score_band_severity_bucket_consistent`.
+  - Troubleshooting checks now include `tooling_response_gate_score_band_severity_bucket_consistent`.
+  - Response-gate contract consistency now requires score-band severity-bucket parity in addition to existing score/signature/vector/count/set/flag/manual-review invariants.
+  - Regression coverage asserts score-band severity-bucket fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-19 OpenClaw+Codex Assimilation Reliability Slice (5+5 tooling files) — Round AU
+
+- Intent:
+  - Assimilate response-gate score-band severity-bucket taxonomy patterns into authoritative troubleshooting contracts so severity bucket classes are both parity-checked and taxonomy-bounded.
+- Assimilated source files:
+  - OpenClaw: `run-state-machine.ts`, `session.ts`, `command-gating.ts`, `status-reactions.ts`, `stall-watchdog.ts`
+  - Codex(Cline ledger): `StatusBar.tsx`, `TaskProgressIndicator.tsx`, `SubagentMessage.tsx`, `ModelContextTracker.ts`, `stream.ts`
+- Acceptance criteria:
+  - Troubleshooting `recent.tooling_contract.response_gate` now exposes `score_band_severity_bucket_known`.
+  - Troubleshooting checks now include `tooling_response_gate_score_band_severity_bucket_known`.
+  - Response-gate contract consistency now requires score-band severity-bucket taxonomy integrity in addition to existing score/signature/vector/count/set/flag/manual-review invariants.
+  - Regression coverage asserts score-band severity-bucket-known fields and projected check behavior in mixed degradation summary payloads.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`

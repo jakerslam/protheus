@@ -110,6 +110,1094 @@ fn dashboard_summary_window_seconds(payload: &Value) -> i64 {
     0
 }
 
+fn dashboard_troubleshooting_recent_lane(row: &Value) -> &'static str {
+    let classification = clean_text(
+        row.pointer("/workflow/classification")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        120,
+    )
+    .to_ascii_lowercase();
+    let error_code = clean_text(
+        row.pointer("/workflow/error_code")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        160,
+    )
+    .to_ascii_lowercase();
+    let stale = row.get("stale").and_then(Value::as_bool).unwrap_or(false);
+    if classification.contains("context")
+        || classification.contains("halluc")
+        || error_code.contains("context")
+        || error_code.contains("halluc")
+    {
+        return "continuity";
+    }
+    if stale || classification.contains("stale") || error_code.contains("stale") {
+        return "liveness";
+    }
+    if classification.contains("lifecycle")
+        || error_code.starts_with("agent_")
+        || error_code.starts_with("gateway_")
+    {
+        return "lifecycle";
+    }
+    if classification.contains("tool")
+        || classification.contains("provider")
+        || error_code.starts_with("web_")
+        || error_code.contains("provider")
+    {
+        return "tool_completion";
+    }
+    "e2e"
+}
+
+fn dashboard_troubleshooting_recent_lane_health(rows: &[Value]) -> Value {
+    let lanes = ["continuity", "tool_completion", "liveness", "lifecycle", "e2e"];
+    let mut totals = HashMap::<&'static str, i64>::new();
+    let mut failed = HashMap::<&'static str, i64>::new();
+    for lane in lanes {
+        totals.insert(lane, 0);
+        failed.insert(lane, 0);
+    }
+    for row in rows {
+        let lane = dashboard_troubleshooting_recent_lane(row);
+        *totals.entry(lane).or_insert(0) += 1;
+        if dashboard_troubleshooting_exchange_failed(row) {
+            *failed.entry(lane).or_insert(0) += 1;
+        }
+    }
+    let mut out = serde_json::Map::<String, Value>::new();
+    for lane in lanes {
+        let total = totals.get(lane).copied().unwrap_or(0).max(0);
+        let failed_count = failed.get(lane).copied().unwrap_or(0).max(0);
+        let passed = total.saturating_sub(failed_count);
+        out.insert(
+            lane.to_string(),
+            json!({
+                "total": total,
+                "failed": failed_count,
+                "passed": passed,
+                "ok": failed_count == 0
+            }),
+        );
+    }
+    Value::Object(out)
+}
+
+fn dashboard_troubleshooting_recent_recovery_hints(
+    lane_health: &Value,
+    severity_tier: &str,
+) -> Vec<Value> {
+    let lane_failed = |lane: &str| -> bool {
+        lane_health
+            .pointer(&format!("/{lane}/failed"))
+            .and_then(Value::as_i64)
+            .unwrap_or(0)
+            > 0
+    };
+    let mut hints = Vec::<Value>::new();
+    if lane_failed("continuity") {
+        hints.push(Value::String(
+            "Continuity lane degraded: tighten recent-context compatibility checks before synthesis."
+                .to_string(),
+        ));
+    }
+    if lane_failed("tool_completion") {
+        hints.push(Value::String(
+            "Tool completion lane degraded: verify web tool request/response contracts and retry reasons."
+                .to_string(),
+        ));
+    }
+    if lane_failed("liveness") {
+        hints.push(Value::String(
+            "Liveness lane degraded: inspect stale/freshness contract propagation and roster visibility."
+                .to_string(),
+        ));
+    }
+    if lane_failed("lifecycle") {
+        hints.push(Value::String(
+            "Lifecycle lane degraded: re-check agent permission and terminal policy gates.".to_string(),
+        ));
+    }
+    if lane_failed("e2e") {
+        hints.push(Value::String(
+            "E2E lane degraded: inspect recent exchange traces and replay fail-closed paths."
+                .to_string(),
+        ));
+    }
+    if severity_tier == "high" {
+        hints.push(Value::String(
+            "High severity cluster: capture snapshot + enqueue eval before next retry wave."
+                .to_string(),
+        ));
+    }
+    if hints.is_empty() {
+        hints.push(Value::String(
+            "Recent troubleshooting health is stable: no failing lanes detected.".to_string(),
+        ));
+    }
+    hints
+}
+
+fn dashboard_troubleshooting_recent_health_checks(
+    lane_health: &Value,
+    latest_loop_level: &str,
+    entry_count: usize,
+    filtered_out_count: usize,
+    total_entry_count: usize,
+    stale_rate: f64,
+    queue_pressure_tier: &str,
+    tooling_gate_ok: bool,
+    provider_resolution_ok: bool,
+    tooling_watchdog_not_triggered: bool,
+    tooling_completion_signal_ok: bool,
+    tooling_manual_intervention_not_required: bool,
+    tooling_contract_version_supported: bool,
+    tooling_next_action_routable: bool,
+    tooling_llm_reliability_not_low: bool,
+    tooling_hallucination_pattern_not_detected: bool,
+    tooling_placeholder_output_not_detected: bool,
+    tooling_final_response_contract_ok: bool,
+    tooling_no_result_pattern_not_detected: bool,
+    tooling_answer_contract_ok: bool,
+    tooling_response_gate_ready: bool,
+    tooling_response_gate_not_blocked: bool,
+    tooling_response_gate_score_consistent: bool,
+    tooling_response_gate_score_band_consistent: bool,
+    tooling_response_gate_score_band_known: bool,
+    tooling_response_gate_score_vector_consistent: bool,
+    tooling_response_gate_score_band_vector_consistent: bool,
+    tooling_response_gate_score_band_severity_consistent: bool,
+    tooling_response_gate_score_band_severity_bucket_consistent: bool,
+    tooling_response_gate_score_band_severity_bucket_known: bool,
+    tooling_response_gate_escalation_routable: bool,
+    tooling_response_gate_escalation_lane_known: bool,
+    tooling_response_gate_escalation_reason_known: bool,
+    tooling_response_gate_escalation_vector_known: bool,
+    tooling_response_gate_escalation_signature_consistent: bool,
+    tooling_response_gate_decision_vector_known: bool,
+    tooling_response_gate_decision_signature_consistent: bool,
+    tooling_response_gate_blocker_budget_consistent: bool,
+    tooling_response_gate_manual_review_signature_consistent: bool,
+    tooling_response_gate_manual_review_reason_consistent: bool,
+    tooling_response_gate_manual_review_reason_known: bool,
+    tooling_response_gate_manual_review_vector_consistent: bool,
+    tooling_response_gate_manual_review_vector_known: bool,
+    tooling_response_gate_primary_blocker_known: bool,
+    tooling_response_gate_blockers_consistent: bool,
+    tooling_response_gate_severity_consistent: bool,
+    tooling_response_gate_manual_review_consistent: bool,
+    tooling_response_gate_blocker_priority_consistent: bool,
+    tooling_response_gate_blocker_set_consistent: bool,
+    tooling_response_gate_blocker_set_key_consistent: bool,
+    tooling_response_gate_blocker_count_key_consistent: bool,
+    tooling_response_gate_expected_blocker_count_matches: bool,
+    tooling_response_gate_blocker_vector_consistent: bool,
+    tooling_response_gate_signature_consistent: bool,
+    tooling_response_gate_blocker_flags_consistent: bool,
+    tooling_response_gate_contract_consistent: bool,
+) -> Value {
+    let lanes = ["continuity", "tool_completion", "liveness", "lifecycle", "e2e"];
+    let lane_health_ok = lanes.iter().all(|lane| {
+        lane_health
+            .pointer(&format!("/{lane}/ok"))
+            .and_then(Value::as_bool)
+            .unwrap_or(true)
+    });
+    let window_consistent = entry_count.saturating_add(filtered_out_count) == total_entry_count;
+    json!({
+        "lane_health_ok": lane_health_ok,
+        "critical_loop_absent": clean_text(latest_loop_level, 40) != "critical",
+        "window_consistent": window_consistent,
+        "stale_rate_ok": stale_rate <= 0.6,
+        "queue_pressure_not_high": clean_text(queue_pressure_tier, 40) != "high",
+        "tooling_gate_ok": tooling_gate_ok,
+        "provider_resolution_ok": provider_resolution_ok,
+        "tooling_watchdog_not_triggered": tooling_watchdog_not_triggered,
+        "tooling_completion_signal_ok": tooling_completion_signal_ok,
+        "tooling_manual_intervention_not_required": tooling_manual_intervention_not_required,
+        "tooling_contract_version_supported": tooling_contract_version_supported,
+        "tooling_next_action_routable": tooling_next_action_routable,
+        "tooling_llm_reliability_not_low": tooling_llm_reliability_not_low,
+        "tooling_hallucination_pattern_not_detected": tooling_hallucination_pattern_not_detected,
+        "tooling_placeholder_output_not_detected": tooling_placeholder_output_not_detected,
+        "tooling_final_response_contract_ok": tooling_final_response_contract_ok,
+        "tooling_no_result_pattern_not_detected": tooling_no_result_pattern_not_detected,
+        "tooling_answer_contract_ok": tooling_answer_contract_ok,
+        "tooling_response_gate_ready": tooling_response_gate_ready,
+        "tooling_response_gate_not_blocked": tooling_response_gate_not_blocked,
+        "tooling_response_gate_score_consistent": tooling_response_gate_score_consistent,
+        "tooling_response_gate_score_band_consistent": tooling_response_gate_score_band_consistent,
+        "tooling_response_gate_score_band_known": tooling_response_gate_score_band_known,
+        "tooling_response_gate_score_vector_consistent": tooling_response_gate_score_vector_consistent,
+        "tooling_response_gate_score_band_vector_consistent": tooling_response_gate_score_band_vector_consistent,
+        "tooling_response_gate_score_band_severity_consistent": tooling_response_gate_score_band_severity_consistent,
+        "tooling_response_gate_score_band_severity_bucket_consistent": tooling_response_gate_score_band_severity_bucket_consistent,
+        "tooling_response_gate_score_band_severity_bucket_known": tooling_response_gate_score_band_severity_bucket_known,
+        "tooling_response_gate_escalation_routable": tooling_response_gate_escalation_routable,
+        "tooling_response_gate_escalation_lane_known": tooling_response_gate_escalation_lane_known,
+        "tooling_response_gate_escalation_reason_known": tooling_response_gate_escalation_reason_known,
+        "tooling_response_gate_escalation_vector_known": tooling_response_gate_escalation_vector_known,
+        "tooling_response_gate_escalation_signature_consistent": tooling_response_gate_escalation_signature_consistent,
+        "tooling_response_gate_decision_vector_known": tooling_response_gate_decision_vector_known,
+        "tooling_response_gate_decision_signature_consistent": tooling_response_gate_decision_signature_consistent,
+        "tooling_response_gate_blocker_budget_consistent": tooling_response_gate_blocker_budget_consistent,
+        "tooling_response_gate_manual_review_signature_consistent": tooling_response_gate_manual_review_signature_consistent,
+        "tooling_response_gate_manual_review_reason_consistent": tooling_response_gate_manual_review_reason_consistent,
+        "tooling_response_gate_manual_review_reason_known": tooling_response_gate_manual_review_reason_known,
+        "tooling_response_gate_manual_review_vector_consistent": tooling_response_gate_manual_review_vector_consistent,
+        "tooling_response_gate_manual_review_vector_known": tooling_response_gate_manual_review_vector_known,
+        "tooling_response_gate_primary_blocker_known": tooling_response_gate_primary_blocker_known,
+        "tooling_response_gate_blockers_consistent": tooling_response_gate_blockers_consistent,
+        "tooling_response_gate_severity_consistent": tooling_response_gate_severity_consistent,
+        "tooling_response_gate_manual_review_consistent": tooling_response_gate_manual_review_consistent,
+        "tooling_response_gate_blocker_priority_consistent": tooling_response_gate_blocker_priority_consistent,
+        "tooling_response_gate_blocker_set_consistent": tooling_response_gate_blocker_set_consistent,
+        "tooling_response_gate_blocker_set_key_consistent": tooling_response_gate_blocker_set_key_consistent,
+        "tooling_response_gate_blocker_count_key_consistent": tooling_response_gate_blocker_count_key_consistent,
+        "tooling_response_gate_expected_blocker_count_matches": tooling_response_gate_expected_blocker_count_matches,
+        "tooling_response_gate_blocker_vector_consistent": tooling_response_gate_blocker_vector_consistent,
+        "tooling_response_gate_signature_consistent": tooling_response_gate_signature_consistent,
+        "tooling_response_gate_blocker_flags_consistent": tooling_response_gate_blocker_flags_consistent,
+        "tooling_response_gate_contract_consistent": tooling_response_gate_contract_consistent
+    })
+}
+
+fn dashboard_troubleshooting_recent_tooling_contract(rows: &[Value]) -> Value {
+    let mut tool_lane_rows = 0_i64;
+    let mut execution_attempted_count = 0_i64;
+    let mut execution_skipped_count = 0_i64;
+    let mut provider_resolved_count = 0_i64;
+    let mut provider_missing_count = 0_i64;
+    let mut policy_block_count = 0_i64;
+    let mut meta_block_count = 0_i64;
+    let mut unknown_provider_count = 0_i64;
+    let mut watchdog_warning_count = 0_i64;
+    let mut watchdog_critical_count = 0_i64;
+    let mut completion_signal_missing_count = 0_i64;
+    let mut context_mismatch_count = 0_i64;
+    let mut hallucination_pattern_count = 0_i64;
+    let mut invalid_draft_count = 0_i64;
+    let mut placeholder_output_count = 0_i64;
+    let mut no_result_pattern_count = 0_i64;
+    let mut answer_emitted_count = 0_i64;
+    let mut answer_missing_after_completion_count = 0_i64;
+
+    for row in rows {
+        let lane = dashboard_troubleshooting_recent_lane(row);
+        let classification = clean_text(
+            row.pointer("/workflow/classification")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            120,
+        )
+        .to_ascii_lowercase();
+        let error_code = clean_text(
+            row.pointer("/workflow/error_code")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            160,
+        )
+        .to_ascii_lowercase();
+        let transaction_status = clean_text(
+            row.pointer("/workflow/transaction_status")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            40,
+        )
+        .to_ascii_lowercase();
+        let output_text = [
+            "/workflow/final_response_text",
+            "/workflow/final_response",
+            "/workflow/assistant_response",
+            "/workflow/response_text",
+            "/workflow/output_text",
+            "/assistant_text",
+            "/message_text",
+        ]
+        .iter()
+        .find_map(|pointer| row.pointer(pointer).and_then(Value::as_str))
+        .map(|raw| clean_text(raw, 240).to_ascii_lowercase())
+        .unwrap_or_default();
+        if !output_text.is_empty() {
+            answer_emitted_count += 1;
+        }
+        let completion_like = matches!(transaction_status.as_str(), "completed" | "success")
+            || classification.contains("response_synth")
+            || classification.contains("synthesized");
+        if completion_like && output_text.is_empty() {
+            answer_missing_after_completion_count += 1;
+        }
+        if classification.contains("context") || error_code.contains("context") {
+            context_mismatch_count += 1;
+        }
+        if classification.contains("halluc")
+            || error_code.contains("halluc")
+            || output_text.contains("<｜begin")
+            || output_text.contains("patch v2")
+        {
+            hallucination_pattern_count += 1;
+        }
+        if classification.contains("invalid_draft") || error_code.contains("invalid_draft") {
+            invalid_draft_count += 1;
+        }
+        if output_text.contains("i'll get you an update")
+            || output_text.contains("would you like me to try")
+            || output_text.contains("no results were returned")
+            || output_text.contains("no search was actually performed")
+        {
+            placeholder_output_count += 1;
+        }
+        if output_text.contains("low-signal or no-result")
+            || output_text.contains("low-signal or no result")
+            || output_text.contains("low signal or no result")
+            || output_text.contains("tool path ran, but this turn only produced low-signal")
+            || output_text.contains("search request entirely blocked")
+            || output_text.contains("web search was blocked")
+        {
+            no_result_pattern_count += 1;
+        }
+
+        let tooling_lane = lane == "tool_completion"
+            || classification.contains("tool")
+            || classification.contains("provider")
+            || error_code.starts_with("web_")
+            || error_code.contains("provider")
+            || error_code.contains("tool");
+        if !tooling_lane {
+            continue;
+        }
+        tool_lane_rows += 1;
+
+        let tool_execution_attempted = row
+            .pointer("/workflow/tooling/tool_execution_attempted")
+            .and_then(Value::as_bool)
+            .or_else(|| {
+                row.pointer("/workflow/tool_execution_attempted")
+                    .and_then(Value::as_bool)
+            })
+            .or_else(|| {
+                row.pointer("/tooling/tool_execution_attempted")
+                    .and_then(Value::as_bool)
+            })
+            .unwrap_or(!matches!(
+                transaction_status.as_str(),
+                "not_started" | "skipped" | "none"
+            ));
+
+        if tool_execution_attempted {
+            execution_attempted_count += 1;
+        } else {
+            execution_skipped_count += 1;
+        }
+
+        let completion_signal = clean_text(
+            row.pointer("/workflow/completion_signal")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            80,
+        );
+        if completion_signal.is_empty() {
+            completion_signal_missing_count += 1;
+        }
+
+        let provider = clean_text(
+            row.pointer("/workflow/tooling/provider")
+                .and_then(Value::as_str)
+                .or_else(|| row.pointer("/workflow/provider").and_then(Value::as_str))
+                .or_else(|| row.pointer("/tooling/provider").and_then(Value::as_str))
+                .unwrap_or(""),
+            120,
+        )
+        .to_ascii_lowercase();
+        if provider.is_empty() || matches!(provider.as_str(), "auto" | "unknown" | "none") {
+            provider_missing_count += 1;
+        } else {
+            provider_resolved_count += 1;
+        }
+
+        if error_code.contains("policy")
+            || error_code.contains("permission")
+            || error_code.contains("auth_missing")
+        {
+            policy_block_count += 1;
+        }
+        if error_code.contains("meta_query")
+            || error_code.contains("non_search_meta_query")
+            || error_code.contains("non_fetch_meta_query")
+        {
+            meta_block_count += 1;
+        }
+        if error_code.contains("unknown_search_provider")
+            || error_code.contains("unknown_fetch_provider")
+            || error_code.contains("unknown_provider")
+        {
+            unknown_provider_count += 1;
+        }
+
+        let loop_level = clean_text(
+            row.pointer("/loop_detection/level")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            40,
+        )
+        .to_ascii_lowercase();
+        if loop_level == "critical" {
+            watchdog_critical_count += 1;
+        } else if loop_level == "warning" {
+            watchdog_warning_count += 1;
+        }
+    }
+
+    let provider_resolution_ok =
+        tool_lane_rows == 0 || provider_resolved_count >= provider_missing_count;
+    let completion_signal_ok =
+        tool_lane_rows == 0 || completion_signal_missing_count.saturating_mul(2) < tool_lane_rows;
+    let watchdog_triggered = watchdog_critical_count > 0 || watchdog_warning_count >= 2;
+    let hallucination_pattern_detected = hallucination_pattern_count > 0 || invalid_draft_count > 0;
+    let placeholder_output_detected = placeholder_output_count > 0;
+    let no_result_pattern_detected = no_result_pattern_count > 0;
+    let llm_reliability_tier = if hallucination_pattern_detected
+        || placeholder_output_count >= 2
+        || context_mismatch_count >= 2
+        || no_result_pattern_count >= 2
+    {
+        "low"
+    } else if context_mismatch_count > 0 || placeholder_output_detected || no_result_pattern_detected
+    {
+        "medium"
+    } else {
+        "high"
+    };
+    let llm_reliability_not_low = llm_reliability_tier != "low";
+    let answer_contract_ok = answer_missing_after_completion_count == 0;
+    let answer_signal_coverage = if rows.is_empty() {
+        1.0
+    } else {
+        (answer_emitted_count as f64 / rows.len() as f64).clamp(0.0, 1.0)
+    };
+    let answer_signal_coverage = (answer_signal_coverage * 10_000.0).round() / 10_000.0;
+    let final_response_contract_violation_count = completion_signal_missing_count
+        .saturating_add(invalid_draft_count)
+        .saturating_add(hallucination_pattern_count)
+        .saturating_add(placeholder_output_count)
+        .saturating_add(no_result_pattern_count)
+        .saturating_add(answer_missing_after_completion_count);
+    let final_response_contract_ok = final_response_contract_violation_count == 0;
+    let response_gate_ready = final_response_contract_ok
+        && answer_contract_ok
+        && llm_reliability_not_low
+        && !watchdog_triggered;
+    let response_gate_score = {
+        let mut score = 1.0_f64;
+        if !final_response_contract_ok {
+            score -= 0.35;
+        }
+        if !answer_contract_ok {
+            score -= 0.35;
+        }
+        if !llm_reliability_not_low {
+            score -= 0.20;
+        }
+        if watchdog_triggered {
+            score -= 0.10;
+        }
+        (score.clamp(0.0, 1.0) * 10_000.0).round() / 10_000.0
+    };
+    let response_gate_expected_score = {
+        let mut score = 1.0_f64;
+        if !final_response_contract_ok {
+            score -= 0.35;
+        }
+        if !answer_contract_ok {
+            score -= 0.35;
+        }
+        if !llm_reliability_not_low {
+            score -= 0.20;
+        }
+        if watchdog_triggered {
+            score -= 0.10;
+        }
+        (score.clamp(0.0, 1.0) * 10_000.0).round() / 10_000.0
+    };
+    let response_gate_score_consistent =
+        (response_gate_score - response_gate_expected_score).abs() <= 0.0001;
+    let response_gate_severity = if response_gate_ready {
+        "ready"
+    } else if response_gate_score >= 0.6 {
+        "degraded"
+    } else {
+        "blocked"
+    };
+    let response_gate_expected_severity = if response_gate_ready {
+        "ready"
+    } else if response_gate_score >= 0.6 {
+        "degraded"
+    } else {
+        "blocked"
+    };
+    let response_gate_score_band = if response_gate_ready {
+        "ready"
+    } else if response_gate_score >= 0.75 {
+        "strong"
+    } else if response_gate_score >= 0.5 {
+        "watch"
+    } else if response_gate_score >= 0.25 {
+        "weak"
+    } else {
+        "critical"
+    };
+    let response_gate_expected_score_band = if response_gate_expected_severity == "ready" {
+        "ready"
+    } else if response_gate_expected_score >= 0.75 {
+        "strong"
+    } else if response_gate_expected_score >= 0.5 {
+        "watch"
+    } else if response_gate_expected_score >= 0.25 {
+        "weak"
+    } else {
+        "critical"
+    };
+    let response_gate_score_band_consistent =
+        response_gate_score_band == response_gate_expected_score_band;
+    let response_gate_score_band_known = matches!(
+        response_gate_score_band,
+        "ready" | "strong" | "watch" | "weak" | "critical"
+    );
+    let response_gate_score_vector_key = format!(
+        "score={:.4};severity={}",
+        response_gate_score, response_gate_severity
+    );
+    let response_gate_expected_score_vector_key = format!(
+        "score={:.4};severity={}",
+        response_gate_expected_score, response_gate_expected_severity
+    );
+    let response_gate_score_vector_consistent =
+        response_gate_score_vector_key == response_gate_expected_score_vector_key;
+    let response_gate_score_band_vector_key = format!(
+        "band={};score={:.4}",
+        response_gate_score_band, response_gate_score
+    );
+    let response_gate_expected_score_band_vector_key = format!(
+        "band={};score={:.4}",
+        response_gate_expected_score_band, response_gate_expected_score
+    );
+    let response_gate_score_band_vector_consistent =
+        response_gate_score_band_vector_key == response_gate_expected_score_band_vector_key;
+    let response_gate_expected_severity_from_score_band = if response_gate_score_band == "ready" {
+        "ready"
+    } else if matches!(response_gate_score_band, "strong" | "watch") {
+        "degraded"
+    } else {
+        "blocked"
+    };
+    let response_gate_score_band_severity_consistent =
+        response_gate_severity == response_gate_expected_severity_from_score_band;
+    let response_gate_score_band_severity_bucket_consistent = if response_gate_severity == "ready" {
+        response_gate_score_band == "ready"
+    } else if response_gate_severity == "degraded" {
+        matches!(response_gate_score_band, "strong" | "watch")
+    } else {
+        matches!(response_gate_score_band, "weak" | "critical")
+    };
+    let response_gate_score_band_severity_bucket_known = matches!(
+        format!("{}|{}", response_gate_severity, response_gate_score_band).as_str(),
+        "ready|ready"
+            | "degraded|strong"
+            | "degraded|watch"
+            | "blocked|weak"
+            | "blocked|critical"
+    );
+    let response_gate_blockers = [
+        (!final_response_contract_ok, "final_response_contract"),
+        (!answer_contract_ok, "answer_contract"),
+        (!llm_reliability_not_low, "llm_reliability"),
+        (watchdog_triggered, "watchdog"),
+    ]
+    .iter()
+    .filter_map(|(failed, label)| if *failed { Some((*label).to_string()) } else { None })
+    .collect::<Vec<_>>();
+    let response_gate_expected_blockers = [
+        (!final_response_contract_ok, "final_response_contract"),
+        (!answer_contract_ok, "answer_contract"),
+        (!llm_reliability_not_low, "llm_reliability"),
+        (watchdog_triggered, "watchdog"),
+    ]
+    .iter()
+    .filter_map(|(failed, label)| if *failed { Some((*label).to_string()) } else { None })
+    .collect::<Vec<_>>();
+    let response_gate_blocker_set_consistent = response_gate_blockers == response_gate_expected_blockers;
+    let response_gate_blocker_set_key = if response_gate_blockers.is_empty() {
+        "none".to_string()
+    } else {
+        response_gate_blockers.join("|")
+    };
+    let response_gate_expected_blocker_set_key = if response_gate_expected_blockers.is_empty() {
+        "none".to_string()
+    } else {
+        response_gate_expected_blockers.join("|")
+    };
+    let response_gate_blocker_set_key_consistent =
+        response_gate_blocker_set_key == response_gate_expected_blocker_set_key;
+    let response_gate_blocker_count = response_gate_blockers.len() as i64;
+    let response_gate_blocker_count_key_consistent =
+        if response_gate_blocker_count == 0 {
+            response_gate_blocker_set_key == "none"
+        } else {
+            response_gate_blocker_set_key != "none"
+        };
+    let response_gate_expected_blocker_count = response_gate_expected_blockers.len() as i64;
+    let response_gate_expected_blocker_count_matches =
+        response_gate_expected_blocker_count == response_gate_blocker_count;
+    let response_gate_blocker_budget_max = 4_i64;
+    let response_gate_blocker_budget_consistent = response_gate_blocker_count >= 0
+        && response_gate_expected_blocker_count >= 0
+        && response_gate_blocker_count <= response_gate_blocker_budget_max
+        && response_gate_expected_blocker_count <= response_gate_blocker_budget_max;
+    let response_gate_blocker_has_final_response_contract = response_gate_blockers
+        .iter()
+        .any(|row| row == "final_response_contract");
+    let response_gate_blocker_has_answer_contract =
+        response_gate_blockers.iter().any(|row| row == "answer_contract");
+    let response_gate_blocker_has_llm_reliability =
+        response_gate_blockers.iter().any(|row| row == "llm_reliability");
+    let response_gate_blocker_has_watchdog = response_gate_blockers.iter().any(|row| row == "watchdog");
+    let response_gate_blocker_flags_key = format!(
+        "final_response_contract={};answer_contract={};llm_reliability={};watchdog={}",
+        response_gate_blocker_has_final_response_contract,
+        response_gate_blocker_has_answer_contract,
+        response_gate_blocker_has_llm_reliability,
+        response_gate_blocker_has_watchdog
+    );
+    let response_gate_expected_blocker_flags_key = format!(
+        "final_response_contract={};answer_contract={};llm_reliability={};watchdog={}",
+        !final_response_contract_ok,
+        !answer_contract_ok,
+        !llm_reliability_not_low,
+        watchdog_triggered
+    );
+    let response_gate_blocker_flags_consistent = response_gate_blocker_flags_key
+        == response_gate_expected_blocker_flags_key
+        && response_gate_blocker_count
+            == i64::from(response_gate_blocker_has_final_response_contract)
+                + i64::from(response_gate_blocker_has_answer_contract)
+                + i64::from(response_gate_blocker_has_llm_reliability)
+                + i64::from(response_gate_blocker_has_watchdog);
+    let response_gate_primary_blocker = response_gate_blockers
+        .first()
+        .map(|row| row.as_str())
+        .unwrap_or("none");
+    let response_gate_primary_blocker_expected = if !final_response_contract_ok {
+        "final_response_contract"
+    } else if !answer_contract_ok {
+        "answer_contract"
+    } else if !llm_reliability_not_low {
+        "llm_reliability"
+    } else if watchdog_triggered {
+        "watchdog"
+    } else {
+        "none"
+    };
+    let response_gate_blocker_priority_consistent =
+        response_gate_primary_blocker == response_gate_primary_blocker_expected;
+    let response_gate_blocker_vector_key = format!(
+        "count={};set={};primary={}",
+        response_gate_blocker_count, response_gate_blocker_set_key, response_gate_primary_blocker
+    );
+    let response_gate_expected_blocker_vector_key = format!(
+        "count={};set={};primary={}",
+        response_gate_expected_blocker_count,
+        response_gate_expected_blocker_set_key,
+        response_gate_primary_blocker_expected
+    );
+    let response_gate_blocker_vector_consistent =
+        response_gate_blocker_vector_key == response_gate_expected_blocker_vector_key;
+    let response_gate_primary_blocker_known = matches!(
+        response_gate_primary_blocker,
+        "final_response_contract" | "answer_contract" | "llm_reliability" | "watchdog" | "none"
+    );
+    let response_gate_escalation_lane = match response_gate_primary_blocker {
+        "final_response_contract" | "answer_contract" => "dashboard.troubleshooting.recent.state",
+        "llm_reliability" => "dashboard.troubleshooting.snapshot.capture",
+        "watchdog" => "dashboard.troubleshooting.summary",
+        _ => "none",
+    };
+    let response_gate_escalation_lane_known = matches!(
+        response_gate_escalation_lane,
+        "dashboard.troubleshooting.recent.state"
+            | "dashboard.troubleshooting.snapshot.capture"
+            | "dashboard.troubleshooting.summary"
+            | "none"
+    );
+    let response_gate_blockers_consistent = if response_gate_ready {
+        response_gate_blocker_count == 0
+            && response_gate_primary_blocker == "none"
+            && response_gate_escalation_lane == "none"
+    } else {
+        response_gate_blocker_count > 0
+            && response_gate_primary_blocker != "none"
+            && response_gate_escalation_lane != "none"
+    };
+    let response_gate_severity_consistent = if response_gate_ready {
+        response_gate_severity == "ready"
+    } else if response_gate_score >= 0.6 {
+        response_gate_severity == "degraded"
+    } else {
+        response_gate_severity == "blocked"
+    };
+    let response_gate_manual_review_consistent = !response_gate_ready;
+    let response_gate_requires_manual_review = !response_gate_ready;
+    let response_gate_expected_requires_manual_review = response_gate_expected_severity != "ready";
+    let response_gate_manual_review_signature_consistent =
+        response_gate_requires_manual_review == response_gate_expected_requires_manual_review;
+    let response_gate_manual_review_reason = if response_gate_requires_manual_review {
+        "gated_response_not_ready"
+    } else {
+        "none"
+    };
+    let response_gate_expected_manual_review_reason = if response_gate_expected_requires_manual_review {
+        "gated_response_not_ready"
+    } else {
+        "none"
+    };
+    let response_gate_manual_review_reason_consistent =
+        response_gate_manual_review_reason == response_gate_expected_manual_review_reason;
+    let response_gate_manual_review_reason_known =
+        matches!(response_gate_manual_review_reason, "gated_response_not_ready" | "none");
+    let response_gate_manual_review_vector_key = format!(
+        "required={};reason={}",
+        response_gate_requires_manual_review, response_gate_manual_review_reason
+    );
+    let response_gate_expected_manual_review_vector_key = format!(
+        "required={};reason={}",
+        response_gate_expected_requires_manual_review, response_gate_expected_manual_review_reason
+    );
+    let response_gate_manual_review_vector_consistent =
+        response_gate_manual_review_vector_key == response_gate_expected_manual_review_vector_key;
+    let response_gate_manual_review_vector_known = matches!(
+        response_gate_manual_review_vector_key.as_str(),
+        "required=true;reason=gated_response_not_ready" | "required=false;reason=none"
+    );
+    let response_gate_blocker_count_matches =
+        response_gate_blocker_count == response_gate_blockers.len() as i64;
+    let response_gate_primary_blocker_matches = if response_gate_blocker_count == 0 {
+        response_gate_primary_blocker == "none"
+    } else {
+        response_gate_blockers
+            .first()
+            .is_some_and(|row| row == response_gate_primary_blocker)
+    };
+    let response_gate_escalation_contract_ok = if response_gate_primary_blocker == "none" {
+        response_gate_escalation_lane == "none"
+    } else {
+        response_gate_escalation_lane != "none"
+    };
+    let response_gate_escalation_reason_code = match response_gate_primary_blocker {
+        "final_response_contract" => "finalization_integrity_failure",
+        "answer_contract" => "answer_integrity_failure",
+        "llm_reliability" => "llm_reliability_degraded",
+        "watchdog" => "watchdog_pressure",
+        "none" => "none",
+        _ => "unknown",
+    };
+    let response_gate_expected_escalation_lane = match response_gate_primary_blocker_expected {
+        "final_response_contract" | "answer_contract" => "dashboard.troubleshooting.recent.state",
+        "llm_reliability" => "dashboard.troubleshooting.snapshot.capture",
+        "watchdog" => "dashboard.troubleshooting.summary",
+        _ => "none",
+    };
+    let response_gate_expected_escalation_reason_code = match response_gate_primary_blocker_expected {
+        "final_response_contract" => "finalization_integrity_failure",
+        "answer_contract" => "answer_integrity_failure",
+        "llm_reliability" => "llm_reliability_degraded",
+        "watchdog" => "watchdog_pressure",
+        _ => "none",
+    };
+    let response_gate_signature_key = format!(
+        "ready={};severity={};primary={};lane={};reason={};count={};set={}",
+        response_gate_ready,
+        response_gate_severity,
+        response_gate_primary_blocker,
+        response_gate_escalation_lane,
+        response_gate_escalation_reason_code,
+        response_gate_blocker_count,
+        response_gate_blocker_set_key
+    );
+    let response_gate_expected_signature_key = format!(
+        "ready={};severity={};primary={};lane={};reason={};count={};set={}",
+        response_gate_ready,
+        response_gate_expected_severity,
+        response_gate_primary_blocker_expected,
+        response_gate_expected_escalation_lane,
+        response_gate_expected_escalation_reason_code,
+        response_gate_expected_blocker_count,
+        response_gate_expected_blocker_set_key
+    );
+    let response_gate_signature_consistent =
+        response_gate_signature_key == response_gate_expected_signature_key;
+    let response_gate_escalation_reason_known = response_gate_escalation_reason_code != "unknown";
+    let response_gate_escalation_vector_key = format!(
+        "{}|{}|{}",
+        response_gate_primary_blocker, response_gate_escalation_lane, response_gate_escalation_reason_code
+    );
+    let response_gate_expected_escalation_vector_key = format!(
+        "{}|{}|{}",
+        response_gate_primary_blocker_expected,
+        response_gate_expected_escalation_lane,
+        response_gate_expected_escalation_reason_code
+    );
+    let response_gate_escalation_signature_consistent =
+        response_gate_escalation_vector_key == response_gate_expected_escalation_vector_key;
+    let response_gate_escalation_vector_known = matches!(
+        response_gate_escalation_vector_key.as_str(),
+        "final_response_contract|dashboard.troubleshooting.recent.state|finalization_integrity_failure"
+            | "answer_contract|dashboard.troubleshooting.recent.state|answer_integrity_failure"
+            | "llm_reliability|dashboard.troubleshooting.snapshot.capture|llm_reliability_degraded"
+            | "watchdog|dashboard.troubleshooting.summary|watchdog_pressure"
+            | "none|none|none"
+    );
+    let response_gate_decision_vector_key = format!(
+        "{}|{}|{}",
+        response_gate_severity, response_gate_ready, !response_gate_ready
+    );
+    let response_gate_expected_decision_vector_key = format!(
+        "{}|{}|{}",
+        response_gate_expected_severity, response_gate_ready, !response_gate_ready
+    );
+    let response_gate_decision_signature_consistent =
+        response_gate_decision_vector_key == response_gate_expected_decision_vector_key;
+    let response_gate_decision_vector_known = matches!(
+        response_gate_decision_vector_key.as_str(),
+        "ready|true|false" | "degraded|false|true" | "blocked|false|true"
+    );
+    let response_gate_contract_consistent = response_gate_blocker_count_matches
+        && response_gate_primary_blocker_matches
+        && response_gate_blocker_priority_consistent
+        && response_gate_blocker_set_consistent
+        && response_gate_blocker_set_key_consistent
+        && response_gate_blocker_count_key_consistent
+        && response_gate_expected_blocker_count_matches
+        && response_gate_blocker_vector_consistent
+        && response_gate_signature_consistent
+        && response_gate_score_consistent
+        && response_gate_score_band_consistent
+        && response_gate_score_band_known
+        && response_gate_score_vector_consistent
+        && response_gate_score_band_vector_consistent
+        && response_gate_score_band_severity_consistent
+        && response_gate_score_band_severity_bucket_consistent
+        && response_gate_score_band_severity_bucket_known
+        && response_gate_blocker_flags_consistent
+        && response_gate_escalation_signature_consistent
+        && response_gate_decision_signature_consistent
+        && response_gate_blocker_budget_consistent
+        && response_gate_manual_review_signature_consistent
+        && response_gate_manual_review_reason_consistent
+        && response_gate_manual_review_reason_known
+        && response_gate_manual_review_vector_consistent
+        && response_gate_manual_review_vector_known
+        && response_gate_primary_blocker_known
+        && response_gate_blockers_consistent
+        && response_gate_severity_consistent
+        && response_gate_manual_review_consistent
+        && response_gate_escalation_contract_ok
+        && response_gate_escalation_lane_known
+        && response_gate_escalation_reason_known
+        && response_gate_escalation_vector_known
+        && response_gate_decision_vector_known;
+    let gate_health_ok = unknown_provider_count == 0
+        && watchdog_critical_count == 0
+        && (tool_lane_rows == 0 || execution_attempted_count >= execution_skipped_count);
+    let manual_intervention_required =
+        watchdog_triggered || policy_block_count > 0 || unknown_provider_count > 0;
+    let provider_quality_tier = if tool_lane_rows == 0 || provider_missing_count == 0 {
+        "good"
+    } else if provider_resolved_count >= provider_missing_count {
+        "mixed"
+    } else {
+        "poor"
+    };
+    let decision_confidence = if tool_lane_rows == 0 {
+        1.0
+    } else {
+        let rows = tool_lane_rows as f64;
+        let execution_ratio = (execution_attempted_count as f64 / rows).clamp(0.0, 1.0);
+        let provider_ratio = (provider_resolved_count as f64 / rows).clamp(0.0, 1.0);
+        let watchdog_ratio = if watchdog_triggered { 0.0 } else { 1.0 };
+        let completion_ratio = if completion_signal_ok { 1.0 } else { 0.0 };
+        ((execution_ratio * 0.40)
+            + (provider_ratio * 0.30)
+            + (watchdog_ratio * 0.20)
+            + (completion_ratio * 0.10))
+        .clamp(0.0, 1.0)
+    };
+    let decision_confidence = (decision_confidence * 10_000.0).round() / 10_000.0;
+    let requires_snapshot = manual_intervention_required
+        || !completion_signal_ok
+        || provider_quality_tier == "poor"
+        || llm_reliability_tier == "low"
+        || !final_response_contract_ok
+        || !answer_contract_ok;
+    let next_action = if !answer_contract_ok {
+        "enforce_final_response_contract_and_emit_nonempty_answer"
+    } else if hallucination_pattern_detected {
+        "capture_workflow_snapshot_and_run_eval_audit"
+    } else if placeholder_output_detected {
+        "enforce_final_response_contract_and_retry_once"
+    } else if watchdog_triggered {
+        "inspect_recent_signature_loops_and_pause_auto_retry"
+    } else if !completion_signal_ok {
+        "verify_workflow_completion_signal_contract_before_retry"
+    } else if unknown_provider_count > 0 {
+        "refresh_provider_config_and_retry"
+    } else if policy_block_count > 0 {
+        "resolve_policy_or_auth_and_retry"
+    } else if meta_block_count > 0 {
+        "narrow_to_explicit_web_query_or_use_override"
+    } else {
+        "continue_normal_observation"
+    };
+    let next_action_lane = if !answer_contract_ok {
+        "dashboard.troubleshooting.recent.state"
+    } else if hallucination_pattern_detected {
+        "dashboard.troubleshooting.snapshot.capture"
+    } else if placeholder_output_detected {
+        "dashboard.troubleshooting.summary"
+    } else if watchdog_triggered {
+        "dashboard.troubleshooting.summary"
+    } else if !completion_signal_ok {
+        "dashboard.troubleshooting.recent.state"
+    } else if unknown_provider_count > 0 {
+        "dashboard.troubleshooting.summary.queue_health"
+    } else if policy_block_count > 0 {
+        "dashboard.troubleshooting.outbox.state"
+    } else if meta_block_count > 0 {
+        "dashboard.troubleshooting.summary"
+    } else {
+        "none"
+    };
+    let next_action_routable = next_action_lane != "none";
+
+    json!({
+        "contract_version": "v1",
+        "tool_lane_rows": tool_lane_rows,
+        "execution_attempted_count": execution_attempted_count,
+        "execution_skipped_count": execution_skipped_count,
+        "provider_resolved_count": provider_resolved_count,
+        "provider_missing_count": provider_missing_count,
+        "policy_block_count": policy_block_count,
+        "meta_block_count": meta_block_count,
+        "unknown_provider_count": unknown_provider_count,
+        "watchdog_warning_count": watchdog_warning_count,
+        "watchdog_critical_count": watchdog_critical_count,
+        "watchdog_triggered": watchdog_triggered,
+        "completion_signal_missing_count": completion_signal_missing_count,
+        "context_mismatch_count": context_mismatch_count,
+        "hallucination_pattern_count": hallucination_pattern_count,
+        "invalid_draft_count": invalid_draft_count,
+        "placeholder_output_count": placeholder_output_count,
+        "no_result_pattern_count": no_result_pattern_count,
+        "answer_emitted_count": answer_emitted_count,
+        "answer_missing_after_completion_count": answer_missing_after_completion_count,
+        "answer_contract_ok": answer_contract_ok,
+        "answer_signal_coverage": answer_signal_coverage,
+        "hallucination_pattern_detected": hallucination_pattern_detected,
+        "placeholder_output_detected": placeholder_output_detected,
+        "no_result_pattern_detected": no_result_pattern_detected,
+        "llm_reliability_tier": llm_reliability_tier,
+        "llm_reliability_not_low": llm_reliability_not_low,
+        "final_response_contract_violation_count": final_response_contract_violation_count,
+        "final_response_contract_ok": final_response_contract_ok,
+        "response_gate": {
+            "ready": response_gate_ready,
+            "blockers": response_gate_blockers,
+            "expected_blockers": response_gate_expected_blockers,
+            "blocker_set_key": response_gate_blocker_set_key,
+            "expected_blocker_set_key": response_gate_expected_blocker_set_key,
+            "blocker_set_consistent": response_gate_blocker_set_consistent,
+            "blocker_set_key_consistent": response_gate_blocker_set_key_consistent,
+            "blocker_count_key_consistent": response_gate_blocker_count_key_consistent,
+            "expected_blocker_count": response_gate_expected_blocker_count,
+            "expected_blocker_count_matches": response_gate_expected_blocker_count_matches,
+            "blocker_budget_max": response_gate_blocker_budget_max,
+            "blocker_budget_consistent": response_gate_blocker_budget_consistent,
+            "blocker_vector_key": response_gate_blocker_vector_key,
+            "expected_blocker_vector_key": response_gate_expected_blocker_vector_key,
+            "blocker_vector_consistent": response_gate_blocker_vector_consistent,
+            "blocker_flags_key": response_gate_blocker_flags_key,
+            "expected_blocker_flags_key": response_gate_expected_blocker_flags_key,
+            "blocker_flags_consistent": response_gate_blocker_flags_consistent,
+            "signature_key": response_gate_signature_key,
+            "expected_signature_key": response_gate_expected_signature_key,
+            "signature_consistent": response_gate_signature_consistent,
+            "blocker_count": response_gate_blocker_count,
+            "blocker_count_matches": response_gate_blocker_count_matches,
+            "primary_blocker": response_gate_primary_blocker,
+            "primary_blocker_expected": response_gate_primary_blocker_expected,
+            "primary_blocker_matches": response_gate_primary_blocker_matches,
+            "blocker_priority_consistent": response_gate_blocker_priority_consistent,
+            "primary_blocker_known": response_gate_primary_blocker_known,
+            "blockers_consistent": response_gate_blockers_consistent,
+            "severity_consistent": response_gate_severity_consistent,
+            "manual_review_consistent": response_gate_manual_review_consistent,
+            "escalation_lane": response_gate_escalation_lane,
+            "escalation_lane_known": response_gate_escalation_lane_known,
+            "escalation_reason_code": response_gate_escalation_reason_code,
+            "escalation_reason_known": response_gate_escalation_reason_known,
+            "escalation_vector_key": response_gate_escalation_vector_key,
+            "expected_escalation_vector_key": response_gate_expected_escalation_vector_key,
+            "escalation_signature_consistent": response_gate_escalation_signature_consistent,
+            "escalation_vector_known": response_gate_escalation_vector_known,
+            "decision_vector_key": response_gate_decision_vector_key,
+            "expected_decision_vector_key": response_gate_expected_decision_vector_key,
+            "decision_signature_consistent": response_gate_decision_signature_consistent,
+            "decision_vector_known": response_gate_decision_vector_known,
+            "expected_requires_manual_review": response_gate_expected_requires_manual_review,
+            "manual_review_signature_consistent": response_gate_manual_review_signature_consistent,
+            "manual_review_reason": response_gate_manual_review_reason,
+            "expected_manual_review_reason": response_gate_expected_manual_review_reason,
+            "manual_review_reason_consistent": response_gate_manual_review_reason_consistent,
+            "manual_review_reason_known": response_gate_manual_review_reason_known,
+            "manual_review_vector_key": response_gate_manual_review_vector_key,
+            "expected_manual_review_vector_key": response_gate_expected_manual_review_vector_key,
+            "manual_review_vector_consistent": response_gate_manual_review_vector_consistent,
+            "manual_review_vector_known": response_gate_manual_review_vector_known,
+            "escalation_contract_ok": response_gate_escalation_contract_ok,
+            "contract_consistent": response_gate_contract_consistent,
+            "score": response_gate_score,
+            "expected_score": response_gate_expected_score,
+            "score_consistent": response_gate_score_consistent,
+            "score_band": response_gate_score_band,
+            "expected_score_band": response_gate_expected_score_band,
+            "score_band_consistent": response_gate_score_band_consistent,
+            "score_band_known": response_gate_score_band_known,
+            "score_vector_key": response_gate_score_vector_key,
+            "expected_score_vector_key": response_gate_expected_score_vector_key,
+            "score_vector_consistent": response_gate_score_vector_consistent,
+            "score_band_vector_key": response_gate_score_band_vector_key,
+            "expected_score_band_vector_key": response_gate_expected_score_band_vector_key,
+            "score_band_vector_consistent": response_gate_score_band_vector_consistent,
+            "expected_severity_from_score_band": response_gate_expected_severity_from_score_band,
+            "score_band_severity_consistent": response_gate_score_band_severity_consistent,
+            "score_band_severity_bucket_consistent": response_gate_score_band_severity_bucket_consistent,
+            "score_band_severity_bucket_known": response_gate_score_band_severity_bucket_known,
+            "severity": response_gate_severity,
+            "requires_manual_review": response_gate_requires_manual_review
+        },
+        "completion_signal_ok": completion_signal_ok,
+        "provider_resolution_ok": provider_resolution_ok,
+        "provider_quality_tier": provider_quality_tier,
+        "decision_confidence": decision_confidence,
+        "requires_snapshot": requires_snapshot,
+        "gate_health_ok": gate_health_ok,
+        "manual_intervention_required": manual_intervention_required,
+        "next_action": next_action,
+        "next_action_lane": next_action_lane,
+        "next_action_routable": next_action_routable
+    })
+}
+
 fn dashboard_outbox_health_tier(depth: usize, ready_ratio: f64, blocked_ratio: f64) -> &'static str {
     if depth == 0 {
         "empty"
@@ -1694,6 +2782,268 @@ fn dashboard_troubleshooting_summary_lane(root: &Path, payload: &Value) -> LaneR
     } else {
         "low"
     };
+    let lane_health = dashboard_troubleshooting_recent_lane_health(&filtered_entries);
+    let latest_loop_level = filtered_entries
+        .last()
+        .and_then(|row| row.pointer("/loop_detection/level").and_then(Value::as_str))
+        .unwrap_or("none");
+    let tooling_contract = dashboard_troubleshooting_recent_tooling_contract(&filtered_entries);
+    let tooling_gate_ok = tooling_contract
+        .get("gate_health_ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let provider_resolution_ok = tooling_contract
+        .get("provider_resolution_ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_watchdog_not_triggered = !tooling_contract
+        .get("watchdog_triggered")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let tooling_completion_signal_ok = tooling_contract
+        .get("completion_signal_ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_manual_intervention_not_required = !tooling_contract
+        .get("manual_intervention_required")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let tooling_contract_version_supported = tooling_contract
+        .get("contract_version")
+        .and_then(Value::as_str)
+        .is_some_and(|value| value == "v1");
+    let tooling_next_action_routable = tooling_contract
+        .get("next_action_routable")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let tooling_llm_reliability_not_low = tooling_contract
+        .get("llm_reliability_not_low")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_hallucination_pattern_not_detected = !tooling_contract
+        .get("hallucination_pattern_detected")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let tooling_placeholder_output_not_detected = !tooling_contract
+        .get("placeholder_output_detected")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let tooling_final_response_contract_ok = tooling_contract
+        .get("final_response_contract_ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_no_result_pattern_not_detected = !tooling_contract
+        .get("no_result_pattern_detected")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let tooling_answer_contract_ok = tooling_contract
+        .get("answer_contract_ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_ready = tooling_contract
+        .pointer("/response_gate/ready")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let tooling_response_gate_not_blocked = tooling_contract
+        .pointer("/response_gate/severity")
+        .and_then(Value::as_str)
+        .is_some_and(|row| row != "blocked");
+    let tooling_response_gate_score_consistent = tooling_contract
+        .pointer("/response_gate/score_consistent")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_score_band_consistent = tooling_contract
+        .pointer("/response_gate/score_band_consistent")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_score_band_known = tooling_contract
+        .pointer("/response_gate/score_band_known")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_score_vector_consistent = tooling_contract
+        .pointer("/response_gate/score_vector_consistent")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_score_band_vector_consistent = tooling_contract
+        .pointer("/response_gate/score_band_vector_consistent")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_score_band_severity_consistent = tooling_contract
+        .pointer("/response_gate/score_band_severity_consistent")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_score_band_severity_bucket_consistent = tooling_contract
+        .pointer("/response_gate/score_band_severity_bucket_consistent")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_score_band_severity_bucket_known = tooling_contract
+        .pointer("/response_gate/score_band_severity_bucket_known")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_escalation_routable = tooling_contract
+        .pointer("/response_gate/escalation_lane")
+        .and_then(Value::as_str)
+        .is_some_and(|row| row != "none");
+    let tooling_response_gate_escalation_lane_known = tooling_contract
+        .pointer("/response_gate/escalation_lane_known")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_escalation_reason_known = tooling_contract
+        .pointer("/response_gate/escalation_reason_known")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_escalation_vector_known = tooling_contract
+        .pointer("/response_gate/escalation_vector_known")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_escalation_signature_consistent = tooling_contract
+        .pointer("/response_gate/escalation_signature_consistent")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_decision_vector_known = tooling_contract
+        .pointer("/response_gate/decision_vector_known")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_decision_signature_consistent = tooling_contract
+        .pointer("/response_gate/decision_signature_consistent")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_blocker_budget_consistent = tooling_contract
+        .pointer("/response_gate/blocker_budget_consistent")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_manual_review_signature_consistent = tooling_contract
+        .pointer("/response_gate/manual_review_signature_consistent")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_manual_review_reason_consistent = tooling_contract
+        .pointer("/response_gate/manual_review_reason_consistent")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_manual_review_reason_known = tooling_contract
+        .pointer("/response_gate/manual_review_reason_known")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_manual_review_vector_consistent = tooling_contract
+        .pointer("/response_gate/manual_review_vector_consistent")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_manual_review_vector_known = tooling_contract
+        .pointer("/response_gate/manual_review_vector_known")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_primary_blocker_known = tooling_contract
+        .pointer("/response_gate/primary_blocker_known")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_blockers_consistent = tooling_contract
+        .pointer("/response_gate/blockers_consistent")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_severity_consistent = tooling_contract
+        .pointer("/response_gate/severity_consistent")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_manual_review_consistent = tooling_contract
+        .pointer("/response_gate/manual_review_consistent")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_blocker_priority_consistent = tooling_contract
+        .pointer("/response_gate/blocker_priority_consistent")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_blocker_set_consistent = tooling_contract
+        .pointer("/response_gate/blocker_set_consistent")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_blocker_set_key_consistent = tooling_contract
+        .pointer("/response_gate/blocker_set_key_consistent")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_blocker_count_key_consistent = tooling_contract
+        .pointer("/response_gate/blocker_count_key_consistent")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_expected_blocker_count_matches = tooling_contract
+        .pointer("/response_gate/expected_blocker_count_matches")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_blocker_vector_consistent = tooling_contract
+        .pointer("/response_gate/blocker_vector_consistent")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_signature_consistent = tooling_contract
+        .pointer("/response_gate/signature_consistent")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_blocker_flags_consistent = tooling_contract
+        .pointer("/response_gate/blocker_flags_consistent")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let tooling_response_gate_contract_consistent = tooling_contract
+        .pointer("/response_gate/contract_consistent")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let recent_recovery_hints =
+        dashboard_troubleshooting_recent_recovery_hints(&lane_health, severity_tier);
+    let recent_health_checks = dashboard_troubleshooting_recent_health_checks(
+        &lane_health,
+        latest_loop_level,
+        entry_count,
+        filtered_out_count,
+        recent_entries.len(),
+        stale_rate,
+        outbox_queue_pressure_tier,
+        tooling_gate_ok,
+        provider_resolution_ok,
+        tooling_watchdog_not_triggered,
+        tooling_completion_signal_ok,
+        tooling_manual_intervention_not_required,
+        tooling_contract_version_supported,
+        tooling_next_action_routable,
+        tooling_llm_reliability_not_low,
+        tooling_hallucination_pattern_not_detected,
+        tooling_placeholder_output_not_detected,
+        tooling_final_response_contract_ok,
+        tooling_no_result_pattern_not_detected,
+        tooling_answer_contract_ok,
+        tooling_response_gate_ready,
+        tooling_response_gate_not_blocked,
+        tooling_response_gate_score_consistent,
+        tooling_response_gate_score_band_consistent,
+        tooling_response_gate_score_band_known,
+        tooling_response_gate_score_vector_consistent,
+        tooling_response_gate_score_band_vector_consistent,
+        tooling_response_gate_score_band_severity_consistent,
+        tooling_response_gate_score_band_severity_bucket_consistent,
+        tooling_response_gate_score_band_severity_bucket_known,
+        tooling_response_gate_escalation_routable,
+        tooling_response_gate_escalation_lane_known,
+        tooling_response_gate_escalation_reason_known,
+        tooling_response_gate_escalation_vector_known,
+        tooling_response_gate_escalation_signature_consistent,
+        tooling_response_gate_decision_vector_known,
+        tooling_response_gate_decision_signature_consistent,
+        tooling_response_gate_blocker_budget_consistent,
+        tooling_response_gate_manual_review_signature_consistent,
+        tooling_response_gate_manual_review_reason_consistent,
+        tooling_response_gate_manual_review_reason_known,
+        tooling_response_gate_manual_review_vector_consistent,
+        tooling_response_gate_manual_review_vector_known,
+        tooling_response_gate_primary_blocker_known,
+        tooling_response_gate_blockers_consistent,
+        tooling_response_gate_severity_consistent,
+        tooling_response_gate_manual_review_consistent,
+        tooling_response_gate_blocker_priority_consistent,
+        tooling_response_gate_blocker_set_consistent,
+        tooling_response_gate_blocker_set_key_consistent,
+        tooling_response_gate_blocker_count_key_consistent,
+        tooling_response_gate_expected_blocker_count_matches,
+        tooling_response_gate_blocker_vector_consistent,
+        tooling_response_gate_signature_consistent,
+        tooling_response_gate_blocker_flags_consistent,
+        tooling_response_gate_contract_consistent,
+    );
     LaneResult {
         ok: true,
         status: 0,
@@ -1729,6 +3079,10 @@ fn dashboard_troubleshooting_summary_lane(root: &Path, payload: &Value) -> LaneR
                 "failure_rate": failure_rate,
                 "stale_count": stale_count,
                 "stale_rate": stale_rate,
+                "lane_health": lane_health,
+                "recovery_hints": recent_recovery_hints,
+                "tooling_contract": tooling_contract,
+                "checks": recent_health_checks,
                 "error_histogram": error_hist,
                 "classification_histogram": class_hist,
                 "entries": recent
