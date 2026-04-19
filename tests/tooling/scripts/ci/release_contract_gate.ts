@@ -155,6 +155,10 @@ function windowsAndDocsCheck(): Check {
     '[infring install] source fallback policy: main_last_resort_fallback={0}';
   const sourceFallbackAppendMainRetryBanner =
     '[infring install] source fallback for {0} failed ({1}); appending main as last-resort source retry';
+  const sourceFallbackReleaseRetryFromMainBanner =
+    '[infring install] source fallback for release $Version failed ($script:LastBinaryInstallFailureReason); retrying from main branch';
+  const sourceFallbackMainFirstBanner =
+    '[infring install] source fallback using main first (missing prebuilt asset metadata for $Stem on $Triple)';
   const sourceFallbackPlanBanner = '[infring install] source fallback plan: {0}';
   const autoMsvcEnabledBanner =
     '[infring install] auto MSVC bootstrap is enabled; installer will attempt Build Tools install during source fallback if needed.';
@@ -236,6 +240,8 @@ function windowsAndDocsCheck(): Check {
     installPs.includes(pinnedCompatibleFallbackDisabledNote) &&
     installPs.includes(sourceFallbackPolicyBanner) &&
     installPs.includes(sourceFallbackAppendMainRetryBanner) &&
+    installPs.includes(sourceFallbackReleaseRetryFromMainBanner) &&
+    installPs.includes(sourceFallbackMainFirstBanner) &&
     installPs.includes(sourceFallbackPlanBanner) &&
     installPs.includes(autoMsvcEnabledBanner) &&
     installPs.includes(autoMsvcDisabledBanner) &&
