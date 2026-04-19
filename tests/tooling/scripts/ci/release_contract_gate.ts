@@ -100,6 +100,7 @@ function windowsAndDocsCheck(): Check {
   const directGatewayFallbackCommand = '$HOME\\.infring\\bin\\infring.cmd gateway';
   const noFileFallbackIex = 'irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 | iex';
   const executionPolicyBypassForce = 'Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force';
+  const rerunReadmeInstallHint = 'rerun the README Windows install command: $ReadmeWindowsInstallCommand';
   const windowsReadmeInstallCommand =
     'Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; $tmp = Join-Path $env:TEMP "infring-install.ps1"; irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 -OutFile $tmp -ErrorAction Stop; & $tmp -Repair -Full; Remove-Item $tmp -Force -ErrorAction SilentlyContinue';
   const ok =
@@ -110,6 +111,7 @@ function windowsAndDocsCheck(): Check {
     installPs.includes('INFRING_INSTALL_FULL') &&
     installPs.includes('Compatibility shim for operators accustomed to `-Force`.') &&
     installPsForceRepairShim &&
+    installPs.includes(rerunReadmeInstallHint) &&
     opsLib.includes('#![recursion_limit = "16384"]') &&
     installPs.includes(directBootstrapperUrl) &&
     installPs.includes(windowsReadmeInstallCommand) &&
