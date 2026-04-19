@@ -226,6 +226,12 @@ describe('conduit primitive wrapper contract', () => {
     expect(source.includes('Install-AllowDirectMsvcBootstrapEnabled')).toBe(true);
     expect(source.includes('INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP')).toBe(true);
     expect(source.includes('aka.ms/vs/17/release/vs_BuildTools.exe')).toBe(true);
+    expect(source.includes('Compatibility shim for operators accustomed to `-Force`.')).toBe(true);
+    expect(
+      /if \(\$Force\)\s*\{[\s\S]*\$InstallRepair\s*=\s*\$true[\s\S]*if \(-not \$Minimal\)\s*\{[\s\S]*\$InstallFull\s*=\s*\$true/.test(
+        source,
+      ),
+    ).toBe(true);
   });
 
   test('Windows installer docs keep no-file fallback and iex trap guards aligned', () => {
