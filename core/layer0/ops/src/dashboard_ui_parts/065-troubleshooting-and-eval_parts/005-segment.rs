@@ -1,3 +1,4 @@
+// Layer ownership: core/layer0/ops (dashboard_ui_parts troubleshooting)
 fn dashboard_troubleshooting_now_epoch_seconds() -> i64 {
     use std::time::{SystemTime, UNIX_EPOCH};
     SystemTime::now()
@@ -3036,7 +3037,7 @@ fn dashboard_troubleshooting_outbox_flush_lane(root: &Path, payload: &Value) -> 
         }
         let attempts = row.get("attempts").and_then(Value::as_i64).unwrap_or(0);
         if attempts >= max_attempts {
-            let quarantine_row = json!({
+            let mut quarantine_row = json!({
                 "item_id": clean_text(row.get("id").and_then(Value::as_str).unwrap_or(""), 80),
                 "attempts": attempts,
                 "status": "quarantined_max_attempts"

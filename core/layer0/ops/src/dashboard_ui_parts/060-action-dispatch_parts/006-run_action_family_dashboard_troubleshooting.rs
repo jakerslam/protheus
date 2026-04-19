@@ -1,3 +1,14 @@
+// Layer ownership: core/layer0/ops (dashboard_ui_parts action dispatch)
+fn merge_json_objects(base: &Value, overlay: &Value) -> Value {
+    let mut merged = base.as_object().cloned().unwrap_or_default();
+    if let Some(extra) = overlay.as_object() {
+        for (key, value) in extra {
+            merged.insert(key.clone(), value.clone());
+        }
+    }
+    Value::Object(merged)
+}
+
 fn run_action_family_dashboard_troubleshooting(root: &Path, normalized: &str, payload: &Value) -> LaneResult {
     match normalized {
         "dashboard.troubleshooting.state" => dashboard_troubleshooting_state_lane(root, payload),
