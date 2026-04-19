@@ -101,6 +101,8 @@ function windowsAndDocsCheck(): Check {
     installPs.includes('protheus-ops.exe') &&
     installPs.includes('infringd.cmd') &&
     installPs.includes('Install-AllowDirectMsvcBootstrapEnabled') &&
+    installPs.includes('INFRING_INSTALL_REPAIR') &&
+    installPs.includes('INFRING_INSTALL_FULL') &&
     installPs.includes(directBootstrapperUrl) &&
     installPs.includes(windowsReadmeInstallCommand) &&
     /& \$tmp(?:\s+-Repair)?\s+-Full/.test(readme) &&
