@@ -1,5 +1,4 @@
 /* Infring Layout — Grid + Sidebar + Responsive */
-
 .app-layout {
   --shell-top-offset: 46px;
   --shell-bottom-offset: 0px;
@@ -10,20 +9,17 @@
   padding-bottom: 0;
   overflow: hidden;
 }
-
 .app-layout.taskbar-bottom {
   --shell-top-offset: 0px;
   --shell-bottom-offset: 46px;
   padding-top: 0;
   padding-bottom: 46px;
 }
-
 body.dashboard-embedded-shell .app-layout {
   height: 100vh;
   padding-top: 0;
   padding-bottom: 0;
 }
-
 body.dashboard-embedded-shell .sidebar,
 body.dashboard-embedded-shell .sidebar-overlay,
 body.dashboard-embedded-shell .sidebar-pulltab,
@@ -31,18 +27,14 @@ body.dashboard-embedded-shell .mobile-menu-btn,
 body.dashboard-embedded-shell .global-taskbar {
   display: none !important;
 }
-
 body.dashboard-embedded-shell .main-content {
   max-width: 100%;
   margin-left: 0;
   padding: 0;
 }
-
 body.dashboard-embedded-shell .main-content > div:not(.global-taskbar):not(.main-pointer-fx-layer) {
   padding-top: 0;
 }
-
-/* Sidebar */
 .drag-bar {
   --drag-bar-border: var(--drag-bar-border-override, var(--overlay-shared-surface-border, var(--overlay-surface-border, color-mix(in srgb, #fff 24%, transparent))));
   --drag-bar-background: var(--drag-bar-background-override, var(--overlay-shared-surface-background, var(--overlay-surface-background, transparent)));
@@ -78,12 +70,10 @@ body.dashboard-embedded-shell .main-content > div:not(.global-taskbar):not(.main
   --drag-bar-cursor-active: grabbing;
   cursor: var(--drag-bar-cursor-idle);
 }
-
 .drag-bar.is-container-dragging,
 .drag-bar.is-dragging {
   cursor: var(--drag-bar-cursor-active);
 }
-
 .sidebar {
   position: fixed;
   left: 0;
@@ -122,19 +112,15 @@ body.dashboard-embedded-shell .main-content > div:not(.global-taskbar):not(.main
   --sidebar-edge-fade-size: 22px;
   --chat-sidebar-profile-row-height: 56px;
 }
-
 .sidebar:not(.chat-sidebar-dynamic) {
   top: var(--shell-top-offset);
   bottom: var(--shell-bottom-offset);
 }
-
 .sidebar.chat-sidebar-dynamic {
   top: auto;
   bottom: auto;
   height: fit-content;
 }
-
-/* Top fade: blend sidebar into page background tone at the very top edge. */
 .sidebar::before {
   content: '';
   position: absolute;
@@ -154,8 +140,6 @@ body.dashboard-embedded-shell .main-content > div:not(.global-taskbar):not(.main
     transparent 100%
   );
 }
-
-/* Right-edge fade shadow outside sidebar border, matching chat fade style. */
 .sidebar::after {
   content: '';
   position: absolute;
@@ -185,17 +169,14 @@ body.dashboard-embedded-shell .main-content > div:not(.global-taskbar):not(.main
     #000 22px
   );
 }
-
 .sidebar.collapsed {
   width: var(--sidebar-collapsed);
 }
-
 .sidebar-nav-shell {
   position: relative;
   flex: 1;
   min-height: 0;
 }
-
 .sidebar-settings-anchor {
   flex-shrink: 0;
   padding: 8px;
@@ -204,32 +185,25 @@ body.dashboard-embedded-shell .main-content > div:not(.global-taskbar):not(.main
   position: relative;
   z-index: 5;
 }
-
 .sidebar-settings-item {
   margin: 0;
 }
-
 .sidebar.collapsed .sidebar-label,
 .sidebar.collapsed .nav-label { display: none; }
-
 .sidebar.collapsed .nav-item { justify-content: center; padding: 12px 0; }
-
 .sidebar.collapsed .sidebar-header {
   justify-content: center;
   padding: 16px 0;
 }
-
 .sidebar.collapsed .sidebar-logo {
   width: auto;
   justify-content: center;
 }
-
 .sidebar.collapsed .sidebar-header-text {
   width: 100%;
   justify-content: center;
   align-items: center;
 }
-
 .sidebar.collapsed .sidebar-logo > div:not(.brand-mark) {
   display: none;
 }

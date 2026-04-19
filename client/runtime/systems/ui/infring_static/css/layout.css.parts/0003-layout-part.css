@@ -76,6 +76,88 @@
   padding: 24px;
 }
 
+.drag-wall-cap-host {
+  --drag-bar-wall-cap-size: clamp(9px, calc(var(--drag-bar-radius, var(--overlay-shared-surface-radius, 18px)) * 0.62), 20px);
+}
+
+.drag-wall-cap-host > .drag-bar-wall-cap {
+  display: none !important;
+  position: absolute;
+  width: calc(var(--drag-bar-wall-cap-size) * 2);
+  height: calc(var(--drag-bar-wall-cap-size) * 2);
+  pointer-events: none;
+  border: 1px solid var(--drag-bar-border, var(--overlay-shared-surface-border, var(--overlay-surface-border, color-mix(in srgb, #fff 24%, transparent))));
+  background: var(--drag-bar-background, var(--overlay-shared-surface-background, var(--overlay-surface-background, transparent)));
+  border-radius: 999px;
+  z-index: 3;
+  opacity: 0;
+  transform: scale(0.84);
+  transition:
+    opacity var(--drag-bar-transform-time, 500ms) var(--ease-smooth),
+    transform var(--drag-bar-transform-time, 500ms) var(--ease-smooth),
+    border-color var(--drag-bar-border-transition-duration, 0ms) linear var(--drag-bar-border-transition-delay, 0ms);
+}
+
+.drag-wall-cap-host.wall-lock-left > .drag-bar-wall-cap,
+.drag-wall-cap-host.wall-lock-right > .drag-bar-wall-cap,
+.drag-wall-cap-host.wall-lock-top > .drag-bar-wall-cap,
+.drag-wall-cap-host.wall-lock-bottom > .drag-bar-wall-cap {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.drag-wall-cap-host.wall-lock-left > .drag-bar-wall-cap--a {
+  left: calc(-1 * var(--drag-bar-wall-cap-size));
+  top: calc(-1 * var(--drag-bar-wall-cap-size));
+  clip-path: inset(0 0 50% 50%);
+}
+
+.drag-wall-cap-host.wall-lock-left > .drag-bar-wall-cap--b {
+  left: calc(-1 * var(--drag-bar-wall-cap-size));
+  bottom: calc(-1 * var(--drag-bar-wall-cap-size));
+  clip-path: inset(50% 0 0 50%);
+}
+
+.drag-wall-cap-host.wall-lock-right > .drag-bar-wall-cap--a {
+  right: calc(-1 * var(--drag-bar-wall-cap-size));
+  top: calc(-1 * var(--drag-bar-wall-cap-size));
+  clip-path: inset(0 50% 50% 0);
+}
+
+.drag-wall-cap-host.wall-lock-right > .drag-bar-wall-cap--b {
+  right: calc(-1 * var(--drag-bar-wall-cap-size));
+  bottom: calc(-1 * var(--drag-bar-wall-cap-size));
+  clip-path: inset(50% 50% 0 0);
+}
+
+.drag-wall-cap-host.wall-lock-top > .drag-bar-wall-cap--a {
+  left: calc(-1 * var(--drag-bar-wall-cap-size));
+  top: calc(-1 * var(--drag-bar-wall-cap-size));
+  clip-path: inset(50% 0 0 50%);
+}
+
+.drag-wall-cap-host.wall-lock-top > .drag-bar-wall-cap--b {
+  right: calc(-1 * var(--drag-bar-wall-cap-size));
+  top: calc(-1 * var(--drag-bar-wall-cap-size));
+  clip-path: inset(50% 50% 0 0);
+}
+
+.drag-wall-cap-host.wall-lock-bottom > .drag-bar-wall-cap--a {
+  left: calc(-1 * var(--drag-bar-wall-cap-size));
+  bottom: calc(-1 * var(--drag-bar-wall-cap-size));
+  clip-path: inset(0 0 50% 50%);
+}
+
+.drag-wall-cap-host.wall-lock-bottom > .drag-bar-wall-cap--b {
+  right: calc(-1 * var(--drag-bar-wall-cap-size));
+  bottom: calc(-1 * var(--drag-bar-wall-cap-size));
+  clip-path: inset(0 50% 50% 0);
+}
+
+.chat-map-surface.drag-wall-cap-host {
+  overflow: visible;
+}
+
 /* Mobile overlay */
 .sidebar-overlay {
   display: none;

@@ -1,3 +1,70 @@
+fn fetch_strip_invisible_unicode(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !matches!(
+                *ch,
+                '\u{200B}'..='\u{200F}'
+                    | '\u{202A}'..='\u{202E}'
+                    | '\u{2060}'..='\u{2064}'
+                    | '\u{206A}'..='\u{206F}'
+                    | '\u{FEFF}'
+                    | '\u{E0000}'..='\u{E007F}'
+            )
+        })
+        .collect()
+}
+
+fn fetch_normalize_cache_key(raw: &str) -> String {
+    fetch_strip_invisible_unicode(&clean_text(raw, 2_200))
+        .trim()
+        .to_ascii_lowercase()
+}
+
+fn fetch_parse_nonnegative_i64(value: Option<&Value>) -> i64 {
+    let Some(value) = value else {
+        return 0;
+    };
+    if let Some(raw) = value.as_i64() {
+        return raw.max(0);
+    }
+    if let Some(raw) = value.as_u64() {
+        return raw.min(i64::MAX as u64) as i64;
+    }
+    if let Some(raw) = value.as_f64() {
+        if raw.is_finite() {
+            return raw.floor().max(0.0).min(i64::MAX as f64) as i64;
+        }
+    }
+    if let Some(raw) = value.as_str() {
+        let trimmed = clean_text(raw, 32);
+        if !trimmed.is_empty()
+            && let Ok(parsed) = trimmed.parse::<i64>()
+        {
+            return parsed.max(0);
+        }
+    }
+    0
+}
+
+const FETCH_RETRY_AFTER_SECONDS_MAX: i64 = 86_400;
+
+fn fetch_retry_after_seconds_from_value(value: Option<&Value>) -> i64 {
+    let raw = fetch_parse_nonnegative_i64(value);
+    if raw <= 0 {
+        return 0;
+    }
+    let now_epoch_seconds = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_secs().min(i64::MAX as u64) as i64)
+        .unwrap_or(0);
+    let normalized = if now_epoch_seconds > 0 && raw > now_epoch_seconds {
+        raw.saturating_sub(now_epoch_seconds)
+    } else {
+        raw
+    };
+    normalized.clamp(0, FETCH_RETRY_AFTER_SECONDS_MAX)
+}
+
 fn fetch_early_validation_payload(
     error: &str,
     requested_url: &str,
@@ -28,6 +95,10 @@ fn fetch_early_validation_payload(
     out_obj.insert(
         "requested_url".to_string(),
         Value::String(clean_text(requested_url, 2_200)),
+    );
+    out_obj.insert(
+        "requested_url_cache_key".to_string(),
+        Value::String(fetch_normalize_cache_key(requested_url)),
     );
     out_obj.insert("resolved_url".to_string(), Value::String(String::new()));
     out_obj.insert("citation_redirect_resolved".to_string(), json!(false));
@@ -365,6 +436,29 @@ fn fetch_retry_next_action_after_seconds_for_reason(reason: &str, retry_after_se
     }
 }
 
+fn fetch_retry_next_action_kind_for_reason(reason: &str, retry_after_seconds: i64) -> &'static str {
+    if !fetch_retry_can_execute_without_human_for_reason(reason) {
+        "manual_gate"
+    } else if fetch_retry_next_action_after_seconds_for_reason(reason, retry_after_seconds) > 0 {
+        "deferred_retry"
+    } else {
+        "execute_now"
+    }
+}
+
+fn fetch_retry_window_class_for_reason(reason: &str, retry_after_seconds: i64) -> &'static str {
+    let wait_seconds = fetch_retry_next_action_after_seconds_for_reason(reason, retry_after_seconds);
+    if wait_seconds <= 0 {
+        "immediate"
+    } else if wait_seconds <= 60 {
+        "short"
+    } else if wait_seconds <= 900 {
+        "medium"
+    } else {
+        "long"
+    }
+}
+
 fn fetch_retry_readiness_state_for_reason(reason: &str, retry_after_seconds: i64) -> &'static str {
     if !fetch_retry_can_execute_without_human_for_reason(reason) {
         "manual_gate_pending"
@@ -375,12 +469,243 @@ fn fetch_retry_readiness_state_for_reason(reason: &str, retry_after_seconds: i64
     }
 }
 
+fn fetch_retry_readiness_reason_for_reason(reason: &str, retry_after_seconds: i64) -> &'static str {
+    match fetch_retry_next_action_kind_for_reason(reason, retry_after_seconds) {
+        "manual_gate" => fetch_retry_manual_gate_reason_for_reason(reason),
+        "deferred_retry" => {
+            if retry_after_seconds.max(0) > 0 {
+                "retry_after_pending"
+            } else {
+                "deferred_retry_pending"
+            }
+        }
+        _ => "none",
+    }
+}
+
+fn fetch_retry_automation_safe_for_reason(reason: &str) -> bool {
+    fetch_retry_auto_retry_allowed_for_reason(reason)
+        && fetch_retry_can_execute_without_human_for_reason(reason)
+}
+
+fn fetch_retry_decision_route_hint_for_reason(reason: &str, retry_after_seconds: i64) -> &'static str {
+    match fetch_retry_next_action_kind_for_reason(reason, retry_after_seconds) {
+        "manual_gate" => "manual_review_lane",
+        "deferred_retry" => "deferred_retry_lane",
+        _ => "auto_execute_lane",
+    }
+}
+
+fn fetch_retry_decision_urgency_tier_for_reason(reason: &str, retry_after_seconds: i64) -> &'static str {
+    if !fetch_retry_automation_safe_for_reason(reason) {
+        return "manual";
+    }
+    match fetch_retry_window_class_for_reason(reason, retry_after_seconds) {
+        "immediate" => "high",
+        "short" => "medium",
+        "medium" => "low",
+        _ => "deferred",
+    }
+}
+
+fn fetch_retry_decision_retry_budget_class_for_reason(
+    reason: &str,
+    retry_after_seconds: i64,
+) -> &'static str {
+    if !fetch_retry_automation_safe_for_reason(reason) {
+        return "manual_only";
+    }
+    match fetch_retry_window_class_for_reason(reason, retry_after_seconds) {
+        "immediate" => "single_attempt",
+        "short" => "bounded_backoff_short",
+        "medium" => "bounded_backoff_medium",
+        _ => "bounded_backoff_long",
+    }
+}
+
+fn fetch_retry_decision_lane_token_for_reason(reason: &str, retry_after_seconds: i64) -> String {
+    let route_hint = fetch_retry_decision_route_hint_for_reason(reason, retry_after_seconds);
+    let urgency_tier = fetch_retry_decision_urgency_tier_for_reason(reason, retry_after_seconds);
+    format!("{}::{}", route_hint, urgency_tier)
+}
+
+fn fetch_retry_decision_dispatch_mode_for_reason(
+    reason: &str,
+    retry_after_seconds: i64,
+) -> &'static str {
+    match fetch_retry_next_action_kind_for_reason(reason, retry_after_seconds) {
+        "manual_gate" => "manual_review",
+        "deferred_retry" => "scheduled_retry",
+        _ => "immediate_execute",
+    }
+}
+
+fn fetch_retry_decision_manual_ack_required_for_reason(
+    reason: &str,
+    retry_after_seconds: i64,
+) -> bool {
+    !fetch_retry_automation_safe_for_reason(reason)
+        || fetch_retry_next_action_kind_for_reason(reason, retry_after_seconds) == "manual_gate"
+}
+
+fn fetch_retry_decision_execution_guard_for_reason(
+    reason: &str,
+    retry_after_seconds: i64,
+) -> &'static str {
+    if fetch_retry_decision_manual_ack_required_for_reason(reason, retry_after_seconds) {
+        "manual_gate_guard"
+    } else if fetch_retry_next_action_kind_for_reason(reason, retry_after_seconds) == "deferred_retry" {
+        "retry_window_guard"
+    } else {
+        "none"
+    }
+}
+
+fn fetch_retry_decision_followup_required_for_reason(
+    reason: &str,
+    retry_after_seconds: i64,
+) -> bool {
+    fetch_retry_next_action_kind_for_reason(reason, retry_after_seconds) != "execute_now"
+}
+
+fn fetch_retry_decision_vector_key_for_reason(reason: &str, retry_after_seconds: i64) -> String {
+    let next_action_after_seconds =
+        fetch_retry_next_action_after_seconds_for_reason(reason, retry_after_seconds).max(0);
+    let next_action_kind = fetch_retry_next_action_kind_for_reason(reason, retry_after_seconds);
+    let retry_window_class = fetch_retry_window_class_for_reason(reason, retry_after_seconds);
+    let readiness_state = fetch_retry_readiness_state_for_reason(reason, retry_after_seconds);
+    let readiness_reason = fetch_retry_readiness_reason_for_reason(reason, retry_after_seconds);
+    let automation_safe = if fetch_retry_automation_safe_for_reason(reason) {
+        "1"
+    } else {
+        "0"
+    };
+    format!(
+        "{}|{}|{}|{}|{}|{}",
+        next_action_kind,
+        retry_window_class,
+        readiness_state,
+        readiness_reason,
+        automation_safe,
+        next_action_after_seconds
+    )
+}
+
+fn fetch_retry_decision_vector_for_reason(reason: &str, retry_after_seconds: i64) -> Value {
+    let next_action_after_seconds =
+        fetch_retry_next_action_after_seconds_for_reason(reason, retry_after_seconds).max(0);
+    let next_action_kind = fetch_retry_next_action_kind_for_reason(reason, retry_after_seconds);
+    let retry_window_class = fetch_retry_window_class_for_reason(reason, retry_after_seconds);
+    let readiness_state = fetch_retry_readiness_state_for_reason(reason, retry_after_seconds);
+    let readiness_reason = fetch_retry_readiness_reason_for_reason(reason, retry_after_seconds);
+    let automation_safe = fetch_retry_automation_safe_for_reason(reason);
+    let route_hint = fetch_retry_decision_route_hint_for_reason(reason, retry_after_seconds);
+    let urgency_tier = fetch_retry_decision_urgency_tier_for_reason(reason, retry_after_seconds);
+    let retry_budget_class =
+        fetch_retry_decision_retry_budget_class_for_reason(reason, retry_after_seconds);
+    let lane_token = fetch_retry_decision_lane_token_for_reason(reason, retry_after_seconds);
+    let dispatch_mode = fetch_retry_decision_dispatch_mode_for_reason(reason, retry_after_seconds);
+    let manual_ack_required =
+        fetch_retry_decision_manual_ack_required_for_reason(reason, retry_after_seconds);
+    let execution_guard =
+        fetch_retry_decision_execution_guard_for_reason(reason, retry_after_seconds);
+    let followup_required =
+        fetch_retry_decision_followup_required_for_reason(reason, retry_after_seconds);
+    let decision_vector_key =
+        fetch_retry_decision_vector_key_for_reason(reason, retry_after_seconds);
+    json!({
+        "next_action_after_seconds": next_action_after_seconds,
+        "next_action_kind": next_action_kind,
+        "retry_window_class": retry_window_class,
+        "readiness_state": readiness_state,
+        "readiness_reason": readiness_reason,
+        "automation_safe": automation_safe,
+        "route_hint": route_hint,
+        "urgency_tier": urgency_tier,
+        "retry_budget_class": retry_budget_class,
+        "lane_token": lane_token,
+        "dispatch_mode": dispatch_mode,
+        "manual_ack_required": manual_ack_required,
+        "execution_guard": execution_guard,
+        "followup_required": followup_required,
+        "decision_vector_version": "v1",
+        "decision_vector_key": decision_vector_key
+    })
+}
+
 fn fetch_retry_envelope_runtime(
     strategy: &str,
     reason: &str,
     lane: &str,
     retry_after_seconds: i64,
 ) -> Value {
+    let decision_vector = fetch_retry_decision_vector_for_reason(reason, retry_after_seconds);
+    let next_action_after_seconds = decision_vector
+        .get("next_action_after_seconds")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let next_action_kind = decision_vector
+        .get("next_action_kind")
+        .and_then(Value::as_str)
+        .unwrap_or("execute_now");
+    let retry_window_class = decision_vector
+        .get("retry_window_class")
+        .and_then(Value::as_str)
+        .unwrap_or("immediate");
+    let readiness_state = decision_vector
+        .get("readiness_state")
+        .and_then(Value::as_str)
+        .unwrap_or("ready_now");
+    let readiness_reason = decision_vector
+        .get("readiness_reason")
+        .and_then(Value::as_str)
+        .unwrap_or("none");
+    let automation_safe = decision_vector
+        .get("automation_safe")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let decision_vector_key = decision_vector
+        .get("decision_vector_key")
+        .and_then(Value::as_str)
+        .unwrap_or("none")
+        .to_string();
+    let decision_route_hint = decision_vector
+        .get("route_hint")
+        .and_then(Value::as_str)
+        .unwrap_or("auto_execute_lane");
+    let decision_urgency_tier = decision_vector
+        .get("urgency_tier")
+        .and_then(Value::as_str)
+        .unwrap_or("deferred");
+    let decision_retry_budget_class = decision_vector
+        .get("retry_budget_class")
+        .and_then(Value::as_str)
+        .unwrap_or("manual_only");
+    let decision_lane_token = decision_vector
+        .get("lane_token")
+        .and_then(Value::as_str)
+        .unwrap_or("auto_execute_lane::deferred")
+        .to_string();
+    let decision_dispatch_mode = decision_vector
+        .get("dispatch_mode")
+        .and_then(Value::as_str)
+        .unwrap_or("immediate_execute");
+    let decision_manual_ack_required = decision_vector
+        .get("manual_ack_required")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let decision_execution_guard = decision_vector
+        .get("execution_guard")
+        .and_then(Value::as_str)
+        .unwrap_or("none");
+    let decision_followup_required = decision_vector
+        .get("followup_required")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let decision_vector_version = decision_vector
+        .get("decision_vector_version")
+        .and_then(Value::as_str)
+        .unwrap_or("v1");
     json!({
         "recommended": true,
         "retryable": true,
@@ -404,8 +729,23 @@ fn fetch_retry_envelope_runtime(
         "can_execute_without_human": fetch_retry_can_execute_without_human_for_reason(reason),
         "execution_window": fetch_retry_execution_window_for_reason(reason, retry_after_seconds),
         "manual_gate_timeout_seconds": fetch_retry_manual_gate_timeout_seconds_for_reason(reason),
-        "next_action_after_seconds": fetch_retry_next_action_after_seconds_for_reason(reason, retry_after_seconds),
-        "readiness_state": fetch_retry_readiness_state_for_reason(reason, retry_after_seconds),
+        "next_action_after_seconds": next_action_after_seconds,
+        "next_action_kind": next_action_kind,
+        "retry_window_class": retry_window_class,
+        "readiness_state": readiness_state,
+        "readiness_reason": readiness_reason,
+        "automation_safe": automation_safe,
+        "decision_route_hint": decision_route_hint,
+        "decision_urgency_tier": decision_urgency_tier,
+        "decision_retry_budget_class": decision_retry_budget_class,
+        "decision_lane_token": decision_lane_token,
+        "decision_dispatch_mode": decision_dispatch_mode,
+        "decision_manual_ack_required": decision_manual_ack_required,
+        "decision_execution_guard": decision_execution_guard,
+        "decision_followup_required": decision_followup_required,
+        "decision_vector_version": decision_vector_version,
+        "decision_vector_key": decision_vector_key,
+        "decision_vector": decision_vector,
         "lane": lane,
         "contract_version": "v1",
         "retry_after_seconds": retry_after_seconds.max(0)
@@ -494,7 +834,8 @@ fn fetch_url_shape_override_source(policy: &Value, request: &Value) -> &'static 
 }
 
 fn fetch_url_shape_error_code(raw_requested_url: &str) -> &'static str {
-    let lowered = clean_text(raw_requested_url, 2_400).to_ascii_lowercase();
+    let lowered =
+        fetch_strip_invisible_unicode(&clean_text(raw_requested_url, 2_400)).to_ascii_lowercase();
     let trimmed = lowered.trim();
     if trimmed.is_empty() {
         return "fetch_url_required";
@@ -527,7 +868,9 @@ fn fetch_url_shape_error_code(raw_requested_url: &str) -> &'static str {
 }
 
 fn normalize_fetch_requested_url_input(raw_requested_url: &str) -> String {
-    let mut out = clean_text(raw_requested_url, 2_400).trim().to_string();
+    let mut out = fetch_strip_invisible_unicode(&clean_text(raw_requested_url, 2_400))
+        .trim()
+        .to_string();
     for _ in 0..3 {
         if out.starts_with('<') && out.ends_with('>') && out.len() > 2 {
             out = out[1..out.len() - 1].trim().to_string();
@@ -674,7 +1017,12 @@ fn fetch_url_shape_contract(
     override_used: bool,
     override_source: &str,
 ) -> Value {
-    let input_trimmed = clean_text(requested_url_input, 2_400).trim().to_string();
+    let input_cleaned = clean_text(requested_url_input, 2_400);
+    let input_trimmed = input_cleaned.trim().to_string();
+    let stripped = fetch_strip_invisible_unicode(&input_cleaned);
+    let invisible_unicode_removed_count =
+        input_cleaned.chars().count().saturating_sub(stripped.chars().count()) as i64;
+    let invisible_unicode_stripped = invisible_unicode_removed_count > 0;
     let normalized_changed = input_trimmed != normalized_requested_url;
     json!({
         "blocked": reason != "none" && !override_used,
@@ -684,15 +1032,18 @@ fn fetch_url_shape_contract(
         "route_hint": fetch_url_shape_route_hint(reason),
         "normalized_requested_url": normalized_requested_url,
         "normalization_changed": normalized_changed,
+        "invisible_unicode_stripped": invisible_unicode_stripped,
+        "invisible_unicode_removed_count": invisible_unicode_removed_count,
         "override_used": override_used,
         "override_source": override_source,
-        "stats": fetch_url_shape_stats(normalized_requested_url),
-        "input_char_count": clean_text(requested_url_input, 2_400).len()
+        "stats": fetch_url_shape_stats(&fetch_strip_invisible_unicode(normalized_requested_url)),
+        "input_char_count": input_cleaned.len()
     })
 }
 
 fn fetch_url_shape_stats(raw_requested_url: &str) -> Value {
-    let lowered = clean_text(raw_requested_url, 2_400).to_ascii_lowercase();
+    let lowered =
+        fetch_strip_invisible_unicode(&clean_text(raw_requested_url, 2_400)).to_ascii_lowercase();
     let mut total_terms = 0usize;
     let mut unique = Vec::<String>::new();
     for token in lowered.split(|ch: char| !ch.is_ascii_alphanumeric()) {
@@ -1941,10 +2292,9 @@ fn execute_fetch_request(root: &Path, request: &Value) -> Value {
         .get("blocked")
         .and_then(Value::as_bool)
         .unwrap_or(false);
-    let replay_retry_after_seconds = attempt_replay_guard
-        .get("retry_after_seconds")
-        .and_then(Value::as_u64)
-        .unwrap_or(0);
+    let replay_retry_after_seconds = attempt_replay_guard.get("retry_after_seconds");
+    let replay_retry_after_seconds =
+        fetch_retry_after_seconds_from_value(replay_retry_after_seconds) as u64;
     let replay_retry_lane = clean_text(
         attempt_replay_guard
             .get("retry_lane")
