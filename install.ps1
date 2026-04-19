@@ -146,6 +146,26 @@ function Install-AllowDirectMsvcBootstrapEnabled {
   return $true
 }
 
+function Install-AllowCompatibleReleaseFallback {
+  if (-not [string]::IsNullOrWhiteSpace([string]$env:INFRING_INSTALL_ALLOW_COMPATIBLE_RELEASE_FALLBACK)) {
+    return Installer-TruthyFlag $env:INFRING_INSTALL_ALLOW_COMPATIBLE_RELEASE_FALLBACK $true
+  }
+  if (-not [string]::IsNullOrWhiteSpace([string]$env:INFRING_ALLOW_COMPATIBLE_RELEASE_FALLBACK)) {
+    return Installer-TruthyFlag $env:INFRING_ALLOW_COMPATIBLE_RELEASE_FALLBACK $true
+  }
+  return $true
+}
+
+function Install-AllowPinnedVersionCompatibleFallback {
+  if (-not [string]::IsNullOrWhiteSpace([string]$env:INFRING_INSTALL_ALLOW_PINNED_VERSION_COMPATIBLE_FALLBACK)) {
+    return Installer-TruthyFlag $env:INFRING_INSTALL_ALLOW_PINNED_VERSION_COMPATIBLE_FALLBACK $false
+  }
+  if (-not [string]::IsNullOrWhiteSpace([string]$env:INFRING_ALLOW_PINNED_VERSION_COMPATIBLE_FALLBACK)) {
+    return Installer-TruthyFlag $env:INFRING_ALLOW_PINNED_VERSION_COMPATIBLE_FALLBACK $false
+  }
+  return $false
+}
+
 function Resolve-Arch {
   $archRaw = if ($env:PROCESSOR_ARCHITECTURE) { $env:PROCESSOR_ARCHITECTURE } else { [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString() }
   switch ($archRaw.ToLower()) {
@@ -479,7 +499,10 @@ function Release-HasAnyAsset([object]$Release, [string[]]$AssetCandidates) {
 }
 
 function Resolve-AssetCompatibleVersionForTriple([string]$Triple, [string[]]$Stems) {
-  if ($RequestedVersion -ne "latest") {
+  if (-not (Install-AllowCompatibleReleaseFallback)) {
+    return $null
+  }
+  if (($RequestedVersion -ne "latest") -and (-not (Install-AllowPinnedVersionCompatibleFallback))) {
     return $null
   }
   $releases = Get-ReleasesFromApi
@@ -1572,10 +1595,15 @@ if ($HostIsWindows) {
     $requiredWindowsStems += "infring-ops"
   }
   Invoke-WindowsInstallerPreflight -VersionTag $version -Triple $triple -RequiredStems $requiredWindowsStems
-  if ($RequestedVersion -eq "latest") {
+  $allowPinnedCompatibleWindowsFallback = Install-AllowPinnedVersionCompatibleFallback
+  if (($RequestedVersion -eq "latest") -or $allowPinnedCompatibleWindowsFallback) {
     $compatibleWindows = Resolve-AssetCompatibleVersionForTriple $triple $requiredWindowsStems
     if ($compatibleWindows -and ($compatibleWindows -ne $version)) {
-      Write-Host "[infring install] latest release $version is missing one or more required Windows prebuilts for $triple; using compatible release $compatibleWindows"
+      if ($RequestedVersion -eq "latest") {
+        Write-Host "[infring install] latest release $version is missing one or more required Windows prebuilts for $triple; using compatible release $compatibleWindows"
+      } else {
+        Write-Host "[infring install] pinned release $version is missing one or more required Windows prebuilts for $triple; using compatible release $compatibleWindows (disable with INFRING_INSTALL_ALLOW_PINNED_VERSION_COMPATIBLE_FALLBACK=0)"
+      }
       $version = $compatibleWindows
       $resolvedVersionLabel = $compatibleWindows
       Invoke-WindowsInstallerPreflight -VersionTag $version -Triple $triple -RequiredStems $requiredWindowsStems
