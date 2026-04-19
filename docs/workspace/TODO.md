@@ -708,6 +708,15 @@ Rewired (40):
 - [x] Canonical public authority term set to `Kernel` in top-level public docs.
 - [x] Public/operator docs declare `Core` as compatibility alias, not a separate authority plane.
 - [x] Ownership policy terminology switched to `Kernel (compat alias: Core)` while preserving `core/**` path authority.
-- [ ] Add `kernel`-first command alias for naming guard (`ops:kernel-naming:guard`) while keeping `ops:core-naming:guard` for compatibility.
+- [x] Add `kernel`-first command alias for naming guard (`ops:kernel-naming:guard`) while keeping `ops:core-naming:guard` for compatibility.
 - [ ] Migrate naming policy artifact/config labels from `core_*` to `kernel_*` with compatibility mapping.
-- [ ] Publish alias-removal target version/date in release checklist and release policy docs.
+- [x] Publish alias-removal target version/date in release checklist and release policy docs.
+
+## Gateway Canonical-Term Transition Indicators (External Boundary Layer)
+
+- [x] Canonical public external-boundary term set to `Gateways` in top-level public docs.
+- [x] Public/operator docs declare `Adapters` as compatibility alias, not a separate authority layer.
+- [x] Ownership policy terminology now includes `Gateways (compat alias: Adapters)` while preserving `adapters/**` path authority.
+- [x] Add `gateway`-first command aliases for adapter-facing guards while keeping adapter aliases for compatibility.
+- [x] Migrate policy/artifact/config labels from `adapter_*` to `gateway_*` with compatibility mapping.
+- [x] Publish adapter-alias removal target version/date in release checklist and release policy docs.
