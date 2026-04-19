@@ -95,9 +95,13 @@ function windowsAndDocsCheck(): Check {
     installPs.includes('Install-AllowDirectMsvcBootstrapEnabled') &&
     installPs.includes('https://aka.ms/vs/17/release/vs_BuildTools.exe') &&
     /& \$tmp(?:\s+-Repair)?\s+-Full/.test(readme) &&
-    readme.includes('install.ps1 -OutFile $tmp') &&
+    readme.includes('install.ps1 -OutFile $tmp -ErrorAction Stop') &&
+    readme.includes('Remove-Item $tmp -Force -ErrorAction SilentlyContinue') &&
     readme.includes('INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP') &&
-    gettingStarted.includes('install.ps1') &&
+    /& \$tmp(?:\s+-Repair)?\s+-Full/.test(gettingStarted) &&
+    gettingStarted.includes('install.ps1 -OutFile $tmp -ErrorAction Stop') &&
+    gettingStarted.includes('Remove-Item $tmp -Force -ErrorAction SilentlyContinue') &&
+    gettingStarted.includes('INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP') &&
     gettingStarted.includes('infring --help');
   return {
     id: 'windows_and_docs_contract',
