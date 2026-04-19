@@ -119,6 +119,8 @@ function windowsAndDocsCheck(): Check {
     '[infring install] preflight note: winget is unavailable; installer will attempt direct Build Tools bootstrapper download during source fallback.';
   const preflightWingetUnavailableDirectDisabledWarning =
     '[infring install] preflight warning: winget is unavailable and direct bootstrap fallback is disabled; install Build Tools manually.';
+  const preflightAutoMsvcDisabledNote =
+    '[infring install] preflight note: auto MSVC bootstrap is disabled (set INFRING_INSTALL_AUTO_MSVC=1 to enable automatic Build Tools install attempts).';
   const preflightTarMissingWarning =
     '[infring install] preflight warning: tar was not detected; archive prebuilt extraction and some source fallback paths may fail.';
   const preflightLatestAssetGapWarning =
@@ -182,6 +184,7 @@ function windowsAndDocsCheck(): Check {
     installPs.includes(preflightMsvcBootstrapEnabledNote) &&
     installPs.includes(preflightWingetUnavailableDirectEnabledNote) &&
     installPs.includes(preflightWingetUnavailableDirectDisabledWarning) &&
+    installPs.includes(preflightAutoMsvcDisabledNote) &&
     installPs.includes(preflightTarMissingWarning) &&
     installPs.includes(preflightLatestAssetGapWarning) &&
     installPs.includes(preflightCargoAutoRustupNote) &&
