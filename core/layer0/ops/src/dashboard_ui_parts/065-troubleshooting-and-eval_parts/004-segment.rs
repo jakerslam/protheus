@@ -1,3 +1,4 @@
+// Layer ownership: core/layer0/ops (dashboard_ui_parts troubleshooting)
 fn dashboard_troubleshooting_workflow_signal(
     lane_ok: bool,
     error_code: &str,
@@ -473,10 +474,10 @@ fn dashboard_troubleshooting_capture_chat_exchange(
         }
     }
     exchange["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&exchange));
-    if deduped
-        && let Some(last) = entries.last_mut()
-    {
-        *last = exchange.clone();
+    if deduped {
+        if let Some(last) = entries.last_mut() {
+            *last = exchange.clone();
+        }
     }
     if !deduped {
         entries.push(exchange.clone());

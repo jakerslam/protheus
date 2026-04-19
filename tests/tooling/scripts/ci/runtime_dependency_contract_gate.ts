@@ -133,7 +133,12 @@ function buildReport(strict = false): GatePayload {
   if (!fs.existsSync(routesPath)) {
     failures.push('command_routing_source_missing');
   } else {
-    const source = fs.readFileSync(routesPath, 'utf8');
+    const daemonRoutesPath =
+      `${ROOT}/core/layer0/ops/src/protheusctl_routes_parts/010-command-routing_parts/001-resolve_core_shortcuts_family_daemon.rs`;
+    const source = [
+      fs.readFileSync(routesPath, 'utf8'),
+      fs.existsSync(daemonRoutesPath) ? fs.readFileSync(daemonRoutesPath, 'utf8') : '',
+    ].join('\n');
     if (!source.includes('"dashboard" => Some(route_dashboard_compat(rest, false))')) {
       failures.push('dashboard_not_canonical_core_route');
     }

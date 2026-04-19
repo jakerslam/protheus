@@ -102,6 +102,20 @@
       ]
     },
     {
+      "id": "TD-SIZE-CORE-CLASSIC",
+      "category": "size",
+      "status": "in_progress",
+      "owner": "jay",
+      "summary": "Track legacy oversized core/runtime shards that are exception-listed while being decomposed into bounded segments.",
+      "planned_batch_date": "2026-06-15",
+      "paths": [
+        "core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs",
+        "core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/004-segment.rs",
+        "core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs",
+        "core/layer0/ops/src/web_conduit_parts/080-tests.tail.rs"
+      ]
+    },
+    {
       "id": "TD-CI-COMMAND-001",
       "category": "command-surface",
       "status": "done",
