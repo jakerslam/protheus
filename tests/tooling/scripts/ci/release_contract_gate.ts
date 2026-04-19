@@ -179,6 +179,7 @@ function windowsAndDocsCheck(): Check {
     'main_last_resort_fallback=',
     'toolchain:cargo=',
     'auto_bootstrap:auto_rustup=',
+    'auto_msvc=',
     'auto_bootstrap:direct_msvc=',
     'install_policy:allow_no_msvc_source_fallback=',
     'compatible_release_fallback=',
