@@ -109,7 +109,52 @@ fn run_action_family_dashboard_troubleshooting(root: &Path, normalized: &str, pa
         "dashboard.troubleshooting.outbox.pressure.next_action_after_seconds" => {
             dashboard_troubleshooting_outbox_state_lane(root, payload)
         }
+        "dashboard.troubleshooting.outbox.pressure.next_action_kind" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.pressure.retry_window_class" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
         "dashboard.troubleshooting.outbox.pressure.readiness_state" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.pressure.readiness_reason" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.pressure.automation_safe" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.pressure.decision_vector" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.pressure.decision_vector_key" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.pressure.decision_route_hint" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.pressure.decision_urgency_tier" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.pressure.decision_retry_budget_class" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.pressure.decision_lane_token" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.pressure.decision_dispatch_mode" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.pressure.decision_manual_ack_required" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.pressure.decision_execution_guard" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.pressure.decision_followup_required" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.pressure.decision_vector_version" => {
             dashboard_troubleshooting_outbox_state_lane(root, payload)
         }
         "dashboard.troubleshooting.outbox.pressure.contract" => {
@@ -166,7 +211,52 @@ fn run_action_family_dashboard_troubleshooting(root: &Path, normalized: &str, pa
         "dashboard.troubleshooting.outbox.pressure.contract_next_action_after_seconds" => {
             dashboard_troubleshooting_outbox_state_lane(root, payload)
         }
+        "dashboard.troubleshooting.outbox.pressure.contract_next_action_kind" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.pressure.contract_retry_window_class" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
         "dashboard.troubleshooting.outbox.pressure.contract_readiness_state" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.pressure.contract_readiness_reason" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.pressure.contract_automation_safe" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.pressure.contract_decision_vector" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.pressure.contract_decision_vector_key" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.pressure.contract_decision_route_hint" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.pressure.contract_decision_urgency_tier" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.pressure.contract_decision_retry_budget_class" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.pressure.contract_decision_lane_token" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.pressure.contract_decision_dispatch_mode" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.pressure.contract_decision_manual_ack_required" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.pressure.contract_decision_execution_guard" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.pressure.contract_decision_followup_required" => {
+            dashboard_troubleshooting_outbox_state_lane(root, payload)
+        }
+        "dashboard.troubleshooting.outbox.pressure.contract_decision_vector_version" => {
             dashboard_troubleshooting_outbox_state_lane(root, payload)
         }
         "dashboard.troubleshooting.outbox.pressure.contract_deadline" => {
@@ -278,7 +368,52 @@ fn run_action_family_dashboard_troubleshooting(root: &Path, normalized: &str, pa
         "dashboard.troubleshooting.summary.pressure.next_action_after_seconds" => {
             dashboard_troubleshooting_summary_lane(root, payload)
         }
+        "dashboard.troubleshooting.summary.pressure.next_action_kind" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
+        "dashboard.troubleshooting.summary.pressure.retry_window_class" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
         "dashboard.troubleshooting.summary.pressure.readiness_state" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
+        "dashboard.troubleshooting.summary.pressure.readiness_reason" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
+        "dashboard.troubleshooting.summary.pressure.automation_safe" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
+        "dashboard.troubleshooting.summary.pressure.decision_vector" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
+        "dashboard.troubleshooting.summary.pressure.decision_vector_key" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
+        "dashboard.troubleshooting.summary.pressure.decision_route_hint" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
+        "dashboard.troubleshooting.summary.pressure.decision_urgency_tier" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
+        "dashboard.troubleshooting.summary.pressure.decision_retry_budget_class" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
+        "dashboard.troubleshooting.summary.pressure.decision_lane_token" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
+        "dashboard.troubleshooting.summary.pressure.decision_dispatch_mode" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
+        "dashboard.troubleshooting.summary.pressure.decision_manual_ack_required" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
+        "dashboard.troubleshooting.summary.pressure.decision_execution_guard" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
+        "dashboard.troubleshooting.summary.pressure.decision_followup_required" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
+        "dashboard.troubleshooting.summary.pressure.decision_vector_version" => {
             dashboard_troubleshooting_summary_lane(root, payload)
         }
         "dashboard.troubleshooting.summary.pressure.contract" => {
@@ -335,7 +470,52 @@ fn run_action_family_dashboard_troubleshooting(root: &Path, normalized: &str, pa
         "dashboard.troubleshooting.summary.pressure.contract_next_action_after_seconds" => {
             dashboard_troubleshooting_summary_lane(root, payload)
         }
+        "dashboard.troubleshooting.summary.pressure.contract_next_action_kind" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
+        "dashboard.troubleshooting.summary.pressure.contract_retry_window_class" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
         "dashboard.troubleshooting.summary.pressure.contract_readiness_state" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
+        "dashboard.troubleshooting.summary.pressure.contract_readiness_reason" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
+        "dashboard.troubleshooting.summary.pressure.contract_automation_safe" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
+        "dashboard.troubleshooting.summary.pressure.contract_decision_vector" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
+        "dashboard.troubleshooting.summary.pressure.contract_decision_vector_key" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
+        "dashboard.troubleshooting.summary.pressure.contract_decision_route_hint" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
+        "dashboard.troubleshooting.summary.pressure.contract_decision_urgency_tier" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
+        "dashboard.troubleshooting.summary.pressure.contract_decision_retry_budget_class" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
+        "dashboard.troubleshooting.summary.pressure.contract_decision_lane_token" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
+        "dashboard.troubleshooting.summary.pressure.contract_decision_dispatch_mode" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
+        "dashboard.troubleshooting.summary.pressure.contract_decision_manual_ack_required" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
+        "dashboard.troubleshooting.summary.pressure.contract_decision_execution_guard" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
+        "dashboard.troubleshooting.summary.pressure.contract_decision_followup_required" => {
+            dashboard_troubleshooting_summary_lane(root, payload)
+        }
+        "dashboard.troubleshooting.summary.pressure.contract_decision_vector_version" => {
             dashboard_troubleshooting_summary_lane(root, payload)
         }
         "dashboard.troubleshooting.summary.pressure.contract_deadline" => {

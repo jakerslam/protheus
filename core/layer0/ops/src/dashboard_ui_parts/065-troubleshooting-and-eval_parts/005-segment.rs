@@ -409,6 +409,205 @@ fn dashboard_outbox_pressure_readiness_state(
     }
 }
 
+fn dashboard_outbox_pressure_next_action_kind(
+    can_execute_without_human: bool,
+    next_action_after_seconds: i64,
+) -> &'static str {
+    if !can_execute_without_human {
+        "manual_gate"
+    } else if next_action_after_seconds > 0 {
+        "deferred_retry"
+    } else {
+        "execute_now"
+    }
+}
+
+fn dashboard_outbox_pressure_readiness_reason(
+    next_action_kind: &str,
+    manual_gate_reason: &str,
+    blocking_kind: &str,
+) -> &'static str {
+    match next_action_kind {
+        "manual_gate" => match manual_gate_reason {
+            "manual_intervention_required" => "manual_intervention_required",
+            "operator_review_required" => "operator_review_required",
+            _ => "manual_gate_required",
+        },
+        "deferred_retry" => {
+            if blocking_kind == "cooldown_required" {
+                "retry_after_pending"
+            } else {
+                "deferred_retry_pending"
+            }
+        }
+        _ => "none",
+    }
+}
+
+fn dashboard_outbox_pressure_retry_window_class(next_action_after_seconds: i64) -> &'static str {
+    if next_action_after_seconds <= 0 {
+        "immediate"
+    } else if next_action_after_seconds <= 60 {
+        "short"
+    } else if next_action_after_seconds <= 900 {
+        "medium"
+    } else {
+        "long"
+    }
+}
+
+fn dashboard_outbox_pressure_automation_safe(
+    auto_retry_allowed: bool,
+    can_execute_without_human: bool,
+) -> bool {
+    auto_retry_allowed && can_execute_without_human
+}
+
+fn dashboard_outbox_pressure_decision_vector_key(
+    next_action_after_seconds: i64,
+    next_action_kind: &str,
+    retry_window_class: &str,
+    readiness_state: &str,
+    readiness_reason: &str,
+    automation_safe: bool,
+) -> String {
+    format!(
+        "{}|{}|{}|{}|{}|{}",
+        clean_text(next_action_kind, 80),
+        clean_text(retry_window_class, 40),
+        clean_text(readiness_state, 80),
+        clean_text(readiness_reason, 80),
+        if automation_safe { 1 } else { 0 },
+        next_action_after_seconds.max(0)
+    )
+}
+
+fn dashboard_outbox_pressure_decision_vector(
+    next_action_after_seconds: i64,
+    next_action_kind: &str,
+    retry_window_class: &str,
+    readiness_state: &str,
+    readiness_reason: &str,
+    automation_safe: bool,
+) -> Value {
+    let route_hint = dashboard_outbox_pressure_decision_route_hint(next_action_kind);
+    let urgency_tier =
+        dashboard_outbox_pressure_decision_urgency_tier(retry_window_class, automation_safe);
+    let retry_budget_class =
+        dashboard_outbox_pressure_decision_retry_budget_class(retry_window_class, automation_safe);
+    let lane_token = dashboard_outbox_pressure_decision_lane_token(route_hint, urgency_tier);
+    let dispatch_mode = dashboard_outbox_pressure_decision_dispatch_mode(next_action_kind);
+    let manual_ack_required =
+        dashboard_outbox_pressure_decision_manual_ack_required(next_action_kind, automation_safe);
+    let execution_guard =
+        dashboard_outbox_pressure_decision_execution_guard(next_action_kind, automation_safe);
+    let followup_required = dashboard_outbox_pressure_decision_followup_required(next_action_kind);
+    let decision_vector_key = dashboard_outbox_pressure_decision_vector_key(
+        next_action_after_seconds,
+        next_action_kind,
+        retry_window_class,
+        readiness_state,
+        readiness_reason,
+        automation_safe,
+    );
+    json!({
+        "next_action_after_seconds": next_action_after_seconds.max(0),
+        "next_action_kind": clean_text(next_action_kind, 80),
+        "retry_window_class": clean_text(retry_window_class, 40),
+        "readiness_state": clean_text(readiness_state, 80),
+        "readiness_reason": clean_text(readiness_reason, 80),
+        "automation_safe": automation_safe,
+        "route_hint": clean_text(route_hint, 80),
+        "urgency_tier": clean_text(urgency_tier, 40),
+        "retry_budget_class": clean_text(retry_budget_class, 80),
+        "lane_token": lane_token,
+        "dispatch_mode": clean_text(dispatch_mode, 80),
+        "manual_ack_required": manual_ack_required,
+        "execution_guard": clean_text(execution_guard, 80),
+        "followup_required": followup_required,
+        "decision_vector_version": "v1",
+        "decision_vector_key": decision_vector_key
+    })
+}
+
+fn dashboard_outbox_pressure_decision_route_hint(next_action_kind: &str) -> &'static str {
+    match next_action_kind {
+        "manual_gate" => "manual_review_lane",
+        "deferred_retry" => "deferred_retry_lane",
+        _ => "auto_execute_lane",
+    }
+}
+
+fn dashboard_outbox_pressure_decision_urgency_tier(
+    retry_window_class: &str,
+    automation_safe: bool,
+) -> &'static str {
+    if !automation_safe {
+        return "manual";
+    }
+    match retry_window_class {
+        "immediate" => "high",
+        "short" => "medium",
+        "medium" => "low",
+        _ => "deferred",
+    }
+}
+
+fn dashboard_outbox_pressure_decision_retry_budget_class(
+    retry_window_class: &str,
+    automation_safe: bool,
+) -> &'static str {
+    if !automation_safe {
+        return "manual_only";
+    }
+    match retry_window_class {
+        "immediate" => "single_attempt",
+        "short" => "bounded_backoff_short",
+        "medium" => "bounded_backoff_medium",
+        _ => "bounded_backoff_long",
+    }
+}
+
+fn dashboard_outbox_pressure_decision_lane_token(route_hint: &str, urgency_tier: &str) -> String {
+    format!(
+        "{}::{}",
+        clean_text(route_hint, 80),
+        clean_text(urgency_tier, 40)
+    )
+}
+
+fn dashboard_outbox_pressure_decision_dispatch_mode(next_action_kind: &str) -> &'static str {
+    match next_action_kind {
+        "manual_gate" => "manual_review",
+        "deferred_retry" => "scheduled_retry",
+        _ => "immediate_execute",
+    }
+}
+
+fn dashboard_outbox_pressure_decision_manual_ack_required(
+    next_action_kind: &str,
+    automation_safe: bool,
+) -> bool {
+    !automation_safe || next_action_kind == "manual_gate"
+}
+
+fn dashboard_outbox_pressure_decision_execution_guard(
+    next_action_kind: &str,
+    automation_safe: bool,
+) -> &'static str {
+    if !automation_safe || next_action_kind == "manual_gate" {
+        "manual_gate_guard"
+    } else if next_action_kind == "deferred_retry" {
+        "retry_window_guard"
+    } else {
+        "none"
+    }
+}
+
+fn dashboard_outbox_pressure_decision_followup_required(next_action_kind: &str) -> bool {
+    next_action_kind != "execute_now"
+}
+
 fn dashboard_outbox_pressure_contract(
     snapshot_epoch_s: i64,
     priority: &str,
@@ -426,7 +625,12 @@ fn dashboard_outbox_pressure_contract(
     execution_window: &str,
     manual_gate_timeout_seconds: i64,
     next_action_after_seconds: i64,
+    next_action_kind: &str,
+    retry_window_class: &str,
     readiness_state: &str,
+    readiness_reason: &str,
+    automation_safe: bool,
+    decision_vector_key: &str,
     deadline_epoch_s: i64,
     breach_reason: &str,
 ) -> Value {
@@ -449,7 +653,46 @@ fn dashboard_outbox_pressure_contract(
         "execution_window": clean_text(execution_window, 80),
         "manual_gate_timeout_seconds": manual_gate_timeout_seconds.max(0),
         "next_action_after_seconds": next_action_after_seconds.max(0),
+        "next_action_kind": clean_text(next_action_kind, 80),
+        "retry_window_class": clean_text(retry_window_class, 40),
         "readiness_state": clean_text(readiness_state, 80),
+        "readiness_reason": clean_text(readiness_reason, 80),
+        "automation_safe": automation_safe,
+        "decision_route_hint": dashboard_outbox_pressure_decision_route_hint(next_action_kind),
+        "decision_urgency_tier": dashboard_outbox_pressure_decision_urgency_tier(
+            retry_window_class,
+            automation_safe
+        ),
+        "decision_retry_budget_class": dashboard_outbox_pressure_decision_retry_budget_class(
+            retry_window_class,
+            automation_safe
+        ),
+        "decision_lane_token": dashboard_outbox_pressure_decision_lane_token(
+            dashboard_outbox_pressure_decision_route_hint(next_action_kind),
+            dashboard_outbox_pressure_decision_urgency_tier(retry_window_class, automation_safe)
+        ),
+        "decision_dispatch_mode": dashboard_outbox_pressure_decision_dispatch_mode(next_action_kind),
+        "decision_manual_ack_required": dashboard_outbox_pressure_decision_manual_ack_required(
+            next_action_kind,
+            automation_safe
+        ),
+        "decision_execution_guard": dashboard_outbox_pressure_decision_execution_guard(
+            next_action_kind,
+            automation_safe
+        ),
+        "decision_followup_required": dashboard_outbox_pressure_decision_followup_required(
+            next_action_kind
+        ),
+        "decision_vector_version": "v1",
+        "decision_vector_key": clean_text(decision_vector_key, 200),
+        "decision_vector": dashboard_outbox_pressure_decision_vector(
+            next_action_after_seconds,
+            next_action_kind,
+            retry_window_class,
+            readiness_state,
+            readiness_reason,
+            automation_safe
+        ),
         "deadline_epoch_s": if deadline_epoch_s > 0 { deadline_epoch_s } else { 0 },
         "breach_reason": clean_text(breach_reason, 160),
         "snapshot_epoch_s": snapshot_epoch_s
@@ -848,6 +1091,59 @@ fn dashboard_troubleshooting_outbox_state_lane(root: &Path, payload: &Value) -> 
         queue_pressure_can_execute_without_human,
         queue_pressure_next_action_after_seconds,
     );
+    let queue_pressure_next_action_kind = dashboard_outbox_pressure_next_action_kind(
+        queue_pressure_can_execute_without_human,
+        queue_pressure_next_action_after_seconds,
+    );
+    let queue_pressure_readiness_reason = dashboard_outbox_pressure_readiness_reason(
+        queue_pressure_next_action_kind,
+        queue_pressure_manual_gate_reason,
+        queue_pressure_blocking_kind,
+    );
+    let queue_pressure_retry_window_class =
+        dashboard_outbox_pressure_retry_window_class(queue_pressure_next_action_after_seconds);
+    let queue_pressure_automation_safe = dashboard_outbox_pressure_automation_safe(
+        queue_pressure_auto_retry_allowed,
+        queue_pressure_can_execute_without_human,
+    );
+    let queue_pressure_decision_vector_key = dashboard_outbox_pressure_decision_vector_key(
+        queue_pressure_next_action_after_seconds,
+        queue_pressure_next_action_kind,
+        queue_pressure_retry_window_class,
+        queue_pressure_readiness_state,
+        queue_pressure_readiness_reason,
+        queue_pressure_automation_safe,
+    );
+    let queue_pressure_decision_route_hint =
+        dashboard_outbox_pressure_decision_route_hint(queue_pressure_next_action_kind);
+    let queue_pressure_decision_urgency_tier =
+        dashboard_outbox_pressure_decision_urgency_tier(
+            queue_pressure_retry_window_class,
+            queue_pressure_automation_safe,
+        );
+    let queue_pressure_decision_retry_budget_class =
+        dashboard_outbox_pressure_decision_retry_budget_class(
+            queue_pressure_retry_window_class,
+            queue_pressure_automation_safe,
+        );
+    let queue_pressure_decision_lane_token = dashboard_outbox_pressure_decision_lane_token(
+        queue_pressure_decision_route_hint,
+        queue_pressure_decision_urgency_tier,
+    );
+    let queue_pressure_decision_dispatch_mode =
+        dashboard_outbox_pressure_decision_dispatch_mode(queue_pressure_next_action_kind);
+    let queue_pressure_decision_manual_ack_required =
+        dashboard_outbox_pressure_decision_manual_ack_required(
+            queue_pressure_next_action_kind,
+            queue_pressure_automation_safe,
+        );
+    let queue_pressure_decision_execution_guard =
+        dashboard_outbox_pressure_decision_execution_guard(
+            queue_pressure_next_action_kind,
+            queue_pressure_automation_safe,
+        );
+    let queue_pressure_decision_followup_required =
+        dashboard_outbox_pressure_decision_followup_required(queue_pressure_next_action_kind);
     let compaction_recommended = stale_ratio >= 0.4 || oldest_age_seconds > 86_400;
     let compaction_reason = if rows.is_empty() {
         "none"
@@ -918,7 +1214,29 @@ fn dashboard_troubleshooting_outbox_state_lane(root: &Path, payload: &Value) -> 
             "queue_pressure_execution_window": queue_pressure_execution_window,
             "queue_pressure_manual_gate_timeout_seconds": queue_pressure_manual_gate_timeout_seconds,
             "queue_pressure_next_action_after_seconds": queue_pressure_next_action_after_seconds,
+            "queue_pressure_next_action_kind": queue_pressure_next_action_kind,
+            "queue_pressure_retry_window_class": queue_pressure_retry_window_class,
             "queue_pressure_readiness_state": queue_pressure_readiness_state,
+            "queue_pressure_readiness_reason": queue_pressure_readiness_reason,
+            "queue_pressure_automation_safe": queue_pressure_automation_safe,
+            "queue_pressure_decision_route_hint": queue_pressure_decision_route_hint,
+            "queue_pressure_decision_urgency_tier": queue_pressure_decision_urgency_tier,
+            "queue_pressure_decision_retry_budget_class": queue_pressure_decision_retry_budget_class,
+            "queue_pressure_decision_lane_token": queue_pressure_decision_lane_token,
+            "queue_pressure_decision_dispatch_mode": queue_pressure_decision_dispatch_mode,
+            "queue_pressure_decision_manual_ack_required": queue_pressure_decision_manual_ack_required,
+            "queue_pressure_decision_execution_guard": queue_pressure_decision_execution_guard,
+            "queue_pressure_decision_followup_required": queue_pressure_decision_followup_required,
+            "queue_pressure_decision_vector_version": "v1",
+            "queue_pressure_decision_vector_key": queue_pressure_decision_vector_key,
+            "queue_pressure_decision_vector": dashboard_outbox_pressure_decision_vector(
+                queue_pressure_next_action_after_seconds,
+                queue_pressure_next_action_kind,
+                queue_pressure_retry_window_class,
+                queue_pressure_readiness_state,
+                queue_pressure_readiness_reason,
+                queue_pressure_automation_safe
+            ),
             "queue_pressure_contract_version": dashboard_outbox_pressure_contract_version(),
             "queue_pressure_contract_family": "dashboard_queue_pressure_contract_v1",
             "queue_pressure_snapshot_epoch_s": now_epoch,
@@ -939,7 +1257,12 @@ fn dashboard_troubleshooting_outbox_state_lane(root: &Path, payload: &Value) -> 
                 queue_pressure_execution_window,
                 queue_pressure_manual_gate_timeout_seconds,
                 queue_pressure_next_action_after_seconds,
+                queue_pressure_next_action_kind,
+                queue_pressure_retry_window_class,
                 queue_pressure_readiness_state,
+                queue_pressure_readiness_reason,
+                queue_pressure_automation_safe,
+                queue_pressure_decision_vector_key.as_str(),
                 queue_pressure_deadline_epoch_s,
                 queue_pressure_breach_reason
             ),
@@ -1271,6 +1594,61 @@ fn dashboard_troubleshooting_summary_lane(root: &Path, payload: &Value) -> LaneR
         outbox_queue_pressure_can_execute_without_human,
         outbox_queue_pressure_next_action_after_seconds,
     );
+    let outbox_queue_pressure_next_action_kind = dashboard_outbox_pressure_next_action_kind(
+        outbox_queue_pressure_can_execute_without_human,
+        outbox_queue_pressure_next_action_after_seconds,
+    );
+    let outbox_queue_pressure_readiness_reason = dashboard_outbox_pressure_readiness_reason(
+        outbox_queue_pressure_next_action_kind,
+        outbox_queue_pressure_manual_gate_reason,
+        outbox_queue_pressure_blocking_kind,
+    );
+    let outbox_queue_pressure_retry_window_class = dashboard_outbox_pressure_retry_window_class(
+        outbox_queue_pressure_next_action_after_seconds,
+    );
+    let outbox_queue_pressure_automation_safe = dashboard_outbox_pressure_automation_safe(
+        outbox_queue_pressure_auto_retry_allowed,
+        outbox_queue_pressure_can_execute_without_human,
+    );
+    let outbox_queue_pressure_decision_vector_key = dashboard_outbox_pressure_decision_vector_key(
+        outbox_queue_pressure_next_action_after_seconds,
+        outbox_queue_pressure_next_action_kind,
+        outbox_queue_pressure_retry_window_class,
+        outbox_queue_pressure_readiness_state,
+        outbox_queue_pressure_readiness_reason,
+        outbox_queue_pressure_automation_safe,
+    );
+    let outbox_queue_pressure_decision_route_hint =
+        dashboard_outbox_pressure_decision_route_hint(outbox_queue_pressure_next_action_kind);
+    let outbox_queue_pressure_decision_urgency_tier =
+        dashboard_outbox_pressure_decision_urgency_tier(
+            outbox_queue_pressure_retry_window_class,
+            outbox_queue_pressure_automation_safe,
+        );
+    let outbox_queue_pressure_decision_retry_budget_class =
+        dashboard_outbox_pressure_decision_retry_budget_class(
+            outbox_queue_pressure_retry_window_class,
+            outbox_queue_pressure_automation_safe,
+        );
+    let outbox_queue_pressure_decision_lane_token =
+        dashboard_outbox_pressure_decision_lane_token(
+            outbox_queue_pressure_decision_route_hint,
+            outbox_queue_pressure_decision_urgency_tier,
+        );
+    let outbox_queue_pressure_decision_dispatch_mode =
+        dashboard_outbox_pressure_decision_dispatch_mode(outbox_queue_pressure_next_action_kind);
+    let outbox_queue_pressure_decision_manual_ack_required =
+        dashboard_outbox_pressure_decision_manual_ack_required(
+            outbox_queue_pressure_next_action_kind,
+            outbox_queue_pressure_automation_safe,
+        );
+    let outbox_queue_pressure_decision_execution_guard =
+        dashboard_outbox_pressure_decision_execution_guard(
+            outbox_queue_pressure_next_action_kind,
+            outbox_queue_pressure_automation_safe,
+        );
+    let outbox_queue_pressure_decision_followup_required =
+        dashboard_outbox_pressure_decision_followup_required(outbox_queue_pressure_next_action_kind);
     let outbox_compaction_recommended =
         outbox_stale_ratio >= 0.4 || outbox_oldest_age_seconds > 86_400;
     let outbox_compaction_reason = if outbox.is_empty() {
@@ -1405,7 +1783,29 @@ fn dashboard_troubleshooting_summary_lane(root: &Path, payload: &Value) -> LaneR
                     "queue_pressure_execution_window": outbox_queue_pressure_execution_window,
                     "queue_pressure_manual_gate_timeout_seconds": outbox_queue_pressure_manual_gate_timeout_seconds,
                     "queue_pressure_next_action_after_seconds": outbox_queue_pressure_next_action_after_seconds,
+                    "queue_pressure_next_action_kind": outbox_queue_pressure_next_action_kind,
+                    "queue_pressure_retry_window_class": outbox_queue_pressure_retry_window_class,
                     "queue_pressure_readiness_state": outbox_queue_pressure_readiness_state,
+                    "queue_pressure_readiness_reason": outbox_queue_pressure_readiness_reason,
+                    "queue_pressure_automation_safe": outbox_queue_pressure_automation_safe,
+                    "queue_pressure_decision_route_hint": outbox_queue_pressure_decision_route_hint,
+                    "queue_pressure_decision_urgency_tier": outbox_queue_pressure_decision_urgency_tier,
+                    "queue_pressure_decision_retry_budget_class": outbox_queue_pressure_decision_retry_budget_class,
+                    "queue_pressure_decision_lane_token": outbox_queue_pressure_decision_lane_token,
+                    "queue_pressure_decision_dispatch_mode": outbox_queue_pressure_decision_dispatch_mode,
+                    "queue_pressure_decision_manual_ack_required": outbox_queue_pressure_decision_manual_ack_required,
+                    "queue_pressure_decision_execution_guard": outbox_queue_pressure_decision_execution_guard,
+                    "queue_pressure_decision_followup_required": outbox_queue_pressure_decision_followup_required,
+                    "queue_pressure_decision_vector_version": "v1",
+                    "queue_pressure_decision_vector_key": outbox_queue_pressure_decision_vector_key,
+                    "queue_pressure_decision_vector": dashboard_outbox_pressure_decision_vector(
+                        outbox_queue_pressure_next_action_after_seconds,
+                        outbox_queue_pressure_next_action_kind,
+                        outbox_queue_pressure_retry_window_class,
+                        outbox_queue_pressure_readiness_state,
+                        outbox_queue_pressure_readiness_reason,
+                        outbox_queue_pressure_automation_safe
+                    ),
                     "queue_pressure_contract_version": dashboard_outbox_pressure_contract_version(),
                     "queue_pressure_contract_family": "dashboard_queue_pressure_contract_v1",
                     "queue_pressure_snapshot_epoch_s": now_epoch,
@@ -1426,7 +1826,12 @@ fn dashboard_troubleshooting_summary_lane(root: &Path, payload: &Value) -> LaneR
                         outbox_queue_pressure_execution_window,
                         outbox_queue_pressure_manual_gate_timeout_seconds,
                         outbox_queue_pressure_next_action_after_seconds,
+                        outbox_queue_pressure_next_action_kind,
+                        outbox_queue_pressure_retry_window_class,
                         outbox_queue_pressure_readiness_state,
+                        outbox_queue_pressure_readiness_reason,
+                        outbox_queue_pressure_automation_safe,
+                        outbox_queue_pressure_decision_vector_key.as_str(),
                         outbox_queue_pressure_deadline_epoch_s,
                         outbox_queue_pressure_breach_reason
                     ),

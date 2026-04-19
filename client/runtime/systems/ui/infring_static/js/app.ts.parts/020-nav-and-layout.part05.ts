@@ -367,6 +367,11 @@
 
     dragSurfaceRadiusByWall(wallRaw) {
       var r = 'var(--overlay-shared-surface-radius, var(--overlay-surface-radius, 18px))';
+      var wall = this.dragSurfaceNormalizeWall(wallRaw);
+      if (wall === 'left') return '0 ' + r + ' ' + r + ' 0';
+      if (wall === 'right') return r + ' 0 0 ' + r;
+      if (wall === 'top') return '0 0 ' + r + ' ' + r;
+      if (wall === 'bottom') return r + ' ' + r + ' 0 0';
       return r;
     },
 
@@ -391,36 +396,21 @@
     },
 
     dragSurfaceLockVisualCssVars(surfaceKeyRaw, wallRaw, optionsRaw) {
-      var key = String(surfaceKeyRaw || 'drag-surface').trim().toLowerCase();
-      if (!key) key = 'drag-surface';
+      var key = String(surfaceKeyRaw || 'drag-surface').trim().toLowerCase(); if (!key) key = 'drag-surface';
       var wall = this.dragSurfaceNormalizeWall(wallRaw);
       var options = optionsRaw && typeof optionsRaw === 'object' ? optionsRaw : {};
-
       var transformMs = this.dragSurfaceLockTransformTimeMs(options.transformMs);
       var fadeMs = this.dragSurfaceLockBorderFadeDurationMs(transformMs);
-      var delayMs = 0;
-      var durationMs = 0;
-
+      var delayMs = 0; var durationMs = 0;
       var store = this.dragSurfaceVisualStateStore();
       var prev = store[key] && typeof store[key] === 'object' ? store[key] : { initialized: false, wall: wall };
       var initialized = prev.initialized === true;
-      var previousWall = this.dragSurfaceNormalizeWall(prev.wall);
-      if (!initialized) previousWall = wall;
+      var previousWall = this.dragSurfaceNormalizeWall(prev.wall); if (!initialized) previousWall = wall;
       var wallChanged = previousWall !== wall;
-      if (wall && wallChanged) {
-        delayMs = transformMs;
-        durationMs = fadeMs;
-      } else if (!wall && wallChanged) {
-        delayMs = 0;
-        durationMs = 0;
-      }
+      if (wall && wallChanged) { delayMs = transformMs; durationMs = fadeMs; }
       store[key] = { initialized: true, wall: wall };
-
       var baseBorder = 'var(--drag-bar-border)';
-      var borderTop = baseBorder;
-      var borderRight = baseBorder;
-      var borderBottom = baseBorder;
-      var borderLeft = baseBorder;
+      var borderTop = baseBorder; var borderRight = baseBorder; var borderBottom = baseBorder; var borderLeft = baseBorder;
       if (wall === 'left') borderLeft = 'transparent';
       else if (wall === 'right') borderRight = 'transparent';
       else if (wall === 'top') borderTop = 'transparent';
