@@ -36,7 +36,7 @@ full-substrate = []
 
 [[bin]]
 name = "protheus-ops"
-path = "src/main.rs"
+path = "src/bin/protheus-ops.rs"
 
 [[bin]]
 name = "infring-ops"
@@ -48,7 +48,7 @@ path = "src/personas_core.rs"
 
 [[bin]]
 name = "protheusd"
-path = "src/protheusd.rs"
+path = "src/bin/protheusd.rs"
 
 [[bin]]
 name = "infringd"
