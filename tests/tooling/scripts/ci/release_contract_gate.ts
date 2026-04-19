@@ -101,6 +101,7 @@ function windowsAndDocsCheck(): Check {
   const noFileFallbackIex = 'irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 | iex';
   const executionPolicyBypassForce = 'Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force';
   const rerunReadmeInstallHint = 'rerun the README Windows install command: $ReadmeWindowsInstallCommand';
+  const readmeCommandBanner = '[infring install] README Windows install command: $ReadmeWindowsInstallCommand';
   const failureHintRequiredTokens = [
     'asset_probe=',
     'attempted_assets=',
@@ -123,6 +124,7 @@ function windowsAndDocsCheck(): Check {
     installPs.includes('Compatibility shim for operators accustomed to `-Force`.') &&
     installPsForceRepairShim &&
     installPs.includes(rerunReadmeInstallHint) &&
+    installPs.includes(readmeCommandBanner) &&
     hasFailureHintTokenCoverage &&
     opsLib.includes('#![recursion_limit = "16384"]') &&
     installPs.includes(directBootstrapperUrl) &&
