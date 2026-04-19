@@ -37,6 +37,7 @@ For each release candidate:
    - `test:ops:gateway-chaos:rust` -> `test:ops:adapter-chaos:rust`
    - `ops:orchestration:gateway-fallback:guard` -> `ops:orchestration:adapter-fallback:guard`
 4. Compatibility mapping file must be present and current:
+   - `client/runtime/config/kernel_transition_alias_map.json`
    - `client/runtime/config/gateway_transition_alias_map.json`
 5. After retirement target date/version, releases must remove deprecated aliases unless an explicit blocker exception is documented.
 
