@@ -136,6 +136,16 @@ function Install-AutoMsvcBootstrapEnabled {
   return $true
 }
 
+function Install-AllowDirectMsvcBootstrapEnabled {
+  if (-not [string]::IsNullOrWhiteSpace([string]$env:INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP)) {
+    return Installer-TruthyFlag $env:INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP $true
+  }
+  if (-not [string]::IsNullOrWhiteSpace([string]$env:INFRING_ALLOW_DIRECT_MSVC_BOOTSTRAP)) {
+    return Installer-TruthyFlag $env:INFRING_ALLOW_DIRECT_MSVC_BOOTSTRAP $true
+  }
+  return $true
+}
+
 function Resolve-Arch {
   $archRaw = if ($env:PROCESSOR_ARCHITECTURE) { $env:PROCESSOR_ARCHITECTURE } else { [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString() }
   switch ($archRaw.ToLower()) {
@@ -637,7 +647,7 @@ function Get-WindowsBuildToolSummary {
 }
 
 function Get-WindowsBuildToolsInstallHint {
-  return "Install Visual Studio Build Tools (MSVC+C++) via winget: winget install --id Microsoft.VisualStudio.2022.BuildTools -e --override \"--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools\""
+  return "Install Visual Studio Build Tools (MSVC+C++) via winget: winget install --id Microsoft.VisualStudio.2022.BuildTools -e --override ""--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools"" ; fallback (no winget): `$vs = Join-Path `$env:TEMP ""vs_BuildTools.exe""; irm https://aka.ms/vs/17/release/vs_BuildTools.exe -OutFile `$vs; Start-Process -FilePath `$vs -ArgumentList ""--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"" -Wait"
 }
 
 function Invoke-WindowsInstallerPreflight([string]$VersionTag, [string]$Triple, [string[]]$RequiredStems) {
@@ -704,9 +714,13 @@ function Invoke-WindowsInstallerPreflight([string]$VersionTag, [string]$Triple, 
   if ($assetGaps.Count -gt 0 -and (-not [bool]$toolchain.msvc_tools_present)) {
     Write-Host "[infring install] preflight warning: MSVC build tools were not detected; source fallback may fail if Windows prebuilt assets are unavailable."
     if (Install-AutoMsvcBootstrapEnabled) {
-      Write-Host "[infring install] preflight note: auto MSVC bootstrap is enabled (INFRING_INSTALL_AUTO_MSVC=1 default); installer will attempt winget build-tools bootstrap during source fallback."
+      Write-Host "[infring install] preflight note: auto MSVC bootstrap is enabled (INFRING_INSTALL_AUTO_MSVC=1 default); installer will attempt winget bootstrap first and direct bootstrapper fallback if needed."
       if (-not [bool]$toolchain.winget_present) {
-        Write-Host "[infring install] preflight warning: winget is unavailable; automatic Build Tools bootstrap cannot run. Install Build Tools manually."
+        if (Install-AllowDirectMsvcBootstrapEnabled) {
+          Write-Host "[infring install] preflight note: winget is unavailable; installer will attempt direct Build Tools bootstrapper download during source fallback."
+        } else {
+          Write-Host "[infring install] preflight warning: winget is unavailable and direct bootstrap fallback is disabled; install Build Tools manually."
+        }
       }
     } else {
       Write-Host "[infring install] preflight note: auto MSVC bootstrap is disabled (set INFRING_INSTALL_AUTO_MSVC=1 to enable automatic Build Tools install attempts)."
@@ -774,6 +788,8 @@ function Format-BinaryInstallFailureHint([string]$Stem, [string]$Triple, [string
     $parts.Add(("auto_bootstrap:auto_rustup={0};auto_msvc={1}" -f `
         ([string][bool](Install-AutoRustupEnabled)).ToLower(), `
         ([string][bool](Install-AutoMsvcBootstrapEnabled)).ToLower()))
+    $parts.Add(("auto_bootstrap:direct_msvc={0}" -f `
+        ([string][bool](Install-AllowDirectMsvcBootstrapEnabled)).ToLower()))
   }
   if ($parts.Count -eq 0) {
     return "No additional diagnostics captured."
@@ -915,29 +931,60 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
         $script:LastBinaryInstallFailureReason = "msvc_tools_missing_auto_bootstrap_disabled"
         return $false
       }
+      $bootstrapped = $false
       $wingetCmd = Get-Command winget -ErrorAction SilentlyContinue
-      if (-not $wingetCmd) {
-        $script:LastBinaryInstallFailureReason = "msvc_tools_missing_winget_unavailable"
-        return $false
-      }
-      Write-Host "[infring install] attempting automatic MSVC Build Tools bootstrap via winget"
-      try {
-        $proc = Start-Process -FilePath $wingetCmd.Source -ArgumentList @(
-            "install",
-            "--id",
-            "Microsoft.VisualStudio.2022.BuildTools",
-            "-e",
-            "--override",
-            "--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools",
-            "--accept-package-agreements",
-            "--accept-source-agreements"
-          ) -Wait -PassThru -WindowStyle Hidden
-        if ($proc.ExitCode -ne 0) {
-          $script:LastBinaryInstallFailureReason = ("msvc_bootstrap_failed_exit_{0}" -f [string]$proc.ExitCode)
-          return $false
+      if ($wingetCmd) {
+        Write-Host "[infring install] attempting automatic MSVC Build Tools bootstrap via winget"
+        try {
+          $proc = Start-Process -FilePath $wingetCmd.Source -ArgumentList @(
+              "install",
+              "--id",
+              "Microsoft.VisualStudio.2022.BuildTools",
+              "-e",
+              "--override",
+              "--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools",
+              "--accept-package-agreements",
+              "--accept-source-agreements"
+            ) -Wait -PassThru -WindowStyle Hidden
+          if ($proc.ExitCode -eq 0) {
+            $bootstrapped = $true
+          } else {
+            Write-Host ("[infring install] winget MSVC bootstrap failed (exit={0}); attempting direct bootstrapper fallback" -f [string]$proc.ExitCode)
+            $script:LastBinaryInstallFailureReason = ("msvc_bootstrap_winget_failed_exit_{0}" -f [string]$proc.ExitCode)
+          }
+        } catch {
+          Write-Host "[infring install] winget MSVC bootstrap transport failed; attempting direct bootstrapper fallback"
+          $script:LastBinaryInstallFailureReason = "msvc_bootstrap_winget_transport_error"
         }
-      } catch {
-        $script:LastBinaryInstallFailureReason = "msvc_bootstrap_transport_error"
+      } else {
+        Write-Host "[infring install] winget unavailable; attempting direct MSVC Build Tools bootstrapper fallback"
+        $script:LastBinaryInstallFailureReason = "msvc_bootstrap_winget_unavailable"
+      }
+      if ((-not $bootstrapped) -and (Install-AllowDirectMsvcBootstrapEnabled)) {
+        $bootstrapperPath = Join-Path ([System.IO.Path]::GetTempPath()) "infring-vs_BuildTools.exe"
+        try {
+          Invoke-WebRequest -Uri "https://aka.ms/vs/17/release/vs_BuildTools.exe" -OutFile $bootstrapperPath -UseBasicParsing | Out-Null
+          $directProc = Start-Process -FilePath $bootstrapperPath -ArgumentList @(
+              "--quiet",
+              "--wait",
+              "--norestart",
+              "--nocache",
+              "--add",
+              "Microsoft.VisualStudio.Workload.VCTools",
+              "--includeRecommended"
+            ) -Wait -PassThru -WindowStyle Hidden
+          if ($directProc.ExitCode -eq 0) {
+            $bootstrapped = $true
+          } else {
+            $script:LastBinaryInstallFailureReason = ("msvc_bootstrap_direct_failed_exit_{0}" -f [string]$directProc.ExitCode)
+          }
+        } catch {
+          $script:LastBinaryInstallFailureReason = "msvc_bootstrap_direct_transport_error"
+        }
+      } elseif (-not $bootstrapped) {
+        $script:LastBinaryInstallFailureReason = "msvc_bootstrap_direct_disabled"
+      }
+      if (-not $bootstrapped) {
         return $false
       }
       $postBootstrapToolchain = Get-WindowsBuildToolSummary
