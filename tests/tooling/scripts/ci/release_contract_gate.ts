@@ -89,6 +89,7 @@ function windowsAndDocsCheck(): Check {
   const installPs = read('install.ps1');
   const readme = read('README.md');
   const gettingStarted = read('docs/client/GETTING_STARTED.md');
+  const manualHelp = read('docs/workspace/manuals/infring_manual_help_tab.md');
   const windowsBuildToolsCommand =
     'winget install --id Microsoft.VisualStudio.2022.BuildTools -e --override "--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools"';
   const directBootstrapperUrl = 'https://aka.ms/vs/17/release/vs_BuildTools.exe';
@@ -117,7 +118,10 @@ function windowsAndDocsCheck(): Check {
     gettingStarted.includes('$env:INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP = "0"') &&
     gettingStarted.includes('$env:INFRING_INSTALL_AUTO_RUSTUP = "0"') &&
     gettingStarted.includes('INFRING_INSTALL_ALLOW_DIRECT_MSVC_BOOTSTRAP') &&
-    gettingStarted.includes('infring --help');
+    gettingStarted.includes('infring --help') &&
+    manualHelp.includes('install.ps1 -OutFile $tmp -ErrorAction Stop') &&
+    manualHelp.includes('Remove-Item $tmp -Force -ErrorAction SilentlyContinue') &&
+    /& \$tmp(?:\s+-Repair)?\s+-Full/.test(manualHelp);
   return {
     id: 'windows_and_docs_contract',
     ok,
