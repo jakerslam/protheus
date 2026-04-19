@@ -80,7 +80,7 @@
       "planned_batch_date": "2026-06-15"
     },
     {
-      "path": "client/runtime/systems/ui/infring_static/index_body.html.parts/0003-body-part.html",
+      "path": "client/runtime/systems/ui/infring_static/index_body.html.parts/0003-chat-drawer-and-thread-rendering.html",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-06-15",
@@ -88,7 +88,7 @@
       "planned_batch_date": "2026-06-15"
     },
     {
-      "path": "client/runtime/systems/ui/infring_static/index_body.html.parts/0004-body-part.html",
+      "path": "client/runtime/systems/ui/infring_static/index_body.html.parts/0004-chat-map-and-composer-controls.html",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-06-15",
