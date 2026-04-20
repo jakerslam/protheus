@@ -9,6 +9,7 @@ include!("swarm_runtime_parts/080-show-turn-run.rs");
 include!("swarm_runtime_parts/090-analyze-result-consensus.rs");
 include!("swarm_runtime_parts/100-spawn-persistent-session.rs");
 include!("swarm_runtime_parts/110-spawn-single.rs");
+include!("swarm_runtime_parts/115-plan-runtime.rs");
 include!("swarm_runtime_parts/120-evaluate-consensus.rs");
 include!("swarm_runtime_parts/130-sessions-terminate.rs");
 include!("swarm_runtime_parts/140-queue-metrics-prometheus.rs");

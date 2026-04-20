@@ -328,13 +328,14 @@ fn run_setup_wizard_missing_script_fallback(root: &Path, args: &[String]) -> i32
         .join("latest.json");
     let payload = json!({
         "type": "protheus_setup_wizard_state",
-        "completed": true,
+        "completed": false,
         "completed_at": crate::now_iso(),
-        "completion_mode": "missing_script_fallback",
+        "completion_mode": "missing_script_fallback_deferred",
         "node_runtime_detected": has_node_runtime(),
         "interaction_style": "silent",
         "notifications": "none",
         "covenant_acknowledged": false,
+        "next_action": "infring setup --yes --defaults",
         "version": 1
     });
     if let Some(parent) = state_path.parent() {
@@ -351,12 +352,14 @@ fn run_setup_wizard_missing_script_fallback(root: &Path, args: &[String]) -> i32
                 "ok": true,
                 "type": "protheus_setup_wizard_fallback",
                 "mode": "missing_script_fallback",
-                "message": "setup wizard script missing in this runtime; wrote fallback state and continued"
+                "deferred": true,
+                "next_action": "infring setup --yes --defaults",
+                "message": "setup wizard script missing in this runtime; wrote deferred fallback state"
             })
         );
     } else {
-        println!("Setup wizard script missing in this runtime; applied compatibility fallback.");
-        println!("You can rerun `infring setup --force` after updating your runtime.");
+        println!("Setup wizard script missing in this runtime; setup was deferred.");
+        println!("Run `infring setup --yes --defaults` after repairing your runtime surface.");
     }
     0
 }
@@ -464,6 +467,7 @@ fn root_cause_code_for_issue(issue: &str) -> &'static str {
         "dashboard_pid_not_running" => "INF-DASH-003-PID-NOT-RUNNING",
         "dashboard_watchdog_not_running" => "INF-DASH-004-WATCHDOG-NOT-RUNNING",
         "launchd_not_loaded" => "INF-DASH-005-LAUNCHD-NOT-LOADED",
+        "stale_workspace_root_reference" => "INF-RUNTIME-004-STALE-WORKSPACE-ROOT",
         "dashboard_ui_route_mismatch" => "INF-ROUTE-004-DASHBOARD-UI-LEGACY-MISMATCH",
         _ => "INF-UNKNOWN-000-UNCLASSIFIED",
     }
@@ -478,6 +482,88 @@ fn collect_root_cause_codes(failures: &[String], warnings: &[String]) -> Vec<Str
         }
     }
     out
+}
+
+fn recovery_commands_for_issue(issue: &str) -> &'static [&'static str] {
+    match issue {
+        "node_runtime_missing" => &[
+            "Install Node.js 22+ then rerun: infring setup --yes --defaults",
+            "If PATH did not refresh: . \"$HOME/.infring/env.sh\" && hash -r 2>/dev/null || true",
+            "Verify setup state: infring setup status --json",
+            "Verify gateway state: infring gateway status",
+        ],
+        "node_module_typescript_missing" | "node_module_ws_missing" => &[
+            "Repair runtime closure: infring update --repair --full",
+            "Re-run diagnostics: infring doctor --json",
+        ],
+        "cargo_not_runnable" => &[
+            "Install Rust toolchain and set default: rustup default stable",
+            "Re-run diagnostics: infring doctor --json",
+        ],
+        "rustup_default_toolchain_missing" => &[
+            "Configure default Rust toolchain: rustup default stable",
+            "Verify toolchain: cargo --version",
+        ],
+        "dashboard_port_invalid" => &[
+            "Use a valid dashboard port and retry: infring gateway restart --dashboard-port=4173",
+            "Inspect status: infring gateway status",
+        ],
+        "dashboard_healthz_unreachable" | "dashboard_pid_not_running" | "dashboard_watchdog_not_running" => &[
+            "Restart gateway and dashboard: infring gateway restart",
+            "Validate health endpoint: curl -fsS http://127.0.0.1:4173/healthz",
+            "Re-run diagnostics: infring doctor --json",
+        ],
+        "stale_workspace_root_reference" => &[
+            "Set active root for this workspace: export INFRING_WORKSPACE_ROOT=\"$(pwd)\"",
+            "Re-run diagnostics: infringctl doctor --json",
+        ],
+        "runtime_assets_missing" | "tier1_runtime_targets_missing" => &[
+            "Repair runtime assets: infring update --repair --full",
+            "Verify required runtime manifest: client/runtime/config/install_runtime_manifest_v1.txt",
+        ],
+        "wrapper_missing" => &[
+            "Re-run installer in repair mode: curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --repair --full",
+            "Check wrappers directly: \"$HOME/.infring/bin/infring\" --help",
+        ],
+        "dashboard_route_mismatch" | "verify_install_route_mismatch" | "gateway_status_route_mismatch" => &[
+            "Re-run installer repair to restore route wrappers: infring update --repair --full",
+            "Validate route contracts: infring verify-install --json",
+        ],
+        _ => &[],
+    }
+}
+
+fn collect_recovery_hints(failures: &[String], warnings: &[String]) -> Vec<(String, Vec<String>)> {
+    let mut out = Vec::<(String, Vec<String>)>::new();
+    let mut seen = Vec::<String>::new();
+    for issue in failures.iter().chain(warnings.iter()) {
+        if seen.contains(issue) {
+            continue;
+        }
+        seen.push(issue.clone());
+        let commands = recovery_commands_for_issue(issue.as_str());
+        if commands.is_empty() {
+            continue;
+        }
+        out.push((
+            issue.clone(),
+            commands.iter().map(|row| row.to_string()).collect::<Vec<_>>(),
+        ));
+    }
+    out
+}
+
+fn print_recovery_hints(rows: &[(String, Vec<String>)]) {
+    if rows.is_empty() {
+        return;
+    }
+    println!("[infring doctor] recovery-hints:");
+    for (issue, commands) in rows {
+        println!("  - {}:", clean(issue, 120));
+        for cmd in commands {
+            println!("      * {}", clean(cmd, 260));
+        }
+    }
 }
 
 fn node_module_resolvable(root: &Path, module_name: &str) -> bool {
@@ -542,6 +628,38 @@ fn rustup_default_toolchain_configured() -> bool {
         .unwrap_or(false)
 }
 
+fn canonical_path_string(path: &Path) -> String {
+    fs::canonicalize(path)
+        .unwrap_or_else(|_| path.to_path_buf())
+        .to_string_lossy()
+        .to_string()
+}
+
+fn workspace_root_env_mismatches(root: &Path) -> Vec<Value> {
+    let active = canonical_path_string(root);
+    let mut rows = Vec::<Value>::new();
+    for key in ["INFRING_WORKSPACE_ROOT", "PROTHEUS_WORKSPACE_ROOT"] {
+        let Ok(raw) = env::var(key) else {
+            continue;
+        };
+        let trimmed = raw.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let configured = Path::new(trimmed);
+        let resolved = canonical_path_string(configured);
+        if resolved != active {
+            rows.push(json!({
+                "env": key,
+                "configured": clean(trimmed.to_string(), 500),
+                "resolved": clean(resolved, 500),
+                "active_workspace_root": clean(active.clone(), 500)
+            }));
+        }
+    }
+    rows
+}
+
 fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
     let json_mode = has_json_flag(args);
     let mode = first_positional_command(args);
@@ -580,6 +698,8 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
         })
         .collect::<Vec<_>>();
     let missing_runtime = runtime_missing_entrypoints_for_mode(root, runtime_mode.as_str());
+    let required_asset_misses = missing_runtime.len() + tier1_runtime_missing.len();
+    let stale_path_references = workspace_root_env_mismatches(root);
     let wrappers = json!({
         "infring": command_available_in_current_bin_dir("infring"),
         "infringctl": command_available_in_current_bin_dir("infringctl"),
@@ -678,6 +798,9 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
         "tier1_runtime_targets": tier1_runtime_targets,
         "tier1_runtime_missing": tier1_runtime_missing,
         "runtime_assets_missing": missing_runtime.len(),
+        "required_asset_misses": required_asset_misses,
+        "stale_path_references": stale_path_references,
+        "stale_path_reference_count": stale_path_references.len(),
         "wrappers_ok": wrappers_ok,
         "dashboard_route_ok": dashboard_route_ok,
         "dashboard_ui_route_ok": dashboard_ui_route_ok,
@@ -694,6 +817,9 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
     }
     if !missing_runtime.is_empty() {
         failures.push("runtime_assets_missing".to_string());
+    }
+    if required_asset_misses > 0 {
+        failures.push("required_asset_misses_nonzero".to_string());
     }
     if !command_registry_ok {
         failures.push("command_registry_integrity_failed".to_string());
@@ -715,6 +841,11 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
     }
     if !gateway_status_route_ok {
         failures.push("gateway_status_route_mismatch".to_string());
+    }
+    if normalized_mode == "verify-install" && !stale_path_references.is_empty() {
+        failures.push("stale_workspace_root_reference".to_string());
+    } else if !stale_path_references.is_empty() {
+        warnings.push("stale_workspace_root_reference".to_string());
     }
     // Full verification expects Node so all JS/TS command surfaces are actionable.
     if normalized_mode == "verify-install" && !node_detected {
@@ -761,6 +892,7 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
         warnings.push("launchd_not_loaded".to_string());
     }
     let root_cause_codes = collect_root_cause_codes(&failures, &warnings);
+    let recovery_hints = collect_recovery_hints(&failures, &warnings);
 
     let ok = failures.is_empty();
     if json_mode {
@@ -773,9 +905,18 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
                 "checks": checks,
                 "wrappers": wrappers,
                 "missing_runtime_entrypoints": missing_runtime,
+                "required_asset_misses": required_asset_misses,
+                "stale_path_references": stale_path_references,
                 "failures": failures,
                 "warnings": warnings,
-                "root_cause_codes": root_cause_codes
+                "root_cause_codes": root_cause_codes,
+                "recovery_hints": recovery_hints
+                    .iter()
+                    .map(|(issue, commands)| json!({
+                        "issue": issue,
+                        "commands": commands
+                    }))
+                    .collect::<Vec<_>>()
             })
         );
     } else {
@@ -811,6 +952,14 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
             missing_runtime.len()
         );
         println!(
+            "[infring doctor] required asset misses: {}",
+            required_asset_misses
+        );
+        println!(
+            "[infring doctor] stale workspace root references: {}",
+            stale_path_references.len()
+        );
+        println!(
             "[infring doctor] command registry: ok={} tier1-route-mismatch={} tier1-runtime-missing={}",
             command_registry_ok,
             tier1_route_mismatches.len(),
@@ -834,6 +983,22 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
                 println!("  - tier1 runtime missing: {row}");
             }
         }
+        if !stale_path_references.is_empty() {
+            for row in stale_path_references.iter().take(5) {
+                let env_name = row.get("env").and_then(Value::as_str).unwrap_or("unknown");
+                let configured = row
+                    .get("configured")
+                    .and_then(Value::as_str)
+                    .unwrap_or("(unset)");
+                let active = row
+                    .get("active_workspace_root")
+                    .and_then(Value::as_str)
+                    .unwrap_or("(unknown)");
+                println!(
+                    "  - stale workspace root ref: {env_name}={configured} (active={active})"
+                );
+            }
+        }
         println!(
             "[infring doctor] route integrity: dashboard={}, dashboard-ui={}, gateway-status={}, verify-install={}",
             dashboard_route_ok, dashboard_ui_route_ok, gateway_status_route_ok, verify_route_ok
@@ -849,12 +1014,23 @@ fn run_install_doctor_domain(root: &Path, args: &[String]) -> i32 {
         if !warnings.is_empty() {
             println!("[infring doctor] warnings: {}", warnings.join(", "));
         }
+        if !recovery_hints.is_empty() {
+            println!("[infring doctor] next-actions:");
+            for (issue, commands) in recovery_hints.iter().take(5) {
+                if let Some(cmd) = commands.first() {
+                    println!("  - {} -> {}", clean(issue, 120), clean(cmd, 220));
+                }
+            }
+            println!("  - setup status -> infring setup status --json");
+            println!("  - gateway status -> infring gateway status");
+        }
         if !root_cause_codes.is_empty() {
             println!(
                 "[infring doctor] root-cause-codes: {}",
                 root_cause_codes.join(", ")
             );
         }
+        print_recovery_hints(&recovery_hints);
         if ok {
             println!("[infring doctor] verdict: ok");
         } else {
@@ -1018,6 +1194,7 @@ fn suppress_pre_dispatch_side_effects(cmd: &str, json_mode: bool) -> bool {
             | "replay"
             | "verify-install"
             | "gateway"
+            | "recover"
             | "dashboard"
             | "setup"
             | "version"

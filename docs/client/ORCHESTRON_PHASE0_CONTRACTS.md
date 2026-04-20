@@ -95,5 +95,5 @@ Gates that can block autonomous promotion/apply:
 node tests/client-memory-tools/workflow_controller_orchestron_phase0_shadow.test.ts
 node tests/client-memory-tools/workflow_controller_orchestron_auto_apply.test.ts
 node tests/client-memory-tools/workflow_controller_orchestron_shadow.test.ts
-node client/runtime/systems/spine/contract_check.ts
+node client/runtime/systems/spine/contract_check_bridge.ts
 ```

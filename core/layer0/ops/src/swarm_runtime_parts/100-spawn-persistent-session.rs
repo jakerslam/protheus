@@ -47,6 +47,7 @@ fn spawn_persistent_session(
     } else {
         task.to_string()
     };
+    let role_card = resolve_spawn_role_card(options, &scaled_task)?;
     let runtime = PersistentRuntime {
         mode: runtime_mode_label(background_worker).to_string(),
         config: cfg.clone(),
@@ -85,7 +86,8 @@ fn spawn_persistent_session(
         )
     });
     metadata.scaled_task = Some(scaled_task);
-    metadata.role = options.role.clone();
+    metadata.role = Some(role_card.role.clone());
+    metadata.role_card = Some(role_card.clone());
     metadata.agent_label = options.agent_label.clone();
     metadata.persistent = Some(runtime);
     metadata.background_worker = background_worker;
@@ -108,8 +110,8 @@ fn spawn_persistent_session(
     register_service_instance(
         state,
         &session_id,
-        options.role.clone(),
-        options.capabilities.clone(),
+        Some(role_card.role.clone()),
+        role_card.capability_envelope.clone(),
     );
 
     append_event(
@@ -117,7 +119,9 @@ fn spawn_persistent_session(
         json!({
             "type": if background_worker { "swarm_background_spawn" } else { "swarm_persistent_spawn" },
             "session_id": session_id,
+            "lineage_parent_id": parent_id,
             "task": task,
+            "role_card": role_card,
             "lifespan_sec": cfg.lifespan_sec,
             "check_in_interval_sec": cfg.check_in_interval_sec,
             "report_mode": cfg.report_mode.as_label(),
@@ -132,6 +136,7 @@ fn spawn_persistent_session(
         "lifespan_sec": cfg.lifespan_sec,
         "check_in_interval_sec": cfg.check_in_interval_sec,
         "report_mode": cfg.report_mode.as_label(),
+        "role_card": state.sessions.get(&session_id).and_then(|session| session.role_card.clone()),
         "initial_check_in": initial,
         "session_state": session_state_payload(state, &session_id),
     }))

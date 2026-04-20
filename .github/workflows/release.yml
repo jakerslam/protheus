@@ -192,6 +192,7 @@ jobs:
       - name: Release topology, compatibility, and recovery evidence
         if: steps.semver.outputs.release_ready == '1'
         run: |
+          npm run -s ops:runtime-proof:verify
           npm run -s ops:release:rc-rehearsal
           npm run -s ops:ipc-bridge:soak
 
@@ -472,7 +473,12 @@ jobs:
             client/runtime/local/state/release/signatures/release_public.pem \
             client/runtime/local/state/release/licensing/release_licensing_manifest.json \
             client/runtime/local/state/release/scorecard/release_scorecard.json \
-            core/local/artifacts/release_verdict_current.json; do
+            core/local/artifacts/release_verdict_current.json \
+            core/local/artifacts/runtime_proof_verify_current.json \
+            core/local/artifacts/runtime_boundedness_72h_evidence_current.json \
+            core/local/artifacts/runtime_multi_day_soak_evidence_current.json \
+            core/local/artifacts/release_proof_checksums_current.json \
+            core/local/artifacts/release_proof_pack_current.json; do
             [ -f "$f" ] || continue
             sha256sum "$f" >> "$OUT"
           done
@@ -556,6 +562,11 @@ jobs:
             client/runtime/local/state/release/artifacts/SHA256SUMS
             client/runtime/local/state/release/scorecard/release_scorecard.json
             core/local/artifacts/release_verdict_current.json
+            core/local/artifacts/runtime_proof_verify_current.json
+            core/local/artifacts/runtime_boundedness_72h_evidence_current.json
+            core/local/artifacts/runtime_multi_day_soak_evidence_current.json
+            core/local/artifacts/release_proof_checksums_current.json
+            core/local/artifacts/release_proof_pack_current.json
             docs/client/reports/benchmark_matrix_run_latest.json
             core/local/artifacts/benchmark_sanity_gate_current.json
             core/local/artifacts/benchmark_public_audit_current.json

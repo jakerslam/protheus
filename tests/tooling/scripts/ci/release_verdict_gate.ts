@@ -52,8 +52,28 @@ function artifactOk(gateId: string, payload: any): boolean {
     case 'ops:assimilation:v1:support:guard':
     case 'ops:release-blockers:gate':
     case 'ops:release-hardening-window:guard':
+    case 'ops:layer2:parity:guard':
+    case 'ops:layer2:receipt:replay':
+    case 'ops:trusted-core:report':
     case 'ops:release:scorecard:gate':
       return payload?.ok === true;
+    case 'ops:runtime-proof:verify': {
+      const profiles = Array.isArray(payload?.profile_runs) ? payload.profile_runs : [];
+      const proofTrack = String(payload?.summary?.proof_track || '').trim();
+      const profileCount = Number(payload?.summary?.profile_count || 0);
+      const empiricalOk = profiles.every((row: any) => row?.empirical_sample_points_ok === true);
+      return payload?.ok === true && proofTrack === 'dual' && profileCount >= 3 && empiricalOk;
+    }
+    case 'ops:release:proof-pack': {
+      const requiredMissing = Number(
+        payload?.summary?.required_missing ?? (Array.isArray(payload?.required_missing) ? payload.required_missing.length : 0),
+      );
+      const categoryThresholdFailures = Number(
+        payload?.summary?.category_threshold_failure_count ??
+          (Array.isArray(payload?.category_threshold_failures) ? payload.category_threshold_failures.length : 0),
+      );
+      return payload?.ok === true && requiredMissing === 0 && categoryThresholdFailures === 0;
+    }
     case 'ops:orchestration:hidden-state:guard':
       return payload?.summary?.pass === true || payload?.summary?.violation_count === 0;
     case 'ops:production-closure:gate':
@@ -132,6 +152,46 @@ export function buildReport(rawArgs = parseArgs(process.argv.slice(2))) {
         id: `release_gate_strict_artifact:${gateId}`,
         ok: artifactStrict(payload),
         detail: `strict=${String(artifactStrict(payload))}`,
+      });
+    }
+    if (gateId === 'ops:runtime-proof:verify') {
+      const profiles = Array.isArray(payload?.profile_runs) ? payload.profile_runs : [];
+      const profileCount = Number(payload?.summary?.profile_count || 0);
+      const proofTrack = String(payload?.summary?.proof_track || '').trim();
+      const empiricalOk = profiles.every((row: any) => row?.empirical_sample_points_ok === true);
+      checks.push({
+        id: 'runtime_proof_dual_track_mandatory',
+        ok: proofTrack === 'dual',
+        detail: `proof_track=${proofTrack || 'unknown'}`,
+      });
+      checks.push({
+        id: 'runtime_proof_profile_coverage_all',
+        ok: profileCount >= 3,
+        detail: `profile_count=${profileCount}`,
+      });
+      checks.push({
+        id: 'runtime_proof_empirical_nonzero_all_profiles',
+        ok: empiricalOk,
+        detail: `empirical_nonzero_all_profiles=${String(empiricalOk)}`,
+      });
+    }
+    if (gateId === 'ops:release:proof-pack') {
+      const requiredMissing = Number(
+        payload?.summary?.required_missing ?? (Array.isArray(payload?.required_missing) ? payload.required_missing.length : 0),
+      );
+      const categoryThresholdFailures = Number(
+        payload?.summary?.category_threshold_failure_count ??
+          (Array.isArray(payload?.category_threshold_failures) ? payload.category_threshold_failures.length : 0),
+      );
+      checks.push({
+        id: 'release_proof_pack_required_missing_zero',
+        ok: requiredMissing === 0,
+        detail: `required_missing=${requiredMissing}`,
+      });
+      checks.push({
+        id: 'release_proof_pack_category_thresholds_met',
+        ok: categoryThresholdFailures === 0,
+        detail: `category_threshold_failures=${categoryThresholdFailures}`,
       });
     }
   }

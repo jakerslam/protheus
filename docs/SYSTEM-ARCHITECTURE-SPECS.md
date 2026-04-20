@@ -32,7 +32,7 @@ Layer 2: Scheduling + Execution
         ↓
 Layer 3: OS Personality Template
         ↓
-Cognition Plane (Orchestration Surface + Presentation Client)
+Cognition Plane (Orchestration Control Plane + Presentation Client)
 ```
 
 ## 4. Layer Responsibilities
@@ -60,10 +60,14 @@ Cognition Plane (Orchestration Surface + Presentation Client)
 - Must consume lower-layer contracts; never bypass them.
 
 ### Cognition Plane (`surface/orchestration/` + `client/`)
-- Orchestration Surface (`surface/orchestration/`) owns request shaping, sequencing, clarification, recovery, and result packaging.
+- Orchestration Control Plane (`surface/orchestration/`) owns decomposition, coordination, sequencing, recovery, and result shaping/packaging (among other things in non-canonical coordination).
 - Presentation Client (`client/`) owns rendering, input, shell UX, and presentation-local state.
 - Cognition can propose/assist; cannot become root-of-correctness.
 - Core boundary crossing remains contract-driven through conduit + scrambler.
+
+Transition note:
+- This document now uses Control Plane terminology for `surface/orchestration/`.
+- Internal naming migration is incremental; existing `orchestration` identifiers remain compatibility aliases until transition completion.
 
 ## 5. Interface Contracts (Generation Targets)
 

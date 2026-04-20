@@ -1,4 +1,7 @@
-# Release Proof Pack
+# Release Proof Pack (Historical Snapshot)
+
+This proof pack is a historical snapshot from `2026-04-18-sanity`.
+It is retained for audit history and should not be treated as current release truth.
 
 - version: 2026-04-18-sanity
 - pack_root: /Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-18-sanity
@@ -31,4 +34,3 @@
 - release_governance: present=2/3;required_missing=1
 - workload_and_quality: present=3/3;required_missing=0
 - ungrouped: present=1/5;required_missing=0
-

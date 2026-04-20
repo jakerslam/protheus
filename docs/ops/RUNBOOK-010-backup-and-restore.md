@@ -203,6 +203,55 @@ Action: <investigation/restore/mitigation>
 ETA: <time estimate>
 ```
 
+## Install/Gateway Failure Artifact References (Cross-Runbook)
+
+When restore/recovery activity intersects with install/runtime drift, capture these first-run artifacts before changes:
+
+- Onboarding receipts:
+  - `local/state/ops/onboarding_portal/bootstrap_<role>.json`
+  - `local/state/ops/onboarding_portal/bootstrap_<role>.txt`
+  - `local/state/ops/onboarding_portal/bootstrap_<role>_failure_snapshot.json` (failure snapshot)
+- Setup state:
+  - `local/state/ops/protheus_setup_wizard/latest.json`
+  - `local/state/ops/first_run_onboarding_wizard/latest.json`
+- Runtime logs:
+  - `$HOME/.infring/logs/dashboard_ui.log`
+  - `$HOME/.infring/logs/dashboard_watchdog.log`
+
+Recovery command chain for runbook evidence:
+
+1. `infring gateway status`
+2. `infring gateway restart`
+3. `infring doctor --json`
+4. `curl -fsS http://127.0.0.1:4173/healthz`
+
+## Repair Evidence Bundle Contract
+
+When backup/restore operations overlap with runtime repair work, attach a deterministic evidence bundle:
+
+1. `local/state/ops/repair_evidence/doctor_pre.json`
+2. `local/state/ops/repair_evidence/setup_status_pre.json`
+3. `local/state/ops/repair_evidence/gateway_status_pre.txt`
+4. `local/state/ops/repair_evidence/doctor_post.json`
+5. `local/state/ops/repair_evidence/healthz_post.txt`
+
+Repair evidence command chain:
+
+```bash
+mkdir -p local/state/ops/repair_evidence
+infring doctor --json > local/state/ops/repair_evidence/doctor_pre.json
+infring setup status --json > local/state/ops/repair_evidence/setup_status_pre.json
+infring gateway status > local/state/ops/repair_evidence/gateway_status_pre.txt
+infring gateway restart
+infring doctor --json > local/state/ops/repair_evidence/doctor_post.json
+curl -fsS http://127.0.0.1:4173/healthz > local/state/ops/repair_evidence/healthz_post.txt
+```
+
+Bundle expectation:
+- All five artifacts are present.
+- `doctor_post.json.ok=true` for healthy repairs.
+- `healthz_post.txt` is non-empty and indicates HTTP healthy response.
+
 ## TODO
 
 - Document automated restore testing procedure

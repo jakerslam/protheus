@@ -202,6 +202,13 @@ fn find_tail_index(state: &ContextStacksState, tail_id: &str) -> Option<usize> {
     state.delta_tails.iter().position(|row| row.tail_id == tail_id)
 }
 
+fn find_overlay_index(state: &ContextStacksState, overlay_id: &str) -> Option<usize> {
+    state
+        .speculative_overlays
+        .iter()
+        .position(|row| row.overlay_id == overlay_id)
+}
+
 fn receipt_with_common_fields(
     kind: &str,
     stack_id: &str,

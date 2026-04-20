@@ -4,43 +4,74 @@ fn sessions_terminate(
     graceful: bool,
     now_ms: u64,
 ) -> Result<Value, String> {
-    let Some(session) = state.sessions.get_mut(session_id) else {
-        return Err(format!("unknown_session:{session_id}"));
-    };
-    if session.persistent.is_none() {
-        return Err(format!("session_not_persistent:{session_id}"));
-    }
+    let (final_report, status, parent_id, role_card) = {
+        let Some(session) = state.sessions.get_mut(session_id) else {
+            return Err(format!("unknown_session:{session_id}"));
+        };
+        if session.persistent.is_none() {
+            return Err(format!("session_not_persistent:{session_id}"));
+        }
 
-    let final_report = if graceful {
-        Some(perform_persistent_check_in(
-            session,
-            "terminated_graceful",
-            true,
-        )?)
-    } else {
-        None
-    };
-    session.status = if graceful {
-        "terminated_graceful".to_string()
-    } else {
-        "terminated".to_string()
-    };
-    if let Some(runtime) = session.persistent.as_mut() {
-        runtime.terminated_at_ms = Some(now_ms);
-        runtime.terminated_reason = Some(if graceful {
+        let final_report = if graceful {
+            Some(perform_persistent_check_in(
+                session,
+                "policy_stop",
+                true,
+            )?)
+        } else {
+            None
+        };
+        session.status = if graceful {
             "terminated_graceful".to_string()
         } else {
             "terminated".to_string()
-        });
-    }
+        };
+        if let Some(runtime) = session.persistent.as_mut() {
+            runtime.terminated_at_ms = Some(now_ms);
+            runtime.terminated_reason = Some("policy_stop".to_string());
+        }
+        (
+            final_report,
+            session.status.clone(),
+            session.parent_id.clone(),
+            session.role_card.clone(),
+        )
+    };
     mark_service_instance_unhealthy(state, session_id);
     settle_budget_reservation(state, session_id);
+    let should_terminate = json!({
+        "should_terminate": true,
+        "reason": "policy_stop",
+        "detail": if graceful { "manual_graceful_terminate" } else { "manual_force_terminate" },
+        "contract": {
+            "goal_met": false,
+            "budget_exceeded": false,
+            "stalled": false,
+            "policy_stop": true
+        },
+        "deterministic": true,
+    });
+    append_event(
+        state,
+        json!({
+            "type": "swarm_session_terminated",
+            "session_id": session_id,
+            "parent_id": parent_id.clone(),
+            "lineage_parent_id": parent_id,
+            "reason": "policy_stop",
+            "should_terminate": should_terminate.clone(),
+            "role_card": role_card,
+            "timestamp": now_iso(),
+        }),
+    );
 
     Ok(json!({
         "ok": true,
         "type": "swarm_runtime_terminate",
         "session_id": session_id,
         "graceful": graceful,
+        "status": status,
+        "should_terminate": should_terminate,
         "final_report": final_report,
     }))
 }
@@ -224,6 +255,7 @@ fn sessions_state(
             "byzantine": session.byzantine,
             "corruption_type": session.corruption_type.clone(),
             "role": session.role.clone(),
+            "role_card": session.role_card.clone(),
             "registered_roles": registered_roles,
             "capabilities": advertised_capabilities,
             "tool_access": session.tool_access.clone(),

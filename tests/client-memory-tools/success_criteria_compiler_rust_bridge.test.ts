@@ -4,7 +4,8 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const ts = require('typescript');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
+const ts = require('typescript');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 if (!require.extensions['.ts']) {
   require.extensions['.ts'] = function compileTs(module, filename) {
@@ -63,7 +64,9 @@ function main() {
   assert.equal(compiledRows[0].source, 'validation');
   assert.equal(compiledRows[0].target, 'tokens <=1200');
 
-  assertNoPlaceholderOrPromptLeak({ proposalRows, actionRows, compiledRows }, 'success_criteria_compiler_rust_bridge_test');\n  assertStableToolingEnvelope({ proposalRows, actionRows, compiledRows }, 'success_criteria_compiler_rust_bridge_test');\n  console.log(JSON.stringify({ ok: true, type: 'success_criteria_compiler_rust_bridge_test' }));
+  assertNoPlaceholderOrPromptLeak({ proposalRows, actionRows, compiledRows }, 'success_criteria_compiler_rust_bridge_test');
+  assertStableToolingEnvelope({ proposalRows, actionRows, compiledRows }, 'success_criteria_compiler_rust_bridge_test');
+  console.log(JSON.stringify({ ok: true, type: 'success_criteria_compiler_rust_bridge_test' }));
 }
 
 try {

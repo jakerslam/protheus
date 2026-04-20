@@ -195,6 +195,7 @@ fn next(root: &Path, flags: &BTreeMap<String, String>, auto_ack: bool) -> i32 {
         };
         *batch_lane_counts.entry(key).or_insert(0) += 1;
     }
+    let backpressure = backpressure_snapshot(active_rows.len(), &contract);
     let mut out = json!({
         "ok": true,
         "type": if auto_ack { "attention_queue_drain" } else { "attention_queue_next" },
@@ -212,6 +213,7 @@ fn next(root: &Path, flags: &BTreeMap<String, String>, auto_ack: bool) -> i32 {
         "batch_lane_counts": batch_lane_counts,
         "acked": auto_ack && !events.is_empty(),
         "acked_through_index": acked_through_index,
+        "backpressure": backpressure,
         "events": events,
         "attention_contract": contract_snapshot(&contract)
     });
@@ -225,6 +227,10 @@ fn next(root: &Path, flags: &BTreeMap<String, String>, auto_ack: bool) -> i32 {
             "batch_count": out.get("batch_count").cloned().unwrap_or(Value::Number(0.into())),
             "cursor_offset": out.get("cursor_offset").cloned().unwrap_or(Value::Number(0.into())),
             "cursor_offset_after": out.get("cursor_offset_after").cloned().unwrap_or(Value::Number(0.into())),
+            "backpressure_level": out.pointer("/backpressure/level").cloned().unwrap_or(Value::String("normal".to_string())),
+            "backpressure_threshold_soft": out.pointer("/backpressure/thresholds/soft_watermark").cloned().unwrap_or(Value::Number(0.into())),
+            "backpressure_threshold_hard": out.pointer("/backpressure/thresholds/hard_watermark").cloned().unwrap_or(Value::Number(0.into())),
+            "queue_utilization": out.pointer("/backpressure/queue_utilization").cloned().unwrap_or(Value::Number(0.into())),
             "run_context": out.get("run_context").cloned().unwrap_or(Value::String("unknown".to_string())),
             "receipt_hash": out.get("receipt_hash").cloned().unwrap_or(Value::String("".to_string()))
         }),
@@ -374,6 +380,7 @@ fn ack(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
         "acked_count": next_offset.saturating_sub(old_offset),
         "queue_depth": active_rows.len(),
         "expired_pruned": expired_pruned,
+        "backpressure": backpressure_snapshot(active_rows.len(), &contract),
         "attention_contract": contract_snapshot(&contract)
     });
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
@@ -386,6 +393,10 @@ fn ack(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
             "through_index": out.get("through_index").cloned().unwrap_or(Value::Null),
             "cursor_offset_before": out.get("cursor_offset_before").cloned().unwrap_or(Value::Null),
             "cursor_offset_after": out.get("cursor_offset_after").cloned().unwrap_or(Value::Null),
+            "backpressure_level": out.pointer("/backpressure/level").cloned().unwrap_or(Value::String("normal".to_string())),
+            "backpressure_threshold_soft": out.pointer("/backpressure/thresholds/soft_watermark").cloned().unwrap_or(Value::Number(0.into())),
+            "backpressure_threshold_hard": out.pointer("/backpressure/thresholds/hard_watermark").cloned().unwrap_or(Value::Number(0.into())),
+            "queue_utilization": out.pointer("/backpressure/queue_utilization").cloned().unwrap_or(Value::Number(0.into())),
             "run_context": out.get("run_context").cloned().unwrap_or(Value::String("unknown".to_string())),
             "receipt_hash": out.get("receipt_hash").cloned().unwrap_or(Value::String("".to_string()))
         }),
@@ -393,4 +404,3 @@ fn ack(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
     emit(&out);
     0
 }
-

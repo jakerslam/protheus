@@ -1,0 +1,47 @@
+{
+  "allowed_field_types": ["string", "number", "boolean", "array", "object"],
+  "artifacts": {
+    "incident_timeline": {
+      "type": "object",
+      "required_fields": {
+        "incident_id": "string",
+        "events": "array"
+      }
+    },
+    "impact_assessment": {
+      "type": "object",
+      "required_fields": {
+        "duration_minutes": "number",
+        "affected_surfaces": "array"
+      }
+    },
+    "root_cause": {
+      "type": "object",
+      "required_fields": {
+        "summary": "string",
+        "trigger": "string"
+      }
+    },
+    "corrective_actions": {
+      "type": "object",
+      "required_fields": {
+        "actions": "array",
+        "owners": "array"
+      }
+    },
+    "evidence_bundle": {
+      "type": "object",
+      "required_fields": {
+        "artifact_paths": "array",
+        "generated_at": "string"
+      }
+    },
+    "owner_signoff": {
+      "type": "object",
+      "required_fields": {
+        "approved_by": "string",
+        "approved_at": "string"
+      }
+    }
+  }
+}

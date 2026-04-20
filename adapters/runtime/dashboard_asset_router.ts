@@ -222,6 +222,15 @@ function readBuildVersionInfo(staticDir) {
 function contentTypeForFile(filePath) {
   return MIME[path.extname(filePath).toLowerCase()] || 'application/octet-stream';
 }
+const SEGMENT_GHOST_STEM_PATTERN = /(?:^|[._-])(zz|bak|backup|orig|rej|tmp|temp|old)(?:[._-]|$)/i;
+function isGhostSegmentPartFileName(fileName) {
+  const normalized = String(fileName || '').trim().toLowerCase();
+  if (!normalized) return false;
+  if (normalized.endsWith('~')) return true;
+  const ext = path.extname(normalized);
+  const stem = ext ? normalized.slice(0, -ext.length) : normalized;
+  return SEGMENT_GHOST_STEM_PATTERN.test(stem);
+}
 function listSegmentPartFiles(basePath) {
   const ext = path.extname(basePath).toLowerCase();
   const partDirs = [`${basePath}.parts`];
@@ -231,7 +240,12 @@ function listSegmentPartFiles(basePath) {
     try {
       if (!fs.statSync(partsDir).isDirectory()) continue;
       const rows = fs.readdirSync(partsDir, { withFileTypes: true })
-        .filter((entry) => entry.isFile() && path.extname(entry.name).toLowerCase() === ext)
+        .filter(
+          (entry) =>
+            entry.isFile() &&
+            path.extname(entry.name).toLowerCase() === ext &&
+            !isGhostSegmentPartFileName(entry.name),
+        )
         .map((entry) => path.resolve(partsDir, entry.name))
         .sort((a, b) => a.localeCompare(b, 'en'));
       if (rows.length) return rows;

@@ -560,6 +560,31 @@ async function runServe(flags) {
         const versionPayload = await fetchBackendJson(flags, '/api/version', 4000).catch(() => ({ ok: true }));
         return void sendJson(res, 200, mergeDashboardVersionPayload(versionPayload));
       }
+      if (req.method === 'GET' && pathname === '/api/system/release-check') {
+        const qs = requestUrl.search || '';
+        const payload = await fetchBackendJson(flags, `/api/update/check${qs}`, 5000).catch(() => ({
+          ok: true,
+          update_available: false,
+        }));
+        return void sendJson(res, 200, payload);
+      }
+      if (req.method === 'GET') {
+        const agentSessionsMatch = pathname.match(/^\/api\/agents\/([^/]+)\/sessions$/);
+        if (agentSessionsMatch) {
+          const rawAgentId = String(agentSessionsMatch[1] || '').trim();
+          let decodedAgentId = rawAgentId;
+          try { decodedAgentId = decodeURIComponent(rawAgentId); } catch {}
+          const normalizedAgentId = cleanText(decodedAgentId, 120).toLowerCase();
+          if (normalizedAgentId === 'system') {
+            return void sendJson(res, 200, {
+              ok: true,
+              agent_id: 'system',
+              sessions: [],
+              system_thread: true,
+            });
+          }
+        }
+      }
       if (req.method === 'GET' && pathname === '/api/config') {
         const config = await fetchBackendJson(flags, '/api/config', 8000).catch(() => ({ ok: false, error: 'config_unavailable' }));
         return void sendJson(res, 200, config);

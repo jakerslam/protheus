@@ -6,6 +6,35 @@ const DIAGRAM_SCRIPT: &str = "client/runtime/systems/ops/protheus_diagram.js";
 const VERSION_SCRIPT_JS: &str = "client/runtime/systems/ops/protheus_version_cli.js";
 const COMPLETION_SCRIPT_JS: &str = "client/runtime/systems/ops/protheus_completion.js";
 
+fn dashboard_ui_compat_enabled(rest: &[String]) -> bool {
+    if bool_env("INFRING_ENABLE_DASHBOARD_UI_ALIAS", false) {
+        return true;
+    }
+    rest.iter().any(|arg| {
+        matches!(
+            arg.as_str(),
+            "--compat-dashboard-ui"
+                | "--compat-dashboard-ui=1"
+                | "--dashboard-ui-compat"
+                | "--dashboard-ui-compat=1"
+        )
+    })
+}
+
+fn strip_dashboard_ui_compat_flags(rest: Vec<String>) -> Vec<String> {
+    rest.into_iter()
+        .filter(|arg| {
+            !matches!(
+                arg.as_str(),
+                "--compat-dashboard-ui"
+                    | "--compat-dashboard-ui=1"
+                    | "--dashboard-ui-compat"
+                    | "--dashboard-ui-compat=1"
+            )
+        })
+        .collect::<Vec<_>>()
+}
+
 fn resolve_assimilate_route(rest: &[String]) -> Route {
     let default_args = if rest.is_empty() {
         vec!["--help".to_string()]
@@ -317,6 +346,26 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     if cmd == "kairos" {
         cmd = "proactive_daemon".to_string();
+    }
+    if cmd.eq_ignore_ascii_case("dashboard-ui") {
+        let compat_enabled = dashboard_ui_compat_enabled(&rest);
+        rest = strip_dashboard_ui_compat_flags(rest);
+        if compat_enabled {
+            cmd = "dashboard".to_string();
+        } else {
+            eprintln!(
+                "{}",
+                json!({
+                    "ok": false,
+                    "type": "protheusctl_dispatch",
+                    "error": "legacy_dashboard_alias_disabled",
+                    "root_cause_code": "INF-ROUTE-004-DASHBOARD-UI-LEGACY-MISMATCH",
+                    "message": "dashboard-ui alias is disabled by default",
+                    "next_step": "use `infring dashboard` or enable compatibility with INFRING_ENABLE_DASHBOARD_UI_ALIAS=1"
+                })
+            );
+            return 1;
+        }
     }
 
     if global_help

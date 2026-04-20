@@ -230,17 +230,12 @@ pub fn resolve_preferred_node_binary() -> String {
         }
     }
 
-    if let Some(path_node) = resolve_binary_in_path("node") {
-        candidates.push(path_node);
-    }
-    candidates.push("node".to_string());
-
     for candidate in candidates {
         if node_binary_usable(candidate.as_str()) {
             return candidate;
         }
     }
-    "node".to_string()
+    String::new()
 }
 pub fn resolve_protheus_ops_command(root: &Path, domain: &str) -> (String, Vec<String>) {
     let explicit = env::var("PROTHEUS_OPS_BIN").ok();

@@ -4,7 +4,8 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const ts = require('typescript');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
+const ts = require('typescript');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 if (!require.extensions['.ts']) {
   require.extensions['.ts'] = function compileTs(module, filename) {
@@ -68,7 +69,9 @@ function main() {
   assert.equal(disagreement.ok, false);
   assert.equal(disagreement.reason, 'validator_disagreement');
 
-  assertNoPlaceholderOrPromptLeak({ approved, disagreement }, 'quorum_validator_rust_bridge_test');\n  assertStableToolingEnvelope(approved, 'quorum_validator_rust_bridge_test');\n  console.log(JSON.stringify({ ok: true, type: 'quorum_validator_rust_bridge_test' }));
+  assertNoPlaceholderOrPromptLeak({ approved, disagreement }, 'quorum_validator_rust_bridge_test');
+  assertStableToolingEnvelope(approved, 'quorum_validator_rust_bridge_test');
+  console.log(JSON.stringify({ ok: true, type: 'quorum_validator_rust_bridge_test' }));
 }
 
 try {

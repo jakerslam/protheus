@@ -4,7 +4,8 @@
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
-const path = require('node:path');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
+const path = require('node:path');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 const ROOT = path.resolve(__dirname, '../..');
 
@@ -163,7 +164,16 @@ function main() {
   assert.strictEqual(blocked.blocked, true);
 
   assert.strictEqual(mod.paths.policy, policyPath);
-  assert.strictEqual(mod.paths.report_history, reportHistoryPath);\n\n  assertNoPlaceholderOrPromptLeak({ loadedPolicy, trustState, productivity, autoStage, decision, guard }, 'trit_shadow_control_rust_bridge_test');\n  assertStableToolingEnvelope({ loadedPolicy, trustState, productivity, autoStage, decision, guard }, 'trit_shadow_control_rust_bridge_test');
+  assert.strictEqual(mod.paths.report_history, reportHistoryPath);
+
+  assertNoPlaceholderOrPromptLeak(
+    { loadedPolicy, trustState, productivity, autoStage, decision, guard },
+    'trit_shadow_control_rust_bridge_test'
+  );
+  assertStableToolingEnvelope(
+    { loadedPolicy, trustState, productivity, autoStage, decision, guard },
+    'trit_shadow_control_rust_bridge_test'
+  );
 
   console.log(JSON.stringify({ ok: true, type: 'trit_shadow_control_rust_bridge_test' }));
 }

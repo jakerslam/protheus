@@ -43,5 +43,5 @@ Response envelope:
 
 ```bash
 node tests/client-memory-tools/orchestron_intent_analyzer.test.ts
-node client/runtime/systems/spine/contract_check.ts
+node client/runtime/systems/spine/contract_check_bridge.ts
 ```

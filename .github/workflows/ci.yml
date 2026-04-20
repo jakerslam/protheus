@@ -44,12 +44,16 @@ jobs:
           npm run -s ops:orchestration:contract:guard
           npm run -s ops:orchestration:hidden-state:guard
           npm run -s ops:debt:expiry:guard
+          npm run -s ops:client-naming:guard
+          npm run -s ops:orchestration-naming:guard
+          npm run -s ops:core-naming:guard
           npm run -s ops:tooling-registry:contract:guard
           npm run -s ops:ci-workflow:check
           npm run -s ops:ci-quality:check
           npm run -s ops:dashboard:surface:guard
           npm run -s ops:orchestration:adapter-fallback:guard
           npm run -s ops:orchestration:planner-quality:guard
+          npm run -s ops:orchestration:ownership:guard
           npm run -s ops:system:fitness:gate
 
       - name: Setup Rust
@@ -161,17 +165,56 @@ jobs:
             core/local/artifacts/ci_workflow_rationalization_contract_current.json
             core/local/artifacts/ci_quality_scorecard_current.json
             core/local/artifacts/orchestration_adapter_fallback_guard_current.json
+            core/local/artifacts/orchestration_ownership_guard_current.json
             core/local/artifacts/dashboard_surface_authority_guard_current.json
+            core/local/artifacts/client_naming_policy_guard_current.json
+            core/local/artifacts/orchestration_naming_policy_guard_current.json
+            core/local/artifacts/core_naming_policy_guard_current.json
             core/local/artifacts/client_legacy_debt_report_current.json
             core/local/artifacts/tech_debt_report_current.json
             core/local/artifacts/policy_debt_summary_current.json
             local/workspace/reports/CI_WORKFLOW_RATIONALIZATION_CONTRACT_CURRENT.md
             local/workspace/reports/CI_QUALITY_SCORECARD_CURRENT.md
             local/workspace/reports/ORCHESTRATION_ADAPTER_FALLBACK_GUARD_CURRENT.md
+            local/workspace/reports/ORCHESTRATION_OWNERSHIP_GUARD_CURRENT.md
             local/workspace/reports/DASHBOARD_SURFACE_AUTHORITY_GUARD_CURRENT.md
+            local/workspace/reports/CLIENT_NAMING_POLICY_GUARD_CURRENT.md
+            local/workspace/reports/ORCHESTRATION_NAMING_POLICY_GUARD_CURRENT.md
+            local/workspace/reports/CORE_NAMING_POLICY_GUARD_CURRENT.md
             local/workspace/reports/TECH_DEBT_REPORT_CURRENT.md
             local/workspace/reports/POLICY_DEBT_SUMMARY_CURRENT.md
             local/workspace/reports/SRS_FULL_REGRESSION_CURRENT.md
+          if-no-files-found: warn
+
+  incident-governance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: incident-governance
+        run: |
+          npm run -s ops:incident-governance:gate
+          npm run -s test:ops:incident-governance:gate
+
+      - name: Upload incident governance artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: incident-governance-artifacts
+          path: |
+            core/local/artifacts/incident_operations_governance_gate_current.json
+            local/workspace/reports/INCIDENT_OPERATIONS_GOVERNANCE_GATE_CURRENT.md
           if-no-files-found: warn
 
   container-smoke:

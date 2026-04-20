@@ -8,8 +8,13 @@
         "ops:repo-health:check",
         "ops:layer0-ops:authority:audit",
         "ops:orchestration:ts-boundary:guard",
+        "ops:client-naming:guard",
+        "ops:orchestration-naming:guard",
+        "ops:core-naming:guard",
+        "ops:dashboard:segment-ghost:guard",
         "ops:root-surface:audit",
-        "ops:arch:conformance"
+        "ops:arch:conformance",
+        "ops:incident-governance:gate"
       ]
     },
     "boundary": {
@@ -21,7 +26,8 @@
         "ops:orchestration:ts-boundary:guard",
         "ops:arch:governance",
         "ops:root-surface:audit",
-        "ops:repo-surface:audit"
+        "ops:repo-surface:audit",
+        "ops:incident-governance:gate"
       ]
     },
     "codex-wave": {
@@ -60,6 +66,7 @@
         "ops:release:verdict",
         "ops:production-closure:gate",
         "ops:dashboard:surface:guard",
+        "ops:dashboard:segment-ghost:guard",
         "ops:node-critical-path:inventory",
         "ops:agent-surface:status:guard",
         "ops:orchestration:contract:guard",
@@ -72,6 +79,9 @@
         "ops:system:fitness:gate",
         "audit:module-cohesion",
         "ops:legacy-alias:guard",
+        "ops:client-naming:guard",
+        "ops:orchestration-naming:guard",
+        "ops:core-naming:guard",
         "ops:simplicity:audit",
         "ops:root-surface:audit",
         "ops:repo-surface:audit",
@@ -103,7 +113,8 @@
         "ops:boundedness:inspect",
         "ops:trusted-core:report",
         "ops:release:proof-pack",
-        "ops:benchmark:public-harness"
+        "ops:benchmark:public-harness",
+        "ops:incident-governance:gate"
       ]
     },
     "runtime-proof": {

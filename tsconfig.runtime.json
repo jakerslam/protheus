@@ -86,7 +86,7 @@
     "client/runtime/systems/reflex/reflex_worker.ts",
     "client/runtime/systems/spawn/spawn_broker.ts",
     "client/runtime/systems/strategy/strategy_controller.ts",
-    "client/runtime/systems/strategy/strategy_learner.ts",
+    "client/runtime/systems/strategy/strategy_learning_bridge.ts",
     "client/runtime/systems/strategy/weekly_strategy_synthesis.ts",
     "client/runtime/systems/fractal/morph_planner.ts",
     "client/runtime/systems/fractal/genome_ledger.ts",

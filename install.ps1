@@ -4,6 +4,7 @@ param(
   [switch]$Pure,
   [switch]$TinyMax,
   [switch]$Repair,
+  [switch]$Json,
   [switch]$Force,
   [string]$InstallDir,
   [string]$TmpDir
@@ -93,6 +94,51 @@ if ($Force) {
   }
 }
 
+$InstallJson = $false
+if ($env:INFRING_INSTALL_JSON -and @("1", "true", "yes", "on") -contains $env:INFRING_INSTALL_JSON.ToLower()) {
+  $InstallJson = $true
+}
+if ($Json) { $InstallJson = $true }
+$InstallSummaryJsonPath = if ($env:INFRING_INSTALL_SUMMARY_JSON_FILE) {
+  $env:INFRING_INSTALL_SUMMARY_JSON_FILE
+} else {
+  Join-Path $HOME ".infring\logs\last_install_summary.json"
+}
+$InstallSmokeSummaryJsonPath = if ($env:INFRING_INSTALL_SMOKE_SUMMARY_JSON_FILE) {
+  $env:INFRING_INSTALL_SMOKE_SUMMARY_JSON_FILE
+} else {
+  Join-Path $HOME ".infring\logs\last_install_smoke_summary.json"
+}
+$script:InstallAssetLockfile = if ($env:INFRING_INSTALL_ASSET_LOCKFILE) {
+  [string]$env:INFRING_INSTALL_ASSET_LOCKFILE
+} else {
+  Join-Path $HOME ".infring\state\install_asset_lock_v1.tsv"
+}
+$script:InstallClientRuntimeMode = "not_installed"
+$script:InstallRuntimeContractStatus = "not_checked"
+$script:RuntimeManifestRel = "client/runtime/config/install_runtime_manifest_v1.txt"
+$script:RuntimeNodeModuleManifestRel = if ($env:INFRING_RUNTIME_NODE_MODULE_MANIFEST_REL) {
+  $env:INFRING_RUNTIME_NODE_MODULE_MANIFEST_REL
+} else {
+  "client/runtime/config/install_runtime_node_modules_v1.txt"
+}
+$script:RuntimeTier1RequiredEntrypoints = @(
+  "client/runtime/systems/ops/protheusd.ts",
+  "client/runtime/systems/ops/protheus_status_dashboard.ts",
+  "client/runtime/systems/ops/protheus_unknown_guard.ts"
+)
+$script:InstallToolchainPolicyRaw = if ($env:INFRING_INSTALL_TOOLCHAIN_POLICY) {
+  [string]$env:INFRING_INSTALL_TOOLCHAIN_POLICY
+} else {
+  "auto"
+}
+$script:InstallToolchainPolicy = switch ($script:InstallToolchainPolicyRaw.ToLowerInvariant()) {
+  "fail" { "fail_closed" }
+  "fail_closed" { "fail_closed" }
+  "strict" { "fail_closed" }
+  default { "auto" }
+}
+
 if ($TmpDir) {
   New-Item -ItemType Directory -Force -Path $TmpDir | Out-Null
   $env:TMPDIR = $TmpDir
@@ -107,6 +153,17 @@ $script:LastBinaryInstallFailureReason = ""
 $script:WindowsInstallPreflight = $null
 $script:WindowsMsvcBootstrapAttempted = $false
 $script:WindowsMsvcBootstrapSucceeded = $false
+$script:ChecksumManifestVersion = ""
+$script:ChecksumManifestPath = $null
+$script:ChecksumManifestAssetName = ""
+$script:ChecksumManifestTmpDir = $null
+$script:RepairArchiveRun = ""
+$script:RepairRemovedCount = 0
+$script:RepairPreservedCount = 0
+$script:WorkspaceRuntimeRefreshReason = ""
+$script:WorkspaceRuntimeRefreshApplied = $false
+$script:WorkspaceReleaseTagPrevious = ""
+$script:WorkspaceReleaseTagCurrent = ""
 
 function Installer-TruthyFlag([string]$RawValue, [bool]$DefaultValue = $false) {
   if ([string]::IsNullOrWhiteSpace($RawValue)) {
@@ -882,9 +939,192 @@ function Format-BinaryInstallFailureHint([string]$Stem, [string]$Triple, [string
 }
 
 function Download-Asset($Version, $Asset, $OutPath) {
+  function Is-PrereleaseVersionTag([string]$VersionTag) {
+    $normalized = [string]$VersionTag
+    return $normalized.Contains("-")
+  }
+
+  function Resolve-InstallVerifyAssetsEnabled {
+    if (-not [string]::IsNullOrWhiteSpace([string]$env:INFRING_INSTALL_VERIFY_ASSETS)) {
+      return Installer-TruthyFlag $env:INFRING_INSTALL_VERIFY_ASSETS $true
+    }
+    return $true
+  }
+
+  function Resolve-AllowUnverifiedAssets {
+    if (-not [string]::IsNullOrWhiteSpace([string]$env:INFRING_INSTALL_ALLOW_UNVERIFIED_ASSETS)) {
+      return Installer-TruthyFlag $env:INFRING_INSTALL_ALLOW_UNVERIFIED_ASSETS $false
+    }
+    return $false
+  }
+
+  function Resolve-StrictPrereleaseChecksum {
+    if (-not [string]::IsNullOrWhiteSpace([string]$env:INFRING_INSTALL_STRICT_PRERELEASE_CHECKSUM)) {
+      return Installer-TruthyFlag $env:INFRING_INSTALL_STRICT_PRERELEASE_CHECKSUM $false
+    }
+    return $false
+  }
+
+  function Resolve-Sha256Hex([string]$TargetPath) {
+    try {
+      $hash = Get-FileHash -Path $TargetPath -Algorithm SHA256 -ErrorAction Stop
+      if ($hash -and $hash.Hash) {
+        return ([string]$hash.Hash).ToLowerInvariant()
+      }
+    } catch {}
+    return $null
+  }
+
+  function Get-ExpectedAssetSha256([string]$ManifestPath, [string]$AssetName) {
+    if (-not (Test-Path $ManifestPath)) {
+      return $null
+    }
+    $target = [string]$AssetName
+    foreach ($raw in Get-Content -Path $ManifestPath -ErrorAction SilentlyContinue) {
+      $line = ([string]$raw).Trim()
+      if ([string]::IsNullOrWhiteSpace($line)) { continue }
+
+      $bsd = [System.Text.RegularExpressions.Regex]::Match(
+        $line,
+        '^SHA256\s+\(([^)]+)\)\s*=\s*([a-fA-F0-9]{64})$',
+        [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
+      )
+      if ($bsd.Success) {
+        $file = [string]$bsd.Groups[1].Value
+        $digest = ([string]$bsd.Groups[2].Value).ToLowerInvariant()
+        if ($file -eq $target) {
+          return $digest
+        }
+      }
+
+      $gnu = [System.Text.RegularExpressions.Regex]::Match(
+        $line,
+        '^([a-fA-F0-9]{64})\s+\*?(.+)$',
+        [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
+      )
+      if ($gnu.Success) {
+        $digest = ([string]$gnu.Groups[1].Value).ToLowerInvariant()
+        $file = ([string]$gnu.Groups[2].Value).Trim().TrimStart(".").TrimStart("/")
+        if ($file -eq $target) {
+          return $digest
+        }
+      }
+    }
+    return $null
+  }
+
+  function Load-ReleaseChecksumManifest([string]$VersionTag) {
+    if (
+      $script:ChecksumManifestVersion -eq $VersionTag -and
+      -not [string]::IsNullOrWhiteSpace([string]$script:ChecksumManifestPath) -and
+      (Test-Path $script:ChecksumManifestPath)
+    ) {
+      return $true
+    }
+    if ($script:ChecksumManifestTmpDir -and (Test-Path $script:ChecksumManifestTmpDir)) {
+      try { Remove-Item -Force -Recurse $script:ChecksumManifestTmpDir } catch {}
+      $script:ChecksumManifestTmpDir = $null
+    }
+    $tmpRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("infring-checksum-manifest-" + [guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Force -Path $tmpRoot | Out-Null
+    $script:ChecksumManifestTmpDir = $tmpRoot
+    $script:ChecksumManifestPath = $null
+    $script:ChecksumManifestAssetName = ""
+    foreach ($candidate in @("SHA256SUMS", "SHA256SUMS.txt", "checksums.txt", "checksums.sha256")) {
+      $path = Join-Path $tmpRoot $candidate
+      $url = "$BaseUrl/$VersionTag/$candidate"
+      try {
+        Invoke-WebRequest -Uri $url -OutFile $path -UseBasicParsing | Out-Null
+        if (Test-Path $path) {
+          $script:ChecksumManifestVersion = $VersionTag
+          $script:ChecksumManifestPath = $path
+          $script:ChecksumManifestAssetName = $candidate
+          Write-Host "[infring install] checksum manifest: $candidate"
+          return $true
+        }
+      } catch {}
+    }
+    return $false
+  }
+
+  function Verify-DownloadedAsset([string]$VersionTag, [string]$AssetName, [string]$AssetPath) {
+    function Record-VerifiedAssetDigest([string]$VersionTagInner, [string]$AssetNameInner, [string]$DigestInner, [string]$AssetPathInner) {
+      if ([string]::IsNullOrWhiteSpace($VersionTagInner) -or [string]::IsNullOrWhiteSpace($AssetNameInner) -or [string]::IsNullOrWhiteSpace($DigestInner)) {
+        return
+      }
+      $lockPath = [string]$script:InstallAssetLockfile
+      if ([string]::IsNullOrWhiteSpace($lockPath)) {
+        return
+      }
+      $lockDir = Split-Path -Parent $lockPath
+      if (-not [string]::IsNullOrWhiteSpace($lockDir)) {
+        New-Item -ItemType Directory -Force -Path $lockDir | Out-Null
+      }
+      $rows = New-Object System.Collections.Generic.List[string]
+      if (Test-Path $lockPath) {
+        foreach ($line in Get-Content -Path $lockPath -ErrorAction SilentlyContinue) {
+          if ([string]::IsNullOrWhiteSpace([string]$line)) { continue }
+          if ([string]$line -eq "infring_install_asset_lock_v1") { continue }
+          $parts = ([string]$line).Split("`t")
+          if ($parts.Count -lt 3) { continue }
+          if ($parts[0] -eq $VersionTagInner -and $parts[1] -eq $AssetNameInner) { continue }
+          $rows.Add([string]$line) | Out-Null
+        }
+      }
+      $stamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+      $newRow = "$VersionTagInner`t$AssetNameInner`t$DigestInner`t$stamp`t$AssetPathInner"
+      $payload = @("infring_install_asset_lock_v1", $newRow) + @($rows)
+      Set-Content -Path $lockPath -Value $payload -Encoding UTF8
+      Write-Host "[infring install] asset lockfile updated: $lockPath"
+    }
+
+    if (-not (Resolve-InstallVerifyAssetsEnabled)) {
+      return $true
+    }
+    $allowUnverified = Resolve-AllowUnverifiedAssets
+    $allowPrereleaseWithoutStrict = (Is-PrereleaseVersionTag $VersionTag) -and (-not (Resolve-StrictPrereleaseChecksum))
+    if (-not (Load-ReleaseChecksumManifest $VersionTag)) {
+      if ($allowUnverified -or $allowPrereleaseWithoutStrict) {
+        Write-Host "[infring install] warning: checksum manifest missing for $VersionTag; continuing with unverified asset $AssetName."
+        return $true
+      }
+      Write-Host "[infring install] asset verification failed: checksum manifest unavailable for $VersionTag"
+      Write-Host "[infring install] fix: publish release checksum manifest (SHA256SUMS) or set INFRING_INSTALL_ALLOW_UNVERIFIED_ASSETS=1"
+      return $false
+    }
+    $expected = Get-ExpectedAssetSha256 $script:ChecksumManifestPath $AssetName
+    if ([string]::IsNullOrWhiteSpace([string]$expected)) {
+      if ($allowUnverified -or $allowPrereleaseWithoutStrict) {
+        Write-Host "[infring install] warning: no checksum entry for $AssetName; continuing unverified."
+        return $true
+      }
+      Write-Host "[infring install] asset verification failed: missing checksum entry for $AssetName in $($script:ChecksumManifestAssetName)"
+      return $false
+    }
+    $actual = Resolve-Sha256Hex $AssetPath
+    if ([string]::IsNullOrWhiteSpace([string]$actual)) {
+      Write-Host "[infring install] asset verification failed: unable to hash $AssetName"
+      return $false
+    }
+    if ($actual -ne $expected) {
+      Write-Host "[infring install] asset verification failed: checksum mismatch for $AssetName"
+      Write-Host "[infring install] expected: $expected"
+      Write-Host "[infring install] actual:   $actual"
+      Write-Host "[infring install] fix: clear local temp/cache and rerun install from a clean shell."
+      return $false
+    }
+    Write-Host "[infring install] verified $AssetName sha256:$actual"
+    Record-VerifiedAssetDigest -VersionTagInner $VersionTag -AssetNameInner $AssetName -DigestInner $actual -AssetPathInner $AssetPath
+    return $true
+  }
+
   $url = "$BaseUrl/$Version/$Asset"
   try {
     Invoke-WebRequest -Uri $url -OutFile $OutPath -UseBasicParsing | Out-Null
+    if (-not (Verify-DownloadedAsset $Version $Asset $OutPath)) {
+      try { Remove-Item -Force $OutPath -ErrorAction SilentlyContinue } catch {}
+      return $false
+    }
     Write-Host "[infring install] downloaded $Asset"
     return $true
   } catch {
@@ -1526,6 +1766,200 @@ function Install-ClientBundleFromSourceFallback($OutDir) {
   return $true
 }
 
+function Test-RuntimeEntrypointForMode {
+  param(
+    [string]$RuntimeRoot,
+    [string]$RelativePath,
+    [string]$RuntimeMode = "source"
+  )
+
+  $targetPath = Join-Path $RuntimeRoot $RelativePath
+  if (Test-Path $targetPath) {
+    return $true
+  }
+  if ($RuntimeMode -ne "source") {
+    return $false
+  }
+  if ($RelativePath.EndsWith(".js")) {
+    $tsRel = $RelativePath.Substring(0, $RelativePath.Length - 3) + ".ts"
+    return (Test-Path (Join-Path $RuntimeRoot $tsRel))
+  }
+  if ($RelativePath.EndsWith(".ts")) {
+    $jsRel = $RelativePath.Substring(0, $RelativePath.Length - 3) + ".js"
+    return (Test-Path (Join-Path $RuntimeRoot $jsRel))
+  }
+  return $false
+}
+
+function Test-InstallRuntimeManifestContract {
+  param(
+    [string]$RuntimeRoot,
+    [string]$RuntimeMode = "source",
+    [string]$ContextLabel = "runtime"
+  )
+
+  if ([string]::IsNullOrWhiteSpace($RuntimeRoot)) {
+    return $false
+  }
+  $manifestRel = [string]$script:RuntimeManifestRel
+  $manifestPath = Join-Path $RuntimeRoot $manifestRel
+  if (-not (Test-Path $manifestPath)) {
+    Write-Host "[infring install] runtime integrity check failed ($ContextLabel): manifest missing"
+    Write-Host "[infring install] missing: $manifestRel"
+    return $false
+  }
+  $manifestEntries = New-Object -TypeName 'System.Collections.Generic.HashSet[string]' -ArgumentList ([System.StringComparer]::OrdinalIgnoreCase)
+  foreach ($row in Get-Content -Path $manifestPath) {
+    $entry = [string]$row
+    if ([string]::IsNullOrWhiteSpace($entry)) { continue }
+    $entry = $entry.Trim()
+    if ([string]::IsNullOrWhiteSpace($entry) -or $entry.StartsWith("#")) { continue }
+    [void]$manifestEntries.Add($entry)
+  }
+  $missingManifestEntries = New-Object System.Collections.Generic.List[string]
+  foreach ($requiredRel in $script:RuntimeTier1RequiredEntrypoints) {
+    if (-not $manifestEntries.Contains([string]$requiredRel)) {
+      $missingManifestEntries.Add([string]$requiredRel) | Out-Null
+    }
+  }
+  if ($missingManifestEntries.Count -gt 0) {
+    Write-Host "[infring install] runtime integrity check failed ($ContextLabel mode=$RuntimeMode): manifest missing required Tier-1 runtime entries"
+    foreach ($rel in $missingManifestEntries) {
+      Write-Host "[infring install] manifest-missing: $rel"
+    }
+    Write-Host "[infring install] manifest: $manifestRel"
+    return $false
+  }
+  $missing = New-Object System.Collections.Generic.List[string]
+  foreach ($row in Get-Content -Path $manifestPath) {
+    $rel = [string]$row
+    if ([string]::IsNullOrWhiteSpace($rel)) { continue }
+    $rel = $rel.Trim()
+    if ([string]::IsNullOrWhiteSpace($rel) -or $rel.StartsWith("#")) { continue }
+    if (-not (Test-RuntimeEntrypointForMode -RuntimeRoot $RuntimeRoot -RelativePath $rel -RuntimeMode $RuntimeMode)) {
+      $missing.Add($rel) | Out-Null
+    }
+  }
+  if ($missing.Count -gt 0) {
+    Write-Host "[infring install] runtime integrity check failed ($ContextLabel mode=$RuntimeMode): required command entrypoints are missing"
+    foreach ($rel in $missing) {
+      Write-Host "[infring install] missing: $rel"
+    }
+    Write-Host "[infring install] manifest: $manifestRel"
+    return $false
+  }
+  Write-Host "[infring install] runtime integrity check: manifest verified ($manifestRel) [$ContextLabel mode=$RuntimeMode]"
+  return $true
+}
+
+function Get-RuntimeNodeRequiredModules {
+  param([string]$RuntimeRoot)
+
+  $manifestRel = [string]$script:RuntimeNodeModuleManifestRel
+  $manifestPath = Join-Path $RuntimeRoot $manifestRel
+  if (-not (Test-Path $manifestPath)) {
+    Write-Host "[infring install] node module closure failed: dependency manifest missing ($manifestRel)"
+    return $null
+  }
+  $modules = New-Object System.Collections.Generic.List[string]
+  foreach ($row in Get-Content -Path $manifestPath) {
+    $module = [string]$row
+    if ([string]::IsNullOrWhiteSpace($module)) { continue }
+    $module = $module.Trim()
+    if ([string]::IsNullOrWhiteSpace($module) -or $module.StartsWith("#")) { continue }
+    if (-not $modules.Contains($module)) {
+      $modules.Add($module) | Out-Null
+    }
+  }
+  if ($modules.Count -eq 0) {
+    $fallbackRaw = if ($env:INFRING_RUNTIME_NODE_REQUIRED_MODULES) {
+      $env:INFRING_RUNTIME_NODE_REQUIRED_MODULES
+    } else {
+      "typescript ws"
+    }
+    foreach ($module in ($fallbackRaw -split "\s+")) {
+      $value = [string]$module
+      if ([string]::IsNullOrWhiteSpace($value)) { continue }
+      if (-not $modules.Contains($value)) {
+        $modules.Add($value) | Out-Null
+      }
+    }
+  }
+  return $modules
+}
+
+function Test-NodeModuleResolvable {
+  param(
+    [string]$RuntimeRoot,
+    [string]$ModuleName
+  )
+
+  $escapedModule = [string]$ModuleName -replace "'", "''"
+  $probe = "try{require.resolve('$escapedModule');process.exit(0);}catch(_e){process.exit(1);}"
+  Push-Location $RuntimeRoot
+  try {
+    & node -e $probe *> $null
+    return ($LASTEXITCODE -eq 0)
+  } finally {
+    Pop-Location
+  }
+}
+
+function Ensure-RuntimeNodeModuleClosure {
+  param([string]$RuntimeRoot)
+
+  if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host "[infring install] node module closure failed: node runtime unavailable"
+    return $false
+  }
+  $requiredModules = Get-RuntimeNodeRequiredModules -RuntimeRoot $RuntimeRoot
+  if (-not $requiredModules -or $requiredModules.Count -eq 0) {
+    Write-Host "[infring install] node module closure failed: required-module list is empty"
+    return $false
+  }
+  $missing = New-Object System.Collections.Generic.List[string]
+  foreach ($module in $requiredModules) {
+    if (-not (Test-NodeModuleResolvable -RuntimeRoot $RuntimeRoot -ModuleName $module)) {
+      $missing.Add([string]$module) | Out-Null
+    }
+  }
+  if ($missing.Count -eq 0) {
+    Write-Host "[infring install] node module closure: satisfied"
+    return $true
+  }
+  if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
+    Write-Host ("[infring install] node module closure failed: npm unavailable (missing:{0})" -f ($missing -join " "))
+    return $false
+  }
+  if (-not (Test-Path (Join-Path $RuntimeRoot "package.json"))) {
+    Write-Host ("[infring install] node module closure failed: package.json missing in runtime root (missing:{0})" -f ($missing -join " "))
+    return $false
+  }
+  Write-Host ("[infring install] installing runtime node module closure: {0}" -f ($missing -join " "))
+  Push-Location $RuntimeRoot
+  try {
+    & npm install --silent --no-audit --no-fund --no-save @($missing.ToArray())
+    if ($LASTEXITCODE -ne 0) {
+      Write-Host "[infring install] node module closure install failed"
+      return $false
+    }
+  } finally {
+    Pop-Location
+  }
+  $stillMissing = New-Object System.Collections.Generic.List[string]
+  foreach ($module in $requiredModules) {
+    if (-not (Test-NodeModuleResolvable -RuntimeRoot $RuntimeRoot -ModuleName $module)) {
+      $stillMissing.Add([string]$module) | Out-Null
+    }
+  }
+  if ($stillMissing.Count -gt 0) {
+    Write-Host ("[infring install] node module closure verification failed: {0}" -f ($stillMissing -join " "))
+    return $false
+  }
+  Write-Host "[infring install] node module closure: installed and verified"
+  return $true
+}
+
 function Resolve-WorkspaceRootForRepair {
   $candidates = @(
     $env:INFRING_WORKSPACE_ROOT,
@@ -1547,9 +1981,216 @@ function Resolve-WorkspaceRootForRepair {
   return $null
 }
 
+function Get-WorkspaceInstallReleaseTag {
+  param(
+    [string]$WorkspaceRoot
+  )
+
+  if ([string]::IsNullOrWhiteSpace($WorkspaceRoot)) {
+    return ""
+  }
+  $statePath = Join-Path $WorkspaceRoot "local/state/ops/install_release_tag.txt"
+  if (-not (Test-Path $statePath)) {
+    return ""
+  }
+  try {
+    return ([string](Get-Content -Path $statePath -TotalCount 1 -ErrorAction Stop)).Trim()
+  } catch {
+    return ""
+  }
+}
+
+function Set-WorkspaceInstallReleaseTag {
+  param(
+    [string]$WorkspaceRoot,
+    [string]$VersionTag
+  )
+
+  if ([string]::IsNullOrWhiteSpace($WorkspaceRoot) -or [string]::IsNullOrWhiteSpace($VersionTag)) {
+    return $false
+  }
+  $stateDir = Join-Path $WorkspaceRoot "local/state/ops"
+  New-Item -ItemType Directory -Force -Path $stateDir | Out-Null
+  $statePath = Join-Path $stateDir "install_release_tag.txt"
+  Set-Content -Path $statePath -Value $VersionTag -Encoding UTF8
+  return $true
+}
+
+function Resolve-WorkspaceRuntimeRefreshTarget {
+  param(
+    [string]$WorkspaceRoot
+  )
+
+  if ([string]::IsNullOrWhiteSpace($WorkspaceRoot)) {
+    return $null
+  }
+  $primary = Join-Path $WorkspaceRoot "client/runtime"
+  if (Test-Path (Join-Path $WorkspaceRoot "client")) {
+    return $primary
+  }
+  $alt = Join-Path $WorkspaceRoot "infring-client/client/runtime"
+  if (Test-Path (Join-Path $WorkspaceRoot "infring-client/client")) {
+    return $alt
+  }
+  return $primary
+}
+
+function Resolve-WorkspaceRuntimeRefreshSource {
+  param(
+    [string]$InstallDir,
+    [string]$SourceFallbackDir
+  )
+
+  $candidates = New-Object System.Collections.Generic.List[string]
+  if (-not [string]::IsNullOrWhiteSpace($InstallDir)) {
+    $candidates.Add((Join-Path $InstallDir "infring-client/client/runtime")) | Out-Null
+  }
+  if (-not [string]::IsNullOrWhiteSpace($SourceFallbackDir)) {
+    $candidates.Add((Join-Path $SourceFallbackDir "client/runtime")) | Out-Null
+    $candidates.Add((Join-Path $SourceFallbackDir "infring-client/client/runtime")) | Out-Null
+  }
+  foreach ($candidate in $candidates) {
+    if (-not [string]::IsNullOrWhiteSpace($candidate) -and (Test-Path $candidate -PathType Container)) {
+      return $candidate
+    }
+  }
+  return $null
+}
+
+function Resolve-WorkspaceRuntimeRefreshDecision {
+  param(
+    [string]$WorkspaceRoot,
+    [string]$VersionTag,
+    [bool]$Repair
+  )
+
+  $target = Resolve-WorkspaceRuntimeRefreshTarget -WorkspaceRoot $WorkspaceRoot
+  $runtimeExists = $false
+  if (-not [string]::IsNullOrWhiteSpace($target)) {
+    $runtimeExists = Test-Path $target -PathType Container
+  }
+  $previousTag = Get-WorkspaceInstallReleaseTag -WorkspaceRoot $WorkspaceRoot
+  $reason = ""
+  if ($Repair) {
+    $reason = "repair_mode"
+  } elseif (-not $runtimeExists) {
+    $reason = "runtime_missing"
+  } elseif ([string]::IsNullOrWhiteSpace($previousTag)) {
+    $reason = "tag_state_missing"
+  } elseif ($previousTag -ne $VersionTag) {
+    $reason = "release_tag_changed"
+  }
+
+  return @{
+    refresh_required = (-not [string]::IsNullOrWhiteSpace($reason))
+    reason = $reason
+    previous_tag = $previousTag
+    target = $target
+  }
+}
+
+function Invoke-WorkspaceRuntimeRefresh {
+  param(
+    [string]$WorkspaceRoot,
+    [string]$InstallDir,
+    [string]$SourceFallbackDir,
+    [string]$Reason
+  )
+
+  if ([string]::IsNullOrWhiteSpace($WorkspaceRoot)) {
+    return $false
+  }
+  $source = Resolve-WorkspaceRuntimeRefreshSource -InstallDir $InstallDir -SourceFallbackDir $SourceFallbackDir
+  if ([string]::IsNullOrWhiteSpace($source)) {
+    Write-Host "[infring install] workspace runtime refresh skipped (source runtime missing)"
+    return $false
+  }
+  $target = Resolve-WorkspaceRuntimeRefreshTarget -WorkspaceRoot $WorkspaceRoot
+  if ([string]::IsNullOrWhiteSpace($target)) {
+    Write-Host "[infring install] workspace runtime refresh skipped (target path unresolved)"
+    return $false
+  }
+
+  $sourceNorm = ""
+  $targetNorm = ""
+  try {
+    $sourceNorm = (Resolve-Path -LiteralPath $source -ErrorAction Stop).Path.ToLowerInvariant()
+  } catch {
+    $sourceNorm = [string]$source
+  }
+  try {
+    if (Test-Path $target) {
+      $targetNorm = (Resolve-Path -LiteralPath $target -ErrorAction Stop).Path.ToLowerInvariant()
+    }
+  } catch {
+    $targetNorm = [string]$target
+  }
+  if (-not [string]::IsNullOrWhiteSpace($targetNorm) -and $sourceNorm -eq $targetNorm) {
+    Write-Host "[infring install] workspace runtime refresh: source and target already aligned"
+    return $true
+  }
+
+  $targetParent = Split-Path -Parent $target
+  New-Item -ItemType Directory -Force -Path $targetParent | Out-Null
+  $targetName = Split-Path -Leaf $target
+  $staging = Join-Path $targetParent ($targetName + ".__install_tmp_" + [guid]::NewGuid().ToString("N"))
+  try {
+    if (Test-Path $staging) {
+      Remove-Item -Force -Recurse $staging
+    }
+    Copy-Item -Force -Recurse $source $staging
+    if (Test-Path $target) {
+      Remove-Item -Force -Recurse $target
+    }
+    Move-Item -Path $staging -Destination $target
+    Write-Host "[infring install] workspace runtime refreshed: reason=$Reason source=$source target=$target"
+    return $true
+  } catch {
+    Write-Host "[infring install] workspace runtime refresh failed: $($_.Exception.Message)"
+    try {
+      if (Test-Path $staging) { Remove-Item -Force -Recurse $staging }
+    } catch {}
+    return $false
+  }
+}
+
+function Test-RepairArtifactBroken {
+  param(
+    [string]$InstallPath,
+    [string]$ArtifactName
+  )
+
+  if ($ArtifactName -like "protheus*") {
+    return $true
+  }
+  if (-not (Test-Path $InstallPath)) {
+    return $true
+  }
+  if (Test-Path $InstallPath -PathType Container) {
+    if ($ArtifactName -eq "infring-client") {
+      return (-not (Test-Path (Join-Path $InstallPath "client/runtime/config/install_runtime_manifest_v1.txt")))
+    }
+    return $false
+  }
+  $item = Get-Item -LiteralPath $InstallPath -ErrorAction SilentlyContinue
+  if ($null -eq $item -or $item.Length -le 0) {
+    return $true
+  }
+  if ($ArtifactName.ToLowerInvariant().EndsWith(".cmd")) {
+    $content = (Get-Content -Path $InstallPath -TotalCount 80 -ErrorAction SilentlyContinue) -join "`n"
+    return (-not ($content -match ":_dispatch"))
+  }
+  if ($ArtifactName.ToLowerInvariant().EndsWith(".ps1")) {
+    $content = (Get-Content -Path $InstallPath -TotalCount 80 -ErrorAction SilentlyContinue) -join "`n"
+    return (-not ($content -match "Join-Path\\s+\\$PSScriptRoot"))
+  }
+  return $false
+}
+
 function Invoke-RepairInstallDir {
   $targets = @(
     "infring.cmd", "infringctl.cmd", "infringd.cmd",
+    "infring.ps1", "infringctl.ps1", "infringd.ps1",
     # Legacy compatibility wrappers/artifacts (removed during repair migration).
     "protheus.cmd", "protheusctl.cmd", "protheusd.cmd",
     "infring-ops.exe", "infring-pure-workspace.exe",
@@ -1557,13 +2198,35 @@ function Invoke-RepairInstallDir {
     "protheus-ops.exe", "protheus-pure-workspace.exe",
     "protheusd.exe", "protheus-client"
   )
+  $repairArchiveRoot = Join-Path $InstallDir "_repair_archive"
+  $repairArchiveRun = Join-Path $repairArchiveRoot (Get-Date -Format "yyyyMMddTHHmmss")
+  New-Item -ItemType Directory -Force -Path $repairArchiveRun | Out-Null
+  $repairRemoved = 0
+  $repairPreserved = 0
   foreach ($target in $targets) {
     $path = Join-Path $InstallDir $target
     if (Test-Path $path) {
-      Remove-Item -Force -Recurse $path
-      Write-Host "[infring install] repair removed stale install artifact: $path"
+      $artifactBroken = Test-RepairArtifactBroken -InstallPath $path -ArtifactName $target
+      if ($artifactBroken) {
+        Remove-Item -Force -Recurse $path
+        $repairRemoved += 1
+        Write-Host "[infring install] repair removed broken install artifact: $path"
+        continue
+      }
+      try {
+        Copy-Item -Force -Recurse $path (Join-Path $repairArchiveRun $target)
+        Write-Host "[infring install] repair archived healthy install artifact: $path"
+      } catch {
+        Write-Host "[infring install] repair warning: failed to archive healthy install artifact: $path"
+      }
+      $repairPreserved += 1
+      Write-Host "[infring install] repair preserved healthy install artifact: $path"
     }
   }
+  $script:RepairArchiveRun = [string]$repairArchiveRun
+  $script:RepairRemovedCount = [int]$repairRemoved
+  $script:RepairPreservedCount = [int]$repairPreserved
+  Write-Host "[infring install] repair summary: removed=$repairRemoved preserved=$repairPreserved archive=$repairArchiveRun"
 }
 
 function Invoke-RepairWorkspaceState {
@@ -1631,6 +2294,8 @@ $triple = if ($HostIsWindows) {
 }
   $version = Resolve-Version
 $resolvedVersionLabel = $version
+$script:InstallBootstrapOnlyMode = $false
+$script:InstallBootstrapOnlyReason = ""
 
 Write-Host "[infring install] version: $version"
 Write-Host "[infring install] platform: $triple"
@@ -1741,15 +2406,47 @@ if ($InstallPure) {
       $resolvedVersionLabel = $compatibleOps
     }
   }
-  if (-not (Install-Binary $version $triple "infring-ops" $opsBin)) {
-    $failureHint = Format-BinaryInstallFailureHint -Stem "infring-ops" -Triple $triple -VersionTag $version
-    $windowsToolsHint = if ($HostIsWindows) { (Get-WindowsBuildToolsInstallHint) } else { "" }
-    throw "Failed to install core ops runtime for $triple ($resolvedVersionLabel). Prebuilt asset download failed and source fallback did not complete. Diagnostic: $failureHint Install Rust toolchain + C++ build tools, then rerun the README Windows install command: $ReadmeWindowsInstallCommand $windowsToolsHint"
+  $opsInstalled = Install-Binary $version $triple "infring-ops" $opsBin
+  if (-not $opsInstalled) {
+    $opsFailureReason = [string]$script:LastBinaryInstallFailureReason
+    $opsFailure = $script:LastBinaryInstallFailure
+    $missingPrebuiltWithNoMsvc = $false
+    if ($opsFailure -and $opsFailure.ContainsKey("preflight_no_reachable_prebuilt_with_missing_msvc")) {
+      $missingPrebuiltWithNoMsvc = [bool]$opsFailure.preflight_no_reachable_prebuilt_with_missing_msvc
+    }
+    $allowBootstrapOnlyFallback = (
+      $HostIsWindows -and
+      $InstallFull -and
+      (-not $InstallPure) -and
+      (
+        $missingPrebuiltWithNoMsvc -or
+        ($opsFailureReason -eq "msvc_tools_still_missing_after_bootstrap") -or
+        ($opsFailureReason -eq "msvc_tools_missing_auto_bootstrap_disabled") -or
+        ($opsFailureReason -eq "msvc_tools_missing_no_reachable_prebuilt_asset")
+      )
+    )
+    if ($allowBootstrapOnlyFallback) {
+      if ([string]::IsNullOrWhiteSpace($opsFailureReason)) {
+        $opsFailureReason = "ops_runtime_unavailable"
+      }
+      $script:InstallBootstrapOnlyMode = $true
+      $script:InstallBootstrapOnlyReason = [string]$opsFailureReason
+      Write-Host "[infring install] full-mode onboarding fallback enabled: continuing without local Rust/MSVC runtime build."
+      Write-Host "[infring install] onboarding fallback reason: $($script:InstallBootstrapOnlyReason)"
+      Write-Host "[infring install] onboarding fallback note: `infring`, `infringctl`, and `infring gateway` will run in bootstrap-only mode until runtime binaries are installed."
+    } else {
+      $failureHint = Format-BinaryInstallFailureHint -Stem "infring-ops" -Triple $triple -VersionTag $version
+      $windowsToolsHint = if ($HostIsWindows) { (Get-WindowsBuildToolsInstallHint) } else { "" }
+      throw "Failed to install core ops runtime for $triple ($resolvedVersionLabel). Prebuilt asset download failed and source fallback did not complete. Diagnostic: $failureHint Install Rust toolchain + C++ build tools, then rerun the README Windows install command: $ReadmeWindowsInstallCommand $windowsToolsHint"
+    }
   }
 }
 
 $daemonMode = "spine"
-if ($InstallTinyMax -and (Install-Binary $version $preferredDaemonTriple "infringd-tiny-max" $infringdBin)) {
+if ([bool]$script:InstallBootstrapOnlyMode) {
+  $daemonMode = "bootstrap"
+  Write-Host "[infring install] onboarding fallback: using bootstrap-only gateway shim (runtime binaries unavailable)."
+} elseif ($InstallTinyMax -and (Install-Binary $version $preferredDaemonTriple "infringd-tiny-max" $infringdBin)) {
   $daemonMode = "infringd"
   Write-Host "[infring install] using tiny-max daemon runtime"
 } elseif (Install-Binary $version $preferredDaemonTriple "infringd" $infringdBin) {
@@ -1819,9 +2516,42 @@ if /I "%~1"=="gateway" (
   set "_gateway_rc=!ERRORLEVEL!"
   exit /b !_gateway_rc!
 )
+if not exist "%~dp0infring-ops.exe" if not exist "%~dp0infring-pure-workspace.exe" (
+  call :_bootstrap_dispatch %*
+  set "_bootstrap_rc=!ERRORLEVEL!"
+  exit /b !_bootstrap_rc!
+)
 call __ENTRY__ __ENTRY_ARGS__ %*
 set "_cmd_rc=!ERRORLEVEL!"
 exit /b !_cmd_rc!
+
+:_bootstrap_help
+echo [infring bootstrap] full-mode onboarding fallback active (runtime binaries unavailable).
+echo [infring bootstrap] install Visual Studio Build Tools, then rerun install.ps1 -Repair -Full.
+echo [infring bootstrap] available commands now: infring --help, infring status, infring setup status --json, infring gateway status
+exit /b 0
+
+:_bootstrap_dispatch
+set "_bootstrap_cmd=%~1"
+if "%_bootstrap_cmd%"=="" goto :_bootstrap_help
+if /I "%_bootstrap_cmd%"=="--help" goto :_bootstrap_help
+if /I "%_bootstrap_cmd%"=="-h" goto :_bootstrap_help
+if /I "%_bootstrap_cmd%"=="help" goto :_bootstrap_help
+if /I "%_bootstrap_cmd%"=="status" (
+  echo [infring bootstrap] runtime binaries unavailable; onboarding fallback active.
+  exit /b 0
+)
+if /I "%_bootstrap_cmd%"=="setup" (
+  if /I "%~2"=="status" (
+    echo {"ok":true,"type":"infring_setup_status","mode":"bootstrap_only","runtime_installed":false,"next_action":"install_msvc_and_rerun_repair_full"}
+    exit /b 0
+  )
+  echo [infring bootstrap] setup accepted in bootstrap-only mode.
+  exit /b 0
+)
+echo [infring bootstrap] command requires runtime binaries: %_bootstrap_cmd%
+echo [infring bootstrap] run install.ps1 -Repair -Full after installing Visual Studio Build Tools.
+exit /b 0
 
 :_recover_usage
 echo Usage: infring recover [--dashboard-host=127.0.0.1] [--dashboard-port=4173] [--wait-max=90]
@@ -1964,6 +2694,43 @@ set "_cmd_rc=!ERRORLEVEL!"
 exit /b !_cmd_rc!
 '@
 
+$bootstrapGatewayDispatchTemplate = @'
+:_dispatch
+set "_bootstrap_action=%~1"
+if "%_bootstrap_action%"=="" set "_bootstrap_action=start"
+if /I "%_bootstrap_action%"=="--help" goto :_bootstrap_usage
+if /I "%_bootstrap_action%"=="-h" goto :_bootstrap_usage
+if /I "%_bootstrap_action%"=="help" goto :_bootstrap_usage
+if /I "%_bootstrap_action%"=="start" (
+  echo P o w e r  T o  T h e  U s e r s
+  echo [infring gateway] bootstrap-only mode active
+  echo [infring gateway] runtime binaries are not installed on this machine yet
+  echo [infring gateway] next: install Visual Studio Build Tools, then run install.ps1 -Repair -Full
+  exit /b 0
+)
+if /I "%_bootstrap_action%"=="restart" (
+  echo P o w e r  T o  T h e  U s e r s
+  echo [infring gateway] bootstrap-only mode active
+  echo [infring gateway] runtime restart deferred until runtime binaries are installed
+  exit /b 0
+)
+if /I "%_bootstrap_action%"=="status" (
+  echo [infring gateway] bootstrap-only mode active (runtime not installed)
+  exit /b 0
+)
+if /I "%_bootstrap_action%"=="stop" (
+  echo [infring gateway] bootstrap-only mode active; nothing to stop
+  exit /b 0
+)
+echo [infring gateway] bootstrap-only mode action complete: %_bootstrap_action%
+exit /b 0
+
+:_bootstrap_usage
+echo Usage: infringd [start^|stop^|restart^|status]
+echo [infring gateway] bootstrap-only mode active (runtime binaries unavailable)
+exit /b 0
+'@
+
 function Write-CmdWrapper {
   param(
     [string]$Path,
@@ -2002,6 +2769,15 @@ function Write-DaemonCmdWrapper {
   Set-Content -Path $Path -Value $content
 }
 
+function Write-BootstrapGatewayCmdWrapper {
+  param(
+    [string]$Path
+  )
+
+  $content = $wrapperPrelude + "`r`n" + $bootstrapGatewayDispatchTemplate + "`r`n"
+  Set-Content -Path $Path -Value $content
+}
+
 function Resolve-WorkspaceRootForSmoke {
   return Resolve-WorkspaceRootForRepair
 }
@@ -2036,13 +2812,15 @@ function Test-DashboardHealthSmoke {
   )
 
   $workspaceRoot = Resolve-WorkspaceRootForSmoke
-  $healthLog = Join-Path ([System.IO.Path]::GetTempPath()) ("infring-dashboard-health-" + [guid]::NewGuid().ToString("N") + ".log")
+  $healthLog = New-InstallSmokeLogPath -CheckName "dashboard_healthz"
 
   $null = Invoke-InfringCmdWithTimeout -InstallDir $InstallDir -Arguments @("gateway", "stop", "--dashboard-host=$DashboardHost", "--dashboard-port=$Port", "--dashboard-open=0") -TimeoutSec 20
 
   $startResult = Invoke-InfringCmdWithTimeout -InstallDir $InstallDir -Arguments @("gateway", "start", "--dashboard-host=$DashboardHost", "--dashboard-port=$Port", "--dashboard-open=0", "--gateway-persist=0") -TimeoutSec 45 -LogPath $healthLog
   if (-not [bool]$startResult.Ok) {
+    $errorCode = "gateway_start_failed"
     if ([bool]$startResult.TimedOut) {
+      $errorCode = "gateway_start_timeout"
       Write-Host "[infring install] smoke dashboard_health: failed (gateway start timeout)"
     } else {
       Write-Host "[infring install] smoke dashboard_health: failed (gateway start)"
@@ -2054,7 +2832,15 @@ function Test-DashboardHealthSmoke {
       Get-Content -Path $startResult.ErrPath -Tail 120 -ErrorAction SilentlyContinue
     }
     Show-DashboardFailureLogs -WorkspaceRoot $workspaceRoot
-    return $false
+    return @{
+      Ok = $false
+      ExitCode = if ($null -ne $startResult.ExitCode) { $startResult.ExitCode } else { 1 }
+      TimedOut = [bool]$startResult.TimedOut
+      Error = $errorCode
+      LogPath = $healthLog
+      ErrPath = $startResult.ErrPath
+      HealthzUrl = "http://$DashboardHost`:$Port/healthz"
+    }
   }
 
   $ready = $false
@@ -2073,30 +2859,54 @@ function Test-DashboardHealthSmoke {
     Write-Host "[infring install] smoke dashboard_health: failed (healthz timeout)"
     if (Test-Path $healthLog) { Get-Content -Path $healthLog -Tail 120 -ErrorAction SilentlyContinue }
     Show-DashboardFailureLogs -WorkspaceRoot $workspaceRoot
-    return $false
+    return @{
+      Ok = $false
+      ExitCode = 1
+      TimedOut = $false
+      Error = "healthz_timeout"
+      LogPath = $healthLog
+      ErrPath = $startResult.ErrPath
+      HealthzUrl = "http://$DashboardHost`:$Port/healthz"
+    }
   }
 
   Write-Host "[infring install] smoke dashboard_health: ok"
-  return $true
+  return @{
+    Ok = $true
+    ExitCode = 0
+    TimedOut = $false
+    Error = $null
+    LogPath = $healthLog
+    ErrPath = $startResult.ErrPath
+    HealthzUrl = "http://$DashboardHost`:$Port/healthz"
+  }
 }
 
 function Invoke-InfringCmdWithTimeout {
   param(
     [string]$InstallDir,
     [string[]]$Arguments,
+    [string]$WrapperName = "infring",
     [int]$TimeoutSec = 25,
     [string]$LogPath
   )
 
-  $cmdPath = Join-Path $InstallDir "infring.cmd"
+  $wrapper = if ([string]::IsNullOrWhiteSpace($WrapperName)) { "infring" } else { $WrapperName }
+  $cmdPath = Join-Path $InstallDir "$wrapper.cmd"
+  $psPath = Join-Path $InstallDir "$wrapper.ps1"
+  $launcher = "cmd"
   if (-not (Test-Path $cmdPath)) {
-    return @{
-      Ok = $false
-      ExitCode = 1
-      TimedOut = $false
-      Error = "missing_infring_cmd"
-      LogPath = $null
-      ErrPath = $null
+    if (Test-Path $psPath) {
+      $launcher = "powershell"
+    } else {
+      return @{
+        Ok = $false
+        ExitCode = 1
+        TimedOut = $false
+        Error = "missing_${wrapper}_cmd"
+        LogPath = $null
+        ErrPath = $null
+      }
     }
   }
 
@@ -2111,13 +2921,16 @@ function Invoke-InfringCmdWithTimeout {
     $escaped = $escaped.Replace('"', '""')
     $quotedArgs += "`"$escaped`""
   }
-  $commandLine = "call `"$cmdPath`""
-  if ($quotedArgs.Count -gt 0) {
-    $commandLine = "$commandLine " + ($quotedArgs -join " ")
-  }
-
   try {
-    $proc = Start-Process -FilePath "cmd.exe" -ArgumentList @("/d", "/s", "/c", $commandLine) -PassThru -WindowStyle Hidden -RedirectStandardOutput $LogPath -RedirectStandardError $errPath
+    if ($launcher -eq "powershell") {
+      $proc = Start-Process -FilePath "powershell.exe" -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $psPath) + $Arguments -PassThru -WindowStyle Hidden -RedirectStandardOutput $LogPath -RedirectStandardError $errPath
+    } else {
+      $commandLine = "call `"$cmdPath`""
+      if ($quotedArgs.Count -gt 0) {
+        $commandLine = "$commandLine " + ($quotedArgs -join " ")
+      }
+      $proc = Start-Process -FilePath "cmd.exe" -ArgumentList @("/d", "/s", "/c", $commandLine) -PassThru -WindowStyle Hidden -RedirectStandardOutput $LogPath -RedirectStandardError $errPath
+    }
   } catch {
     return @{
       Ok = $false
@@ -2152,13 +2965,165 @@ function Invoke-InfringCmdWithTimeout {
   }
 }
 
+function New-InstallSmokeLogPath {
+  param(
+    [string]$CheckName
+  )
+
+  $normalized = if ([string]::IsNullOrWhiteSpace($CheckName)) { "check" } else { $CheckName }
+  $safe = ($normalized -replace '[^a-zA-Z0-9_\-]', '_').ToLowerInvariant()
+  $dir = Join-Path $HOME ".infring\logs\install-smoke"
+  New-Item -ItemType Directory -Force -Path $dir | Out-Null
+  return Join-Path $dir ("$safe-" + [guid]::NewGuid().ToString("N") + ".log")
+}
+
+function New-InstallerSmokeCheckRecord {
+  param(
+    [string]$CheckName,
+    [string]$Command,
+    [hashtable]$Result,
+    [bool]$Required = $true
+  )
+
+  $ok = [bool]$Result.Ok
+  $errorCode = ""
+  if ($ok) {
+    $errorCode = ""
+  } elseif ([bool]$Result.TimedOut) {
+    $errorCode = "timeout"
+  } elseif ($null -ne $Result.ExitCode) {
+    $errorCode = "exit_code_$($Result.ExitCode)"
+  } elseif (-not [string]::IsNullOrWhiteSpace([string]$Result.Error)) {
+    $errorCode = [string]$Result.Error
+  } else {
+    $errorCode = "unknown"
+  }
+  return @{
+    name = $CheckName
+    command = $Command
+    required = [bool]$Required
+    ok = $ok
+    status = if ($ok) { "passed" } else { "failed" }
+    error_code = $errorCode
+    timed_out = [bool]$Result.TimedOut
+    exit_code = $Result.ExitCode
+    log_path = $Result.LogPath
+    err_path = $Result.ErrPath
+  }
+}
+
+function Write-InstallerSmokeResult {
+  param(
+    [hashtable]$Record
+  )
+
+  $name = [string]$Record.name
+  $status = [string]$Record.status
+  if ($status -like "skipped*") {
+    Write-Host "[infring install] smoke $name: skipped"
+    return
+  }
+  if ([bool]$Record.ok) {
+    Write-Host "[infring install] smoke $name: ok"
+    return
+  }
+  $err = [string]$Record.error_code
+  if ([string]::IsNullOrWhiteSpace($err)) { $err = "unknown" }
+  Write-Host "[infring install] smoke $name: failed ($err)"
+  if ([bool]$Record.log_path -and (Test-Path $Record.log_path)) {
+    Get-Content -Path $Record.log_path -Tail 80 -ErrorAction SilentlyContinue
+  }
+  if ([bool]$Record.err_path -and (Test-Path $Record.err_path)) {
+    Get-Content -Path $Record.err_path -Tail 80 -ErrorAction SilentlyContinue
+  }
+}
+
+function Test-RustupDefaultToolchainMissing {
+  $rustup = Get-Command rustup -ErrorAction SilentlyContinue
+  if ($null -eq $rustup) { return $false }
+  $cargo = Get-Command cargo -ErrorAction SilentlyContinue
+  if ($null -ne $cargo) {
+    try {
+      & $cargo.Source --version *> $null
+      if ($LASTEXITCODE -eq 0) { return $false }
+    } catch {}
+    return $true
+  }
+  try {
+    & $rustup.Source default *> $null
+    if ($LASTEXITCODE -eq 0) { return $false }
+  } catch {}
+  return $true
+}
+
 $powerShellShimTemplate = @'
 param(
   [Parameter(ValueFromRemainingArguments = $true)]
   [string[]]$CommandArgs
 )
 $target = Join-Path $PSScriptRoot "__TARGET__"
+$shimName = [System.IO.Path]::GetFileNameWithoutExtension($PSCommandPath).ToLowerInvariant()
+$opsExe = Join-Path $PSScriptRoot "infring-ops.exe"
+$daemonExe = Join-Path $PSScriptRoot "infringd.exe"
+$conduitExe = Join-Path $PSScriptRoot "conduit_daemon.exe"
 if (-not (Test-Path $target)) {
+  $fallbackInvoked = $false
+  $gatewayAction = "start"
+  $gatewayArgs = @()
+  if ($shimName -eq "infring" -and $CommandArgs.Count -gt 0) {
+    $first = [string]$CommandArgs[0]
+    if ($first.ToLowerInvariant() -eq "gateway") {
+      if ($CommandArgs.Count -gt 1) {
+        $candidate = [string]$CommandArgs[1]
+        if (-not [string]::IsNullOrWhiteSpace($candidate) -and -not $candidate.StartsWith("-")) {
+          $gatewayAction = $candidate
+          if ($CommandArgs.Count -gt 2) {
+            $gatewayArgs = $CommandArgs | Select-Object -Skip 2
+          }
+        } else {
+          $gatewayArgs = $CommandArgs | Select-Object -Skip 1
+        }
+      }
+      if (Test-Path $daemonExe) {
+        Write-Warning "[infring shim] missing wrapper $target; using infringd.exe gateway fallback."
+        & $daemonExe $gatewayAction @gatewayArgs
+        $fallbackInvoked = $true
+      } elseif (Test-Path $conduitExe) {
+        Write-Warning "[infring shim] missing wrapper $target; using conduit_daemon.exe gateway fallback."
+        & $conduitExe $gatewayAction @gatewayArgs
+        $fallbackInvoked = $true
+      }
+    }
+  }
+  if ($shimName -eq "infring" -and (Test-Path $opsExe)) {
+    Write-Warning "[infring shim] missing wrapper $target; using infring-ops.exe infringctl fallback."
+    & $opsExe "infringctl" @CommandArgs
+    $fallbackInvoked = $true
+  } elseif ($shimName -eq "infringctl" -and (Test-Path $opsExe)) {
+    Write-Warning "[infring shim] missing wrapper $target; using infring-ops.exe infringctl fallback."
+    & $opsExe "infringctl" @CommandArgs
+    $fallbackInvoked = $true
+  } elseif ($shimName -eq "infringd") {
+    if (Test-Path $daemonExe) {
+      Write-Warning "[infring shim] missing wrapper $target; using infringd.exe fallback."
+      & $daemonExe @CommandArgs
+      $fallbackInvoked = $true
+    } elseif (Test-Path $conduitExe) {
+      Write-Warning "[infring shim] missing wrapper $target; using conduit_daemon.exe fallback."
+      & $conduitExe @CommandArgs
+      $fallbackInvoked = $true
+    } elseif (Test-Path $opsExe) {
+      Write-Warning "[infring shim] missing wrapper $target; using infring-ops.exe spine fallback."
+      & $opsExe "spine" @CommandArgs
+      $fallbackInvoked = $true
+    }
+  }
+  if ($fallbackInvoked) {
+    exit $LASTEXITCODE
+  }
+  Write-Warning "[infring shim] deterministic recovery: infring setup status --json"
+  Write-Warning "[infring shim] deterministic recovery: infring doctor --json"
+  Write-Warning "[infring shim] deterministic recovery: rerun install.ps1 with -Repair -Full"
   throw "Missing command wrapper: $target. Run install.ps1 with -Repair -Full to rebuild wrappers."
 }
 __DEPRECATION__
@@ -2203,6 +3168,8 @@ if ($daemonMode -eq "infringd") {
   Write-DaemonCmdWrapper -Path $infringdCmd -Entry '"%~dp0infringd.exe"' -EntryArgs ''
 } elseif ($daemonMode -eq "conduit") {
   Write-CmdWrapper -Path $infringdCmd -Entry '"%~dp0conduit_daemon.exe"' -EntryArgs ''
+} elseif ($daemonMode -eq "bootstrap") {
+  Write-BootstrapGatewayCmdWrapper -Path $infringdCmd
 } else {
   if ($InstallPure) {
     throw "No daemon binary available for pure mode"
@@ -2220,17 +3187,46 @@ Write-PowerShellShim -Path $infringdPs1 -TargetCmd "infringd.cmd"
 
 if ($InstallPure) {
   Write-Host "[infring install] pure mode: skipping Infring client bundle"
+  $script:InstallClientRuntimeMode = "pure_profile"
+  $script:InstallRuntimeContractStatus = "pure_profile"
 } elseif ($InstallFull) {
   $clientDir = Join-Path $InstallDir "infring-client"
   if (Install-ClientBundle $version $triple $clientDir) {
+    $script:InstallClientRuntimeMode = "dist"
     Write-Host "[infring install] full mode enabled: client runtime installed at $clientDir"
   } elseif (Install-ClientBundleFromSourceFallback $clientDir) {
+    $script:InstallClientRuntimeMode = "source"
     Write-Host "[infring install] full mode enabled: client runtime installed from source fallback at $clientDir"
   } else {
     throw "Full mode requested but no client runtime bundle is available for $triple ($version), and source fallback runtime copy was unavailable."
   }
+  if (-not (Test-InstallRuntimeManifestContract -RuntimeRoot $clientDir -RuntimeMode $script:InstallClientRuntimeMode -ContextLabel "install_dir_client_runtime")) {
+    throw "Full mode runtime contract validation failed for $clientDir ($($script:InstallClientRuntimeMode))."
+  }
+  if (-not (Ensure-RuntimeNodeModuleClosure -RuntimeRoot $clientDir)) {
+    throw "Full mode runtime node-module closure verification failed for $clientDir."
+  }
+  $script:InstallRuntimeContractStatus = "verified"
 } else {
   Write-Host "[infring install] lazy mode: skipping TS systems/eyes client bundle (use -Full to include)"
+  $script:InstallClientRuntimeMode = "minimal_profile"
+  $script:InstallRuntimeContractStatus = "minimal_profile"
+}
+
+$workspaceRootForState = Resolve-WorkspaceRootForRepair
+$workspaceRefreshDecision = Resolve-WorkspaceRuntimeRefreshDecision -WorkspaceRoot $workspaceRootForState -VersionTag $version -Repair ([bool]$InstallRepair)
+$script:WorkspaceRuntimeRefreshReason = [string]$workspaceRefreshDecision.reason
+$script:WorkspaceReleaseTagPrevious = [string]$workspaceRefreshDecision.previous_tag
+$script:WorkspaceReleaseTagCurrent = [string]$version
+$script:WorkspaceRuntimeRefreshApplied = $false
+if ([bool]$workspaceRefreshDecision.refresh_required) {
+  Write-Host "[infring install] workspace runtime refresh required: $($workspaceRefreshDecision.reason)"
+  $script:WorkspaceRuntimeRefreshApplied = [bool](Invoke-WorkspaceRuntimeRefresh -WorkspaceRoot $workspaceRootForState -InstallDir $InstallDir -SourceFallbackDir $script:SourceFallbackDir -Reason ([string]$workspaceRefreshDecision.reason))
+}
+if (-not [string]::IsNullOrWhiteSpace($workspaceRootForState)) {
+  if (Set-WorkspaceInstallReleaseTag -WorkspaceRoot $workspaceRootForState -VersionTag ([string]$version)) {
+    Write-Host "[infring install] workspace release tag state updated: $version"
+  }
 }
 
 $machinePath = [Environment]::GetEnvironmentVariable("Path", "User")
@@ -2253,48 +3249,203 @@ if ($null -ne $resolvedInfring) {
   $installNorm = Normalize-WindowsPathEntry $InstallDir
   if ($installNorm -and (-not $resolvedNorm.StartsWith($installNorm))) {
     Write-Host "[infring install] warning: current shell still prefers a non-canonical infring shim; use direct path fallback or start a new PowerShell session."
+    Write-Host "[infring install] direct-path setup status: $InstallDir\\infring.cmd setup status --json"
+    Write-Host "[infring install] direct-path gateway status: $InstallDir\\infring.cmd gateway status"
   }
 } else {
   Write-Host "[infring install] warning: shell command resolution for 'infring' not ready in this session; use direct path fallback."
+  Write-Host "[infring install] direct-path setup status: $InstallDir\\infring.cmd setup status --json"
+  Write-Host "[infring install] direct-path gateway status: $InstallDir\\infring.cmd gateway status"
 }
 
-$gatewaySmokeOk = $false
-$gatewaySmokeError = ""
-$gatewaySmokeResult = Invoke-InfringCmdWithTimeout -InstallDir $InstallDir -Arguments @("gateway", "status", "--auto-heal=0", "--dashboard-open=0") -TimeoutSec 25
-if ([bool]$gatewaySmokeResult.Ok) {
-  $gatewaySmokeOk = $true
-} elseif ([bool]$gatewaySmokeResult.TimedOut) {
-  $gatewaySmokeError = "timeout"
-} elseif ($null -ne $gatewaySmokeResult.ExitCode) {
-  $gatewaySmokeError = "exit_code_$($gatewaySmokeResult.ExitCode)"
-} elseif (-not [string]::IsNullOrWhiteSpace([string]$gatewaySmokeResult.Error)) {
-  $gatewaySmokeError = [string]$gatewaySmokeResult.Error
-} else {
-  $gatewaySmokeError = "unknown"
-}
-if ($gatewaySmokeOk) {
-  Write-Host "[infring install] smoke gateway_status: ok"
-} else {
-  Write-Host "[infring install] smoke gateway_status: failed ($gatewaySmokeError)"
-  if ([bool]$gatewaySmokeResult.LogPath -and (Test-Path $gatewaySmokeResult.LogPath)) {
-    Get-Content -Path $gatewaySmokeResult.LogPath -Tail 80 -ErrorAction SilentlyContinue
-  }
-  if ([bool]$gatewaySmokeResult.ErrPath -and (Test-Path $gatewaySmokeResult.ErrPath)) {
-    Get-Content -Path $gatewaySmokeResult.ErrPath -Tail 80 -ErrorAction SilentlyContinue
-  }
-}
+$smokeChecks = @()
+$infringHelpResult = Invoke-InfringCmdWithTimeout -InstallDir $InstallDir -WrapperName "infring" -Arguments @("--help") -TimeoutSec 20 -LogPath (New-InstallSmokeLogPath -CheckName "infring_help")
+$infringHelpCheck = New-InstallerSmokeCheckRecord -CheckName "infring_help" -Command "infring --help" -Result $infringHelpResult -Required $true
+$smokeChecks += $infringHelpCheck
+Write-InstallerSmokeResult -Record $infringHelpCheck
 
-$dashboardSmokeRequired = $InstallFull
+$infringctlHelpLogPath = New-InstallSmokeLogPath -CheckName "infringctl_help"
+if (Test-RustupDefaultToolchainMissing) {
+  if ($script:InstallToolchainPolicy -eq "fail_closed") {
+    @(
+      "failed (toolchain policy fail_closed): missing rustup default toolchain",
+      "fix: run 'rustup default stable'"
+    ) | Set-Content -Path $infringctlHelpLogPath -Encoding UTF8
+    $infringctlHelpCheck = @{
+      name = "infringctl_help"
+      command = "infringctl --help"
+      required = $true
+      ok = $false
+      status = "failed_policy_toolchain"
+      error_code = "rustup_default_toolchain_missing"
+      timed_out = $false
+      exit_code = $null
+      log_path = $infringctlHelpLogPath
+      err_path = ""
+    }
+    Write-Host "[infring install] smoke infringctl_help: failed (toolchain policy fail_closed; missing rustup default toolchain)"
+    Write-Host "[infring install] smoke infringctl_help: run 'rustup default stable' and rerun install."
+  } else {
+    @(
+      "skipped (missing rustup default toolchain)",
+      "help: run 'rustup default stable' to download the latest stable release of Rust and set it as your default toolchain."
+    ) | Set-Content -Path $infringctlHelpLogPath -Encoding UTF8
+    $infringctlHelpCheck = @{
+      name = "infringctl_help"
+      command = "infringctl --help"
+      required = $false
+      ok = $true
+      status = "skipped_toolchain"
+      error_code = ""
+      timed_out = $false
+      exit_code = 0
+      log_path = $infringctlHelpLogPath
+      err_path = ""
+    }
+    Write-Host "[infring install] smoke infringctl_help: skipped (missing rustup default toolchain; policy=auto)"
+    Write-Host "[infring install] smoke infringctl_help: run 'rustup default stable' to enable this check."
+  }
+} else {
+  $infringctlHelpResult = Invoke-InfringCmdWithTimeout -InstallDir $InstallDir -WrapperName "infringctl" -Arguments @("--help") -TimeoutSec 20 -LogPath $infringctlHelpLogPath
+  $infringctlHelpCheck = New-InstallerSmokeCheckRecord -CheckName "infringctl_help" -Command "infringctl --help" -Result $infringctlHelpResult -Required $true
+}
+$smokeChecks += $infringctlHelpCheck
+Write-InstallerSmokeResult -Record $infringctlHelpCheck
+
+$infringStatusResult = Invoke-InfringCmdWithTimeout -InstallDir $InstallDir -WrapperName "infring" -Arguments @("status") -TimeoutSec 25 -LogPath (New-InstallSmokeLogPath -CheckName "infring_status")
+$infringStatusCheck = New-InstallerSmokeCheckRecord -CheckName "infring_status" -Command "infring status" -Result $infringStatusResult -Required $true
+$smokeChecks += $infringStatusCheck
+Write-InstallerSmokeResult -Record $infringStatusCheck
+
+$gatewaySmokeResult = Invoke-InfringCmdWithTimeout -InstallDir $InstallDir -WrapperName "infring" -Arguments @("gateway", "status", "--auto-heal=0", "--dashboard-open=0") -TimeoutSec 25 -LogPath (New-InstallSmokeLogPath -CheckName "gateway_status")
+$gatewayStatusCheck = New-InstallerSmokeCheckRecord -CheckName "gateway_status" -Command "infring gateway status --auto-heal=0 --dashboard-open=0" -Result $gatewaySmokeResult -Required $true
+$smokeChecks += $gatewayStatusCheck
+Write-InstallerSmokeResult -Record $gatewayStatusCheck
+
+$dashboardSmokeRequired = $InstallFull -and (-not [bool]$script:InstallBootstrapOnlyMode)
 if ($env:INFRING_INSTALL_STRICT_SMOKE -and @("1", "true", "yes", "on") -contains $env:INFRING_INSTALL_STRICT_SMOKE.ToLower()) {
   $dashboardSmokeRequired = $true
 }
 if ($dashboardSmokeRequired) {
   $smokePort = 4400 + (Get-Random -Minimum 0 -Maximum 1000)
-  if (-not (Test-DashboardHealthSmoke -InstallDir $InstallDir -DashboardHost "127.0.0.1" -Port $smokePort)) {
+  $dashboardSmokeResult = Test-DashboardHealthSmoke -InstallDir $InstallDir -DashboardHost "127.0.0.1" -Port $smokePort
+  $dashboardSmokeCheck = New-InstallerSmokeCheckRecord -CheckName "dashboard_healthz" -Command "GET http://127.0.0.1:$smokePort/healthz" -Result $dashboardSmokeResult -Required $true
+  $smokeChecks += $dashboardSmokeCheck
+  if (-not [bool]$dashboardSmokeCheck.ok) {
     throw "Full install failed dashboard health smoke."
   }
 } else {
   Write-Host "[infring install] smoke dashboard_health: skipped (set INFRING_INSTALL_STRICT_SMOKE=1 or use -Full to enforce)"
+  $dashboardSmokeCheck = @{
+    name = "dashboard_healthz"
+    command = "GET http://127.0.0.1:4173/healthz"
+    required = $false
+    ok = $true
+    status = "skipped"
+    error_code = ""
+    timed_out = $false
+    exit_code = 0
+    log_path = ""
+    err_path = ""
+  }
+  $smokeChecks += $dashboardSmokeCheck
+}
+$failedSmokeRequired = @($smokeChecks | Where-Object { [bool]$_.required -and -not [bool]$_.ok })
+$gatewaySmokeOk = [bool]$gatewayStatusCheck.ok
+$gatewaySmokeError = [string]$gatewayStatusCheck.error_code
+$dashboardSmokeStatus = if ([string]$dashboardSmokeCheck.status -eq "skipped") { "skipped" } elseif ([bool]$dashboardSmokeCheck.ok) { "passed" } else { "failed:$([string]$dashboardSmokeCheck.error_code)" }
+$gatewaySmokeStatus = if ($gatewaySmokeOk) { "passed" } else { "failed:$gatewaySmokeError" }
+$runtimeContractMode = [string]$script:InstallClientRuntimeMode
+$runtimeContractOk = @("verified", "pure_profile", "minimal_profile") -contains [string]$script:InstallRuntimeContractStatus
+$binaryInstallStatus = if ([bool]$script:InstallBootstrapOnlyMode) { "bootstrap_fallback" } else { "ok" }
+$verificationConfidence = "high"
+if (-not $runtimeContractOk -or $failedSmokeRequired.Count -gt 0) {
+  $verificationConfidence = "medium"
+}
+if ($dashboardSmokeRequired -and $dashboardSmokeStatus -ne "passed") {
+  $verificationConfidence = "medium"
+}
+$launcherCommand = "infring gateway"
+$restartCommand = "infring gateway restart"
+$recoveryCommand = "infring recover"
+
+Write-Host "[infring install] success summary: binaries=$binaryInstallStatus runtime=$runtimeContractMode launcher=$launcherCommand restart=$restartCommand verification_confidence=$verificationConfidence"
+Write-Host "[infring install] success summary: gateway_smoke=$gatewaySmokeStatus dashboard_smoke=$dashboardSmokeStatus recovery=$recoveryCommand"
+
+$summaryPayload = @{
+  ok = $true
+  type = "infring_install_success_summary"
+  version = [string]$version
+  triple = [string]$triple
+  install_mode = @{
+    full = [bool]$InstallFull
+    pure = [bool]$InstallPure
+    tiny_max = [bool]$InstallTinyMax
+    repair = [bool]$InstallRepair
+  }
+  verification = @{
+    confidence = $verificationConfidence
+    runtime_contract_ok = [bool]$runtimeContractOk
+    runtime_contract_mode = $runtimeContractMode
+    bootstrap_only_mode = [bool]$script:InstallBootstrapOnlyMode
+    bootstrap_only_reason = [string]$script:InstallBootstrapOnlyReason
+    gateway_smoke = $gatewaySmokeStatus
+    dashboard_smoke = $dashboardSmokeStatus
+    smoke_required_failed = $failedSmokeRequired.Count
+    smoke_checks = $smokeChecks
+    asset_checksum_verification = @{
+      enabled = if (-not [string]::IsNullOrWhiteSpace([string]$env:INFRING_INSTALL_VERIFY_ASSETS)) { Installer-TruthyFlag $env:INFRING_INSTALL_VERIFY_ASSETS $true } else { $true }
+      manifest_version = [string]$script:ChecksumManifestVersion
+      manifest_asset = [string]$script:ChecksumManifestAssetName
+      manifest_path = if ($script:ChecksumManifestPath) { [string]$script:ChecksumManifestPath } else { "" }
+      lockfile_path = [string]$script:InstallAssetLockfile
+    }
+    repair_summary = @{
+      archive_path = [string]$script:RepairArchiveRun
+      removed = [int]$script:RepairRemovedCount
+      preserved = [int]$script:RepairPreservedCount
+    }
+    workspace_runtime_refresh = @{
+      reason = [string]$script:WorkspaceRuntimeRefreshReason
+      applied = [bool]$script:WorkspaceRuntimeRefreshApplied
+      previous_release_tag = [string]$script:WorkspaceReleaseTagPrevious
+      current_release_tag = [string]$script:WorkspaceReleaseTagCurrent
+    }
+  }
+  commands = @{
+    launcher = $launcherCommand
+    restart = $restartCommand
+    recovery = $recoveryCommand
+  }
+  summary_files = @{
+    json = $InstallSummaryJsonPath
+    smoke_json = $InstallSmokeSummaryJsonPath
+  }
+}
+$summaryDir = Split-Path -Parent $InstallSummaryJsonPath
+if (-not [string]::IsNullOrWhiteSpace($summaryDir)) {
+  New-Item -ItemType Directory -Force -Path $summaryDir | Out-Null
+}
+$summaryPayload | ConvertTo-Json -Depth 8 | Set-Content -Path $InstallSummaryJsonPath -Encoding UTF8
+Write-Host "[infring install] summary json: $InstallSummaryJsonPath"
+
+$smokeSummaryPayload = @{
+  ok = ($failedSmokeRequired.Count -eq 0)
+  type = "infring_install_smoke_summary"
+  version = [string]$version
+  triple = [string]$triple
+  required_failed = $failedSmokeRequired.Count
+  toolchain_policy = [string]$script:InstallToolchainPolicy
+  checks = $smokeChecks
+}
+$smokeSummaryDir = Split-Path -Parent $InstallSmokeSummaryJsonPath
+if (-not [string]::IsNullOrWhiteSpace($smokeSummaryDir)) {
+  New-Item -ItemType Directory -Force -Path $smokeSummaryDir | Out-Null
+}
+$smokeSummaryPayload | ConvertTo-Json -Depth 8 | Set-Content -Path $InstallSmokeSummaryJsonPath -Encoding UTF8
+Write-Host "[infring install] smoke summary json: $InstallSmokeSummaryJsonPath"
+if ($InstallJson) {
+  $summaryPayload | ConvertTo-Json -Depth 8 -Compress | Write-Output
 }
 
 Write-Host "[infring install] installed: infring, infringctl, infringd"

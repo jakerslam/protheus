@@ -3,9 +3,18 @@
   "artifact_groups": {
     "runtime_proof": [
       "core/local/artifacts/runtime_proof_verify_current.json",
-      "core/local/artifacts/runtime_proof_harness_current.json",
-      "core/local/artifacts/runtime_proof_release_gate_current.json",
-      "core/local/artifacts/runtime_proof_release_metrics_rich_current.json"
+      "core/local/artifacts/runtime_proof_harness_rich_current.json",
+      "core/local/artifacts/runtime_proof_release_gate_rich_current.json",
+      "core/local/artifacts/runtime_proof_release_metrics_rich_current.json",
+      "core/local/artifacts/runtime_proof_harness_pure_current.json",
+      "core/local/artifacts/runtime_proof_release_gate_pure_current.json",
+      "core/local/artifacts/runtime_proof_release_metrics_pure_current.json",
+      "core/local/artifacts/runtime_proof_harness_tiny-max_current.json",
+      "core/local/artifacts/runtime_proof_release_gate_tiny-max_current.json",
+      "core/local/artifacts/runtime_proof_release_metrics_tiny-max_current.json",
+      "core/local/artifacts/runtime_boundedness_72h_evidence_current.json",
+      "core/local/artifacts/runtime_multi_day_soak_evidence_current.json",
+      "core/local/artifacts/release_proof_checksums_current.json"
     ],
     "adapter_and_orchestration": [
       "core/local/artifacts/adapter_runtime_chaos_gate_current.json",
@@ -25,11 +34,26 @@
       "client/runtime/local/state/release/scorecard/release_scorecard.json"
     ]
   },
+  "category_completeness_min": {
+    "runtime_proof": 1.0,
+    "adapter_and_orchestration": 1.0,
+    "release_governance": 1.0,
+    "workload_and_quality": 1.0
+  },
   "required_artifacts": [
     "core/local/artifacts/runtime_proof_verify_current.json",
-    "core/local/artifacts/runtime_proof_harness_current.json",
-    "core/local/artifacts/runtime_proof_release_gate_current.json",
+    "core/local/artifacts/runtime_proof_harness_rich_current.json",
+    "core/local/artifacts/runtime_proof_release_gate_rich_current.json",
     "core/local/artifacts/runtime_proof_release_metrics_rich_current.json",
+    "core/local/artifacts/runtime_proof_harness_pure_current.json",
+    "core/local/artifacts/runtime_proof_release_gate_pure_current.json",
+    "core/local/artifacts/runtime_proof_release_metrics_pure_current.json",
+    "core/local/artifacts/runtime_proof_harness_tiny-max_current.json",
+    "core/local/artifacts/runtime_proof_release_gate_tiny-max_current.json",
+    "core/local/artifacts/runtime_proof_release_metrics_tiny-max_current.json",
+    "core/local/artifacts/runtime_boundedness_72h_evidence_current.json",
+    "core/local/artifacts/runtime_multi_day_soak_evidence_current.json",
+    "core/local/artifacts/release_proof_checksums_current.json",
     "core/local/artifacts/adapter_runtime_chaos_gate_current.json",
     "core/local/artifacts/layer2_lane_parity_guard_current.json",
     "core/local/artifacts/layer2_receipt_replay_current.json",

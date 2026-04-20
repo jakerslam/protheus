@@ -119,10 +119,33 @@ What is true in this repository today:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --full
+infring setup --yes --defaults
+infring setup status --json
 infring gateway
+infring gateway status
+```
+
+Optional Node bootstrap for full command surface:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --full --install-node
+infring setup --yes --defaults
+infring setup status --json
+infring gateway
+infring gateway status
+```
+
+Optional machine-readable install summary (JSON):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --full --json
 ```
 
 ### Windows (PowerShell)
+
+Canonical install command (single-line):
+
+`Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; $tmp = Join-Path $env:TEMP "infring-install.ps1"; irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 -OutFile $tmp -ErrorAction Stop; & $tmp -Repair -Full; Remove-Item $tmp -Force -ErrorAction SilentlyContinue`
 
 ```powershell
 # Use process-scoped bypass so locked-down execution policies do not block install.
@@ -133,7 +156,16 @@ irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 -Out
 Remove-Item $tmp -Force -ErrorAction SilentlyContinue
 # Confirm command resolution in this shell; if unresolved, use direct-path fallback below.
 Get-Command infring -ErrorAction SilentlyContinue
+infring setup --yes --defaults
+infring setup status --json
 infring gateway
+infring gateway status
+```
+
+Optional machine-readable install summary (JSON):
+
+```powershell
+& $tmp -Repair -Full -Json
 ```
 
 If script execution is still restricted in your environment, use a no-file fallback:
@@ -142,13 +174,19 @@ If script execution is still restricted in your environment, use a no-file fallb
 $env:INFRING_INSTALL_REPAIR = "1"
 $env:INFRING_INSTALL_FULL = "1"
 irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 | iex
+infring setup --yes --defaults
+infring setup status --json
 infring gateway
+infring gateway status
 ```
 
 If command resolution has not propagated yet in the same session, run directly:
 
 ```powershell
+$HOME\.infring\bin\infring.cmd setup --yes --defaults
+$HOME\.infring\bin\infring.cmd setup status --json
 $HOME\.infring\bin\infring.cmd gateway
+$HOME\.infring\bin\infring.cmd gateway status
 ```
 
 If a release does not publish Windows prebuilt binaries for your architecture, the installer now attempts source fallback automatically. On fresh Windows machines, install prerequisites first if needed:
@@ -183,6 +221,29 @@ infring --help
 infring list
 infring gateway status
 ```
+
+Canonical wrappers and deprecation note:
+
+- Primary commands: `infring`, `infringctl`, `infringd`
+- Legacy aliases (`protheus`, `protheusctl`, `protheusd`) are compatibility-only and deprecated for new automation
+
+First-launch diagnostics contract (`infring gateway` start/restart):
+
+1. `startup-checkpoint: env_ready`
+2. `startup-checkpoint: runtime_contract_state=preflight`
+3. `startup-checkpoint: gateway_command_accepted=<start|restart>`
+4. `startup-checkpoint: dashboard_status=pending`
+5. `startup-checkpoint: next_action=infring gateway status`
+
+Success path:
+- `startup-checkpoint: runtime_contract_state=accepted`
+- `startup-checkpoint: dashboard_status=running_or_bootstrapping`
+
+Failure path:
+- `startup-checkpoint: runtime_contract_state=failed(code=...)`
+- `startup-checkpoint: dashboard_status=failed`
+- `startup-checkpoint: next_action=infring doctor --json`
+- `startup-checkpoint: escalation=infring recover`
 
 If your shell has not reloaded `PATH` yet:
 
@@ -245,6 +306,29 @@ Installer behavior:
 | Pure | `--pure` | Rust-only runtime surface (no Node/TS runtime dependency) |
 | Tiny-Max | `--tiny-max` | Lowest-footprint pure profile for constrained hardware |
 | Repair | `--repair` | Removes stale wrappers/runtime artifacts before reinstall |
+
+## Runtime Surface Contract (Manifest-Backed)
+
+Manifest: `client/runtime/config/install_runtime_manifest_v1.txt`
+Node module closure manifest: `client/runtime/config/install_runtime_node_modules_v1.txt`
+
+Required runtime entries:
+
+- `client/runtime/systems/ops/protheusd.ts`
+- `client/runtime/systems/ops/protheus_status_dashboard.ts`
+- `client/runtime/systems/ops/protheus_unknown_guard.ts`
+
+Required runtime node modules:
+
+- `typescript`
+- `ws`
+
+Mode matrix:
+
+- `--full`: required manifest surfaces + full command surface (Node-assisted paths available)
+- `--pure` / `--tiny-max`: Rust-only constrained surfaces with optional rich command lanes disabled
+
+If a command is unavailable in your installed mode, the unknown-command guard (`protheus_unknown_guard`) returns deterministic wrapper-first recovery guidance (`infring` first).
 
 Examples:
 
@@ -410,6 +494,23 @@ npm run -s ops:benchmark:public-audit
 npm run -s ops:benchmark:repro
 ```
 <!-- END: benchmark-snapshot -->
+
+### Benchmark Metric Classes (Interpretation Contract)
+
+Use benchmark values by class, not as interchangeable numbers:
+
+- `readiness`: status-path availability timing only (for example, `cold_start_ms` in public matrix rows).
+- `kernel_shared_throughput`: synthetic/shared workload throughput (`kernel_shared_workload_ops_per_sec`) for kernel-level comparative efficiency.
+- `end_to_end_command_throughput`: governed rich-runtime command-path throughput (`rich_end_to_end_command_path_ops_per_sec`) for operator-facing runtime behavior.
+
+Operator caveats:
+
+- Do not interpret readiness latency as full stopped-from-zero dashboard boot time.
+- Do not use kernel/shared throughput as a proxy for full command-path throughput.
+- Use the latest artifact and reproducibility commands together:
+  - `docs/client/reports/benchmark_matrix_run_latest.json`
+  - `npm run -s ops:benchmark:refresh`
+  - `npm run -s ops:benchmark:public-audit`
 
 
 

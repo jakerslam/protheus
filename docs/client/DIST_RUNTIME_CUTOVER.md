@@ -21,9 +21,9 @@ In `dist` mode, wrappers compile from `dist/<same-path>.js` when present. If mis
 
 ## Guardrails
 
-- `client/runtime/systems/spine/contract_check.ts` now fails if runtime mode resolves to `dist` while `PROTHEUS_RUNTIME_DIST_REQUIRED` is not `1`.
+- `client/runtime/systems/spine/contract_check_bridge.ts` now fails if runtime mode resolves to `dist` while `PROTHEUS_RUNTIME_DIST_REQUIRED` is not `1`.
 - Optional strict wrapper coverage check:
-  - `CONTRACT_CHECK_DIST_WRAPPER_STRICT=1 node client/runtime/systems/spine/contract_check.ts`
+  - `CONTRACT_CHECK_DIST_WRAPPER_STRICT=1 node client/runtime/systems/spine/contract_check_bridge.ts`
   - Fails if any TS bootstrap wrapper lacks its `dist/` counterpart.
 
 ## Rollback

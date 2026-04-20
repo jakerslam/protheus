@@ -47,3 +47,25 @@ Generated: 2026-03-01T03:27:30.118Z
 - [ChromeOS/Fuchsia Distribution OTA Adapter](CHROMEOS_FUCHSIA_DISTRIBUTION_OTA_ADAPTER.md)
 - [NGC + NVIDIA Enterprise Distribution Adapter](NGC_NVIDIA_ENTERPRISE_DISTRIBUTION_ADAPTER.md)
 - [Illusion Integrity Auditor](ILLUSION_INTEGRITY_AUDITOR.md)
+
+## Mode-Aware CLI Help Contract
+
+Use `infring help` as the canonical command index and `infring setup status --json` as the setup-state authority.
+
+Unknown-command recovery now emits a mode-aware command surface contract:
+
+- mode identifier (`full`, `minimal`, `pure`, `tiny-max`)
+- dashboard surface availability
+- mode-valid command list
+- mode help reason code (`mode_help_reason`)
+- mode-unavailable action list with deterministic reason codes (`mode_unavailable_actions`)
+- deterministic recovery commands (`setup`, `gateway`, `doctor`, and full-surface repair)
+
+Mode baseline:
+
+| Mode | Help surface expectation | Rich gateway launch |
+| --- | --- | --- |
+| `full` | Full operator command guidance | Available |
+| `minimal` | Full guidance with explicit setup reminder | Available (explicit setup may be required) |
+| `pure` | Constrained guidance with limited optional rich lanes | Limited/optional |
+| `tiny-max` | Constrained guidance with limited optional rich lanes | Limited/optional |

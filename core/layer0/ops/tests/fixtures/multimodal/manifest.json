@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "fixtures": [
+    {
+      "id": "image_svg_basic",
+      "kind": "image",
+      "path": "sample-image.svg",
+      "ingestion_expectation": "direct_or_text_fallback"
+    },
+    {
+      "id": "audio_wav_placeholder",
+      "kind": "audio",
+      "path": "sample-audio.wav",
+      "ingestion_expectation": "metadata_or_text_fallback"
+    },
+    {
+      "id": "pdf_minimal_contract",
+      "kind": "pdf",
+      "path": "sample-doc.pdf",
+      "ingestion_expectation": "extract_or_text_fallback"
+    },
+    {
+      "id": "sheet_csv_baseline",
+      "kind": "sheet",
+      "path": "sample-sheet.csv",
+      "ingestion_expectation": "tabular_parse_or_text_fallback"
+    }
+  ]
+}

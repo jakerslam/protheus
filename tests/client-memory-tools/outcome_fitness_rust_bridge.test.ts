@@ -24,7 +24,8 @@ if (!require.extensions['.ts']) {
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
-const path = require('node:path');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
+const path = require('node:path');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 const ROOT = path.resolve(__dirname, '../..');
 
@@ -118,7 +119,9 @@ function main() {
   assert.equal(mod.normalizeValueCurrencyToken(' learning '), 'learning');
   assert.equal(mod.normalizeValueCurrencyToken(' nope '), '');
 
-  assertNoPlaceholderOrPromptLeak({ policy, offsets }, 'outcome_fitness_rust_bridge_test');\n  assertStableToolingEnvelope(policy, 'outcome_fitness_rust_bridge_test');\n  console.log(JSON.stringify({ ok: true, type: 'outcome_fitness_rust_bridge_test' }));
+  assertNoPlaceholderOrPromptLeak({ policy, offsets }, 'outcome_fitness_rust_bridge_test');
+  assertStableToolingEnvelope(policy, 'outcome_fitness_rust_bridge_test');
+  console.log(JSON.stringify({ ok: true, type: 'outcome_fitness_rust_bridge_test' }));
 }
 
 try {

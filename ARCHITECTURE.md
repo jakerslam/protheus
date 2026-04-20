@@ -2,11 +2,21 @@
 
 InfRing is built as a Rust-first deterministic core with an explicit split between:
 - Authoritative Core (`core/**`)
-- Orchestration Surface (`surface/orchestration/**`)
+- Orchestration Control Plane (`surface/orchestration/**`)
 - Presentation Client (`client/**`)
 
 Canonical architecture contract:
 - `docs/SYSTEM-ARCHITECTURE-SPECS.md` (InfRing Layering Specification v1.0)
+- `docs/workspace/orchestration_ownership_policy.md` (Core/Orchestration/Client boundary policy)
+
+Boundary axiom:
+- Core decides what is true and allowed.
+- Orchestration decides what should happen next.
+- Client decides how it is shown and collected.
+
+Transition note (docs-first):
+- The architecture now defines orchestration as the Cognition Control Plane.
+- Internal code/path naming transitions remain incremental; existing `orchestration` identifiers stay valid compatibility aliases until migration is complete.
 
 ## InfRing Direction
 
@@ -15,7 +25,7 @@ InfRing is the target operating model: a portable autonomous substrate that runs
 - Rust kernel remains the single source of truth.
 - Conduit is the only TS <-> Rust bridge.
 - TS is reserved for flexible surfaces (UI, marketplace, extensions, experimentation).
-- Orchestration Surface authority is Rust-first (`surface/orchestration/src/**`); `surface/orchestration/**` must remain at least `95%` Rust by tracked source lines, and TypeScript under `surface/orchestration/scripts/**` is adapter-only and must stay minimal.
+- Orchestration Control Plane authority is Rust-first (`surface/orchestration/src/**`); `surface/orchestration/**` must remain at least `95%` Rust by tracked source lines, and TypeScript under `surface/orchestration/scripts/**` is adapter-only and must stay minimal.
 
 ## Three-Plane Metakernel
 
@@ -28,7 +38,7 @@ InfRing is explicitly modeled as a substrate-independent metakernel with three p
    - `core/layer2/` - Scheduling + execution orchestration
    - `core/layer3/` - OS Personality Template (traditional OS growth layer)
 2. Cognition plane (`planes/cognition`, implemented across `surface/orchestration/` and `client/`):
-   - Orchestration Surface: request shaping, sequencing, clarification, recovery, and result packaging (non-canonical coordination only).
+   - Orchestration Control Plane: decomposition, coordination, sequencing, recovery, and result shaping/packaging (among other things in non-canonical coordination).
    - Presentation Client: rendering, input, UX shells, and presentation-local state.
 3. Substrate plane (`planes/substrate`): runtime/backend descriptors for CPU/MCU/GPU/NPU/QPU/neural channels with explicit degradation contracts and fallback declarations.
 
@@ -56,7 +66,7 @@ The deterministic core stack is now explicitly layered and growth-safe:
 Driver analogy:
 
 - `core/` is the drivetrain, brakes, and stability control.
-- `surface/orchestration/` is the driving controller (trip planning + pacing + recovery).
+- `surface/orchestration/` is the driving control plane (decomposition + pacing + recovery + packaging).
 - `client/` is the steering wheel, dashboard, and infotainment.
 - Conduit is the harness between orchestration and core boundaries.
 
@@ -193,7 +203,7 @@ flowchart TB
     L2["Layer 2: Scheduling + Execution"]
     L3["Layer 3: OS Personality Template"]
     CONDUIT["Conduit + Scrambler"]
-    ORCH["Cognition Plane (Orchestration Surface)"]
+    ORCH["Cognition Plane (Orchestration Control Plane)"]
     UI["Presentation Client Surface"]
     CLI["Operator Surface (infring/infringctl/infringd)"]
     RECEIPTS["Deterministic Receipts + State Artifacts"]
@@ -221,7 +231,7 @@ Runtime subsystem ownership, interfaces, failure modes, and lane links are track
 ## Runtime Flow
 
 1. A command enters from CLI or Presentation Client.
-2. Orchestration Surface normalizes and sequences the request through explicit contracts.
+2. Orchestration Control Plane decomposes, coordinates, sequences, recovers, and shapes/packages results through explicit contracts.
 3. Conduit normalizes the core-bound request into a typed envelope.
 4. Layer 3 maps envelope into deterministic execution intents.
 5. Layer 2 schedules execution; Layer 1 enforces policy/receipts.
@@ -231,7 +241,7 @@ Runtime subsystem ownership, interfaces, failure modes, and lane links are track
 
 ## Portability Contract
 
-- With TS present: conduit-backed orchestration and rich operator surfaces.
+- With TS present: conduit-backed control-plane orchestration and rich operator surfaces.
 - Without TS: Rust core still runs with no kernel behavior drift.
 
 ## Related Docs

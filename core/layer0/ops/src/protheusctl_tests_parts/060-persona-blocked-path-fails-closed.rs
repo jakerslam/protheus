@@ -301,3 +301,35 @@ fn core_domain_nexus_tool_label_routes_memory_domains_to_memory_lane() {
         "batch_query"
     );
 }
+
+#[test]
+fn install_doctor_root_cause_mapping_covers_canonical_recovery_modes() {
+    assert_eq!(
+        root_cause_code_for_issue("node_runtime_missing"),
+        "INF-RUNTIME-001-NODE-MISSING"
+    );
+    assert_eq!(
+        root_cause_code_for_issue("dashboard_healthz_unreachable"),
+        "INF-DASH-002-HEALTHZ-UNREACHABLE"
+    );
+    assert_eq!(
+        root_cause_code_for_issue("stale_workspace_root_reference"),
+        "INF-RUNTIME-004-STALE-WORKSPACE-ROOT"
+    );
+}
+
+#[test]
+fn collect_root_cause_codes_dedupes_canonical_recovery_modes() {
+    let failures = vec![
+        "node_runtime_missing".to_string(),
+        "stale_workspace_root_reference".to_string(),
+    ];
+    let warnings = vec![
+        "dashboard_healthz_unreachable".to_string(),
+        "stale_workspace_root_reference".to_string(),
+    ];
+    let codes = collect_root_cause_codes(&failures, &warnings);
+    assert!(codes.contains(&"INF-RUNTIME-001-NODE-MISSING".to_string()));
+    assert!(codes.contains(&"INF-DASH-002-HEALTHZ-UNREACHABLE".to_string()));
+    assert!(codes.contains(&"INF-RUNTIME-004-STALE-WORKSPACE-ROOT".to_string()));
+}

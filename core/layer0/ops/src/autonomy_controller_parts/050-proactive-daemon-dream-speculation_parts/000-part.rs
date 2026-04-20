@@ -217,6 +217,13 @@ fn dream_events_path(root: &Path) -> PathBuf {
     state_root(root).join("dream").join("consolidation.jsonl")
 }
 
+fn dream_semantic_artifact_path(root: &Path, hand_id: &str) -> PathBuf {
+    state_root(root)
+        .join("dream")
+        .join("semantic")
+        .join(format!("{}.json", clean_id(Some(hand_id.to_string()), "hand-default")))
+}
+
 fn run_dream_consolidation_for_hand(root: &Path, hand_id: &str) -> Result<Value, String> {
     let path = hand_path(root, &hand_id);
     let mut hand = read_json(&path)
@@ -266,6 +273,40 @@ fn run_dream_consolidation_for_hand(root: &Path, hand_id: &str) -> Result<Value,
         "gather_count": gathered.len(),
         "summary": orient.iter().take(4).cloned().collect::<Vec<_>>().join(" | ")
     });
+    let semantic_lines = gathered
+        .iter()
+        .filter_map(|row| {
+            let text = clean(entry_text(row), 240);
+            if text.is_empty() {
+                None
+            } else {
+                Some(text)
+            }
+        })
+        .take(96)
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    let semantic_artifact = json!({
+        "type": "dream_semantic_artifact",
+        "hand_id": hand_id,
+        "created_at": now_iso(),
+        "distilled_lines": semantic_lines,
+        "orient_count": orient.len(),
+        "gather_count": gathered.len(),
+        "provenance": {
+            "event_path": dream_events_path(root).display().to_string(),
+            "hand_path": path.display().to_string()
+        },
+        "parity": {
+            "ok": gathered.len() >= orient.len(),
+            "gathered_count": gathered.len(),
+            "orient_count": orient.len()
+        }
+    });
+    let semantic_artifact_path = dream_semantic_artifact_path(root, hand_id);
+    write_json(&semantic_artifact_path, &semantic_artifact)
+        .map_err(|err| format!("dream_semantic_artifact_write_failed:{err}"))?;
     let mut archival_next = archival.clone();
     archival_next.push(consolidate.clone());
     if archival_next.len() > 256 {
@@ -303,7 +344,12 @@ fn run_dream_consolidation_for_hand(root: &Path, hand_id: &str) -> Result<Value,
         "phase_receipts": phase_receipts,
         "orient": orient,
         "gathered_count": gathered.len(),
-        "consolidated": consolidate
+        "consolidated": consolidate,
+        "semantic_artifact_path": semantic_artifact_path.to_string_lossy().to_string(),
+        "semantic_parity_ok": semantic_artifact
+            .pointer("/parity/ok")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
     });
     append_jsonl(&dream_events_path(root), &event)
         .map_err(|err| format!("dream_event_append_failed:{err}"))?;

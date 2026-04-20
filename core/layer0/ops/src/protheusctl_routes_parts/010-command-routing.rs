@@ -1,4 +1,6 @@
 use super::Route;
+use std::env;
+use std::io::IsTerminal;
 // FILE_SIZE_EXCEPTION: reason=Atomic CLI routing block requires semantic extraction to preserve command behavior; owner=jay; expires=2026-04-23
 
 #[path = "../protheusctl_plane_shortcuts.rs"]
@@ -44,6 +46,34 @@ fn normalize_dashboard_flag(token: &str) -> String {
         return "--dashboard-port".to_string();
     }
     trimmed.to_string()
+}
+
+fn bool_env(name: &str, fallback: bool) -> bool {
+    match env::var(name) {
+        Ok(v) => match v.trim().to_ascii_lowercase().as_str() {
+            "1" | "true" | "yes" | "on" => true,
+            "0" | "false" | "no" | "off" => false,
+            _ => fallback,
+        },
+        Err(_) => fallback,
+    }
+}
+
+fn default_dashboard_open(from_dashboard_ui: bool) -> u8 {
+    if from_dashboard_ui {
+        return 0;
+    }
+    if bool_env("INFRING_FORCE_DASHBOARD_OPEN", false) {
+        return 1;
+    }
+    if bool_env("INFRING_NO_BROWSER", false) {
+        return 0;
+    }
+    if bool_env("PROTHEUS_SETUP_NONINTERACTIVE", false) {
+        return 0;
+    }
+    let interactive_session = std::io::stdin().is_terminal() && std::io::stdout().is_terminal();
+    if interactive_session { 1 } else { 0 }
 }
 
 fn parse_daemon_control_subcommand(
@@ -95,10 +125,7 @@ fn route_dashboard_compat(rest: &[String], from_dashboard_ui: bool) -> Route {
                 || token.starts_with("--dashboard-open=")
         });
         if !has_open_flag {
-            args.push(format!(
-                "--dashboard-open={}",
-                if from_dashboard_ui { 0 } else { 1 }
-            ));
+            args.push(format!("--dashboard-open={}", default_dashboard_open(from_dashboard_ui)));
         }
     }
     Route {

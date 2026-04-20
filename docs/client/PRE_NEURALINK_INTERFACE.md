@@ -13,10 +13,10 @@ It stays local-first, requires explicit consent to route, and pushes all actuati
 ## Commands
 
 ```bash
-node client/runtime/systems/symbiosis/pre_neuralink_interface.ts ingest --channel=voice --signal="plan next sprint" --consent-state=granted
-node client/runtime/systems/symbiosis/pre_neuralink_interface.ts route --apply=0
-node client/runtime/systems/symbiosis/pre_neuralink_interface.ts handoff-contract --write=1
-node client/runtime/systems/symbiosis/pre_neuralink_interface.ts status
+node client/runtime/systems/symbiosis/pre_neuralink_interface_bridge.ts ingest --channel=voice --signal="plan next sprint" --consent-state=granted
+node client/runtime/systems/symbiosis/pre_neuralink_interface_bridge.ts route --apply=0
+node client/runtime/systems/symbiosis/pre_neuralink_interface_bridge.ts handoff-contract --write=1
+node client/runtime/systems/symbiosis/pre_neuralink_interface_bridge.ts status
 ```
 
 ## Guardrails

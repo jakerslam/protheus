@@ -135,6 +135,55 @@ mod tests {
     }
 
     #[test]
+    fn enqueue_receipt_reports_backpressure_thresholds_and_policy_action() {
+        let dir = tempdir().expect("tempdir");
+        write_policy(dir.path(), 1, "critical");
+
+        let critical_event = json!({
+            "ts": now_iso(),
+            "source": "external_eyes",
+            "source_type": "eye_run_failed",
+            "severity": "critical",
+            "summary": "critical event",
+            "attention_key": "bp-threshold-critical"
+        });
+        assert_eq!(enqueue_event(dir.path(), &critical_event), 0);
+
+        let info_event = json!({
+            "ts": now_iso(),
+            "source": "external_eyes",
+            "source_type": "external_item",
+            "severity": "info",
+            "summary": "informational event",
+            "attention_key": "bp-threshold-info"
+        });
+        assert_eq!(enqueue_event(dir.path(), &info_event), 2);
+
+        let receipts = read_jsonl(&dir.path().join("local/state/attention/receipts.jsonl"));
+        let last = receipts.last().expect("last receipt");
+        assert_eq!(
+            last.get("decision").and_then(Value::as_str),
+            Some("dropped_backpressure")
+        );
+        assert_eq!(
+            last.get("backpressure_policy_action").and_then(Value::as_str),
+            Some("drop")
+        );
+        assert_eq!(
+            last.get("backpressure_threshold_soft").and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            last.get("backpressure_threshold_hard").and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            last.get("backpressure_level_before").and_then(Value::as_str),
+            Some("critical")
+        );
+    }
+
+    #[test]
     fn enqueue_orders_queue_by_band_then_priority_then_score() {
         let dir = tempdir().expect("tempdir");
         write_policy(dir.path(), 64, "critical");
@@ -368,6 +417,39 @@ mod tests {
     }
 
     #[test]
+    fn status_reports_backpressure_threshold_contract() {
+        let dir = tempdir().expect("tempdir");
+        write_policy(dir.path(), 8, "warn");
+
+        let event = json!({
+            "ts": now_iso(),
+            "source": "dashboard_chat",
+            "source_type": "chat_turn",
+            "severity": "info",
+            "summary": "status backpressure",
+            "attention_key": "status-bp"
+        });
+        assert_eq!(enqueue_event(dir.path(), &event), 0);
+        let contract = load_contract(dir.path());
+        assert_eq!(contract.backpressure_soft_watermark, 6);
+        assert_eq!(contract.backpressure_hard_watermark, 8);
+        let snapshot = backpressure_snapshot(6, &contract);
+        assert_eq!(snapshot.get("level").and_then(Value::as_str), Some("high"));
+        assert_eq!(
+            snapshot
+                .pointer("/thresholds/soft_watermark")
+                .and_then(Value::as_u64),
+            Some(6)
+        );
+        assert_eq!(
+            snapshot
+                .pointer("/thresholds/hard_watermark")
+                .and_then(Value::as_u64),
+            Some(8)
+        );
+    }
+
+    #[test]
     fn ack_rejects_bad_token() {
         let dir = tempdir().expect("tempdir");
         write_policy(dir.path(), 64, "critical");
@@ -464,5 +546,3 @@ mod tests {
         }
     }
 }
-
-

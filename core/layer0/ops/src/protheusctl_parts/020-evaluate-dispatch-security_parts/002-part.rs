@@ -8,6 +8,7 @@
                 root_cause_codes.join(", ")
             );
         }
+        print_recovery_hints(&recovery_hints);
         if ok {
             println!("[infring doctor] verdict: ok");
         } else {

@@ -381,7 +381,7 @@ function readJsonBestEffort(filePath: string): { ok: boolean; payload: any; deta
   }
 }
 
-function extractEmpiricalTrack(root: string): EmpiricalTrack {
+function extractEmpiricalTrack(root: string, profile: ProfileId): EmpiricalTrack {
   const metrics = emptyMetrics();
   const provided = new Set<MetricKey>();
   const sources: EmpiricalSourceRow[] = [];
@@ -506,8 +506,23 @@ function extractEmpiricalTrack(root: string): EmpiricalTrack {
   const boundednessPath = path.resolve(root, EMPIRICAL_ARTIFACT_PATHS.boundedness);
   const boundedness = readJsonBestEffort(boundednessPath);
   if (boundedness.ok) {
+    const boundednessProfile = cleanText(boundedness.payload?.profile || '', 40).toLowerCase();
+    if (boundednessProfile && boundednessProfile !== profile) {
+      sources.push({
+        id: 'runtime_boundedness_inspect',
+        path: EMPIRICAL_ARTIFACT_PATHS.boundedness,
+        loaded: false,
+        sample_points: 0,
+        detail: `profile_mismatch:${boundednessProfile}`,
+      });
+    } else {
     const boundedMetrics = boundedness.payload?.metrics || boundedness.payload || {};
-    const peakRss = safeNumber(boundedMetrics?.peak_rss_mb, 0);
+    const boundedRows = Array.isArray(boundedness.payload?.rows) ? boundedness.payload.rows : [];
+    const boundedPeakRow = boundedRows.find(
+      (row: any) => cleanText(row?.metric || '', 80) === 'peak_rss_mb',
+    );
+    const peakRss =
+      safeNumber(boundedMetrics?.peak_rss_mb, 0) || safeNumber(boundedPeakRow?.actual, 0);
     if (peakRss > 0) {
       metrics.peak_rss_mb = round(peakRss);
       provided.add('peak_rss_mb');
@@ -520,6 +535,7 @@ function extractEmpiricalTrack(root: string): EmpiricalTrack {
       detail: 'metrics_loaded',
     });
     samplePoints += 1;
+    }
   } else {
     sources.push({
       id: 'runtime_boundedness_inspect',
@@ -596,7 +612,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
 
   const scenarios = buildScenarios(args.profile, args.seed);
   const syntheticMetrics = summarizeMetrics(scenarios);
-  const empiricalTrack = extractEmpiricalTrack(root);
+  const empiricalTrack = extractEmpiricalTrack(root, args.profile);
   const effectiveMetrics =
     args.proofTrack === 'synthetic'
       ? syntheticMetrics

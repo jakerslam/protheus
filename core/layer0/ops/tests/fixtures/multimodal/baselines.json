@@ -1,0 +1,21 @@
+{
+  "version": "1.0",
+  "baselines": {
+    "image_svg_basic": {
+      "expected_kind": "image",
+      "fallback_strategy": "text_summary"
+    },
+    "audio_wav_placeholder": {
+      "expected_kind": "audio",
+      "fallback_strategy": "metadata_summary"
+    },
+    "pdf_minimal_contract": {
+      "expected_kind": "pdf",
+      "fallback_strategy": "text_extract_summary"
+    },
+    "sheet_csv_baseline": {
+      "expected_kind": "sheet",
+      "fallback_strategy": "tabular_summary"
+    }
+  }
+}

@@ -378,6 +378,17 @@
         "local/workspace/reports/DASHBOARD_SURFACE_AUTHORITY_GUARD_CURRENT.md"
       ]
     },
+    "ops:dashboard:segment-ghost:guard": {
+      "owner": "ops",
+      "description": "Fail when tracked dashboard segment part files use ghost/backup suffixes.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:dashboard:segment-ghost:guard",
+      "artifact_paths": [
+        "core/local/artifacts/dashboard_segment_ghost_file_guard_current.json",
+        "local/workspace/reports/DASHBOARD_SEGMENT_GHOST_FILE_GUARD_CURRENT.md"
+      ]
+    },
     "ops:node-critical-path:inventory": {
       "owner": "ops",
       "description": "Node-critical operator path inventory and non-regression guard.",
@@ -456,6 +467,39 @@
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "ops:legacy-alias:guard"
+    },
+    "ops:client-naming:guard": {
+      "owner": "ops",
+      "description": "Client naming policy guard.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:client-naming:guard",
+      "artifact_paths": [
+        "core/local/artifacts/client_naming_policy_guard_current.json",
+        "local/workspace/reports/CLIENT_NAMING_POLICY_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:orchestration-naming:guard": {
+      "owner": "ops",
+      "description": "Orchestration naming policy guard.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:orchestration-naming:guard",
+      "artifact_paths": [
+        "core/local/artifacts/orchestration_naming_policy_guard_current.json",
+        "local/workspace/reports/ORCHESTRATION_NAMING_POLICY_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:core-naming:guard": {
+      "owner": "ops",
+      "description": "Core naming policy guard.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:core-naming:guard",
+      "artifact_paths": [
+        "core/local/artifacts/core_naming_policy_guard_current.json",
+        "local/workspace/reports/CORE_NAMING_POLICY_GUARD_CURRENT.md"
+      ]
     },
     "ops:simplicity:audit": {
       "owner": "ops",
@@ -686,7 +730,7 @@
     },
     "ops:runtime-proof:verify": {
       "owner": "ops",
-      "description": "Runtime proof harness plus release-gate enforcement for one runtime profile.",
+      "description": "Runtime proof harness plus release-gate enforcement for rich/pure/tiny-max profiles with boundedness and soak evidence rollup.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 240,
       "script": "ops:runtime-proof:verify",
@@ -696,7 +740,20 @@
         "core/local/artifacts/runtime_proof_metrics_rich_current.json",
         "core/local/artifacts/runtime_proof_release_gate_rich_current.json",
         "core/local/artifacts/runtime_proof_release_metrics_rich_current.json",
+        "core/local/artifacts/runtime_proof_harness_pure_current.json",
+        "core/local/artifacts/runtime_proof_metrics_pure_current.json",
+        "core/local/artifacts/runtime_proof_release_gate_pure_current.json",
+        "core/local/artifacts/runtime_proof_release_metrics_pure_current.json",
+        "core/local/artifacts/runtime_proof_harness_tiny-max_current.json",
+        "core/local/artifacts/runtime_proof_metrics_tiny-max_current.json",
+        "core/local/artifacts/runtime_proof_release_gate_tiny-max_current.json",
+        "core/local/artifacts/runtime_proof_release_metrics_tiny-max_current.json",
         "core/local/artifacts/adapter_runtime_chaos_gate_rich_current.json",
+        "core/local/artifacts/adapter_runtime_chaos_gate_pure_current.json",
+        "core/local/artifacts/adapter_runtime_chaos_gate_tiny-max_current.json",
+        "core/local/artifacts/runtime_boundedness_72h_evidence_current.json",
+        "core/local/artifacts/runtime_multi_day_soak_evidence_current.json",
+        "core/local/artifacts/release_proof_checksums_current.json",
         "local/workspace/reports/RUNTIME_PROOF_RELEASE_GATE_RICH_CURRENT.md"
       ]
     },
@@ -987,6 +1044,17 @@
       "artifact_paths": [
         "core/local/artifacts/public_benchmark_harness_current.json",
         "local/workspace/reports/PUBLIC_BENCHMARK_HARNESS_CURRENT.md"
+      ]
+    },
+    "ops:incident-governance:gate": {
+      "owner": "ops",
+      "description": "Incident operations governance contract guard (severity taxonomy, ownership roster, escalation SLA, rollback, post-incident schema, waivers, and process headings).",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:incident-governance:gate",
+      "artifact_paths": [
+        "core/local/artifacts/incident_operations_governance_gate_current.json",
+        "local/workspace/reports/INCIDENT_OPERATIONS_GOVERNANCE_GATE_CURRENT.md"
       ]
     }
   }

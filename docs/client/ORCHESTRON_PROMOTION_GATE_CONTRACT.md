@@ -58,5 +58,5 @@ node client/runtime/systems/workflow/workflow_controller.ts promote \
 node tests/client-memory-tools/workflow_controller_promote.test.ts
 node tests/client-memory-tools/workflow_controller_identity_gate.test.ts
 node tests/client-memory-tools/workflow_controller_promotion_gate.test.ts
-node client/runtime/systems/spine/contract_check.ts
+node client/runtime/systems/spine/contract_check_bridge.ts
 ```

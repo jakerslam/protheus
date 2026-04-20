@@ -98,6 +98,17 @@ fn dream_consolidation_writes_four_phase_receipts() {
         .map(|v| v.len())
         .unwrap_or(0);
     assert_eq!(phases, 4);
+    let artifact_path = rows
+        .last()
+        .and_then(|row| row.get("semantic_artifact_path"))
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    assert!(!artifact_path.is_empty(), "semantic artifact path should be present");
+    assert!(
+        std::path::Path::new(&artifact_path).exists(),
+        "semantic artifact should exist on disk"
+    );
 }
 
 #[test]
@@ -324,6 +335,157 @@ fn proactive_daemon_daily_log_is_append_only_across_cycles() {
         rows.len() >= 2,
         "expected append-only proactive_daemon log to retain multiple cycle rows"
     );
+}
+
+#[test]
+fn proactive_daemon_pattern_logger_records_bounded_hints() {
+    let root = tempdir().expect("tmp");
+    let swarm_path = root
+        .path()
+        .join("local/state/ops/swarm_runtime/latest.json");
+    fs::create_dir_all(swarm_path.parent().expect("parent")).expect("mkdir");
+    write_json(
+        &swarm_path,
+        &json!({
+            "dead_letters": [json!({"id":"d1"}), json!({"id":"d2"})],
+            "sessions": {
+                "s1": {}, "s2": {}, "s3": {}
+            }
+        }),
+    )
+    .expect("swarm");
+    assert_eq!(
+        run_proactive_daemon_daemon(
+            root.path(),
+            &[
+                "proactive_daemon".to_string(),
+                "cycle".to_string(),
+                "--auto=1".to_string(),
+                "--force=1".to_string(),
+                "--max-proactive=8".to_string(),
+            ],
+        ),
+        0
+    );
+    let state = read_json(&proactive_daemon_state_path(root.path())).expect("state");
+    let suggestions = state
+        .pointer("/pattern_log/suggestions")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    assert!(!suggestions.is_empty(), "pattern suggestions should be recorded");
+    assert!(suggestions.iter().any(|row| row
+        .get("hint")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .contains("dead-letter")));
+}
+
+#[test]
+fn proactive_daemon_policy_tiered_tool_surfaces_emit_conduit_receipts() {
+    let root = tempdir().expect("tmp");
+    assert_eq!(
+        run_proactive_daemon_daemon(
+            root.path(),
+            &[
+                "proactive_daemon".to_string(),
+                "cycle".to_string(),
+                "--auto=1".to_string(),
+                "--force=1".to_string(),
+                "--policy-tier=execute".to_string(),
+                "--tool-surfaces=subscribe_pr,push_notification,send_user_file".to_string(),
+                "--max-proactive=8".to_string(),
+                "--block-budget-ms=5000".to_string(),
+            ],
+        ),
+        0
+    );
+    let state = read_json(&proactive_daemon_state_path(root.path())).expect("state");
+    assert!(
+        state
+            .pointer("/tool_surfaces/receipts_written")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            >= 1
+    );
+    let receipt_rows = read_jsonl(&proactive_daemon_tool_receipts_path(root.path()));
+    assert!(!receipt_rows.is_empty(), "expected proactive tool receipts");
+    assert!(receipt_rows.iter().all(|row| {
+        row.get("transport").and_then(Value::as_str) == Some("conduit")
+    }));
+}
+
+#[test]
+fn proactive_daemon_failure_isolation_quarantines_failed_intent_without_poisoning_other_tasks() {
+    let root = tempdir().expect("tmp");
+    assert_eq!(
+        run_proactive_daemon_daemon(
+            root.path(),
+            &[
+                "proactive_daemon".to_string(),
+                "cycle".to_string(),
+                "--auto=1".to_string(),
+                "--force=1".to_string(),
+                "--max-proactive=8".to_string(),
+                "--block-budget-ms=5000".to_string(),
+                "--dream-max-without-ms=60000".to_string(),
+            ],
+        ),
+        0
+    );
+    let state = read_json(&proactive_daemon_state_path(root.path())).expect("state");
+    let deferred = state
+        .pointer("/last_deferred_intents")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    assert!(deferred.iter().any(|row| {
+        row.get("reason").and_then(Value::as_str) == Some("dream_failed")
+            && row.pointer("/failure_isolation/failure_class").and_then(Value::as_str)
+                == Some("runtime_fault")
+    }));
+    assert!(state
+        .pointer("/failure_isolation/quarantine")
+        .and_then(Value::as_array)
+        .map(|rows| rows.iter().any(|row| row.get("task").and_then(Value::as_str) == Some("dream_consolidation")))
+        .unwrap_or(false));
+    let executed = state
+        .pointer("/last_executed_intents")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    assert!(executed.iter().any(|row| {
+        row.pointer("/intent/task").and_then(Value::as_str) == Some("pattern_log")
+    }));
+}
+
+#[test]
+fn proactive_daemon_recovery_matrix_records_strategy_ladder() {
+    let root = tempdir().expect("tmp");
+    let args = &[
+        "proactive_daemon".to_string(),
+        "cycle".to_string(),
+        "--auto=1".to_string(),
+        "--force=1".to_string(),
+        "--max-proactive=8".to_string(),
+        "--block-budget-ms=5000".to_string(),
+        "--dream-max-without-ms=60000".to_string(),
+    ];
+    assert_eq!(run_proactive_daemon_daemon(root.path(), args), 0);
+    assert_eq!(run_proactive_daemon_daemon(root.path(), args), 0);
+    let state = read_json(&proactive_daemon_state_path(root.path())).expect("state");
+    let history = state
+        .pointer("/recovery_matrix/history")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    assert!(!history.is_empty(), "recovery history should be recorded");
+    assert!(history.iter().any(|row| {
+        row.get("strategy").and_then(Value::as_str) == Some("retry")
+    }));
+    assert!(history.iter().any(|row| {
+        row.get("strategy").and_then(Value::as_str) == Some("resync")
+    }));
 }
 
 #[test]

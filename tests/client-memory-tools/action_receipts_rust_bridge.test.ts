@@ -5,7 +5,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const ts = require('typescript');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
+const ts = require('typescript');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 if (!require.extensions['.ts']) {
   require.extensions['.ts'] = function compileTs(module, filename) {
@@ -55,7 +56,9 @@ function main() {
   const rows = fs.readFileSync(receiptPath, 'utf8').trim().split('\n');
   assert.equal(rows.length >= 3, true);
 
-  assertNoPlaceholderOrPromptLeak({ withContract, first, second, rows }, 'action_receipts_rust_bridge_test');\n  assertStableToolingEnvelope(second, 'action_receipts_rust_bridge_test');\n  console.log(JSON.stringify({ ok: true, type: 'action_receipts_rust_bridge_test' }));
+  assertNoPlaceholderOrPromptLeak({ withContract, first, second, rows }, 'action_receipts_rust_bridge_test');
+  assertStableToolingEnvelope(second, 'action_receipts_rust_bridge_test');
+  console.log(JSON.stringify({ ok: true, type: 'action_receipts_rust_bridge_test' }));
 }
 
 try {

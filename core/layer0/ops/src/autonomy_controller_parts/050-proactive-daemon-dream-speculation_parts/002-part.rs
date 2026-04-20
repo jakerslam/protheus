@@ -36,6 +36,17 @@ fn run_proactive_daemon_daemon(root: &Path, argv: &[String]) -> i32 {
         60_000,
         60 * 24 * 60 * 60 * 1000,
     );
+    let policy_tier = clean(
+        parse_flag(argv, "policy-tier")
+            .unwrap_or_else(|| {
+                std::env::var("PROACTIVE_DAEMON_POLICY_TIER")
+                    .unwrap_or_else(|_| "observe".to_string())
+            }),
+        32,
+    );
+    let enabled_tool_surfaces = parse_tool_surfaces(
+        parse_flag(argv, "tool-surfaces").or_else(|| parse_flag(argv, "tools")),
+    );
     let brief_mode = parse_bool(parse_flag(argv, "brief").as_deref(), true);
     let now_ms = now_epoch_ms();
 
@@ -48,9 +59,18 @@ fn run_proactive_daemon_daemon(root: &Path, argv: &[String]) -> i32 {
     state["proactive"]["max_messages"] = json!(max_messages);
     state["proactive"]["brief_mode"] = json!(brief_mode);
     state["budgets"]["blocking_ms"] = json!(blocking_budget_ms);
+    state["tool_surfaces"]["policy_tier"] = json!(policy_tier);
+    state["tool_surfaces"]["enabled"] = Value::Array(
+        enabled_tool_surfaces
+            .iter()
+            .cloned()
+            .map(Value::String)
+            .collect(),
+    );
     state["dream"]["max_idle_ms"] = json!(dream_idle_ms);
     state["dream"]["max_without_dream_ms"] = json!(dream_max_without_ms);
     rollover_proactive_window(&mut state, now_ms);
+    purge_expired_isolation_quarantine(&mut state, now_ms);
 
     let mut cycle_log_row = Value::Null;
     match action.as_str() {
@@ -89,13 +109,16 @@ fn run_proactive_daemon_daemon(root: &Path, argv: &[String]) -> i32 {
                         .map(|v| v.len())
                         .unwrap_or(0);
                     let mut intents = vec![];
+                    let mut recurring_patterns = Vec::<String>::new();
                     let mut latest_hand_activity_ms = 0u64;
                     let mut latest_hand_for_dream = "hand-default".to_string();
                     if dead_letters > 0 {
                         intents.push(json!({"kind":"reliability","task":"sweep_dead_letters","priority":"medium","count":dead_letters}));
+                        recurring_patterns.push("dead_letter_recurrence".to_string());
                     }
                     if sessions > 2000 {
                         intents.push(json!({"kind":"capacity","task":"autoscale_review","priority":"high","session_count":sessions}));
+                        recurring_patterns.push("session_pressure_recurrence".to_string());
                     }
                     for hand_file in std::fs::read_dir(state_root(root).join("hands"))
                         .ok()
@@ -159,6 +182,27 @@ fn run_proactive_daemon_daemon(root: &Path, argv: &[String]) -> i32 {
                             "since_last_dream_ms": since_last_dream_ms
                         }));
                     }
+                    if !recurring_patterns.is_empty() {
+                        intents.push(json!({
+                            "kind": "maintenance",
+                            "task": "pattern_log",
+                            "priority": "low",
+                            "patterns": recurring_patterns
+                        }));
+                    }
+                    if auto {
+                        for tool in &enabled_tool_surfaces {
+                            if tool_surface_allowed(&policy_tier, tool.as_str()) {
+                                intents.push(json!({
+                                    "kind": "outbound",
+                                    "task": tool,
+                                    "priority": "low",
+                                    "transport": "conduit",
+                                    "policy_tier": policy_tier
+                                }));
+                            }
+                        }
+                    }
                     if intents.is_empty() {
                         intents.push(
                             json!({"kind":"maintenance","task":"pattern_log","priority":"low"}),
@@ -174,16 +218,41 @@ fn run_proactive_daemon_daemon(root: &Path, argv: &[String]) -> i32 {
                     for intent in intents.iter() {
                         let estimate_ms = intent_estimated_blocking_ms(intent);
                         if auto {
+                            let task = intent.get("task").and_then(Value::as_str).unwrap_or("");
+                            if task_isolation_active(&state, task, now_ms) {
+                                let recovery = record_recovery_strategy(
+                                    &mut state,
+                                    intent,
+                                    "isolation_quarantine",
+                                    now_ms,
+                                );
+                                deferred.push(json!({
+                                    "intent": intent,
+                                    "reason":"isolation_quarantine",
+                                    "recovery": recovery
+                                }));
+                                continue;
+                            }
                             if sent_in_window >= max_messages {
-                                deferred.push(json!({"intent": intent, "reason":"rate_limit"}));
+                                let recovery =
+                                    record_recovery_strategy(&mut state, intent, "rate_limit", now_ms);
+                                deferred.push(json!({"intent": intent, "reason":"rate_limit", "recovery": recovery}));
                                 continue;
                             }
                             if blocking_used_ms.saturating_add(estimate_ms) > blocking_budget_ms {
-                                deferred
-                                    .push(json!({"intent": intent, "reason":"blocking_budget"}));
+                                let recovery = record_recovery_strategy(
+                                    &mut state,
+                                    intent,
+                                    "blocking_budget",
+                                    now_ms,
+                                );
+                                deferred.push(json!({
+                                    "intent": intent,
+                                    "reason":"blocking_budget",
+                                    "recovery": recovery
+                                }));
                                 continue;
                             }
-                            let task = intent.get("task").and_then(Value::as_str).unwrap_or("");
                             if task == "compact_hand_memory" {
                                 if let Some(hand_id) = intent.get("hand_id").and_then(Value::as_str)
                                 {
@@ -195,11 +264,29 @@ fn run_proactive_daemon_daemon(root: &Path, argv: &[String]) -> i32 {
                                         None,
                                     );
                                     if compact_result.is_err() {
+                                        let isolation = record_isolation_event(
+                                            &mut state,
+                                            intent,
+                                            "compact_failed",
+                                            now_ms,
+                                        );
+                                        let recovery = record_recovery_strategy(
+                                            &mut state,
+                                            intent,
+                                            "compact_failed",
+                                            now_ms,
+                                        );
                                         deferred.push(
-                                            json!({"intent": intent, "reason":"compact_failed"}),
+                                            json!({
+                                                "intent": intent,
+                                                "reason":"compact_failed",
+                                                "failure_isolation": isolation,
+                                                "recovery": recovery
+                                            }),
                                         );
                                         continue;
                                     }
+                                    mark_recovery_success(&mut state, task);
                                 }
                             } else if task == "dream_consolidation" {
                                 let hand_id = intent
@@ -235,11 +322,136 @@ fn run_proactive_daemon_daemon(root: &Path, argv: &[String]) -> i32 {
                                             "dream_event": event,
                                             "cleanup": cleanup_payload
                                         }));
+                                        mark_recovery_success(&mut state, task);
                                         continue;
                                     }
                                     Err(_) => {
+                                        let isolation = record_isolation_event(
+                                            &mut state,
+                                            intent,
+                                            "dream_failed",
+                                            now_ms,
+                                        );
+                                        let recovery = record_recovery_strategy(
+                                            &mut state,
+                                            intent,
+                                            "dream_failed",
+                                            now_ms,
+                                        );
                                         deferred.push(
-                                            json!({"intent": intent, "reason":"dream_failed"}),
+                                            json!({
+                                                "intent": intent,
+                                                "reason":"dream_failed",
+                                                "failure_isolation": isolation,
+                                                "recovery": recovery
+                                            }),
+                                        );
+                                        continue;
+                                    }
+                                }
+                            } else if task == "pattern_log" {
+                                let patterns = intent
+                                    .get("patterns")
+                                    .and_then(Value::as_array)
+                                    .cloned()
+                                    .unwrap_or_default()
+                                    .iter()
+                                    .filter_map(Value::as_str)
+                                    .map(|v| clean(v, 80))
+                                    .filter(|v| !v.is_empty())
+                                    .collect::<Vec<_>>();
+                                if deferred
+                                    .iter()
+                                    .any(|row| {
+                                        matches!(
+                                            row.get("reason").and_then(Value::as_str),
+                                            Some("blocking_budget" | "rate_limit")
+                                        )
+                                    })
+                                {
+                                    if !patterns.iter().any(|row| row == "deferred_budget_recurrence")
+                                    {
+                                        let mut next = patterns.clone();
+                                        next.push("deferred_budget_recurrence".to_string());
+                                        let summary = update_pattern_log_state(
+                                            &mut state,
+                                            now_iso().as_str(),
+                                            &next,
+                                            json!({"dead_letters": dead_letters, "sessions": sessions}),
+                                        );
+                                        executed.push(json!({
+                                            "intent": intent,
+                                            "estimated_blocking_ms": estimate_ms,
+                                            "pattern_summary": summary
+                                        }));
+                                        mark_recovery_success(&mut state, task);
+                                        continue;
+                                    }
+                                }
+                                let summary = update_pattern_log_state(
+                                    &mut state,
+                                    now_iso().as_str(),
+                                    &patterns,
+                                    json!({"dead_letters": dead_letters, "sessions": sessions}),
+                                );
+                                executed.push(json!({
+                                    "intent": intent,
+                                    "estimated_blocking_ms": estimate_ms,
+                                    "pattern_summary": summary
+                                }));
+                                mark_recovery_success(&mut state, task);
+                                continue;
+                            } else if matches!(task, "subscribe_pr" | "push_notification" | "send_user_file")
+                            {
+                                match append_tool_surface_receipt(
+                                    root,
+                                    task,
+                                    &policy_tier,
+                                    intent,
+                                    strict,
+                                ) {
+                                    Ok(receipt) => {
+                                        let prev_written = state
+                                            .pointer("/tool_surfaces/receipts_written")
+                                            .and_then(Value::as_u64)
+                                            .unwrap_or(0);
+                                        state["tool_surfaces"]["receipts_written"] =
+                                            json!(prev_written.saturating_add(1));
+                                        state["tool_surfaces"]["last_receipt_id"] = receipt
+                                            .get("receipt_id")
+                                            .cloned()
+                                            .unwrap_or(Value::Null);
+                                        sent_in_window = sent_in_window.saturating_add(1);
+                                        blocking_used_ms =
+                                            blocking_used_ms.saturating_add(estimate_ms);
+                                        executed.push(json!({
+                                            "intent": intent,
+                                            "estimated_blocking_ms": estimate_ms,
+                                            "tool_surface_receipt": receipt
+                                        }));
+                                        mark_recovery_success(&mut state, task);
+                                        continue;
+                                    }
+                                    Err(_) => {
+                                        let isolation = record_isolation_event(
+                                            &mut state,
+                                            intent,
+                                            "tool_surface_failed",
+                                            now_ms,
+                                        );
+                                        let recovery = record_recovery_strategy(
+                                            &mut state,
+                                            intent,
+                                            "tool_surface_failed",
+                                            now_ms,
+                                        );
+                                        deferred.push(
+                                            json!({
+                                                "intent": intent,
+                                                "reason":"tool_surface_failed",
+                                                "failure_isolation": isolation,
+                                                "recovery": recovery
+                                            }),
                                         );
                                         continue;
                                     }
@@ -256,6 +468,7 @@ fn run_proactive_daemon_daemon(root: &Path, argv: &[String]) -> i32 {
                                     json!(PROACTIVE_DAEMON_REACTIVE_COMPACTION_PRESSURE_RATIO);
                             }
                             executed.push(execution);
+                            mark_recovery_success(&mut state, task);
                         }
                     }
                     state["last_intents"] = Value::Array(intents.clone());
@@ -289,6 +502,11 @@ fn run_proactive_daemon_daemon(root: &Path, argv: &[String]) -> i32 {
                         "blocking_used_ms": blocking_used_ms,
                         "window_sec": window_sec,
                         "max_proactive": max_messages,
+                        "policy_tier": policy_tier,
+                        "tool_surfaces": enabled_tool_surfaces,
+                        "pattern_log": state.get("pattern_log").cloned().unwrap_or(Value::Null),
+                        "failure_isolation": state.get("failure_isolation").cloned().unwrap_or(Value::Null),
+                        "recovery_matrix": state.get("recovery_matrix").cloned().unwrap_or(Value::Null),
                         "state_hash": receipt_hash(&state)
                     });
                 }
@@ -330,12 +548,18 @@ fn run_proactive_daemon_daemon(root: &Path, argv: &[String]) -> i32 {
             "blocking_budget_ms": blocking_budget_ms,
             "brief_mode": brief_mode,
             "dream_idle_ms": dream_idle_ms,
-            "dream_max_without_ms": dream_max_without_ms
+            "dream_max_without_ms": dream_max_without_ms,
+            "policy_tier": policy_tier,
+            "tool_surfaces": enabled_tool_surfaces
         },
         "claim_evidence": [
             {"id":"V6-AUTONOMY-003.1","claim":"proactive_daemon_background_daemon_tracks_runtime_state_and_receipts_actions"},
             {"id":"V6-AUTONOMY-003.2","claim":"proactive_daemon_generates_proactive_micro_tasks_with_policy_bounded_auto_execution"},
-            {"id":"V6-AUTONOMY-004","claim":"proactive_daemon_tick_heartbeat_rate_limits_blocking_budget_and_append_only_daily_logs_enforce_proactive_safety"}
+            {"id":"V6-AUTONOMY-004","claim":"proactive_daemon_tick_heartbeat_rate_limits_blocking_budget_and_append_only_daily_logs_enforce_proactive_safety"},
+            {"id":"V6-AUTONOMY-004.1","claim":"proactive_daemon_isolates_failed_intent_contexts_with_quarantine_receipts_without_poisoning_other_intents"},
+            {"id":"V6-AUTONOMY-004.2","claim":"proactive_daemon_uses_deterministic_recovery_strategy_matrix_retry_rollback_resync_escalate_by_failure_class"},
+            {"id":"V6-AUTONOMY-004.3","claim":"proactive_daemon_logs_recurring_failure_and_latency_patterns_as_bounded_optimization_hints"},
+            {"id":"V6-AUTONOMY-006","claim":"proactive_daemon_supports_policy_tiered_conduit_tool_surfaces_for_subscribe_pr_push_notification_and_send_user_file"}
         ]
     });
     emit_receipt(root, &mut out)

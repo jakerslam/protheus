@@ -73,7 +73,7 @@ function main() {
   const clientProviderOnboardingWrapper = read('client/runtime/systems/routing/provider_onboarding_manifest.ts');
   const clientGatewayFailureClassifierWrapper = read('client/runtime/systems/routing/llm_gateway_failure_classifier.ts');
   const clientMorphPlannerWrapper = read('client/runtime/systems/fractal/morph_planner.ts');
-  const clientValueOfInformationPlannerWrapper = read('client/runtime/systems/sensory/value_of_information_collection_planner.ts');
+  const clientValueOfInformationPlannerWrapper = read('client/runtime/systems/sensory/value_information_planner_bridge.ts');
   const clientTaskDecompositionWrapper = read('client/runtime/systems/execution/task_decomposition_primitive.ts');
   const clientLearningConduitWrapper = read('client/runtime/systems/workflow/learning_conduit.ts');
   const clientRelationshipManagerWrapper = read('client/runtime/systems/workflow/client_relationship_manager.ts');

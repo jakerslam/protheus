@@ -58,6 +58,9 @@ curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.s
 ```
 
 ### Windows (PowerShell)
+Canonical install command (single-line):
+`Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; $tmp = Join-Path $env:TEMP "infring-install.ps1"; irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 -OutFile $tmp -ErrorAction Stop; & $tmp -Repair -Full; Remove-Item $tmp -Force -ErrorAction SilentlyContinue`
+
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 $tmp = Join-Path $env:TEMP "infring-install.ps1"

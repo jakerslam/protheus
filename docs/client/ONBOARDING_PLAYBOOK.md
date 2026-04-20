@@ -4,6 +4,48 @@
 
 Provide role-based onboarding that can scale to a larger engineering organization without losing safety, quality, or velocity.
 
+## Canonical First-Run Sequence (Install -> Setup -> Gateway)
+
+All tracks use the same first-run sequence before role-specific steps:
+
+1. Install full runtime:
+   - `curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --full`
+2. Complete setup:
+   - `infring setup --yes --defaults`
+   - `infring setup status --json`
+3. Start gateway:
+   - `infring gateway`
+4. Verify:
+   - `infring gateway status`
+
+Role bootstrap one-command contract:
+
+| Role | Bootstrap command | Expected outcomes |
+| --- | --- | --- |
+| `operator` | `./tests/tooling/scripts/onboarding/protheus_onboarding_bootstrap.sh --role=operator --install=1 --setup=1 --install-mode=full --gateway=1` | `binary_outcome=ready`, `setup_outcome=completed`, `setup_status_check=completed`, `gateway_outcome=started`, `status=success` |
+| `backend` | `./tests/tooling/scripts/onboarding/protheus_onboarding_bootstrap.sh --role=backend --install=1 --setup=1 --install-mode=full` | `binary_outcome=ready`, `setup_outcome=completed`, `setup_status_check=completed`, `gateway_outcome=not_requested`, `status=success` |
+| `infra` | `./tests/tooling/scripts/onboarding/protheus_onboarding_bootstrap.sh --role=infra --install=1 --setup=1 --install-mode=full` | `binary_outcome=ready`, `setup_outcome=completed`, `setup_status_check=completed`, `gateway_outcome=not_requested`, `status=success` |
+| `security` | `./tests/tooling/scripts/onboarding/protheus_onboarding_bootstrap.sh --role=security --install=1 --setup=1 --install-mode=full` | `binary_outcome=ready`, `setup_outcome=completed`, `setup_status_check=completed`, `gateway_outcome=not_requested`, `status=success` |
+
+## Release-Mode Runtime Surface Contract
+
+Authoritative runtime manifest:
+- `client/runtime/config/install_runtime_manifest_v1.txt`
+
+Required vs optional command surfaces:
+
+| Surface | Required in all modes | `full` | `minimal` | `pure` / `tiny-max` |
+| --- | --- | --- | --- | --- |
+| Wrappers (`infring`, `infringctl`, `infringd`) | Yes | Yes | Yes | Yes |
+| Setup lane (`infring setup`, `infring setup status --json`) | Yes | Yes | Yes | Yes |
+| Gateway status (`infring gateway status`) | Yes | Yes | Yes | Yes |
+| Rich gateway launch (`infring gateway`) | Optional | Available | Available (explicit setup may be required) | Limited/optional by design |
+
+Wrapper contract:
+
+- Canonical wrappers: `infring`, `infringctl`, `infringd`
+- Legacy aliases (`protheus`, `protheusctl`, `protheusd`) are deprecated compatibility shims.
+
 ## Shared Prerequisites
 
 - Node and npm installed (version from repo lockfile/tooling)
@@ -24,9 +66,21 @@ Provide role-based onboarding that can scale to a larger engineering organizatio
 ### Day 0
 
 - Run one-command bootstrap from repo root (installs if missing + starts dashboard):
-  - `./tests/tooling/scripts/onboarding/protheus_onboarding_bootstrap.sh --role=operator --install=1 --gateway=1`
+  - `./tests/tooling/scripts/onboarding/protheus_onboarding_bootstrap.sh --role=operator --install=1 --setup=1 --install-mode=full --gateway=1`
 - Verify control plane:
   - `infring gateway status`
+- Verify setup state:
+  - `infring setup status --json`
+- Verify onboarding artifacts:
+  - `local/state/ops/onboarding_portal/bootstrap_operator.json`
+  - `local/state/ops/onboarding_portal/bootstrap_operator.txt`
+  - `local/state/ops/onboarding_portal/bootstrap_operator_setup_status.json`
+- Expected outcomes:
+  - `binary_outcome=ready`
+  - `setup_outcome=completed`
+  - `setup_status_check=completed`
+  - `gateway_outcome=started`
+  - `status=success`
 - Read escalation surfaces in `docs/client/OPERATOR_RUNBOOK.md`.
 - Confirm ability to run backlog sync:
   - `npm run ops:backlog:registry:sync`
@@ -50,11 +104,21 @@ Provide role-based onboarding that can scale to a larger engineering organizatio
 ### Day 0
 
 - Bootstrap first so CLI/runtime are ready:
-  - `./tests/tooling/scripts/onboarding/protheus_onboarding_bootstrap.sh --role=backend --install=1`
+  - `./tests/tooling/scripts/onboarding/protheus_onboarding_bootstrap.sh --role=backend --install=1 --setup=1 --install-mode=full`
 - Run full local baseline:
   - `npm ci`
   - `npm run lint`
   - `npm run test`
+- Verify onboarding artifacts:
+  - `local/state/ops/onboarding_portal/bootstrap_backend.json`
+  - `local/state/ops/onboarding_portal/bootstrap_backend.txt`
+  - `local/state/ops/onboarding_portal/bootstrap_backend_setup_status.json`
+- Expected outcomes:
+  - `binary_outcome=ready`
+  - `setup_outcome=completed`
+  - `setup_status_check=completed`
+  - `gateway_outcome=not_requested`
+  - `status=success`
 - Identify one lane in `client/runtime/systems/` and map:
   - entrypoint
   - tests

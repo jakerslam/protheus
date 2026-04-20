@@ -7,7 +7,7 @@ Vision: "Protheus / Infring — the first superintelligence seed, built on its l
 This upgrade adds an RSI wrapper at `client/cognition/adaptive/rsi/rsi_bootstrap.{ts,js}` that composes and governs existing live primitives:
 
 - System 3 executive (`client/cognition/adaptive/executive/system3_executive_layer.ts`)
-- Existing executors (`client/runtime/systems/strategy/strategy_learner.ts`, `client/runtime/systems/autonomy/model_catalog_loop.ts`)
+- Existing executors (`client/runtime/systems/strategy/strategy_learning_bridge.ts`, `client/runtime/systems/autonomy/model_catalog_loop.ts`)
 - Memory lanes (memfs/sleep reflection/hierarchical/agentic)
 - MCP + A2A adapters
 - Contract lanes RR-001..RR-014

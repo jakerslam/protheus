@@ -1,0 +1,32 @@
+{
+  "owners": [
+    {
+      "owner_id": "jane_incident",
+      "display_name": "Jane Incident",
+      "contact": "@jane",
+      "roles": ["incident_commander", "release_owner"],
+      "active": true
+    },
+    {
+      "owner_id": "ops_primary",
+      "display_name": "Ops Primary",
+      "contact": "#ops",
+      "roles": ["ops_oncall", "runtime_owner"],
+      "active": true
+    },
+    {
+      "owner_id": "adapter_primary",
+      "display_name": "Adapter Primary",
+      "contact": "#adapter",
+      "roles": ["adapter_owner"],
+      "active": true
+    },
+    {
+      "owner_id": "dashboard_primary",
+      "display_name": "Dashboard Primary",
+      "contact": "#dashboard",
+      "roles": ["dashboard_owner"],
+      "active": true
+    }
+  ]
+}

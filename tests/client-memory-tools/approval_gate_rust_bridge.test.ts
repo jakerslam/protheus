@@ -24,7 +24,8 @@ if (!require.extensions['.ts']) {
 const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
-const path = require('path');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
+const path = require('path');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const queueDir = fs.mkdtempSync(path.join(os.tmpdir(), 'approval-gate-'));
@@ -99,4 +100,6 @@ assert(parsedCommand, 'expected parsed approval command');
 assert.strictEqual(parsedCommand.action, 'approve');
 assert.strictEqual(parsedCommand.action_id, 'act_yaml');
 
-assertNoPlaceholderOrPromptLeak({ emptyQueue, queued, approved, queue, parsedYaml, parsedCommand }, 'approval_gate_rust_bridge_test');\nassertStableToolingEnvelope(queued, 'approval_gate_rust_bridge_test');\nconsole.log('approval_gate_rust_bridge.test.ts: OK');
+assertNoPlaceholderOrPromptLeak({ emptyQueue, queued, approved, queue, parsedYaml, parsedCommand }, 'approval_gate_rust_bridge_test');
+assertStableToolingEnvelope(queued, 'approval_gate_rust_bridge_test');
+console.log('approval_gate_rust_bridge.test.ts: OK');

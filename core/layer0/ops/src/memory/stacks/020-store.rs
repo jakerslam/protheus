@@ -41,6 +41,24 @@ fn default_context_stacks_state() -> ContextStacksState {
         provider_snapshots: Vec::new(),
         delta_tails: Vec::new(),
         batch_classes: Vec::new(),
+        taste_vectors: std::collections::BTreeMap::new(),
+        partial_merge_events: Vec::new(),
+        hybrid_retrieval_events: Vec::new(),
+        node_spike_thresholds: std::collections::BTreeMap::new(),
+        node_spike_events: Vec::new(),
+        node_spike_queue: Vec::new(),
+        node_spike_metrics: json!({
+            "queue_limit": 128u64,
+            "dropped_non_critical": 0u64,
+            "critical_retained": 0u64,
+            "critical_journaled": 0u64,
+            "critical_dropped": 0u64,
+            "last_overload_at": Value::Null
+        }),
+        merge_feedback_events: Vec::new(),
+        skill_performance_ledger: std::collections::BTreeMap::new(),
+        speculative_overlays: Vec::new(),
+        speculative_overlay_receipts: Vec::new(),
     }
 }
 
