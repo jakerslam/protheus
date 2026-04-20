@@ -193,15 +193,27 @@ function ask(prompt, fallback) {
 
 async function runWizard(opts) {
   const nonInteractive = opts.yes || opts.defaults || !process.stdin.isTTY || !process.stdout.isTTY;
-  let covenantAck = true;
-  let interaction = pickInteraction(opts.interaction || 'proactive');
-  let notifications = pickNotifications(opts.notifications || 'critical');
+  const explicitNonInteractiveOptIn = opts.yes || opts.defaults || asBool(process.env.INFRING_SETUP_NONINTERACTIVE_OPT_IN, false);
+  let covenantAck = false;
+  let interaction = pickInteraction(opts.interaction || 'silent');
+  let notifications = pickNotifications(opts.notifications || 'none');
 
   if (opts.skip) {
     covenantAck = false;
     interaction = 'silent';
     notifications = 'none';
+  } else if (nonInteractive) {
+    covenantAck = !!explicitNonInteractiveOptIn;
+    if (opts.interaction) {
+      interaction = pickInteraction(opts.interaction);
+    }
+    if (opts.notifications) {
+      notifications = pickNotifications(opts.notifications);
+    }
   } else if (!nonInteractive) {
+    covenantAck = true;
+    interaction = pickInteraction(opts.interaction || 'proactive');
+    notifications = pickNotifications(opts.notifications || 'critical');
     const covenantInput = await ask(
       'Confirm covenant-first defaults? [Y/n]: ',
       'y'

@@ -133,6 +133,10 @@ fn should_offer_setup(root: &Path, skip_setup: bool) -> bool {
     if bool_env("PROTHEUS_SETUP_FORCE", false) {
         return true;
     }
+    let interactive_session = std::io::stdin().is_terminal() && std::io::stdout().is_terminal();
+    if !interactive_session && !bool_env("PROTHEUS_SETUP_ALLOW_NONINTERACTIVE", false) {
+        return false;
+    }
     let latest_path = root
         .join("local")
         .join("state")

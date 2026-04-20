@@ -4,8 +4,8 @@ Updated: 2026-04-07T12:05:00.000Z
 
 ## Global Rollup
 - total_rows: 3361
-- queued: 103
-- in_progress: 12
+- queued: 102
+- in_progress: 13
 - blocked: 0
 - blocked_external_prepared: 31
 - done: 984
@@ -604,7 +604,7 @@ Rewired (40):
 - [ ] `V11-MASS-ONB-003` — in_progress — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
 - [ ] `V11-MASS-REC-003` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
 - [ ] `V11-MASS-REC-004` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [ ] `V11-MASS-SAFE-003` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
+- [ ] `V11-MASS-SAFE-003` — in_progress — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
 - [ ] `V11-MASS-SAFE-005` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
 - [ ] `V11-MASS-UX-001` — in_progress — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
 - [ ] `V11-MASS-UX-003` — in_progress — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
