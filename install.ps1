@@ -3118,6 +3118,70 @@ if (-not (Test-Path $target)) {
       $fallbackInvoked = $true
     }
   }
+  if (-not $fallbackInvoked -and $shimName -eq "infring") {
+    $bootstrapCmd = ""
+    if ($CommandArgs.Count -gt 0) {
+      $bootstrapCmd = [string]$CommandArgs[0]
+    }
+    $bootstrapCmdLower = $bootstrapCmd.ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($bootstrapCmdLower) -or $bootstrapCmdLower -eq "--help" -or $bootstrapCmdLower -eq "-h" -or $bootstrapCmdLower -eq "help") {
+      Write-Warning "[infring shim] missing wrapper $target; using bootstrap-only fallback."
+      Write-Host "[infring bootstrap] full-mode onboarding fallback active (runtime binaries unavailable)."
+      Write-Host "[infring bootstrap] install Visual Studio Build Tools, then rerun install.ps1 -Repair -Full."
+      Write-Host "[infring bootstrap] available commands now: infring --help, infring status, infring setup status --json, infring gateway status"
+      exit 0
+    }
+    if ($bootstrapCmdLower -eq "status") {
+      Write-Warning "[infring shim] missing wrapper $target; using bootstrap-only fallback."
+      Write-Host "[infring bootstrap] runtime binaries unavailable; onboarding fallback active."
+      exit 0
+    }
+    if ($bootstrapCmdLower -eq "setup") {
+      $setupSubcmd = ""
+      if ($CommandArgs.Count -gt 1) {
+        $setupSubcmd = [string]$CommandArgs[1]
+      }
+      if ($setupSubcmd.ToLowerInvariant() -eq "status") {
+        Write-Warning "[infring shim] missing wrapper $target; using bootstrap-only fallback."
+        Write-Output '{"ok":true,"type":"infring_setup_status","mode":"bootstrap_only","runtime_installed":false,"next_action":"install_msvc_and_rerun_repair_full"}'
+        exit 0
+      }
+      Write-Warning "[infring shim] missing wrapper $target; using bootstrap-only fallback."
+      Write-Host "[infring bootstrap] setup accepted in bootstrap-only mode."
+      exit 0
+    }
+    if ($bootstrapCmdLower -eq "gateway") {
+      $gatewaySubcmd = "start"
+      if ($CommandArgs.Count -gt 1) {
+        $candidate = [string]$CommandArgs[1]
+        if (-not [string]::IsNullOrWhiteSpace($candidate) -and -not $candidate.StartsWith("-")) {
+          $gatewaySubcmd = $candidate.ToLowerInvariant()
+        }
+      }
+      Write-Warning "[infring shim] missing wrapper $target; using bootstrap-only gateway fallback."
+      if ($gatewaySubcmd -eq "start") {
+        Write-Host "[infring gateway] bootstrap-only mode active"
+        Write-Host "[infring gateway] runtime binaries are not installed on this machine yet"
+        Write-Host "[infring gateway] next: install Visual Studio Build Tools, then run install.ps1 -Repair -Full"
+        exit 0
+      }
+      if ($gatewaySubcmd -eq "restart") {
+        Write-Host "[infring gateway] bootstrap-only mode active"
+        Write-Host "[infring gateway] runtime restart deferred until runtime binaries are installed"
+        exit 0
+      }
+      if ($gatewaySubcmd -eq "status") {
+        Write-Host "[infring gateway] bootstrap-only mode active (runtime not installed)"
+        exit 0
+      }
+      if ($gatewaySubcmd -eq "stop") {
+        Write-Host "[infring gateway] bootstrap-only mode active; nothing to stop"
+        exit 0
+      }
+      Write-Host "[infring gateway] bootstrap-only mode action complete: $gatewaySubcmd"
+      exit 0
+    }
+  }
   if ($fallbackInvoked) {
     exit $LASTEXITCODE
   }

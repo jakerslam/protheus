@@ -1,83 +1,75 @@
 # TODO (SRS Execution Checklist)
 
-Updated: 2026-04-07T12:05:00.000Z
+Updated: 2026-04-20T23:08:57.515Z
 
 ## Global Rollup
-- total_rows: 3361
-- queued: 93
-- in_progress: 17
+- total_rows: 3559
+- queued: 135
+- in_progress: 38
 - blocked: 0
-- blocked_external_prepared: 31
-- done: 989
-- existing_coverage_validated: 2231
-
-## Hierarchical Nexus Full-System Rewire Ledger (2026-04-07)
-- scope: Rust authority ingress/cross-module runtime surfaces
-- total_modules: 40
-- rewired: 40
-- remaining: 0
-- closure_notes:
-  - `core://` dispatch now fail-closed nexus-authorized before spawn in `protheusctl` core-domain executor.
-  - Dashboard compat subroutes (`channels/comms/hands/sidebar/settings`) now fail-closed nexus-authorized and stamped with `nexus_connection` in responses.
-  - Wrapper/index modules are closed via authoritative include targets that are now routed through the above nexus gates.
-  - Targeted regression proof (2026-04-07): `core_domain_nexus_tool_label_routes_web_domains_to_web_search`, `core_domain_nexus_tool_label_routes_memory_domains_to_memory_lane`, `dashboard_compat_api::tests::direct_web_search_get_endpoint_emits_nexus_connection_metadata`, `dashboard_tool_turn_loop::tests::ingress_nexus_authorization_succeeds_for_web_search_tool_route`.
-
-Rewired (40):
-- [x] `core/layer2/nexus/src/main_nexus.rs`
-- [x] `core/layer2/nexus/src/sub_nexus.rs`
-- [x] `core/layer2/nexus/src/conduit_manager.rs`
-- [x] `core/layer2/nexus/src/route_lease.rs`
-- [x] `core/layer2/nexus/src/template.rs`
-- [x] `core/layer2/nexus/src/policy.rs`
-- [x] `core/layer2/nexus/src/registry.rs`
-- [x] `core/layer0/ops/src/dashboard_tool_turn_loop.rs`
-- [x] `core/layer0/ops/src/dashboard_terminal_broker.rs`
-- [x] `core/layer0/ops/src/stomach_kernel.rs`
-- [x] `core/layer0/ops/src/memory/stacks/045-run.rs`
-- [x] `core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.rs`
-- [x] `core/layer0/ops/src/dashboard_compat_api_parts/030-set-config-payload.rs`
-- [x] `core/layer0/ops/src/web_conduit.rs`
-- [x] `core/layer0/ops/src/context_stacks.rs`
-- [x] `core/layer0/ops/src/batch_query_primitive.rs`
-- [x] `core/layer0/ops/src/dashboard_compat_api.rs`
-- [x] `core/layer0/ops/src/dashboard_compat_api_channels.rs`
-- [x] `core/layer0/ops/src/dashboard_compat_api_comms.rs`
-- [x] `core/layer0/ops/src/dashboard_compat_api_hands.rs`
-- [x] `core/layer0/ops/src/dashboard_compat_api_settings_ops.rs`
-- [x] `core/layer0/ops/src/dashboard_compat_api_sidebar_ops_parts/030-sidebar-route-handler.rs`
-- [x] `core/layer0/ops/src/dashboard_channel_catalog.rs`
-- [x] `core/layer0/ops/src/dashboard_model_catalog.rs`
-- [x] `core/layer0/ops/src/dashboard_provider_runtime.rs`
-- [x] `core/layer0/ops/src/dashboard_release_update.rs`
-- [x] `core/layer0/ops/src/dashboard_agent_state_registry.rs`
-- [x] `core/layer0/ops/src/dashboard_agent_state_sessions.rs`
-- [x] `core/layer0/ops/src/command_list_kernel.rs`
-- [x] `core/layer0/ops/src/directive_kernel.rs`
-- [x] `core/layer0/ops/src/protheusctl.rs`
-- [x] `core/layer0/ops/src/protheusctl_routes.rs`
-- [x] `core/layer0/ops/src/protheusctl_plane_shortcuts.rs`
-- [x] `core/layer0/ops/src/daemon_control.rs`
-- [x] `core/layer0/ops/src/continuity_runtime.rs`
-- [x] `core/layer0/ops/src/autonomy_controller.rs`
-- [x] `core/layer0/ops/src/collab_plane.rs`
-- [x] `core/layer0/ops/src/company_plane.rs`
-- [x] `core/layer0/ops/src/business_plane.rs`
-- [x] `core/layer0/ops/src/app_plane.rs`
+- blocked_external_prepared: 32
+- done: 1075
+- existing_coverage_validated: 2279
 
 ## SRS Section Checklist
-- [x] Installer Reliability v1.0 Intake (2026-04-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
-- [ ] Mass Adoption Launch Checklist (Next Pass) (2026-04-03) — queued=19, in_progress=9, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
-- [ ] Adaptive Runtime Primitive Expansion Intake (2026-04-04) — queued=5, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
-- [ ] Context Stacks for Cacheable Memory Groups Intake (2026-04-05) — queued=22, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
-- [x] Runtime UX + Scheduler Autonomy Intake (2026-04-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [x] Gateway Graduation Contract Intake (2026-04-20) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
+- [ ] Empirical Runtime Proof Expansion Intake (2026-04-20) — queued=0, in_progress=1, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [x] Boundedness Release-Class Evidence Intake (2026-04-20) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
+- [x] Layer 3 Contract Lock Intake (2026-04-20) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
+- [x] Node Critical-Path Burn-down Intake (2026-04-20) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
+- [x] Shell Truth-Leak Guard Intake (2026-04-20) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
+- [x] Terminology Transition Closure Intake (2026-04-20) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
+- [x] Capability Proof Burden Intake (2026-04-20) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
+- [x] SRS/TODO Execution View Consistency Intake (2026-04-20) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
+- [x] Execution Governance Guardrail Intake (2026-04-04) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
+- [ ] Architecture Conformance Hardening Intake (2026-04-10) — queued=0, in_progress=1, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Client De-Authority Intake (2026-04-16) — queued=0, in_progress=1, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Agent Permission Contract Intake (2026-04-16) — queued=0, in_progress=1, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Chat Rendering Experience Intake (2026-04-16) — queued=0, in_progress=1, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Production Closure Program Intake (2026-04-10) — queued=0, in_progress=2, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Workspace Operability Intake (2026-04-10) — queued=0, in_progress=1, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [ ] Tooling and Task-Fabric Integrity Intake (2026-04-10) — queued=0, in_progress=1, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Orchestration Probe-Authority and Runtime-Quality Densification Intake (2026-04-15) — queued=1, in_progress=1, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Web Tooling Reliability Intake (2026-04-07) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=2
+- [x] Workflow Eval + Troubleshooting Reliability Intake (2026-04-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
+- [ ] Assimilation Authority Runtime Intake (2026-04-08) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [x] Tool Broker & Evidence Pipeline Intake (2026-04-07) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
+- [ ] Receipt Lineage Replay Intake (2026-04-08) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [x] Unified Memory Heap Intake (2026-04-07) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
+- [x] Ephemeral Memory Scope Intake (2026-04-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
+- [ ] Cline Capability Assimilation Intake (2026-04-05) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] LlamaIndex Capability Assimilation Intake (2026-04-06) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Evolution Compaction Intake (2026-04-06) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Aider Capability Assimilation Intake (2026-04-06) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] RTK Capability Assimilation Intake (2026-04-05) — queued=6, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Turn Loop Primitive Wiring Intake (2026-04-05) — queued=2, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Knowledge Graph Query Acceleration Intake (2026-04-14) — queued=15, in_progress=5, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Web Retrieval Reliability Intake (2026-04-06) — queued=14, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
+- [ ] Container Runtime Reliability Intake (2026-04-08) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] File Read Reliability Intake (2026-04-06) — queued=3, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Memory Continuity Reliability Intake (2026-04-06) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Manage IA Consolidation Intake (2026-04-05) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Automation IA Consolidation Intake (2026-04-05) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] System IA Consolidation Intake (2026-04-05) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Version Update CLI Reliability Intake (2026-04-05) — queued=6, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Installer Reliability v1.0 Intake (2026-04-03) — queued=7, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [x] Mass Adoption Launch Checklist (Next Pass) (2026-04-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=28, existing_coverage_validated=1
+- [x] Adaptive Runtime Primitive Expansion Intake (2026-04-04) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [ ] Task Fabric Primitive Intake (2026-04-09) — queued=0, in_progress=1, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Governed Self-Maintenance Supervisor Intake (2026-04-09) — queued=0, in_progress=1, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Software Assimilation Capability Intake (2026-04-09) — queued=0, in_progress=1, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Directed Assimilation Protocol Intake (2026-04-09) — queued=0, in_progress=1, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Unified Low-Level Provenance Primitive Bundle Intake (2026-04-09) — queued=0, in_progress=5, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
+- [x] Context Stacks for Cacheable Memory Groups Intake (2026-04-05) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=22, existing_coverage_validated=0
+- [ ] Runtime UX + Scheduler Autonomy Intake (2026-04-01) — queued=4, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
 - [x] Nexus Internal Protocol Intake (2026-04-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
-- [x] Custom Arena + Slab Allocator Intake (2026-04-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
-- [x] Reference Runtime Gap Closure Intake (2026-04-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
-- [x] Digital DNA Foundation v1 Intake (2026-04-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=2, existing_coverage_validated=0
-- [x] Agent Governance + Continuity Hardening Intake (2026-04-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=8, existing_coverage_validated=0
-- [x] Claude Token-Efficiency Assimilation Intake (x.com/meta_alchemist/2038919582111670415, 2026-04-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=3, existing_coverage_validated=0
-- [x] better-clawd Assimilation Intake (2026-04-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=3, existing_coverage_validated=0
-- [ ] Claude Leak Assimilation Intake #2 (Tiered Compaction / PROACTIVE_DAEMON / Speculation, 2026-04-02) — queued=3, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [ ] Custom Arena + Slab Allocator Intake (2026-04-02) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Reference Runtime Gap Closure Intake (2026-04-02) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Digital DNA Foundation v1 Intake (2026-04-01) — queued=2, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Agent Governance + Continuity Hardening Intake (2026-04-01) — queued=8, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Claude Token-Efficiency Assimilation Intake (x.com/meta_alchemist/2038919582111670415, 2026-04-02) — queued=3, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] better-clawd Assimilation Intake (2026-04-02) — queued=3, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Claude Leak Assimilation Intake #2 (Tiered Compaction / PROACTIVE_DAEMON / Speculation, 2026-04-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=1, done=5, existing_coverage_validated=1
 - [x] Autoreason Assimilation Intake (x.com/@shl0ms distillation, 2026-04-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [ ] Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=3, done=0, existing_coverage_validated=15
 - [x] LLMN Mode + Smart Memory Regression Shield (2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=7, existing_coverage_validated=4
@@ -100,7 +92,7 @@ Rewired (40):
 - [x] Paperclip Company Layer & Zero-Human Orchestration Intake (x.com/hasantoxr 2030604968416412144, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
 - [x] WiFi CSI Non-Visual Sensing Intake (RuView, x.com/heygurisingh 2030779994767851980, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
 - [ ] Biological Neural Hybrid Integration Intake (x.com/Crypto_Jargon 2030603197237387411, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=1, done=0, existing_coverage_validated=4
-- [x] Self-Hosted Observability + Orchestration + Incident Response Intake (xyOps, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
+- [x] Self-Hosted Observability + Orchestration + Incident Response Intake (xyOps, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=5
 - [x] Persistent Background Execution, Connectors & Mobile Access Intake (Claude Code Feature Assimilation, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
 - [x] Persistent Scheduling Source Coverage Intake (Doc `1FEglrmeMZyEqoPX0rrALvmwKMux8UUk_502Vw9n6hb4`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
 - [x] Simple LLM Chat Starter Source Coverage (Doc `1VTv__jItMvt_KINaDxeGdqQE1RqxhKa9tIVn9dTf8AQ`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
@@ -132,11 +124,11 @@ Rewired (40):
 - [x] Local Document RAG Engine Source Coverage Intake (Doc `1P1_-BSqoRU0Qt2ais5aUTHycK1wOdmZEhTkcBr1jDhI`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
 - [x] Always-On Structured Memory Agent Source Coverage Intake (Doc `1wnZiGMfWVFaAp-al7UgbwyM1JV_BhW6A3hox3GoGllw`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
 - [x] One-Command Local RAG Platform with Visual Workflows Intake (Doc/Source `V6-MEMORY-008`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
-- [x] Stable Memory Search Library with Versioned Core Intake (Doc/Source `V6-MEMORY-009`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Hierarchical Context Topology Intake (Doc/Source `V6-MEMORY-009`, 2026-04-14) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] ByteRover Production-Grade Context Tree + Hybrid Sync Intake (Doc/Source `V6-MEMORY-010`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
 - [x] Production-Grade Checklist Addendum (2026-03-06) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=27
-- [ ] OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=13, done=0, existing_coverage_validated=48
-- [x] Low-Overhead Swarm Coordination + Built-in Benchmarking Source Coverage Intake (Doc `1hQk69PCmqWKc8wRfrclek11mOTupAFlNtE1oWAgC0sI`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=26, existing_coverage_validated=6
+- [ ] OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=13, done=2, existing_coverage_validated=48
+- [x] Low-Overhead Swarm Coordination + Built-in Benchmarking Source Coverage Intake (Doc `1hQk69PCmqWKc8wRfrclek11mOTupAFlNtE1oWAgC0sI`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=27, existing_coverage_validated=6
 - [x] Sovereign Agent Cortex & Identity Extension Source Coverage Intake (Doc `1Vq5Ofotuc3s1YKqXMp76VKwrqW4v4MVKDADP8PRUEl8`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
 - [x] Permanent Anti-Sycophancy & Truth-Seeking Identity Rule Source Coverage Intake (Doc `16UHULBODCtgIf8hFDo_KevvOvv6Ljr7umPlcC3-gfQw`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
 - [ ] Production Reliability Fortress for Agentic DeFi Systems Source Coverage Intake (Doc `17nmf3l_DnDSoATBUl9SdrgQTLaqpM9G8EWEmlmKnuLY`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=5, done=0, existing_coverage_validated=65
@@ -181,7 +173,7 @@ Rewired (40):
 - [x] Enterprise Readiness Intake (Normalized, Queued, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
 - [x] #1 Readiness Bridge Intake (Normalized, Queued, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
 - [x] Benchmark-Gated Auto-Execution Intake (Normalized, Queued, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=4
-- [x] Rust Memory Transition Intake (Normalized, Queued, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=16
+- [x] Rust Memory Transition Intake (Normalized, Queued, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=15
 - [x] Enterprise Documentation Structure Intake (Deduplicated, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=8
 - [x] Infring Capability Intake (Normalized, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=10
 - [x] Infring Parity+ Deployment/Usability/Runtime Pack (Queued, 2026-02-28) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=12
@@ -263,6 +255,7 @@ Rewired (40):
 - [x] Persona Seamless Workflow Integration Pack (2026-03-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=4
 - [x] Persona Conflict-Arbitration Automation Pack (2026-03-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
 - [x] Protheus Conduit Program (Requirements Intake 2026-03-05) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=8
+- [ ] Hierarchical Nexus Routing System (Requirements Intake 2026-04-06) — queued=16, in_progress=0, blocked=0, blocked_external_prepared=0, done=3, existing_coverage_validated=0
 - [x] Security Credibility And Verification Program (2026-03-06) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=9, existing_coverage_validated=0
 - [x] ZeroLeaks Injection Hardening Source Coverage Intake (Doc `143v84ci3rHjP7WtbYi9tJ2KeJZUkNTIsFTye1NHrheA`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
 - [x] Rust Core Primitive Source-Of-Truth Program (2026-03-06) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=9
@@ -365,7 +358,7 @@ Rewired (40):
 - [x] Local Company Knowledge Base Session-Start Profile Assimilation Source Coverage Intake (Doc `1OoXD6N5J9cs_sr3v0Vjvaky_BY1SSuR1EzpDnLHeA6U`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
 - [x] LLM Provider Expansion to 41+ Source Coverage Intake (Doc `18OtHAyFxeZ5x_iXO7dCmKTQPLVGnVpAZNhmLeQKMVbE`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
 - [x] Beat Infring on Raw Metrics & Capability Source Coverage Intake (Doc `1jRR8VsdVMToNlDz8yLf8lQ8EQCfkOT0B7gqqsCn0GuY`, 2026-03-17) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=10, existing_coverage_validated=0
-- [x] Unified Agent Dashboard Comprehensive Assimilation Source Coverage Intake (Doc `1S3-H4G4R1bBBtWIN5WX_7yD_gMdb_5MHvHBkt30hs-k`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=10, existing_coverage_validated=0
+- [x] Unified Agent Dashboard Comprehensive Assimilation Source Coverage Intake (Doc `1S3-H4G4R1bBBtWIN5WX_7yD_gMdb_5MHvHBkt30hs-k`, 2026-03-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=11, existing_coverage_validated=0
 - [x] Dashboard Runtime Resilience Extension Intake (Ops-Analyst Feedback, 2026-03-22) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=8
 - [x] Dashboard Auto Router Wiring Extension Intake (User Spec, 2026-03-23) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=4
 - [x] Dashboard Multi-Origin Chat Semantics + Launch Stability Intake (User Spec, 2026-03-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=2
@@ -496,196 +489,226 @@ Rewired (40):
 - [x] Decentralized Agent Scale Intake (2026-03-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=3, existing_coverage_validated=0
 - [x] Infring Independence Assimilation Intake (2026-03-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=7, existing_coverage_validated=0
 - [x] Infring Parity Closure Intake (2026-03-26) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
-- [x] Recent Runtime Regression-Shield Intake (2026-03-31) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=2, existing_coverage_validated=18
-- [ ] Governed Web Conduit Intake (2026-03-31) — queued=0, in_progress=6, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
-- [ ] External Framework + Research Assimilation Intake (Internet Source Pass, 2026-04-01) — queued=0, in_progress=3, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
-- [x] Internal Conversation Search + Archived Chat View Intake (2026-04-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=2, existing_coverage_validated=0
-- [x] Intent-Aware Tooling + Memory Intelligence Delta (Feedback Assimilation, 2026-04-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=3, existing_coverage_validated=0
-- [ ] 10/10 Completion Intake (2026-04-03) — queued=40, in_progress=0, blocked=0, blocked_external_prepared=0, done=3, existing_coverage_validated=0
-- [ ] Strategic Differentiation Intake (Filtered + Expanded, 2026-04-04) — queued=6, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
-- [x] Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=15, existing_coverage_validated=0
+- [x] Recent Runtime Regression-Shield Intake (2026-03-31) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=17
+- [ ] Governed Web Conduit Intake (2026-03-31) — queued=0, in_progress=12, blocked=0, blocked_external_prepared=0, done=2, existing_coverage_validated=19
+- [x] External Framework + Research Assimilation Intake (Internet Source Pass, 2026-04-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=2, existing_coverage_validated=1
+- [ ] Internal Conversation Search + Archived Chat View Intake (2026-04-01) — queued=2, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Intent-Aware Tooling + Memory Intelligence Delta (Feedback Assimilation, 2026-04-01) — queued=3, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] 10/10 Completion Intake (2026-04-03) — queued=5, in_progress=1, blocked=0, blocked_external_prepared=0, done=30, existing_coverage_validated=25
+- [x] Strategic Differentiation Intake (Filtered + Expanded, 2026-04-04) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=5
+- [ ] Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04) — queued=5, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Stomach v1 Intake (V6-ORGAN-001, 2026-04-05) — queued=10, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Rust Authority Migration (V11-RUSTAUTH-001, 2026-04-06) — queued=6, in_progress=0, blocked=0, blocked_external_prepared=0, done=17, existing_coverage_validated=0
+- [ ] Incident Operations Governance Intake (2026-04-19) — queued=0, in_progress=1, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
 
 ## Actionable SRS Items (Queued/In Progress)
-- [x] `V10-EXT-AGENT-001.1` — done — External Framework + Research Assimilation Intake (Internet Source Pass, 2026-04-01)
-- [x] `V10-EXT-AGENT-001.2` — done — External Framework + Research Assimilation Intake (Internet Source Pass, 2026-04-01)
-- [x] `V10-WEB-CONDUIT-001.1` — done — Governed Web Conduit Intake (2026-03-31)
-- [x] `V10-WEB-CONDUIT-001.2` — done — Governed Web Conduit Intake (2026-03-31)
-- [x] `V10-WEB-CONDUIT-001.3` — existing_coverage_validated — Governed Web Conduit Intake (2026-03-31)
-- [x] `V11-ADAPT-001` — done — Strategic Differentiation Intake (Filtered + Expanded, 2026-04-04)
-- [x] `V11-AGENT-002` — done — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-AGENT-003` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-AGENT-004` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-AUTONOMY-001` — done — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-COGN-001` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-COGN-002` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-CORE-001` — done — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-CORE-002` — done — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-CORE-003` — done — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-DASH-001` — done — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-DASH-002` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-DEC-001` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-DOCTOR-001` — done — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-EDGE-001` — existing_coverage_validated — Strategic Differentiation Intake (Filtered + Expanded, 2026-04-04)
-- [x] `V11-EXE-001` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-INSTALL-001` — done — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-INSTALL-002` — done — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-INSTALL-006` — done — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-LLM-001` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-LLM-002` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-LLM-003` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-LLM-002.1` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-LLM-002.2` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-LLM-002.3` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-WORKFLOW-GATE-004` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-EVAL-001` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-WEB-WORKFLOW-003` — existing_coverage_validated — Governed Web Conduit Intake (2026-03-31)
-- [x] `V11-WEB-015` — existing_coverage_validated — Governed Web Conduit Intake (2026-03-31)
-- [x] `V11-WIN-INSTALL-002` — existing_coverage_validated — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-INSTALL-009` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-INSTALL-010` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-MASS-CRIT-001` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-MASS-CRIT-002` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-MASS-CRIT-005` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-MASS-ONB-001` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-MASS-SAFE-001` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-MASS-SAFE-002` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-MEMORY-001` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-MEMORY-002` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-NEXUS-001` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-OBS-001` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-SEC-001` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-SEC-002` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-STATE-001` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-THINK-001` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-UX-001` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-UX-002` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V6-AUTONOMY-004.1` — done — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
-- [x] `V6-AUTONOMY-004.2` — done — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
-- [x] `V6-MEMORY-040.1` — done — Adaptive Runtime Primitive Expansion Intake (2026-04-04)
-- [x] `V6-MEMORY-041.2` — done — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
-- [x] `V6-MEMORY-041.3` — done — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
-- [x] `V6-MEMORY-041.5` — done — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
-- [x] `V6-MEMORY-041.6` — done — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
-- [x] `V6-SWARM-005.1` — done — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
-- [x] `V10-EXT-AGENT-001.3` — existing_coverage_validated — External Framework + Research Assimilation Intake (Internet Source Pass, 2026-04-01)
-- [x] `V10-WEB-CONDUIT-001.6` — existing_coverage_validated — Governed Web Conduit Intake (2026-03-31)
-- [x] `V11-AGENT-001` — done — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-CLEANUP-001` — done — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-CORE-004` — done — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-INSTALL-003` — done — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-INSTALL-004` — done — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-INSTALL-007` — done — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-LEARN-001` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-MASS-CRIT-004` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-MASS-DOC-001` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-MASS-DOC-002` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-MASS-DOC-004` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-MASS-ONB-004` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-MASS-REC-001` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-MASS-REC-002` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-MASS-SAFE-004` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-MASS-UX-002` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-MASS-UX-004` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-MULTI-001` — existing_coverage_validated — Strategic Differentiation Intake (Filtered + Expanded, 2026-04-04)
-- [x] `V11-PROACTIVE-002` — existing_coverage_validated — Strategic Differentiation Intake (Filtered + Expanded, 2026-04-04)
-- [x] `V11-RES-001` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-SKILL-001` — existing_coverage_validated — Strategic Differentiation Intake (Filtered + Expanded, 2026-04-04)
-- [x] `V11-TRUST-001` — existing_coverage_validated — Strategic Differentiation Intake (Filtered + Expanded, 2026-04-04)
-- [x] `V6-AUTONOMY-005` — existing_coverage_validated — Claude Leak Assimilation Intake #2 (Tiered Compaction / PROACTIVE_DAEMON / Speculation, 2026-04-02)
-- [x] `V6-EXEC-003.1` — done — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
-- [x] `V6-EXEC-003.2` — done — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
-- [x] `V6-LLM-006.1` — done — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
-- [x] `V6-MEMORY-033` — blocked_external_prepared — Claude Leak Assimilation Intake #2 (Tiered Compaction / PROACTIVE_DAEMON / Speculation, 2026-04-02)
-- [x] `V6-MEMORY-040.2` — done — Adaptive Runtime Primitive Expansion Intake (2026-04-04)
-- [x] `V6-MEMORY-040.3` — done — Adaptive Runtime Primitive Expansion Intake (2026-04-04)
-- [x] `V6-MEMORY-041.1` — done — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
-- [x] `V6-MEMORY-041.4` — done — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
-- [x] `V6-SWARM-005.2` — done — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
-- [x] `V6-SWARM-005.5` — done — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
-- [x] `V6-SWARM-005.6` — done — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
-- [x] `V6-SWARM-005.8` — done — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
-- [x] `V11-DASH-003` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-INSTALL-005` — done — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-LLM-004` — existing_coverage_validated — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-MASS-CRIT-003` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-MASS-DOC-003` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-MASS-DOC-005` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-MASS-ONB-002` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-MASS-ONB-003` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-MASS-REC-003` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-MASS-REC-004` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-MASS-SAFE-003` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-MASS-SAFE-005` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-MASS-UX-001` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-MASS-UX-003` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-MASS-UX-005` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [x] `V11-UI-001` — done — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-UX-003` — done — 10/10 Completion Intake (2026-04-03)
-- [x] `V11-STOMACH-001` — done — Stomach Assimilation Scoring Gate Rollout (Authority/Migration/Concept)
-- [x] `V6-AUTONOMY-006` — done — Claude Leak Assimilation Intake #2 (Tiered Compaction / PROACTIVE_DAEMON / Speculation, 2026-04-02)
-- [x] `V6-LLM-006.2` — done — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
-- [x] `V6-LLM-006.3` — done — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
-- [x] `V6-MEMORY-040.4` — done — Adaptive Runtime Primitive Expansion Intake (2026-04-04)
-- [x] `V6-MEMORY-040.5` — done — Adaptive Runtime Primitive Expansion Intake (2026-04-04)
-- [x] `V6-SWARM-005.3` — done — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
-- [x] `V6-SWARM-005.4` — done — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
-- [x] `V10-WEB-CONDUIT-001.5` — existing_coverage_validated — Governed Web Conduit Intake (2026-03-31)
-- [x] `V6-AUTONOMY-004.3` — done — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
-- [x] `V6-SWARM-005.7` — done — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
-- [x] `V10-WEB-CONDUIT-001.4` — existing_coverage_validated — Governed Web Conduit Intake (2026-03-31)
-- [x] `V10-WEB-CONDUIT-001.24` — existing_coverage_validated — Governed Web Conduit Intake (2026-03-31)
-- [x] `V10-WEB-CONDUIT-001.25` — existing_coverage_validated — Governed Web Conduit Intake (2026-03-31)
-- [x] `V10-WEB-CONDUIT-001.26` — existing_coverage_validated — Governed Web Conduit Intake (2026-03-31)
-- [x] `V10-WEB-CONDUIT-001.27` — existing_coverage_validated — Governed Web Conduit Intake (2026-03-31)
-- [x] `V10-WEB-CONDUIT-001.28` — existing_coverage_validated — Governed Web Conduit Intake (2026-03-31)
-- [x] `V10-WEB-CONDUIT-001.29` — existing_coverage_validated — Governed Web Conduit Intake (2026-03-31)
-- [x] `V10-WEB-CONDUIT-001.30` — existing_coverage_validated — Governed Web Conduit Intake (2026-03-31)
-- [x] `V10-WEB-CONDUIT-001.31` — existing_coverage_validated — Governed Web Conduit Intake (2026-03-31)
-- [x] `V10-WEB-CONDUIT-001.32` — existing_coverage_validated — Governed Web Conduit Intake (2026-03-31)
-- [x] `V10-WEB-CONDUIT-001.33` — existing_coverage_validated — Governed Web Conduit Intake (2026-03-31)
-- [x] `V11-TODO-001` — done — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
-- [x] `V11-TODO-002` — done — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
-- [x] `V11-TODO-003` — done — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
-- [x] `V11-TODO-004` — done — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
-- [x] `V11-TODO-005` — done — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
-- [x] `V11-TODO-006` — done — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
-- [x] `V11-TODO-007` — done — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
-- [x] `V11-TODO-008` — done — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
-- [x] `V11-TODO-009` — done — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
-- [x] `V11-TODO-010` — done — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
+- [ ] `V10-DASH-SEARCH-001.2` — queued — Internal Conversation Search + Archived Chat View Intake (2026-04-01)
+- [ ] `V11-AGENT-PERM-001` — in_progress — Agent Permission Contract Intake (2026-04-16)
+- [ ] `V11-ARCH-005` — in_progress — Architecture Conformance Hardening Intake (2026-04-10)
+- [ ] `V11-CLEANUP-002` — queued — 10/10 Completion Intake (2026-04-03)
+- [ ] `V11-CONTAINER-001` — queued — Container Runtime Reliability Intake (2026-04-08)
+- [ ] `V11-FILE-001` — queued — File Read Reliability Intake (2026-04-06)
+- [ ] `V11-LLM-002.4` — queued — 10/10 Completion Intake (2026-04-03)
+- [ ] `V11-MEMORY-003` — queued — Memory Continuity Reliability Intake (2026-04-06)
+- [ ] `V11-MEMORY-003` — queued — 10/10 Completion Intake (2026-04-03)
+- [ ] `V11-MEMORY-010.1` — in_progress — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-MEMORY-010.3` — in_progress — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-OPS-PRD-001` — in_progress — Production Closure Program Intake (2026-04-10)
+- [ ] `V11-RECEIPTS-001` — queued — Receipt Lineage Replay Intake (2026-04-08)
+- [ ] `V11-SWARM-TOOL-RESP-005` — queued — 10/10 Completion Intake (2026-04-03)
+- [ ] `V11-TOOL-006` — in_progress — Tooling and Task-Fabric Integrity Intake (2026-04-10)
+- [ ] `V11-TSRUST-001` — queued — Version Update CLI Reliability Intake (2026-04-05)
+- [ ] `V11-TSRUST-002` — queued — Version Update CLI Reliability Intake (2026-04-05)
+- [ ] `V11-TSRUST-005` — queued — Version Update CLI Reliability Intake (2026-04-05)
+- [ ] `V11-TURNLOOP-001` — queued — Turn Loop Primitive Wiring Intake (2026-04-05)
+- [ ] `V11-TURNLOOP-006` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-TURNLOOP-007` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-TURNLOOP-009` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-TURNLOOP-011` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-TURNLOOP-013` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-TURNLOOP-014` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-WEB-001` — queued — Web Retrieval Reliability Intake (2026-04-06)
+- [ ] `V11-WEB-002` — queued — Web Retrieval Reliability Intake (2026-04-06)
+- [ ] `V11-WEB-003` — queued — Web Retrieval Reliability Intake (2026-04-06)
+- [ ] `V11-WEB-007` — queued — Web Retrieval Reliability Intake (2026-04-06)
+- [ ] `V11-WEB-008` — queued — Web Tooling Reliability Intake (2026-04-07)
+- [ ] `V11-WEB-009` — queued — Web Retrieval Reliability Intake (2026-04-06)
+- [ ] `V11-WEB-010` — queued — Web Retrieval Reliability Intake (2026-04-06)
+- [ ] `V11-WEB-011` — queued — Web Retrieval Reliability Intake (2026-04-06)
+- [ ] `V11-WEB-013` — queued — Web Retrieval Reliability Intake (2026-04-06)
+- [ ] `V11-WEB-014` — queued — Web Retrieval Reliability Intake (2026-04-06)
+- [ ] `V6-ASSIM-001` — in_progress — Software Assimilation Capability Intake (2026-04-09)
+- [ ] `V6-ASSIM-002` — in_progress — Directed Assimilation Protocol Intake (2026-04-09)
+- [ ] `V6-AUTO-001` — in_progress — Governed Self-Maintenance Supervisor Intake (2026-04-09)
+- [ ] `V6-CONDUIT-002.1` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CONDUIT-002.3` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CONDUIT-002.4` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CONDUIT-002.6` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CONDUIT-002.8` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-INSTALL-001.1` — queued — Installer Reliability v1.0 Intake (2026-04-03)
+- [ ] `V6-INSTALL-001.2` — queued — Installer Reliability v1.0 Intake (2026-04-03)
+- [ ] `V6-INSTALL-001.3` — queued — Installer Reliability v1.0 Intake (2026-04-03)
+- [ ] `V6-INSTALL-001.4` — queued — Installer Reliability v1.0 Intake (2026-04-03)
+- [ ] `V6-INSTALL-001.5` — queued — Installer Reliability v1.0 Intake (2026-04-03)
+- [ ] `V6-INSTALL-001.6` — in_progress — Installer Reliability v1.0 Intake (2026-04-03)
+- [ ] `V6-LANGUAGE-003` — queued — Claude Token-Efficiency Assimilation Intake (x.com/meta_alchemist/2038919582111670415, 2026-04-02)
+- [ ] `V6-LLM-005` — queued — better-clawd Assimilation Intake (2026-04-02)
+- [ ] `V6-ORCH-002` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
+- [ ] `V6-ORGAN-001.1` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
+- [ ] `V6-ORGAN-001.10` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
+- [ ] `V6-ORGAN-001.2` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
+- [ ] `V6-ORGAN-001.4` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
+- [ ] `V6-ORGAN-001.5` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
+- [ ] `V6-ORGAN-001.7` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
+- [ ] `V6-OS-001` — queued — Custom Arena + Slab Allocator Intake (2026-04-02)
+- [ ] `V6-PRIM-001` — in_progress — Unified Low-Level Provenance Primitive Bundle Intake (2026-04-09)
+- [ ] `V6-PRIM-002` — in_progress — Unified Low-Level Provenance Primitive Bundle Intake (2026-04-09)
+- [ ] `V6-SAFETY-031` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
+- [ ] `V6-SEC-022` — queued — better-clawd Assimilation Intake (2026-04-02)
+- [ ] `V6-SWARM-039` — queued — Claude Token-Efficiency Assimilation Intake (x.com/meta_alchemist/2038919582111670415, 2026-04-02)
+- [ ] `V6-TOOL-001.3` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
+- [ ] `V6-TOOL-001.4` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
+- [ ] `V6-TOOL-001.5` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
+- [ ] `V6-TOOL-004` — in_progress — Task Fabric Primitive Intake (2026-04-09)
+- [ ] `V10-DASH-INTENT-001.1` — queued — Intent-Aware Tooling + Memory Intelligence Delta (Feedback Assimilation, 2026-04-01)
+- [ ] `V10-DASH-INTENT-001.2` — queued — Intent-Aware Tooling + Memory Intelligence Delta (Feedback Assimilation, 2026-04-01)
+- [ ] `V10-DASH-SEARCH-001.1` — queued — Internal Conversation Search + Archived Chat View Intake (2026-04-01)
+- [ ] `V11-ASSIM-001` — queued — Assimilation Authority Runtime Intake (2026-04-08)
+- [ ] `V11-CLIENT-009` — in_progress — Client De-Authority Intake (2026-04-16)
+- [ ] `V11-COMPACTION-001` — queued — Evolution Compaction Intake (2026-04-06)
+- [ ] `V11-DX-002` — in_progress — Production Closure Program Intake (2026-04-10)
+- [ ] `V11-FILE-002` — queued — File Read Reliability Intake (2026-04-06)
+- [ ] `V11-GOV-INC-001` — in_progress — Incident Operations Governance Intake (2026-04-19)
+- [ ] `V11-INSTALL-008` — in_progress — 10/10 Completion Intake (2026-04-03)
+- [ ] `V11-LLAMAINDEX-001` — queued — LlamaIndex Capability Assimilation Intake (2026-04-06)
+- [ ] `V11-MEMORY-010.2` — in_progress — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-MEMORY-010.4` — in_progress — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-OPS-UPDATE-001` — queued — Version Update CLI Reliability Intake (2026-04-05)
+- [ ] `V11-ORCH-007` — in_progress — Orchestration Probe-Authority and Runtime-Quality Densification Intake (2026-04-15)
+- [ ] `V11-RTK-001` — queued — RTK Capability Assimilation Intake (2026-04-05)
+- [ ] `V11-TSRUST-004` — queued — Version Update CLI Reliability Intake (2026-04-05)
+- [ ] `V11-TURNLOOP-002` — queued — Turn Loop Primitive Wiring Intake (2026-04-05)
+- [ ] `V11-TURNLOOP-003` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-TURNLOOP-005` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-TURNLOOP-008` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-TURNLOOP-010` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-TURNLOOP-012` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-TURNLOOP-015` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-TURNLOOP-017` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-WEB-004` — queued — Web Retrieval Reliability Intake (2026-04-06)
+- [ ] `V11-WEB-006` — queued — Web Retrieval Reliability Intake (2026-04-06)
+- [ ] `V12-EMPIRICAL-001` — in_progress — Empirical Runtime Proof Expansion Intake (2026-04-20)
+- [ ] `V6-CONDUIT-002.10` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CONDUIT-002.11` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CONDUIT-002.12` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CONDUIT-002.13` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CONDUIT-002.14` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CONDUIT-002.15` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CONDUIT-002.16` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CONDUIT-002.2` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CONDUIT-002.7` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CONDUIT-002.9` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CTX-021` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
+- [ ] `V6-INSTALL-001.7` — queued — Installer Reliability v1.0 Intake (2026-04-03)
+- [ ] `V6-LANGUAGE-004` — queued — Claude Token-Efficiency Assimilation Intake (x.com/meta_alchemist/2038919582111670415, 2026-04-02)
+- [ ] `V6-MEMORY-030` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
+- [ ] `V6-MEMORY-031` — queued — better-clawd Assimilation Intake (2026-04-02)
+- [ ] `V6-ORGAN-001.3` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
+- [ ] `V6-ORGAN-001.6` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
+- [ ] `V6-PRIM-003` — in_progress — Unified Low-Level Provenance Primitive Bundle Intake (2026-04-09)
+- [ ] `V6-SCHED-024` — queued — Runtime UX + Scheduler Autonomy Intake (2026-04-01)
+- [ ] `V6-TOOL-001.1` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
+- [ ] `V6-TOOL-001.2` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
+- [ ] `V6-UX-091` — queued — Runtime UX + Scheduler Autonomy Intake (2026-04-01)
+- [ ] `V10-MEMORY-032.1` — queued — Intent-Aware Tooling + Memory Intelligence Delta (Feedback Assimilation, 2026-04-01)
+- [ ] `V10-WEB-CONDUIT-001.12` — in_progress — Governed Web Conduit Intake (2026-03-31)
+- [ ] `V10-WEB-CONDUIT-001.13` — in_progress — Governed Web Conduit Intake (2026-03-31)
+- [ ] `V10-WEB-CONDUIT-001.14` — in_progress — Governed Web Conduit Intake (2026-03-31)
+- [ ] `V10-WEB-CONDUIT-001.15` — in_progress — Governed Web Conduit Intake (2026-03-31)
+- [ ] `V10-WEB-CONDUIT-001.16` — in_progress — Governed Web Conduit Intake (2026-03-31)
+- [ ] `V10-WEB-CONDUIT-001.17` — in_progress — Governed Web Conduit Intake (2026-03-31)
+- [ ] `V10-WEB-CONDUIT-001.18` — in_progress — Governed Web Conduit Intake (2026-03-31)
+- [ ] `V10-WEB-CONDUIT-001.19` — in_progress — Governed Web Conduit Intake (2026-03-31)
+- [ ] `V10-WEB-CONDUIT-001.20` — in_progress — Governed Web Conduit Intake (2026-03-31)
+- [ ] `V10-WEB-CONDUIT-001.21` — in_progress — Governed Web Conduit Intake (2026-03-31)
+- [ ] `V10-WEB-CONDUIT-001.22` — in_progress — Governed Web Conduit Intake (2026-03-31)
+- [ ] `V10-WEB-CONDUIT-001.23` — in_progress — Governed Web Conduit Intake (2026-03-31)
+- [ ] `V11-AIDER-001` — queued — Aider Capability Assimilation Intake (2026-04-06)
+- [ ] `V11-CHAT-UX-004` — in_progress — Chat Rendering Experience Intake (2026-04-16)
+- [ ] `V11-CLINE-004` — queued — Cline Capability Assimilation Intake (2026-04-05)
+- [ ] `V11-DX-004` — in_progress — Workspace Operability Intake (2026-04-10)
+- [ ] `V11-FILE-003` — queued — File Read Reliability Intake (2026-04-06)
+- [ ] `V11-INSTALL-005` — queued — 10/10 Completion Intake (2026-04-03)
+- [ ] `V11-MEMORY-010.5` — in_progress — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-RTK-002` — queued — RTK Capability Assimilation Intake (2026-04-05)
+- [ ] `V11-RTK-003` — queued — RTK Capability Assimilation Intake (2026-04-05)
+- [ ] `V11-STAGEHAND-003` — queued — Rust Authority Migration (V11-RUSTAUTH-001, 2026-04-06)
+- [ ] `V11-TURNLOOP-004` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-TURNLOOP-016` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-WEB-005` — queued — Web Retrieval Reliability Intake (2026-04-06)
+- [ ] `V6-AUDIT-014` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
+- [ ] `V6-CONDUIT-002.5` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-OBS-005` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
+- [ ] `V6-ORGAN-001.8` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
+- [ ] `V6-PRIM-004` — in_progress — Unified Low-Level Provenance Primitive Bundle Intake (2026-04-09)
+- [ ] `V6-PRIM-005` — in_progress — Unified Low-Level Provenance Primitive Bundle Intake (2026-04-09)
+- [ ] `V6-RESILIENCE-012` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
+- [ ] `V6-UX-094` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
+- [ ] `V11-STAGEHAND-001` — queued — Rust Authority Migration (V11-RUSTAUTH-001, 2026-04-06)
+- [ ] `V11-STAGEHAND-006` — queued — Rust Authority Migration (V11-RUSTAUTH-001, 2026-04-06)
+- [ ] `V6-UX-092` — queued — Runtime UX + Scheduler Autonomy Intake (2026-04-01)
+- [ ] `V11-STAGEHAND-002` — queued — Rust Authority Migration (V11-RUSTAUTH-001, 2026-04-06)
+- [ ] `V11-STAGEHAND-004` — queued — Rust Authority Migration (V11-RUSTAUTH-001, 2026-04-06)
+- [ ] `V6-UX-093` — queued — Runtime UX + Scheduler Autonomy Intake (2026-04-01)
+- [ ] `V11-RTK-004` — queued — RTK Capability Assimilation Intake (2026-04-05)
+- [ ] `V11-RTK-005` — queued — RTK Capability Assimilation Intake (2026-04-05)
+- [ ] `V11-RTK-006` — queued — RTK Capability Assimilation Intake (2026-04-05)
+- [ ] `V11-RUSTAUTH-001` — queued — Rust Authority Migration (V11-RUSTAUTH-001, 2026-04-06)
+- [ ] `V11-SWARM-ASK-001` — queued — Orchestration Probe-Authority and Runtime-Quality Densification Intake (2026-04-15)
+- [ ] `V11-TSRUST-003` — queued — Version Update CLI Reliability Intake (2026-04-05)
+- [ ] `V11-UX-AUTOMATION-001` — queued — Automation IA Consolidation Intake (2026-04-05)
+- [ ] `V11-UX-MANAGE-001` — queued — Manage IA Consolidation Intake (2026-04-05)
+- [ ] `V11-UX-SYSTEM-001` — queued — System IA Consolidation Intake (2026-04-05)
+- [ ] `V11-WEB-008` — queued — Web Retrieval Reliability Intake (2026-04-06)
+- [ ] `V11-WEB-012` — queued — Web Retrieval Reliability Intake (2026-04-06)
+- [ ] `V6-FOUNDATION-DNA-001` — queued — Digital DNA Foundation v1 Intake (2026-04-01)
+- [ ] `V6-FOUNDATION-DNA-002` — queued — Digital DNA Foundation v1 Intake (2026-04-01)
+- [ ] `V6-ORGAN-001.9` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
+- [ ] `V6-REFERENCE-RUNTIME-026` — queued — Reference Runtime Gap Closure Intake (2026-04-02)
 
 ## External Blockers
-- [x] `V2-012` — blocked_external_prepared — Backlog Full Completion Sweep (2026-03-03) (requires external evidence packet / human approval)
-- [x] `V4-LENS-011` — blocked_external_prepared — LensMap Standalone Suite Program (Google Doc Intake 2026-03-03) (requires external evidence packet / human approval)
-- [x] `V6-EDGE-005` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
-- [x] `V6-GAP-006` — blocked_external_prepared — Testing + Documentation + Installer Gap Closer (2026-03-06) (requires external evidence packet / human approval)
-- [x] `V6-SBOX-006` — blocked_external_prepared — Production Reliability Fortress for Agentic DeFi Systems Source Coverage Intake (Doc `17nmf3l_DnDSoATBUl9SdrgQTLaqpM9G8EWEmlmKnuLY`, 2026-03-11) (requires external evidence packet / human approval)
-- [x] `V7-F100-002.1` — blocked_external_prepared — Fortune-100 Procurement & Platform Leadership Intake (Doc `1C0JmEaPuYJxfBxnZIzzYM5m-h8kiHfMoFwYP82Db514`, 2026-03-14) (requires external evidence packet / human approval)
-- [x] `V7-F100-002.2` — blocked_external_prepared — Fortune-100 Procurement & Platform Leadership Intake (Doc `1C0JmEaPuYJxfBxnZIzzYM5m-h8kiHfMoFwYP82Db514`, 2026-03-14) (requires external evidence packet / human approval)
-- [x] `V7-META-016` — blocked_external_prepared — Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08) (requires external evidence packet / human approval)
-- [x] `V7-META-017` — blocked_external_prepared — Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08) (requires external evidence packet / human approval)
-- [x] `V7-META-018` — blocked_external_prepared — Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08) (requires external evidence packet / human approval)
-- [x] `V7-TOP1-009` — blocked_external_prepared — Technical Excellence #1 Intake (Doc `12_nnoI-1YXaxVc6YSgYRCMRKXNIWCcP1XKCJHv_NBeY`, 2026-03-09) (requires external evidence packet / human approval)
-- [x] `V7-TOP1-010` — blocked_external_prepared — Technical Excellence #1 Intake (Doc `12_nnoI-1YXaxVc6YSgYRCMRKXNIWCcP1XKCJHv_NBeY`, 2026-03-09) (requires external evidence packet / human approval)
-- [x] `V6-COMP-005` — blocked_external_prepared — Production Reliability Fortress for Agentic DeFi Systems Source Coverage Intake (Doc `17nmf3l_DnDSoATBUl9SdrgQTLaqpM9G8EWEmlmKnuLY`, 2026-03-11) (requires external evidence packet / human approval)
-- [x] `V6-F100-022` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
-- [x] `V6-F100-023` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
-- [x] `V6-F100-024` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
-- [x] `V6-F100-025` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
-- [x] `V6-F100-034` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
-- [x] `V6-F100-043` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
-- [x] `V6-F100-044` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
-- [x] `V6-F100-045` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
-- [x] `V6-F100-A-008` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
-- [x] `V6-F100-A-009` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
-- [x] `V6-F100-A-010` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
-- [x] `V6-F100-A-011` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
-- [x] `V6-PAY-007` — blocked_external_prepared — Production Reliability Fortress for Agentic DeFi Systems Source Coverage Intake (Doc `17nmf3l_DnDSoATBUl9SdrgQTLaqpM9G8EWEmlmKnuLY`, 2026-03-11) (requires external evidence packet / human approval)
-- [x] `V6-RUST50-CONF-004` — blocked_external_prepared — External Requirements Intake (Mega Sprint 1: Public 50 Percent Visible Rust, 2026-03-03) (requires external evidence packet / human approval)
-- [x] `V6-SUBSTRATE-002.4` — blocked_external_prepared — Biological Neural Hybrid Integration Intake (x.com/Crypto_Jargon 2030603197237387411, 2026-03-09) (requires external evidence packet / human approval)
-- [x] `V2-012` — blocked_external_prepared — V2 (requires external evidence packet / human approval)
-- [x] `V6-TOOLS-005` — blocked_external_prepared — Production Reliability Fortress for Agentic DeFi Systems Source Coverage Intake (Doc `17nmf3l_DnDSoATBUl9SdrgQTLaqpM9G8EWEmlmKnuLY`, 2026-03-11) (requires external evidence packet / human approval)
-- [x] `V6-FLUX-007` — blocked_external_prepared — Production Reliability Fortress for Agentic DeFi Systems Source Coverage Intake (Doc `17nmf3l_DnDSoATBUl9SdrgQTLaqpM9G8EWEmlmKnuLY`, 2026-03-11) (requires external evidence packet / human approval)
+- [ ] `V2-012` — blocked_external_prepared — Backlog Full Completion Sweep (2026-03-03) (requires external evidence packet / human approval)
+- [ ] `V4-LENS-011` — blocked_external_prepared — LensMap Standalone Suite Program (Google Doc Intake 2026-03-03) (requires external evidence packet / human approval)
+- [ ] `V6-EDGE-005` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V6-GAP-006` — blocked_external_prepared — Testing + Documentation + Installer Gap Closer (2026-03-06) (requires external evidence packet / human approval)
+- [ ] `V6-SBOX-006` — blocked_external_prepared — Production Reliability Fortress for Agentic DeFi Systems Source Coverage Intake (Doc `17nmf3l_DnDSoATBUl9SdrgQTLaqpM9G8EWEmlmKnuLY`, 2026-03-11) (requires external evidence packet / human approval)
+- [ ] `V7-F100-002.1` — blocked_external_prepared — Fortune-100 Procurement & Platform Leadership Intake (Doc `1C0JmEaPuYJxfBxnZIzzYM5m-h8kiHfMoFwYP82Db514`, 2026-03-14) (requires external evidence packet / human approval)
+- [ ] `V7-F100-002.2` — blocked_external_prepared — Fortune-100 Procurement & Platform Leadership Intake (Doc `1C0JmEaPuYJxfBxnZIzzYM5m-h8kiHfMoFwYP82Db514`, 2026-03-14) (requires external evidence packet / human approval)
+- [ ] `V7-META-016` — blocked_external_prepared — Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08) (requires external evidence packet / human approval)
+- [ ] `V7-META-017` — blocked_external_prepared — Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08) (requires external evidence packet / human approval)
+- [ ] `V7-META-018` — blocked_external_prepared — Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08) (requires external evidence packet / human approval)
+- [ ] `V7-TOP1-009` — blocked_external_prepared — Technical Excellence #1 Intake (Doc `12_nnoI-1YXaxVc6YSgYRCMRKXNIWCcP1XKCJHv_NBeY`, 2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V7-TOP1-010` — blocked_external_prepared — Technical Excellence #1 Intake (Doc `12_nnoI-1YXaxVc6YSgYRCMRKXNIWCcP1XKCJHv_NBeY`, 2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V6-COMP-005` — blocked_external_prepared — Production Reliability Fortress for Agentic DeFi Systems Source Coverage Intake (Doc `17nmf3l_DnDSoATBUl9SdrgQTLaqpM9G8EWEmlmKnuLY`, 2026-03-11) (requires external evidence packet / human approval)
+- [ ] `V6-F100-022` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V6-F100-023` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V6-F100-024` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V6-F100-025` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V6-F100-034` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V6-F100-043` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V6-F100-044` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V6-F100-045` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V6-F100-A-008` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V6-F100-A-009` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V6-F100-A-010` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V6-F100-A-011` — blocked_external_prepared — OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V6-MEMORY-033` — blocked_external_prepared — Claude Leak Assimilation Intake #2 (Tiered Compaction / PROACTIVE_DAEMON / Speculation, 2026-04-02) (requires external evidence packet / human approval)
+- [ ] `V6-PAY-007` — blocked_external_prepared — Production Reliability Fortress for Agentic DeFi Systems Source Coverage Intake (Doc `17nmf3l_DnDSoATBUl9SdrgQTLaqpM9G8EWEmlmKnuLY`, 2026-03-11) (requires external evidence packet / human approval)
+- [ ] `V6-RUST50-CONF-004` — blocked_external_prepared — External Requirements Intake (Mega Sprint 1: Public 50 Percent Visible Rust, 2026-03-03) (requires external evidence packet / human approval)
+- [ ] `V6-SUBSTRATE-002.4` — blocked_external_prepared — Biological Neural Hybrid Integration Intake (x.com/Crypto_Jargon 2030603197237387411, 2026-03-09) (requires external evidence packet / human approval)
+- [ ] `V2-012` — blocked_external_prepared — V2 (requires external evidence packet / human approval)
+- [ ] `V6-TOOLS-005` — blocked_external_prepared — Production Reliability Fortress for Agentic DeFi Systems Source Coverage Intake (Doc `17nmf3l_DnDSoATBUl9SdrgQTLaqpM9G8EWEmlmKnuLY`, 2026-03-11) (requires external evidence packet / human approval)
+- [ ] `V6-FLUX-007` — blocked_external_prepared — Production Reliability Fortress for Agentic DeFi Systems Source Coverage Intake (Doc `17nmf3l_DnDSoATBUl9SdrgQTLaqpM9G8EWEmlmKnuLY`, 2026-03-11) (requires external evidence packet / human approval)
 
 ## Regression Runbook
 - npm run -s ops:backlog:actionable-report
@@ -694,49 +717,3 @@ Rewired (40):
 - npm run -s ops:srs:top200:regression
 - npm run -s test:ops:srs-contract-runtime-evidence
 - ./verify.sh
-
-## Release Hardening Intake (ChatGPT Feedback, 2026-04-19)
-
-- [x] Make proof-pack completeness an explicit release criterion for the next version cut.
-- [x] Require proof-pack summary to report `required_missing: 0` before publish.
-- [x] Add hard release gate: block release when proof-pack `required_missing > 0`.
-- [x] Fail release when proof-pack category completeness is below required thresholds.
-- [x] Close Layer 2 execution lane parity as an explicit release-blocking item.
-- [x] Close Layer 2 receipt replay as an explicit release-blocking item.
-- [x] Close trusted-core reporting as an explicit release-blocking item.
-- [x] Generate `core/local/artifacts/layer2_lane_parity_guard_current.json` in release-candidate flow.
-- [x] Generate `core/local/artifacts/layer2_receipt_replay_current.json` in release-candidate flow.
-- [x] Generate `core/local/artifacts/runtime_trusted_core_report_current.json` in release-candidate flow.
-- [x] Keep dual-track runtime proof mandatory in release gating (`synthetic` + `empirical` where configured).
-- [x] Expand empirical proof requirements beyond `rich` (scheduled empirical lanes for `pure` and `tiny-max`).
-- [x] Enforce nonzero empirical sample-point minimums per profile in gates.
-- [x] Publish proof artifacts and summaries in deterministic checksummed release bundles.
-- [x] Publish 72-hour boundedness evidence as release evidence (not roadmap-only intent).
-- [x] Add multi-day autonomous soak evidence pipeline and attach outputs to proof packs.
-- [x] Continue stale cockpit drift elimination with freshness-derived UI assertions.
-- [x] Continue conduit auto-heal hardening with deterministic state-machine tests.
-- [x] Continue queue backpressure automation hardening with explicit receipts and guard thresholds.
-- [x] Improve benchmark transparency: separate readiness, kernel/shared throughput, and end-to-end command throughput reporting.
-- [x] Keep README metric caveats explicit so readiness numbers are not misread as full cold boot.
-- [x] Reduce Node critical-path dependence and publish a concrete burn-down plan.
-- [x] Promote roadmap adapter closure: graduate `ollama`, `llama.cpp`, MCP baseline, OTLP exporter, and local durable memory backend.
-- [x] Resolve tag/release mismatch: decide whether `v0.3.13` is a real release or metadata alias, then align GitHub Releases.
-- [x] Address bus-factor risk by adding contributor/reviewer redundancy on release-critical lanes.
-
-## Kernel Canonical-Term Transition Indicators (Public Surface)
-
-- [x] Canonical public authority term set to `Kernel` in top-level public docs.
-- [x] Public/operator docs declare `Core` as compatibility alias, not a separate authority plane.
-- [x] Ownership policy terminology switched to `Kernel (compat alias: Core)` while preserving `core/**` path authority.
-- [x] Add `kernel`-first command alias for naming guard (`ops:kernel-naming:guard`) while keeping `ops:core-naming:guard` for compatibility.
-- [x] Migrate naming policy artifact/config labels from `core_*` to `kernel_*` with compatibility mapping.
-- [x] Publish alias-removal target version/date in release checklist and release policy docs.
-
-## Gateway Canonical-Term Transition Indicators (External Boundary Layer)
-
-- [x] Canonical public external-boundary term set to `Gateways` in top-level public docs.
-- [x] Public/operator docs declare `Adapters` as compatibility alias, not a separate authority layer.
-- [x] Ownership policy terminology now includes `Gateways (compat alias: Adapters)` while preserving `adapters/**` path authority.
-- [x] Add `gateway`-first command aliases for adapter-facing guards while keeping adapter aliases for compatibility.
-- [x] Migrate policy/artifact/config labels from `adapter_*` to `gateway_*` with compatibility mapping.
-- [x] Publish adapter-alias removal target version/date in release checklist and release policy docs.
