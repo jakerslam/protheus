@@ -1,8 +1,8 @@
-# Client Naming Policy
+# Shell Naming Policy (compat path: `client/**`)
 
 ## Goal
 
-Keep client surfaces readable at scale by enforcing stable, predictable naming and blocking ambiguous additions in CI.
+Keep shell surfaces readable at scale by enforcing stable, predictable naming and blocking ambiguous additions in CI.
 
 ## Enforced Scope
 
@@ -13,6 +13,10 @@ The guard applies to:
 - `client/cognition/orchestration/**`
 - `client/cognition/shared/**`
 - `client/cognition/habits/scripts/**`
+
+Compatibility note:
+- Canonical docs term is `Shell`.
+- Repository path and guard IDs remain `client/**` until explicit tooling migration is approved.
 
 ## Rules
 

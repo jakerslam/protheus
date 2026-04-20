@@ -8,12 +8,13 @@ Purpose: normalize non-functional naming to architecture-first terminology witho
 | --- | --- | --- |
 | `Kernel` | `Core` | Authority plane and public docs language |
 | `Gateways` | `Adapters` | External boundary layer and integration bridge language |
+| `Shell` | `Client` | Presentation layer language and operator-facing docs |
 
 ## Compatibility Policy
 
-1. Canonical docs use `Kernel` and `Gateways`.
+1. Canonical docs use `Kernel`, `Gateways`, and `Shell`.
 2. Existing command aliases remain supported until planned removal milestone.
-3. Internal paths stay stable (`core/**`, `adapters/**`) until explicit path migration program is approved.
+3. Internal paths stay stable (`core/**`, `adapters/**`, `client/**`) until explicit path migration program is approved.
 
 ## Redirect Alias Notes
 

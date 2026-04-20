@@ -4,7 +4,7 @@ This table defines what survives, what degrades, and what is blocked when a subs
 
 | Subsystem Failure | Durable Truth | In-Flight Work | Recovery Source | Allowed Mode During Failure |
 | --- | --- | --- | --- | --- |
-| Presentation Client | Preserved in Core | Resumable via Task Fabric | Core receipts + task state | Degraded UI only |
+| Presentation Shell (compat alias: Client) | Preserved in Core | Resumable via Task Fabric | Core receipts + task state | Degraded UI only |
 | Orchestration Surface | Preserved in Core | Transient orchestration context may be dropped | Core contracts + receipts | Rebuild orchestration state from Core |
 | Core authority process | Unavailable for mutation | No canonization allowed | Restart Core and replay receipts | Read-only/degraded wrappers only |
 | IPC bridge disconnect | Preserved | Request fails closed unless retry policy allows | Reconnect resident daemon bridge | No process fallback in production channel |
