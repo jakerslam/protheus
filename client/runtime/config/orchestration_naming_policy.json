@@ -1,0 +1,36 @@
+{
+  "include_prefixes": [
+    "surface/orchestration/src",
+    "surface/orchestration/tests",
+    "surface/orchestration/scripts"
+  ],
+  "allowed_uppercase_filenames": [
+    "README.md",
+    "QUICKREF.md",
+    "GOVERNANCE.md"
+  ],
+  "allowed_uppercase_paths": [],
+  "allowed_special_stems": [],
+  "allowed_directory_segments": [
+    "__tests__"
+  ],
+  "segment_regex": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+  "stem_regex": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+  "banned_generic_code_stems": [
+    "util",
+    "utils",
+    "helper",
+    "helpers",
+    "misc",
+    "temp",
+    "tmp",
+    "newfile"
+  ],
+  "code_extensions": [
+    "rs",
+    "ts",
+    "tsx",
+    "js",
+    "jsx"
+  ]
+}

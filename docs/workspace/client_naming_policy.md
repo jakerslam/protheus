@@ -2,7 +2,12 @@
 
 ## Goal
 
-Keep shell surfaces readable at scale by enforcing stable, predictable naming and blocking ambiguous additions in CI.
+Keep shell surfaces readable at scale with stable, predictable naming and continuous tracking.
+
+Current enforcement mode: **Yellow Flag (advisory)**.
+- Naming violations are reported in artifacts and CI telemetry.
+- They do not block merges by default.
+- Strict blocking remains available as an explicit opt-in lane.
 
 ## Enforced Scope
 
@@ -35,7 +40,8 @@ Compatibility note:
 
 - Guard script: `tests/tooling/scripts/ci/client_naming_policy_guard.ts`
 - Policy config: `client/runtime/config/client_naming_policy.json`
-- npm command: `npm run -s ops:client-naming:guard`
+- npm command (advisory/yellow flag): `npm run -s ops:client-naming:guard`
+- npm command (strict/blocking): `npm run -s ops:client-naming:guard:strict`
 - tooling registry gate id: `ops:client-naming:guard`
 - CI workflow integration: `.github/workflows/ci.yml` (`Policy Baseline Contract` step)
 

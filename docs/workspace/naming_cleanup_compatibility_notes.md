@@ -15,6 +15,7 @@ Purpose: normalize non-functional naming to architecture-first terminology witho
 1. Canonical docs use `Kernel`, `Gateways`, and `Shell`.
 2. Existing command aliases remain supported until planned removal milestone.
 3. Internal paths stay stable (`core/**`, `adapters/**`, `client/**`) until explicit path migration program is approved.
+4. Naming guard enforcement mode is currently **yellow-flag/advisory** by default (`ops:*naming:guard`), with strict opt-in lanes available via `ops:*naming:guard:strict`.
 
 ## Redirect Alias Notes
 

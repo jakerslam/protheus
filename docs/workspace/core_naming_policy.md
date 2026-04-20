@@ -2,7 +2,12 @@
 
 ## Goal
 
-Keep kernel/backend surfaces readable and auditable by enforcing stable naming conventions in CI.
+Keep kernel/backend surfaces readable and auditable through stable naming conventions and continuous tracking.
+
+Current enforcement mode: **Yellow Flag (advisory)**.
+- Naming violations are surfaced in CI artifacts and reports.
+- They are not merge-blocking by default.
+- Strict blocking remains available as an explicit opt-in lane.
 
 Canonical public term is `Kernel`.  
 `Core` remains a compatibility alias while repository paths and guard IDs transition.
@@ -33,8 +38,10 @@ The guard applies to:
 - Guard script: `tests/tooling/scripts/ci/client_naming_policy_guard.ts`
 - Policy config (canonical): `client/runtime/config/kernel_naming_policy.json`
 - Policy config (compat): `client/runtime/config/core_naming_policy.json`
-- npm command (canonical): `npm run -s ops:kernel-naming:guard`
-- npm command (compat): `npm run -s ops:core-naming:guard`
+- npm command (canonical, advisory/yellow flag): `npm run -s ops:kernel-naming:guard`
+- npm command (canonical, strict/blocking): `npm run -s ops:kernel-naming:guard:strict`
+- npm command (compat, advisory/yellow flag): `npm run -s ops:core-naming:guard`
+- npm command (compat, strict/blocking): `npm run -s ops:core-naming:guard:strict`
 - tooling registry gate id (compat): `ops:core-naming:guard`
 - CI workflow integration: `.github/workflows/ci.yml` (`Policy Baseline Contract` step)
 
