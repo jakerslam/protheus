@@ -236,6 +236,26 @@ function listSegmentPartFiles(basePath) {
   const partDirs = [`${basePath}.parts`];
   if (ext === '.js') partDirs.push(basePath.replace(/\.js$/i, '.ts') + '.parts');
   if (ext === '.ts') partDirs.push(basePath.replace(/\.ts$/i, '.js') + '.parts');
+  const segmentFileSortComparator = (a, b) => {
+    const parseSortKey = (absPath) => {
+      const fileName = path.basename(absPath);
+      const stem = fileName.replace(/\.[^.]+$/, '');
+      // Preserve deterministic order across renamed segment files by using any
+      // leading numeric shard prefix (e.g. 005-, 020-, 0001-), not only 4 digits.
+      const shardMatch = stem.match(/^(\d+)/);
+      const shard = shardMatch ? Number.parseInt(shardMatch[1], 10) : Number.MAX_SAFE_INTEGER;
+      const partMatch = stem.match(/(?:^|[._-])part(\d+)([a-z]*)/i);
+      const partNumber = partMatch ? Number.parseInt(partMatch[1], 10) : -1;
+      const partSuffix = partMatch ? String(partMatch[2] || '').toLowerCase() : '';
+      return { shard, partNumber, partSuffix, stem };
+    };
+    const ka = parseSortKey(a);
+    const kb = parseSortKey(b);
+    if (ka.shard !== kb.shard) return ka.shard - kb.shard;
+    if (ka.partNumber !== kb.partNumber) return ka.partNumber - kb.partNumber;
+    if (ka.partSuffix !== kb.partSuffix) return ka.partSuffix.localeCompare(kb.partSuffix, 'en');
+    return ka.stem.localeCompare(kb.stem, 'en');
+  };
   for (const partsDir of partDirs) {
     try {
       if (!fs.statSync(partsDir).isDirectory()) continue;
@@ -247,7 +267,7 @@ function listSegmentPartFiles(basePath) {
             !isGhostSegmentPartFileName(entry.name),
         )
         .map((entry) => path.resolve(partsDir, entry.name))
-        .sort((a, b) => a.localeCompare(b, 'en'));
+        .sort(segmentFileSortComparator);
       if (rows.length) return rows;
     } catch {}
   }

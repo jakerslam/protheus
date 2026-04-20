@@ -2,7 +2,12 @@
 
 ## Goal
 
-Keep orchestration surfaces readable and auditable by enforcing stable naming conventions in CI.
+Keep orchestration surfaces readable and auditable through stable naming conventions and continuous tracking.
+
+Current enforcement mode: **Yellow Flag (advisory)**.
+- Naming violations are surfaced in CI artifacts and reports.
+- They are not merge-blocking by default.
+- Strict blocking remains available as an explicit opt-in lane.
 
 ## Enforced Scope
 
@@ -27,7 +32,8 @@ The guard applies to:
 
 - Guard script: `tests/tooling/scripts/ci/client_naming_policy_guard.ts`
 - Policy config: `client/runtime/config/orchestration_naming_policy.json`
-- npm command: `npm run -s ops:orchestration-naming:guard`
+- npm command (advisory/yellow flag): `npm run -s ops:orchestration-naming:guard`
+- npm command (strict/blocking): `npm run -s ops:orchestration-naming:guard:strict`
 - tooling registry gate id: `ops:orchestration-naming:guard`
 - CI workflow integration: `.github/workflows/ci.yml` (`Policy Baseline Contract` step)
 
