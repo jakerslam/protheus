@@ -21,6 +21,7 @@ use crate::{clean, deterministic_receipt_hash, now_iso};
 fn usage() {
     println!("stomach-kernel commands:");
     println!("  protheus-ops stomach-kernel run --id=<digest_id> --source-root=<path> --origin=<https://...> [--commit=<hash>] [--refs=refs/heads/main] [--spdx=<MIT>] [--transform=namespace_fix|header_injection|path_remap|adapter_scaffold] [--targets=a.rs,b.rs] [--header=...]");
+    println!("  protheus-ops stomach-kernel score --id=<digest_id> --source-root=<path> [--targets=a.rs,b.rs]");
     println!("  protheus-ops stomach-kernel status --id=<digest_id>");
     println!("  protheus-ops stomach-kernel rollback --id=<digest_id> --receipt=<receipt_id> [--reason=<text>]");
     println!("  protheus-ops stomach-kernel retention --id=<digest_id> --action=hold|release|eligible [--reason=<text>] [--retained-until=<epoch_secs>] [--approve-receipt=<receipt_id>]");
@@ -43,6 +44,319 @@ fn csv_list(raw: Option<String>) -> Vec<String> {
         .map(|row| row.trim().to_string())
         .filter(|row| !row.is_empty())
         .collect::<Vec<_>>()
+}
+
+fn candidate_extension_allowed(path: &Path) -> bool {
+    matches!(
+        path.extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.to_ascii_lowercase())
+            .as_deref(),
+        Some("rs")
+            | Some("ts")
+            | Some("tsx")
+            | Some("toml")
+            | Some("json")
+            | Some("yaml")
+            | Some("yml")
+            | Some("md")
+            | Some("py")
+    )
+}
+
+fn should_skip_candidate_path(path: &Path) -> bool {
+    let normalized = path
+        .to_string_lossy()
+        .replace('\\', "/")
+        .to_ascii_lowercase();
+    normalized.contains("/.git/")
+        || normalized.contains("/target/")
+        || normalized.contains("/node_modules/")
+        || normalized.contains("/dist/")
+        || normalized.contains("/build/")
+        || normalized.contains("/local/state/")
+}
+
+fn collect_candidate_paths_recursive(
+    source_root: &Path,
+    current: &Path,
+    depth: usize,
+    max_depth: usize,
+    out: &mut Vec<PathBuf>,
+    max_files: usize,
+) -> Result<(), String> {
+    if depth > max_depth || out.len() >= max_files {
+        return Ok(());
+    }
+    let entries = fs::read_dir(current)
+        .map_err(|e| format!("stomach_candidate_scan_failed:{}:{e}", current.display()))?;
+    for entry in entries {
+        if out.len() >= max_files {
+            break;
+        }
+        let entry = entry.map_err(|e| format!("stomach_candidate_entry_failed:{e}"))?;
+        let path = entry.path();
+        if should_skip_candidate_path(&path) {
+            continue;
+        }
+        if path.is_dir() {
+            collect_candidate_paths_recursive(
+                source_root,
+                &path,
+                depth.saturating_add(1),
+                max_depth,
+                out,
+                max_files,
+            )?;
+            continue;
+        }
+        if !path.is_file() || !candidate_extension_allowed(&path) {
+            continue;
+        }
+        let rel = path
+            .strip_prefix(source_root)
+            .map(PathBuf::from)
+            .unwrap_or(path.clone());
+        out.push(rel);
+    }
+    Ok(())
+}
+
+fn score_authority_risk(path_rel: &str) -> u8 {
+    let normalized = path_rel.to_ascii_lowercase();
+    let mut score = 1u8;
+    if normalized.contains("core/") || normalized.contains("/security/") || normalized.contains("/ops/") {
+        score = 5;
+    } else if normalized.contains("surface/") || normalized.contains("/autonomy/") {
+        score = 4;
+    } else if normalized.contains("client/runtime/") {
+        score = 3;
+    } else if normalized.contains("docs/") || normalized.ends_with(".md") {
+        score = 2;
+    }
+    score.min(5)
+}
+
+fn score_migration_potential(path_rel: &str) -> u8 {
+    let normalized = path_rel.to_ascii_lowercase();
+    let mut score = 2u8;
+    if normalized.ends_with(".rs") {
+        score = 5;
+    } else if normalized.ends_with(".ts") || normalized.ends_with(".tsx") {
+        score = 4;
+    } else if normalized.ends_with(".toml") || normalized.ends_with(".json") {
+        score = 3;
+    } else if normalized.ends_with(".md") {
+        score = 2;
+    }
+    if normalized.contains("/tests/") || normalized.contains("/fixtures/") {
+        score = score.saturating_sub(1).max(1);
+    }
+    score.min(5)
+}
+
+fn score_concept_opportunity(path_rel: &str) -> u8 {
+    let normalized = path_rel.to_ascii_lowercase();
+    let mut score = 2u8;
+    if normalized.contains("planner")
+        || normalized.contains("orchestration")
+        || normalized.contains("memory")
+        || normalized.contains("autonomy")
+        || normalized.contains("tooling")
+    {
+        score = 5;
+    } else if normalized.contains("gateway") || normalized.contains("conduit") || normalized.contains("receipt")
+    {
+        score = 4;
+    } else if normalized.contains("ui/") || normalized.contains("docs/") {
+        score = 3;
+    }
+    score.min(5)
+}
+
+fn concept_note_for(path_rel: &str) -> String {
+    let normalized = path_rel.replace('\\', "/");
+    let leaf = normalized.rsplit('/').next().unwrap_or(path_rel);
+    format!("extract reusable concept from {}", clean(leaf, 120))
+}
+
+fn priority_score(authority: u8, migration: u8, concept: u8) -> f64 {
+    let authority_w = (authority as f64) * 0.5;
+    let migration_w = (migration as f64) * 0.3;
+    let concept_w = (concept as f64) * 0.2;
+    ((authority_w + migration_w + concept_w) * 100.0).round() / 100.0
+}
+
+fn scored_candidate_rows(
+    source_root: &Path,
+    targets: &[String],
+) -> Result<Vec<Value>, String> {
+    let mut paths = Vec::<PathBuf>::new();
+    if !targets.is_empty() {
+        for target in targets {
+            let joined = source_root.join(target);
+            if joined.exists() && joined.is_file() && candidate_extension_allowed(&joined) {
+                paths.push(PathBuf::from(target));
+            }
+        }
+    } else {
+        collect_candidate_paths_recursive(source_root, source_root, 0, 8, &mut paths, 256)?;
+    }
+    if paths.is_empty() {
+        return Err("stomach_scoring_gate_no_candidates".to_string());
+    }
+    paths.sort();
+    paths.dedup();
+
+    let mut rows = paths
+        .iter()
+        .map(|rel| {
+            let path_rel = rel.to_string_lossy().replace('\\', "/");
+            let authority = score_authority_risk(path_rel.as_str());
+            let migration = score_migration_potential(path_rel.as_str());
+            let concept = score_concept_opportunity(path_rel.as_str());
+            json!({
+                "file_path": path_rel,
+                "authority_risk_score": authority,
+                "migration_potential_score": migration,
+                "concept_opportunity_score": concept,
+                "priority_score": priority_score(authority, migration, concept),
+                "state": "queued",
+                "state_history": ["queued"],
+                "concept_note": concept_note_for(rel.to_string_lossy().as_ref()),
+                "evidence_pointer": null
+            })
+        })
+        .collect::<Vec<_>>();
+    rows.sort_by(|a, b| {
+        let ap = a
+            .get("priority_score")
+            .and_then(Value::as_f64)
+            .unwrap_or(0.0);
+        let bp = b
+            .get("priority_score")
+            .and_then(Value::as_f64)
+            .unwrap_or(0.0);
+        let aa = a
+            .get("authority_risk_score")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        let ba = b
+            .get("authority_risk_score")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        bp.partial_cmp(&ap)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| ba.cmp(&aa))
+            .then_with(|| {
+                let al = a.get("file_path").and_then(Value::as_str).unwrap_or("");
+                let bl = b.get("file_path").and_then(Value::as_str).unwrap_or("");
+                al.cmp(bl)
+            })
+    });
+    Ok(rows)
+}
+
+fn write_scoring_gate_ledger(
+    root: &Path,
+    digest_id: &str,
+    source_root: &Path,
+    rows: &[Value],
+    stage: &str,
+) -> Result<PathBuf, String> {
+    let state_root = stomach_state_root(root);
+    let ledger_path = state_root
+        .join("ledgers")
+        .join(format!("{digest_id}_file_scores.json"));
+    let payload = json!({
+        "schema_id": "stomach_file_scoring_ledger",
+        "schema_version": "1.0",
+        "digest_id": digest_id,
+        "source_root": source_root.to_string_lossy().to_string(),
+        "stage": clean(stage, 80),
+        "mandatory_scoring_gate": true,
+        "scored_at": now_iso(),
+        "row_count": rows.len(),
+        "rows": rows
+    });
+    write_json(&ledger_path, &payload)?;
+    Ok(ledger_path)
+}
+
+fn write_scoring_gate_markdown_report(
+    root: &Path,
+    digest_id: &str,
+    rows: &[Value],
+) -> Result<PathBuf, String> {
+    let today = now_iso();
+    let date = today.split('T').next().unwrap_or("unknown-date");
+    let reports_root = root
+        .join("local")
+        .join("workspace")
+        .join("reports");
+    fs::create_dir_all(&reports_root)
+        .map_err(|e| format!("stomach_scoring_report_dir_create_failed:{e}"))?;
+    let report_path = reports_root.join(format!("CODEX_FILE_LEDGER_{date}.md"));
+    let mut out = String::new();
+    out.push_str("# Stomach File Scoring Ledger\n\n");
+    out.push_str(&format!("- digest_id: `{}`\n", clean(digest_id, 120)));
+    out.push_str(&format!("- generated_at: `{}`\n", today));
+    out.push_str("- scoring_gate: mandatory\n\n");
+    out.push_str("| file | authority_risk_score | migration_potential_score | concept_opportunity_score | priority_score | state | evidence |\n");
+    out.push_str("| --- | ---: | ---: | ---: | ---: | --- | --- |\n");
+    for row in rows {
+        let file_path = row.get("file_path").and_then(Value::as_str).unwrap_or("-");
+        let authority = row
+            .get("authority_risk_score")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        let migration = row
+            .get("migration_potential_score")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        let concept = row
+            .get("concept_opportunity_score")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        let priority = row
+            .get("priority_score")
+            .and_then(Value::as_f64)
+            .unwrap_or(0.0);
+        let state = row.get("state").and_then(Value::as_str).unwrap_or("-");
+        let evidence = row
+            .get("evidence_pointer")
+            .and_then(Value::as_str)
+            .unwrap_or("-");
+        out.push_str(&format!(
+            "| `{}` | {} | {} | {} | {:.2} | `{}` | `{}` |\n",
+            file_path, authority, migration, concept, priority, state, evidence
+        ));
+    }
+    fs::write(&report_path, out).map_err(|e| format!("stomach_scoring_report_write_failed:{e}"))?;
+    Ok(report_path)
+}
+
+fn advance_scoring_rows(
+    rows: &mut [Value],
+    evidence_pointer: &str,
+    skipped_reason: Option<&str>,
+) {
+    for row in rows.iter_mut() {
+        let state = if skipped_reason.is_some() {
+            "skipped_with_reason"
+        } else {
+            "done"
+        };
+        let mut history = vec![Value::String("queued".to_string())];
+        history.push(Value::String("in_progress".to_string()));
+        history.push(Value::String(state.to_string()));
+        row["state"] = Value::String(state.to_string());
+        row["state_history"] = Value::Array(history);
+        row["evidence_pointer"] = Value::String(clean(evidence_pointer, 300));
+        if let Some(reason) = skipped_reason {
+            row["skipped_reason"] = Value::String(clean(reason, 160));
+        }
+    }
 }
 
 fn bool_like(raw: &str) -> bool {
@@ -268,9 +582,18 @@ fn run_cycle(root: &Path, argv: &[String]) -> Result<Value, String> {
     let refs = csv_list(parse_flag(argv, "refs"));
     let spdx = parse_flag(argv, "spdx");
     let transform = parse_transform(argv);
+    let scoring_targets = if !transform.target_paths.is_empty() {
+        transform.target_paths.clone()
+    } else {
+        Vec::<String>::new()
+    };
 
     let state_root = stomach_state_root(root);
     ensure_state_dirs(&state_root)?;
+    let mut scoring_rows = scored_candidate_rows(&source_root, scoring_targets.as_slice())?;
+    let scoring_ledger_path =
+        write_scoring_gate_ledger(root, &digest_id, &source_root, &scoring_rows, "preflight_scored")?;
+
     let out = run_stomach_cycle(
         &state_root,
         &digest_id,
@@ -321,6 +644,20 @@ fn run_cycle(root: &Path, argv: &[String]) -> Result<Value, String> {
         &serde_json::to_value(&out.state)
             .map_err(|e| format!("stomach_state_encode_failed:{e}"))?,
     )?;
+    let evidence_pointer = state_root
+        .join("receipts.jsonl")
+        .to_string_lossy()
+        .to_string();
+    advance_scoring_rows(&mut scoring_rows, &evidence_pointer, None);
+    let _ = write_scoring_gate_ledger(
+        root,
+        &digest_id,
+        &source_root,
+        &scoring_rows,
+        "completed",
+    )?;
+    let scoring_report_path =
+        write_scoring_gate_markdown_report(root, &digest_id, &scoring_rows)?;
 
     let receipt_payload = json!({
       "digest_id": digest_id,
@@ -328,11 +665,43 @@ fn run_cycle(root: &Path, argv: &[String]) -> Result<Value, String> {
       "proposal_id": out.proposal.proposal_id,
       "execution_status": out.execution.status,
       "state_status": out.state.status,
-      "cycle_hash": stable_hash(&out)
+      "cycle_hash": stable_hash(&out),
+      "scoring_gate": {
+        "mandatory": true,
+        "ledger_path": scoring_ledger_path.to_string_lossy().to_string(),
+        "report_path": scoring_report_path.to_string_lossy().to_string(),
+        "row_count": scoring_rows.len()
+      }
     });
     let receipt = json_receipt("stomach_kernel_run", receipt_payload);
     append_jsonl(&state_root.join("receipts.jsonl"), &receipt)?;
     Ok(receipt)
+}
+
+fn score_cycle(root: &Path, argv: &[String]) -> Result<Value, String> {
+    let digest_id = parse_flag(argv, "id").unwrap_or_else(|| "stomach-default".to_string());
+    let source_root = parse_flag(argv, "source-root")
+        .map(PathBuf::from)
+        .ok_or_else(|| "stomach_missing_source_root".to_string())?;
+    let targets = csv_list(parse_flag(argv, "targets"));
+    let mut rows = scored_candidate_rows(&source_root, targets.as_slice())?;
+    let evidence_pointer = stomach_state_root(root)
+        .join("receipts.jsonl")
+        .to_string_lossy()
+        .to_string();
+    advance_scoring_rows(&mut rows, &evidence_pointer, Some("score_only_mode"));
+    let ledger_path = write_scoring_gate_ledger(root, &digest_id, &source_root, &rows, "score_only")?;
+    let report_path = write_scoring_gate_markdown_report(root, &digest_id, &rows)?;
+    Ok(json_receipt(
+        "stomach_kernel_score",
+        json!({
+            "digest_id": digest_id,
+            "mandatory_scoring_gate": true,
+            "ledger_path": ledger_path.to_string_lossy().to_string(),
+            "report_path": report_path.to_string_lossy().to_string(),
+            "row_count": rows.len()
+        }),
+    ))
 }
 
 fn status_cycle(root: &Path, argv: &[String]) -> Result<Value, String> {
@@ -503,6 +872,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         }))
     };
     let response = match command.as_str() {
+        "score" => score_cycle(root, &argv[1..]),
         "run" => run_cycle(root, &argv[1..]),
         "status" => status_cycle(root, &argv[1..]),
         "rollback" => rollback_cycle(root, &argv[1..]),
@@ -630,5 +1000,75 @@ mod tests {
             .err()
             .unwrap_or_else(|| "missing_error".to_string());
         assert!(err.contains("lease_denied") || err.contains("delivery_denied"));
+    }
+
+    #[test]
+    fn run_writes_mandatory_scoring_gate_ledger_and_report() {
+        let root = tempdir().expect("tmp");
+        let source = root.path().join("import");
+        fs::create_dir_all(source.join("core")).expect("mkdir");
+        fs::write(
+            source.join("core").join("mod.rs"),
+            "pub fn hello() -> &'static str { \"world\" }\n",
+        )
+        .expect("write source");
+        fs::write(
+            source.join("Cargo.toml"),
+            "[package]\nname=\"x\"\nversion=\"0.1.0\"\n",
+        )
+        .expect("write cargo");
+        fs::write(source.join("LICENSE"), "MIT").expect("license");
+
+        let run_exit = run(
+            root.path(),
+            &[
+                "run".to_string(),
+                "--id=score-demo".to_string(),
+                format!("--source-root={}", source.display()),
+                "--origin=https://github.com/acme/repo".to_string(),
+                "--commit=abc".to_string(),
+                "--spdx=MIT".to_string(),
+            ],
+        );
+        assert_eq!(run_exit, 0);
+
+        let ledger_path = root
+            .path()
+            .join("local/state/stomach/ledgers/score-demo_file_scores.json");
+        assert!(ledger_path.exists(), "expected scoring ledger to exist");
+        let ledger: Value =
+            serde_json::from_str(&fs::read_to_string(&ledger_path).expect("read ledger"))
+                .expect("decode ledger");
+        assert_eq!(
+            ledger
+                .get("mandatory_scoring_gate")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        let rows = ledger
+            .get("rows")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(!rows.is_empty(), "expected scored rows");
+        for row in &rows {
+            assert!(row.get("authority_risk_score").is_some());
+            assert!(row.get("migration_potential_score").is_some());
+            assert!(row.get("concept_opportunity_score").is_some());
+            assert!(row.get("priority_score").is_some());
+            assert_eq!(row.get("state").and_then(Value::as_str), Some("done"));
+            let history = row
+                .get("state_history")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
+            let states = history
+                .iter()
+                .filter_map(Value::as_str)
+                .collect::<Vec<_>>();
+            assert_eq!(states, vec!["queued", "in_progress", "done"]);
+        }
+        let report_glob_root = root.path().join("local/workspace/reports");
+        assert!(report_glob_root.exists(), "expected report root to exist");
     }
 }

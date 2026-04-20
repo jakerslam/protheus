@@ -8,6 +8,8 @@ import { pathToFileURL } from 'node:url';
 import { describe, expect, test } from 'vitest';
 
 const ROOT = process.cwd();
+const CANONICAL_INSTALL_COMMAND =
+  'curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --full';
 
 const wrapperFiles = [
   'client/runtime/systems/autonomy/self_improvement_cadence_orchestrator.ts',
@@ -81,6 +83,18 @@ describe('conduit primitive wrapper contract', () => {
     expect(source.includes('persist_path_for_shell')).toBe(true);
     expect(source.includes('PATH persisted in')).toBe(true);
     expect(source.includes('activate now: .')).toBe(true);
+    expect(source.includes('verify setup: infring setup status --json')).toBe(true);
+    expect(source.includes('verify gateway: infring gateway status')).toBe(true);
+    expect(source.includes('[infring gateway] diagnostics: infring doctor --json')).toBe(true);
+    expect(source.includes('# Recovery hints:')).toBe(true);
+    expect(source.includes('#   . \\"$INFRING_HOME/env.sh\\" && hash -r 2>/dev/null || true')).toBe(true);
+    expect(source.includes('#   cargo --version && rustc --version')).toBe(true);
+    expect(source.includes('#   infring doctor --json')).toBe(true);
+    expect(
+      source.includes(
+        '#   curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --full --install-node',
+      ),
+    ).toBe(true);
     expect(source.includes('run_dashboard_health_smoke')).toBe(true);
     expect(source.includes('use --full to enforce')).toBe(true);
     expect(source.includes('dashboard_ui.log')).toBe(true);
@@ -96,6 +110,289 @@ describe('conduit primitive wrapper contract', () => {
     expect(psSource.includes('function Test-DashboardHealthSmoke')).toBe(true);
     expect(psSource.includes('Full install failed dashboard health smoke.')).toBe(true);
     expect(psSource.includes('Invoke-WebRequest -Uri "http://$Host`:$Port/healthz"')).toBe(true);
+    expect(psSource.includes('"infring.ps1", "infringctl.ps1", "infringd.ps1"')).toBe(true);
+    expect(psSource.includes('[infring shim] missing wrapper $target; using infring-ops.exe infringctl fallback.')).toBe(true);
+    expect(psSource.includes('using infringd.exe gateway fallback.')).toBe(true);
+    expect(psSource.includes('using conduit_daemon.exe gateway fallback.')).toBe(true);
+    expect(psSource.includes('if ($first.ToLowerInvariant() -eq "gateway")')).toBe(true);
+    expect(psSource.includes('$gatewayAction = "start"')).toBe(true);
+    expect(psSource.includes('using infringd.exe fallback.')).toBe(true);
+    expect(psSource.includes('using conduit_daemon.exe fallback.')).toBe(true);
+    expect(psSource.includes('deterministic recovery: infring setup status --json')).toBe(true);
+    expect(psSource.includes('deterministic recovery: infring doctor --json')).toBe(true);
+    expect(psSource.includes('deterministic recovery: rerun install.ps1 with -Repair -Full')).toBe(true);
+    expect(psSource.includes('-File", $psPath')).toBe(true);
+    expect(psSource.includes('function Test-RepairArtifactBroken')).toBe(true);
+    expect(psSource.includes('_repair_archive')).toBe(true);
+    expect(psSource.includes('repair removed broken install artifact')).toBe(true);
+    expect(psSource.includes('repair preserved healthy install artifact')).toBe(true);
+    expect(psSource.includes('repair summary: removed=')).toBe(true);
+    expect(psSource.includes('infring_help')).toBe(true);
+    expect(psSource.includes('infringctl_help')).toBe(true);
+    expect(psSource.includes('infring_status')).toBe(true);
+    expect(psSource.includes('gateway_status')).toBe(true);
+    expect(psSource.includes('dashboard_healthz')).toBe(true);
+  });
+
+  test('installers expose machine-readable success summary contracts', () => {
+    const shellSource = fs.readFileSync(path.join(ROOT, 'install.sh'), 'utf8');
+    const psSource = fs.readFileSync(path.join(ROOT, 'install.ps1'), 'utf8');
+    expect(shellSource.includes('--json')).toBe(true);
+    expect(shellSource.includes('emit_install_success_summary')).toBe(true);
+    expect(shellSource.includes('infring_install_success_summary')).toBe(true);
+    expect(shellSource.includes('summary json:')).toBe(true);
+    expect(psSource.includes('[switch]$Json')).toBe(true);
+    expect(psSource.includes('infring_install_success_summary')).toBe(true);
+    expect(psSource.includes('infring_install_smoke_summary')).toBe(true);
+    expect(psSource.includes('smoke_checks')).toBe(true);
+    expect(psSource.includes('smoke_required_failed')).toBe(true);
+    expect(psSource.includes('last_install_smoke_summary.json')).toBe(true);
+    expect(psSource.includes('smoke summary json:')).toBe(true);
+    expect(psSource.includes('asset_checksum_verification')).toBe(true);
+    expect(psSource.includes('manifest_asset')).toBe(true);
+    expect(psSource.includes('manifest_version')).toBe(true);
+    expect(psSource.includes('summary json:')).toBe(true);
+  });
+
+  test('windows installer enforces release checksum manifest verification for downloaded assets', () => {
+    const psSource = fs.readFileSync(path.join(ROOT, 'install.ps1'), 'utf8');
+    expect(psSource.includes('Load-ReleaseChecksumManifest')).toBe(true);
+    expect(psSource.includes('Verify-DownloadedAsset')).toBe(true);
+    expect(psSource.includes('Get-ExpectedAssetSha256')).toBe(true);
+    expect(psSource.includes('SHA256SUMS')).toBe(true);
+    expect(psSource.includes('asset verification failed: checksum manifest unavailable')).toBe(true);
+    expect(psSource.includes('asset verification failed: checksum mismatch')).toBe(true);
+    expect(psSource.includes('INFRING_INSTALL_ALLOW_UNVERIFIED_ASSETS')).toBe(true);
+    expect(psSource.includes('INFRING_INSTALL_STRICT_PRERELEASE_CHECKSUM')).toBe(true);
+  });
+
+  test('install runtime contract verification covers source/dist mode paths', () => {
+    const shellSource = fs.readFileSync(path.join(ROOT, 'install.sh'), 'utf8');
+    const psSource = fs.readFileSync(path.join(ROOT, 'install.ps1'), 'utf8');
+    expect(shellSource.includes('verify_runtime_contract_for_mode')).toBe(true);
+    expect(shellSource.includes('runtime_entrypoint_exists_for_mode')).toBe(true);
+    expect(psSource.includes('Test-InstallRuntimeManifestContract')).toBe(true);
+    expect(psSource.includes('Test-RuntimeEntrypointForMode')).toBe(true);
+  });
+
+  test('operator runbook maps canonical recovery failure aliases to evidence', () => {
+    const runbook = fs.readFileSync(path.join(ROOT, 'docs/client/OPERATOR_RUNBOOK.md'), 'utf8');
+    expect(runbook.includes('node_runtime_missing')).toBe(true);
+    expect(runbook.includes('dashboard_down')).toBe(true);
+    expect(runbook.includes('stale_launch_artifact')).toBe(true);
+    expect(runbook.includes('command_not_found')).toBe(true);
+    expect(runbook.includes('setup_incomplete')).toBe(true);
+    expect(runbook.includes('gateway_unhealthy')).toBe(true);
+    expect(runbook.includes('doctor_post.json')).toBe(true);
+    expect(runbook.includes('healthz_post.txt')).toBe(true);
+  });
+
+  test('README and Getting Started share canonical full install command contract', () => {
+    const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+    const gettingStarted = fs.readFileSync(path.join(ROOT, 'docs/client/GETTING_STARTED.md'), 'utf8');
+    expect(readme.includes(CANONICAL_INSTALL_COMMAND)).toBe(true);
+    expect(gettingStarted.includes(CANONICAL_INSTALL_COMMAND)).toBe(true);
+    expect(readme.includes('--install-node')).toBe(true);
+    expect(gettingStarted.includes('--install-node')).toBe(true);
+  });
+
+  test('onboarding bootstrap script emits setup outcome and canonical sequence fields', () => {
+    const source = fs.readFileSync(
+      path.join(ROOT, 'tests/tooling/scripts/onboarding/protheus_onboarding_bootstrap.sh'),
+      'utf8',
+    );
+    expect(source.includes('"setup_outcome"')).toBe(true);
+    expect(source.includes('"setup_status_check"')).toBe(true);
+    expect(source.includes('"setup_status_path"')).toBe(true);
+    expect(source.includes('"setup_status_source"')).toBe(true);
+    expect(source.includes('"verification_commands"')).toBe(true);
+    expect(source.includes('"recovery_command_chain"')).toBe(true);
+    expect(source.includes('"artifact_paths"')).toBe(true);
+    expect(source.includes('"failure_snapshot_path"')).toBe(true);
+    expect(source.includes('"role_bootstrap_contract"')).toBe(true);
+    expect(source.includes('"expected_role_outcomes"')).toBe(true);
+    expect(source.includes('"setup_requested"')).toBe(true);
+    expect(source.includes('"canonical_sequence": "install_setup_gateway"')).toBe(true);
+    expect(source.includes('--setup=0|1')).toBe(true);
+    expect(source.includes('infring setup status --json')).toBe(true);
+    expect(source.includes('infring setup --yes --defaults')).toBe(true);
+    expect(source.includes('bootstrap_<role>_failure_snapshot.json')).toBe(false);
+    expect(source.includes('bootstrap_${ROLE}_failure_snapshot.json')).toBe(true);
+  });
+
+  test('setup wizard receipts include deterministic onboarding handoff contract', () => {
+    const source = fs.readFileSync(path.join(ROOT, 'adapters/runtime/protheus_setup_wizard.ts'), 'utf8');
+    expect(source.includes('incomplete_state_setup_handoff_v1')).toBe(true);
+    expect(source.includes('first_run_onboarding_wizard_policy.json')).toBe(true);
+    expect(source.includes('loadFirstRunOnboardingPolicy')).toBe(true);
+    expect(source.includes('incomplete_state_route')).toBe(true);
+    expect(source.includes('incomplete_state_status')).toBe(true);
+    expect(source.includes('status_command')).toBe(true);
+    expect(source.includes('setup_route: incompleteRoute')).toBe(true);
+    expect(source.includes('setup_status_command: statusCommand')).toBe(true);
+    expect(source.includes('retry_command')).toBe(true);
+    expect(source.includes('diagnostics_command')).toBe(true);
+    expect(source.includes('policy:')).toBe(true);
+    expect(source.includes('receipt_contract:')).toBe(true);
+    expect(source.includes('noninteractive_opt_in_required')).toBe(true);
+    expect(source.includes('noninteractive_opt_in_command')).toBe(true);
+    expect(source.includes('dashboard_opt_in_command')).toBe(true);
+    expect(source.includes('dashboard_opt_in_reason')).toBe(true);
+    expect(source.includes('auto_open_dashboard_noninteractive: false')).toBe(true);
+    expect(source.includes('DEFAULT_BEHAVIOR_PROFILE_PRESETS')).toBe(true);
+    expect(source.includes('behavior_profile_preset')).toBe(true);
+    expect(source.includes('behavior_profile_diff')).toBe(true);
+    expect(source.includes('profile_global_path')).toBe(true);
+    expect(source.includes('profile_project_path')).toBe(true);
+    expect(source.includes('project_override')).toBe(true);
+  });
+
+  test('unknown command guard emits deterministic recovery commands and expectations', () => {
+    const source = fs.readFileSync(path.join(ROOT, 'adapters/runtime/protheus_cli_modules.ts'), 'utf8');
+    expect(source.includes('path_reload_command')).toBe(true);
+    expect(source.includes('noninteractive_opt_in_required')).toBe(true);
+    expect(source.includes('noninteractive_opt_in_command')).toBe(true);
+    expect(source.includes('dashboard_opt_in_command')).toBe(true);
+    expect(source.includes('dashboard_opt_in_reason')).toBe(true);
+    expect(source.includes('setup_retry_command')).toBe(true);
+    expect(source.includes('gateway_status_command')).toBe(true);
+    expect(source.includes('gateway_restart_command')).toBe(true);
+    expect(source.includes('full_mode_repair_command')).toBe(true);
+    expect(source.includes('mode_help_reason')).toBe(true);
+    expect(source.includes('mode_valid_commands')).toBe(true);
+    expect(source.includes('runtime_manifest_rel')).toBe(true);
+    expect(source.includes('required_optional_surface_matrix')).toBe(true);
+    expect(source.includes('[infring]   runtime-manifest:')).toBe(true);
+    expect(source.includes('[infring]   mode-valid-commands:')).toBe(true);
+    expect(source.includes('[infring]   noninteractive-opt-in:')).toBe(true);
+    expect(source.includes('[infring]   setup-retry:')).toBe(true);
+    expect(source.includes('[infring]   gateway-restart:')).toBe(true);
+    expect(source.includes('[infring]   dashboard-opt-in:')).toBe(true);
+    expect(source.includes('recovery_contract_version')).toBe(true);
+    expect(source.includes('recovery_step_order')).toBe(true);
+  });
+
+  test('chat bubble/list styles increase readability for compact and terminal surfaces', () => {
+    const bubbles = fs.readFileSync(
+      path.join(
+        ROOT,
+        'client/runtime/systems/ui/infring_static/css/components.css.parts/0005-chat-message-bubbles.part01.css',
+      ),
+      'utf8',
+    );
+    const markdown = fs.readFileSync(
+      path.join(
+        ROOT,
+        'client/runtime/systems/ui/infring_static/css/components.css.parts/0007-chat-meta-controls-and-search.css',
+      ),
+      'utf8',
+    );
+    expect(bubbles.includes('.message-bubble-content')).toBe(true);
+    expect(bubbles.includes('line-height: 1.62;')).toBe(true);
+    expect(bubbles.includes('.message.terminal .message-bubble')).toBe(true);
+    expect(bubbles.includes('line-height: 1.68;')).toBe(true);
+    expect(markdown.includes('.message-bubble.markdown-body ul ul')).toBe(true);
+    expect(markdown.includes('list-style-position: outside;')).toBe(true);
+    expect(markdown.includes('padding-left: 1.45em;')).toBe(true);
+  });
+
+  test('stomach kernel enforces mandatory file scoring gate before run execution', () => {
+    const source = fs.readFileSync(path.join(ROOT, 'core/layer0/ops/src/stomach_kernel.rs'), 'utf8');
+    expect(source.includes('stomach_scoring_gate_no_candidates')).toBe(true);
+    expect(source.includes('authority_risk_score')).toBe(true);
+    expect(source.includes('migration_potential_score')).toBe(true);
+    expect(source.includes('concept_opportunity_score')).toBe(true);
+    expect(source.includes('priority_score')).toBe(true);
+    expect(source.includes('mandatory_scoring_gate')).toBe(true);
+    expect(source.includes('state_history')).toBe(true);
+    expect(source.includes('CODEX_FILE_LEDGER_')).toBe(true);
+    expect(source.includes('stomach_kernel_score')).toBe(true);
+  });
+
+  test('node-runtime-missing fallback includes deterministic setup/gateway/doctor commands', () => {
+    const source = fs.readFileSync(
+      path.join(ROOT, 'core/layer0/ops/src/protheusctl_parts/010-bool-env.rs.parts/020-segment.rs'),
+      'utf8',
+    );
+    expect(source.includes('"mode_help_reason": mode_help_reason')).toBe(true);
+    expect(source.includes('"mode_valid_commands": mode_valid_commands')).toBe(true);
+    expect(source.includes('"mode_unavailable_actions": mode_unavailable_actions_json')).toBe(true);
+    expect(source.includes('Mode-unavailable actions:')).toBe(true);
+    expect(source.includes('"setup_status_command": "infring setup status --json"')).toBe(true);
+    expect(source.includes('"gateway_status_command": "infring gateway status"')).toBe(true);
+    expect(source.includes('"dashboard_open_noninteractive_default": false')).toBe(true);
+    expect(source.includes('"dashboard_opt_in_command": "infring gateway start --dashboard-open=1"')).toBe(
+      true,
+    );
+    expect(source.includes('"doctor_command": "infring doctor --json"')).toBe(true);
+    expect(source.includes('Deterministic recovery path:')).toBe(true);
+    expect(source.includes('Dashboard auto-open is disabled for non-interactive sessions')).toBe(true);
+  });
+
+  test('setup-wizard missing-script fallback includes path/node/toolchain recovery hints', () => {
+    const source = fs.readFileSync(
+      path.join(
+        ROOT,
+        'core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security_parts/000-part.rs',
+      ),
+      'utf8',
+    );
+    expect(source.includes('"path_reload_command": ". \\"$HOME/.infring/env.sh\\" && hash -r 2>/dev/null || true"')).toBe(
+      true,
+    );
+    expect(
+      source.includes(
+        '"node_install_hint": "curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --full --install-node"',
+      ),
+    ).toBe(true);
+    expect(source.includes('"toolchain_check_command": "cargo --version && rustc --version"')).toBe(true);
+    expect(source.includes('Deterministic recovery path:')).toBe(true);
+    expect(source.includes('infring doctor --json')).toBe(true);
+  });
+
+  test('gateway startup checkpoint contract is emitted for start/restart flows', () => {
+    const source = fs.readFileSync(
+      path.join(
+        ROOT,
+        'core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security_parts/002-part.rs',
+      ),
+      'utf8',
+    );
+    expect(source.includes('startup-checkpoint: env_ready')).toBe(true);
+    expect(source.includes('startup-checkpoint: runtime_contract_state=preflight')).toBe(true);
+    expect(source.includes('startup-checkpoint: gateway_command_accepted=')).toBe(true);
+    expect(source.includes('startup-checkpoint: dashboard_status=pending')).toBe(true);
+    expect(source.includes('startup-checkpoint: next_action=infring gateway status')).toBe(true);
+    expect(source.includes('startup-checkpoint: runtime_contract_state=accepted')).toBe(true);
+    expect(source.includes('startup-checkpoint: dashboard_status=running_or_bootstrapping')).toBe(true);
+    expect(source.includes('startup-checkpoint: runtime_contract_state=failed(code=')).toBe(true);
+    expect(source.includes('startup-checkpoint: next_action=infring doctor --json')).toBe(true);
+    expect(source.includes('startup-checkpoint: escalation=infring recover')).toBe(true);
+  });
+
+  test('install doctor recovery hints include setup and gateway status follow-ups', () => {
+    const source = fs.readFileSync(
+      path.join(
+        ROOT,
+        'core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security.combined.rs',
+      ),
+      'utf8',
+    );
+    expect(source.includes('Verify setup state: infring setup status --json')).toBe(true);
+    expect(source.includes('Verify gateway state: infring gateway status')).toBe(true);
+    expect(source.includes('[infring doctor] next-actions:')).toBe(true);
+  });
+
+  test('first-run onboarding policy includes explicit incomplete-state handoff contract', () => {
+    const source = fs.readFileSync(
+      path.join(ROOT, 'client/runtime/config/first_run_onboarding_wizard_policy.json'),
+      'utf8',
+    );
+    expect(source.includes('incomplete_state_handoff')).toBe(true);
+    expect(source.includes('infring setup --yes --defaults')).toBe(true);
+    expect(source.includes('infring setup status --json')).toBe(true);
+    expect(source.includes('"handoff"')).toBe(true);
+    expect(source.includes('"mode_contract"')).toBe(true);
   });
 
   test('install.sh gateway fallback is Rust-first (Node optional legacy only)', () => {
@@ -221,6 +518,12 @@ describe('conduit primitive wrapper contract', () => {
     expect(source.includes('RemoveEntries')).toBe(true);
     expect(source.includes('Normalize-WindowsPathEntry')).toBe(true);
     expect(source.includes('normalized user PATH entries')).toBe(true);
+    expect(source.includes('[infring install] direct-path setup status: $InstallDir\\\\infring.cmd setup status --json')).toBe(
+      true,
+    );
+    expect(source.includes('[infring install] direct-path gateway status: $InstallDir\\\\infring.cmd gateway status')).toBe(
+      true,
+    );
     expect(source.includes('Invoke-SourceFallbackCleanup')).toBe(true);
     expect(source.includes('scheduled background cleanup of source fallback temp dir')).toBe(true);
     expect(source.includes('Install-AllowDirectMsvcBootstrapEnabled')).toBe(true);
@@ -370,6 +673,31 @@ describe('conduit primitive wrapper contract', () => {
     expect(source.includes('msvc_bootstrap_winget_unavailable')).toBe(true);
     expect(source.includes('msvc_bootstrap_direct_disabled')).toBe(true);
     expect(source.includes('msvc_tools_still_missing_after_bootstrap')).toBe(true);
+    expect(
+      source.includes(
+        '[infring install] full-mode onboarding fallback enabled: continuing without local Rust/MSVC runtime build.',
+      ),
+    ).toBe(true);
+    expect(
+      source.includes(
+        '[infring install] onboarding fallback note: `infring`, `infringctl`, and `infring gateway` will run in bootstrap-only mode until runtime binaries are installed.',
+      ),
+    ).toBe(true);
+    expect(
+      source.includes(
+        '[infring install] onboarding fallback: using bootstrap-only gateway shim (runtime binaries unavailable).',
+      ),
+    ).toBe(true);
+    expect(source.includes('[infring bootstrap] full-mode onboarding fallback active (runtime binaries unavailable).')).toBe(
+      true,
+    );
+    expect(
+      source.includes('if not exist "%~dp0infring-ops.exe" if not exist "%~dp0infring-pure-workspace.exe" ('),
+    ).toBe(true);
+    expect(source.includes('"mode":"bootstrap_only"')).toBe(true);
+    expect(source.includes('Write-BootstrapGatewayCmdWrapper')).toBe(true);
+    expect(source.includes('bootstrap_only_mode = [bool]$script:InstallBootstrapOnlyMode')).toBe(true);
+    expect(source.includes('binaries=$binaryInstallStatus')).toBe(true);
     expect(source.includes('source_build_output_missing')).toBe(true);
     expect(source.includes('asset_archive_extract_failed')).toBe(true);
     expect(
@@ -386,11 +714,14 @@ describe('conduit primitive wrapper contract', () => {
       path.join(ROOT, 'docs/workspace/manuals/infring_manual_help_tab.md'),
       'utf8',
     );
+    const canonicalWindowsInstallCommand =
+      'Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; $tmp = Join-Path $env:TEMP "infring-install.ps1"; irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 -OutFile $tmp -ErrorAction Stop; & $tmp -Repair -Full; Remove-Item $tmp -Force -ErrorAction SilentlyContinue';
 
     expect(readme.includes('install.ps1 -OutFile $tmp -ErrorAction Stop')).toBe(true);
     expect(readme.includes('Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force')).toBe(
       true,
     );
+    expect(readme.includes(canonicalWindowsInstallCommand)).toBe(true);
     expect(/& \$tmp(?:\s+-Repair)?\s+-Full/.test(readme)).toBe(true);
     expect(readme.includes('$env:INFRING_INSTALL_REPAIR = "1"')).toBe(true);
     expect(readme.includes('$env:INFRING_INSTALL_FULL = "1"')).toBe(true);
@@ -403,6 +734,7 @@ describe('conduit primitive wrapper contract', () => {
     expect(
       gettingStarted.includes('Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force'),
     ).toBe(true);
+    expect(gettingStarted.includes(canonicalWindowsInstallCommand)).toBe(true);
     expect(/& \$tmp(?:\s+-Repair)?\s+-Full/.test(gettingStarted)).toBe(true);
     expect(gettingStarted.includes('$env:INFRING_INSTALL_REPAIR = "1"')).toBe(true);
     expect(gettingStarted.includes('$env:INFRING_INSTALL_FULL = "1"')).toBe(true);
@@ -415,6 +747,7 @@ describe('conduit primitive wrapper contract', () => {
     expect(manual.includes('Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force')).toBe(
       true,
     );
+    expect(manual.includes(canonicalWindowsInstallCommand)).toBe(true);
     expect(/& \$tmp(?:\s+-Repair)?\s+-Full/.test(manual)).toBe(true);
     expect(manual.includes('$env:INFRING_INSTALL_REPAIR = "1"')).toBe(true);
     expect(manual.includes('$env:INFRING_INSTALL_FULL = "1"')).toBe(true);
@@ -493,6 +826,31 @@ describe('conduit primitive wrapper contract', () => {
       expect(source.includes('TypeScript compatibility shim only.')).toBe(true);
       expect(source.includes(adapterRel)).toBe(true);
     }
+  });
+
+  test('setup wizard and install doctor expose deterministic non-interactive and recovery contracts', () => {
+    const setupSource = fs.readFileSync(
+      path.join(ROOT, 'adapters/runtime/protheus_setup_wizard.ts'),
+      'utf8',
+    );
+    const doctorSource = fs.readFileSync(
+      path.join(
+        ROOT,
+        'core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security.combined.rs',
+      ),
+      'utf8',
+    );
+    const boolEnvSource = fs.readFileSync(
+      path.join(ROOT, 'core/layer0/ops/src/protheusctl_parts/010-bool-env.rs.parts/020-segment.rs'),
+      'utf8',
+    );
+
+    expect(setupSource.includes('noninteractive_opt_in_required')).toBe(true);
+    expect(setupSource.includes('infring setup --yes --defaults')).toBe(true);
+    expect(doctorSource.includes('recovery_hints')).toBe(true);
+    expect(doctorSource.includes('[infring doctor] recovery-hints:')).toBe(true);
+    expect(boolEnvSource.includes('Mode-limited in this profile')).toBe(true);
+    expect(boolEnvSource.includes('Requires full mode + Node.js 22+')).toBe(true);
   });
 
   test('runtime manifest lists resolvable runtime entrypoints', () => {
