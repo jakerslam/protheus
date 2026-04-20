@@ -6,9 +6,9 @@
 The repository has seven top-level product/code roots:
 - `/core` — deterministic core stack (`layer_minus_one`, `layer0`, `layer1`, `layer2`, `layer3`) and trusted low-level logic.
 - `/surface` — orchestration coordination surfaces (request shaping, sequencing, clarification, recovery, packaging) that do not canonize truth.
-- `/client` — developer-facing platform, SDKs, CLI, dashboards, and thin wrappers.
+- `/client` — shell surface path (developer-facing platform, SDKs, CLI, dashboards, and thin wrappers).
 - `/packages` — public SDK/package distribution surfaces, starter bundles, and installable developer-facing wrappers.
-- `/apps` — end-user applications built on top of the client/platform surface.
+- `/apps` — end-user applications built on top of the shell/platform surface.
 - `/adapters` — integration shims for external apps, services, and systems that were not originally designed for InfRing.
 - `/tests` — integration, end-to-end, regression, and system verification surfaces.
 
@@ -21,7 +21,7 @@ Placement is decided by authority before language.
 
 - If a surface decides, enforces, records, budgets, schedules, or guards system truth, it belongs in `core`.
 - If a surface performs non-canonical orchestration coordination (classification, clarification, sequencing, progress/recovery packaging), it belongs in `surface/orchestration`.
-- If a surface exists to help developers call, inspect, visualize, package, or extend the system, it belongs in `client`.
+- If a surface exists to help developers call, inspect, visualize, package, or extend the system, it belongs in the shell path `client`.
 - If a surface exists to ship the public SDK/package layer to developers, it belongs in `packages`.
 - If a surface is an opinionated workflow/product on top of the platform, it belongs in `apps`.
 - If a surface exists to connect InfRing to something external, legacy, or third-party, it belongs in `adapters`.
@@ -44,7 +44,7 @@ Placement is decided by authority before language.
   Traditional OS growth surface (process/VFS/drivers/syscalls/namespaces/network/userland isolation).
 
 - **Cognition Plane (Unnumbered)** — `/surface/orchestration/` + `/client/`  
-  Orchestration Surface in `surface/orchestration/` for non-canonical execution coordination; Presentation Client in `client/` for UX and interaction shells.
+  Orchestration Surface in `surface/orchestration/` for non-canonical execution coordination; Presentation Shell (compat alias: Client) in `client/` for UX and interaction shells.
 
 ### 2.1 Orchestration Surface Contract
 Orchestration Surface code must be limited to:
@@ -55,8 +55,8 @@ Orchestration Surface code must be limited to:
 
 Orchestration Surface must not canonize truth, persist private durable workflow state, or bypass core ingress contracts.
 
-### 2.2 Client Scope Contract (Developer-Only Surface)
-Client code must be limited to:
+### 2.2 Shell Scope Contract (Developer-Only Surface, repo path `client/`)
+Shell code must be limited to:
 1. SDK/wrapper surfaces that call orchestration/core through conduit/lanes.
 2. Developer experience tooling (CLI, templates, local orchestrators, diagnostics).
 3. Developer-visible interfaces (observability UI, dashboards, docs, runbooks).
@@ -68,7 +68,7 @@ Safety, policy, receipts, and system-truth authority remain in core.
 Packages are the public distribution layer for InfRing-facing SDKs and starter surfaces.
 
 - Packages may be polyglot.
-- Packages may depend on stable `client` SDK/CLI/runtime-entry surfaces.
+- Packages may depend on stable shell SDK/CLI/runtime-entry surfaces (repo path `client`).
 - Packages must not own policy, receipts, or canonical state.
 - If a package starts making authority decisions, it is misplaced and must move into `core`.
 
@@ -76,7 +76,7 @@ Packages are the public distribution layer for InfRing-facing SDKs and starter s
 Apps are not part of the platform core and are allowed to be more opinionated.
 
 - Apps may be polyglot.
-- Apps may depend on `client` SDK/CLI/UI surfaces.
+- Apps may depend on shell SDK/CLI/UI surfaces (repo path `client`).
 - Apps must not become the canonical owner of policy, receipts, or core state.
 - Apps should consume public platform contracts, not private core internals.
 

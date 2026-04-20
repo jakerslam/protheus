@@ -3,20 +3,21 @@
 InfRing is built as a Rust-first deterministic core with an explicit split between:
 - Authoritative Core (`core/**`)
 - Orchestration Control Plane (`surface/orchestration/**`)
-- Presentation Client (`client/**`)
+- Presentation Shell (compat alias: Client, repo path `client/**`)
 
 Canonical architecture contract:
 - `docs/SYSTEM-ARCHITECTURE-SPECS.md` (InfRing Layering Specification v1.0)
-- `docs/workspace/orchestration_ownership_policy.md` (Core/Orchestration/Client boundary policy)
+- `docs/workspace/orchestration_ownership_policy.md` (Core/Orchestration/Shell boundary policy)
 
 Boundary axiom:
 - Core decides what is true and allowed.
 - Orchestration decides what should happen next.
-- Client decides how it is shown and collected.
+- Shell decides how it is shown and collected.
 
 Transition note (docs-first):
 - The architecture now defines orchestration as the Cognition Control Plane.
 - Internal code/path naming transitions remain incremental; existing `orchestration` identifiers stay valid compatibility aliases until migration is complete.
+- Shell/client terminology transition notes: `docs/workspace/shell_transition_notes.md`.
 
 ## InfRing Direction
 
@@ -39,12 +40,12 @@ InfRing is explicitly modeled as a substrate-independent metakernel with three p
    - `core/layer3/` - OS Personality Template (traditional OS growth layer)
 2. Cognition plane (`planes/cognition`, implemented across `surface/orchestration/` and `client/`):
    - Orchestration Control Plane: decomposition, coordination, sequencing, recovery, and result shaping/packaging (among other things in non-canonical coordination).
-   - Presentation Client: rendering, input, UX shells, and presentation-local state.
+   - Presentation Shell (compat alias: Client): rendering, input, UX shells, and presentation-local state.
 3. Substrate plane (`planes/substrate`): runtime/backend descriptors for CPU/MCU/GPU/NPU/QPU/neural channels with explicit degradation contracts and fallback declarations.
 
 Hard boundary:
 - AI can propose; kernel authority decides.
-- Client <-> core communication is conduit + scrambler only.
+- Shell <-> core communication is conduit + scrambler only.
 - Every substrate must declare fallback/degradation behavior.
 
 Formal contract surfaces:
@@ -67,7 +68,7 @@ Driver analogy:
 
 - `core/` is the drivetrain, brakes, and stability control.
 - `surface/orchestration/` is the driving control plane (decomposition + pacing + recovery + packaging).
-- `client/` is the steering wheel, dashboard, and infotainment.
+- `client/` is the shell surface (steering wheel, dashboard, and infotainment).
 - Conduit is the harness between orchestration and core boundaries.
 
 REQ-27 authority implementation:
@@ -75,7 +76,7 @@ REQ-27 authority implementation:
 - Importance scoring engine: `core/layer0/ops/src/importance.rs`
 - Priority ordering + queue metadata: `core/layer0/ops/src/attention_queue.rs`
 - Layer2 initiative primitives (score/action/priority queue shaping): `core/layer2/execution/src/initiative.rs`
-- Regression guard (no subconscious authority in client): `client/runtime/systems/ops/subconscious_boundary_guard.ts`
+- Regression guard (no subconscious authority in shell): `client/runtime/systems/ops/subconscious_boundary_guard.ts`
 - Cockpit + layer wrapper delta requirements: `docs/client/requirements/REQ-33-cockpit-stream-and-layer-wrappers.md`
 
 Migration note:
@@ -94,21 +95,21 @@ Migration note:
 | Plane | Contract Location | Implementation Location | Mutable Runtime Location |
 |---|---|---|---|
 | Safety | `planes/safety/` | `core/layer_minus_one/`, `core/layer0/`, `core/layer1/`, `core/layer2/`, `core/layer3/` | `core/local/` |
-| Cognition | `planes/cognition/` | `surface/orchestration/` (coordination) + `client/` (`systems`, `lib`, `config`, `packages`, `tools`, `tests`, `observability`, `apps`, `developer`) | `client/runtime/local/` + `core/local/` (receipted orchestration artifacts) |
+| Cognition | `planes/cognition/` | `surface/orchestration/` (coordination) + `client/` (shell runtime path: `systems`, `lib`, `config`, `packages`, `tools`, `tests`, `observability`, `apps`, `developer`) | `client/runtime/local/` + `core/local/` (receipted orchestration artifacts) |
 | Substrate | `planes/substrate/` | Template adapters in `core/layer_minus_one/` + capability descriptors under `planes/substrate/` | `core/local/` + `client/runtime/local/` |
 
 Additional split rules:
 
-- Source of truth code: `core/`, `surface/orchestration/`, and `client/`.
-- Runtime/user/device/instance data: `client/runtime/local/` and `core/local/` only.
+- Source of truth code: `core/`, `surface/orchestration/`, and the shell path `client/`.
+- Runtime/user/device/instance data: shell runtime path `client/runtime/local/` and `core/local/` only.
 - Legacy compatibility links are disabled by default. Canonical runtime roots are direct:
-  - `client/runtime/local/*` for client runtime data
+  - `client/runtime/local/*` for shell runtime data
   - `core/local/*` for core runtime data
 
 ## Direct Wiring Policy
 
 - Deprecated compat surfaces (`client/runtime/state`, root `state/`, root `local/`) are not valid runtime paths.
-- Client wrappers must call core through conduit/scrambler only; no policy authority exists in TS compatibility shells.
+- Shell wrappers must call core through conduit/scrambler only; no policy authority exists in TS compatibility shells.
 - Migration tooling may provide one-time compatibility options, but defaults are direct to canonical roots.
 - Canonical path constants are centralized in:
   - TS: `client/runtime/lib/runtime_path_registry.ts`
@@ -160,7 +161,7 @@ Context guard:
 
 ## Low-Burn Reflexes
 
-Client cognition exposes a compact reflex set for frequent operations under strict output caps:
+Shell cognition (repo path `client/cognition/**`) exposes a compact reflex set for frequent operations under strict output caps:
 
 - Registry/runner: `client/cognition/reflexes/index.ts`
 - Reflexes: `read_snippet`, `write_quick`, `summarize_brief`, `git_status`, `memory_lookup`
@@ -172,7 +173,7 @@ Repository root is curated by contract, not by visual minimalism alone.
 
 Canonical source and product roots are still:
 
-- source/runtime authorities (`core/`, `surface/`, `client/`, `adapters/`, `apps/`, `packages/`, `planes/`, `tests/`)
+- source/runtime authorities (`core/`, `surface/`, shell path `client/`, `adapters/`, `apps/`, `packages/`, `planes/`, `tests/`)
 - documentation and governance (`README.md`, `ARCHITECTURE.md`, `docs/`, licenses, roadmap/governance files)
 - build/bootstrap/operator metadata (`Cargo.toml`, `package.json`, lockfiles, CI/deploy manifests, `setup/`, `xtask/`)
 
@@ -184,7 +185,7 @@ The live root also contains managed support zones that are intentionally tolerat
 
 The governing rule is:
 
-- canonical source authority stays inside `core/`, `surface/`, `client/`, `adapters/`, `tests/`, and deletable `apps/`
+- canonical source authority stays inside `core/`, `surface/`, shell path `client/`, `adapters/`, `tests/`, and deletable `apps/`
 - per-instance runtime state belongs under `client/runtime/local/` and `core/local/`
 - root-level support zones are allowed only when they are explicitly covered by the root-surface contract or tracked as deprecated debt
 
@@ -204,7 +205,7 @@ flowchart TB
     L3["Layer 3: OS Personality Template"]
     CONDUIT["Conduit + Scrambler"]
     ORCH["Cognition Plane (Orchestration Control Plane)"]
-    UI["Presentation Client Surface"]
+    UI["Presentation Shell Surface"]
     CLI["Operator Surface (infring/infringctl/infringd)"]
     RECEIPTS["Deterministic Receipts + State Artifacts"]
 
@@ -230,7 +231,7 @@ Runtime subsystem ownership, interfaces, failure modes, and lane links are track
 
 ## Runtime Flow
 
-1. A command enters from CLI or Presentation Client.
+1. A command enters from CLI or the Presentation Shell.
 2. Orchestration Control Plane decomposes, coordinates, sequences, recovers, and shapes/packages results through explicit contracts.
 3. Conduit normalizes the core-bound request into a typed envelope.
 4. Layer 3 maps envelope into deterministic execution intents.
