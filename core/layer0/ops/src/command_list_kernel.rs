@@ -89,6 +89,16 @@ const COMMANDS: &[CommandItem] = &[
         unsafe_surface: false,
     },
     CommandItem {
+        synopsis:
+            "recover [--dashboard-host=127.0.0.1] [--dashboard-port=4173] [--wait-max=90]",
+        desc: "Run deterministic runtime recovery (stop/restart/revalidate) in one command.",
+        tier: CommandTier::Tier1,
+        handler: CommandHandlerKind::CoreDomain,
+        script_rel: "core://daemon-control",
+        read_only: false,
+        unsafe_surface: false,
+    },
+    CommandItem {
         synopsis: "status",
         desc: "Show daemon/control-plane status.",
         tier: CommandTier::Tier1,
@@ -161,7 +171,7 @@ const COMMANDS: &[CommandItem] = &[
         unsafe_surface: false,
     },
     CommandItem {
-        synopsis: "stack <create|list|archive|tail-merge|tail-promote|render|batch-class|scheduler-check|status|policy>",
+        synopsis: "stack <create|list|archive|tail-merge|tail-promote|render|batch-class|scheduler-check|node-spike|contract-verify|taste-tune|partial-merge|hybrid-retrieve|status|policy>",
         desc: "Manage context stacks for cacheable memory grouping.",
         tier: CommandTier::Experimental,
         handler: CommandHandlerKind::CoreDomain,
@@ -440,6 +450,11 @@ const TIER1_ROUTE_CONTRACTS: &[Tier1RouteContract] = &[
         expected_script: "core://daemon-control",
     },
     Tier1RouteContract {
+        cmd: "recover",
+        rest: &[],
+        expected_script: "core://daemon-control",
+    },
+    Tier1RouteContract {
         cmd: "dashboard",
         rest: &["status"],
         expected_script: "core://daemon-control",
@@ -482,10 +497,6 @@ const COMMAND_ALIASES: &[CommandAlias] = &[
         canonical: "help",
     },
     CommandAlias {
-        alias: "dashboard-ui",
-        canonical: "dashboard",
-    },
-    CommandAlias {
         alias: "boot",
         canonical: "gateway",
     },
@@ -500,6 +511,10 @@ const COMMAND_ALIASES: &[CommandAlias] = &[
     CommandAlias {
         alias: "restart",
         canonical: "gateway",
+    },
+    CommandAlias {
+        alias: "repair",
+        canonical: "recover",
     },
     CommandAlias {
         alias: "kairos",

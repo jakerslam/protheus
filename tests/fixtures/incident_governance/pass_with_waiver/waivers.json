@@ -1,0 +1,12 @@
+{
+  "waivers": [
+    {
+      "waiver_id": "W-ACTIVE-001",
+      "check_ids": ["process_doc_contract"],
+      "reason": "temporary transition while process doc is being republished",
+      "approver": "@release_owner",
+      "expires_at": "2099-01-01T00:00:00Z",
+      "status": "active"
+    }
+  ]
+}

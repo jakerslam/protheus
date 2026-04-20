@@ -6,6 +6,76 @@ fn cron_workspace_mirror_path(workspace_root: &Path) -> PathBuf {
     workspace_root.join("config/infring_assimilation/cron/jobs.json")
 }
 
+fn canonicalize_path(path: &Path) -> String {
+    fs::canonicalize(path)
+        .unwrap_or_else(|_| path.to_path_buf())
+        .to_string_lossy()
+        .to_string()
+}
+
+fn stale_workspace_root_refs(workspace_root: &Path) -> Vec<Value> {
+    let active = canonicalize_path(workspace_root);
+    let mut rows = Vec::<Value>::new();
+    for key in ["INFRING_WORKSPACE_ROOT", "PROTHEUS_WORKSPACE_ROOT"] {
+        let Ok(raw) = env::var(key) else {
+            continue;
+        };
+        let trimmed = raw.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let resolved = canonicalize_path(Path::new(trimmed));
+        if resolved != active {
+            rows.push(json!({
+                "env": key,
+                "configured": clean_text(trimmed, 500),
+                "resolved": clean_text(&resolved, 500),
+                "active": clean_text(&active, 500),
+            }));
+        }
+    }
+    rows
+}
+
+fn runtime_required_asset_misses(workspace_root: &Path) -> usize {
+    crate::command_list_kernel::tier1_runtime_entrypoints()
+        .iter()
+        .filter(|rel| {
+            let rel = rel.trim();
+            let direct = workspace_root.join(rel);
+            if direct.exists() {
+                return false;
+            }
+            if rel.ends_with(".ts") {
+                return !workspace_root
+                    .join(format!("{}{}", rel.trim_end_matches(".ts"), ".js"))
+                    .exists();
+            }
+            if rel.ends_with(".js") {
+                return !workspace_root
+                    .join(format!("{}{}", rel.trim_end_matches(".js"), ".ts"))
+                    .exists();
+            }
+            true
+        })
+        .count()
+}
+
+fn doctor_check_ok(doctor: &Value, id: &str) -> Option<bool> {
+    doctor
+        .get("checks")
+        .and_then(Value::as_array)
+        .and_then(|rows| {
+            rows.iter().find_map(|row| {
+                if row.get("id").and_then(Value::as_str) == Some(id) {
+                    row.get("ok").and_then(Value::as_bool)
+                } else {
+                    None
+                }
+            })
+        })
+}
+
 fn run_cron_drift(control_runtime_root: &Path, workspace_root: &Path) -> Value {
     let runtime = cron_runtime_jobs_path(control_runtime_root);
     let mirror = cron_workspace_mirror_path(workspace_root);
@@ -52,6 +122,8 @@ fn run_cron_sync(control_runtime_root: &Path, workspace_root: &Path) -> Result<V
 fn run_doctor(control_runtime_root: &Path, workspace_root: &Path, parsed: &crate::ParsedArgs) -> Value {
     let routing = run_smoke_routing(control_runtime_root, parsed);
     let cron = run_cron_drift(control_runtime_root, workspace_root);
+    let required_asset_misses = runtime_required_asset_misses(workspace_root);
+    let stale_roots = stale_workspace_root_refs(workspace_root);
     let checks = vec![
         json!({
             "id": "routing_smoke",
@@ -67,6 +139,21 @@ fn run_doctor(control_runtime_root: &Path, workspace_root: &Path, parsed: &crate
             "id": "agent_state_exists",
             "ok": state_path(control_runtime_root, parsed).exists(),
             "detail": state_path(control_runtime_root, parsed).to_string_lossy().to_string()
+        }),
+        json!({
+            "id": "runtime_required_assets",
+            "ok": required_asset_misses == 0,
+            "detail": {
+                "required_asset_misses": required_asset_misses
+            }
+        }),
+        json!({
+            "id": "stale_workspace_root_refs",
+            "ok": stale_roots.is_empty(),
+            "detail": {
+                "count": stale_roots.len(),
+                "rows": stale_roots
+            }
         }),
     ];
     let ok = checks
@@ -189,15 +276,23 @@ fn run_fail_playbook(
 ) -> Value {
     let doctor = run_doctor(control_runtime_root, workspace_root, parsed);
     let mut actions = Vec::<String>::new();
-    if doctor.pointer("/checks/0/ok").and_then(Value::as_bool) == Some(false) {
+    if doctor_check_ok(&doctor, "routing_smoke") == Some(false) {
         actions.push("Run: infring smoke-routing".to_string());
         actions.push("Then: infring sync-allowed-models".to_string());
     }
-    if doctor.pointer("/checks/1/ok").and_then(Value::as_bool) == Some(false) {
+    if doctor_check_ok(&doctor, "cron_in_sync") == Some(false) {
         actions.push("Run: infring cron-sync".to_string());
     }
-    if doctor.pointer("/checks/2/ok").and_then(Value::as_bool) == Some(false) {
+    if doctor_check_ok(&doctor, "agent_state_exists") == Some(false) {
         actions.push("Run: infring state-write --payload='{\"task\":\"bootstrap\"}'".to_string());
+    }
+    if doctor_check_ok(&doctor, "runtime_required_assets") == Some(false) {
+        actions.push("Run: infringctl verify-install --json".to_string());
+        actions.push("Then: infring update --repair --full".to_string());
+    }
+    if doctor_check_ok(&doctor, "stale_workspace_root_refs") == Some(false) {
+        actions.push("Run: unset INFRING_WORKSPACE_ROOT PROTHEUS_WORKSPACE_ROOT".to_string());
+        actions.push("Then: rerun infring recover".to_string());
     }
     with_receipt(json!({
         "ok": true,

@@ -1,3 +1,44 @@
+fn detect_parent_lineage_loop(
+    state: &SwarmState,
+    start_parent_id: Option<&str>,
+    max_hops: usize,
+) -> Option<Value> {
+    let mut current = start_parent_id.map(ToString::to_string);
+    let mut visited = BTreeSet::new();
+    let mut lineage = Vec::new();
+    let mut hops = 0usize;
+
+    while let Some(session_id) = current {
+        hops = hops.saturating_add(1);
+        if hops > max_hops.max(1) {
+            return Some(json!({
+                "detected": true,
+                "reason": "cost_guard_exceeded",
+                "max_hops": max_hops.max(1),
+                "hops": hops,
+                "lineage": lineage,
+            }));
+        }
+        if !visited.insert(session_id.clone()) {
+            lineage.push(session_id.clone());
+            return Some(json!({
+                "detected": true,
+                "reason": "cycle_detected",
+                "cycle_at": session_id,
+                "hops": hops,
+                "lineage": lineage,
+            }));
+        }
+        lineage.push(session_id.clone());
+        current = state
+            .sessions
+            .get(&session_id)
+            .and_then(|session| session.parent_id.clone());
+    }
+
+    None
+}
+
 fn spawn_single(
     state: &mut SwarmState,
     parent_id: Option<&str>,
@@ -5,6 +46,24 @@ fn spawn_single(
     max_depth: u8,
     options: &SpawnOptions,
 ) -> Result<Value, String> {
+    if let Some(loop_guard) = detect_parent_lineage_loop(
+        state,
+        parent_id,
+        (state.scale_policy.max_depth_hard as usize).saturating_mul(2),
+    ) {
+        append_event(
+            state,
+            json!({
+                "type": "swarm_spawn_loop_guard_blocked",
+                "task": task,
+                "parent_id": parent_id,
+                "diagnostics": loop_guard,
+                "timestamp": now_iso(),
+            }),
+        );
+        return Err("lineage_cycle_detected".to_string());
+    }
+
     let request_received_ms = now_epoch_ms();
     let depth = ensure_spawn_capacity(state, parent_id, max_depth)?;
 
@@ -26,6 +85,7 @@ fn spawn_single(
     } else {
         task.to_string()
     };
+    let role_card = resolve_spawn_role_card(options, &scaled_task)?;
     let tool_plan = estimate_tool_plan(&scaled_task, effective_budget);
     let mut budget_telemetry = effective_budget.map(|max_tokens| {
         BudgetTelemetry::new(
@@ -76,7 +136,8 @@ fn spawn_single(
                     failed_metadata.budget_telemetry = Some(telemetry.clone());
                     failed_metadata.scaled_task = Some(scaled_task.clone());
                     failed_metadata.budget_action_taken = budget_action_taken.clone();
-                    failed_metadata.role = options.role.clone();
+                    failed_metadata.role = Some(role_card.role.clone());
+                    failed_metadata.role_card = Some(role_card.clone());
                     failed_metadata.agent_label = options.agent_label.clone();
                     failed_metadata.budget_parent_session_id = budget_parent_session_id.clone();
                     failed_metadata.budget_reservation_tokens = budget_reservation_tokens;
@@ -152,7 +213,8 @@ fn spawn_single(
     metadata.budget_telemetry = budget_telemetry.clone();
     metadata.scaled_task = Some(scaled_task.clone());
     metadata.budget_action_taken = budget_action_taken.clone();
-    metadata.role = options.role.clone();
+    metadata.role = Some(role_card.role.clone());
+    metadata.role_card = Some(role_card.clone());
     metadata.agent_label = options.agent_label.clone();
     metadata.budget_parent_session_id = budget_parent_session_id;
     metadata.budget_reservation_tokens = budget_reservation_tokens;
@@ -161,8 +223,8 @@ fn spawn_single(
     register_service_instance(
         state,
         &session_id,
-        options.role.clone(),
-        options.capabilities.clone(),
+        Some(role_card.role.clone()),
+        role_card.capability_envelope.clone(),
     );
 
     if let Some(parent) = parent_id {
@@ -198,9 +260,11 @@ fn spawn_single(
             "type": "swarm_spawn",
             "session_id": session_id,
             "parent_id": parent_id,
+            "lineage_parent_id": parent_id,
             "depth": depth,
             "task": task,
             "scaled_task": scaled_task.clone(),
+            "role_card": role_card,
             "verified": options.verify,
             "byzantine": options.byzantine,
             "token_budget": options.token_budget,
@@ -252,6 +316,7 @@ fn spawn_single(
         "metrics": metrics.as_json(),
         "budget_report": budget_telemetry.map(|telemetry| telemetry.generate_report()),
         "auto_publish_result": auto_publish_receipt,
+        "role_card": state.sessions.get(&session_id).and_then(|session| session.role_card.clone()),
         "session_state": {
             "session_id": session_id,
             "session_key": session_key(&session_id),
@@ -276,7 +341,81 @@ fn recursive_spawn_with_tracking(
     let mut lineage = Vec::new();
     let mut current_parent = parent_id.map(ToString::to_string);
     let mut level = 0u8;
+    let mut visited_parent_chain = BTreeSet::new();
+    let mut loop_guard = json!({
+        "triggered": false,
+        "reason": "none",
+    });
+    let traversal_limit = (levels as usize).saturating_mul(4).max(8);
+    let mut traversal_cost = 0usize;
     while level < levels {
+        traversal_cost = traversal_cost.saturating_add(1);
+        if traversal_cost > traversal_limit {
+            loop_guard = json!({
+                "triggered": true,
+                "reason": "cost_guard_exceeded",
+                "traversal_limit": traversal_limit,
+                "traversal_cost": traversal_cost,
+                "lineage_count": lineage.len(),
+            });
+            append_event(
+                state,
+                json!({
+                    "type": "swarm_recursive_loop_guard_triggered",
+                    "reason": "cost_guard_exceeded",
+                    "task": task,
+                    "parent_id": parent_id,
+                    "lineage_count": lineage.len(),
+                    "timestamp": now_iso(),
+                }),
+            );
+            break;
+        }
+        if let Some(parent) = current_parent.as_ref() {
+            if !visited_parent_chain.insert(parent.clone()) {
+                loop_guard = json!({
+                    "triggered": true,
+                    "reason": "cycle_detected",
+                    "cycle_at": parent,
+                    "lineage_count": lineage.len(),
+                });
+                append_event(
+                    state,
+                    json!({
+                        "type": "swarm_recursive_loop_guard_triggered",
+                        "reason": "cycle_detected",
+                        "cycle_at": parent,
+                        "task": task,
+                        "parent_id": parent_id,
+                        "lineage_count": lineage.len(),
+                        "timestamp": now_iso(),
+                    }),
+                );
+                break;
+            }
+            if let Some(parent_guard) =
+                detect_parent_lineage_loop(state, Some(parent.as_str()), traversal_limit)
+            {
+                loop_guard = json!({
+                    "triggered": true,
+                    "reason": "lineage_cycle_guard_blocked",
+                    "diagnostics": parent_guard.clone(),
+                });
+                append_event(
+                    state,
+                    json!({
+                        "type": "swarm_recursive_loop_guard_triggered",
+                        "reason": "lineage_cycle_guard_blocked",
+                        "task": task,
+                        "parent_id": parent_id,
+                        "diagnostics": parent_guard,
+                        "lineage_count": lineage.len(),
+                        "timestamp": now_iso(),
+                    }),
+                );
+                break;
+            }
+        }
         let spawned = spawn_single(state, current_parent.as_deref(), task, max_depth, options)?;
         let child = spawned
             .get("session_id")
@@ -290,6 +429,8 @@ fn recursive_spawn_with_tracking(
 
     Ok(json!({
         "recursive": true,
+        "terminated_safely": loop_guard.get("triggered").and_then(Value::as_bool).unwrap_or(false),
+        "loop_guard": loop_guard,
         "levels": levels,
         "lineage": lineage,
         "final_session_id": current_parent,

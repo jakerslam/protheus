@@ -101,6 +101,12 @@ function toMarkdown(payload: any): string {
   lines.push(
     `- runtime_block_freshness_contract_failures: ${payload.summary.runtime_block_freshness_contract_failures}`,
   );
+  lines.push(
+    `- runtime_sync_freshness_contract_failures: ${payload.summary.runtime_sync_freshness_contract_failures}`,
+  );
+  lines.push(
+    `- runtime_sync_freshness_summary_consistent: ${payload.summary.runtime_sync_freshness_summary_consistent}`,
+  );
   lines.push('');
   lines.push('## UI Roots');
   if (!payload.ui_roots.length) lines.push('- none');
@@ -115,6 +121,17 @@ function toMarkdown(payload: any): string {
     lines.push('- none');
   } else {
     for (const row of payload.runtime_block_freshness_contract) {
+      lines.push(
+        `- ${row.id}: ok=${row.ok};source=${row.has_source};source_sequence=${row.has_source_sequence};age_seconds=${row.has_age_seconds};stale=${row.has_stale}`,
+      );
+    }
+  }
+  lines.push('');
+  lines.push('## Runtime Sync Freshness Contract');
+  if (!payload.runtime_sync_freshness_contract?.length) {
+    lines.push('- none');
+  } else {
+    for (const row of payload.runtime_sync_freshness_contract) {
       lines.push(
         `- ${row.id}: ok=${row.ok};source=${row.has_source};source_sequence=${row.has_source_sequence};age_seconds=${row.has_age_seconds};stale=${row.has_stale}`,
       );
@@ -194,10 +211,74 @@ function run(argv: string[]): number {
   });
   const runtimeFreshnessContractMissing = runtimeFreshnessContractRows.filter((row) => !row.ok);
   const runtimeSync = snapshot?.runtime_sync ?? null;
+  const runtimeSyncFreshness = runtimeSync?.freshness ?? null;
+  const runtimeSyncFreshnessContractRows = ['cockpit', 'attention_status', 'attention_next'].map(
+    (id) => {
+      const row = runtimeSyncFreshness?.[id] ?? null;
+      const source = typeof row?.source === 'string' ? String(row.source).trim() : '';
+      const sourceSequenceRaw =
+        typeof row?.source_sequence === 'string' && row.source_sequence.trim().length > 0
+          ? String(row.source_sequence).trim()
+          : typeof row?.sequence === 'string' && row.sequence.trim().length > 0
+            ? String(row.sequence).trim()
+            : '';
+      const ageSecondsRaw = Number.isFinite(Number(row?.age_seconds))
+        ? Number(row.age_seconds)
+        : Number.isFinite(Number(row?.age_ms))
+          ? Math.max(0, Number(row.age_ms) / 1000)
+          : NaN;
+      const staleValue = typeof row?.stale === 'boolean' ? row.stale : null;
+      const hasSource = source.length > 0;
+      const hasSequence = sourceSequenceRaw.length > 0;
+      const hasAgeSeconds = Number.isFinite(ageSecondsRaw);
+      const hasStale = typeof staleValue === 'boolean';
+      const ok = hasSource && hasSequence && hasAgeSeconds && hasStale;
+      return {
+        id,
+        ok,
+        has_source: hasSource,
+        has_source_sequence: hasSequence,
+        has_age_seconds: hasAgeSeconds,
+        has_stale: hasStale,
+        normalized_source_sequence: sourceSequenceRaw,
+        normalized_age_seconds: hasAgeSeconds ? Number(ageSecondsRaw.toFixed(3)) : null,
+        normalized_stale: staleValue,
+      };
+    },
+  );
+  const runtimeSyncFreshnessContractMissing = runtimeSyncFreshnessContractRows.filter(
+    (row) => !row.ok,
+  );
+  const runtimeSyncFreshnessSummary = runtimeSyncFreshness?.summary ?? null;
+  const normalizedStaleSurfaces = runtimeSyncFreshnessContractRows.filter(
+    (row) => row.normalized_stale === true,
+  ).length;
+  const summarySurfaceCount = Number.isFinite(Number(runtimeSyncFreshnessSummary?.surface_count))
+    ? Number(runtimeSyncFreshnessSummary.surface_count)
+    : NaN;
+  const summaryStaleSurfaces = Number.isFinite(
+    Number(runtimeSyncFreshnessSummary?.stale_surfaces),
+  )
+    ? Number(runtimeSyncFreshnessSummary.stale_surfaces)
+    : NaN;
+  const summaryStale =
+    typeof runtimeSyncFreshnessSummary?.stale === 'boolean'
+      ? runtimeSyncFreshnessSummary.stale
+      : null;
+  const runtimeSyncFreshnessSummaryConsistent =
+    Number.isFinite(summarySurfaceCount) &&
+    summarySurfaceCount >= runtimeSyncFreshnessContractRows.length &&
+    Number.isFinite(summaryStaleSurfaces) &&
+    summaryStaleSurfaces === normalizedStaleSurfaces &&
+    typeof summaryStale === 'boolean' &&
+    summaryStale === (normalizedStaleSurfaces > 0);
   const runtimeSyncContractOk =
     Boolean(runtimeSync) &&
     Number.isFinite(Number(runtimeSync?.queue_depth)) &&
-    typeof runtimeSync?.freshness_stale === 'boolean';
+    typeof runtimeSync?.freshness_stale === 'boolean' &&
+    runtimeSyncFreshnessContractRows.length > 0 &&
+    runtimeSyncFreshnessContractMissing.length === 0 &&
+    runtimeSyncFreshnessSummaryConsistent;
   const primaryRootPresent = uiRoots.includes(PRIMARY_ROOT_NAME);
   const ok =
     fs.existsSync(PRIMARY_ROOT) &&
@@ -235,8 +316,18 @@ function run(argv: string[]): number {
       runtime_blocks: runtimeBlocks.length,
       runtime_sync_contract_ok: runtimeSyncContractOk,
       runtime_block_freshness_contract_failures: runtimeFreshnessContractMissing.length,
+      runtime_sync_freshness_contract_failures: runtimeSyncFreshnessContractMissing.length,
+      runtime_sync_freshness_summary_consistent: runtimeSyncFreshnessSummaryConsistent,
     },
     runtime_block_freshness_contract: runtimeFreshnessContractRows,
+    runtime_sync_freshness_contract: runtimeSyncFreshnessContractRows,
+    runtime_sync_freshness_summary: {
+      surface_count: summarySurfaceCount,
+      stale_surfaces: summaryStaleSurfaces,
+      stale: summaryStale,
+      normalized_stale_surfaces: normalizedStaleSurfaces,
+      consistent: runtimeSyncFreshnessSummaryConsistent,
+    },
   };
 
   writeTextArtifact(args.outMarkdown, toMarkdown(payload));

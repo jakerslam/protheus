@@ -10,6 +10,7 @@ import { emitStructuredResult, writeTextArtifact } from '../../lib/result.ts';
 type PackManifest = {
   version: number;
   artifact_groups?: Record<string, string[]>;
+  category_completeness_min?: Record<string, number>;
   required_artifacts: string[];
   optional_artifacts: string[];
 };
@@ -86,8 +87,15 @@ function markdown(report: any): string {
   lines.push('');
   lines.push('## Category summary');
   for (const group of report.category_summary) {
+    const threshold =
+      report?.category_completeness_min &&
+      Object.prototype.hasOwnProperty.call(report.category_completeness_min, group.category)
+        ? Number(report.category_completeness_min[group.category])
+        : null;
     lines.push(
-      `- ${group.category}: present=${group.present}/${group.total};required_missing=${group.required_missing}`,
+      `- ${group.category}: present=${group.present}/${group.total};required=${group.required_present}/${group.required_total};required_missing=${group.required_missing};required_completeness=${group.required_completeness.toFixed(
+        3,
+      )}${threshold == null ? '' : `;required_min=${threshold.toFixed(3)}`}`,
     );
   }
   lines.push('');
@@ -134,29 +142,57 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   }
 
   const requiredMissing = artifactRows.filter((row) => row.required && !row.exists).map((row) => row.path);
+  const categoryCompletenessMin = manifest.category_completeness_min || {};
   const categories = Array.from(new Set(artifactRows.map((row) => row.category)));
   const categorySummary = categories.map((category) => {
     const rows = artifactRows.filter((row) => row.category === category);
     const present = rows.filter((row) => row.exists).length;
-    const requiredMissingCount = rows.filter((row) => row.required && !row.exists).length;
+    const requiredRows = rows.filter((row) => row.required);
+    const requiredPresent = requiredRows.filter((row) => row.exists).length;
+    const requiredMissingCount = requiredRows.length - requiredPresent;
+    const requiredCompleteness = requiredRows.length <= 0 ? 1 : requiredPresent / requiredRows.length;
     return {
       category,
       total: rows.length,
       present,
+      required_total: requiredRows.length,
+      required_present: requiredPresent,
       required_missing: requiredMissingCount,
+      required_completeness: requiredCompleteness,
     };
   });
+  const categoryThresholdFailures = Object.entries(categoryCompletenessMin)
+    .map(([category, thresholdRaw]) => {
+      const threshold = Number(thresholdRaw);
+      if (!Number.isFinite(threshold)) return null;
+      const summary = categorySummary.find((row) => row.category === category);
+      const actual = summary ? Number(summary.required_completeness) : 0;
+      const ok = !!summary && actual + Number.EPSILON >= threshold;
+      return {
+        id: 'proof_pack_category_completeness_below_threshold',
+        category,
+        threshold,
+        actual,
+        ok,
+        detail: `${category}: actual=${actual.toFixed(3)};required_min=${threshold.toFixed(3)}`,
+      };
+    })
+    .filter((row): row is { id: string; category: string; threshold: number; actual: number; ok: boolean; detail: string } => !!row)
+    .filter((row) => !row.ok);
+  const pass = requiredMissing.length === 0 && categoryThresholdFailures.length === 0;
 
   const packManifest = {
-    ok: requiredMissing.length === 0,
+    ok: pass,
     type: 'release_proof_pack_manifest',
     generated_at: new Date().toISOString(),
     revision: currentRevision(root),
     version: args.version,
     pack_root: packRoot,
     source_manifest_path: args.manifestPath,
+    category_completeness_min: categoryCompletenessMin,
     artifacts: artifactRows,
     required_missing: requiredMissing,
+    category_threshold_failures: categoryThresholdFailures,
     category_summary: categorySummary,
   };
 
@@ -168,7 +204,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   writeTextArtifact(reportPath, markdown({ ...packManifest, summary: { required_missing: requiredMissing.length } }));
 
   const report = {
-    ok: requiredMissing.length === 0,
+    ok: pass,
     type: 'release_proof_pack_assemble',
     generated_at: new Date().toISOString(),
     revision: currentRevision(root),
@@ -178,11 +214,17 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     summary: {
       artifact_count: artifactRows.length,
       required_missing: requiredMissing.length,
-      pass: requiredMissing.length === 0,
+      category_threshold_failure_count: categoryThresholdFailures.length,
+      pass,
     },
+    category_completeness_min: categoryCompletenessMin,
     artifacts: artifactRows,
     category_summary: categorySummary,
-    failures: requiredMissing.map((detail) => ({ id: 'proof_pack_required_artifact_missing', detail })),
+    category_threshold_failures: categoryThresholdFailures,
+    failures: [
+      ...requiredMissing.map((detail) => ({ id: 'proof_pack_required_artifact_missing', detail })),
+      ...categoryThresholdFailures.map((row) => ({ id: row.id, detail: row.detail })),
+    ],
     artifact_paths: [packManifestPath, reportPath],
   };
 

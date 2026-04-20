@@ -19,7 +19,7 @@ Covers:
 2. If unsafe behavior is live, engage kill switch first:
 `node client/runtime/systems/security/emergency_stop.ts engage --scope=all --approval-note="contain incident"`
 3. Run core contract guards:
-`node client/runtime/systems/spine/contract_check.ts`
+`node client/runtime/systems/spine/contract_check_bridge.ts`
 `node client/runtime/systems/security/schema_contract_check.ts run`
 `node client/runtime/systems/sensory/adaptive_layer_guard.ts run --strict`
 
@@ -28,6 +28,117 @@ Expected artifacts:
 - `state/security/emergency_stop.json`
 - `state/autonomy/runs/YYYY-MM-DD.jsonl`
 - `state/autonomy/receipts/YYYY-MM-DD.jsonl`
+
+## First-Run Failure Decision Tree (Install/Setup/Gateway)
+
+Use this deterministic path for first-run issues before deeper incident lanes:
+
+1. `infring` command not found
+- Reload PATH:
+` . "$HOME/.infring/env.sh" && hash -r 2>/dev/null || true`
+- Verify:
+`infring --help`
+- Direct-path fallback:
+`"$HOME/.infring/bin/infring" --help`
+
+2. Setup not completed / onboarding pending
+- Run:
+`infring setup --yes --defaults`
+- Verify:
+`infring setup status --json`
+
+3. Gateway/dashboard unavailable
+- Check:
+`infring gateway status`
+- Restart:
+`infring gateway restart`
+- Verify health:
+`curl -fsS http://127.0.0.1:4173/healthz`
+
+4. Stale root/path drift
+- Diagnose:
+`infring doctor --json`
+- Confirm active root aligns with `INFRING_WORKSPACE_ROOT` (and compatibility alias `PROTHEUS_WORKSPACE_ROOT`) for this workspace.
+
+5. Full command surface unavailable due to missing Node
+- Reinstall full with Node bootstrap:
+`curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --full --install-node`
+- If full surface is not required, use constrained runtime mode (`--pure` / `--tiny-max`).
+
+### Deterministic Failure-Code Mapping
+
+| failure_code | check | expected output | immediate recovery |
+| --- | --- | --- | --- |
+| `command_not_found` | `infring --help` | Canonical wrapper help output | Reload env, then run direct wrapper path |
+| `setup_incomplete` | `infring setup status --json` | `onboarding_receipt.status` = `incomplete` plus mode/workspace | `infring setup --yes --defaults`, then re-check status |
+| `gateway_unhealthy` | `infring gateway status` + `/healthz` | Deterministic gateway contract + health endpoint response | `infring gateway restart`, then verify `/healthz` |
+| `stale_workspace_root` | `infring doctor --json` | Root/path drift fields explicitly present | Align workspace root env vars and rerun doctor |
+| `full_surface_dependency_missing` | Full install with `--install-node` | Runtime wrappers and full-surface dependencies installed | Retry onboarding bootstrap for current role |
+
+## Failure Artifact Quick Reference
+
+Capture these artifacts on first-run failures:
+
+- Onboarding receipts:
+  - `local/state/ops/onboarding_portal/bootstrap_<role>.json`
+  - `local/state/ops/onboarding_portal/bootstrap_<role>.txt`
+  - `local/state/ops/onboarding_portal/bootstrap_<role>_failure_snapshot.json` (on failure)
+- Setup wizard state:
+  - `local/state/ops/protheus_setup_wizard/latest.json`
+  - `local/state/ops/first_run_onboarding_wizard/latest.json`
+- Installer/runtime logs:
+  - `$HOME/.infring/logs/dashboard_ui.log`
+  - `$HOME/.infring/logs/dashboard_watchdog.log`
+- Recovery commands to record:
+  - `infring gateway status`
+  - `infring gateway restart`
+  - `infring doctor --json`
+  - `curl -fsS http://127.0.0.1:4173/healthz`
+
+## Repair Evidence Checklist (Deterministic)
+
+Use this checklist before and after repair actions so incidents have a complete artifact chain.
+
+1. Capture pre-repair machine state:
+`infring doctor --json > local/state/ops/repair_evidence/doctor_pre.json`
+2. Capture setup/runtime state:
+`infring setup status --json > local/state/ops/repair_evidence/setup_status_pre.json`
+3. Capture gateway state:
+`infring gateway status > local/state/ops/repair_evidence/gateway_status_pre.txt`
+4. Execute repair chain:
+`infring gateway restart`
+5. Capture post-repair machine state:
+`infring doctor --json > local/state/ops/repair_evidence/doctor_post.json`
+6. Capture post-repair gateway health:
+`curl -fsS http://127.0.0.1:4173/healthz > local/state/ops/repair_evidence/healthz_post.txt`
+
+Expected artifact IDs per repair:
+
+- `doctor_pre.json`
+- `setup_status_pre.json`
+- `gateway_status_pre.txt`
+- `doctor_post.json`
+- `healthz_post.txt`
+
+Common breakage states and required evidence:
+
+1. `command_not_found`:
+- PATH resolution proof (`infring --help` output, direct wrapper fallback output)
+2. `setup_incomplete`:
+- `infring setup status --json` pre/post
+3. `gateway_unhealthy`:
+- `infring gateway status` pre/post and `/healthz` post-restart
+4. `stale_workspace_root`:
+- `infring doctor --json` root/path findings pre/post
+
+Canonical recovery-mode aliases (for test/automation parity):
+
+1. `node_runtime_missing`:
+- Alias of `command_not_found` in first-run recovery context.
+2. `dashboard_down`:
+- Alias of `gateway_unhealthy` (requires gateway status + `/healthz` evidence).
+3. `stale_launch_artifact`:
+- Alias of `stale_workspace_root` (requires doctor pre/post root-path evidence).
 
 ## Incident 1: Routing Degraded
 
@@ -73,7 +184,7 @@ Symptoms:
 Diagnose:
 
 1. `node client/runtime/systems/security/schema_contract_check.ts run`
-2. `node client/runtime/systems/spine/contract_check.ts`
+2. `node client/runtime/systems/spine/contract_check_bridge.ts`
 3. `node client/runtime/systems/sensory/adaptive_layer_guard.ts run --strict`
 
 Containment:

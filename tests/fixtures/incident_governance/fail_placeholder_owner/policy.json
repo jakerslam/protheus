@@ -1,0 +1,106 @@
+{
+  "hard_gates": {
+    "severity_taxonomy": {
+      "required_levels": ["P0", "P1", "P2", "P3"],
+      "definitions": {
+        "P0": "critical",
+        "P1": "high",
+        "P2": "medium",
+        "P3": "low"
+      }
+    },
+    "ownership_map": {
+      "required_roles": [
+        "incident_commander",
+        "ops_oncall",
+        "runtime_owner",
+        "adapter_owner",
+        "dashboard_owner",
+        "release_owner"
+      ],
+      "lanes": {
+        "runtime_authority": "runtime_owner",
+        "adapter_fail_closed": "adapter_owner",
+        "dashboard_freshness": "dashboard_owner",
+        "release_governance": "release_owner",
+        "incident_command": "incident_commander"
+      }
+    },
+    "escalation_sla_minutes": {
+      "P0": { "ack": 5, "escalate": 10, "update_cadence": 15 },
+      "P1": { "ack": 10, "escalate": 20, "update_cadence": 30 },
+      "P2": { "ack": 30, "escalate": 60, "update_cadence": 120 },
+      "P3": { "ack": 120, "escalate": 240, "update_cadence": 480 }
+    },
+    "rollback_criteria": {
+      "must_define": [
+        "integrity_violation_detected",
+        "error_budget_burn_rate_exceeded",
+        "fail_closed_contract_breach",
+        "unbounded_resource_growth",
+        "operator_unrecoverable_state"
+      ]
+    },
+    "post_incident_artifacts": {
+      "required": [
+        "incident_timeline",
+        "impact_assessment",
+        "root_cause",
+        "corrective_actions",
+        "evidence_bundle",
+        "owner_signoff"
+      ]
+    }
+  },
+  "policy_contract": {
+    "communication_templates": {
+      "required_templates": [
+        "initial_alert",
+        "status_update",
+        "mitigation_started",
+        "rollback_notice",
+        "resolved",
+        "postmortem_ready"
+      ]
+    },
+    "deployment_checklist": {
+      "required_items": [
+        "scope_declared",
+        "risk_level_declared",
+        "rollback_plan_linked",
+        "owner_acknowledged",
+        "observer_assigned"
+      ]
+    },
+    "reporting_format": {
+      "required_sections": [
+        "summary",
+        "severity_and_scope",
+        "timeline",
+        "actions_taken",
+        "residual_risk",
+        "followups"
+      ]
+    },
+    "script_output_conventions": {
+      "required_fields": [
+        "status",
+        "reason_code",
+        "artifact_path",
+        "next_action",
+        "owner",
+        "severity"
+      ]
+    }
+  },
+  "process_contract": {
+    "required_headings": [
+      "1. Intake and Classification",
+      "2. Ownership and Escalation",
+      "3. Containment and Rollback Decision",
+      "4. Communication Cadence",
+      "5. Resolution and Verification",
+      "6. Post-Incident Closure"
+    ]
+  }
+}

@@ -7,7 +7,7 @@
 - Integrity kernel state (`client/runtime/systems/security/integrity_kernel.ts`)
 - Startup attestation freshness (`client/runtime/systems/security/startup_attestation.ts`)
 - Deployment hardening gate (`client/runtime/systems/ops/deployment_packaging.ts`)
-- Contract surface stability (`client/runtime/systems/spine/contract_check.ts`)
+- Contract surface stability (`client/runtime/systems/spine/contract_check_bridge.ts`)
 
 For framework-depth reporting (SOC2/ISO/NIST) and control inventory completeness, use:
 `node client/runtime/systems/ops/compliance_reports.ts framework-readiness --framework=all`

@@ -161,6 +161,28 @@ struct ContextStacksState {
     provider_snapshots: Vec<ProviderSnapshot>,
     delta_tails: Vec<DeltaTail>,
     batch_classes: Vec<BatchClass>,
+    #[serde(default)]
+    taste_vectors: std::collections::BTreeMap<String, f64>,
+    #[serde(default)]
+    partial_merge_events: Vec<Value>,
+    #[serde(default)]
+    hybrid_retrieval_events: Vec<Value>,
+    #[serde(default)]
+    node_spike_thresholds: std::collections::BTreeMap<String, f64>,
+    #[serde(default)]
+    node_spike_events: Vec<Value>,
+    #[serde(default)]
+    node_spike_queue: Vec<Value>,
+    #[serde(default)]
+    node_spike_metrics: Value,
+    #[serde(default)]
+    merge_feedback_events: Vec<Value>,
+    #[serde(default)]
+    skill_performance_ledger: std::collections::BTreeMap<String, Value>,
+    #[serde(default)]
+    speculative_overlays: Vec<SpeculativeOverlayExecution>,
+    #[serde(default)]
+    speculative_overlay_receipts: Vec<Value>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -171,6 +193,23 @@ struct SchedulerEdgeCaseDecision {
     cache_read_input_tokens: u64,
     seed_then_fanout: bool,
     breakpoint_mode: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+struct SpeculativeOverlayExecution {
+    overlay_id: String,
+    stack_id: String,
+    base_semantic_snapshot_id: String,
+    proposed_semantic_snapshot: SemanticSnapshot,
+    patch: Value,
+    status: String,
+    verity_required: bool,
+    verity_approved: bool,
+    approval_note: Option<String>,
+    created_at: String,
+    updated_at: String,
+    merged_at: Option<String>,
+    rolled_back_at: Option<String>,
 }
 
 fn clean(raw: impl AsRef<str>, max_len: usize) -> String {

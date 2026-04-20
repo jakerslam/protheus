@@ -1017,7 +1017,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V3-RACE-360 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Socket Admission Proof Gate (Formal + Redteam + HostProfile Chaos Validation) |
 | V3-RACE-361 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Offline R Analytics Runner + Research Organ Best-Fit Integration |
 | V3-RACE-CONF-001 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Open Platform Path-Contract Compatibility Pack (`platform/` artifacts) |
-| V3-RACE-CONF-002 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Legacy Path Alias Adapters (`client/runtime/systems/state/event_stream.ts`, `client/runtime/systems/autogenesis/*`) |
+| V3-RACE-CONF-002 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Legacy Path Alias Adapters (`client/runtime/systems/state/event_stream_bridge.ts`, `client/runtime/systems/autogenesis/*`) |
 | V3-RACE-CONF-003 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Requirement Conformance Matrix + Gate (`external prompt -> canonical lane`) |
 | V3-RACE-CONF-004 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Rust Memory Path-Contract Compatibility (`core/memory` alias docs/client/wrappers) |
 | V3-RACE-CONF-005 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] N-API Build Surface Compatibility Contract (`build:memory`/postinstall expectations) |

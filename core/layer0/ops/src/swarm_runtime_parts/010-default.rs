@@ -3,7 +3,7 @@
 use crate::{deterministic_receipt_hash, now_iso};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
@@ -88,6 +88,8 @@ struct SwarmState {
     #[serde(default)]
     scheduled_tasks: BTreeMap<String, ScheduledTask>,
     #[serde(default)]
+    plan_registry: BTreeMap<String, SwarmPlanGraph>,
+    #[serde(default)]
     events: Vec<Value>,
     #[serde(default)]
     message_sequence: u64,
@@ -118,11 +120,100 @@ impl Default for SwarmState {
             exactly_once_dedupe: BTreeMap::new(),
             dead_letters: Vec::new(),
             scheduled_tasks: BTreeMap::new(),
+            plan_registry: BTreeMap::new(),
             events: Vec::new(),
             message_sequence: 0,
             scale_policy: SwarmScalePolicy::default(),
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct SwarmPlanGraph {
+    plan_id: String,
+    goal: String,
+    supervisor_session_id: String,
+    root_node_id: String,
+    status: String,
+    recursion_depth_limit: u8,
+    created_at: String,
+    updated_at: String,
+    #[serde(default)]
+    active_node_id: Option<String>,
+    #[serde(default)]
+    nodes: BTreeMap<String, SwarmPlanNode>,
+    #[serde(default)]
+    checkpoints: BTreeMap<String, PlanCheckpoint>,
+    #[serde(default)]
+    branch_gates: BTreeMap<String, BranchGateState>,
+    #[serde(default)]
+    merge_history: Vec<Value>,
+    #[serde(default)]
+    speaker_stats: BTreeMap<String, SpeakerStats>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct SwarmPlanNode {
+    node_id: String,
+    #[serde(default)]
+    parent_id: Option<String>,
+    task: String,
+    status: String,
+    depth: u8,
+    #[serde(default)]
+    assignee_session_id: Option<String>,
+    #[serde(default)]
+    children: Vec<String>,
+    #[serde(default)]
+    summary: Option<String>,
+    #[serde(default)]
+    checkpoint_id: Option<String>,
+    #[serde(default)]
+    branch_state: Option<String>,
+    updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct PlanCheckpoint {
+    checkpoint_id: String,
+    node_id: String,
+    state: Value,
+    created_at: String,
+    resumable: bool,
+    version: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct BranchGateState {
+    node_id: String,
+    requires_user: bool,
+    status: String,
+    #[serde(default)]
+    decision: Option<String>,
+    timeout_ms: u64,
+    auto_path: String,
+    #[serde(default)]
+    decided_at_ms: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct SpeakerStats {
+    session_id: String,
+    role: String,
+    #[serde(default)]
+    expertise_tags: Vec<String>,
+    #[serde(default)]
+    last_spoke_ms: Option<u64>,
+    turns: u64,
+    score: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct RoleCard {
+    role: String,
+    goal: String,
+    capability_envelope: Vec<String>,
+    source: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -151,6 +242,8 @@ struct SessionMetadata {
     budget_action_taken: Option<String>,
     #[serde(default)]
     role: Option<String>,
+    #[serde(default)]
+    role_card: Option<RoleCard>,
     #[serde(default)]
     agent_label: Option<String>,
     #[serde(default = "default_session_tool_access")]
@@ -252,6 +345,7 @@ fn session_metadata_base(
         scaled_task: None,
         budget_action_taken: None,
         role: None,
+        role_card: None,
         agent_label: None,
         tool_access: default_session_tool_access(),
         context_vars: BTreeMap::new(),

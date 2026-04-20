@@ -4,7 +4,8 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const ts = require('typescript');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
+const ts = require('typescript');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 if (!require.extensions['.ts']) {
   require.extensions['.ts'] = function compileTs(module, filename) {
@@ -87,7 +88,9 @@ function main() {
   assert.equal(plan.additions.length, 1);
   assert.match(plan.additions[0].title, /^\[Campaign]/);
 
-  assertNoPlaceholderOrPromptLeak({ campaigns, summary, plan }, 'strategy_campaign_scheduler_rust_bridge_test');\n  assertStableToolingEnvelope(summary, 'strategy_campaign_scheduler_rust_bridge_test');\n  console.log(JSON.stringify({ ok: true, type: 'strategy_campaign_scheduler_rust_bridge_test' }));
+  assertNoPlaceholderOrPromptLeak({ campaigns, summary, plan }, 'strategy_campaign_scheduler_rust_bridge_test');
+  assertStableToolingEnvelope(summary, 'strategy_campaign_scheduler_rust_bridge_test');
+  console.log(JSON.stringify({ ok: true, type: 'strategy_campaign_scheduler_rust_bridge_test' }));
 }
 
 try {

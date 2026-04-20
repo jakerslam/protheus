@@ -117,6 +117,23 @@ protheusctl alerts list --active
 protheusctl emergency restart --system [name]
 ```
 
+## InfRing precheck to action mapping (runtime/gateway)
+
+Use this deterministic map before ad-hoc debugging:
+
+| Symptom (precheck) | Immediate action | Escalation if still failing |
+|---|---|---|
+| Dashboard health endpoint down (`/healthz` unreachable) | `infring recover --dashboard-host=127.0.0.1 --dashboard-port=4173` | `infring gateway status --dashboard-host=127.0.0.1 --dashboard-port=4173` then collect daemon logs |
+| Required runtime assets missing (`infringctl verify-install --json`) | `infring update --repair --full` | rerun `infringctl verify-install --json` and open incident with output artifact |
+| Stale workspace-root env reference detected | `unset INFRING_WORKSPACE_ROOT PROTHEUS_WORKSPACE_ROOT` then `infring recover` | if mismatch persists, pin the correct root and re-run verify-install |
+| Gateway route drift (`gateway status` route mismatch) | `infring update --repair --full` | run `infringctl doctor --json` and attach route mismatch rows |
+
+Recovery evidence to capture for incident artifacts:
+
+- `infringctl verify-install --json` output
+- `infring gateway status --dashboard-host=127.0.0.1 --dashboard-port=4173`
+- Dashboard health probe result: `http://127.0.0.1:4173/healthz`
+
 ## Document History
 
 | Date | Version | Author | Changes |

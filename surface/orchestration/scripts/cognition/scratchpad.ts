@@ -2,9 +2,7 @@
 'use strict';
 
 const path = require('node:path');
-const { parseArgs, invokeOrchestration } = require('./core_bridge.ts');
-
-const ROOT = path.resolve(__dirname, '..', '..', '..');
+const { ROOT, parseArgs, invokeOrchestration } = require('./core_bridge.ts');
 const DEFAULT_SCRATCHPAD_DIR = path.join(ROOT, 'local', 'workspace', 'scratchpad');
 const TASK_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$/;
 const SCHEMA_VERSION = 'scratchpad/v1';

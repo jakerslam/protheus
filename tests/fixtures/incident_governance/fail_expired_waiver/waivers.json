@@ -1,0 +1,12 @@
+{
+  "waivers": [
+    {
+      "waiver_id": "W-EXPIRED-001",
+      "check_ids": ["process_doc_contract"],
+      "reason": "temporary migration",
+      "approver": "@release_owner",
+      "expires_at": "2026-01-01T00:00:00Z",
+      "status": "active"
+    }
+  ]
+}

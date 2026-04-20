@@ -327,6 +327,13 @@ fn intro_text_for_role(role: &str, display_name: &str) -> String {
     if role_key.contains("research") || role_key.contains("investig") {
         return format!("Hi, I'm {name}. What should we research first?");
     }
+    if role_key.contains("planner")
+        || role_key.contains("plan")
+        || role_key.contains("strategy")
+        || role_key.contains("roadmap")
+    {
+        return format!("Hi, I'm {name}. What should we plan first?");
+    }
     if role_key.contains("analyst") || role_key.contains("analysis") || role_key.contains("data") {
         return format!("Hi, I'm {name}. What should we analyze first?");
     }
@@ -335,6 +342,9 @@ fn intro_text_for_role(role: &str, display_name: &str) -> String {
     }
     if role_key.contains("design") || role_key.contains("ui") || role_key.contains("ux") {
         return format!("Hi, I'm {name}. What should we design first?");
+    }
+    if role_key.contains("support") || role_key.contains("helpdesk") {
+        return format!("Hi, I'm {name}. How can I help first?");
     }
     format!("Hi, I'm {name}. What are we working on today?")
 }

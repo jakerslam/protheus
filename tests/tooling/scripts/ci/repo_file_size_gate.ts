@@ -149,6 +149,7 @@ function toMarkdown(payload) {
   lines.push(`- oversized: ${payload.summary.oversized}`);
   lines.push(`- exempted: ${payload.summary.exempted}`);
   lines.push(`- violations: ${payload.summary.violations}`);
+  lines.push(`- decomposition_required_800_plus: ${payload.summary.decomposition_required_800_plus}`);
   lines.push(`- strict: ${payload.summary.strict}`);
   lines.push('');
   if (payload.violations.length) {
@@ -170,7 +171,42 @@ function toMarkdown(payload) {
       `| ${row.path} | ${row.lines} | ${row.cap} | ${row.status} | ${row.expires || ''} |`,
     );
   }
+  lines.push('');
+  if (Array.isArray(payload.decomposition_action_plan) && payload.decomposition_action_plan.length) {
+    lines.push('## 800+ Line Decomposition Action Plan');
+    lines.push('| Path | Lines | Cap | Priority | Module Boundary Plan | Blocker |');
+    lines.push('| --- | ---: | ---: | --- | --- | --- |');
+    for (const row of payload.decomposition_action_plan) {
+      lines.push(
+        `| ${row.path} | ${row.lines} | ${row.cap} | ${row.priority} | ${row.module_boundary_plan} | ${row.blocker} |`,
+      );
+    }
+  }
   return `${lines.join('\n')}\n`;
+}
+
+function decompositionPlanFor(path, lines, cap, status) {
+  const ext = (path.match(/\.([^.]+)$/) || [])[1] || '';
+  let moduleBoundaryPlan = 'Split by source module boundaries (state, io, validation, orchestration) into sibling shards.';
+  if (path.includes('.parts/')) {
+    moduleBoundaryPlan =
+      'Split this oversized part shard into additional numbered part files by one responsibility per shard.';
+  } else if (ext === 'rs') {
+    moduleBoundaryPlan =
+      'Extract helper contracts and execution branches into sibling *_parts/*.rs modules and keep the entry shim thin.';
+  } else if (ext === 'ts' || ext === 'tsx') {
+    moduleBoundaryPlan =
+      'Extract route/parser/runtime slices into *.parts shards with one ownership boundary each.';
+  }
+  return {
+    path,
+    lines,
+    cap,
+    status,
+    priority: lines >= 1200 ? 'p0' : 'p1',
+    blocker: 'no_feature_expansion_until_decomposed',
+    module_boundary_plan: moduleBoundaryPlan,
+  };
 }
 
 function main() {
@@ -291,6 +327,9 @@ function main() {
   }
 
   oversizedInventory.sort((a, b) => b.lines - a.lines || a.path.localeCompare(b.path));
+  const decompositionActionPlan = oversizedInventory
+    .filter((row) => row.lines >= 800)
+    .map((row) => decompositionPlanFor(row.path, row.lines, row.cap, row.status));
   const payload = {
     ok: violations.length === 0,
     type: 'repo_file_size_gate',
@@ -307,9 +346,11 @@ function main() {
       oversized: oversizedInventory.length,
       exempted,
       violations: violations.length,
+      decomposition_required_800_plus: decompositionActionPlan.length,
     },
     violations,
     oversized_inventory: oversizedInventory,
+    decomposition_action_plan: decompositionActionPlan,
   };
 
   ensureParent(args.outJson);

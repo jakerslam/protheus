@@ -181,7 +181,9 @@ fn build_spawn_options(argv: &[String]) -> SpawnOptions {
         BudgetAction::from_flag(parse_flag(argv, "on-budget-exhausted"));
     options.adaptive_complexity = parse_bool_flag(argv, "adaptive-complexity", false);
     options.execution_mode = parse_execution_mode(argv);
-    options.role = parse_flag(argv, "role");
+    options.role = parse_flag(argv, "role")
+        .map(|value| clean_text(&value, 64))
+        .filter(|value| !value.trim().is_empty());
     options.capabilities = parse_capabilities(argv);
     options.auto_publish_results = parse_bool_flag(argv, "auto-publish-results", false);
     options.agent_label = parse_flag(argv, "agent-label")
@@ -207,6 +209,74 @@ fn parse_capabilities(argv: &[String]) -> Vec<String> {
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default()
+}
+
+fn sanitize_capability_label(raw: &str) -> Option<String> {
+    let lowered = raw
+        .trim()
+        .to_ascii_lowercase()
+        .replace([' ', '/'], "_")
+        .replace('.', "_");
+    if lowered.is_empty() {
+        return None;
+    }
+    lowered
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-'))
+        .then_some(lowered)
+}
+
+fn default_role_capability_envelope(role: &str) -> Vec<String> {
+    match role {
+        "coordinator" => vec![
+            "delegate".to_string(),
+            "audit".to_string(),
+            "summarize".to_string(),
+        ],
+        "validator" => vec!["validate".to_string(), "audit".to_string()],
+        "generator" => vec!["generate".to_string(), "relay".to_string()],
+        "filter" => vec!["filter".to_string()],
+        "summarizer" => vec!["summarize".to_string()],
+        _ => vec!["execute".to_string(), "report".to_string()],
+    }
+}
+
+fn resolve_spawn_role_card(options: &SpawnOptions, goal: &str) -> Result<RoleCard, String> {
+    let role = options
+        .role
+        .clone()
+        .map(|value| clean_text(&value, 64).to_ascii_lowercase().replace(' ', "_"))
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "worker".to_string());
+
+    let mut capability_set = BTreeSet::new();
+    for capability in &options.capabilities {
+        if let Some(normalized) = sanitize_capability_label(capability) {
+            capability_set.insert(normalized);
+        }
+    }
+    if capability_set.is_empty() {
+        for capability in default_role_capability_envelope(&role) {
+            if let Some(normalized) = sanitize_capability_label(&capability) {
+                capability_set.insert(normalized);
+            }
+        }
+    }
+    let capability_envelope = capability_set.into_iter().collect::<Vec<_>>();
+    if capability_envelope.is_empty() {
+        return Err("role_card_capability_envelope_required".to_string());
+    }
+
+    Ok(RoleCard {
+        role,
+        goal: clean_text(goal, 160),
+        capability_envelope,
+        source: if options.role.is_some() {
+            "explicit".to_string()
+        } else {
+            "derived".to_string()
+        },
+    })
 }
 
 fn ensure_mailbox<'a>(state: &'a mut SwarmState, session_id: &str) -> &'a mut SessionMailbox {

@@ -328,13 +328,14 @@ fn run_setup_wizard_missing_script_fallback(root: &Path, args: &[String]) -> i32
         .join("latest.json");
     let payload = json!({
         "type": "protheus_setup_wizard_state",
-        "completed": true,
+        "completed": false,
         "completed_at": crate::now_iso(),
-        "completion_mode": "missing_script_fallback",
+        "completion_mode": "missing_script_fallback_deferred",
         "node_runtime_detected": has_node_runtime(),
         "interaction_style": "silent",
         "notifications": "none",
         "covenant_acknowledged": false,
+        "next_action": "infring setup --yes --defaults",
         "version": 1
     });
     if let Some(parent) = state_path.parent() {
@@ -351,12 +352,23 @@ fn run_setup_wizard_missing_script_fallback(root: &Path, args: &[String]) -> i32
                 "ok": true,
                 "type": "protheus_setup_wizard_fallback",
                 "mode": "missing_script_fallback",
-                "message": "setup wizard script missing in this runtime; wrote fallback state and continued"
+                "deferred": true,
+                "next_action": "infring setup --yes --defaults",
+                "path_reload_command": ". \"$HOME/.infring/env.sh\" && hash -r 2>/dev/null || true",
+                "node_install_hint": "curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --full --install-node",
+                "toolchain_check_command": "cargo --version && rustc --version",
+                "message": "setup wizard script missing in this runtime; wrote deferred fallback state"
             })
         );
     } else {
-        println!("Setup wizard script missing in this runtime; applied compatibility fallback.");
-        println!("You can rerun `infring setup --force` after updating your runtime.");
+        println!("Setup wizard script missing in this runtime; setup was deferred.");
+        println!("Deterministic recovery path:");
+        println!("  1) . \"$HOME/.infring/env.sh\" && hash -r 2>/dev/null || true");
+        println!("  2) infring setup --yes --defaults");
+        println!("  3) infring setup status --json");
+        println!("  4) infring gateway status");
+        println!("  5) infring doctor --json");
+        println!("If Node is missing, rerun installer with `--install-node`.");
     }
     0
 }

@@ -22,11 +22,12 @@ if (!require.extensions['.ts']) {
 }
 
 const assert = require('assert');
-const path = require('path');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
+const path = require('path');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 const { spawnSync } = require('child_process');
 
 const root = path.resolve(__dirname, '..', '..');
-const script = path.join(root, 'client', 'runtime', 'systems', 'tools', 'assimilate.ts');
+const script = path.join(root, 'client', 'runtime', 'systems', 'tools', 'assimilation_cli_bridge.ts');
 const runOpsScript = path.join(root, 'client', 'runtime', 'systems', 'ops', 'run_protheus_ops.ts');
 
 // Claim evidence coverage for assimilation hardening SRS rows:
@@ -107,4 +108,6 @@ assert.ok(runtimeJson.metrics);
 assert.ok(typeof runtimeJson.metrics.p50_ms === 'number');
 assert.ok(typeof runtimeJson.metrics.p95_ms === 'number');
 
-assertNoPlaceholderOrPromptLeak({ scaffoldJson, simulationJson, runtimeJson }, 'assimilate_runtime_contract_test');\nassertStableToolingEnvelope(runtimeJson, 'assimilate_runtime_contract_test');\nprocess.stdout.write('ok\n');
+assertNoPlaceholderOrPromptLeak({ scaffoldJson, simulationJson, runtimeJson }, 'assimilate_runtime_contract_test');
+assertStableToolingEnvelope(runtimeJson, 'assimilate_runtime_contract_test');
+process.stdout.write('ok\n');

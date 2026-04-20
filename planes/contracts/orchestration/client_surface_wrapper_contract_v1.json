@@ -123,12 +123,12 @@
       "ownership": "science coordination"
     },
     {
-      "wrapper": "client/runtime/systems/sensory/value_of_information_collection_planner.ts",
+      "wrapper": "client/runtime/systems/sensory/value_information_planner_bridge.ts",
       "script": "surface/orchestration/scripts/value_of_information_collection_planner.ts",
       "ownership": "planning coordination"
     },
     {
-      "wrapper": "client/runtime/systems/strategy/strategy_learner.ts",
+      "wrapper": "client/runtime/systems/strategy/strategy_learning_bridge.ts",
       "script": "surface/orchestration/scripts/strategy_learner.ts",
       "ownership": "strategy coordination"
     },

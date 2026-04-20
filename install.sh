@@ -42,6 +42,7 @@ INSTALL_OLLAMA_AUTO="${INFRING_INSTALL_OLLAMA_AUTO:-1}"
 INSTALL_OLLAMA_PULL="${INFRING_INSTALL_OLLAMA_PULL:-1}"
 INSTALL_REQUIRE_MODEL_READY="${INFRING_INSTALL_REQUIRE_MODEL_READY:-0}"
 INSTALL_STRICT_SMOKE="${INFRING_INSTALL_STRICT_SMOKE:-0}"
+INSTALL_TOOLCHAIN_POLICY_RAW="${INFRING_INSTALL_TOOLCHAIN_POLICY:-auto}"
 OLLAMA_STARTER_MODEL="${INFRING_OLLAMA_STARTER_MODEL:-qwen2.5:3b-instruct}"
 OLLAMA_PULL_TIMEOUT="${INFRING_OLLAMA_PULL_TIMEOUT:-900}"
 OLLAMA_INSTALL_CONFIRMED=0
@@ -55,13 +56,16 @@ PATH_PERSISTED_MIRRORS=""
 PATH_ACTIVATE_FILE=""
 INSTALL_SUDO_SHIMS="${INFRING_INSTALL_SUDO_SHIMS:-auto}"
 RUNTIME_MANIFEST_REL="client/runtime/config/install_runtime_manifest_v1.txt"
+RUNTIME_NODE_MODULE_MANIFEST_REL="${INFRING_RUNTIME_NODE_MODULE_MANIFEST_REL:-client/runtime/config/install_runtime_node_modules_v1.txt}"
 RUNTIME_NODE_REQUIRED_MODULES="${INFRING_RUNTIME_NODE_REQUIRED_MODULES:-typescript ws}"
+RUNTIME_TIER1_REQUIRED_ENTRYPOINTS="${INFRING_RUNTIME_TIER1_REQUIRED_ENTRYPOINTS:-client/runtime/systems/ops/protheusd.ts client/runtime/systems/ops/protheus_status_dashboard.ts client/runtime/systems/ops/protheus_unknown_guard.ts}"
 INSTALL_VERIFY_ASSETS="${INFRING_INSTALL_VERIFY_ASSETS:-1}"
 INSTALL_ALLOW_UNVERIFIED_ASSETS="${INFRING_INSTALL_ALLOW_UNVERIFIED_ASSETS:-${PROTHEUS_INSTALL_ALLOW_UNVERIFIED_ASSETS:-0}}"
 INSTALL_STRICT_PRERELEASE_CHECKSUM="${INFRING_INSTALL_STRICT_PRERELEASE_CHECKSUM:-0}"
 INSTALL_ASSET_CACHE="${INFRING_INSTALL_ASSET_CACHE:-1}"
 INSTALL_OFFLINE="${INFRING_INSTALL_OFFLINE:-0}"
 INSTALL_SUMMARY_FILE="${INFRING_INSTALL_SUMMARY_FILE:-$INFRING_HOME/logs/last_install_summary.txt}"
+INSTALL_ASSET_LOCKFILE="${INFRING_INSTALL_ASSET_LOCKFILE:-$INFRING_HOME/state/install_asset_lock_v1.tsv}"
 CHECKSUM_MANIFEST_PATH=""
 CHECKSUM_MANIFEST_VERSION=""
 CHECKSUM_MANIFEST_TMP_DIR=""
@@ -73,6 +77,12 @@ INSTALL_SUMMARY_EXIT_CODE=""
 INSTALL_SUMMARY_FAILURE_REASON=""
 INSTALL_SUMMARY_LAST_NOTE=""
 INSTALL_DASHBOARD_SMOKE_PASSED=0
+INSTALL_JSON_OUTPUT="${INFRING_INSTALL_JSON:-0}"
+INSTALL_SUMMARY_JSON_FILE="${INFRING_INSTALL_SUMMARY_JSON_FILE:-$INFRING_HOME/logs/last_install_summary.json}"
+INSTALL_SMOKE_SUMMARY_JSON_FILE="${INFRING_INSTALL_SMOKE_SUMMARY_JSON_FILE:-$INFRING_HOME/logs/last_install_smoke_summary.json}"
+INSTALL_RUNTIME_CONTRACT_MODE="unknown"
+INSTALL_RUNTIME_CONTRACT_OK=0
+INSTALL_CLIENT_RUNTIME_MODE="not_installed"
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -97,6 +107,15 @@ is_truthy() {
     *) return 1 ;;
   esac
 }
+
+normalize_install_toolchain_policy() {
+  case "$(printf '%s' "${1:-auto}" | tr '[:upper:]' '[:lower:]')" in
+    fail|fail_closed|strict) printf '%s\n' "fail_closed" ;;
+    auto|*) printf '%s\n' "auto" ;;
+  esac
+}
+
+INSTALL_TOOLCHAIN_POLICY="$(normalize_install_toolchain_policy "$INSTALL_TOOLCHAIN_POLICY_RAW")"
 
 is_prerelease_version_tag() {
   version_tag="$1"
@@ -434,6 +453,8 @@ ensure_node_runtime_notice() {
       echo "[infring install] warning: portable Node auto-install failed in full mode."
       echo "[infring install] run manually: $install_cmd"
       echo "[infring install] fallback: set INFRING_NODE_BINARY to a valid node executable."
+      echo "[infring install] verify setup: infring setup status --json"
+      echo "[infring install] verify gateway: infring gateway status"
       return 1
     fi
     case "$install_cmd" in
@@ -458,6 +479,8 @@ ensure_node_runtime_notice() {
     echo "[infring install] warning: automatic Node.js install failed."
     echo "[infring install] run manually: $install_cmd"
     echo "[infring install] fallback: set INFRING_NODE_BINARY to a valid node executable."
+    echo "[infring install] verify setup: infring setup status --json"
+    echo "[infring install] verify gateway: infring gateway status"
     return 1
   fi
 
@@ -773,6 +796,9 @@ parse_install_args() {
   while [ "$#" -gt 0 ]; do
     arg="$1"
     case "$arg" in
+      --json|--json=1)
+        INSTALL_JSON_OUTPUT=1
+        ;;
       --full)
         INSTALL_FULL=1
         INSTALL_PURE=0
@@ -826,7 +852,7 @@ parse_install_args() {
         INSTALL_TMP_DIR="${arg#--tmp-dir=}"
         ;;
       --help|-h)
-        echo "Usage: install.sh [--full|--minimal|--pure|--tiny-max|--repair|--install-node|--install-ollama|--offline] [--install-dir PATH] [--tmp-dir PATH]"
+        echo "Usage: install.sh [--full|--minimal|--pure|--tiny-max|--repair|--install-node|--install-ollama|--offline|--json] [--install-dir PATH] [--tmp-dir PATH]"
         echo "  --full            install optional client runtime bundle when available"
         echo "  --minimal         install daemon + CLI only (default)"
         echo "  --pure            install pure Rust client + daemon only (no Node/TS surfaces)"
@@ -835,6 +861,7 @@ parse_install_args() {
         echo "  --install-node    attempt automatic Node.js 22+ install for full CLI command surface"
         echo "  --install-ollama  attempt automatic Ollama install and starter local model bootstrap"
         echo "  --offline         disable network fetch; require cached verified release artifacts"
+        echo "  --json            emit machine-readable install success summary JSON"
         echo "  --install-dir     install wrappers/binaries into this directory"
         echo "  --tmp-dir         use this temp directory for download/build staging"
         echo "  --verify-install-summary-contract  verify INFRING_INSTALL_SUMMARY_FILE status/completed_at contract"
@@ -986,6 +1013,63 @@ install_summary_finalize() {
     fi
   fi
   install_summary_sync || true
+}
+
+install_json_escape() {
+  printf '%s' "${1:-}" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\r//g; :a;N;$!ba;s/\n/\\n/g'
+}
+
+emit_install_success_summary() {
+  version_tag="$1"
+  triple_id="$2"
+  quick_prefix="$3"
+  wrappers_status="ok"
+  gateway_smoke_status="passed"
+  if is_truthy "$INSTALL_PURE"; then
+    gateway_smoke_status="skipped_pure_profile"
+  fi
+  dashboard_smoke_status="skipped"
+  if is_truthy "$INSTALL_FULL"; then
+    if [ "$INSTALL_DASHBOARD_SMOKE_PASSED" = "1" ]; then
+      dashboard_smoke_status="passed"
+    else
+      dashboard_smoke_status="failed"
+    fi
+  fi
+  verification_confidence="high"
+  if [ "$INSTALL_RUNTIME_CONTRACT_OK" != "1" ]; then
+    verification_confidence="medium"
+  fi
+  if [ "$gateway_smoke_status" != "passed" ] && ! is_truthy "$INSTALL_PURE"; then
+    verification_confidence="medium"
+  fi
+  if is_truthy "$INSTALL_FULL" && [ "$dashboard_smoke_status" != "passed" ]; then
+    verification_confidence="medium"
+  fi
+  launcher_command="${quick_prefix}infring gateway"
+  restart_command="${quick_prefix}infring gateway restart"
+  recovery_command="${quick_prefix}infring recover"
+  node_summary_bin="$(resolve_node_binary_path 2>/dev/null || true)"
+  node_detected=0
+  if [ -n "$node_summary_bin" ]; then
+    node_detected=1
+  fi
+  runtime_contract_mode="${INSTALL_RUNTIME_CONTRACT_MODE:-unknown}"
+  client_runtime_mode="${INSTALL_CLIENT_RUNTIME_MODE:-not_installed}"
+  echo "[infring install] success summary: binaries=${wrappers_status} runtime=${runtime_contract_mode} launcher=infring gateway restart=infring gateway restart verification_confidence=${verification_confidence}"
+  echo "[infring install] success summary: gateway_smoke=${gateway_smoke_status} dashboard_smoke=${dashboard_smoke_status} recovery=infring recover"
+
+  summary_json_path="$INSTALL_SUMMARY_JSON_FILE"
+  mkdir -p "$(dirname "$summary_json_path")" >/dev/null 2>&1 || true
+  payload="$(cat <<EOF
+{"ok":true,"type":"infring_install_success_summary","version":"$(install_json_escape "$version_tag")","triple":"$(install_json_escape "$triple_id")","install_mode":{"full":$( [ "$INSTALL_FULL" = "1" ] && printf 'true' || printf 'false' ),"pure":$( [ "$INSTALL_PURE" = "1" ] && printf 'true' || printf 'false' ),"tiny_max":$( [ "$INSTALL_TINY_MAX" = "1" ] && printf 'true' || printf 'false' ),"repair":$( [ "$INSTALL_REPAIR" = "1" ] && printf 'true' || printf 'false' ),"offline":$( [ "$INSTALL_OFFLINE" = "1" ] && printf 'true' || printf 'false' )},"verification":{"confidence":"$(install_json_escape "$verification_confidence")","runtime_contract_ok":$( [ "$INSTALL_RUNTIME_CONTRACT_OK" = "1" ] && printf 'true' || printf 'false' ),"runtime_contract_mode":"$(install_json_escape "$runtime_contract_mode")","client_runtime_mode":"$(install_json_escape "$client_runtime_mode")","gateway_smoke":"$(install_json_escape "$gateway_smoke_status")","dashboard_smoke":"$(install_json_escape "$dashboard_smoke_status")","node_runtime_detected":$( [ "$node_detected" = "1" ] && printf 'true' || printf 'false' )},"commands":{"launcher":"$(install_json_escape "$launcher_command")","restart":"$(install_json_escape "$restart_command")","recovery":"$(install_json_escape "$recovery_command")"},"summary_files":{"text":"$(install_json_escape "$INSTALL_SUMMARY_FILE")","json":"$(install_json_escape "$summary_json_path")"}}
+EOF
+)"
+  printf '%s\n' "$payload" > "$summary_json_path" 2>/dev/null || true
+  echo "[infring install] summary json: $summary_json_path"
+  if is_truthy "$INSTALL_JSON_OUTPUT"; then
+    printf '%s\n' "$payload"
+  fi
 }
 
 tool_install_hint() {
@@ -1235,7 +1319,37 @@ verify_downloaded_asset() {
     return 1
   fi
   install_summary_note "asset_verified: ${asset_name} sha256:${actual_digest}"
+  record_verified_asset_digest "$version_tag" "$asset_name" "$actual_digest" "$asset_path"
   return 0
+}
+
+record_verified_asset_digest() {
+  version_tag="$1"
+  asset_name="$2"
+  digest="$3"
+  asset_path="$4"
+  [ -n "$version_tag" ] || return 0
+  [ -n "$asset_name" ] || return 0
+  [ -n "$digest" ] || return 0
+  lockfile="$INSTALL_ASSET_LOCKFILE"
+  lockdir="$(dirname "$lockfile")"
+  mkdir -p "$lockdir" >/dev/null 2>&1 || return 0
+  ts="$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || true)"
+  [ -n "$ts" ] || ts="unknown"
+  tmp_file="${lockfile}.tmp"
+  {
+    printf '%s\n' "infring_install_asset_lock_v1"
+    printf '%s\t%s\t%s\t%s\t%s\n' "$version_tag" "$asset_name" "$digest" "$ts" "$asset_path"
+    if [ -f "$lockfile" ]; then
+      awk -F '\t' -v v="$version_tag" -v a="$asset_name" '
+        NR == 1 { next }
+        NF < 3 { next }
+        !($1 == v && $2 == a) { print }
+      ' "$lockfile" 2>/dev/null || true
+    fi
+  } > "$tmp_file"
+  mv "$tmp_file" "$lockfile" >/dev/null 2>&1 || return 0
+  install_summary_note "asset_lockfile: ${lockfile}"
 }
 
 path_dir_writable_or_creatable() {
@@ -1612,6 +1726,15 @@ write_path_activate_script() {
   {
     printf '%s\n' "#!/usr/bin/env sh"
     printf '%s\n' "# Generated by Infring installer."
+    printf '%s\n' "# Recovery hints:"
+    printf '%s\n' "#   command -v infring || echo \$PATH"
+    printf '%s\n' "#   . \"$INFRING_HOME/env.sh\" && hash -r 2>/dev/null || true"
+    printf '%s\n' "#   cargo --version && rustc --version"
+    printf '%s\n' "#   curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --full --install-node"
+    printf '%s\n' "#   infring setup --yes --defaults"
+    printf '%s\n' "#   infring setup status --json"
+    printf '%s\n' "#   infring gateway status"
+    printf '%s\n' "#   infring doctor --json"
     printf '%s\n' "export INFRING_HOME=\"$INFRING_HOME\""
     printf '%s\n' "export INFRING_WORKSPACE_ROOT=\"$WORKSPACE_DIR\""
     if node_bin_path="$(resolve_node_binary_path 2>/dev/null || true)"; then
@@ -1643,19 +1766,57 @@ write_path_activate_script() {
   PATH_ACTIVATE_FILE="$activate_file"
 }
 
+repair_artifact_healthy() {
+  target="$1"
+  [ -e "$target" ] || return 1
+  if [ -d "$target" ]; then
+    case "$(find "$target" -mindepth 1 -maxdepth 1 2>/dev/null | head -n 1 || true)" in
+      '') return 1 ;;
+      *) return 0 ;;
+    esac
+  fi
+  [ -s "$target" ] || return 1
+  case "$target" in
+    */infring|*/infringctl|*/infringd|*/infring-ops|*/infringd-bin|*/conduit_daemon|*/infring-pure-workspace|*/infring-pure-workspace-tiny-max)
+      [ -x "$target" ] || return 1
+      ;;
+  esac
+  return 0
+}
+
 repair_install_dir() {
+  ts="$(date -u +%Y%m%dT%H%M%SZ)"
+  archive_root="$INSTALL_DIR/_repair_archive"
+  archive_run="$archive_root/$ts"
+  mkdir -p "$archive_run" >/dev/null 2>&1 || true
+  repair_removed=0
+  repair_preserved=0
   for name in \
     infring infringctl infringd \
     infring-ops infringd-bin conduit_daemon \
     infring-pure-workspace infring-pure-workspace-tiny-max \
-    infring-client
+    infring-client \
+    infring.cmd infringctl.cmd infringd.cmd \
+    infring.ps1 infringctl.ps1 infringd.ps1
   do
     target="$INSTALL_DIR/$name"
-    if [ -e "$target" ]; then
+    [ -e "$target" ] || continue
+    if repair_artifact_healthy "$target"; then
+      if cp -R "$target" "$archive_run/$name" >/dev/null 2>&1; then
+        echo "[infring install] repair archived healthy install artifact: $target"
+      else
+        echo "[infring install] repair warning: failed to archive healthy install artifact: $target"
+      fi
+      repair_preserved=$((repair_preserved + 1))
+      echo "[infring install] repair preserved healthy install artifact: $target"
+    else
       rm -rf "$target"
-      echo "[infring install] repair removed stale install artifact"
+      repair_removed=$((repair_removed + 1))
+      echo "[infring install] repair removed broken install artifact: $target"
     fi
   done
+  echo "[infring install] repair summary: removed=$repair_removed preserved=$repair_preserved archive=$archive_run"
+  install_summary_note "repair_summary: removed=${repair_removed} preserved=${repair_preserved} archive=${archive_run}"
 }
 
 resolve_workspace_root_for_repair() {
@@ -2523,32 +2684,63 @@ __INFRING_SETUP_SHIM__
   return 0
 }
 
-workspace_runtime_entrypoint_exists() {
-  workspace="$1"
+runtime_entrypoint_exists_for_mode() {
+  runtime_root="$1"
   rel="$2"
-  [ -f "$workspace/$rel" ] && return 0
+  runtime_mode="${3:-source}"
+  [ -f "$runtime_root/$rel" ] && return 0
+  if [ "$runtime_mode" != "source" ]; then
+    return 1
+  fi
   case "$rel" in
     *.js)
       ts_rel="${rel%.js}.ts"
-      [ -f "$workspace/$ts_rel" ] && return 0
+      [ -f "$runtime_root/$ts_rel" ] && return 0
       ;;
     *.ts)
       js_rel="${rel%.ts}.js"
-      [ -f "$workspace/$js_rel" ] && return 0
+      [ -f "$runtime_root/$js_rel" ] && return 0
       ;;
   esac
   return 1
 }
 
-verify_workspace_runtime_contract() {
-  workspace="$1"
-  [ -n "$workspace" ] || return 1
+verify_runtime_contract_for_mode() {
+  runtime_root="$1"
+  runtime_mode="$2"
+  context_label="$3"
+  [ -n "$runtime_root" ] || return 1
+  [ -n "$runtime_mode" ] || runtime_mode="source"
+  [ -n "$context_label" ] || context_label="runtime"
   manifest_rel="${RUNTIME_MANIFEST_REL:-client/runtime/config/install_runtime_manifest_v1.txt}"
-  manifest_path="$workspace/$manifest_rel"
+  manifest_path="$runtime_root/$manifest_rel"
   if [ ! -f "$manifest_path" ]; then
-    echo "[infring install] runtime integrity check failed: manifest missing" >&2
+    echo "[infring install] runtime integrity check failed (${context_label}): manifest missing" >&2
     echo "[infring install] missing: $manifest_rel" >&2
     echo "[infring install] fix: publish runtime bundle/source fallback with manifest and rerun install." >&2
+    return 1
+  fi
+  missing_manifest_entries=""
+  for required_rel in $RUNTIME_TIER1_REQUIRED_ENTRYPOINTS; do
+    if ! awk -v target="$required_rel" '
+      {
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", $0);
+        if ($0 == "" || substr($0,1,1) == "#") next;
+        if ($0 == target) { found = 1; exit 0; }
+      }
+      END { exit(found ? 0 : 1); }
+    ' "$manifest_path"; then
+      missing_manifest_entries="${missing_manifest_entries}${required_rel}\n"
+    fi
+  done
+  if [ -n "$missing_manifest_entries" ]; then
+    echo "[infring install] runtime integrity check failed (${context_label} mode=${runtime_mode}): manifest missing required Tier-1 runtime entries" >&2
+    printf '%b' "$missing_manifest_entries" | while IFS= read -r row; do
+      [ -n "$row" ] || continue
+      echo "[infring install] manifest-missing: $row" >&2
+    done
+    echo "[infring install] manifest: $manifest_rel" >&2
+    echo "[infring install] fix: refresh install runtime bundle/source fallback so Tier-1 runtime entries are declared." >&2
     return 1
   fi
   missing_list=""
@@ -2558,12 +2750,12 @@ verify_workspace_runtime_contract() {
     case "$rel" in
       \#*) continue ;;
     esac
-    if ! workspace_runtime_entrypoint_exists "$workspace" "$rel"; then
+    if ! runtime_entrypoint_exists_for_mode "$runtime_root" "$rel" "$runtime_mode"; then
       missing_list="${missing_list}${rel}\n"
     fi
   done < "$manifest_path"
   if [ -n "$missing_list" ]; then
-    echo "[infring install] runtime integrity check failed: required command entrypoints are missing" >&2
+    echo "[infring install] runtime integrity check failed (${context_label} mode=${runtime_mode}): required command entrypoints are missing" >&2
     printf '%b' "$missing_list" | while IFS= read -r row; do
       [ -n "$row" ] || continue
       echo "[infring install] missing: $row" >&2
@@ -2572,8 +2764,44 @@ verify_workspace_runtime_contract() {
     echo "[infring install] fix: rerun with --full after publishing a complete runtime bundle, or set INFRING_VERSION to a release with complete runtime assets." >&2
     return 1
   fi
-  echo "[infring install] runtime integrity check: manifest verified ($manifest_rel)"
+  echo "[infring install] runtime integrity check: manifest verified ($manifest_rel) [${context_label} mode=${runtime_mode}]"
   return 0
+}
+
+runtime_required_node_modules() {
+  runtime_root="$1"
+  [ -n "$runtime_root" ] || return 1
+  manifest_rel="${RUNTIME_NODE_MODULE_MANIFEST_REL:-client/runtime/config/install_runtime_node_modules_v1.txt}"
+  manifest_path="$runtime_root/$manifest_rel"
+  if [ ! -f "$manifest_path" ]; then
+    echo "[infring install] node module closure failed: dependency manifest missing ($manifest_rel)" >&2
+    return 1
+  fi
+  modules="$(
+    awk '
+      {
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", $0);
+        if ($0 == "" || substr($0,1,1) == "#") next;
+        print $0;
+      }
+    ' "$manifest_path" | tr '\n' ' '
+  )"
+  if [ -z "$modules" ]; then
+    modules="${RUNTIME_NODE_REQUIRED_MODULES:-typescript ws}"
+  fi
+  printf '%s\n' "$modules"
+  return 0
+}
+
+verify_workspace_runtime_contract() {
+  workspace="$1"
+  [ -n "$workspace" ] || return 1
+  if verify_runtime_contract_for_mode "$workspace" "source" "workspace_runtime"; then
+    INSTALL_RUNTIME_CONTRACT_MODE="source"
+    INSTALL_RUNTIME_CONTRACT_OK=1
+    return 0
+  fi
+  return 1
 }
 
 repair_workspace_runtime_contract() {
@@ -2618,6 +2846,11 @@ __INFRING_RUNTIME_MODE__
 ensure_runtime_node_module_closure() {
   workspace="$1"
   [ -n "$workspace" ] || return 1
+  required_modules="$(runtime_required_node_modules "$workspace" 2>/dev/null || true)"
+  if [ -z "$required_modules" ]; then
+    echo "[infring install] node module closure failed: required-module list is empty" >&2
+    return 1
+  fi
   node_bin_path="$(resolve_node_binary_path 2>/dev/null || true)"
   if ! node_runtime_meets_minimum; then
     echo "[infring install] node module closure skipped (node runtime unavailable)"
@@ -2625,7 +2858,7 @@ ensure_runtime_node_module_closure() {
   fi
 
   missing_modules=""
-  for module_name in $RUNTIME_NODE_REQUIRED_MODULES; do
+  for module_name in $required_modules; do
     if ! runtime_module_resolvable "$workspace" "$module_name"; then
       missing_modules="${missing_modules} ${module_name}"
     fi
@@ -2663,7 +2896,7 @@ ensure_runtime_node_module_closure() {
   fi
 
   still_missing=""
-  for module_name in $RUNTIME_NODE_REQUIRED_MODULES; do
+  for module_name in $required_modules; do
     if ! runtime_module_resolvable "$workspace" "$module_name"; then
       still_missing="${still_missing} ${module_name}"
     fi
@@ -2697,6 +2930,56 @@ run_post_install_smoke_command() {
   echo "[infring install] smoke $label: failed" >&2
   cat "$log" >&2 || true
   return 1
+}
+
+append_install_smoke_record() {
+  records_file="$1"
+  check_name="$2"
+  command_desc="$3"
+  required_flag="$4"
+  ok_flag="$5"
+  status_label="$6"
+  log_path="$7"
+  error_code="${8:-}"
+  printf '{"name":"%s","command":"%s","required":%s,"ok":%s,"status":"%s","error_code":"%s","log_path":"%s"}\n' \
+    "$(install_json_escape "$check_name")" \
+    "$(install_json_escape "$command_desc")" \
+    "$required_flag" \
+    "$ok_flag" \
+    "$(install_json_escape "$status_label")" \
+    "$(install_json_escape "$error_code")" \
+    "$(install_json_escape "$log_path")" >> "$records_file"
+}
+
+write_install_smoke_summary_json() {
+  records_file="$1"
+  output_path="$2"
+  required_failed_count="$3"
+  install_dir="$4"
+  workspace_root="$5"
+  checks_json=""
+  while IFS= read -r row || [ -n "$row" ]; do
+    [ -n "$row" ] || continue
+    if [ -z "$checks_json" ]; then
+      checks_json="$row"
+    else
+      checks_json="${checks_json},${row}"
+    fi
+  done < "$records_file"
+  [ -n "$checks_json" ] || checks_json=""
+  output_dir="$(dirname "$output_path")"
+  mkdir -p "$output_dir" >/dev/null 2>&1 || true
+  tmp_output="$(mktemp)"
+  if [ "$required_failed_count" -eq 0 ]; then
+    summary_ok="true"
+  else
+    summary_ok="false"
+  fi
+  cat > "$tmp_output" <<EOF
+{"ok":${summary_ok},"type":"infring_install_smoke_summary","required_failed_count":${required_failed_count},"toolchain_policy":"$(install_json_escape "$INSTALL_TOOLCHAIN_POLICY")","install_dir":"$(install_json_escape "$install_dir")","workspace_root":"$(install_json_escape "$workspace_root")","checks":[${checks_json}]}
+EOF
+  mv "$tmp_output" "$output_path"
+  echo "[infring install] smoke summary json: $output_path"
 }
 
 rustup_default_toolchain_missing() {
@@ -2912,43 +3195,95 @@ run_post_install_smoke_tests() {
   export INFRING_WRAPPER_CD_WORKSPACE=1
   INSTALL_DASHBOARD_SMOKE_PASSED=0
   failures=0
-  run_post_install_smoke_command "$smoke_dir" "infring_help" "$install_dir/infring" --help || failures=$((failures + 1))
+  required_failures=0
+  smoke_records_file="$smoke_dir/install_smoke_records.jsonl"
+  : > "$smoke_records_file"
+  if run_post_install_smoke_command "$smoke_dir" "infring_help" "$install_dir/infring" --help; then
+    append_install_smoke_record "$smoke_records_file" "infring_help" "infring --help" "true" "true" "passed" "$smoke_dir/infring_help.log"
+  else
+    failures=$((failures + 1))
+    required_failures=$((required_failures + 1))
+    append_install_smoke_record "$smoke_records_file" "infring_help" "infring --help" "true" "false" "failed" "$smoke_dir/infring_help.log" "command_failed"
+  fi
   if rustup_default_toolchain_missing; then
-    cat <<EOF > "$smoke_dir/infringctl_help.log"
+    if [ "$INSTALL_TOOLCHAIN_POLICY" = "fail_closed" ]; then
+      cat <<EOF > "$smoke_dir/infringctl_help.log"
+failed (toolchain policy fail_closed): missing rustup default toolchain
+fix: run 'rustup default stable'
+EOF
+      echo "[infring install] smoke infringctl_help: failed (toolchain policy fail_closed; missing rustup default toolchain)" >&2
+      echo "[infring install] smoke infringctl_help: run 'rustup default stable' and rerun install." >&2
+      failures=$((failures + 1))
+      required_failures=$((required_failures + 1))
+      append_install_smoke_record "$smoke_records_file" "infringctl_help" "infringctl --help" "true" "false" "failed_policy_toolchain" "$smoke_dir/infringctl_help.log" "rustup_default_toolchain_missing"
+    else
+      cat <<EOF > "$smoke_dir/infringctl_help.log"
 skipped (missing rustup default toolchain)
 help: run 'rustup default stable' to download the latest stable release of Rust and set it as your default toolchain.
 EOF
-    echo "[infring install] smoke infringctl_help: skipped (missing rustup default toolchain)"
-    echo "[infring install] smoke infringctl_help: run 'rustup default stable' to enable this check."
+      echo "[infring install] smoke infringctl_help: skipped (missing rustup default toolchain; policy=auto)"
+      echo "[infring install] smoke infringctl_help: run 'rustup default stable' to enable this check."
+      append_install_smoke_record "$smoke_records_file" "infringctl_help" "infringctl --help" "false" "true" "skipped_toolchain" "$smoke_dir/infringctl_help.log"
+    fi
   else
-    run_post_install_smoke_command "$smoke_dir" "infringctl_help" "$install_dir/infringctl" --help || failures=$((failures + 1))
+    if run_post_install_smoke_command "$smoke_dir" "infringctl_help" "$install_dir/infringctl" --help; then
+      append_install_smoke_record "$smoke_records_file" "infringctl_help" "infringctl --help" "true" "true" "passed" "$smoke_dir/infringctl_help.log"
+    else
+      failures=$((failures + 1))
+      required_failures=$((required_failures + 1))
+      append_install_smoke_record "$smoke_records_file" "infringctl_help" "infringctl --help" "true" "false" "failed" "$smoke_dir/infringctl_help.log" "command_failed"
+    fi
   fi
-  run_post_install_smoke_command "$smoke_dir" "infring_status" "$install_dir/infring" status || failures=$((failures + 1))
-  run_post_install_smoke_command "$smoke_dir" "dashboard_route_check" "$install_dir/infringctl" dashboard status --json || failures=$((failures + 1))
+  if run_post_install_smoke_command "$smoke_dir" "infring_status" "$install_dir/infring" status; then
+    append_install_smoke_record "$smoke_records_file" "infring_status" "infring status" "true" "true" "passed" "$smoke_dir/infring_status.log"
+  else
+    failures=$((failures + 1))
+    required_failures=$((required_failures + 1))
+    append_install_smoke_record "$smoke_records_file" "infring_status" "infring status" "true" "false" "failed" "$smoke_dir/infring_status.log" "command_failed"
+  fi
+  if run_post_install_smoke_command "$smoke_dir" "gateway_status" "$install_dir/infring" gateway status --auto-heal=0 --dashboard-open=0; then
+    append_install_smoke_record "$smoke_records_file" "gateway_status" "infring gateway status --auto-heal=0 --dashboard-open=0" "true" "true" "passed" "$smoke_dir/gateway_status.log"
+  else
+    failures=$((failures + 1))
+    required_failures=$((required_failures + 1))
+    append_install_smoke_record "$smoke_records_file" "gateway_status" "infring gateway status --auto-heal=0 --dashboard-open=0" "true" "false" "failed" "$smoke_dir/gateway_status.log" "command_failed"
+  fi
   dashboard_smoke_required=0
   if is_truthy "$INSTALL_FULL" || is_truthy "$INSTALL_STRICT_SMOKE"; then
     dashboard_smoke_required=1
   fi
   if node_runtime_meets_minimum; then
-    run_post_install_smoke_command "$smoke_dir" "verify_install" "$install_dir/infringctl" verify-install --json || failures=$((failures + 1))
+    if run_post_install_smoke_command "$smoke_dir" "verify_install" "$install_dir/infringctl" verify-install --json; then
+      append_install_smoke_record "$smoke_records_file" "verify_install" "infringctl verify-install --json" "true" "true" "passed" "$smoke_dir/verify_install.log"
+    else
+      failures=$((failures + 1))
+      required_failures=$((required_failures + 1))
+      append_install_smoke_record "$smoke_records_file" "verify_install" "infringctl verify-install --json" "true" "false" "failed" "$smoke_dir/verify_install.log" "command_failed"
+    fi
   else
     echo "[infring install] smoke verify_install: skipped (node runtime unavailable)"
+    append_install_smoke_record "$smoke_records_file" "verify_install" "infringctl verify-install --json" "false" "true" "skipped_node_runtime_unavailable" "$smoke_dir/verify_install.log"
   fi
   if [ "$dashboard_smoke_required" = "1" ]; then
     smoke_port="$((4400 + ($$ % 1000)))"
     if run_dashboard_health_smoke "$smoke_dir" "$install_dir" "127.0.0.1" "$smoke_port"; then
       INSTALL_DASHBOARD_SMOKE_PASSED=1
+      append_install_smoke_record "$smoke_records_file" "dashboard_healthz" "GET http://127.0.0.1:${smoke_port}/healthz" "true" "true" "passed" "$smoke_dir/dashboard_health.log"
     else
       failures=$((failures + 1))
+      required_failures=$((required_failures + 1))
+      append_install_smoke_record "$smoke_records_file" "dashboard_healthz" "GET http://127.0.0.1:${smoke_port}/healthz" "true" "false" "failed" "$smoke_dir/dashboard_health.log" "healthz_unreachable"
     fi
   else
     echo "[infring install] smoke dashboard_health: skipped (set INFRING_INSTALL_STRICT_SMOKE=1 or use --full to enforce)"
+    append_install_smoke_record "$smoke_records_file" "dashboard_healthz" "GET http://127.0.0.1:4173/healthz" "false" "true" "skipped_not_required" "$smoke_dir/dashboard_health.log"
   fi
   model_ready_required=0
   if [ "$OLLAMA_INSTALL_CONFIRMED" = "1" ] || is_truthy "$INSTALL_REQUIRE_MODEL_READY"; then
     model_ready_required=1
   fi
   run_model_readiness_smoke "$smoke_dir" "$model_ready_required" || failures=$((failures + 1))
+  write_install_smoke_summary_json "$smoke_records_file" "$INSTALL_SMOKE_SUMMARY_JSON_FILE" "$required_failures" "$install_dir" "$workspace"
   if [ "$failures" -ne 0 ]; then
     echo "[infring install] post-install smoke test failed ($failures checks)" >&2
     echo "[infring install] smoke logs: $smoke_dir" >&2
@@ -3597,6 +3932,60 @@ infring_verify_gateway() {
   return 1
 }
 
+infring_recover() {
+  recover_host="127.0.0.1"
+  recover_port="4173"
+  recover_wait_max="${INFRING_VERIFY_GATEWAY_WAIT_MAX:-90}"
+  for token in "$@"; do
+    case "$token" in
+      --dashboard-host=*)
+        recover_host="${token#*=}"
+        ;;
+      --dashboard-port=*)
+        recover_port="${token#*=}"
+        ;;
+      --wait-max=*)
+        recover_wait_max="${token#*=}"
+        ;;
+      --help|-h|help)
+        echo "Usage: infring recover [--dashboard-host=127.0.0.1] [--dashboard-port=4173] [--wait-max=90]"
+        return 0
+        ;;
+    esac
+  done
+
+  echo "[infring recover] stopping runtime"
+  "$0" gateway stop "--dashboard-host=${recover_host}" "--dashboard-port=${recover_port}" "--dashboard-open=0" >/dev/null 2>&1 || true
+
+  echo "[infring recover] starting runtime"
+  if ! "$0" gateway start "--dashboard-host=${recover_host}" "--dashboard-port=${recover_port}" "--dashboard-open=0"; then
+    echo "[infring recover] failed: gateway start failed" >&2
+    return 1
+  fi
+
+  echo "[infring recover] verifying dashboard health"
+  if ! "$0" verify-gateway "--dashboard-host=${recover_host}" "--dashboard-port=${recover_port}" "--wait-max=${recover_wait_max}"; then
+    echo "[infring recover] failed: dashboard health verification failed" >&2
+    return 1
+  fi
+
+  if [ -x "__INSTALL_DIR__/infringctl" ]; then
+    echo "[infring recover] running verify-install"
+    doctor_output="$("__INSTALL_DIR__/infringctl" verify-install --json 2>&1)"
+    doctor_status=$?
+    if [ "$doctor_status" -ne 0 ] || ! printf '%s\n' "$doctor_output" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'; then
+      if [ -n "$doctor_output" ]; then
+        printf '%s\n' "$doctor_output" >&2
+      fi
+      echo "[infring recover] failed: verify-install did not return ok=true" >&2
+      return 1
+    fi
+  fi
+
+  echo "[infring recover] complete"
+  return 0
+}
+
 infring_update_usage() {
   cat <<'__INFRING_UPDATE_HELP__'
 Usage: infring update [options]
@@ -3784,6 +4173,14 @@ if [ "${1:-}" = "verify-gateway" ]; then
   exit 1
 fi
 
+if [ "${1:-}" = "recover" ]; then
+  shift || true
+  if infring_recover "$@"; then
+    exit 0
+  fi
+  exit 1
+fi
+
 if [ "${1:-}" = "gateway" ]; then
   shift || true
   gateway_action=""
@@ -3918,6 +4315,9 @@ if [ "${1:-}" = "gateway" ]; then
     fi
     if [ "$dashboard_ready" != "1" ]; then
       echo "[infring gateway] warning: dashboard healthz not ready at http://${dashboard_host}:${dashboard_port}/healthz" >&2
+      echo "[infring gateway] next-action: infring gateway status --dashboard-host=${dashboard_host} --dashboard-port=${dashboard_port}" >&2
+      echo "[infring gateway] recovery: infring gateway restart --dashboard-host=${dashboard_host} --dashboard-port=${dashboard_port}" >&2
+      echo "[infring gateway] diagnostics: infring doctor --json" >&2
     fi
     if [ "$legacy_supervisor_mode" = "1" ] && [ "$dashboard_watchdog_enabled" != "0" ]; then
       infring_gateway_watchdog_start "$dashboard_host" "$dashboard_port" "$dashboard_watchdog_interval" >/dev/null 2>&1 || true
@@ -4098,6 +4498,7 @@ main() {
 Usage: infring <command> [args]
 Primary commands:
   gateway [start|stop|restart|status|heal|attach|subscribe|tick|diagnostics]
+  recover [--dashboard-host=127.0.0.1] [--dashboard-port=4173] [--wait-max=90]
   update [--repair] [--full|--minimal|--pure|--tiny-max] [--version vX.Y.Z] [--offline]
   verify-gateway [--dashboard-host=127.0.0.1] [--dashboard-port=4173]
   list
@@ -4105,6 +4506,7 @@ Primary commands:
   version
   --help
 Use "infring gateway --help" for gateway controls.
+Use "infring recover --help" for deterministic recovery controls.
 __INFRING_HELP__
   exit 0
 fi'
@@ -4151,6 +4553,9 @@ ${ops_domain_dispatch}"
   export INFRING_WORKSPACE_ROOT="$WORKSPACE_DIR"
   if is_truthy "$INSTALL_PURE"; then
     echo "[infring install] pure mode: skipping workspace runtime bootstrap"
+    INSTALL_RUNTIME_CONTRACT_MODE="pure_profile"
+    INSTALL_RUNTIME_CONTRACT_OK=1
+    INSTALL_CLIENT_RUNTIME_MODE="pure_profile"
   else
     workspace_refresh_reason=""
     if is_truthy "$INSTALL_REPAIR"; then
@@ -4187,7 +4592,10 @@ ${ops_domain_dispatch}"
     ensure_workspace_setup_wizard_compat "$WORKSPACE_DIR" || true
     if ! verify_workspace_runtime_contract "$WORKSPACE_DIR"; then
       repair_workspace_runtime_contract "$version" "$triple" "$WORKSPACE_DIR" || exit 1
+      INSTALL_RUNTIME_CONTRACT_MODE="source_repaired"
+      INSTALL_RUNTIME_CONTRACT_OK=1
     fi
+    INSTALL_CLIENT_RUNTIME_MODE="source_workspace"
     write_workspace_release_tag "$WORKSPACE_DIR" "$version" || exit 1
     force_workspace_runtime_mode_source "$WORKSPACE_DIR" || exit 1
     ensure_node_runtime_notice || true
@@ -4314,6 +4722,7 @@ ${ops_domain_dispatch}"
     exit 1
   fi
   echo "[infring install] summary log: $INSTALL_SUMMARY_FILE"
+  emit_install_success_summary "$version" "$triple" "$quickstart_prefix"
 
   if [ -n "$SOURCE_FALLBACK_TMP" ] && [ -d "$SOURCE_FALLBACK_TMP" ]; then
     rm -rf "$SOURCE_FALLBACK_TMP"

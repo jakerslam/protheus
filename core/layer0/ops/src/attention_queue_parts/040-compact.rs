@@ -10,6 +10,34 @@ fn zero_number_value() -> Value {
     Value::Number(serde_json::Number::from_f64(0.0).unwrap_or(0.into()))
 }
 
+fn queue_utilization(queue_depth: usize, contract: &AttentionContract) -> f64 {
+    let capacity = contract.max_queue_depth.max(1);
+    (queue_depth as f64 / capacity as f64).clamp(0.0, 1.0)
+}
+
+fn backpressure_level(queue_depth: usize, contract: &AttentionContract) -> &'static str {
+    if queue_depth >= contract.backpressure_hard_watermark {
+        "critical"
+    } else if queue_depth >= contract.backpressure_soft_watermark {
+        "high"
+    } else {
+        "normal"
+    }
+}
+
+fn backpressure_snapshot(queue_depth: usize, contract: &AttentionContract) -> Value {
+    json!({
+        "level": backpressure_level(queue_depth, contract),
+        "queue_depth": queue_depth,
+        "queue_utilization": queue_utilization(queue_depth, contract),
+        "thresholds": {
+            "soft_watermark": contract.backpressure_soft_watermark,
+            "hard_watermark": contract.backpressure_hard_watermark,
+            "max_queue_depth": contract.max_queue_depth
+        }
+    })
+}
+
 fn compact(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
     let contract = load_contract(root);
     let run_context = flags
@@ -100,6 +128,8 @@ fn compact(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
         "queue_depth_before": queue_depth_before,
         "queue_depth_after": queue_depth_after,
         "expired_pruned": expired_pruned,
+        "backpressure_before": backpressure_snapshot(queue_depth_before, &contract),
+        "backpressure_after": backpressure_snapshot(queue_depth_after, &contract),
         "min_consumer_offset": min_offset,
         "consumer_offsets_before": offsets_before,
         "consumer_offsets_after": offsets_after,
@@ -117,6 +147,8 @@ fn compact(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
             "compacted_count": out_or_default(&out, "compacted_count", Value::Number(0.into())),
             "queue_depth_before": out_or_default(&out, "queue_depth_before", Value::Number(0.into())),
             "queue_depth_after": out_or_default(&out, "queue_depth_after", Value::Number(0.into())),
+            "backpressure_before": out_or_default(&out, "backpressure_before", Value::Null),
+            "backpressure_after": out_or_default(&out, "backpressure_after", Value::Null),
             "receipt_hash": out_or_default(&out, "receipt_hash", Value::String("".to_string())),
         }),
     );
@@ -212,8 +244,9 @@ fn enqueue(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
         let sev_rank = severity_rank(severity);
         let event_band = event.get("band").and_then(Value::as_str).unwrap_or("p4");
         let high_importance = band_rank(event_band) >= band_rank("p2");
-        let at_or_over_cap = queue_depth_before >= contract.max_queue_depth;
-        let should_drop_for_backpressure = at_or_over_cap
+        let at_or_over_soft = queue_depth_before >= contract.backpressure_soft_watermark;
+        let at_or_over_hard = queue_depth_before >= contract.backpressure_hard_watermark;
+        let should_drop_for_backpressure = at_or_over_hard
             && (queue_lane.eq_ignore_ascii_case("background")
                 || (sev_rank < drop_rank && !high_importance));
         if should_drop_for_backpressure {
@@ -241,6 +274,34 @@ fn enqueue(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
         if queued { Some(&event) } else { None },
         expired_pruned,
     );
+    let queue_utilization_before = queue_utilization(queue_depth_before, &contract);
+    let queue_utilization_after = queue_utilization(queue_depth_after, &contract);
+    let backpressure_level_before = backpressure_level(queue_depth_before, &contract);
+    let backpressure_level_after = backpressure_level(queue_depth_after, &contract);
+    let event_severity = event
+        .get("severity")
+        .and_then(Value::as_str)
+        .unwrap_or("info");
+    let event_band = event.get("band").and_then(Value::as_str).unwrap_or("p4");
+    let event_queue_lane = event
+        .get("queue_lane")
+        .and_then(Value::as_str)
+        .unwrap_or("standard");
+    let event_severity_rank = severity_rank(event_severity);
+    let drop_threshold_rank = severity_rank(&contract.backpressure_drop_below);
+    let event_high_importance = band_rank(event_band) >= band_rank("p2");
+    let at_or_over_soft = queue_depth_before >= contract.backpressure_soft_watermark;
+    let at_or_over_hard = queue_depth_before >= contract.backpressure_hard_watermark;
+    let drop_candidate = at_or_over_hard
+        && (event_queue_lane.eq_ignore_ascii_case("background")
+            || (event_severity_rank < drop_threshold_rank && !event_high_importance));
+    let backpressure_policy_action = if action == "dropped_backpressure" {
+        "drop"
+    } else if at_or_over_soft {
+        "admit_under_pressure"
+    } else {
+        "admit"
+    };
 
     let mut receipt = json!({
         "ok": true,
@@ -252,6 +313,30 @@ fn enqueue(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
         "queue_depth_before": queue_depth_before,
         "queue_depth_after": queue_depth_after,
         "expired_pruned": expired_pruned,
+        "backpressure": {
+            "level_before": backpressure_level_before,
+            "level_after": backpressure_level_after,
+            "queue_utilization_before": queue_utilization_before,
+            "queue_utilization_after": queue_utilization_after,
+            "at_or_over_soft": at_or_over_soft,
+            "at_or_over_hard": at_or_over_hard,
+            "drop_candidate": drop_candidate,
+            "policy_action": backpressure_policy_action,
+            "drop_below": contract.backpressure_drop_below,
+            "thresholds": {
+                "soft_watermark": contract.backpressure_soft_watermark,
+                "hard_watermark": contract.backpressure_hard_watermark,
+                "max_queue_depth": contract.max_queue_depth
+            },
+            "event_ranking": {
+                "severity": event_severity,
+                "severity_rank": event_severity_rank,
+                "drop_threshold_rank": drop_threshold_rank,
+                "queue_lane": event_queue_lane,
+                "band": event_band,
+                "high_importance": event_high_importance
+            }
+        },
         "attention_contract": contract_snapshot(&contract),
         "event": {
             "source": event_or_default(&event, "source", Value::String("unknown_source".to_string())),
@@ -283,6 +368,15 @@ fn enqueue(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
             "queue_depth_before": queue_depth_before,
             "queue_depth_after": queue_depth_after,
             "expired_pruned": expired_pruned,
+            "backpressure_level_before": backpressure_level_before,
+            "backpressure_level_after": backpressure_level_after,
+            "queue_utilization_before": queue_utilization_before,
+            "queue_utilization_after": queue_utilization_after,
+            "backpressure_policy_action": backpressure_policy_action,
+            "backpressure_drop_candidate": drop_candidate,
+            "backpressure_threshold_soft": contract.backpressure_soft_watermark,
+            "backpressure_threshold_hard": contract.backpressure_hard_watermark,
+            "backpressure_drop_below": contract.backpressure_drop_below,
             "severity": event_or_default(&event, "severity", Value::String("info".to_string())),
             "priority": event_or_default(&event, "priority", Value::Number(20.into())),
             "score": event_or_default(&event, "score", zero_number_value()),
@@ -330,6 +424,7 @@ fn status(root: &Path) -> i32 {
         "queue_depth": active_rows.len(),
         "lane_counts": lane_counts,
         "expired_pruned": expired_pruned,
+        "backpressure": backpressure_snapshot(active_rows.len(), &contract),
         "attention_contract": contract_snapshot(&contract),
         "latest": latest
     });

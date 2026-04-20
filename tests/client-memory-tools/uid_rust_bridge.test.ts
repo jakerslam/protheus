@@ -4,7 +4,8 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const ts = require('typescript');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
+const ts = require('typescript');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 if (!require.extensions['.ts']) {
   require.extensions['.ts'] = function compileTs(module, filename) {
@@ -39,4 +40,6 @@ const random = runtimeUid.randomUid({ prefix: 'xy', length: 18 });
 assert.equal(random.length, 18);
 assert.equal(runtimeUid.isAlnum(random), true);
 
-assertNoPlaceholderOrPromptLeak({ first, second, random }, 'uid_rust_bridge_test');\nassertStableToolingEnvelope({ first, second, random }, 'uid_rust_bridge_test');\nconsole.log(JSON.stringify({ ok: true, type: 'uid_rust_bridge_test' }));
+assertNoPlaceholderOrPromptLeak({ first, second, random }, 'uid_rust_bridge_test');
+assertStableToolingEnvelope({ first, second, random }, 'uid_rust_bridge_test');
+console.log(JSON.stringify({ ok: true, type: 'uid_rust_bridge_test' }));

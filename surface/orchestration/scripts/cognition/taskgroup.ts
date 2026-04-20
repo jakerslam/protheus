@@ -3,6 +3,7 @@
 
 const path = require('node:path');
 const {
+  ROOT,
   parseArgs,
   parseJson,
   invokeOrchestration,
@@ -10,7 +11,6 @@ const {
 const { slug, timestampToken, nonceToken } = require('./cli_shared.ts');
 const { runTaskGroupCli } = require('./taskgroup_cli.ts');
 
-const ROOT = path.resolve(__dirname, '..', '..', '..');
 const DEFAULT_TASKGROUP_DIR = path.join(ROOT, 'local', 'workspace', 'scratchpad', 'taskgroups');
 const TASKGROUP_SCHEMA_VERSION = 'taskgroup/v1';
 const GROUP_ID_PATTERN = /^[a-z0-9][a-z0-9._:-]{5,127}$/;

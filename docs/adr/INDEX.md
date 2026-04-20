@@ -1,7 +1,6 @@
-# ADR Index
+# ADR Index (Compatibility Alias)
 
-| ADR | Title | Status |
-| --- | --- | --- |
-| 0001 | State Kernel Control Plane | Accepted |
-| 0002 | Rust-Authoritative Runtime Boundaries | Accepted |
-| 0003 | SRS Contract Runtime Dispatch and Receipt Aggregation | Accepted |
+Canonical index:
+- `docs/client/adr/INDEX.md`
+
+This file is intentionally minimal to avoid duplicate authority.

@@ -120,7 +120,9 @@ fn control_runtime_root(root: &Path, parsed: &crate::ParsedArgs) -> PathBuf {
     let workspace_candidate = root.to_path_buf();
     let workspace_has_runtime = workspace_candidate.join("agents/main/agent").exists()
         || workspace_candidate.join("logs").exists()
-        || workspace_candidate.join("state").exists();
+        || workspace_candidate.join("state").exists()
+        || workspace_candidate.join("local/state").exists()
+        || workspace_candidate.join("local/workspace").exists();
     if workspace_has_runtime {
         return workspace_candidate;
     }
