@@ -9,7 +9,7 @@ It is designed for verifiable execution, fail-closed safety, and reproducible op
 
 Kernel authority is Rust-first (`core/**`).  
 Orchestration coordination lives in `surface/orchestration/**` (non-canonical, contract-driven).  
-Client/runtime surfaces remain thin presentation wrappers around policy-governed kernel lanes.
+Shell/runtime surfaces remain thin presentation wrappers around policy-governed kernel lanes.
 
 ## Terminology Transition (Public Canonical Term)
 
@@ -37,11 +37,24 @@ Client/runtime surfaces remain thin presentation wrappers around policy-governed
   - [x] Release policy publishes a final adapter-alias removal target version/date.
   - Compatibility mapping: `client/runtime/config/gateway_transition_alias_map.json`
 
+## Terminology Transition (Presentation Shell)
+
+- Canonical public term: **Shell**
+- Compatibility/internal alias: **Client** (legacy implementation term for the same presentation layer)
+- Canonical repository path remains `client/**` during compatibility transition.
+- Transition indicators:
+  - [x] Public/operator docs use `Shell` as the canonical presentation term.
+  - [x] Boundary docs mark `Client` as a compatibility alias (not a separate layer).
+  - [ ] Tooling command IDs and guard names expose `shell`-first aliases.
+  - [ ] Artifact/config naming migrates from `client_*` labels to `shell_*` labels with compatibility mapping.
+  - [ ] Release policy publishes a final client-alias removal target version/date.
+  - Internal transition notes: `docs/workspace/shell_transition_notes.md`
+
 ## Why InfRing
 
 - Deterministic execution with evidence-backed receipts.
 - Fail-closed safety and policy enforcement by default.
-- Rust-authoritative kernel with explicit thin-client boundaries.
+- Rust-authoritative kernel with explicit thin-shell boundaries.
 - Multi-profile runtime strategy: rich, pure, and tiny-max.
 - Operator-first CLI and gateway operator surface (presentation + orchestration ingress).
 
@@ -57,7 +70,7 @@ Runtime split inside cognition:
 
 - Authoritative Kernel (compat alias: Core): `core/**`
 - Orchestration Surface: `surface/orchestration/**`
-- Presentation Client: `client/**`
+- Presentation Shell (compat alias: Client): `client/**`
 - Gateway Layer (compat alias: Adapters): `adapters/**`
 
 See [planes/README.md](planes/README.md) for the canonical architecture contract.
@@ -106,7 +119,7 @@ What is true in this repository today:
 - Release-candidate dress rehearsal: `npm run -s ops:release:rc-rehearsal`.
 - Release-candidate recovery rehearsal is required every cycle through `npm run -s ops:release:rc-rehearsal`.
 - Release-candidate rehearsal also requires chaos, replay, and orchestration hidden-state proofs.
-- Client authority regression guard: `npm run -s ops:client-layer:boundary`.
+- Shell authority regression guard: `npm run -s ops:client-layer:boundary`.
 - Support bundle is the single incident truth package for release closure.
 - Internal/maintenance lanes are not part of the public production SLA.
 - Operator diagnostics and incident export: `npm run -s ops:support-bundle:export`
@@ -556,7 +569,7 @@ Operator caveats:
 | Path | Responsibility |
 |---|---|
 | `core/` | Rust authority layers and runtime core |
-| `client/runtime/systems/` | Runtime wrappers and operator surfaces |
+| `client/runtime/systems/` | Shell runtime wrappers and operator surfaces |
 | `client/runtime/config/` | Policy manifests, registries, and guardrails |
 | `adapters/` | Integration bridges |
 | `apps/` | Runnable app surfaces and examples |

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Define a hard operating split between `core/`, `surface/orchestration/`, and `client/` so placement decisions are predictable and enforceable.
+Define a hard operating split between `core/`, `surface/orchestration/`, and the shell path `client/` so placement decisions are predictable and enforceable.
 
 ## Transition Status
 
@@ -13,13 +13,13 @@ Internal naming and placement cleanup is an incremental transition: existing `or
 
 Core decides what is true and allowed.  
 Orchestration decides what should happen next.  
-Client decides how it is shown and collected.
+Shell decides how it is shown and collected.
 
 ## Core
 
 ### Mission
 
-Own canonical truth, permission, and enforcement even if orchestration and client disappear.
+Own canonical truth, permission, and enforcement even if orchestration and shell disappear.
 
 ### Core Owns
 
@@ -65,19 +65,19 @@ Coordinate workflow decomposition and execution flow without becoming authority 
 
 Is this deciding control-plane flow (what should run next) rather than deciding truth or permission?
 
-## Client
+## Shell (compat alias: Client)
 
 ### Mission
 
 Render outputs, collect input, and manage presentation-local UX state.
 
-### Client Owns
+### Shell Owns
 
 - Rendering and interaction flows.
 - Input capture and UX shells.
 - Presentation-local state and caches.
 
-### Client Must Not Own
+### Shell Must Not Own
 
 - Policy authority.
 - Authoritative health/readiness inference.
@@ -137,7 +137,7 @@ For each function/file:
 
 1. Is it authoritative truth or enforcement? -> `core/`
 2. Is it workflow coordination? -> `surface/orchestration/`
-3. Is it presentation/input UX? -> `client/`
+3. Is it presentation/input UX? -> shell path `client/`
 4. Is it external boundary integration/bridge logic? -> `adapters/` (Gateway layer)
 
 If code appears to satisfy multiple categories, split responsibilities.

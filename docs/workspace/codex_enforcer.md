@@ -45,7 +45,11 @@ Required execution behavior:
 - Implement all requested items as production code, not receipt scaffolds.
 - Authorized modification scope includes `core/`, `surface/`, `client/`, `apps/`, `adapters/`, `tests/`, and `docs/`.
 - You may add crates/packages, change schemas, and remove/replace placeholder flows when needed.
-- Enforce Rust-core authority and thin-client boundaries on every implementation.
+- Enforce Rust-core authority and thin-shell boundaries on every implementation.
+- Terminology transition rule:
+  - Canonical presentation term is `Shell`.
+  - Compatibility alias is `Client`.
+  - Repository path remains `client/**` until an explicit migration program is approved.
 - Orchestration Surface (Control Plane) is Rust-first by policy:
   - New control-plane authority and coordination logic must land in `surface/orchestration/src/**` (`.rs`).
   - `surface/orchestration/**` must remain at least `95%` Rust by tracked source lines.
@@ -53,11 +57,11 @@ Required execution behavior:
   - If control-plane logic requires TypeScript beyond adapter scope, stop with:
     - `BLOCKED — control-plane authority must be Rust; TS allowed only for minimal adapters`
 - Any net-new functionality must be paired with a canonical SRS row update in `docs/workspace/SRS.md` before it can be considered complete (`done`), including acceptance criteria and regression-proof references.
-- No new authority may be introduced in `client/**`:
-  - Client code is wrapper/UX/integration only.
+- No new authority may be introduced in the shell surface (`client/**`):
+  - Shell code is wrapper/UX/integration only.
   - Any new decision logic, policy logic, state mutation authority, or security-critical logic must land in `core/**`.
-  - If a task would place new authority in client, stop with:
-    - `BLOCKED — new authority in client is prohibited; move implementation to core`
+  - If a task would place new authority in shell/client, stop with:
+    - `BLOCKED — new authority in shell/client is prohibited; move implementation to core`
 - Do not mark any item `done` unless acceptance criteria are proven by:
   - behavior tests,
   - integration tests,
@@ -116,7 +120,7 @@ Completion requires all of the following:
 ## Language Allowlist Rules (Mandatory)
 - Approved implementation languages are:
   - Rust (`.rs`) for authority/runtime/core logic.
-  - TypeScript (`.ts`, `.tsx`) for client wrappers, UX surfaces, and dev/test tooling where Rust is not the execution host.
+  - TypeScript (`.ts`, `.tsx`) for shell wrappers, UX surfaces, and dev/test tooling where Rust is not the execution host.
 - JavaScript is prohibited for authored code:
   - Do not add or modify `.js`, `.jsx`, `.mjs`, or `.cjs` implementation files.
   - The only permitted JavaScript changes are deletion/migration of existing legacy JS to Rust/TypeScript.
@@ -132,7 +136,7 @@ Completion requires all of the following:
 
 ## Repository Placement Rules (Mandatory)
 - Canonical code locations are limited to: `core/`, `surface/`, `client/`, `tests/`, and `adapters/`.
-- `apps/` is app-only. It may contain only standalone apps that run on top of the client/runtime boundary.
+- `apps/` is app-only. It may contain only standalone apps that run on top of the shell/runtime boundary.
 - Any path under `apps/` must be deletable without changing core/surface/client/adapters/tests behavior.
 - Any path under `apps/` must be deletable without changing core/client/adapters/tests behavior.
 - System code must not import from `apps/**`. If system code needs shared logic, move that logic into `core/`, `surface/`, `client/`, `tests/`, or `adapters/` first.
@@ -144,15 +148,15 @@ Completion requires all of the following:
 - Ownership boundary axiom:
   - Core decides what is true and allowed.
   - Orchestration decides what should happen next.
-  - Client decides how it is shown and collected.
+  - Shell decides how it is shown and collected.
 - Canonical ownership rulebook: `docs/workspace/orchestration_ownership_policy.md`.
 - Placement decision rule:
   - system authority/runtime path => `core/`
   - control-plane coordination path (non-authoritative) => `surface/orchestration/**`
-  - client runtime wrappers/UX path => `client/runtime/systems/**` (thin runtime/client surface only)
-  - system authority/runtime path => `core/` (or `client/runtime/systems/**` only as thin runtime/client surface)
+  - shell runtime wrappers/UX path => `client/runtime/systems/**` (thin runtime/shell surface only)
+  - system authority/runtime path => `core/` (or `client/runtime/systems/**` only as thin runtime/shell surface)
   - control-plane coordination path (non-canonical decomposition/coordination/sequencing/recovery/packaging) => `surface/orchestration/**`
-  - developer/user operational scripts => `client/`
+  - developer/user operational scripts => shell path `client/`
   - test/CI tooling => `tests/`
   - integration bridges for external software => `adapters/`
   - standalone deletable products only => `apps/`
