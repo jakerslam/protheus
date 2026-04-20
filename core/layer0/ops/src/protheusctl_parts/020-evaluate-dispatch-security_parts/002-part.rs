@@ -82,6 +82,8 @@ fn run_core_domain(root: &Path, domain: &str, args: &[String], forward_stdin: bo
     };
 
     let mut forwarded_args = args.to_vec();
+    let mut gateway_startup_sequence_enabled = false;
+    let mut gateway_startup_command = String::new();
     if domain == "daemon-control" {
         let command = forwarded_args
             .first()
@@ -110,7 +112,17 @@ fn run_core_domain(root: &Path, domain: &str, args: &[String], forward_stdin: bo
             idx += 1;
         }
         if matches!(command.as_str(), "start" | "restart") && gateway_banner_enabled {
+            gateway_startup_sequence_enabled = true;
+            gateway_startup_command = command.clone();
             println!("P o w e r  T o  T h e  U s e r s");
+            println!("[infring gateway] startup-checkpoint: env_ready");
+            println!("[infring gateway] startup-checkpoint: runtime_contract_state=preflight");
+            println!(
+                "[infring gateway] startup-checkpoint: gateway_command_accepted={}",
+                clean(&gateway_startup_command, 40)
+            );
+            println!("[infring gateway] startup-checkpoint: dashboard_status=pending");
+            println!("[infring gateway] startup-checkpoint: next_action=infring gateway status");
             let mut cleaned = Vec::<String>::new();
             let mut skip_next = false;
             for token in &forwarded_args {
@@ -151,7 +163,27 @@ fn run_core_domain(root: &Path, domain: &str, args: &[String], forward_stdin: bo
     }
 
     match cmd.status() {
-        Ok(status) => status.code().unwrap_or(1),
+        Ok(status) => {
+            let code = status.code().unwrap_or(1);
+            if gateway_startup_sequence_enabled {
+                if code == 0 {
+                    println!("[infring gateway] startup-checkpoint: runtime_contract_state=accepted");
+                    println!(
+                        "[infring gateway] startup-checkpoint: dashboard_status=running_or_bootstrapping"
+                    );
+                    println!("[infring gateway] startup-checkpoint: next_action=infring gateway status");
+                } else {
+                    println!(
+                        "[infring gateway] startup-checkpoint: runtime_contract_state=failed(code={})",
+                        code
+                    );
+                    println!("[infring gateway] startup-checkpoint: dashboard_status=failed");
+                    println!("[infring gateway] startup-checkpoint: next_action=infring doctor --json");
+                    println!("[infring gateway] startup-checkpoint: escalation=infring recover");
+                }
+            }
+            code
+        }
         Err(err) => {
             eprintln!(
                 "{}",
@@ -274,7 +306,7 @@ fn maybe_run_cli_suggestion_engine(root: &Path, cmd: &str, rest: &[String], json
     ) {
         return;
     }
-    let suggestion_script_ts = root.join("client/runtime/systems/tools/cli_suggestion_engine.ts");
+    let suggestion_script_ts = root.join("client/runtime/systems/tools/cli_suggestion_engine_bridge.ts");
     let suggestion_script_js = root.join("client/runtime/systems/tools/cli_suggestion_engine.js");
     let suggestion_script = if suggestion_script_ts.exists() {
         suggestion_script_ts

@@ -4,11 +4,11 @@ Updated: 2026-04-07T12:05:00.000Z
 
 ## Global Rollup
 - total_rows: 3361
-- queued: 115
-- in_progress: 9
+- queued: 103
+- in_progress: 12
 - blocked: 0
 - blocked_external_prepared: 31
-- done: 975
+- done: 984
 - existing_coverage_validated: 2231
 
 ## Hierarchical Nexus Full-System Rewire Ledger (2026-04-07)
@@ -66,7 +66,7 @@ Rewired (40):
 
 ## SRS Section Checklist
 - [x] Installer Reliability v1.0 Intake (2026-04-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
-- [ ] Mass Adoption Launch Checklist (Next Pass) (2026-04-03) — queued=28, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Mass Adoption Launch Checklist (Next Pass) (2026-04-03) — queued=19, in_progress=9, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
 - [ ] Adaptive Runtime Primitive Expansion Intake (2026-04-04) — queued=5, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
 - [ ] Context Stacks for Cacheable Memory Groups Intake (2026-04-05) — queued=22, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
 - [x] Runtime UX + Scheduler Autonomy Intake (2026-04-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
@@ -503,7 +503,7 @@ Rewired (40):
 - [x] Intent-Aware Tooling + Memory Intelligence Delta (Feedback Assimilation, 2026-04-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=3, existing_coverage_validated=0
 - [ ] 10/10 Completion Intake (2026-04-03) — queued=42, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [ ] Strategic Differentiation Intake (Filtered + Expanded, 2026-04-04) — queued=6, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
-- [ ] Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04) — queued=9, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
+- [x] Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=15, existing_coverage_validated=0
 
 ## Actionable SRS Items (Queued/In Progress)
 - [x] `V10-EXT-AGENT-001.1` — done — External Framework + Research Assimilation Intake (Internet Source Pass, 2026-04-01)
@@ -533,11 +533,11 @@ Rewired (40):
 - [ ] `V11-LLM-001` — queued — 10/10 Completion Intake (2026-04-03)
 - [ ] `V11-LLM-002` — queued — 10/10 Completion Intake (2026-04-03)
 - [ ] `V11-LLM-003` — queued — 10/10 Completion Intake (2026-04-03)
-- [ ] `V11-MASS-CRIT-001` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [ ] `V11-MASS-CRIT-002` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
+- [x] `V11-MASS-CRIT-001` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
+- [x] `V11-MASS-CRIT-002` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
 - [ ] `V11-MASS-CRIT-005` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [ ] `V11-MASS-ONB-001` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [ ] `V11-MASS-SAFE-001` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
+- [ ] `V11-MASS-ONB-001` — in_progress — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
+- [x] `V11-MASS-SAFE-001` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
 - [ ] `V11-MASS-SAFE-002` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
 - [ ] `V11-MEMORY-001` — queued — 10/10 Completion Intake (2026-04-03)
 - [ ] `V11-MEMORY-002` — queued — 10/10 Completion Intake (2026-04-03)
@@ -567,13 +567,13 @@ Rewired (40):
 - [ ] `V11-INSTALL-007` — queued — 10/10 Completion Intake (2026-04-03)
 - [ ] `V11-LEARN-001` — queued — 10/10 Completion Intake (2026-04-03)
 - [ ] `V11-MASS-CRIT-004` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [ ] `V11-MASS-DOC-001` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [ ] `V11-MASS-DOC-002` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [ ] `V11-MASS-DOC-004` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [ ] `V11-MASS-ONB-004` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [ ] `V11-MASS-REC-001` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [ ] `V11-MASS-REC-002` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [ ] `V11-MASS-SAFE-004` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
+- [ ] `V11-MASS-DOC-001` — in_progress — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
+- [ ] `V11-MASS-DOC-002` — in_progress — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
+- [ ] `V11-MASS-DOC-004` — in_progress — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
+- [ ] `V11-MASS-ONB-004` — in_progress — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
+- [x] `V11-MASS-REC-001` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
+- [x] `V11-MASS-REC-002` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
+- [x] `V11-MASS-SAFE-004` — done — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
 - [ ] `V11-MASS-UX-002` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
 - [ ] `V11-MASS-UX-004` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
 - [ ] `V11-MULTI-001` — queued — Strategic Differentiation Intake (Filtered + Expanded, 2026-04-04)
@@ -598,17 +598,17 @@ Rewired (40):
 - [x] `V11-INSTALL-005` — done — 10/10 Completion Intake (2026-04-03)
 - [ ] `V11-LLM-004` — queued — 10/10 Completion Intake (2026-04-03)
 - [ ] `V11-MASS-CRIT-003` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [ ] `V11-MASS-DOC-003` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [ ] `V11-MASS-DOC-005` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [ ] `V11-MASS-ONB-002` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [ ] `V11-MASS-ONB-003` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
+- [ ] `V11-MASS-DOC-003` — in_progress — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
+- [ ] `V11-MASS-DOC-005` — in_progress — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
+- [ ] `V11-MASS-ONB-002` — in_progress — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
+- [ ] `V11-MASS-ONB-003` — in_progress — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
 - [ ] `V11-MASS-REC-003` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
 - [ ] `V11-MASS-REC-004` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
 - [ ] `V11-MASS-SAFE-003` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
 - [ ] `V11-MASS-SAFE-005` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [ ] `V11-MASS-UX-001` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [ ] `V11-MASS-UX-003` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
-- [ ] `V11-MASS-UX-005` — queued — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
+- [ ] `V11-MASS-UX-001` — in_progress — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
+- [ ] `V11-MASS-UX-003` — in_progress — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
+- [ ] `V11-MASS-UX-005` — in_progress — Mass Adoption Launch Checklist (Next Pass) (2026-04-03)
 - [ ] `V11-UI-001` — queued — 10/10 Completion Intake (2026-04-03)
 - [ ] `V11-UX-003` — queued — 10/10 Completion Intake (2026-04-03)
 - [ ] `V11-STOMACH-001` — queued — Stomach Assimilation Scoring Gate Rollout (Authority/Migration/Concept)
@@ -623,16 +623,16 @@ Rewired (40):
 - [ ] `V6-AUTONOMY-004.3` — queued — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
 - [ ] `V6-SWARM-005.7` — queued — Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
 - [x] `V10-WEB-CONDUIT-001.4` — existing_coverage_validated — Governed Web Conduit Intake (2026-03-31)
-- [ ] `V11-TODO-001` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
+- [x] `V11-TODO-001` — done — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
 - [x] `V11-TODO-002` — done — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
-- [ ] `V11-TODO-003` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
-- [ ] `V11-TODO-004` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
-- [ ] `V11-TODO-005` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
-- [ ] `V11-TODO-006` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
-- [ ] `V11-TODO-007` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
-- [ ] `V11-TODO-008` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
-- [ ] `V11-TODO-009` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
-- [ ] `V11-TODO-010` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
+- [x] `V11-TODO-003` — done — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
+- [x] `V11-TODO-004` — done — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
+- [x] `V11-TODO-005` — done — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
+- [x] `V11-TODO-006` — done — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
+- [x] `V11-TODO-007` — done — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
+- [x] `V11-TODO-008` — done — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
+- [x] `V11-TODO-009` — done — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
+- [x] `V11-TODO-010` — done — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
 
 ## External Blockers
 - [ ] `V2-012` — blocked_external_prepared — Backlog Full Completion Sweep (2026-03-03) (requires external evidence packet / human approval)

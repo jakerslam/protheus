@@ -99,6 +99,22 @@ function createReplModule() {
 }
 
 function createUnknownGuardModule() {
+  function buildUnknownRecoveryContract(unknown) {
+    const command = String(unknown || '').trim();
+    return {
+      route: 'unknown_command_recovery_v1',
+      unknown_command: command,
+      retry_command: 'infring help',
+      retry_expected_output: 'prints available commands and aliases',
+      setup_status_command: 'infring setup status --json',
+      setup_status_expected_output: 'returns onboarding_receipt with deterministic setup status',
+      diagnostics_command: 'infring doctor --json',
+      diagnostics_expected_output: 'returns install/runtime diagnostics with explicit failure codes',
+      escalation_command: 'infring recover',
+      escalation_expected_output: 'restarts runtime and re-validates gateway/install contracts',
+    };
+  }
+
   function isJsonMode(argv) {
     return argv.some((arg) => arg === '--json' || arg === '--json=1');
   }
@@ -119,6 +135,7 @@ function createUnknownGuardModule() {
     const tokens = normalizeArgv(argv);
     const unknown = firstUnknownCommand(tokens);
     const json = isJsonMode(tokens);
+    const recovery = buildUnknownRecoveryContract(unknown);
     if (json) {
       process.stdout.write(
         `${JSON.stringify({
@@ -127,6 +144,7 @@ function createUnknownGuardModule() {
           error: 'unknown_command',
           command: unknown,
           hint: 'Run `infring help` to list available commands.',
+          recovery,
         })}\n`,
       );
       return 2;
@@ -136,6 +154,11 @@ function createUnknownGuardModule() {
     } else {
       process.stderr.write('[infring] unknown command\n');
     }
+    process.stderr.write('[infring] deterministic recovery path:\n');
+    process.stderr.write(`[infring]   retry: ${recovery.retry_command} (expect: ${recovery.retry_expected_output})\n`);
+    process.stderr.write(`[infring]   setup: ${recovery.setup_status_command} (expect: ${recovery.setup_status_expected_output})\n`);
+    process.stderr.write(`[infring]   doctor: ${recovery.diagnostics_command} (expect: ${recovery.diagnostics_expected_output})\n`);
+    process.stderr.write(`[infring]   escalate: ${recovery.escalation_command} (expect: ${recovery.escalation_expected_output})\n`);
     runProtheusOps(['command-list-kernel', '--mode=help'], {
       unknownDomainFallback: false,
     });
