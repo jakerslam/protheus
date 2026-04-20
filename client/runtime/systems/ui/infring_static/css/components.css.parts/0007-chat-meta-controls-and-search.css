@@ -246,12 +246,27 @@ mark.search-highlight {
 
 .message-bubble.markdown-body ul,
 .message-bubble.markdown-body ol {
-  margin: 0.5em 0;
-  padding-left: 1.3em;
+  margin: 0.65em 0;
+  padding-left: 1.45em;
+  list-style-position: outside;
 }
 
 .message-bubble.markdown-body li {
-  margin: 0.22em 0;
+  margin: 0.32em 0;
+  padding-left: 0.14em;
+}
+
+.message-bubble.markdown-body ul ul,
+.message-bubble.markdown-body ul ol,
+.message-bubble.markdown-body ol ul,
+.message-bubble.markdown-body ol ol {
+  margin-top: 0.3em;
+  margin-bottom: 0.3em;
+  padding-left: 1.15em;
+}
+
+.message-bubble.markdown-body li > p {
+  margin: 0.24em 0;
 }
 
 .message-bubble.markdown-body code {
