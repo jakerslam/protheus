@@ -4,7 +4,8 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const ts = require('typescript');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
+const ts = require('typescript');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 if (!require.extensions['.ts']) {
   require.extensions['.ts'] = function compileTs(module, filename) {
@@ -41,4 +42,6 @@ const allow = mod.evaluateTrainingDatumTrainability({
   consent: { status: 'granted', mode: 'operator_policy' }
 });
 assert.equal(allow.allow, true);
-assertNoPlaceholderOrPromptLeak({ policy, deny, allow }, 'trainability_matrix_rust_bridge_test');\nassertStableToolingEnvelope({ policy, deny, allow }, 'trainability_matrix_rust_bridge_test');\nconsole.log(JSON.stringify({ ok: true, type: 'trainability_matrix_rust_bridge_test' }));
+assertNoPlaceholderOrPromptLeak({ policy, deny, allow }, 'trainability_matrix_rust_bridge_test');
+assertStableToolingEnvelope({ policy, deny, allow }, 'trainability_matrix_rust_bridge_test');
+console.log(JSON.stringify({ ok: true, type: 'trainability_matrix_rust_bridge_test' }));

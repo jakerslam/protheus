@@ -1,7 +1,77 @@
 # RUST60 Live Execution Queue
 
-Generated: 2026-03-31T08:57:38.225Z
+Generated: 2026-04-19T23:38:05.062Z
 
 | Rank | Path | LOC | Impact | Cumulative TS Migrated | Projected Rust % |
 |---:|---|---:|---:|---:|---:|
+| 1 | adapters/runtime/dashboard_asset_router.ts | 475 | 997.5 | 475 | 81.426 |
+| 2 | client/runtime/systems/ops/state_tiering_contract.ts | 135 | 580.5 | 610 | 81.443 |
+| 3 | client/runtime/systems/ops/relocatable_path_contract.ts | 132 | 567.6 | 742 | 81.46 |
+| 4 | client/runtime/systems/ops/source_runtime_classifier_contract.ts | 119 | 511.7 | 861 | 81.475 |
+| 5 | client/runtime/systems/ops/entrypoint_runtime_contract.ts | 104 | 447.2 | 965 | 81.488 |
+| 6 | client/runtime/systems/ops/contract_runtime_common.ts | 93 | 399.9 | 1058 | 81.5 |
+| 7 | client/runtime/systems/ops/package_manifest_contract.ts | 93 | 399.9 | 1151 | 81.511 |
+| 8 | adapters/runtime/dev_only/legacy_process_runner.ts | 190 | 399 | 1341 | 81.536 |
+| 9 | client/runtime/lib/adaptive_memory_entrypoint.ts | 133 | 372.4 | 1474 | 81.552 |
+| 10 | client/runtime/systems/ops/legal_language_contract.ts | 82 | 352.6 | 1556 | 81.563 |
+| 11 | adapters/runtime/dev_only/ops_lane_process_fallback.ts | 112 | 235.2 | 1668 | 81.577 |
+| 12 | benchmarks/public_harness/run_public_harness.ts | 118 | 177 | 1786 | 81.592 |
+| 13 | examples/apps/reference-receipts-memory/src/main.ts | 36 | 54 | 1822 | 81.596 |
+| 14 | examples/apps/reference-assimilation-policy/src/main.ts | 32 | 48 | 1854 | 81.6 |
+| 15 | examples/apps/reference-task-submit/src/main.ts | 27 | 40.5 | 1881 | 81.604 |
+| 16 | client/runtime/systems/hybrid/mobile/protheus_mobile_adapter.ts | 20 | 30 | 1901 | 81.606 |
+| 17 | client/runtime/systems/migration/post_migration_verification_report.ts | 20 | 30 | 1921 | 81.609 |
+| 18 | client/runtime/systems/migration/self_healing_migration_daemon.ts | 20 | 30 | 1941 | 81.611 |
+| 19 | client/runtime/systems/observability/metrics_exporter.ts | 20 | 30 | 1961 | 81.614 |
+| 20 | client/runtime/systems/observability/slo_alert_router.ts | 20 | 30 | 1981 | 81.617 |
+| 21 | client/runtime/systems/weaver/drift_aware_revenue_optimizer.ts | 20 | 30 | 2001 | 81.619 |
+| 22 | client/runtime/systems/actuation/disposable_infrastructure_organ.ts | 19 | 28.5 | 2020 | 81.621 |
+| 23 | client/runtime/systems/actuation/real_world_claws_bundle.ts | 19 | 28.5 | 2039 | 81.624 |
+| 24 | client/runtime/systems/actuation/universal_execution_primitive.ts | 19 | 28.5 | 2058 | 81.626 |
+| 25 | client/runtime/systems/autogenesis/trace_habit_autogenesis.ts | 19 | 28.5 | 2077 | 81.629 |
+| 26 | client/runtime/systems/autogenesis/trace_habit_loop.ts | 19 | 28.5 | 2096 | 81.631 |
+| 27 | client/runtime/systems/budget/capital_allocation_organ.ts | 19 | 28.5 | 2115 | 81.633 |
+| 28 | client/runtime/systems/continuity/sovereign_resurrection_substrate.ts | 19 | 28.5 | 2134 | 81.636 |
+| 29 | client/runtime/systems/echo/value_anchor_renewal.ts | 19 | 28.5 | 2153 | 81.638 |
+| 30 | client/runtime/systems/forge/forge_organ.ts | 19 | 28.5 | 2172 | 81.641 |
+| 31 | client/runtime/systems/fractal/mini_core_instancer.ts | 19 | 28.5 | 2191 | 81.643 |
+| 32 | client/runtime/systems/fractal/organism_cycle.ts | 19 | 28.5 | 2210 | 81.646 |
+| 33 | client/runtime/systems/hardware/compression_transfer_plane.ts | 19 | 28.5 | 2229 | 81.648 |
+| 34 | client/runtime/systems/hardware/embodiment_layer.ts | 19 | 28.5 | 2248 | 81.65 |
+| 35 | client/runtime/systems/hardware/surface_budget_controller.ts | 19 | 28.5 | 2267 | 81.653 |
+| 36 | client/runtime/systems/helix/confirmed_malice_quarantine.ts | 19 | 28.5 | 2286 | 81.655 |
+| 37 | client/runtime/systems/helix/helix_admission_gate.ts | 19 | 28.5 | 2305 | 81.658 |
+| 38 | client/runtime/systems/science/hypothesis_forge.ts | 19 | 28.5 | 2324 | 81.66 |
+| 39 | client/runtime/systems/self_audit/illusion_integrity_lane.ts | 19 | 28.5 | 2343 | 81.662 |
+| 40 | surface/orchestration/scripts/cognition/cli_shared.ts | 5 | 7.5 | 2348 | 81.663 |
+| 41 | surface/orchestration/scripts/adaptive_defense_expansion.ts | 4 | 6 | 2352 | 81.663 |
+| 42 | surface/orchestration/scripts/client_relationship_manager.ts | 4 | 6 | 2356 | 81.664 |
+| 43 | surface/orchestration/scripts/economic_entity_manager.ts | 4 | 6 | 2360 | 81.664 |
+| 44 | surface/orchestration/scripts/experiment_scheduler.ts | 4 | 6 | 2364 | 81.665 |
+| 45 | surface/orchestration/scripts/gated_account_creation_organ.ts | 4 | 6 | 2368 | 81.666 |
+| 46 | surface/orchestration/scripts/gated_self_improvement_loop.ts | 4 | 6 | 2372 | 81.666 |
+| 47 | surface/orchestration/scripts/hold_remediation_engine.ts | 4 | 6 | 2376 | 81.667 |
+| 48 | surface/orchestration/scripts/learning_conduit.ts | 4 | 6 | 2380 | 81.667 |
+| 49 | surface/orchestration/scripts/lever_experiment_gate.ts | 4 | 6 | 2384 | 81.668 |
+| 50 | surface/orchestration/scripts/llm_gateway_failure_classifier.ts | 4 | 6 | 2388 | 81.668 |
+| 51 | surface/orchestration/scripts/meta_science_active_learning_loop.ts | 4 | 6 | 2392 | 81.669 |
+| 52 | surface/orchestration/scripts/model_catalog_loop.ts | 4 | 6 | 2396 | 81.669 |
+| 53 | surface/orchestration/scripts/morph_planner.ts | 4 | 6 | 2400 | 81.67 |
+| 54 | surface/orchestration/scripts/personas_orchestration.ts | 4 | 6 | 2404 | 81.67 |
+| 55 | surface/orchestration/scripts/proactive_t1_initiative_engine.ts | 4 | 6 | 2408 | 81.671 |
+| 56 | surface/orchestration/scripts/provider_onboarding_manifest.ts | 4 | 6 | 2412 | 81.671 |
+| 57 | surface/orchestration/scripts/quantum_security_primitive_synthesis.ts | 4 | 6 | 2416 | 81.672 |
+| 58 | surface/orchestration/scripts/research_organ.ts | 4 | 6 | 2420 | 81.672 |
+| 59 | surface/orchestration/scripts/route_execute.ts | 4 | 6 | 2424 | 81.673 |
+| 60 | surface/orchestration/scripts/route_task.ts | 4 | 6 | 2428 | 81.673 |
+| 61 | surface/orchestration/scripts/scientific_method_loop.ts | 4 | 6 | 2432 | 81.674 |
+| 62 | surface/orchestration/scripts/scientific_mode_v4.ts | 4 | 6 | 2436 | 81.674 |
+| 63 | surface/orchestration/scripts/self_improvement_cadence_orchestrator.ts | 4 | 6 | 2440 | 81.675 |
+| 64 | surface/orchestration/scripts/self_improving_redteam_trainer.ts | 4 | 6 | 2444 | 81.675 |
+| 65 | surface/orchestration/scripts/strategy_learner.ts | 4 | 6 | 2448 | 81.676 |
+| 66 | surface/orchestration/scripts/swarm_orchestration_runtime.ts | 4 | 6 | 2452 | 81.676 |
+| 67 | surface/orchestration/scripts/task_decomposition_primitive.ts | 4 | 6 | 2456 | 81.677 |
+| 68 | surface/orchestration/scripts/universal_outreach_primitive.ts | 4 | 6 | 2460 | 81.677 |
+| 69 | surface/orchestration/scripts/value_of_information_collection_planner.ts | 4 | 6 | 2464 | 81.678 |
+| 70 | surface/orchestration/scripts/zero_permission_conversational_layer.ts | 4 | 6 | 2468 | 81.678 |
 

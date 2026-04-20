@@ -94,6 +94,14 @@ fn core_shortcut_routes_dashboard_ui_serve_to_daemon_control_start_with_flag_nor
 fn core_shortcut_routes_dashboard_alias_to_daemon_control_start() {
     let route = resolve_core_shortcuts("dashboard", &[]).expect("route");
     assert_eq!(route.script_rel, "core://daemon-control");
+    assert_eq!(route.args, vec!["start", "--dashboard-open=0"]);
+}
+
+#[test]
+fn core_shortcut_routes_dashboard_alias_respects_explicit_open_opt_in() {
+    let route = resolve_core_shortcuts("dashboard", &["--dashboard-open=1".to_string()])
+        .expect("route");
+    assert_eq!(route.script_rel, "core://daemon-control");
     assert_eq!(route.args, vec!["start", "--dashboard-open=1"]);
 }
 

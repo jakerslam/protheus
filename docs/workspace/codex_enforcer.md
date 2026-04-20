@@ -46,12 +46,12 @@ Required execution behavior:
 - Authorized modification scope includes `core/`, `surface/`, `client/`, `apps/`, `adapters/`, `tests/`, and `docs/`.
 - You may add crates/packages, change schemas, and remove/replace placeholder flows when needed.
 - Enforce Rust-core authority and thin-client boundaries on every implementation.
-- Orchestration Surface is Rust-first by policy:
-  - New orchestration authority and coordination logic must land in `surface/orchestration/src/**` (`.rs`).
+- Orchestration Surface (Control Plane) is Rust-first by policy:
+  - New control-plane authority and coordination logic must land in `surface/orchestration/src/**` (`.rs`).
   - `surface/orchestration/**` must remain at least `95%` Rust by tracked source lines.
   - TypeScript in `surface/orchestration/scripts/**` is adapter-only and must remain minimal delegation code.
-  - If orchestration logic requires TypeScript beyond adapter scope, stop with:
-    - `BLOCKED — orchestration authority must be Rust; TS allowed only for minimal adapters`
+  - If control-plane logic requires TypeScript beyond adapter scope, stop with:
+    - `BLOCKED — control-plane authority must be Rust; TS allowed only for minimal adapters`
 - Any net-new functionality must be paired with a canonical SRS row update in `docs/workspace/SRS.md` before it can be considered complete (`done`), including acceptance criteria and regression-proof references.
 - No new authority may be introduced in `client/**`:
   - Client code is wrapper/UX/integration only.
@@ -141,12 +141,17 @@ Completion requires all of the following:
 - CI/dev/test tooling scripts must live under `tests/tooling/scripts/`.
 - Runtime/operator utilities must live under `client/runtime/systems/**` (or `core/**` when authoritative).
 - If initialization/bootstrap installers need a dedicated surface, use `setup/` as the only root-level exception.
+- Ownership boundary axiom:
+  - Core decides what is true and allowed.
+  - Orchestration decides what should happen next.
+  - Client decides how it is shown and collected.
+- Canonical ownership rulebook: `docs/workspace/orchestration_ownership_policy.md`.
 - Placement decision rule:
   - system authority/runtime path => `core/`
-  - orchestration coordination path (non-authoritative) => `surface/orchestration/**`
+  - control-plane coordination path (non-authoritative) => `surface/orchestration/**`
   - client runtime wrappers/UX path => `client/runtime/systems/**` (thin runtime/client surface only)
   - system authority/runtime path => `core/` (or `client/runtime/systems/**` only as thin runtime/client surface)
-  - orchestration coordination path (non-canonical sequencing/clarification/progress/recovery) => `surface/orchestration/**`
+  - control-plane coordination path (non-canonical decomposition/coordination/sequencing/recovery/packaging) => `surface/orchestration/**`
   - developer/user operational scripts => `client/`
   - test/CI tooling => `tests/`
   - integration bridges for external software => `adapters/`

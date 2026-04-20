@@ -2,7 +2,8 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const path = require('node:path');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
+const path = require('node:path');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 const ROOT = path.resolve(__dirname, '../..');
 
@@ -55,7 +56,9 @@ function main() {
     nowSec: 1000
   });
   assert.equal(envVerify.ok, true);
-  assertNoPlaceholderOrPromptLeak({ payload, verified, envVerify }, 'request_envelope_rust_bridge_test');\n  assertStableToolingEnvelope(verified, 'request_envelope_rust_bridge_test');\n  console.log(JSON.stringify({ ok: true, type: 'request_envelope_rust_bridge_test' }));
+  assertNoPlaceholderOrPromptLeak({ payload, verified, envVerify }, 'request_envelope_rust_bridge_test');
+  assertStableToolingEnvelope(verified, 'request_envelope_rust_bridge_test');
+  console.log(JSON.stringify({ ok: true, type: 'request_envelope_rust_bridge_test' }));
 }
 
 try {

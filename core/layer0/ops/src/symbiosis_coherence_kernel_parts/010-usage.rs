@@ -27,6 +27,9 @@ fn usage() {
     println!(
         "  protheus-ops symbiosis-coherence-kernel profile-reset [--payload-base64=<json>]"
     );
+    println!(
+        "  protheus-ops symbiosis-coherence-kernel profile-checklist [--payload-base64=<json>]"
+    );
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {

@@ -5,7 +5,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const ts = require('typescript');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
+const ts = require('typescript');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 if (!require.extensions['.ts']) {
   require.extensions['.ts'] = function compileTs(module, filename) {
@@ -91,7 +92,9 @@ function main() {
   assert.equal(fs.existsSync(auditPath), true);
   assert.equal(fs.existsSync(violationPath), true);
 
-  assertNoPlaceholderOrPromptLeak({ policy, normalized, pass, softFail }, 'mutation_provenance_rust_bridge_test');\n  assertStableToolingEnvelope(pass, 'mutation_provenance_rust_bridge_test');\n  console.log(JSON.stringify({ ok: true, type: 'mutation_provenance_rust_bridge_test' }));
+  assertNoPlaceholderOrPromptLeak({ policy, normalized, pass, softFail }, 'mutation_provenance_rust_bridge_test');
+  assertStableToolingEnvelope(pass, 'mutation_provenance_rust_bridge_test');
+  console.log(JSON.stringify({ ok: true, type: 'mutation_provenance_rust_bridge_test' }));
 }
 
 try {

@@ -23,6 +23,8 @@ struct AttentionContract {
     latest_path: PathBuf,
     cursor_state_path: PathBuf,
     max_queue_depth: usize,
+    backpressure_soft_watermark: usize,
+    backpressure_hard_watermark: usize,
     max_batch_size: usize,
     ttl_hours: i64,
     dedupe_window_hours: i64,

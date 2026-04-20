@@ -374,6 +374,12 @@ fn usage() {
     println!("  protheus-ops swarm-runtime background <start|status|stop> [flags]");
     println!("  protheus-ops swarm-runtime scheduled <add|status|run-due> [flags]");
     println!("  protheus-ops swarm-runtime channels <create|publish|poll|monitor> [flags]");
+    println!("  protheus-ops swarm-runtime plans <start|status|advance|checkpoint|branch-gate|speaker-select> [flags]");
+    println!("    start flags: --goal=<text> [--session-id=<supervisor>] [--plan-max-depth=<n>]");
+    println!("    advance flags: --plan-id=<id> [--max-steps=<n>] [--allow-replan=1|0] [--simulate-blocked=1|0]");
+    println!("    checkpoint flags: --plan-id=<id> --node-id=<id> [--state-json=<json>] | --plan-id=<id> --checkpoint-id=<id>");
+    println!("    branch-gate flags: --plan-id=<id> --node-id=<id> [--wait-user=1|0] [--decision=<approve|deny|auto>] [--timeout-ms=<n>]");
+    println!("    speaker-select flags: --plan-id=<id> --message=<text> [--candidate-session-ids=<csv>]");
     println!(
         "  protheus-ops swarm-runtime results <publish|query|wait|show|consensus|outliers> [flags]"
     );

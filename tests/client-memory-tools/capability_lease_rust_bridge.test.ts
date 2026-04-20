@@ -4,7 +4,8 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
-const path = require('node:path');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
+const path = require('node:path');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 const ROOT = path.resolve(__dirname, '../..');
 
@@ -57,7 +58,9 @@ function main() {
   assert.equal(Object.keys(state.consumed).length, 1);
   assert.equal(fs.existsSync(mod.LEASE_AUDIT_PATH), true);
 
-  assertNoPlaceholderOrPromptLeak({ issued, verified, consumed, second, state }, 'capability_lease_rust_bridge_test');\n  assertStableToolingEnvelope(issued, 'capability_lease_rust_bridge_test');\n  console.log(JSON.stringify({ ok: true, type: 'capability_lease_rust_bridge_test' }));
+  assertNoPlaceholderOrPromptLeak({ issued, verified, consumed, second, state }, 'capability_lease_rust_bridge_test');
+  assertStableToolingEnvelope(issued, 'capability_lease_rust_bridge_test');
+  console.log(JSON.stringify({ ok: true, type: 'capability_lease_rust_bridge_test' }));
 }
 
 try {

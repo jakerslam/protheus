@@ -98,10 +98,85 @@ fn default_profile_state() -> Value {
             "tone": "collaborative",
             "depth": 0.62,
             "initiative": 0.54,
-            "tool_aggressiveness": 0.34
+            "tool_aggressiveness": 0.34,
+            "response_style": "balanced",
+            "detail_level": "standard",
+            "proactivity_tolerance": "medium",
+            "risk_appetite": "balanced"
         },
+        "edit_later_path": profile_edit_later_path(),
         "deltas": []
     })
+}
+
+fn profile_edit_later_path() -> &'static str {
+    "protheus-ops symbiosis-coherence-kernel profile-update --payload='{\"response_style\":\"direct\",\"detail_level\":\"detailed\",\"proactivity_tolerance\":\"high\",\"risk_appetite\":\"cautious\"}'"
+}
+
+fn normalize_choice(raw: Option<&Value>, fallback: &str, allowed: &[&str]) -> String {
+    let token = normalize_token(raw, 32);
+    if token.is_empty() {
+        return fallback.to_string();
+    }
+    if allowed.iter().any(|item| *item == token) {
+        token
+    } else {
+        fallback.to_string()
+    }
+}
+
+fn normalize_response_style(raw: Option<&Value>, fallback: &str) -> String {
+    normalize_choice(raw, fallback, &["direct", "balanced", "coaching"])
+}
+
+fn normalize_detail_level(raw: Option<&Value>, fallback: &str) -> String {
+    normalize_choice(raw, fallback, &["concise", "standard", "detailed"])
+}
+
+fn normalize_proactivity_tolerance(raw: Option<&Value>, fallback: &str) -> String {
+    normalize_choice(raw, fallback, &["low", "medium", "high"])
+}
+
+fn normalize_risk_appetite(raw: Option<&Value>, fallback: &str) -> String {
+    normalize_choice(raw, fallback, &["cautious", "balanced", "aggressive"])
+}
+
+fn profile_checklist(settings: &Value) -> Value {
+    let response_style = normalize_response_style(settings.get("response_style"), "balanced");
+    let detail_level = normalize_detail_level(settings.get("detail_level"), "standard");
+    let proactivity_tolerance =
+        normalize_proactivity_tolerance(settings.get("proactivity_tolerance"), "medium");
+    let risk_appetite = normalize_risk_appetite(settings.get("risk_appetite"), "balanced");
+    json!([
+        {
+            "key": "response_style",
+            "label": "Response style",
+            "current": response_style,
+            "options": ["direct", "balanced", "coaching"],
+            "description": "Controls concise-vs-guided response tone."
+        },
+        {
+            "key": "detail_level",
+            "label": "Detail level",
+            "current": detail_level,
+            "options": ["concise", "standard", "detailed"],
+            "description": "Controls default answer depth."
+        },
+        {
+            "key": "proactivity_tolerance",
+            "label": "Proactivity tolerance",
+            "current": proactivity_tolerance,
+            "options": ["low", "medium", "high"],
+            "description": "Controls how often proactive suggestions are surfaced."
+        },
+        {
+            "key": "risk_appetite",
+            "label": "Risk appetite",
+            "current": risk_appetite,
+            "options": ["cautious", "balanced", "aggressive"],
+            "description": "Controls conservative vs bold default suggestions."
+        }
+    ])
 }
 
 fn normalize_tone(raw: Option<&Value>, fallback: &str) -> String {
@@ -134,6 +209,7 @@ fn profile_summary(root: &Path, payload: &Map<String, Value>) -> Result<Value, S
     let path = profile_state_path(root, payload);
     let state = load_profile_state(&path);
     let settings = state.get("settings").cloned().unwrap_or_else(|| json!({}));
+    let checklist = profile_checklist(&settings);
     let deltas = state
         .get("deltas")
         .and_then(Value::as_array)
@@ -144,6 +220,11 @@ fn profile_summary(root: &Path, payload: &Map<String, Value>) -> Result<Value, S
         "type": "symbiosis_profile_summary",
         "path_rel": rel_path(root, &path),
         "settings": settings,
+        "first_run_checklist": checklist,
+        "edit_later_path": state
+            .get("edit_later_path")
+            .cloned()
+            .unwrap_or_else(|| Value::String(profile_edit_later_path().to_string())),
         "delta_count": deltas.len(),
         "last_delta": deltas.last().cloned().unwrap_or(Value::Null),
         "updated_at": state.get("updated_at").cloned().unwrap_or(Value::Null)
@@ -158,6 +239,14 @@ fn profile_update(root: &Path, payload: &Map<String, Value>) -> Result<Value, St
     let existing_depth = clamp_number(existing.get("depth"), 0.0, 1.0, 0.62);
     let existing_initiative = clamp_number(existing.get("initiative"), 0.0, 1.0, 0.54);
     let existing_tool = clamp_number(existing.get("tool_aggressiveness"), 0.0, 1.0, 0.34);
+    let existing_response_style =
+        normalize_response_style(existing.get("response_style"), "balanced");
+    let existing_detail_level = normalize_detail_level(existing.get("detail_level"), "standard");
+    let existing_proactivity = normalize_proactivity_tolerance(
+        existing.get("proactivity_tolerance"),
+        "medium",
+    );
+    let existing_risk = normalize_risk_appetite(existing.get("risk_appetite"), "balanced");
 
     let explicit = payload.get("explicit_feedback").and_then(Value::as_object);
     let implicit = payload.get("interaction_signals").and_then(Value::as_object);
@@ -167,6 +256,30 @@ fn profile_update(root: &Path, payload: &Map<String, Value>) -> Result<Value, St
             .get("tone")
             .or_else(|| explicit.and_then(|row| row.get("tone"))),
         existing_tone.as_str(),
+    );
+    let response_style = normalize_response_style(
+        payload
+            .get("response_style")
+            .or_else(|| explicit.and_then(|row| row.get("response_style"))),
+        existing_response_style.as_str(),
+    );
+    let detail_level = normalize_detail_level(
+        payload
+            .get("detail_level")
+            .or_else(|| explicit.and_then(|row| row.get("detail_level"))),
+        existing_detail_level.as_str(),
+    );
+    let proactivity_tolerance = normalize_proactivity_tolerance(
+        payload
+            .get("proactivity_tolerance")
+            .or_else(|| explicit.and_then(|row| row.get("proactivity_tolerance"))),
+        existing_proactivity.as_str(),
+    );
+    let risk_appetite = normalize_risk_appetite(
+        payload
+            .get("risk_appetite")
+            .or_else(|| explicit.and_then(|row| row.get("risk_appetite"))),
+        existing_risk.as_str(),
     );
     let depth = (
         clamp_number(
@@ -214,7 +327,11 @@ fn profile_update(root: &Path, payload: &Map<String, Value>) -> Result<Value, St
         "tone": target_tone,
         "depth": round_to(depth, 4),
         "initiative": round_to(initiative, 4),
-        "tool_aggressiveness": round_to(tool_aggressiveness, 4)
+        "tool_aggressiveness": round_to(tool_aggressiveness, 4),
+        "response_style": response_style,
+        "detail_level": detail_level,
+        "proactivity_tolerance": proactivity_tolerance,
+        "risk_appetite": risk_appetite
     });
 
     let delta = json!({
@@ -236,6 +353,7 @@ fn profile_update(root: &Path, payload: &Map<String, Value>) -> Result<Value, St
 
     state["version"] = Value::String("1.0".to_string());
     state["updated_at"] = Value::String(now.clone());
+    state["edit_later_path"] = Value::String(profile_edit_later_path().to_string());
     state["settings"] = next_settings.clone();
     state["deltas"] = Value::Array(deltas);
     write_json(&path, &state)?;
@@ -245,7 +363,9 @@ fn profile_update(root: &Path, payload: &Map<String, Value>) -> Result<Value, St
         "type": "symbiosis_profile_update",
         "path_rel": rel_path(root, &path),
         "settings": next_settings,
-        "delta": delta
+        "delta": delta,
+        "first_run_checklist": profile_checklist(&state["settings"]),
+        "edit_later_path": profile_edit_later_path()
     }))
 }
 
@@ -253,12 +373,33 @@ fn profile_reset(root: &Path, payload: &Map<String, Value>) -> Result<Value, Str
     let path = profile_state_path(root, payload);
     let mut state = default_profile_state();
     state["updated_at"] = Value::String(now_iso());
+    state["edit_later_path"] = Value::String(profile_edit_later_path().to_string());
     write_json(&path, &state)?;
+    let settings = state.get("settings").cloned().unwrap_or(Value::Null);
     Ok(json!({
         "ok": true,
         "type": "symbiosis_profile_reset",
         "path_rel": rel_path(root, &path),
-        "settings": state.get("settings").cloned().unwrap_or(Value::Null)
+        "settings": settings.clone(),
+        "first_run_checklist": profile_checklist(&settings),
+        "edit_later_path": profile_edit_later_path()
+    }))
+}
+
+fn profile_checklist_cmd(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
+    let path = profile_state_path(root, payload);
+    let state = load_profile_state(&path);
+    let settings = state.get("settings").cloned().unwrap_or_else(|| json!({}));
+    Ok(json!({
+        "ok": true,
+        "type": "symbiosis_profile_checklist",
+        "path_rel": rel_path(root, &path),
+        "settings": settings.clone(),
+        "first_run_checklist": profile_checklist(&settings),
+        "edit_later_path": state
+            .get("edit_later_path")
+            .cloned()
+            .unwrap_or_else(|| Value::String(profile_edit_later_path().to_string()))
     }))
 }
 
@@ -301,6 +442,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "profile-summary" => profile_summary(root, &payload),
         "profile-update" => profile_update(root, &payload),
         "profile-reset" => profile_reset(root, &payload),
+        "profile-checklist" => profile_checklist_cmd(root, &payload),
         "help" | "--help" | "-h" => {
             usage();
             return 0;

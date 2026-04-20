@@ -7,12 +7,36 @@ InfRing runs with a Rust core and a thin TypeScript surface routed through condu
 ### macOS / Linux
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh && . "$HOME/.infring/env.sh" && infring gateway
+curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --full
+infring setup --yes --defaults
+infring setup status --json
+infring gateway
+infring gateway status
 ```
 
 If PATH has not refreshed in the same shell, run directly: `~/.infring/bin/infring gateway`.
 
+Optional Node bootstrap for full command surface:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --full --install-node
+infring setup --yes --defaults
+infring setup status --json
+infring gateway
+infring gateway status
+```
+
+Optional machine-readable install summary (JSON):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --full --json
+```
+
 ### Windows (PowerShell)
+
+Canonical install command (single-line):
+
+`Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; $tmp = Join-Path $env:TEMP "infring-install.ps1"; irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 -OutFile $tmp -ErrorAction Stop; & $tmp -Repair -Full; Remove-Item $tmp -Force -ErrorAction SilentlyContinue`
 
 ```powershell
 # Use process-scoped bypass so locked-down execution policies do not block install.
@@ -24,7 +48,16 @@ irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 -Out
 Remove-Item $tmp -Force -ErrorAction SilentlyContinue
 # Confirm command resolution in this shell; if unresolved, use direct-path fallback below.
 Get-Command infring -ErrorAction SilentlyContinue
+infring setup --yes --defaults
+infring setup status --json
 infring gateway
+infring gateway status
+```
+
+Optional machine-readable install summary (JSON):
+
+```powershell
+& $tmp -Repair -Full -Json
 ```
 
 If PATH has not refreshed in the same shell, run directly: `$HOME\.infring\bin\infring.cmd gateway`.
@@ -35,7 +68,10 @@ If script execution is still restricted in your environment, use a no-file fallb
 $env:INFRING_INSTALL_REPAIR = "1"
 $env:INFRING_INSTALL_FULL = "1"
 irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 | iex
+infring setup --yes --defaults
+infring setup status --json
 infring gateway
+infring gateway status
 ```
 
 If a release has no Windows prebuilt binary for your architecture, the installer falls back to building from source. Install prerequisites first on fresh machines:
@@ -75,7 +111,69 @@ infringctl --help
 infringd --help
 ```
 
-Legacy aliases are compatibility-only and should not be used in new automation.
+Legacy aliases (`protheus`, `protheusctl`, `protheusd`) are compatibility-only and should not be used in new automation.
+
+## Runtime manifest and mode contract
+
+Install/runtime required entries are defined in:
+
+- `client/runtime/config/install_runtime_manifest_v1.txt`
+- `client/runtime/config/install_runtime_node_modules_v1.txt`
+
+Current required runtime entries:
+
+- `client/runtime/systems/ops/protheusd.ts`
+- `client/runtime/systems/ops/protheus_status_dashboard.ts`
+- `client/runtime/systems/ops/protheus_unknown_guard.ts`
+
+Current required runtime node modules:
+
+- `typescript`
+- `ws`
+
+Mode behavior:
+
+- `--full`: full command surface, dashboard and setup flow available.
+- `--pure` / `--tiny-max`: constrained Rust-first runtime surface; optional rich lanes are intentionally limited.
+- `--minimal`: install-light profile; optional onboarding/dashboard surfaces may require explicit setup/opt-in.
+
+Mode contract (operator-facing):
+
+| Mode | Gateway | Dashboard/UI surface | Setup interaction default | Notes |
+| --- | --- | --- | --- | --- |
+| `full` | Available | Available | Interactive on TTY, deterministic defaults in non-interactive | Recommended for full operator workflows |
+| `pure` | Available | Limited/optional | Non-interactive defaults stay conservative | Rust-first path for constrained environments |
+| `tiny-max` | Available | Limited/optional | Non-interactive defaults stay conservative | Minimal footprint profile |
+| `minimal` | Available | Optional/limited | Setup may require explicit invocation | Install-light compatibility profile |
+
+Required vs optional command surfaces (release-mode contract):
+
+| Surface | Required in all modes | `full` | `minimal` | `pure` / `tiny-max` |
+| --- | --- | --- | --- | --- |
+| Wrappers (`infring`, `infringctl`, `infringd`) | Yes | Yes | Yes | Yes |
+| Setup lane (`infring setup`, `infring setup status --json`) | Yes | Yes | Yes | Yes |
+| Gateway status (`infring gateway status`) | Yes | Yes | Yes | Yes |
+| Rich gateway launch (`infring gateway`) | Optional | Available | Available (may require explicit setup) | Limited/optional by design |
+
+## First-launch diagnostics contract
+
+For `infring gateway` start/restart, expect deterministic checkpoint output:
+
+1. `startup-checkpoint: env_ready`
+2. `startup-checkpoint: runtime_contract_state=preflight`
+3. `startup-checkpoint: gateway_command_accepted=<start|restart>`
+4. `startup-checkpoint: dashboard_status=pending`
+5. `startup-checkpoint: next_action=infring gateway status`
+
+On success:
+- `startup-checkpoint: runtime_contract_state=accepted`
+- `startup-checkpoint: dashboard_status=running_or_bootstrapping`
+
+On failure:
+- `startup-checkpoint: runtime_contract_state=failed(code=...)`
+- `startup-checkpoint: dashboard_status=failed`
+- `startup-checkpoint: next_action=infring doctor --json`
+- `startup-checkpoint: escalation=infring recover`
 
 ## 3) Start core surfaces
 

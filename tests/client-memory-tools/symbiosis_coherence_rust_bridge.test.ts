@@ -24,7 +24,8 @@ if (!require.extensions['.ts']) {
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
-const path = require('node:path');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
+const path = require('node:path');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 const ROOT = path.resolve(__dirname, '../..');
 
@@ -102,7 +103,9 @@ function main() {
   assert.strictEqual(typeof recursion.blocked, 'boolean');
   assert.ok(recursion.allowed_depth == null || recursion.allowed_depth >= 1);
 
-  assertNoPlaceholderOrPromptLeak({ policy, evaluated, loaded, recursion }, 'symbiosis_coherence_rust_bridge_test');\n  assertStableToolingEnvelope(evaluated, 'symbiosis_coherence_rust_bridge_test');\n  console.log(JSON.stringify({ ok: true, type: 'symbiosis_coherence_rust_bridge_test' }));
+  assertNoPlaceholderOrPromptLeak({ policy, evaluated, loaded, recursion }, 'symbiosis_coherence_rust_bridge_test');
+  assertStableToolingEnvelope(evaluated, 'symbiosis_coherence_rust_bridge_test');
+  console.log(JSON.stringify({ ok: true, type: 'symbiosis_coherence_rust_bridge_test' }));
 }
 
 if (require.main === module) {

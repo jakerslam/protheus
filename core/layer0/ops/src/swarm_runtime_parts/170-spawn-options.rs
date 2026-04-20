@@ -493,4 +493,386 @@ mod tests {
             "unexpected error: {err}"
         );
     }
+
+    #[test]
+    fn spawn_emits_role_card_and_enforces_capability_envelope() {
+        let mut state = SwarmState::default();
+        let mut options = spawn_options();
+        options.role = Some("validator".to_string());
+        options.capabilities = vec![
+            "validate".to_string(),
+            "audit".to_string(),
+            "invalid capability!".to_string(),
+            "validate".to_string(),
+        ];
+
+        let spawned = spawn_single(&mut state, None, "validate deployment plan", 8, &options)
+            .expect("spawn should succeed");
+        let role_card = spawned
+            .get("role_card")
+            .cloned()
+            .unwrap_or(Value::Null);
+        assert_eq!(role_card.get("role").and_then(Value::as_str), Some("validator"));
+        assert_eq!(
+            role_card.get("goal").and_then(Value::as_str),
+            Some("validate deployment plan")
+        );
+        assert_eq!(
+            role_card
+                .get("capability_envelope")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len()),
+            Some(2)
+        );
+
+        let service_caps = state
+            .service_registry
+            .get("validator")
+            .and_then(|rows| rows.first())
+            .map(|instance| instance.capabilities.clone())
+            .unwrap_or_default();
+        assert_eq!(service_caps, vec!["audit".to_string(), "validate".to_string()]);
+    }
+
+    #[test]
+    fn spawn_fails_closed_on_parent_lineage_cycle() {
+        let mut state = SwarmState::default();
+        let mut a = session_metadata_base(
+            "cycle-a".to_string(),
+            Some("cycle-b".to_string()),
+            0,
+            "cycle-a-task".to_string(),
+            "running".to_string(),
+        );
+        let mut b = session_metadata_base(
+            "cycle-b".to_string(),
+            Some("cycle-a".to_string()),
+            1,
+            "cycle-b-task".to_string(),
+            "running".to_string(),
+        );
+        a.reachable = true;
+        b.reachable = true;
+        state.sessions.insert("cycle-a".to_string(), a);
+        state.sessions.insert("cycle-b".to_string(), b);
+
+        let err = spawn_single(&mut state, Some("cycle-a"), "child", 8, &spawn_options())
+            .expect_err("cycle should be blocked");
+        assert_eq!(err, "lineage_cycle_detected");
+    }
+
+    #[test]
+    fn tick_uses_should_terminate_contract_for_goal_met() {
+        let mut state = SwarmState::default();
+        let mut options = spawn_options();
+        options.role = Some("worker".to_string());
+        let cfg = PersistentAgentConfig {
+            lifespan_sec: 3600,
+            check_in_interval_sec: 30,
+            report_mode: ReportMode::Always,
+        };
+
+        let session_id = spawn_persistent_session(
+            &mut state,
+            None,
+            "goal-tracking-task",
+            8,
+            &options,
+            &cfg,
+            false,
+        )
+        .expect("persistent spawn")
+        .get("session_id")
+        .and_then(Value::as_str)
+        .expect("session id")
+        .to_string();
+
+        if let Some(session) = state.sessions.get_mut(&session_id) {
+            session
+                .context_vars
+                .insert("goal_met".to_string(), Value::Bool(true));
+        }
+
+        let tick = tick_persistent_sessions(&mut state, now_epoch_ms(), 4).expect("tick");
+        let report_row = tick
+            .get("reports")
+            .and_then(Value::as_array)
+            .and_then(|rows| {
+                rows.iter().find(|row| {
+                    row.get("session_id")
+                        .and_then(Value::as_str)
+                        .map(|value| value == session_id)
+                        .unwrap_or(false)
+                })
+            })
+            .cloned()
+            .unwrap_or(Value::Null);
+
+        assert_eq!(
+            report_row
+                .get("should_terminate")
+                .and_then(|row| row.get("reason"))
+                .and_then(Value::as_str),
+            Some("goal_met")
+        );
+        let terminated_reason = state
+            .sessions
+            .get(&session_id)
+            .and_then(|session| session.persistent.as_ref())
+            .and_then(|runtime| runtime.terminated_reason.as_deref());
+        assert_eq!(terminated_reason, Some("goal_met"));
+    }
+
+    fn argv(rows: &[&str]) -> Vec<String> {
+        rows.iter().map(|row| (*row).to_string()).collect::<Vec<_>>()
+    }
+
+    #[test]
+    fn plans_start_creates_supervisor_and_task_graph() {
+        let mut state = SwarmState::default();
+        let output = run_plans_command(
+            &mut state,
+            &argv(&[
+                "plans",
+                "start",
+                "--goal=ship reliable workflow gates, add eval traces, harden retries",
+                "--plan-max-depth=4",
+            ]),
+        )
+        .expect("plan start");
+        assert_eq!(
+            output.get("type").and_then(Value::as_str),
+            Some("swarm_runtime_plan_start")
+        );
+        let plan = output.get("plan").cloned().unwrap_or(Value::Null);
+        assert_eq!(plan.get("status").and_then(Value::as_str), Some("running"));
+        assert!(
+            plan.get("nodes")
+                .and_then(Value::as_object)
+                .map(|nodes| nodes.len() >= 2)
+                .unwrap_or(false)
+        );
+    }
+
+    #[test]
+    fn plans_advance_supports_recursive_replan_loop() {
+        let mut state = SwarmState::default();
+        let started = run_plans_command(
+            &mut state,
+            &argv(&[
+                "plans",
+                "start",
+                "--goal=resolve blocked dependency and continue execution",
+                "--plan-max-depth=4",
+            ]),
+        )
+        .expect("plan start");
+        let plan_id = started
+            .get("plan")
+            .and_then(|row| row.get("plan_id"))
+            .and_then(Value::as_str)
+            .expect("plan id");
+
+        let advanced = run_plans_command(
+            &mut state,
+            &argv(&[
+                "plans",
+                "advance",
+                &format!("--plan-id={plan_id}"),
+                "--max-steps=2",
+                "--allow-replan=1",
+                "--simulate-blocked=1",
+            ]),
+        )
+        .expect("plan advance");
+        assert_eq!(
+            advanced.get("steps_executed").and_then(Value::as_u64),
+            Some(2)
+        );
+        assert!(
+            advanced
+                .get("replan_count")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+                >= 1
+        );
+    }
+
+    #[test]
+    fn plans_checkpoint_supports_save_and_resume() {
+        let mut state = SwarmState::default();
+        let started = run_plans_command(
+            &mut state,
+            &argv(&[
+                "plans",
+                "start",
+                "--goal=checkpoint test goal",
+                "--plan-max-depth=3",
+            ]),
+        )
+        .expect("plan start");
+        let plan = started.get("plan").cloned().unwrap_or(Value::Null);
+        let plan_id = plan
+            .get("plan_id")
+            .and_then(Value::as_str)
+            .expect("plan id")
+            .to_string();
+        let node_id = plan
+            .get("nodes")
+            .and_then(Value::as_object)
+            .and_then(|nodes| nodes.keys().find(|row| row.ends_with("-root")).cloned())
+            .expect("root node id");
+
+        let checkpoint = run_plans_command(
+            &mut state,
+            &argv(&[
+                "plans",
+                "checkpoint",
+                &format!("--plan-id={plan_id}"),
+                &format!("--node-id={node_id}"),
+                "--state-json={\"progress\":0.5}",
+            ]),
+        )
+        .expect("checkpoint save");
+        let checkpoint_id = checkpoint
+            .get("checkpoint")
+            .and_then(|row| row.get("checkpoint_id"))
+            .and_then(Value::as_str)
+            .expect("checkpoint id")
+            .to_string();
+
+        let resumed = run_plans_command(
+            &mut state,
+            &argv(&[
+                "plans",
+                "checkpoint",
+                &format!("--plan-id={plan_id}"),
+                &format!("--checkpoint-id={checkpoint_id}"),
+            ]),
+        )
+        .expect("checkpoint resume");
+        assert_eq!(
+            resumed.get("type").and_then(Value::as_str),
+            Some("swarm_runtime_plan_checkpoint_resume")
+        );
+    }
+
+    #[test]
+    fn plans_branch_gate_waits_or_approves_deterministically() {
+        let mut state = SwarmState::default();
+        let started = run_plans_command(
+            &mut state,
+            &argv(&["plans", "start", "--goal=branch gate policy test"]),
+        )
+        .expect("plan start");
+        let plan = started.get("plan").cloned().unwrap_or(Value::Null);
+        let plan_id = plan
+            .get("plan_id")
+            .and_then(Value::as_str)
+            .expect("plan id")
+            .to_string();
+        let node_id = plan
+            .get("nodes")
+            .and_then(Value::as_object)
+            .and_then(|nodes| nodes.keys().find(|row| row.ends_with("-root")).cloned())
+            .expect("node id");
+
+        let waiting = run_plans_command(
+            &mut state,
+            &argv(&[
+                "plans",
+                "branch-gate",
+                &format!("--plan-id={plan_id}"),
+                &format!("--node-id={node_id}"),
+                "--wait-user=1",
+                "--decision=auto",
+            ]),
+        )
+        .expect("branch gate waiting");
+        assert_eq!(
+            waiting
+                .get("gate")
+                .and_then(|row| row.get("status"))
+                .and_then(Value::as_str),
+            Some("waiting_user")
+        );
+
+        let approved = run_plans_command(
+            &mut state,
+            &argv(&[
+                "plans",
+                "branch-gate",
+                &format!("--plan-id={plan_id}"),
+                &format!("--node-id={node_id}"),
+                "--decision=approve",
+            ]),
+        )
+        .expect("branch gate approve");
+        assert_eq!(
+            approved
+                .get("gate")
+                .and_then(|row| row.get("status"))
+                .and_then(Value::as_str),
+            Some("approved")
+        );
+    }
+
+    #[test]
+    fn plans_speaker_selection_prefers_matching_expertise() {
+        let mut state = SwarmState::default();
+        let mut options = spawn_options();
+        options.role = Some("analyst".to_string());
+        options.capabilities = vec!["analyze".to_string(), "audit".to_string()];
+        let analyst = spawn_single(&mut state, None, "analyst worker", 8, &options)
+            .expect("analyst")
+            .get("session_id")
+            .and_then(Value::as_str)
+            .expect("analyst id")
+            .to_string();
+
+        let mut options2 = spawn_options();
+        options2.role = Some("researcher".to_string());
+        options2.capabilities = vec!["research".to_string(), "search".to_string()];
+        let researcher = spawn_single(&mut state, None, "research worker", 8, &options2)
+            .expect("researcher")
+            .get("session_id")
+            .and_then(Value::as_str)
+            .expect("researcher id")
+            .to_string();
+
+        let started = run_plans_command(
+            &mut state,
+            &argv(&[
+                "plans",
+                "start",
+                "--goal=select speaker for research-heavy user request",
+                &format!("--session-id={analyst}"),
+            ]),
+        )
+        .expect("plan start");
+        let plan_id = started
+            .get("plan")
+            .and_then(|row| row.get("plan_id"))
+            .and_then(Value::as_str)
+            .expect("plan id");
+
+        let selected = run_plans_command(
+            &mut state,
+            &argv(&[
+                "plans",
+                "speaker-select",
+                &format!("--plan-id={plan_id}"),
+                "--message=Need research and search synthesis for this topic",
+                &format!("--candidate-session-ids={analyst},{researcher}"),
+            ]),
+        )
+        .expect("speaker select");
+        assert_eq!(
+            selected
+                .get("selected")
+                .and_then(|row| row.get("session_id"))
+                .and_then(Value::as_str),
+            Some(researcher.as_str())
+        );
+    }
 }

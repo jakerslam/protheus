@@ -1,9 +1,9 @@
 fn safe_wrapper_state_path(control_runtime_root: &Path) -> PathBuf {
-    control_runtime_root.join("state/control_runtime-safe-state.json")
+    control_runtime_root.join("local/state/ops/control_runtime_safe/control_runtime-safe-state.json")
 }
 
 fn safe_wrapper_log_path(control_runtime_root: &Path) -> PathBuf {
-    control_runtime_root.join("logs/control_runtime-safe.jsonl")
+    control_runtime_root.join("local/state/ops/control_runtime_safe/control_runtime-safe.jsonl")
 }
 
 include!("050_ops_helpers.rs");

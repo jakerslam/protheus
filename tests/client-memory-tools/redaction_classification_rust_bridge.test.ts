@@ -4,7 +4,8 @@
 const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
-const path = require('path');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
+const path = require('path');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 const mod = require('../../client/lib/redaction_classification.ts');
 
@@ -43,5 +44,7 @@ const combined = mod.classifyAndRedact('jay@example.com sk-123456789012', policy
 assert(combined.classification.labels.includes('pii'));
 assert(combined.redaction.text.includes('[MASKED]'));
 
-assertNoPlaceholderOrPromptLeak({ policy, classified, redacted, combined }, 'redaction_classification_rust_bridge_test');\nassertStableToolingEnvelope(combined.classification, 'redaction_classification_rust_bridge_test');\nfs.rmSync(tempDir, { recursive: true, force: true });
+assertNoPlaceholderOrPromptLeak({ policy, classified, redacted, combined }, 'redaction_classification_rust_bridge_test');
+assertStableToolingEnvelope(combined.classification, 'redaction_classification_rust_bridge_test');
+fs.rmSync(tempDir, { recursive: true, force: true });
 console.log(JSON.stringify({ ok: true, type: 'redaction_classification_rust_bridge_test' }));

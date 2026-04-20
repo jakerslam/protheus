@@ -313,6 +313,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 _ => Err(format!("unknown_scheduled_subcommand:{sub}")),
             }
         }
+        "plans" => run_plans_command(&mut state, argv),
         "sessions" => {
             let sub = argv
                 .get(1)

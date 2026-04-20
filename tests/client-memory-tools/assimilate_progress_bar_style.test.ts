@@ -7,7 +7,7 @@ const { spawnSync } = require('child_process');
 const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 const root = path.resolve(__dirname, '..', '..');
-const script = path.join(root, 'client', 'runtime', 'systems', 'tools', 'assimilate.ts');
+const script = path.join(root, 'client', 'runtime', 'systems', 'tools', 'assimilation_cli_bridge.ts');
 
 const run = spawnSync(process.execPath, [script, 'codex', '--duration-ms=0'], {
   cwd: root,

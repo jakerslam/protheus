@@ -9,7 +9,7 @@ Make contribution predictable, testable, and safe for a fast-moving autonomy cod
 ```bash
 npm install
 npm run typecheck:systems
-node client/runtime/systems/spine/contract_check.ts
+node client/runtime/systems/spine/contract_check_bridge.ts
 ```
 
 ## Workflow layer contribution rules

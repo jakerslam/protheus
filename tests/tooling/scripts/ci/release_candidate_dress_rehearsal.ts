@@ -24,6 +24,7 @@ const DEFAULT_SEQUENCE = [
   'dr:gameday:gate',
   'chaos:continuous:gate',
   'state:kernel:replay',
+  'ops:runtime-proof:verify',
   'release_policy_gate',
   'ops:legacy-runner:release-guard',
   'ops:production-topology:gate',
@@ -34,9 +35,13 @@ const DEFAULT_SEQUENCE = [
   'ops:release-blockers:gate',
   'ops:release-hardening-window:guard',
   'ops:support-bundle:export',
+  'ops:layer2:parity:guard',
+  'ops:layer2:receipt:replay',
+  'ops:trusted-core:report',
   'ops:ipc-bridge:soak',
   'ops:release:scorecard:gate',
   'ops:production-closure:gate',
+  'ops:release:proof-pack',
 ];
 
 function readRehearsalArgs(argv: string[]) {
@@ -109,9 +114,14 @@ function buildReport(argv: string[] = process.argv.slice(2)) {
     const recoveryStep = steps.find((row) => row.gate_id === 'dr:gameday:gate');
     const chaosStep = steps.find((row) => row.gate_id === 'chaos:continuous:gate');
     const replayStep = steps.find((row) => row.gate_id === 'state:kernel:replay');
+    const runtimeProofStep = steps.find((row) => row.gate_id === 'ops:runtime-proof:verify');
     const topologyStep = steps.find((row) => row.gate_id === 'ops:production-topology:gate');
     const clientBoundaryStep = steps.find((row) => row.gate_id === 'audit:client-layer-boundary');
     const hiddenStateStep = steps.find((row) => row.gate_id === 'ops:orchestration:hidden-state:guard');
+    const layer2ParityStep = steps.find((row) => row.gate_id === 'ops:layer2:parity:guard');
+    const layer2ReplayStep = steps.find((row) => row.gate_id === 'ops:layer2:receipt:replay');
+    const trustedCoreStep = steps.find((row) => row.gate_id === 'ops:trusted-core:report');
+    const proofPackStep = steps.find((row) => row.gate_id === 'ops:release:proof-pack');
     return {
       ok: failed.length === 0 && requiredStepsSatisfied,
       type: 'release_candidate_dress_rehearsal',
@@ -145,6 +155,11 @@ function buildReport(argv: string[] = process.argv.slice(2)) {
         payload_type: clean(replayStep?.payload_type || '', 120),
         artifact_paths: replayStep?.artifact_paths || [],
       },
+      runtime_proof: {
+        ok: runtimeProofStep?.ok === true,
+        payload_type: clean(runtimeProofStep?.payload_type || '', 120),
+        artifact_paths: runtimeProofStep?.artifact_paths || [],
+      },
       topology: {
         ok: topologyStep?.ok === true,
         degraded_flags: topologyStep?.degraded_flags || [],
@@ -156,6 +171,26 @@ function buildReport(argv: string[] = process.argv.slice(2)) {
       hidden_state: {
         ok: hiddenStateStep?.ok === true,
         failure: clean(hiddenStateStep?.failure || '', 200),
+      },
+      layer2_parity: {
+        ok: layer2ParityStep?.ok === true,
+        payload_type: clean(layer2ParityStep?.payload_type || '', 120),
+        artifact_paths: layer2ParityStep?.artifact_paths || [],
+      },
+      layer2_receipt_replay: {
+        ok: layer2ReplayStep?.ok === true,
+        payload_type: clean(layer2ReplayStep?.payload_type || '', 120),
+        artifact_paths: layer2ReplayStep?.artifact_paths || [],
+      },
+      trusted_core: {
+        ok: trustedCoreStep?.ok === true,
+        payload_type: clean(trustedCoreStep?.payload_type || '', 120),
+        artifact_paths: trustedCoreStep?.artifact_paths || [],
+      },
+      proof_pack: {
+        ok: proofPackStep?.ok === true,
+        payload_type: clean(proofPackStep?.payload_type || '', 120),
+        artifact_paths: proofPackStep?.artifact_paths || [],
       },
       steps,
     };

@@ -182,16 +182,34 @@ fn humanize_agent_name(agent_id: &str) -> String {
     }
 }
 
+fn canonical_agent_id(raw: &str) -> String {
+    let mut canonical = clean_agent_id(raw)
+        .to_ascii_lowercase()
+        .replace('_', "-")
+        .trim_matches('-')
+        .to_string();
+    while canonical.contains("--") {
+        canonical = canonical.replace("--", "-");
+    }
+    canonical
+}
+
 pub fn default_agent_name(agent_id: &str) -> String {
-    let cleaned = clean_agent_id(agent_id);
-    if cleaned.is_empty() {
+    let canonical = canonical_agent_id(agent_id);
+    if canonical.is_empty() {
         return "agent".to_string();
     }
-    let lowered = cleaned.to_ascii_lowercase();
-    if lowered.starts_with("agent-") || lowered.starts_with("agent_") || lowered == "agent" {
-        cleaned
+    if canonical == "agent" {
+        return "agent".to_string();
+    }
+    if let Some(rest) = canonical.strip_prefix("agent-") {
+        if rest.is_empty() {
+            "agent".to_string()
+        } else {
+            format!("agent-{rest}")
+        }
     } else {
-        format!("agent-{cleaned}")
+        format!("agent-{canonical}")
     }
 }
 
@@ -200,13 +218,30 @@ pub fn is_default_agent_name_for_agent(name: &str, agent_id: &str) -> bool {
     if normalized_name.is_empty() {
         return true;
     }
-    let cleaned_id = clean_agent_id(agent_id).to_ascii_lowercase();
-    let default_name = default_agent_name(agent_id).to_ascii_lowercase();
-    normalized_name == cleaned_id || normalized_name == default_name
+    let cleaned_id = clean_agent_id(agent_id);
+    let default_name = default_agent_name(agent_id);
+    let candidate_keys = [
+        normalized_name_key(&cleaned_id),
+        normalized_name_key(&cleaned_id.replace('_', "-")),
+        normalized_name_key(&cleaned_id.replace('-', "_")),
+        normalized_name_key(&default_name),
+    ];
+    candidate_keys
+        .iter()
+        .any(|candidate| !candidate.is_empty() && &normalized_name == candidate)
 }
 
 fn role_name_stem(role: &str) -> Vec<&'static str> {
     let role_key = clean_text(role, 80).to_ascii_lowercase();
+    if role_key.contains("planner")
+        || role_key.contains("plan")
+        || role_key.contains("strategy")
+        || role_key.contains("roadmap")
+    {
+        return vec![
+            "Plan", "Route", "Compass", "Vector", "Blueprint", "Navigator",
+        ];
+    }
     if role_key.contains("code")
         || role_key.contains("coder")
         || role_key.contains("engineer")
@@ -226,6 +261,9 @@ fn role_name_stem(role: &str) -> Vec<&'static str> {
     if role_key.contains("writer") || role_key.contains("editor") || role_key.contains("content") {
         return vec!["Quill", "Draft", "Verse", "Script", "Narrative", "Ink"];
     }
+    if role_key.contains("support") || role_key.contains("helpdesk") {
+        return vec!["Guide", "Harbor", "Assist", "Relay", "Beacon", "Support"];
+    }
     if role_key.contains("teacher")
         || role_key.contains("tutor")
         || role_key.contains("mentor")
@@ -239,7 +277,7 @@ fn role_name_stem(role: &str) -> Vec<&'static str> {
 
 pub fn resolve_post_init_agent_name(root: &Path, agent_id: &str, role: &str) -> String {
     let (mut used_names, _) = collect_reserved_name_and_emoji_keys(root);
-    let cleaned_id = clean_agent_id(agent_id);
+    let cleaned_id = canonical_agent_id(agent_id);
     let default_name = default_agent_name(&cleaned_id);
     let role_key = clean_text(role, 80).to_ascii_lowercase();
     let stems = role_name_stem(&role_key);
@@ -436,6 +474,8 @@ mod tests {
         assert_eq!(generated, "agent-9df31f");
         let generated_prefixed = default_agent_name("abc123");
         assert_eq!(generated_prefixed, "agent-abc123");
+        let generated_legacy = default_agent_name("AGENT_ABC123");
+        assert_eq!(generated_legacy, "agent-abc123");
         let unresolved = resolve_agent_name(tmp.path(), "", "analyst");
         assert!(unresolved.is_empty());
     }

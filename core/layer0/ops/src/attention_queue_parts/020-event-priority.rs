@@ -123,6 +123,30 @@ fn load_contract(root: &Path) -> AttentionContract {
         })
         .unwrap_or(false);
 
+    let max_queue_depth = contract_obj
+        .and_then(|v| v.get("max_queue_depth"))
+        .and_then(Value::as_u64)
+        .map(|n| n as usize)
+        .unwrap_or(2048)
+        .clamp(1, 200_000);
+    let soft_watermark_pct = contract_obj
+        .and_then(|v| v.get("backpressure_soft_watermark_pct"))
+        .and_then(Value::as_f64)
+        .filter(|v| v.is_finite())
+        .unwrap_or(0.75)
+        .clamp(0.10, 1.0);
+    let hard_watermark_pct = contract_obj
+        .and_then(|v| v.get("backpressure_hard_watermark_pct"))
+        .and_then(Value::as_f64)
+        .filter(|v| v.is_finite())
+        .unwrap_or(1.0)
+        .clamp(soft_watermark_pct, 1.0);
+    let backpressure_soft_watermark =
+        ((max_queue_depth as f64 * soft_watermark_pct).ceil() as usize).clamp(1, max_queue_depth);
+    let backpressure_hard_watermark = ((max_queue_depth as f64 * hard_watermark_pct).ceil()
+        as usize)
+        .clamp(backpressure_soft_watermark, max_queue_depth);
+
     AttentionContract {
         enabled,
         push_attention_queue: eyes
@@ -149,12 +173,9 @@ fn load_contract(root: &Path) -> AttentionContract {
             contract_obj.and_then(|v| v.get("cursor_state_path")),
             "local/state/attention/cursor_state.json",
         ),
-        max_queue_depth: contract_obj
-            .and_then(|v| v.get("max_queue_depth"))
-            .and_then(Value::as_u64)
-            .map(|n| n as usize)
-            .unwrap_or(2048)
-            .clamp(1, 200_000),
+        max_queue_depth,
+        backpressure_soft_watermark,
+        backpressure_hard_watermark,
         max_batch_size: contract_obj
             .and_then(|v| v.get("max_batch_size"))
             .and_then(Value::as_u64)
@@ -378,6 +399,7 @@ fn prune_expired(rows: Vec<Value>) -> (Vec<Value>, usize) {
 }
 
 fn contract_snapshot(contract: &AttentionContract) -> Value {
+    let queue_capacity = contract.max_queue_depth.max(1) as f64;
     json!({
         "enabled": contract.enabled,
         "push_attention_queue": contract.push_attention_queue,
@@ -386,6 +408,10 @@ fn contract_snapshot(contract: &AttentionContract) -> Value {
         "latest_path": contract.latest_path.to_string_lossy().to_string(),
         "cursor_state_path": contract.cursor_state_path.to_string_lossy().to_string(),
         "max_queue_depth": contract.max_queue_depth,
+        "backpressure_soft_watermark": contract.backpressure_soft_watermark,
+        "backpressure_hard_watermark": contract.backpressure_hard_watermark,
+        "backpressure_soft_watermark_ratio": (contract.backpressure_soft_watermark as f64 / queue_capacity),
+        "backpressure_hard_watermark_ratio": (contract.backpressure_hard_watermark as f64 / queue_capacity),
         "max_batch_size": contract.max_batch_size,
         "ttl_hours": contract.ttl_hours,
         "dedupe_window_hours": contract.dedupe_window_hours,

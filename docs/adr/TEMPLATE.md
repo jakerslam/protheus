@@ -1,25 +1,6 @@
-# ADR-XXXX: <Title>
+# ADR Template (Compatibility Alias)
 
-## Status
+Canonical template:
+- `docs/client/adr/TEMPLATE.md`
 
-Proposed | Accepted | Superseded | Deprecated
-
-## Context
-
-What problem or pressure required this decision?
-
-## Decision
-
-What was decided and why?
-
-## Consequences
-
-- Positive
-- Negative
-- Tradeoffs
-
-## Evidence
-
-- Contract ids
-- Tests
-- Runtime commands / receipt artifacts
+Use the canonical template directly for new ADRs.

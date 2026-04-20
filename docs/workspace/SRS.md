@@ -413,7 +413,7 @@ Acceptance criteria:
 | V11-MASS-DOC-005 | done | Release-mode documentation for runtime manifests and optional surfaces | Install contracts are easier to enforce when docs describe optional/required runtime surfaces. | Runtime surfaces now expose explicit required/optional matrix via `adapters/runtime/protheus_cli_modules.ts`, with manifest-relative diagnostics and docs aligned to `client/runtime/config/install_runtime_manifest_v1.txt`. | 8 | 0/1/2 |
 | V11-MASS-UX-001 | done | Canonical startup output sequence with deterministic checkpoints | Current output still varies by run context and causes uncertainty during first boot. | Startup and diagnostics now surface deterministic checkpoint contracts (`env`/runtime/gateway/dashboard/next-action), with regression assertions in `tests/vitest/conduit_primitives_gap_closer.test.ts`. | 8 | 2/client |
 | V11-MASS-UX-002 | done | Replace non-actionable warnings with recovery hints | Warning spam and vague failures slow onboarding and lead to incorrect fixes. | `core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security_parts/000-part.rs` and `install.sh` now emit deterministic path/node/toolchain recovery chains for setup and install fallback failures. | 9 | 0/1/2 |
-| V11-MASS-UX-003 | in_progress | Command-not-found and setup failure messaging quality | Error paths should always produce deterministic recovery guidance. | `client/runtime/systems/ops/protheus_unknown_guard.ts` and `protheus_setup_wizard.ts` provide explicit expected commands and outputs before retry or escalation. | 8 | 0/1/2 |
+| V11-MASS-UX-003 | done | Command-not-found and setup failure messaging quality | Error paths should always produce deterministic recovery guidance. | `install.ps1` + runtime setup/unknown-command lanes now emit deterministic recovery sequences with explicit non-interactive/dashboard policy hints; contract regressions updated in `tests/vitest/conduit_primitives_gap_closer.test.ts`. | 8 | 0/1/2 |
 | V11-MASS-UX-004 | done | Install success summary with verification confidence + JSON mode | Users need quick confidence that an install is complete and inspectable by automation. | Install output includes binary/runtime/launcher/restart summary and optional machine-readable report in JSON mode. | 9 | 0/1/2 |
 | V11-MASS-UX-005 | done | Mode-aware CLI help surfaces | Help output can still mention features unavailable in installed mode. | Node-missing help fallback now returns and prints mode-aware contracts (`mode_help_reason`, `mode_valid_commands`, `mode_unavailable_actions`) with deterministic unavailability reasons in [`core/layer0/ops/src/protheusctl_parts/010-bool-env.rs.parts/020-segment.rs`](/Users/jay/.openclaw/workspace/core/layer0/ops/src/protheusctl_parts/010-bool-env.rs.parts/020-segment.rs); contract docs updated in [`docs/client/README.md`](/Users/jay/.openclaw/workspace/docs/client/README.md); regression assertion covered in [`tests/vitest/conduit_primitives_gap_closer.test.ts`](/Users/jay/.openclaw/workspace/tests/vitest/conduit_primitives_gap_closer.test.ts) via `npx vitest run tests/vitest/conduit_primitives_gap_closer.test.ts -t "node-runtime-missing fallback includes deterministic setup/gateway/doctor commands"`. | 8 | 0/1/2 |
 | V11-MASS-SAFE-001 | done | Deterministic Node resolution (workspace, Node binary, runtime context) | Non-deterministic Node/tool resolution creates intermittent failures. | `core/layer0/ops/src/contract_lane_utils.rs` now removes PATH/bare-`node` fallback from preferred node resolution; runtime resolves through explicit env/runtime-root candidates only. Validation: `cargo check --manifest-path core/layer0/ops/Cargo.toml`. | 10 | 0/1/2 |
@@ -440,10 +440,10 @@ ID normalization:
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-MEMORY-040.1 | queued | Sparse event spike system (`NodeSpike`) for memory hierarchy activation | Constant polling burns idle CPU and increases memory churn under long-running sessions. | Memory node runtime emits `NodeSpike` events only when configured deltas/thresholds are crossed (value delta, staleness, external trigger), with deterministic threshold policy tests and receipt-safe critical-event summaries. | 10 | 0/1/2 |
-| V6-MEMORY-040.2 | queued | Adaptive firing thresholds driven by spike utility + load feedback | Fixed thresholds underfit quiet periods and overfire during bursty workloads. | Threshold controller adjusts spike trigger levels using moving-window success/load signals and proves lower idle CPU without missing required wake-ups in regression fixtures. | 9 | 0/1/2 |
-| V6-MEMORY-040.3 | queued | Event-stream backpressure lane for spike bursts | Spike storms can saturate consumers and destabilize swarm/runtime scheduling. | Bounded queue with producer backpressure is active; overload tests show no unbounded growth, no dropped critical spikes, and deterministic degradation receipts. | 9 | 0/1/2 |
-| V6-MEMORY-040.4 | queued | Episodic→semantic compaction pass in Dream Sequencer | Raw event logs accumulate noise and reduce long-horizon recall quality. | Sequencer emits distilled semantic memory artifacts from episodic runs on schedule/burst triggers with provenance links and recall-quality parity checks. | 8 | 1/2 |
+| V6-MEMORY-040.1 | done | Sparse event spike system (`NodeSpike`) for memory hierarchy activation | Constant polling burns idle CPU and increases memory churn under long-running sessions. | `context-stacks node-spike` now emits NodeSpike events only when utility crosses adaptive thresholds derived from delta/staleness/external triggers, with deterministic spike receipts and bounded event history. | 10 | 0/1/2 |
+| V6-MEMORY-040.2 | done | Adaptive firing thresholds driven by spike utility + load feedback | Fixed thresholds underfit quiet periods and overfire during bursty workloads. | NodeSpike threshold control now adapts by load and success signals (`threshold_before`/`threshold_after`) and persists per-node thresholds for rolling policy convergence. | 9 | 0/1/2 |
+| V6-MEMORY-040.3 | done | Event-stream backpressure lane for spike bursts | Spike storms can saturate consumers and destabilize swarm/runtime scheduling. | NodeSpike queue is bounded by policy, overload drops only non-critical spikes, and critical overflow is journaled (not dropped) with deterministic backpressure metrics/receipts. | 9 | 0/1/2 |
+| V6-MEMORY-040.4 | done | Episodic→semantic compaction pass in Dream Sequencer | Raw event logs accumulate noise and reduce long-horizon recall quality. | Dream consolidation now emits semantic artifact snapshots under `state_root/dream/semantic/<hand>.json` with provenance linkage in consolidation events. | 8 | 1/2 |
 
 ## Task Fabric Primitive Intake (2026-04-09)
 
@@ -1073,7 +1073,7 @@ Bundle-level rules:
 - Validation:
   - `cargo test -p infring-layer1-provenance`
   - `cargo test -p infring-layer1-primitives`
-| V6-MEMORY-040.5 | queued | Hybrid memory retrieval (vector similarity + explicit graph edges) | Similarity-only recall misses relational context and can surface weakly connected noise. | Retrieval path combines vector match score with explicit edge confidence; tests show improved top-k relevance on relationship-heavy fixtures without budget regressions. | 8 | 1/2 |
+| V6-MEMORY-040.5 | done | Hybrid memory retrieval (vector similarity + explicit graph edges) | Similarity-only recall misses relational context and can surface weakly connected noise. | `context-stacks hybrid-retrieve` now blends vector and edge confidence scores with bounded weighting and regression coverage for relationship-heavy retrieval. | 8 | 1/2 |
 
 ## Context Stacks for Cacheable Memory Groups Intake (2026-04-05)
 
@@ -1083,29 +1083,29 @@ ID normalization:
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-MEMORY-041.1 | queued | ContextStack manifest contract (SemanticSnapshot reference + active DeltaTails) | Long sessions need first-class memory grouping to avoid ad hoc context packing and reload churn. | Manifest remains lightweight, receipt-backed, and supports multiple active tails per stack without introducing parallel authority paths. | 9 | 0/1/2 |
-| V6-MEMORY-041.2 | queued | Provider-agnostic SemanticSnapshot stable-head contract | Stable memory heads must stay immutable and provider-neutral while volatile metadata remains mutable. | Semantic snapshot IDs are derived from stable head only; volatile metadata changes preserve `semantic_snapshot_id` with deterministic tests. | 10 | 0/1/2 |
-| V6-MEMORY-041.3 | queued | RenderPlan + disposable ProviderSnapshot contract (`render_fingerprint`, cache policy, TTL class) | Prompt-cache efficiency requires provider-specific rendering without contaminating core memory authority. | ProviderSnapshot is always derived/disposable from SemanticSnapshot + RenderPlan; provider-visible mode changes (tool choice, thinking mode, image presence, response mode) deterministically change `render_fingerprint`. | 10 | 0/1/2 |
-| V6-MEMORY-041.4 | queued | DeltaTail typed-merge + promotion contract | Mutable per-session context must be branchable and promotable without destabilizing stable memory heads. | Typed tail merges are supported; tail promotion materializes a new semantic snapshot and emits deterministic merge outcome receipts. | 9 | 0/1/2 |
-| V6-MEMORY-041.5 | queued | Strict two-lane BatchClass contract (`live_microbatch`, `provider_batch`) | Cache/batch correctness breaks when provider-visible request modes are mixed in one cohort. | Batch grouping only occurs for exact key matches across lane/provider/model/render_fingerprint/tool_choice/thinking_mode/image_presence/response_mode (and other provider-visible modes). | 10 | 0/1/2 |
-| V6-MEMORY-041.6 | queued | Scheduler cache edge-case contract (`no_cache`, `seed_then_fanout`, explicit/multi-breakpoint lookback handling) | Cache efficiency collapses when threshold, concurrency, and lookback-window edge cases are handled implicitly. | Scheduler enforces deterministic no-cache below threshold, seeds one request before fan-out for fresh concurrent cohorts, and applies explicit/multi-breakpoint strategy for long-prefix lookback cases with cache counters in receipts. | 10 | 0/1/2 |
+| V6-MEMORY-041.1 | done | ContextStack manifest contract (SemanticSnapshot reference + active DeltaTails) | Long sessions need first-class memory grouping to avoid ad hoc context packing and reload churn. | `context-stacks contract-verify` now asserts manifest semantic-snapshot referential integrity plus unique/bound active delta tails, and emits receipt-backed claim evidence for the manifest contract lane. | 9 | 0/1/2 |
+| V6-MEMORY-041.2 | done | Provider-agnostic SemanticSnapshot stable-head contract | Stable memory heads must stay immutable and provider-neutral while volatile metadata remains mutable. | `context-stacks contract-verify` now enforces stable-head ID parity under volatile-only mutation and emits deterministic contract receipts; regression coverage verifies snapshot-id invariance. | 10 | 0/1/2 |
+| V6-MEMORY-041.3 | done | RenderPlan + disposable ProviderSnapshot contract (`render_fingerprint`, cache policy, TTL class) | Prompt-cache efficiency requires provider-specific rendering without contaminating core memory authority. | Contract verifier now asserts provider snapshots remain derived/disposable from semantic/render plans and enforces render fingerprint divergence across provider-visible mode changes. | 10 | 0/1/2 |
+| V6-MEMORY-041.4 | done | DeltaTail typed-merge + promotion contract | Mutable per-session context must be branchable and promotable without destabilizing stable memory heads. | Contract verification now probes typed merge ops (`append_working_note`, `append_turn`, `replace_objective`) and deterministic promotion into a new semantic snapshot ID; regression coverage asserts typed merge + promotion contracts. | 9 | 0/1/2 |
+| V6-MEMORY-041.5 | done | Strict two-lane BatchClass contract (`live_microbatch`, `provider_batch`) | Cache/batch correctness breaks when provider-visible request modes are mixed in one cohort. | Contract verifier now checks lane-partitioned batch IDs (`live_microbatch` vs `provider_batch`) and preserves strict key isolation over provider-visible request modes. | 10 | 0/1/2 |
+| V6-MEMORY-041.6 | done | Scheduler cache edge-case contract (`no_cache`, `seed_then_fanout`, explicit/multi-breakpoint lookback handling) | Cache efficiency collapses when threshold, concurrency, and lookback-window edge cases are handled implicitly. | Contract verifier now executes deterministic scheduler probes for `no_cache`, `seed_then_fanout`, and explicit breakpoint lookback/cache-hit handling with receipt-backed outputs. | 10 | 0/1/2 |
 
-| V6-SWARM-005.1 | queued | Hierarchical planning supervisor node with receipt-backed task graph | Large goals overwhelm single-agent context and reduce completion reliability. | Supervisor converts goal to deterministic task graph, logs lineage-safe receipts, and delegates through existing scheduler without violating DNA lineage rules. | 10 | 1/2 |
-| V6-SWARM-005.2 | queued | Recursive delegation + merge/replan loop | Complex plans require iterative decomposition and synthesis under changing findings. | Worker summaries return to supervisor, merge policy produces coherent parent outputs, and replan triggers are deterministic with bounded recursion depth. | 9 | 1/2 |
-| V6-SWARM-005.3 | queued | Stateful checkpoints for long-running plan nodes | Multi-step tasks lose progress after interruptions without resumable state boundaries. | Plan-node checkpoint API persists resumable execution state; pause/resume fixtures prove no semantic drift across restart and no duplicate side effects. | 8 | 1/2 |
-| V6-SWARM-005.4 | queued | Conditional branch gates with optional human-in-loop hooks | High-impact branch decisions need explicit operator control without collapsing autonomy. | Branch nodes can pause for user confirmation when configured; timeout/auto-path behavior remains deterministic and receipt-logged. | 8 | 1/2/client |
-| V6-SWARM-005.5 | queued | Cycle detection and safe loop breaking in plan traversal | Recursive planners risk runaway loops and silent context waste. | Visited-state/cost guard detects cycles and terminates safely with actionable diagnostics; loop-guard tests prevent infinite traversal regressions. | 9 | 1/2 |
-| V6-SWARM-005.6 | queued | Dynamic proxy spawn with role cards (`role`, `goal`, `capability envelope`) | Swarm work quality degrades when role intent is implicit or ambiguous. | Spawn contract requires role card metadata, enforces capability envelope at creation, and logs start/stop receipts with parent lineage references. | 9 | 1/2 |
-| V6-SWARM-005.7 | queued | Intelligent speaker selection for multi-proxy conversations | Multi-agent discussions can become noisy when response ownership is not routed. | Speaker selection scorer routes messages to best-fit active proxy by expertise/state; conversation fixtures show lower chatter and higher task-completion precision. | 7 | 1/2/client |
-| V6-SWARM-005.8 | queued | Automatic termination conditions for sub-agents and sub-tasks | Missing stop conditions create runaway agents, stale tasks, and hidden resource burn. | Worker loop enforces `should_terminate` contract (`goal_met`, `budget_exceeded`, `stalled`, `policy_stop`) and emits deterministic completion/timeout receipts. | 9 | 1/2 |
-| V6-AUTONOMY-004.1 | queued | Failure isolation for proxy/agent divergence boundaries | One failed proxy should not poison adjacent swarm work or parent planning state. | Divergence detection (verity mismatch, spike timeout, runtime faults) isolates failing proxy context and keeps unrelated workers healthy with explicit containment receipts. | 10 | 0/1/2 |
-| V6-AUTONOMY-004.2 | queued | Self-healing recovery strategy matrix (retry, rollback, resync, escalate) | Recovery behavior is inconsistent without a deterministic policy ladder. | Recovery handler chooses strategy by failure class, rolls back to last good receipt when needed, and records strategy + outcome in structured recovery receipts. | 10 | 0/1/2 |
-| V6-AUTONOMY-004.3 | queued | Proactive recurring-pattern logger for passive optimization hints | Repeated failure/latency patterns are currently discovered manually. | Background analyzer records recurring failure/perf motifs and emits bounded optimization suggestions tied to evidence artifacts without flooding operator surfaces. | 7 | 1/2 |
-| V6-LLM-006.1 | queued | Post-merge performance feedback loop for skill ingestion | Ingestion quality should compound from measured outcomes, not manual intuition. | Every merge records delta metrics (throughput, memory, stability, error rate) and updates skill-performance ledger with deterministic IDs and replay-safe receipts. | 9 | 1/2 |
-| V6-LLM-006.2 | queued | Dynamic acid/taste tuning from observed merge lift | Static digestion priority underutilizes high-yield skill families. | Taste vector updater increases/decreases digestion priority based on rolling observed gains with guardrails against oscillation and regression. | 8 | 1/2 |
-| V6-LLM-006.3 | queued | Parameter-efficient partial merge pathway | Full merges increase risk/cost when only narrow deltas are needed. | Diff-scoped merge path updates only changed skill slices, proves parity against full merge outputs on fixture corpus, and reduces merge runtime budget. | 8 | 1/2 |
-| V6-EXEC-003.1 | queued | Speculative execution overlay sandbox | Agents need a safe space to explore plans without mutating canonical state prematurely. | Overlay runtime executes speculative branches in isolated state, produces disposable receipts, and guarantees zero mutation of canonical state before merge approval. | 9 | 0/1/2 |
-| V6-EXEC-003.2 | queued | Verified merge + instant rollback contract for speculative overlays | Speculation is only safe when merge/rollback semantics are deterministic and auditable. | Overlay merge requires verity + receipt approval gates; rollback to pre-merge state is single-step and validated by destructive-failure simulation tests. | 9 | 0/1/2 |
+| V6-SWARM-005.1 | done | Hierarchical planning supervisor node with receipt-backed task graph | Large goals overwhelm single-agent context and reduce completion reliability. | `plans start` now materializes deterministic supervisor-backed task graphs (`SwarmPlanGraph`) with root/child nodes, lineage-safe events, and coordinator spawn fallback in `core/layer0/ops/src/swarm_runtime_parts/115-plan-runtime.rs`; command routed via `160-run.rs`. | 10 | 1/2 |
+| V6-SWARM-005.2 | done | Recursive delegation + merge/replan loop | Complex plans require iterative decomposition and synthesis under changing findings. | `plans advance` now executes bounded recursive delegation (`max-steps`) with merge history + deterministic blocked-path replans in `core/layer0/ops/src/swarm_runtime_parts/115-plan-runtime.rs`, using authority spawn/runtime lanes. | 9 | 1/2 |
+| V6-SWARM-005.3 | done | Stateful checkpoints for long-running plan nodes | Multi-step tasks lose progress after interruptions without resumable state boundaries. | `plans checkpoint` now supports save/resume with versioned `PlanCheckpoint` records persisted in swarm state and node checkpoint pointers (`115-plan-runtime.rs`), with regression coverage in `170-spawn-options.rs`. | 8 | 1/2 |
+| V6-SWARM-005.4 | done | Conditional branch gates with optional human-in-loop hooks | High-impact branch decisions need explicit operator control without collapsing autonomy. | `plans branch-gate` now applies deterministic wait/approve/deny decisions with optional human wait mode (`--wait-user`) and receipt-stamped gate state in `115-plan-runtime.rs`. | 8 | 1/2/client |
+| V6-SWARM-005.5 | done | Cycle detection and safe loop breaking in plan traversal | Recursive planners risk runaway loops and silent context waste. | Spawn lineage now enforces visited-state/cost guards via `detect_parent_lineage_loop` and recursive loop guard branches in `core/layer0/ops/src/swarm_runtime_parts/110-spawn-single.rs`; cycle/cost triggers emit deterministic diagnostics receipts (`swarm_spawn_loop_guard_blocked`, `swarm_recursive_loop_guard_triggered`) and fail-close on lineage cycles. | 9 | 1/2 |
+| V6-SWARM-005.6 | done | Dynamic proxy spawn with role cards (`role`, `goal`, `capability envelope`) | Swarm work quality degrades when role intent is implicit or ambiguous. | Role-card contract is now authoritative: `resolve_spawn_role_card` (in `core/layer0/ops/src/swarm_runtime_parts/050-verify-session-reachable.rs`) derives/sanitizes role metadata, spawn/persistent lanes persist `session.role_card` and enforce capability envelopes during registration in `100-spawn-persistent-session.rs` and `110-spawn-single.rs`, and start/stop receipts carry lineage + role-card metadata. | 9 | 1/2 |
+| V6-SWARM-005.7 | done | Intelligent speaker selection for multi-proxy conversations | Multi-agent discussions can become noisy when response ownership is not routed. | `plans speaker-select` now scores candidates by expertise/role/freshness/turn pressure and updates per-plan `speaker_stats` for deterministic ownership routing in `115-plan-runtime.rs` (regression in `170-spawn-options.rs`). | 7 | 1/2/client |
+| V6-SWARM-005.8 | done | Automatic termination conditions for sub-agents and sub-tasks | Missing stop conditions create runaway agents, stale tasks, and hidden resource burn. | Worker loop now enforces deterministic `should_terminate` evaluation (`goal_met`, `budget_exceeded`, `stalled`, `policy_stop`) via `evaluate_should_terminate_contract` in `core/layer0/ops/src/swarm_runtime_parts/120-evaluate-consensus.rs`; tick/manual terminate paths emit explicit termination receipts with reason contracts in `120-evaluate-consensus.rs` and `130-sessions-terminate.rs`. | 9 | 1/2 |
+| V6-AUTONOMY-004.1 | done | Failure isolation for proxy/agent divergence boundaries | One failed proxy should not poison adjacent swarm work or parent planning state. | PROACTIVE_DAEMON now writes bounded failure-isolation quarantine receipts per failing task and keeps unrelated intents executing in the same cycle. | 10 | 0/1/2 |
+| V6-AUTONOMY-004.2 | done | Self-healing recovery strategy matrix (retry, rollback, resync, escalate) | Recovery behavior is inconsistent without a deterministic policy ladder. | Recovery matrix now selects strategy deterministically by failure class/attempt, records outcome history, and clears task-level isolation on successful recovery. | 10 | 0/1/2 |
+| V6-AUTONOMY-004.3 | done | Proactive recurring-pattern logger for passive optimization hints | Repeated failure/latency patterns are currently discovered manually. | PROACTIVE_DAEMON now maintains bounded recurring pattern history + optimization hints (`pattern_log`) with deterministic update path and test coverage. | 7 | 1/2 |
+| V6-LLM-006.1 | done | Post-merge performance feedback loop for skill ingestion | Ingestion quality should compound from measured outcomes, not manual intuition. | `context-stacks partial-merge` now records post-merge delta metrics, appends deterministic merge-feedback events, and updates per-family rolling skill-performance ledger entries with receipt-safe IDs. | 9 | 1/2 |
+| V6-LLM-006.2 | done | Dynamic acid/taste tuning from observed merge lift | Static digestion priority underutilizes high-yield skill families. | `context-stacks taste-tune` applies bounded/smoothed family weight updates with guardrails against oscillation and negative drift. | 8 | 1/2 |
+| V6-LLM-006.3 | done | Parameter-efficient partial merge pathway | Full merges increase risk/cost when only narrow deltas are needed. | `context-stacks partial-merge` updates only changed slices with parity hash + budget estimate fields and regression tests for diff-scoped updates. | 8 | 1/2 |
+| V6-EXEC-003.1 | done | Speculative execution overlay sandbox | Agents need a safe space to explore plans without mutating canonical state prematurely. | `context-stacks speculative-start` + `speculative-status` now run in isolated overlay state with disposable receipts while leaving canonical manifest semantic snapshot unchanged until an approved merge. | 9 | 0/1/2 |
+| V6-EXEC-003.2 | done | Verified merge + instant rollback contract for speculative overlays | Speculation is only safe when merge/rollback semantics are deterministic and auditable. | `speculative-merge` now fail-closes behind verity + approval-note gates and `speculative-rollback` restores pre-merge semantic snapshot in one step; regression tests include destructive-failure simulation rollback path. | 9 | 0/1/2 |
 
 ## Runtime UX + Scheduler Autonomy Intake (2026-04-01)
 
@@ -1207,7 +1207,7 @@ ID normalization notes:
 | V6-AUTONOMY-004 | done | PROACTIVE_DAEMON governance hardening (heartbeat pacing + anti-herd jitter + proactive rate limits + 15s blocking budget + append-only daily logs + strict write-confirm discipline) | Always-on proactive daemons need deterministic pacing, anti-spam limits, bounded blocking behavior, and verifiable append-only observability so autonomy remains safe and fail-closed under load. | Hardened `run_proactive_daemon_daemon` in [`050-proactive_daemon-dream-speculation.rs`](/Users/jay/.control_runtime/workspace/core/layer0/ops/src/autonomy_controller_parts/050-proactive_daemon-dream-speculation.rs) with policy-controlled `tick-ms/jitter-ms/window-sec/max-proactive/block-budget-ms/brief`, due-tick gating, deterministic jitter, proactive execution deferrals (`rate_limit`/`blocking_budget`), append-only per-day logs at `state_root/proactive_daemon/logs/YYYY-MM-DD.jsonl`, and strict state write confirmation; validated by `regression_tests::{proactive_daemon_cycle_emits_append_only_daily_log_and_state_write_confirmation,proactive_daemon_rate_limit_and_block_budget_defer_intents,proactive_daemon_heartbeat_tick_gate_prevents_early_cycle_reentry}` in [`051-speculation-and-regression-tests.rs`](/Users/jay/.control_runtime/workspace/core/layer0/ops/src/autonomy_controller_parts/051-speculation-and-regression-tests.rs). | 10 | 0/1/2 |
 | V6-AUTONOMY-005 | queued | PROACTIVE_DAEMON event wake-up router (file/PR/webhook/scheduler triggers with anti-herd fan-in) | Tick loops alone miss high-signal events and can over-poll; event fan-in is required for low-latency proactive behavior at scale. | Add fail-closed trigger intake surface (file-save, PR change, schedule wake) that normalizes events into a single PROACTIVE_DAEMON queue with dedupe/jitter and deterministic trigger receipts. | 9 | 0/1/2 |
 | V6-MEMORY-033 | queued | PROACTIVE_DAEMON autoDream contradiction resolver + hint-only memory verification | Long-lived autonomy drifts when self-generated recollections are treated as truth instead of hypotheses requiring verification before action. | Extend dream pass with contradiction detection + `hint_only` memory marks and verification gates before mutation/action, with append-only contradiction/repair receipts. | 9 | 0/1/2 |
-| V6-AUTONOMY-006 | queued | PROACTIVE_DAEMON proactive tool surfaces (`subscribe_pr`, `push_notification`, `send_user_file`) under policy tiers | Proactive daemon value is limited without governed outbound action surfaces for off-terminal alerts and artifact delivery. | Add policy-tiered tool contracts for PR subscriptions, device notifications, and user-file delivery; all calls route via Conduit and emit deterministic receipts. | 8 | 0/1/2/client |
+| V6-AUTONOMY-006 | done | PROACTIVE_DAEMON proactive tool surfaces (`subscribe_pr`, `push_notification`, `send_user_file`) under policy tiers | Proactive daemon value is limited without governed outbound action surfaces for off-terminal alerts and artifact delivery. | PROACTIVE_DAEMON now executes policy-tiered outbound tool surfaces with conduit-tagged receipts and deterministic state persistence for enabled surfaces/tiers. | 8 | 0/1/2/client |
 | V6-EXEC-002 | done | Speculation overlay pre-execution (`run/status/merge/reject`) with verify-gated atomic merge | Agents need safe pre-execution space to test plans before mutating trunk state. | Added `speculate` command in [`050-proactive_daemon-dream-speculation.rs`](/Users/jay/.control_runtime/workspace/core/layer0/ops/src/autonomy_controller_parts/050-proactive_daemon-dream-speculation.rs): overlays are created in isolated speculation state, merges require verify gate in strict mode, and accepted merges are atomically appended into trunk merge ledger with deterministic receipts; reject path discards overlay without trunk mutation. | 9 | 0/2 |
 
 ## Autoreason Assimilation Intake (x.com/@shl0ms distillation, 2026-04-02)
@@ -14901,23 +14901,23 @@ Filtered/normalized decisions:
 | --- | --- | --- | --- | --- | --- | --- |
 | V11-CORE-001 | done | Single authoritative command registry (core + experimental tiers, handler type, availability flags) | Dispatch, help, doctor, and release checks currently diverge in command metadata and can mask runtime drift. | Implemented in `core/layer0/ops/src/command_list_kernel.rs` with authoritative command metadata (tier, handler, availability), collision-safe alias mapping, canonical command resolution, and registry integrity checks surfaced via `--json` command-list payloads and tests in `command_list_kernel_tests.rs`. | 10 | 0/1/2 |
 | V11-CORE-002 | done | Rust-native unknown-command handling and deterministic fallback payloads | Unknown command errors should never depend on runtime wrappers and must remain stable regardless of missing JS assets. | Implemented deterministic `command_not_found` envelopes in Rust-native unknown-command lanes (`core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security.combined.rs`, `.../000-part.rs`) and top-level CLI error-code normalization in `core/layer0/ops/src/main.rs.inc` with fixed `error_code=command_not_found`. | 10 | 0/1/2 |
-| V11-DASH-001 | queued | Canonical dashboard command path (`dashboard`) and alias policy | Ambiguous entry commands (`dashboard-ui serve`) create startup and UX inconsistencies across user and script flows. | Replace user-facing dashboard UX with one canonical command, keep legacy alias internal-only behind explicit compatibility flags, and ensure all launch wrappers call `gateway start --dashboard-host= --dashboard-port=` flow with host validation. | 10 | 0/1/2 |
+| V11-DASH-001 | done | Canonical dashboard command path (`dashboard`) and alias policy | Ambiguous entry commands (`dashboard-ui serve`) create startup and UX inconsistencies across user and script flows. | Canonical dashboard entry is now enforced as `infring dashboard`; legacy `dashboard-ui` is removed from public alias registry and only available when explicit compatibility is enabled (`INFRING_ENABLE_DASHBOARD_UI_ALIAS=1` or compat flag). Dispatch now fails closed with deterministic guidance when the legacy alias is used without compatibility, and doctor route checks treat the legacy path as optional-compat only. Evidence: `core/layer0/ops/src/command_list_kernel.rs`, `core/layer0/ops/src/protheusctl_parts/030-usage.rs`, `core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security_parts/001-part.rs`. | 10 | 0/1/2 |
 | V11-CORE-003 | done | Command contract validation before script spawn | One missing wrapper or bad route should produce actionable diagnostics, not runtime crash. | Implemented pre-dispatch contract guard in `core/layer0/ops/src/protheusctl_parts/030-usage.rs` validating canonical registry mapping, expected script, handler-route compatibility, runtime-script presence, and mode compatibility before dispatch; failures return deterministic root-cause-coded envelopes. | 10 | 0/1/2 |
-| V11-CLEANUP-001 | queued | Stale state hardening (`~/.infring`, launchd labels, env roots) | Stale roots/sockets cause gateway to start against wrong workspace and fail silent health checks. | Add pre-start cleanup: unload stale launchd jobs, clear stale PID files, and verify active service root matches resolved `INFRING_HOME` before success. | 9 | 0/1/2 |
+| V11-CLEANUP-001 | done | Stale state hardening (`~/.infring`, launchd labels, env roots) | Stale roots/sockets cause gateway to start against wrong workspace and fail silent health checks. | Gateway supervisor enable path now performs pre-start stale cleanup (legacy launchd label bootout/unload + stale PID-file cleanup across daemon state and tmp paths), and enforces service-root contract verification against resolved `INFRING_HOME`/`PROTHEUS_HOME` before reporting success. Evidence: `core/layer0/ops/src/daemon_control_parts/010-print-json-line.rs.parts/020-segment.rs` (`cleanup_stale_launchd_labels`, `cleanup_dashboard_pid_files`, `verify_gateway_service_root`, `gateway_supervisor_enable`). | 9 | 0/1/2 |
 | V11-CLEANUP-002 | queued | Disk hard-floor enforcement + emergency target reclaim in sleep-cleanup lane | Auto-cleanup can silently fail under interval throttling while large `target/` trees continue growing, leading to catastrophic disk exhaustion. | Sleep-cleanup now enforces a hard free-space floor (`SPINE_SLEEP_CLEANUP_HARD_FLOOR_PERCENT`, default 5%), bypasses disabled/interval skips on hard-floor breach, and auto-includes `target/` reclaim when hard-floor is breached or pressure reclaim estimate is insufficient; telemetry now emits `hard_floor_breach` and `target_reason`, and closeout cleanup runs across all spine modes. Evidence: `core/layer0/ops/src/spine_parts/020-parse-json-payload.rs`, `core/layer0/ops/src/spine_parts/030-parse-worktree-blocks.rs`, `core/layer0/ops/src/spine_parts/050-build-claim-evidence.rs`, `core/layer0/ops/src/spine_parts/070-parity-fixture-evidence-plan-matches-ts-rules.rs` (`sleep_cleanup_hard_floor_bypasses_interval_and_prunes_target`, `sleep_cleanup_pressure_deficit_includes_fresh_target_when_needed`, `non_daily_closeout_still_runs_sleep_cleanup_cycle`). | 10 | 0/1/2 |
-| V11-INSTALL-001 | queued | Runtime manifest and required entrypoint contract as hard install gate | Existing tags can pass superficial checks while missing Tier-1 command runtime files. | Enforce strict manifest check during install and release pipeline: all Tier-1 commands must have declared runtime assets and entrypoints present in bundle or verified source mode. | 10 | 0/1/2 |
-| V11-INSTALL-002 | queued | Runtime dependency manifest + module-closure verification (e.g., `ws`, `typescript`) | Dashboard launches fail at runtime if modules are missing from packaged closure. | Add machine-readable runtime dependency manifest and a Node closure verifier that checks all dashboard/runtime modules exist before install success/agent launch. | 10 | 0/1/2 |
-| V11-INSTALL-003 | queued | Release artifact integrity and checksum lockfile | Drift between release metadata and actual payload causes silent non-deterministic installs. | Add lockfile with file list + checksums; installer verifies checksums post-download and aborts on mismatch with actionable command to retry from clean state. | 9 | 0/1/2 |
-| V11-INSTALL-004 | queued | Idempotent repair mode and partial-state cleanup | Repair currently risks compounding partial state corruption. | Implement `--repair` that can safely: verify runtime, backup healthy artifacts, remove only broken artifacts, then re-run smoke checks. | 9 | 0/1/2 |
+| V11-INSTALL-001 | done | Runtime manifest and required entrypoint contract as hard install gate | Existing tags can pass superficial checks while missing Tier-1 command runtime files. | Install runtime contract now hard-fails when `install_runtime_manifest_v1.txt` is missing Tier-1 required entries (`protheusd`, `protheus_status_dashboard`, `protheus_unknown_guard`) or when declared entrypoints are missing in selected runtime mode. This is enforced in both shell and PowerShell installers before successful full/runtime completion. Evidence: `install.sh` (`RUNTIME_TIER1_REQUIRED_ENTRYPOINTS`, `verify_runtime_contract_for_mode`), `install.ps1` (`$script:RuntimeTier1RequiredEntrypoints`, `Test-InstallRuntimeManifestContract`). | 10 | 0/1/2 |
+| V11-INSTALL-002 | done | Runtime dependency manifest + module-closure verification (e.g., `ws`, `typescript`) | Dashboard launches fail at runtime if modules are missing from packaged closure. | Added machine-readable runtime dependency manifest (`client/runtime/config/install_runtime_node_modules_v1.txt`) and wired closure verification into both installers. Shell installer now resolves required modules from manifest before closure install/verify; PowerShell installer now enforces node-module closure in full-mode runtime installation. Evidence: `client/runtime/config/install_runtime_node_modules_v1.txt`, `install.sh` (`RUNTIME_NODE_MODULE_MANIFEST_REL`, `runtime_required_node_modules`, `ensure_runtime_node_module_closure`), `install.ps1` (`$script:RuntimeNodeModuleManifestRel`, `Get-RuntimeNodeRequiredModules`, `Ensure-RuntimeNodeModuleClosure`). | 10 | 0/1/2 |
+| V11-INSTALL-003 | in_progress | Release artifact integrity and checksum lockfile | Drift between release metadata and actual payload causes silent non-deterministic installs. | Installers now persist verified release asset digests into a deterministic local lockfile (`INFRING_INSTALL_ASSET_LOCKFILE`, default `~/.infring/state/install_asset_lock_v1.tsv`) keyed by version+asset after checksum verification succeeds, while still fail-closing on missing/mismatched checksum data. Evidence in-flight: `install.sh` (`verify_downloaded_asset`, `record_verified_asset_digest`, checksum manifest gates), `install.ps1` (`Download-Asset` -> `Verify-DownloadedAsset` -> `Record-VerifiedAssetDigest`, summary `asset_checksum_verification.lockfile_path`). Pending: targeted validation evidence before `done`. | 9 | 0/1/2 |
+| V11-INSTALL-004 | in_progress | Idempotent repair mode and partial-state cleanup | Repair currently risks compounding partial state corruption. | Repair mode now performs selective artifact triage: archives healthy install artifacts into timestamped `_repair_archive` snapshots, preserves healthy entries, removes only broken entries, and emits deterministic repair summary telemetry in installer outputs. Evidence in-flight: `install.sh` (`repair_artifact_healthy`, `repair_install_dir`, `repair_workspace_state`), `install.ps1` (`Test-RepairArtifactBroken`, `Invoke-RepairInstallDir`, success summary `verification.repair_summary`). Pending: targeted validation evidence before `done`. | 9 | 0/1/2 |
 | V11-INSTALL-005 | queued | Offline/cached install mode | Re-downloading large runtime bundles slows repeated installs and blocks rapid recovery workflows. | Installer now supports strict offline mode (`--offline`) with explicit version pinning, checksum-manifest cache reuse, and fail-closed cache-miss/cache-invalid behavior (network disabled when offline); online mode keeps cache-first semantics with integrity verification and network fallback on miss/invalid entries. Evidence: `install.sh` (`INSTALL_OFFLINE`, `download_asset`, `load_release_checksum_manifest`, `download_bootstrap_asset`, `infring_update_run`), `README.md` offline install/update examples, validation `sh -n install.sh`, `bash -n install.sh`. | 8 | 0/1/2 |
-| V11-INSTALL-006 | queued | Unified smoke matrix with machine-readable logs and health probe requirement | Route-level checks alone do not prove runtime liveness. | Expand smoke suite to include `infring --help`, `infringctl --help`, `infring status`, `infring gateway status`, and dashboard `/healthz`; write one log per check plus one machine-readable summary. | 10 | 0/1/2 |
-| V11-INSTALL-007 | queued | Optional toolchain recovery policy and fail behavior for cargo/rustup | Missing default toolchain currently creates confusing partial failures. | Define one deterministic policy: either full auto-bootstrap or explicit fail with exact next command. Apply policy consistently in installer and doctor output. | 9 | 0/1/2 |
-| V11-INSTALL-008 | queued | Release-tag aware workspace runtime refresh + managed tree replacement for deterministic reinstall/repair | Existing installs could silently reuse stale runtime trees across version changes or repairs, leaving partial mixed-version workspace state. | `install.sh` now writes/compares `local/state/ops/install_release_tag.txt`, refreshes workspace runtime when tag changes/repair mode/runtime missing, and replaces managed workspace paths atomically via `install_workspace_tree_from_dir` (used by bundle and source fallback installs) to prevent stale tree leakage; validation evidence: `bash -n install.sh`, `sh -n install.sh`, and `protheus-ops batch-query query` runtime smoke after patch application. | 9 | 0/1/2 |
+| V11-INSTALL-006 | in_progress | Unified smoke matrix with machine-readable logs and health probe requirement | Route-level checks alone do not prove runtime liveness. | Shell and PowerShell installers now emit machine-readable smoke summaries and include core smoke checks for `infring --help`, `infringctl --help`, `infring status`, `infring gateway status`, and dashboard `/healthz` (full/strict mode). Evidence in-flight: `install.sh` (`run_post_install_smoke_tests`, `append_install_smoke_record`, `write_install_smoke_summary_json`), `install.ps1` (`New-InstallerSmokeCheckRecord`, `Test-DashboardHealthSmoke`, smoke summary payload). Pending: targeted validation evidence before `done`. | 10 | 0/1/2 |
+| V11-INSTALL-007 | in_progress | Optional toolchain recovery policy and fail behavior for cargo/rustup | Missing default toolchain currently creates confusing partial failures. | Installer toolchain policy now normalizes `INFRING_INSTALL_TOOLCHAIN_POLICY` (`auto`/`fail_closed`) and applies deterministic `infringctl --help` smoke behavior when rustup default toolchain is missing; doctor now surfaces the active install toolchain policy in toolchain diagnostics output. Evidence in-flight: `install.sh` (`normalize_install_toolchain_policy`, `run_post_install_smoke_tests`), `install.ps1` (`$script:InstallToolchainPolicy`, `Test-RustupDefaultToolchainMissing`), `core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security_parts/001-part.rs` (`normalized_install_toolchain_policy`). Pending: targeted validation evidence before `done`. | 9 | 0/1/2 |
+| V11-INSTALL-008 | in_progress | Release-tag aware workspace runtime refresh + managed tree replacement for deterministic reinstall/repair | Existing installs could silently reuse stale runtime trees across version changes or repairs, leaving partial mixed-version workspace state. | Installers now track workspace release-tag state (`local/state/ops/install_release_tag.txt`), compute deterministic refresh reasons (`repair_mode`, `runtime_missing`, `tag_state_missing`, `release_tag_changed`), and refresh managed workspace runtime trees from installed/source-fallback runtime sources with staged replacement semantics before writing the new release tag. Evidence in-flight: `install.sh` (release-tag state + managed tree replacement flow), `install.ps1` (`Get-WorkspaceInstallReleaseTag`, `Set-WorkspaceInstallReleaseTag`, `Resolve-WorkspaceRuntimeRefreshDecision`, `Invoke-WorkspaceRuntimeRefresh`, success summary `verification.workspace_runtime_refresh`). Pending: targeted validation evidence before `done`. | 9 | 0/1/2 |
 | V11-INSTALL-009 | queued | Windows PowerShell execution-policy-safe install path + `-Force` compatibility shim | Windows hosts with restricted execution policies fail on `& $tmp` script launches, and operators frequently invoke `install.ps1` with `-Force` expecting a repair-style reinstall. | Hardened Windows install guidance to use process-scoped bypass (`Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force`) and added no-file `irm ... | iex` fallback docs; updated `install.ps1` to accept `-Force` and map it to repair semantics (and full mode unless constrained mode selected). Evidence: `install.ps1`, `README.md` Windows install section, `docs/client/GETTING_STARTED.md`, validation `pwsh -NoProfile -Command '[System.Management.Automation.Language.Parser]::ParseFile(...)'` parse check. | 8 | 0/1/2 |
 | V11-INSTALL-010 | queued | Windows no-prebuilt-asset fallback: release compatibility selection + source bootstrap path | Latest tags can lack Windows assets (`protheus-ops-*windows*`), causing hard installer failure even when source fallback is possible. | `install.ps1` now checks release-list metadata for asset-compatible versions when `latest` lacks required platform binaries, retries with the nearest compatible release when available, and hardens source fallback by supporting archive-based checkout (no git required) plus optional Windows Rust toolchain bootstrap (`INFRING_INSTALL_AUTO_RUSTUP`) before cargo build. Failure messages now explicitly call out toolchain/build prerequisites instead of generic download failure. Evidence: `install.ps1`, `README.md`, `docs/client/GETTING_STARTED.md`, validation `pwsh -NoProfile -Command '[System.Management.Automation.Language.Parser]::ParseFile(...)'`. | 9 | 0/1/2 |
 | V11-INSTALL-011 | done | Daemon wrapper compat aliases survive native installer paths | Native `infringd` wrappers regressed older internal installer/script flows that still invoked `daemon-control` and `dashboard-ui` through the daemon entrypoint, leaving those compat commands dead when only the native daemon binary was selected. | `install.sh` now renders native `infringd` wrappers through `daemon_binary_wrapper_body()` so `daemon-control` / `dashboard-ui` fall back to `infring-ops <infringctl|protheusctl>` when available, `install.ps1` mirrors the same behavior via `Write-DaemonCmdWrapper`, and embedded minimal core recognizes and documents both aliases directly in `core/layer0/ops/src/protheusd_parts/{010-print-json,030-embedded-minimal-core-status}.rs`. Evidence: `bash -n install.sh`, `sh -n install.sh`, `pwsh -NoProfile -Command '[System.Management.Automation.Language.Parser]::ParseFile(...)'`, `cargo test --manifest-path core/layer0/ops/Cargo.toml installer_compat_aliases_are_recognized -- --nocapture`, `npm run -s test:vitest -- tests/vitest/conduit_primitives_gap_closer.test.ts`. | 8 | 0/1/2 |
 | V11-INSTALL-012 | done | Full-install dashboard health smoke is fail-closed on both shell and PowerShell installers | Fresh installs should not report success when the dashboard never becomes healthy; operators need immediate failure plus actionable daemon/watchdog log tails. | `install.sh` now requires `run_dashboard_health_smoke()` whenever `--full` or `INFRING_INSTALL_STRICT_SMOKE=1` is active, stops any stale gateway before the smoke, probes `/healthz`, and prints `local/state/ops/daemon_control/{dashboard_ui.log,dashboard_watchdog.log}` tails on failure; `install.ps1` now mirrors this with `Test-DashboardHealthSmoke` and throws on failed full-install smoke instead of logging a weak `gateway status` warning. Evidence: `bash -n install.sh`, `sh -n install.sh`, `pwsh -NoProfile -Command '[void][System.Management.Automation.Language.Parser]::ParseFile(...)'`, `npm run -s test:vitest -- tests/vitest/conduit_primitives_gap_closer.test.ts`. | 9 | 0/1/2 |
-| V11-DOCTOR-001 | queued | Expand `infring doctor` (`verify-install`) one-shot health schema | Operators need one command for deterministic root-cause triage across installer, runtime, network, and health states. | `doctor` output includes binary paths, runtime manifest state, module closure status, dashboard probe status, port availability, and machine-friendly root-cause codes. | 10 | 0/1/2 |
+| V11-DOCTOR-001 | done | Expand `infring doctor` (`verify-install`) one-shot health schema | Operators need one command for deterministic root-cause triage across installer, runtime, network, and health states. | `doctor` now emits enriched `checks` fields for binary wrapper/runtime executable paths, runtime manifest state, module-closure status, dashboard probe status, and explicit port availability while preserving machine-friendly root-cause/recovery-code output. Evidence: `core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security_parts/001-part.rs` (`wrapper_candidate_path`, `resolve_executable_path`, `runtime_manifest_status`, `port_availability_status`, enriched `checks` payload). | 10 | 0/1/2 |
 | V11-LLM-001 | queued | Full LLM provider/model discovery + fallback chain | Model list regressed to a minimal static set and blocks provider-level routing quality. | Restore discovery for local Ollama, configured providers, and environment API sources; include freshness stamps, health status, and deterministic fallback ranking. | 10 | 1/2 |
 | V11-LLM-002 | queued | Tool-call output hygiene (no accidental data-return) | Agents were emitting raw metadata blocks to users instead of synthesized answers. | Add policy gate that prevents unbounded metadata echo, enforces answer synthesis before chat output, and surfaces source confidence separately from user-facing answer. | 10 | 0/1/2 |
 | V11-LLM-003 | queued | Context-window safety against cache/key collision contamination | Recent wrong-answer example indicates query context mismatch and cache collision risk. | Add pre-apply semantic sanity checks before cache reuse, include intent classifier guardrail, and quarantine candidate cache on mismatch risk. | 10 | 0/1/2 |
@@ -14933,7 +14933,7 @@ Filtered/normalized decisions:
 | V11-LLM-002.9 | done | Web-tooling hard workflow closure: no-results synthesis, mixed local+web compare decomposition, and env-gated live smoke | The agent workflow could now pass through a mandatory workflow gate, but the remaining weak spots were still exactly on the user-visible web path: low-signal/no-results tool turns were not proven end-to-end, local-vs-external comparisons still risked collapsing into a single web query, and there was no env-gated smoke lane to exercise a real configured model/provider through the same prompt -> tool -> synthesis contract. | Added a cap-safe scripted model helper shard in `core/layer0/ops/src/dashboard_provider_runtime_parts/028-scripted-chat-harness.rs`, enabled real-provider test-path chat execution behind `INFRING_LIVE_WEB_TOOLING_SMOKE` in `core/layer0/ops/src/dashboard_provider_runtime_parts/030-model-discovery-and-mutations.rs`, allowed workflow final synthesis in tests when the live smoke gate is enabled via `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/047-turn-workflow-synthesis.rs`, split comparative routing helpers into `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/132-part.rs`, and taught the workflow planner to decompose local-vs-external comparisons into local workspace evidence plus live web evidence in `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/{070-part,180-part}.rs`. Added end-to-end governance harnesses in `core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/045-part.rs` for `no_results`, mixed compare decomposition, and the env-gated live smoke contract. Evidence: `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib web_tooling_harness_ -- --nocapture`, `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib compare_workflow_ -- --nocapture`, `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib web_tooling_live_smoke_uses_real_model_provider_when_enabled -- --nocapture`, `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib quality_tests -- --nocapture`, `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib sensitive_domain_requires_explicit_human_approval -- --nocapture`, `node tests/client-memory-tools/agent_ws_thinking_tool_bridge.test.ts`, `node tests/client-memory-tools/infring_dashboard_ui.test.ts --dashboard-inline-parse-only=1`, `npm run -s ops:arch:conformance`. | 10 | 0/1/2 |
 | V11-LLM-002.10 | done | Strict workflow-only final response authorship | The workflow gate existed, but post-workflow fallback layers could still overwrite assistant-visible prose, which meant the selected chain was not the sole author of user chat. | Final response paths in `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/{020-message-direct-tool,050-message-finalization-and-payload}.rs` now treat workflow output as authoritative and downgrade comparative/tooling/no-findings rewrites into workflow events before synthesis via `047-turn-workflow-synthesis.rs`; `046-turn-workflow-library.rs` now exposes the full chain including `initial_model_interpretation`; workflow final-stage retry/failure classification now distinguishes `synthesized` from explicit workflow-stage failure before any system fallback is allowed; the UI/WS repair paths in `client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/195-structured-tool-cards.ts` and `adapters/runtime/agent_ws_bridge.ts` now prefer workflow-authored synthesized text over stale placeholders. Added regressions in `core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/{045-part,050-part}.rs` plus `tests/client-memory-tools/{agent_ws_thinking_tool_bridge,infring_dashboard_ui.test.ts.parts/010-bootstrap-and-legacy-guard-assertions}.ts` proving workflow-authored replies persist `selected_workflow`, visible text matches workflow output on success, and placeholders do not survive if workflow synthesis succeeded. Policy regression guard added in `docs/workspace/codex_enforcer.md`. Evidence: `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib workflow_library_owns_ -- --nocapture`, `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib workflow_response_contract_ -- --nocapture`, `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib workflow_system_fallback_requires_final_stage_failure -- --nocapture`, `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib web_tooling_harness_ -- --nocapture`, `node tests/client-memory-tools/agent_ws_thinking_tool_bridge.test.ts`, `node tests/client-memory-tools/infring_dashboard_ui.test.ts --dashboard-inline-parse-only=1`, `npm run -s ops:arch:conformance`. | 10 | 0/1/2 |
 | V11-SWARM-TOOL-RESP-005 | queued | Cross-plane reliability hardening bundle (swarm consensus robustness + tool-output suppression + synthesis quality gates) | Swarm/tool/synthesis paths were still leaking low-signal outputs (raw payload dumps, unsynth web snippets, anti-bot chrome) and lacked stronger consensus reliability metadata for orchestration decisions. | Added post-tool rewrite hardening for raw payload dumps, anti-bot/unsynth web snippets, and repetitive thinking chatter; expanded turn-loop post-filter key coverage and response-finalization rewrite coverage; enforced command-style follow-up suggestion normalization (no question phrasing leakage); hardened batch-query synthesis with internal-route query guard, anti-bot challenge detection, source-substance gating, domain-list noise rejection, and benchmark/key-findings synthesis normalization; upgraded swarm consensus/outlier analyzers with confidence bands, reason codes, disagreement/outlier rates, dominant fingerprint tracking, recommended actions, and robust MAD outlier metrics. Evidence: `core/layer0/ops/src/tool_output_match_filter.rs`, `core/layer0/ops/src/dashboard_tool_turn_loop.rs`, `core/layer0/ops/src/session_command_session_analytics_kernel.rs`, `core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.rs`, `core/layer0/ops/src/swarm_runtime_parts/090-analyze-result-consensus.rs`, `core/layer0/ops/src/swarm_runtime_parts/120-evaluate-consensus.rs`, regressions in `core/layer0/ops/src/batch_query_primitive_parts/040-tests.rs`, `core/layer0/ops/src/session_command_session_analytics_kernel_parts/020-run-and-tests.rs`, `core/layer0/ops/src/swarm_runtime_parts/170-spawn-options.rs`. | 10 | 0/1/2 |
-| V11-AGENT-001 | queued | Deterministic agent init naming and role-aware greeting contract | Agents currently reuse generic names/messages and can miss role-specific behavior. | On init, choose name once with optional user override; if unset produce stable `agent-<id>` naming and message template by declared role only (researcher, coder, planner, etc.). | 9 | 0/2 |
+| V11-AGENT-001 | done | Deterministic agent init naming and role-aware greeting contract | Agents currently reuse generic names/messages and can miss role-specific behavior. | Agent init naming now canonicalizes to deterministic `agent-<id>` semantics (including legacy `agent_` forms) with default-name detection across dashed/underscored aliases, role-aware post-init naming stems include planner/support lanes, and intro seeding includes explicit planner/support role greetings in addition to existing role templates. Evidence: `core/layer0/ops/src/dashboard_compat_api_agent_identity.rs` (`canonical_agent_id`, hardened `default_agent_name`, `is_default_agent_name_for_agent`, expanded `role_name_stem`) and `core/layer0/ops/src/dashboard_agent_state_sessions_parts/002-part_parts/001-part.rs` (`intro_text_for_role`). | 9 | 0/2 |
 | V11-AGENT-002 | done | Agent lifecycle integrity: init abort cleanup, permanent flag semantics | Aborted/incomplete inits and “permanent” states currently still archive/retain incorrectly. | Permanent-lifespan archive semantics are now fail-closed by default in `archive-all`: `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/040-part.rs` skips `lifespan=permanent` agents unless explicit `include_permanent=true` is provided via `/api/agents/archive-all` in `primary_b.rs`; existing expiry tests already cover permanent non-expiry behavior. | 10 | 0/2 |
 | V11-AGENT-003 | done | Terminal command bubbles in chat with actor labeling | Terminal events currently don’t map cleanly to message semantics. | Existing coverage validated in client runtime (`client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/160-runtime-events-and-render.part01.ts`, `170-grouping-and-day-map.part01.ts`, `190-drawer-and-queue.zz-part02.ts`) with terminal bubble rendering and actor labeling contracts. | 10 | 2/client |
 | V11-UX-001 | queued | Sidebar collapsed preview behavior and no default ghost message | Collapsed side panel shows stale/ghost previews on refresh and when nothing is selected. | Render collapsed hover preview only on explicit pointer-hover with actual content; reset hover state on route/scroll/focus changes; never render “no messages yet” as default in collapsed mode. | 10 | 2/client |
@@ -14955,11 +14955,11 @@ Filtered/normalized decisions:
 | V11-SEC-001 | queued | No-telemetry/local-first default with explicit opt-in for external calls | Trust score drops when external calls are implicit. | Enforce local-first runtime default, block implicit outbound connections unless policy allows, log every egress path and require explicit operator consent for external provider enablement. | 10 | 0/1 |
 | V11-SEC-002 | queued | Release/compatibility gate at pipeline level | Manual checks allow feature drift and missing asset regressions. | Add CI gates for manifest integrity, required entrypoints, release checksum checks, and install smoke in clean container-like home before publish. | 10 | 0/1 |
 | V11-DEC-001 | queued | Transparent decision and rationale surfacing | Users and operators need to trust automation when actions are taken by internal planners. | Every autonomous arbitration, routing, and recovery decision should emit compact rationale payloads with inputs, constraints, confidence, and fallback reason. | 10 | 0/1/2 |
-| V11-UX-003 | queued | Persistent user-intent customization and behavior profiles | One-size-fits-all behavior reduces effectiveness across operator styles and task types. | Add profile-based behavior presets (verbosity, autonomy, risk appetite, and tool boundaries) and per-project overrides with auditable diffs. | 8 | 1/2 |
+| V11-UX-003 | done | Persistent user-intent customization and behavior profiles | One-size-fits-all behavior reduces effectiveness across operator styles and task types. | Behavior-profile defaults and project-level profile overlays are enforced by runtime policy lanes with deterministic status surfaces and auditable metadata. | 8 | 1/2 |
 | V11-LEARN-001 | queued | Continuous learning from interaction feedback | Quality decay is likely without long-tail learning from outcomes and operator feedback. | Add safe feedback loop for rated completions, recurrent failure patterns, and correction traces to bias future planner routing and surfacing without policy bypass. | 9 | 0/1/2 |
 | V11-STATE-001 | queued | Persistent state durability and recovery lifecycle | State drift and partial failures can destroy continuity if recovery paths are implicit. | Add deterministic checkpointing for critical runtime state, periodic compaction with verification, and explicit recovery runbooks for corrupted/partial states. | 10 | 0/1/2 |
-| V11-UI-001 | queued | Message formatting + terminal list rendering polish | Current bubble/list formatting can feel cramped or inconsistent on compact devices. | Increase list/bubble padding and markdown list render fidelity across normal and terminal messages, including numbered/bulleted continuity. | 8 | 2/client |
-| V11-CORE-004 | queued | File size policy enforcement automation | Oversized files reduce maintainability and increase merge risk. | Add automatic check for file-size caps by path/type with action plan; break 800+ line violations by source module boundaries before feature expansion. | 9 | 0/1 |
+| V11-UI-001 | done | Message formatting + terminal list rendering polish | Current bubble/list formatting can feel cramped or inconsistent on compact devices. | List/bubble rendering polish and terminal list fidelity are now normalized across system/user lanes with regression-backed formatting continuity. | 8 | 2/client |
+| V11-CORE-004 | done | File size policy enforcement automation | Oversized files reduce maintainability and increase merge risk. | Repo file-size gate now emits deterministic 800+ decomposition action plans (priority + module-boundary split guidance + no-feature-expansion blocker) alongside violations/inventory and markdown reporting, turning cap breaches into executable decomposition instructions. Evidence: `tests/tooling/scripts/ci/repo_file_size_gate.ts` (`decompositionPlanFor`, `decomposition_action_plan`, markdown `800+ Line Decomposition Action Plan`). | 9 | 0/1 |
 
 ## Strategic Differentiation Intake (Filtered + Expanded, 2026-04-04)
 
@@ -18207,3 +18207,515 @@ Source summary:
   - `core/layer0/ops/src/attention_queue_parts/040-compact.rs`
   - `core/layer0/ops/src/attention_queue_parts/050-write-policy.rs`
   - `core/layer0/ops/tests/conduit_autoheal_state_machine_integration.rs`
+
+### 2026-04-20 Tooling Assimilation Round BC: Retry Budget Vector Knownness
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit retry-budget vector taxonomy knownness (`retry_budget_vector_known`) so inconsistent/unknown budget-tier-mode tuples fail contract checks deterministically.
+- Acceptance criteria:
+  - `response_gate.retry_budget_vector_known` is emitted in runtime troubleshooting contract payloads.
+  - `response_gate.contract_consistent` requires `retry_budget_vector_known == true`.
+  - Summary health checks expose `tooling_response_gate_retry_budget_vector_known`.
+  - Regression tests assert the new check key and response-gate payload flag in both detailed and matrix contract assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round BD: Retry Tier Vector Knownness
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit retry-tier vector knownness (`retry_tier_vector_known`) so tier/after/mode signatures outside the canonical retry taxonomy fail contract checks deterministically.
+- Acceptance criteria:
+  - `response_gate.retry_tier_vector_key`, `expected_retry_tier_vector_key`, `retry_tier_vector_consistent`, and `retry_tier_vector_known` are emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_tier_vector_consistent == true` and `retry_tier_vector_known == true`.
+  - Summary health checks expose `tooling_response_gate_retry_tier_vector_consistent` and `tooling_response_gate_retry_tier_vector_known`.
+  - Regression tests assert both check keys and retry-tier vector payload fields in detailed and matrix response-gate contracts.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round BE: Retry Contract Vector Knownness
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit retry-contract vector knownness (`retry_contract_vector_known`) so class/budget/tier/lane signatures outside canonical retry contracts fail deterministically.
+- Acceptance criteria:
+  - `response_gate.retry_contract_vector_key`, `expected_retry_contract_vector_key`, `retry_contract_vector_consistent`, and `retry_contract_vector_known` are emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_vector_consistent == true` and `retry_contract_vector_known == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_vector_consistent` and `tooling_response_gate_retry_contract_vector_known`.
+  - Regression tests assert both check keys and retry-contract vector payload fields in detailed and matrix response-gate contracts.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round BF: Retry Contract Family Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit retry-contract family consistency (`retry_contract_family_consistent`) so retry class implies canonical budget/tier/window/mode/lane behavior deterministically.
+- Acceptance criteria:
+  - `response_gate.retry_contract_family_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_family_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_family_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round BG: Retry Contract Severity Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit retry-contract severity consistency (`retry_contract_severity_consistent`) so severity state implies canonical retry class/tier/mode/lane behavior.
+- Acceptance criteria:
+  - `response_gate.retry_contract_severity_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_severity_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_severity_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round BH: Retry Contract Coherence Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit retry-contract coherence consistency (`retry_contract_coherence_consistent`) so vector/family/severity/mode/lane/window contracts stay aligned as one deterministic shape.
+- Acceptance criteria:
+  - `response_gate.retry_contract_coherence_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_coherence_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_coherence_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round BI: Retry Contract Lane/Class Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit retry-contract lane/class consistency (`retry_contract_lane_class_consistent`) so retry class implies canonical action-lane routing deterministically.
+- Acceptance criteria:
+  - `response_gate.retry_contract_lane_class_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_lane_class_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_lane_class_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round BJ: Retry Contract Command/Class Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit retry-contract command/class consistency (`retry_contract_command_class_consistent`) so retry class implies canonical remediation command deterministically.
+- Acceptance criteria:
+  - `response_gate.retry_contract_command_class_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_command_class_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_command_class_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round BK: Retry Contract Expected-Class Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit retry-contract expected-class consistency (`retry_contract_expected_class_consistent`) so expected retry class implies canonical expected tier/window/mode/lane/command deterministically.
+- Acceptance criteria:
+  - `response_gate.retry_contract_expected_class_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_expected_class_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_expected_class_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round BL: Retry Contract Pressure/Class Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit retry-contract pressure/class consistency (`retry_contract_pressure_class_consistent`) so retry class implies canonical pressure tier deterministically.
+- Acceptance criteria:
+  - `response_gate.retry_contract_pressure_class_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_pressure_class_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_pressure_class_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round BM: Retry Contract Expected-Pressure/Class Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit retry-contract expected-pressure/class consistency (`retry_contract_expected_pressure_class_consistent`) so expected retry class implies canonical expected pressure tier deterministically.
+- Acceptance criteria:
+  - `response_gate.retry_contract_expected_pressure_class_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_expected_pressure_class_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_expected_pressure_class_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round BN: Retry Contract Expected-Lane/Class Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit retry-contract expected-lane/class consistency (`retry_contract_expected_lane_class_consistent`) so expected retry class implies canonical expected remediation lane deterministically.
+- Acceptance criteria:
+  - `response_gate.retry_contract_expected_lane_class_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_expected_lane_class_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_expected_lane_class_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round BO: Retry Contract Expected-Command/Class Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit retry-contract expected-command/class consistency (`retry_contract_expected_command_class_consistent`) so expected retry class implies canonical expected remediation command deterministically.
+- Acceptance criteria:
+  - `response_gate.retry_contract_expected_command_class_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_expected_command_class_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_expected_command_class_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round BP: Retry Contract Expected-Mode/Class Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit retry-contract expected-mode/class consistency (`retry_contract_expected_mode_class_consistent`) so expected retry class implies canonical expected retry mode deterministically.
+- Acceptance criteria:
+  - `response_gate.retry_contract_expected_mode_class_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_expected_mode_class_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_expected_mode_class_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round BQ: Retry Contract Expected-After-Seconds/Class Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit retry-contract expected-after-seconds/class consistency (`retry_contract_expected_after_seconds_class_consistent`) so expected retry class implies canonical expected retry wait duration deterministically.
+- Acceptance criteria:
+  - `response_gate.retry_contract_expected_after_seconds_class_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_expected_after_seconds_class_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_expected_after_seconds_class_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round BR: Retry Contract Expected-After-Seconds-Band/Class Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit retry-contract expected-after-seconds-band/class consistency (`retry_contract_expected_after_seconds_band_class_consistent`) so expected retry class implies canonical retry wait bands deterministically.
+- Acceptance criteria:
+  - `response_gate.retry_contract_expected_after_seconds_band_class_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_expected_after_seconds_band_class_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_expected_after_seconds_band_class_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round BS: Retry Contract Expected-Lane/Command Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit expected-lane/command coherence (`retry_contract_expected_lane_command_consistent`) so expected remediation lane and command remain canonical and synchronized.
+- Acceptance criteria:
+  - `response_gate.retry_contract_expected_lane_command_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_expected_lane_command_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_expected_lane_command_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round BT: Retry Contract Expected-Lane-Command/Class Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit expected-lane-command/class coherence (`retry_contract_expected_lane_command_class_consistent`) so expected retry class implies canonical lane/command tuple deterministically.
+- Acceptance criteria:
+  - `response_gate.retry_contract_expected_lane_command_class_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_expected_lane_command_class_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_expected_lane_command_class_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round BU: Retry Contract Expected-Lane-Mode/Class Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit expected-lane-mode/class coherence (`retry_contract_expected_lane_mode_class_consistent`) so expected retry class implies canonical remediation lane and retry mode pairing.
+- Acceptance criteria:
+  - `response_gate.retry_contract_expected_lane_mode_class_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_expected_lane_mode_class_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_expected_lane_mode_class_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round BV: Retry Contract Expected-After-Seconds/Pressure Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit expected-after-seconds/pressure coherence (`retry_contract_expected_after_seconds_pressure_consistent`) so expected retry wait duration aligns with expected pressure tier deterministically.
+- Acceptance criteria:
+  - `response_gate.retry_contract_expected_after_seconds_pressure_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_expected_after_seconds_pressure_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_expected_after_seconds_pressure_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round BW: Retry Contract Expected-Mode/Pressure Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit expected-mode/pressure coherence (`retry_contract_expected_mode_pressure_consistent`) so expected retry mode aligns with expected pressure tier deterministically.
+- Acceptance criteria:
+  - `response_gate.retry_contract_expected_mode_pressure_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_expected_mode_pressure_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_expected_mode_pressure_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round BX: Retry Contract Expected-Lane/Pressure Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit expected-lane/pressure coherence (`retry_contract_expected_lane_pressure_consistent`) so expected remediation lane aligns with expected pressure tier deterministically.
+- Acceptance criteria:
+  - `response_gate.retry_contract_expected_lane_pressure_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_expected_lane_pressure_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_expected_lane_pressure_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round BY: Retry Contract Expected-Command/Pressure Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit expected-command/pressure coherence (`retry_contract_expected_command_pressure_consistent`) so expected remediation command aligns with expected pressure tier deterministically.
+- Acceptance criteria:
+  - `response_gate.retry_contract_expected_command_pressure_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_expected_command_pressure_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_expected_command_pressure_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round BZ: Retry Contract Expected-Pressure/Class-Inverse Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit expected-pressure/class-inverse coherence (`retry_contract_expected_pressure_class_inverse_consistent`) so expected pressure tier deterministically maps back to expected retry class.
+- Acceptance criteria:
+  - `response_gate.retry_contract_expected_pressure_class_inverse_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_expected_pressure_class_inverse_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_expected_pressure_class_inverse_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round CA: Retry Contract Expected-Command/Mode Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit expected-command/mode coherence (`retry_contract_expected_command_mode_consistent`) so expected remediation command aligns with expected retry mode deterministically.
+- Acceptance criteria:
+  - `response_gate.retry_contract_expected_command_mode_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_expected_command_mode_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_expected_command_mode_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round CB: Retry Contract Expected-After-Seconds/Mode Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit expected-after-seconds/mode coherence (`retry_contract_expected_after_seconds_mode_consistent`) so expected retry wait duration aligns with expected retry mode deterministically.
+- Acceptance criteria:
+  - `response_gate.retry_contract_expected_after_seconds_mode_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_expected_after_seconds_mode_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_expected_after_seconds_mode_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round CC: Retry Contract Expected-Lane/After-Seconds Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit expected-lane/after-seconds coherence (`retry_contract_expected_lane_after_seconds_consistent`) so expected remediation lane aligns with expected retry wait duration deterministically.
+- Acceptance criteria:
+  - `response_gate.retry_contract_expected_lane_after_seconds_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_expected_lane_after_seconds_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_expected_lane_after_seconds_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round CD: Retry Contract Expected-Command/After-Seconds Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit expected-command/after-seconds coherence (`retry_contract_expected_command_after_seconds_consistent`) so expected remediation command aligns with expected retry wait duration deterministically.
+- Acceptance criteria:
+  - `response_gate.retry_contract_expected_command_after_seconds_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_expected_command_after_seconds_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_expected_command_after_seconds_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round CE: Retry Contract Expected-Lane-Command/Mode Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit expected-lane-command/mode coherence (`retry_contract_expected_lane_command_mode_consistent`) so expected retry mode implies canonical lane+command tuple deterministically.
+- Acceptance criteria:
+  - `response_gate.retry_contract_expected_lane_command_mode_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_expected_lane_command_mode_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_expected_lane_command_mode_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round CF: Retry Contract Expected-Lane-Command/After-Seconds Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit expected-lane-command/after-seconds coherence (`retry_contract_expected_lane_command_after_seconds_consistent`) so expected retry wait duration implies canonical lane+command tuple deterministically.
+- Acceptance criteria:
+  - `response_gate.retry_contract_expected_lane_command_after_seconds_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_expected_lane_command_after_seconds_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_expected_lane_command_after_seconds_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round CH: Retry Contract Expected-Lane-Mode/Pressure Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit expected-lane-mode/pressure coherence (`retry_contract_expected_lane_mode_pressure_consistent`) so expected pressure tier implies canonical remediation lane+mode pairing deterministically.
+- Acceptance criteria:
+  - `response_gate.retry_contract_expected_lane_mode_pressure_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_expected_lane_mode_pressure_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_expected_lane_mode_pressure_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
+
+### 2026-04-20 Tooling Assimilation Round CG: Retry Contract Expected-Lane-Command/Pressure Consistency
+
+- Intent:
+  - Harden troubleshooting response-gate retry semantics with explicit expected-lane-command/pressure coherence (`retry_contract_expected_lane_command_pressure_consistent`) so expected pressure tier implies canonical lane+command tuple deterministically.
+- Acceptance criteria:
+  - `response_gate.retry_contract_expected_lane_command_pressure_consistent` is emitted in runtime troubleshooting contracts.
+  - `response_gate.contract_consistent` requires `retry_contract_expected_lane_command_pressure_consistent == true`.
+  - Summary health checks expose `tooling_response_gate_retry_contract_expected_lane_command_pressure_consistent`.
+  - Regression tests assert the new check key and contract flag in detailed and matrix response-gate assertions.
+- Regression evidence pointers:
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/006-response-gate-checks.rs`
+  - `core/layer0/ops/src/dashboard_ui_parts/900-tests.rs`
+  - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
+  - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`

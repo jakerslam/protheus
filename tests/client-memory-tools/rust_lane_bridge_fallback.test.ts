@@ -22,7 +22,8 @@ if (!require.extensions['.ts']) {
 }
 
 const assert = require('node:assert');
-const path = require('node:path');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
+const path = require('node:path');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 const Module = require('node:module');
 
 const ROOT = path.resolve(__dirname, '../..');
@@ -79,7 +80,9 @@ function main() {
     );
 
     const result = bridge.run(['status']);
-    assertNoPlaceholderOrPromptLeak(result, 'rust_lane_bridge_fallback_test');\n    assertStableToolingEnvelope(result.payload, 'rust_lane_bridge_fallback_test');\n    assert.equal(result.status, 0);
+    assertNoPlaceholderOrPromptLeak(result, 'rust_lane_bridge_fallback_test');
+    assertStableToolingEnvelope(result.payload, 'rust_lane_bridge_fallback_test');
+    assert.equal(result.status, 0);
     assert.equal(result.payload.type, 'cargo_retry_success');
     assert.equal(result.fallback_reason, 'stale_prebuilt_retry');
     assert.equal(spawnCalls.length, 2);

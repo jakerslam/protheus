@@ -3,9 +3,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { invokeOrchestration } = require('./core_bridge.ts');
-
-const ROOT = path.resolve(__dirname, '..', '..', '..');
+const { ROOT, invokeOrchestration } = require('./core_bridge.ts');
 const SCHEMA_PATH = path.join(__dirname, 'schemas', 'finding-v1.json');
 
 const SEVERITY_ORDER = Object.freeze({

@@ -281,6 +281,16 @@ fn build_runtime_sync(root: &Path, flags: &Flags) -> Value {
         .cloned()
         .unwrap_or_default();
     let max_queue_depth = i64_from_value(attention_contract.get("max_queue_depth"), 2048).max(1);
+    let backpressure_soft_watermark = i64_from_value(
+        attention_contract.get("backpressure_soft_watermark"),
+        ((max_queue_depth as f64 * 0.75).ceil() as i64).max(1),
+    )
+    .clamp(1, max_queue_depth);
+    let backpressure_hard_watermark = i64_from_value(
+        attention_contract.get("backpressure_hard_watermark"),
+        max_queue_depth,
+    )
+    .clamp(backpressure_soft_watermark, max_queue_depth);
     let queue_utilization = (queue_depth as f64 / max_queue_depth as f64).clamp(0.0, 1.0);
     let active_agents = i64_from_value(cockpit_metrics.get("active_agent_count"), 0);
     let target_conduit_signals = recommended_conduit_signals(
@@ -297,9 +307,13 @@ fn build_runtime_sync(root: &Path, flags: &Flags) -> Value {
     } else {
         "live_sync"
     };
-    let pressure_level = if queue_depth >= max_queue_depth || queue_utilization >= 0.90 {
+    let pressure_level = if queue_depth >= backpressure_hard_watermark || queue_utilization >= 0.90
+    {
         "critical"
-    } else if queue_depth >= RUNTIME_SYNC_BATCH_DEPTH || queue_utilization >= 0.75 {
+    } else if queue_depth >= backpressure_soft_watermark
+        || queue_depth >= RUNTIME_SYNC_BATCH_DEPTH
+        || queue_utilization >= 0.75
+    {
         "high"
     } else if queue_depth >= RUNTIME_SYNC_WARN_DEPTH || queue_utilization >= 0.60 {
         "elevated"
@@ -425,10 +439,21 @@ fn build_runtime_sync(root: &Path, flags: &Flags) -> Value {
     let freshness_row = |source: &str, sequence_raw: &str, age_ms: i64, stale: bool| -> Value {
         let sequence = clean_text(sequence_raw, 160);
         let sequence_missing = sequence.is_empty();
+        let source_sequence = if sequence_missing {
+            crate::deterministic_receipt_hash(&json!({
+                "source": source,
+                "age_ms": age_ms.max(0),
+                "stale": stale
+            }))
+        } else {
+            sequence.clone()
+        };
         json!({
             "source": source,
             "sequence": if sequence_missing { Value::Null } else { Value::String(sequence) },
+            "source_sequence": source_sequence,
             "age_ms": age_ms.max(0),
+            "age_seconds": (age_ms.max(0) / 1000),
             "stale": stale || sequence_missing
         })
     };
@@ -534,6 +559,8 @@ fn build_runtime_sync(root: &Path, flags: &Flags) -> Value {
                 "sync_mode": sync_mode,
                 "max_queue_depth": max_queue_depth,
                 "queue_utilization": queue_utilization,
+                "soft_watermark": backpressure_soft_watermark,
+                "hard_watermark": backpressure_hard_watermark,
                 "cockpit_to_conduit_ratio": cockpit_to_conduit_ratio,
                 "conduit_signals": conduit_signals,
                 "conduit_signals_raw": conduit_channels_total,

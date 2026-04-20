@@ -25,6 +25,13 @@ fn resolve_core_shortcuts_family_daemon(cmd: &str, rest: &[String]) -> Option<Ro
                 forward_stdin: false,
             })
         }
+        "recover" | "repair" => Some(Route {
+            script_rel: "core://daemon-control".to_string(),
+            args: std::iter::once("restart".to_string())
+                .chain(rest.iter().cloned())
+                .collect(),
+            forward_stdin: false,
+        }),
         "dashboard-ui" => Some(route_dashboard_compat(rest, true)),
         "dashboard" => Some(route_dashboard_compat(rest, false)),
         "help" | "--help" | "-h" => Some(Route {
