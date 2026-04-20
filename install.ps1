@@ -3020,16 +3020,16 @@ function Write-InstallerSmokeResult {
   $name = [string]$Record.name
   $status = [string]$Record.status
   if ($status -like "skipped*") {
-    Write-Host "[infring install] smoke $name: skipped"
+    Write-Host "[infring install] smoke ${name}: skipped"
     return
   }
   if ([bool]$Record.ok) {
-    Write-Host "[infring install] smoke $name: ok"
+    Write-Host "[infring install] smoke ${name}: ok"
     return
   }
   $err = [string]$Record.error_code
   if ([string]::IsNullOrWhiteSpace($err)) { $err = "unknown" }
-  Write-Host "[infring install] smoke $name: failed ($err)"
+  Write-Host "[infring install] smoke ${name}: failed ($err)"
   if ([bool]$Record.log_path -and (Test-Path $Record.log_path)) {
     Get-Content -Path $Record.log_path -Tail 80 -ErrorAction SilentlyContinue
   }

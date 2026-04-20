@@ -238,6 +238,12 @@ body[data-theme='light'] .global-taskbar .theme-opt.active svg * {
   gap: var(--input-toggle-neighbor-gap);
 }
 
+/* Composer input toggle should be fully opaque. */
+.input-area .toggle-pill.toggle-pill--triple.input-toggle-wrapper {
+  --pill-track-color: color-mix(in srgb, var(--text-muted) 76%, var(--surface) 24%);
+  background: color-mix(in srgb, var(--pill-track-color) 28%, var(--surface) 72%);
+}
+
 .toggle-pill.toggle-pill--triple.input-toggle-wrapper::before {
   width: var(--input-toggle-circle-size);
   min-width: var(--input-toggle-circle-size);
@@ -247,6 +253,10 @@ body[data-theme='light'] .global-taskbar .theme-opt.active svg * {
   top: 0;
   border-radius: 999px;
   transform: translate3d(0, 0, 0);
+}
+
+.input-area .toggle-pill.toggle-pill--triple.input-toggle-wrapper::before {
+  opacity: 1;
 }
 
 .toggle-pill.toggle-pill--triple.input-toggle-wrapper[data-mode='attach']::before {

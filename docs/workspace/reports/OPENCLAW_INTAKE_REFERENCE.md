@@ -561,7 +561,7 @@
     - `ui/src/ui/gateway.ts`
     - `ui/src/ui/chat-model-ref.types.ts`
   - Landed in:
-    - `client/runtime/systems/ui/infring_static/index_body.html.parts/0007-body-part.html`
+    - `client/runtime/systems/ui/infring_static/index_body.html.parts/0007-archived-agent-cards-and-lifecycle-actions.html`
     - `client/runtime/systems/ui/infring_static/js/api.ts.parts/020-api-and-websocket.ts`
     - `client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/010-state-and-load.ts`
     - `client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/030-actions-and-ops.ts`
