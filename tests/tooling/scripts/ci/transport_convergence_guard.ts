@@ -202,6 +202,27 @@ function run(args: Args): number {
         detail: 'expected policy reason env signal when forcing fallback off in production',
       });
     }
+    if (!source.includes('isProductionReleaseChannel(releaseChannel(process.env))')) {
+      violations.push({
+        file: rel(runProtheusOpsPath),
+        reason: 'run_protheus_ops_bridge_path_release_guard_missing',
+        detail: 'expected explicit production release-channel guard in bridge path',
+      });
+    }
+    if (!source.includes("envOverrides.INFRING_OPS_ALLOW_PROCESS_FALLBACK = '0'")) {
+      violations.push({
+        file: rel(runProtheusOpsPath),
+        reason: 'run_protheus_ops_bridge_infring_process_fallback_zero_missing',
+        detail: 'expected INFRING_OPS_ALLOW_PROCESS_FALLBACK forced to 0 in production bridge path',
+      });
+    }
+    if (!source.includes("envOverrides.PROTHEUS_OPS_ALLOW_PROCESS_FALLBACK = '0'")) {
+      violations.push({
+        file: rel(runProtheusOpsPath),
+        reason: 'run_protheus_ops_bridge_protheus_process_fallback_zero_missing',
+        detail: 'expected PROTHEUS_OPS_ALLOW_PROCESS_FALLBACK forced to 0 in production bridge path',
+      });
+    }
     if (source.includes('spawnSync(')) {
       violations.push({
         file: rel(runProtheusOpsPath),

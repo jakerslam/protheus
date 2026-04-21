@@ -1,0 +1,47 @@
+{
+  "version": "2026-04-21",
+  "required_docs": [
+    {
+      "path": "docs/workspace/control_plane_api_contract.md",
+      "required_phrases": [
+        "Default Workflow Templates (Control-Plane Authority)",
+        "clarify_then_coordinate",
+        "research_synthesize_verify",
+        "plan_execute_review",
+        "diagnose_retry_escalate",
+        "Lifecycle Loop (Required Stages)",
+        "verification_closure",
+        "Feedback Loop Contract"
+      ]
+    }
+  ],
+  "required_rust_files": [
+    {
+      "path": "surface/orchestration/src/control_plane/lifecycle.rs",
+      "required_phrases": [
+        "pub fn select_workflow_template(",
+        "pub fn build_lifecycle_state(",
+        "surface_orchestration_control_plane",
+        "WorkflowTemplate::DiagnoseRetryEscalate"
+      ]
+    },
+    {
+      "path": "surface/orchestration/src/sequencing.rs",
+      "required_phrases": [
+        "pub fn apply_retry_reroute_feedback(",
+        "feedback_reroute:",
+        "control plane feedback rerouted"
+      ]
+    },
+    {
+      "path": "surface/orchestration/src/contracts.rs",
+      "required_phrases": [
+        "pub enum WorkflowTemplate",
+        "pub enum WorkflowStage",
+        "pub struct ControlPlaneLifecycleState",
+        "pub workflow_template: WorkflowTemplate",
+        "pub control_plane_lifecycle: ControlPlaneLifecycleState"
+      ]
+    }
+  ]
+}

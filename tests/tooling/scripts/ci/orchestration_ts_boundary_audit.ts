@@ -17,6 +17,8 @@ type Policy = {
   max_nonempty_lines_per_script?: number;
   required_markers?: string[];
   forbidden_markers?: string[];
+  script_constraint_exempt_prefixes?: string[];
+  rust_ratio_exempt_prefixes?: string[];
 };
 
 function rel(filePath: string): string {
@@ -49,6 +51,20 @@ function countNonEmptyLines(source: string): number {
     .filter(Boolean).length;
 }
 
+function normalizePolicyPrefix(value: string): string {
+  const normalized = cleanText(value, 400).replace(/\\/g, '/');
+  if (!normalized) return '';
+  return normalized.endsWith('/') ? normalized : `${normalized}/`;
+}
+
+function isPathUnderAnyPrefix(relPath: string, prefixes: string[]): boolean {
+  const normalizedPath = cleanText(relPath, 600).replace(/\\/g, '/');
+  if (!normalizedPath) return false;
+  return prefixes.some((prefix) =>
+    normalizedPath === prefix.slice(0, -1) || normalizedPath.startsWith(prefix),
+  );
+}
+
 function main() {
   const argv = process.argv.slice(2);
   const common = parseStrictOutArgs(argv, { out: DEFAULT_OUT });
@@ -69,12 +85,28 @@ function main() {
     : [];
   const minRustPct = Number(policy.min_rust_pct || 95);
   const maxNonEmptyLinesPerScript = Number(policy.max_nonempty_lines_per_script || 4);
+  const scriptConstraintExemptPrefixes = Array.isArray(policy.script_constraint_exempt_prefixes)
+    ? policy.script_constraint_exempt_prefixes
+      .map((value) => normalizePolicyPrefix(String(value)))
+      .filter(Boolean)
+    : [];
+  const rustRatioExemptPrefixes = Array.isArray(policy.rust_ratio_exempt_prefixes)
+    ? policy.rust_ratio_exempt_prefixes
+      .map((value) => normalizePolicyPrefix(String(value)))
+      .filter(Boolean)
+    : [];
 
   const rustFiles = walk(surfaceRoot, '.rs');
   const tsFiles = walk(surfaceRoot, '.ts');
   const scriptFiles = walk(scriptRoot, '.ts');
-  const rustLines = rustFiles.reduce((sum, filePath) => sum + countLines(filePath), 0);
-  const tsLines = tsFiles.reduce((sum, filePath) => sum + countLines(filePath), 0);
+  const rustFilesForRatio = rustFiles.filter(
+    (filePath) => !isPathUnderAnyPrefix(rel(filePath), rustRatioExemptPrefixes),
+  );
+  const tsFilesForRatio = tsFiles.filter(
+    (filePath) => !isPathUnderAnyPrefix(rel(filePath), rustRatioExemptPrefixes),
+  );
+  const rustLines = rustFilesForRatio.reduce((sum, filePath) => sum + countLines(filePath), 0);
+  const tsLines = tsFilesForRatio.reduce((sum, filePath) => sum + countLines(filePath), 0);
   const rustPct = rustLines + tsLines === 0 ? 100 : (rustLines * 100) / (rustLines + tsLines);
   const scriptRootRel = rel(scriptRoot);
   const violations: Array<Record<string, unknown>> = [];
@@ -91,6 +123,9 @@ function main() {
 
   for (const scriptFile of scriptFiles) {
     const rp = rel(scriptFile);
+    if (isPathUnderAnyPrefix(rp, scriptConstraintExemptPrefixes)) {
+      continue;
+    }
     const source = fs.readFileSync(scriptFile, 'utf8');
     const nonEmptyLines = countNonEmptyLines(source);
     if (nonEmptyLines > maxNonEmptyLinesPerScript) {
@@ -140,14 +175,16 @@ function main() {
       out: args.out,
     },
     summary: {
-      rust_file_count: rustFiles.length,
-      ts_file_count: tsFiles.length,
+      rust_file_count: rustFilesForRatio.length,
+      ts_file_count: tsFilesForRatio.length,
       script_file_count: scriptFiles.length,
       rust_lines: rustLines,
       ts_lines: tsLines,
       rust_pct: Number(rustPct.toFixed(2)),
       min_rust_pct: minRustPct,
       max_nonempty_lines_per_script: maxNonEmptyLinesPerScript,
+      script_constraint_exempt_prefixes: scriptConstraintExemptPrefixes,
+      rust_ratio_exempt_prefixes: rustRatioExemptPrefixes,
       violation_count: violations.length,
       pass: violations.length === 0,
     },

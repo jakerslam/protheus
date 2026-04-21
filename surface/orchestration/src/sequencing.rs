@@ -1,6 +1,7 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
-    OrchestrationFallbackAction, PlanCandidate, RequestClass, RequestClassification, ResourceKind,
+    CoreExecutionObservation, OrchestrationFallbackAction, OrchestrationPlan, PlanCandidate,
+    PlanStatus, RecoveryDecision, RecoveryState, RequestClass, RequestClassification, ResourceKind,
     ToolFallbackContext, TypedOrchestrationRequest,
 };
 use protheus_tooling_core_v1::{ToolBackendClass, ToolReasonCode};
@@ -53,6 +54,74 @@ pub fn fallback_actions(
     tool_context: Option<&ToolFallbackContext>,
 ) -> Vec<OrchestrationFallbackAction> {
     project_fallback_actions(request, request_class, tool_context)
+}
+
+pub fn apply_retry_reroute_feedback(
+    request: &TypedOrchestrationRequest,
+    execution_observation: Option<&CoreExecutionObservation>,
+    mut plan: OrchestrationPlan,
+) -> (OrchestrationPlan, bool) {
+    let selected_is_degraded = matches!(
+        plan.execution_state.plan_status,
+        PlanStatus::Degraded | PlanStatus::Failed
+    ) || !plan.selected_plan.degradation.is_empty();
+    let selected_is_unusable = plan.selected_plan.steps.is_empty()
+        || !plan.selected_plan.blocked_on.is_empty()
+        || plan.selected_plan.requires_clarification
+        || matches!(
+            plan.execution_state.plan_status,
+            PlanStatus::Blocked | PlanStatus::ClarificationRequired | PlanStatus::Failed
+        );
+    if !selected_is_unusable && !selected_is_degraded {
+        return (plan, false);
+    }
+
+    let replacement_index = plan
+        .alternative_plans
+        .iter()
+        .position(|candidate| candidate_improves_selection(candidate, &plan.selected_plan, selected_is_degraded));
+    let Some(index) = replacement_index else {
+        return (plan, false);
+    };
+
+    let previous_plan_id = plan.selected_plan.plan_id.clone();
+    let replacement = plan.alternative_plans.remove(index);
+    let replacement_plan_id = replacement.plan_id.clone();
+    let previous_recovery = plan.execution_state.recovery.clone();
+    plan.selected_plan = replacement;
+    plan.execution_state = crate::progress::project_execution_state(
+        request,
+        execution_observation,
+        &plan.selected_plan,
+        plan.needs_clarification,
+    );
+    plan.execution_state.recovery = Some(RecoveryState {
+        decision: if plan.needs_clarification || plan.selected_plan.requires_clarification {
+            RecoveryDecision::Clarify
+        } else {
+            RecoveryDecision::Degrade
+        },
+        reason: previous_recovery.and_then(|row| row.reason),
+        retryable: !plan.selected_plan.requires_clarification
+            && plan.selected_plan.blocked_on.is_empty()
+            && !plan.selected_plan.steps.is_empty(),
+        note: format!(
+            "control plane feedback rerouted from {previous_plan_id} to {replacement_plan_id}"
+        ),
+    });
+    plan.classification.reasons.push(
+        format!("feedback_reroute:{previous_plan_id}->{replacement_plan_id}").to_lowercase(),
+    );
+    (plan, true)
+}
+
+// Compatibility alias during control-plane naming transition.
+pub fn feedback_loop_reroute(
+    request: &TypedOrchestrationRequest,
+    execution_observation: Option<&CoreExecutionObservation>,
+    plan: OrchestrationPlan,
+) -> (OrchestrationPlan, bool) {
+    apply_retry_reroute_feedback(request, execution_observation, plan)
 }
 
 pub fn decode_tool_fallback_context(payload: &Value) -> Option<ToolFallbackContext> {
@@ -287,6 +356,29 @@ fn tool_fallback_actions(
         tool_context,
     ));
     actions
+}
+
+fn candidate_improves_selection(
+    candidate: &PlanCandidate,
+    selected: &PlanCandidate,
+    selected_is_degraded: bool,
+) -> bool {
+    let candidate_executable = candidate_is_executable(candidate);
+    if !candidate_executable {
+        return false;
+    }
+    if !candidate_is_executable(selected) {
+        return true;
+    }
+    let candidate_degraded = !candidate.degradation.is_empty();
+    if selected_is_degraded && !candidate_degraded {
+        return true;
+    }
+    candidate.score.overall > selected.score.overall
+}
+
+fn candidate_is_executable(candidate: &PlanCandidate) -> bool {
+    !candidate.steps.is_empty() && candidate.blocked_on.is_empty() && !candidate.requires_clarification
 }
 
 #[cfg(test)]

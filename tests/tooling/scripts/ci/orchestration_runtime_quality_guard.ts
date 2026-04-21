@@ -174,6 +174,7 @@ function evaluateMetricConsistency(metrics: RuntimeQualityMetrics | null): strin
   if (!metrics) return failures;
 
   const sampleSize = numberOrNull(metrics.sample_size_non_legacy);
+  const averageCandidateCount = numberOrNull(metrics.average_candidate_count);
   const fallbackRate = numberOrNull(metrics.fallback_rate_non_legacy);
   const heuristicProbeRate = numberOrNull(metrics.heuristic_probe_rate_non_legacy);
   const clarificationRate = numberOrNull(metrics.clarification_rate_non_legacy);
@@ -197,12 +198,41 @@ function evaluateMetricConsistency(metrics: RuntimeQualityMetrics | null): strin
     }
   }
 
+  if (sampleSize != null && sampleSize < 0) {
+    failures.push(`inconsistent_sample_size_non_legacy_negative:value=${sampleSize.toFixed(4)}`);
+  }
+  if (sampleSize != null && !Number.isInteger(sampleSize)) {
+    failures.push(`inconsistent_sample_size_non_legacy_non_integral:value=${sampleSize.toFixed(4)}`);
+  }
+  if (averageCandidateCount != null && averageCandidateCount < 0) {
+    failures.push(`inconsistent_average_candidate_count_negative:value=${averageCandidateCount.toFixed(4)}`);
+  }
+
   if (
     sampleSize != null
     && sampleSize === 0
-    && rateRows.some((row) => row.value != null && row.value > 0)
+    && rateRows.some((row) => row.value != null && row.value !== 0)
   ) {
     failures.push('inconsistent_non_legacy_rates_with_zero_sample_size');
+  }
+  if (
+    sampleSize != null
+    && sampleSize === 0
+    && averageCandidateCount != null
+    && averageCandidateCount > 0
+  ) {
+    failures.push(
+      `inconsistent_average_candidate_count_with_zero_sample_size:value=${averageCandidateCount.toFixed(4)}`,
+    );
+  }
+  if (
+    allCandidatesDegradedRate != null
+    && zeroExecutableRate != null
+    && allCandidatesDegradedRate > zeroExecutableRate
+  ) {
+    failures.push(
+      `inconsistent_all_candidates_degraded_rate_vs_zero_executable_rate_non_legacy:all_candidates_degraded_rate_non_legacy=${allCandidatesDegradedRate.toFixed(4)}:zero_executable_rate_non_legacy=${zeroExecutableRate.toFixed(4)}`,
+    );
   }
 
   return failures;

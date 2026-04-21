@@ -1,7 +1,8 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
-    OrchestrationFallbackAction, OrchestrationPlan, OrchestrationResultPackage, PlanStatus,
-    PlanVariant, RequestClass, RuntimeQualitySignals,
+    ControlPlaneLifecycleState, OrchestrationFallbackAction, OrchestrationPlan,
+    OrchestrationResultPackage, PlanStatus, PlanVariant, RequestClass, RuntimeQualitySignals,
+    WorkflowTemplate,
 };
 
 pub fn package_result(
@@ -9,8 +10,17 @@ pub fn package_result(
     progress_message: String,
     recovery_applied: bool,
     fallback_actions: Vec<OrchestrationFallbackAction>,
+    workflow_template: WorkflowTemplate,
+    control_plane_lifecycle: ControlPlaneLifecycleState,
 ) -> OrchestrationResultPackage {
-    shape_result_package(plan, progress_message, recovery_applied, fallback_actions)
+    shape_result_package(
+        plan,
+        progress_message,
+        recovery_applied,
+        fallback_actions,
+        workflow_template,
+        control_plane_lifecycle,
+    )
 }
 
 pub fn shape_result_package(
@@ -18,6 +28,8 @@ pub fn shape_result_package(
     progress_message: String,
     recovery_applied: bool,
     fallback_actions: Vec<OrchestrationFallbackAction>,
+    workflow_template: WorkflowTemplate,
+    control_plane_lifecycle: ControlPlaneLifecycleState,
 ) -> OrchestrationResultPackage {
     let requires_core_promotion = matches!(
         plan.request_class,
@@ -43,6 +55,8 @@ pub fn shape_result_package(
         selected_plan: plan.selected_plan.clone(),
         alternative_plans: plan.alternative_plans.clone(),
         runtime_quality,
+        workflow_template,
+        control_plane_lifecycle,
     }
 }
 

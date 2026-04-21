@@ -54,6 +54,8 @@ Coordinate workflow decomposition and execution flow without becoming authority 
 - Recovery orchestration (including clarification, retry, escalation, and fallback handling).
 - Lane/adaptor selection recommendations.
 - Result shaping and packaging for downstream consumers.
+- Default workflow template selection (`clarify_then_coordinate`, `research_synthesize_verify`, `plan_execute_review`, `diagnose_retry_escalate`).
+- Lifecycle state projection across control-plane stages (intake, decomposition, sequencing, recovery, packaging, verification closure).
 - Among other things in non-canonical control-plane coordination.
 
 ### Control Plane Must Not Own
@@ -123,6 +125,17 @@ Move logic into `surface/orchestration/` when it does non-canonical coordination
 - Result shaping/packaging.
 - Dependency graph workflow management.
 - Non-authoritative result shaping/packaging.
+
+Control-plane wrapper lock (transition phase):
+
+- `client/cognition/orchestration/{cli_shared,core_bridge,coordinator,coordinator_cli,checkpoint,completion,partial,schema_runtime,scope,scratchpad,taskgroup,taskgroup_cli}.ts` are compatibility bridges only.
+- Those files must delegate to `surface/orchestration/scripts/cognition/**` and must not embed coordination logic.
+- `surface/orchestration/scripts/cognition/**` are shell-compatible shims only and must delegate to `adapters/runtime/orchestration_cognition_impl/**`.
+- Control-plane authority and coordination decisions must be implemented in Rust (`surface/orchestration/src/**`), not TypeScript.
+- `adapters/runtime/orchestration_cognition_impl/**` must remain Rust-facing transport glue (`orchestration invoke` op bridges), not a second coordination authority.
+- Delegate target should match file identity (`foo.ts` bridge delegates to `surface/.../foo.ts`) to avoid wrapper drift.
+- Client and surface cognition trees are parity-governed: relative file paths must match, and mirrored schema assets (for example `schemas/*.json`) must stay byte-identical.
+- New decomposition/coordination/sequencing/recovery/packaging logic in shell/client wrappers is prohibited; implement under `surface/orchestration/**` and bridge from shell.
 
 Keep logic in `core/` when it is authoritative kernel logic:
 
