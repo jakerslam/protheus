@@ -44,6 +44,21 @@ Updated: 2026-04-22T00:37:00.000Z
 - [x] Increase release-critical reviewer redundancy (bus-factor mitigation). (2026-04-21: added policy-backed guard `tests/tooling/scripts/ci/release_lane_reviewer_redundancy_guard.ts` with config `tests/tooling/config/release_lane_reviewer_redundancy_policy.json`, expanded CODEOWNERS redundancy for `/.github/workflows/`, and wired `ops:release-reviewer-redundancy:guard` into CI.)
 - [x] Add external validation runs and public evidence cadence. (2026-04-21: added cadence plan `client/runtime/config/external_validation_evidence_cadence.json`, guard `tests/tooling/scripts/ci/external_validation_evidence_cadence.ts`, process doc `docs/workspace/process/external_validation_evidence_cadence.md`, CI gate wiring, and scheduled workflow `.github/workflows/external-validation-evidence-cadence.yml`.)
 
+## Urgent Open TODOs (Execution First)
+
+Index only (no status duplication): canonical checkbox status remains in the ID rows below.
+
+- `V12-EMPIRICAL-001` — empirical runtime proof closure artifact contract (`required_missing=0` integrity, profile coverage/gate diagnostics).
+- `V11-OPS-PRD-001` — production closure/release evidence flow ordering + final closure guard.
+- `V11-ARCH-005` — architecture conformance hardening (registry/shim/key/systemId integrity).
+- `V11-ORCH-007` — orchestration runtime/planner quality consistency and sample-floor ratchet hardening.
+- `V11-TOOL-006` — tooling/task-fabric integrity (production fail-closed transport/fallback contracts).
+- `V11-WEB-007`, `V11-WEB-008`, `V11-WEB-009` — active web reliability hardening (scaffold suppression, provider failure contracts, benchmark-intent synthesis guardrails).
+- `V11-FILE-001`, `V11-FILE-002`, `V11-FILE-003` — file-read reliability routing/follow-up contract closure.
+- `V11-INSTALL-005`, `V11-INSTALL-008` — installer reliability closure (Windows/repair path operability).
+- `V12-NEXUS-COUPLING-004`..`V12-NEXUS-COUPLING-019`, `V12-NEXUS-COUPLING-027`, `V12-NEXUS-COUPLING-028` — remove direct non-nexus core import edges.
+- `V12-NEXUS-COUPLING-PATH-005`..`V12-NEXUS-COUPLING-PATH-009`, `V12-NEXUS-COUPLING-PATH-012` — remove non-nexus Cargo path dependency edges.
+
 ## Global Rollup
 - total_rows: 3559
 - queued: 133
@@ -545,13 +560,13 @@ Updated: 2026-04-22T00:37:00.000Z
 
 ## Actionable SRS Items (Queued/In Progress)
 
-- [ ] `V12-EMPIRICAL-001` — in_progress — Empirical Runtime Proof Expansion Intake (2026-04-20, profile-readiness + trends/release-evidence markdown artifact contract increment)
+- [ ] `V12-EMPIRICAL-001` — in_progress — Empirical Runtime Proof Expansion Intake (2026-04-20, profile-readiness + trends/release-evidence markdown artifact contract increment + empirical-profile minimum-configuration guard increment)
 - [ ] `V11-AGENT-PERM-001` — in_progress — Agent Permission Contract Intake (2026-04-16, parent-bounded PATCH clamp + manifest-receipt/enforcement-mode telemetry + blocked-key lineage increment)
-- [ ] `V11-ARCH-005` — in_progress — Architecture Conformance Hardening Intake (2026-04-10, adapter registry canonicality + shim coverage + registry script-file/key-binding integrity + shim-key uniqueness + scriptName/systemId token-format + systemId-script alignment + orchestration-namespace systemId increment)
+- [ ] `V11-ARCH-005` — in_progress — Architecture Conformance Hardening Intake (2026-04-10, adapter registry canonicality + shim coverage + registry script-file/key-binding integrity + shim-key uniqueness + scriptName/systemId token-format + systemId-script alignment + orchestration-namespace systemId increment + non-swarm registry key uniqueness increment)
 - [ ] `V11-FILE-001` — in_progress — File Read Reliability Intake (2026-04-06, follow-up user-text requirement + input-kind classifier hardening increment)
 - [ ] `V11-FILE-002` — in_progress — File Read Reliability Intake (2026-04-06)
 - [ ] `V11-FILE-003` — in_progress — File Read Reliability Intake (2026-04-06)
-- [ ] `V11-OPS-PRD-001` — in_progress — Production Closure Program Intake (2026-04-10, release-evidence flow ordering/stage conformance + bundled release-verdict proof-pack confirmation increment)
+- [ ] `V11-OPS-PRD-001` — in_progress — Production Closure Program Intake (2026-04-10, release-evidence flow ordering/stage conformance + bundled release-verdict proof-pack confirmation increment + release-verdict/scorecard revision-alignment increment)
 - [ ] `V11-ORCH-007` — in_progress — Orchestration Probe-Authority and Runtime-Quality Densification Intake (2026-04-15, planner/runtime consistency + sample-floor + ratchet + rate-domain/count-coherence increment)
 - [ ] `V11-TOOL-006` — in_progress — Tooling and Task-Fabric Integrity Intake (2026-04-10, run_protheus_ops production process-fallback hard-lock increment)
 - [ ] `V11-WEB-007` — in_progress — Web Retrieval Reliability Intake (2026-04-06, metadata-card keyset/line-shape scaffold suppression increment)

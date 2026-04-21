@@ -18847,3 +18847,31 @@ Source summary:
 - Regression evidence pointers:
   - `tests/tooling/scripts/ci/architecture_boundary_audit.ts`
   - `docs/workspace/TODO.md` (`V11-ARCH-005` in-progress increment note)
+
+### 2026-04-21 Dashboard Svelte Shell Layout Contract Guard
+
+- Intent:
+  - Prevent Svelte island shell migrations from silently breaking dashboard layout by requiring every shell tag to declare whether it is a transparent wrapper, layout host, or interactive surface.
+- Acceptance criteria:
+  - Dashboard Svelte shell contracts are stored in `client/runtime/systems/ui/infring_static/js/svelte/svelte_shell_contracts.json`.
+  - `dashboard_svelte_shell_contract_guard.ts` fails strict mode when an HTML/source shell tag lacks a contract.
+  - Transparent shells must be covered by a `display: contents` compatibility rule and must not carry classed HTML usage.
+  - Layout-host and interactive-surface shells must not be covered by `display: contents`; interactive surfaces must remain explicitly classed at use sites.
+- Regression evidence pointers:
+  - `client/runtime/systems/ui/infring_static/js/svelte/svelte_shell_contracts.json`
+  - `client/runtime/systems/ui/infring_static/css/components.css.parts/0021-svelte-shell-layout-compat.css`
+  - `tests/tooling/scripts/ci/dashboard_svelte_shell_contract_guard.ts`
+  - `package.json` (`ops:dashboard:svelte-shell-contract:guard`)
+### 2026-04-21 V12-EMPIRICAL-001 Increment: Empirical Profile Minimum Configuration Guard
+- Hardened empirical profile coverage/release-gate semantics in [`tests/tooling/scripts/ci/runtime_proof_verify.ts`](/Users/jay/.openclaw/workspace/tests/tooling/scripts/ci/runtime_proof_verify.ts).
+- Added deterministic `empirical_profile_minimum_configured` per-profile evidence, and fail-closed reason `empirical_profile_minimum_missing` when empirical minimums are absent/non-positive.
+- Updated empirical coverage, source-matrix, and profile-gate projections to require profile minimum configuration for `ok` classification.
+- Added markdown-report visibility for empirical profile minimum configuration in `RUNTIME_PROOF_EMPIRICAL_PROFILE_COVERAGE_CURRENT.md`.
+
+### 2026-04-21 V11-ARCH-005 Increment: Orchestration Registry Key Uniqueness Guard
+- Extended architecture boundary audit in [`tests/tooling/scripts/ci/architecture_boundary_audit.ts`](/Users/jay/.openclaw/workspace/tests/tooling/scripts/ci/architecture_boundary_audit.ts) with deterministic duplicate non-swarm registry key detection.
+- Added fail-closed check `orchestration_registry_keys_are_unique` to block key shadowing/overwrites in orchestration registry bindings.
+
+### 2026-04-21 V11-OPS-PRD-001 Increment: Release Verdict Revision Alignment Guard
+- Extended production closure gate in [`tests/tooling/scripts/ci/production_readiness_closure_gate.ts`](/Users/jay/.openclaw/workspace/tests/tooling/scripts/ci/production_readiness_closure_gate.ts) with final-stage revision consistency enforcement.
+- Added `release_evidence_flow_release_verdict_revision_matches_scorecard` to require embedded release-verdict revision to match release scorecard revision on final closure.
