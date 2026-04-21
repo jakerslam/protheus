@@ -92,6 +92,65 @@ fn challenge_like_failure_detector_rejects_mixed_error_causes() {
 }
 
 #[test]
+fn lite_fallback_reason_marks_duckduckgo_challenge_trigger() {
+    let provider_errors = vec![
+        json!({"provider": "duckduckgo", "challenge": true, "low_signal": false}),
+        json!({"provider": "duckduckgo_lite", "challenge": false, "low_signal": false}),
+    ];
+    let (reason, challenge, low_signal, trigger_provider) =
+        search_lite_fallback_reason(true, "duckduckgo", provider_errors.as_slice());
+    assert_eq!(reason, "duckduckgo_challenge");
+    assert!(challenge);
+    assert!(!low_signal);
+    assert_eq!(trigger_provider, "duckduckgo");
+}
+
+#[test]
+fn lite_fallback_reason_marks_provider_chain_fallback_when_no_primary_flags() {
+    let provider_errors = vec![json!({
+        "provider": "bing_rss",
+        "challenge": false,
+        "low_signal": false
+    })];
+    let (reason, challenge, low_signal, trigger_provider) =
+        search_lite_fallback_reason(true, "serperdev", provider_errors.as_slice());
+    assert_eq!(reason, "provider_chain_fallback");
+    assert!(!challenge);
+    assert!(!low_signal);
+    assert_eq!(trigger_provider, "bing_rss");
+}
+
+#[test]
+fn bing_fallback_reason_marks_duckduckgo_chain_challenge_trigger() {
+    let provider_errors = vec![
+        json!({"provider": "duckduckgo", "challenge": true, "low_signal": false}),
+        json!({"provider": "duckduckgo_lite", "challenge": false, "low_signal": false}),
+        json!({"provider": "bing_rss", "challenge": false, "low_signal": false}),
+    ];
+    let (reason, challenge, low_signal, trigger_provider) =
+        search_bing_fallback_reason(true, "duckduckgo", provider_errors.as_slice());
+    assert_eq!(reason, "duckduckgo_chain_challenge");
+    assert!(challenge);
+    assert!(!low_signal);
+    assert_eq!(trigger_provider, "duckduckgo");
+}
+
+#[test]
+fn bing_fallback_reason_marks_provider_chain_fallback_when_no_duck_flags() {
+    let provider_errors = vec![json!({
+        "provider": "serperdev",
+        "challenge": false,
+        "low_signal": false
+    })];
+    let (reason, challenge, low_signal, trigger_provider) =
+        search_bing_fallback_reason(true, "serperdev", provider_errors.as_slice());
+    assert_eq!(reason, "provider_chain_fallback");
+    assert!(!challenge);
+    assert!(!low_signal);
+    assert_eq!(trigger_provider, "serperdev");
+}
+
+#[test]
 fn meta_query_detector_flags_workflow_diagnostic_prompt() {
     assert!(search_query_is_meta_diagnostic(
         "was this a bad web request or training data hallucination again"

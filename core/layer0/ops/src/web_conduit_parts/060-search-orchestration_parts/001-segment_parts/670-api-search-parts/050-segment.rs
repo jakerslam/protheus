@@ -71,6 +71,26 @@
     }
     let used_lite_fallback = final_selected_provider == "duckduckgo_lite";
     let used_bing_fallback = final_selected_provider == "bing_rss";
+    let (
+        search_lite_fallback_reason,
+        search_lite_fallback_triggered_by_challenge,
+        search_lite_fallback_triggered_by_low_signal,
+        search_lite_fallback_trigger_provider,
+    ) = search_lite_fallback_reason(
+        used_lite_fallback,
+        &initial_selected_provider,
+        provider_errors.as_slice(),
+    );
+    let (
+        search_bing_fallback_reason,
+        search_bing_fallback_triggered_by_challenge,
+        search_bing_fallback_triggered_by_low_signal,
+        search_bing_fallback_trigger_provider,
+    ) = search_bing_fallback_reason(
+        used_bing_fallback,
+        &initial_selected_provider,
+        provider_errors.as_slice(),
+    );
     let tool_execution_attempted = !attempted.is_empty();
     let final_error_code = out
         .get("error")
@@ -156,8 +176,40 @@
             json!(used_lite_fallback),
         );
         obj.insert(
+            "search_lite_fallback_reason".to_string(),
+            json!(search_lite_fallback_reason),
+        );
+        obj.insert(
+            "search_lite_fallback_triggered_by_challenge".to_string(),
+            json!(search_lite_fallback_triggered_by_challenge),
+        );
+        obj.insert(
+            "search_lite_fallback_triggered_by_low_signal".to_string(),
+            json!(search_lite_fallback_triggered_by_low_signal),
+        );
+        obj.insert(
+            "search_lite_fallback_trigger_provider".to_string(),
+            json!(search_lite_fallback_trigger_provider),
+        );
+        obj.insert(
             "search_bing_fallback".to_string(),
             json!(used_bing_fallback),
+        );
+        obj.insert(
+            "search_bing_fallback_reason".to_string(),
+            json!(search_bing_fallback_reason),
+        );
+        obj.insert(
+            "search_bing_fallback_triggered_by_challenge".to_string(),
+            json!(search_bing_fallback_triggered_by_challenge),
+        );
+        obj.insert(
+            "search_bing_fallback_triggered_by_low_signal".to_string(),
+            json!(search_bing_fallback_triggered_by_low_signal),
+        );
+        obj.insert(
+            "search_bing_fallback_trigger_provider".to_string(),
+            json!(search_bing_fallback_trigger_provider),
         );
         obj.insert("provider_hint".to_string(), Value::String(provider_hint));
         obj.insert(

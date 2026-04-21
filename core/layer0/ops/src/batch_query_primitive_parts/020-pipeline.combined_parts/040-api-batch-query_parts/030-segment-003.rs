@@ -90,6 +90,29 @@
             if snippet.is_empty() {
                 continue;
             }
+            if benchmark_intent {
+                let comparison_haystack = clean_text(
+                    &format!("{} {} {}", candidate.title, snippet_raw, candidate.locator),
+                    1_600,
+                )
+                .to_ascii_lowercase();
+                let entity_hits = comparison_entities
+                    .iter()
+                    .filter(|entity| comparison_haystack.contains(entity.as_str()))
+                    .count();
+                let comparative_copy = comparison_haystack.contains(" vs ")
+                    || comparison_haystack.contains("versus")
+                    || comparison_haystack.contains("compared")
+                    || comparison_haystack.contains("better")
+                    || comparison_haystack.contains("worse")
+                    || comparison_haystack.contains("faster")
+                    || comparison_haystack.contains("slower");
+                let benchmark_quality_ok = looks_like_metric_rich_text(&snippet_raw)
+                    || (comparison_entities.len() >= 2 && entity_hits >= 1 && comparative_copy);
+                if !benchmark_quality_ok {
+                    continue;
+                }
+            }
             let domain = candidate_domain_hint(candidate);
             let domain_key = clean_text(&domain, 160).to_ascii_lowercase();
             if domain_key != "source" && !domain_key.is_empty() && !seen_domains.insert(domain_key)
@@ -137,7 +160,18 @@
                 crate::tool_output_match_filter::no_findings_user_copy().to_string()
             }
         } else {
-            let prefix = if is_benchmark_or_comparison_intent(&query) {
+            let comparison_intent = comparison_entities.len() >= 2;
+            let prefix = if source == "web" {
+                if comparison_intent {
+                    "Comparison findings:"
+                } else if benchmark_intent {
+                    "Web benchmark synthesis:"
+                } else {
+                    "From web retrieval:"
+                }
+            } else if comparison_intent {
+                "Comparison findings:"
+            } else if benchmark_intent {
                 "Benchmark findings:"
             } else {
                 "Key findings:"
@@ -148,4 +182,3 @@
             )
         }
     };
-

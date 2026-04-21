@@ -48,7 +48,6 @@ const NO_FINDINGS_USER_COPY: &str =
     "The tool path ran, but this turn only produced low-signal or no-result output, so there are no source-backed findings yet and we don't have usable tool findings from this turn yet. web_status: provider_low_signal error_code: web_tool_low_signal";
 
 const UNSYNTHESIZED_WEB_MARKERS: &[&str] = &[
-    "from web retrieval:",
     "web benchmark synthesis:",
     "key findings for",
     "potential sources:",
@@ -71,6 +70,12 @@ const UNSYNTHESIZED_WEB_MARKERS: &[&str] = &[
     "couldn't produce source-backed findings in this turn",
     "don't have usable tool findings from this turn yet",
     "low-signal or no-result output",
+    "originalurl:",
+    "featuredcontent:",
+    "provider:",
+    "publisheddatetime:",
+    "type: video",
+    "price: free",
 ];
 
 const ANALYSIS_MARKERS: &[&str] = &[
@@ -99,6 +104,10 @@ const FORBIDDEN_RUNTIME_CONTEXT_MARKERS: &[&str] = &[
     "<｜begin▁of▁sentence｜>",
     "you are an expert python programmer",
     "translate the following java code to python",
+    "<function=",
+    "</function>",
+    "<tool_call",
+    "</tool_call>",
     "[patch v",
     "signed-off-by:",
     "diff --git",
@@ -147,6 +156,10 @@ fn ack_rules() -> &'static Vec<(MatchRule, Regex, Option<Regex>)> {
             },
             MatchRule {
                 pattern: r"(?is)key findings for .*potential sources:",
+                unless: Some(r"(?is)https?://"),
+            },
+            MatchRule {
+                pattern: r"(?is)from web retrieval,\s*candidate domains include",
                 unless: Some(r"(?is)https?://"),
             },
             MatchRule {
@@ -528,6 +541,26 @@ fn looks_like_unsynthesized_web_dump(raw: &str) -> bool {
         return false;
     }
     let lowered = cleaned.to_ascii_lowercase();
+    if lowered.starts_with("web benchmark synthesis:") {
+        let has_source_hint = lowered.contains("http://")
+            || lowered.contains("https://")
+            || lowered.contains(".com:")
+            || lowered.contains(".org:")
+            || lowered.contains(".ai:")
+            || lowered.contains(".dev:");
+        let has_metric_hint = lowered.contains('%')
+            || lowered.contains(" latency")
+            || lowered.contains("throughput")
+            || lowered.contains(" success rate")
+            || lowered.contains("tokens/s")
+            || lowered.contains("ops/sec")
+            || lowered.contains("qps")
+            || lowered.contains(" ms")
+            || lowered.contains(" seconds");
+        if has_source_hint && has_metric_hint {
+            return false;
+        }
+    }
     if !contains_any_marker(&lowered, UNSYNTHESIZED_WEB_MARKERS) {
         return false;
     }
@@ -682,6 +715,13 @@ mod tests {
     }
 
     #[test]
+    fn detects_from_web_retrieval_candidate_domains_scaffold_without_urls() {
+        assert!(matches_ack_placeholder(
+            "From web retrieval, candidate domains include reuters.com, cnbc.com, bloomberg.com."
+        ));
+    }
+
+    #[test]
     fn rewrites_generic_tool_failure_placeholder_to_actionable_copy() {
         let rewritten =
             rewrite_failure_placeholder("I couldn't complete system_diagnostic right now.")
@@ -716,6 +756,18 @@ mod tests {
             .to_ascii_lowercase()
             .contains("source-backed answer"));
         assert_eq!(rewritten.1, "unsynthesized_web_dump_rewritten");
+    }
+
+    #[test]
+    fn keeps_synthesized_from_web_retrieval_summary_copy() {
+        let raw = "From web retrieval: reuters.com: Reuters reported a launch timeline and rollout window for the deployment.";
+        assert!(rewrite_unsynthesized_web_dump(raw).is_none());
+    }
+
+    #[test]
+    fn keeps_metric_rich_web_benchmark_synthesis_copy() {
+        let raw = "Web benchmark synthesis: artificialanalysis.ai: median latency 820ms, throughput 48 tokens/s, and success rate 86%. Source: https://artificialanalysis.ai/benchmarks/agent-frameworks";
+        assert!(rewrite_unsynthesized_web_dump(raw).is_none());
     }
 
     #[test]
