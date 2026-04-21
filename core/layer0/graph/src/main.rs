@@ -4,6 +4,7 @@ use base64::Engine;
 use protheus_graph_core_v1::{run_workflow_json, viz_dot};
 use std::env;
 use std::fs;
+use std::path::{Component, Path};
 
 const MAX_ARG_KEY_LEN: usize = 48;
 const MAX_YAML_BYTES: usize = 32 * 1024;
@@ -49,6 +50,27 @@ fn parse_arg(args: &[String], key: &str) -> Option<String> {
     None
 }
 
+fn is_safe_yaml_file_path(raw: &str) -> bool {
+    let path = Path::new(raw);
+    if raw.is_empty() || path.is_dir() {
+        return false;
+    }
+    if path
+        .components()
+        .any(|component| matches!(component, Component::ParentDir))
+    {
+        return false;
+    }
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| {
+            ext.eq_ignore_ascii_case("yaml")
+                || ext.eq_ignore_ascii_case("yml")
+                || ext.eq_ignore_ascii_case("json")
+        })
+        .unwrap_or(false)
+}
+
 fn load_yaml(args: &[String]) -> Result<String, String> {
     if let Some(v) = parse_arg(args, "--yaml") {
         if v.len() > MAX_YAML_BYTES {
@@ -70,8 +92,14 @@ fn load_yaml(args: &[String]) -> Result<String, String> {
         return Ok(text);
     }
     if let Some(v) = parse_arg(args, "--yaml-file") {
+        if !is_safe_yaml_file_path(&v) {
+            return Err("yaml_file_path_invalid".to_string());
+        }
         let metadata =
             fs::metadata(v.as_str()).map_err(|e| format!("yaml_file_stat_failed:{e}"))?;
+        if !metadata.is_file() {
+            return Err("yaml_file_not_a_file".to_string());
+        }
         if metadata.len() > MAX_YAML_BYTES as u64 {
             return Err("yaml_file_payload_too_large".to_string());
         }

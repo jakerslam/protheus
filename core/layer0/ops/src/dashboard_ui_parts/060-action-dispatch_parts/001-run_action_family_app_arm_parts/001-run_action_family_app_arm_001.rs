@@ -1,4 +1,4 @@
-fn run_action_family_app_arm_001(root: &Path, normalized: &str, payload: &Value) -> LaneResult {
+fn run_action_family_app_arm_001(root: &Path, _normalized: &str, payload: &Value) -> LaneResult {
 {
             let provider = payload
                 .get("provider")

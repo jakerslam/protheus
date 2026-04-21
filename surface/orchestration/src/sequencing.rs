@@ -6,18 +6,33 @@ use crate::contracts::{
 use protheus_tooling_core_v1::{ToolBackendClass, ToolReasonCode};
 use serde_json::Value;
 
+pub fn propose_decomposition_candidate(
+    request: &TypedOrchestrationRequest,
+    classification: &RequestClassification,
+) -> PlanCandidate {
+    crate::planner::propose_decomposition_candidate(request, classification)
+}
+
+pub fn propose_decomposition_candidates(
+    request: &TypedOrchestrationRequest,
+    classification: &RequestClassification,
+) -> Vec<PlanCandidate> {
+    crate::planner::propose_decomposition_candidates(request, classification)
+}
+
+// Compatibility aliases for existing callers during control-plane naming transition.
 pub fn build_plan_candidate(
     request: &TypedOrchestrationRequest,
     classification: &RequestClassification,
 ) -> PlanCandidate {
-    crate::planner::build_plan_candidate(request, classification)
+    propose_decomposition_candidate(request, classification)
 }
 
 pub fn build_plan_candidates(
     request: &TypedOrchestrationRequest,
     classification: &RequestClassification,
 ) -> Vec<PlanCandidate> {
-    crate::planner::build_plan_candidates(request, classification)
+    propose_decomposition_candidates(request, classification)
 }
 
 pub fn fallback_actions(

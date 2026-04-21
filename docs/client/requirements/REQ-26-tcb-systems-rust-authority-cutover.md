@@ -1,7 +1,7 @@
 # REQ-26 — TCB Systems Rust Authority Cutover
 
 Status: in_progress  
-Owner: Protheus Core  
+Owner: Protheus Kernel  
 Updated: 2026-03-06
 
 ## Objective
@@ -25,7 +25,7 @@ TS surface-only allowlist:
 
 ## Acceptance Criteria
 
-1. Core entrypoint launchers in the TCB paths dispatch to Rust binaries/crates.
+1. Kernel entrypoint launchers in the TCB paths dispatch to Rust binaries/crates.
 2. Rust `protheus-ops` exposes native domains for any newly cutover controllers.
 3. Policy gates encode TCB-required prefixes and TS surface allowlist.
 4. `cargo test -p protheus-ops-core` and `cargo clippy -p protheus-ops-core --all-targets -- -D warnings` pass.

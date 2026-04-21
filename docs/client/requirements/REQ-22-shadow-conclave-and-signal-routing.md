@@ -14,7 +14,7 @@ In scope:
 - Asynchronous conclave transcript/workspace path for multi-step synthesis.
 - Signal-type classifier from sensory queue events into shadow routing classes.
 - Shadow dispatch/notification lane with reliability controls (ack/retry/escalation).
-- Autonomous shadow proposal generation with Core-5 review handoff.
+- Autonomous shadow proposal generation with Kernel-5 review handoff.
 - Drift/covenant fail-closed gates on auto-routed execution intents.
 
 Out of scope:
@@ -50,7 +50,7 @@ Out of scope:
 5. `REQ-22-005` Autonomous shadow consumption and proposal bridge
 - Acceptance:
   - Shadows can consume routed signals and produce structured proposals automatically.
-  - Proposals are funneled into Core-5 review path before execution when required.
+  - Proposals are funneled into Kernel-5 review path before execution when required.
   - Proposal artifacts preserve traceability to originating eye signals and conclave evidence.
 
 6. `REQ-22-006` Runtime health gating for routing/conclave reliability

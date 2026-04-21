@@ -15,7 +15,7 @@ npm run -s ops:competitive-matrix:status
 - Receipts: `client/runtime/local/state/ops/competitive_benchmark_matrix/receipts.jsonl`
 - Snapshots: `client/runtime/local/state/ops/competitive_benchmark_matrix/snapshots.jsonl`
 
-## Core Metrics
+## Kernel Metrics
 
 - `cold_start_ms`
 - `idle_memory_mb`

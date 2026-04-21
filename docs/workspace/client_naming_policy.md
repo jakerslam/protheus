@@ -40,9 +40,11 @@ Compatibility note:
 
 - Guard script: `tests/tooling/scripts/ci/client_naming_policy_guard.ts`
 - Policy config: `client/runtime/config/client_naming_policy.json`
-- npm command (advisory/yellow flag): `npm run -s ops:client-naming:guard`
-- npm command (strict/blocking): `npm run -s ops:client-naming:guard:strict`
-- tooling registry gate id: `ops:client-naming:guard`
+- npm command (canonical advisory/yellow flag): `npm run -s ops:shell-naming:guard`
+- npm command (canonical strict/blocking): `npm run -s ops:shell-naming:guard:strict`
+- compatibility alias (advisory): `npm run -s ops:client-naming:guard`
+- compatibility alias (strict): `npm run -s ops:client-naming:guard:strict`
+- tooling registry gate id: `ops:client-naming:guard` (compat), shell-first npm alias provided above
 - CI workflow integration: `.github/workflows/ci.yml` (`Policy Baseline Contract` step)
 
 ## Artifacts

@@ -98,4 +98,3 @@
                     .contains("tool receipt summary")
         }));
     }
-}

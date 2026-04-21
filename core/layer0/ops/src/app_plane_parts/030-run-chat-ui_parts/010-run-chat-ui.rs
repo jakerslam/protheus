@@ -256,11 +256,11 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
         selected_provider,
         selected_model,
         response,
-        mut tools,
+        tools,
         requires_live_web,
         assistant_raw,
         forced_web_outcome,
-        forced_web_error_code,
+        mut forced_web_error_code,
         forced_web_fallback,
         detected_tool_surface_error,
     ) = include!("010-run-chat-ui_parts/010-run-turn-invoke-and-web-fallback.expr.rs");

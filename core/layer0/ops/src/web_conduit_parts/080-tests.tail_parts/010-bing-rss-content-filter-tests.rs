@@ -1,3 +1,4 @@
+// Layer ownership: core/layer0/ops::web-search-orchestration-tests (authoritative)
 #[test]
 fn render_bing_rss_payload_filters_domains_and_builds_content() {
     let body = r#"
@@ -148,6 +149,24 @@ fn bing_fallback_reason_marks_provider_chain_fallback_when_no_duck_flags() {
     assert!(!challenge);
     assert!(!low_signal);
     assert_eq!(trigger_provider, "serperdev");
+}
+
+#[test]
+fn search_provider_failure_mode_prefers_challenge_classification() {
+    let mode = search_provider_failure_mode(false, false, true, "unavailable", false, 0);
+    assert_eq!(mode, "challenge_or_low_signal_response");
+}
+
+#[test]
+fn search_provider_failure_mode_marks_tool_surface_unavailable() {
+    let mode = search_provider_failure_mode(false, false, false, "unavailable", false, 0);
+    assert_eq!(mode, "tool_surface_unavailable");
+}
+
+#[test]
+fn search_provider_failure_mode_marks_provider_chain_exhausted_after_attempts() {
+    let mode = search_provider_failure_mode(false, false, false, "ready", true, 2);
+    assert_eq!(mode, "provider_chain_exhausted");
 }
 
 #[test]

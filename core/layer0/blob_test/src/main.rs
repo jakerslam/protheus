@@ -12,6 +12,7 @@ use std::path::{Component, Path, PathBuf};
 const MAX_CMD_LEN: usize = 48;
 const MAX_BLOB_ID_LEN: usize = 128;
 const MAX_HASH_LEN: usize = 192;
+const MAX_BLOB_PATH_DEPTH: usize = 6;
 
 fn strip_invisible_unicode(raw: &str) -> String {
     raw.chars()
@@ -45,6 +46,12 @@ fn is_safe_relative_blob_path(path: &str) -> bool {
         return false;
     }
     if !path.starts_with("src/") {
+        return false;
+    }
+    if candidate.extension().and_then(|ext| ext.to_str()) != Some("blob") {
+        return false;
+    }
+    if candidate.components().count() > MAX_BLOB_PATH_DEPTH {
         return false;
     }
     !candidate

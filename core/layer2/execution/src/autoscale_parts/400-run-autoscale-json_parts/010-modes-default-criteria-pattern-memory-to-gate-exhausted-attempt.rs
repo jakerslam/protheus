@@ -1,3 +1,4 @@
+pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     let request: AutoscaleRequest = serde_json::from_str(payload_json)
         .map_err(|e| format!("autoscale_request_parse_failed:{e}"))?;
     let mode_raw = request.mode.trim().to_ascii_lowercase();

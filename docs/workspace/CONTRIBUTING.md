@@ -25,16 +25,16 @@ Run high-velocity change waves without losing correctness, architecture integrit
 
 ### Hard Architecture Constraints
 
-1. Rust core is authoritative for truth, policy, execution, receipts, and security decisions.
-2. Client is thin by design and exists only for:
+1. Rust Kernel (compat alias: Core; repo path `core/**`) is authoritative for truth, policy, execution, receipts, and security decisions.
+2. Shell (compat alias: Client; repo path `client/**`) is thin by design and exists only for:
    - building apps
    - connecting existing apps through adapters
    - exposing intentionally public/non-proprietary developer surfaces
    - exposing intended user-facing surfaces
    - providing interaction mechanisms with the system
-3. All core-client information flow is conduit-only and schema-governed.
-4. Schema transfer must remain bounded by the scrambler boundary between client and core.
-5. Wrapper/bridge code is transitional; migrate durable logic into Rust core and retire extra wrappers.
+3. All kernel-shell information flow is conduit-only and schema-governed.
+4. Schema transfer must remain bounded by the scrambler boundary between Shell and Kernel.
+5. Wrapper/bridge code is transitional; migrate durable logic into Rust Kernel and retire extra wrappers.
 
 ### Snowball Cycle
 
@@ -51,7 +51,7 @@ Run high-velocity change waves without losing correctness, architecture integrit
 2. Conduit-only and boundary policies pass.
 3. Module cohesion policy passes (no new structural violations).
 4. DoD evidence is concrete (code/tests/artifacts), not status text.
-5. Rust authority increased or remained authoritative for touched critical paths.
+5. Rust Kernel authority increased or remained authoritative for touched critical paths.
 
 ### Execution Rules
 

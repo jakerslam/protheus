@@ -523,7 +523,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V3-AEX-003 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Stable-Window Benchmark Admission Gate |
 | V3-AEX-004 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Benchmark Anti-Gaming and Integrity Attestation Guard |
 | V3-AGT-001 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V3] Zero-Permission Conversational Layer |
-| V3-ARC-001 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Core Monolith Decomposition Contract + Blast-Radius Guard |
+| V3-ARC-001 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Kernel Monolith Decomposition Contract + Blast-Radius Guard |
 | V3-ARC-002 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V3] Canonical Policy Graph Registry + Dead Policy Detector |
 | V3-ARC-003 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Primitive Boundary Static Gate (Organ Dependency Firewall) |
 | V3-ARC-004 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V3] Config Pack Compiler + Domain Runtime Bundles |
@@ -660,7 +660,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V3-PRO-001 | existing-coverage-validated | queued | needs_implementation | no | [dependency-anchor / V3] Legacy dependency anchor (V3-PRO-001) |
 | V3-QPROOF-001 | existing-coverage-validated | queued | needs_implementation | no | Post-Quantum Hash + Signing Migration Lane |
 | V3-QPROOF-002 | existing-coverage-validated | queued | needs_implementation | no | Self-Learning Quantum Security Primitive Synthesis |
-| V3-RACE-001 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V3] Rust Core Runtime Kernel Slice |
+| V3-RACE-001 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V3] Rust Kernel Runtime Kernel Slice |
 | V3-RACE-002 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Wasmtime Capability Microkernel Lane |
 | V3-RACE-003 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V3] Event-Sourced Control Plane + CQRS Materialized Views |
 | V3-RACE-004 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V3] Model Catalog + Live Routing Scoreboard Service |
@@ -692,7 +692,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V3-RACE-031 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Legion Geas Protocol (Iron Oath Self-Destruct Covenant) |
 | V3-RACE-032 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Complexity Warden Meta-Organ (Fractal Elegance Governor) |
 | V3-RACE-033 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Mind Fortress Principle (Mind Sovereignty Covenant Anchor) |
-| V3-RACE-034 | existing-coverage-validated | queued | needs_implementation | no | [status-reconciliation / V3] Rust Spine Microkernel (Control-Plane Core Extraction) |
+| V3-RACE-034 | existing-coverage-validated | queued | needs_implementation | no | [status-reconciliation / V3] Rust Spine Microkernel (Control-Plane Kernel Extraction) |
 | V3-RACE-035 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Formal Mind-Sovereignty Verification Layer |
 | V3-RACE-036 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Multi-Mind Isolation & Shared-Consciousness Boundary Plane |
 | V3-RACE-037 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Long-Term Archival & Sovereign Resurrection Substrate |
@@ -762,7 +762,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V3-RACE-105 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Cross-Objective Interference Guard for Analysis Changes |
 | V3-RACE-106 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Unified Guard Check Registry (Manifest-Driven Gates) |
 | V3-RACE-107 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Shared Policy Runtime Primitive |
-| V3-RACE-108 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V3] Spawn Fan-Out Reduction Wave (Worker/Daemon Core) |
+| V3-RACE-108 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V3] Spawn Fan-Out Reduction Wave (Worker/Daemon Kernel) |
 | V3-RACE-109 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] State Artifact Contract Normalization |
 | V3-RACE-110 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V3] Memory Transport Abstraction Unification |
 | V3-RACE-111 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Canonical Backlog Registry + Generated Views |
@@ -826,7 +826,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V3-RACE-169 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V3] `protheus-core` Modular Extraction (Kernel Package Contract) |
 | V3-RACE-170 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Spine Kernel Budget Gate (<600 LOC Orchestration-Only Contract) |
 | V3-RACE-171 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V3] Cyclic Strategy Graph Runner (Governed State-Graph Execution) |
-| V3-RACE-172 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Hierarchical Memory View Plane (Core/Edit/Summary + Swap-Safe Summarization) |
+| V3-RACE-172 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Hierarchical Memory View Plane (Kernel/Edit/Summary + Swap-Safe Summarization) |
 | V3-RACE-173 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Role-Based Crew Spawn Orchestrator (Shared Namespace Governance) |
 | V3-RACE-174 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Competitive Observability + Benchmark Pack (Trace/Evals + Framework Parity) |
 | V3-RACE-175 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] `protheus-core` Runtime Envelope Tightening (`<5MB`, `<200ms`, Optional-Flag Matrix) |
@@ -842,7 +842,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V3-RACE-185 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V3] `protheus-core` Rust Binding Plane (NAPI/WASM API-Parity Bridge) |
 | V3-RACE-186 | existing-coverage-validated | queued | needs_implementation | no | [status-reconciliation / V3] Execution Sandbox Rust/WASM Coprocessor Lane (Optional, Policy-Gated) |
 | V3-RACE-187 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Formal Verification Depth Pack for Critical Runtime Paths |
-| V3-RACE-188 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Hybrid Interface Stability Contract (Rust Core, TS Orchestration, Zero-Break Cutover) |
+| V3-RACE-188 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Hybrid Interface Stability Contract (Rust Kernel, TS Orchestration, Zero-Break Cutover) |
 | V3-RACE-189 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] `protheus-edge` Lightweight Runtime Package (Reflex + MemFS Cache + Remote Spine Sync) |
 | V3-RACE-190 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Mobile Lifecycle Resilience & Power Envelope Contract (Doze/Kill Recovery) |
 | V3-RACE-191 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Mobile Operator CLI Surface (`protheusctl edge *`, `protheus-top --mobile`) |
@@ -998,7 +998,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V3-RACE-341 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Helix Enterprise Support/Commercial Readiness Lane (24x7 SLA + Indemnification) |
 | V3-RACE-342 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Secure RPM Repository + Delta Update Channel Lane |
 | V3-RACE-343 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Helix Promotion Hardening Gate (Immutability + SELinux/eBPF + Certified HW + Air-Gap Evidence) |
-| V3-RACE-344 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Neutral-Core Enterprise Hardening Backport Pack (Helix-Derived Controls) |
+| V3-RACE-344 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Neutral-Kernel Enterprise Hardening Backport Pack (Helix-Derived Controls) |
 | V3-RACE-345 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Ubuntu Enterprise Adaptation Pack (Snap/Core + Landscape/Juju + Pro/Livepatch + MAAS/MicroK8s) |
 | V3-RACE-346 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] FreeBSD Hardened Adaptation Pack (Ports/ZFS/Capsicum/Jails/PF/geli) |
 | V3-RACE-347 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] NixOS Declarative Adaptation Pack (Modules/Flakes/Impermanence/Hydra/Cachix) |
@@ -1009,7 +1009,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V3-RACE-352 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Cross-Ecosystem Certified Hardware & Tuning Matrix Lane |
 | V3-RACE-353 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Long-LTS Migration & Support Continuity Lane (Ubuntu/Enterprise Linux Focus) |
 | V3-RACE-354 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Multi-Platform Linux/Unix Conformance Promotion Gate |
-| V3-RACE-355 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Neutral-Core Cross-Ecosystem Hardening Uplift (Post-Intake Consolidation) |
+| V3-RACE-355 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Neutral-Kernel Cross-Ecosystem Hardening Uplift (Post-Intake Consolidation) |
 | V3-RACE-356 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V3] PlatformSocket ABI + Signed Manifest Contract |
 | V3-RACE-357 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V3] Socket Discovery/Loader Runtime (Registry + Version Pin + Hot-Swap) |
 | V3-RACE-358 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] GenericSocket + Named Host Socket Refactor (Channels -> Sockets) |
@@ -1128,7 +1128,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V4-LENS-009 | done | reviewed | pass | yes | [launch-polish / V4] LensMap Release Artifact Integrity Contract |
 | V4-LENS-010 | done | reviewed | pass | yes | [hardening / V4] LensMap Workflow Stability and YAML Guardrail |
 | V4-LENS-011 | blocked_external_prepared | queued | needs_implementation | no | [hardening / V4] LensMap Security Posture and External Audit Landing Page |
-| V4-MIGR-001 | existing-coverage-validated | queued | needs_implementation | no | [migration / V4] Core Migration Bridge + Workspace Port Command |
+| V4-MIGR-001 | existing-coverage-validated | queued | needs_implementation | no | [migration / V4] Kernel Migration Bridge + Workspace Port Command |
 | V4-MIGR-002 | existing-coverage-validated | queued | needs_implementation | no | [migration / V4] Community Repo Graduation Pack (Banner + Redirect + Pinned Issue) |
 | V4-MIGR-003 | existing-coverage-validated | queued | needs_implementation | no | [interoperability / V4] Universal Importers (Infring/CrewAI/AutoGen/Workflow Graph/Common Dumps) |
 | V4-MIGR-004 | existing-coverage-validated | queued | needs_implementation | no | [migration / V4] Self-Healing Migration Daemon |
@@ -1146,7 +1146,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V4-RUST-001 | existing-coverage-validated | queued | needs_implementation | no | [status-reconciliation / V4] Authoritative Rust Microkernel Cutover Acceleration |
 | V4-RUST-002 | existing-coverage-validated | queued | needs_implementation | no | [scientific / V4] Scientific Stack Rust Orchestration + R Bridge Hardening |
 | V4-RUST-003 | existing-coverage-validated | queued | needs_implementation | no | [status-reconciliation / V4] Cargo Workspace Professionalization + Rust CI Quality Signal |
-| V4-RUST-004 | existing-coverage-validated | queued | needs_implementation | no | [extension / V4] Habits/Vault/Adaptive Core Rust Migration Wave (Phased) |
+| V4-RUST-004 | existing-coverage-validated | queued | needs_implementation | no | [extension / V4] Habits/Vault/Adaptive Kernel Rust Migration Wave (Phased) |
 | V4-SCALE-001 | existing-coverage-validated | queued | needs_implementation | no | [scale-readiness / V4] Load Model + SLO Contract (1k -> 10k -> 100k -> 1M) |
 | V4-SCALE-002 | existing-coverage-validated | queued | needs_implementation | no | [scale-readiness / V4] Stateless App-Tier + Horizontal Autoscaling Contract |
 | V4-SCALE-003 | existing-coverage-validated | queued | needs_implementation | no | [scale-readiness / V4] Durable Async Pipeline (Queue/Retry/Idempotency/Backpressure) |
@@ -1169,8 +1169,8 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V4-SEC-015 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V4] Tamper Self-Revocation + Vault Re-Coalesce |
 | V4-SEC-016 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] Live Security Mirror Panel in `protheus-top` |
 | V4-SELF-001 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V4] Internal Illusion & Integrity Auditor |
-| V4-SETTLE-001 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V4] Core Settling Engine (Compile + Memory-Map + Re-exec) |
-| V4-SETTLE-002 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V4] Signed Snapshot Vault + Revert/Edit-Core Round Trip |
+| V4-SETTLE-001 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V4] Kernel Settling Engine (Compile + Memory-Map + Re-exec) |
+| V4-SETTLE-002 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V4] Signed Snapshot Vault + Revert/Edit-Kernel Round Trip |
 | V4-SETTLE-003 | existing-coverage-validated | queued | needs_implementation | no | [extension / V4] Target Abstraction for Binary + Ternary/Exotic Compile Flags |
 | V4-SETTLE-004 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V4] Promotion-Coupled Re-Settlement Policy |
 | V4-SETTLE-005 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] Settled-State Operator Surface in `protheus-top` |
@@ -1203,12 +1203,12 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V5-HOLD-005 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V5] Budget Burst Smoothing + Autopause Prevention |
 | V5-RUST-HYB-001 | existing-coverage-validated | queued | needs_implementation | no | [scale-readiness / V5] 15-25% Rust Share Control Plan |
 | V5-RUST-HYB-002 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V5] Memory Lane Rust Completion (Scheduler + Compression + SQLite Hot Paths) |
-| V5-RUST-HYB-003 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V5] Execution Runtime Rust Cutover (Deterministic Receipts + Replay Core) |
-| V5-RUST-HYB-004 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V5] Security + Vault Rust Core Hardening |
+| V5-RUST-HYB-003 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V5] Execution Runtime Rust Cutover (Deterministic Receipts + Replay Kernel) |
+| V5-RUST-HYB-004 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V5] Security + Vault Rust Kernel Hardening |
 | V5-RUST-HYB-005 | existing-coverage-validated | queued | needs_implementation | no | [extension / V5] Pinnacle CRDT Rust Merge Engine |
-| V5-RUST-HYB-006 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V5] Econ + Crypto Rust Safety Core |
+| V5-RUST-HYB-006 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V5] Econ + Crypto Rust Safety Kernel |
 | V5-RUST-HYB-007 | existing-coverage-validated | queued | needs_implementation | no | [extension / V5] Red Legion Chaos Engine Rust Acceleration |
-| V5-RUST-HYB-008 | existing-coverage-validated | queued | needs_implementation | no | [extension / V5] Observability Telemetry Rust Emitter Core |
+| V5-RUST-HYB-008 | existing-coverage-validated | queued | needs_implementation | no | [extension / V5] Observability Telemetry Rust Emitter Kernel |
 | V5-RUST-HYB-009 | existing-coverage-validated | queued | needs_implementation | no | [extension / V5] WASM Adapter Rust Bridge Expansion |
 | V5-RUST-HYB-010 | existing-coverage-validated | queued | needs_implementation | no | [scale-readiness / V5] Hybrid Envelope Validation + Guardrail Gate |
 | V5-RUST-PROD-001 | existing-coverage-validated | queued | needs_implementation | no | [scale-readiness / V5] Rust Hotspot Baseline + ROI Prioritization Contract |
@@ -1269,7 +1269,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V6-COMP-003 | existing-coverage-validated | queued | needs_implementation | no | Evidence-first audit dashboard drilldown |
 | V6-COMP-004 | existing-coverage-validated | queued | needs_implementation | no | Security-layer inventory with evidence links |
 | V6-COMP-005 | blocked_external_prepared | queued | needs_implementation | no | Public multi-release cadence target (9+ tags) |
-| V6-CONDUIT-001 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V6] Conduit Core Scaffold + Typed Message Schema |
+| V6-CONDUIT-001 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V6] Conduit Kernel Scaffold + Typed Message Schema |
 | V6-CONDUIT-002 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V6] Constitution and Policy Gate Binding for Conduit |
 | V6-CONDUIT-003 | existing-coverage-validated | queued | needs_implementation | no | [extension / V6] Conduit Feature Migration: Agent Lifecycle Path |
 | V6-CONDUIT-004 | existing-coverage-validated | queued | needs_implementation | no | [scale-readiness / V6] Substrate-Swap and Performance Certification Gate |
@@ -1358,7 +1358,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V6-F100-044 | blocked_external_prepared | queued | needs_implementation | no | Commercial support/SLA contract lane (enterprise readiness) |
 | V6-F100-045 | blocked_external_prepared | queued | needs_implementation | no | Public compliance report publication lane |
 | V6-F100-046 | existing-coverage-validated | queued | needs_implementation | no | 1,000-Node 72h Autonomous Fleet Soak Evidence Contract |
-| V6-F100-047 | existing-coverage-validated | queued | needs_implementation | no | Core Matrix Test-Coverage Floor Gate (>=95%) |
+| V6-F100-047 | existing-coverage-validated | queued | needs_implementation | no | Kernel Matrix Test-Coverage Floor Gate (>=95%) |
 | V6-F100-A-007 | existing-coverage-validated | queued | needs_implementation | no | Executable A+ procurement readiness scorecard gate |
 | V6-F100-A-008 | blocked_external_prepared | queued | needs_implementation | no | Enterprise legal packet publication (MSA/DPA/privacy/subprocessors) |
 | V6-F100-A-009 | blocked_external_prepared | queued | needs_implementation | no | First reference customer case study publication |
@@ -1389,7 +1389,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V6-GAP-005 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V6] InfRing Launch Announcement Template Pack |
 | V6-GAP-006 | blocked_external_prepared | queued | needs_implementation | no | Public Release + Announcement Publication Authority |
 | V6-HOST-BUILD-STALE-001 | existing-coverage-validated | queued | needs_implementation | no | Host Rust build-stall guard stabilization |
-| V6-INITIATIVE-013 | existing-coverage-validated | queued | needs_implementation | no | Core global importance/priority kernel (`REQ-27`) |
+| V6-INITIATIVE-013 | existing-coverage-validated | queued | needs_implementation | no | Kernel global importance/priority kernel (`REQ-27`) |
 | V6-LLMN-001 | existing-coverage-validated | queued | needs_implementation | no | Canonical LLMN mode registry + alias normalization (`REQ-35`) |
 | V6-LLMN-002 | existing-coverage-validated | queued | needs_implementation | no | Router/strategy parity for all LLMN modes (`REQ-35`) |
 | V6-LLMN-003 | existing-coverage-validated | queued | needs_implementation | no | Mode-critical CLI entrypoint path restoration (`REQ-35`) |
@@ -1457,17 +1457,17 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V6-RUNTIME-002 | existing-coverage-validated | queued | needs_implementation | no | Per-shadow budget governance layer |
 | V6-RUNTIME-003 | existing-coverage-validated | queued | needs_implementation | no | Offline-mode degraded-path hardening |
 | V6-RUNTIME-004 | existing-coverage-validated | queued | needs_implementation | no | Hardware-aware local routing hardening |
-| V6-RUST50-001 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V6] Memory 100 Percent Rust Core + WASM Mobile Bindings |
+| V6-RUST50-001 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V6] Memory 100 Percent Rust Kernel + WASM Mobile Bindings |
 | V6-RUST50-002 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V6] Execution Deterministic Runtime Rust Cutover + Replay Proofs |
 | V6-RUST50-003 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V6] Pinnacle CRDT Rust Engine Phone-First |
-| V6-RUST50-004 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V6] Vault and Security Shared Rust Core (ZK/FHE Envelope) |
-| V6-RUST50-005 | existing-coverage-validated | queued | needs_implementation | no | [extension / V6] Red Legion Chaos + Observability Rust Merge Core |
+| V6-RUST50-004 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V6] Vault and Security Shared Rust Kernel (ZK/FHE Envelope) |
+| V6-RUST50-005 | existing-coverage-validated | queued | needs_implementation | no | [extension / V6] Red Legion Chaos + Observability Rust Merge Kernel |
 | V6-RUST50-006 | existing-coverage-validated | queued | needs_implementation | no | [extension / V6] Mobile Adapter Layer (WASM + Tauri iOS/Android Background Service) |
 | V6-RUST50-007 | existing-coverage-validated | queued | needs_implementation | no | [scale-readiness / V6] 50 Percent Rust Critical-Weight Enforcement Gate |
 | V6-RUST50-CONF-001 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V6] Execution Crate Public-Language-Bar Rust Cutover (No Weighted Tricks) |
 | V6-RUST50-CONF-002 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V6] Sprint-Mode Enforcer + Batch Audit Contract |
 | V6-RUST50-CONF-003 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V6] Sprint 1 Visible Rust Migration Batch (Execution/Pinnacle/Vault/Red Legion) |
-| V6-RUST50-CONF-004 | blocked_external_prepared | queued | needs_implementation | no | [primitive-upgrade / V6] Mega Sprint 1 Public 50 Percent Rust Migration (8 Crates + Blobized Core Paths) |
+| V6-RUST50-CONF-004 | blocked_external_prepared | queued | needs_implementation | no | [primitive-upgrade / V6] Mega Sprint 1 Public 50 Percent Rust Migration (8 Crates + Blobized Kernel Paths) |
 | V6-SBOX-001 | existing-coverage-validated | queued | needs_implementation | no | Secure sandbox execution plane |
 | V6-SBOX-002 | existing-coverage-validated | queued | needs_implementation | no | Dynamic scoped sub-agent spawning |
 | V6-SBOX-003 | existing-coverage-validated | queued | needs_implementation | no | Persistent sandbox state bridge |
@@ -1549,7 +1549,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V7-ASM-008 | existing-coverage-validated | queued | needs_implementation | no | Trust-chain integration lane (reproducible build + Sigstore/Rekor + measured-boot pointers) |
 | V7-ASM-009 | existing-coverage-validated | queued | needs_implementation | no | Proof-preserving fastpath optimization lane for Layer-2 hotpaths |
 | V7-ASM-010 | existing-coverage-validated | queued | needs_implementation | no | Industrial process mapping pack (ISA-95/RAMI 4.0 templates) |
-| V7-META-001 | existing-coverage-validated | queued | needs_implementation | no | Core primitive contract registry (`node/cell/task/capability/object/stream/journal/budget/policy/model/supervisor/attestation`) |
+| V7-META-001 | existing-coverage-validated | queued | needs_implementation | no | Kernel primitive contract registry (`node/cell/task/capability/object/stream/journal/budget/policy/model/supervisor/attestation`) |
 | V7-META-002 | existing-coverage-validated | queued | needs_implementation | no | Invariant gate for the first eight metakernel invariants |
 | V7-META-003 | existing-coverage-validated | queued | needs_implementation | no | `CellBundle` manifest schema + validator lane |
 | V7-META-004 | existing-coverage-validated | queued | needs_implementation | no | WIT world registry + wasm component ABI contract |
@@ -1568,7 +1568,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V7-META-017 | blocked_external_prepared | queued | needs_implementation | no | Ternary hardware lowering validation campaign |
 | V7-META-018 | blocked_external_prepared | queued | needs_implementation | no | Neural I/O safety validation campaign |
 | V7-TOP1-001 | done | reviewed | pass | yes | Layer-0 machine-checked invariant proof pack (Lean/Coq/Rocq) |
-| V7-TOP1-002 | done | reviewed | pass | yes | Core Rust formal proof coverage lane (Kani/Prusti) |
+| V7-TOP1-002 | done | reviewed | pass | yes | Kernel Rust formal proof coverage lane (Kani/Prusti) |
 | V7-TOP1-003 | existing-coverage-validated | queued | needs_implementation | no | Nightly full-kernel re-proof CI + `verify.sh` proof gate |
 | V7-TOP1-004 | existing-coverage-validated | queued | needs_implementation | no | Reproducible public proof VM artifact lane |
 | V7-TOP1-005 | done | reviewed | pass | yes | Single static `protheusd` binary profile (25-35MB target) |
@@ -1577,7 +1577,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V7-TOP1-008 | existing-coverage-validated | queued | needs_implementation | no | Public "Protheus vs X" CI-updated comparison matrix |
 | V7-TOP1-009 | blocked_external_prepared | queued | needs_implementation | no | Independent third-party verification publication lane |
 | V7-TOP1-010 | blocked_external_prepared | queued | needs_implementation | no | High-assurance profile release gate (medical/defense-class) |
-| V7-TOP1-011 | existing-coverage-validated | queued | needs_implementation | no | Sacred-Core Nightly Proof Coverage Floor Contract |
+| V7-TOP1-011 | existing-coverage-validated | queued | needs_implementation | no | Sacred-Kernel Nightly Proof Coverage Floor Contract |
 | V7-TOP1-012 | existing-coverage-validated | queued | needs_implementation | no | Autonomous Self-Hosting Build Receipt Contract |
 | V8-RSI-IGNITION-001 | done | reviewed | pass | yes | True Recursive Self-Modification Loop Contract |
 | V8-RSI-IGNITION-002 | done | reviewed | pass | yes | Emergent Metacognition + Will Layer Contract |

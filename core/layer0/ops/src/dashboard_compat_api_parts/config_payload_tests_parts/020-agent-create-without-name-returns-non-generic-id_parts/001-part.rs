@@ -131,6 +131,78 @@ fn agents_routes_create_message_config_and_git_tree_round_trip() {
     assert!(
         cross_session
             .payload
+            .pointer("/context_pool/recent_floor_target")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            >= 1
+    );
+    assert_eq!(
+        cross_session
+            .payload
+            .pointer("/context_pool/recent_floor_coverage_after")
+            .and_then(Value::as_f64),
+        Some(1.0)
+    );
+    assert_eq!(
+        cross_session
+            .payload
+            .pointer("/context_pool/recent_floor_active_satisfied")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        cross_session
+            .payload
+            .pointer("/context_pool/recent_floor_active_coverage")
+            .and_then(Value::as_f64),
+        Some(1.0)
+    );
+    assert_eq!(
+        cross_session
+            .payload
+            .pointer("/context_pool/recent_floor_continuity_status")
+            .and_then(Value::as_str),
+        Some("ready")
+    );
+    assert_eq!(
+        cross_session
+            .payload
+            .pointer("/context_pool/recent_floor_continuity_action")
+            .and_then(Value::as_str),
+        Some("none")
+    );
+    let narrowed_scope = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{
+            "message":"check narrowed scope continuity",
+            "reply_scope_enabled": true,
+            "reply_scope_messages": [
+              {"role":"user","text":"only narrow scope row"}
+            ]
+          }"#,
+        &agent_create_ok_snapshot(),
+    )
+    .expect("narrowed scope continuity");
+    assert_eq!(narrowed_scope.status, 200);
+    assert_eq!(
+        narrowed_scope
+            .payload
+            .pointer("/context_pool/recent_floor_continuity_status")
+            .and_then(Value::as_str),
+        Some("degraded")
+    );
+    assert_eq!(
+        narrowed_scope
+            .payload
+            .pointer("/context_pool/recent_floor_continuity_action")
+            .and_then(Value::as_str),
+        Some("expand_reply_scope_recent_tail")
+    );
+    assert!(
+        cross_session
+            .payload
             .get("response")
             .and_then(Value::as_str)
             .unwrap_or("")

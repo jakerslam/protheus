@@ -1,0 +1,36 @@
+{
+  "schema_id": "external_validation_evidence_cadence",
+  "schema_version": "1.0.0",
+  "cadence_days_default": 7,
+  "required_workflow_path": ".github/workflows/external-validation-evidence-cadence.yml",
+  "required_workflow_commands": [
+    "ops:benchmark:public-audit",
+    "ops:external-validation:evidence:cadence"
+  ],
+  "lanes": [
+    {
+      "id": "public_benchmark_audit",
+      "owner": "validation-ops",
+      "cadence_days": 7,
+      "command_id": "ops:benchmark:public-audit",
+      "evidence_artifact": "core/local/artifacts/benchmark_public_audit_current.json",
+      "publication_surface": "releases/proof-packs/main-current"
+    },
+    {
+      "id": "proof_pack_threshold_gate",
+      "owner": "release-ops",
+      "cadence_days": 7,
+      "command_id": "ops:external-validation:evidence:cadence",
+      "evidence_artifact": "core/local/artifacts/external_validation_evidence_cadence_current.json",
+      "publication_surface": "core/local/artifacts"
+    },
+    {
+      "id": "cadence_report_markdown",
+      "owner": "release-ops",
+      "cadence_days": 7,
+      "command_id": "ops:external-validation:evidence:cadence",
+      "evidence_artifact": "local/workspace/reports/EXTERNAL_VALIDATION_EVIDENCE_CADENCE_CURRENT.md",
+      "publication_surface": "local/workspace/reports"
+    }
+  ]
+}

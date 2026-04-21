@@ -130,7 +130,7 @@ fn hash_pair_hex(left: &str, right: &str) -> String {
 }
 
 fn hash_json_value(value: &Value) -> String {
-    deterministic_receipt_hash(value)
+    crate::deterministic_receipt_hash(value)
 }
 
 // TODO-NORMATIVE: Freeze final Merkle canonicalization after Hybrid DNA v2 crypto profile is approved.
@@ -245,7 +245,7 @@ fn hybrid_commit_hash(
     critical: bool,
     ts: &str,
 ) -> String {
-    deterministic_receipt_hash(&json!({
+    crate::deterministic_receipt_hash(&json!({
         "instance_dna_ref": instance_dna_ref,
         "boundary": boundary,
         "boundary_key": boundary_key,
@@ -393,7 +393,7 @@ fn write_hybrid_receipt(
             "layer1": "policy_and_receipts"
         }
     });
-    receipt["receipt_hash"] = Value::String(deterministic_receipt_hash(&receipt));
+    receipt["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&receipt));
     append_jsonl(&hybrid_dna_receipts_path(root), &receipt);
     write_json(&hybrid_dna_latest_receipt_path(root), &receipt);
     receipt

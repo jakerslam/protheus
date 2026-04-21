@@ -138,6 +138,60 @@ mod tests {
     }
 
     #[test]
+    fn route_prompt_supports_text_and_content_variable_aliases_without_json_leak() {
+        let mut state = default_state();
+        let route = route_prompt(
+            &mut state,
+            json!({
+                "name": "support-template",
+                "provider": "frontier_provider",
+                "fallback_provider": "openai-compatible",
+                "supported_providers": ["frontier_provider", "openai-compatible"],
+                "profile": "pure",
+                "template": "Hello %name% from {{city}}",
+                "variables": {
+                    "name": {"text": "Jay", "description": "display name"},
+                    "city": {"content": "Denver", "meta": {"tz": "MST"}}
+                }
+            })
+            .as_object()
+            .unwrap(),
+        )
+        .expect("route");
+        let output = route["route"]["rendered_prompt"].as_str().unwrap_or("");
+        assert_eq!(output, "Hello Jay from Denver");
+        assert!(!output.contains('{'));
+    }
+
+    #[test]
+    fn route_prompt_supports_nested_rich_variable_aliases_without_json_leak() {
+        let mut state = default_state();
+        let route = route_prompt(
+            &mut state,
+            json!({
+                "name": "support-template",
+                "provider": "frontier_provider",
+                "fallback_provider": "openai-compatible",
+                "supported_providers": ["frontier_provider", "openai-compatible"],
+                "profile": "pure",
+                "template": "Hello %name% from {{city}}",
+                "variables": {
+                    "name": {"value": {"text": "Jay"}},
+                    "city": {"content": {"value": "Denver"}},
+                    "ignored": {"value": {"meta": {"tz": "MST"}}}
+                }
+            })
+            .as_object()
+            .unwrap(),
+        )
+        .expect("route");
+        let output = route["route"]["rendered_prompt"].as_str().unwrap_or("");
+        assert_eq!(output, "Hello Jay from Denver");
+        assert!(!output.contains('{'));
+        assert!(!output.contains("meta"));
+    }
+
+    #[test]
     fn recall_memory_is_deterministic() {
         let mut state = default_state();
         let _ = register_memory_bridge(

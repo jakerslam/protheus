@@ -76,12 +76,23 @@ fn out_of_bounds_inputs_fail_closed_with_stable_codes() {
     let budget_oob =
         evaluate_burn_oracle_budget_gate(available_request(MAX_BURN_UNITS_CAP + 1, 10, 50));
     assert!(!budget_oob.ok);
-    assert_eq!(budget_oob.code, "budget_value_out_of_bounds");
+    assert_eq!(budget_oob.code, "requested_burn_out_of_bounds");
 
     let oracle_oob =
         evaluate_burn_oracle_budget_gate(available_request(5, 10, MAX_BURN_UNITS_CAP + 1));
     assert!(!oracle_oob.ok);
-    assert_eq!(oracle_oob.code, "oracle_value_out_of_bounds");
+    assert_eq!(oracle_oob.code, "oracle_remaining_out_of_bounds");
+}
+
+#[test]
+fn max_allowed_out_of_bounds_fails_closed_with_specific_code() {
+    let decision = evaluate_burn_oracle_budget_gate(available_request(
+        5,
+        MAX_BURN_UNITS_CAP + 1,
+        50,
+    ));
+    assert!(!decision.ok);
+    assert_eq!(decision.code, "max_allowed_burn_out_of_bounds");
 }
 
 #[test]

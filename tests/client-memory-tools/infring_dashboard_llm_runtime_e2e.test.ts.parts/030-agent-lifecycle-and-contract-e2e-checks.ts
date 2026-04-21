@@ -110,6 +110,20 @@
       true,
       'revived contract should link to previous contract id'
     );
+    const revivedContractId = String(
+      reviveContractAgent.body
+      && reviveContractAgent.body.contract
+      && reviveContractAgent.body.contract.id
+        ? reviveContractAgent.body.contract.id
+        : ''
+    );
+    summary.checks.contract_revive_rotates_contract_id = revivedContractId.length > 0
+      && revivedContractId !== createdContractId;
+    assert.strictEqual(
+      summary.checks.contract_revive_rotates_contract_id,
+      true,
+      'revived agent should receive a new contract id'
+    );
 
     const rogueShadow = `e2e-${suffix}-rogue`;
     const createRogueAgent = await fetchJson(

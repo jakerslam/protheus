@@ -353,7 +353,7 @@ fn evaluate_invariants(root: &Path, policy: &OriginIntegrityPolicy, command: &st
         "constitution_ok": constitution.get("ok").and_then(Value::as_bool).unwrap_or(false),
         "command": command
     });
-    let state_binding_hash = deterministic_receipt_hash(&binding_material);
+    let state_binding_hash = crate::deterministic_receipt_hash(&binding_material);
 
     let ok = conduit_only.get("ok").and_then(Value::as_bool) == Some(true)
         && constitution.get("ok").and_then(Value::as_bool) == Some(true)
@@ -406,7 +406,7 @@ fn evaluate_invariants(root: &Path, policy: &OriginIntegrityPolicy, command: &st
             }
         }
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
@@ -435,6 +435,6 @@ fn build_certificate(root: &Path, policy: &OriginIntegrityPolicy, run_receipt: &
         "origin_integrity_receipt_hash": run_receipt.get("receipt_hash").cloned().unwrap_or(Value::Null),
         "policy_version": policy.version
     });
-    out["certificate_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["certificate_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }

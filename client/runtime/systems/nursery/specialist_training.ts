@@ -20,6 +20,10 @@ function sanitizeArg(value) {
     .slice(0, MAX_ARG_LEN);
 }
 
+function isUnsafeToken(token) {
+  return token.includes('..') || token.includes('\0') || token.startsWith('/') || token.startsWith('\\');
+}
+
 function stableStringify(value) {
   if (value === null || typeof value !== 'object') {
     return JSON.stringify(value);
@@ -43,6 +47,18 @@ function withReceiptHash(payload) {
   return Object.assign({}, payload, { receipt_hash: normalizeReceiptHash(payload) });
 }
 
+function normalizeBridgePayload(payload) {
+  if (!payload || typeof payload !== 'object') return payload;
+  const normalized = Object.assign({}, payload);
+  if (typeof normalized.type !== 'string' || !normalized.type.trim()) {
+    normalized.type = 'specialist_training';
+  }
+  if (typeof normalized.lane !== 'string' || !normalized.lane.trim()) {
+    normalized.lane = bridge.lane;
+  }
+  return withReceiptHash(normalized);
+}
+
 function defaultPayloadArg() {
   const sourceRoot = sanitizeArg(process.env.INFRING_INFRING_SOURCE_ROOT || '..') || '..';
   return `--payload-json=${JSON.stringify({ source_root: sourceRoot })}`;
@@ -50,7 +66,10 @@ function defaultPayloadArg() {
 
 function run(args = process.argv.slice(2)) {
   const passthrough = Array.isArray(args)
-    ? args.map((arg) => sanitizeArg(arg)).filter(Boolean).slice(0, MAX_ARGS)
+    ? args
+        .map((arg) => sanitizeArg(arg))
+        .filter((row) => row && !isUnsafeToken(row))
+        .slice(0, MAX_ARGS)
     : [];
   if (!passthrough.some((row) => String(row).startsWith('--strict='))) passthrough.push('--strict=1');
   if (!passthrough.some((row) => String(row).startsWith('--apply='))) passthrough.push('--apply=1');
@@ -62,7 +81,7 @@ function run(args = process.argv.slice(2)) {
   if (out && out.stderr) process.stderr.write(out.stderr);
   if (out && out.payload && !out.stdout) {
     process.stdout.write(
-      `${JSON.stringify(withReceiptHash(Object.assign({ lane: bridge.lane }, out.payload)))}\n`
+      `${JSON.stringify(normalizeBridgePayload(out.payload))}\n`
     );
   } else if (!out || (!out.stdout && !out.stderr)) {
     const fallback = {
@@ -73,7 +92,7 @@ function run(args = process.argv.slice(2)) {
       status: Number.isFinite(Number(out && out.status)) ? Number(out.status) : 1
     };
     process.stdout.write(
-      `${JSON.stringify(withReceiptHash(fallback))}\n`
+      `${JSON.stringify(normalizeBridgePayload(fallback))}\n`
     );
   }
   return out;

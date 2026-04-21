@@ -9,7 +9,8 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const ts = require('typescript');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
+const ts = require('typescript');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 if (!require.extensions['.ts']) {
   require.extensions['.ts'] = function compileTs(module, filename) {
@@ -217,7 +218,11 @@ function run() {
   assert.strictEqual(status.evaluations, 1);
   assert.strictEqual(status.sandbox_runs, 1);
   assert.strictEqual(status.deployments, 1);
-  assert.strictEqual(status.runtime_bridges, 1);\n  assertNoPlaceholderOrPromptLeak(status, 'google_adk_bridge_test');\n  assertStableToolingEnvelope(status, 'google_adk_bridge_test');\n  console.log(JSON.stringify({ ok: true, type: 'google_adk_bridge_test' }));
+  assert.strictEqual(status.runtime_bridges, 1);
+  assertNoPlaceholderOrPromptLeak(status, 'google_adk_bridge_test');
+  assertStableToolingEnvelope(status, 'google_adk_bridge_test');
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+  console.log(JSON.stringify({ ok: true, type: 'google_adk_bridge_test' }));
 }
 
 run();

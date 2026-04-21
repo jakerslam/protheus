@@ -234,7 +234,7 @@ fn issue_handle(
     let expires_ms = issued_ms + ttl_sec * 1000;
     let handle_id = format!(
         "sh_{}",
-        &deterministic_receipt_hash(&json!({
+        &crate::deterministic_receipt_hash(&json!({
             "secret_id": secret_id,
             "scope": scope,
             "caller": caller,
@@ -252,7 +252,7 @@ fn issue_handle(
         "issued_at": iso_from_ms(issued_ms),
         "expires_at_ms": expires_ms,
         "expires_at": iso_from_ms(expires_ms),
-        "nonce": &deterministic_receipt_hash(&json!({"handle_id": handle_id, "issued_ms": issued_ms}))[..16]
+        "nonce": &crate::deterministic_receipt_hash(&json!({"handle_id": handle_id, "issued_ms": issued_ms}))[..16]
     });
     let body_text = serde_json::to_string(&body_payload).unwrap_or_else(|_| "{}".to_string());
     let body = URL_SAFE_NO_PAD.encode(body_text.as_bytes());

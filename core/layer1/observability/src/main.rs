@@ -7,6 +7,7 @@ use protheus_observability_core_v1::{
 };
 use std::env;
 use std::fs;
+use std::path::{Component, Path};
 
 const MAX_ARG_KEY_LEN: usize = 48;
 const MAX_REQUEST_BYTES: usize = 32 * 1024;
@@ -14,6 +15,7 @@ const MAX_SCENARIO_ID_LEN: usize = 96;
 const MAX_TRACE_ID_LEN: usize = 96;
 const MAX_TEXT_TOKEN_LEN: usize = 160;
 const MAX_EVENT_COUNT: usize = 512;
+const MAX_EVENT_TAGS: usize = 32;
 
 fn strip_invisible_unicode(raw: &str) -> String {
     raw.chars()
@@ -53,6 +55,23 @@ fn parse_arg(args: &[String], key: &str) -> Option<String> {
     None
 }
 
+fn is_safe_request_file_path(raw: &str) -> bool {
+    let path = Path::new(raw);
+    if raw.is_empty() || path.is_dir() {
+        return false;
+    }
+    if path
+        .components()
+        .any(|component| matches!(component, Component::ParentDir))
+    {
+        return false;
+    }
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.eq_ignore_ascii_case("json"))
+        .unwrap_or(false)
+}
+
 fn load_request_json(args: &[String]) -> Result<String, String> {
     if let Some(v) = parse_arg(args, "--request-json") {
         if v.len() > MAX_REQUEST_BYTES {
@@ -71,8 +90,14 @@ fn load_request_json(args: &[String]) -> Result<String, String> {
         return Ok(text);
     }
     if let Some(v) = parse_arg(args, "--request-file") {
+        if !is_safe_request_file_path(&v) {
+            return Err("request_file_path_invalid".to_string());
+        }
         let metadata =
             fs::metadata(v.as_str()).map_err(|err| format!("request_file_stat_failed:{err}"))?;
+        if !metadata.is_file() {
+            return Err("request_file_not_a_file".to_string());
+        }
         if metadata.len() > MAX_REQUEST_BYTES as u64 {
             return Err("request_file_too_large".to_string());
         }
@@ -117,11 +142,15 @@ fn normalize_request_json(raw_request: &str) -> Result<String, String> {
         event.operation = sanitize_text_token(&event.operation, MAX_TEXT_TOKEN_LEN);
         event.severity = sanitize_text_token(&event.severity, 16).to_ascii_lowercase();
         event.payload_digest = sanitize_text_token(&event.payload_digest, MAX_TEXT_TOKEN_LEN);
+        if event.payload_digest.is_empty() {
+            return Err("request_invalid_payload_digest".to_string());
+        }
         event.tags = event
             .tags
             .iter()
             .map(|tag| sanitize_text_token(tag, 48).to_ascii_lowercase())
             .filter(|tag| !tag.is_empty())
+            .take(MAX_EVENT_TAGS)
             .collect();
         if event.tags.is_empty() {
             return Err("request_invalid_event_tags".to_string());

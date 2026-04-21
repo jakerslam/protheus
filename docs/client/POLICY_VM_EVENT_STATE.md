@@ -2,7 +2,7 @@
 
 This lane formalizes governance/execution separation and deterministic replay behavior.
 
-## Core Components
+## Kernel Components
 
 - Policy VM: `client/runtime/systems/primitives/policy_vm.ts`
 - Canonical event log: `client/runtime/systems/primitives/canonical_event_log.ts`

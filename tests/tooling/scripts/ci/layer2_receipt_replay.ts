@@ -29,6 +29,14 @@ type ReplayState = {
   failed: number;
   completed: number;
   classifications: Record<string, number>;
+  queue_backpressure_actions: {
+    defer_noncritical: number;
+    shed_noncritical: number;
+    quarantine_new_ingress: number;
+  };
+  conduit_outages_detected: number;
+  conduit_recoveries_started: number;
+  conduit_recoveries_completed: number;
 };
 
 function parseArgs(argv: string[]) {
@@ -133,6 +141,14 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     failed: 0,
     completed: 0,
     classifications: {},
+    queue_backpressure_actions: {
+      defer_noncritical: 0,
+      shed_noncritical: 0,
+      quarantine_new_ingress: 0,
+    },
+    conduit_outages_detected: 0,
+    conduit_recoveries_started: 0,
+    conduit_recoveries_completed: 0,
   };
 
   const divergences: { id: string; detail: string }[] = [];
@@ -165,6 +181,35 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         state.classifications[classification] = (state.classifications[classification] || 0) + 1;
       }
       state.failed += 1;
+    } else if (stage === 'queue_backpressure_action') {
+      if (state.routed <= 0) {
+        divergences.push({ id: 'queue_backpressure_without_route', detail: `event=${eventId}` });
+      }
+      const action = cleanText(((ev.payload as any)?.action as string) || '', 120);
+      if (
+        action !== 'defer_noncritical' &&
+        action !== 'shed_noncritical' &&
+        action !== 'quarantine_new_ingress'
+      ) {
+        divergences.push({ id: 'queue_backpressure_unknown_action', detail: `event=${eventId};action=${action || 'missing'}` });
+      } else {
+        state.queue_backpressure_actions[action] += 1;
+      }
+    } else if (stage === 'conduit_outage_detected') {
+      if (state.adapter_invoked <= 0) {
+        divergences.push({ id: 'conduit_outage_without_adapter_invocation', detail: `event=${eventId}` });
+      }
+      state.conduit_outages_detected += 1;
+    } else if (stage === 'conduit_recovery_started') {
+      if (state.conduit_outages_detected <= state.conduit_recoveries_started) {
+        divergences.push({ id: 'conduit_recovery_started_without_outage', detail: `event=${eventId}` });
+      }
+      state.conduit_recoveries_started += 1;
+    } else if (stage === 'conduit_recovery_completed') {
+      if (state.conduit_recoveries_started <= state.conduit_recoveries_completed) {
+        divergences.push({ id: 'conduit_recovery_completed_without_start', detail: `event=${eventId}` });
+      }
+      state.conduit_recoveries_completed += 1;
     } else if (stage === 'task_completed') {
       if (state.adapter_invoked <= 0) {
         divergences.push({ id: 'completion_without_adapter_invocation', detail: `event=${eventId}` });
@@ -210,6 +255,36 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     });
   }
 
+  if (state.conduit_outages_detected <= 0) {
+    divergences.push({ id: 'conduit_auto_heal_missing_outage_detection', detail: 'no conduit_outage_detected stage found' });
+  }
+  if (state.conduit_recoveries_started <= 0) {
+    divergences.push({ id: 'conduit_auto_heal_missing_recovery_start', detail: 'no conduit_recovery_started stage found' });
+  }
+  if (state.conduit_recoveries_completed <= 0) {
+    divergences.push({ id: 'conduit_auto_heal_missing_recovery_complete', detail: 'no conduit_recovery_completed stage found' });
+  }
+  if (state.conduit_recoveries_completed !== state.conduit_recoveries_started) {
+    divergences.push({
+      id: 'conduit_auto_heal_recovery_count_mismatch',
+      detail: `started=${state.conduit_recoveries_started};completed=${state.conduit_recoveries_completed}`,
+    });
+  }
+  if (state.conduit_recoveries_started > state.conduit_outages_detected) {
+    divergences.push({
+      id: 'conduit_auto_heal_recovery_exceeds_outage_count',
+      detail: `outages=${state.conduit_outages_detected};started=${state.conduit_recoveries_started}`,
+    });
+  }
+  for (const [action, count] of Object.entries(state.queue_backpressure_actions)) {
+    if (count <= 0) {
+      divergences.push({
+        id: 'queue_backpressure_action_missing',
+        detail: action,
+      });
+    }
+  }
+
   const report = {
     ok: divergences.length === 0,
     type: 'layer2_receipt_replay',
@@ -226,6 +301,18 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     final_state: state,
     final_transition_hash: previousTransitionHash,
     final_state_hash: stateHash(state),
+    auto_heal: {
+      outages_detected: state.conduit_outages_detected,
+      recoveries_started: state.conduit_recoveries_started,
+      recoveries_completed: state.conduit_recoveries_completed,
+      complete:
+        state.conduit_outages_detected > 0 &&
+        state.conduit_recoveries_started > 0 &&
+        state.conduit_recoveries_completed > 0 &&
+        state.conduit_recoveries_completed === state.conduit_recoveries_started &&
+        state.conduit_recoveries_started <= state.conduit_outages_detected,
+    },
+    queue_backpressure_actions: state.queue_backpressure_actions,
     transitions,
     divergences,
     failures: divergences,

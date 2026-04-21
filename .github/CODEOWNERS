@@ -4,7 +4,7 @@
 /client/config/ @jakerslam
 /client/lib/ @jakerslam
 /client/adaptive/ @jakerslam
-/.github/workflows/ @jakerslam
+/.github/workflows/ @jakerslam @protheuslabs/ops
 /drafts/ @jakerslam
 /notes/ @jakerslam
 /experiments/ @jakerslam

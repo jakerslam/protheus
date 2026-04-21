@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::contract_lane_utils as lane_utils;
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -415,4 +415,3 @@ fn verify_handle_sig(body: &str, sig_hex: &str, key: &str) -> bool {
     mac.update(body.as_bytes());
     mac.verify_slice(&sig).is_ok()
 }
-

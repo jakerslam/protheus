@@ -4,6 +4,7 @@ include!("predictive_defrag_parts/030-stress.rs");
 
 const PREDICTIVE_DEFRAG_SOFT_TRIGGER_PCT: f64 = 45.0;
 const PREDICTIVE_DEFRAG_HARD_TRIGGER_PCT: f64 = 65.0;
+const PREDICTIVE_DEFRAG_MAX_BUDGET_PER_HOUR_PCT: f64 = 25.0;
 
 pub fn normalize_predictive_defrag_budget_pct(raw_pct: f64) -> f64 {
     if raw_pct.is_finite() {
@@ -40,6 +41,26 @@ pub fn evaluate_predictive_defrag_contract(
         "defrag_contract_ok"
     };
     (pct, should_warn, should_block, reason)
+}
+
+pub fn normalize_predictive_defrag_budget_per_hour(raw_pct: f64) -> f64 {
+    normalize_predictive_defrag_budget_pct(raw_pct).min(PREDICTIVE_DEFRAG_MAX_BUDGET_PER_HOUR_PCT)
+}
+
+pub fn evaluate_predictive_defrag_budget_contract(
+    requested_budget_per_hour_pct: f64,
+) -> (f64, bool, bool, &'static str) {
+    let budget = normalize_predictive_defrag_budget_per_hour(requested_budget_per_hour_pct);
+    let should_warn = budget >= 20.0;
+    let should_block = budget > PREDICTIVE_DEFRAG_MAX_BUDGET_PER_HOUR_PCT;
+    let reason = if should_block {
+        "defrag_budget_exceeds_hard_cap"
+    } else if should_warn {
+        "defrag_budget_high_warn"
+    } else {
+        "defrag_budget_contract_ok"
+    };
+    (budget, should_warn, should_block, reason)
 }
 
 #[cfg(test)]

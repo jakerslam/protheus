@@ -1,4 +1,6 @@
 const MAX_DATE_SCAN_PATH_CHARS: usize = 1024;
+const MIN_VALID_DATE_YEAR: u32 = 1970;
+const MAX_VALID_DATE_YEAR: u32 = 2100;
 
 fn sanitize_path_for_date_scan(path_value: &str) -> Option<String> {
     let trimmed = path_value.trim();
@@ -52,6 +54,16 @@ fn parse_ascii_u32(chars: &[char]) -> Option<u32> {
     Some(value)
 }
 
+fn is_valid_extracted_date(year: u32, month: u32, day: u32) -> bool {
+    let max_day = max_day_for_month(year, month);
+    year >= MIN_VALID_DATE_YEAR
+        && year <= MAX_VALID_DATE_YEAR
+        && month >= 1
+        && month <= 12
+        && day >= 1
+        && day <= max_day
+}
+
 fn extract_date_from_path(path_value: &str) -> String {
     let Some(safe_path) = sanitize_path_for_date_scan(path_value) else {
         return String::new();
@@ -90,8 +102,25 @@ fn extract_date_from_path(path_value: &str) -> String {
             let year = parse_ascii_u32(&chars[idx..idx + 4]).unwrap_or(0);
             let month = parse_ascii_u32(&chars[idx + 5..idx + 7]).unwrap_or(0);
             let day = parse_ascii_u32(&chars[idx + 8..idx + 10]).unwrap_or(0);
-            let max_day = max_day_for_month(year, month);
-            if year >= 1970 && month >= 1 && month <= 12 && day >= 1 && day <= max_day {
+            if is_valid_extracted_date(year, month, day) {
+                return format!("{year:04}-{month:02}-{day:02}");
+            }
+        }
+    }
+    if chars.len() >= 8 {
+        for idx in 0..=(chars.len() - 8) {
+            let before_is_digit = idx > 0 && chars[idx - 1].is_ascii_digit();
+            let after_is_digit = idx + 8 < chars.len() && chars[idx + 8].is_ascii_digit();
+            if before_is_digit || after_is_digit {
+                continue;
+            }
+            if !chars[idx..idx + 8].iter().all(|ch| ch.is_ascii_digit()) {
+                continue;
+            }
+            let year = parse_ascii_u32(&chars[idx..idx + 4]).unwrap_or(0);
+            let month = parse_ascii_u32(&chars[idx + 4..idx + 6]).unwrap_or(0);
+            let day = parse_ascii_u32(&chars[idx + 6..idx + 8]).unwrap_or(0);
+            if is_valid_extracted_date(year, month, day) {
                 return format!("{year:04}-{month:02}-{day:02}");
             }
         }

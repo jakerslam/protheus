@@ -1,0 +1,42 @@
+{
+  "version": "2026-04-20",
+  "required_docs": [
+    {
+      "path": "docs/workspace/orchestration_ownership_policy.md",
+      "required_phrases": [
+        "Boundary Axiom",
+        "Core decides what is true and allowed.",
+        "Orchestration decides what should happen next.",
+        "Shell decides how it is shown and collected."
+      ]
+    },
+    {
+      "path": ".github/pull_request_template.md",
+      "required_phrases": [
+        "Ownership Placement Rationale",
+        "placement-test:core",
+        "placement-test:control-plane",
+        "placement-test:shell",
+        "placement-test:gateway"
+      ]
+    }
+  ],
+  "surface_script_import_boundary": {
+    "scan_root": "surface/orchestration/scripts",
+    "extensions": [
+      ".ts"
+    ],
+    "forbidden_import_prefixes": [
+      "client/",
+      "../client",
+      "../../client",
+      "../../../client",
+      "../../../../client",
+      "/client/",
+      "core/layer0/ops/src/",
+      "core/layer1/",
+      "core/layer2/"
+    ],
+    "allow_violations": []
+  }
+}

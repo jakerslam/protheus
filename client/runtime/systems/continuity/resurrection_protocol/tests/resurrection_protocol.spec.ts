@@ -40,6 +40,10 @@ assert.deepStrictEqual(
   mod.normalizeArgs(['\u200Bunknown', '--session-id=a']),
   ['status']
 );
+assert.deepStrictEqual(
+  mod.normalizeArgs(['checkpoint', '../escape', '--session-id=a']),
+  ['checkpoint', '--session-id=a']
+);
 assert.deepStrictEqual(mod.normalizeArgs([]), ['status']);
 
 const receipt = mod.ensureMutationReceipt({ payload: { ok: true, type: 'resurrection_protocol_checkpoint' } }, 'checkpoint');

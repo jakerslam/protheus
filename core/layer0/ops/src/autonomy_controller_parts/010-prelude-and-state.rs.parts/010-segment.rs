@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::contract_lane_utils as lane_utils;
 use crate::v8_kernel::{deterministic_merkle_root, write_receipt};
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 use base64::Engine as _;
 use serde_json::{json, Value};
 use std::fs;

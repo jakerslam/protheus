@@ -201,6 +201,5 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 }
 
 #[cfg(test)]
-#[path = "stock_market_collector_kernel_tests.rs"]
+#[path = "../stock_market_collector_kernel_tests.rs"]
 mod stock_market_collector_kernel_tests;
-

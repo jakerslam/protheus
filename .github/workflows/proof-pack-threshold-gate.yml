@@ -24,6 +24,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Generate proof-pack closure artifacts
+        run: |
+          npm run -s ops:runtime-proof:verify
+          npm run -s ops:layer2:parity:guard
+          npm run -s ops:layer2:receipt:replay
+          npm run -s ops:trusted-core:report
+          npm run -s ops:srs:same-revision:guard
+          npm run -s ops:srs:todo-section:guard
+          npm run -s ops:release:proof-pack -- --version=main-current
+
       - name: Run proof-pack threshold gate (dockerized)
         run: |
           npm run -s ops:proof-pack:gate:docker
@@ -35,6 +45,19 @@ jobs:
         with:
           name: proof-pack-threshold-artifacts
           path: |
+            core/local/artifacts/runtime_proof_verify_current.json
+            core/local/artifacts/runtime_proof_synthetic_canary_current.json
+            core/local/artifacts/runtime_proof_empirical_release_evidence_current.json
+            core/local/artifacts/runtime_proof_empirical_trends_current.json
+            core/local/state/ops/runtime_proof_empirical_history.jsonl
+            core/local/artifacts/layer2_lane_parity_guard_current.json
+            core/local/artifacts/layer2_receipt_replay_current.json
+            core/local/artifacts/runtime_trusted_core_report_current.json
+            core/local/artifacts/srs_same_revision_guard_current.json
+            core/local/artifacts/gateway_support_levels_current.json
+            core/local/artifacts/srs_todo_section_guard_current.json
+            core/local/artifacts/release_proof_pack_current.json
+            releases/proof-packs/main-current/**
             core/local/state/ops/top1_assurance/latest.json
             core/local/state/ops/top1_assurance/history.jsonl
             core/local/state/ops/top1_assurance/benchmark_latest.json

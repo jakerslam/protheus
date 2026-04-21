@@ -1,6 +1,11 @@
 include_parts!(
     "dashboard_provider_runtime_parts/010-state-and-registry.rs",
     "dashboard_provider_runtime_parts/020-provider-http-interop.rs",
+    "dashboard_provider_runtime_parts/022-provider-adapters.rs",
+    "dashboard_provider_runtime_parts/025-prompt-optimization.rs",
     "dashboard_provider_runtime_parts/028-scripted-chat-harness.rs",
     "dashboard_provider_runtime_parts/030-model-discovery-and-mutations.rs",
+    "dashboard_provider_runtime_parts/035-model-metadata-research.rs",
+    "dashboard_provider_runtime_parts/040-routing-policy.rs",
+    "dashboard_provider_runtime_parts/050-virtual-keys.rs",
 );

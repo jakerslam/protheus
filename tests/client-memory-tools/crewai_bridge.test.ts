@@ -9,7 +9,8 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const ts = require('typescript');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
+const ts = require('typescript');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 if (!require.extensions['.ts']) {
   require.extensions['.ts'] = function compileTs(module, filename) {
@@ -178,7 +179,11 @@ function run() {
   assert.strictEqual(status.reviews, 1);
   assert.strictEqual(status.traces, 1);
   assert.strictEqual(status.benchmarks, 1);
-  assert.strictEqual(status.model_routes, 1);\n  assertNoPlaceholderOrPromptLeak(status, 'crewai_bridge_test');\n  assertStableToolingEnvelope(status, 'crewai_bridge_test');\n  console.log(JSON.stringify({ ok: true, type: 'crewai_bridge_test' }));
+  assert.strictEqual(status.model_routes, 1);
+  assertNoPlaceholderOrPromptLeak(status, 'crewai_bridge_test');
+  assertStableToolingEnvelope(status, 'crewai_bridge_test');
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+  console.log(JSON.stringify({ ok: true, type: 'crewai_bridge_test' }));
 }
 
 run();

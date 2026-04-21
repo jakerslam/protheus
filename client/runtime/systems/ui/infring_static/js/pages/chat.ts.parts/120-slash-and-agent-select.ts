@@ -400,70 +400,48 @@
       });
     },
     shouldRenderMessage(msg, idx) {
-      // Reliability-first history visibility: never clip old turns out of view
-      // purely because thread length exceeded a render threshold.
+      void msg;
       void idx;
-      if (!msg || msg.is_notice) return true;
-      if (!this.currentAgent) return true;
       return true;
     },
+    messageEstimatedLineCount(msg) {
+      void msg;
+      return 0;
+    },
+    messagePlaceholderResolvedLineCount(msg, idx) {
+      void msg;
+      void idx;
+      return 1;
+    },
+    messagePlaceholderResolvedLineHeight(msg, idx) {
+      void msg;
+      void idx;
+      return 22;
+    },
+    messagePlaceholderStyle(msg, idx) {
+      void msg;
+      void idx;
+      return '';
+    },
+    messagePlaceholderLineIndices(msg, idx) {
+      void msg;
+      void idx;
+      return [0];
+    },
     forceMessageRender(msg, idx, ttlMs) {
-      if (!msg) return;
-      var id = this.messageDomId(msg, idx);
-      if (!id) return;
-      var ttl = Number(ttlMs || 0);
-      var until = Date.now() + (ttl > 0 ? ttl : 6000);
-      if (!this._forcedHydrateById || typeof this._forcedHydrateById !== 'object') {
-        this._forcedHydrateById = {};
-      }
-      this._forcedHydrateById[id] = until;
-      this.scheduleMessageRenderWindowUpdate();
+      void msg;
+      void idx;
+      void ttlMs;
+      return;
     },
     scheduleMessageRenderWindowUpdate(container) {
-      var self = this;
-      if (this._renderWindowRaf && typeof cancelAnimationFrame === 'function') {
-        cancelAnimationFrame(this._renderWindowRaf);
-        this._renderWindowRaf = 0;
-      }
-      var run = function() {
-        self._renderWindowRaf = 0;
-        self.updateMessageRenderWindow(container);
-      };
-      if (typeof requestAnimationFrame === 'function') {
-        this._renderWindowRaf = requestAnimationFrame(run);
-      } else {
-        setTimeout(run, 0);
-      }
+      void container;
+      this.messageHydration = {};
+      this._renderWindowRaf = 0;
+      return;
     },
     updateMessageRenderWindow(container) {
-      var el = this.resolveMessagesScroller(container || null);
-      if (!el || !this.currentAgent) return;
-      var viewportHeight = Number(el.clientHeight || 0);
-      if (!Number.isFinite(viewportHeight) || viewportHeight <= 0) return;
-      var minY = Math.max(0, el.scrollTop - viewportHeight);
-      var maxY = el.scrollTop + (viewportHeight * 2);
-      var next = {};
-      var blocks = el.querySelectorAll('.chat-message-block[data-msg-idx]');
-      for (var i = 0; i < blocks.length; i++) {
-        var block = blocks[i];
-        if (!block || !block.id) continue;
-        var top = Number(block.offsetTop || 0);
-        var height = Number(block.offsetHeight || 0);
-        if (!Number.isFinite(height) || height <= 0) height = 48;
-        var bottom = top + height;
-        if (bottom >= minY && top <= maxY) next[block.id] = true;
-      }
-      var now = Date.now();
-      var forced = this._forcedHydrateById || {};
-      Object.keys(forced).forEach(function(id) {
-        var until = Number(forced[id] || 0);
-        if (until > now) {
-          next[id] = true;
-        } else {
-          delete forced[id];
-        }
-      });
-      if (this.selectedMessageDomId) next[this.selectedMessageDomId] = true;
-      if (this.hoveredMessageDomId) next[this.hoveredMessageDomId] = true;
-      this.messageHydration = next;
+      void container;
+      this.messageHydration = {};
+      return;
     },

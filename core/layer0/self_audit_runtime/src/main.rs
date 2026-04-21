@@ -28,11 +28,18 @@ pub fn normalize_self_audit_subject(raw: &str) -> String {
     assim121_strip_invisible_unicode(raw)
         .chars()
         .filter(|ch| !ch.is_control() || *ch == '\n' || *ch == '\t')
+        .map(|ch| if ch.is_whitespace() { ' ' } else { ch })
         .collect::<String>()
-        .trim()
+        .split_whitespace()
+        .collect::<Vec<&str>>()
+        .join(" ")
         .chars()
         .take(MAX_SELF_AUDIT_SUBJECT_CHARS)
         .collect::<String>()
+}
+
+fn has_parent_segment(raw: &str) -> bool {
+    raw.split(['/', '\\']).any(|segment| segment.trim() == "..")
 }
 
 pub fn normalize_self_audit_subject_with_contract(
@@ -43,7 +50,7 @@ pub fn normalize_self_audit_subject_with_contract(
     if normalized.is_empty() {
         return (normalized, false, "self_audit_subject_empty_after_normalization");
     }
-    if strict_contract && (normalized.contains("..") || normalized.contains('\0')) {
+    if strict_contract && has_parent_segment(&normalized) {
         return (
             normalized,
             false,
@@ -68,7 +75,20 @@ pub fn classify_self_audit_error_kind(raw: &str) -> &'static str {
 
 pub fn should_retry_self_audit_transport_error(raw: &str) -> bool {
     let folded = normalize_self_audit_subject(raw).to_ascii_lowercase();
-    ["429", "timeout", "temporarily", "unavailable", "reset", "closed"]
+    [
+        "408",
+        "425",
+        "429",
+        "500",
+        "502",
+        "503",
+        "504",
+        "timeout",
+        "temporarily",
+        "unavailable",
+        "reset",
+        "closed",
+    ]
         .iter()
         .any(|needle| folded.contains(needle))
 }

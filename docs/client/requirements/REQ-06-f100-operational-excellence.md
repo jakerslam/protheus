@@ -2,7 +2,7 @@
 
 Version: 1.0  
 Date: 2026-03-05  
-Owner: Protheus Core (Rust TCB)
+Owner: Protheus Kernel (Rust TCB)
 
 ## Objective
 

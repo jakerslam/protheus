@@ -44,6 +44,12 @@ impl Layer0CountingAllocator {
             bytes_outstanding: BYTES_OUTSTANDING.load(Ordering::Relaxed),
         }
     }
+
+    pub fn accounting_consistent(snapshot: &AllocatorSnapshot) -> bool {
+        snapshot.bytes_requested >= snapshot.bytes_released
+            && snapshot.bytes_outstanding <= snapshot.bytes_requested
+            && snapshot.alloc_calls >= snapshot.alloc_failures
+    }
 }
 
 unsafe impl GlobalAlloc for Layer0CountingAllocator {

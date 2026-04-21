@@ -48,7 +48,7 @@ fn canonical_morphology(input: &str) -> String {
         "dynamic" | "dyn" => "dynamic".to_string(),
         "coalesce" | "coalesced" => "coalesced".to_string(),
         "static" | "stable" => "static".to_string(),
-        other => other.to_string(),
+        _ => "coalesced".to_string(),
     }
 }
 

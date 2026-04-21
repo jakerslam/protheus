@@ -166,6 +166,10 @@ fn ack_rules() -> &'static Vec<(MatchRule, Regex, Option<Regex>)> {
                 pattern: r"(?is)could(?:n't| not) extract (?:usable|reliable) findings.*search response came from https?://duckduckgo\.com/html/\?q=",
                 unless: Some(r"(?is)(?:key finding|sources?:|according to)"),
             },
+            MatchRule {
+                pattern: r"(?is)^\s*title:\s*.+\s+excerpt:\s*.+\s+(?:.*\s+){0,24}originalurl:\s*https?://",
+                unless: Some(r"(?is)(?:from web retrieval:|according to|source(?:s)?:)"),
+            },
         ];
         specs
             .into_iter()

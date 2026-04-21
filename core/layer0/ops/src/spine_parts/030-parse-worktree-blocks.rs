@@ -25,6 +25,14 @@ fn parse_worktree_blocks(raw: &str) -> Vec<(PathBuf, bool)> {
     out
 }
 
+fn hard_floor_gap_percent(free_percent: f64, hard_floor_percent: f64) -> f64 {
+    if free_percent >= hard_floor_percent {
+        0.0
+    } else {
+        hard_floor_percent - free_percent
+    }
+}
+
 fn execute_sleep_cleanup_with_mode(
     root: &Path,
     apply: bool,
@@ -345,6 +353,15 @@ fn execute_sleep_cleanup_with_mode(
             free_before_percent,
         )
     };
+    let hard_floor_gap_percent_before =
+        hard_floor_gap_percent(free_before_percent, policy.hard_free_floor_percent);
+    let hard_floor_gap_percent_after =
+        hard_floor_gap_percent(free_after_percent, policy.hard_free_floor_percent);
+    let hard_floor_recovered = if hard_floor_breach {
+        hard_floor_gap_percent_after == 0.0
+    } else {
+        true
+    };
 
     let ok = errors.is_empty();
     let payload = json!({
@@ -384,6 +401,9 @@ fn execute_sleep_cleanup_with_mode(
         "pressure_mode": {
             "active": pressure_mode,
             "hard_floor_breach": hard_floor_breach,
+            "hard_floor_gap_percent_before": hard_floor_gap_percent_before,
+            "hard_floor_gap_percent_after": hard_floor_gap_percent_after,
+            "hard_floor_recovered": hard_floor_recovered,
             "target_available_bytes": pressure_target_available_bytes,
             "reclaim_needed_bytes": pressure_reclaim_needed_bytes
         },
@@ -465,5 +485,16 @@ mod parse_worktree_blocks_tests {
         assert_eq!(rows.len(), 2);
         assert_eq!(rows[0], (PathBuf::from("/tmp/a"), true));
         assert_eq!(rows[1], (PathBuf::from("/tmp/b"), false));
+    }
+
+    #[test]
+    fn hard_floor_gap_percent_is_zero_when_floor_satisfied() {
+        assert_eq!(hard_floor_gap_percent(6.0, 5.0), 0.0);
+        assert_eq!(hard_floor_gap_percent(5.0, 5.0), 0.0);
+    }
+
+    #[test]
+    fn hard_floor_gap_percent_reports_shortfall() {
+        assert_eq!(hard_floor_gap_percent(2.5, 5.0), 2.5);
     }
 }

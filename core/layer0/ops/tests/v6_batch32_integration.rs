@@ -389,12 +389,13 @@ fn v6_batch32_observability_workflow_validates_schedule_and_compiles_step_traces
     assert!(response_actions
         .iter()
         .all(|row| row.as_str() != Some("page_oncall")));
-    let dispatched_providers = incident_latest
+    let dispatch_receipts = incident_latest
         .pointer("/incident/external_dispatch/receipts")
         .and_then(Value::as_array)
         .cloned()
-        .unwrap_or_default()
-        .iter()
+        .unwrap_or_default();
+    let dispatched_providers = dispatch_receipts
+        .into_iter()
         .filter_map(|row| row.get("provider").and_then(Value::as_str))
         .collect::<Vec<_>>();
     assert_eq!(dispatched_providers.len(), 2);

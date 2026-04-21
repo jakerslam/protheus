@@ -13,4 +13,4 @@ use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 use crate::contract_lane_utils as lane_utils;
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;

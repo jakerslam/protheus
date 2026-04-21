@@ -5,7 +5,7 @@
 - Current SRS status at packet creation: `blocked`
 - Impact: `9`
 - Layer map: `0/1/2/client`
-- Upgrade theme: [primitive-upgrade / V6] Mega Sprint 1 Public 50 Percent Rust Migration (8 Crates + Blobized Core Paths)
+- Upgrade theme: [primitive-upgrade / V6] Mega Sprint 1 Public 50 Percent Rust Migration (8 Crates + Blobized Kernel Paths)
 - Source section: External Requirements Intake (Mega Sprint 1: Public 50 Percent Visible Rust, 2026-03-03)
 
 ## Local Deliverables Completed

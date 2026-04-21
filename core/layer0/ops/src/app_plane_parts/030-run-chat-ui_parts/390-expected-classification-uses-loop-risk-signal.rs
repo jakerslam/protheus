@@ -16,6 +16,3 @@ fn chat_ui_expected_classification_uses_loop_risk_signal() {
     );
     assert_eq!(classification, "low_signal");
 }
-
-#[cfg(test)]
-#[test]

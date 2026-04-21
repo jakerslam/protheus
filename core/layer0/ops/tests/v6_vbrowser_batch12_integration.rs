@@ -460,11 +460,107 @@ fn v6_vbrowser_batch12_core_lanes_execute_with_receipts() {
     assert_eq!(
         screenshot_latest
             .get("map")
+            .and_then(|v| v.get("requested_delay_ms"))
+            .and_then(Value::as_u64),
+        Some(0)
+    );
+    assert_eq!(
+        screenshot_latest
+            .get("map")
             .and_then(|v| v.get("delay_ms"))
             .and_then(Value::as_u64),
         Some(0)
     );
+    assert_eq!(
+        screenshot_latest
+            .get("map")
+            .and_then(|v| v.get("delay_clamped"))
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        screenshot_latest
+            .get("map")
+            .and_then(|v| v.get("delay_source"))
+            .and_then(Value::as_str),
+        Some("delay-ms")
+    );
     assert_claim(&screenshot_latest, "V6-VBROWSER-002.2");
+
+    let screenshot_alias_exit = vbrowser_plane::run(
+        root,
+        &[
+            "screenshot".to_string(),
+            "--strict=1".to_string(),
+            "--session-id=batch12-vb".to_string(),
+            "--annotate=0".to_string(),
+            "--settle-ms=25".to_string(),
+        ],
+    );
+    assert_eq!(screenshot_alias_exit, 0);
+    let screenshot_alias_latest = read_json(&latest_path(root));
+    assert_eq!(
+        screenshot_alias_latest
+            .get("map")
+            .and_then(|v| v.get("requested_delay_ms"))
+            .and_then(Value::as_u64),
+        Some(25)
+    );
+    assert_eq!(
+        screenshot_alias_latest
+            .get("map")
+            .and_then(|v| v.get("delay_ms"))
+            .and_then(Value::as_u64),
+        Some(25)
+    );
+    assert_eq!(
+        screenshot_alias_latest
+            .get("map")
+            .and_then(|v| v.get("delay_clamped"))
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        screenshot_alias_latest
+            .get("map")
+            .and_then(|v| v.get("delay_source"))
+            .and_then(Value::as_str),
+        Some("settle-ms")
+    );
+
+    let screenshot_clamped_exit = vbrowser_plane::run(
+        root,
+        &[
+            "screenshot".to_string(),
+            "--strict=1".to_string(),
+            "--session-id=batch12-vb".to_string(),
+            "--annotate=0".to_string(),
+            "--delay-ms=50000".to_string(),
+        ],
+    );
+    assert_eq!(screenshot_clamped_exit, 0);
+    let screenshot_clamped_latest = read_json(&latest_path(root));
+    assert_eq!(
+        screenshot_clamped_latest
+            .get("map")
+            .and_then(|v| v.get("requested_delay_ms"))
+            .and_then(Value::as_u64),
+        Some(50_000)
+    );
+    assert_eq!(
+        screenshot_clamped_latest
+            .get("map")
+            .and_then(|v| v.get("delay_ms"))
+            .and_then(Value::as_u64),
+        Some(10_000)
+    );
+    assert_eq!(
+        screenshot_clamped_latest
+            .get("map")
+            .and_then(|v| v.get("delay_clamped"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
 
     let key_input_exit = vbrowser_plane::run(
         root,

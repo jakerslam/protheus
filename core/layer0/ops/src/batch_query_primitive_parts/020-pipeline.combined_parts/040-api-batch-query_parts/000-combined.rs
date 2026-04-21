@@ -1,3 +1,4 @@
+// Layer ownership: core/layer0/ops::batch-query-api (authoritative)
 
 pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     let started = Instant::now();

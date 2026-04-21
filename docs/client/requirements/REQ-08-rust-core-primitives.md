@@ -1,14 +1,14 @@
-# REQ-08: Rust-Core Primitive Source-Of-Truth Program
+# REQ-08: Rust-Kernel Primitive Source-Of-Truth Program
 
 Version: 1.0  
 Date: 2026-03-06  
-Owner: Protheus Core Kernel
+Owner: Protheus Kernel Kernel
 
 ## Objective
 
 Enforce Rust as the only source of truth for the seven core primitives required for portable, auditable, and substrate-swappable Protheus runtime.
 
-Core primitives:
+Kernel primitives:
 - `task`
 - `resource`
 - `isolation`

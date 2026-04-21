@@ -16,6 +16,13 @@ fn agent_create_cua_rejects_unsupported_execution_features() {
         created.payload.get("error").and_then(Value::as_str),
         Some("cua_unsupported_features")
     );
+    assert_eq!(
+        created
+            .payload
+            .get("validation_contract_version")
+            .and_then(Value::as_str),
+        Some("v1")
+    );
     let unsupported = created
         .payload
         .get("unsupported_features")
@@ -30,6 +37,20 @@ fn agent_create_cua_rejects_unsupported_execution_features() {
     assert!(unsupported.iter().any(|row| row == "excludeTools"));
     assert!(unsupported.iter().any(|row| row == "output schema"));
     assert!(unsupported.iter().any(|row| row == "variables"));
+    assert_eq!(
+        created
+            .payload
+            .get("unsupported_features_count")
+            .and_then(Value::as_u64),
+        Some(unsupported.len() as u64)
+    );
+    let signature = created
+        .payload
+        .get("unsupported_features_signature")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    assert!(signature.contains("streaming"));
+    assert!(signature.contains("variables"));
 }
 
 #[test]
@@ -46,6 +67,104 @@ fn agent_create_cua_accepts_minimal_payload() {
     .expect("create cua agent");
     assert_eq!(created.status, 200);
     assert_eq!(created.payload.get("ok").and_then(Value::as_bool), Some(true));
+}
+
+#[test]
+fn agent_create_cua_rejects_unsupported_execution_feature_aliases() {
+    let root = agent_create_temp_root();
+    init_git_repo(root.path());
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"mode":"cua","streaming":true,"abortSignal":{"id":"sig-1"},"messageContinuation":[{"role":"user","content":"hi"}],"outputSchema":{"type":"json"},"responseFormat":{"type":"json_schema"},"variablesJson":{"city":"SF"}}"#,
+        &agent_create_ok_snapshot(),
+    )
+    .expect("create cua agent");
+    assert_eq!(created.status, 400);
+    assert_eq!(
+        created.payload.get("error").and_then(Value::as_str),
+        Some("cua_unsupported_features")
+    );
+    let unsupported = created
+        .payload
+        .get("unsupported_features")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|row| row.as_str().map(ToString::to_string))
+        .collect::<Vec<_>>();
+    assert!(unsupported.iter().any(|row| row == "streaming"));
+    assert!(unsupported.iter().any(|row| row == "abort signal"));
+    assert!(unsupported.iter().any(|row| row == "message continuation"));
+    assert!(unsupported.iter().any(|row| row == "output schema"));
+    assert!(unsupported.iter().any(|row| row == "variables"));
+}
+
+#[test]
+fn agent_create_cua_rejects_malformed_scalar_unsupported_feature_forms() {
+    let root = agent_create_temp_root();
+    init_git_repo(root.path());
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"mode":"cua","excludeTools":"web_search","variables":"city=SF","exclude_tools":"fallback_tool"}"#,
+        &agent_create_ok_snapshot(),
+    )
+    .expect("create cua agent");
+    assert_eq!(created.status, 400);
+    assert_eq!(
+        created.payload.get("error").and_then(Value::as_str),
+        Some("cua_unsupported_features")
+    );
+    let unsupported = created
+        .payload
+        .get("unsupported_features")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|row| row.as_str().map(ToString::to_string))
+        .collect::<Vec<_>>();
+    assert!(unsupported.iter().any(|row| row == "excludeTools"));
+    assert!(unsupported.iter().any(|row| row == "variables"));
+}
+
+#[test]
+fn agent_create_cua_rejects_malformed_stream_flag_forms() {
+    let root = agent_create_temp_root();
+    init_git_repo(root.path());
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"mode":"cua","stream":"true","streaming":{"enabled":true}}"#,
+        &agent_create_ok_snapshot(),
+    )
+    .expect("create cua agent");
+    assert_eq!(created.status, 400);
+    assert_eq!(
+        created.payload.get("error").and_then(Value::as_str),
+        Some("cua_unsupported_features")
+    );
+    let unsupported = created
+        .payload
+        .get("unsupported_features")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|row| row.as_str().map(ToString::to_string))
+        .collect::<Vec<_>>();
+    assert!(unsupported.iter().any(|row| row == "streaming"));
+    let signature = created
+        .payload
+        .get("unsupported_features_signature")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    assert!(signature.contains("streaming"));
 }
 
 #[test]

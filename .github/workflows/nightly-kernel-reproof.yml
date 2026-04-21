@@ -32,6 +32,10 @@ jobs:
           cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- \
             top1-assurance proof-coverage --strict=1 --check-toolchains=0 --execute-proofs=1
 
+      - name: Run scheduled empirical runtime proof (rich + pure + tiny-max)
+        run: |
+          npm run -s ops:runtime-proof:verify -- --proof-track=empirical --profile=all
+
       - name: Upload nightly proof artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -42,4 +46,15 @@ jobs:
             proofs/layer0/core_formal_coverage_map.json
             core/local/state/ops/top1_assurance/latest.json
             core/local/state/ops/top1_assurance/history.jsonl
+            core/local/artifacts/runtime_proof_verify_current.json
+            core/local/artifacts/runtime_proof_harness_rich_current.json
+            core/local/artifacts/runtime_proof_harness_pure_current.json
+            core/local/artifacts/runtime_proof_harness_tiny-max_current.json
+            core/local/artifacts/runtime_proof_release_gate_rich_current.json
+            core/local/artifacts/runtime_proof_release_gate_pure_current.json
+            core/local/artifacts/runtime_proof_release_gate_tiny-max_current.json
+            core/local/artifacts/runtime_proof_synthetic_canary_current.json
+            core/local/artifacts/runtime_proof_empirical_release_evidence_current.json
+            core/local/artifacts/runtime_proof_empirical_trends_current.json
+            core/local/state/ops/runtime_proof_empirical_history.jsonl
           if-no-files-found: warn

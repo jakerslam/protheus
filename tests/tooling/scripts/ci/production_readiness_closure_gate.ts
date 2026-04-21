@@ -44,6 +44,11 @@ type Policy = {
   standing_regression_guards?: {
     client_authority_gate_id?: string;
   };
+  release_evidence_flow?: {
+    scorecard_stage?: 'prebundle' | 'final' | string;
+    final_closure_stage?: 'prebundle' | 'final' | string;
+    support_bundle_precedes_final_closure?: boolean;
+  };
 };
 
 const ROOT = process.cwd();
@@ -258,7 +263,24 @@ function checkReleaseEvidence(policy: Policy, args: Args): Check[] {
   const rcRehearsal = readJson<any>(args.rcRehearsalPath, {});
   const clientBoundary = readJson<any>(args.clientBoundaryPath, {});
   const thresholds = policy.numeric_thresholds || {};
+  const releaseEvidenceFlow = policy.release_evidence_flow || {};
+  const requiredScorecardStage = String(releaseEvidenceFlow.scorecard_stage || 'prebundle')
+    .trim()
+    .toLowerCase();
+  const requiredFinalStage = String(releaseEvidenceFlow.final_closure_stage || 'final')
+    .trim()
+    .toLowerCase();
+  const requireBundleBeforeFinal = releaseEvidenceFlow.support_bundle_precedes_final_closure !== false;
   const finalStage = args.stage === 'final';
+  const scorecardStage = String(scorecard?.stage || '').trim().toLowerCase();
+  const bundledScorecard = supportBundle?.closure_evidence?.release_scorecard || null;
+  const bundledScorecardStage = String(bundledScorecard?.stage || '').trim().toLowerCase();
+  const scorecardGeneratedAtMs = Date.parse(
+    String(scorecard?.generated_at || bundledScorecard?.generated_at || ''),
+  );
+  const supportBundleGeneratedAtMs = Date.parse(String(supportBundle?.generated_at || ''));
+  const finalClosureFlowStage =
+    args.stage === 'final' || args.stage === requiredFinalStage;
   const requiredRcStepIds = Array.isArray(policy.release_candidate_rehearsal?.required_step_gate_ids)
     ? policy.release_candidate_rehearsal?.required_step_gate_ids || []
     : [];
@@ -343,6 +365,44 @@ function checkReleaseEvidence(policy: Policy, args: Args): Check[] {
   ];
   const clientBoundaryOk = clientBoundary?.summary?.pass === true || clientBoundary?.ok === true;
   return [
+    {
+      id: 'release_evidence_flow_stage_matches_policy',
+      ok: args.stage === requiredScorecardStage || args.stage === requiredFinalStage,
+      detail:
+        `invoked_stage=${args.stage};required_scorecard_stage=${requiredScorecardStage};` +
+        `required_final_stage=${requiredFinalStage}`,
+    },
+    {
+      id: 'release_evidence_flow_scorecard_stage_prebundle',
+      ok:
+        !finalClosureFlowStage ||
+        (scorecardStage === requiredScorecardStage &&
+          bundledScorecardStage === requiredScorecardStage),
+      detail:
+        !finalClosureFlowStage
+          ? `stage=${args.stage};prebundle_scorecard_enforced_on_final_stage_only`
+          : `scorecard_stage=${scorecardStage || 'missing'};` +
+            `bundled_scorecard_stage=${bundledScorecardStage || 'missing'};` +
+            `required=${requiredScorecardStage}`,
+    },
+    {
+      id: 'release_evidence_flow_support_bundle_precedes_final_closure',
+      ok:
+        !finalClosureFlowStage ||
+        !requireBundleBeforeFinal ||
+        (fs.existsSync(args.supportBundlePath) &&
+          Number.isFinite(scorecardGeneratedAtMs) &&
+          Number.isFinite(supportBundleGeneratedAtMs) &&
+          scorecardGeneratedAtMs <= supportBundleGeneratedAtMs),
+      detail:
+        !finalClosureFlowStage
+          ? `stage=${args.stage};support_bundle_ordering_enforced_on_final_stage_only`
+          : !requireBundleBeforeFinal
+          ? 'policy_support_bundle_precedes_final_closure=false'
+          : `scorecard_generated_at=${Number.isFinite(scorecardGeneratedAtMs) ? scorecardGeneratedAtMs : 'missing'};` +
+            `support_bundle_generated_at=${Number.isFinite(supportBundleGeneratedAtMs) ? supportBundleGeneratedAtMs : 'missing'};` +
+            `support_bundle_present=${fs.existsSync(args.supportBundlePath)}`,
+    },
     {
       id: 'release_scorecard_numeric_thresholds',
       ok: scorecard?.ok === true,

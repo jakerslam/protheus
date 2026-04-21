@@ -97,7 +97,7 @@ pub fn execution_state_for(
     }
 }
 
-pub fn progress_message(plan: &OrchestrationPlan) -> String {
+pub fn build_progress_projection(plan: &OrchestrationPlan) -> String {
     let posture = format!("{:?}", plan.posture).to_lowercase();
     let status = format!("{:?}", plan.execution_state.plan_status).to_lowercase();
     format!(
@@ -108,6 +108,11 @@ pub fn progress_message(plan: &OrchestrationPlan) -> String {
         plan.needs_clarification,
         plan.selected_plan.confidence
     )
+}
+
+// Compatibility alias during control-plane naming transition.
+pub fn progress_message(plan: &OrchestrationPlan) -> String {
+    build_progress_projection(plan)
 }
 
 fn observed_plan_status(

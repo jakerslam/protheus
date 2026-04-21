@@ -169,12 +169,27 @@ fn handle_global_post_delete_routes(
                     root.join(candidate)
                 })
             };
+            let sources = clean_text(
+                request
+                    .get("sources")
+                    .or_else(|| request.get("sources_csv"))
+                    .or_else(|| request.get("sourcesCsv"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                4_000,
+            );
+            let sources_opt = if sources.is_empty() {
+                None
+            } else {
+                Some(sources.as_str())
+            };
             let payload = match crate::action_receipts_kernel::query_task_lineage(
                 root,
                 &task_id,
                 trace_opt,
                 limit,
                 scan_root_path.as_deref(),
+                sources_opt,
             ) {
                 Ok(out) => out,
                 Err(err) => {

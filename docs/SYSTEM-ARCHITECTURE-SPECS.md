@@ -9,7 +9,7 @@ Define the permanent layered architecture that supports:
 - and expansion into a full traditional operating system,
 while preserving strict upward-only information flow.
 
-## 2. Core Principles (Non-Negotiable)
+## 2. Kernel Principles (Non-Negotiable)
 - Strict upward-only information flow: lower layers may emit to higher layers only.
 - Layer 0 is sacred and immutable: no contract or invariant weakening.
 - Two template layers:
@@ -63,7 +63,7 @@ Cognition Plane (Orchestration Control Plane + Presentation Shell)
 - Orchestration Control Plane (`surface/orchestration/`) owns decomposition, coordination, sequencing, recovery, and result shaping/packaging (among other things in non-canonical coordination).
 - Presentation Shell (compat alias: Client, repo path `client/`) owns rendering, input, shell UX, and presentation-local state.
 - Cognition can propose/assist; cannot become root-of-correctness.
-- Core boundary crossing remains contract-driven through conduit + scrambler.
+- Kernel boundary crossing remains contract-driven through conduit + scrambler.
 
 Transition note:
 - This document now uses Control Plane terminology for `surface/orchestration/`.

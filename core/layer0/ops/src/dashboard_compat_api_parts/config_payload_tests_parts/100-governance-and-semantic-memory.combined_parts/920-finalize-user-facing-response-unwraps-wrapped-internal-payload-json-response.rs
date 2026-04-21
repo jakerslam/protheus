@@ -15,6 +15,5 @@ fn finalize_user_facing_response_unwraps_wrapped_internal_payload_json_response(
     assert!(!finalized.contains("agent_id"));
 }
 
-include!("030-part.tail.rs");
 
 #[test]

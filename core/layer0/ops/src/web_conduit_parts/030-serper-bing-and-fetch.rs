@@ -1,3 +1,4 @@
+// Layer ownership: core/layer0/ops::web-conduit-provider-parsers (authoritative)
 fn render_serper_payload(
     body: &str,
     allowed_domains: &[String],
@@ -395,6 +396,33 @@ fn search_bing_fallback_reason(
         duck_chain_low_signal,
         trigger_provider,
     )
+}
+
+fn search_provider_failure_mode(
+    ok: bool,
+    query_mismatch_only_failure: bool,
+    challenge_like_failure: bool,
+    tool_surface_status: &str,
+    tool_surface_ready: bool,
+    attempted_provider_count: usize,
+) -> &'static str {
+    if ok {
+        "none"
+    } else if query_mismatch_only_failure {
+        "query_result_mismatch"
+    } else if challenge_like_failure {
+        "challenge_or_low_signal_response"
+    } else if tool_surface_status == "unavailable" {
+        "tool_surface_unavailable"
+    } else if tool_surface_status == "degraded"
+        && (attempted_provider_count == 0 || !tool_surface_ready)
+    {
+        "tool_surface_degraded"
+    } else if attempted_provider_count == 0 {
+        "provider_chain_not_attempted"
+    } else {
+        "provider_chain_exhausted"
+    }
 }
 
 fn fetch_with_curl(

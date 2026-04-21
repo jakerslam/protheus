@@ -4,6 +4,7 @@ use base64::Engine;
 use protheus_mobile_core_v1::{run_mobile_cycle, run_mobile_cycle_json};
 use std::env;
 use std::fs;
+use std::path::{Component, Path};
 
 const MAX_ARG_KEY_LEN: usize = 64;
 const MAX_ARG_VALUE_LEN: usize = 16_384;
@@ -65,6 +66,23 @@ fn parse_arg(args: &[String], key: &str) -> Option<String> {
     None
 }
 
+fn is_safe_request_file_path(raw: &str) -> bool {
+    let path = Path::new(raw);
+    if raw.is_empty() || path.is_dir() {
+        return false;
+    }
+    if path
+        .components()
+        .any(|component| matches!(component, Component::ParentDir))
+    {
+        return false;
+    }
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.eq_ignore_ascii_case("json"))
+        .unwrap_or(false)
+}
+
 fn load_request(args: &[String]) -> Result<String, String> {
     if let Some(v) = parse_arg(args, "--request-json") {
         return normalize_request_payload(v.as_str());
@@ -87,8 +105,14 @@ fn load_request(args: &[String]) -> Result<String, String> {
         if path.is_empty() {
             return Err("request_file_path_empty".to_string());
         }
+        if !is_safe_request_file_path(path.as_str()) {
+            return Err("request_file_path_invalid".to_string());
+        }
         let metadata =
             fs::metadata(path.as_str()).map_err(|e| format!("request_file_stat_failed:{e}"))?;
+        if !metadata.is_file() {
+            return Err("request_file_not_a_file".to_string());
+        }
         if metadata.len() > MAX_REQUEST_BYTES as u64 {
             return Err("request_too_large".to_string());
         }

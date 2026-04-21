@@ -43,6 +43,3 @@ fn chat_ui_retry_plan_for_guard(
         }),
     }
 }
-
-#[cfg(test)]
-#[test]

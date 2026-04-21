@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use crate::contract_lane_utils as lane_utils;
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 
 const DEFAULT_STATE_REL: &str = "local/state/ops/llamaindex_bridge/latest.json";
 const DEFAULT_HISTORY_REL: &str = "local/state/ops/llamaindex_bridge/history.jsonl";

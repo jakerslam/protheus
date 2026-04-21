@@ -398,6 +398,25 @@ fn run_turn_workflow_final_response(
         .and_then(Value::as_bool)
         .unwrap_or(false);
     if !required {
+        let draft_fallback = sanitize_workflow_final_response_candidate(
+            &strip_internal_cache_control_markup(&strip_internal_context_metadata_prefix(
+                draft_response,
+            )),
+        );
+        let latest_assistant_fallback = sanitize_workflow_final_response_candidate(
+            &strip_internal_cache_control_markup(&strip_internal_context_metadata_prefix(
+                latest_assistant_text,
+            )),
+        );
+        let fallback_response = if !draft_fallback.is_empty() {
+            draft_fallback
+        } else {
+            latest_assistant_fallback
+        };
+        if !fallback_response.is_empty() {
+            workflow["response"] = Value::String(fallback_response);
+            workflow["final_llm_response"]["fallback_from_existing_draft"] = Value::Bool(true);
+        }
         workflow["final_llm_response"]["attempted"] = Value::Bool(false); workflow["final_llm_response"]["used"] = Value::Bool(false);
         workflow["final_llm_response"]["status"] = Value::String("skipped_not_required".to_string());
         set_turn_workflow_final_stage_status(&mut workflow, "skipped_not_required");

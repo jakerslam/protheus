@@ -8,6 +8,7 @@ include!("030-run-chat-ui_parts/070-turn-tool-decision-tree.rs");
 include!("030-run-chat-ui_parts/080-tool-gate-system-prompt.rs");
 include!("030-run-chat-ui_parts/090-has-explicit-web-intent.rs");
 include!("030-run-chat-ui_parts/100-is-meta-diagnostic-request.rs");
+include!("030-run-chat-ui_parts/105-inline-tool-call-and-claim-evidence-guards.rs");
 include!("030-run-chat-ui_parts/110-requests-live-web.rs");
 include!("030-run-chat-ui_parts/120-extract-web-query.rs");
 include!("030-run-chat-ui_parts/130-query-alignment-terms.rs");

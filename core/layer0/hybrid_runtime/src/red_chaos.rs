@@ -58,7 +58,7 @@ pub fn sample_report(cycles: u32) -> serde_json::Value {
     let elapsed = start.elapsed();
     let micros = elapsed.as_micros() as f64;
     let throughput = if micros <= 0.0 || !micros.is_finite() {
-        effective_cycles as f64
+        0.0
     } else {
         (effective_cycles as f64) / (micros / 1_000_000.0)
     };

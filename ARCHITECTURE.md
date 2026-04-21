@@ -1,16 +1,16 @@
 # InfRing Architecture
 
-InfRing is built as a Rust-first deterministic core with an explicit split between:
-- Authoritative Core (`core/**`)
+InfRing is built as a Rust-first deterministic Kernel runtime with an explicit split between:
+- Authoritative Kernel (`core/**`)
 - Orchestration Control Plane (`surface/orchestration/**`)
 - Presentation Shell (compat alias: Client, repo path `client/**`)
 
 Canonical architecture contract:
 - `docs/SYSTEM-ARCHITECTURE-SPECS.md` (InfRing Layering Specification v1.0)
-- `docs/workspace/orchestration_ownership_policy.md` (Core/Orchestration/Shell boundary policy)
+- `docs/workspace/orchestration_ownership_policy.md` (Kernel/Orchestration/Shell boundary policy)
 
 Boundary axiom:
-- Core decides what is true and allowed.
+- Kernel decides what is true and allowed.
 - Orchestration decides what should happen next.
 - Shell decides how it is shown and collected.
 
@@ -44,22 +44,22 @@ InfRing is explicitly modeled as a substrate-independent metakernel with three p
 3. Substrate plane (`planes/substrate`): runtime/backend descriptors for CPU/MCU/GPU/NPU/QPU/neural channels with explicit degradation contracts and fallback declarations.
 
 Hard boundary:
-- AI can propose; kernel authority decides.
-- Shell <-> core communication is conduit + scrambler only.
+- AI can propose; Kernel authority decides.
+- Shell <-> Kernel communication is conduit + scrambler only.
 - Every substrate must declare fallback/degradation behavior.
 
 Formal contract surfaces:
 - Boundary/formal specs: `planes/spec/`
 - Inter-plane contract schemas: `planes/contracts/`
 
-## Core Stack Contract
+## Kernel Stack Contract
 
-The deterministic core stack is now explicitly layered and growth-safe:
+The deterministic Kernel stack is now explicitly layered and growth-safe:
 
 - Layer 0 is immutable and proof-preserving.
 - Layer -1 is where exotic hardware paradigms are adapted into standard envelopes.
 - Layer 3 is where full OS personality capabilities grow (processes, VFS, drivers, syscalls, namespaces, windowing, networking).
-- Cognition remains outside numbered core layers and never becomes root-of-correctness.
+- Cognition remains outside numbered Kernel layers and never becomes root-of-correctness.
 - Executable wrappers:
   - Layer -1 exotic base wrapper: `core/layer_minus_one/exotic_wrapper`
   - Layer 3 full OS extension wrapper: `core/layer3/os_extension_wrapper`
@@ -69,7 +69,7 @@ Driver analogy:
 - `core/` is the drivetrain, brakes, and stability control.
 - `surface/orchestration/` is the driving control plane (decomposition + pacing + recovery + packaging).
 - `client/` is the shell surface (steering wheel, dashboard, and infotainment).
-- Conduit is the harness between orchestration and core boundaries.
+- Conduit is the harness between orchestration and Kernel boundaries.
 
 REQ-27 authority implementation:
 
@@ -109,7 +109,7 @@ Additional split rules:
 ## Direct Wiring Policy
 
 - Deprecated compat surfaces (`client/runtime/state`, root `state/`, root `local/`) are not valid runtime paths.
-- Shell wrappers must call core through conduit/scrambler only; no policy authority exists in TS compatibility shells.
+- Shell wrappers must call Kernel authority through conduit/scrambler only; no policy authority exists in TS compatibility shells.
 - Migration tooling may provide one-time compatibility options, but defaults are direct to canonical roots.
 - Canonical path constants are centralized in:
   - TS: `client/runtime/lib/runtime_path_registry.ts`
@@ -233,7 +233,7 @@ Runtime subsystem ownership, interfaces, failure modes, and lane links are track
 
 1. A command enters from CLI or the Presentation Shell.
 2. Orchestration Control Plane decomposes, coordinates, sequences, recovers, and shapes/packages results through explicit contracts.
-3. Conduit normalizes the core-bound request into a typed envelope.
+3. Conduit normalizes the Kernel-bound request into a typed envelope.
 4. Layer 3 maps envelope into deterministic execution intents.
 5. Layer 2 schedules execution; Layer 1 enforces policy/receipts.
 6. Layer 0 evaluates constitution/safety gates and binds receipts to safety state.
@@ -243,7 +243,7 @@ Runtime subsystem ownership, interfaces, failure modes, and lane links are track
 ## Portability Contract
 
 - With TS present: conduit-backed control-plane orchestration and rich operator surfaces.
-- Without TS: Rust core still runs with no kernel behavior drift.
+- Without TS: Rust Kernel runtime still runs with no behavior drift.
 
 ## Related Docs
 

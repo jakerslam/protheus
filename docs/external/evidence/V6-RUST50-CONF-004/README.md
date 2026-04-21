@@ -8,7 +8,7 @@
 
 ## Upgrade Theme
 
-[primitive-upgrade / V6] Mega Sprint 1 Public 50 Percent Rust Migration (8 Crates + Blobized Core Paths)
+[primitive-upgrade / V6] Mega Sprint 1 Public 50 Percent Rust Migration (8 Crates + Blobized Kernel Paths)
 
 ## Evidence Summary
 

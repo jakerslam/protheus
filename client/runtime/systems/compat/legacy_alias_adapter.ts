@@ -41,6 +41,15 @@ function sanitizeArg(value) {
     .slice(0, MAX_ARG_LEN);
 }
 
+function isUnsafeToken(token) {
+  return (
+    token.includes('..') ||
+    token.includes('\0') ||
+    token.startsWith('/') ||
+    token.startsWith('\\')
+  );
+}
+
 function normalizeLaneId(raw, fallback = DEFAULT_LANE) {
   const v = sanitizeArg(raw || '')
     .toUpperCase()
@@ -51,7 +60,10 @@ function normalizeLaneId(raw, fallback = DEFAULT_LANE) {
 
 function parseArgs(argv = []) {
   const args = Array.isArray(argv)
-    ? argv.map((row) => sanitizeArg(row)).filter(Boolean).slice(0, MAX_ARGS)
+    ? argv
+        .map((row) => sanitizeArg(row))
+        .filter((row) => row && !isUnsafeToken(row))
+        .slice(0, MAX_ARGS)
     : [];
   let laneId = '';
   let scriptPath = '';
@@ -115,9 +127,13 @@ function normalizeBridgePayload(payload, laneId) {
     return payload;
   }
   const out = Object.assign({}, payload);
+  if (typeof out.type !== 'string' || !out.type.trim()) {
+    out.type = 'legacy_alias_adapter';
+  }
   if (typeof out.lane_id !== 'string' || !out.lane_id.trim()) {
     out.lane_id = laneId;
   }
+  out.lane_id = normalizeLaneId(out.lane_id, laneId);
   if (typeof out.receipt_hash !== 'string' || !out.receipt_hash.trim()) {
     out.receipt_hash = normalizeReceiptHash(out);
   }
@@ -126,7 +142,10 @@ function normalizeBridgePayload(payload, laneId) {
 
 function runBridge(laneId, argv = []) {
   const args = Array.isArray(argv)
-    ? argv.map((v) => sanitizeArg(v)).filter(Boolean).slice(0, MAX_ARGS)
+    ? argv
+        .map((v) => sanitizeArg(v))
+        .filter((row) => row && !isUnsafeToken(row))
+        .slice(0, MAX_ARGS)
     : [];
   const out = bridge.run([`--lane-id=${laneId}`].concat(args));
   if (out && out.stdout) process.stdout.write(out.stdout);

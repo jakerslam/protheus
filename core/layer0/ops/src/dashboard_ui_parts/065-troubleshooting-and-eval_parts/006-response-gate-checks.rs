@@ -124,6 +124,8 @@ fn dashboard_response_gate_checks(response_gate: &Value) -> Value {
         "tooling_response_gate_retry_contract_expected_lane_class_consistent": response_gate_bool("/retry_contract_expected_lane_class_consistent", true),
         "tooling_response_gate_retry_after_seconds_consistent": response_gate_bool("/retry_after_seconds_consistent", true),
         "tooling_response_gate_retry_after_seconds_non_negative": response_gate_bool("/retry_after_seconds_non_negative", true),
+        "tooling_response_gate_web_called_during_local_intent": response_gate_bool("/web_called_during_local_intent", false),
+        "tooling_response_gate_no_web_for_local_intent": !response_gate_bool("/web_called_during_local_intent", false),
         "tooling_response_gate_contract_consistent": response_gate_bool("/contract_consistent", true)
     })
 }

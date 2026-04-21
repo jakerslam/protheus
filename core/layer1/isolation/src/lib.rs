@@ -5,7 +5,7 @@ const MAX_CAPABILITY_NAME_LEN: usize = 96;
 const MAX_CAPABILITIES: usize = 256;
 
 fn sanitize_capability_name(input: &str) -> String {
-    input
+    let filtered: String = input
         .chars()
         .filter(|c| {
             !matches!(
@@ -19,7 +19,13 @@ fn sanitize_capability_name(input: &str) -> String {
         .to_lowercase()
         .chars()
         .take(MAX_CAPABILITY_NAME_LEN)
-        .collect()
+        .filter(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-' | ':'))
+        .collect();
+    if filtered.contains("..") || filtered.contains("//") || filtered.starts_with('.') {
+        String::new()
+    } else {
+        filtered
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

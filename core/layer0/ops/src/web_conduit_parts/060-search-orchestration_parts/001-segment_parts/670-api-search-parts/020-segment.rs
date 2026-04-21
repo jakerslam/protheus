@@ -182,10 +182,20 @@
     let top_k = resolve_search_count(request, &policy);
     let timeout_ms = resolve_search_timeout_ms(request, &policy);
     let scoped_query = scoped_search_query(&query, &allowed_domains, exclude_subdomains);
-    let summary_only = request
-        .get("summary_only")
-        .or_else(|| request.get("summary"))
-        .and_then(Value::as_bool)
+    let summary_only = ["summary_only", "summaryOnly", "summary-only", "summary"]
+        .iter()
+        .filter_map(|key| request.get(*key))
+        .find_map(|value| {
+            if let Some(flag) = value.as_bool() {
+                return Some(flag);
+            }
+            value.as_str().map(|raw| {
+                matches!(
+                    raw.trim().to_ascii_lowercase().as_str(),
+                    "1" | "true" | "yes" | "on"
+                )
+            })
+        })
         .unwrap_or(false);
     let human_approved = request
         .get("human_approved")

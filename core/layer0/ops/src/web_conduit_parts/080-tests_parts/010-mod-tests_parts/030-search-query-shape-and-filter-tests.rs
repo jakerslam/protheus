@@ -59,6 +59,25 @@
     }
 
     #[test]
+    fn search_summary_only_aliases_are_explicit_opt_in() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out = api_search(
+            tmp.path(),
+            &json!({"query": "example domain", "summaryOnly": "true"}),
+        );
+        assert!(out.get("receipt").is_some());
+        assert_eq!(
+            out.get("type").and_then(Value::as_str),
+            Some("web_conduit_search")
+        );
+        assert_eq!(
+            out.get("ok").and_then(Value::as_bool),
+            Some(true),
+            "summaryOnly alias should be accepted as explicit opt-in, not treated as unknown/no-op"
+        );
+    }
+
+    #[test]
     fn api_search_rejects_unknown_explicit_provider() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let out = api_search(

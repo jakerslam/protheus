@@ -10,7 +10,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use crate::contract_lane_utils as lane_utils;
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 
 const DEFAULT_REL_PATH: &str = "sensory/eyes/focus_triggers.json";
 const MUTATION_LOG_REL: &str = "client/runtime/local/state/security/adaptive_mutations.jsonl";

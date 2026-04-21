@@ -1,6 +1,6 @@
 # RSI Loop: Shadow Conclave Gate
 
-The RSI self-modification path now runs a mandatory Core-5 Shadow Conclave review before any `--apply=1` mutation.
+The RSI self-modification path now runs a mandatory Kernel-5 Shadow Conclave review before any `--apply=1` mutation.
 
 ## Conclave Hook
 

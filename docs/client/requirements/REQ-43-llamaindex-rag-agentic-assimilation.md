@@ -31,7 +31,7 @@ Out of scope:
 
 This intake must obey repository placement policy.
 
-- Core authority remains in `core/`
+- Kernel authority remains in `core/`
 - Thin runtime/operator surfaces remain in `client/runtime/systems/**`
 - Connectors and ingestion bridges live in `adapters/`
 - Optional demos or explorer shells may exist in `apps/`, but only as deletable, non-authoritative surfaces

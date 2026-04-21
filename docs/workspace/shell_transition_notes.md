@@ -19,7 +19,7 @@ Use `Shell` as the canonical presentation-layer term across architecture and ope
 2. Any path references remain unchanged unless an explicit migration task is approved.
 3. Where ambiguity is possible, use: `Shell (compat alias: Client, repo path client/**)`.
 4. Keep policy language consistent with the boundary axiom:
-   - Core decides truth and permission.
+   - Kernel decides truth and permission.
    - Orchestration decides flow and sequencing.
    - Shell decides rendering/input/UX collection.
 
@@ -39,7 +39,13 @@ Historical-log note:
 
 ## Follow-On Migration Backlog (when approved)
 
-1. Add `ops:shell-*` aliases for affected `ops:client-*` gates.
+1. Expand `ops:shell-*` aliases across remaining `ops:client-*` gates (naming guard aliases now in place).
 2. Add a shell transition alias manifest for command/tooling IDs.
 3. Introduce docs link aliases for `docs/shell/**` while preserving `docs/client/**`.
 4. Plan path migration only after guard aliasing and release policy are complete.
+
+## Tracking Guard (CI)
+
+- Command: `npm run -s ops:shell-transition:tracker`
+- Artifact: `core/local/artifacts/shell_transition_tracker_current.json`
+- Report: `local/workspace/reports/SHELL_TRANSITION_TRACKER_CURRENT.md`

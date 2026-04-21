@@ -1,6 +1,6 @@
 fn dashboard_troubleshooting_deadletter_requeue_lane(root: &Path, payload: &Value) -> LaneResult {
     let max_items = dashboard_payload_usize(payload, "max_items", 10, 1, 100);
-    let mut deadletter = dashboard_troubleshooting_read_deadletter_all(root);
+    let deadletter = dashboard_troubleshooting_read_deadletter_all(root);
     if deadletter.is_empty() {
         return LaneResult {
             ok: true,
@@ -227,7 +227,7 @@ fn dashboard_troubleshooting_deadletter_purge_lane(root: &Path, payload: &Value)
 }
 
 fn dashboard_troubleshooting_report_message_lane(root: &Path, payload: &Value) -> LaneResult {
-    let (eval_model, _) = dashboard_troubleshooting_resolve_eval_model(Some(payload));
+    let (eval_model, _) = dashboard_troubleshooting_resolve_eval_model(Some(root), Some(payload));
     let snapshot = dashboard_troubleshooting_capture_snapshot(
         root,
         "user_report",

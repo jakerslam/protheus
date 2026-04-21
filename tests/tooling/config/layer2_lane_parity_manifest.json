@@ -3,12 +3,21 @@
   "lanes": [
     {
       "id": "lane_task_submission",
+      "owner": "kernel_ops",
       "status": "complete",
       "requested_action": "task_submission",
       "expected_receipt_type": "layer2_task_submission_receipt",
+      "receipt_requirements": [
+        "layer2_task_submission_receipt"
+      ],
+      "timeout_semantics": "fail_closed_after_runtime_deadline",
+      "retry_semantics": "single_retry_transient_only",
       "runtime_path": "core/layer0/ops/src/workflow-executor",
       "fallback_path": "core/layer0/ops/src/workflow-controller/conduit_fallback",
       "fallback_conduit_only": true,
+      "replay_fixture_path": "tests/tooling/fixtures/layer2_receipt_bundle_golden.json",
+      "parity_test_path": "core/layer0/ops/tests/v8_runtime_proof.rs",
+      "deterministic_receipt_test_path": "core/layer0/ops/tests/v8_runtime_proof.rs",
       "invariants": [
         "receipt_emission",
         "cancellation_semantics",
@@ -19,12 +28,21 @@
     },
     {
       "id": "lane_queue_routing",
+      "owner": "kernel_ops",
       "status": "complete",
       "requested_action": "queue_routing",
       "expected_receipt_type": "layer2_queue_routing_receipt",
+      "receipt_requirements": [
+        "layer2_queue_routing_receipt"
+      ],
+      "timeout_semantics": "fail_closed_after_queue_deadline",
+      "retry_semantics": "bounded_retry_transient_only",
       "runtime_path": "core/layer0/ops/src/queue_sqlite_kernel",
       "fallback_path": "core/layer0/ops/src/queued-backlog-kernel/conduit_requeue",
       "fallback_conduit_only": true,
+      "replay_fixture_path": "tests/tooling/fixtures/layer2_receipt_bundle_golden.json",
+      "parity_test_path": "core/layer0/ops/tests/v8_runtime_proof.rs",
+      "deterministic_receipt_test_path": "core/layer0/ops/tests/v8_runtime_proof.rs",
       "invariants": [
         "receipt_emission",
         "cancellation_semantics",
@@ -35,12 +53,21 @@
     },
     {
       "id": "lane_adapter_invocation",
+      "owner": "kernel_ops",
       "status": "complete",
       "requested_action": "adapter_invocation_envelope",
       "expected_receipt_type": "layer2_adapter_invocation_receipt",
+      "receipt_requirements": [
+        "layer2_adapter_invocation_receipt"
+      ],
+      "timeout_semantics": "fail_closed_after_adapter_deadline",
+      "retry_semantics": "bounded_retry_transient_only",
       "runtime_path": "core/layer0/ops/src/web_conduit",
       "fallback_path": "core/layer0/ops/src/web_conduit/conduit_degraded_fallback",
       "fallback_conduit_only": true,
+      "replay_fixture_path": "tests/tooling/fixtures/layer2_receipt_bundle_golden.json",
+      "parity_test_path": "core/layer0/ops/tests/v8_runtime_proof.rs",
+      "deterministic_receipt_test_path": "core/layer0/ops/tests/v8_runtime_proof.rs",
       "invariants": [
         "receipt_emission",
         "cancellation_semantics",
@@ -51,12 +78,21 @@
     },
     {
       "id": "lane_failure_classification",
+      "owner": "kernel_ops",
       "status": "complete",
       "requested_action": "failure_classification",
       "expected_receipt_type": "layer2_failure_classification_receipt",
+      "receipt_requirements": [
+        "layer2_failure_classification_receipt"
+      ],
+      "timeout_semantics": "fail_closed_after_classification_deadline",
+      "retry_semantics": "single_retry_transient_only",
       "runtime_path": "core/layer0/ops/src/orchestration",
       "fallback_path": "core/layer0/ops/src/orchestration/conduit_failure_fallback",
       "fallback_conduit_only": true,
+      "replay_fixture_path": "tests/tooling/fixtures/layer2_receipt_bundle_golden.json",
+      "parity_test_path": "core/layer0/ops/tests/v8_runtime_proof.rs",
+      "deterministic_receipt_test_path": "core/layer0/ops/tests/v8_runtime_proof.rs",
       "invariants": [
         "receipt_emission",
         "cancellation_semantics",
@@ -67,12 +103,21 @@
     },
     {
       "id": "lane_cancellation",
+      "owner": "kernel_ops",
       "status": "complete",
       "requested_action": "task_cancellation",
       "expected_receipt_type": "layer2_task_cancellation_receipt",
+      "receipt_requirements": [
+        "layer2_task_cancellation_receipt"
+      ],
+      "timeout_semantics": "fail_closed_immediate_on_cancel",
+      "retry_semantics": "no_retry_terminal_cancel",
       "runtime_path": "core/layer0/ops/src/workflow-controller",
       "fallback_path": "core/layer0/ops/src/workflow-controller/conduit_cancel_fallback",
       "fallback_conduit_only": true,
+      "replay_fixture_path": "tests/tooling/fixtures/layer2_receipt_bundle_golden.json",
+      "parity_test_path": "core/layer0/ops/tests/v8_runtime_proof.rs",
+      "deterministic_receipt_test_path": "core/layer0/ops/tests/v8_runtime_proof.rs",
       "invariants": [
         "receipt_emission",
         "cancellation_semantics",
@@ -83,12 +128,21 @@
     },
     {
       "id": "lane_timeout",
+      "owner": "kernel_ops",
       "status": "complete",
       "requested_action": "task_timeout",
       "expected_receipt_type": "layer2_task_timeout_receipt",
+      "receipt_requirements": [
+        "layer2_task_timeout_receipt"
+      ],
+      "timeout_semantics": "fail_closed_on_timeout_boundary",
+      "retry_semantics": "no_retry_terminal_timeout",
       "runtime_path": "core/layer0/ops/src/workflow-executor",
       "fallback_path": "core/layer0/ops/src/workflow-executor/conduit_timeout_fallback",
       "fallback_conduit_only": true,
+      "replay_fixture_path": "tests/tooling/fixtures/layer2_receipt_bundle_golden.json",
+      "parity_test_path": "core/layer0/ops/tests/v8_runtime_proof.rs",
+      "deterministic_receipt_test_path": "core/layer0/ops/tests/v8_runtime_proof.rs",
       "invariants": [
         "receipt_emission",
         "cancellation_semantics",
