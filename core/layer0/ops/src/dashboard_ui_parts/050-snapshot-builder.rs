@@ -658,6 +658,7 @@ fn write_snapshot_receipt(root: &Path, snapshot: &Value) {
     let history = root.join(SNAPSHOT_HISTORY_REL);
     write_json(&latest, snapshot);
     append_jsonl(&history, snapshot);
+    dashboard_troubleshooting_bootstrap_runtime_activation(root, snapshot);
     let force = fs::metadata(&history)
         .map(|meta| meta.len() > SNAPSHOT_HISTORY_MAX_BYTES)
         .unwrap_or(false);

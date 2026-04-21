@@ -4,6 +4,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
+const { createHash } = require('node:crypto');
 const { spawn } = require('node:child_process');
 const {
   ROOT,
@@ -35,6 +36,16 @@ const STATUS_DIR = path.resolve(
   'infring_dashboard',
 );
 const STATUS_PATH = path.resolve(STATUS_DIR, 'server_status.json');
+const STATUS_SNAPSHOT_PATH = path.resolve(STATUS_DIR, 'latest_snapshot.json');
+const TROUBLESHOOTING_DIR = path.resolve(STATUS_DIR, 'troubleshooting');
+const TROUBLESHOOTING_RECENT_WORKFLOWS_PATH = path.resolve(TROUBLESHOOTING_DIR, 'recent_workflows.json');
+const TROUBLESHOOTING_EVAL_QUEUE_PATH = path.resolve(TROUBLESHOOTING_DIR, 'eval_queue.json');
+const TROUBLESHOOTING_ISSUE_OUTBOX_PATH = path.resolve(TROUBLESHOOTING_DIR, 'issue_outbox.json');
+const TROUBLESHOOTING_LATEST_SNAPSHOT_PATH = path.resolve(TROUBLESHOOTING_DIR, 'latest_snapshot.json');
+const TROUBLESHOOTING_SNAPSHOT_HISTORY_PATH = path.resolve(TROUBLESHOOTING_DIR, 'snapshot_history.jsonl');
+const TROUBLESHOOTING_LATEST_EVAL_REPORT_PATH = path.resolve(TROUBLESHOOTING_DIR, 'latest_eval_report.json');
+const TROUBLESHOOTING_DEFAULT_EVAL_MODEL = 'gpt-5.4';
+const TROUBLESHOOTING_MAX_RECENT = 10;
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 4173;
 const DEFAULT_TEAM = 'ops';
@@ -104,6 +115,224 @@ function parseFlags(argv = []) {
 }
 function ensureDir(dirPath) { fs.mkdirSync(dirPath, { recursive: true }); }
 function writeJson(filePath, value) { ensureDir(path.dirname(filePath)); fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8'); }
+function writeJsonIfMissing(filePath, value) {
+  if (fs.existsSync(filePath)) return false;
+  writeJson(filePath, value);
+  return true;
+}
+function appendJsonl(filePath, value) {
+  ensureDir(path.dirname(filePath));
+  fs.appendFileSync(filePath, `${JSON.stringify(value)}\n`, 'utf8');
+}
+function deterministicReceiptHash(value) {
+  try {
+    return createHash('sha256').update(JSON.stringify(value)).digest('hex');
+  } catch {
+    return '';
+  }
+}
+function readRecentActionRows(limit = TROUBLESHOOTING_MAX_RECENT) {
+  const historyPath = path.resolve(STATUS_DIR, 'actions', 'history.jsonl');
+  let raw = '';
+  try {
+    raw = fs.readFileSync(historyPath, 'utf8');
+  } catch {
+    return [];
+  }
+  const lines = raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (!lines.length) return [];
+  const out = [];
+  for (let idx = lines.length - 1; idx >= 0; idx -= 1) {
+    let parsed = null;
+    try {
+      parsed = JSON.parse(lines[idx]);
+    } catch {
+      parsed = null;
+    }
+    if (!parsed || cleanText(parsed.action || '', 80) !== 'app.chat') continue;
+    out.push(parsed);
+    if (out.length >= limit) break;
+  }
+  return out.reverse();
+}
+function summarizeBootstrapActionRow(actionRow, previousSummary) {
+  const laneOk = actionRow?.ok === true;
+  const laneStatus = Number.isFinite(Number(actionRow?.lane_status))
+    ? Number(actionRow.lane_status)
+    : laneOk
+      ? 0
+      : 1;
+  const payload = actionRow && typeof actionRow.payload === 'object' && actionRow.payload
+    ? actionRow.payload
+    : {};
+  const input = cleanText(payload.input || payload.message || payload.prompt || '', 240);
+  const tools = Array.isArray(actionRow?.tool_receipts)
+    ? actionRow.tool_receipts
+    : Array.isArray(payload?.tool_receipts)
+      ? payload.tool_receipts
+      : [];
+  const toolSummary = tools
+    .slice(0, 3)
+    .map((row) => cleanText(row?.name || row?.tool || '', 40))
+    .filter(Boolean)
+    .join(',');
+  const laneLabel = laneOk ? 'lane_ok' : `lane_fail(${laneStatus})`;
+  const inputLabel = input ? `input:${cleanText(input, 64)}` : 'input:empty';
+  const toolLabel = toolSummary ? `tools:${toolSummary}` : 'tools:none';
+  const summary = `${laneLabel};${inputLabel};${toolLabel}`;
+  if (!previousSummary) return summary;
+  return `${summary};prev:${cleanText(previousSummary, 120)}`;
+}
+function bootstrapRecentWorkflowEntries() {
+  const actionRows = readRecentActionRows(TROUBLESHOOTING_MAX_RECENT);
+  const entries = [];
+  let previousSummary = '';
+  for (let index = 0; index < actionRows.length; index += 1) {
+    const row = actionRows[index] || {};
+    const payload = row && typeof row.payload === 'object' && row.payload ? row.payload : {};
+    const laneOk = row?.ok === true;
+    const laneStatus = Number.isFinite(Number(row?.lane_status))
+      ? Number(row.lane_status)
+      : laneOk
+        ? 0
+        : 1;
+    const summary = summarizeBootstrapActionRow(row, previousSummary);
+    previousSummary = summary;
+    const entry = {
+      workflow_id: cleanText(row?.id || `wf_${index + 1}`, 120) || `wf_${index + 1}`,
+      source_sequence: index + 1,
+      ts: cleanText(row?.ts || nowIso(), 80),
+      lane_ok: laneOk,
+      lane_status: laneStatus,
+      error_code: cleanText(row?.error_code || row?.error || '', 120).toLowerCase(),
+      exchange: {
+        user: cleanText(payload.input || payload.message || payload.prompt || '', 1600),
+        assistant: cleanText(row?.response || payload.response || '', 2000),
+        tool_receipts: Array.isArray(row?.tool_receipts)
+          ? row.tool_receipts.slice(0, 12)
+          : [],
+      },
+      process_summary: {
+        previous: cleanText(index === 0 ? '' : entries[index - 1]?.process_summary?.current || '', 360),
+        current: cleanText(summary, 360),
+        source: 'snapshot_compat_bootstrap',
+      },
+      metadata: {
+        source: 'snapshot_compat_bootstrap',
+      },
+    };
+    entry.receipt_hash = deterministicReceiptHash(entry);
+    entries.push(entry);
+  }
+  return entries;
+}
+function writeBridgeOutput(out) {
+  if (!out || typeof out !== 'object') return 1;
+  if (out.stdout) process.stdout.write(String(out.stdout));
+  if (out.stderr) process.stderr.write(String(out.stderr));
+  if (out.payload && !out.stdout) process.stdout.write(`${JSON.stringify(out.payload)}\n`);
+  const status = Number(out.status);
+  return Number.isFinite(status) ? status : 1;
+}
+function bootstrapTroubleshootingFromSnapshot(snapshotPayload) {
+  const payload = snapshotPayload && typeof snapshotPayload === 'object' ? snapshotPayload : {};
+  const seededEntries = bootstrapRecentWorkflowEntries();
+  writeJsonIfMissing(TROUBLESHOOTING_RECENT_WORKFLOWS_PATH, {
+    ok: true,
+    type: 'dashboard_troubleshooting_recent_workflows',
+    ts: nowIso(),
+    entries: seededEntries,
+    receipt_hash: deterministicReceiptHash({
+      entries: seededEntries,
+      type: 'dashboard_troubleshooting_recent_workflows',
+    }),
+  });
+  writeJsonIfMissing(TROUBLESHOOTING_EVAL_QUEUE_PATH, {
+    ok: true,
+    type: 'dashboard_troubleshooting_eval_queue',
+    ts: nowIso(),
+    items: [],
+    receipt_hash: deterministicReceiptHash({
+      items: [],
+      type: 'dashboard_troubleshooting_eval_queue',
+    }),
+  });
+  writeJsonIfMissing(TROUBLESHOOTING_ISSUE_OUTBOX_PATH, {
+    ok: true,
+    type: 'dashboard_troubleshooting_issue_outbox',
+    ts: nowIso(),
+    items: [],
+    receipt_hash: deterministicReceiptHash({
+      items: [],
+      type: 'dashboard_troubleshooting_issue_outbox',
+    }),
+  });
+  if (!fs.existsSync(TROUBLESHOOTING_LATEST_SNAPSHOT_PATH)) {
+    const failureCount = seededEntries.filter((row) => row?.lane_ok !== true).length;
+    const snapshot = {
+      ok: true,
+      type: 'dashboard_troubleshooting_snapshot',
+      snapshot_id: `snap_${Date.now().toString(36)}`,
+      trigger: 'runtime_bootstrap_compat',
+      ts: nowIso(),
+      failure_count: failureCount,
+      entry_count: seededEntries.length,
+      entries: seededEntries,
+      metadata: {
+        source: 'dashboard_snapshot_compat_bootstrap',
+        snapshot_receipt_hash: cleanText(payload.receipt_hash || '', 160),
+      },
+    };
+    snapshot.receipt_hash = deterministicReceiptHash(snapshot);
+    writeJson(TROUBLESHOOTING_LATEST_SNAPSHOT_PATH, snapshot);
+    appendJsonl(TROUBLESHOOTING_SNAPSHOT_HISTORY_PATH, snapshot);
+  }
+  writeJsonIfMissing(TROUBLESHOOTING_LATEST_EVAL_REPORT_PATH, {
+    ok: true,
+    type: 'dashboard_troubleshooting_eval_report',
+    ts: nowIso(),
+    status: 'idle',
+    reason: 'runtime_bootstrap_compat',
+    model: TROUBLESHOOTING_DEFAULT_EVAL_MODEL,
+    model_source: 'strong_default_bootstrap',
+    strong_default_model: TROUBLESHOOTING_DEFAULT_EVAL_MODEL,
+    entry_count: seededEntries.length,
+    issues: [],
+    summary: 'Eval runtime is initialized and waiting for failure snapshots.',
+    receipt_hash: deterministicReceiptHash({
+      status: 'idle',
+      model: TROUBLESHOOTING_DEFAULT_EVAL_MODEL,
+      entry_count: seededEntries.length,
+      type: 'dashboard_troubleshooting_eval_report',
+    }),
+  });
+}
+function runSnapshotWithCompatBootstrap(args, options) {
+  const out = invokeProtheusOpsViaBridge(['dashboard-ui', ...args], options);
+  if (!out) {
+    const status = runProtheusOps(['dashboard-ui', ...args], options);
+    if (Number(status) === 0 && fs.existsSync(STATUS_SNAPSHOT_PATH)) {
+      try {
+        const fallbackPayload = JSON.parse(fs.readFileSync(STATUS_SNAPSHOT_PATH, 'utf8'));
+        if (fallbackPayload && typeof fallbackPayload === 'object') {
+          bootstrapTroubleshootingFromSnapshot(fallbackPayload);
+        }
+      } catch {}
+    }
+    return status;
+  }
+  const parsedPayload = out.payload && typeof out.payload === 'object'
+    ? out.payload
+    : parseLastJson(out.stdout || '');
+  if (parsedPayload && typeof parsedPayload === 'object') {
+    bootstrapTroubleshootingFromSnapshot(parsedPayload);
+    if (!out.payload) out.payload = parsedPayload;
+  }
+  return writeBridgeOutput(out);
+}
 function discoverSiblingAltDashboardSurfaces() {
   const out = [];
   let rows = [];
@@ -686,13 +915,15 @@ async function run(argv = process.argv.slice(2)) {
   const args = normalizeArgs(argv);
   const flags = parseFlags(args);
   if (flags.mode === 'serve' || flags.mode === 'web') { await runServe(flags); return null; }
-  return runProtheusOps(['dashboard-ui', ...args], {
+  const opsOptions = {
     unknownDomainFallback: true,
     env: {
       PROTHEUS_OPS_USE_PREBUILT: process.env.PROTHEUS_OPS_USE_PREBUILT || '0',
       PROTHEUS_OPS_LOCAL_TIMEOUT_MS: process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000',
     },
-  });
+  };
+  if (flags.mode === 'snapshot') return runSnapshotWithCompatBootstrap(args, opsOptions);
+  return runProtheusOps(['dashboard-ui', ...args], opsOptions);
 }
 module.exports = {
   cleanText,

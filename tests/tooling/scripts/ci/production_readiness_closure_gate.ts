@@ -262,6 +262,39 @@ function checkReleaseEvidence(policy: Policy, args: Args): Check[] {
   const scorecard = readJson<any>(args.scorecardPath, {});
   const rcRehearsal = readJson<any>(args.rcRehearsalPath, {});
   const clientBoundary = readJson<any>(args.clientBoundaryPath, {});
+  const supportBundleReleaseVerdict =
+    supportBundle?.closure_evidence?.release_verdict || supportBundle?.release_verdict || null;
+  const supportBundleReleaseVerdictRevision = String(
+    supportBundleReleaseVerdict?.revision ||
+    supportBundleReleaseVerdict?.git_revision ||
+    supportBundleReleaseVerdict?.git_sha ||
+    '',
+  )
+    .trim()
+    .slice(0, 120);
+  const scorecardRevision = String(
+    scorecard?.revision ||
+    scorecard?.git?.revision ||
+    scorecard?.git_revision ||
+    scorecard?.git_sha ||
+    '',
+  )
+    .trim()
+    .slice(0, 120);
+  const supportBundleReleaseVerdictChecks = Array.isArray(supportBundleReleaseVerdict?.checks)
+    ? supportBundleReleaseVerdict.checks
+    : [];
+  const supportBundleReleaseVerdictGeneratedAtMs = Date.parse(
+    String(supportBundleReleaseVerdict?.generated_at || ''),
+  );
+  const supportBundleReleaseVerdictOk =
+    supportBundleReleaseVerdict?.ok === true && supportBundleReleaseVerdictChecks.length > 0;
+  const supportBundleProofPackRequiredMissingZero = supportBundleReleaseVerdictChecks.some(
+    (row: any) => row?.id === 'release_proof_pack_required_missing_zero' && row?.ok === true,
+  );
+  const supportBundleProofPackCategoryThresholdsMet = supportBundleReleaseVerdictChecks.some(
+    (row: any) => row?.id === 'release_proof_pack_category_thresholds_met' && row?.ok === true,
+  );
   const thresholds = policy.numeric_thresholds || {};
   const releaseEvidenceFlow = policy.release_evidence_flow || {};
   const requiredScorecardStage = String(releaseEvidenceFlow.scorecard_stage || 'prebundle')
@@ -457,6 +490,49 @@ function checkReleaseEvidence(policy: Policy, args: Args): Check[] {
       detail: !finalStage
         ? 'stage=prebundle;final_bundle_truth_not_required'
         : `failed_checks=${Array.isArray(supportBundle?.incident_truth_package?.failed_checks) ? supportBundle.incident_truth_package.failed_checks.length : 'missing'}`,
+    },
+    {
+      id: 'release_evidence_flow_support_bundle_embeds_release_verdict',
+      ok: !finalStage || supportBundleReleaseVerdictOk,
+      detail: !finalStage
+        ? 'stage=prebundle;final_release_verdict_embedding_not_required'
+        : `release_verdict_ok=${supportBundleReleaseVerdict?.ok === true};` +
+          `checks=${supportBundleReleaseVerdictChecks.length}`,
+    },
+    {
+      id: 'release_evidence_flow_release_verdict_precedes_support_bundle',
+      ok:
+        !finalStage ||
+        (Number.isFinite(supportBundleReleaseVerdictGeneratedAtMs) &&
+          Number.isFinite(supportBundleGeneratedAtMs) &&
+          supportBundleReleaseVerdictGeneratedAtMs <= supportBundleGeneratedAtMs),
+      detail: !finalStage
+        ? 'stage=prebundle;release_verdict_ordering_not_required'
+        : `release_verdict_generated_at=${Number.isFinite(supportBundleReleaseVerdictGeneratedAtMs) ? supportBundleReleaseVerdictGeneratedAtMs : 'missing'};` +
+          `support_bundle_generated_at=${Number.isFinite(supportBundleGeneratedAtMs) ? supportBundleGeneratedAtMs : 'missing'}`,
+    },
+    {
+      id: 'release_evidence_flow_release_verdict_revision_matches_scorecard',
+      ok:
+        !finalStage ||
+        (!!supportBundleReleaseVerdictRevision &&
+          !!scorecardRevision &&
+          supportBundleReleaseVerdictRevision === scorecardRevision),
+      detail: !finalStage
+        ? 'stage=prebundle;revision_alignment_not_required'
+        : `release_verdict_revision=${supportBundleReleaseVerdictRevision || 'missing'};` +
+          `scorecard_revision=${scorecardRevision || 'missing'}`,
+    },
+    {
+      id: 'release_evidence_flow_release_verdict_confirms_proof_pack_thresholds',
+      ok:
+        !finalStage ||
+        (supportBundleProofPackRequiredMissingZero &&
+          supportBundleProofPackCategoryThresholdsMet),
+      detail: !finalStage
+        ? 'stage=prebundle;proof_pack_verdict_confirmation_not_required'
+        : `required_missing_zero=${supportBundleProofPackRequiredMissingZero};` +
+          `category_thresholds_met=${supportBundleProofPackCategoryThresholdsMet}`,
     },
   ];
 }

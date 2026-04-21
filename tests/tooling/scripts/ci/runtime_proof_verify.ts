@@ -160,6 +160,11 @@ function renderEmpiricalProfileCoverageMarkdown(payload: any): string {
       `  - empirical_sample_points_ok: ${profile?.empirical_sample_points_ok === true ? 'true' : 'false'}`,
     );
     lines.push(
+      `  - empirical_profile_minimum_configured: ${
+        profile?.empirical_profile_minimum_configured === true ? 'true' : 'false'
+      }`,
+    );
+    lines.push(
       `  - empirical_provided_keys_count: ${safeNumber(profile?.empirical_provided_keys_count, 0)}`,
     );
     lines.push(
@@ -879,6 +884,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         row.gatePayload?.metrics?.proof_track_empirical_required_positive_metrics_missing,
         120,
       );
+      const profileMinimumConfigured = requiredMinSamplePoints > 0;
       const samplePointsOk = row.empiricalSamplePoints >= requiredMinSamplePoints;
       const requiredSourcesOk = missingRequiredSourceIds.length === 0;
       const requiredMetricsOk = missingRequiredMetricKeys.length === 0;
@@ -900,6 +906,9 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       const releaseGateReasons: string[] = [];
       if (row.empiricalSamplePoints <= 0) {
         releaseGateReasons.push('empirical_sample_points_missing');
+      }
+      if (!profileMinimumConfigured) {
+        releaseGateReasons.push('empirical_profile_minimum_missing');
       }
       if (!samplePointsOk) {
         releaseGateReasons.push('empirical_sample_points_below_profile_minimum');
@@ -979,6 +988,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         profile: row.profile,
         empirical_sample_points: row.empiricalSamplePoints,
         empirical_min_sample_points_required: requiredMinSamplePoints,
+        empirical_profile_minimum_configured: profileMinimumConfigured,
         empirical_sample_points_ok: samplePointsOk,
         empirical_provided_keys_count: providedKeys.length,
         empirical_provided_keys: providedKeys,
@@ -1005,6 +1015,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     ok: empiricalProfileCoverageRows.every(
       (row) =>
         row.empirical_sample_points > 0 &&
+        row.empirical_profile_minimum_configured &&
         row.empirical_sample_points_ok &&
         row.empirical_provided_keys_count > 0 &&
         row.empirical_sources_count > 0 &&
@@ -1030,6 +1041,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     ok: empiricalProfileCoverageRows.every(
       (row) =>
         row.empirical_sample_points_ok &&
+        row.empirical_profile_minimum_configured &&
         row.empirical_required_sources_ok &&
         row.empirical_required_metrics_ok &&
         row.empirical_required_positive_metrics_ok,
@@ -1089,6 +1101,8 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         row.empirical_min_sample_points_required,
         0,
       ),
+      empirical_profile_minimum_configured:
+        row.empirical_profile_minimum_configured === true,
       empirical_sample_points_ok: row.empirical_sample_points_ok === true,
       empirical_required_sources_ok: row.empirical_required_sources_ok === true,
       empirical_required_metrics_ok: row.empirical_required_metrics_ok === true,
