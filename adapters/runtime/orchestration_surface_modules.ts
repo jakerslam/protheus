@@ -18,7 +18,7 @@ const ORCHESTRATION_SURFACE_REGISTRY = Object.freeze({
   model_catalog_loop: Object.freeze({ scriptName: 'model_catalog_loop', systemId: 'SYSTEMS-AUTONOMY-MODEL_CATALOG_LOOP' }),
   morph_planner: Object.freeze({ scriptName: 'morph_planner', systemId: 'SYSTEMS-FRACTAL-MORPH_PLANNER' }),
   payment_skills_bridge: Object.freeze({ scriptName: 'payment_skills_bridge', systemId: 'SYSTEMS-WORKFLOW-PAYMENT_SKILLS_BRIDGE' }),
-  personas_orchestration: Object.freeze({ scriptName: 'orchestration', systemId: 'SYSTEMS-PERSONAS-ORCHESTRATION' }),
+  personas_orchestration: Object.freeze({ scriptName: 'personas_orchestration', systemId: 'SYSTEMS-PERSONAS-ORCHESTRATION' }),
   proactive_t1_initiative_engine: Object.freeze({ scriptName: 'proactive_t1_initiative_engine', systemId: 'SYSTEMS-AUTONOMY-PROACTIVE_T1_INITIATIVE_ENGINE' }),
   provider_onboarding_manifest: Object.freeze({ scriptName: 'provider_onboarding_manifest', systemId: 'SYSTEMS-ROUTING-PROVIDER_ONBOARDING_MANIFEST' }),
   quantum_security_primitive_synthesis: Object.freeze({ scriptName: 'quantum_security_primitive_synthesis', systemId: 'SYSTEMS-REDTEAM-QUANTUM_SECURITY_PRIMITIVE_SYNTHESIS' }),
