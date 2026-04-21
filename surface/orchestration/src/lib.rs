@@ -14,10 +14,11 @@ pub mod sequencing;
 pub mod transient_context;
 
 use contracts::{
-    CoreExecutionObservation, DegradationReason, ExecutionCorrelation, ExecutionState,
-    OrchestrationExecutionObservationUpdate, OrchestrationPlan, OrchestrationRequest,
-    OrchestrationResultPackage, PlanCandidate, PlanScore, PlanStatus, PlanVariant,
-    RecoveryDecision, RecoveryReason, RecoveryState, RuntimeQualitySignals,
+    ClosureState, ControlPlaneClosureState, ControlPlaneLifecycleState, CoreExecutionObservation,
+    DegradationReason, ExecutionCorrelation, ExecutionState, OrchestrationExecutionObservationUpdate,
+    OrchestrationPlan, OrchestrationRequest, OrchestrationResultPackage, PlanCandidate, PlanScore,
+    PlanStatus, PlanVariant, RecoveryDecision, RecoveryReason, RecoveryState, RuntimeQualitySignals,
+    WorkflowStage, WorkflowStageState, WorkflowStageStatus, WorkflowTemplate,
 };
 use std::time::{SystemTime, UNIX_EPOCH};
 use transient_context::{TransientContextStore, TransientSleepCleanupReport};
@@ -85,6 +86,7 @@ impl OrchestrationSurfaceRuntime {
         ) {
             self.last_activity_ms = Some(now_ms);
             let surface_adapter_fallback = classification.surface_adapter_fallback;
+            let workflow_template = WorkflowTemplate::DiagnoseRetryEscalate;
             return OrchestrationResultPackage {
                 summary: format!("orchestration_degraded:{err}"),
                 progress_message:
@@ -152,6 +154,39 @@ impl OrchestrationSurfaceRuntime {
                     all_candidates_require_clarification: true,
                     surface_adapter_fallback,
                 },
+                workflow_template: workflow_template.clone(),
+                control_plane_lifecycle: ControlPlaneLifecycleState {
+                    owner: control_plane::lifecycle::workflow_owner().to_string(),
+                    template: workflow_template,
+                    active_stage: WorkflowStage::RecoveryEscalation,
+                    stages: vec![
+                        WorkflowStageState {
+                            stage: WorkflowStage::IntakeNormalization,
+                            status: WorkflowStageStatus::Completed,
+                            owner: control_plane::lifecycle::workflow_owner().to_string(),
+                            note: "request normalization completed before transient context write"
+                                .to_string(),
+                        },
+                        WorkflowStageState {
+                            stage: WorkflowStage::RecoveryEscalation,
+                            status: WorkflowStageStatus::Blocked,
+                            owner: control_plane::lifecycle::workflow_owner().to_string(),
+                            note: "transient context unavailable".to_string(),
+                        },
+                        WorkflowStageState {
+                            stage: WorkflowStage::ResultPackaging,
+                            status: WorkflowStageStatus::Completed,
+                            owner: control_plane::lifecycle::workflow_owner().to_string(),
+                            note: "degraded halt package emitted".to_string(),
+                        },
+                    ],
+                    next_actions: vec!["restore_transient_context_then_retry".to_string()],
+                    closure: ControlPlaneClosureState {
+                        verification: ClosureState::Blocked,
+                        receipt_correlation: ClosureState::Blocked,
+                        memory_packaging: ClosureState::Blocked,
+                    },
+                },
             };
         }
         let execution_observation = self
@@ -199,6 +234,11 @@ impl OrchestrationSurfaceRuntime {
         };
         let (plan, recovery_applied) =
             recovery::coordinate_recovery_escalation(&typed_request, plan);
+        let (plan, reroute_applied) = sequencing::apply_retry_reroute_feedback(
+            &typed_request,
+            execution_observation.as_ref(),
+            plan,
+        );
         let progress = progress::build_progress_projection(&plan);
         let tool_fallback_context =
             sequencing::decode_tool_fallback_context(&typed_request.payload);
@@ -207,8 +247,28 @@ impl OrchestrationSurfaceRuntime {
             plan.request_class.clone(),
             tool_fallback_context.as_ref(),
         );
+        let workflow_template = control_plane::lifecycle::select_workflow_template(
+            &typed_request,
+            &plan.classification,
+            plan.execution_state.plan_status.clone(),
+            plan.needs_clarification,
+            plan.execution_state.recovery.as_ref(),
+        );
+        let control_plane_lifecycle =
+            control_plane::lifecycle::build_lifecycle_state(
+                workflow_template.clone(),
+                &plan,
+                fallback_actions.as_slice(),
+            );
         self.last_activity_ms = Some(now_ms);
-        result_packaging::shape_result_package(&plan, progress, recovery_applied, fallback_actions)
+        result_packaging::shape_result_package(
+            &plan,
+            progress,
+            recovery_applied || reroute_applied,
+            fallback_actions,
+            workflow_template,
+            control_plane_lifecycle,
+        )
     }
 
     pub fn sweep_transient(&mut self, now_ms: u64) -> usize {

@@ -367,6 +367,17 @@
         "local/workspace/reports/ORCHESTRATION_PLANNER_QUALITY_GUARD_CURRENT.md"
       ]
     },
+    "ops:orchestration:workflow-contract:guard": {
+      "owner": "ops",
+      "description": "Control-plane workflow template and lifecycle contract guard.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:orchestration:workflow-contract:guard",
+      "artifact_paths": [
+        "core/local/artifacts/orchestration_workflow_contract_guard_current.json",
+        "local/workspace/reports/ORCHESTRATION_WORKFLOW_CONTRACT_GUARD_CURRENT.md"
+      ]
+    },
     "ops:dashboard:surface:guard": {
       "owner": "ops",
       "description": "Authoritative dashboard surface + runtime freshness metadata guard.",
@@ -387,6 +398,17 @@
       "artifact_paths": [
         "core/local/artifacts/dashboard_segment_ghost_file_guard_current.json",
         "local/workspace/reports/DASHBOARD_SEGMENT_GHOST_FILE_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:dashboard:svelte-shell-contract:guard": {
+      "owner": "ops",
+      "description": "Fail when dashboard Svelte shell wrappers lack transparent/layout-host/interactive-surface contracts.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:dashboard:svelte-shell-contract:guard",
+      "artifact_paths": [
+        "core/local/artifacts/dashboard_svelte_shell_contract_guard_current.json",
+        "local/workspace/reports/DASHBOARD_SVELTE_SHELL_CONTRACT_GUARD_CURRENT.md"
       ]
     },
     "ops:node-critical-path:inventory": {

@@ -25,6 +25,8 @@ type PlannerMetrics = {
   average_candidate_count?: number;
   clarification_first_rate?: number;
   degraded_rate?: number;
+  selected_plan_requires_clarification_rate?: number;
+  selected_plan_degraded_rate?: number;
   heuristic_probe_rate?: number;
   zero_executable_candidate_rate?: number;
   all_candidates_require_clarification_rate?: number;
@@ -96,6 +98,10 @@ function evaluateThresholds(metrics: PlannerMetrics | null, policy: PlannerPolic
   const averageCandidateCount = numberOrNull(metrics.average_candidate_count);
   const clarificationFirstRate = numberOrNull(metrics.clarification_first_rate);
   const degradedRate = numberOrNull(metrics.degraded_rate);
+  const selectedPlanRequiresClarificationRate = numberOrNull(
+    metrics.selected_plan_requires_clarification_rate,
+  );
+  const selectedPlanDegradedRate = numberOrNull(metrics.selected_plan_degraded_rate);
   const heuristicProbeRate = numberOrNull(metrics.heuristic_probe_rate);
   const zeroExecutableCandidateRate = numberOrNull(metrics.zero_executable_candidate_rate);
   const allCandidatesRequireClarificationRate = numberOrNull(
@@ -192,17 +198,85 @@ function evaluateMetricConsistency(metrics: PlannerMetrics | null): string[] {
   const failures: string[] = [];
   if (!metrics) return failures;
 
+  const requestCount = numberOrNull(metrics.request_count);
+  const averageCandidateCount = numberOrNull(metrics.average_candidate_count);
   const clarificationFirstRate = numberOrNull(metrics.clarification_first_rate);
   const degradedRate = numberOrNull(metrics.degraded_rate);
+  const selectedPlanRequiresClarificationRate = numberOrNull(
+    metrics.selected_plan_requires_clarification_rate,
+  );
+  const selectedPlanDegradedRate = numberOrNull(metrics.selected_plan_degraded_rate);
+  const heuristicProbeRate = numberOrNull(metrics.heuristic_probe_rate);
   const zeroExecutableCandidateRate = numberOrNull(metrics.zero_executable_candidate_rate);
   const allCandidatesRequireClarificationRate = numberOrNull(
     metrics.all_candidates_require_clarification_rate,
   );
   const allCandidatesDegradedRate = numberOrNull(metrics.all_candidates_degraded_rate);
 
+  const rateRows: Array<{ key: string; value: number | null }> = [
+    { key: 'clarification_first_rate', value: clarificationFirstRate },
+    { key: 'degraded_rate', value: degradedRate },
+    {
+      key: 'selected_plan_requires_clarification_rate',
+      value: selectedPlanRequiresClarificationRate,
+    },
+    { key: 'selected_plan_degraded_rate', value: selectedPlanDegradedRate },
+    { key: 'heuristic_probe_rate', value: heuristicProbeRate },
+    { key: 'zero_executable_candidate_rate', value: zeroExecutableCandidateRate },
+    {
+      key: 'all_candidates_require_clarification_rate',
+      value: allCandidatesRequireClarificationRate,
+    },
+    { key: 'all_candidates_degraded_rate', value: allCandidatesDegradedRate },
+  ];
+
+  for (const row of rateRows) {
+    if (row.value == null) continue;
+    if (row.value < 0 || row.value > 1) {
+      failures.push(`inconsistent_${row.key}_out_of_domain:value=${row.value.toFixed(4)}:expected=0..1`);
+    }
+  }
+
+  if (requestCount != null && requestCount < 0) {
+    failures.push(`inconsistent_request_count_negative:value=${requestCount.toFixed(4)}`);
+  }
+  if (requestCount != null && !Number.isInteger(requestCount)) {
+    failures.push(`inconsistent_request_count_non_integral:value=${requestCount.toFixed(4)}`);
+  }
+  if (averageCandidateCount != null && averageCandidateCount < 0) {
+    failures.push(`inconsistent_average_candidate_count_negative:value=${averageCandidateCount.toFixed(4)}`);
+  }
   if (
-    clarificationFirstRate != null
-    && allCandidatesRequireClarificationRate != null
+    requestCount != null
+    && requestCount === 0
+    && rateRows.some((row) => row.value != null && row.value !== 0)
+  ) {
+    failures.push('inconsistent_rates_with_zero_request_count');
+  }
+  if (
+    requestCount != null
+    && requestCount === 0
+    && averageCandidateCount != null
+    && averageCandidateCount > 0
+  ) {
+    failures.push(
+      `inconsistent_average_candidate_count_with_zero_request_count:value=${averageCandidateCount.toFixed(4)}`,
+    );
+  }
+
+  if (
+    allCandidatesRequireClarificationRate != null
+    && selectedPlanRequiresClarificationRate != null
+    && allCandidatesRequireClarificationRate > selectedPlanRequiresClarificationRate
+  ) {
+    failures.push(
+      `inconsistent_all_candidates_require_clarification_rate:all_candidates_require_clarification_rate=${allCandidatesRequireClarificationRate.toFixed(4)}:selected_plan_requires_clarification_rate=${selectedPlanRequiresClarificationRate.toFixed(4)}`,
+    );
+  } else if (
+    // Compatibility fallback for metrics emitted before selected_plan_* fields existed.
+    allCandidatesRequireClarificationRate != null
+    && selectedPlanRequiresClarificationRate == null
+    && clarificationFirstRate != null
     && allCandidatesRequireClarificationRate > clarificationFirstRate
   ) {
     failures.push(
@@ -210,21 +284,33 @@ function evaluateMetricConsistency(metrics: PlannerMetrics | null): string[] {
     );
   }
 
-  if (degradedRate != null && allCandidatesDegradedRate != null && allCandidatesDegradedRate > degradedRate) {
+  if (
+    allCandidatesDegradedRate != null
+    && selectedPlanDegradedRate != null
+    && allCandidatesDegradedRate > selectedPlanDegradedRate
+  ) {
+    failures.push(
+      `inconsistent_all_candidates_degraded_rate:all_candidates_degraded_rate=${allCandidatesDegradedRate.toFixed(4)}:selected_plan_degraded_rate=${selectedPlanDegradedRate.toFixed(4)}`,
+    );
+  } else if (
+    allCandidatesDegradedRate != null
+    && selectedPlanDegradedRate == null
+    && degradedRate != null
+    && allCandidatesDegradedRate > degradedRate
+  ) {
     failures.push(
       `inconsistent_all_candidates_degraded_rate:all_candidates_degraded_rate=${allCandidatesDegradedRate.toFixed(4)}:degraded_rate=${degradedRate.toFixed(4)}`,
     );
   }
-
-  if (zeroExecutableCandidateRate != null && clarificationFirstRate != null && degradedRate != null) {
-    const upperBound = Math.min(1, clarificationFirstRate + degradedRate);
-    if (zeroExecutableCandidateRate > upperBound) {
-      failures.push(
-        `inconsistent_zero_executable_candidate_rate_upper_bound:zero_executable_candidate_rate=${zeroExecutableCandidateRate.toFixed(4)}:upper_bound=${upperBound.toFixed(4)}`,
-      );
-    }
+  if (
+    allCandidatesRequireClarificationRate != null
+    && zeroExecutableCandidateRate != null
+    && allCandidatesRequireClarificationRate > zeroExecutableCandidateRate
+  ) {
+    failures.push(
+      `inconsistent_all_candidates_require_clarification_rate_vs_zero_executable_candidate_rate:all_candidates_require_clarification_rate=${allCandidatesRequireClarificationRate.toFixed(4)}:zero_executable_candidate_rate=${zeroExecutableCandidateRate.toFixed(4)}`,
+    );
   }
-
   return failures;
 }
 

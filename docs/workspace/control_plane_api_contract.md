@@ -54,6 +54,43 @@ Define the only allowed kernel-facing message contracts for the control plane so
 4. Recovery/Escalation: `recovery`, `clarification`, `posture`
 5. Result Shaping/Packaging: `result_packaging`, `progress`, `contracts`
 
+## Default Workflow Templates (Control-Plane Authority)
+
+Control-plane default templates are explicit, versioned behavior contracts (not ad-hoc prompt flow):
+
+1. `clarify_then_coordinate`
+2. `research_synthesize_verify`
+3. `plan_execute_review`
+4. `diagnose_retry_escalate`
+
+Template selection is computed in Rust by `control_plane::lifecycle::select_workflow_template(...)` using typed request class/kind, live plan status, and recovery state.
+
+## Lifecycle Loop (Required Stages)
+
+Every orchestration result package must carry one lifecycle projection with these stage IDs:
+
+1. `intake_normalization`
+2. `decomposition_planning`
+3. `coordination_sequencing`
+4. `recovery_escalation`
+5. `result_packaging`
+6. `verification_closure`
+
+The lifecycle projection is emitted by `control_plane::lifecycle::build_lifecycle_state(...)` and includes:
+
+- single control-plane owner (`surface_orchestration_control_plane`)
+- active stage
+- stage statuses (`pending|ready|running|completed|blocked|skipped`)
+- next actions
+- closure status vectors (`verification`, `receipt_correlation`, `memory_packaging`)
+
+## Feedback Loop Contract
+
+Control-plane sequencing must actively attempt reroute/retry when selected plans are failed/blocked/degraded and an improved alternative candidate exists.
+
+- Runtime path: `sequencing::apply_retry_reroute_feedback(...)`
+- Behavioral invariant: orchestration does not stop at first-candidate packaging when retryable alternatives exist.
+
 ## Canonical Control-Plane Entrypoints (Compatibility Aliases Preserved)
 
 - Clarification: `clarification::build_clarification_prompt` (compat alias: `clarification_prompt_for`)
@@ -61,6 +98,8 @@ Define the only allowed kernel-facing message contracts for the control plane so
 - Recovery: `recovery::coordinate_recovery_escalation` (compat alias: `apply_recovery_policy`)
 - Progress shaping: `progress::build_progress_projection` (compat alias: `progress_message`)
 - Result packaging: `result_packaging::shape_result_package` (compat alias: `package_result`)
+- Lifecycle projection: `control_plane::lifecycle::{select_workflow_template, build_lifecycle_state}`
+- Feedback reroute: `sequencing::apply_retry_reroute_feedback` (compat alias: `feedback_loop_reroute`)
 
 ## Enforcement
 

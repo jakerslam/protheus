@@ -21,6 +21,54 @@
       ]
     }
   ],
+  "client_wrapper_contract": {
+    "include_paths": [
+      "client/cognition/orchestration/cli_shared.ts",
+      "client/cognition/orchestration/core_bridge.ts",
+      "client/cognition/orchestration/coordinator.ts",
+      "client/cognition/orchestration/coordinator_cli.ts",
+      "client/cognition/orchestration/checkpoint.ts",
+      "client/cognition/orchestration/completion.ts",
+      "client/cognition/orchestration/partial.ts",
+      "client/cognition/orchestration/schema_runtime.ts",
+      "client/cognition/orchestration/scope.ts",
+      "client/cognition/orchestration/scratchpad.ts",
+      "client/cognition/orchestration/taskgroup.ts",
+      "client/cognition/orchestration/taskgroup_cli.ts"
+    ],
+    "required_markers": [
+      "TypeScript compatibility shim only.",
+      "Layer ownership: surface/orchestration (control-plane cognition); this file is a thin bridge."
+    ],
+    "required_delegate_markers_any": [
+      "surface', 'orchestration', 'scripts', 'cognition'"
+    ],
+    "require_self_filename_delegate_marker": true,
+    "forbidden_markers": [
+      "invokeOrchestration(",
+      "runTaskGroupCli(",
+      "runCoordinatorCli(",
+      "parseArgs(",
+      "readFileSync(",
+      "readdirSync(",
+      "spawnSync(",
+      "JSON.parse("
+    ],
+    "max_noncomment_lines": 12
+  },
+  "cognition_surface_parity_contract": {
+    "client_root": "client/cognition/orchestration",
+    "surface_root": "surface/orchestration/scripts/cognition",
+    "extensions": [
+      ".ts",
+      ".json"
+    ],
+    "ignored_paths": [],
+    "require_relative_path_match": true,
+    "exact_match_extensions": [
+      ".json"
+    ]
+  },
   "surface_script_import_boundary": {
     "scan_root": "surface/orchestration/scripts",
     "extensions": [

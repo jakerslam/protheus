@@ -1,6 +1,7 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 pub mod decomposition_planning;
 pub mod intake_normalization;
+pub mod lifecycle;
 pub mod recovery_escalation;
 pub mod result_shaping_packaging;
 pub mod workflow_graph_dependency;

@@ -3,6 +3,7 @@ use infring_orchestration_surface_v1::contracts::{
     Capability, CapabilityProbeSnapshot, ClarificationReason, CoreContractCall, CoreProbeEnvelope,
     Mutability, OperationKind, OrchestrationRequest, PolicyScope, Precondition, RequestClass,
     RequestKind, RequestSurface, ResourceKind, TargetDescriptor, TypedOrchestrationRequest,
+    WorkflowStage,
 };
 use infring_orchestration_surface_v1::OrchestrationSurfaceRuntime;
 use serde_json::json;
@@ -1636,11 +1637,91 @@ fn planner_quality_fixture_metrics_stay_within_thresholds() {
                 }
             }),
         },
+        OrchestrationRequest {
+            session_id: "planner-quality-sdk-2".to_string(),
+            intent: "search release notes".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "search",
+                    "resource_kind": "web",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
+                },
+                "core_probe_envelope": {
+                    "execute_tool": {
+                        "tool_available": true,
+                        "transport_available": true
+                    }
+                }
+            }),
+        },
+        OrchestrationRequest {
+            session_id: "planner-quality-compare-2".to_string(),
+            intent: "compare workspace and web".to_string(),
+            surface: RequestSurface::Gateway,
+            payload: json!({
+                "gateway": {
+                    "route": "compare.resource",
+                    "resource_kind": "mixed",
+                    "targets": [
+                        { "kind": "workspace_path", "value": "README.md" },
+                        { "kind": "url", "value": "https://example.com/docs" }
+                    ]
+                },
+                "core_probe_envelope": {
+                    "execute_tool": {
+                        "tool_available": true,
+                        "transport_available": true
+                    },
+                    "verify_claim": {
+                        "transport_available": true
+                    }
+                }
+            }),
+        },
+        OrchestrationRequest {
+            session_id: "planner-quality-legacy-2".to_string(),
+            intent: "search the web for release notes".to_string(),
+            surface: RequestSurface::Legacy,
+            payload: json!({}),
+        },
+        OrchestrationRequest {
+            session_id: "planner-quality-ambiguous-2".to_string(),
+            intent: "maybe do something".to_string(),
+            surface: RequestSurface::Legacy,
+            payload: json!({}),
+        },
+        OrchestrationRequest {
+            session_id: "planner-quality-mutation-2".to_string(),
+            intent: "implement requested mutation".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "mutate",
+                    "resource_kind": "task_graph",
+                    "request_kind": "direct",
+                    "mutability": "mutation",
+                    "targets": [{ "kind": "task_id", "value": "task-42" }]
+                },
+                "core_probe_envelope": {
+                    "mutate_task": {
+                        "target_supplied": true,
+                        "target_syntactically_valid": true,
+                        "target_exists": true,
+                        "authorization_valid": false,
+                        "policy_allows": true
+                    }
+                }
+            }),
+        },
     ];
     let mut runtime = OrchestrationSurfaceRuntime::new();
     let mut candidate_counts = Vec::new();
     let mut clarification_first_selected = 0usize;
     let mut degraded_selected = 0usize;
+    let mut selected_plan_degraded = 0usize;
+    let mut selected_plan_requires_clarification = 0usize;
     let mut heuristic_probe_selected = 0usize;
     let mut zero_executable_selected = 0usize;
     let mut all_candidates_clarification_selected = 0usize;
@@ -1661,6 +1742,12 @@ fn planner_quality_fixture_metrics_stay_within_thresholds() {
                 == infring_orchestration_surface_v1::contracts::PlanVariant::DegradedFallback
         {
             degraded_selected += 1;
+        }
+        if package.runtime_quality.selected_plan_degraded {
+            selected_plan_degraded += 1;
+        }
+        if package.runtime_quality.selected_plan_requires_clarification {
+            selected_plan_requires_clarification += 1;
         }
         if package.selected_plan.capability_probes.iter().any(|probe| {
             probe
@@ -1685,6 +1772,9 @@ fn planner_quality_fixture_metrics_stay_within_thresholds() {
     let average_candidate_count = candidate_counts.iter().sum::<usize>() as f32 / total.max(1.0);
     let clarification_first_rate = clarification_first_selected as f32 / total.max(1.0);
     let degraded_rate = degraded_selected as f32 / total.max(1.0);
+    let selected_plan_requires_clarification_rate =
+        selected_plan_requires_clarification as f32 / total.max(1.0);
+    let selected_plan_degraded_rate = selected_plan_degraded as f32 / total.max(1.0);
     let heuristic_probe_rate = heuristic_probe_selected as f32 / total.max(1.0);
     let zero_executable_candidate_rate = zero_executable_selected as f32 / total.max(1.0);
     let all_candidates_require_clarification_rate =
@@ -1724,6 +1814,8 @@ fn planner_quality_fixture_metrics_stay_within_thresholds() {
             "average_candidate_count": average_candidate_count,
             "clarification_first_rate": clarification_first_rate,
             "degraded_rate": degraded_rate,
+            "selected_plan_requires_clarification_rate": selected_plan_requires_clarification_rate,
+            "selected_plan_degraded_rate": selected_plan_degraded_rate,
             "heuristic_probe_rate": heuristic_probe_rate,
             "zero_executable_candidate_rate": zero_executable_candidate_rate,
             "all_candidates_require_clarification_rate": all_candidates_require_clarification_rate,
@@ -2006,6 +2098,111 @@ fn runtime_execution_observation_channel_projects_into_execution_state() {
         .correlation
         .observed_core_receipt_ids
         .is_empty());
+}
+
+#[test]
+fn control_plane_result_includes_template_lifecycle_and_owner_contract() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "lifecycle-template-contract".to_string(),
+            intent: "compare workspace and web evidence".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "compare",
+                    "resource_kind": "mixed",
+                    "targets": [
+                        { "kind": "workspace_path", "value": "README.md" },
+                        { "kind": "url", "value": "https://example.com/docs" }
+                    ]
+                },
+                "core_probe_envelope": {
+                    "execute_tool": {
+                        "tool_available": true,
+                        "transport_available": true
+                    },
+                    "verify_claim": {
+                        "transport_available": true
+                    }
+                }
+            }),
+        },
+        4_975,
+    );
+
+    assert_eq!(
+        package.control_plane_lifecycle.owner,
+        "surface_orchestration_control_plane"
+    );
+    assert_eq!(
+        package.control_plane_lifecycle.template,
+        package.workflow_template
+    );
+    assert!(package
+        .control_plane_lifecycle
+        .stages
+        .iter()
+        .any(|row| row.stage == WorkflowStage::DecompositionPlanning));
+    assert!(package
+        .control_plane_lifecycle
+        .stages
+        .iter()
+        .any(|row| row.stage == WorkflowStage::VerificationClosure));
+}
+
+#[test]
+fn failed_execution_observation_triggers_feedback_reroute_contract() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    runtime.record_execution_observation(
+        "feedback-reroute",
+        infring_orchestration_surface_v1::contracts::CoreExecutionObservation {
+            plan_status: Some(infring_orchestration_surface_v1::contracts::PlanStatus::Failed),
+            receipt_ids: vec!["receipt-feedback-1".to_string()],
+            outcome_refs: vec!["outcome-feedback-1".to_string()],
+            step_statuses: vec![
+                infring_orchestration_surface_v1::contracts::CoreExecutionStepObservation {
+                    step_id: "step_tool_broker_request".to_string(),
+                    status: infring_orchestration_surface_v1::contracts::StepStatus::Failed,
+                },
+            ],
+        },
+    );
+
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "feedback-reroute".to_string(),
+            intent: "search release notes".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "search",
+                    "resource_kind": "web",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
+                },
+                "core_probe_envelope": {
+                    "execute_tool": {
+                        "tool_available": true,
+                        "transport_available": true
+                    }
+                }
+            }),
+        },
+        4_976,
+    );
+
+    assert!(package.recovery_applied);
+    assert!(package
+        .classification
+        .reasons
+        .iter()
+        .any(|row| row.starts_with("feedback_reroute:")));
+    assert!(package
+        .control_plane_lifecycle
+        .next_actions
+        .iter()
+        .any(|row| row.contains("retry") || row.contains("escalate")));
 }
 
 #[test]

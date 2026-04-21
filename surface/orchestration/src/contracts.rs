@@ -491,6 +491,71 @@ pub struct RuntimeQualitySignals {
     pub surface_adapter_fallback: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WorkflowTemplate {
+    ClarifyThenCoordinate,
+    ResearchSynthesizeVerify,
+    PlanExecuteReview,
+    DiagnoseRetryEscalate,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WorkflowStage {
+    IntakeNormalization,
+    DecompositionPlanning,
+    CoordinationSequencing,
+    RecoveryEscalation,
+    ResultPackaging,
+    VerificationClosure,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WorkflowStageStatus {
+    Pending,
+    Ready,
+    Running,
+    Completed,
+    Blocked,
+    Skipped,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorkflowStageState {
+    pub stage: WorkflowStage,
+    pub status: WorkflowStageStatus,
+    pub owner: String,
+    pub note: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ClosureState {
+    Pending,
+    Ready,
+    Complete,
+    Blocked,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ControlPlaneClosureState {
+    pub verification: ClosureState,
+    pub receipt_correlation: ClosureState,
+    pub memory_packaging: ClosureState,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ControlPlaneLifecycleState {
+    pub owner: String,
+    pub template: WorkflowTemplate,
+    pub active_stage: WorkflowStage,
+    pub stages: Vec<WorkflowStageState>,
+    pub next_actions: Vec<String>,
+    pub closure: ControlPlaneClosureState,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OrchestrationResultPackage {
     pub summary: String,
@@ -504,4 +569,6 @@ pub struct OrchestrationResultPackage {
     pub selected_plan: PlanCandidate,
     pub alternative_plans: Vec<PlanCandidate>,
     pub runtime_quality: RuntimeQualitySignals,
+    pub workflow_template: WorkflowTemplate,
+    pub control_plane_lifecycle: ControlPlaneLifecycleState,
 }

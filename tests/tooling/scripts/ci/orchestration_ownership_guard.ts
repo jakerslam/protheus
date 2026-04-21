@@ -31,6 +31,18 @@ type Policy = {
     root?: string;
     extensions?: string[];
     required_markers?: string[];
+    required_delegate_markers_any?: string[];
+    require_self_filename_delegate_marker?: boolean;
+    forbidden_markers?: string[];
+    max_noncomment_lines?: number;
+  };
+  cognition_surface_parity_contract?: {
+    client_root?: string;
+    surface_root?: string;
+    extensions?: string[];
+    ignored_paths?: string[];
+    require_relative_path_match?: boolean;
+    exact_match_extensions?: string[];
   };
   client_runtime_wrapper_contract?: {
     scan_roots?: string[];
@@ -168,6 +180,16 @@ function runClientCognitionWrapperCheck(policy: Policy): Violation[] {
   const root = cleanText(contract.root || '', 400);
   const extensions = Array.isArray(contract.extensions) && contract.extensions.length > 0 ? contract.extensions : ['.ts'];
   const requiredMarkers = Array.isArray(contract.required_markers) ? contract.required_markers : [];
+  const delegateMarkers = Array.isArray(contract.required_delegate_markers_any)
+    ? contract.required_delegate_markers_any
+    : [];
+  const requireSelfFilenameDelegateMarker = Boolean(contract.require_self_filename_delegate_marker);
+  const forbiddenMarkers = Array.isArray(contract.forbidden_markers)
+    ? contract.forbidden_markers
+    : [];
+  const maxNoncommentLines = Number.isFinite(Number(contract.max_noncomment_lines))
+    ? Number(contract.max_noncomment_lines)
+    : 0;
   const files = includePaths.length > 0
     ? includePaths.map((value) => path.resolve(ROOT, value)).filter((absPath) => fs.existsSync(absPath))
     : listFiles(path.resolve(ROOT, root), extensions);
@@ -205,6 +227,65 @@ function runClientCognitionWrapperCheck(policy: Policy): Violation[] {
           file: rp,
           reason: 'missing_wrapper_marker',
           detail: normalized,
+        });
+      }
+    }
+
+    if (delegateMarkers.length > 0) {
+      const hasDelegateMarker = delegateMarkers.some((marker) => source.includes(cleanText(marker, 200)));
+      if (!hasDelegateMarker) {
+        violations.push({
+          check_id: 'client_cognition_wrappers',
+          file: rp,
+          reason: 'missing_delegate_marker',
+          detail: delegateMarkers.join(' | '),
+        });
+      }
+    }
+
+    if (requireSelfFilenameDelegateMarker) {
+      const basename = path.basename(filePath);
+      const hasSelfFilenameMarker = source.includes(`'${basename}'`) || source.includes(`"${basename}"`);
+      if (!hasSelfFilenameMarker) {
+        violations.push({
+          check_id: 'client_cognition_wrappers',
+          file: rp,
+          reason: 'missing_self_filename_delegate_marker',
+          detail: basename,
+        });
+      }
+    }
+
+    for (const marker of forbiddenMarkers) {
+      const normalized = cleanText(marker, 300);
+      if (!normalized) continue;
+      if (source.includes(normalized)) {
+        violations.push({
+          check_id: 'client_cognition_wrappers',
+          file: rp,
+          reason: 'forbidden_wrapper_marker_present',
+          detail: normalized,
+        });
+      }
+    }
+
+    if (maxNoncommentLines > 0) {
+      const noncommentLines = source
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) =>
+          line.length > 0 &&
+          !line.startsWith('//') &&
+          !line.startsWith('/*') &&
+          !line.startsWith('*') &&
+          !line.startsWith('*/'),
+        ).length;
+      if (noncommentLines > maxNoncommentLines) {
+        violations.push({
+          check_id: 'client_cognition_wrappers',
+          file: rp,
+          reason: 'wrapper_line_budget_exceeded',
+          detail: `noncomment_lines=${noncommentLines}, max=${maxNoncommentLines}`,
         });
       }
     }
@@ -261,6 +342,104 @@ function runClientRuntimeWrapperCheck(policy: Policy): Violation[] {
       }
     }
   }
+  return violations;
+}
+
+function runCognitionSurfaceParityCheck(policy: Policy): Violation[] {
+  const violations: Violation[] = [];
+  const contract = policy.cognition_surface_parity_contract || {};
+  const clientRoot = cleanText(contract.client_root || '', 400);
+  const surfaceRoot = cleanText(contract.surface_root || '', 400);
+  if (!clientRoot || !surfaceRoot) return violations;
+
+  const extensions = Array.isArray(contract.extensions) && contract.extensions.length > 0
+    ? contract.extensions
+    : ['.ts', '.json'];
+  const requireRelativePathMatch = contract.require_relative_path_match !== false;
+  const exactMatchExtensions = new Set(
+    (Array.isArray(contract.exact_match_extensions) ? contract.exact_match_extensions : [])
+      .map((value) => cleanText(value, 20).toLowerCase())
+      .filter(Boolean),
+  );
+  const ignoredPaths = new Set(
+    (Array.isArray(contract.ignored_paths) ? contract.ignored_paths : [])
+      .map((value) => cleanText(value, 400).replace(/\\/g, '/'))
+      .filter(Boolean),
+  );
+
+  const clientRootAbs = path.resolve(ROOT, clientRoot);
+  const surfaceRootAbs = path.resolve(ROOT, surfaceRoot);
+  const clientFiles = listFiles(clientRootAbs, extensions)
+    .map((absPath) => ({
+      abs: absPath,
+      rel: path.relative(clientRootAbs, absPath).replace(/\\/g, '/'),
+    }))
+    .filter((row) => !ignoredPaths.has(row.rel));
+  const surfaceFiles = listFiles(surfaceRootAbs, extensions)
+    .map((absPath) => ({
+      abs: absPath,
+      rel: path.relative(surfaceRootAbs, absPath).replace(/\\/g, '/'),
+    }))
+    .filter((row) => !ignoredPaths.has(row.rel));
+
+  if (clientFiles.length === 0) {
+    violations.push({
+      check_id: 'cognition_surface_parity',
+      file: clientRoot,
+      reason: 'client_root_empty',
+      detail: 'no_files_found',
+    });
+  }
+  if (surfaceFiles.length === 0) {
+    violations.push({
+      check_id: 'cognition_surface_parity',
+      file: surfaceRoot,
+      reason: 'surface_root_empty',
+      detail: 'no_files_found',
+    });
+  }
+
+  const clientByRel = new Map(clientFiles.map((row) => [row.rel, row.abs]));
+  const surfaceByRel = new Map(surfaceFiles.map((row) => [row.rel, row.abs]));
+
+  if (requireRelativePathMatch) {
+    for (const relPath of Array.from(surfaceByRel.keys()).sort()) {
+      if (clientByRel.has(relPath)) continue;
+      violations.push({
+        check_id: 'cognition_surface_parity',
+        file: `${clientRoot}/${relPath}`,
+        reason: 'missing_client_counterpart',
+        detail: relPath,
+      });
+    }
+    for (const relPath of Array.from(clientByRel.keys()).sort()) {
+      if (surfaceByRel.has(relPath)) continue;
+      violations.push({
+        check_id: 'cognition_surface_parity',
+        file: `${surfaceRoot}/${relPath}`,
+        reason: 'missing_surface_counterpart',
+        detail: relPath,
+      });
+    }
+  }
+
+  if (exactMatchExtensions.size > 0) {
+    for (const relPath of Array.from(surfaceByRel.keys()).sort()) {
+      if (!clientByRel.has(relPath)) continue;
+      const ext = path.extname(relPath).toLowerCase();
+      if (!exactMatchExtensions.has(ext)) continue;
+      const clientSource = fs.readFileSync(clientByRel.get(relPath) as string, 'utf8');
+      const surfaceSource = fs.readFileSync(surfaceByRel.get(relPath) as string, 'utf8');
+      if (clientSource === surfaceSource) continue;
+      violations.push({
+        check_id: 'cognition_surface_parity',
+        file: relPath,
+        reason: 'mirrored_file_content_mismatch',
+        detail: ext || '(no_ext)',
+      });
+    }
+  }
+
   return violations;
 }
 
@@ -366,6 +545,7 @@ function toMarkdown(payload: any): string {
   lines.push('');
   lines.push(`- Required doc violations: ${payload.summary.required_doc_violation_count}`);
   lines.push(`- Client cognition wrapper violations: ${payload.summary.client_cognition_wrapper_violation_count}`);
+  lines.push(`- Cognition surface parity violations: ${payload.summary.cognition_surface_parity_violation_count}`);
   lines.push(`- Client runtime wrapper violations: ${payload.summary.client_runtime_wrapper_violation_count}`);
   lines.push(`- Surface import hard violations: ${payload.summary.surface_import_hard_violation_count}`);
   lines.push(`- Surface import allowlisted violations: ${payload.summary.surface_import_allowed_violation_count}`);
@@ -397,12 +577,14 @@ function main(): number {
 
   const requiredDocViolations = runRequiredDocCheck(policy);
   const clientCognitionWrapperViolations = runClientCognitionWrapperCheck(policy);
+  const cognitionSurfaceParityViolations = runCognitionSurfaceParityCheck(policy);
   const clientRuntimeWrapperViolations = runClientRuntimeWrapperCheck(policy);
   const surfaceImport = runSurfaceScriptImportBoundaryCheck(policy);
 
   const hardViolations = [
     ...requiredDocViolations,
     ...clientCognitionWrapperViolations,
+    ...cognitionSurfaceParityViolations,
     ...clientRuntimeWrapperViolations,
     ...surfaceImport.hardViolations,
   ];
@@ -422,6 +604,7 @@ function main(): number {
       pass: hardViolations.length === 0,
       required_doc_violation_count: requiredDocViolations.length,
       client_cognition_wrapper_violation_count: clientCognitionWrapperViolations.length,
+      cognition_surface_parity_violation_count: cognitionSurfaceParityViolations.length,
       client_runtime_wrapper_violation_count: clientRuntimeWrapperViolations.length,
       surface_import_hard_violation_count: surfaceImport.hardViolations.length,
       surface_import_allowed_violation_count: surfaceImport.allowedViolations.length,
