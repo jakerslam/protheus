@@ -4,7 +4,7 @@ use crate::contracts::{
     OrchestrationPlan, PlanCandidate, PlanStatus, StepState, StepStatus, TypedOrchestrationRequest,
 };
 
-pub fn execution_state_for(
+pub fn project_execution_state(
     request: &TypedOrchestrationRequest,
     execution_observation: Option<&CoreExecutionObservation>,
     plan: &PlanCandidate,
@@ -95,6 +95,16 @@ pub fn execution_state_for(
         degradation: None,
         correlation,
     }
+}
+
+// Compatibility alias during control-plane naming transition.
+pub fn execution_state_for(
+    request: &TypedOrchestrationRequest,
+    execution_observation: Option<&CoreExecutionObservation>,
+    plan: &PlanCandidate,
+    needs_clarification: bool,
+) -> ExecutionState {
+    project_execution_state(request, execution_observation, plan, needs_clarification)
 }
 
 pub fn build_progress_projection(plan: &OrchestrationPlan) -> String {

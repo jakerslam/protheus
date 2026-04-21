@@ -19,65 +19,75 @@ pub fn coordinate_recovery_escalation(
 
     if apply_blocked_precondition_recovery(
         &mut plan,
-        Precondition::TargetSupplied,
-        "specify a target before execution",
-        PlanStatus::ClarificationRequired,
-        RecoveryDecision::Clarify,
-        RecoveryReason::MissingTarget,
-        true,
-        "planner blocked on missing target",
+        BlockedPreconditionRecoverySpec {
+            precondition: Precondition::TargetSupplied,
+            clarification_prompt: "specify a target before execution",
+            plan_status: PlanStatus::ClarificationRequired,
+            decision: RecoveryDecision::Clarify,
+            reason: RecoveryReason::MissingTarget,
+            retryable: true,
+            note: "planner blocked on missing target",
+        },
     ) {
         return (plan, true);
     }
 
     if apply_blocked_precondition_recovery(
         &mut plan,
-        Precondition::TargetSyntacticallyValid,
-        "specify a valid target format before execution",
-        PlanStatus::ClarificationRequired,
-        RecoveryDecision::Clarify,
-        RecoveryReason::TargetInvalid,
-        true,
-        "planner blocked on syntactically invalid target",
+        BlockedPreconditionRecoverySpec {
+            precondition: Precondition::TargetSyntacticallyValid,
+            clarification_prompt: "specify a valid target format before execution",
+            plan_status: PlanStatus::ClarificationRequired,
+            decision: RecoveryDecision::Clarify,
+            reason: RecoveryReason::TargetInvalid,
+            retryable: true,
+            note: "planner blocked on syntactically invalid target",
+        },
     ) {
         return (plan, true);
     }
 
     if apply_blocked_precondition_recovery(
         &mut plan,
-        Precondition::TargetExists,
-        "target could not be located for execution",
-        PlanStatus::ClarificationRequired,
-        RecoveryDecision::Clarify,
-        RecoveryReason::TargetNotFound,
-        true,
-        "planner blocked because the requested target was not found",
+        BlockedPreconditionRecoverySpec {
+            precondition: Precondition::TargetExists,
+            clarification_prompt: "target could not be located for execution",
+            plan_status: PlanStatus::ClarificationRequired,
+            decision: RecoveryDecision::Clarify,
+            reason: RecoveryReason::TargetNotFound,
+            retryable: true,
+            note: "planner blocked because the requested target was not found",
+        },
     ) {
         return (plan, true);
     }
 
     if apply_blocked_precondition_recovery(
         &mut plan,
-        Precondition::AuthorizationValid,
-        "authorization is required before execution",
-        PlanStatus::Blocked,
-        RecoveryDecision::Clarify,
-        RecoveryReason::AuthorizationFailure,
-        true,
-        "planner blocked on authorization",
+        BlockedPreconditionRecoverySpec {
+            precondition: Precondition::AuthorizationValid,
+            clarification_prompt: "authorization is required before execution",
+            plan_status: PlanStatus::Blocked,
+            decision: RecoveryDecision::Clarify,
+            reason: RecoveryReason::AuthorizationFailure,
+            retryable: true,
+            note: "planner blocked on authorization",
+        },
     ) {
         return (plan, true);
     }
 
     if apply_blocked_precondition_recovery(
         &mut plan,
-        Precondition::PolicyAllows,
-        "policy scope must be narrowed before execution",
-        PlanStatus::Blocked,
-        RecoveryDecision::Halt,
-        RecoveryReason::PolicyDenied,
-        false,
-        "planner blocked on policy",
+        BlockedPreconditionRecoverySpec {
+            precondition: Precondition::PolicyAllows,
+            clarification_prompt: "policy scope must be narrowed before execution",
+            plan_status: PlanStatus::Blocked,
+            decision: RecoveryDecision::Halt,
+            reason: RecoveryReason::PolicyDenied,
+            retryable: false,
+            note: "planner blocked on policy",
+        },
     ) {
         return (plan, true);
     }
@@ -143,29 +153,33 @@ pub fn apply_recovery_policy(
 
 fn apply_blocked_precondition_recovery(
     plan: &mut OrchestrationPlan,
-    blocked_precondition: Precondition,
-    clarification_prompt: &str,
-    plan_status: PlanStatus,
-    decision: RecoveryDecision,
-    reason: RecoveryReason,
-    retryable: bool,
-    note: &str,
+    spec: BlockedPreconditionRecoverySpec,
 ) -> bool {
-    if !plan.selected_plan.blocked_on.contains(&blocked_precondition) {
+    if !plan.selected_plan.blocked_on.contains(&spec.precondition) {
         return false;
     }
 
     plan.posture = ExecutionPosture::Ask;
     plan.needs_clarification = true;
-    plan.clarification_prompt = Some(clarification_prompt.to_string());
-    plan.execution_state.plan_status = plan_status;
+    plan.clarification_prompt = Some(spec.clarification_prompt.to_string());
+    plan.execution_state.plan_status = spec.plan_status;
     plan.execution_state.recovery = Some(RecoveryState {
-        decision,
-        reason: Some(reason),
-        retryable,
-        note: note.to_string(),
+        decision: spec.decision,
+        reason: Some(spec.reason),
+        retryable: spec.retryable,
+        note: spec.note.to_string(),
     });
     true
+}
+
+struct BlockedPreconditionRecoverySpec {
+    precondition: Precondition,
+    clarification_prompt: &'static str,
+    plan_status: PlanStatus,
+    decision: RecoveryDecision,
+    reason: RecoveryReason,
+    retryable: bool,
+    note: &'static str,
 }
 
 fn apply_transport_degradation_recovery(plan: &mut OrchestrationPlan) -> bool {

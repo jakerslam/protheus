@@ -86,7 +86,7 @@ pub fn normalize_request(input: OrchestrationRequest) -> ParseResult {
         .unwrap_or_default();
     let core_probe_envelope = extract_core_probe_envelope(&payload, surface);
 
-    classifier::parse_diagnostics(
+    classifier::build_parse_result(
         TypedOrchestrationRequest {
             session_id,
             surface,
