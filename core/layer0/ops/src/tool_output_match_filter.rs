@@ -95,6 +95,18 @@ const THINKING_CHATTER_MARKERS: &[&str] = &[
     "working",
 ];
 
+const WEB_METADATA_CARD_KEYS: &[&str] = &[
+    "title:",
+    "excerpt:",
+    "originalurl:",
+    "provider:",
+    "featuredcontent:",
+    "publisheddatetime:",
+    "type:",
+    "price:",
+    "length:",
+];
+
 const FORBIDDEN_RUNTIME_CONTEXT_MARKERS: &[&str] = &[
     "begin_openclaw_internal_context",
     "end_openclaw_internal_context",
@@ -539,6 +551,43 @@ pub fn rewrite_raw_payload_dump(raw: &str) -> Option<(String, String)> {
     ))
 }
 
+fn looks_like_web_metadata_card_dump(raw: &str) -> bool {
+    let cleaned = clean_text(raw, 8_000);
+    if cleaned.is_empty() {
+        return false;
+    }
+    let lowered = cleaned.to_ascii_lowercase();
+    if lowered.contains("from web retrieval:")
+        || lowered.contains("according to")
+        || lowered.contains("source:")
+        || lowered.contains("sources:")
+    {
+        return false;
+    }
+    let key_hits = WEB_METADATA_CARD_KEYS
+        .iter()
+        .filter(|marker| lowered.contains(**marker))
+        .count();
+    if key_hits < 3 {
+        return false;
+    }
+    let line_hits = lowered
+        .lines()
+        .filter(|line| {
+            let trimmed = line.trim();
+            WEB_METADATA_CARD_KEYS
+                .iter()
+                .any(|marker| trimmed.starts_with(*marker))
+                || trimmed.starts_with("- url:")
+                || trimmed.starts_with("name:")
+                || trimmed.starts_with("domain:")
+                || trimmed.starts_with("width:")
+                || trimmed.starts_with("height:")
+        })
+        .count();
+    line_hits >= 4
+}
+
 fn looks_like_unsynthesized_web_dump(raw: &str) -> bool {
     let cleaned = clean_text(raw, 8_000);
     if cleaned.is_empty() {
@@ -564,6 +613,9 @@ fn looks_like_unsynthesized_web_dump(raw: &str) -> bool {
         if has_source_hint && has_metric_hint {
             return false;
         }
+    }
+    if looks_like_web_metadata_card_dump(&cleaned) {
+        return true;
     }
     if !contains_any_marker(&lowered, UNSYNTHESIZED_WEB_MARKERS) {
         return false;
@@ -620,6 +672,9 @@ pub fn rewrite_repetitive_thinking_chatter(raw: &str) -> Option<(String, String)
 pub fn matches_ack_placeholder(raw: &str) -> bool {
     let cleaned = clean_text(raw, 4_000);
     if cleaned.is_empty() {
+        return true;
+    }
+    if looks_like_web_metadata_card_dump(&cleaned) {
         return true;
     }
     for (_rule, pattern, unless) in ack_rules() {
@@ -726,6 +781,12 @@ mod tests {
     }
 
     #[test]
+    fn detects_metadata_card_dump_as_ack_placeholder() {
+        let raw = "title: Learn how to use Azure Functions\nexcerpt: Azure Functions is a great solution for processing data\noriginalUrl: https://youtube.com/watch?v=Av5cIs7Qkps\ntype: video\nprice: Free\nprovider:\nname: Microsoft\ndomain: microsoft.com";
+        assert!(matches_ack_placeholder(raw));
+    }
+
+    #[test]
     fn rewrites_generic_tool_failure_placeholder_to_actionable_copy() {
         let rewritten =
             rewrite_failure_placeholder("I couldn't complete system_diagnostic right now.")
@@ -783,6 +844,23 @@ mod tests {
             .to_ascii_lowercase()
             .contains("anti-bot challenge"));
         assert_eq!(rewritten.1, "unsynthesized_web_dump_antibot_rewritten");
+    }
+
+    #[test]
+    fn rewrites_metadata_card_dump_copy() {
+        let raw = "title: Learn how to use Azure Functions\nexcerpt: Azure Functions is a great solution for processing data\noriginalUrl: https://youtube.com/watch?v=Av5cIs7Qkps\ntype: video\nprice: Free\nprovider:\nname: Microsoft\ndomain: microsoft.com";
+        let rewritten = rewrite_unsynthesized_web_dump(raw).expect("rewrite");
+        assert!(rewritten
+            .0
+            .to_ascii_lowercase()
+            .contains("source-backed answer"));
+        assert_eq!(rewritten.1, "unsynthesized_web_dump_rewritten");
+    }
+
+    #[test]
+    fn keeps_source_backed_web_retrieval_summary_with_metadata_tokens() {
+        let raw = "From web retrieval: https://example.com reported benchmark updates and provider metadata. Source: https://example.com/report";
+        assert!(rewrite_unsynthesized_web_dump(raw).is_none());
     }
 
     #[test]
