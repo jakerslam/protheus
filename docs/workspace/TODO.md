@@ -76,7 +76,7 @@ Updated: 2026-04-20T23:08:57.515Z
 - [ ] Technical Excellence #1 Intake (Doc `12_nnoI-1YXaxVc6YSgYRCMRKXNIWCcP1XKCJHv_NBeY`, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=2, done=5, existing_coverage_validated=3
 - [x] Assimilation Delta Intake (Doc `1GTs4h1w43rwhSMYctpuwYnLoQyKFeHxsas8LUTsmozA`, 2026-03-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=10
 - [x] Stealth Research Engine Intake (Doc `15cAMJQN_HrVPrID0vIZBtYZVUMcl-JB-Q523XJahnN0`, 2026-03-08) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
-- [x] Scrapy Core Crawling Architecture Source Coverage Intake (Doc `1TV9jmVwCtNvClWsQ5fbDFZD_gQ1Qoj5ffHl3aGjYBJg`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
+- [x] Scrapy Kernel Crawling Architecture Source Coverage Intake (Doc `1TV9jmVwCtNvClWsQ5fbDFZD_gQ1Qoj5ffHl3aGjYBJg`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
 - [x] Firecrawl Agent Crawler Source Coverage Intake (Doc `1GNCzMkKKyHNpxNwkWncd6YkM3kQl7272xiBH3kYYTis`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
 - [x] Python-Scraping Pattern Source Coverage Intake (Doc `10zk6RreqZjknjQFYv8rPx75OD1W_exBricQ2lWCJ2CU`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
 - [x] Google News URL Decoder Source Coverage Intake (Doc `14LDfaNqkqACV7ZYZTeclBGIoHFHrY33CNmY14jTx6XQ`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
@@ -150,7 +150,7 @@ Updated: 2026-04-20T23:08:57.515Z
 - [x] V4 Rust Acceleration Track (Grok Intake Normalized, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=4
 - [x] V4 1M User Scale Readiness Track (Operator Directive, 2026-03-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=10
 - [x] Foundation Hardening Sprint (7-14 Days) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
-- [x] Holo-viz Track (Separated from Core Protheus) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=43
+- [x] Holo-viz Track (Separated from Kernel Protheus) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=43
 - [x] Devin Comparative Intake (Normalized to Primitive-First) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=8
 - [x] X AI Feature Abstraction Intake (Normalized, 2026-02-27) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
 - [x] Controlled Self-Improvement Intake (Normalized, 2026-02-27) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
@@ -258,7 +258,7 @@ Updated: 2026-04-20T23:08:57.515Z
 - [ ] Hierarchical Nexus Routing System (Requirements Intake 2026-04-06) — queued=16, in_progress=0, blocked=0, blocked_external_prepared=0, done=3, existing_coverage_validated=0
 - [x] Security Credibility And Verification Program (2026-03-06) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=9, existing_coverage_validated=0
 - [x] ZeroLeaks Injection Hardening Source Coverage Intake (Doc `143v84ci3rHjP7WtbYi9tJ2KeJZUkNTIsFTye1NHrheA`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
-- [x] Rust Core Primitive Source-Of-Truth Program (2026-03-06) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=9
+- [x] Rust Kernel Primitive Source-Of-Truth Program (2026-03-06) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=9
 - [ ] Testing + Documentation + Installer Gap Closer (2026-03-06) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=1, done=0, existing_coverage_validated=5
 - [x] Technical Excellence Roadmap Intake (Google Doc `19DO7nvxizNJmLuoRUFrYYTNOmMnHJCGKI44AlGHbcSw`, 2026-03-08) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=5
 - [x] Contributor Signal Program Intake (Google Doc `19IXz6Rjbn9ltXJV-Me2P9oRZ3KLs3KV90VG3k_PdC7E`, 2026-03-08) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
@@ -388,7 +388,7 @@ Updated: 2026-04-20T23:08:57.515Z
 - [x] Universal App Compatibility Adapter Engine Source Coverage Intake (Doc `17smtxqjd33u66Dsnvq0Bti8hx1jxTirVLrGG23qzw28`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
 - [x] Auto-Molting Substrate Adapter Engine Source Coverage Intake (Doc `1uGkRTsq9DE_6uA7twocPTDv03LmvywnYzpr2okR6IlM`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
 - [x] Bare-Metal Independent OS Mode Source Coverage Intake (Doc `1uGkRTsq9DE_6uA7twocPTDv03LmvywnYzpr2okR6IlM`, corrected-placement addendum `19It97DQDHCgYRM4eFj4r8qZ64IixOmGRBErapYsSXjE`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
-- [x] Bare-Metal Capabilities Core Extension Intake (Source `V10-BAREMETAL-001`, 2026-03-19) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=7, existing_coverage_validated=0
+- [x] Bare-Metal Capabilities Kernel Extension Intake (Source `V10-BAREMETAL-001`, 2026-03-19) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=7, existing_coverage_validated=0
 - [x] Autonomous Snowball Orchestration Engine Source Coverage Intake (Doc `1OA9Hu3dx9iheyIW-7JGrR4hd8bVJt0TE21Bv_fRNeFg`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=6
 - [x] Semantic Agent Skills Marketplace Source Coverage Addendum (Doc `1J8BwVaRmGlu8SK3fg5YOUoOknvQ4gtBQk4YX5GaIbTw`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=6
 - [x] Frontier Provider Agent Skills Library Source Coverage Addendum (Doc `1hCPkhlg80Wdtv-qqFnsUqaeFz-RAQddOS5p7kxuschg`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=2
@@ -549,7 +549,7 @@ Updated: 2026-04-20T23:08:57.515Z
 - [ ] `V6-INSTALL-001.2` — queued — Installer Reliability v1.0 Intake (2026-04-03)
 - [ ] `V6-INSTALL-001.3` — queued — Installer Reliability v1.0 Intake (2026-04-03)
 - [ ] `V6-INSTALL-001.4` — queued — Installer Reliability v1.0 Intake (2026-04-03)
-- [ ] `V6-INSTALL-001.5` — queued — Installer Reliability v1.0 Intake (2026-04-03)
+- [ ] `V6-INSTALL-001.5` — in_progress — Installer Reliability v1.0 Intake (2026-04-03)
 - [ ] `V6-INSTALL-001.6` — in_progress — Installer Reliability v1.0 Intake (2026-04-03)
 - [ ] `V6-LANGUAGE-003` — queued — Claude Token-Efficiency Assimilation Intake (x.com/meta_alchemist/2038919582111670415, 2026-04-02)
 - [ ] `V6-LLM-005` — queued — better-clawd Assimilation Intake (2026-04-02)
@@ -609,7 +609,7 @@ Updated: 2026-04-20T23:08:57.515Z
 - [ ] `V6-CONDUIT-002.7` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
 - [ ] `V6-CONDUIT-002.9` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
 - [ ] `V6-CTX-021` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
-- [ ] `V6-INSTALL-001.7` — queued — Installer Reliability v1.0 Intake (2026-04-03)
+- [ ] `V6-INSTALL-001.7` — in_progress — Installer Reliability v1.0 Intake (2026-04-03)
 - [ ] `V6-LANGUAGE-004` — queued — Claude Token-Efficiency Assimilation Intake (x.com/meta_alchemist/2038919582111670415, 2026-04-02)
 - [ ] `V6-MEMORY-030` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
 - [ ] `V6-MEMORY-031` — queued — better-clawd Assimilation Intake (2026-04-02)
@@ -638,7 +638,7 @@ Updated: 2026-04-20T23:08:57.515Z
 - [ ] `V11-CLINE-004` — queued — Cline Capability Assimilation Intake (2026-04-05)
 - [ ] `V11-DX-004` — in_progress — Workspace Operability Intake (2026-04-10)
 - [ ] `V11-FILE-003` — queued — File Read Reliability Intake (2026-04-06)
-- [ ] `V11-INSTALL-005` — queued — 10/10 Completion Intake (2026-04-03)
+- [ ] `V11-INSTALL-005` — in_progress — 10/10 Completion Intake (2026-04-03)
 - [ ] `V11-MEMORY-010.5` — in_progress — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V11-RTK-002` — queued — RTK Capability Assimilation Intake (2026-04-05)
 - [ ] `V11-RTK-003` — queued — RTK Capability Assimilation Intake (2026-04-05)
@@ -675,6 +675,68 @@ Updated: 2026-04-20T23:08:57.515Z
 - [ ] `V6-FOUNDATION-DNA-002` — queued — Digital DNA Foundation v1 Intake (2026-04-01)
 - [ ] `V6-ORGAN-001.9` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
 - [ ] `V6-REFERENCE-RUNTIME-026` — queued — Reference Runtime Gap Closure Intake (2026-04-02)
+
+## Core Nexus Coupling Remediation Intake (2026-04-21)
+- [x] `V12-NEXUS-COUPLING-001` — done — Remove direct non-nexus core import edge in `core/layer0/blob_test/src/lib.rs` (imports `infring_types` directly).
+- [x] `V12-NEXUS-COUPLING-002` — done — Remove direct non-nexus core import edge in `core/layer0/graph/src/blob.rs` (imports `infring_types` directly).
+- [ ] `V12-NEXUS-COUPLING-003` — queued — Remove direct non-nexus core import edge in `core/layer0/infring_agent_surface/src/lib.rs` (imports `infring_agent_derive` directly).
+- [ ] `V12-NEXUS-COUPLING-004` — queued — Remove direct non-nexus core import edges in `core/layer0/kernel_layers/src/lib.rs` (`conduit`, `exotic_wrapper`, `ipc`, `isolation`, `os_extension_wrapper`, `resource`, `storage`, `task`, `update`).
+- [ ] `V12-NEXUS-COUPLING-005` — queued — Remove direct non-nexus core import edge in `core/layer0/memory/src/blob_parts/010-use-serde-de-deserializeowned.rs` (imports `infring_types` directly).
+- [ ] `V12-NEXUS-COUPLING-006` — queued — Remove direct non-nexus core import edges in `core/layer0/memory_runtime/src/main_parts/010-strip-ticks.rs` (imports `protheus_layer1_memory_runtime` directly).
+- [ ] `V12-NEXUS-COUPLING-007` — queued — Remove direct non-nexus core import edge in `core/layer0/memory_runtime/src/main_parts/035-hybrid-recall.rs` (imports `protheus_memory_core_v1` directly).
+- [ ] `V12-NEXUS-COUPLING-008` — queued — Remove direct non-nexus core import edge in `core/layer0/memory_runtime/src/wave1_parts/010-now-iso.rs` (imports `protheus_layer1_memory_runtime` directly).
+- [ ] `V12-NEXUS-COUPLING-009` — queued — Remove direct non-nexus core import edge in `core/layer0/mobile/src/blob.rs` (imports `infring_types` directly).
+- [ ] `V12-NEXUS-COUPLING-010` — queued — Remove direct non-nexus core import edges in `core/layer0/mobile/src/lib.rs` (`execution_core`, `protheus_graph_core_v1`, `protheus_observability_core_v1`, `protheus_pinnacle_core_v1`, `protheus_red_legion_core_v1`, `protheus_swarm_core_v1`, `protheus_vault_core_v1`).
+- [ ] `V12-NEXUS-COUPLING-011` — queued — Remove direct non-nexus core import edge in `core/layer0/ops/src/attention_queue_parts/010-usage.rs` (imports `execution_core` directly).
+- [ ] `V12-NEXUS-COUPLING-012` — queued — Remove direct non-nexus core import edge in `core/layer0/ops/src/contract_check_parts/010-run.rs` (imports `foundation_hook_enforcer` directly).
+- [ ] `V12-NEXUS-COUPLING-013` — queued — Remove direct non-nexus core import edge in `core/layer0/ops/src/enterprise_moat_extensions_parts/010-read-jsonl.rs` (imports `execution_core` directly).
+- [ ] `V12-NEXUS-COUPLING-014` — queued — Remove direct non-nexus core import edges in `core/layer0/ops/src/foundation_contract_gate.rs` (`burn_oracle_budget_gate`, `foundation_hook_enforcer`, `persona_dispatch_security_gate`).
+- [ ] `V12-NEXUS-COUPLING-015` — queued — Remove direct non-nexus core import edges in `core/layer0/ops/src/framework_adapter_contract.rs` (`protheus_memory_core_v1`, `protheus_tooling_core_v1`).
+- [ ] `V12-NEXUS-COUPLING-016` — queued — Remove direct non-nexus core import edge in `core/layer0/ops/src/importance.rs` (imports `execution_core` directly).
+- [ ] `V12-NEXUS-COUPLING-017` — queued — Remove direct non-nexus core import edge in `core/layer0/ops/src/memory_plane.rs` (imports `protheus_memory_core_v1` directly).
+- [ ] `V12-NEXUS-COUPLING-018` — queued — Remove direct non-nexus core import edge in `core/layer0/ops/src/protheusctl_parts/010-bool-env.rs.parts/010-segment.rs` (imports `persona_dispatch_security_gate` directly).
+- [ ] `V12-NEXUS-COUPLING-019` — queued — Remove direct non-nexus core import edge in `core/layer0/ops/src/runtime_systems_parts/010-usage.rs` (imports `llm_runtime` directly).
+- [ ] `V12-NEXUS-COUPLING-020` — queued — Remove direct non-nexus core import edge in `core/layer0/ops/src/spine_parts/010-stable-hash_parts/010-use-crate-deterministic-receipt-hash-now-iso.rs` (imports `protheus_spine_core_v1` directly).
+- [ ] `V12-NEXUS-COUPLING-021` — queued — Remove direct non-nexus core import edges in `core/layer0/ops/src/stomach_kernel_parts/010-prelude-and-shared.rs` (imports `protheus_stomach_core_v1` directly).
+- [ ] `V12-NEXUS-COUPLING-022` — queued — Remove direct non-nexus core import edge in `core/layer0/ops/src/substrate_plane_parts/010-usage.rs` (imports `exotic_wrapper` directly).
+- [ ] `V12-NEXUS-COUPLING-023` — queued — Remove direct non-nexus core import edge in `core/layer0/ops/tests/v6_infring_closure_integration.rs` (imports `infring_layer1_security` directly).
+- [ ] `V12-NEXUS-COUPLING-024` — queued — Remove direct non-nexus core import edge in `core/layer0/ops/tests/v6_model_network_batch20_integration.rs` (imports `protheus_ops_core_v1` directly).
+- [x] `V12-NEXUS-COUPLING-025` — done — Remove direct non-nexus core import edge in `core/layer0/pinnacle/src/blob.rs` (imports `infring_types` directly).
+- [x] `V12-NEXUS-COUPLING-026` — done — Remove direct non-nexus core import edge in `core/layer0/red_legion/src/blob.rs` (imports `infring_types` directly).
+- [ ] `V12-NEXUS-COUPLING-027` — queued — Remove direct non-nexus core import edge in `core/layer0/red_legion/src/lib.rs` (imports `protheus_observability_core_v1` directly).
+- [ ] `V12-NEXUS-COUPLING-028` — queued — Remove direct non-nexus core import edges in `core/layer0/security/src/lib_parts/010-use-protheus-memory-core-v6-load-embedded-observability-profile-embed.rs` (`protheus_memory_core_v6`, `protheus_vault_core_v1`).
+- [x] `V12-NEXUS-COUPLING-029` — done — Remove direct non-nexus core import edge in `core/layer0/swarm/src/blob.rs` (imports `infring_types` directly).
+- [x] `V12-NEXUS-COUPLING-030` — done — Remove direct non-nexus core import edge in `core/layer0/vault/src/blob.rs` (imports `infring_types` directly).
+- [ ] `V12-NEXUS-COUPLING-031` — queued — Remove direct non-nexus core import edge in `core/layer0/vault/src/lib.rs` (imports `protheus_memory_core_v6` directly).
+- [ ] `V12-NEXUS-COUPLING-032` — queued — Remove direct non-nexus core import edge in `core/layer1/observability/src/blob.rs` (imports `infring_types` directly).
+- [ ] `V12-NEXUS-COUPLING-033` — queued — Remove direct non-nexus core import edge in `core/layer1/observability/src/lib_parts/010-mod-blob.rs` (imports `protheus_memory_core_v6` directly).
+- [ ] `V12-NEXUS-COUPLING-034` — queued — Remove direct non-nexus core import edges in `core/layer1/primitives/circle_queue.rs` (imports `infring_layer1_provenance` directly).
+- [ ] `V12-NEXUS-COUPLING-035` — queued — Remove direct non-nexus core import edges in `core/layer1/primitives/hash_index.rs` (imports `infring_layer1_provenance` directly).
+- [ ] `V12-NEXUS-COUPLING-036` — queued — Remove direct non-nexus core import edges in `core/layer1/primitives/queue_list.rs` (imports `infring_layer1_provenance` directly).
+- [x] `V12-NEXUS-COUPLING-037` — done — Remove direct non-nexus core import edge in `core/layer2/conduit/src/lib_parts/010-default-bridge-message-budget-max.rs` (imports `conduit_security` directly).
+- [x] `V12-NEXUS-COUPLING-038` — done — Remove direct non-nexus core import edge in `core/layer2/conduit/src/lib_parts/command_dispatch_tests_parts/010-test-policy-paths.rs` (imports `conduit_security` directly).
+- [x] `V12-NEXUS-COUPLING-039` — done — Remove direct non-nexus core import edge in `core/layer2/execution/src/blob.rs` (imports `infring_types` directly).
+- [x] `V12-NEXUS-COUPLING-040` — done — Remove direct non-nexus core import edge in `core/layer2/nexus/src/conduit_manager.rs` (imports `conduit` directly).
+- [x] `V12-NEXUS-COUPLING-PATH-001` — done — Remove non-nexus Cargo path dependency `core/layer0/blob_test/Cargo.toml -> ../../layer1/infring_types`.
+- [ ] `V12-NEXUS-COUPLING-PATH-002` — queued — Remove non-nexus Cargo path dependency `core/layer0/desktop/Cargo.toml -> ../ops`.
+- [x] `V12-NEXUS-COUPLING-PATH-003` — done — Remove non-nexus Cargo path dependency `core/layer0/graph/Cargo.toml -> ../../layer1/infring_types`.
+- [ ] `V12-NEXUS-COUPLING-PATH-004` — queued — Remove non-nexus Cargo path dependency `core/layer0/infring_agent_surface/Cargo.toml -> ../infring_agent_derive`.
+- [ ] `V12-NEXUS-COUPLING-PATH-005` — queued — Remove non-nexus Cargo path dependencies in `core/layer0/kernel_layers/Cargo.toml` (`../../layer2/conduit`, `../../layer_minus_one/exotic_wrapper`, `../../layer1/ipc`, `../../layer1/isolation`, `../../layer3/os_extension_wrapper`, `../../layer1/observability`, `../../layer1/resource`, `../../layer1/storage`, `../../layer1/task`, `../../layer1/update`).
+- [ ] `V12-NEXUS-COUPLING-PATH-006` — queued — Remove non-nexus Cargo path dependency `core/layer0/memory/Cargo.toml -> ../../layer1/infring_types`.
+- [ ] `V12-NEXUS-COUPLING-PATH-007` — queued — Remove non-nexus Cargo path dependencies in `core/layer0/memory_runtime/Cargo.toml` (`../../layer1/memory_runtime`, `../../layer2/memory`).
+- [ ] `V12-NEXUS-COUPLING-PATH-008` — queued — Remove non-nexus Cargo path dependencies in `core/layer0/mobile/Cargo.toml` (`../../layer1/infring_types`, `../../layer2/execution`, `../pinnacle`, `../vault`, `../red_legion`, `../../layer1/observability`, `../graph`, `../swarm`).
+- [ ] `V12-NEXUS-COUPLING-PATH-009` — queued — Remove non-nexus Cargo path dependencies in `core/layer0/ops/Cargo.toml` (`../foundation_hook_enforcer`, `../burn_oracle_budget_gate`, `../persona_dispatch_security_gate`, `../security`, `../../layer2/execution`, `../../layer1/security`, `../../layer2/autonomy`, `../../layer2/ops`, `../../layer2/spine`, `../../layer2/memory`, `../../layer2/stomach`, `../../layer2/tooling`, `../../layer1/llm_runtime`, `../../layer_minus_one/exotic_wrapper`, `../tiny_runtime`).
+- [x] `V12-NEXUS-COUPLING-PATH-010` — done — Remove non-nexus Cargo path dependency `core/layer0/pinnacle/Cargo.toml -> ../../layer1/infring_types`.
+- [x] `V12-NEXUS-COUPLING-PATH-011` — done — Remove non-nexus Cargo path dependencies in `core/layer0/red_legion/Cargo.toml` (`../../layer1/infring_types`, `../../layer1/observability`).
+- [ ] `V12-NEXUS-COUPLING-PATH-012` — queued — Remove non-nexus Cargo path dependencies in `core/layer0/security/Cargo.toml` (`../memory`, `../vault`).
+- [x] `V12-NEXUS-COUPLING-PATH-013` — done — Remove non-nexus Cargo path dependency `core/layer0/swarm/Cargo.toml -> ../../layer1/infring_types`.
+- [x] `V12-NEXUS-COUPLING-PATH-014` — done — Remove non-nexus Cargo path dependencies in `core/layer0/vault/Cargo.toml` (`../../layer1/infring_types`, `../memory`).
+- [ ] `V12-NEXUS-COUPLING-PATH-015` — queued — Remove non-nexus Cargo path dependencies in `core/layer1/observability/Cargo.toml` (`../infring_types`, `../../layer0/memory`).
+- [ ] `V12-NEXUS-COUPLING-PATH-016` — queued — Remove non-nexus Cargo path dependency `core/layer1/primitives/Cargo.toml -> ../provenance`.
+- [x] `V12-NEXUS-COUPLING-PATH-017` — done — Remove non-nexus Cargo path dependency `core/layer2/conduit/Cargo.toml -> ../conduit-security`.
+- [x] `V12-NEXUS-COUPLING-PATH-018` — done — Remove non-nexus Cargo path dependency `core/layer2/execution/Cargo.toml -> ../../layer1/infring_types`.
+- [x] `V12-NEXUS-COUPLING-PATH-019` — done — Remove non-nexus Cargo path dependency `core/layer2/nexus/Cargo.toml -> ../conduit`.
+- [ ] `V12-NEXUS-COUPLING-PATH-020` — queued — Remove non-nexus Cargo path dependency `core/layer2/tools/Cargo.toml -> task_fabric`.
 
 ## External Blockers
 - [ ] `V2-012` — blocked_external_prepared — Backlog Full Completion Sweep (2026-03-03) (requires external evidence packet / human approval)

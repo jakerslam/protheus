@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-use infring_types::{
+use protheus_nexus_core_v1::{
     compute_blob_manifest_signature, decode_signed_bincode_blob_manifest_with_adapter,
     normalize_blob_id as normalize_blob_id_shared,
 };
@@ -182,7 +182,7 @@ pub fn fold_blob<T: Serialize>(data: &T, blob_id: &str) -> Result<(Vec<u8>, Stri
 }
 
 pub fn generate_manifest(blobs: &[(&str, &[u8])]) -> Vec<BlobManifest> {
-    blobs
+    let mut out = blobs
         .iter()
         .map(|(blob_id, blob_bytes)| {
             let normalized_blob_id = normalize_blob_id(blob_id);
@@ -200,7 +200,10 @@ pub fn generate_manifest(blobs: &[(&str, &[u8])]) -> Vec<BlobManifest> {
                 signature: Some(signature),
             }
         })
-        .collect()
+        .collect::<Vec<BlobManifest>>();
+    out.sort_by(|a, b| a.id.cmp(&b.id));
+    out.dedup_by(|a, b| a.id == b.id);
+    out
 }
 
 pub fn encode_manifest(entries: &[BlobManifest]) -> Result<Vec<u8>, BlobError> {

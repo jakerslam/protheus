@@ -14,7 +14,7 @@ name = "pinnacle_core"
 path = "src/main.rs"
 
 [dependencies]
-infring_types = { path = "../../layer1/infring_types" }
+protheus-nexus-core-v1 = { path = "../../layer2/nexus" }
 base64 = "0.22"
 hex = "0.4"
 serde = { version = "1", features = ["derive"] }

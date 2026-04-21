@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-use conduit_security::{
-    deterministic_hash, CapabilityToken, CapabilityTokenAuthority, MessageSigner, RateLimitPolicy,
-    RateLimiter, SecurityError,
+use protheus_nexus_core_v1::{
+    conduit_deterministic_hash as deterministic_hash, CapabilityToken,
+    CapabilityTokenAuthority, MessageSigner, RateLimitPolicy, RateLimiter, SecurityError,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
