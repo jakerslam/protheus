@@ -7,6 +7,46 @@
             "provider".to_string(),
             Value::String(final_selected_provider.clone()),
         );
+        receipt_obj.insert(
+            "search_lite_fallback".to_string(),
+            json!(used_lite_fallback),
+        );
+        receipt_obj.insert(
+            "search_lite_fallback_reason".to_string(),
+            json!(search_lite_fallback_reason),
+        );
+        receipt_obj.insert(
+            "search_lite_fallback_triggered_by_challenge".to_string(),
+            json!(search_lite_fallback_triggered_by_challenge),
+        );
+        receipt_obj.insert(
+            "search_lite_fallback_triggered_by_low_signal".to_string(),
+            json!(search_lite_fallback_triggered_by_low_signal),
+        );
+        receipt_obj.insert(
+            "search_lite_fallback_trigger_provider".to_string(),
+            json!(search_lite_fallback_trigger_provider),
+        );
+        receipt_obj.insert(
+            "search_bing_fallback".to_string(),
+            json!(used_bing_fallback),
+        );
+        receipt_obj.insert(
+            "search_bing_fallback_reason".to_string(),
+            json!(search_bing_fallback_reason),
+        );
+        receipt_obj.insert(
+            "search_bing_fallback_triggered_by_challenge".to_string(),
+            json!(search_bing_fallback_triggered_by_challenge),
+        );
+        receipt_obj.insert(
+            "search_bing_fallback_triggered_by_low_signal".to_string(),
+            json!(search_bing_fallback_triggered_by_low_signal),
+        );
+        receipt_obj.insert(
+            "search_bing_fallback_trigger_provider".to_string(),
+            json!(search_bing_fallback_trigger_provider),
+        );
     }
     let _ = append_jsonl(&receipts_path(root), &receipt);
     if let Some(obj) = out.as_object_mut() {
