@@ -102,6 +102,11 @@ function isCanonicalToken(value: string): boolean {
   return /^[a-z0-9_]+$/.test(normalized);
 }
 
+function isCanonicalSystemId(value: string): boolean {
+  const normalized = cleanText(value, 220);
+  return /^SYSTEMS-[A-Z0-9_]+(?:-[A-Z0-9_]+)+$/.test(normalized);
+}
+
 function toMarkdown(rows: CheckResult[]): string {
   const lines: string[] = [];
   lines.push('# Architecture Boundary Audit (Current)');
@@ -124,6 +129,9 @@ function main() {
   const nexusPolicy = read('core/layer2/nexus/src/policy.rs');
   const coreLib = read('core/layer2/nexus/src/lib.rs');
   const dashboardIngress = read('core/layer0/ops/src/dashboard_tool_turn_loop.rs');
+  const dashboardIngressAuth = read(
+    'core/layer0/ops/src/dashboard_tool_turn_loop_parts/030-authorize-client-ingress-route-with-nexus-inner-to-input-confirmed.rs',
+  );
   const orchestrationLib = read('surface/orchestration/src/lib.rs');
   const orchestrationSeq = read('surface/orchestration/src/sequencing.rs');
   const orchestrationContracts = read('surface/orchestration/src/contracts.rs');
@@ -202,9 +210,7 @@ function main() {
     'value_of_information_collection_planner',
     'zero_permission_conversational_layer',
   ];
-  const allowedRegistryScriptAliases = new Map<string, string>([
-    ['personas_orchestration', 'orchestration'],
-  ]);
+  const allowedRegistryScriptAliases = new Map<string, string>();
   const missingOrchestrationRegistryKeys = auditedOrchestrationModuleKeys.filter(
     (key) => !orchestrationRegistryHasKey(orchestrationSurfaceRegistry, key),
   );
@@ -229,9 +235,56 @@ function main() {
   const invalidRegistryBindings = orchestrationSurfaceRegistryBindings
     .filter((row) => row.kind !== 'swarm' && (row.scriptName.length === 0 || row.systemId.length === 0))
     .map((row) => row.key);
+  const duplicateRegistryKeys = Array.from(
+    orchestrationSurfaceRegistryBindings
+      .filter((row) => row.kind !== 'swarm' && row.key.length > 0)
+      .reduce((acc, row) => {
+        acc.set(row.key, (acc.get(row.key) ?? 0) + 1);
+        return acc;
+      }, new Map<string, number>()),
+  )
+    .filter(([, count]) => count > 1)
+    .map(([key, count]) => `${key}:${count}`);
   const invalidRegistryScriptNameFormats = orchestrationSurfaceRegistryBindings
     .filter((row) => row.kind !== 'swarm' && !isCanonicalToken(row.scriptName))
     .map((row) => `${row.key}->${row.scriptName}`);
+  const invalidRegistrySystemIdFormats = orchestrationSurfaceRegistryBindings
+    .filter((row) => row.kind !== 'swarm' && !isCanonicalSystemId(row.systemId))
+    .map((row) => `${row.key}->${row.systemId}`);
+  const nonCanonicalRegistrySystemIdMappings = orchestrationSurfaceRegistryBindings
+    .filter((row) => {
+      if (row.kind === 'swarm' || row.scriptName.length === 0 || row.systemId.length === 0) {
+        return false;
+      }
+      const allowedSuffixAlias = row.key === 'personas_orchestration' ? 'ORCHESTRATION' : null;
+      if (allowedSuffixAlias && row.systemId.endsWith(allowedSuffixAlias)) {
+        return false;
+      }
+      return !row.systemId.endsWith(row.scriptName.toUpperCase());
+    })
+    .map((row) => `${row.key}->${row.systemId}`);
+  const allowedOrchestrationSystemIdNamespacePrefixes = new Set<string>([
+    'SYSTEMS-ORCHESTRATION-',
+    'SYSTEMS-WORKFLOW-',
+    'SYSTEMS-FINANCE-',
+    'SYSTEMS-SCIENCE-',
+    'SYSTEMS-AUTONOMY-',
+    'SYSTEMS-ROUTING-',
+    'SYSTEMS-FRACTAL-',
+    'SYSTEMS-REDTEAM-',
+    'SYSTEMS-RESEARCH-',
+    'SYSTEMS-STRATEGY-',
+    'SYSTEMS-EXECUTION-',
+    'SYSTEMS-SENSORY-',
+    'SYSTEMS-PERSONAS-',
+  ]);
+  const invalidRegistrySystemIdNamespaces = orchestrationSurfaceRegistryBindings
+    .filter((row) => row.kind !== 'swarm' && row.systemId.length > 0)
+    .filter((row) => {
+      const prefix = row.systemId.match(/^SYSTEMS-[A-Z0-9_]+-/)?.[0] || '';
+      return !allowedOrchestrationSystemIdNamespacePrefixes.has(prefix);
+    })
+    .map((row) => `${row.key}->${row.systemId}`);
   const nonCanonicalRegistryScriptMappings = orchestrationSurfaceRegistryBindings
     .filter((row) => {
       if (row.kind === 'swarm') {
@@ -301,8 +354,13 @@ function main() {
     },
     {
       id: 'client_ingress_routes_authorized_via_nexus',
-      ok: dashboardIngress.includes('authorize_client_ingress_route_with_nexus_inner') &&
-        dashboardIngress.includes('client_ingress_nexus_delivery_denied'),
+      ok: (
+        dashboardIngress.includes('authorize_client_ingress_route_with_nexus_inner') &&
+        dashboardIngress.includes('client_ingress_nexus_delivery_denied')
+      ) || (
+        dashboardIngressAuth.includes('authorize_client_ingress_route_with_nexus_inner') &&
+        dashboardIngressAuth.includes('client_ingress_nexus_delivery_denied')
+      ),
       detail: 'client ingress routes flow through nexus authorization and fail closed on denied delivery',
     },
     {
@@ -340,6 +398,34 @@ function main() {
       detail: invalidRegistryScriptNameFormats.length === 0
         ? 'non-swarm orchestration registry scriptName values use canonical [a-z0-9_]+ tokens'
         : `invalid scriptName tokens: ${invalidRegistryScriptNameFormats.join(', ')}`,
+    },
+    {
+      id: 'orchestration_registry_keys_are_unique',
+      ok: duplicateRegistryKeys.length === 0,
+      detail: duplicateRegistryKeys.length === 0
+        ? 'non-swarm orchestration registry keys are unique (no duplicate key shadows)'
+        : `duplicate registry keys: ${duplicateRegistryKeys.join(', ')}`,
+    },
+    {
+      id: 'orchestration_registry_system_ids_use_canonical_token_format',
+      ok: invalidRegistrySystemIdFormats.length === 0,
+      detail: invalidRegistrySystemIdFormats.length === 0
+        ? 'non-swarm orchestration registry systemId values use canonical SYSTEMS-<DOMAIN>-<NAME> token format'
+        : `invalid systemId tokens: ${invalidRegistrySystemIdFormats.join(', ')}`,
+    },
+    {
+      id: 'orchestration_registry_system_ids_align_with_script_name',
+      ok: nonCanonicalRegistrySystemIdMappings.length === 0,
+      detail: nonCanonicalRegistrySystemIdMappings.length === 0
+        ? 'non-swarm orchestration registry systemId values end with uppercased scriptName token'
+        : `non-canonical systemId/scriptName mappings: ${nonCanonicalRegistrySystemIdMappings.join(', ')}`,
+    },
+    {
+      id: 'orchestration_registry_system_ids_use_orchestration_namespace',
+      ok: invalidRegistrySystemIdNamespaces.length === 0,
+      detail: invalidRegistrySystemIdNamespaces.length === 0
+        ? 'non-swarm orchestration registry systemId values use approved SYSTEMS-* orchestration domain namespaces'
+        : `non-approved orchestration systemId namespaces: ${invalidRegistrySystemIdNamespaces.join(', ')}`,
     },
     {
       id: 'orchestration_surface_shim_keys_are_unique',
