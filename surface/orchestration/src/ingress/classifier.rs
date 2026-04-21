@@ -49,6 +49,21 @@ pub fn infer_policy_scope(resource_kind: &ResourceKind, mutability: &Mutability)
     }
 }
 
+pub fn build_parse_result(
+    typed_request: TypedOrchestrationRequest,
+    operation_candidates: &[OperationKind],
+    resource_candidates: &[ResourceKind],
+    adapter_reasons: &[String],
+) -> ParseResult {
+    parse_diagnostics(
+        typed_request,
+        operation_candidates,
+        resource_candidates,
+        adapter_reasons,
+    )
+}
+
+// Compatibility alias during control-plane naming transition.
 pub fn parse_diagnostics(
     typed_request: TypedOrchestrationRequest,
     operation_candidates: &[OperationKind],

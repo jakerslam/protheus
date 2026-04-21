@@ -21,23 +21,8 @@ pub fn classify_request(parsed: &ParseResult) -> RequestClassification {
         _ => RequestClass::ReadOnly,
     };
 
-    let mut required_capabilities = match request_class {
-        RequestClass::ToolCall => vec![Capability::ExecuteTool],
-        RequestClass::Assimilation => vec![Capability::PlanAssimilation, Capability::MutateTask],
-        RequestClass::TaskProposal | RequestClass::Mutation => vec![Capability::MutateTask],
-        RequestClass::ReadOnly => vec![Capability::ReadMemory],
-    };
-    if request.request_kind == RequestKind::Comparative
-        || request.resource_kind == ResourceKind::Mixed
-    {
-        if matches!(
-            request.resource_kind,
-            ResourceKind::Web | ResourceKind::Mixed
-        ) {
-            required_capabilities.push(Capability::ExecuteTool);
-        }
-        required_capabilities.push(Capability::VerifyClaim);
-    }
+    let mut required_capabilities =
+        required_capabilities_for(request_class.clone(), request.request_kind.clone(), request.resource_kind.clone());
     required_capabilities.sort_by_key(|row| format!("{row:?}"));
     required_capabilities.dedup();
 
@@ -45,19 +30,7 @@ pub fn classify_request(parsed: &ParseResult) -> RequestClassification {
     if request.session_id.is_empty() {
         clarification_reasons.push(ClarificationReason::MissingSessionId);
     }
-    if request.request_kind == RequestKind::Ambiguous
-        || request.operation_kind == OperationKind::Unknown
-        || parsed.confidence < 0.55
-        || parsed
-            .ambiguity
-            .iter()
-            .any(|row| !matches!(row, AmbiguityReason::LegacyCompatOnly))
-        || (request.surface != RequestSurface::Legacy
-            && parsed
-                .ambiguity
-                .iter()
-                .any(|row| matches!(row, AmbiguityReason::LegacyCompatOnly)))
-    {
+    if should_add_ambiguous_operation_clarification(parsed) {
         clarification_reasons.push(ClarificationReason::AmbiguousOperation);
     }
     if request.operation_kind == OperationKind::Assimilate && request.target_refs.is_empty() {
@@ -107,6 +80,42 @@ pub fn classify_request(parsed: &ParseResult) -> RequestClassification {
         surface_adapter_used: parsed.surface_adapter_used,
         surface_adapter_fallback: parsed.surface_adapter_fallback,
     }
+}
+
+fn required_capabilities_for(
+    request_class: RequestClass,
+    request_kind: RequestKind,
+    resource_kind: ResourceKind,
+) -> Vec<Capability> {
+    let mut required_capabilities = match request_class {
+        RequestClass::ToolCall => vec![Capability::ExecuteTool],
+        RequestClass::Assimilation => vec![Capability::PlanAssimilation, Capability::MutateTask],
+        RequestClass::TaskProposal | RequestClass::Mutation => vec![Capability::MutateTask],
+        RequestClass::ReadOnly => vec![Capability::ReadMemory],
+    };
+    if request_kind == RequestKind::Comparative || resource_kind == ResourceKind::Mixed {
+        if matches!(resource_kind, ResourceKind::Web | ResourceKind::Mixed) {
+            required_capabilities.push(Capability::ExecuteTool);
+        }
+        required_capabilities.push(Capability::VerifyClaim);
+    }
+    required_capabilities
+}
+
+fn should_add_ambiguous_operation_clarification(parsed: &ParseResult) -> bool {
+    let request = &parsed.typed_request;
+    request.request_kind == RequestKind::Ambiguous
+        || request.operation_kind == OperationKind::Unknown
+        || parsed.confidence < 0.55
+        || parsed
+            .ambiguity
+            .iter()
+            .any(|row| !matches!(row, AmbiguityReason::LegacyCompatOnly))
+        || (request.surface != RequestSurface::Legacy
+            && parsed
+                .ambiguity
+                .iter()
+                .any(|row| matches!(row, AmbiguityReason::LegacyCompatOnly)))
 }
 
 #[cfg(test)]
@@ -172,6 +181,74 @@ mod tests {
             ],
             reasons: vec!["request_kind:ambiguous".to_string()],
             surface_adapter_used: false,
+            surface_adapter_fallback: false,
+        };
+        let classification = classify_request(&request);
+        assert!(classification.needs_clarification);
+        assert!(classification
+            .clarification_reasons
+            .contains(&ClarificationReason::AmbiguousOperation));
+    }
+
+    #[test]
+    fn comparative_mixed_request_adds_verify_and_execute_capabilities() {
+        let request = ParseResult {
+            typed_request: crate::contracts::TypedOrchestrationRequest {
+                session_id: "s1".to_string(),
+                surface: RequestSurface::Legacy,
+                legacy_intent: "compare options".to_string(),
+                adapted: false,
+                payload: json!({}),
+                request_kind: RequestKind::Comparative,
+                operation_kind: OperationKind::Compare,
+                resource_kind: ResourceKind::Mixed,
+                mutability: Mutability::ReadOnly,
+                target_descriptors: Vec::new(),
+                target_refs: Vec::new(),
+                tool_hints: Vec::new(),
+                policy_scope: crate::contracts::PolicyScope::Default,
+                user_constraints: Vec::new(),
+                core_probe_envelope: None,
+            },
+            confidence: 0.80,
+            ambiguity: Vec::new(),
+            reasons: vec!["comparative".to_string()],
+            surface_adapter_used: false,
+            surface_adapter_fallback: false,
+        };
+        let classification = classify_request(&request);
+        assert!(classification
+            .required_capabilities
+            .contains(&Capability::VerifyClaim));
+        assert!(classification
+            .required_capabilities
+            .contains(&Capability::ExecuteTool));
+    }
+
+    #[test]
+    fn non_legacy_surface_with_legacy_ambiguity_requires_clarification() {
+        let request = ParseResult {
+            typed_request: crate::contracts::TypedOrchestrationRequest {
+                session_id: "s1".to_string(),
+                surface: RequestSurface::Sdk,
+                legacy_intent: "sdk request".to_string(),
+                adapted: true,
+                payload: json!({}),
+                request_kind: RequestKind::Direct,
+                operation_kind: OperationKind::Read,
+                resource_kind: ResourceKind::Memory,
+                mutability: Mutability::ReadOnly,
+                target_descriptors: Vec::new(),
+                target_refs: Vec::new(),
+                tool_hints: Vec::new(),
+                policy_scope: crate::contracts::PolicyScope::Default,
+                user_constraints: Vec::new(),
+                core_probe_envelope: None,
+            },
+            confidence: 0.80,
+            ambiguity: vec![AmbiguityReason::LegacyCompatOnly],
+            reasons: vec!["sdk".to_string()],
+            surface_adapter_used: true,
             surface_adapter_fallback: false,
         };
         let classification = classify_request(&request);

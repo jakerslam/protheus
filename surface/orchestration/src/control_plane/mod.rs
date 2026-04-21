@@ -15,6 +15,12 @@ pub struct SubdomainBoundary {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LegacyModuleBinding {
+    pub module: &'static str,
+    pub subdomain_id: &'static str,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ControlPlaneApiContract {
     pub allowed_kernel_inputs: &'static [&'static str],
     pub allowed_kernel_outputs: &'static [&'static str],
@@ -64,3 +70,19 @@ pub fn subdomain_boundaries() -> Vec<SubdomainBoundary> {
     ]
 }
 
+pub fn subdomain_boundary_by_id(id: &str) -> Option<SubdomainBoundary> {
+    subdomain_boundaries().into_iter().find(|row| row.id == id)
+}
+
+pub fn legacy_module_bindings() -> Vec<LegacyModuleBinding> {
+    let mut bindings = Vec::new();
+    for subdomain in subdomain_boundaries() {
+        for module in subdomain.legacy_module_bindings {
+            bindings.push(LegacyModuleBinding {
+                module,
+                subdomain_id: subdomain.id,
+            });
+        }
+    }
+    bindings
+}
