@@ -241,46 +241,78 @@ fn request_has_nonempty_object(request: &Value, key: &str) -> bool {
         .unwrap_or(false)
 }
 
+fn request_has_present_non_null(request: &Value, key: &str) -> bool {
+    request.get(key).map(|row| !row.is_null()).unwrap_or(false)
+}
+
+fn request_has_present_nonempty(request: &Value, key: &str) -> bool {
+    request.get(key).map_or(false, |row| match row {
+        Value::Null => false,
+        Value::String(text) => !clean_text(text, 200).is_empty(),
+        Value::Array(rows) => !rows.is_empty(),
+        Value::Object(rows) => !rows.is_empty(),
+        Value::Bool(flag) => *flag,
+        Value::Number(_) => true,
+    })
+}
+
+fn request_has_true_or_malformed_bool(request: &Value, key: &str) -> bool {
+    request.get(key).map_or(false, |row| match row {
+        Value::Bool(flag) => *flag,
+        Value::Null => false,
+        Value::String(text) => !clean_text(text, 200).is_empty(),
+        Value::Array(rows) => !rows.is_empty(),
+        Value::Object(rows) => !rows.is_empty(),
+        Value::Number(_) => true,
+    })
+}
+
+fn request_has_true_or_malformed_bool_any(request: &Value, keys: &[&str]) -> bool {
+    keys.iter()
+        .any(|key| request_has_true_or_malformed_bool(request, key))
+}
+
+fn request_has_nonempty_array_any(request: &Value, keys: &[&str]) -> bool {
+    keys.iter()
+        .any(|key| request_has_nonempty_array(request, key))
+}
+
 fn cua_unsupported_features(request: &Value) -> Vec<&'static str> {
     let mut features = Vec::<&'static str>::new();
-    if request
-        .get("stream")
-        .and_then(Value::as_bool)
-        .unwrap_or(false)
-    {
+    if request_has_true_or_malformed_bool_any(request, &["stream", "streaming"]) {
         features.push("streaming");
     }
-    if request
-        .get("signal")
-        .map(|row| !row.is_null())
-        .unwrap_or(false)
+    if request_has_present_non_null(request, "signal")
+        || request_has_present_non_null(request, "abort_signal")
+        || request_has_present_non_null(request, "abortSignal")
     {
         features.push("abort signal");
     }
-    if request
-        .get("messages")
-        .map(|row| !row.is_null())
-        .unwrap_or(false)
+    if request_has_present_non_null(request, "messages")
+        || request_has_present_non_null(request, "message_continuation")
+        || request_has_present_non_null(request, "messageContinuation")
     {
         features.push("message continuation");
     }
-    if request_has_nonempty_array(request, "excludeTools")
-        || request_has_nonempty_array(request, "exclude_tools")
+    if request_has_nonempty_array_any(request, &["excludeTools", "exclude_tools"])
+        || request_has_present_nonempty(request, "excludeTools")
+        || request_has_present_nonempty(request, "exclude_tools")
     {
         features.push("excludeTools");
     }
-    if request
-        .get("output")
-        .map(|row| !row.is_null())
-        .unwrap_or(false)
-        || request
-            .get("output_schema")
-            .map(|row| !row.is_null())
-            .unwrap_or(false)
+    if request_has_present_non_null(request, "output")
+        || request_has_present_non_null(request, "output_schema")
+        || request_has_present_non_null(request, "outputSchema")
+        || request_has_present_non_null(request, "response_format")
+        || request_has_present_non_null(request, "responseFormat")
     {
         features.push("output schema");
     }
-    if request_has_nonempty_object(request, "variables") {
+    if request_has_nonempty_object(request, "variables")
+        || request_has_present_nonempty(request, "variables")
+        || request_has_present_non_null(request, "variables_json")
+        || request_has_present_non_null(request, "variablesJson")
+    {
         features.push("variables");
     }
     features

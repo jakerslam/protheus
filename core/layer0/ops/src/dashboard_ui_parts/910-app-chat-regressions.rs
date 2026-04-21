@@ -495,4 +495,197 @@ mod app_chat_regression_tests {
         );
     }
 
+    #[test]
+    fn app_chat_local_file_intent_blocks_web_tooling_and_flags_violation() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_chat_script(
+            root.path(),
+            &json!({
+                "queue": [
+                    {
+                        "response": "Web search results for local files: title: random page; originalUrl: https://example.com",
+                        "tools": [
+                            {
+                                "name": "batch_query",
+                                "status": "ok",
+                                "result": "random metadata dump"
+                            }
+                        ]
+                    }
+                ],
+                "calls": []
+            }),
+        );
+        let lane = run_action(
+            root.path(),
+            "app.chat",
+            &json!({
+                "agent_id": "agent-regression-local-file-intent-web-block",
+                "input": "can you use file tooling to list local files?"
+            }),
+        );
+        assert!(lane.ok);
+        let payload = lane.payload.unwrap_or_else(|| json!({}));
+        assert_eq!(
+            app_chat_finalization_outcome(&payload),
+            "blocked_web_for_local_intent"
+        );
+        let invariant = payload
+            .pointer("/response_finalization/web_invariant")
+            .cloned()
+            .unwrap_or_else(|| json!({}));
+        assert_eq!(
+            invariant
+                .get("web_called_during_local_intent")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            invariant.get("classification").and_then(Value::as_str),
+            Some("local_intent_web_violation")
+        );
+    }
+
+    #[test]
+    fn app_chat_malformed_tool_emit_is_fail_closed() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_chat_script(
+            root.path(),
+            &json!({
+                "queue": [
+                    {
+                        "response": "<function=file_list>{\"path\":\".",
+                        "tools": []
+                    }
+                ],
+                "calls": []
+            }),
+        );
+        let lane = run_action(
+            root.path(),
+            "app.chat",
+            &json!({
+                "agent_id": "agent-regression-malformed-tool-emit",
+                "input": "check if file tooling works"
+            }),
+        );
+        assert!(lane.ok);
+        let payload = lane.payload.unwrap_or_else(|| json!({}));
+        let response = app_chat_response_text(&payload).to_ascii_lowercase();
+        assert!(response.contains("tool_call_schema_invalid"), "{response}");
+        assert_eq!(
+            app_chat_finalization_outcome(&payload),
+            "suppressed_malformed_tool_call"
+        );
+    }
+
+    #[test]
+    fn app_chat_web_schema_guard_sets_terminal_retry_reason() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_chat_script(
+            root.path(),
+            &json!({
+                "queue": [
+                    {
+                        "response": "attempting web lookup",
+                        "tools": []
+                    }
+                ],
+                "calls": []
+            }),
+        );
+        let lane = run_action(
+            root.path(),
+            "app.chat",
+            &json!({
+                "agent_id": "agent-regression-web-schema-guard",
+                "input": "web search \"a\""
+            }),
+        );
+        assert!(lane.ok);
+        let payload = lane.payload.unwrap_or_else(|| json!({}));
+        let response = app_chat_response_text(&payload).to_ascii_lowercase();
+        assert!(response.contains("tool_call_schema_invalid"), "{response}");
+        let retry_contract = payload
+            .pointer("/response_finalization/retry_contract")
+            .cloned()
+            .unwrap_or_else(|| json!({}));
+        assert_eq!(
+            retry_contract.get("max_retries").and_then(Value::as_i64),
+            Some(1)
+        );
+        assert_eq!(
+            retry_contract.get("terminal").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            retry_contract
+                .get("terminal_reason")
+                .and_then(Value::as_str),
+            Some("tool_call_schema_invalid_pre_execution")
+        );
+    }
+
+    #[test]
+    fn troubleshooting_eval_flags_web_called_during_local_intent_violation() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let lane_payload = json!({
+            "response": "blocked by policy",
+            "tools": [
+                {
+                    "name": "batch_query",
+                    "status": "ok",
+                    "result": "unexpected web output"
+                }
+            ],
+            "response_finalization": {
+                "outcome": "blocked_web_for_local_intent",
+                "web_invariant": {
+                    "requires_live_web": false,
+                    "web_search_calls": 1,
+                    "web_called_during_local_intent": true,
+                    "classification": "local_intent_web_violation"
+                },
+                "tool_routing": {
+                    "local_tooling_intent": true,
+                    "explicit_web_intent": false,
+                    "requires_live_web": false,
+                    "web_allowed": false,
+                    "web_called_during_local_intent": true
+                }
+            }
+        });
+        let _capture = dashboard_troubleshooting_capture_chat_exchange(
+            root.path(),
+            "agent-violation",
+            "can you use file tooling to list local files?",
+            &lane_payload,
+            true,
+            false,
+        );
+        let snapshot = dashboard_troubleshooting_capture_snapshot(
+            root.path(),
+            "unit_test",
+            &json!({"case":"web_called_during_local_intent"}),
+        );
+        let report = dashboard_troubleshooting_generate_eval_report(
+            &snapshot,
+            "unit_test",
+            "gpt-5.4",
+            "test",
+        );
+        assert!(
+            report
+                .get("web_called_during_local_intent_count")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                >= 1
+        );
+        let top_error = report
+            .pointer("/top_errors/0/error_code")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        assert_eq!(top_error, "web_called_during_local_intent");
+    }
+
 }

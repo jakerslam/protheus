@@ -1,40 +1,51 @@
-# Node Critical Path Burndown Plan
+# Node Critical-Path Burn-down Plan
 
-## Objective
+Status: active migration plan for operator-critical Node paths.
 
-Reduce Node.js dependence on release-critical operator lanes while preserving release safety and fail-closed behavior.
+## Purpose
 
-## Current Source of Truth
+Define owner-assigned, date-bound migration commitments for operator-critical command paths while enforcing TypeScript confinement to non-authoritative layers.
 
-- Inventory command:
-  - `npm run -s ops:node-critical-path:inventory`
-- Artifact:
-  - `core/local/artifacts/node_critical_path_inventory_current.json`
+## Canonical Sources
 
-## Burndown Stages
+- Burn-down policy: `client/runtime/config/node_critical_path_burndown_plan.json`
+- Inventory/guard gate: `tests/tooling/scripts/ci/node_critical_path_inventory.ts`
+- Gate id: `ops:node-critical-path:inventory`
 
-1. `inventory`
-- Keep deterministic inventory of release-critical scripts.
-- Track `node_dependency_ratio` and regression against baseline.
+## Required Domains
 
-2. `prioritize`
-- Prioritize lanes with highest release impact:
-  - runtime proof gating
-  - release scorecard/verdict
-  - proof-pack assembly
-  - release closure gate
+The plan must cover all of:
 
-3. `port_or_wrap`
-- Prefer Rust-native authorities for lane logic where feasible.
-- If temporary wrappers remain, require explicit compatibility rationale.
+- `release`
+- `repair`
+- `topology_truth`
+- `recovery`
+- `status`
 
-4. `re-baseline`
-- After each migration wave, refresh baseline artifact and record delta.
-- Reject ratio regressions in release lanes without approved exception.
+Each required domain must have at least one priority-1 lane with:
 
-## Success Criteria
+- explicit owner
+- explicit target date
+- explicit target classification
 
-1. No regression in `node_dependency_ratio` for release-critical inventory.
-2. Each release cycle includes a fresh inventory artifact.
-3. Release blockers include unresolved node-critical-path regressions.
+## Confinement Rule
 
+Any Node TypeScript critical path must stay inside allowed non-authoritative surfaces:
+
+- `tests/tooling/scripts/`
+- `client/runtime/systems/ops/`
+- `client/runtime/systems/ui/`
+- `client/runtime/systems/extensions/`
+- `client/runtime/systems/marketplace/`
+
+Anything outside the allowlist is a fail-closed gate violation.
+
+## Migration Semantics
+
+- `target_classification=rust_native` means lane is expected to migrate off Node by the target date.
+- If target date is passed and lane is still not at target classification, gate fails.
+- `target_classification=node_typescript` is allowed only for governance/flexibility lanes that remain explicitly non-authoritative and confined.
+
+## Release Integration
+
+Release evidence explicitly executes and captures this gate before proof-pack assembly in `.github/workflows/release.yml`.

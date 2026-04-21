@@ -3,23 +3,47 @@ include!("security_planes_parts/020-run-guard.rs");
 
 const MAX_SECURITY_PLANES: usize = 128;
 
-pub fn normalize_security_plane_name(raw: &str) -> String {
-    raw.trim()
-        .chars()
-        .filter_map(|ch| {
-            if ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | ':' | '.') {
-                Some(ch.to_ascii_lowercase())
-            } else if ch.is_whitespace() {
-                Some('_')
-            } else {
-                None
-            }
+fn strip_invisible_unicode(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| {
+            !matches!(
+                *ch,
+                '\u{200B}'
+                    | '\u{200C}'
+                    | '\u{200D}'
+                    | '\u{200E}'
+                    | '\u{200F}'
+                    | '\u{202A}'
+                    | '\u{202B}'
+                    | '\u{202C}'
+                    | '\u{202D}'
+                    | '\u{202E}'
+                    | '\u{2060}'
+                    | '\u{FEFF}'
+            )
         })
         .collect::<String>()
-        .trim_matches('_')
-        .chars()
-        .take(96)
-        .collect::<String>()
+}
+
+pub fn normalize_security_plane_name(raw: &str) -> String {
+    let mut out = String::new();
+    for ch in strip_invisible_unicode(raw).trim().chars() {
+        let normalized = if ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | ':' | '.') {
+            ch.to_ascii_lowercase()
+        } else if ch.is_whitespace() {
+            '_'
+        } else {
+            continue;
+        };
+        if normalized == '_' && out.ends_with('_') {
+            continue;
+        }
+        out.push(normalized);
+        if out.len() >= 96 {
+            break;
+        }
+    }
+    out.trim_matches('_').to_string()
 }
 
 pub fn normalize_security_plane_list(planes: &[String]) -> Vec<String> {

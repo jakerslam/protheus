@@ -72,6 +72,19 @@ fn sanitize_token(raw: &str, max_len: usize, fallback: &str, lowercase: bool) ->
     }
 }
 
+fn sanitize_identifier(raw: &str, max_len: usize, fallback: &str, lowercase: bool) -> String {
+    let token = sanitize_token(raw, max_len, fallback, lowercase);
+    let filtered: String = token
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-' | '.'))
+        .collect();
+    if filtered.is_empty() {
+        fallback.to_string()
+    } else {
+        filtered
+    }
+}
+
 fn normalize_timestamp(ts_ms: i64) -> i64 {
     ts_ms.clamp(0, MAX_TS_MS)
 }
@@ -87,8 +100,8 @@ fn domain_tag(domain: &ExoticDomain) -> &'static str {
 }
 
 pub fn wrap_exotic_signal(env: &ExoticEnvelope, capability_class: &str) -> Layer0Envelope {
-    let adapter_id = sanitize_token(&env.adapter_id, MAX_ID_LEN, "unknown_adapter", false);
-    let signal_type = sanitize_token(&env.signal_type, MAX_ID_LEN, "unknown_signal", true);
+    let adapter_id = sanitize_identifier(&env.adapter_id, MAX_ID_LEN, "unknown_adapter", false);
+    let signal_type = sanitize_identifier(&env.signal_type, MAX_ID_LEN, "unknown_signal", true);
     let payload_ref = {
         let normalized = sanitize_token(
             &env.payload_ref,
@@ -102,7 +115,8 @@ pub fn wrap_exotic_signal(env: &ExoticEnvelope, capability_class: &str) -> Layer
             "blob://unknown".to_string()
         }
     };
-    let capability_class = sanitize_token(capability_class, MAX_CLASS_LEN, "exotic.unknown", true);
+    let capability_class =
+        sanitize_identifier(capability_class, MAX_CLASS_LEN, "exotic.unknown", true);
     let ts_ms = normalize_timestamp(env.ts_ms);
 
     let mut hasher = Sha256::new();

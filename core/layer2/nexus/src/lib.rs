@@ -6,14 +6,29 @@ pub mod route_lease;
 pub mod sub_nexus;
 pub mod template;
 
+pub use infring_task_fabric_core_v1 as task_fabric;
+pub use infring_agent_derive::{infring_agent, infring_tool};
 pub use conduit_security::{
     deterministic_hash as conduit_deterministic_hash, CapabilityToken, CapabilityTokenAuthority,
     MessageSigner, RateLimitPolicy, RateLimiter, SecurityError,
 };
+pub use exotic_wrapper as exotic;
+pub use infring_layer1_security as layer1_security;
 pub use infring_types::{
     compute_blob_manifest_signature, decode_normalized_blob_manifest,
     decode_signed_bincode_blob_manifest_with_adapter, normalize_blob_id, normalize_sha256_hash,
     NormalizedBlobManifestEntry,
+};
+pub use infring_layer1_provenance::{
+    InMemoryReceiptSink, ProvenanceError, ReceiptDraft, ReceiptEmitter, ReceiptSink,
+};
+pub use protheus_ops_core_v1 as ops_core;
+pub use protheus_spine_core_v1 as spine_core;
+pub use protheus_stomach_core_v1 as stomach_core;
+pub use protheus_memory_core_v6::{
+    load_embedded_vault_policy, EmbeddedVaultPolicy,
+    load_embedded_observability_profile as load_embedded_profile_from_memory, EmbeddedChaosHook,
+    EmbeddedObservabilityProfile,
 };
 pub use conduit_manager::{ConduitBackedLink, ConduitManager};
 pub use main_nexus::{

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 use foundation_hook_enforcer::{
     evaluate_source_hook_coverage, HookCoverageReceipt, CHECK_ID_FOUNDATION_HOOKS,
     CHECK_ID_GUARD_REGISTRY_CONSUMPTION,

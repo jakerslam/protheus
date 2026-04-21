@@ -183,7 +183,63 @@ fn handle_agent_scope_suggestions_command_config_routes(
             .or_else(|| patch.get("contract").and_then(|value| value.get("permissions")))
             .and_then(parse_permissions_payload)
             .map(|value| normalize_permissions_manifest(&value));
-        if let Some(permissions_manifest) = requested_permissions {
+        if let Some(requested_permissions_manifest) = requested_permissions {
+            let parent_agent_id = clean_text(
+                patch
+                    .get("parent_agent_id")
+                    .and_then(Value::as_str)
+                    .or_else(|| {
+                        patch
+                            .get("contract")
+                            .and_then(|value| value.get("parent_agent_id"))
+                            .and_then(Value::as_str)
+                    })
+                    .or_else(|| existing.as_ref().and_then(|row| row.get("parent_agent_id").and_then(Value::as_str)))
+                    .or_else(|| {
+                        existing
+                            .as_ref()
+                            .and_then(|row| row.get("contract"))
+                            .and_then(|contract| contract.get("parent_agent_id"))
+                            .and_then(Value::as_str)
+                    })
+                    .unwrap_or(""),
+                120,
+            );
+            let parent_row = if parent_agent_id.is_empty() || parent_agent_id == agent_id {
+                None
+            } else {
+                agent_row_by_id(root, snapshot, &parent_agent_id)
+            };
+            let parent_manifest = parent_row.as_ref().and_then(permissions_manifest_from_agent_row);
+            let parent_unresolved = !parent_agent_id.is_empty() && parent_manifest.is_none();
+            let permissions_enforcement_mode = if parent_manifest.is_some() {
+                "parent_clamped"
+            } else if parent_unresolved {
+                "parent_unresolved_fail_closed_default"
+            } else {
+                "direct_requested"
+            };
+            let permissions_manifest = if let Some(parent) = parent_manifest.as_ref() {
+                clamp_child_permissions_manifest(parent, &requested_permissions_manifest)
+            } else if parent_unresolved {
+                default_permissions_manifest()
+            } else {
+                requested_permissions_manifest.clone()
+            };
+            let permissions_requested_receipt =
+                crate::deterministic_receipt_hash(&requested_permissions_manifest);
+            let permissions_manifest_receipt =
+                crate::deterministic_receipt_hash(&permissions_manifest);
+            let permissions_parent_manifest_receipt = parent_manifest
+                .as_ref()
+                .map(crate::deterministic_receipt_hash);
+            let widening_blocked_count = AGENT_PERMISSION_KEYS
+                .iter()
+                .filter(|permission| {
+                    permissions_manifest_allows(&requested_permissions_manifest, permission)
+                        && !permissions_manifest_allows(&permissions_manifest, permission)
+                })
+                .count();
             let previous_revision = existing
                 .as_ref()
                 .and_then(|row| row.get("contract"))
@@ -205,6 +261,24 @@ fn handle_agent_scope_suggestions_command_config_routes(
             patch["contract"]["permissions_revision"] = json!(previous_revision + 1);
             patch["contract"]["permissions_updated_at"] = json!(permissions_updated_at);
             patch["contract"]["permissions_receipt"] = json!(permissions_receipt);
+            patch["contract"]["permissions_requested_receipt"] = json!(permissions_requested_receipt);
+            patch["contract"]["permissions_manifest_receipt"] = json!(permissions_manifest_receipt);
+            patch["contract"]["permissions_parent_agent_id"] = if parent_agent_id.is_empty() {
+                Value::Null
+            } else {
+                json!(parent_agent_id)
+            };
+            patch["contract"]["permissions_parent_manifest_receipt"] =
+                if let Some(parent_receipt) = permissions_parent_manifest_receipt {
+                    json!(parent_receipt)
+                } else {
+                    Value::Null
+                };
+            patch["contract"]["permissions_parent_clamp_applied"] = json!(parent_manifest.is_some());
+            patch["contract"]["permissions_parent_unresolved"] = json!(parent_unresolved);
+            patch["contract"]["permissions_enforcement_mode"] =
+                json!(permissions_enforcement_mode);
+            patch["contract"]["permissions_widening_blocked_count"] = json!(widening_blocked_count);
             if let Some(contract_map) = patch.get_mut("contract").and_then(Value::as_object_mut) {
                 contract_map.remove("permissions");
                 contract_map.remove("permission_template");

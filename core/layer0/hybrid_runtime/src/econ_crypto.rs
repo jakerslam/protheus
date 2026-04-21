@@ -94,6 +94,17 @@ fn evaluate_ledger_contract(
     (strict_ok, should_warn, should_block, reason)
 }
 
+fn count_schema_violations(lines: &[String]) -> usize {
+    lines.iter()
+        .filter(|line| {
+            let Some((key, value)) = line.split_once(':') else {
+                return true;
+            };
+            key.trim().is_empty() || value.trim().is_empty()
+        })
+        .count()
+}
+
 pub fn ledger_hash(lines: &[String]) -> String {
     let (normalized, _, _) = normalize_ledger_lines(lines);
     let mut h = Sha256::new();
@@ -117,12 +128,14 @@ pub fn sample_report() -> serde_json::Value {
     ];
     let hash = ledger_hash(&lines);
     let (normalized, dropped, truncated) = normalize_ledger_lines(&lines);
+    let schema_violations = count_schema_violations(&normalized);
     let (strict_ok, should_warn, should_block, contract_reason) =
         evaluate_ledger_contract(normalized.len(), dropped, truncated);
     let margin_ok = margin_bps.is_some();
+    let contract_ok = strict_ok && schema_violations == 0;
 
     json!({
-        "ok": strict_ok && margin_ok,
+        "ok": contract_ok && margin_ok,
         "lane": "V5-RUST-HYB-006",
         "economics": {
             "revenue_cents": revenue,
@@ -130,10 +143,11 @@ pub fn sample_report() -> serde_json::Value {
             "margin_bps": margin_bps
         },
         "contract": {
-            "strict_ok": strict_ok,
+            "strict_ok": contract_ok,
             "reason": contract_reason,
             "should_warn": should_warn,
-            "should_block": should_block
+            "should_block": should_block || schema_violations > 0,
+            "schema_violations": schema_violations
         },
         "integrity": {
             "ledger_hash": hash,

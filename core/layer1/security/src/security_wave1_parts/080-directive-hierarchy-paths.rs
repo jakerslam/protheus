@@ -9,6 +9,8 @@ struct ActiveDirectiveRow {
     parent_directive_id: String,
 }
 
+const MAX_DIRECTIVE_ID_CHARS: usize = 120;
+
 fn directive_hierarchy_paths(repo_root: &Path) -> (PathBuf, PathBuf, PathBuf, PathBuf) {
     let directives_dir = runtime_config_path(repo_root, "directives");
     let active_path = directives_dir.join("ACTIVE.yaml");
@@ -37,9 +39,19 @@ fn directive_tier_from_id(id: &str) -> i64 {
 }
 
 fn normalize_directive_id(v: &str) -> String {
-    let text = clean_text(v, 160);
-    let mut chars = text.chars();
-    if chars.next() != Some('T') {
+    let text_raw = clean_text(v, MAX_DIRECTIVE_ID_CHARS);
+    if text_raw.is_empty() {
+        return String::new();
+    }
+    let mut chars = text_raw.chars();
+    let first = chars.next().unwrap_or_default();
+    if first != 'T' && first != 't' {
+        return String::new();
+    }
+    let mut text = String::with_capacity(text_raw.len());
+    text.push('T');
+    text.extend(chars);
+    if text.len() > MAX_DIRECTIVE_ID_CHARS {
         return String::new();
     }
     let mut digit_count = 0usize;
@@ -65,6 +77,13 @@ fn normalize_directive_id(v: &str) -> String {
         return String::new();
     }
     text
+}
+
+fn sanitize_directive_reason_yaml(raw: &str) -> String {
+    clean_text(raw, 280)
+        .replace('\\', "\\\\")
+        .replace('"', "'")
+        .replace(['\n', '\r'], " ")
 }
 
 fn parse_active_yaml(path: &Path) -> Vec<ActiveDirectiveRow> {
@@ -117,7 +136,8 @@ fn parse_active_yaml(path: &Path) -> Vec<ActiveDirectiveRow> {
         rows.push(prev);
     }
     let mut seen_ids = HashSet::<String>::new();
-    rows.into_iter()
+    let mut normalized = rows
+        .into_iter()
         .filter(|row| !row.id.is_empty())
         .filter_map(|mut row| {
             if row.tier <= 0 {
@@ -139,15 +159,27 @@ fn parse_active_yaml(path: &Path) -> Vec<ActiveDirectiveRow> {
             }
             Some(row)
         })
-        .collect::<Vec<_>>()
+        .collect::<Vec<_>>();
+    let existing_ids = normalized
+        .iter()
+        .map(|row| row.id.clone())
+        .collect::<HashSet<_>>();
+    for row in normalized.iter_mut() {
+        if !row.parent_directive_id.is_empty() && !existing_ids.contains(&row.parent_directive_id) {
+            row.parent_directive_id.clear();
+        }
+    }
+    normalized
 }
 
 fn render_active_yaml(rows: &[ActiveDirectiveRow]) -> String {
+    let mut sorted_rows = rows.to_vec();
+    sorted_rows.sort_by(|a, b| a.tier.cmp(&b.tier).then_with(|| a.id.cmp(&b.id)));
     let mut out = Vec::new();
     out.push("metadata:".to_string());
     out.push(format!("  updated_at: \"{}\"", now_iso()));
     out.push("active_directives:".to_string());
-    for row in rows {
+    for row in &sorted_rows {
         out.push(format!("  - id: {}", row.id));
         out.push(format!("    tier: {}", row.tier));
         out.push(format!(
@@ -159,7 +191,10 @@ fn render_active_yaml(rows: &[ActiveDirectiveRow]) -> String {
             }
         ));
         if !row.reason.is_empty() {
-            out.push(format!("    reason: \"{}\"", row.reason.replace('"', "'")));
+            out.push(format!(
+                "    reason: \"{}\"",
+                sanitize_directive_reason_yaml(&row.reason)
+            ));
         }
         if row.auto_generated {
             out.push("    auto_generated: true".to_string());

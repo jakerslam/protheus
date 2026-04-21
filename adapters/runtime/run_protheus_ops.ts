@@ -12,6 +12,7 @@ const {
 } = require('./dev_only/legacy_process_runner.ts');
 
 const ROOT = path.resolve(__dirname, '..', '..');
+const PROCESS_FALLBACK_FORBIDDEN_IN_PRODUCTION = 'process_fallback_forbidden_in_production';
 
 function envTrue(value) {
   const raw = String(value || '').trim().toLowerCase();
@@ -102,7 +103,12 @@ function invokeProtheusOpsViaBridge(args, options = {}) {
     envOverrides.PROTHEUS_OPS_ALLOW_CARGO_FALLBACK = '0';
   }
   const productionRelease = isProductionReleaseChannel(releaseChannel(process.env));
-  if (options.allowProcessFallback === true && !productionRelease) {
+  if (productionRelease) {
+    envOverrides.INFRING_OPS_ALLOW_PROCESS_FALLBACK = '0';
+    envOverrides.PROTHEUS_OPS_ALLOW_PROCESS_FALLBACK = '0';
+    envOverrides.INFRING_OPS_PROCESS_FALLBACK_POLICY_REASON = PROCESS_FALLBACK_FORBIDDEN_IN_PRODUCTION;
+    envOverrides.PROTHEUS_OPS_PROCESS_FALLBACK_POLICY_REASON = PROCESS_FALLBACK_FORBIDDEN_IN_PRODUCTION;
+  } else if (options.allowProcessFallback === true) {
     envOverrides.INFRING_OPS_ALLOW_PROCESS_FALLBACK = '1';
     envOverrides.PROTHEUS_OPS_ALLOW_PROCESS_FALLBACK = '1';
   } else if (options.allowProcessFallback === false) {

@@ -244,7 +244,7 @@ fn enqueue(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
         let sev_rank = severity_rank(severity);
         let event_band = event.get("band").and_then(Value::as_str).unwrap_or("p4");
         let high_importance = band_rank(event_band) >= band_rank("p2");
-        let at_or_over_soft = queue_depth_before >= contract.backpressure_soft_watermark;
+        let _at_or_over_soft = queue_depth_before >= contract.backpressure_soft_watermark;
         let at_or_over_hard = queue_depth_before >= contract.backpressure_hard_watermark;
         let should_drop_for_backpressure = at_or_over_hard
             && (queue_lane.eq_ignore_ascii_case("background")

@@ -9,7 +9,7 @@ Purpose: keep confidence/rationale wording concise, consistent, and non-jargony 
 | Range | Label | User-facing meaning |
 | --- | --- | --- |
 | `>= 0.85` | `high_confidence` | Signals are aligned and checks are healthy. |
-| `0.60 - 0.84` | `medium_confidence` | Core checks pass, but follow-up is still warranted. |
+| `0.60 - 0.84` | `medium_confidence` | Kernel checks pass, but follow-up is still warranted. |
 | `< 0.60` | `low_confidence` | Evidence is limited or inconsistent; avoid strong claims. |
 
 ## Rationale Blurb Rules
@@ -25,7 +25,7 @@ Purpose: keep confidence/rationale wording concise, consistent, and non-jargony 
 - Final response incomplete: `Final response contract is incomplete; retry with full contract coverage.`
 - Health degraded: `Runtime health is degraded; route through troubleshooting before user-facing claims.`
 - High confidence: `Signals are aligned across execution, provider resolution, and completion checks.`
-- Medium confidence: `Core checks passed, but some lanes need follow-up monitoring.`
+- Medium confidence: `Kernel checks passed, but some lanes need follow-up monitoring.`
 - Low confidence: `Confidence is limited; collect more evidence before asserting strong conclusions.`
 
 ## Application Contract

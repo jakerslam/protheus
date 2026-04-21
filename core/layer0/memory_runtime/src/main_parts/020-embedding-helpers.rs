@@ -41,6 +41,14 @@ pub fn normalize_embedding_ref_token(raw: &str) -> String {
         .collect::<String>()
 }
 
+fn has_parent_segment(raw: &str) -> bool {
+    raw.split(['/', '\\']).any(|segment| segment.trim() == "..")
+}
+
+fn is_absolute_like_path(raw: &str) -> bool {
+    raw.starts_with('/') || raw.starts_with('\\') || raw.get(1..3) == Some(":\\")
+}
+
 pub fn normalize_embedding_source_paths(raw_paths: &[String]) -> Vec<String> {
     let mut paths = raw_paths
         .iter()
@@ -66,12 +74,20 @@ pub fn normalize_embedding_source_paths_with_contract(
         );
     }
     let truncated = raw_paths.len() > MAX_EMBEDDING_SOURCE_PATHS;
-    let traversal_like = normalized.iter().any(|path| path.contains(".."));
+    let traversal_like = normalized.iter().any(|path| has_parent_segment(path));
+    let absolute_like = normalized.iter().any(|path| is_absolute_like_path(path));
     if strict_contract && traversal_like {
         return (
             normalized,
             false,
             "embedding_paths_parent_traversal_blocked_under_strict_contract",
+        );
+    }
+    if strict_contract && absolute_like {
+        return (
+            normalized,
+            false,
+            "embedding_paths_absolute_blocked_under_strict_contract",
         );
     }
     if strict_contract && truncated {

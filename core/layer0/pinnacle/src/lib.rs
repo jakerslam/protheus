@@ -55,6 +55,8 @@ pub struct MergeResult {
 
 const MAX_CRDT_NODE_ID_LEN: usize = 96;
 const MAX_CRDT_KEY_LEN: usize = 240;
+const MAX_CRDT_CHANGES: usize = 4096;
+const MAX_VECTOR_CLOCK_KEYS: usize = 256;
 
 fn strip_invisible_unicode(raw: &str) -> String {
     raw.chars()
@@ -103,6 +105,11 @@ fn normalize_delta(mut delta: CrdtDelta, side: &str) -> Result<CrdtDelta, String
             if normalized_key.is_empty() {
                 continue;
             }
+            if normalized_clock.len() >= MAX_VECTOR_CLOCK_KEYS
+                && !normalized_clock.contains_key(&normalized_key)
+            {
+                continue;
+            }
             let current = normalized_clock.get(&normalized_key).copied().unwrap_or(0);
             if clock_value > current {
                 normalized_clock.insert(normalized_key, clock_value);
@@ -129,7 +136,15 @@ fn normalize_delta(mut delta: CrdtDelta, side: &str) -> Result<CrdtDelta, String
     if normalized.is_empty() {
         return Err(format!("{side}_changes_empty_after_normalization"));
     }
-    delta.changes = normalized;
+    if normalized.len() > MAX_CRDT_CHANGES {
+        let bounded = normalized
+            .into_iter()
+            .take(MAX_CRDT_CHANGES)
+            .collect::<BTreeMap<String, CrdtValue>>();
+        delta.changes = bounded;
+    } else {
+        delta.changes = normalized;
+    }
     Ok(delta)
 }
 

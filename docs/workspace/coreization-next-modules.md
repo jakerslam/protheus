@@ -41,7 +41,7 @@ Continue Hard Coreization Wave 1 by prioritizing high-ROI authority lanes and ke
 - Client: wrappers, SDK ergonomics, UI-facing utilities only.
 
 ## Immediate Validation Gate (per module)
-- Core lane command exists and returns deterministic receipt.
+- Kernel lane command exists and returns deterministic receipt.
 - Client command runs core-first with fallback only until parity closes.
 - Legacy TS logic is deleted or strongly reduced after parity.
 - Existing regression lane remains green.

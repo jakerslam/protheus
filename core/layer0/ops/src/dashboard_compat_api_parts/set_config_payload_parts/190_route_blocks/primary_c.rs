@@ -189,6 +189,7 @@ fn handle_primary_dashboard_routes_c(
         if request_mode_is_cua(&request) {
             let unsupported_features = cua_unsupported_features(&request);
             if !unsupported_features.is_empty() {
+                let unsupported_features_signature = unsupported_features.join("|");
                 let joined = unsupported_features.join(", ");
                 let plurality = if unsupported_features.len() == 1 {
                     "is"
@@ -203,6 +204,9 @@ fn handle_primary_dashboard_routes_c(
                         "error": "cua_unsupported_features",
                         "mode": "cua",
                         "unsupported_features": unsupported_features,
+                        "unsupported_features_count": unsupported_features.len(),
+                        "unsupported_features_signature": unsupported_features_signature,
+                        "validation_contract_version": "v1",
                         "message": format!("{joined} {plurality} not supported with CUA (Computer Use Agent) mode.")
                     }),
                 });

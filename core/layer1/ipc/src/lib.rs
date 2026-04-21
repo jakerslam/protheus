@@ -4,6 +4,7 @@ use sha2::{Digest, Sha256};
 const MAX_CHANNEL_LEN: usize = 120;
 const MAX_NONCE_LEN: usize = 160;
 const MAX_ALLOWED_CHANNELS: usize = 256;
+const MAX_POLICY_PAYLOAD_BYTES: usize = 8 * 1024 * 1024;
 const MIN_TS_MILLIS: u64 = 1;
 const MAX_TS_MILLIS: u64 = 9_999_999_999_999;
 
@@ -67,9 +68,16 @@ fn normalize_allowed_channels(raw_channels: &[String]) -> Vec<String> {
     channels
 }
 
+fn valid_nonce(raw: &str) -> bool {
+    !raw.is_empty()
+        && raw
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-' | '.'))
+}
+
 impl IpcPolicy {
     pub fn validate(&self, envelope: &IpcEnvelope) -> Result<(), IpcError> {
-        if self.max_payload_bytes == 0 {
+        if self.max_payload_bytes == 0 || self.max_payload_bytes > MAX_POLICY_PAYLOAD_BYTES {
             return Err(IpcError::InvalidPolicy);
         }
         let allowed_channels = normalize_allowed_channels(&self.allowed_channels);
@@ -80,7 +88,7 @@ impl IpcPolicy {
             return Err(IpcError::InvalidTimestamp);
         }
         let nonce = sanitize_token(&envelope.nonce, MAX_NONCE_LEN, false);
-        if nonce.is_empty() {
+        if !valid_nonce(&nonce) {
             return Err(IpcError::MissingNonce);
         }
         if envelope.payload.len() > self.max_payload_bytes {

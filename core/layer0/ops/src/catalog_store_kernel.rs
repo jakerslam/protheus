@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 
 use crate::contract_lane_utils as lane_utils;
 use crate::contract_lane_utils::{cli_error, print_json_line};
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 
 const DEFAULT_REL_PATH: &str = "sensory/eyes/catalog.json";
 const DEFAULT_PROVIDER_FAMILIES: [&str; 4] = ["openai", "openrouter", "xai", "tts"];

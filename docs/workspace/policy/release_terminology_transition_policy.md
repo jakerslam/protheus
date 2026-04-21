@@ -29,17 +29,19 @@ Define release-governed transition rules for canonical public terminology while 
 
 For each release candidate:
 
-1. Public docs must prefer canonical terms (`Kernel`, `Gateways`).
+1. Public docs must use canonical-first terminology (`Kernel`, `Gateways`, `Shell`).
 2. Compatibility aliases must be explicitly labeled as aliases when present.
-3. Command aliases must remain functional during compatibility window:
+3. `Core` may only appear as compatibility alias or immutable path context (`core/**`), never as the primary authority term.
+4. Command aliases must remain functional during compatibility window:
    - `ops:kernel-naming:guard` -> `ops:core-naming:guard`
    - `ops:gateway-runtime-chaos:gate` -> `ops:adapter-runtime-chaos:gate`
    - `test:ops:gateway-chaos:rust` -> `test:ops:adapter-chaos:rust`
    - `ops:orchestration:gateway-fallback:guard` -> `ops:orchestration:adapter-fallback:guard`
-4. Compatibility mapping file must be present and current:
+5. Compatibility mapping file must be present and current:
    - `client/runtime/config/kernel_transition_alias_map.json`
    - `client/runtime/config/gateway_transition_alias_map.json`
-5. After retirement target date/version, releases must remove deprecated aliases unless an explicit blocker exception is documented.
+   - `client/runtime/config/terminology_transition_deprecation_tracker.json`
+6. After retirement target date/version, releases must remove deprecated aliases unless an explicit blocker exception is documented.
 
 ## Exception Policy
 

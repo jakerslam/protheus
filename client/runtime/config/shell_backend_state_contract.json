@@ -1,0 +1,47 @@
+{
+  "version": "2026-04-20",
+  "backend_state": {
+    "fields": [
+      "sidebar_status_state",
+      "sidebar_status_label"
+    ],
+    "enum_values": [
+      "active",
+      "idle",
+      "offline"
+    ],
+    "enum_evidence_file": "client/runtime/systems/ui/infring_static/js/app.ts.parts/020-nav-and-layout.part01a.ts"
+  },
+  "freshness": {
+    "fields": [
+      "source",
+      "source_sequence",
+      "age_seconds",
+      "stale"
+    ]
+  },
+  "required_contract_files": [
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/app.ts.parts/020-nav-and-layout.part01a.ts",
+      "must_include": [
+        "sidebar_status_state",
+        "sidebar_status_label"
+      ]
+    },
+    {
+      "path": "client/runtime/systems/ui/infring_static/js/app.ts.parts/040-events-and-actions.part01.ts",
+      "must_include": [
+        "sidebar_status_label"
+      ]
+    },
+    {
+      "path": "tests/tooling/scripts/ci/dashboard_surface_authority_guard.ts",
+      "must_include": [
+        "source",
+        "source_sequence",
+        "age_seconds",
+        "stale"
+      ]
+    }
+  ]
+}

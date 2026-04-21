@@ -249,7 +249,7 @@
                         <span class="chat-day-divider-line" aria-hidden="true"></span>
                       </div>
                     </template>
-                    <template x-if="!msg.is_notice && shouldRenderMessage(msg, idx)">
+                    <template x-if="!msg.is_notice">
                       <infring-chat-stream-shell
                         class="message"
                         :data-origin-kind="messageOriginKind(msg)"
@@ -419,22 +419,6 @@
                           </div>
                         </div>
                       </infring-chat-stream-shell>
-                    </template>
-                    <template x-if="!msg.is_notice && !shouldRenderMessage(msg, idx)">
-                      <div class="message message-placeholder-shell" :class="messageRoleClass(msg)">
-                        <div class="message-avatar" x-show="msg.role === 'agent' && !(isCurrentAgentArchived && isCurrentAgentArchived())">
-                          <span class="agent-mark infring-logo infring-logo--agent-default" aria-hidden="true"><span class="infring-logo-glyph" aria-hidden="true">&infin;</span></span>
-                        </div>
-                        <div class="message-body">
-                          <div class="message-agent-name" x-show="msg.role === 'agent'" x-text="messageAgentLabel(msg)"></div>
-                          <div class="message-bubble message-placeholder-bubble">
-                            <span class="message-placeholder-line skeleton" aria-hidden="true"></span>
-                          </div>
-                          <div class="message-stats-row message-stats-row-static">
-                            <span class="message-stat-time" x-text="messageTs(msg)" x-show="messageTs(msg)"></span>
-                          </div>
-                        </div>
-                      </div>
                     </template>
                   </div>
                 </template>

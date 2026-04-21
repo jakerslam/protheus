@@ -24,6 +24,24 @@ pub fn strip_invisible_unicode(raw: &str) -> String {
         .collect()
 }
 
+fn has_parent_segment(raw: &str) -> bool {
+    raw.split(['/', '\\']).any(|segment| segment.trim() == "..")
+}
+
+fn has_ambiguous_segment(raw: &str) -> bool {
+    raw.split('/')
+        .any(|segment| matches!(segment.trim(), "" | "."))
+}
+
+fn is_absolute_like_blob_id(raw: &str) -> bool {
+    raw.starts_with('/')
+        || raw.starts_with('\\')
+        || raw.starts_with("//")
+        || raw.starts_with("\\\\")
+        || raw.get(1..3) == Some(":\\")
+        || raw.get(1..3) == Some(":/")
+}
+
 fn is_valid_manifest_token(raw: &str, max_len: usize, allow_spaces: bool) -> bool {
     let normalized: String = strip_invisible_unicode(raw)
         .chars()
@@ -77,6 +95,12 @@ pub fn normalize_blob_id(raw: &str, max_len: usize) -> Option<String> {
     {
         return None;
     }
+    if has_parent_segment(normalized)
+        || has_ambiguous_segment(normalized)
+        || is_absolute_like_blob_id(normalized)
+    {
+        return None;
+    }
     Some(normalized.to_string())
 }
 
@@ -106,6 +130,11 @@ pub fn decode_normalized_blob_manifest(
             version: row.version,
         };
         match merged.get(&id) {
+            Some(existing)
+                if existing.version == normalized.version && existing.hash != normalized.hash =>
+            {
+                return Err(format!("manifest_conflicting_hash:{id}"));
+            }
             Some(existing) if existing.version >= normalized.version => {}
             _ => {
                 merged.insert(id, normalized);
@@ -134,7 +163,7 @@ pub fn decode_normalized_signed_bincode_blob_manifest(
 ) -> Result<Vec<NormalizedSignedBlobManifestEntry>, String> {
     let rows: Vec<RawSignedBlobManifestEntry> =
         bincode::deserialize(bytes).map_err(|err| err.to_string())?;
-    let mut normalized = Vec::with_capacity(rows.len());
+    let mut normalized = BTreeMap::<String, NormalizedSignedBlobManifestEntry>::new();
     for row in rows {
         let id = normalize_blob_id(&row.id, max_blob_id_len)
             .ok_or_else(|| "manifest_blob_id_invalid".to_string())?;
@@ -149,14 +178,26 @@ pub fn decode_normalized_signed_bincode_blob_manifest(
         if signature != expected {
             return Err(format!("manifest_signature_mismatch:{id}"));
         }
-        normalized.push(NormalizedSignedBlobManifestEntry {
+        let next = NormalizedSignedBlobManifestEntry {
             id,
             hash,
             version: row.version,
             signature,
-        });
+        };
+        match normalized.get(&next.id) {
+            Some(existing)
+                if existing.version == next.version
+                    && (existing.hash != next.hash || existing.signature != next.signature) =>
+            {
+                return Err(format!("manifest_conflicting_signed_entry:{}", next.id));
+            }
+            Some(existing) if existing.version >= next.version => {}
+            _ => {
+                normalized.insert(next.id.clone(), next);
+            }
+        }
     }
-    Ok(normalized)
+    Ok(normalized.into_values().collect())
 }
 
 pub fn decode_signed_bincode_blob_manifest_with_adapter<T, E, F, G>(

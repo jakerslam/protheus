@@ -8,6 +8,25 @@ import { emitStructuredResult, writeTextArtifact } from '../../lib/result.ts';
 
 type ScriptClass = 'rust_native' | 'node_typescript' | 'npm_wrapper' | 'unknown';
 
+type BurnLane = {
+  id: string;
+  domain: string;
+  owner: string;
+  priority: number;
+  target_classification: ScriptClass;
+  target_date: string;
+  migration_status: string;
+  notes: string;
+};
+
+type BurnPlan = {
+  schema_id: string;
+  schema_version: string;
+  required_domains: string[];
+  allowed_node_typescript_prefixes: string[];
+  lanes: BurnLane[];
+};
+
 function parseArgs(argv: string[]) {
   const common = parseStrictOutArgs(argv, {
     out: 'core/local/artifacts/node_critical_path_inventory_current.json',
@@ -24,6 +43,10 @@ function parseArgs(argv: string[]) {
       400,
     ),
     packagePath: cleanText(readFlag(argv, 'package') || 'package.json', 400),
+    burnPlanPath: cleanText(
+      readFlag(argv, 'burn-plan') || 'client/runtime/config/node_critical_path_burndown_plan.json',
+      400,
+    ),
   };
 }
 
@@ -52,6 +75,14 @@ function classifyScriptCommand(command: string): ScriptClass {
   return 'unknown';
 }
 
+function parseTsEntrypointTarget(command: string): string {
+  const match = /node\s+client\/runtime\/lib\/ts_entrypoint\.ts\s+([^\s]+)/i.exec(command);
+  if (!match) return '';
+  const raw = cleanText(match[1] || '', 500);
+  if (!raw) return '';
+  return cleanText(raw.replace(/^['"]|['"]$/g, ''), 500);
+}
+
 function markdown(payload: any): string {
   const lines = [
     '# Node Critical Path Inventory',
@@ -68,12 +99,18 @@ function markdown(payload: any): string {
     `- npm_wrapper: ${payload.summary.npm_wrapper_count}`,
     `- unknown: ${payload.summary.unknown_count}`,
     `- node_dependency_ratio: ${payload.summary.node_dependency_ratio}`,
+    `- migration_outstanding: ${payload.summary.migration_outstanding_count}`,
+    `- migration_overdue: ${payload.summary.migration_overdue_count}`,
+    `- required_domains_missing: ${payload.summary.required_domains_missing_count}`,
+    `- ts_confinement_violations: ${payload.summary.ts_confinement_violation_count}`,
     '',
-    '| script | class | command |',
-    '| --- | --- | --- |',
+    '| script | domain | owner | priority | class | target_class | target_date | status | ts_target |',
+    '| --- | --- | --- | ---: | --- | --- | --- | --- | --- |',
   ];
   for (const row of payload.rows) {
-    lines.push(`| ${row.id} | ${row.classification} | ${row.command} |`);
+    lines.push(
+      `| ${row.id} | ${row.domain} | ${row.owner} | ${row.priority} | ${row.classification} | ${row.target_classification} | ${row.target_date} | ${row.migration_status} | ${row.ts_entrypoint_target || 'n/a'} |`,
+    );
   }
   lines.push('');
   lines.push('## Failures');
@@ -102,28 +139,120 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       ok: false,
     });
   }
+  const burnPlanPath = path.resolve(root, args.burnPlanPath);
+  const burnPlanJson = readJsonBestEffort(burnPlanPath);
+  if (!burnPlanJson.ok) {
+    const payload = {
+      ok: false,
+      type: 'node_critical_path_inventory',
+      error: 'node_critical_path_burndown_plan_unavailable',
+      detail: burnPlanJson.detail,
+      package_path: args.packagePath,
+      burn_plan_path: args.burnPlanPath,
+    };
+    return emitStructuredResult(payload, {
+      outPath: args.outPath,
+      strict: args.strict,
+      ok: false,
+    });
+  }
 
   const scripts = packageJson.payload?.scripts || {};
-  const criticalScriptIds = [
-    'ops:runtime-proof:verify',
-    'ops:adapter-runtime-chaos:gate',
-    'ops:layer2:parity:guard',
-    'ops:trusted-core:report',
-    'ops:release:proof-pack',
-    'ops:release:scorecard:gate',
-    'ops:production-closure:gate',
-    'ops:release:verdict',
-    'ops:stateful-upgrade-rollback:gate',
-    'ops:support-bundle:export',
-  ];
+  const burnPlan = (burnPlanJson.payload || {}) as Partial<BurnPlan>;
+  const lanes = Array.isArray(burnPlan.lanes)
+    ? burnPlan.lanes.map((lane) => ({
+        id: cleanText(lane.id || '', 200),
+        domain: cleanText(lane.domain || '', 80),
+        owner: cleanText(lane.owner || '', 120),
+        priority: Number(lane.priority || 0),
+        target_classification: cleanText(
+          lane.target_classification || 'unknown',
+          40,
+        ) as ScriptClass,
+        target_date: cleanText(lane.target_date || '', 40),
+        migration_status: cleanText(lane.migration_status || '', 80),
+        notes: cleanText(lane.notes || '', 240),
+      }))
+    : [];
+  const laneMap = new Map<string, (typeof lanes)[number]>();
+  const laneFailures: Array<{ id: string; detail: string }> = [];
+  for (const lane of lanes) {
+    if (!lane.id) laneFailures.push({ id: 'node_burndown_lane_missing_id', detail: lane.domain || 'unknown' });
+    if (!lane.domain) laneFailures.push({ id: 'node_burndown_lane_missing_domain', detail: lane.id || 'unknown' });
+    if (!lane.owner) laneFailures.push({ id: 'node_burndown_lane_missing_owner', detail: lane.id || 'unknown' });
+    if (!Number.isFinite(lane.priority) || lane.priority < 1 || lane.priority > 3) {
+      laneFailures.push({ id: 'node_burndown_lane_invalid_priority', detail: `${lane.id}:${lane.priority}` });
+    }
+    if (!Number.isFinite(Date.parse(lane.target_date))) {
+      laneFailures.push({ id: 'node_burndown_lane_invalid_target_date', detail: `${lane.id}:${lane.target_date}` });
+    }
+    if (!lane.migration_status) {
+      laneFailures.push({ id: 'node_burndown_lane_missing_status', detail: lane.id || 'unknown' });
+    }
+    if (!['rust_native', 'node_typescript', 'npm_wrapper', 'unknown'].includes(lane.target_classification)) {
+      laneFailures.push({
+        id: 'node_burndown_lane_invalid_target_classification',
+        detail: `${lane.id}:${lane.target_classification}`,
+      });
+    }
+    if (laneMap.has(lane.id)) {
+      laneFailures.push({ id: 'node_burndown_lane_duplicate_id', detail: lane.id });
+    } else if (lane.id) {
+      laneMap.set(lane.id, lane);
+    }
+  }
+
+  const requiredDomains =
+    Array.isArray(burnPlan.required_domains) && burnPlan.required_domains.length > 0
+      ? burnPlan.required_domains.map((value) => cleanText(String(value || ''), 80)).filter(Boolean)
+      : ['release', 'repair', 'topology_truth', 'recovery', 'status'];
+  const domainCoverage = new Set(lanes.map((lane) => lane.domain));
+  const requiredDomainsMissing = requiredDomains.filter((domain) => !domainCoverage.has(domain));
+  const requiredPriorityOneMissing = requiredDomains.filter(
+    (domain) => !lanes.some((lane) => lane.domain === domain && lane.priority === 1),
+  );
+
+  const allowedNodeTypescriptPrefixes =
+    Array.isArray(burnPlan.allowed_node_typescript_prefixes) &&
+    burnPlan.allowed_node_typescript_prefixes.length > 0
+      ? burnPlan.allowed_node_typescript_prefixes.map((value) => cleanText(String(value || ''), 300)).filter(Boolean)
+      : ['tests/tooling/scripts/', 'client/runtime/systems/ui/', 'client/runtime/systems/extensions/'];
+
+  const criticalScriptIds = Array.from(laneMap.keys());
+  const nowEpoch = Date.now();
 
   const rows = criticalScriptIds.map((id) => {
+    const lane = laneMap.get(id);
     const command = cleanText(scripts?.[id] || '', 2000);
     const classification = classifyScriptCommand(command);
+    const tsEntrypointTarget = classification === 'node_typescript' ? parseTsEntrypointTarget(command) : '';
+    const tsConfinementAllowed =
+      classification !== 'node_typescript' ||
+      (!!tsEntrypointTarget &&
+        allowedNodeTypescriptPrefixes.some((prefix) => tsEntrypointTarget.startsWith(prefix)));
+    const targetEpoch = Number.isFinite(Date.parse(lane?.target_date || ''))
+      ? Date.parse(lane?.target_date || '')
+      : Number.NaN;
+    const migrationOutstanding =
+      !!lane &&
+      lane.target_classification !== 'unknown' &&
+      classification !== lane.target_classification;
+    const migrationOverdue = migrationOutstanding && Number.isFinite(targetEpoch) && nowEpoch > targetEpoch;
     return {
       id,
       command,
       classification,
+      domain: lane?.domain || 'unknown',
+      owner: lane?.owner || '',
+      priority: lane?.priority ?? 0,
+      target_classification: lane?.target_classification || 'unknown',
+      target_date: lane?.target_date || '',
+      migration_status: lane?.migration_status || '',
+      notes: lane?.notes || '',
+      ts_entrypoint_target: tsEntrypointTarget,
+      ts_confinement_allowed: tsConfinementAllowed,
+      migration_outstanding: migrationOutstanding,
+      migration_overdue: migrationOverdue,
       exists: command.length > 0,
     };
   });
@@ -144,11 +273,40 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     baselineAvailable && Number.isFinite(baselineNodeRatio) && nodeDependencyRatio > baselineNodeRatio;
 
   const failures = []
+    .concat(laneFailures)
+    .concat(
+      requiredDomainsMissing.map((domain) => ({
+        id: 'node_burndown_required_domain_missing',
+        detail: domain,
+      })),
+    )
+    .concat(
+      requiredPriorityOneMissing.map((domain) => ({
+        id: 'node_burndown_required_priority_one_missing',
+        detail: domain,
+      })),
+    )
     .concat(
       missing.map((row) => ({
         id: 'critical_script_missing',
         detail: row.id,
       })),
+    )
+    .concat(
+      rows
+        .filter((row) => row.classification === 'node_typescript' && !row.ts_confinement_allowed)
+        .map((row) => ({
+          id: 'node_typescript_confinement_violation',
+          detail: `${row.id}:${row.ts_entrypoint_target || 'missing_target_path'}`,
+        })),
+    )
+    .concat(
+      rows
+        .filter((row) => row.migration_overdue)
+        .map((row) => ({
+          id: 'node_burndown_target_overdue',
+          detail: `${row.id}:target_date=${row.target_date};target=${row.target_classification};actual=${row.classification}`,
+        })),
     )
     .concat(
       nodeDependencyRegression
@@ -176,9 +334,24 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       npm_wrapper_count: npmWrapperCount,
       unknown_count: unknownCount,
       node_dependency_ratio: nodeDependencyRatio,
+      migration_outstanding_count: rows.filter((row) => row.migration_outstanding).length,
+      migration_overdue_count: rows.filter((row) => row.migration_overdue).length,
+      required_domains_missing_count: requiredDomainsMissing.length,
+      required_priority_one_missing_count: requiredPriorityOneMissing.length,
+      ts_confinement_violation_count: rows.filter(
+        (row) => row.classification === 'node_typescript' && !row.ts_confinement_allowed,
+      ).length,
       baseline_available: baselineAvailable,
       baseline_node_dependency_ratio: baselineAvailable && Number.isFinite(baselineNodeRatio) ? baselineNodeRatio : null,
       node_dependency_ratio_regression: nodeDependencyRegression,
+    },
+    burn_down_plan: {
+      schema_id: cleanText((burnPlan.schema_id as string) || '', 120),
+      schema_version: cleanText((burnPlan.schema_version as string) || '', 40),
+      plan_path: args.burnPlanPath,
+      lane_count: lanes.length,
+      required_domains,
+      allowed_node_typescript_prefixes: allowedNodeTypescriptPrefixes,
     },
     rows,
     failures,

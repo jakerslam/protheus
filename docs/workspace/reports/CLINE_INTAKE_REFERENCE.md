@@ -239,7 +239,7 @@
 - `CLINE-CANDIDATE-PROMPT-COMPOSER-VARIANTS-001` (from `src/core/prompts/**/*.ts`):
   - Prompt assembly and variant-registry patterns captured as candidate set for prompt-surface reliability and consistency.
 - `CLINE-CANDIDATE-SLASH-COMMAND-CORE-001` (from `src/core/slash-commands/*.ts`):
-  - Core slash-command registry and execution routing patterns for deterministic command invocation behavior.
+  - Kernel slash-command registry and execution routing patterns for deterministic command invocation behavior.
 - `CLINE-CANDIDATE-STORAGE-MIGRATION-REMOTE-SYNC-001` (from `src/core/storage/*.ts`):
   - Storage state migration and remote-config/MCP sync flows as intake source for persistence + config-cohesion reliability.
 - `CLINE-CANDIDATE-TASK-RUNTIME-COORDINATION-001` (from `src/core/task/**/*.ts`):

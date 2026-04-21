@@ -52,6 +52,8 @@ struct ScanOutput {
 
 const MAX_ARG_VALUE_LEN: usize = 4096;
 const MAX_CSV_ENTRIES: usize = 256;
+const MAX_RELATIVE_PATH_LEN: usize = 256;
+const MAX_PATH_SEGMENT_LEN: usize = 96;
 
 fn strip_invisible_unicode(raw: &str) -> String {
     raw.chars()
@@ -103,13 +105,25 @@ fn tokenize_csv(input: &str) -> Vec<String> {
 }
 
 fn is_safe_relative_path(rel: &str) -> bool {
+    if rel.is_empty() || rel.len() > MAX_RELATIVE_PATH_LEN {
+        return false;
+    }
+    if rel.starts_with('~') || rel.contains(':') {
+        return false;
+    }
     let path = Path::new(rel);
     if path.is_absolute() {
         return false;
     }
-    !path
-        .components()
-        .any(|component| matches!(component, Component::ParentDir))
+    !path.components().any(|component| {
+        matches!(
+            component,
+            Component::Prefix(_)
+                | Component::RootDir
+                | Component::CurDir
+                | Component::ParentDir
+        ) || matches!(component, Component::Normal(seg) if seg.to_string_lossy().chars().count() > MAX_PATH_SEGMENT_LEN)
+    })
 }
 
 fn normalized_rel(root: &Path, path: &Path) -> String {
@@ -206,6 +220,7 @@ fn main() {
         println!("{}", payload);
         std::process::exit(2);
     }
+    let root = fs::canonicalize(&root).unwrap_or(root);
 
     let required_files = tokenize_csv(&required_files_arg);
     let suspicious_names: HashSet<String> = tokenize_csv(&suspicious_names_arg)

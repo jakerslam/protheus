@@ -1,0 +1,75 @@
+{
+  "version": "2026-04-20",
+  "scan_roots": [
+    "client/runtime/systems/ui/infring_static/js",
+    "client/runtime/systems/ui/infring_static/index_body.html.parts"
+  ],
+  "scan_extensions": [
+    ".ts",
+    ".js",
+    ".svelte",
+    ".html"
+  ],
+  "ignore_path_contains": [
+    "/tests/",
+    "__tests__",
+    "/dist/",
+    "/build/",
+    "node_modules"
+  ],
+  "forbidden_patterns": [
+    {
+      "id": "sidebar_status_state_literal_assignment",
+      "severity": "error",
+      "description": "Shell must not hardcode sidebar_status_state; it must consume backend-authoritative state.",
+      "regex": "\\bsidebar_status_state\\s*=\\s*['\"][^'\"]+['\"]"
+    },
+    {
+      "id": "sidebar_status_label_literal_assignment",
+      "severity": "error",
+      "description": "Shell must not hardcode sidebar_status_label; it must consume backend-authoritative labels.",
+      "regex": "\\bsidebar_status_label\\s*=\\s*['\"][^'\"]+['\"]"
+    },
+    {
+      "id": "sidebar_status_state_object_literal",
+      "severity": "error",
+      "description": "Shell must not synthesize sidebar_status_state via object literals.",
+      "regex": "\\bsidebar_status_state\\s*:\\s*['\"][^'\"]+['\"]"
+    },
+    {
+      "id": "sidebar_status_label_object_literal",
+      "severity": "error",
+      "description": "Shell must not synthesize sidebar_status_label via object literals.",
+      "regex": "\\bsidebar_status_label\\s*:\\s*['\"][^'\"]+['\"]"
+    },
+    {
+      "id": "sidebar_status_state_fallback",
+      "severity": "warn",
+      "description": "Fallback defaults for sidebar_status_state should be minimized and justified.",
+      "regex": "\\bsidebar_status_state\\s*\\|\\|"
+    },
+    {
+      "id": "sidebar_status_label_fallback",
+      "severity": "warn",
+      "description": "Fallback defaults for sidebar_status_label should be minimized and justified.",
+      "regex": "\\bsidebar_status_label\\s*\\|\\|"
+    },
+    {
+      "id": "client_retry_policy_branching",
+      "severity": "warn",
+      "description": "Client retry/backoff policy branching should stay non-authoritative and observable only.",
+      "regex": "\\b(retry|backoff|quarantine|defer)\\w*\\s*\\("
+    },
+    {
+      "id": "client_lane_selection_heuristic",
+      "severity": "warn",
+      "description": "Client lane-selection heuristics indicate shell truth leakage risk.",
+      "regex": "\\b(select|choose|resolve)\\w*Lane\\s*\\("
+    }
+  ],
+  "allowed_pattern_paths": {
+    "client_retry_policy_branching": [
+      "client/runtime/systems/ui/infring_static/js/app.ts.parts/040-events-and-actions.part01.ts"
+    ]
+  }
+}

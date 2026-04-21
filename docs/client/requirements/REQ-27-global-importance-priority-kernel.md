@@ -23,13 +23,13 @@ Establish one core-authoritative priority system that scores importance across a
 
 ## Functional Requirements
 
-1. `REQ-27-001` Core authoritative importance scoring
+1. `REQ-27-001` Kernel authoritative importance scoring
 - Every queued event must have a deterministic score and band.
 - Scoring must run in Rust/core and remain non-probabilistic.
 
 2. `REQ-27-002` Score model and override contract
 - Score must support inherited hints (explicit `priority` / `importance.score`) and deterministic fallback scoring.
-- Core/system health signals must enforce floor behavior so infra/security outrank higher-layer cognition when required.
+- Kernel/system health signals must enforce floor behavior so infra/security outrank higher-layer cognition when required.
 
 3. `REQ-27-003` Priority queue ordering
 - Attention queue must order events by:

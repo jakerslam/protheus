@@ -5,7 +5,13 @@ struct PreparedMessageRouteContext {
     context_pool_limit_tokens: i64, context_pool_tokens: i64, pooled_messages_len: usize, sessions_total: usize,
     fallback_window: i64, memory_kv_entries: usize, active_context_target_tokens: i64, active_context_min_recent: usize,
     include_all_sessions_context: bool, context_active_tokens: i64, context_ratio: f64, context_pressure: String,
-    pre_generation_pruned: bool, recent_floor_enforced: bool, recent_floor_injected: usize, history_trim_confirmed: bool,
+    pre_generation_pruned: bool, recent_floor_enforced: bool, recent_floor_injected: usize,
+    recent_floor_target: usize, recent_floor_missing_before: usize, recent_floor_satisfied: bool,
+    recent_floor_coverage_before: f64, recent_floor_coverage_after: f64,
+    recent_floor_active_missing: usize, recent_floor_active_satisfied: bool, recent_floor_active_coverage: f64,
+    recent_floor_continuity_status: String, recent_floor_continuity_action: String,
+    recent_floor_continuity_message: String,
+    history_trim_confirmed: bool,
     emergency_compact: Value, workspace_hints: Value, latent_tool_candidates: Value, inline_tools_allowed: bool,
     system_prompt: String,
 }
@@ -297,10 +303,19 @@ fn prepare_message_route_context(
         messages = context_source_messages(&state, include_all_sessions_context);
         pooled_messages = trim_context_pool(&messages, context_pool_limit_tokens);
     }
+    let recent_floor_target = recent_context_floor_target_count(&messages, active_context_min_recent);
+    let recent_floor_missing_before =
+        recent_context_floor_missing_count(&messages, &pooled_messages, active_context_min_recent);
+    let recent_floor_coverage_before =
+        recent_context_floor_coverage_ratio(&messages, &pooled_messages, active_context_min_recent);
     let (pooled_messages_with_floor, recent_floor_injected) =
         enforce_recent_context_floor(&messages, &pooled_messages, active_context_min_recent);
     let recent_floor_enforced = recent_floor_injected > 0;
     pooled_messages = pooled_messages_with_floor;
+    let recent_floor_satisfied =
+        recent_context_floor_satisfied(&messages, &pooled_messages, active_context_min_recent);
+    let recent_floor_coverage_after =
+        recent_context_floor_coverage_ratio(&messages, &pooled_messages, active_context_min_recent);
     if all_session_history_count > 0 && messages.is_empty() {
         return Err(CompatApiResponse {
             status: 503,
@@ -382,7 +397,8 @@ fn prepare_message_route_context(
         }
     }
     let reply_scope_messages = reply_scope_messages_from_request(request);
-    if !reply_scope_messages.is_empty() {
+    let reply_scope_used = !reply_scope_messages.is_empty();
+    if reply_scope_used {
         active_messages = reply_scope_messages;
         context_active_tokens = total_message_tokens(&active_messages);
         context_ratio = if fallback_window > 0 {
@@ -392,6 +408,31 @@ fn prepare_message_route_context(
         };
         context_pressure = context_pressure_label(context_ratio).to_string();
     }
+    let recent_floor_active_missing =
+        recent_context_floor_missing_count(&messages, &active_messages, active_context_min_recent);
+    let recent_floor_active_satisfied = recent_floor_active_missing == 0;
+    let recent_floor_active_coverage =
+        recent_context_floor_coverage_ratio(&messages, &active_messages, active_context_min_recent);
+    let (recent_floor_continuity_status, recent_floor_continuity_action, recent_floor_continuity_message) =
+        if recent_floor_active_satisfied {
+            (
+                "ready".to_string(),
+                "none".to_string(),
+                "Active context satisfies the recent-floor continuity contract.".to_string(),
+            )
+        } else if reply_scope_used {
+            (
+                "degraded".to_string(),
+                "expand_reply_scope_recent_tail".to_string(),
+                "Reply-scope override omitted part of the recent conversation tail; include more recent messages.".to_string(),
+            )
+        } else {
+            (
+                "degraded".to_string(),
+                "raise_active_context_floor_or_target".to_string(),
+                "Active context dropped below the recent-floor contract; increase min recent messages or target context tokens.".to_string(),
+            )
+        };
     let memory_kv_entries = memory_kv_pairs_from_state(&state).len();
     let memory_prompt_context = memory_kv_prompt_context(&state, 24);
     let instinct_prompt_context = agent_instinct_prompt_context(root, 6_000);
@@ -490,6 +531,17 @@ fn prepare_message_route_context(
         pre_generation_pruned,
         recent_floor_enforced,
         recent_floor_injected,
+        recent_floor_target,
+        recent_floor_missing_before,
+        recent_floor_satisfied,
+        recent_floor_coverage_before,
+        recent_floor_coverage_after,
+        recent_floor_active_missing,
+        recent_floor_active_satisfied,
+        recent_floor_active_coverage,
+        recent_floor_continuity_status,
+        recent_floor_continuity_action,
+        recent_floor_continuity_message,
         history_trim_confirmed,
         emergency_compact,
         workspace_hints: workspace_hints.clone(),

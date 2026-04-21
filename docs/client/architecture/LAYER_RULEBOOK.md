@@ -118,7 +118,7 @@ The extension boundary for apps and adapters is:
 Apps and adapters should build against the contract, not against private implementation files.
 
 ### 4. Boundary Rules (Enforced)
-- Primary path is Client -> Orchestration Surface -> Core for user-driven execution flows.
+- Primary path is Client -> Orchestration Surface -> Kernel for user-driven execution flows.
 - Client <-> core communication is conduit + scrambler only when explicitly approved ingress requires it.
 - Orchestration Surface <-> core communication is conduit + scrambler + lease/policy validation.
 - Packages <-> core communication flows through public client/package contracts, never private authority backdoors.
@@ -130,7 +130,7 @@ Apps and adapters should build against the contract, not against private impleme
 
 ### 5. Runtime Data Placement
 - Client runtime/user/device/instance data: `client/runtime/local/`.
-- Core runtime/user/device/instance data: `core/local/`.
+- Kernel runtime/user/device/instance data: `core/local/`.
 - Source trees remain stable and reviewable; runtime churn never defines architecture authority.
 
 ### 6. Enforcement Rules
@@ -156,7 +156,7 @@ This rulebook is a live constitution artifact and must be kept aligned with the 
 
 ### 7. Module Cohesion and Split Policy (Enforced)
 - The canonical policy is `docs/client/MODULE_COHESION_POLICY.md`.
-- Core authority modules should split by domain boundary when they exceed safe reviewability.
+- Kernel authority modules should split by domain boundary when they exceed safe reviewability.
 - Client surfaces must remain thin adapters and intentionally small/explicit.
 - Size policy is guidance backed by CI:
   - hard cap envelope: ~400-600 lines (client thin cap: 400),

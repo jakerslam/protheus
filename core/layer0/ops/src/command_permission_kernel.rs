@@ -187,6 +187,118 @@ fn strip_nice_prefix(raw: &str) -> String {
     }
 }
 
+fn strip_stdbuf_prefix(raw: &str) -> String {
+    let mut current = raw.trim().to_string();
+    loop {
+        let Some((token, rest)) = parse_first_token_with_rest(&current) else {
+            return String::new();
+        };
+        if token == "--" {
+            return rest;
+        }
+        if token == "-i" || token == "-o" || token == "-e" {
+            let Some((_, rest_after_value)) = parse_first_token_with_rest(&rest) else {
+                return String::new();
+            };
+            current = rest_after_value;
+            continue;
+        }
+        if token.starts_with('-') {
+            current = rest;
+            continue;
+        }
+        return clean_text(&format!("{token} {rest}"), 2000);
+    }
+}
+
+fn strip_ionice_prefix(raw: &str) -> String {
+    let mut current = raw.trim().to_string();
+    let options_with_value = [
+        "-c",
+        "--class",
+        "-n",
+        "--classdata",
+        "-u",
+        "--uid",
+        "-p",
+        "--pid",
+        "-P",
+        "--pgid",
+    ];
+    loop {
+        let Some((token, rest)) = parse_first_token_with_rest(&current) else {
+            return String::new();
+        };
+        if token == "--" {
+            return rest;
+        }
+        if token == "-t" || token == "--ignore" {
+            current = rest;
+            continue;
+        }
+        if options_with_value.contains(&token.as_str()) {
+            let Some((_, rest_after_value)) = parse_first_token_with_rest(&rest) else {
+                return String::new();
+            };
+            current = rest_after_value;
+            continue;
+        }
+        if token.starts_with('-') {
+            current = rest;
+            continue;
+        }
+        return clean_text(&format!("{token} {rest}"), 2000);
+    }
+}
+
+fn strip_chrt_prefix(raw: &str) -> String {
+    let mut current = raw.trim().to_string();
+    let options_with_value = [
+        "-p",
+        "--pid",
+        "-T",
+        "--sched-runtime",
+        "-P",
+        "--sched-period",
+        "-D",
+        "--sched-deadline",
+    ];
+    let mut skipped_priority = false;
+    loop {
+        let Some((token, rest)) = parse_first_token_with_rest(&current) else {
+            return String::new();
+        };
+        if token == "--" {
+            return rest;
+        }
+        if token == "-R" || token == "--reset-on-fork" {
+            current = rest;
+            continue;
+        }
+        if options_with_value.contains(&token.as_str()) {
+            let Some((_, rest_after_value)) = parse_first_token_with_rest(&rest) else {
+                return String::new();
+            };
+            current = rest_after_value;
+            continue;
+        }
+        if token.starts_with('-') {
+            current = rest;
+            continue;
+        }
+        if !skipped_priority
+            && token
+                .chars()
+                .all(|ch| ch.is_ascii_digit() || ch == '+' || ch == '-')
+        {
+            skipped_priority = true;
+            current = rest;
+            continue;
+        }
+        return clean_text(&format!("{token} {rest}"), 2000);
+    }
+}
+
 fn normalize_segment_for_permission(segment: &str) -> String {
     let mut current = clean_text(segment, 2000);
     if current.is_empty() {
@@ -198,10 +310,13 @@ fn normalize_segment_for_permission(segment: &str) -> String {
         };
         let lowered = token.to_ascii_lowercase();
         let next = match lowered.as_str() {
-            "sudo" | "command" | "nohup" | "setsid" => rest,
+            "sudo" | "doas" | "command" | "nohup" | "setsid" => rest,
             "env" => strip_env_prefix(&rest),
             "timeout" | "gtimeout" => strip_timeout_prefix(&rest),
             "nice" => strip_nice_prefix(&rest),
+            "stdbuf" => strip_stdbuf_prefix(&rest),
+            "ionice" => strip_ionice_prefix(&rest),
+            "chrt" => strip_chrt_prefix(&rest),
             _ => break,
         };
         if next.trim().is_empty() || next == current {
@@ -488,6 +603,46 @@ mod tests {
     fn wrapper_normalization_allows_sudo_prefixed_commands_to_match() {
         let (verdict, _) = evaluate_with_rules(
             "sudo git push origin main",
+            &vec!["git push*".to_string()],
+            &vec![],
+        );
+        assert_eq!(verdict, PermissionVerdict::Deny);
+    }
+
+    #[test]
+    fn wrapper_normalization_allows_stdbuf_prefixed_commands_to_match() {
+        let (verdict, _) = evaluate_with_rules(
+            "stdbuf -oL cargo test --workspace",
+            &vec![],
+            &vec!["cargo *".to_string()],
+        );
+        assert_eq!(verdict, PermissionVerdict::Ask);
+    }
+
+    #[test]
+    fn wrapper_normalization_allows_ionice_prefixed_commands_to_match() {
+        let (verdict, _) = evaluate_with_rules(
+            "ionice -c 3 git push origin main",
+            &vec!["git push*".to_string()],
+            &vec![],
+        );
+        assert_eq!(verdict, PermissionVerdict::Deny);
+    }
+
+    #[test]
+    fn wrapper_normalization_allows_chrt_prefixed_commands_to_match() {
+        let (verdict, _) = evaluate_with_rules(
+            "chrt -r 10 cargo fmt",
+            &vec![],
+            &vec!["cargo *".to_string()],
+        );
+        assert_eq!(verdict, PermissionVerdict::Ask);
+    }
+
+    #[test]
+    fn wrapper_normalization_allows_doas_prefixed_commands_to_match() {
+        let (verdict, _) = evaluate_with_rules(
+            "doas git push origin main",
             &vec!["git push*".to_string()],
             &vec![],
         );

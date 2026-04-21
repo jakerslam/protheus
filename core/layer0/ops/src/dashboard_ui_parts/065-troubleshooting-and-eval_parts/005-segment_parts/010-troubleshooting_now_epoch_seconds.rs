@@ -240,9 +240,6 @@ fn dashboard_troubleshooting_recent_recovery_hints(
     hints
 }
 
-include!("006-response-gate-checks.rs");
-include!("007-response-gate-contract.rs");
-
 fn dashboard_troubleshooting_recent_health_checks(
     lane_health: &Value,
     latest_loop_level: &str,

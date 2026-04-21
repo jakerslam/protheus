@@ -1,3 +1,4 @@
+// Layer ownership: core/layer0/ops::web-search-orchestration (authoritative)
     if !out.get("ok").and_then(Value::as_bool).unwrap_or(false) {
         let query_mismatch_only_failure = !provider_errors.is_empty()
             && provider_errors.iter().all(|row| {

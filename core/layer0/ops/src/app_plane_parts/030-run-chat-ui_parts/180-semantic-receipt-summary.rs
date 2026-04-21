@@ -48,10 +48,16 @@ fn chat_ui_semantic_receipt_summary(
         surface_unavailable_calls > 0 || error_codes.contains_key("web_tool_surface_unavailable");
     let has_surface_degraded =
         surface_degraded_calls > 0 || error_codes.contains_key("web_tool_surface_degraded");
+    let gate_blocked_calls = diagnostics
+        .pointer("/error_codes/workflow_gate_blocked_web_tooling")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
     let status = if requires_live_web && has_surface_unavailable {
         "failed"
     } else if requires_live_web && has_surface_degraded {
         "degraded"
+    } else if gate_blocked_calls > 0 {
+        "blocked"
     } else if requires_live_web && total_calls <= 0 {
         "failed"
     } else if failed_calls == 0 && silent_failure_calls == 0 {
@@ -68,13 +74,14 @@ fn chat_ui_semantic_receipt_summary(
     };
     clean(
         &format!(
-            "Tool transaction {} for intent \"{}\": total={} success={} failed={} blocked={} not_found={} low_signal={} surface_unavailable={} surface_degraded={} silent_failure={}.",
+            "Tool transaction {} for intent \"{}\": total={} success={} failed={} blocked={} gate_blocked={} not_found={} low_signal={} surface_unavailable={} surface_degraded={} silent_failure={}.",
             status,
             intent,
             total_calls,
             successful_calls,
             failed_calls,
             blocked_calls,
+            gate_blocked_calls,
             not_found_calls,
             low_signal_calls,
             surface_unavailable_calls,
@@ -84,5 +91,3 @@ fn chat_ui_semantic_receipt_summary(
         600,
     )
 }
-
-#[cfg(test)]

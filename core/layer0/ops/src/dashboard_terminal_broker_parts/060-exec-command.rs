@@ -56,6 +56,7 @@ pub fn exec_command(root: &Path, request: &Value) -> Value {
         40,
     )
     .to_ascii_lowercase();
+    let primitive_gates = primitive_gate_status();
     let nexus_connection =
         match crate::dashboard_tool_turn_loop::authorize_ingress_terminal_command_with_nexus(
             &executed_command,
@@ -96,6 +97,7 @@ pub fn exec_command(root: &Path, request: &Value) -> Value {
                             "stdout": "",
                             "stderr": "",
                             "permission_gate": permission_gate,
+                            "primitive_gates": primitive_gates.clone(),
                             "recovery_hints": recovery_hints,
                             "nexus_error": clean_text(&err, 240)
                         });
@@ -124,6 +126,7 @@ pub fn exec_command(root: &Path, request: &Value) -> Value {
                         "stdout": "",
                         "stderr": "",
                         "permission_gate": permission_gate,
+                        "primitive_gates": primitive_gates.clone(),
                         "recovery_hints": recovery_hints,
                         "nexus_error": clean_text(&err, 240)
                     });
@@ -215,6 +218,7 @@ pub fn exec_command(root: &Path, request: &Value) -> Value {
             "stdout": "",
             "stderr": "",
             "permission_gate": permission_gate,
+            "primitive_gates": primitive_gates.clone(),
             "recovery_hints": recovery_hints,
             "tool_summary": tool_summary,
             "tracking": tracking.unwrap_or(Value::Null),
@@ -333,6 +337,7 @@ pub fn exec_command(root: &Path, request: &Value) -> Value {
         "stdout": filtered_stdout,
         "stderr": filtered_stderr,
         "permission_gate": permission_gate,
+        "primitive_gates": primitive_gates,
         "filter_events": filter_events,
         "low_signal_output": low_signal,
         "recovery_hints": recovery_hints,

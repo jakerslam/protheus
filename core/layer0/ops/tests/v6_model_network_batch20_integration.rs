@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use protheus_ops_core::model_router;
-use protheus_ops_core_v1::p2p_gossip_seed;
+use protheus_nexus_core_v1::ops_core::p2p_gossip_seed;
 use serde_json::Value;
 use std::fs;
 use std::path::Path;

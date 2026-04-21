@@ -8,12 +8,19 @@ import { emitStructuredResult, writeTextArtifact } from '../../lib/result.ts';
 
 type LaneRow = {
   id: string;
+  owner?: string;
   status?: string;
   requested_action: string;
   expected_receipt_type: string;
+  receipt_requirements?: string[];
+  timeout_semantics?: string;
+  retry_semantics?: string;
   runtime_path: string;
   fallback_path: string;
   fallback_conduit_only: boolean;
+  replay_fixture_path?: string;
+  parity_test_path?: string;
+  deterministic_receipt_test_path?: string;
   invariants: string[];
   contract_test_id: string;
 };
@@ -63,12 +70,12 @@ function toMarkdown(rows: LaneRow[], violations: string[]): string {
   const lines = [
     '# Layer2 Lane Parity Guard',
     '',
-    '| lane | status | action | expected receipt | runtime path | fallback path | contract test |',
-    '| --- | --- | --- | --- | --- | --- | --- |',
+    '| lane | owner | status | action | expected receipt | timeout | retry | parity test | replay fixture | deterministic receipt test | runtime path | fallback path | contract test |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
   ];
   for (const row of rows) {
     lines.push(
-      `| ${row.id} | ${cleanText(row.status || 'unknown', 20)} | ${row.requested_action} | ${row.expected_receipt_type} | ${row.runtime_path} | ${row.fallback_path} | ${row.contract_test_id} |`,
+      `| ${row.id} | ${cleanText(row.owner || 'unknown', 40)} | ${cleanText(row.status || 'unknown', 20)} | ${row.requested_action} | ${row.expected_receipt_type} | ${cleanText(row.timeout_semantics || 'missing', 80)} | ${cleanText(row.retry_semantics || 'missing', 80)} | ${cleanText(row.parity_test_path || 'missing', 160)} | ${cleanText(row.replay_fixture_path || 'missing', 160)} | ${cleanText(row.deterministic_receipt_test_path || 'missing', 160)} | ${row.runtime_path} | ${row.fallback_path} | ${row.contract_test_id} |`,
     );
   }
   lines.push('');
@@ -112,16 +119,49 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const ids = new Set<string>();
   const tests = new Set<string>();
   let completeCount = 0;
+  const ALLOWED_STATUSES = new Set(['complete', 'experimental']);
   for (const row of manifest.lanes || []) {
     if (!row.id) violations.push('lane_missing_id');
     const status = cleanText(row.status || '', 20).toLowerCase();
     if (!status) violations.push(`lane_missing_status:${row.id || 'unknown'}`);
-    if (status && status !== 'complete') violations.push(`lane_not_complete:${row.id || 'unknown'}:${status}`);
+    if (status && !ALLOWED_STATUSES.has(status)) {
+      violations.push(`lane_status_not_allowed:${row.id || 'unknown'}:${status}`);
+    }
     if (status === 'complete') completeCount += 1;
+    if (!cleanText(row.owner || '', 80)) violations.push(`lane_missing_owner:${row.id || 'unknown'}`);
     if (!row.requested_action) violations.push(`lane_missing_action:${row.id || 'unknown'}`);
     if (!row.expected_receipt_type) violations.push(`lane_missing_receipt_type:${row.id || 'unknown'}`);
+    const receiptRequirements = Array.isArray(row.receipt_requirements) ? row.receipt_requirements : [];
+    if (receiptRequirements.length === 0) {
+      violations.push(`lane_missing_receipt_requirements:${row.id || 'unknown'}`);
+    } else if (!receiptRequirements.includes(row.expected_receipt_type)) {
+      violations.push(`lane_receipt_requirements_missing_expected_receipt:${row.id || 'unknown'}`);
+    }
+    if (!cleanText(row.timeout_semantics || '', 120)) {
+      violations.push(`lane_missing_timeout_semantics:${row.id || 'unknown'}`);
+    }
+    if (!cleanText(row.retry_semantics || '', 120)) {
+      violations.push(`lane_missing_retry_semantics:${row.id || 'unknown'}`);
+    }
     if (!row.runtime_path) violations.push(`lane_missing_runtime_path:${row.id || 'unknown'}`);
     if (!row.fallback_path) violations.push(`lane_missing_fallback_path:${row.id || 'unknown'}`);
+    if (!cleanText(row.replay_fixture_path || '', 300)) {
+      violations.push(`lane_missing_replay_fixture_path:${row.id || 'unknown'}`);
+    } else if (!fs.existsSync(path.resolve(root, cleanText(row.replay_fixture_path || '', 300)))) {
+      violations.push(`lane_replay_fixture_missing:${row.id || 'unknown'}:${cleanText(row.replay_fixture_path || '', 300)}`);
+    }
+    if (!cleanText(row.parity_test_path || '', 300)) {
+      violations.push(`lane_missing_parity_test_path:${row.id || 'unknown'}`);
+    } else if (!fs.existsSync(path.resolve(root, cleanText(row.parity_test_path || '', 300)))) {
+      violations.push(`lane_parity_test_path_missing:${row.id || 'unknown'}:${cleanText(row.parity_test_path || '', 300)}`);
+    }
+    if (!cleanText(row.deterministic_receipt_test_path || '', 300)) {
+      violations.push(`lane_missing_deterministic_receipt_test_path:${row.id || 'unknown'}`);
+    } else if (!fs.existsSync(path.resolve(root, cleanText(row.deterministic_receipt_test_path || '', 300)))) {
+      violations.push(
+        `lane_deterministic_receipt_test_path_missing:${row.id || 'unknown'}:${cleanText(row.deterministic_receipt_test_path || '', 300)}`,
+      );
+    }
     if (!row.contract_test_id) violations.push(`lane_missing_contract_test_id:${row.id || 'unknown'}`);
     if (row.id && ids.has(row.id)) violations.push(`lane_id_duplicate:${row.id}`);
     if (row.contract_test_id && tests.has(row.contract_test_id)) {

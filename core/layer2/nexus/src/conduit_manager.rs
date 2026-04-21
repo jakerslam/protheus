@@ -1,9 +1,83 @@
 use crate::deterministic_hash;
 use crate::now_ms;
 use crate::policy::TrustClass;
-use conduit::ConduitPolicy;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+
+const MAX_CONDUIT_MESSAGE_TYPES: usize = 10;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ConduitRateLimitPolicy {
+    pub window_ms: u64,
+    pub per_client_max: u32,
+    pub per_client_command_max: u32,
+}
+
+impl Default for ConduitRateLimitPolicy {
+    fn default() -> Self {
+        Self {
+            window_ms: 1_000,
+            per_client_max: 60,
+            per_client_command_max: 20,
+        }
+    }
+}
+
+fn default_bridge_message_budget_max() -> usize {
+    MAX_CONDUIT_MESSAGE_TYPES
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ConduitPolicy {
+    pub constitution_path: String,
+    pub guard_registry_path: String,
+    pub required_constitution_markers: Vec<String>,
+    pub required_guard_checks: Vec<String>,
+    pub command_required_capabilities: BTreeMap<String, String>,
+    pub allow_policy_update_prefixes: Vec<String>,
+    pub rate_limit: ConduitRateLimitPolicy,
+    #[serde(default = "default_bridge_message_budget_max")]
+    pub bridge_message_budget_max: usize,
+}
+
+impl Default for ConduitPolicy {
+    fn default() -> Self {
+        let mut capabilities = BTreeMap::new();
+        capabilities.insert("start_agent".to_string(), "agent.lifecycle".to_string());
+        capabilities.insert("stop_agent".to_string(), "agent.lifecycle".to_string());
+        capabilities.insert(
+            "query_receipt_chain".to_string(),
+            "receipt.read".to_string(),
+        );
+        capabilities.insert("list_active_agents".to_string(), "system.read".to_string());
+        capabilities.insert("get_system_status".to_string(), "system.read".to_string());
+        capabilities.insert(
+            "apply_policy_update".to_string(),
+            "policy.update".to_string(),
+        );
+        capabilities.insert(
+            "install_extension".to_string(),
+            "extension.install".to_string(),
+        );
+
+        Self {
+            constitution_path: "docs/workspace/AGENT-CONSTITUTION.md".to_string(),
+            guard_registry_path: "client/runtime/config/guard_check_registry.json".to_string(),
+            required_constitution_markers: vec![
+                "Mind Sovereignty Covenant".to_string(),
+                "RSI Guardrails".to_string(),
+            ],
+            required_guard_checks: vec![
+                "contract_check".to_string(),
+                "formal_invariant_engine".to_string(),
+            ],
+            command_required_capabilities: capabilities,
+            allow_policy_update_prefixes: vec!["constitution_safe/".to_string()],
+            rate_limit: ConduitRateLimitPolicy::default(),
+            bridge_message_budget_max: MAX_CONDUIT_MESSAGE_TYPES,
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConduitBackedLink {

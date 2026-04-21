@@ -1,0 +1,65 @@
+{
+  "schema_id": "infring_layer3_contract_policy",
+  "schema_version": "1.0",
+  "layer3_root": "core/layer3",
+  "source_extensions": [
+    ".rs",
+    ".toml"
+  ],
+  "allowed_categories": [
+    "process",
+    "service",
+    "vfs",
+    "driver",
+    "syscall",
+    "namespace",
+    "networking",
+    "windowing"
+  ],
+  "allowed_statuses": [
+    "complete",
+    "experimental"
+  ],
+  "fail_on_unmapped_source_file": true,
+  "modules": [
+    {
+      "id": "os_extension_wrapper",
+      "path_prefix": "core/layer3/os_extension_wrapper",
+      "category": "service",
+      "status": "complete",
+      "owner": "kernel",
+      "timeout_semantics": "fail_closed_30s",
+      "retry_semantics": "none",
+      "receipt_requirements": [
+        "layer3.execution_unit.lifecycle",
+        "layer3.execution_unit.boundary"
+      ],
+      "parity_test_path": "core/layer3/os_extension_wrapper/src/lib.rs",
+      "scheduler_boundary": {
+        "layer2_interface": "execution_lane_receipt_only",
+        "authority": "layer2_owns_scheduling"
+      },
+      "execution_unit": {
+        "id": "layer3.os_extension_wrapper",
+        "lifecycle": [
+          "created",
+          "running",
+          "degraded",
+          "stopped"
+        ],
+        "budget": {
+          "cpu": "bounded_by_layer2",
+          "memory": "bounded_by_layer2"
+        },
+        "dependencies": [
+          "core/layer2/execution",
+          "core/layer2/nexus"
+        ],
+        "receipts": [
+          "execution_unit_state",
+          "boundary_contract"
+        ]
+      }
+    }
+  ]
+}

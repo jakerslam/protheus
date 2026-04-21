@@ -78,7 +78,7 @@ curl -s http://localhost:8080/health | jq .
 
 ### Functional Verification
 
-- [ ] Core trading functionality tested
+- [ ] Kernel trading functionality tested
 - [ ] Risk management systems responding correctly
 - [ ] Order entry and execution paths verified
 - [ ] Reporting and reconciliation jobs running

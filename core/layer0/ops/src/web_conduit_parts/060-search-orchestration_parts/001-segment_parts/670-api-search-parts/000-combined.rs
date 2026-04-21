@@ -1,3 +1,4 @@
+// Layer ownership: core/layer0/ops::web-search-orchestration (authoritative)
 {
     let (query_raw, query_source) = search_query_and_source(request);
     let query = search_strip_invisible_unicode(&clean_text(&query_raw, 600));
@@ -1274,6 +1275,14 @@
                 .unwrap_or(false)
         });
     let challenge_like_failure = search_failure_is_challenge_like(&out, provider_errors.as_slice());
+    let search_provider_failure_mode = search_provider_failure_mode(
+        out.get("ok").and_then(Value::as_bool).unwrap_or(false),
+        query_mismatch_only_failure,
+        challenge_like_failure,
+        &tool_surface_status,
+        tool_surface_ready,
+        attempted.len(),
+    );
     if let Some(obj) = out.as_object_mut() {
         obj.insert(
             "type".to_string(),
@@ -1377,6 +1386,10 @@
             "search_bing_fallback_trigger_provider".to_string(),
             json!(search_bing_fallback_trigger_provider),
         );
+        obj.insert(
+            "search_provider_failure_mode".to_string(),
+            json!(search_provider_failure_mode),
+        );
         obj.insert("provider_hint".to_string(), Value::String(provider_hint));
         obj.insert(
             "query_shape_override_used".to_string(),
@@ -1450,6 +1463,16 @@
             obj.insert(
                 "cache_skip_reason".to_string(),
                 json!("challenge_or_low_signal_response"),
+            );
+        } else if search_provider_failure_mode == "tool_surface_unavailable" {
+            obj.insert(
+                "cache_skip_reason".to_string(),
+                json!("tool_surface_unavailable"),
+            );
+        } else if search_provider_failure_mode == "tool_surface_degraded" {
+            obj.insert(
+                "cache_skip_reason".to_string(),
+                json!("tool_surface_degraded"),
             );
         }
         obj.insert("cache_status".to_string(), json!("miss"));
@@ -1578,6 +1601,10 @@
         receipt_obj.insert(
             "search_bing_fallback_trigger_provider".to_string(),
             json!(search_bing_fallback_trigger_provider),
+        );
+        receipt_obj.insert(
+            "search_provider_failure_mode".to_string(),
+            json!(search_provider_failure_mode),
         );
     }
     let _ = append_jsonl(&receipts_path(root), &receipt);

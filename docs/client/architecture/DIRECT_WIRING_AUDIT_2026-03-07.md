@@ -11,7 +11,7 @@
 ## Canonical runtime roots
 
 - Client runtime/user data: `client/runtime/local/*`
-- Core runtime/node-local data: `core/local/*`
+- Kernel runtime/node-local data: `core/local/*`
 
 ## Enforced blocked legacy surfaces
 

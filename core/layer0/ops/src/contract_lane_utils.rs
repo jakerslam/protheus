@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::OnceLock;
 
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 
 fn now_millis() -> u128 {
     use std::time::{SystemTime, UNIX_EPOCH};

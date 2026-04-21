@@ -14,6 +14,7 @@ pub type CrdtMap = BTreeMap<String, CrdtCell>;
 const MAX_KEY_CHARS: usize = 192;
 const MAX_VALUE_CHARS: usize = 2048;
 const MAX_NODE_CHARS: usize = 96;
+const MAX_CRDT_KEYS: usize = 10_000;
 
 fn strip_invisible_unicode(raw: &str) -> String {
     raw.chars()
@@ -41,8 +42,9 @@ fn normalize_key(raw: &str) -> Option<String> {
     let cleaned = strip_invisible_unicode(raw)
         .chars()
         .filter(|ch| !ch.is_control() || *ch == '\n' || *ch == '\t')
+        .map(|ch| if ch.is_whitespace() { ' ' } else { ch })
         .collect::<String>();
-    let trimmed = cleaned.trim();
+    let trimmed = cleaned.split_whitespace().collect::<Vec<&str>>().join(" ");
     if trimmed.is_empty() {
         return None;
     }
@@ -101,6 +103,15 @@ fn should_take_incoming(existing: &CrdtCell, incoming: &CrdtCell) -> bool {
                 || (incoming.node == existing.node && incoming.value > existing.value)))
 }
 
+fn enforce_max_keys(out: &mut CrdtMap) {
+    while out.len() > MAX_CRDT_KEYS {
+        let Some(last_key) = out.keys().next_back().cloned() else {
+            break;
+        };
+        out.remove(&last_key);
+    }
+}
+
 pub fn merge(left: &CrdtMap, right: &CrdtMap) -> CrdtMap {
     let mut out: CrdtMap = BTreeMap::new();
     for (key, cell) in left {
@@ -124,6 +135,7 @@ pub fn merge(left: &CrdtMap, right: &CrdtMap) -> CrdtMap {
             }
         }
     }
+    enforce_max_keys(&mut out);
     out
 }
 

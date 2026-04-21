@@ -10,6 +10,79 @@
         let mut hard_guard = json!({
             "applied": false
         });
+        let inline_tool_schema = chat_ui_inline_tool_call_schema(&assistant);
+        let inline_tool_call_detected = inline_tool_schema
+            .get("detected")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let inline_tool_schema_valid = inline_tool_schema
+            .get("schema_valid")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let inline_tool_schema_repaired = inline_tool_schema
+            .get("schema_repaired")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let inline_tool_name = clean(
+            inline_tool_schema
+                .get("tool")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            80,
+        );
+        if inline_tool_call_detected {
+            let inline_error_code = if inline_tool_schema_valid {
+                if inline_tool_schema_repaired {
+                    "inline_tool_call_schema_repaired_suppressed"
+                } else {
+                    "inline_tool_call_suppressed"
+                }
+            } else {
+                "inline_tool_call_schema_invalid"
+            };
+            let detail = if inline_tool_name.is_empty() {
+                None
+            } else {
+                Some(format!("tool={inline_tool_name}"))
+            };
+            assistant = crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+                "parse_failed",
+                inline_error_code,
+                detail.as_deref(),
+            );
+            hard_guard = json!({
+                "applied": true,
+                "status": "parse_failed",
+                "error_code": inline_error_code,
+                "source": "inline_tool_call_guard",
+                "schema_valid": inline_tool_schema_valid,
+                "schema_repaired": inline_tool_schema_repaired,
+                "tool": if inline_tool_name.is_empty() { Value::Null } else { json!(inline_tool_name) }
+            });
+            if forced_web_error_code.is_empty() {
+                forced_web_error_code = inline_error_code.to_string();
+            }
+        }
+        let mut routing_claim_guard_applied = false;
+        if chat_ui_contains_unverified_routing_root_cause_claim(&assistant)
+            && !chat_ui_has_structured_routing_claim_evidence(&tools)
+        {
+            assistant = crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+                "parse_failed",
+                "web_tool_unverified_routing_claim",
+                Some("missing_receipt_evidence"),
+            );
+            hard_guard = json!({
+                "applied": true,
+                "status": "parse_failed",
+                "error_code": "web_tool_unverified_routing_claim",
+                "source": "claim_evidence_guard"
+            });
+            routing_claim_guard_applied = true;
+            if forced_web_error_code.is_empty() {
+                forced_web_error_code = "web_tool_unverified_routing_claim".to_string();
+            }
+        }
         let web_search_calls = chat_ui_web_search_call_count(&tools) as i64;
         if assistant.trim().is_empty()
             || crate::tool_output_match_filter::matches_ack_placeholder(&assistant)
@@ -70,6 +143,14 @@
             .and_then(Value::as_i64)
             .unwrap_or(0);
         let blocked_signal = blocked_calls > 0 || blocked_error_calls > 0 || blocked_receipt_calls > 0;
+        let workflow_gate_blocked =
+            forced_web_error_code == "workflow_gate_blocked_web_tooling"
+                || tool_diagnostics
+                    .pointer("/error_codes/workflow_gate_blocked_web_tooling")
+                    .and_then(Value::as_i64)
+                    .unwrap_or(0)
+                    > 0;
+        let blocked_signal = blocked_signal || workflow_gate_blocked;
         let not_found_signal = not_found_error_calls > 0 || not_found_receipt_calls > 0;
         let forced_surface_error_hint = if matches!(
             forced_web_error_code.as_str(),
@@ -108,10 +189,10 @@
             || low_signal_receipt_calls > 0;
         let mut web_classification = if let Some(surface_error) = tool_surface_error_code.as_deref() {
             chat_ui_tool_surface_classification(surface_error).to_string()
-        } else if requires_live_web && web_search_calls == 0 {
-            "tool_not_invoked".to_string()
         } else if blocked_signal {
             "policy_blocked".to_string()
+        } else if requires_live_web && web_search_calls == 0 {
+            "tool_not_invoked".to_string()
         } else if not_found_signal {
             "tool_not_found".to_string()
         } else if low_signal {
@@ -150,7 +231,11 @@
             "retry_lane": "none",
             "not_invoked_fail_closed": false,
             "fail_closed": false,
-            "fail_closed_class": null
+            "fail_closed_class": null,
+            "inline_tool_call_detected": inline_tool_call_detected,
+            "inline_tool_call_schema_valid": if inline_tool_call_detected { json!(inline_tool_schema_valid) } else { Value::Null },
+            "inline_tool_call_schema_repaired": if inline_tool_call_detected { json!(inline_tool_schema_repaired) } else { Value::Null },
+            "routing_claim_guard_applied": routing_claim_guard_applied
         });
         if let Some(guard) = classification_guard.as_object_mut() {
             if !classification_active_error_code.is_empty() {
@@ -174,7 +259,10 @@
         let classification_should_fail_close = requires_live_web
             && matches!(
                 web_classification.as_str(),
-                "tool_not_invoked"
+                "workflow_gate_blocked"
+                    | "tool_surface_unavailable"
+                    | "tool_surface_degraded"
+                    | "tool_not_invoked"
                     | "policy_blocked"
                     | "tool_not_found"
                     | "low_signal"
@@ -211,13 +299,22 @@
                         "active_error_code".to_string(),
                         json!(classification_active_error_code),
                     );
-                    if web_classification == "tool_not_invoked" {
+                    if matches!(
+                        web_classification.as_str(),
+                        "tool_not_invoked" | "workflow_gate_blocked"
+                    ) {
                         guard.insert("not_invoked_fail_closed".to_string(), json!(true));
                     }
                 }
             }
         }
-        if !requires_live_web && assistant_context_mismatch {
+        if !requires_live_web
+            && assistant_context_mismatch
+            && !hard_guard
+                .get("applied")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        {
             assistant = "I could not produce a reliable response for your last message in this turn. Please retry and I will answer directly without running tools.".to_string();
             hard_guard = json!({
                 "applied": true,

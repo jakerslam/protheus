@@ -57,6 +57,8 @@ fn round3(value: f64) -> f64 {
 const MAX_MISSION_ID_LEN: usize = 96;
 const MAX_HOOK_LEN: usize = 96;
 const MAX_CYCLES: u32 = 2_000_000;
+const MAX_PERCENT_PCT: f64 = 100.0;
+const MAX_TELEMETRY_OVERHEAD_MS: f64 = 60_000.0;
 
 fn strip_invisible_unicode(raw: &str) -> String {
     raw.chars()
@@ -154,6 +156,28 @@ fn synthesize_events(request: &ChaosGameRequest) -> Vec<TraceEvent> {
     events
 }
 
+fn validate_doctrine(doctrine: &RedLegionDoctrine) -> Result<(), String> {
+    let doctrine_id = sanitize_token(&doctrine.doctrine_id, MAX_MISSION_ID_LEN);
+    if doctrine_id.is_empty() {
+        return Err("doctrine_invalid_id".to_string());
+    }
+    if doctrine.min_sovereignty_pct < 0.0 || doctrine.min_sovereignty_pct > MAX_PERCENT_PCT {
+        return Err("doctrine_invalid_min_sovereignty_pct".to_string());
+    }
+    if doctrine.max_drift_pct < 0.0 || doctrine.max_drift_pct > MAX_PERCENT_PCT {
+        return Err("doctrine_invalid_max_drift_pct".to_string());
+    }
+    if doctrine.max_telemetry_overhead_ms <= 0.0
+        || doctrine.max_telemetry_overhead_ms > MAX_TELEMETRY_OVERHEAD_MS
+    {
+        return Err("doctrine_invalid_max_telemetry_overhead_ms".to_string());
+    }
+    if doctrine.max_battery_pct_24h <= 0.0 || doctrine.max_battery_pct_24h > MAX_PERCENT_PCT {
+        return Err("doctrine_invalid_max_battery_pct_24h".to_string());
+    }
+    Ok(())
+}
+
 fn verify_invariants(
     doctrine: &RedLegionDoctrine,
     report: &ChaosResilienceReport,
@@ -226,12 +250,7 @@ fn receipt_digest(receipt: &ChaosGameReceipt) -> String {
 pub fn run_chaos_game(request: &ChaosGameRequest) -> Result<ChaosGameReceipt, String> {
     let request = normalize_request(request)?;
     let doctrine = load_embedded_red_legion_doctrine().map_err(|e| e.to_string())?;
-    if doctrine.max_drift_pct < 0.0
-        || doctrine.max_telemetry_overhead_ms <= 0.0
-        || doctrine.max_battery_pct_24h <= 0.0
-    {
-        return Err("doctrine_invalid_limits".to_string());
-    }
+    validate_doctrine(&doctrine)?;
     let scenario = ChaosScenarioRequest {
         scenario_id: request.mission_id.clone(),
         events: synthesize_events(&request),

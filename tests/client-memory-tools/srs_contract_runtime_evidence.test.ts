@@ -2,7 +2,8 @@
 /* eslint-disable no-console */
 const { execFileSync } = require('child_process');
 const fs = require('fs');
-const path = require('path');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
+const path = require('path');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 const ROOT = path.resolve(__dirname, '../..');
 const SRS_FILE = path.join(ROOT, 'docs/workspace/SRS.md');
@@ -128,7 +129,9 @@ function main() {
           latest = fallback;
         }
       }
-      assertNoPlaceholderOrPromptLeak(latest, `srs_contract_runtime_evidence_test:${id}`);\n      assertStableToolingEnvelope(latest, `srs_contract_runtime_evidence_test:${id}`);\n      const latestId =
+      assertNoPlaceholderOrPromptLeak(latest, `srs_contract_runtime_evidence_test:${id}`);
+      assertStableToolingEnvelope(latest, `srs_contract_runtime_evidence_test:${id}`);
+      const latestId =
         latest.id ||
         latest.system_id ||
         (latest.contract_profile && latest.contract_profile.id) ||

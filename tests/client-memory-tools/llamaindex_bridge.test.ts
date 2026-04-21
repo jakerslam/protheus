@@ -8,7 +8,8 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const ts = require('typescript');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
+const ts = require('typescript');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 if (!require.extensions['.ts']) {
   require.extensions['.ts'] = function compileTs(module, filename) {
@@ -162,7 +163,11 @@ function run() {
   assert.strictEqual(status.evaluations, 1);
   assert.strictEqual(status.conditional_workflows, 1);
   assert.strictEqual(status.traces, 1);
-  assert.strictEqual(status.connectors, 1);\n  assertNoPlaceholderOrPromptLeak(status, 'llamaindex_bridge_test');\n  assertStableToolingEnvelope(status, 'llamaindex_bridge_test');\n  console.log(JSON.stringify({ ok: true, type: 'llamaindex_bridge_test' }));
+  assert.strictEqual(status.connectors, 1);
+  assertNoPlaceholderOrPromptLeak(status, 'llamaindex_bridge_test');
+  assertStableToolingEnvelope(status, 'llamaindex_bridge_test');
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+  console.log(JSON.stringify({ ok: true, type: 'llamaindex_bridge_test' }));
 }
 
 run();

@@ -10,7 +10,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use crate::contract_lane_utils as lane_utils;
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 
 const DEFAULT_POLICY_REL: &str = "client/runtime/config/mech_suit_mode_policy.json";
 const DEFAULT_STATUS_REL: &str = "client/runtime/local/state/ops/mech_suit_mode/latest.json";

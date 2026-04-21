@@ -7,6 +7,7 @@ pub const CHECK_ID_GUARD_REGISTRY_CONSUMPTION: &str =
     "guard_check_registry:contract_check_consumes_manifest";
 pub const CHECK_ID_MERGE_GUARD_HOOK_COVERAGE: &str = "foundation_contract_gate:hook_coverage";
 const MAX_HOOK_TOKEN_LEN: usize = 120;
+const MAX_REQUIRED_HOOKS: usize = 512;
 
 fn strip_invisible_unicode(raw: &str) -> String {
     raw.chars()
@@ -115,25 +116,32 @@ pub fn evaluate_source_hook_coverage(
     required_hooks: &[&str],
     source: &str,
 ) -> HookCoverageReceipt {
-    let required_hooks = sorted_unique(required_hooks.iter().copied());
+    let mut required_hooks = sorted_unique(required_hooks.iter().copied());
+    let required_overflow = required_hooks.len() > MAX_REQUIRED_HOOKS;
+    if required_overflow {
+        required_hooks.truncate(MAX_REQUIRED_HOOKS);
+    }
     let normalized_source = normalize_source_text(source);
     let observed_hooks = required_hooks
         .iter()
         .filter(|hook| normalized_source.contains(hook.as_str()))
         .cloned()
         .collect::<Vec<_>>();
+    let observed_set = observed_hooks.iter().cloned().collect::<BTreeSet<_>>();
     let missing_hooks = required_hooks
         .iter()
-        .filter(|hook| !observed_hooks.contains(*hook))
+        .filter(|hook| !observed_set.contains(*hook))
         .cloned()
         .collect::<Vec<_>>();
     let check_id = normalize_hook(check_id).unwrap_or_else(|| "unknown_check".to_string());
     let fail_closed = required_hooks.is_empty()
         || normalized_source.trim().is_empty()
-        || check_id == "unknown_check";
+        || check_id == "unknown_check"
+        || required_overflow;
     let ok = !fail_closed && missing_hooks.is_empty();
     let evidence = vec![
         format!("required_count={}", required_hooks.len()),
+        format!("required_overflow={}", i32::from(required_overflow)),
         format!("observed_count={}", observed_hooks.len()),
         format!("missing_count={}", missing_hooks.len()),
         format!("check_id_known={}", i32::from(check_id != "unknown_check")),
@@ -173,8 +181,16 @@ pub fn evaluate_required_hook_completeness(
     required_hooks: &[&str],
     mandatory_hooks: &[&str],
 ) -> HookCoverageReceipt {
-    let required_hooks = sorted_unique(required_hooks.iter().copied());
-    let mandatory_hooks = sorted_unique(mandatory_hooks.iter().copied());
+    let mut required_hooks = sorted_unique(required_hooks.iter().copied());
+    let mut mandatory_hooks = sorted_unique(mandatory_hooks.iter().copied());
+    let required_overflow = required_hooks.len() > MAX_REQUIRED_HOOKS;
+    let mandatory_overflow = mandatory_hooks.len() > MAX_REQUIRED_HOOKS;
+    if required_overflow {
+        required_hooks.truncate(MAX_REQUIRED_HOOKS);
+    }
+    if mandatory_overflow {
+        mandatory_hooks.truncate(MAX_REQUIRED_HOOKS);
+    }
     let observed_hooks = mandatory_hooks
         .iter()
         .filter(|hook| required_hooks.contains(*hook))
@@ -187,11 +203,17 @@ pub fn evaluate_required_hook_completeness(
         .collect::<Vec<_>>();
     let check_id = normalize_hook(check_id).unwrap_or_else(|| "unknown_check".to_string());
     let fail_closed =
-        required_hooks.is_empty() || mandatory_hooks.is_empty() || check_id == "unknown_check";
+        required_hooks.is_empty()
+            || mandatory_hooks.is_empty()
+            || check_id == "unknown_check"
+            || required_overflow
+            || mandatory_overflow;
     let ok = !fail_closed && missing_hooks.is_empty();
     let evidence = vec![
         format!("required_count={}", required_hooks.len()),
         format!("mandatory_count={}", mandatory_hooks.len()),
+        format!("required_overflow={}", i32::from(required_overflow)),
+        format!("mandatory_overflow={}", i32::from(mandatory_overflow)),
         format!("observed_count={}", observed_hooks.len()),
         format!("missing_count={}", missing_hooks.len()),
         format!("check_id_known={}", i32::from(check_id != "unknown_check")),

@@ -1,3 +1,4 @@
+// Layer ownership: core/layer0/ops::web-search-orchestration (authoritative)
     if let Some(receipt_obj) = receipt.as_object_mut() {
         receipt_obj.insert(
             "attempt_signature".to_string(),

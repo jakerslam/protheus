@@ -1,4 +1,4 @@
-# ADR 0002: Rust-Core Dashboard API Authority
+# ADR 0002: Rust-Kernel Dashboard API Authority
 
 - Status: accepted
 - Date: 2026-03-20

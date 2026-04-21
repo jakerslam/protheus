@@ -76,3 +76,14 @@ fn empty_capability_requests_fail_closed() {
         "\u{200B}\n"
     ));
 }
+
+#[test]
+fn active_guard_without_valid_capabilities_is_fail_closed() {
+    let contract = normalize_guard_registry(vec![GuardRegistryEntry {
+        guard_id: "guard.alpha".to_string(),
+        active: true,
+        capabilities: vec![" \u{200B}\n ".to_string()],
+    }]);
+    assert!(effective_guard_ids(&contract).is_empty());
+    assert!(!is_capability_allowed(&contract, "guard.alpha", "net.read"));
+}

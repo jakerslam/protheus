@@ -13,6 +13,7 @@ pub const MOBILE_PROFILE_BLOB: &[u8] = include_bytes!("blobs/mobile_runtime_prof
 pub const MANIFEST_BLOB: &[u8] = include_bytes!("blobs/manifest.blob");
 const MAX_BLOB_ID_LEN: usize = 128;
 const MAX_MANIFEST_ENTRIES: usize = 1024;
+const MAX_MOBILE_CYCLES: u32 = 2_000_000;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct MobileRuntimeProfile {
@@ -121,8 +122,13 @@ pub fn load_embedded_mobile_profile() -> Result<MobileRuntimeProfile, BlobError>
             "battery_budget_pct_invalid".to_string(),
         ));
     }
-    if profile.max_cycles == 0 {
+    if profile.max_cycles == 0 || profile.max_cycles > MAX_MOBILE_CYCLES {
         return Err(BlobError::DecodeFailed("max_cycles_invalid".to_string()));
+    }
+    if profile.enable_background_swarm && !profile.enforce_fail_closed {
+        return Err(BlobError::DecodeFailed(
+            "background_swarm_requires_fail_closed".to_string(),
+        ));
     }
     Ok(profile)
 }

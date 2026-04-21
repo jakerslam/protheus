@@ -14,7 +14,7 @@ This runbook documents procedures for aggregating and analyzing system logs acro
 ## Log Aggregation Architecture
 
 The Protheus platform generates logs across multiple components:
-- **Core kernel** logs: `/var/log/protheus/core/`  
+- **Kernel kernel** logs: `/var/log/protheus/core/`  
 - **Client runtime** logs: `/var/log/protheus/client/`  
 - **Adapter layer** logs: `/var/log/protheus/adapters/`  
 - **CI pipeline** logs: Centralized via internal tooling

@@ -30,6 +30,15 @@ function resolvePolicyPath() {
   return resolved;
 }
 
+function normalizeMode(raw) {
+  const mode = normalizeToken(raw || 'lite', 40) || 'lite';
+  return ['lite', 'balanced', 'full'].includes(mode) ? mode : 'lite';
+}
+
+function policyPathRelative() {
+  return path.relative(ROOT, POLICY_PATH).replace(/\\/g, '/');
+}
+
 const POLICY_PATH = resolvePolicyPath();
 
 function usage() {
@@ -41,7 +50,7 @@ function usage() {
 
 runStandardLane({
   lane_id: 'V3-RACE-169',
-  script_rel: 'packages/protheus-core/core_profile_contract.js',
+  script_rel: 'packages/protheus-core/core_profile_contract.ts',
   policy_path: POLICY_PATH,
   stream: 'core.profiles',
   paths: {
@@ -54,11 +63,17 @@ runStandardLane({
   usage,
   handlers: {
     bootstrap(policy: any, args: any, ctx: any) {
-      const mode = normalizeToken(args.mode || 'lite', 40) || 'lite';
+      const mode = normalizeMode(args.mode || 'lite');
       return ctx.cmdRecord(policy, {
         ...args,
         event: 'core_profile_bootstrap',
-        payload_json: JSON.stringify({ mode, one_command_starter: true, optional_heavy_layers: false })
+        payload_json: JSON.stringify({
+          mode,
+          one_command_starter: true,
+          optional_heavy_layers: false,
+          policy_path: policyPathRelative(),
+          contract_version: '2026-04-20'
+        })
       });
     }
   }

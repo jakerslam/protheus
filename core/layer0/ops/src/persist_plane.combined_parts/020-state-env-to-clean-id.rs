@@ -11,11 +11,11 @@ const COWORK_CONTRACT_PATH: &str = "planes/contracts/persist/cowork_background_c
 const MOBILE_DAEMON_CONTRACT_PATH: &str =
     "planes/contracts/mobile/mobile_daemon_bitnet_contract_v1.json";
 
-#[path = "persist_plane_connector.rs"]
+#[path = "../persist_plane_connector.rs"]
 mod persist_plane_connector;
-#[path = "persist_plane_continuity.rs"]
+#[path = "../persist_plane_continuity.rs"]
 mod persist_plane_continuity;
-#[path = "persist_plane_cowork.rs"]
+#[path = "../persist_plane_cowork.rs"]
 mod persist_plane_cowork;
 
 use persist_plane_connector::run_connector;

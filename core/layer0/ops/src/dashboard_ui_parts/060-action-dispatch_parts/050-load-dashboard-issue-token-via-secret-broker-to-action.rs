@@ -92,16 +92,16 @@ fn execute_dashboard_github_issue_create_request(
     title: &str,
     body: &str,
     token: &str,
-    payload: &Value,
+    _payload: &Value,
 ) -> Result<(u16, Value), (String, u16)> {
     #[cfg(test)]
     {
-        if let Some(status) = payload
+        if let Some(status) = _payload
             .get("__github_issue_mock_status")
             .and_then(Value::as_u64)
             .map(|raw| raw.clamp(0, u16::MAX as u64) as u16)
         {
-            let mock_body = payload
+            let mock_body = _payload
                 .get("__github_issue_mock_body")
                 .cloned()
                 .unwrap_or_else(|| json!({}));
@@ -153,15 +153,22 @@ fn execute_dashboard_github_issue_create_request(
     Ok((status, response_json))
 }
 
-include!("060-action-dispatch_parts/001-run_action_family_app.rs");
-include!("060-action-dispatch_parts/002-run_action_family_collab.rs");
-include!("060-action-dispatch_parts/003-run_action_family_skills.rs");
-include!("060-action-dispatch_parts/004-run_action_family_dashboard_core.rs");
-include!("060-action-dispatch_parts/005-run_action_family_dashboard_github.rs");
-include!("060-action-dispatch_parts/006-run_action_family_dashboard_troubleshooting.rs");
-include!("060-action-dispatch_parts/007-run_action_family_dashboard_terminal.rs");
-include!("060-action-dispatch_parts/008-run_action_family_dashboard_system.rs");
-include!("060-action-dispatch_parts/009-run_action_family_dashboard_agent.rs");
+include!("001-run_action_family_app_arm_parts/001-run_action_family_app_arm_001.rs");
+include!("001-run_action_family_app_arm_parts/002-run_action_family_app_arm_002.rs");
+include!("009-run_action_family_dashboard_agent_parts/010-dashboard-agent-task-total-size-to-dashboard-agent-task-shared-a.rs");
+include!("009-run_action_family_dashboard_agent_parts/020-action-family-dashboard-agent.rs");
+
+fn run_action_family_app(root: &Path, normalized: &str, payload: &Value) -> LaneResult {
+    let primary = run_action_family_app_arm_001(root, normalized, payload);
+    if primary.ok {
+        return primary;
+    }
+    let secondary = run_action_family_app_arm_002(root, normalized, payload);
+    if secondary.ok {
+        return secondary;
+    }
+    run_action_family_dashboard_agent(root, normalized, payload)
+}
 fn run_action(root: &Path, action: &str, payload: &Value) -> LaneResult {
     let normalized = clean_text(action, 80);
     run_action_family_app(root, normalized.as_str(), payload)

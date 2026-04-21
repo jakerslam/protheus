@@ -19,7 +19,11 @@ function sleep(ms) {
 }
 
 function parseJson(text) {
-  return JSON.parse(String(text || '').trim());
+  const normalized = String(text || '').trim();
+  if (!normalized) {
+    throw new Error('empty_json_payload');
+  }
+  return JSON.parse(normalized);
 }
 
 function authorityAgentShadows() {

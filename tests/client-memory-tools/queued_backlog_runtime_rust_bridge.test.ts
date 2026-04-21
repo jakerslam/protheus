@@ -35,38 +35,51 @@ function resetModule(modulePath) {
 function main() {
   const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'queued-backlog-rust-'));
   fs.mkdirSync(path.join(workspace, 'client', 'runtime', 'config'), { recursive: true });
+  const prevWorkspace = process.env.INFRING_WORKSPACE;
+  const prevPrebuilt = process.env.PROTHEUS_OPS_USE_PREBUILT;
+  const prevTimeout = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS;
   process.env.INFRING_WORKSPACE = workspace;
   process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
   process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = '120000';
+  try {
+    const mod = resetModule(path.join(ROOT, 'client', 'runtime', 'lib', 'queued_backlog_runtime.ts'));
+    const latestPath = mod.resolvePath('local/state/demo/latest.json', 'local/state/demo/latest.json');
+    assert.match(latestPath, /client\/runtime\/local\/state\/demo\/latest\.json$/);
+    assert.strictEqual(latestPath.includes(workspace), true);
 
-  const mod = resetModule(path.join(ROOT, 'client', 'runtime', 'lib', 'queued_backlog_runtime.ts'));
-  const latestPath = mod.resolvePath('local/state/demo/latest.json', 'local/state/demo/latest.json');
-  assert.match(latestPath, /client\/runtime\/local\/state\/demo\/latest\.json$/);
+    mod.writeJsonAtomic(latestPath, { ok: true, ts: mod.nowIso() });
+    const latest = mod.readJson(latestPath, null);
+    assert.equal(latest.ok, true);
+    assert.equal(typeof latest.ts, 'string');
 
-  mod.writeJsonAtomic(latestPath, { ok: true, ts: mod.nowIso() });
-  const latest = mod.readJson(latestPath, null);
-  assert.equal(latest.ok, true);
-  assert.equal(typeof latest.ts, 'string');
+    const historyPath = mod.resolvePath('local/state/demo/history.jsonl', 'local/state/demo/history.jsonl');
+    if (fs.existsSync(historyPath)) {
+      fs.unlinkSync(historyPath);
+    }
+    mod.appendJsonl(historyPath, { seq: 1 });
+    mod.appendJsonl(historyPath, { seq: 2 });
+    const rows = mod.readJsonl(historyPath);
+    assert.equal(rows.length, 2);
+    assert.equal(mod.stableHash({ hello: 'world' }, 12).length, 12);
 
-  const historyPath = mod.resolvePath('local/state/demo/history.jsonl', 'local/state/demo/history.jsonl');
-  if (fs.existsSync(historyPath)) {
-    fs.unlinkSync(historyPath);
+    const policyPath = path.join(workspace, 'client', 'runtime', 'config', 'lane_policy.json');
+    fs.writeFileSync(policyPath, JSON.stringify({ enabled: false, strict_default: false }, null, 2));
+    const policy = mod.loadPolicy(policyPath, { version: '1.0', enabled: true });
+    assert.equal(policy.enabled, false);
+    assert.equal(typeof policy.version, 'string');
+    assert.equal(mod.rollingAverage([1, 2, 3]), 2);
+    assert.equal(mod.median([1, 9, 3]), 3);
+
+    console.log(JSON.stringify({ ok: true, type: 'queued_backlog_runtime_rust_bridge_test' }));
+  } finally {
+    if (prevWorkspace == null) delete process.env.INFRING_WORKSPACE;
+    else process.env.INFRING_WORKSPACE = prevWorkspace;
+    if (prevPrebuilt == null) delete process.env.PROTHEUS_OPS_USE_PREBUILT;
+    else process.env.PROTHEUS_OPS_USE_PREBUILT = prevPrebuilt;
+    if (prevTimeout == null) delete process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS;
+    else process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = prevTimeout;
+    fs.rmSync(workspace, { recursive: true, force: true });
   }
-  mod.appendJsonl(historyPath, { seq: 1 });
-  mod.appendJsonl(historyPath, { seq: 2 });
-  const rows = mod.readJsonl(historyPath);
-  assert.equal(rows.length, 2);
-  assert.equal(mod.stableHash({ hello: 'world' }, 12).length, 12);
-
-  const policyPath = path.join(workspace, 'client', 'runtime', 'config', 'lane_policy.json');
-  fs.writeFileSync(policyPath, JSON.stringify({ enabled: false, strict_default: false }, null, 2));
-  const policy = mod.loadPolicy(policyPath, { version: '1.0', enabled: true });
-  assert.equal(policy.enabled, false);
-  assert.equal(typeof policy.version, 'string');
-  assert.equal(mod.rollingAverage([1, 2, 3]), 2);
-  assert.equal(mod.median([1, 9, 3]), 3);
-
-  console.log(JSON.stringify({ ok: true, type: 'queued_backlog_runtime_rust_bridge_test' }));
 }
 
 try {

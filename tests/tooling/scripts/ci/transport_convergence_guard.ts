@@ -188,6 +188,20 @@ function run(args: Args): number {
         detail: 'expected release-channel lock for legacy process runner overrides',
       });
     }
+    if (!source.includes('process_fallback_forbidden_in_production')) {
+      violations.push({
+        file: rel(runProtheusOpsPath),
+        reason: 'run_protheus_ops_production_fallback_lock_missing',
+        detail: 'expected explicit production fallback lock marker for bridge path',
+      });
+    }
+    if (!source.includes('INFRING_OPS_PROCESS_FALLBACK_POLICY_REASON')) {
+      violations.push({
+        file: rel(runProtheusOpsPath),
+        reason: 'run_protheus_ops_production_fallback_reason_signal_missing',
+        detail: 'expected policy reason env signal when forcing fallback off in production',
+      });
+    }
     if (source.includes('spawnSync(')) {
       violations.push({
         file: rel(runProtheusOpsPath),

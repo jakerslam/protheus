@@ -35,7 +35,7 @@ fn run_bio_feedback(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Va
 
     if op == "status" {
         let latest = read_json(&bio_feedback_state_path(root)).unwrap_or_else(|| Value::Null);
-        let mut out = json!({
+        let out = json!({
             "ok": true,
             "strict": strict,
             "type": "substrate_plane_bio_feedback",
@@ -150,7 +150,7 @@ fn run_bio_feedback(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Va
             .join("history.jsonl"),
         &feedback,
     );
-    let mut out = json!({
+    let out = json!({
         "ok": true,
         "strict": strict,
         "type": "substrate_plane_bio_feedback",
@@ -197,7 +197,7 @@ fn run_bio_adapter_template(root: &Path, parsed: &crate::ParsedArgs, strict: boo
     .to_ascii_lowercase();
     if op == "status" {
         let latest = read_json(&bio_adapter_template_path(root)).unwrap_or_else(|| Value::Null);
-        let mut out = json!({
+        let out = json!({
             "ok": true,
             "strict": strict,
             "type": "substrate_plane_bio_adapter_template",
@@ -313,7 +313,7 @@ fn run_bio_adapter_template(root: &Path, parsed: &crate::ParsedArgs, strict: boo
             .join("history.jsonl"),
         &template,
     );
-    let mut out = json!({
+    let out = json!({
         "ok": true,
         "strict": strict,
         "type": "substrate_plane_bio_adapter_template",

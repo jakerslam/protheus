@@ -18,7 +18,7 @@ use crate::session_command_discovery_kernel::{
     classify_command_detail_for_kernel, classify_command_list_for_kernel,
     split_command_chain_for_kernel,
 };
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 
 #[derive(Debug, Clone)]
 struct ExtractedCommand {

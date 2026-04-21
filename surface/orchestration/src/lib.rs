@@ -1,5 +1,6 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 pub mod clarification;
+pub mod control_plane;
 pub mod contracts;
 pub mod ingress;
 pub mod planner;
@@ -159,17 +160,21 @@ impl OrchestrationSurfaceRuntime {
             .cloned();
 
         let clarification_prompt =
-            clarification::clarification_prompt_for(&typed_request, &classification);
+            clarification::build_clarification_prompt(&typed_request, &classification);
         let needs_clarification =
             classification.needs_clarification || clarification_prompt.is_some();
-        let posture =
-            posture::choose_posture(classification.request_class.clone(), needs_clarification);
+        let posture = posture::choose_execution_posture(
+            classification.request_class.clone(),
+            needs_clarification,
+        );
         let mut plan_candidates =
-            sequencing::build_plan_candidates(&typed_request, &classification);
+            sequencing::propose_decomposition_candidates(&typed_request, &classification);
         let selected_plan = plan_candidates
             .first()
             .cloned()
-            .unwrap_or_else(|| sequencing::build_plan_candidate(&typed_request, &classification));
+            .unwrap_or_else(|| {
+                sequencing::propose_decomposition_candidate(&typed_request, &classification)
+            });
         let alternative_plans = if plan_candidates.len() > 1 {
             plan_candidates.drain(1..).collect::<Vec<_>>()
         } else {
@@ -192,8 +197,9 @@ impl OrchestrationSurfaceRuntime {
             alternative_plans,
             execution_state,
         };
-        let (plan, recovery_applied) = recovery::apply_recovery_policy(&typed_request, plan);
-        let progress = progress::progress_message(&plan);
+        let (plan, recovery_applied) =
+            recovery::coordinate_recovery_escalation(&typed_request, plan);
+        let progress = progress::build_progress_projection(&plan);
         let tool_fallback_context =
             sequencing::tool_fallback_context_from_payload(&typed_request.payload);
         let fallback_actions = sequencing::fallback_actions(
@@ -202,7 +208,7 @@ impl OrchestrationSurfaceRuntime {
             tool_fallback_context.as_ref(),
         );
         self.last_activity_ms = Some(now_ms);
-        result_packaging::package_result(&plan, progress, recovery_applied, fallback_actions)
+        result_packaging::shape_result_package(&plan, progress, recovery_applied, fallback_actions)
     }
 
     pub fn sweep_transient(&mut self, now_ms: u64) -> usize {

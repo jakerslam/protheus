@@ -391,7 +391,7 @@
     },
     "ops:node-critical-path:inventory": {
       "owner": "ops",
-      "description": "Node-critical operator path inventory and non-regression guard.",
+      "description": "Node-critical operator path inventory with owned burn-down plan, domain/date ownership checks, and TypeScript confinement enforcement.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "ops:node-critical-path:inventory",
@@ -588,6 +588,17 @@
       "timeout_sec": 60,
       "script": "ops:benchmark:public-audit"
     },
+    "ops:benchmark:class-trends": {
+      "owner": "ops",
+      "description": "Benchmark class-trend publication gate (kernel/shared, governed command path, realistic workload, artifact size).",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:benchmark:class-trends",
+      "artifact_paths": [
+        "core/local/artifacts/benchmark_class_trends_current.json",
+        "local/workspace/reports/BENCHMARK_CLASS_TRENDS_CURRENT.md"
+      ]
+    },
     "ops:flaky:quarantine:audit": {
       "owner": "ops",
       "description": "Flaky quarantine audit.",
@@ -740,21 +751,46 @@
         "core/local/artifacts/runtime_proof_metrics_rich_current.json",
         "core/local/artifacts/runtime_proof_release_gate_rich_current.json",
         "core/local/artifacts/runtime_proof_release_metrics_rich_current.json",
+        "core/local/artifacts/runtime_boundedness_inspect_rich_current.json",
+        "local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_RICH_CURRENT.md",
+        "local/workspace/reports/RUNTIME_PROOF_RELEASE_GATE_RICH_CURRENT.md",
         "core/local/artifacts/runtime_proof_harness_pure_current.json",
         "core/local/artifacts/runtime_proof_metrics_pure_current.json",
         "core/local/artifacts/runtime_proof_release_gate_pure_current.json",
         "core/local/artifacts/runtime_proof_release_metrics_pure_current.json",
+        "core/local/artifacts/runtime_boundedness_inspect_pure_current.json",
+        "local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_PURE_CURRENT.md",
+        "local/workspace/reports/RUNTIME_PROOF_RELEASE_GATE_PURE_CURRENT.md",
         "core/local/artifacts/runtime_proof_harness_tiny-max_current.json",
         "core/local/artifacts/runtime_proof_metrics_tiny-max_current.json",
         "core/local/artifacts/runtime_proof_release_gate_tiny-max_current.json",
         "core/local/artifacts/runtime_proof_release_metrics_tiny-max_current.json",
+        "core/local/artifacts/runtime_boundedness_inspect_tiny-max_current.json",
+        "local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_TINY-MAX_CURRENT.md",
+        "local/workspace/reports/RUNTIME_PROOF_RELEASE_GATE_TINY-MAX_CURRENT.md",
         "core/local/artifacts/adapter_runtime_chaos_gate_rich_current.json",
         "core/local/artifacts/adapter_runtime_chaos_gate_pure_current.json",
         "core/local/artifacts/adapter_runtime_chaos_gate_tiny-max_current.json",
         "core/local/artifacts/runtime_boundedness_72h_evidence_current.json",
+        "core/local/artifacts/runtime_boundedness_profiles_current.json",
         "core/local/artifacts/runtime_multi_day_soak_evidence_current.json",
-        "core/local/artifacts/release_proof_checksums_current.json",
-        "local/workspace/reports/RUNTIME_PROOF_RELEASE_GATE_RICH_CURRENT.md"
+        "core/local/artifacts/runtime_proof_synthetic_canary_current.json",
+        "core/local/artifacts/runtime_proof_empirical_release_evidence_current.json",
+        "local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_RELEASE_EVIDENCE_CURRENT.md",
+        "core/local/artifacts/runtime_proof_empirical_trends_current.json",
+        "local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_TRENDS_CURRENT.md",
+        "core/local/artifacts/runtime_proof_empirical_profile_coverage_current.json",
+        "local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_COVERAGE_CURRENT.md",
+        "core/local/artifacts/runtime_proof_empirical_source_matrix_current.json",
+        "local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_SOURCE_MATRIX_CURRENT.md",
+        "core/local/artifacts/runtime_proof_empirical_profile_gate_current.json",
+        "local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_GATE_CURRENT.md",
+        "core/local/artifacts/runtime_proof_empirical_profile_gate_failures_current.json",
+        "local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_GATE_FAILURES_CURRENT.md",
+        "core/local/artifacts/runtime_proof_empirical_profile_readiness_current.json",
+        "local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_READINESS_CURRENT.md",
+        "core/local/state/ops/runtime_proof_empirical_history.jsonl",
+        "core/local/artifacts/release_proof_checksums_current.json"
       ]
     },
     "ops:adapter-runtime-chaos:gate": {
@@ -764,7 +800,9 @@
       "timeout_sec": 180,
       "script": "ops:adapter-runtime-chaos:gate",
       "artifact_paths": [
-        "core/local/artifacts/adapter_runtime_chaos_gate_current.json"
+        "core/local/artifacts/adapter_runtime_chaos_gate_current.json",
+        "core/local/artifacts/gateway_support_levels_current.json",
+        "local/workspace/reports/ADAPTER_RUNTIME_CHAOS_GATE_CURRENT.md"
       ]
     },
     "ops:adapter-chaos:rust": {
@@ -830,6 +868,42 @@
       "artifact_paths": [
         "core/local/artifacts/srs_full_regression_current.json",
         "local/workspace/reports/SRS_FULL_REGRESSION_CURRENT.md"
+      ]
+    },
+    "ops:srs:same-revision:guard": {
+      "owner": "ops",
+      "description": "Fail-closed guard requiring same-revision SRS row updates for net-new functionality signals (new source files, package scripts, tooling gate IDs).",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/srs_same_revision_guard.ts",
+        "--strict=1",
+        "--out-json=core/local/artifacts/srs_same_revision_guard_current.json",
+        "--out-markdown=local/workspace/reports/SRS_SAME_REVISION_GUARD_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/srs_same_revision_guard_current.json",
+        "local/workspace/reports/SRS_SAME_REVISION_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:srs:todo-section:guard": {
+      "owner": "ops",
+      "description": "Fail-closed guard that enforces SRS Global Rollup + SRS Section Checklist parity in TODO.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/srs_todo_section_guard.ts",
+        "--strict=1",
+        "--out-json=core/local/artifacts/srs_todo_section_guard_current.json",
+        "--out-markdown=local/workspace/reports/SRS_TODO_SECTION_GUARD_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/srs_todo_section_guard_current.json",
+        "local/workspace/reports/SRS_TODO_SECTION_GUARD_CURRENT.md"
       ]
     },
     "ops:dod:gate": {
@@ -1003,6 +1077,17 @@
         "local/workspace/reports/LAYER2_RECEIPT_REPLAY_CURRENT.md"
       ]
     },
+    "ops:layer3:contract:guard": {
+      "owner": "ops",
+      "description": "Layer3 contract guard for execution-unit model, scheduler boundary, and module mapping coverage.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:layer3:contract:guard",
+      "artifact_paths": [
+        "core/local/artifacts/layer3_contract_guard_current.json",
+        "local/workspace/reports/LAYER3_CONTRACT_GUARD_CURRENT.md"
+      ]
+    },
     "ops:boundedness:inspect": {
       "owner": "ops",
       "description": "Boundedness controller inspect command and artifact generation.",
@@ -1012,6 +1097,26 @@
       "artifact_paths": [
         "core/local/artifacts/runtime_boundedness_inspect_current.json",
         "local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_CURRENT.md"
+      ]
+    },
+    "ops:queue-backpressure:policy:gate": {
+      "owner": "ops",
+      "description": "Deterministic queue/backpressure policy semantics gate.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:queue-backpressure:policy:gate",
+      "artifact_paths": [
+        "core/local/artifacts/queue_backpressure_policy_gate_current.json"
+      ]
+    },
+    "ops:boundedness:release-gate": {
+      "owner": "ops",
+      "description": "Release-class boundedness evidence gate across rich/pure/tiny-max profiles.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:boundedness:release-gate",
+      "artifact_paths": [
+        "core/local/artifacts/runtime_boundedness_release_gate_current.json"
       ]
     },
     "ops:trusted-core:report": {
@@ -1055,6 +1160,39 @@
       "artifact_paths": [
         "core/local/artifacts/incident_operations_governance_gate_current.json",
         "local/workspace/reports/INCIDENT_OPERATIONS_GOVERNANCE_GATE_CURRENT.md"
+      ]
+    },
+    "ops:shell:truth-leak:guard": {
+      "owner": "ops",
+      "description": "Shell truth-leak guard: audits client-side health/retry/lane/policy inference against backend status and freshness contracts.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:shell:truth-leak:guard",
+      "artifact_paths": [
+        "core/local/artifacts/shell_truth_leak_guard_current.json",
+        "local/workspace/reports/SHELL_TRUTH_LEAK_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:terminology:transition:inventory": {
+      "owner": "ops",
+      "description": "Kernel/Gateway terminology transition inventory + deprecation tracker guard for remaining core_/adapter_ operator-facing aliases.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:terminology:transition:inventory",
+      "artifact_paths": [
+        "core/local/artifacts/terminology_transition_inventory_current.json",
+        "local/workspace/reports/TERMINOLOGY_TRANSITION_INVENTORY_CURRENT.md"
+      ]
+    },
+    "ops:capability-proof-burden:guard": {
+      "owner": "ops",
+      "description": "Capability proof-burden contract guard for PR templates and policy markers (invariant/failure/receipt/recovery/proof).",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:capability-proof-burden:guard",
+      "artifact_paths": [
+        "core/local/artifacts/capability_proof_burden_guard_current.json",
+        "local/workspace/reports/CAPABILITY_PROOF_BURDEN_GUARD_CURRENT.md"
       ]
     }
   }

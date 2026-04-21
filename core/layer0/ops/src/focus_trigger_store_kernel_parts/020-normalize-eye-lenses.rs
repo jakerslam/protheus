@@ -406,7 +406,7 @@ fn append_pointer_rows(root: &Path, abs_path: &Path, state: &Value) -> Result<()
             "tags": ["focus", "adaptive"],
             "ts": now_iso()
         });
-        let digest = deterministic_receipt_hash(&row);
+        let digest = crate::deterministic_receipt_hash(&row);
         let existing = pointers.get(&key).and_then(Value::as_str).unwrap_or("");
         if existing == digest {
             continue;
@@ -456,7 +456,7 @@ fn append_mutation_log(
         "source": source_value,
         "actor": actor_value,
         "trigger_count": state.get("triggers").and_then(Value::as_array).map(|rows| rows.len()).unwrap_or(0),
-        "receipt_hash": deterministic_receipt_hash(state)
+        "receipt_hash": crate::deterministic_receipt_hash(state)
     });
     append_jsonl(&mutation_log_path(root), &row)
 }

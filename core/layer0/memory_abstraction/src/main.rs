@@ -30,7 +30,21 @@ fn proxy_url_contract_ok(url: &str) -> bool {
         return false;
     }
     let folded = url.to_ascii_lowercase();
-    (folded.starts_with("http://") || folded.starts_with("https://")) && !folded.contains(' ')
+    if !(folded.starts_with("http://") || folded.starts_with("https://")) || folded.contains(' ') {
+        return false;
+    }
+    let without_scheme = folded
+        .strip_prefix("http://")
+        .or_else(|| folded.strip_prefix("https://"))
+        .unwrap_or_default();
+    if without_scheme.is_empty() || without_scheme.starts_with('/') {
+        return false;
+    }
+    let authority = without_scheme.split('/').next().unwrap_or_default();
+    if authority.is_empty() || authority.contains('@') {
+        return false;
+    }
+    authority.chars().any(|ch| ch.is_ascii_alphanumeric())
 }
 
 fn normalize_proxy_env_value(raw: Option<&str>) -> Option<String> {

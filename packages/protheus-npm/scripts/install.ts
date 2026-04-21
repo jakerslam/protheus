@@ -27,12 +27,29 @@ function platformTriple() {
   return (archMap[process.arch] || process.arch) + '-' + (osMap[process.platform] || process.platform);
 }
 
+function releaseTag() {
+  const override = sanitizeText(process.env.PROTHEUS_NPM_RELEASE_TAG || '', 80);
+  if (override) return override.startsWith('v') ? override : `v${override}`;
+  return 'v' + pkg.version;
+}
+
 function releaseCandidateUrls() {
-  const versionTag = 'v' + pkg.version;
+  const versionTag = releaseTag();
   const triple = platformTriple();
   const base = 'https://github.com/protheuslabs/InfRing/releases/download/' + versionTag;
-  const name = exeName();
-  return [base + '/' + name + '-' + triple, base + '/' + name + '-' + triple + '.bin'];
+  const ext = process.platform === 'win32' ? '.exe' : '';
+  const stems = ['protheus-ops', 'infring-ops'];
+  const urls = [];
+  for (const stem of stems) {
+    urls.push(base + '/' + stem + '-' + triple + ext);
+    urls.push(base + '/' + stem + '-' + triple);
+    urls.push(base + '/' + stem + '-' + triple + '.bin');
+  }
+  const directNames = new Set([exeName(), process.platform === 'win32' ? 'infring-ops.exe' : 'infring-ops']);
+  for (const name of directNames) {
+    urls.push(base + '/' + name);
+  }
+  return Array.from(new Set(urls));
 }
 
 function validateDownloadUrl(rawUrl) {
@@ -106,12 +123,18 @@ function tryBuildLocal(outPath) {
   if (!fs.existsSync(manifestPath)) return false;
   const build = spawnSync('cargo', ['build', '--release', '--manifest-path', manifestPath, '--bin', 'protheus-ops'], { cwd: workspaceRoot, stdio: 'inherit' });
   if (build.status !== 0) return false;
-  const built = path.join(workspaceRoot, 'target', 'release', exeName());
-  if (!fs.existsSync(built)) return false;
-  fs.copyFileSync(built, outPath);
-  chmodExec(outPath);
-  process.stdout.write('[protheus npm] built local binary via cargo\n');
-  return true;
+  const candidates = [
+    path.join(workspaceRoot, 'target', 'release', exeName()),
+    path.join(workspaceRoot, 'target', 'release', process.platform === 'win32' ? 'infring-ops.exe' : 'infring-ops')
+  ];
+  for (const built of candidates) {
+    if (!fs.existsSync(built)) continue;
+    fs.copyFileSync(built, outPath);
+    chmodExec(outPath);
+    process.stdout.write('[protheus npm] built local binary via cargo\n');
+    return true;
+  }
+  return false;
 }
 
 async function main() {
@@ -128,6 +151,8 @@ async function main() {
   if (!skipDownload) {
     const downloaded = await tryDownload(outPath);
     if (downloaded) return;
+  } else {
+    process.stdout.write('[protheus npm] skipping release download (PROTHEUS_NPM_SKIP_DOWNLOAD=1)\n');
   }
 
   if (tryBuildLocal(outPath)) return;

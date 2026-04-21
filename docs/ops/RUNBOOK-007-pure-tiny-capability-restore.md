@@ -13,7 +13,7 @@ This runbook is the authoritative recovery path for:
 
 This runbook covers the following surfaces:
 
-- Core authority:
+- Kernel authority:
   - `core/layer0/ops/src/protheusd.rs`
   - `core/layer0/ops/tests/v9_pure_capability_profile_cli.rs`
 - Thin pure client passthrough:
@@ -65,7 +65,7 @@ Common signs of regression:
 
 ## Verification Commands (Must Pass)
 
-### 1) Core unit/regression tests
+### 1) Kernel unit/regression tests
 
 ```bash
 cargo test --manifest-path core/layer0/ops/Cargo.toml --bin protheusd -- --nocapture

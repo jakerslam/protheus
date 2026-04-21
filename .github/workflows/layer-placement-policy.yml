@@ -19,6 +19,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Resolve base ref
         if: ${{ github.event_name == 'pull_request' }}
@@ -33,4 +37,13 @@ jobs:
             node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/layer_placement_check.ts --base-ref=origin/${{ github.base_ref }}
           else
             node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/layer_placement_check.ts --base-ref=HEAD~1
+          fi
+
+      - name: Run ownership placement rationale guard
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            npm run -s ops:ownership:placement-rationale:guard -- --base-ref=origin/${{ github.base_ref }}
+          else
+            npm run -s ops:ownership:placement-rationale:guard -- --base-ref=HEAD~1
           fi

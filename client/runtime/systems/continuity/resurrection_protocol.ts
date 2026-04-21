@@ -62,6 +62,9 @@ function withReceiptHash(payload) {
   if (!payload || typeof payload !== 'object') {
     return payload;
   }
+  if (typeof payload.lane !== 'string' || !payload.lane.trim()) {
+    payload = Object.assign({}, payload, { lane: bridge.lane });
+  }
   if (typeof payload.receipt_hash === 'string' && payload.receipt_hash.trim()) {
     return payload;
   }
@@ -86,6 +89,15 @@ function sanitizeArg(value) {
     .slice(0, MAX_ARG_LEN);
 }
 
+function isUnsafeToken(token) {
+  return (
+    token.includes('..') ||
+    token.includes('\0') ||
+    token.startsWith('/') ||
+    token.startsWith('\\')
+  );
+}
+
 function ensureMutationReceipt(result, command) {
   if (!result || !result.payload || typeof result.payload !== 'object') {
     return result;
@@ -100,7 +112,10 @@ function ensureMutationReceipt(result, command) {
 
 function normalizeArgs(args = []) {
   const rows = (Array.isArray(args)
-    ? args.map((v) => sanitizeArg(v)).filter(Boolean).slice(0, MAX_ARGS)
+    ? args
+        .map((v) => sanitizeArg(v))
+        .filter((row) => row && !isUnsafeToken(row))
+        .slice(0, MAX_ARGS)
     : []);
   while (rows.length && WRAPPER_TOKENS.has((rows[0] || '').toLowerCase())) {
     rows.shift();

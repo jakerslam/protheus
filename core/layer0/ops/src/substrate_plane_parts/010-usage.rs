@@ -7,7 +7,9 @@ use crate::v8_kernel::{
     read_json, scoped_state_root, sha256_hex_str, split_csv_clean, write_json,
 };
 use crate::{clean, parse_args};
-use exotic_wrapper::{default_degradation, wrap_exotic_signal, ExoticDomain, ExoticEnvelope};
+use protheus_nexus_core_v1::exotic::{
+    default_degradation, wrap_exotic_signal, ExoticDomain, ExoticEnvelope,
+};
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 

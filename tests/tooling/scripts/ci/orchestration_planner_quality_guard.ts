@@ -32,6 +32,7 @@ type PlannerMetrics = {
 };
 
 type PlannerPolicy = {
+  min_request_count?: number;
   min_average_candidate_count?: number;
   max_clarification_first_rate?: number;
   max_degraded_rate?: number;
@@ -91,6 +92,7 @@ function evaluateThresholds(metrics: PlannerMetrics | null, policy: PlannerPolic
     failures.push('planner_metrics_missing');
     return failures;
   }
+  const requestCount = numberOrNull(metrics.request_count);
   const averageCandidateCount = numberOrNull(metrics.average_candidate_count);
   const clarificationFirstRate = numberOrNull(metrics.clarification_first_rate);
   const degradedRate = numberOrNull(metrics.degraded_rate);
@@ -110,6 +112,15 @@ function evaluateThresholds(metrics: PlannerMetrics | null, policy: PlannerPolic
     policy.max_all_candidates_require_clarification_rate,
   );
   const maxAllCandidatesDegradedRate = numberOrNull(policy.max_all_candidates_degraded_rate);
+  const minRequestCount = numberOrNull(policy.min_request_count);
+
+  if (requestCount == null) {
+    failures.push('missing_request_count');
+  } else if (minRequestCount != null && requestCount < minRequestCount) {
+    failures.push(
+      `request_count_below_min:actual=${requestCount.toFixed(4)}:min=${minRequestCount.toFixed(4)}`,
+    );
+  }
 
   if (averageCandidateCount == null) {
     failures.push('missing_average_candidate_count');
@@ -177,12 +188,64 @@ function evaluateThresholds(metrics: PlannerMetrics | null, policy: PlannerPolic
   return failures;
 }
 
+function evaluateMetricConsistency(metrics: PlannerMetrics | null): string[] {
+  const failures: string[] = [];
+  if (!metrics) return failures;
+
+  const clarificationFirstRate = numberOrNull(metrics.clarification_first_rate);
+  const degradedRate = numberOrNull(metrics.degraded_rate);
+  const zeroExecutableCandidateRate = numberOrNull(metrics.zero_executable_candidate_rate);
+  const allCandidatesRequireClarificationRate = numberOrNull(
+    metrics.all_candidates_require_clarification_rate,
+  );
+  const allCandidatesDegradedRate = numberOrNull(metrics.all_candidates_degraded_rate);
+
+  if (
+    clarificationFirstRate != null
+    && allCandidatesRequireClarificationRate != null
+    && allCandidatesRequireClarificationRate > clarificationFirstRate
+  ) {
+    failures.push(
+      `inconsistent_all_candidates_require_clarification_rate:all_candidates_require_clarification_rate=${allCandidatesRequireClarificationRate.toFixed(4)}:clarification_first_rate=${clarificationFirstRate.toFixed(4)}`,
+    );
+  }
+
+  if (degradedRate != null && allCandidatesDegradedRate != null && allCandidatesDegradedRate > degradedRate) {
+    failures.push(
+      `inconsistent_all_candidates_degraded_rate:all_candidates_degraded_rate=${allCandidatesDegradedRate.toFixed(4)}:degraded_rate=${degradedRate.toFixed(4)}`,
+    );
+  }
+
+  if (zeroExecutableCandidateRate != null && clarificationFirstRate != null && degradedRate != null) {
+    const upperBound = Math.min(1, clarificationFirstRate + degradedRate);
+    if (zeroExecutableCandidateRate > upperBound) {
+      failures.push(
+        `inconsistent_zero_executable_candidate_rate_upper_bound:zero_executable_candidate_rate=${zeroExecutableCandidateRate.toFixed(4)}:upper_bound=${upperBound.toFixed(4)}`,
+      );
+    }
+  }
+
+  return failures;
+}
+
 function evaluateRatchet(metrics: PlannerMetrics | null, policy: PlannerPolicy, previous: any): string[] {
   const failures: string[] = [];
   if (!metrics) return failures;
   const previousMetrics = previous?.metrics;
   if (!previousMetrics || typeof previousMetrics !== 'object') return failures;
   const delta = Math.max(0, Number(policy.ratchet?.max_regression_delta || 0));
+
+  const currentRequestCount = numberOrNull(metrics.request_count);
+  const previousRequestCount = numberOrNull(previousMetrics.request_count);
+  if (
+    currentRequestCount != null
+    && previousRequestCount != null
+    && currentRequestCount < previousRequestCount - delta
+  ) {
+    failures.push(
+      `ratchet_request_count_regression:current=${currentRequestCount.toFixed(4)}:previous=${previousRequestCount.toFixed(4)}:delta=${delta.toFixed(4)}`,
+    );
+  }
 
   const currentAverage = numberOrNull(metrics.average_candidate_count);
   const previousAverage = numberOrNull(previousMetrics.average_candidate_count);
@@ -243,6 +306,11 @@ function toMarkdown(payload: any): string {
     lines.push('## Policy Failures');
     for (const row of payload.policy_failures) lines.push(`- ${row}`);
   }
+  if (Array.isArray(payload.consistency_failures) && payload.consistency_failures.length > 0) {
+    lines.push('');
+    lines.push('## Consistency Failures');
+    for (const row of payload.consistency_failures) lines.push(`- ${row}`);
+  }
   if (Array.isArray(payload.ratchet_failures) && payload.ratchet_failures.length > 0) {
     lines.push('');
     lines.push('## Ratchet Failures');
@@ -287,8 +355,9 @@ function run(argv: string[]): number {
     ? readJsonMaybe<any>(plannerPolicy.paths.latest)
     : null;
   const policyFailures = evaluateThresholds(metrics, plannerPolicy);
+  const consistencyFailures = evaluateMetricConsistency(metrics);
   const ratchetFailures = evaluateRatchet(metrics, plannerPolicy, previousLatest);
-  const ok = testsOk && policyFailures.length === 0 && ratchetFailures.length === 0;
+  const ok = testsOk && policyFailures.length === 0 && consistencyFailures.length === 0 && ratchetFailures.length === 0;
 
   const payload = {
     ok,
@@ -310,10 +379,12 @@ function run(argv: string[]): number {
       exit_code: result.status ?? 1,
       signal: result.signal ?? null,
       policy_failure_count: policyFailures.length,
+      consistency_failure_count: consistencyFailures.length,
       ratchet_failure_count: ratchetFailures.length,
     },
     metrics,
     policy_failures: policyFailures,
+    consistency_failures: consistencyFailures,
     ratchet_failures: ratchetFailures,
     output_excerpt: output,
   };

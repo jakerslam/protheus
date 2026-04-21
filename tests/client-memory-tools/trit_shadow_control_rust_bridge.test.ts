@@ -32,6 +32,16 @@ function main() {
   const influenceGuardPath = path.join(stateDir, 'trit_shadow_influence_guard.json');
   const reportHistoryPath = path.join(reportsDir, 'history.jsonl');
   const calibrationHistoryPath = path.join(calibrationDir, 'history.jsonl');
+  const originalEnv = {
+    AUTONOMY_TRIT_SHADOW_POLICY_PATH: process.env.AUTONOMY_TRIT_SHADOW_POLICY_PATH,
+    AUTONOMY_TRIT_SHADOW_SUCCESS_CRITERIA_PATH: process.env.AUTONOMY_TRIT_SHADOW_SUCCESS_CRITERIA_PATH,
+    AUTONOMY_TRIT_SHADOW_TRUST_STATE_PATH: process.env.AUTONOMY_TRIT_SHADOW_TRUST_STATE_PATH,
+    AUTONOMY_TRIT_SHADOW_INFLUENCE_BUDGET_PATH: process.env.AUTONOMY_TRIT_SHADOW_INFLUENCE_BUDGET_PATH,
+    AUTONOMY_TRIT_SHADOW_INFLUENCE_GUARD_PATH: process.env.AUTONOMY_TRIT_SHADOW_INFLUENCE_GUARD_PATH,
+    AUTONOMY_TRIT_SHADOW_REPORT_HISTORY_PATH: process.env.AUTONOMY_TRIT_SHADOW_REPORT_HISTORY_PATH,
+    AUTONOMY_TRIT_SHADOW_CALIBRATION_HISTORY_PATH: process.env.AUTONOMY_TRIT_SHADOW_CALIBRATION_HISTORY_PATH,
+    PROTHEUS_OPS_USE_PREBUILT: process.env.PROTHEUS_OPS_USE_PREBUILT
+  };
 
   fs.writeFileSync(policyPath, JSON.stringify({
     version: '2.0',
@@ -175,6 +185,14 @@ function main() {
     'trit_shadow_control_rust_bridge_test'
   );
 
+  for (const [key, value] of Object.entries(originalEnv)) {
+    if (value == null) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  }
+  fs.rmSync(tempRoot, { recursive: true, force: true });
   console.log(JSON.stringify({ ok: true, type: 'trit_shadow_control_rust_bridge_test' }));
 }
 

@@ -44,6 +44,39 @@
         selected_model = resolved_model;
         let base_system_prompt = clean(parsed.flags.get("system").cloned().unwrap_or_else(|| "You are an Infring dashboard runtime agent. You have host-integrated access to runtime telemetry, agent session memory, and approved protheus/infring command surfaces. Never claim you lack system access; if a value is missing, request a runtime sync or the exact command needed and continue.".to_string()), 12_000);
         let tool_gate = chat_ui_turn_tool_decision_tree(&message);
+        let gate_should_call_tools = tool_gate
+            .get("should_call_tools")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let gate_recommended_tool_family = clean(
+            tool_gate
+                .get("recommended_tool_family")
+                .and_then(Value::as_str)
+                .unwrap_or("none"),
+            80,
+        );
+        let gate_route = clean(
+            tool_gate
+                .get("workflow_route")
+                .and_then(Value::as_str)
+                .unwrap_or("info"),
+            40,
+        );
+        let gate_reason_code = clean(
+            tool_gate
+                .get("reason_code")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown"),
+            120,
+        );
+        let gate_llm_direct_answer = tool_gate
+            .get("llm_should_answer_directly")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let gate_meta_diagnostic_request = tool_gate
+            .get("meta_diagnostic_request")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
         let tool_gate_prompt = chat_ui_tool_gate_system_prompt(&message);
         let system_prompt = if tool_gate_prompt.is_empty() {
             base_system_prompt
@@ -81,10 +114,16 @@
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
+        if gate_meta_diagnostic_request && !tools.is_empty() {
+            tools.clear();
+        }
         let requires_live_web = tool_gate
             .get("requires_live_web")
             .and_then(Value::as_bool)
-            .unwrap_or_else(|| chat_ui_requests_live_web(&message));
+            .map(|value| value && !gate_meta_diagnostic_request)
+            .unwrap_or_else(|| !gate_meta_diagnostic_request && chat_ui_requests_live_web(&message));
+        let gate_allows_web_tooling =
+            requires_live_web && gate_should_call_tools && gate_recommended_tool_family == "web_tools";
         let mut assistant_raw = clean(
             response
                 .get("response")
@@ -113,7 +152,35 @@
                 "fallback_status": "surface_error",
                 "error": error_code
             });
-        } else if requires_live_web && chat_ui_web_search_call_count(&tools) == 0 {
+        } else if requires_live_web && !gate_allows_web_tooling {
+            let blocked_query = chat_ui_extract_web_query(&message);
+            tools.push(json!({
+                "name": "batch_query",
+                "status": "blocked",
+                "ok": false,
+                "source": "web",
+                "query": blocked_query,
+                "error": "workflow_gate_blocked_web_tooling",
+                "gate": {
+                    "route": gate_route,
+                    "reason_code": gate_reason_code,
+                    "should_call_tools": gate_should_call_tools,
+                    "recommended_tool_family": gate_recommended_tool_family
+                }
+            }));
+            forced_web_outcome = "workflow_gate_blocked_web_tooling".to_string();
+            forced_web_error_code = "workflow_gate_blocked_web_tooling".to_string();
+            forced_web_fallback = json!({
+                "applied": true,
+                "status": "blocked_by_workflow_gate",
+                "route": gate_route,
+                "reason_code": gate_reason_code,
+                "llm_should_answer_directly": gate_llm_direct_answer,
+                "requires_live_web": requires_live_web,
+                "should_call_tools": gate_should_call_tools,
+                "recommended_tool_family": gate_recommended_tool_family
+            });
+        } else if gate_allows_web_tooling && chat_ui_web_search_call_count(&tools) == 0 {
             let fallback_query = chat_ui_extract_web_query(&message);
             let fallback = {
                 #[cfg(test)]

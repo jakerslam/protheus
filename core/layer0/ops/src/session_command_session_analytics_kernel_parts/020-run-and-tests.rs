@@ -139,6 +139,18 @@ mod tests {
     }
 
     #[test]
+    fn extract_jsonl_supports_top_level_content_and_tool_result_event_aliases() {
+        let jsonl = r#"{"type":"assistant","content":[{"type":"tooluse","id":"toolu_top","name":"bash","input":{"cmd":"cargo check"}}]}
+{"type":"tool_result","content":[{"type":"tool_response","tool_call_id":"toolu_top","outputText":"Finished `dev` profile"}]}"#;
+        let rows = extract_commands_from_jsonl("s1", jsonl);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].command, "cargo check");
+        assert!(!rows[0].is_error);
+        let preview = rows[0].output_preview.clone().unwrap_or_default();
+        assert!(preview.contains("Finished"));
+    }
+
+    #[test]
     fn adoption_report_counts_supported_and_prefixed() {
         let payload = json!({
           "session_id":"s1",

@@ -24,5 +24,5 @@ Tracks temporary compatibility surfaces that must be removed after core-authorit
 
 1. Compatibility surfaces cannot gain new policy authority.
 2. Any compatibility lane change must include a deprecation exit criterion.
-3. Core/client transfer must remain conduit + scrambler only.
+3. Kernel/client transfer must remain conduit + scrambler only.
 4. Remove entries from this ledger only in the same change that removes the compatibility path.

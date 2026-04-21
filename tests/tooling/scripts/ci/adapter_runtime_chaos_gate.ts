@@ -6,9 +6,21 @@ import os from 'node:os';
 import path from 'node:path';
 import { cleanText, parseStrictOutArgs, readFlag } from '../../lib/cli.ts';
 import { currentRevision } from '../../lib/git.ts';
-import { emitStructuredResult } from '../../lib/result.ts';
+import { emitStructuredResult, writeJsonArtifact, writeTextArtifact } from '../../lib/result.ts';
 
 type ProfileId = 'rich' | 'pure' | 'tiny-max';
+
+type SupportLevel = 'experimental' | 'candidate' | 'graduated';
+
+type ChecklistStatus = 'pending' | 'in_progress' | 'complete';
+
+type GatewayChecklist = {
+  health_checks: ChecklistStatus;
+  fail_closed_behavior: ChecklistStatus;
+  chaos_scenarios: ChecklistStatus;
+  receipt_completeness: ChecklistStatus;
+  fallback_degradation_declaration: ChecklistStatus;
+};
 
 type AdapterLane = {
   id: string;
@@ -17,6 +29,10 @@ type AdapterLane = {
   tier: string;
   readinessTrack: string;
   requiredForGraduation: boolean;
+  supportLevel: SupportLevel;
+  owner: string;
+  blocker: string;
+  checklist: GatewayChecklist;
 };
 
 type ScenarioRow = {
@@ -31,6 +47,7 @@ type GraduationManifest = {
   version: number;
   required_hooks: string[];
   required_scenarios: string[];
+  production_gateway_targets?: string[];
   adapters: Array<{
     id: string;
     framework: string;
@@ -38,6 +55,10 @@ type GraduationManifest = {
     tier?: string;
     readiness_track?: string;
     required_for_graduation?: boolean;
+    support_level?: string;
+    owner?: string;
+    blocker?: string;
+    checklist?: Partial<GatewayChecklist>;
     notes?: string;
   }>;
 };
@@ -58,13 +79,24 @@ type AdapterGraduationResult = {
 
 const OPS_CARGO_BUILD_ARGS = ['build', '-q', '-p', 'protheus-ops-core', '--bin', 'protheus-ops'];
 const BRIDGE_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
+const DEFAULT_OUT_JSON = 'core/local/artifacts/adapter_runtime_chaos_gate_current.json';
+const DEFAULT_SUPPORT_LEVELS_OUT_JSON = 'core/local/artifacts/gateway_support_levels_current.json';
+const DEFAULT_OUT_MARKDOWN = 'local/workspace/reports/ADAPTER_RUNTIME_CHAOS_GATE_CURRENT.md';
 
-const LEGACY_REQUIRED_ADAPTERS: Array<Pick<AdapterLane, 'id' | 'framework' | 'bridgeCommand'>> = [
-  { id: 'langgraph', bridgeCommand: 'workflow_graph-bridge', framework: 'langgraph' },
-  { id: 'crewai', bridgeCommand: 'crewai-bridge', framework: 'crewai' },
-  { id: 'openai_agents', bridgeCommand: 'pydantic-ai-bridge', framework: 'openai_agents' },
-  { id: 'mastra', bridgeCommand: 'mastra-bridge', framework: 'mastra' },
-  { id: 'semantic_kernel', bridgeCommand: 'semantic-kernel-bridge', framework: 'semantic_kernel' },
+const DEFAULT_TARGET_GATEWAY_ADAPTER_IDS = [
+  'ollama',
+  'llama_cpp',
+  'mcp_baseline',
+  'otlp_exporter',
+  'durable_memory_local',
+] as const;
+const CHECKLIST_ALLOWED_STATUS = new Set<ChecklistStatus>(['pending', 'in_progress', 'complete']);
+const CHECKLIST_KEYS: Array<keyof GatewayChecklist> = [
+  'health_checks',
+  'fail_closed_behavior',
+  'chaos_scenarios',
+  'receipt_completeness',
+  'fallback_degradation_declaration',
 ];
 
 const CHAOS_CASES = [
@@ -85,18 +117,86 @@ function parseProfile(raw: string | undefined): ProfileId | null {
 
 function parseArgs(argv: string[]) {
   const common = parseStrictOutArgs(argv, {
-    out: 'core/local/artifacts/adapter_runtime_chaos_gate_current.json',
+    out: DEFAULT_OUT_JSON,
   });
   const profile = parseProfile(readFlag(argv, 'profile'));
   return {
     strict: common.strict,
     outPath: cleanText(readFlag(argv, 'out') || common.out || '', 400),
+    outSupportLevelsPath: cleanText(
+      readFlag(argv, 'out-support-levels') || DEFAULT_SUPPORT_LEVELS_OUT_JSON,
+      400,
+    ),
+    outMarkdownPath: cleanText(readFlag(argv, 'out-markdown') || DEFAULT_OUT_MARKDOWN, 400),
     profile,
     graduationManifestPath: cleanText(
       readFlag(argv, 'graduation-manifest') || 'tests/tooling/config/adapter_graduation_manifest.json',
       400,
     ),
   };
+}
+
+function resolveGatewayTargetAdapterIds(manifest: GraduationManifest): string[] {
+  const declared = Array.isArray(manifest.production_gateway_targets)
+    ? manifest.production_gateway_targets
+    : [];
+  const normalized = declared
+    .map((row) => cleanText(String(row || ''), 80))
+    .filter(Boolean);
+  if (normalized.length === 0) {
+    return [...DEFAULT_TARGET_GATEWAY_ADAPTER_IDS];
+  }
+  return Array.from(new Set(normalized));
+}
+
+function toMarkdown(report: any, supportLevels: any): string {
+  const lines: string[] = [];
+  lines.push('# Gateway Runtime Chaos Gate');
+  lines.push('');
+  lines.push(`- generated_at: ${report.generated_at}`);
+  lines.push(`- revision: ${report.revision}`);
+  lines.push(`- profile: ${report.profile}`);
+  lines.push(`- pass: ${report.ok}`);
+  lines.push('');
+  lines.push('## Summary');
+  lines.push(`- adapters_total: ${report.summary.adapters_total}`);
+  lines.push(`- adapters_required_for_graduation: ${report.summary.adapters_required_for_graduation}`);
+  lines.push(`- adapters_pending_roadmap: ${report.summary.adapters_pending_roadmap}`);
+  lines.push(`- baseline_passed: ${report.summary.baseline_passed}/${report.summary.baseline_total}`);
+  lines.push(
+    `- chaos_fail_closed_passed: ${report.summary.chaos_fail_closed_passed}/${report.summary.chaos_total} (${report.summary.chaos_fail_closed_ratio})`,
+  );
+  lines.push(
+    `- graduation_passed: ${report.summary.graduation_passed}/${report.summary.adapters_required_for_graduation} (${report.summary.graduation_ratio})`,
+  );
+  lines.push(`- manifest_violations: ${report.summary.manifest_violations}`);
+  lines.push('');
+  lines.push('## Gateway Support Levels');
+  if (!Array.isArray(supportLevels.gateway_support_levels) || supportLevels.gateway_support_levels.length === 0) {
+    lines.push('- none');
+  } else {
+    lines.push('| id | support_level | readiness_track | owner | blocker |');
+    lines.push('| --- | --- | --- | --- | --- |');
+    for (const row of supportLevels.gateway_support_levels) {
+      lines.push(
+        `| ${cleanText(row.id || '', 80)} | ${cleanText(row.support_level || '', 40)} | ${cleanText(
+          row.readiness_track || '',
+          80,
+        )} | ${cleanText(row.owner || '', 120)} | ${cleanText(row.blocker || '', 200)} |`,
+      );
+    }
+  }
+  lines.push('');
+  lines.push('## Manifest Violations');
+  if (!Array.isArray(report.graduation_policy?.manifest_violations) || report.graduation_policy.manifest_violations.length === 0) {
+    lines.push('- none');
+  } else {
+    for (const violation of report.graduation_policy.manifest_violations) {
+      lines.push(`- ${cleanText(violation || '', 200)}`);
+    }
+  }
+  lines.push('');
+  return `${lines.join('\n')}\n`;
 }
 
 function parseLastJson(raw: string): any {
@@ -225,6 +325,37 @@ function loadGraduationManifest(root: string, relPath: string): GraduationManife
   return parsed;
 }
 
+function normalizeSupportLevel(raw: string | undefined): SupportLevel {
+  const normalized = cleanText(raw || '', 40).toLowerCase();
+  if (normalized === 'experimental') return 'experimental';
+  if (normalized === 'graduated') return 'graduated';
+  return 'candidate';
+}
+
+function normalizeChecklistStatus(raw: string | undefined): ChecklistStatus {
+  const normalized = cleanText(raw || '', 40).toLowerCase();
+  if (normalized === 'complete') return 'complete';
+  if (normalized === 'in_progress') return 'in_progress';
+  return 'pending';
+}
+
+function normalizeChecklist(row: GraduationManifest['adapters'][number]): GatewayChecklist {
+  const raw = (row?.checklist || {}) as Record<string, unknown>;
+  return {
+    health_checks: normalizeChecklistStatus(typeof raw.health_checks === 'string' ? raw.health_checks : undefined),
+    fail_closed_behavior: normalizeChecklistStatus(
+      typeof raw.fail_closed_behavior === 'string' ? raw.fail_closed_behavior : undefined,
+    ),
+    chaos_scenarios: normalizeChecklistStatus(typeof raw.chaos_scenarios === 'string' ? raw.chaos_scenarios : undefined),
+    receipt_completeness: normalizeChecklistStatus(
+      typeof raw.receipt_completeness === 'string' ? raw.receipt_completeness : undefined,
+    ),
+    fallback_degradation_declaration: normalizeChecklistStatus(
+      typeof raw.fallback_degradation_declaration === 'string' ? raw.fallback_degradation_declaration : undefined,
+    ),
+  };
+}
+
 function adaptersFromManifest(manifest: GraduationManifest): AdapterLane[] {
   const rows = Array.isArray(manifest.adapters) ? manifest.adapters : [];
   const dedup = new Set<string>();
@@ -242,6 +373,10 @@ function adaptersFromManifest(manifest: GraduationManifest): AdapterLane[] {
       tier: cleanText(row?.tier || 'candidate', 40).toLowerCase(),
       readinessTrack: cleanText(row?.readiness_track || 'unclassified', 80),
       requiredForGraduation: row?.required_for_graduation !== false,
+      supportLevel: normalizeSupportLevel(row?.support_level),
+      owner: cleanText(row?.owner || '', 120),
+      blocker: cleanText(row?.blocker || '', 200),
+      checklist: normalizeChecklist(row),
     });
   }
   return out;
@@ -344,26 +479,82 @@ function buildGraduationResults(
   });
 }
 
-function manifestConformanceViolations(manifest: GraduationManifest, adapters: AdapterLane[]): string[] {
+function manifestConformanceViolations(
+  manifest: GraduationManifest,
+  adapters: AdapterLane[],
+  targetGatewayIds: readonly string[],
+): string[] {
   const violations: string[] = [];
   const manifestRows = Array.isArray(manifest.adapters) ? manifest.adapters : [];
   const ids = manifestRows.map((row) => cleanText(row?.id || '', 80)).filter(Boolean);
   const duplicates = ids.filter((id, idx) => ids.indexOf(id) !== idx);
   duplicates.forEach((id) => violations.push(`manifest_duplicate_adapter_id:${id}`));
 
+  if (!Array.isArray(manifest.required_hooks) || manifest.required_hooks.length === 0) {
+    violations.push('manifest_required_hooks_missing_or_empty');
+  }
+  if (!Array.isArray(manifest.required_scenarios) || manifest.required_scenarios.length === 0) {
+    violations.push('manifest_required_scenarios_missing_or_empty');
+  }
+
   const byId = new Map(manifestRows.map((row) => [cleanText(row.id || '', 80), row]));
-  for (const adapter of LEGACY_REQUIRED_ADAPTERS) {
-    const declared = byId.get(adapter.id);
+  const readinessTracks = new Set<string>();
+  const requiredFlags = new Set<string>();
+
+  if (targetGatewayIds.length === 0) {
+    violations.push('manifest_gateway_targets_missing_or_empty');
+  }
+
+  for (const gatewayId of targetGatewayIds) {
+    const declared = byId.get(gatewayId);
     if (!declared) {
-      violations.push(`manifest_missing_adapter:${adapter.id}`);
+      violations.push(`manifest_missing_gateway_target:${gatewayId}`);
       continue;
     }
-    if (cleanText(declared.framework || '', 80) !== adapter.framework) {
-      violations.push(`manifest_framework_mismatch:${adapter.id}`);
+
+    const readinessTrack = cleanText(declared.readiness_track || '', 80);
+    readinessTracks.add(readinessTrack || '__missing__');
+    if (readinessTrack !== 'gateway_production_v1') {
+      violations.push(`manifest_gateway_readiness_track_invalid:${gatewayId}`);
     }
-    if (cleanText(declared.bridge_command || '', 120) !== adapter.bridgeCommand) {
-      violations.push(`manifest_bridge_command_mismatch:${adapter.id}`);
+    if (typeof declared.required_for_graduation !== 'boolean') {
+      violations.push(`manifest_gateway_required_for_graduation_missing:${gatewayId}`);
     }
+    requiredFlags.add(String(declared.required_for_graduation !== false));
+
+    const tier = cleanText(declared.tier || '', 40).toLowerCase();
+    if (!(tier === 'candidate' || tier === 'production')) {
+      violations.push(`manifest_gateway_tier_invalid:${gatewayId}`);
+    }
+
+    const supportLevel = cleanText(declared.support_level || '', 40).toLowerCase();
+    if (!(supportLevel === 'experimental' || supportLevel === 'candidate' || supportLevel === 'graduated')) {
+      violations.push(`manifest_gateway_support_level_invalid:${gatewayId}`);
+    }
+
+    const owner = cleanText(declared.owner || '', 120);
+    if (!owner) {
+      violations.push(`manifest_gateway_owner_missing:${gatewayId}`);
+    }
+    const blocker = cleanText(declared.blocker || '', 200);
+    if (supportLevel !== 'graduated' && !blocker) {
+      violations.push(`manifest_gateway_blocker_missing:${gatewayId}`);
+    }
+
+    const checklistRaw = (declared.checklist || {}) as Record<string, unknown>;
+    for (const checklistKey of CHECKLIST_KEYS) {
+      const status = cleanText(String(checklistRaw[checklistKey] || ''), 40).toLowerCase();
+      if (!CHECKLIST_ALLOWED_STATUS.has(status as ChecklistStatus)) {
+        violations.push(`manifest_gateway_checklist_status_invalid:${gatewayId}:${checklistKey}`);
+      }
+    }
+  }
+
+  if (targetGatewayIds.length > 0 && readinessTracks.size > 1) {
+    violations.push('manifest_gateway_readiness_track_mismatch');
+  }
+  if (targetGatewayIds.length > 0 && requiredFlags.size > 1) {
+    violations.push('manifest_gateway_required_for_graduation_mismatch');
   }
   if (adapters.length === 0) {
     violations.push('manifest_contains_no_executable_adapters');
@@ -408,6 +599,18 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   }
 
   const manifestAdapters = adaptersFromManifest(graduationManifest);
+  const gatewayTargetIds = resolveGatewayTargetAdapterIds(graduationManifest);
+  const gatewayTargetAdapterSet = new Set<string>(gatewayTargetIds);
+  const gatewayTargetAdapters = manifestAdapters.filter((row) => gatewayTargetAdapterSet.has(row.id));
+  const gatewaySupportLevels = gatewayTargetAdapters.map((row) => ({
+    id: row.id,
+    support_level: row.supportLevel,
+    owner: row.owner || '',
+    blocker: row.blocker || '',
+    checklist: row.checklist,
+    readiness_track: row.readinessTrack,
+    required_for_graduation: row.requiredForGraduation,
+  }));
   const graduationAdapters = manifestAdapters.filter((row) => row.requiredForGraduation);
   if (graduationAdapters.length === 0) {
     const payload = {
@@ -514,7 +717,11 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   );
   const graduationPassed = graduationResults.filter((row) => row.graduated).length;
   const graduationRatio = graduationResults.length === 0 ? 0 : graduationPassed / graduationResults.length;
-  const manifestViolations = manifestConformanceViolations(graduationManifest, graduationAdapters);
+  const manifestViolations = manifestConformanceViolations(
+    graduationManifest,
+    graduationAdapters,
+    gatewayTargetIds,
+  );
   const pendingRoadmapAdapters = manifestAdapters
     .filter((row) => !row.requiredForGraduation)
     .map((row) => ({
@@ -523,6 +730,10 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       bridge_command: row.bridgeCommand,
       tier: row.tier,
       readiness_track: row.readinessTrack,
+      support_level: row.supportLevel,
+      owner: row.owner || '',
+      blocker: row.blocker || '',
+      checklist: row.checklist,
     }));
 
   const failures = allRows
@@ -562,6 +773,9 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     graduation_manifest_path: args.graduationManifestPath,
     summary: {
       adapters_total: manifestAdapters.length,
+      gateway_targets_expected: gatewayTargetIds.length,
+      gateway_targets_total: gatewayTargetAdapters.length,
+      gateway_support_levels_published: gatewaySupportLevels.length,
       adapters_required_for_graduation: graduationAdapters.length,
       adapters_pending_roadmap: pendingRoadmapAdapters.length,
       baseline_total: baselineTotal,
@@ -581,19 +795,44 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       tier: row.tier,
       readiness_track: row.readinessTrack,
       required_for_graduation: row.requiredForGraduation,
+      support_level: row.supportLevel,
+      owner: row.owner || '',
+      blocker: row.blocker || '',
+      checklist: row.checklist,
     })),
+    gateway_support_levels: gatewaySupportLevels,
     pending_roadmap_adapters: pendingRoadmapAdapters,
     baseline_results: baselineRows,
     chaos_results: chaosRows,
     graduation_results: graduationResults,
     graduation_policy: {
       version: graduationManifest.version,
+      production_gateway_targets: gatewayTargetIds,
       required_hooks: graduationManifest.required_hooks || [],
       required_scenarios: graduationManifest.required_scenarios || [],
       manifest_violations: manifestViolations,
     },
     failures,
   };
+
+  const supportLevelsReport = {
+    ok: report.ok,
+    type: 'gateway_support_levels',
+    generated_at: report.generated_at,
+    revision: report.revision,
+    profile: report.profile,
+    summary: {
+      gateway_targets_expected: report.summary.gateway_targets_expected,
+      gateway_targets_total: report.summary.gateway_targets_total,
+      support_levels_published: report.summary.gateway_support_levels_published,
+      pending_roadmap_adapters: report.summary.adapters_pending_roadmap,
+      manifest_violations: report.summary.manifest_violations,
+    },
+    gateway_support_levels: gatewaySupportLevels,
+    pending_roadmap_adapters: pendingRoadmapAdapters,
+  };
+  writeJsonArtifact(args.outSupportLevelsPath, supportLevelsReport);
+  writeTextArtifact(args.outMarkdownPath, toMarkdown(report, supportLevelsReport));
 
   if (cleanText(process.env.INFRING_ADAPTER_CHAOS_KEEP_TMP || '', 8) !== '1') {
     try {

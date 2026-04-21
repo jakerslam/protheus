@@ -1,0 +1,49 @@
+{
+  "schema_id": "release_lane_reviewer_redundancy_policy",
+  "schema_version": "1.0.0",
+  "codeowners_path": ".github/CODEOWNERS",
+  "required_entries": [
+    {
+      "path_pattern": "/tests/tooling/scripts/ci/release_*",
+      "min_reviewers": 2,
+      "required_owners": [
+        "@protheuslabs/ops"
+      ]
+    },
+    {
+      "path_pattern": "/tests/tooling/scripts/ci/runtime_proof_*",
+      "min_reviewers": 2,
+      "required_owners": [
+        "@protheuslabs/ops"
+      ]
+    },
+    {
+      "path_pattern": "/tests/tooling/scripts/ci/layer2_*",
+      "min_reviewers": 2,
+      "required_owners": [
+        "@protheuslabs/ops"
+      ]
+    },
+    {
+      "path_pattern": "/tests/tooling/scripts/ci/adapter_runtime_chaos_gate.ts",
+      "min_reviewers": 2,
+      "required_owners": [
+        "@protheuslabs/ops"
+      ]
+    },
+    {
+      "path_pattern": "/docs/workspace/policy/",
+      "min_reviewers": 2,
+      "required_owners": [
+        "@protheuslabs/ops"
+      ]
+    },
+    {
+      "path_pattern": "/.github/workflows/",
+      "min_reviewers": 2,
+      "required_owners": [
+        "@protheuslabs/ops"
+      ]
+    }
+  ]
+}

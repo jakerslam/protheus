@@ -12,6 +12,7 @@ const MAX_ARG_LEN = 512;
 const MAX_NAME_LEN = 80;
 const MAX_HISTORY_BYTES = 64 * 1024;
 const MAX_HISTORY_FILE_BYTES = 4 * 1024 * 1024;
+const HISTORY_RETAIN_BYTES = 2 * 1024 * 1024;
 
 function sanitizeArgToken(value, maxLen = MAX_ARG_LEN) {
   const max = Math.max(1, Number(maxLen) || 1);
@@ -63,12 +64,33 @@ function emit(payload, code = 0) {
 
 function appendHistory(row) {
   ensureDir(STATE_DIR);
+  const historyPath = path.join(STATE_DIR, 'history.jsonl');
+  pruneHistoryIfNeeded(historyPath);
   const serialized = JSON.stringify(row);
   if (Buffer.byteLength(serialized, 'utf8') > MAX_HISTORY_BYTES) {
-    fs.appendFileSync(path.join(STATE_DIR, 'history.jsonl'), JSON.stringify({ ok: false, error: 'history_row_too_large', ts: nowIso() }) + '\n', 'utf8');
+    fs.appendFileSync(historyPath, JSON.stringify({ ok: false, error: 'history_row_too_large', ts: nowIso() }) + '\n', 'utf8');
     return;
   }
-  fs.appendFileSync(path.join(STATE_DIR, 'history.jsonl'), serialized + '\n', 'utf8');
+  fs.appendFileSync(historyPath, serialized + '\n', 'utf8');
+}
+
+function pruneHistoryIfNeeded(historyPath) {
+  if (!fs.existsSync(historyPath)) return;
+  const stat = fs.statSync(historyPath);
+  if (Number(stat.size || 0) <= MAX_HISTORY_FILE_BYTES) return;
+  const content = fs.readFileSync(historyPath, 'utf8');
+  const lines = content.split('\n').filter(Boolean);
+  const kept = [];
+  let bytes = 0;
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    const line = lines[i];
+    const lineBytes = Buffer.byteLength(line + '\n', 'utf8');
+    if (bytes + lineBytes > HISTORY_RETAIN_BYTES) break;
+    kept.push(line);
+    bytes += lineBytes;
+  }
+  kept.reverse();
+  fs.writeFileSync(historyPath, kept.length > 0 ? kept.join('\n') + '\n' : '', 'utf8');
 }
 
 function resolveProjectDir(projectName) {

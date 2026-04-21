@@ -72,6 +72,14 @@ fn marker_id(text: &str) -> String {
     format!("{hash:016x}")
 }
 
+fn normalize_retention_score(value: f64) -> f64 {
+    if !value.is_finite() {
+        0.0
+    } else {
+        value.clamp(0.0, 1.0)
+    }
+}
+
 fn sanitize_id_token(raw: &str) -> String {
     sanitize_plain_text(raw, MAX_ID_CHARS)
 }
@@ -131,15 +139,16 @@ fn to_hit(row: MemoryRow) -> RecallHit {
     let report = compression::report_for(&row.content);
     let (content, content_truncated) = wrap_external_untrusted_content(&row.content);
     let safe_id = sanitize_id_token(&row.id);
+    let fallback_id = format!("memory-{}-{}", marker_id(&row.content), row.updated_at.max(0));
     RecallHit {
         id: if safe_id.is_empty() {
-            format!("memory-{}", marker_id(&row.content))
+            fallback_id
         } else {
             safe_id
         },
         content,
         tags: normalize_tag_list(&row.tags),
-        retention_score: row.retention_score,
+        retention_score: normalize_retention_score(row.retention_score),
         compression_ratio: report.ratio,
         content_truncated,
         external_content: RecallExternalContent {

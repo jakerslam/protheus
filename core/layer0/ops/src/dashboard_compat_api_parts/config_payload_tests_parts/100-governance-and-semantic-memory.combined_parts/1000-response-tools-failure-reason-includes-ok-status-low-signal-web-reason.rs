@@ -15,9 +15,4 @@ fn response_tools_failure_reason_includes_ok_status_low_signal_web_reason() {
     assert!(!lowered.contains("don't have usable tool findings from this turn yet"));
 }
 
-// Decomposed for backend file-size/cohesion remediation; behavior preserved via ordered includes.
-include!("040-part_parts/000-part.rs");
-include!("040-part_parts/001-part.rs");
-include!("040-part_parts/002-part.rs");
-
 use std::sync::Mutex;

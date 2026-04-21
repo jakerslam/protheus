@@ -73,7 +73,9 @@ fn normalize_module(module: Option<&str>) -> String {
 }
 
 fn normalize_map_size(size_hint: usize) -> usize {
-    size_hint.clamp(MIN_MAPPED_BYTES, MAX_MAPPED_BYTES)
+    let clamped = size_hint.clamp(MIN_MAPPED_BYTES, MAX_MAPPED_BYTES);
+    let aligned = clamped - (clamped % MIN_MAPPED_BYTES);
+    aligned.max(MIN_MAPPED_BYTES)
 }
 
 #[derive(Debug, Clone)]
@@ -117,6 +119,10 @@ pub fn compile_runtime_image(req: &SettleRequest) -> SettleReceipt {
 pub fn memory_map_image(receipt: &mut SettleReceipt, size_hint: usize) {
     receipt.mapped_bytes = normalize_map_size(size_hint);
     receipt.metadata.insert("phase".into(), "mapped".into());
+    receipt.metadata.insert(
+        "mapped_bytes".into(),
+        receipt.mapped_bytes.to_string(),
+    );
 }
 
 pub fn health_check(receipt: &SettleReceipt) -> bool {

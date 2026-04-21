@@ -7,19 +7,28 @@ include!("lib_parts/050-run-startup-attestation.rs");
 include!("lib_parts/060-web-conduit-policy.rs");
 
 pub fn normalize_security_conduit_mode(raw: &str) -> String {
-    raw.trim()
-        .chars()
-        .filter_map(|ch| {
-            if ch.is_ascii_alphanumeric() {
-                Some(ch.to_ascii_lowercase())
-            } else if matches!(ch, '-' | '_' | ' ') {
-                Some('_')
-            } else {
-                None
+    let mut collapsed = String::new();
+    let mut last_was_sep = false;
+    for ch in raw.trim().chars() {
+        let normalized = if ch.is_ascii_alphanumeric() {
+            Some(ch.to_ascii_lowercase())
+        } else if matches!(ch, '-' | '_' | ' ') {
+            Some('_')
+        } else {
+            None
+        };
+        let Some(next) = normalized else { continue };
+        if next == '_' {
+            if last_was_sep {
+                continue;
             }
-        })
-        .collect::<String>()
-        .replace("__", "_")
+            last_was_sep = true;
+        } else {
+            last_was_sep = false;
+        }
+        collapsed.push(next);
+    }
+    collapsed
         .trim_matches('_')
         .chars()
         .take(48)

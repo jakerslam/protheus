@@ -136,3 +136,23 @@ fn source_coverage_fail_closes_on_unknown_check_id() {
     assert!(!receipt.ok);
     assert!(receipt.fail_closed);
 }
+
+#[test]
+fn source_coverage_fail_closes_on_required_overflow() {
+    let mut required = Vec::new();
+    for i in 0..600 {
+        required.push(format!("hook_{i}.js"));
+    }
+    let required_refs = required.iter().map(String::as_str).collect::<Vec<_>>();
+    let receipt = evaluate_source_hook_coverage(
+        CHECK_ID_FOUNDATION_HOOKS,
+        &required_refs,
+        "hook_1.js hook_2.js",
+    );
+    assert!(!receipt.ok);
+    assert!(receipt.fail_closed);
+    assert!(receipt
+        .evidence
+        .iter()
+        .any(|line| line == "required_overflow=1"));
+}

@@ -1,3 +1,4 @@
+// Layer ownership: core/layer0/ops::batch-query-api (authoritative)
     let min_synthesis_score = minimum_synthesis_score(benchmark_intent);
     let mut actionable_ranked = ranked
         .into_iter()

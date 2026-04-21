@@ -97,6 +97,12 @@ function parseJson(stdout: string) {
   return null;
 }
 
+function parseFiniteBoundedNumber(value: unknown, fallback: number, min: number, max: number) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
 function normalizeDelegateResult(out: any) {
   const value = out && typeof out.value === 'object' ? out.value : null;
   const status = Number.isFinite(Number(value && value.status))
@@ -339,10 +345,16 @@ function edgeStatusBundle(options: Record<string, any> = {}) {
       note: 'Removed edge/swarm wrapper-era paths are retained only as explicit compatibility notices.',
     },
   };
+  const evaluatedSurfaces = ['edge', 'lifecycle', 'cockpit', 'wrappers', 'benchmark', 'top']
+    .filter((key) => Object.prototype.hasOwnProperty.call(bundle, key));
+  const failingSurfaces = evaluatedSurfaces
+    .filter((key) => !(bundle[key] && bundle[key].ok === true));
   return {
-    ok: ['edge', 'lifecycle', 'cockpit', 'wrappers', 'benchmark', 'top']
-      .filter((key) => Object.prototype.hasOwnProperty.call(bundle, key))
-      .every((key) => bundle[key] && bundle[key].ok === true),
+    ok: failingSurfaces.length === 0,
+    surface_count: evaluatedSurfaces.length,
+    failing_surfaces: failingSurfaces,
+    generated_at: new Date().toISOString(),
+    contract_version: '2026-04-20',
     supported_surface: [
       'protheus_mobile_adapter',
       'persist-plane mobile-cockpit',
@@ -356,8 +368,8 @@ function edgeStatusBundle(options: Record<string, any> = {}) {
 
 function edgeContract(options: Record<string, any> = {}) {
   const packageBytes = folderSizeBytes(EDGE_PACKAGE_DIR);
-  const budgetMb = Number(options.max_mb || options.maxMb || 5);
-  const budgetMs = Number(options.max_ms || options.maxMs || 200);
+  const budgetMb = parseFiniteBoundedNumber(options.max_mb || options.maxMb, 5, 0.25, 256);
+  const budgetMs = parseFiniteBoundedNumber(options.max_ms || options.maxMs, 200, 20, 60_000);
   const started = process.hrtime.bigint();
   const run = edgeRuntime('status', options);
   const elapsedMs = Number(process.hrtime.bigint() - started) / 1_000_000;

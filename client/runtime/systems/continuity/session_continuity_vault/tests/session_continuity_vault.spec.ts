@@ -43,6 +43,10 @@ const withStatus = mod.normalizeArgs([]);
 assert.deepStrictEqual(withStatus, ['status']);
 assert.deepStrictEqual(mod.normalizeArgs(['archive', '--session-id=alpha']), ['put', '--session-id=alpha']);
 assert.deepStrictEqual(mod.normalizeArgs(['\u200Bunknown', '--session-id=alpha']), ['status']);
+assert.deepStrictEqual(
+  mod.normalizeArgs(['put', '../escape', '--session-id=alpha']),
+  ['put', '--session-id=alpha']
+);
 
 const wrapped = mod.ensureMutationReceipt({ payload: { ok: true, type: 'session_continuity_vault_put' } }, 'put');
 assert.ok(typeof wrapped.payload.receipt_hash === 'string');

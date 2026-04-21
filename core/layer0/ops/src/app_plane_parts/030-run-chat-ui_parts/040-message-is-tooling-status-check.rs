@@ -5,11 +5,18 @@ fn chat_ui_message_is_tooling_status_check(raw_input: &str) -> bool {
     }
     let status_frame = lowered.starts_with("did you")
         || lowered.starts_with("what happened")
+        || lowered.starts_with("whats going on")
+        || lowered.starts_with("what's going on")
+        || lowered.starts_with("why did")
         || lowered.starts_with("status")
+        || lowered.contains("what went wrong")
+        || lowered.contains("what is going on")
         || lowered.contains("did that run")
         || lowered.contains("did it run")
         || lowered.contains("did it work")
-        || lowered.contains("is it working");
+        || lowered.contains("is it working")
+        || lowered.contains("did it fail")
+        || lowered.contains("did that fail");
     if !status_frame {
         return false;
     }
@@ -26,7 +33,12 @@ fn chat_ui_message_is_tooling_status_check(raw_input: &str) -> bool {
         || lowered.contains("last run")
         || lowered.contains("workspace analysis")
         || lowered.contains("workspace analyze")
-        || lowered.contains("batch query");
+        || lowered.contains("batch query")
+        || lowered.contains("file tooling")
+        || lowered.contains("tool routing")
+        || lowered.contains("gate")
+        || lowered.contains("gating")
+        || lowered.contains("receipt");
     if !tooling_reference {
         return false;
     }

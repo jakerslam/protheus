@@ -160,13 +160,53 @@ fn decode_html_payload(parsed: &ParsedArgs, root: &Path) -> Result<String, Strin
     Err("missing_html_input".to_string())
 }
 
+fn normalize_xpath_expression(expression: &str) -> String {
+    let normalized = expression.trim().to_ascii_lowercase();
+    if normalized.is_empty() {
+        return String::new();
+    }
+    if normalized.starts_with("//") {
+        return normalized;
+    }
+    format!("//{}", normalized.trim_start_matches('/'))
+}
+
+fn normalize_xpath_prefixed_selector(selector: &str) -> Option<String> {
+    let trimmed = selector.trim();
+    let lowered = trimmed.to_ascii_lowercase();
+    if !lowered.starts_with("xpath") {
+        return None;
+    }
+    let mut tail = trimmed.get(5..).unwrap_or_default().trim_start();
+    if let Some(rest) = tail.strip_prefix("://") {
+        return Some(normalize_xpath_expression(rest));
+    }
+    if let Some(rest) = tail.strip_prefix(':') {
+        return Some(normalize_xpath_expression(rest));
+    }
+    if let Some(rest) = tail.strip_prefix('=') {
+        return Some(normalize_xpath_expression(rest));
+    }
+    tail = tail.trim_start_matches(char::is_whitespace);
+    if let Some(rest) = tail.strip_prefix("://") {
+        return Some(normalize_xpath_expression(rest));
+    }
+    if let Some(rest) = tail.strip_prefix(':') {
+        return Some(normalize_xpath_expression(rest));
+    }
+    if let Some(rest) = tail.strip_prefix('=') {
+        return Some(normalize_xpath_expression(rest));
+    }
+    None
+}
+
 fn normalize_selector_for_match(selector: &str) -> String {
     let trimmed = selector.trim();
     if trimmed.is_empty() {
         return String::new();
     }
-    if let Some(xpath) = trimmed.strip_prefix("xpath=") {
-        return xpath.trim().to_ascii_lowercase();
+    if let Some(xpath) = normalize_xpath_prefixed_selector(trimmed) {
+        return xpath;
     }
     trimmed.to_ascii_lowercase()
 }

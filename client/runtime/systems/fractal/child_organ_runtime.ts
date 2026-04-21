@@ -43,11 +43,18 @@ function withReceiptHash(payload) {
   if (!payload || typeof payload !== 'object') {
     return payload;
   }
-  if (typeof payload.receipt_hash === 'string' && payload.receipt_hash.trim()) {
-    return payload;
+  const normalized = Object.assign({}, payload);
+  if (typeof normalized.type !== 'string' || !normalized.type.trim()) {
+    normalized.type = 'child_organ_runtime';
   }
-  return Object.assign({}, payload, {
-    receipt_hash: normalizeReceiptHash(payload)
+  if (typeof normalized.lane !== 'string' || !normalized.lane.trim()) {
+    normalized.lane = bridge.lane;
+  }
+  if (typeof normalized.receipt_hash === 'string' && normalized.receipt_hash.trim()) {
+    return normalized;
+  }
+  return Object.assign({}, normalized, {
+    receipt_hash: normalizeReceiptHash(normalized)
   });
 }
 
@@ -58,6 +65,10 @@ function sanitizeArg(value) {
     .replace(/[^\x20-\x7E]+/g, '')
     .trim()
     .slice(0, MAX_ARG_LEN);
+}
+
+function isUnsafeToken(token) {
+  return token.includes('..') || token.includes('\0') || token.startsWith('/') || token.startsWith('\\');
 }
 
 function ensureMutationReceipt(result, command) {
@@ -74,7 +85,10 @@ function ensureMutationReceipt(result, command) {
 
 function mapArgs(args = []) {
   const rows = (Array.isArray(args)
-    ? args.map((v) => sanitizeArg(v)).filter(Boolean).slice(0, MAX_ARGS)
+    ? args
+        .map((v) => sanitizeArg(v))
+        .filter((row) => row && !isUnsafeToken(row))
+        .slice(0, MAX_ARGS)
     : []);
   while (rows.length && WRAPPER_TOKENS.has((rows[0] || '').toLowerCase())) {
     rows.shift();

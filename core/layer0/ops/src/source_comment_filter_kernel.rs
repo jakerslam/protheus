@@ -13,7 +13,7 @@ use std::path::Path;
 use std::sync::OnceLock;
 
 use crate::contract_lane_utils as lane_utils;
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum FilterLevel {
@@ -80,6 +80,36 @@ impl Language {
             _ => Self::Unknown,
         }
     }
+    fn from_hint(raw: &str) -> Self {
+        let token = raw
+            .trim()
+            .trim_start_matches('.')
+            .to_ascii_lowercase()
+            .replace('-', "")
+            .replace('_', "");
+        match token.as_str() {
+            "rust" => Self::Rust,
+            "python" | "py" | "pyw" => Self::Python,
+            "javascript" | "js" | "node" | "nodejs" | "mjs" | "cjs" => Self::JavaScript,
+            "typescript" | "ts" | "tsx" | "mts" | "cts" => Self::TypeScript,
+            "go" | "golang" => Self::Go,
+            "shell" | "sh" | "bash" | "zsh" => Self::Shell,
+            "data" | "json" | "yaml" | "yml" | "toml" | "xml" | "csv" | "tsv" | "md" | "markdown" | "txt" | "text" => Self::Data,
+            _ => Self::from_extension(raw),
+        }
+    }
+    fn default_extension(self) -> &'static str {
+        match self {
+            Self::Rust => "rs",
+            Self::Python => "py",
+            Self::JavaScript => "js",
+            Self::TypeScript => "ts",
+            Self::Go => "go",
+            Self::Shell => "sh",
+            Self::Data => "txt",
+            Self::Unknown => "",
+        }
+    }
     fn as_str(self) -> &'static str {
         match self {
             Self::Rust => "rust",
@@ -112,23 +142,23 @@ fn resolve_input_language(input: &Map<String, Value>) -> (Language, String, Stri
     let file_path = clean_text(input.get("file_path").and_then(Value::as_str).unwrap_or(""), 520);
 
     if !explicit_lang.is_empty() {
-        let lang = Language::from_extension(&explicit_lang);
+        let lang = Language::from_hint(&explicit_lang);
         if lang != Language::Unknown {
             return (
                 lang,
-                Language::canonical_extension(&explicit_lang),
+                lang.default_extension().to_string(),
                 "language".to_string(),
             );
         }
     }
     if !explicit_ext.is_empty() {
         let ext = Language::canonical_extension(&explicit_ext);
-        return (Language::from_extension(&ext), ext, "extension".to_string());
+        return (Language::from_hint(&ext), ext, "extension".to_string());
     }
     let inferred = infer_extension_from_path(&file_path);
     if !inferred.is_empty() {
         return (
-            Language::from_extension(&inferred),
+            Language::from_hint(&inferred),
             inferred,
             "file_path".to_string(),
         );
@@ -459,5 +489,23 @@ mod tests {
         let src = "{\"ok\":true}\n";
         let out = minimal_filter(src, Language::Data);
         assert_eq!(out, src.trim());
+    }
+
+    #[test]
+    fn resolve_language_supports_canonical_language_names() {
+        let (lang, extension, detected_from) =
+            resolve_input_language(lane_utils::payload_obj(&json!({"language":"rust"})));
+        assert_eq!(lang, Language::Rust);
+        assert_eq!(extension, "rs");
+        assert_eq!(detected_from, "language");
+    }
+
+    #[test]
+    fn resolve_language_supports_shell_aliases() {
+        let (lang, extension, detected_from) =
+            resolve_input_language(lane_utils::payload_obj(&json!({"language":"shell"})));
+        assert_eq!(lang, Language::Shell);
+        assert_eq!(extension, "sh");
+        assert_eq!(detected_from, "language");
     }
 }

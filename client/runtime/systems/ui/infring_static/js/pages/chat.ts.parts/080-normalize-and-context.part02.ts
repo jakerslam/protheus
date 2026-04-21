@@ -443,7 +443,10 @@
           agent_origin: m && m.agent_origin ? String(m.agent_origin) : '',
           system_origin: systemOrigin,
           actor_id: m && m.actor_id ? String(m.actor_id) : '',
-          actor: m && m.actor ? String(m.actor) : ''
+          actor: m && m.actor ? String(m.actor) : '',
+          render_height_px: Number.isFinite(Number(m && m.render_height_px)) ? Math.max(0, Math.round(Number(m.render_height_px))) : 0,
+          render_width_bucket_px: Number.isFinite(Number(m && m.render_width_bucket_px)) ? Math.max(0, Math.round(Number(m.render_width_bucket_px))) : 0,
+          render_measured_at: Number.isFinite(Number(m && m.render_measured_at)) ? Math.max(0, Math.round(Number(m.render_measured_at))) : 0
         }, messageMetadata || {});
       }).filter(function(row) { return !!row; });
     },

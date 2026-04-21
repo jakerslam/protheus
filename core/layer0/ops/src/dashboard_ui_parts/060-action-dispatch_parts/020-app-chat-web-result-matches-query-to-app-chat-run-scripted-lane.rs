@@ -27,6 +27,9 @@ fn app_chat_contains_irrelevant_dump(raw_input: &str, response: &str) -> bool {
     if response_lowered.is_empty() {
         return false;
     }
+    if app_chat_contains_malformed_tool_emit(response) {
+        return true;
+    }
 
     let role_preamble_hits = [
         "i am an expert in the field",
@@ -63,10 +66,46 @@ fn app_chat_contains_irrelevant_dump(raw_input: &str, response: &str) -> bool {
     .iter()
     .filter(|marker| response_lowered.contains(**marker))
     .count();
-    competitive_dump_hits >= 3
+    if competitive_dump_hits >= 3
         && !user_lowered.contains("translate")
         && !user_lowered.contains("python function")
         && !user_lowered.contains("java code")
+    {
+        return true;
+    }
+
+    let web_metadata_dump_hits = [
+        "title:",
+        "excerpt:",
+        "originalurl:",
+        "publisheddatetime",
+        "featuredcontent:",
+        "provider:",
+        "<iframe",
+        "type: video",
+        "price: free",
+        "length: pt",
+    ]
+    .iter()
+    .filter(|marker| response_lowered.contains(**marker))
+    .count();
+    web_metadata_dump_hits >= 3 && !app_chat_has_explicit_web_intent(&user_lowered)
+}
+
+fn app_chat_contains_malformed_tool_emit(response: &str) -> bool {
+    let cleaned = clean_text(response, 8_000);
+    let lowered = cleaned.to_ascii_lowercase();
+    if !lowered.contains("<function=") {
+        return false;
+    }
+    let open_braces = cleaned.chars().filter(|ch| *ch == '{').count();
+    let close_braces = cleaned.chars().filter(|ch| *ch == '}').count();
+    if open_braces != close_braces {
+        return true;
+    }
+    lowered.contains("<function=")
+        && lowered.contains("{\"path\":\".")
+        && !cleaned.trim_end().ends_with('}')
 }
 
 fn app_chat_tool_name_is_web_search(name: &str) -> bool {
@@ -91,6 +130,42 @@ fn app_chat_web_search_call_count(tools: &[Value]) -> usize {
             )
         })
         .count()
+}
+
+fn app_chat_validate_web_tool_call_schema(tool_name: &str, query: &str) -> Result<(), &'static str> {
+    let normalized_tool = clean_text(tool_name, 80).to_ascii_lowercase();
+    if normalized_tool != "batch_query" {
+        return Err("tool_call_schema_invalid_name");
+    }
+    let normalized_query = clean_text(query, 320);
+    if normalized_query.is_empty() {
+        return Err("tool_call_schema_invalid_query_empty");
+    }
+    if normalized_query.len() < 8 {
+        return Err("tool_call_schema_invalid_query_too_short");
+    }
+    if normalized_query.to_ascii_lowercase().contains("<function=") {
+        return Err("tool_call_schema_invalid_query_malformed");
+    }
+    if normalized_query.split_whitespace().count() < 2 {
+        return Err("tool_call_schema_invalid_query_shape");
+    }
+    Ok(())
+}
+
+fn app_chat_retry_contract(max_retries: i64, attempted_retries: i64, terminal_reason: Option<&str>) -> Value {
+    let max_retries = max_retries.max(0);
+    let attempted_retries = attempted_retries.max(0).min(max_retries);
+    let retry_remaining = max_retries.saturating_sub(attempted_retries);
+    let terminal = terminal_reason.is_some();
+    json!({
+        "max_retries": max_retries,
+        "attempted_retries": attempted_retries,
+        "retry_remaining": retry_remaining,
+        "terminal": terminal,
+        "terminal_reason": terminal_reason.unwrap_or("none"),
+        "mode": "strict_max_1"
+    })
 }
 
 fn app_chat_run_web_batch_query(root: &Path, query: &str, _payload: &Value) -> LaneResult {
@@ -127,6 +202,32 @@ fn app_chat_run_web_batch_query(root: &Path, query: &str, _payload: &Value) -> L
             "--aperture=medium".to_string(),
         ],
     )
+}
+
+fn app_chat_run_web_batch_query_with_schema_guard(
+    root: &Path,
+    query: &str,
+    payload: &Value,
+) -> LaneResult {
+    if let Err(schema_error) = app_chat_validate_web_tool_call_schema("batch_query", query) {
+        return LaneResult {
+            ok: false,
+            status: 2,
+            argv: vec![
+                "batch-query".to_string(),
+                "--source=web".to_string(),
+                format!("--query={}", clean_text(query, 320)),
+            ],
+            payload: Some(json!({
+                "ok": false,
+                "type": "batch_query",
+                "status": "schema_invalid",
+                "error": schema_error,
+                "query": clean_text(query, 320)
+            })),
+        };
+    }
+    app_chat_run_web_batch_query(root, query, payload)
 }
 
 #[cfg(test)]

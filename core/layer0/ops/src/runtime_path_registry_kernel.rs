@@ -7,7 +7,7 @@ use serde_json::{json, Map, Value};
 use std::path::{Path, PathBuf};
 
 use crate::contract_lane_utils as lane_utils;
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 
 const CLIENT_LOCAL_ROOT: &str = "client/runtime/local";
 const CLIENT_STATE_ROOT: &str = "client/runtime/local/state";

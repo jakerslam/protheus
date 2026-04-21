@@ -15,7 +15,7 @@ enum StrategyFamily {
     MemoryFirst,
 }
 
-pub fn build_plan_candidates(
+pub fn propose_decomposition_candidates(
     request: &TypedOrchestrationRequest,
     classification: &RequestClassification,
 ) -> Vec<PlanCandidate> {
@@ -75,16 +75,31 @@ pub fn build_plan_candidates(
     candidates
 }
 
-pub fn build_plan_candidate(
+pub fn propose_decomposition_candidate(
     request: &TypedOrchestrationRequest,
     classification: &RequestClassification,
 ) -> PlanCandidate {
-    build_plan_candidates(request, classification)
+    propose_decomposition_candidates(request, classification)
         .into_iter()
         .next()
         .unwrap_or_else(|| {
             empty_candidate(classification, Vec::new(), PlanVariant::ClarificationFirst)
         })
+}
+
+// Compatibility aliases for existing callers during control-plane naming transition.
+pub fn build_plan_candidates(
+    request: &TypedOrchestrationRequest,
+    classification: &RequestClassification,
+) -> Vec<PlanCandidate> {
+    propose_decomposition_candidates(request, classification)
+}
+
+pub fn build_plan_candidate(
+    request: &TypedOrchestrationRequest,
+    classification: &RequestClassification,
+) -> PlanCandidate {
+    propose_decomposition_candidate(request, classification)
 }
 
 fn build_candidate_for_variant(

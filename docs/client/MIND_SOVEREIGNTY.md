@@ -2,7 +2,7 @@
 
 Mind sovereignty is the non-negotiable top rule for Protheus.
 
-## Core Guarantees
+## Kernel Guarantees
 
 - Identity boundaries (human, primary mind, guest mind, sub-agent mind) remain isolated by default.
 - Soul-vector continuity remains tamper-evident and cannot be silently rewritten by mutation lanes.

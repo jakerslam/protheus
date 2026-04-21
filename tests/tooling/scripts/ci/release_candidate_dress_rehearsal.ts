@@ -38,6 +38,7 @@ const DEFAULT_SEQUENCE = [
   'ops:layer2:parity:guard',
   'ops:layer2:receipt:replay',
   'ops:trusted-core:report',
+  'ops:srs:todo-section:guard',
   'ops:ipc-bridge:soak',
   'ops:release:scorecard:gate',
   'ops:production-closure:gate',

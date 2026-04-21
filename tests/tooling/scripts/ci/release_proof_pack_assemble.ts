@@ -15,6 +15,12 @@ type PackManifest = {
   optional_artifacts: string[];
 };
 
+const MANDATORY_RELEASE_PROOF_ARTIFACTS = [
+  'core/local/artifacts/layer2_lane_parity_guard_current.json',
+  'core/local/artifacts/layer2_receipt_replay_current.json',
+  'core/local/artifacts/runtime_trusted_core_report_current.json',
+];
+
 function parseArgs(argv: string[]) {
   const common = parseStrictOutArgs(argv, {
     out: 'core/local/artifacts/release_proof_pack_current.json',
@@ -142,6 +148,28 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   }
 
   const requiredMissing = artifactRows.filter((row) => row.required && !row.exists).map((row) => row.path);
+  const mandatoryArtifactFailures = MANDATORY_RELEASE_PROOF_ARTIFACTS.map((artifactPath) => {
+    const row = artifactRows.find((candidate) => candidate.path === artifactPath);
+    if (!row) {
+      return {
+        path: artifactPath,
+        failure: 'missing_from_manifest',
+      };
+    }
+    if (!row.required) {
+      return {
+        path: artifactPath,
+        failure: 'not_required_in_manifest',
+      };
+    }
+    if (!row.exists) {
+      return {
+        path: artifactPath,
+        failure: 'required_artifact_missing',
+      };
+    }
+    return null;
+  }).filter((row): row is { path: string; failure: string } => !!row);
   const categoryCompletenessMin = manifest.category_completeness_min || {};
   const categories = Array.from(new Set(artifactRows.map((row) => row.category)));
   const categorySummary = categories.map((category) => {
@@ -179,7 +207,10 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     })
     .filter((row): row is { id: string; category: string; threshold: number; actual: number; ok: boolean; detail: string } => !!row)
     .filter((row) => !row.ok);
-  const pass = requiredMissing.length === 0 && categoryThresholdFailures.length === 0;
+  const pass =
+    requiredMissing.length === 0 &&
+    mandatoryArtifactFailures.length === 0 &&
+    categoryThresholdFailures.length === 0;
 
   const packManifest = {
     ok: pass,
@@ -192,6 +223,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     category_completeness_min: categoryCompletenessMin,
     artifacts: artifactRows,
     required_missing: requiredMissing,
+    mandatory_artifact_failures: mandatoryArtifactFailures,
     category_threshold_failures: categoryThresholdFailures,
     category_summary: categorySummary,
   };
@@ -214,15 +246,21 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     summary: {
       artifact_count: artifactRows.length,
       required_missing: requiredMissing.length,
+      mandatory_artifact_failure_count: mandatoryArtifactFailures.length,
       category_threshold_failure_count: categoryThresholdFailures.length,
       pass,
     },
     category_completeness_min: categoryCompletenessMin,
     artifacts: artifactRows,
     category_summary: categorySummary,
+    mandatory_artifact_failures: mandatoryArtifactFailures,
     category_threshold_failures: categoryThresholdFailures,
     failures: [
       ...requiredMissing.map((detail) => ({ id: 'proof_pack_required_artifact_missing', detail })),
+      ...mandatoryArtifactFailures.map((row) => ({
+        id: 'proof_pack_mandatory_artifact_violation',
+        detail: `${row.path}:${row.failure}`,
+      })),
       ...categoryThresholdFailures.map((row) => ({ id: row.id, detail: row.detail })),
     ],
     artifact_paths: [packManifestPath, reportPath],

@@ -7,6 +7,7 @@ use protheus_singularity_seed_core_v1::{
 use std::collections::BTreeMap;
 use std::env;
 use std::fs;
+use std::path::{Component, Path};
 
 const MAX_ARG_KEY_LEN: usize = 48;
 const MAX_ARG_VALUE_LEN: usize = 32 * 1024;
@@ -52,6 +53,23 @@ fn parse_arg(args: &[String], key: &str) -> Option<String> {
     None
 }
 
+fn is_safe_request_file_path(raw: &str) -> bool {
+    let path = Path::new(raw);
+    if raw.is_empty() || path.is_dir() {
+        return false;
+    }
+    if path
+        .components()
+        .any(|component| matches!(component, Component::ParentDir))
+    {
+        return false;
+    }
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.eq_ignore_ascii_case("json"))
+        .unwrap_or(false)
+}
+
 fn parse_request(args: &[String]) -> Result<CycleRequest, String> {
     if let Some(v) = parse_arg(args, "--request-json") {
         if v.len() > MAX_ARG_VALUE_LEN {
@@ -70,8 +88,14 @@ fn parse_request(args: &[String]) -> Result<CycleRequest, String> {
         return serde_json::from_str(&text).map_err(|err| format!("request_parse_failed:{err}"));
     }
     if let Some(v) = parse_arg(args, "--request-file") {
+        if !is_safe_request_file_path(&v) {
+            return Err("request_file_path_invalid".to_string());
+        }
         let metadata =
             fs::metadata(v.as_str()).map_err(|err| format!("request_file_stat_failed:{err}"))?;
+        if !metadata.is_file() {
+            return Err("request_file_not_a_file".to_string());
+        }
         if metadata.len() > MAX_ARG_VALUE_LEN as u64 {
             return Err("request_file_too_large".to_string());
         }

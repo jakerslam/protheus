@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-use infring_types::{decode_normalized_blob_manifest, normalize_sha256_hash};
+use protheus_nexus_core_v1::{decode_normalized_blob_manifest, normalize_sha256_hash};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -10,6 +10,8 @@ pub const OBS_RUNTIME_BLOB: &[u8] = include_bytes!("blobs/observability_runtime_
 pub const MANIFEST_BLOB: &[u8] = include_bytes!("blobs/manifest.blob");
 const MAX_BLOB_ID_LEN: usize = 128;
 const MAX_MANIFEST_ENTRIES: usize = 1024;
+const MAX_PERCENT_PCT: f64 = 100.0;
+const MAX_TELEMETRY_OVERHEAD_MS: f64 = 60_000.0;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ObservabilityRuntimeEnvelope {
@@ -106,6 +108,11 @@ pub fn load_embedded_observability_runtime_envelope(
             "max_telemetry_overhead_invalid".to_string(),
         ));
     }
+    if envelope.max_telemetry_overhead_ms > MAX_TELEMETRY_OVERHEAD_MS {
+        return Err(BlobError::DecodeFailed(
+            "max_telemetry_overhead_out_of_bounds".to_string(),
+        ));
+    }
     if !envelope.max_battery_pct_24h.is_finite()
         || envelope.max_battery_pct_24h <= 0.0
         || envelope.max_battery_pct_24h > 100.0
@@ -116,6 +123,11 @@ pub fn load_embedded_observability_runtime_envelope(
     }
     if !envelope.max_drift_pct.is_finite() || envelope.max_drift_pct < 0.0 {
         return Err(BlobError::DecodeFailed("max_drift_pct_invalid".to_string()));
+    }
+    if envelope.max_drift_pct > MAX_PERCENT_PCT {
+        return Err(BlobError::DecodeFailed(
+            "max_drift_pct_out_of_bounds".to_string(),
+        ));
     }
     Ok(envelope)
 }

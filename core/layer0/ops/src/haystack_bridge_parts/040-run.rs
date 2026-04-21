@@ -137,6 +137,74 @@ mod tests {
     }
 
     #[test]
+    fn template_render_supports_text_and_content_variable_aliases_without_json_leak() {
+        let mut state = default_state();
+        let payload = json!({
+            "name": "support-template",
+            "template": "Hello %name% from {{city}}"
+        });
+        let _ = register_template(&mut state, payload.as_object().unwrap()).expect("template");
+        let template_id = state["templates"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .next()
+            .unwrap()
+            .to_string();
+        let render = render_template(
+            &mut state,
+            json!({
+                "template_id": template_id,
+                "variables": {
+                    "name": {"text": "Jay", "description": "operator alias"},
+                    "city": {"content": "Denver", "meta": {"tz": "MST"}}
+                }
+            })
+            .as_object()
+            .unwrap(),
+        )
+        .expect("render");
+        let output = render["render"]["output"].as_str().unwrap_or("");
+        assert_eq!(output, "Hello Jay from Denver");
+        assert!(!output.contains('{'));
+    }
+
+    #[test]
+    fn template_render_supports_nested_rich_variable_aliases_without_json_leak() {
+        let mut state = default_state();
+        let payload = json!({
+            "name": "support-template",
+            "template": "Hello %name% from {{city}}"
+        });
+        let _ = register_template(&mut state, payload.as_object().unwrap()).expect("template");
+        let template_id = state["templates"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .next()
+            .unwrap()
+            .to_string();
+        let render = render_template(
+            &mut state,
+            json!({
+                "template_id": template_id,
+                "variables": {
+                    "name": {"value": {"text": "Jay"}},
+                    "city": {"content": {"value": "Denver"}},
+                    "ignored": {"value": {"meta": {"tz": "MST"}}}
+                }
+            })
+            .as_object()
+            .unwrap(),
+        )
+        .expect("render");
+        let output = render["render"]["output"].as_str().unwrap_or("");
+        assert_eq!(output, "Hello Jay from Denver");
+        assert!(!output.contains('{'));
+        assert!(!output.contains("meta"));
+    }
+
+    #[test]
     fn route_and_rank_is_deterministic() {
         let mut state = default_state();
         let out = route_and_rank(&mut state, json!({

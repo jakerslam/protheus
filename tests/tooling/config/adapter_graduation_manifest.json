@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "required_hooks": [
     "health_check",
     "startup_timeout_policy",
@@ -16,6 +16,13 @@
     "response_too_large",
     "repeated_flapping"
   ],
+  "production_gateway_targets": [
+    "ollama",
+    "llama_cpp",
+    "mcp_baseline",
+    "otlp_exporter",
+    "durable_memory_local"
+  ],
   "adapters": [
     {
       "id": "langgraph",
@@ -23,7 +30,10 @@
       "bridge_command": "workflow_graph-bridge",
       "tier": "production",
       "readiness_track": "framework_bridge",
-      "required_for_graduation": true
+      "required_for_graduation": true,
+      "support_level": "graduated",
+      "owner": "gateway-runtime-team",
+      "blocker": ""
     },
     {
       "id": "crewai",
@@ -31,7 +41,10 @@
       "bridge_command": "crewai-bridge",
       "tier": "production",
       "readiness_track": "framework_bridge",
-      "required_for_graduation": true
+      "required_for_graduation": true,
+      "support_level": "graduated",
+      "owner": "gateway-runtime-team",
+      "blocker": ""
     },
     {
       "id": "openai_agents",
@@ -39,7 +52,10 @@
       "bridge_command": "pydantic-ai-bridge",
       "tier": "production",
       "readiness_track": "framework_bridge",
-      "required_for_graduation": true
+      "required_for_graduation": true,
+      "support_level": "graduated",
+      "owner": "gateway-runtime-team",
+      "blocker": ""
     },
     {
       "id": "mastra",
@@ -47,7 +63,10 @@
       "bridge_command": "mastra-bridge",
       "tier": "production",
       "readiness_track": "framework_bridge",
-      "required_for_graduation": true
+      "required_for_graduation": true,
+      "support_level": "graduated",
+      "owner": "gateway-runtime-team",
+      "blocker": ""
     },
     {
       "id": "semantic_kernel",
@@ -55,15 +74,28 @@
       "bridge_command": "semantic-kernel-bridge",
       "tier": "production",
       "readiness_track": "framework_bridge",
-      "required_for_graduation": true
+      "required_for_graduation": true,
+      "support_level": "graduated",
+      "owner": "gateway-runtime-team",
+      "blocker": ""
     },
     {
       "id": "ollama",
       "framework": "ollama",
       "bridge_command": "ollama-bridge",
       "tier": "candidate",
-      "readiness_track": "roadmap_production",
+      "readiness_track": "gateway_production_v1",
       "required_for_graduation": false,
+      "support_level": "candidate",
+      "owner": "gateway-roadmap",
+      "blocker": "bridge lane pending",
+      "checklist": {
+        "health_checks": "in_progress",
+        "fail_closed_behavior": "in_progress",
+        "chaos_scenarios": "in_progress",
+        "receipt_completeness": "in_progress",
+        "fallback_degradation_declaration": "in_progress"
+      },
       "notes": "roadmap adapter tracked in graduation manifest; bridge lane pending"
     },
     {
@@ -71,8 +103,18 @@
       "framework": "llama_cpp",
       "bridge_command": "llama-cpp-bridge",
       "tier": "candidate",
-      "readiness_track": "roadmap_production",
+      "readiness_track": "gateway_production_v1",
       "required_for_graduation": false,
+      "support_level": "candidate",
+      "owner": "gateway-roadmap",
+      "blocker": "bridge lane pending",
+      "checklist": {
+        "health_checks": "in_progress",
+        "fail_closed_behavior": "in_progress",
+        "chaos_scenarios": "in_progress",
+        "receipt_completeness": "in_progress",
+        "fallback_degradation_declaration": "in_progress"
+      },
       "notes": "roadmap adapter tracked in graduation manifest; bridge lane pending"
     },
     {
@@ -80,8 +122,18 @@
       "framework": "mcp",
       "bridge_command": "mcp-bridge",
       "tier": "candidate",
-      "readiness_track": "roadmap_production",
+      "readiness_track": "gateway_production_v1",
       "required_for_graduation": false,
+      "support_level": "candidate",
+      "owner": "gateway-roadmap",
+      "blocker": "baseline contract pending",
+      "checklist": {
+        "health_checks": "in_progress",
+        "fail_closed_behavior": "in_progress",
+        "chaos_scenarios": "in_progress",
+        "receipt_completeness": "in_progress",
+        "fallback_degradation_declaration": "in_progress"
+      },
       "notes": "roadmap adapter tracked in graduation manifest; baseline contract pending"
     },
     {
@@ -89,8 +141,18 @@
       "framework": "otlp",
       "bridge_command": "otlp-export-bridge",
       "tier": "candidate",
-      "readiness_track": "roadmap_production",
+      "readiness_track": "gateway_production_v1",
       "required_for_graduation": false,
+      "support_level": "candidate",
+      "owner": "gateway-roadmap",
+      "blocker": "export lane pending",
+      "checklist": {
+        "health_checks": "in_progress",
+        "fail_closed_behavior": "in_progress",
+        "chaos_scenarios": "in_progress",
+        "receipt_completeness": "in_progress",
+        "fallback_degradation_declaration": "in_progress"
+      },
       "notes": "roadmap adapter tracked in graduation manifest; export lane pending"
     },
     {
@@ -98,9 +160,19 @@
       "framework": "durable_memory_local",
       "bridge_command": "durable-memory-bridge",
       "tier": "candidate",
-      "readiness_track": "roadmap_production",
+      "readiness_track": "gateway_production_v1",
       "required_for_graduation": false,
-      "notes": "roadmap adapter tracked in graduation manifest; local durability lane pending"
+      "support_level": "candidate",
+      "owner": "gateway-roadmap",
+      "blocker": "local durability lane pending",
+      "checklist": {
+        "health_checks": "in_progress",
+        "fail_closed_behavior": "in_progress",
+        "chaos_scenarios": "in_progress",
+        "receipt_completeness": "in_progress",
+        "fallback_degradation_declaration": "in_progress"
+      },
+      "notes": "roadmap adapter tracked in graduation manifest; local_durable_memory_backend compatibility alias"
     }
   ]
 }

@@ -345,7 +345,17 @@
 
     workspacePanelPayload: function() {
       var state = this._workspaceState();
-      return state.payload && typeof state.payload === 'object' ? state.payload : null;
+      if (state.payload && typeof state.payload === 'object') return state.payload;
+      return {
+        id: '',
+        actor: '',
+        timestamp: '',
+        preview: '',
+        sources: [],
+        trace: [],
+        artifacts: [],
+        rows_count: 0
+      };
     },
 
     messageRetrySource: function(msg, idx, rows) {
@@ -387,6 +397,72 @@
         return false;
       }
       return !!this.messageRetrySource(msg, idx, rows);
+    },
+
+    _resolveMessageIndexFromMeta: function(msg, idx, rows) {
+      var list = Array.isArray(rows) ? rows : (Array.isArray(this.messages) ? this.messages : []);
+      if (!list.length) return -1;
+      var rowId = String(msg && msg.id || '').trim();
+      var resolvedIndex = Number(idx);
+      if (!Number.isFinite(resolvedIndex) || resolvedIndex < 0 || resolvedIndex >= list.length) {
+        resolvedIndex = -1;
+      }
+      if (resolvedIndex >= 0) {
+        var probe = list[resolvedIndex];
+        if (probe && rowId && String(probe.id || '').trim() !== rowId) {
+          resolvedIndex = -1;
+        }
+      }
+      if (resolvedIndex >= 0) return resolvedIndex;
+      for (var i = list.length - 1; i >= 0; i -= 1) {
+        var candidate = list[i];
+        if (!candidate) continue;
+        if (candidate === msg) return i;
+        if (rowId && String(candidate.id || '').trim() === rowId) return i;
+      }
+      return -1;
+    },
+
+    messageCanReplyFromMeta: function(msg, idx, rows) {
+      var list = Array.isArray(rows) ? rows : (Array.isArray(this.messages) ? this.messages : []);
+      if (!list.length) return false;
+      var resolvedIndex = this._resolveMessageIndexFromMeta(msg, idx, list);
+      if (resolvedIndex < 0) return false;
+      var row = list[resolvedIndex];
+      if (!row || row.is_notice) return false;
+      var text = String(row.text || '').trim();
+      return text.length > 0;
+    },
+
+    replyToMessageFromMeta: function(msg, idx, rows) {
+      var list = Array.isArray(rows) ? rows : (Array.isArray(this.messages) ? this.messages : []);
+      if (!list.length) return;
+      var resolvedIndex = this._resolveMessageIndexFromMeta(msg, idx, list);
+      if (resolvedIndex < 0) return;
+      var row = list[resolvedIndex];
+      if (!row || row.is_notice) return;
+      var rowText = String(row.text || '').replace(/\s+/g, ' ').trim();
+      if (!rowText) return;
+      var shortText = rowText.length > 140 ? (rowText.slice(0, 137).trimEnd() + '...') : rowText;
+      var replySeed = 'Reply to: "' + shortText + '"\n';
+      var currentText = String(this.inputText || '');
+      this.inputText = currentText.trim() ? (replySeed + currentText) : replySeed;
+      this._pendingReplyFromMeta = {
+        message_id: String(row.id || '').trim(),
+        message_index: resolvedIndex,
+        created_at: Date.now()
+      };
+      if (typeof this.autoResizeChatInput === 'function') {
+        try { this.autoResizeChatInput(); } catch(_) {}
+      }
+      if (typeof this.$nextTick === 'function') {
+        this.$nextTick(function() {
+          try {
+            var input = document.getElementById('msg-input');
+            if (input && typeof input.focus === 'function') input.focus();
+          } catch(_) {}
+        });
+      }
     },
 
     messageCanForkFromMeta: function(msg) {

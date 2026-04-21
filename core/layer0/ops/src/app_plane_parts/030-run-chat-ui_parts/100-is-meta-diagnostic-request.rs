@@ -2,7 +2,22 @@ fn chat_ui_is_meta_diagnostic_request(lowered: &str) -> bool {
     if lowered.is_empty() {
         return false;
     }
-    if chat_ui_has_explicit_web_intent(lowered) {
+    let explicit_web_intent = chat_ui_has_explicit_web_intent(lowered);
+    let explicit_web_diagnostic_qualifier = [
+        "randomly again",
+        "random web",
+        "bad web request",
+        "shouldnt require a web search",
+        "shouldn't require a web search",
+        "didnt require a web search",
+        "didn't require a web search",
+        "why did my last prompt become a web search",
+        "web search kicking in",
+        "kicking in randomly",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(*marker));
+    if explicit_web_intent && !explicit_web_diagnostic_qualifier {
         return false;
     }
     if [
@@ -15,6 +30,12 @@ fn chat_ui_is_meta_diagnostic_request(lowered: &str) -> bool {
         "you returned no result",
         "you hallucinated",
         "answer the question",
+        "automatic tool selection",
+        "automatic tool calls",
+        "system shouldnt be doing automatic tool calls",
+        "system shouldn't be doing automatic tool calls",
+        "backend automation",
+        "bad web request",
     ]
     .iter()
     .any(|marker| lowered.contains(*marker))
@@ -33,6 +54,11 @@ fn chat_ui_is_meta_diagnostic_request(lowered: &str) -> bool {
         "last response",
         "previous response",
         "system issue",
+        "tool routing",
+        "automatic tool",
+        "backend automation",
+        "file tooling",
+        "local tooling",
     ]
     .iter()
     .filter(|marker| lowered.contains(**marker))

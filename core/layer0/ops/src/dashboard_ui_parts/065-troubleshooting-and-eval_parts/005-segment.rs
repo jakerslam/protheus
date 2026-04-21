@@ -1,5 +1,7 @@
 // Layer ownership: core/layer0/ops (dashboard_ui_parts troubleshooting)
 
+include!("006-response-gate-checks.rs");
+include!("007-response-gate-contract.rs");
 include!("005-segment_parts/010-troubleshooting_now_epoch_seconds.rs");
 include!("005-segment_parts/020-troubleshooting_recent_tooling_contract.rs");
 include!("005-segment_parts/030-outbox_health_tier.rs");

@@ -21,6 +21,7 @@ fn sanitize_command_token(input: &str) -> String {
         .trim()
         .to_ascii_lowercase()
         .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_'))
         .take(MAX_COMMAND_LEN)
         .collect()
 }
@@ -29,6 +30,7 @@ fn normalize_command(input: &str) -> String {
     match sanitize_command_token(input).as_str() {
         "" => "status".to_string(),
         "check" => "status".to_string(),
+        "ls" => "status".to_string(),
         "run" => "launch".to_string(),
         "start" => "launch".to_string(),
         "restart" => "launch".to_string(),
@@ -57,7 +59,7 @@ fn unknown_command_payload(command: &str) -> serde_json::Value {
         "error": "unknown_command",
         "command": command,
         "supported_commands": SUPPORTED_COMMANDS,
-        "receipt_hash": protheus_ops_core::deterministic_receipt_hash(&body)
+        "receipt_hash": infring_desktop::deterministic_receipt_hash(&body)
     })
 }
 

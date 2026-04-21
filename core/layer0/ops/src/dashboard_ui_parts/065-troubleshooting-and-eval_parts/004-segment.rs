@@ -339,6 +339,54 @@ fn dashboard_troubleshooting_capture_chat_exchange(
     );
     let retry_after_hint_seconds = dashboard_troubleshooting_retry_after_hint_seconds(lane_payload);
     let credential_resolution_source = dashboard_troubleshooting_credential_source_hint(lane_payload);
+    let chat_scope = dashboard_troubleshooting_extract_chat_scope(lane_payload);
+    let web_called_during_local_intent = lane_payload
+        .pointer("/response_finalization/web_invariant/web_called_during_local_intent")
+        .or_else(|| {
+            lane_payload.pointer("/response_finalization/tool_routing/web_called_during_local_intent")
+        })
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let model = clean_text(
+        lane_payload
+            .pointer("/response_workflow/model")
+            .and_then(Value::as_str)
+            .or_else(|| lane_payload.pointer("/response_workflow/model_id").and_then(Value::as_str))
+            .or_else(|| lane_payload.pointer("/response_finalization/model").and_then(Value::as_str))
+            .or_else(|| lane_payload.pointer("/response_finalization/model_id").and_then(Value::as_str))
+            .or_else(|| lane_payload.get("model").and_then(Value::as_str))
+            .unwrap_or(""),
+        140,
+    );
+    let model_provider = clean_text(
+        lane_payload
+            .pointer("/response_workflow/provider")
+            .and_then(Value::as_str)
+            .or_else(|| lane_payload.pointer("/response_finalization/provider").and_then(Value::as_str))
+            .or_else(|| lane_payload.get("provider").and_then(Value::as_str))
+            .unwrap_or(""),
+        120,
+    );
+    let model_params_billion = lane_payload
+        .pointer("/response_workflow/model_profile/param_count_billion")
+        .or_else(|| lane_payload.pointer("/response_workflow/model_profile/params_billion"))
+        .or_else(|| lane_payload.pointer("/response_finalization/model_profile/param_count_billion"))
+        .or_else(|| lane_payload.pointer("/response_finalization/model_profile/params_billion"))
+        .or_else(|| lane_payload.pointer("/response_finalization/param_count_billion"))
+        .or_else(|| lane_payload.pointer("/response_finalization/model_params_billion"))
+        .or_else(|| lane_payload.pointer("/param_count_billion"))
+        .and_then(|value| {
+            value.as_i64().or_else(|| {
+                value
+                    .as_f64()
+                    .map(|raw| raw.round() as i64)
+                    .or_else(|| value.as_str().and_then(|raw| clean_text(raw, 32).parse::<i64>().ok()))
+            })
+        })
+        .unwrap_or(0)
+        .max(dashboard_troubleshooting_parse_model_param_billion_hint(&model))
+        .max(0);
+    let model_viable_for_eval = dashboard_troubleshooting_eval_model_meets_threshold(&model, model_params_billion);
     let workflow_signal_signature = dashboard_troubleshooting_exchange_signature(
         agent_id,
         raw_input,
@@ -358,12 +406,14 @@ fn dashboard_troubleshooting_capture_chat_exchange(
             "result":{"classification":classification}
         }),
         json!({"stage":"synthesis","status": if assistant.is_empty() { "failed" } else { "ok" }}),
-        json!({"stage":"coherence_check","status": if hard_guard_applied { "failed" } else { "ok" }}),
+        json!({"stage":"coherence_check","status": if hard_guard_applied || web_called_during_local_intent { "failed" } else { "ok" }}),
         json!({"stage":"final_output","status": if lane_ok { "ok" } else { "failed" }}),
     ];
     let current_summary = clean_text(
         &format!(
-            "route={route}; tools={tool_calls}; tool_dupes={tool_call_duplicate_count}; classification={classification}; txn_status={transaction_status}; lane_ok={lane_ok}; signal={workflow_signal}; completion={completion_signal}; error={}",
+            "route={route}; tools={tool_calls}; tool_dupes={tool_call_duplicate_count}; classification={classification}; txn_status={transaction_status}; chat_scope={}; model={}; params_billion={model_params_billion}; model_viable_for_eval={model_viable_for_eval}; web_called_during_local_intent={web_called_during_local_intent}; lane_ok={lane_ok}; signal={workflow_signal}; completion={completion_signal}; error={}",
+            if chat_scope.is_empty() { "none" } else { &chat_scope },
+            if model.is_empty() { "unknown" } else { &model },
             if error_code.is_empty() { "none" } else { &error_code }
         ),
         360,
@@ -383,6 +433,7 @@ fn dashboard_troubleshooting_capture_chat_exchange(
         "agent_id": clean_text(agent_id, 140),
         "input": clean_text(raw_input, 4000),
         "assistant": assistant,
+        "chat_scope": chat_scope.clone(),
         "lane_ok": lane_ok,
         "source_sequence": source_sequence,
         "age_seconds": age_seconds,
@@ -405,7 +456,13 @@ fn dashboard_troubleshooting_capture_chat_exchange(
             "credential_resolution_source": credential_resolution_source,
             "source_sequence": source_sequence,
             "age_seconds": age_seconds,
-            "stale": stale
+            "stale": stale,
+            "chat_scope": chat_scope,
+            "web_called_during_local_intent": web_called_during_local_intent,
+            "model": model,
+            "model_provider": model_provider,
+            "model_params_billion": model_params_billion,
+            "model_viable_for_eval": model_viable_for_eval
         },
         "workflow_signal": workflow_signal,
         "workflow_signal_signature": workflow_signal_signature,
@@ -429,9 +486,28 @@ fn dashboard_troubleshooting_capture_chat_exchange(
             ),
             "tool_transaction": lane_payload.pointer("/response_finalization/tool_transaction").cloned().unwrap_or_else(|| json!({})),
             "web_invariant": lane_payload.pointer("/response_finalization/web_invariant").cloned().unwrap_or_else(|| json!({})),
+            "retry_contract": lane_payload.pointer("/response_finalization/retry_contract").cloned().unwrap_or_else(|| json!({})),
             "hard_guard": lane_payload.pointer("/response_finalization/hard_guard").cloned().unwrap_or_else(|| json!({}))
         }
     });
+    if error_code.is_empty() {
+        exchange["process_summary"]["current"] = Value::String(format!(
+            "{}; error=none",
+            exchange
+                .pointer("/process_summary/current")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+        ));
+    } else {
+        exchange["process_summary"]["current"] = Value::String(format!(
+            "{}; error={}",
+            exchange
+                .pointer("/process_summary/current")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            error_code
+        ));
+    }
     exchange["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&exchange));
     let mut deduped = false;
     if let Some(last) = entries.last_mut() {
@@ -501,7 +577,8 @@ fn dashboard_troubleshooting_capture_chat_exchange(
                 "input_preview": clean_text(raw_input, 220)
             }),
         );
-        let (eval_model, _) = dashboard_troubleshooting_resolve_eval_model(None);
+        let (eval_model, _) =
+            dashboard_troubleshooting_resolve_eval_model(Some(root), Some(lane_payload));
         queue_item = dashboard_troubleshooting_enqueue_eval(
             root,
             &snapshot,

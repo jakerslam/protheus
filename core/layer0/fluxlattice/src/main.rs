@@ -32,11 +32,13 @@ fn normalize_command(raw: &str) -> String {
 }
 
 fn normalize_mode(raw: Option<&str>) -> String {
-    let mode = sanitize_token(raw.unwrap_or("dynamic"));
-    if mode.is_empty() {
-        "dynamic".to_string()
-    } else {
-        mode
+    let normalized = sanitize_token(raw.unwrap_or("dynamic")).to_lowercase();
+    match normalized.as_str() {
+        "" => "dynamic".to_string(),
+        "dyn" | "dynamic" => "dynamic".to_string(),
+        "static" | "stable" => "static".to_string(),
+        "coalesce" | "coalesced" => "coalesced".to_string(),
+        _ => "dynamic".to_string(),
     }
 }
 

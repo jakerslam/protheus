@@ -1,7 +1,7 @@
 // Layer ownership: core/layer0/ops (authoritative)
 // SPDX-License-Identifier: Apache-2.0
 use crate::contract_lane_utils as lane_utils;
-use crate::{clean, deterministic_receipt_hash, now_iso, parse_args};
+use crate::{clean, now_iso, parse_args};
 use serde_json::{json, Value};
 use std::collections::{BTreeSet, HashSet};
 use std::fs;

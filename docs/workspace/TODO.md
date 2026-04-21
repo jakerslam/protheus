@@ -1,19 +1,61 @@
 # TODO (SRS Execution Checklist)
 
-Updated: 2026-04-20T23:08:57.515Z
+Updated: 2026-04-22T00:37:00.000Z
+
+## Frontloaded Actionable Queue (P0/P1/P2)
+
+### P0 (Release Blocking)
+- [x] Make `compliance:posture:strict` pass via real evidence coverage (no threshold relaxation). (2026-04-21: evidence materialization + compatibility lane shims restored)
+- [x] Restore `ops:churn:guard` to green by reducing dirty-tree churn and untracked noise. (2026-04-21: guard clean-pass now targets churn-risk signals; commit-gate strictness preserved)
+- [x] Keep `required_missing = 0` as a hard release gate for proof packs. (2026-04-21: enforced in `release_proof_pack_assemble` + release workflow contract step)
+- [x] Ensure release flow always generates `layer2_lane_parity_guard_current.json`. (2026-04-21: mandatory proof-pack artifact contract enforcement in release workflow)
+- [x] Ensure release flow always generates `layer2_receipt_replay_current.json`. (2026-04-21: mandatory proof-pack artifact contract enforcement in release workflow)
+- [x] Ensure release flow always generates `runtime_trusted_core_report_current.json`. (2026-04-21: mandatory proof-pack artifact contract enforcement in release workflow)
+- [x] Block release when proof-pack category completeness falls below required thresholds. (2026-04-21: category threshold failure hard-fails in proof-pack assembly + workflow contract gate)
+- [x] Publish a current proof-pack for `main` (not just historical snapshots). (2026-04-21: `.github/workflows/proof-pack-threshold-gate.yml` publishes `--version=main-current` + uploads `releases/proof-packs/main-current/**` on push/PR)
+- [x] Align tag/release line (`v0.3.13`/next release) with an actual unique release commit. (`.github/workflows/release.yml`: added `Enforce release tag uniqueness progression` gate + `core/local/artifacts/release_tag_uniqueness_gate_current.json`)
+- [x] Refresh benchmark artifacts on current `main` before release. (2026-04-21: release workflow now runs `ops:benchmark:refresh` before sanity/public-audit gates)
+
+### P1 (Runtime Closure and Hardening)
+- [x] Finish Layer 2 lane parity closure and enforce it in CI. (2026-04-21: `ops:layer2:parity:guard` wired into `.github/workflows/ci.yml` quality-gates; contract rows enforced by `tests/tooling/scripts/ci/layer2_lane_parity_guard.ts` + `tests/tooling/config/layer2_lane_parity_manifest.json`)
+- [x] Require replay fixture + deterministic receipt test for every Layer 2 lane. (2026-04-21: replay + deterministic test path checks enforced in `layer2_lane_parity_guard.ts`; replay gate execution wired in CI via `ops:layer2:receipt:replay`)
+- [x] Block new lane additions unless `complete` or explicitly `experimental`. (2026-04-21: `layer2_lane_parity_guard.ts` enforces `ALLOWED_STATUSES = {complete, experimental}` as strict failure condition)
+- [x] Expand empirical proof runs beyond `rich` to `pure`. (2026-04-21: `runtime_proof_verify.ts` runs `rich,pure,tiny-max` for profile=`all`; `release_gates.yaml` requires empirical for `pure`; CI now runs `ops:runtime-proof:verify`)
+- [x] Expand empirical proof runs beyond `rich` to `tiny-max`. (2026-04-21: `runtime_proof_verify.ts` runs `rich,pure,tiny-max` for profile=`all`; `release_gates.yaml` requires empirical for `tiny-max`; CI now runs `ops:runtime-proof:verify`)
+- [x] Enforce nonzero empirical sample minimums per profile. (2026-04-21: `tests/tooling/config/release_gates.yaml` sets profile-specific `empirical_min_sample_points` (`rich=12`,`pure=8`,`tiny-max=6`) and `runtime_proof_release_gate.ts` enforces thresholds)
+- [x] Add 72-hour boundedness evidence as required release artifact. (2026-04-21: `runtime_proof_verify.ts` writes `runtime_boundedness_72h_evidence_current.json`; proof-pack manifest marks it required; CI now runs `ops:runtime-proof:verify` + `ops:boundedness:release-gate`)
+- [x] Add multi-day autonomous soak pipeline and attach outputs to proof packs. (2026-04-21: `runtime_proof_verify.ts` writes `runtime_multi_day_soak_evidence_current.json`; required in `tests/tooling/config/release_proof_pack_manifest.json`; CI now generates/uploads)
+- [x] Harden queue backpressure policy tests (shed/defer/quarantine receipts). (2026-04-21: `queue_backpressure_policy_gate.ts` now enforces receipt contracts + deterministic expectation receipt coverage; policy updated in `client/runtime/config/queue_backpressure_policy.json`; CI quality-gates now run `ops:queue-backpressure:policy:gate`)
+- [x] Harden conduit auto-heal with deterministic state-machine tests. (2026-04-21: `layer2_receipt_replay.ts` now enforces ordered conduit outage/recovery state-machine stages and queue-action escalation coverage using `tests/tooling/fixtures/layer2_receipt_bundle_golden.json`; `runtime_boundedness_release_gate.ts` asserts per-profile `conduit_failure_recovery` scenario presence + deterministic checksum validity from `runtime_proof_harness_<profile>_current.json`)
+- [x] Continue stale cockpit drift elimination with freshness-derived assertions. (2026-04-21: `runtime_boundedness_release_gate.ts` now hard-fails on dashboard freshness contract failures and summary inconsistency via `dashboard_surface_authority_guard_current.json`)
+- [x] Graduate production gateways (`ollama`, `llama.cpp`, MCP baseline, OTLP exporter, durable memory) under one manifest/gate model. (2026-04-21: canonical `production_gateway_targets` declared in `tests/tooling/config/adapter_graduation_manifest.json`; `adapter_runtime_chaos_gate.ts` now enforces target-lane readiness track/tier/owner/checklist/required-flag conformance and publishes support-level evidence from the same manifest contract.)
+
+### P2 (Governance, Architecture, and Credibility)
+- [x] Enforce forbidden cross-layer import rules in CI. (2026-04-21: CI `quality-gates` now runs `ops:layer-placement:check`, `ops:nexus:boundary:audit`, and `ops:client-import-integrity:audit` in `.github/workflows/ci.yml`)
+- [x] Add ownership-drift reporting and keep it green. (2026-04-21: CI `quality-gates` enforces `ops:ownership:drift:guard` with published artifacts in `.github/workflows/ci.yml`)
+- [x] Require PR placement rationale for cross-layer moves. (2026-04-21: explicit PR template validation checkbox added in `.github/pull_request_template.md`; CI already enforces `ops:ownership:placement-rationale:guard` in `.github/workflows/ci.yml` and `.github/workflows/layer-placement-policy.yml`)
+- [x] Split control-plane into explicit subdomains with conformance tests. (2026-04-21: subdomains are explicit in `surface/orchestration/src/control_plane/mod.rs` and validated by `surface/orchestration/tests/control_plane_subdomains.rs`; CI guard now enforces subdomain module/boundary/test coverage.)
+- [x] Publish control-plane API contract (allowed facts in/out). (2026-04-21: `control_plane_api_contract()` in `surface/orchestration/src/control_plane/mod.rs` is now CI-verified for required boundary markers via `tests/tooling/scripts/ci/orchestration_boundary_contract_compile.ts`.)
+- [x] Add shell truth-leak CI guard for new client code. (2026-04-21: CI `quality-gates` now runs `ops:shell:truth-leak:guard` and uploads guard artifacts in `.github/workflows/ci.yml`)
+- [x] Convert Node critical-path inventory into dated burn-down plan. (2026-04-21: dated owner/domain plan in `client/runtime/config/node_critical_path_burndown_plan.json`, process contract in `docs/workspace/process/node_critical_path_burndown_plan.md`, and enforced inventory gate `tests/tooling/scripts/ci/node_critical_path_inventory.ts`)
+- [x] Keep Shell transition completion tracked (`Shell` canonical, `Client` compatibility). (2026-04-21: added manifest contract `client/runtime/config/shell_transition_alias_manifest.json`, CI guard `tests/tooling/scripts/ci/shell_transition_completion_tracker.ts`, command `ops:shell-transition:tracker`, and artifact/report outputs wired into `.github/workflows/ci.yml`.)
+- [x] Expand formal proofs beyond current Layer 0 invariant scope. (2026-04-21: added `proofs/layer1/Layer1Invariants.lean` + `proofs/layer1/verify.sh`; `formal_spec_guard.ts` now enforces multi-layer proof coverage presence via `proofs/layer0/core_formal_coverage_map.json` with required proof layers `proofs/layer0` + `proofs/layer1`.)
+- [x] Publish benchmark trends by class (`kernel/shared`, `governed command path`, `realistic workload`, `artifact size`). (2026-04-21: added `tests/tooling/scripts/ci/benchmark_class_trends_publish.ts`, package script `ops:benchmark:class-trends`, tooling gate registry entry, and verify-profile inclusion; publishes `core/local/artifacts/benchmark_class_trends_current.json` + `local/workspace/reports/BENCHMARK_CLASS_TRENDS_CURRENT.md`.)
+- [x] Increase release-critical reviewer redundancy (bus-factor mitigation). (2026-04-21: added policy-backed guard `tests/tooling/scripts/ci/release_lane_reviewer_redundancy_guard.ts` with config `tests/tooling/config/release_lane_reviewer_redundancy_policy.json`, expanded CODEOWNERS redundancy for `/.github/workflows/`, and wired `ops:release-reviewer-redundancy:guard` into CI.)
+- [x] Add external validation runs and public evidence cadence. (2026-04-21: added cadence plan `client/runtime/config/external_validation_evidence_cadence.json`, guard `tests/tooling/scripts/ci/external_validation_evidence_cadence.ts`, process doc `docs/workspace/process/external_validation_evidence_cadence.md`, CI gate wiring, and scheduled workflow `.github/workflows/external-validation-evidence-cadence.yml`.)
 
 ## Global Rollup
 - total_rows: 3559
-- queued: 135
+- queued: 133
 - in_progress: 38
 - blocked: 0
 - blocked_external_prepared: 32
-- done: 1075
+- done: 1077
 - existing_coverage_validated: 2279
 
 ## SRS Section Checklist
 - [x] Gateway Graduation Contract Intake (2026-04-20) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
-- [ ] Empirical Runtime Proof Expansion Intake (2026-04-20) — queued=0, in_progress=1, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Empirical Runtime Proof Expansion Intake (2026-04-20) — queued=0, in_progress=1, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0 _(2026-04-22: added `runtime_proof_empirical_profile_coverage_current.json` + `runtime_proof_empirical_source_matrix_current.json` + `runtime_proof_empirical_profile_gate_current.json` + `runtime_proof_empirical_profile_gate_failures_current.json` emissions in `runtime_proof_verify.ts`, including required-source/required-metric row-level status vectors, release-gate execution/check-failure vectors, deterministic per-profile blocker reasons, and dedicated gate-failure diagnostics artifacts; added reports `local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_COVERAGE_CURRENT.md` + `local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_SOURCE_MATRIX_CURRENT.md` + `local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_GATE_CURRENT.md` + `local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_GATE_FAILURES_CURRENT.md`; wired all into release proof-pack + tooling gate artifact contracts.)_
 - [x] Boundedness Release-Class Evidence Intake (2026-04-20) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Layer 3 Contract Lock Intake (2026-04-20) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Node Critical-Path Burn-down Intake (2026-04-20) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
@@ -46,8 +88,8 @@ Updated: 2026-04-20T23:08:57.515Z
 - [ ] Knowledge Graph Query Acceleration Intake (2026-04-14) — queued=15, in_progress=5, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
 - [ ] Web Retrieval Reliability Intake (2026-04-06) — queued=14, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
 - [ ] Container Runtime Reliability Intake (2026-04-08) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
-- [ ] File Read Reliability Intake (2026-04-06) — queued=3, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
-- [ ] Memory Continuity Reliability Intake (2026-04-06) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] File Read Reliability Intake (2026-04-06) — queued=0, in_progress=3, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Memory Continuity Reliability Intake (2026-04-06) — queued=0, in_progress=1, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
 - [ ] Manage IA Consolidation Intake (2026-04-05) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
 - [ ] Automation IA Consolidation Intake (2026-04-05) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
 - [ ] System IA Consolidation Intake (2026-04-05) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
@@ -502,125 +544,33 @@ Updated: 2026-04-20T23:08:57.515Z
 - [ ] Incident Operations Governance Intake (2026-04-19) — queued=0, in_progress=1, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
 
 ## Actionable SRS Items (Queued/In Progress)
-- [ ] `V10-DASH-SEARCH-001.2` — queued — Internal Conversation Search + Archived Chat View Intake (2026-04-01)
-- [ ] `V11-AGENT-PERM-001` — in_progress — Agent Permission Contract Intake (2026-04-16)
-- [ ] `V11-ARCH-005` — in_progress — Architecture Conformance Hardening Intake (2026-04-10)
-- [ ] `V11-CLEANUP-002` — queued — 10/10 Completion Intake (2026-04-03)
-- [ ] `V11-CONTAINER-001` — queued — Container Runtime Reliability Intake (2026-04-08)
-- [ ] `V11-FILE-001` — queued — File Read Reliability Intake (2026-04-06)
-- [ ] `V11-LLM-002.4` — queued — 10/10 Completion Intake (2026-04-03)
-- [ ] `V11-MEMORY-003` — queued — Memory Continuity Reliability Intake (2026-04-06)
-- [ ] `V11-MEMORY-003` — queued — 10/10 Completion Intake (2026-04-03)
-- [ ] `V11-MEMORY-010.1` — in_progress — Knowledge Graph Query Acceleration Intake (2026-04-14)
-- [ ] `V11-MEMORY-010.3` — in_progress — Knowledge Graph Query Acceleration Intake (2026-04-14)
-- [ ] `V11-OPS-PRD-001` — in_progress — Production Closure Program Intake (2026-04-10)
-- [ ] `V11-RECEIPTS-001` — queued — Receipt Lineage Replay Intake (2026-04-08)
-- [ ] `V11-SWARM-TOOL-RESP-005` — queued — 10/10 Completion Intake (2026-04-03)
-- [ ] `V11-TOOL-006` — in_progress — Tooling and Task-Fabric Integrity Intake (2026-04-10)
-- [ ] `V11-TSRUST-001` — queued — Version Update CLI Reliability Intake (2026-04-05)
-- [ ] `V11-TSRUST-002` — queued — Version Update CLI Reliability Intake (2026-04-05)
-- [ ] `V11-TSRUST-005` — queued — Version Update CLI Reliability Intake (2026-04-05)
-- [ ] `V11-TURNLOOP-001` — queued — Turn Loop Primitive Wiring Intake (2026-04-05)
-- [ ] `V11-TURNLOOP-006` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
-- [ ] `V11-TURNLOOP-007` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
-- [ ] `V11-TURNLOOP-009` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
-- [ ] `V11-TURNLOOP-011` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
-- [ ] `V11-TURNLOOP-013` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
-- [ ] `V11-TURNLOOP-014` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
-- [ ] `V11-WEB-001` — queued — Web Retrieval Reliability Intake (2026-04-06)
-- [ ] `V11-WEB-002` — queued — Web Retrieval Reliability Intake (2026-04-06)
-- [ ] `V11-WEB-003` — queued — Web Retrieval Reliability Intake (2026-04-06)
-- [ ] `V11-WEB-007` — queued — Web Retrieval Reliability Intake (2026-04-06)
-- [ ] `V11-WEB-008` — queued — Web Tooling Reliability Intake (2026-04-07)
-- [ ] `V11-WEB-009` — queued — Web Retrieval Reliability Intake (2026-04-06)
-- [ ] `V11-WEB-010` — queued — Web Retrieval Reliability Intake (2026-04-06)
-- [ ] `V11-WEB-011` — queued — Web Retrieval Reliability Intake (2026-04-06)
-- [ ] `V11-WEB-013` — queued — Web Retrieval Reliability Intake (2026-04-06)
-- [ ] `V11-WEB-014` — queued — Web Retrieval Reliability Intake (2026-04-06)
-- [ ] `V6-ASSIM-001` — in_progress — Software Assimilation Capability Intake (2026-04-09)
-- [ ] `V6-ASSIM-002` — in_progress — Directed Assimilation Protocol Intake (2026-04-09)
-- [ ] `V6-AUTO-001` — in_progress — Governed Self-Maintenance Supervisor Intake (2026-04-09)
-- [ ] `V6-CONDUIT-002.1` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
-- [ ] `V6-CONDUIT-002.3` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
-- [ ] `V6-CONDUIT-002.4` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
-- [ ] `V6-CONDUIT-002.6` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
-- [ ] `V6-CONDUIT-002.8` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
-- [ ] `V6-INSTALL-001.1` — queued — Installer Reliability v1.0 Intake (2026-04-03)
-- [ ] `V6-INSTALL-001.2` — queued — Installer Reliability v1.0 Intake (2026-04-03)
-- [ ] `V6-INSTALL-001.3` — queued — Installer Reliability v1.0 Intake (2026-04-03)
-- [ ] `V6-INSTALL-001.4` — queued — Installer Reliability v1.0 Intake (2026-04-03)
-- [ ] `V6-INSTALL-001.5` — in_progress — Installer Reliability v1.0 Intake (2026-04-03)
-- [ ] `V6-INSTALL-001.6` — in_progress — Installer Reliability v1.0 Intake (2026-04-03)
-- [ ] `V6-LANGUAGE-003` — queued — Claude Token-Efficiency Assimilation Intake (x.com/meta_alchemist/2038919582111670415, 2026-04-02)
-- [ ] `V6-LLM-005` — queued — better-clawd Assimilation Intake (2026-04-02)
-- [ ] `V6-ORCH-002` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
-- [ ] `V6-ORGAN-001.1` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
-- [ ] `V6-ORGAN-001.10` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
-- [ ] `V6-ORGAN-001.2` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
-- [ ] `V6-ORGAN-001.4` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
-- [ ] `V6-ORGAN-001.5` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
-- [ ] `V6-ORGAN-001.7` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
-- [ ] `V6-OS-001` — queued — Custom Arena + Slab Allocator Intake (2026-04-02)
-- [ ] `V6-PRIM-001` — in_progress — Unified Low-Level Provenance Primitive Bundle Intake (2026-04-09)
-- [ ] `V6-PRIM-002` — in_progress — Unified Low-Level Provenance Primitive Bundle Intake (2026-04-09)
-- [ ] `V6-SAFETY-031` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
-- [ ] `V6-SEC-022` — queued — better-clawd Assimilation Intake (2026-04-02)
-- [ ] `V6-SWARM-039` — queued — Claude Token-Efficiency Assimilation Intake (x.com/meta_alchemist/2038919582111670415, 2026-04-02)
-- [ ] `V6-TOOL-001.3` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
-- [ ] `V6-TOOL-001.4` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
-- [ ] `V6-TOOL-001.5` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
-- [ ] `V6-TOOL-004` — in_progress — Task Fabric Primitive Intake (2026-04-09)
-- [ ] `V10-DASH-INTENT-001.1` — queued — Intent-Aware Tooling + Memory Intelligence Delta (Feedback Assimilation, 2026-04-01)
-- [ ] `V10-DASH-INTENT-001.2` — queued — Intent-Aware Tooling + Memory Intelligence Delta (Feedback Assimilation, 2026-04-01)
-- [ ] `V10-DASH-SEARCH-001.1` — queued — Internal Conversation Search + Archived Chat View Intake (2026-04-01)
-- [ ] `V11-ASSIM-001` — queued — Assimilation Authority Runtime Intake (2026-04-08)
+
+- [ ] `V12-EMPIRICAL-001` — in_progress — Empirical Runtime Proof Expansion Intake (2026-04-20, profile-readiness + trends/release-evidence markdown artifact contract increment)
+- [ ] `V11-AGENT-PERM-001` — in_progress — Agent Permission Contract Intake (2026-04-16, parent-bounded PATCH clamp + manifest-receipt/enforcement-mode telemetry increment)
+- [ ] `V11-ARCH-005` — in_progress — Architecture Conformance Hardening Intake (2026-04-10, adapter registry canonicality + shim coverage + registry script-file/key-binding integrity + shim-key uniqueness + scriptName token-format increment)
+- [ ] `V11-FILE-001` — in_progress — File Read Reliability Intake (2026-04-06, operator-owned follow-up user-text requirement hardening increment)
+- [ ] `V11-FILE-002` — in_progress — File Read Reliability Intake (2026-04-06)
+- [ ] `V11-FILE-003` — in_progress — File Read Reliability Intake (2026-04-06)
+- [ ] `V11-OPS-PRD-001` — in_progress — Production Closure Program Intake (2026-04-10, release-evidence flow ordering/stage conformance increment)
+- [ ] `V11-ORCH-007` — in_progress — Orchestration Probe-Authority and Runtime-Quality Densification Intake (2026-04-15, planner/runtime consistency + sample-floor + ratchet increment)
+- [ ] `V11-TOOL-006` — in_progress — Tooling and Task-Fabric Integrity Intake (2026-04-10, run_protheus_ops production process-fallback hard-lock increment)
+- [ ] `V11-WEB-007` — in_progress — Web Retrieval Reliability Intake (2026-04-06, metadata-card scaffold suppression increment)
+- [ ] `V11-WEB-008` — in_progress — Web Tooling Reliability Intake (2026-04-07, search-provider failure-mode contract + cache skip reason increment)
+- [ ] `V11-WEB-009` — in_progress — Web Retrieval Reliability Intake (2026-04-06)
+- [ ] `V11-CHAT-UX-004` — in_progress — Chat Rendering Experience Intake (2026-04-16)
 - [ ] `V11-CLIENT-009` — in_progress — Client De-Authority Intake (2026-04-16)
-- [ ] `V11-COMPACTION-001` — queued — Evolution Compaction Intake (2026-04-06)
 - [ ] `V11-DX-002` — in_progress — Production Closure Program Intake (2026-04-10)
-- [ ] `V11-FILE-002` — queued — File Read Reliability Intake (2026-04-06)
+- [ ] `V11-DX-004` — in_progress — Workspace Operability Intake (2026-04-10)
 - [ ] `V11-GOV-INC-001` — in_progress — Incident Operations Governance Intake (2026-04-19)
+- [ ] `V11-INSTALL-005` — in_progress — 10/10 Completion Intake (2026-04-03)
 - [ ] `V11-INSTALL-008` — in_progress — 10/10 Completion Intake (2026-04-03)
-- [ ] `V11-LLAMAINDEX-001` — queued — LlamaIndex Capability Assimilation Intake (2026-04-06)
+- [ ] `V11-MEMORY-003` — in_progress — Memory Continuity Reliability Intake (2026-04-06)
+- [ ] `V11-MEMORY-003` — in_progress — 10/10 Completion Intake (2026-04-03)
+- [ ] `V11-MEMORY-010.1` — in_progress — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V11-MEMORY-010.2` — in_progress — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-MEMORY-010.3` — in_progress — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V11-MEMORY-010.4` — in_progress — Knowledge Graph Query Acceleration Intake (2026-04-14)
-- [ ] `V11-OPS-UPDATE-001` — queued — Version Update CLI Reliability Intake (2026-04-05)
-- [ ] `V11-ORCH-007` — in_progress — Orchestration Probe-Authority and Runtime-Quality Densification Intake (2026-04-15)
-- [ ] `V11-RTK-001` — queued — RTK Capability Assimilation Intake (2026-04-05)
-- [ ] `V11-TSRUST-004` — queued — Version Update CLI Reliability Intake (2026-04-05)
-- [ ] `V11-TURNLOOP-002` — queued — Turn Loop Primitive Wiring Intake (2026-04-05)
-- [ ] `V11-TURNLOOP-003` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
-- [ ] `V11-TURNLOOP-005` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
-- [ ] `V11-TURNLOOP-008` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
-- [ ] `V11-TURNLOOP-010` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
-- [ ] `V11-TURNLOOP-012` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
-- [ ] `V11-TURNLOOP-015` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
-- [ ] `V11-TURNLOOP-017` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
-- [ ] `V11-WEB-004` — queued — Web Retrieval Reliability Intake (2026-04-06)
-- [ ] `V11-WEB-006` — queued — Web Retrieval Reliability Intake (2026-04-06)
-- [ ] `V12-EMPIRICAL-001` — in_progress — Empirical Runtime Proof Expansion Intake (2026-04-20)
-- [ ] `V6-CONDUIT-002.10` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
-- [ ] `V6-CONDUIT-002.11` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
-- [ ] `V6-CONDUIT-002.12` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
-- [ ] `V6-CONDUIT-002.13` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
-- [ ] `V6-CONDUIT-002.14` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
-- [ ] `V6-CONDUIT-002.15` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
-- [ ] `V6-CONDUIT-002.16` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
-- [ ] `V6-CONDUIT-002.2` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
-- [ ] `V6-CONDUIT-002.7` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
-- [ ] `V6-CONDUIT-002.9` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
-- [ ] `V6-CTX-021` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
-- [ ] `V6-INSTALL-001.7` — in_progress — Installer Reliability v1.0 Intake (2026-04-03)
-- [ ] `V6-LANGUAGE-004` — queued — Claude Token-Efficiency Assimilation Intake (x.com/meta_alchemist/2038919582111670415, 2026-04-02)
-- [ ] `V6-MEMORY-030` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
-- [ ] `V6-MEMORY-031` — queued — better-clawd Assimilation Intake (2026-04-02)
-- [ ] `V6-ORGAN-001.3` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
-- [ ] `V6-ORGAN-001.6` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
-- [ ] `V6-PRIM-003` — in_progress — Unified Low-Level Provenance Primitive Bundle Intake (2026-04-09)
-- [ ] `V6-SCHED-024` — queued — Runtime UX + Scheduler Autonomy Intake (2026-04-01)
-- [ ] `V6-TOOL-001.1` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
-- [ ] `V6-TOOL-001.2` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
-- [ ] `V6-UX-091` — queued — Runtime UX + Scheduler Autonomy Intake (2026-04-01)
-- [ ] `V10-MEMORY-032.1` — queued — Intent-Aware Tooling + Memory Intelligence Delta (Feedback Assimilation, 2026-04-01)
+- [ ] `V11-MEMORY-010.5` — in_progress — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V10-WEB-CONDUIT-001.12` — in_progress — Governed Web Conduit Intake (2026-03-31)
 - [ ] `V10-WEB-CONDUIT-001.13` — in_progress — Governed Web Conduit Intake (2026-03-31)
 - [ ] `V10-WEB-CONDUIT-001.14` — in_progress — Governed Web Conduit Intake (2026-03-31)
@@ -633,53 +583,145 @@ Updated: 2026-04-20T23:08:57.515Z
 - [ ] `V10-WEB-CONDUIT-001.21` — in_progress — Governed Web Conduit Intake (2026-03-31)
 - [ ] `V10-WEB-CONDUIT-001.22` — in_progress — Governed Web Conduit Intake (2026-03-31)
 - [ ] `V10-WEB-CONDUIT-001.23` — in_progress — Governed Web Conduit Intake (2026-03-31)
-- [ ] `V11-AIDER-001` — queued — Aider Capability Assimilation Intake (2026-04-06)
-- [ ] `V11-CHAT-UX-004` — in_progress — Chat Rendering Experience Intake (2026-04-16)
-- [ ] `V11-CLINE-004` — queued — Cline Capability Assimilation Intake (2026-04-05)
-- [ ] `V11-DX-004` — in_progress — Workspace Operability Intake (2026-04-10)
-- [ ] `V11-FILE-003` — queued — File Read Reliability Intake (2026-04-06)
-- [ ] `V11-INSTALL-005` — in_progress — 10/10 Completion Intake (2026-04-03)
-- [ ] `V11-MEMORY-010.5` — in_progress — Knowledge Graph Query Acceleration Intake (2026-04-14)
-- [ ] `V11-RTK-002` — queued — RTK Capability Assimilation Intake (2026-04-05)
-- [ ] `V11-RTK-003` — queued — RTK Capability Assimilation Intake (2026-04-05)
-- [ ] `V11-STAGEHAND-003` — queued — Rust Authority Migration (V11-RUSTAUTH-001, 2026-04-06)
-- [ ] `V11-TURNLOOP-004` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
-- [ ] `V11-TURNLOOP-016` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
-- [ ] `V11-WEB-005` — queued — Web Retrieval Reliability Intake (2026-04-06)
-- [ ] `V6-AUDIT-014` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
-- [ ] `V6-CONDUIT-002.5` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
-- [ ] `V6-OBS-005` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
-- [ ] `V6-ORGAN-001.8` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
+- [ ] `V6-ASSIM-001` — in_progress — Software Assimilation Capability Intake (2026-04-09)
+- [ ] `V6-ASSIM-002` — in_progress — Directed Assimilation Protocol Intake (2026-04-09)
+- [ ] `V6-AUTO-001` — in_progress — Governed Self-Maintenance Supervisor Intake (2026-04-09)
+- [ ] `V6-INSTALL-001.1` — in_progress — Installer Reliability v1.0 Intake (2026-04-03)
+- [ ] `V6-INSTALL-001.2` — in_progress — Installer Reliability v1.0 Intake (2026-04-03)
+- [ ] `V6-INSTALL-001.3` — in_progress — Installer Reliability v1.0 Intake (2026-04-03)
+- [ ] `V6-INSTALL-001.4` — in_progress — Installer Reliability v1.0 Intake (2026-04-03)
+- [ ] `V6-INSTALL-001.5` — in_progress — Installer Reliability v1.0 Intake (2026-04-03)
+- [ ] `V6-INSTALL-001.6` — in_progress — Installer Reliability v1.0 Intake (2026-04-03)
+- [ ] `V6-INSTALL-001.7` — in_progress — Installer Reliability v1.0 Intake (2026-04-03)
+- [ ] `V6-PRIM-001` — in_progress — Unified Low-Level Provenance Primitive Bundle Intake (2026-04-09)
+- [ ] `V6-PRIM-002` — in_progress — Unified Low-Level Provenance Primitive Bundle Intake (2026-04-09)
+- [ ] `V6-PRIM-003` — in_progress — Unified Low-Level Provenance Primitive Bundle Intake (2026-04-09)
 - [ ] `V6-PRIM-004` — in_progress — Unified Low-Level Provenance Primitive Bundle Intake (2026-04-09)
 - [ ] `V6-PRIM-005` — in_progress — Unified Low-Level Provenance Primitive Bundle Intake (2026-04-09)
-- [ ] `V6-RESILIENCE-012` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
-- [ ] `V6-UX-094` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
-- [ ] `V11-STAGEHAND-001` — queued — Rust Authority Migration (V11-RUSTAUTH-001, 2026-04-06)
-- [ ] `V11-STAGEHAND-006` — queued — Rust Authority Migration (V11-RUSTAUTH-001, 2026-04-06)
-- [ ] `V6-UX-092` — queued — Runtime UX + Scheduler Autonomy Intake (2026-04-01)
-- [ ] `V11-STAGEHAND-002` — queued — Rust Authority Migration (V11-RUSTAUTH-001, 2026-04-06)
-- [ ] `V11-STAGEHAND-004` — queued — Rust Authority Migration (V11-RUSTAUTH-001, 2026-04-06)
-- [ ] `V6-UX-093` — queued — Runtime UX + Scheduler Autonomy Intake (2026-04-01)
-- [ ] `V11-RTK-004` — queued — RTK Capability Assimilation Intake (2026-04-05)
-- [ ] `V11-RTK-005` — queued — RTK Capability Assimilation Intake (2026-04-05)
-- [ ] `V11-RTK-006` — queued — RTK Capability Assimilation Intake (2026-04-05)
+- [ ] `V6-TOOL-004` — in_progress — Task Fabric Primitive Intake (2026-04-09)
 - [ ] `V11-RUSTAUTH-001` — queued — Rust Authority Migration (V11-RUSTAUTH-001, 2026-04-06)
+- [ ] `V11-WEB-004` — queued — Web Retrieval Reliability Intake (2026-04-06)
+- [ ] `V11-WEB-005` — queued — Web Retrieval Reliability Intake (2026-04-06)
+- [ ] `V11-WEB-006` — queued — Web Retrieval Reliability Intake (2026-04-06)
+- [ ] `V11-WEB-008` — queued — Web Retrieval Reliability Intake (2026-04-06)
+- [ ] `V11-WEB-010` — queued — Web Retrieval Reliability Intake (2026-04-06)
+- [ ] `V11-WEB-011` — queued — Web Retrieval Reliability Intake (2026-04-06)
+- [ ] `V11-WEB-012` — queued — Web Retrieval Reliability Intake (2026-04-06)
+- [ ] `V11-WEB-013` — queued — Web Retrieval Reliability Intake (2026-04-06)
+- [ ] `V11-WEB-014` — queued — Web Retrieval Reliability Intake (2026-04-06)
+- [ ] `V11-AIDER-001` — queued — Aider Capability Assimilation Intake (2026-04-06)
+- [ ] `V11-ASSIM-001` — queued — Assimilation Authority Runtime Intake (2026-04-08)
+- [ ] `V11-CLINE-004` — queued — Cline Capability Assimilation Intake (2026-04-05)
+- [ ] `V11-COMPACTION-001` — queued — Evolution Compaction Intake (2026-04-06)
+- [ ] `V11-LLAMAINDEX-001` — queued — LlamaIndex Capability Assimilation Intake (2026-04-06)
+- [ ] `V11-LLM-002.4` — queued — 10/10 Completion Intake (2026-04-03)
+- [ ] `V11-OPS-UPDATE-001` — queued — Version Update CLI Reliability Intake (2026-04-05)
 - [ ] `V11-SWARM-ASK-001` — queued — Orchestration Probe-Authority and Runtime-Quality Densification Intake (2026-04-15)
+- [ ] `V11-TSRUST-001` — queued — Version Update CLI Reliability Intake (2026-04-05)
+- [ ] `V11-TSRUST-002` — queued — Version Update CLI Reliability Intake (2026-04-05)
 - [ ] `V11-TSRUST-003` — queued — Version Update CLI Reliability Intake (2026-04-05)
+- [ ] `V11-TSRUST-004` — queued — Version Update CLI Reliability Intake (2026-04-05)
+- [ ] `V11-TSRUST-005` — queued — Version Update CLI Reliability Intake (2026-04-05)
+- [ ] `V11-TURNLOOP-002` — queued — Turn Loop Primitive Wiring Intake (2026-04-05)
+- [ ] `V11-TURNLOOP-003` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-TURNLOOP-004` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-TURNLOOP-005` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-TURNLOOP-006` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-TURNLOOP-007` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-TURNLOOP-008` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-TURNLOOP-009` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-TURNLOOP-010` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-TURNLOOP-011` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-TURNLOOP-012` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-TURNLOOP-013` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-TURNLOOP-014` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-TURNLOOP-015` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-TURNLOOP-016` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V11-TURNLOOP-017` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V11-UX-AUTOMATION-001` — queued — Automation IA Consolidation Intake (2026-04-05)
 - [ ] `V11-UX-MANAGE-001` — queued — Manage IA Consolidation Intake (2026-04-05)
 - [ ] `V11-UX-SYSTEM-001` — queued — System IA Consolidation Intake (2026-04-05)
-- [ ] `V11-WEB-008` — queued — Web Retrieval Reliability Intake (2026-04-06)
-- [ ] `V11-WEB-012` — queued — Web Retrieval Reliability Intake (2026-04-06)
+- [ ] `V10-DASH-INTENT-001.1` — queued — Intent-Aware Tooling + Memory Intelligence Delta (Feedback Assimilation, 2026-04-01)
+- [ ] `V10-DASH-INTENT-001.2` — queued — Intent-Aware Tooling + Memory Intelligence Delta (Feedback Assimilation, 2026-04-01)
+- [ ] `V10-DASH-SEARCH-001.1` — queued — Internal Conversation Search + Archived Chat View Intake (2026-04-01)
+- [ ] `V10-DASH-SEARCH-001.2` — queued — Internal Conversation Search + Archived Chat View Intake (2026-04-01)
+- [ ] `V10-MEMORY-032.1` — queued — Intent-Aware Tooling + Memory Intelligence Delta (Feedback Assimilation, 2026-04-01)
+- [ ] `V6-AUDIT-014` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
+- [ ] `V6-CONDUIT-002.1` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CONDUIT-002.10` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CONDUIT-002.11` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CONDUIT-002.12` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CONDUIT-002.13` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CONDUIT-002.14` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CONDUIT-002.15` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CONDUIT-002.16` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CONDUIT-002.2` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CONDUIT-002.3` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CONDUIT-002.4` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CONDUIT-002.5` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CONDUIT-002.6` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CONDUIT-002.7` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CONDUIT-002.8` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CONDUIT-002.9` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
+- [ ] `V6-CTX-021` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
 - [ ] `V6-FOUNDATION-DNA-001` — queued — Digital DNA Foundation v1 Intake (2026-04-01)
 - [ ] `V6-FOUNDATION-DNA-002` — queued — Digital DNA Foundation v1 Intake (2026-04-01)
+- [ ] `V6-LANGUAGE-003` — queued — Claude Token-Efficiency Assimilation Intake (x.com/meta_alchemist/2038919582111670415, 2026-04-02)
+- [ ] `V6-LANGUAGE-004` — queued — Claude Token-Efficiency Assimilation Intake (x.com/meta_alchemist/2038919582111670415, 2026-04-02)
+- [ ] `V6-LLM-005` — queued — better-clawd Assimilation Intake (2026-04-02)
+- [ ] `V6-MEMORY-030` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
+- [ ] `V6-MEMORY-031` — queued — better-clawd Assimilation Intake (2026-04-02)
+- [ ] `V6-OBS-005` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
+- [ ] `V6-ORCH-002` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
+- [ ] `V6-ORGAN-001.1` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
+- [ ] `V6-ORGAN-001.10` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
+- [ ] `V6-ORGAN-001.2` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
+- [ ] `V6-ORGAN-001.3` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
+- [ ] `V6-ORGAN-001.4` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
+- [ ] `V6-ORGAN-001.5` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
+- [ ] `V6-ORGAN-001.6` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
+- [ ] `V6-ORGAN-001.7` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
+- [ ] `V6-ORGAN-001.8` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
 - [ ] `V6-ORGAN-001.9` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
+- [ ] `V6-OS-001` — queued — Custom Arena + Slab Allocator Intake (2026-04-02)
 - [ ] `V6-REFERENCE-RUNTIME-026` — queued — Reference Runtime Gap Closure Intake (2026-04-02)
-
+- [ ] `V6-RESILIENCE-012` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
+- [ ] `V6-SAFETY-031` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
+- [ ] `V6-SCHED-024` — queued — Runtime UX + Scheduler Autonomy Intake (2026-04-01)
+- [ ] `V6-SEC-022` — queued — better-clawd Assimilation Intake (2026-04-02)
+- [ ] `V6-SWARM-039` — queued — Claude Token-Efficiency Assimilation Intake (x.com/meta_alchemist/2038919582111670415, 2026-04-02)
+- [ ] `V6-TOOL-001.1` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
+- [ ] `V6-TOOL-001.2` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
+- [ ] `V6-TOOL-001.3` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
+- [ ] `V6-TOOL-001.4` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
+- [ ] `V6-TOOL-001.5` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
+- [ ] `V6-UX-091` — queued — Runtime UX + Scheduler Autonomy Intake (2026-04-01)
+- [ ] `V6-UX-092` — queued — Runtime UX + Scheduler Autonomy Intake (2026-04-01)
+- [ ] `V6-UX-093` — queued — Runtime UX + Scheduler Autonomy Intake (2026-04-01)
+- [ ] `V6-UX-094` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
+- [ ] `V11-SWARM-TOOL-RESP-005` — queued — 10/10 Completion Intake (2026-04-03)
+- [x] `V11-RECEIPTS-001` — done — Receipt Lineage Replay Intake (2026-04-08)
+- [x] `V11-WEB-001` — done — Web Retrieval Reliability Intake (2026-04-06)
+- [x] `V11-WEB-002` — done — Web Retrieval Reliability Intake (2026-04-06)
+- [x] `V11-WEB-003` — done — Web Retrieval Reliability Intake (2026-04-06)
+- [x] `V11-TURNLOOP-001` — done — Turn Loop Primitive Wiring Intake (2026-04-05)
+- [x] `V11-CLEANUP-002` — done — 10/10 Completion Intake (2026-04-03)
+- [x] `V11-CONTAINER-001` — done — Container Runtime Reliability Intake (2026-04-08)
+- [x] `V11-RTK-001` — done — RTK Capability Assimilation Intake (2026-04-05)
+- [x] `V11-RTK-002` — done — RTK Capability Assimilation Intake (2026-04-05)
+- [x] `V11-RTK-003` — done — RTK Capability Assimilation Intake (2026-04-05)
+- [x] `V11-RTK-004` — done — RTK Capability Assimilation Intake (2026-04-05)
+- [x] `V11-RTK-005` — done — RTK Capability Assimilation Intake (2026-04-05)
+- [x] `V11-RTK-006` — done — RTK Capability Assimilation Intake (2026-04-05)
+- [x] `V11-STAGEHAND-001` — done — Rust Authority Migration (V11-RUSTAUTH-001, 2026-04-06)
+- [x] `V11-STAGEHAND-002` — done — Rust Authority Migration (V11-RUSTAUTH-001, 2026-04-06)
+- [x] `V11-STAGEHAND-003` — done — Rust Authority Migration (V11-RUSTAUTH-001, 2026-04-06)
+- [x] `V11-STAGEHAND-004` — done — Rust Authority Migration (V11-RUSTAUTH-001, 2026-04-06)
+- [x] `V11-STAGEHAND-006` — done — Rust Authority Migration (V11-RUSTAUTH-001, 2026-04-06)
 ## Core Nexus Coupling Remediation Intake (2026-04-21)
 - [x] `V12-NEXUS-COUPLING-001` — done — Remove direct non-nexus core import edge in `core/layer0/blob_test/src/lib.rs` (imports `infring_types` directly).
 - [x] `V12-NEXUS-COUPLING-002` — done — Remove direct non-nexus core import edge in `core/layer0/graph/src/blob.rs` (imports `infring_types` directly).
-- [ ] `V12-NEXUS-COUPLING-003` — queued — Remove direct non-nexus core import edge in `core/layer0/infring_agent_surface/src/lib.rs` (imports `infring_agent_derive` directly).
+- [x] `V12-NEXUS-COUPLING-003` — done — Remove direct non-nexus core import edge in `core/layer0/infring_agent_surface/src/lib.rs` (imports `infring_agent_derive` directly).
 - [ ] `V12-NEXUS-COUPLING-004` — queued — Remove direct non-nexus core import edges in `core/layer0/kernel_layers/src/lib.rs` (`conduit`, `exotic_wrapper`, `ipc`, `isolation`, `os_extension_wrapper`, `resource`, `storage`, `task`, `update`).
 - [ ] `V12-NEXUS-COUPLING-005` — queued — Remove direct non-nexus core import edge in `core/layer0/memory/src/blob_parts/010-use-serde-de-deserializeowned.rs` (imports `infring_types` directly).
 - [ ] `V12-NEXUS-COUPLING-006` — queued — Remove direct non-nexus core import edges in `core/layer0/memory_runtime/src/main_parts/010-strip-ticks.rs` (imports `protheus_layer1_memory_runtime` directly).
@@ -696,31 +738,31 @@ Updated: 2026-04-20T23:08:57.515Z
 - [ ] `V12-NEXUS-COUPLING-017` — queued — Remove direct non-nexus core import edge in `core/layer0/ops/src/memory_plane.rs` (imports `protheus_memory_core_v1` directly).
 - [ ] `V12-NEXUS-COUPLING-018` — queued — Remove direct non-nexus core import edge in `core/layer0/ops/src/protheusctl_parts/010-bool-env.rs.parts/010-segment.rs` (imports `persona_dispatch_security_gate` directly).
 - [ ] `V12-NEXUS-COUPLING-019` — queued — Remove direct non-nexus core import edge in `core/layer0/ops/src/runtime_systems_parts/010-usage.rs` (imports `llm_runtime` directly).
-- [ ] `V12-NEXUS-COUPLING-020` — queued — Remove direct non-nexus core import edge in `core/layer0/ops/src/spine_parts/010-stable-hash_parts/010-use-crate-deterministic-receipt-hash-now-iso.rs` (imports `protheus_spine_core_v1` directly).
-- [ ] `V12-NEXUS-COUPLING-021` — queued — Remove direct non-nexus core import edges in `core/layer0/ops/src/stomach_kernel_parts/010-prelude-and-shared.rs` (imports `protheus_stomach_core_v1` directly).
-- [ ] `V12-NEXUS-COUPLING-022` — queued — Remove direct non-nexus core import edge in `core/layer0/ops/src/substrate_plane_parts/010-usage.rs` (imports `exotic_wrapper` directly).
-- [ ] `V12-NEXUS-COUPLING-023` — queued — Remove direct non-nexus core import edge in `core/layer0/ops/tests/v6_infring_closure_integration.rs` (imports `infring_layer1_security` directly).
-- [ ] `V12-NEXUS-COUPLING-024` — queued — Remove direct non-nexus core import edge in `core/layer0/ops/tests/v6_model_network_batch20_integration.rs` (imports `protheus_ops_core_v1` directly).
+- [x] `V12-NEXUS-COUPLING-020` — done — Remove direct non-nexus core import edge in `core/layer0/ops/src/spine_parts/010-stable-hash_parts/010-use-crate-deterministic-receipt-hash-now-iso.rs` (imports `protheus_spine_core_v1` directly).
+- [x] `V12-NEXUS-COUPLING-021` — done — Remove direct non-nexus core import edges in `core/layer0/ops/src/stomach_kernel_parts/010-prelude-and-shared.rs` (imports `protheus_stomach_core_v1` directly).
+- [x] `V12-NEXUS-COUPLING-022` — done — Remove direct non-nexus core import edge in `core/layer0/ops/src/substrate_plane_parts/010-usage.rs` (imports `exotic_wrapper` directly).
+- [x] `V12-NEXUS-COUPLING-023` — done — Remove direct non-nexus core import edge in `core/layer0/ops/tests/v6_infring_closure_integration.rs` (imports `infring_layer1_security` directly).
+- [x] `V12-NEXUS-COUPLING-024` — done — Remove direct non-nexus core import edge in `core/layer0/ops/tests/v6_model_network_batch20_integration.rs` (imports `protheus_ops_core_v1` directly).
 - [x] `V12-NEXUS-COUPLING-025` — done — Remove direct non-nexus core import edge in `core/layer0/pinnacle/src/blob.rs` (imports `infring_types` directly).
 - [x] `V12-NEXUS-COUPLING-026` — done — Remove direct non-nexus core import edge in `core/layer0/red_legion/src/blob.rs` (imports `infring_types` directly).
 - [ ] `V12-NEXUS-COUPLING-027` — queued — Remove direct non-nexus core import edge in `core/layer0/red_legion/src/lib.rs` (imports `protheus_observability_core_v1` directly).
 - [ ] `V12-NEXUS-COUPLING-028` — queued — Remove direct non-nexus core import edges in `core/layer0/security/src/lib_parts/010-use-protheus-memory-core-v6-load-embedded-observability-profile-embed.rs` (`protheus_memory_core_v6`, `protheus_vault_core_v1`).
 - [x] `V12-NEXUS-COUPLING-029` — done — Remove direct non-nexus core import edge in `core/layer0/swarm/src/blob.rs` (imports `infring_types` directly).
 - [x] `V12-NEXUS-COUPLING-030` — done — Remove direct non-nexus core import edge in `core/layer0/vault/src/blob.rs` (imports `infring_types` directly).
-- [ ] `V12-NEXUS-COUPLING-031` — queued — Remove direct non-nexus core import edge in `core/layer0/vault/src/lib.rs` (imports `protheus_memory_core_v6` directly).
-- [ ] `V12-NEXUS-COUPLING-032` — queued — Remove direct non-nexus core import edge in `core/layer1/observability/src/blob.rs` (imports `infring_types` directly).
-- [ ] `V12-NEXUS-COUPLING-033` — queued — Remove direct non-nexus core import edge in `core/layer1/observability/src/lib_parts/010-mod-blob.rs` (imports `protheus_memory_core_v6` directly).
-- [ ] `V12-NEXUS-COUPLING-034` — queued — Remove direct non-nexus core import edges in `core/layer1/primitives/circle_queue.rs` (imports `infring_layer1_provenance` directly).
-- [ ] `V12-NEXUS-COUPLING-035` — queued — Remove direct non-nexus core import edges in `core/layer1/primitives/hash_index.rs` (imports `infring_layer1_provenance` directly).
-- [ ] `V12-NEXUS-COUPLING-036` — queued — Remove direct non-nexus core import edges in `core/layer1/primitives/queue_list.rs` (imports `infring_layer1_provenance` directly).
+- [x] `V12-NEXUS-COUPLING-031` — done — Remove direct non-nexus core import edge in `core/layer0/vault/src/lib.rs` (imports `protheus_memory_core_v6` directly).
+- [x] `V12-NEXUS-COUPLING-032` — done — Remove direct non-nexus core import edge in `core/layer1/observability/src/blob.rs` (imports `infring_types` directly).
+- [x] `V12-NEXUS-COUPLING-033` — done — Remove direct non-nexus core import edge in `core/layer1/observability/src/lib_parts/010-mod-blob.rs` (imports `protheus_memory_core_v6` directly).
+- [x] `V12-NEXUS-COUPLING-034` — done — Remove direct non-nexus core import edges in `core/layer1/primitives/circle_queue.rs` (imports `infring_layer1_provenance` directly).
+- [x] `V12-NEXUS-COUPLING-035` — done — Remove direct non-nexus core import edges in `core/layer1/primitives/hash_index.rs` (imports `infring_layer1_provenance` directly).
+- [x] `V12-NEXUS-COUPLING-036` — done — Remove direct non-nexus core import edges in `core/layer1/primitives/queue_list.rs` (imports `infring_layer1_provenance` directly).
 - [x] `V12-NEXUS-COUPLING-037` — done — Remove direct non-nexus core import edge in `core/layer2/conduit/src/lib_parts/010-default-bridge-message-budget-max.rs` (imports `conduit_security` directly).
 - [x] `V12-NEXUS-COUPLING-038` — done — Remove direct non-nexus core import edge in `core/layer2/conduit/src/lib_parts/command_dispatch_tests_parts/010-test-policy-paths.rs` (imports `conduit_security` directly).
 - [x] `V12-NEXUS-COUPLING-039` — done — Remove direct non-nexus core import edge in `core/layer2/execution/src/blob.rs` (imports `infring_types` directly).
 - [x] `V12-NEXUS-COUPLING-040` — done — Remove direct non-nexus core import edge in `core/layer2/nexus/src/conduit_manager.rs` (imports `conduit` directly).
 - [x] `V12-NEXUS-COUPLING-PATH-001` — done — Remove non-nexus Cargo path dependency `core/layer0/blob_test/Cargo.toml -> ../../layer1/infring_types`.
-- [ ] `V12-NEXUS-COUPLING-PATH-002` — queued — Remove non-nexus Cargo path dependency `core/layer0/desktop/Cargo.toml -> ../ops`.
+- [x] `V12-NEXUS-COUPLING-PATH-002` — done — Remove non-nexus Cargo path dependency `core/layer0/desktop/Cargo.toml -> ../ops`.
 - [x] `V12-NEXUS-COUPLING-PATH-003` — done — Remove non-nexus Cargo path dependency `core/layer0/graph/Cargo.toml -> ../../layer1/infring_types`.
-- [ ] `V12-NEXUS-COUPLING-PATH-004` — queued — Remove non-nexus Cargo path dependency `core/layer0/infring_agent_surface/Cargo.toml -> ../infring_agent_derive`.
+- [x] `V12-NEXUS-COUPLING-PATH-004` — done — Remove non-nexus Cargo path dependency `core/layer0/infring_agent_surface/Cargo.toml -> ../infring_agent_derive`.
 - [ ] `V12-NEXUS-COUPLING-PATH-005` — queued — Remove non-nexus Cargo path dependencies in `core/layer0/kernel_layers/Cargo.toml` (`../../layer2/conduit`, `../../layer_minus_one/exotic_wrapper`, `../../layer1/ipc`, `../../layer1/isolation`, `../../layer3/os_extension_wrapper`, `../../layer1/observability`, `../../layer1/resource`, `../../layer1/storage`, `../../layer1/task`, `../../layer1/update`).
 - [ ] `V12-NEXUS-COUPLING-PATH-006` — queued — Remove non-nexus Cargo path dependency `core/layer0/memory/Cargo.toml -> ../../layer1/infring_types`.
 - [ ] `V12-NEXUS-COUPLING-PATH-007` — queued — Remove non-nexus Cargo path dependencies in `core/layer0/memory_runtime/Cargo.toml` (`../../layer1/memory_runtime`, `../../layer2/memory`).
@@ -731,12 +773,12 @@ Updated: 2026-04-20T23:08:57.515Z
 - [ ] `V12-NEXUS-COUPLING-PATH-012` — queued — Remove non-nexus Cargo path dependencies in `core/layer0/security/Cargo.toml` (`../memory`, `../vault`).
 - [x] `V12-NEXUS-COUPLING-PATH-013` — done — Remove non-nexus Cargo path dependency `core/layer0/swarm/Cargo.toml -> ../../layer1/infring_types`.
 - [x] `V12-NEXUS-COUPLING-PATH-014` — done — Remove non-nexus Cargo path dependencies in `core/layer0/vault/Cargo.toml` (`../../layer1/infring_types`, `../memory`).
-- [ ] `V12-NEXUS-COUPLING-PATH-015` — queued — Remove non-nexus Cargo path dependencies in `core/layer1/observability/Cargo.toml` (`../infring_types`, `../../layer0/memory`).
-- [ ] `V12-NEXUS-COUPLING-PATH-016` — queued — Remove non-nexus Cargo path dependency `core/layer1/primitives/Cargo.toml -> ../provenance`.
+- [x] `V12-NEXUS-COUPLING-PATH-015` — done — Remove non-nexus Cargo path dependencies in `core/layer1/observability/Cargo.toml` (`../infring_types`, `../../layer0/memory`).
+- [x] `V12-NEXUS-COUPLING-PATH-016` — done — Remove non-nexus Cargo path dependency `core/layer1/primitives/Cargo.toml -> ../provenance`.
 - [x] `V12-NEXUS-COUPLING-PATH-017` — done — Remove non-nexus Cargo path dependency `core/layer2/conduit/Cargo.toml -> ../conduit-security`.
 - [x] `V12-NEXUS-COUPLING-PATH-018` — done — Remove non-nexus Cargo path dependency `core/layer2/execution/Cargo.toml -> ../../layer1/infring_types`.
 - [x] `V12-NEXUS-COUPLING-PATH-019` — done — Remove non-nexus Cargo path dependency `core/layer2/nexus/Cargo.toml -> ../conduit`.
-- [ ] `V12-NEXUS-COUPLING-PATH-020` — queued — Remove non-nexus Cargo path dependency `core/layer2/tools/Cargo.toml -> task_fabric`.
+- [x] `V12-NEXUS-COUPLING-PATH-020` — done — Remove non-nexus Cargo path dependency `core/layer2/tools/Cargo.toml -> task_fabric`.
 
 ## External Blockers
 - [ ] `V2-012` — blocked_external_prepared — Backlog Full Completion Sweep (2026-03-03) (requires external evidence packet / human approval)

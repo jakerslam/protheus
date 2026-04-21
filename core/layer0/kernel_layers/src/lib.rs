@@ -59,20 +59,28 @@ impl LayerTopology {
             + (self.layer3 as u8)
     }
 
-    pub const fn is_monotonic(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
+        self.enabled_layer_count() == 0
+    }
+
+    pub const fn topology_chain_break(&self) -> Option<&'static str> {
         if self.layer0 && !self.layer_minus_one {
-            return false;
+            return Some("layer0_requires_layer_minus_one");
         }
         if self.layer1 && !self.layer0 {
-            return false;
+            return Some("layer1_requires_layer0");
         }
         if self.layer2 && !self.layer1 {
-            return false;
+            return Some("layer2_requires_layer1");
         }
         if self.layer3 && !self.layer2 {
-            return false;
+            return Some("layer3_requires_layer2");
         }
-        true
+        None
+    }
+
+    pub const fn is_monotonic(&self) -> bool {
+        self.topology_chain_break().is_none()
     }
 
     pub const fn should_fail_closed(&self) -> bool {
@@ -80,9 +88,12 @@ impl LayerTopology {
     }
 
     pub const fn integrity_state(&self) -> &'static str {
+        if let Some(reason) = self.topology_chain_break() {
+            return reason;
+        }
         if self.should_fail_closed() {
             "topology_invalid_non_monotonic"
-        } else if self.enabled_layer_count() == 0 {
+        } else if self.is_empty() {
             "topology_empty"
         } else {
             "topology_consistent"

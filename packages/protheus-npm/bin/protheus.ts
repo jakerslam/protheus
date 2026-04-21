@@ -22,13 +22,20 @@ function resolveExecutableName() {
 
 function findBinary() {
   const exe = resolveExecutableName();
+  const aliasExe = process.platform === 'win32' ? 'infring-ops.exe' : 'infring-ops';
   const pkgRoot = path.resolve(__dirname, '..');
-  const vendorPath = path.join(pkgRoot, 'vendor', exe);
-  if (isFile(vendorPath)) return vendorPath;
+  for (const candidate of [path.join(pkgRoot, 'vendor', exe), path.join(pkgRoot, 'vendor', aliasExe)]) {
+    if (isFile(candidate)) return candidate;
+  }
   const envPath = sanitizeArgToken(process.env.PROTHEUS_NPM_BINARY || '', 1024);
   if (envPath && isFile(envPath)) return envPath;
   const repoRoot = path.resolve(pkgRoot, '..', '..');
-  for (const candidate of [path.join(repoRoot, 'target', 'debug', exe), path.join(repoRoot, 'target', 'release', exe)]) {
+  for (const candidate of [
+    path.join(repoRoot, 'target', 'debug', exe),
+    path.join(repoRoot, 'target', 'release', exe),
+    path.join(repoRoot, 'target', 'debug', aliasExe),
+    path.join(repoRoot, 'target', 'release', aliasExe)
+  ]) {
     if (isFile(candidate)) return candidate;
   }
   return null;
@@ -36,7 +43,12 @@ function findBinary() {
 
 function hasRuntimeAssets(rootDir) {
   if (!rootDir) return false;
-  return isFile(path.join(rootDir, 'client', 'runtime', 'systems', 'ops', 'protheusctl.js')) || isFile(path.join(rootDir, 'runtime', 'systems', 'ops', 'protheusctl.js'));
+  return [
+    path.join(rootDir, 'client', 'runtime', 'systems', 'ops', 'protheusctl.js'),
+    path.join(rootDir, 'client', 'runtime', 'systems', 'ops', 'protheusctl.ts'),
+    path.join(rootDir, 'runtime', 'systems', 'ops', 'protheusctl.js'),
+    path.join(rootDir, 'core', 'layer0', 'ops', 'Cargo.toml'),
+  ].some((p) => isFile(p));
 }
 
 function resolveRuntimeRoot(pkgRoot) {

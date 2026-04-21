@@ -16,6 +16,12 @@ const TEST_DIR = path.join(__dirname, '..', '..', 'memory', 'tools', 'tests', 't
 const SENSORY_DIR = path.join(TEST_DIR, 'state', 'sensory');
 const PROPOSALS_DIR = path.join(SENSORY_DIR, 'proposals');
 const QUEUE_LOG = path.join(SENSORY_DIR, 'queue_log.jsonl');
+const ORIGINAL_ENV = {
+  SENSORY_TEST_DIR: process.env.SENSORY_TEST_DIR,
+  SENSORY_QUEUE_REQUIRE_EXPLICIT_OBJECTIVE: process.env.SENSORY_QUEUE_REQUIRE_EXPLICIT_OBJECTIVE,
+  SENSORY_QUEUE_LINEAGE_REQUIRED: process.env.SENSORY_QUEUE_LINEAGE_REQUIRED,
+  SENSORY_QUEUE_THROTTLE_BYPASS: process.env.SENSORY_QUEUE_THROTTLE_BYPASS
+};
 
 // Mock environment before loading module
 process.env.SENSORY_TEST_DIR = TEST_DIR;
@@ -733,6 +739,17 @@ test('sweep filters stale open proposals by age', () => {
 
   cleanup();
 });
+
+const queueLogPresent = fs.existsSync(QUEUE_LOG);
+assert.strictEqual(typeof queueLogPresent, 'boolean');
+if (ORIGINAL_ENV.SENSORY_TEST_DIR == null) delete process.env.SENSORY_TEST_DIR;
+else process.env.SENSORY_TEST_DIR = ORIGINAL_ENV.SENSORY_TEST_DIR;
+if (ORIGINAL_ENV.SENSORY_QUEUE_REQUIRE_EXPLICIT_OBJECTIVE == null) delete process.env.SENSORY_QUEUE_REQUIRE_EXPLICIT_OBJECTIVE;
+else process.env.SENSORY_QUEUE_REQUIRE_EXPLICIT_OBJECTIVE = ORIGINAL_ENV.SENSORY_QUEUE_REQUIRE_EXPLICIT_OBJECTIVE;
+if (ORIGINAL_ENV.SENSORY_QUEUE_LINEAGE_REQUIRED == null) delete process.env.SENSORY_QUEUE_LINEAGE_REQUIRED;
+else process.env.SENSORY_QUEUE_LINEAGE_REQUIRED = ORIGINAL_ENV.SENSORY_QUEUE_LINEAGE_REQUIRED;
+if (ORIGINAL_ENV.SENSORY_QUEUE_THROTTLE_BYPASS == null) delete process.env.SENSORY_QUEUE_THROTTLE_BYPASS;
+else process.env.SENSORY_QUEUE_THROTTLE_BYPASS = ORIGINAL_ENV.SENSORY_QUEUE_THROTTLE_BYPASS;
 
 // Summary
 console.log('\n═══════════════════════════════════════════════════════════');

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::importance::{band_rank, infer_from_event, to_json as importance_to_json};
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 use base64::Engine;
 use chrono::{TimeZone, Utc};
 use execution_core::{

@@ -3,6 +3,12 @@ fn dashboard_troubleshooting_eval_recommendations(
     top_classification: &str,
 ) -> Vec<String> {
     let mut out = Vec::<String>::new();
+    if top_error == "web_called_during_local_intent"
+        || top_classification == "local_intent_web_violation"
+    {
+        out.push("enforce local-intent routing: block web tools when file/workspace intent is detected and fail closed with explicit violation telemetry".to_string());
+        out.push("verify response_finalization.tool_selection_authority=llm_controlled and auto_tool_calls_allowed=false for affected turns".to_string());
+    }
     if top_error == "web_tool_not_invoked" || top_classification == "tool_not_invoked" {
         out.push("tighten tool gate: require at least one recorded web tool call when requires_live_web=true".to_string());
     }
@@ -27,21 +33,217 @@ fn dashboard_troubleshooting_eval_recommendations(
     }
     out
 }
+
+fn dashboard_troubleshooting_parse_model_param_billion_hint(model_id: &str) -> i64 {
+    let lowered = clean_text(model_id, 140).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return 0;
+    }
+    let chars: Vec<char> = lowered.chars().collect();
+    let mut idx = 0usize;
+    while idx < chars.len() {
+        if !chars[idx].is_ascii_digit() {
+            idx += 1;
+            continue;
+        }
+        let start = idx;
+        while idx < chars.len() && chars[idx].is_ascii_digit() {
+            idx += 1;
+        }
+        let has_b_suffix = idx < chars.len() && chars[idx] == 'b';
+        if has_b_suffix {
+            let digits: String = chars[start..idx].iter().collect();
+            if let Ok(parsed) = digits.parse::<i64>() {
+                if parsed > 0 {
+                    return parsed;
+                }
+            }
+        }
+        idx += 1;
+    }
+    0
+}
+
+fn dashboard_troubleshooting_eval_model_meets_threshold(model: &str, params_billion: i64) -> bool {
+    let normalized = clean_text(model, 140).to_ascii_lowercase();
+    if normalized.is_empty() {
+        return false;
+    }
+    let inferred_params = params_billion
+        .max(dashboard_troubleshooting_parse_model_param_billion_hint(&normalized))
+        .max(0);
+    if inferred_params >= DASHBOARD_TROUBLESHOOTING_EVAL_MIN_PARAMS_BILLION {
+        return true;
+    }
+    normalized.starts_with("gpt-5") || normalized.starts_with("o3") || normalized.starts_with("o4")
+}
+
+fn dashboard_troubleshooting_parse_i64_value(value: &Value) -> i64 {
+    if let Some(v) = value.as_i64() {
+        return v.max(0);
+    }
+    if let Some(v) = value.as_f64() {
+        return (v.round() as i64).max(0);
+    }
+    if let Some(v) = value.as_str() {
+        return clean_text(v, 32).parse::<i64>().unwrap_or(0).max(0);
+    }
+    0
+}
+
+fn dashboard_troubleshooting_extract_chat_scope(payload: &Value) -> String {
+    [
+        "/session_id",
+        "/sessionId",
+        "/chat_id",
+        "/chatId",
+        "/thread_id",
+        "/threadId",
+        "/conversation_id",
+        "/conversationId",
+        "/runtime_block/session_id",
+        "/runtime_block/chat_id",
+        "/runtime_block/thread_id",
+        "/metadata/session_id",
+        "/metadata/chat_id",
+        "/metadata/thread_id",
+    ]
+    .iter()
+    .find_map(|pointer| payload.pointer(pointer).and_then(Value::as_str))
+    .map(|raw| clean_text(raw, 180))
+    .unwrap_or_default()
+}
+
+fn dashboard_troubleshooting_row_matches_chat_scope(row: &Value, chat_scope: &str) -> bool {
+    let expected = clean_text(chat_scope, 180);
+    if expected.is_empty() {
+        return true;
+    }
+    [
+        "/chat_scope",
+        "/workflow/chat_scope",
+        "/session_id",
+        "/sessionId",
+        "/chat_id",
+        "/chatId",
+        "/thread_id",
+        "/threadId",
+        "/conversation_id",
+        "/conversationId",
+        "/workflow/session_id",
+        "/workflow/chat_id",
+        "/workflow/thread_id",
+        "/metadata/session_id",
+        "/metadata/chat_id",
+        "/metadata/thread_id",
+    ]
+    .iter()
+    .filter_map(|pointer| row.pointer(pointer).and_then(Value::as_str))
+    .map(|raw| clean_text(raw, 180))
+    .any(|candidate| candidate == expected)
+}
+
+fn dashboard_troubleshooting_recent_viable_chat_model(
+    root: &Path,
+    chat_scope: Option<&str>,
+) -> Option<(String, i64)> {
+    let scope = chat_scope.map(|raw| clean_text(raw, 180)).unwrap_or_default();
+
+    let entries = dashboard_troubleshooting_read_recent_entries(root);
+    for row in entries.iter().rev() {
+        if !scope.is_empty() && !dashboard_troubleshooting_row_matches_chat_scope(row, &scope) {
+            continue;
+        }
+        let model = [
+            "/workflow/model",
+            "/workflow/model_id",
+            "/workflow/model_override",
+            "/workflow/final_model",
+            "/response_workflow/model",
+            "/response_workflow/model_id",
+            "/model",
+        ]
+        .iter()
+        .find_map(|pointer| row.pointer(pointer).and_then(Value::as_str))
+        .map(|raw| clean_text(raw, 140))
+        .unwrap_or_default();
+        if model.is_empty() {
+            continue;
+        }
+        let params_billion = [
+            "/workflow/model_params_billion",
+            "/workflow/param_count_billion",
+            "/workflow/model_profile/param_count_billion",
+            "/workflow/model_profile/params_billion",
+            "/response_workflow/model_profile/param_count_billion",
+            "/response_workflow/model_profile/params_billion",
+            "/model_params_billion",
+            "/param_count_billion",
+        ]
+        .iter()
+        .find_map(|pointer| row.pointer(pointer))
+        .map(dashboard_troubleshooting_parse_i64_value)
+        .unwrap_or(0)
+        .max(dashboard_troubleshooting_parse_model_param_billion_hint(&model))
+        .max(0);
+        if dashboard_troubleshooting_eval_model_meets_threshold(&model, params_billion) {
+            return Some((model, params_billion));
+        }
+    }
+    None
+}
+
 fn dashboard_troubleshooting_eval_model_strength(model: &str) -> &'static str {
-    let lowered = clean_text(model, 120).to_ascii_lowercase();
-    if lowered.starts_with("gpt-5") || lowered.starts_with("o3") || lowered.starts_with("o4") {
+    if dashboard_troubleshooting_eval_model_meets_threshold(model, 0) {
         "strong"
     } else {
         "custom"
     }
 }
-fn dashboard_troubleshooting_resolve_eval_model(payload: Option<&Value>) -> (String, String) {
+fn dashboard_troubleshooting_resolve_eval_model(
+    root: Option<&Path>,
+    payload: Option<&Value>,
+) -> (String, String) {
+    let payload_chat_scope =
+        payload.map(dashboard_troubleshooting_extract_chat_scope).filter(|v| !v.is_empty());
     if let Some(args) = payload {
         for key in ["eval_model", "evalModel", "llm_model", "llmModel", "model"] {
             let candidate = clean_text(args.get(key).and_then(Value::as_str).unwrap_or(""), 120);
-            if !candidate.is_empty() {
+            let params_billion = args
+                .get("model_params_billion")
+                .or_else(|| args.get("param_count_billion"))
+                .map(dashboard_troubleshooting_parse_i64_value)
+                .unwrap_or(0)
+                .max(dashboard_troubleshooting_parse_model_param_billion_hint(&candidate))
+                .max(0);
+            if !candidate.is_empty()
+                && dashboard_troubleshooting_eval_model_meets_threshold(&candidate, params_billion)
+            {
                 return (candidate, "payload".to_string());
             }
+        }
+    }
+    if let Some(state_root) = root {
+        if let Some(scope) = payload_chat_scope.as_deref() {
+            if let Some((model, params_billion)) =
+                dashboard_troubleshooting_recent_viable_chat_model(state_root, Some(scope))
+            {
+                let source = if params_billion > 0 {
+                    format!("recent_viable_chat_model_scoped_{params_billion}b")
+                } else {
+                    "recent_viable_chat_model_scoped".to_string()
+                };
+                return (model, source);
+            }
+        } else if let Some((model, params_billion)) =
+            dashboard_troubleshooting_recent_viable_chat_model(state_root, None)
+        {
+            let source = if params_billion > 0 {
+                format!("recent_viable_chat_model_{params_billion}b")
+            } else {
+                "recent_viable_chat_model".to_string()
+            };
+            return (model, source);
         }
     }
     (
@@ -65,6 +267,7 @@ fn dashboard_troubleshooting_generate_eval_report(
     let mut failure_count = 0i64;
     let mut stale_count = 0i64;
     let mut web_required_without_calls_count = 0i64;
+    let mut web_called_during_local_intent_count = 0i64;
     for row in &entries {
         if dashboard_troubleshooting_exchange_failed(row) {
             failure_count += 1;
@@ -82,6 +285,21 @@ fn dashboard_troubleshooting_generate_eval_report(
             .unwrap_or(0);
         if requires_live_web && tool_calls <= 0 {
             web_required_without_calls_count += 1;
+        }
+        let web_called_during_local_intent = row
+            .pointer("/workflow/web_called_during_local_intent")
+            .or_else(|| row.pointer("/finalization/web_invariant/web_called_during_local_intent"))
+            .or_else(|| row.pointer("/response_finalization/web_invariant/web_called_during_local_intent"))
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        if web_called_during_local_intent {
+            web_called_during_local_intent_count += 1;
+            *error_counts
+                .entry("web_called_during_local_intent".to_string())
+                .or_insert(0) += 1;
+            *class_counts
+                .entry("local_intent_web_violation".to_string())
+                .or_insert(0) += 1;
         }
         let error_code = clean_text(
             row.pointer("/workflow/error_code")
@@ -149,6 +367,7 @@ fn dashboard_troubleshooting_generate_eval_report(
         "failure_count": failure_count,
         "stale_count": stale_count,
         "web_required_without_calls_count": web_required_without_calls_count,
+        "web_called_during_local_intent_count": web_called_during_local_intent_count,
         "eval": {
             "engine": "troubleshooting_eval_v1",
             "model": model,
@@ -161,7 +380,8 @@ fn dashboard_troubleshooting_generate_eval_report(
         "exchange_health": {
             "total_entries": entries.len(),
             "stale_ratio": if entries.is_empty() { 0.0 } else { (stale_count as f64) / (entries.len() as f64) },
-            "web_required_without_calls_ratio": if entries.is_empty() { 0.0 } else { (web_required_without_calls_count as f64) / (entries.len() as f64) }
+            "web_required_without_calls_ratio": if entries.is_empty() { 0.0 } else { (web_required_without_calls_count as f64) / (entries.len() as f64) },
+            "web_called_during_local_intent_ratio": if entries.is_empty() { 0.0 } else { (web_called_during_local_intent_count as f64) / (entries.len() as f64) }
         },
         "error_histogram": error_hist,
         "classification_histogram": class_hist,
@@ -197,7 +417,7 @@ fn dashboard_troubleshooting_eval_drain_internal(
                 80,
             );
             let (eval_model, eval_model_source) = if queue_eval_model.is_empty() {
-                dashboard_troubleshooting_resolve_eval_model(None)
+                dashboard_troubleshooting_resolve_eval_model(Some(root), None)
             } else {
                 (queue_eval_model, queue_eval_model_source)
             };

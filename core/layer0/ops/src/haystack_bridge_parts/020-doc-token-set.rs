@@ -40,18 +40,38 @@ fn retrieval_score(doc: &Value, terms: &[String], mode: &str) -> i64 {
     score
 }
 
-fn variable_replacement_text(value: &Value) -> String {
-    if let Some(explicit) = value
-        .as_object()
-        .and_then(|obj| obj.get("value"))
-        .and_then(Value::as_str)
-    {
-        return clean_text(Some(explicit), 4000);
+fn variable_scalar_text(value: &Value) -> Option<String> {
+    match value {
+        Value::String(text) => Some(clean_text(Some(text), 4000)),
+        Value::Number(num) => Some(clean_text(Some(num.to_string().as_str()), 4000)),
+        Value::Bool(flag) => Some(if *flag {
+            "true".to_string()
+        } else {
+            "false".to_string()
+        }),
+        _ => None,
     }
-    value
-        .as_str()
-        .map(|row| clean_text(Some(row), 4000))
-        .unwrap_or_else(|| value.to_string())
+}
+
+fn variable_replacement_candidate_text(value: &Value, depth_remaining: u8) -> Option<String> {
+    if let Some(rendered) = variable_scalar_text(value) {
+        return Some(rendered);
+    }
+    if depth_remaining == 0 {
+        return None;
+    }
+    value.as_object().and_then(|obj| {
+        ["value", "text", "content"]
+            .iter()
+            .find_map(|key| obj.get(*key))
+            .and_then(|candidate| {
+                variable_replacement_candidate_text(candidate, depth_remaining.saturating_sub(1))
+            })
+    })
+}
+
+fn variable_replacement_text(value: &Value) -> String {
+    variable_replacement_candidate_text(value, 4).unwrap_or_default()
 }
 
 fn render_template_text(template: &str, variables: &Map<String, Value>) -> String {

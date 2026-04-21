@@ -46,6 +46,10 @@ pub fn normalize_memory_runtime_cli_arg(raw: &str) -> String {
         .collect::<String>()
 }
 
+fn has_parent_segment(raw: &str) -> bool {
+    raw.split(['/', '\\']).any(|segment| segment.trim() == "..")
+}
+
 pub fn normalize_memory_runtime_cli_args_with_contract(
     raw_args: &[String],
     strict_contract: bool,
@@ -60,7 +64,7 @@ pub fn normalize_memory_runtime_cli_args_with_contract(
         return (normalized, false, "args_empty_after_normalization");
     }
     let truncated = raw_args.len() > MAX_MEMORY_RUNTIME_CLI_ARGS;
-    let traversal_like = normalized.iter().any(|arg| arg.contains(".."));
+    let traversal_like = normalized.iter().any(|arg| has_parent_segment(arg));
     if strict_contract && traversal_like {
         return (
             normalized,

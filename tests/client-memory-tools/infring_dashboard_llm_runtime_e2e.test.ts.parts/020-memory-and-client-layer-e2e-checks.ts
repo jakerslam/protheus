@@ -6,12 +6,14 @@
     const memoryLane = memory.body && memory.body.lane ? memory.body.lane : {};
     const memoryText = String(memoryLane.response || '');
     const memoryTools = Array.isArray(memoryLane.tools) ? memoryLane.tools : [];
+    summary.checks.week_ago_no_placeholder = !/(<text response to user>|actual concrete response text)/i.test(memoryText);
     summary.checks.week_ago_memory_recall = Boolean(
       memory.body
       && memory.body.ok
       && /\b20\d{2}-\d{2}-\d{2}\b/.test(memoryText)
       && /local\/workspace\/memory\//.test(memoryText)
     );
+    assert.strictEqual(summary.checks.week_ago_no_placeholder, true, 'week-ago response should not contain placeholder text');
     summary.checks.week_ago_used_memory_tool = memoryTools.some((tool) =>
       String(tool && tool.input ? tool.input : '').includes('local/workspace/memory/')
     );
@@ -142,6 +144,13 @@
     );
     assert.strictEqual(runtimeSwarm.status, 200, 'runtime swarm recommendation action should return 200');
     const runtimeSwarmLane = runtimeSwarm.body && runtimeSwarm.body.lane ? runtimeSwarm.body.lane : {};
+    const runtimeSwarmResponse = String(runtimeSwarmLane.response || '');
+    summary.checks.runtime_swarm_no_placeholder = !/(<text response to user>|actual concrete response text)/i.test(runtimeSwarmResponse);
+    assert.strictEqual(
+      summary.checks.runtime_swarm_no_placeholder,
+      true,
+      'runtime swarm recommendation should not contain placeholder response text'
+    );
     summary.checks.runtime_swarm_recommendation_executed = !!(
       runtimeSwarm.body
       && runtimeSwarm.body.ok

@@ -22,4 +22,7 @@ Release-critical lanes include:
 
 1. `CODEOWNERS` must keep redundant owners for scoped release-critical paths.
 2. Release checklist review must include reviewer-redundancy confirmation.
-
+3. CI guard command: `npm run -s ops:release-reviewer-redundancy:guard`.
+4. Guard artifacts:
+   - `core/local/artifacts/release_lane_reviewer_redundancy_guard_current.json`
+   - `local/workspace/reports/RELEASE_LANE_REVIEWER_REDUNDANCY_GUARD_CURRENT.md`

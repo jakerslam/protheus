@@ -169,6 +169,45 @@ function evaluateThresholds(metrics: RuntimeQualityMetrics | null, policy: Runti
   return failures;
 }
 
+function evaluateMetricConsistency(metrics: RuntimeQualityMetrics | null): string[] {
+  const failures: string[] = [];
+  if (!metrics) return failures;
+
+  const sampleSize = numberOrNull(metrics.sample_size_non_legacy);
+  const fallbackRate = numberOrNull(metrics.fallback_rate_non_legacy);
+  const heuristicProbeRate = numberOrNull(metrics.heuristic_probe_rate_non_legacy);
+  const clarificationRate = numberOrNull(metrics.clarification_rate_non_legacy);
+  const zeroExecutableRate = numberOrNull(metrics.zero_executable_rate_non_legacy);
+  const allCandidatesDegradedRate = numberOrNull(metrics.all_candidates_degraded_rate_non_legacy);
+
+  const rateRows: Array<{ key: string; value: number | null }> = [
+    { key: 'fallback_rate_non_legacy', value: fallbackRate },
+    { key: 'heuristic_probe_rate_non_legacy', value: heuristicProbeRate },
+    { key: 'clarification_rate_non_legacy', value: clarificationRate },
+    { key: 'zero_executable_rate_non_legacy', value: zeroExecutableRate },
+    { key: 'all_candidates_degraded_rate_non_legacy', value: allCandidatesDegradedRate },
+  ];
+
+  for (const row of rateRows) {
+    if (row.value == null) continue;
+    if (row.value < 0 || row.value > 1) {
+      failures.push(
+        `inconsistent_${row.key}_out_of_domain:value=${row.value.toFixed(4)}:expected=0..1`,
+      );
+    }
+  }
+
+  if (
+    sampleSize != null
+    && sampleSize === 0
+    && rateRows.some((row) => row.value != null && row.value > 0)
+  ) {
+    failures.push('inconsistent_non_legacy_rates_with_zero_sample_size');
+  }
+
+  return failures;
+}
+
 function evaluateRatchet(
   metrics: RuntimeQualityMetrics | null,
   policy: RuntimeQualityPolicy,
@@ -246,6 +285,11 @@ function toMarkdown(payload: any): string {
     lines.push('## Policy Failures');
     for (const row of payload.policy_failures) lines.push(`- ${row}`);
   }
+  if (Array.isArray(payload.consistency_failures) && payload.consistency_failures.length > 0) {
+    lines.push('');
+    lines.push('## Consistency Failures');
+    for (const row of payload.consistency_failures) lines.push(`- ${row}`);
+  }
   if (Array.isArray(payload.ratchet_failures) && payload.ratchet_failures.length > 0) {
     lines.push('');
     lines.push('## Ratchet Failures');
@@ -290,8 +334,13 @@ function run(argv: string[]): number {
     ? readJsonMaybe<any>(runtimePolicy.paths.latest)
     : null;
   const policyFailures = evaluateThresholds(metrics, runtimePolicy);
+  const consistencyFailures = evaluateMetricConsistency(metrics);
   const ratchetFailures = evaluateRatchet(metrics, runtimePolicy, previousLatest);
-  const ok = testsOk && policyFailures.length === 0 && ratchetFailures.length === 0;
+  const ok =
+    testsOk
+    && policyFailures.length === 0
+    && consistencyFailures.length === 0
+    && ratchetFailures.length === 0;
 
   const payload = {
     ok,
@@ -313,10 +362,12 @@ function run(argv: string[]): number {
       exit_code: result.status ?? 1,
       signal: result.signal ?? null,
       policy_failure_count: policyFailures.length,
+      consistency_failure_count: consistencyFailures.length,
       ratchet_failure_count: ratchetFailures.length,
     },
     metrics,
     policy_failures: policyFailures,
+    consistency_failures: consistencyFailures,
     ratchet_failures: ratchetFailures,
     output_excerpt: output,
   };

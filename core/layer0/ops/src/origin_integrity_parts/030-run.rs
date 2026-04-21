@@ -63,7 +63,7 @@ fn check_seed_certificate(
         },
         "local_origin_integrity_ok": local.get("ok").and_then(Value::as_bool) == Some(true)
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
@@ -114,7 +114,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "error": err,
                 "ts": now_iso()
             });
-            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
             println!(
                 "{}",
                 serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string())
@@ -163,7 +163,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "latest_path": latest_path.display().to_string(),
                 "latest": latest
             });
-            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
             println!(
                 "{}",
                 serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string())
@@ -212,7 +212,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "ts": now_iso(),
                     "error": "certificate_required"
                 });
-                out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+                out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
                 println!(
                     "{}",
                     serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string())
@@ -226,7 +226,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "ts": now_iso(),
                     "error": "certificate_path_invalid"
                 });
-                out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+                out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
                 println!(
                     "{}",
                     serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string())
@@ -240,7 +240,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "ts": now_iso(),
                     "error": "certificate_path_must_be_json"
                 });
-                out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+                out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
                 println!(
                     "{}",
                     serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string())
@@ -270,7 +270,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "ts": now_iso(),
                 "error": format!("unknown_command:{}", command)
             });
-            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
             println!(
                 "{}",
                 serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string())

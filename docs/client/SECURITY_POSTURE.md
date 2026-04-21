@@ -2,7 +2,7 @@
 
 Version: 1.0  
 Date: 2026-03-06  
-Owner: InfRing Core Security
+Owner: InfRing Kernel Security
 
 ## Scope
 
@@ -29,7 +29,7 @@ Defensive posture:
 ```mermaid
 flowchart TD
   TS["TS Surface (UI/Marketplace/Dev)"] --> C["Conduit Client"]
-  C --> R["Rust Core (TCB)"]
+  C --> R["Rust Kernel (TCB)"]
   R --> P["Constitution + Policy Gates"]
   P --> G["Guard Registry Checks"]
   G --> H["Deterministic Receipt Hash"]

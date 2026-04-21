@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: core/layer0/ops (authoritative)
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 use chrono::Timelike;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};

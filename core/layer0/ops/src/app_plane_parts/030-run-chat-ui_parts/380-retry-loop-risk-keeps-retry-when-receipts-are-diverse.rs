@@ -21,6 +21,3 @@ fn chat_ui_retry_loop_risk_keeps_retry_when_receipts_are_diverse() {
     assert_eq!(strategy, "retry_with_backoff");
     assert_eq!(lane, "delayed");
 }
-
-#[cfg(test)]
-#[test]

@@ -41,6 +41,17 @@ fn strip_invisible_unicode(raw: &str) -> String {
         .collect::<String>()
 }
 
+fn truncate_utf8_by_bytes(input: &str, max_bytes: usize) -> String {
+    if input.len() <= max_bytes {
+        return input.to_string();
+    }
+    let mut end = max_bytes.min(input.len());
+    while end > 0 && !input.is_char_boundary(end) {
+        end -= 1;
+    }
+    input[..end].to_string()
+}
+
 fn sanitize_report_content(content: &str) -> (String, bool, bool) {
     let stripped = strip_invisible_unicode(content)
         .chars()
@@ -48,7 +59,7 @@ fn sanitize_report_content(content: &str) -> (String, bool, bool) {
         .collect::<String>();
     let truncated = stripped.len() > MAX_REPORT_INPUT_BYTES;
     let sanitized = stripped != content;
-    let bounded = stripped.chars().take(MAX_REPORT_INPUT_BYTES).collect::<String>();
+    let bounded = truncate_utf8_by_bytes(&stripped, MAX_REPORT_INPUT_BYTES);
     (bounded, sanitized || truncated, truncated)
 }
 

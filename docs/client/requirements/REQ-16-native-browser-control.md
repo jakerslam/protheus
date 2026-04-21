@@ -31,7 +31,7 @@ Out of scope:
 2. `REQ-16-002` Direct CDP integration
 - Acceptance:
   - Native mode uses direct CDP connection path for browser control operations.
-  - Core operations (navigate/click/type/evaluate/snapshot) are supported in native mode.
+  - Kernel operations (navigate/click/type/evaluate/snapshot) are supported in native mode.
   - Error paths produce typed, receipt-backed failures.
 
 3. `REQ-16-003` Encrypted profile/session persistence

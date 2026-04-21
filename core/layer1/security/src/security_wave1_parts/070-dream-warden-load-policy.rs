@@ -20,6 +20,15 @@ fn dream_warden_resolve_runtime_path(
         .to_string()
 }
 
+fn dream_warden_normalize_run_id(run_id: &str) -> String {
+    let cleaned = clean_text(run_id, 96);
+    if cleaned.is_empty() {
+        "dream_warden".to_string()
+    } else {
+        cleaned
+    }
+}
+
 fn dream_warden_load_policy(repo_root: &Path, policy_path: &Path) -> Value {
     let raw = read_json_or(policy_path, json!({}));
     let mut policy = dream_warden_default_policy();
@@ -141,13 +150,19 @@ fn dream_warden_last_run_info(history_path: &Path) -> (Option<String>, Option<f6
         .map(|v| {
             let now = Utc::now().timestamp_millis() as f64;
             let then = v.timestamp_millis() as f64;
-            (now - then) / 3_600_000.0
+            let hours = (now - then) / 3_600_000.0;
+            if !hours.is_finite() {
+                0.0
+            } else {
+                hours.max(0.0).min(24.0 * 3650.0)
+            }
         });
     (last_ts, hours_since)
 }
 
 fn dream_warden_patch_proposals(policy: &Value, signals: &Value, run_id: &str) -> Vec<Value> {
     let mut out = Vec::new();
+    let safe_run_id = dream_warden_normalize_run_id(run_id);
     let max = number_i64(
         policy
             .get("thresholds")
@@ -198,7 +213,7 @@ fn dream_warden_patch_proposals(policy: &Value, signals: &Value, run_id: &str) -
     );
     if critical_fail >= critical_trigger {
         out.push(json!({
-            "run_id": run_id,
+            "run_id": safe_run_id.clone(),
             "proposal_type": "critical_fail_case_containment",
             "summary": "Strengthen containment around failing red-team surfaces.",
             "priority": "high"
@@ -214,7 +229,7 @@ fn dream_warden_patch_proposals(policy: &Value, signals: &Value, run_id: &str) -
     );
     if red_fail >= red_trigger {
         out.push(json!({
-            "run_id": run_id,
+            "run_id": safe_run_id.clone(),
             "proposal_type": "red_team_fail_rate_hardening",
             "summary": "Reduce red-team fail-rate via targeted controls and retries.",
             "priority": "high"
@@ -230,7 +245,7 @@ fn dream_warden_patch_proposals(policy: &Value, signals: &Value, run_id: &str) -
     );
     if hold_rate >= hold_trigger {
         out.push(json!({
-            "run_id": run_id,
+            "run_id": safe_run_id.clone(),
             "proposal_type": "mirror_hold_rate_relief",
             "summary": "Investigate high hold-rate and reduce unnecessary holds.",
             "priority": "medium"
@@ -246,12 +261,21 @@ fn dream_warden_patch_proposals(policy: &Value, signals: &Value, run_id: &str) -
     );
     if coherence < low_sym_trigger {
         out.push(json!({
-            "run_id": run_id,
+            "run_id": safe_run_id.clone(),
             "proposal_type": "symbiosis_recovery",
             "summary": "Recover symbiosis coherence before risky adaptations.",
             "priority": "medium"
         }));
     }
+    let mut seen = std::collections::BTreeSet::new();
+    out.retain(|row| {
+        let key = row
+            .get("proposal_type")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        !key.is_empty() && seen.insert(key)
+    });
     out.truncate(max);
     out
 }

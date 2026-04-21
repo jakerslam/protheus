@@ -128,8 +128,6 @@ pub fn download_model(root: &Path, provider_id: &str, model_ref: &str) -> Value 
     })
 }
 
-include!("040-routing-policy.rs");
-include!("050-virtual-keys.rs");
 fn invoke_chat_live(
     root: &Path,
     provider_id: &str,

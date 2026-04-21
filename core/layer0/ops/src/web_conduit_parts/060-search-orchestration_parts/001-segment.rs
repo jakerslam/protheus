@@ -64,6 +64,5 @@ include!("001-segment_parts/610-search-query-source-kind.rs");
 include!("001-segment_parts/620-search-query-source-confidence.rs");
 include!("001-segment_parts/630-search-query-source-recovery-mode.rs");
 include!("001-segment_parts/640-search-query-source-lineage.rs");
-include!("001-segment_parts/650-search-query-and-source-chunk-1.rs");
-include!("001-segment_parts/660-search-query-and-source-chunk-2.rs");
+include!("001-segment_parts/650-search-query-and-source.rs");
 include!("001-segment_parts/670-api-search.rs");

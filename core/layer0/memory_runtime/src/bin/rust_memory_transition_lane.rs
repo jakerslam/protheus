@@ -34,8 +34,11 @@ fn sanitize_cli_token(raw: &str) -> String {
     strip_invisible_unicode(raw)
         .chars()
         .filter(|ch| !ch.is_control() || *ch == '\n' || *ch == '\t')
+        .map(|ch| if ch.is_whitespace() { ' ' } else { ch })
         .collect::<String>()
-        .trim()
+        .split_whitespace()
+        .collect::<Vec<&str>>()
+        .join(" ")
         .chars()
         .take(160)
         .collect::<String>()
@@ -54,10 +57,14 @@ fn argv_contract(args: &[String], raw_count: usize) -> (bool, &'static str) {
     if raw_count > MAX_ARGV_COUNT {
         return (false, "argv_count_exceeded");
     }
-    if args.iter().any(|arg| arg.contains("..")) {
+    if args.iter().any(|arg| has_parent_segment(arg)) {
         return (false, "argv_parent_traversal_blocked");
     }
     (true, "argv_contract_ok")
+}
+
+fn has_parent_segment(raw: &str) -> bool {
+    raw.split(['/', '\\']).any(|segment| segment.trim() == "..")
 }
 
 fn has_parent_component(path: &std::path::Path) -> bool {
@@ -81,11 +88,10 @@ fn resolve_repo_root() -> (PathBuf, Option<&'static str>) {
     if candidate.is_absolute() {
         return (cwd, Some("protheus_root_absolute_blocked"));
     }
-    let resolved = if candidate.is_absolute() {
-        candidate
-    } else {
-        cwd.join(candidate)
-    };
+    let resolved = cwd.join(candidate);
+    if has_parent_component(&resolved) {
+        return (cwd, Some("protheus_root_parent_blocked_after_join"));
+    }
     (resolved, None)
 }
 

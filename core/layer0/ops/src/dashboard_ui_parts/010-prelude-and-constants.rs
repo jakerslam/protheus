@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::dashboard_agent_state;
 use crate::dashboard_compat_api;
-use crate::dashboard_model_catalog;
-use crate::dashboard_terminal_broker;
 use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
 use std::cmp::Reverse;

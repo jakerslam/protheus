@@ -151,11 +151,11 @@ fn is_tool_call_content_type(value: &str) -> bool {
 }
 
 fn is_tool_result_content_type(value: &str) -> bool {
-    matches!(value, "toolresult" | "tool_result")
+    matches!(value, "toolresult" | "tool_result" | "toolresponse" | "tool_response")
 }
 
 fn resolve_tool_use_id(block: &Value) -> Option<String> {
-    for key in ["id", "tool_use_id", "toolUseId"] {
+    for key in ["id", "tool_use_id", "toolUseId", "tool_call_id", "toolCallId"] {
         let Some(raw) = block.get(key).and_then(Value::as_str) else {
             continue;
         };
@@ -170,9 +170,13 @@ fn resolve_tool_use_id(block: &Value) -> Option<String> {
 fn resolve_tool_call_command(block: &Value) -> Option<String> {
     [
         block.pointer("/input/command").and_then(Value::as_str),
+        block.pointer("/input/cmd").and_then(Value::as_str),
         block.pointer("/args/command").and_then(Value::as_str),
+        block.pointer("/args/cmd").and_then(Value::as_str),
         block.pointer("/arguments/command").and_then(Value::as_str),
+        block.pointer("/arguments/cmd").and_then(Value::as_str),
         block.get("command").and_then(Value::as_str),
+        block.get("cmd").and_then(Value::as_str),
     ]
     .into_iter()
     .flatten()
@@ -182,6 +186,12 @@ fn resolve_tool_call_command(block: &Value) -> Option<String> {
 
 fn resolve_tool_result_text(block: &Value) -> String {
     if let Some(text) = block.get("content").and_then(Value::as_str) {
+        return clean_text(text, 1000);
+    }
+    if let Some(text) = block.get("output_text").and_then(Value::as_str) {
+        return clean_text(text, 1000);
+    }
+    if let Some(text) = block.get("outputText").and_then(Value::as_str) {
         return clean_text(text, 1000);
     }
     if let Some(items) = block.get("content").and_then(Value::as_array) {
@@ -238,10 +248,13 @@ fn extract_commands_from_jsonl(session_id: &str, jsonl: &str) -> Vec<ExtractedCo
             .and_then(Value::as_str)
             .unwrap_or("")
             .to_ascii_lowercase();
+        let content_blocks = parsed
+            .pointer("/message/content")
+            .or_else(|| parsed.get("content"))
+            .and_then(Value::as_array);
         match entry_type.as_str() {
             "assistant" => {
-                let Some(content) = parsed.pointer("/message/content").and_then(Value::as_array)
-                else {
+                let Some(content) = content_blocks else {
                     continue;
                 };
                 for block in content {
@@ -268,9 +281,8 @@ fn extract_commands_from_jsonl(session_id: &str, jsonl: &str) -> Vec<ExtractedCo
                     sequence_counter += 1;
                 }
             }
-            "user" => {
-                let Some(content) = parsed.pointer("/message/content").and_then(Value::as_array)
-                else {
+            "user" | "tool" | "tool_result" => {
+                let Some(content) = content_blocks else {
                     continue;
                 };
                 for block in content {

@@ -1,4 +1,4 @@
-# Backend Top-50 Execution (Core + Orchestration)
+# Backend Top-50 Execution (Kernel + Orchestration)
 
 Generated: 2026-04-15T23:29:53.382Z
 

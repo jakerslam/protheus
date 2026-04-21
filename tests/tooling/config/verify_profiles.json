@@ -14,7 +14,13 @@
         "ops:dashboard:segment-ghost:guard",
         "ops:root-surface:audit",
         "ops:arch:conformance",
-        "ops:incident-governance:gate"
+        "ops:layer3:contract:guard",
+        "ops:incident-governance:gate",
+        "ops:shell:truth-leak:guard",
+        "ops:terminology:transition:inventory",
+        "ops:srs:same-revision:guard",
+        "ops:capability-proof-burden:guard",
+        "ops:srs:todo-section:guard"
       ]
     },
     "boundary": {
@@ -27,7 +33,13 @@
         "ops:arch:governance",
         "ops:root-surface:audit",
         "ops:repo-surface:audit",
-        "ops:incident-governance:gate"
+        "ops:layer3:contract:guard",
+        "ops:incident-governance:gate",
+        "ops:shell:truth-leak:guard",
+        "ops:terminology:transition:inventory",
+        "ops:srs:same-revision:guard",
+        "ops:capability-proof-burden:guard",
+        "ops:srs:todo-section:guard"
       ]
     },
     "codex-wave": {
@@ -66,6 +78,7 @@
         "ops:release:verdict",
         "ops:production-closure:gate",
         "ops:dashboard:surface:guard",
+        "ops:shell:truth-leak:guard",
         "ops:dashboard:segment-ghost:guard",
         "ops:node-critical-path:inventory",
         "ops:agent-surface:status:guard",
@@ -82,6 +95,7 @@
         "ops:client-naming:guard",
         "ops:orchestration-naming:guard",
         "ops:core-naming:guard",
+        "ops:terminology:transition:inventory",
         "ops:simplicity:audit",
         "ops:root-surface:audit",
         "ops:repo-surface:audit",
@@ -89,6 +103,7 @@
         "ops:public-platform:contract",
         "ops:benchmark:sanity",
         "ops:benchmark:public-audit",
+        "ops:benchmark:class-trends",
         "ops:flaky:quarantine:audit",
         "ops:test-priority:audit",
         "ops:strategic-contracts:audit",
@@ -100,17 +115,23 @@
         "audit:client-surface-disposition",
         "audit:client-target-contract",
         "ops:runtime-proof:verify",
+        "ops:queue-backpressure:policy:gate",
         "ops:adapter-runtime-chaos:gate",
         "ops:adapter-chaos:rust",
         "ops:agent-surface:status:guard",
         "ops:v8:runtime-proof:gate",
+        "ops:capability-proof-burden:guard",
+        "ops:srs:same-revision:guard",
+        "ops:srs:todo-section:guard",
         "ops:srs:full:gate",
         "ops:dod:gate",
         "test:ops:srs-contract-runtime-evidence",
         "ops:churn:guard",
         "ops:layer2:parity:guard",
         "ops:layer2:receipt:replay",
+        "ops:layer3:contract:guard",
         "ops:boundedness:inspect",
+        "ops:boundedness:release-gate",
         "ops:trusted-core:report",
         "ops:release:proof-pack",
         "ops:benchmark:public-harness",
@@ -121,12 +142,15 @@
       "description": "Deterministic runtime proof and release-threshold validation for boundedness, queue pressure, recovery, and stale-surface incidents.",
       "gate_ids": [
         "ops:runtime-proof:verify",
+        "ops:queue-backpressure:policy:gate",
         "ops:adapter-runtime-chaos:gate",
         "ops:adapter-chaos:rust",
         "ops:v8:runtime-proof:gate",
         "ops:layer2:parity:guard",
         "ops:layer2:receipt:replay",
+        "ops:layer3:contract:guard",
         "ops:boundedness:inspect",
+        "ops:boundedness:release-gate",
         "ops:trusted-core:report"
       ]
     },
@@ -135,11 +159,15 @@
       "gate_ids": [
         "ops:layer2:parity:guard",
         "ops:layer2:receipt:replay",
+        "ops:layer3:contract:guard",
         "ops:boundedness:inspect",
+        "ops:queue-backpressure:policy:gate",
+        "ops:boundedness:release-gate",
         "ops:trusted-core:report",
         "ops:node-critical-path:inventory",
         "ops:agent-surface:status:guard",
-        "ops:release:proof-pack"
+        "ops:release:proof-pack",
+        "ops:shell:truth-leak:guard"
       ]
     }
   }

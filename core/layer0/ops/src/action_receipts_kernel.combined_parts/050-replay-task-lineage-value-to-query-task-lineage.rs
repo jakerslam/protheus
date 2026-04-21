@@ -15,11 +15,18 @@ fn replay_task_lineage_value(root: &Path, payload: &Map<String, Value>) -> Resul
     let limit = parse_lineage_limit(payload);
     let scan_root = parse_scan_root(root, payload);
 
-    let mut source_paths = known_lineage_paths(&scan_root);
-    source_paths.extend(discover_lineage_paths(&scan_root));
-    source_paths.extend(source_paths_from_payload(&scan_root, payload));
+    let explicit_sources = source_paths_from_payload(&scan_root, payload);
+    let sources_override = !explicit_sources.is_empty();
+    let mut source_paths = if sources_override {
+        explicit_sources
+    } else {
+        let mut discovered = known_lineage_paths(&scan_root);
+        discovered.extend(discover_lineage_paths(&scan_root));
+        discovered
+    };
     let mut dedupe = BTreeSet::<PathBuf>::new();
     source_paths.retain(|path| dedupe.insert(path.clone()));
+    let source_candidates_count = source_paths.len();
 
     let mut task_events = Vec::<Value>::new();
     let mut tool_calls = Vec::<Value>::new();
@@ -181,6 +188,8 @@ fn replay_task_lineage_value(root: &Path, payload: &Map<String, Value>) -> Resul
             "claim_evidence_integrity_ok": claims_without_evidence.is_empty()
         },
         "stats": {
+            "sources_override": sources_override,
+            "source_candidates_count": source_candidates_count,
             "scanned_files": scanned_files,
             "scanned_rows": scanned_rows
         }
@@ -193,16 +202,25 @@ pub fn query_task_lineage(
     trace_id: Option<&str>,
     limit: usize,
     scan_root: Option<&Path>,
+    sources_csv: Option<&str>,
 ) -> Result<Value, String> {
     let scan_root_value = scan_root
         .map(|path| path.to_string_lossy().to_string())
         .unwrap_or_default();
-    let payload = json!({
+    let mut payload = json!({
         "task_id": task_id,
         "trace_id": trace_id.unwrap_or_default(),
         "limit": limit,
         "scan_root": scan_root_value
     });
+    if let Some(sources) = sources_csv
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        if let Some(obj) = payload.as_object_mut() {
+            obj.insert("sources".to_string(), Value::String(sources.to_string()));
+        }
+    }
     let obj = payload
         .as_object()
         .cloned()

@@ -109,11 +109,20 @@ fn sanitize_key(raw_key: &str) -> Option<String> {
     {
         return None;
     }
+    if normalized.contains('\\') || normalized.contains(':') {
+        return None;
+    }
     if normalized.contains("//")
         || normalized.contains("../")
         || normalized.contains("/..")
         || normalized.starts_with('/')
         || normalized.ends_with('/')
+    {
+        return None;
+    }
+    if normalized
+        .split('/')
+        .any(|segment| segment.is_empty() || segment == "." || segment == "..")
     {
         return None;
     }

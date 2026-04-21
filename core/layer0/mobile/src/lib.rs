@@ -51,6 +51,7 @@ fn round3(value: f64) -> f64 {
 
 const MAX_CYCLE_ID_LEN: usize = 96;
 const MAX_STATUS_LEN: usize = 160;
+const MAX_SUBSYSTEM_STATUS_ROWS: usize = 256;
 
 fn strip_invisible_unicode(raw: &str) -> String {
     raw.chars()
@@ -106,6 +107,7 @@ fn normalize_subsystem_status(statuses: &mut Vec<String>) {
     }
     normalized.sort();
     normalized.dedup();
+    normalized.truncate(MAX_SUBSYSTEM_STATUS_ROWS);
     *statuses = normalized;
 }
 

@@ -54,6 +54,20 @@ jobs:
           npm run -s ops:orchestration:adapter-fallback:guard
           npm run -s ops:orchestration:planner-quality:guard
           npm run -s ops:orchestration:ownership:guard
+          npm run -s ops:ownership:drift:guard
+          npm run -s ops:ownership:placement-rationale:guard
+          npm run -s ops:layer-placement:check
+          npm run -s ops:nexus:boundary:audit
+          npm run -s ops:client-import-integrity:audit
+          npm run -s ops:shell:truth-leak:guard
+          npm run -s ops:shell-transition:tracker
+          npm run -s ops:release-reviewer-redundancy:guard
+          npm run -s ops:external-validation:evidence:cadence
+          npm run -s ops:queue-backpressure:policy:gate
+          npm run -s ops:layer2:parity:guard
+          npm run -s ops:layer2:receipt:replay
+          npm run -s ops:runtime-proof:verify
+          npm run -s ops:boundedness:release-gate
           npm run -s ops:system:fitness:gate
 
       - name: Setup Rust
@@ -166,6 +180,32 @@ jobs:
             core/local/artifacts/ci_quality_scorecard_current.json
             core/local/artifacts/orchestration_adapter_fallback_guard_current.json
             core/local/artifacts/orchestration_ownership_guard_current.json
+            core/local/artifacts/ownership_drift_guard_current.json
+            core/local/artifacts/ownership_placement_rationale_guard_current.json
+            core/local/artifacts/client_import_integrity_audit_current.json
+            core/local/artifacts/nexus_import_export_boundary_audit_current.json
+            core/local/artifacts/shell_truth_leak_guard_current.json
+            core/local/artifacts/shell_transition_tracker_current.json
+            core/local/artifacts/release_lane_reviewer_redundancy_guard_current.json
+            core/local/artifacts/external_validation_evidence_cadence_current.json
+            core/local/artifacts/layer2_lane_parity_guard_current.json
+            core/local/artifacts/layer2_receipt_replay_current.json
+            core/local/artifacts/runtime_proof_verify_current.json
+            core/local/artifacts/runtime_proof_harness_rich_current.json
+            core/local/artifacts/runtime_proof_harness_pure_current.json
+            core/local/artifacts/runtime_proof_harness_tiny-max_current.json
+            core/local/artifacts/runtime_proof_release_gate_rich_current.json
+            core/local/artifacts/runtime_proof_release_gate_pure_current.json
+            core/local/artifacts/runtime_proof_release_gate_tiny-max_current.json
+            core/local/artifacts/runtime_proof_release_metrics_rich_current.json
+            core/local/artifacts/runtime_proof_release_metrics_pure_current.json
+            core/local/artifacts/runtime_proof_release_metrics_tiny-max_current.json
+            core/local/artifacts/runtime_boundedness_72h_evidence_current.json
+            core/local/artifacts/queue_backpressure_policy_gate_current.json
+            core/local/artifacts/runtime_multi_day_soak_evidence_current.json
+            core/local/artifacts/runtime_proof_empirical_release_evidence_current.json
+            core/local/artifacts/runtime_proof_empirical_trends_current.json
+            core/local/artifacts/runtime_boundedness_release_gate_current.json
             core/local/artifacts/dashboard_surface_authority_guard_current.json
             core/local/artifacts/client_naming_policy_guard_current.json
             core/local/artifacts/orchestration_naming_policy_guard_current.json
@@ -177,6 +217,20 @@ jobs:
             local/workspace/reports/CI_QUALITY_SCORECARD_CURRENT.md
             local/workspace/reports/ORCHESTRATION_ADAPTER_FALLBACK_GUARD_CURRENT.md
             local/workspace/reports/ORCHESTRATION_OWNERSHIP_GUARD_CURRENT.md
+            local/workspace/reports/OWNERSHIP_DRIFT_GUARD_CURRENT.md
+            local/workspace/reports/OWNERSHIP_PLACEMENT_RATIONALE_GUARD_CURRENT.md
+            local/workspace/reports/SHELL_TRUTH_LEAK_GUARD_CURRENT.md
+            local/workspace/reports/SHELL_TRANSITION_TRACKER_CURRENT.md
+            local/workspace/reports/RELEASE_LANE_REVIEWER_REDUNDANCY_GUARD_CURRENT.md
+            local/workspace/reports/EXTERNAL_VALIDATION_EVIDENCE_CADENCE_CURRENT.md
+            local/workspace/reports/LAYER2_LANE_PARITY_GUARD_CURRENT.md
+            local/workspace/reports/LAYER2_RECEIPT_REPLAY_CURRENT.md
+            local/workspace/reports/RUNTIME_PROOF_RELEASE_GATE_RICH_CURRENT.md
+            local/workspace/reports/RUNTIME_PROOF_RELEASE_GATE_PURE_CURRENT.md
+            local/workspace/reports/RUNTIME_PROOF_RELEASE_GATE_TINY-MAX_CURRENT.md
+            local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_RICH_CURRENT.md
+            local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_PURE_CURRENT.md
+            local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_TINY-MAX_CURRENT.md
             local/workspace/reports/DASHBOARD_SURFACE_AUTHORITY_GUARD_CURRENT.md
             local/workspace/reports/CLIENT_NAMING_POLICY_GUARD_CURRENT.md
             local/workspace/reports/ORCHESTRATION_NAMING_POLICY_GUARD_CURRENT.md
@@ -252,6 +306,8 @@ jobs:
         run: docker logs infring-smoke || true
 
       - name: Stop container
+        if: always()
+        run: docker rm -f infring-smoke || true
         if: always()
         run: docker rm -f infring-smoke || true
 

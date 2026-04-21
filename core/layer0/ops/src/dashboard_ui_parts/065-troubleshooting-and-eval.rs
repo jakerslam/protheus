@@ -19,6 +19,7 @@ const DASHBOARD_TROUBLESHOOTING_MAX_QUEUE: usize = 500;
 const DASHBOARD_TROUBLESHOOTING_MAX_OUTBOX: usize = 300;
 const DASHBOARD_TROUBLESHOOTING_MAX_DEADLETTER: usize = 600;
 const DASHBOARD_TROUBLESHOOTING_DEFAULT_EVAL_MODEL: &str = "gpt-5.4";
+const DASHBOARD_TROUBLESHOOTING_EVAL_MIN_PARAMS_BILLION: i64 = 80;
 
 include!("065-troubleshooting-and-eval_parts/001-segment.rs");
 include!("065-troubleshooting-and-eval_parts/002-segment.rs");

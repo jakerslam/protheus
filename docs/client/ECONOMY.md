@@ -2,7 +2,7 @@
 
 `V3-RACE-022` adds a governed compute-tithe flywheel where verified donated GPU-hours reduce effective tithe and publish receipted events.
 
-## Core Invariants
+## Kernel Invariants
 
 - Risk-tier defaults to `<=2`.
 - Tier `3+` apply paths require second-gate approval.

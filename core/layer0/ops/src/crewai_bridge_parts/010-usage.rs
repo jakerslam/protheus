@@ -9,7 +9,7 @@ use crate::contract_lane_utils::{
     self as lane_utils, clean_text, clean_token, cli_error, cli_receipt, normalize_bridge_path,
     payload_obj, print_json_line, rel_path as rel, repo_path,
 };
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 
 const DEFAULT_STATE_REL: &str = "local/state/ops/crewai_bridge/latest.json";
 const DEFAULT_HISTORY_REL: &str = "local/state/ops/crewai_bridge/history.jsonl";

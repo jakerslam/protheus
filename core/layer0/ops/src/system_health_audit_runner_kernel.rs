@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::contract_lane_utils as lane_utils;
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 
 const DEFAULT_POLICY_REL: &str = "client/runtime/config/system_health_audit_runner_policy.json";
 const DEFAULT_LATEST_REL: &str = "local/state/ops/system_health_audit/latest.json";

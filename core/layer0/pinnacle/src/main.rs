@@ -5,6 +5,7 @@ use protheus_pinnacle_core_v1::{get_sovereignty_index, merge_delta, merge_delta_
 use serde_json::{Map, Value};
 use std::env;
 use std::fs;
+use std::path::{Component, Path};
 
 const MAX_ARG_KEY_LEN: usize = 48;
 const MAX_PAYLOAD_BYTES: usize = 32 * 1024;
@@ -12,6 +13,7 @@ const MAX_NODE_ID_LEN: usize = 96;
 const MAX_CHANGE_KEY_LEN: usize = 160;
 const MAX_STRING_VALUE_LEN: usize = 2 * 1024;
 const MAX_CHANGE_ENTRIES: usize = 1024;
+const MAX_ARRAY_VALUES: usize = 256;
 
 fn strip_invisible_unicode(raw: &str) -> String {
     raw.chars()
@@ -51,6 +53,23 @@ fn parse_arg(args: &[String], key: &str) -> Option<String> {
     None
 }
 
+fn is_safe_json_file_path(raw: &str) -> bool {
+    let path = Path::new(raw);
+    if raw.is_empty() || path.is_dir() {
+        return false;
+    }
+    if path
+        .components()
+        .any(|component| matches!(component, Component::ParentDir))
+    {
+        return false;
+    }
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.eq_ignore_ascii_case("json"))
+        .unwrap_or(false)
+}
+
 fn decode_payload(raw: String) -> Result<String, String> {
     let bytes = BASE64_STANDARD
         .decode(raw.as_bytes())
@@ -77,7 +96,13 @@ fn load_json_arg(
         return decode_payload(v);
     }
     if let Some(v) = parse_arg(args, file_key) {
+        if !is_safe_json_file_path(&v) {
+            return Err(format!("payload_file_path_invalid:{file_key}"));
+        }
         let metadata = fs::metadata(v.as_str()).map_err(|e| format!("file_stat_failed:{e}"))?;
+        if !metadata.is_file() {
+            return Err(format!("payload_file_not_a_file:{file_key}"));
+        }
         if metadata.len() > MAX_PAYLOAD_BYTES as u64 {
             return Err(format!("payload_file_too_large:{file_key}"));
         }
@@ -96,6 +121,9 @@ fn sanitize_json_value(value: &mut Value) {
             *raw = sanitize_token(raw, MAX_STRING_VALUE_LEN);
         }
         Value::Array(values) => {
+            if values.len() > MAX_ARRAY_VALUES {
+                values.truncate(MAX_ARRAY_VALUES);
+            }
             for entry in values {
                 sanitize_json_value(entry);
             }
@@ -150,7 +178,9 @@ fn normalize_delta_json(raw: &str) -> Result<String, String> {
         }
         let mut normalized_value = value.clone();
         sanitize_json_value(&mut normalized_value);
-        normalized_changes.insert(key, normalized_value);
+        if normalized_changes.insert(key, normalized_value).is_some() {
+            return Err("payload_changes_key_collision_after_normalization".to_string());
+        }
     }
     if normalized_changes.is_empty() {
         return Err("payload_changes_empty_after_normalization".to_string());

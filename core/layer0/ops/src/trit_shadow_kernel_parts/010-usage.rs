@@ -11,7 +11,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use crate::contract_lane_utils as lane_utils;
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 
 const POLICY_REL: &str = "client/config/trit_shadow_policy.json";
 const SUCCESS_CRITERIA_REL: &str = "client/config/trit_shadow_success_criteria.json";

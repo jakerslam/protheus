@@ -343,3 +343,4 @@
     Err(format!(
         "autoscale_mode_unsupported:raw={mode_raw}:normalized={mode}"
     ))
+}

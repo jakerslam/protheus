@@ -73,6 +73,9 @@ export function run(rawArgs = {}) {
     'planes/spec/tla/three_plane_boundary.cfg',
     'planes/contracts/README.md',
     'planes/contracts/conduit_envelope.schema.json',
+    'proofs/layer0/Layer0Invariants.lean',
+    'proofs/layer1/Layer1Invariants.lean',
+    'proofs/layer0/core_formal_coverage_map.json',
   ];
   const missingFiles = requiredFiles.filter((relPath) => !fs.existsSync(path.join(ROOT, relPath)));
 
@@ -95,11 +98,26 @@ export function run(rawArgs = {}) {
     (token) => !architectureSource.includes(token),
   );
 
+  const coverageMapPath = path.join(ROOT, 'proofs/layer0/core_formal_coverage_map.json');
+  const coverageMap = readJson(coverageMapPath);
+  const coverageSurfaces = Array.isArray(coverageMap?.surfaces) ? coverageMap.surfaces : [];
+  const coverageProofLayers = Array.from(
+    new Set(
+      coverageSurfaces
+        .map((entry) => String(entry?.artifact || ''))
+        .filter((artifact) => artifact.startsWith('proofs/layer'))
+        .map((artifact) => artifact.split('/').slice(0, 2).join('/')),
+    ),
+  ).sort();
+  const requiredProofLayers = ['proofs/layer0', 'proofs/layer1'];
+  const missingProofLayers = requiredProofLayers.filter((layer) => !coverageProofLayers.includes(layer));
+
   const failures =
     missingFiles.length +
     tlaMissingTokens.length +
     schemaMissingFields.length +
-    architectureMissingRefs.length;
+    architectureMissingRefs.length +
+    missingProofLayers.length;
 
   const out = {
     ok: strict ? failures === 0 : true,
@@ -111,6 +129,9 @@ export function run(rawArgs = {}) {
     tla_missing_tokens: tlaMissingTokens,
     schema_missing_fields: schemaMissingFields,
     architecture_missing_refs: architectureMissingRefs,
+    required_proof_layers: requiredProofLayers,
+    proof_layers_present: coverageProofLayers,
+    missing_proof_layers: missingProofLayers,
   };
 
   const latestPath = path.join(STATE_DIR, 'latest.json');

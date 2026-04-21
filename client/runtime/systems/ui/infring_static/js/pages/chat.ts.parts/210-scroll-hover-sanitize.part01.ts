@@ -236,9 +236,11 @@
       var currentId = String(this.directHoveredMessageDomId || '').trim();
       var pickFromNode = function(node) {
         if (!node || typeof node.closest !== 'function') return '';
-        var messageEl = node.closest('.message');
-        if (!messageEl || !host.contains(messageEl)) return '';
-        return String(messageEl.id || '').trim();
+        var blockEl = node.closest('.chat-message-block[id^="chat-msg-"]');
+        if (blockEl && host.contains(blockEl)) return String(blockEl.id || '').trim();
+        var messageEl = node.closest('.message[id^="chat-msg-"]');
+        if (messageEl && host.contains(messageEl)) return String(messageEl.id || '').trim();
+        return '';
       };
       var candidateId = '';
       try {

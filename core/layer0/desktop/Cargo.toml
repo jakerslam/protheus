@@ -14,7 +14,7 @@ path = "src/main.rs"
 
 [dependencies]
 serde_json = "1.0"
-protheus-ops-core = { path = "../ops" }
+sha2 = "0.10"
 
 [dev-dependencies]
 tempfile = "3.13"

@@ -6,7 +6,16 @@ license = "SEE LICENSE IN LICENSE"
 
 [dependencies]
 conduit-security = { path = "../conduit-security" }
+exotic_wrapper = { path = "../../layer_minus_one/exotic_wrapper" }
+infring-layer1-security = { path = "../../layer1/security" }
+infring-agent-derive = { path = "../../layer0/infring_agent_derive" }
+infring-task-fabric-core-v1 = { path = "../tools/task_fabric" }
 infring_types = { path = "../../layer1/infring_types" }
+infring-layer1-provenance = { path = "../../layer1/provenance" }
+protheus-ops-core-v1 = { path = "../ops" }
+protheus-memory-core-v6 = { path = "../../layer0/memory" }
+protheus-spine-core-v1 = { path = "../spine" }
+protheus-stomach-core-v1 = { path = "../stomach" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"

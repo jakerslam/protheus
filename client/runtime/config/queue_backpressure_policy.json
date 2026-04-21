@@ -1,0 +1,72 @@
+{
+  "schema_id": "infring_queue_backpressure_policy",
+  "schema_version": "1.0",
+  "utilization_bands": [
+    {
+      "id": "healthy",
+      "max_utilization": 0.84,
+      "action": "none"
+    },
+    {
+      "id": "defer",
+      "min_utilization": 0.85,
+      "max_utilization": 0.99,
+      "action": "defer_noncritical"
+    },
+    {
+      "id": "shed",
+      "min_utilization": 1.0,
+      "max_utilization": 1.19,
+      "action": "shed_noncritical"
+    },
+    {
+      "id": "quarantine",
+      "min_utilization": 1.2,
+      "action": "quarantine_new_ingress"
+    }
+  ],
+  "receipt_contracts": [
+    {
+      "band": "healthy",
+      "receipt_type": "queue_backpressure_healthy_receipt"
+    },
+    {
+      "band": "defer",
+      "receipt_type": "queue_backpressure_defer_receipt"
+    },
+    {
+      "band": "shed",
+      "receipt_type": "queue_backpressure_shed_receipt"
+    },
+    {
+      "band": "quarantine",
+      "receipt_type": "queue_backpressure_quarantine_receipt"
+    }
+  ],
+  "deterministic_expectations": [
+    {
+      "utilization": 0.84,
+      "expected_band": "healthy",
+      "expected_action": "none",
+      "expected_receipt_type": "queue_backpressure_healthy_receipt"
+    },
+    {
+      "utilization": 0.9,
+      "expected_band": "defer",
+      "expected_action": "defer_noncritical",
+      "expected_receipt_type": "queue_backpressure_defer_receipt"
+    },
+    {
+      "utilization": 1.05,
+      "expected_band": "shed",
+      "expected_action": "shed_noncritical",
+      "expected_receipt_type": "queue_backpressure_shed_receipt"
+    },
+    {
+      "utilization": 1.25,
+      "expected_band": "quarantine",
+      "expected_action": "quarantine_new_ingress",
+      "expected_receipt_type": "queue_backpressure_quarantine_receipt"
+    }
+  ]
+}

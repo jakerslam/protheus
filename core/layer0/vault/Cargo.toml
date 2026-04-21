@@ -19,7 +19,6 @@ hex = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
-protheus-memory-core-v6 = { path = "../memory" }
 base64 = "0.22"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

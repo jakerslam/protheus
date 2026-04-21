@@ -7,7 +7,7 @@ use serde_json::{json, Map, Value};
 use std::path::{Path, PathBuf};
 
 use crate::contract_lane_utils as lane_utils;
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 
 const DEFAULT_LATEST_REL: &str = "local/state/ops/dynamic_burn_budget_oracle/latest.json";
 const PROVIDER_FAMILY_CONTRACT_TARGETS: &[&str] =

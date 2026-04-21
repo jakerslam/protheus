@@ -2,7 +2,7 @@
 
 Single-entry operator index for deployment, security, incident response, and maintenance runbooks.
 
-## Core Operator Surfaces
+## Kernel Operator Surfaces
 
 - Deployment: [RUNBOOK-002-deployment-procedures.md](./RUNBOOK-002-deployment-procedures.md)
 - Incident response: [RUNBOOK-001-incident-response.md](./RUNBOOK-001-incident-response.md)
