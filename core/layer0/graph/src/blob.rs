@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-use infring_types::{
+use protheus_nexus_core_v1::{
     decode_normalized_blob_manifest, normalize_blob_id as normalize_blob_id_token,
     normalize_sha256_hash,
 };
@@ -14,6 +14,8 @@ pub const GRAPH_POLICY_BLOB: &[u8] = include_bytes!("blobs/graph_runtime_policy.
 pub const MANIFEST_BLOB: &[u8] = include_bytes!("blobs/manifest.blob");
 const MAX_BLOB_ID_LEN: usize = 128;
 const MAX_MANIFEST_ENTRIES: usize = 1024;
+const MAX_POLICY_NODES: usize = 100_000;
+const MAX_POLICY_EDGES: usize = 500_000;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct GraphRuntimePolicy {
@@ -143,6 +145,16 @@ pub fn load_embedded_graph_policy() -> Result<GraphRuntimePolicy, BlobError> {
     if policy.max_nodes == 0 || policy.max_edges == 0 {
         return Err(BlobError::DecodeFailed(
             "policy_bounds_must_be_positive".to_string(),
+        ));
+    }
+    if policy.max_nodes > MAX_POLICY_NODES || policy.max_edges > MAX_POLICY_EDGES {
+        return Err(BlobError::DecodeFailed(
+            "policy_bounds_exceed_hard_cap".to_string(),
+        ));
+    }
+    if policy.max_edges < policy.max_nodes.saturating_sub(1) {
+        return Err(BlobError::DecodeFailed(
+            "policy_edge_floor_too_low".to_string(),
         ));
     }
     Ok(policy)

@@ -6,6 +6,15 @@ pub mod route_lease;
 pub mod sub_nexus;
 pub mod template;
 
+pub use conduit_security::{
+    deterministic_hash as conduit_deterministic_hash, CapabilityToken, CapabilityTokenAuthority,
+    MessageSigner, RateLimitPolicy, RateLimiter, SecurityError,
+};
+pub use infring_types::{
+    compute_blob_manifest_signature, decode_normalized_blob_manifest,
+    decode_signed_bincode_blob_manifest_with_adapter, normalize_blob_id, normalize_sha256_hash,
+    NormalizedBlobManifestEntry,
+};
 pub use conduit_manager::{ConduitBackedLink, ConduitManager};
 pub use main_nexus::{
     DeliveryAuthorizationInput, DirectDeliveryAuthorization, LeaseIssueRequest,

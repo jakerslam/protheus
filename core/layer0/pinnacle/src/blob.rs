@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-use infring_types::{
+use protheus_nexus_core_v1::{
     decode_normalized_blob_manifest, normalize_blob_id as normalize_blob_id_token,
     normalize_sha256_hash,
 };
@@ -14,6 +14,7 @@ pub const PINNACLE_PROFILE_BLOB: &[u8] = include_bytes!("blobs/pinnacle_merge_pr
 pub const MANIFEST_BLOB: &[u8] = include_bytes!("blobs/manifest.blob");
 const MAX_BLOB_ID_LEN: usize = 128;
 const MAX_MANIFEST_ENTRIES: usize = 1024;
+const MAX_PERCENT_PCT: f64 = 100.0;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PinnacleMergeProfile {
@@ -145,6 +146,21 @@ pub fn load_embedded_pinnacle_profile() -> Result<PinnacleMergeProfile, BlobErro
     }
     if profile.profile_id.trim().is_empty() {
         return Err(BlobError::DecodeFailed("profile_id_invalid".to_string()));
+    }
+    if profile.convergence_floor_pct < 0.0 || profile.convergence_floor_pct > MAX_PERCENT_PCT {
+        return Err(BlobError::DecodeFailed(
+            "convergence_floor_out_of_bounds".to_string(),
+        ));
+    }
+    if profile.conflict_penalty_pct < 0.0 || profile.conflict_penalty_pct > MAX_PERCENT_PCT {
+        return Err(BlobError::DecodeFailed(
+            "conflict_penalty_out_of_bounds".to_string(),
+        ));
+    }
+    if profile.unsigned_penalty_pct < 0.0 || profile.unsigned_penalty_pct > MAX_PERCENT_PCT {
+        return Err(BlobError::DecodeFailed(
+            "unsigned_penalty_out_of_bounds".to_string(),
+        ));
     }
     if profile.deterministic_tie_breaker.trim().is_empty() {
         return Err(BlobError::DecodeFailed(

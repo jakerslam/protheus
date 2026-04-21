@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-use infring_types::{decode_normalized_blob_manifest, normalize_sha256_hash};
+use protheus_nexus_core_v1::{decode_normalized_blob_manifest, normalize_sha256_hash};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -10,6 +10,7 @@ pub const VAULT_RUNTIME_BLOB: &[u8] = include_bytes!("blobs/vault_runtime_envelo
 pub const MANIFEST_BLOB: &[u8] = include_bytes!("blobs/manifest.blob");
 const MAX_BLOB_ID_LEN: usize = 128;
 const MAX_MANIFEST_ENTRIES: usize = 1024;
+const MAX_KEY_AGE_HOURS: u32 = 24 * 365 * 20;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct VaultRuntimeEnvelope {
@@ -104,9 +105,14 @@ pub fn load_embedded_vault_runtime_envelope() -> Result<VaultRuntimeEnvelope, Bl
             "min_operator_quorum_invalid".to_string(),
         ));
     }
-    if envelope.max_key_age_hours == 0 {
+    if envelope.max_key_age_hours == 0 || envelope.max_key_age_hours > MAX_KEY_AGE_HOURS {
         return Err(BlobError::DecodeFailed(
             "max_key_age_hours_invalid".to_string(),
+        ));
+    }
+    if envelope.require_audit_nonce && !envelope.enforce_fail_closed {
+        return Err(BlobError::DecodeFailed(
+            "audit_nonce_requires_fail_closed".to_string(),
         ));
     }
     Ok(envelope)

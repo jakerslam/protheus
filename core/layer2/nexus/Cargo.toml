@@ -5,7 +5,8 @@ edition = "2021"
 license = "SEE LICENSE IN LICENSE"
 
 [dependencies]
-conduit = { path = "../conduit" }
+conduit-security = { path = "../conduit-security" }
+infring_types = { path = "../../layer1/infring_types" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"

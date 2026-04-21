@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-use infring_types::{
+use protheus_nexus_core_v1::{
     decode_normalized_blob_manifest, normalize_blob_id as normalize_blob_id_token,
     normalize_sha256_hash,
 };
@@ -14,6 +14,7 @@ pub const RED_LEGION_DOCTRINE_BLOB: &[u8] = include_bytes!("blobs/red_legion_doc
 pub const MANIFEST_BLOB: &[u8] = include_bytes!("blobs/manifest.blob");
 const MAX_BLOB_ID_LEN: usize = 128;
 const MAX_MANIFEST_ENTRIES: usize = 1024;
+const MAX_PERCENT_PCT: f64 = 100.0;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RedLegionDoctrine {
@@ -148,6 +149,26 @@ pub fn load_embedded_red_legion_doctrine() -> Result<RedLegionDoctrine, BlobErro
     {
         return Err(BlobError::DecodeFailed(
             "doctrine_numeric_field_non_finite".to_string(),
+        ));
+    }
+    if doctrine.min_sovereignty_pct < 0.0 || doctrine.min_sovereignty_pct > MAX_PERCENT_PCT {
+        return Err(BlobError::DecodeFailed(
+            "doctrine_min_sovereignty_out_of_bounds".to_string(),
+        ));
+    }
+    if doctrine.max_drift_pct < 0.0 || doctrine.max_drift_pct > MAX_PERCENT_PCT {
+        return Err(BlobError::DecodeFailed(
+            "doctrine_max_drift_out_of_bounds".to_string(),
+        ));
+    }
+    if doctrine.max_battery_pct_24h <= 0.0 || doctrine.max_battery_pct_24h > MAX_PERCENT_PCT {
+        return Err(BlobError::DecodeFailed(
+            "doctrine_max_battery_out_of_bounds".to_string(),
+        ));
+    }
+    if doctrine.max_telemetry_overhead_ms <= 0.0 {
+        return Err(BlobError::DecodeFailed(
+            "doctrine_max_telemetry_overhead_invalid".to_string(),
         ));
     }
     Ok(doctrine)
