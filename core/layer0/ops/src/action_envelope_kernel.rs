@@ -10,7 +10,7 @@ use std::sync::OnceLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::contract_lane_utils as lane_utils;
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 
 const ACTION_RESEARCH: &str = "research";
 const ACTION_CODE_CHANGE: &str = "code_change";

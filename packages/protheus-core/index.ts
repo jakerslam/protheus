@@ -185,9 +185,15 @@ function coreStatus(options: Record<string, any> = {}) {
   if (includeSpine) out.spine = spineStatus();
   if (includeReflex) out.reflex = reflexStatus();
   if (includeGates) out.gates = gateStatus();
-  out.ok = ['spine', 'reflex', 'gates']
-    .filter((key) => Object.prototype.hasOwnProperty.call(out, key))
-    .every((key) => out[key] && out[key].ok === true);
+  const evaluatedSurfaces = ['spine', 'reflex', 'gates']
+    .filter((key) => Object.prototype.hasOwnProperty.call(out, key));
+  const degradedSurfaces = evaluatedSurfaces
+    .filter((key) => !(out[key] && out[key].ok === true));
+  out.surface_count = evaluatedSurfaces.length;
+  out.degraded_surfaces = degradedSurfaces;
+  out.generated_at = new Date().toISOString();
+  out.contract_version = '2026-04-20';
+  out.ok = degradedSurfaces.length === 0;
   return out;
 }
 
@@ -220,6 +226,7 @@ function coldStartContract(options: Record<string, any> = {}) {
   const elapsedMs = Number(process.hrtime.bigint() - started) / 1_000_000;
   return {
     ok: boot.ok === true && (packageBytes / (1024 * 1024)) <= budgetMb && elapsedMs <= budgetMs,
+    measured_at: new Date().toISOString(),
     package_size_bytes: packageBytes,
     package_size_mb: Number((packageBytes / (1024 * 1024)).toFixed(6)),
     cold_start_ms: Number(elapsedMs.toFixed(3)),

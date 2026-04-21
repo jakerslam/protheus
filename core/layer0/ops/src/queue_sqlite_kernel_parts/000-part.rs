@@ -12,7 +12,7 @@ use std::thread;
 use std::time::Duration;
 
 use crate::contract_lane_utils as lane_utils;
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 
 #[derive(Clone, Debug)]
 struct SqliteCfg {

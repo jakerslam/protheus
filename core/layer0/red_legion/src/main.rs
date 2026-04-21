@@ -4,6 +4,7 @@ use base64::Engine;
 use protheus_red_legion_core_v1::{run_chaos_game, run_chaos_game_json, ChaosGameRequest};
 use std::env;
 use std::fs;
+use std::path::{Component, Path};
 
 const MAX_ARG_KEY_LEN: usize = 48;
 const MAX_REQUEST_BYTES: usize = 32 * 1024;
@@ -50,6 +51,30 @@ fn parse_arg(args: &[String], key: &str) -> Option<String> {
     None
 }
 
+fn mission_id_allowed(raw: &str) -> bool {
+    !raw.is_empty()
+        && raw
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-' | '.'))
+}
+
+fn is_safe_request_file_path(raw: &str) -> bool {
+    let path = Path::new(raw);
+    if raw.is_empty() || path.is_dir() {
+        return false;
+    }
+    if path
+        .components()
+        .any(|component| matches!(component, Component::ParentDir))
+    {
+        return false;
+    }
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.eq_ignore_ascii_case("json"))
+        .unwrap_or(false)
+}
+
 fn load_request(args: &[String]) -> Result<String, String> {
     if let Some(v) = parse_arg(args, "--request-json") {
         if v.len() > MAX_REQUEST_BYTES {
@@ -71,8 +96,14 @@ fn load_request(args: &[String]) -> Result<String, String> {
         return Ok(text);
     }
     if let Some(v) = parse_arg(args, "--request-file") {
+        if !is_safe_request_file_path(&v) {
+            return Err("request_file_path_invalid".to_string());
+        }
         let metadata =
             fs::metadata(v.as_str()).map_err(|e| format!("request_file_stat_failed:{e}"))?;
+        if !metadata.is_file() {
+            return Err("request_file_not_a_file".to_string());
+        }
         if metadata.len() > MAX_REQUEST_BYTES as u64 {
             return Err("request_file_too_large".to_string());
         }
@@ -97,6 +128,9 @@ fn normalize_request_payload(raw: &str) -> Result<String, String> {
         .collect::<Vec<_>>()
         .join("_");
     if request.mission_id.is_empty() {
+        return Err("request_mission_id_invalid".to_string());
+    }
+    if !mission_id_allowed(&request.mission_id) {
         return Err("request_mission_id_invalid".to_string());
     }
     if request.cycles == 0 {

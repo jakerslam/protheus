@@ -1,7 +1,7 @@
 {
   "schema_id": "core_formal_coverage_map",
   "schema_version": "1.0",
-  "generated_at": "2026-03-16T01:20:00Z",
+  "generated_at": "2026-04-21T23:59:00Z",
   "surfaces": [
     {
       "id": "core/layer0/ops::directive_kernel",
@@ -72,9 +72,14 @@
     {
       "id": "core/layer1/security::truth_gate",
       "status": "partial",
-      "engines": ["prusti"],
-      "artifact": "core/layer1/security/src/security_wave1.rs",
+      "engines": ["lean", "prusti"],
+      "artifact": "proofs/layer1/Layer1Invariants.lean",
       "proof_commands": [
+        {
+          "id": "layer1_lean_verify",
+          "required": false,
+          "argv": ["bash", "proofs/layer1/verify.sh"]
+        },
         {
           "id": "security_hash_chain",
           "required": true,

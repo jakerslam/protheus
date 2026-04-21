@@ -10,23 +10,20 @@ pub fn package_result(
     recovery_applied: bool,
     fallback_actions: Vec<OrchestrationFallbackAction>,
 ) -> OrchestrationResultPackage {
+    shape_result_package(plan, progress_message, recovery_applied, fallback_actions)
+}
+
+pub fn shape_result_package(
+    plan: &OrchestrationPlan,
+    progress_message: String,
+    recovery_applied: bool,
+    fallback_actions: Vec<OrchestrationFallbackAction>,
+) -> OrchestrationResultPackage {
     let requires_core_promotion = matches!(
         plan.request_class,
         RequestClass::Mutation | RequestClass::TaskProposal | RequestClass::Assimilation
     );
-    let summary = if plan.needs_clarification {
-        "orchestration requires clarification".to_string()
-    } else if matches!(plan.execution_state.plan_status, PlanStatus::Running) {
-        "orchestration is tracking in-flight core execution".to_string()
-    } else if matches!(plan.execution_state.plan_status, PlanStatus::Completed) {
-        "orchestration completed with correlated core execution".to_string()
-    } else if matches!(plan.execution_state.plan_status, PlanStatus::Failed) {
-        "orchestration observed a failed core execution outcome".to_string()
-    } else if matches!(plan.execution_state.plan_status, PlanStatus::Degraded) {
-        "orchestration prepared degraded plan for core contract execution".to_string()
-    } else {
-        "orchestration ready for core contract execution".to_string()
-    };
+    let summary = summary_for_plan(plan);
     let runtime_quality = runtime_quality_signals(plan);
 
     OrchestrationResultPackage {
@@ -46,6 +43,21 @@ pub fn package_result(
         selected_plan: plan.selected_plan.clone(),
         alternative_plans: plan.alternative_plans.clone(),
         runtime_quality,
+    }
+}
+
+fn summary_for_plan(plan: &OrchestrationPlan) -> String {
+    if plan.needs_clarification {
+        return "orchestration requires clarification".to_string();
+    }
+    match plan.execution_state.plan_status {
+        PlanStatus::Running => "orchestration is tracking in-flight core execution".to_string(),
+        PlanStatus::Completed => "orchestration completed with correlated core execution".to_string(),
+        PlanStatus::Failed => "orchestration observed a failed core execution outcome".to_string(),
+        PlanStatus::Degraded => {
+            "orchestration prepared degraded plan for core contract execution".to_string()
+        }
+        _ => "orchestration ready for core contract execution".to_string(),
     }
 }
 

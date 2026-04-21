@@ -454,7 +454,7 @@ fn append_jsonl(path: &Path, value: &Value) -> Result<(), String> {
 
 fn canonical_rows_hash(rows: &[RegistryRow]) -> String {
     let value = serde_json::to_value(rows).unwrap_or_else(|_| json!([]));
-    deterministic_receipt_hash(&value)
+    crate::deterministic_receipt_hash(&value)
 }
 
 fn normalize_text_compare(text: &str) -> String {

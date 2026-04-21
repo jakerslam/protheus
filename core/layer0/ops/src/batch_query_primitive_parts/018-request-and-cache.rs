@@ -306,6 +306,11 @@ fn normalize_requested_queries(
 }
 
 fn resolve_query_plan(request: &Value, query: &str, budget: ApertureBudget) -> QueryPlanSelection {
+    let benchmark_instructional_rerank = if is_benchmark_or_comparison_intent(query) {
+        normalize_instructional_query(query).unwrap_or_default()
+    } else {
+        String::new()
+    };
     let explicit_queries = normalize_requested_queries(request, query, budget);
     let explicit_query_pack_used = !explicit_queries.is_empty()
         && (query.is_empty()
@@ -315,23 +320,35 @@ fn resolve_query_plan(request: &Value, query: &str, budget: ApertureBudget) -> Q
                 .map(|value| !value.eq_ignore_ascii_case(query))
                 .unwrap_or(false));
     if explicit_query_pack_used {
-        let rerank_query = clean_text(
-            explicit_queries.first().map(String::as_str).unwrap_or(query),
-            600,
-        );
+        let rerank_query = if benchmark_instructional_rerank.is_empty() {
+            clean_text(
+                explicit_queries.first().map(String::as_str).unwrap_or(query),
+                600,
+            )
+        } else {
+            clean_text(&benchmark_instructional_rerank, 600)
+        };
         let rewrite_set = explicit_queries.iter().skip(1).cloned().collect::<Vec<_>>();
         return QueryPlanSelection {
             rewrite_applied: explicit_queries.len() > 1,
             queries: explicit_queries,
             rewrite_set,
             rerank_query,
-            query_plan_source: "explicit_request_pack",
+            query_plan_source: if benchmark_instructional_rerank.is_empty() {
+                "explicit_request_pack"
+            } else {
+                "explicit_request_pack_instructional_rerank"
+            },
         };
     }
     if let Some(queries) = derived_framework_catalog_queries(query, budget) {
         let rewrite_set = queries.iter().skip(1).cloned().collect::<Vec<_>>();
         return QueryPlanSelection {
-            rerank_query: clean_text(query, 600),
+            rerank_query: if benchmark_instructional_rerank.is_empty() {
+                clean_text(query, 600)
+            } else {
+                clean_text(&benchmark_instructional_rerank, 600)
+            },
             rewrite_applied: true,
             queries,
             rewrite_set,
@@ -339,8 +356,13 @@ fn resolve_query_plan(request: &Value, query: &str, budget: ApertureBudget) -> Q
         };
     }
     let (queries, rewrite_set, rewrite_applied) = build_query_plan(query, budget);
-    let rerank_query = if rewrite_applied {
-        queries.last().cloned().unwrap_or_else(|| clean_text(query, 600))
+    let rerank_query = if !benchmark_instructional_rerank.is_empty() {
+        clean_text(&benchmark_instructional_rerank, 600)
+    } else if rewrite_applied {
+        queries
+            .last()
+            .cloned()
+            .unwrap_or_else(|| clean_text(query, 600))
     } else {
         clean_text(query, 600)
     };
@@ -349,7 +371,9 @@ fn resolve_query_plan(request: &Value, query: &str, budget: ApertureBudget) -> Q
         rewrite_set,
         rewrite_applied,
         rerank_query,
-        query_plan_source: if rewrite_applied {
+        query_plan_source: if !benchmark_instructional_rerank.is_empty() {
+            "instructional_rerank_focus"
+        } else if rewrite_applied {
             "derived_rewrite"
         } else {
             "single_query"

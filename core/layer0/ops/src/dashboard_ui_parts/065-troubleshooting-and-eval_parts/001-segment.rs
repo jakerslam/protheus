@@ -217,12 +217,12 @@ fn dashboard_troubleshooting_enqueue_eval(
     let (eval_model, eval_model_source) = if let Some(raw) = eval_model_hint {
         let cleaned = clean_text(raw, 120);
         if cleaned.is_empty() {
-            dashboard_troubleshooting_resolve_eval_model(None)
+            dashboard_troubleshooting_resolve_eval_model(Some(root), None)
         } else {
             (cleaned, "payload".to_string())
         }
     } else {
-        dashboard_troubleshooting_resolve_eval_model(None)
+        dashboard_troubleshooting_resolve_eval_model(Some(root), None)
     };
     let queue_priority = match reason_clean.as_str() {
         "user_report" => 100,

@@ -1,4 +1,4 @@
-# Core Migration Bridge
+# Kernel Migration Bridge
 
 `V4-MIGR-001` introduces a deterministic migration bridge with signed receipts, rollback checkpoints, and a first-class operator command:
 

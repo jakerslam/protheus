@@ -248,7 +248,7 @@
 }
 
 .input-area textarea.streaming-active {
-  opacity: 0.95;
+  opacity: 1;
 }
 
 .input-row {
@@ -328,7 +328,7 @@
   border: none;
   border-radius: 22px;
   background: var(--surface);
-  box-shadow: -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2);
+  box-shadow: -6px 0 14px -14px rgba(0, 0, 0, 0.36), 6px 0 14px -14px rgba(0, 0, 0, 0.36), 0 12px 22px -18px rgba(0, 0, 0, 0.6), 0 3px 8px rgba(0, 0, 0, 0.24);
   transition:
     box-shadow 0.2s var(--ease-smooth),
     filter 0.2s var(--ease-smooth),
@@ -365,8 +365,8 @@
 /* Keep main composer lane (hamburger + text input) on the same base tone as the input toggle track. */
 .composer-main-row > .composer-menu-pill.composer-shared-input-pill,
 .composer-main-row > .composer-input-pill.composer-shared-input-pill {
-  --pill-track-color: color-mix(in srgb, var(--text-muted) 76%, transparent);
-  background: color-mix(in srgb, var(--pill-track-color) 28%, transparent);
+  --pill-track-color: color-mix(in srgb, var(--text-muted) 76%, var(--surface) 24%);
+  background: color-mix(in srgb, var(--pill-track-color) 28%, var(--surface) 72%);
 }
 
 .composer-controls-pill {
@@ -401,7 +401,7 @@
 }
 
 .composer-shell:focus-within .composer-shared-input-pill {
-  box-shadow: -6px 0 12px -14px rgba(0, 0, 0, 0.36), 6px 0 12px -14px rgba(0, 0, 0, 0.36), 0 10px 18px -18px rgba(0, 0, 0, 0.58), 0 2px 6px rgba(0, 0, 0, 0.24);
+  box-shadow: -6px 0 14px -14px rgba(0, 0, 0, 0.4), 6px 0 14px -14px rgba(0, 0, 0, 0.4), 0 12px 22px -18px rgba(0, 0, 0, 0.64), 0 3px 8px rgba(0, 0, 0, 0.28);
 }
 
 /* macOS/WebKit compositor guard:
@@ -412,12 +412,12 @@
 }
 
 .composer-shell.composer-shell-disabled {
-  opacity: 0.56;
+  opacity: 1;
   filter: grayscale(0.12) saturate(0.78);
 }
 
 .composer-shell.composer-shell-send-morph {
-  opacity: 0.18;
+  opacity: 1;
   transform: scale(0.994);
   transition: opacity 260ms var(--ease-smooth), transform 260ms var(--ease-smooth);
 }
@@ -453,7 +453,7 @@
 }
 
 .composer-shell .composer-input-disabled {
-  opacity: 0.9;
+  opacity: 1;
 }
 
 .terminal-path-label {
@@ -626,7 +626,7 @@
 }
 
 .composer-send-voice-opt:disabled {
-  opacity: 0.45;
+  opacity: 1;
   cursor: not-allowed;
 }
 

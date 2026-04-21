@@ -44,6 +44,21 @@ function sanitizeToken(value, maxLen = MAX_ID_LEN) {
     .slice(0, maxLen);
 }
 
+function isSafeRelativePath(value) {
+  const normalized = sanitizeToken(value, MAX_PATH_LEN).replace(/\\/g, '/');
+  if (!normalized) return false;
+  if (normalized.startsWith('/') || /^[A-Za-z]:\//.test(normalized)) return false;
+  if (normalized.includes('..')) return false;
+  return true;
+}
+
+function normalizeChainReceiptsPath(value) {
+  const candidate = sanitizeToken(value || DEFAULT_CHAIN_RECEIPTS_PATH, MAX_PATH_LEN);
+  if (!isSafeRelativePath(candidate)) return DEFAULT_CHAIN_RECEIPTS_PATH;
+  if (!candidate.endsWith('.jsonl')) return DEFAULT_CHAIN_RECEIPTS_PATH;
+  return candidate;
+}
+
 function parseFiniteNumber(value, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -54,8 +69,7 @@ function clampRate(value) {
 }
 
 function normalizePolicy(policy = {}) {
-  const safeRaw = sanitizeToken(policy.chain_receipts_path || DEFAULT_CHAIN_RECEIPTS_PATH, MAX_PATH_LEN);
-  const chainReceiptsPath = safeRaw || DEFAULT_CHAIN_RECEIPTS_PATH;
+  const chainReceiptsPath = normalizeChainReceiptsPath(policy.chain_receipts_path);
   return {
     chain_receipts_path: chainReceiptsPath,
     policy_id: sanitizeToken(policy.policy_id || 'economy_stub_policy')

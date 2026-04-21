@@ -139,7 +139,7 @@ fn sync(policy: &Policy) -> Result<Value, String> {
     });
 
     let mut latest = payload.clone();
-    latest["receipt_hash"] = Value::String(deterministic_receipt_hash(&latest));
+    latest["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&latest));
 
     write_text_atomic(
         &policy.paths.latest_path,
@@ -185,7 +185,7 @@ fn check(policy: &Policy, strict: bool) -> Result<(Value, i32), String> {
         .get("rows")
         .cloned()
         .unwrap_or_else(|| json!([]));
-    let expected_hash = deterministic_receipt_hash(&expected_rows);
+    let expected_hash = crate::deterministic_receipt_hash(&expected_rows);
 
     let actual_registry = fs::read_to_string(&policy.paths.registry_path)
         .ok()
@@ -194,7 +194,7 @@ fn check(policy: &Policy, strict: bool) -> Result<(Value, i32), String> {
     let actual_hash = actual_registry
         .as_ref()
         .and_then(|v| v.get("rows").cloned())
-        .map(|v| deterministic_receipt_hash(&v));
+        .map(|v| crate::deterministic_receipt_hash(&v));
 
     let mut mismatches = Vec::new();
     if actual_hash.as_deref() != Some(expected_hash.as_str()) {
@@ -267,7 +267,7 @@ fn check(policy: &Policy, strict: bool) -> Result<(Value, i32), String> {
             }
         ]
     });
-    payload["receipt_hash"] = Value::String(deterministic_receipt_hash(&payload));
+    payload["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&payload));
 
     let code = if strict && !ok { 1 } else { 0 };
     Ok((payload, code))
@@ -298,7 +298,7 @@ fn status(policy: &Policy) -> Value {
         "reviewed_view_path": policy.paths.reviewed_view_path,
         "execution_view_path": policy.paths.execution_path_view_path
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
@@ -315,7 +315,7 @@ fn cli_error_receipt(argv: &[String], err: &str, code: i32) -> Value {
         "error": err,
         "exit_code": code
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 

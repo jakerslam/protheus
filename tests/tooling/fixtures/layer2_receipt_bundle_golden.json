@@ -37,6 +37,66 @@
         "classification": "transient_timeout",
         "receipt_type": "layer2_failure_classification_receipt"
       }
+    },
+    {
+      "id": "ev_005",
+      "lane_id": "L2-QUEUE-001",
+      "stage": "queue_backpressure_action",
+      "payload": {
+        "action": "defer_noncritical",
+        "receipt_type": "queue_backpressure_defer_receipt"
+      }
+    },
+    {
+      "id": "ev_006",
+      "lane_id": "L2-QUEUE-001",
+      "stage": "queue_backpressure_action",
+      "payload": {
+        "action": "shed_noncritical",
+        "receipt_type": "queue_backpressure_shed_receipt"
+      }
+    },
+    {
+      "id": "ev_007",
+      "lane_id": "L2-QUEUE-001",
+      "stage": "queue_backpressure_action",
+      "payload": {
+        "action": "quarantine_new_ingress",
+        "receipt_type": "queue_backpressure_quarantine_receipt"
+      }
+    },
+    {
+      "id": "ev_008",
+      "lane_id": "L2-QUEUE-001",
+      "stage": "conduit_outage_detected",
+      "payload": {
+        "receipt_type": "conduit_auto_heal_detected_receipt",
+        "reason": "transport_timeout"
+      }
+    },
+    {
+      "id": "ev_009",
+      "lane_id": "L2-QUEUE-001",
+      "stage": "conduit_recovery_started",
+      "payload": {
+        "receipt_type": "conduit_auto_heal_recovery_started_receipt"
+      }
+    },
+    {
+      "id": "ev_010",
+      "lane_id": "L2-QUEUE-001",
+      "stage": "conduit_recovery_completed",
+      "payload": {
+        "receipt_type": "conduit_auto_heal_recovered_receipt"
+      }
+    },
+    {
+      "id": "ev_011",
+      "lane_id": "L2-QUEUE-001",
+      "stage": "task_completed",
+      "payload": {
+        "receipt_type": "layer2_task_completion_receipt"
+      }
     }
   ]
 }

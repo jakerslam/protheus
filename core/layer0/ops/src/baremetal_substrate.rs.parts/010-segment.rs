@@ -9,7 +9,7 @@ use crate::contract_lane_utils::{
     self as lane_utils, clean_text, clean_token, cli_error, cli_receipt, json_bool as parse_bool,
     json_u64 as parse_u64, path_flag, payload_obj, print_json_line, string_set,
 };
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 
 const DEFAULT_STATE_REL: &str = "local/state/ops/baremetal_substrate/latest.json";
 const DEFAULT_HISTORY_REL: &str = "local/state/ops/baremetal_substrate/history.jsonl";

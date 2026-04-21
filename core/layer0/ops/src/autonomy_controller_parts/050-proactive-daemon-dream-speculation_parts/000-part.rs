@@ -1,5 +1,19 @@
 const PROACTIVE_DAEMON_REACTIVE_COMPACTION_PRESSURE_RATIO: f64 = 0.95;
 
+fn clean(raw: impl AsRef<str>, max_len: usize) -> String {
+    let mut out = String::new();
+    for ch in raw.as_ref().chars() {
+        if out.len() >= max_len {
+            break;
+        }
+        if ch.is_control() && ch != '\n' && ch != '\t' {
+            continue;
+        }
+        out.push(ch);
+    }
+    out.trim().to_string()
+}
+
 fn normalize_compaction_mode(raw: Option<String>) -> String {
     let normalized = clean_id(raw, "reactive");
     match normalized.as_str() {

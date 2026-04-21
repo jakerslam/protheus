@@ -27,12 +27,22 @@ if (!require.extensions['.ts']) {
 
 const ROOT = path.resolve(__dirname, '../..');
 const mod = require(path.join(ROOT, 'client/runtime/lib/policy_runtime.ts'));
-const merged = mod.deepMerge({ a: 1, rows: [1], obj: { x: 1 } }, { rows: [2], obj: { y: 2 } });
-assert.deepEqual(merged, { a: 1, rows: [2], obj: { x: 1, y: 2 } });
-const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'policy-runtime-'));
-const policyPath = path.join(dir, 'policy.json');
-fs.writeFileSync(policyPath, JSON.stringify({ obj: { y: 2 }, flag: true }, null, 2));
-const runtime = mod.loadPolicyRuntime({ policyPath, defaults: { obj: { x: 1 }, rows: [1] } });
-assert.deepEqual(runtime.merged, { obj: { x: 1, y: 2 }, rows: [1], flag: true });
-assert.equal(path.isAbsolute(mod.resolvePolicyPath(policyPath)), true);
-console.log(JSON.stringify({ ok: true, type: 'policy_runtime_rust_bridge_test' }));
+
+function main() {
+  const merged = mod.deepMerge({ a: 1, rows: [1], obj: { x: 1 } }, { rows: [2], obj: { y: 2 } });
+  assert.deepEqual(merged, { a: 1, rows: [2], obj: { x: 1, y: 2 } });
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'policy-runtime-'));
+  try {
+    const policyPath = path.join(dir, 'policy.json');
+    fs.writeFileSync(policyPath, JSON.stringify({ obj: { y: 2 }, flag: true }, null, 2));
+    const runtime = mod.loadPolicyRuntime({ policyPath, defaults: { obj: { x: 1 }, rows: [1] } });
+    assert.deepEqual(runtime.merged, { obj: { x: 1, y: 2 }, rows: [1], flag: true });
+    assert.equal(path.isAbsolute(mod.resolvePolicyPath(policyPath)), true);
+    assert.equal(runtime.ok, true);
+    console.log(JSON.stringify({ ok: true, type: 'policy_runtime_rust_bridge_test' }));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+main();

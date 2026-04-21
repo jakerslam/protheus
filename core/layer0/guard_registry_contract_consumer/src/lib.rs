@@ -18,7 +18,7 @@ pub struct GuardRegistryContract {
 }
 
 fn sanitize_token(input: &str, max_len: usize) -> String {
-    input
+    let filtered: String = input
         .chars()
         .filter(|c| {
             !matches!(
@@ -32,7 +32,13 @@ fn sanitize_token(input: &str, max_len: usize) -> String {
         .to_lowercase()
         .chars()
         .take(max_len)
-        .collect()
+        .filter(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.'))
+        .collect();
+    if filtered.contains("..") || filtered.starts_with('.') {
+        String::new()
+    } else {
+        filtered
+    }
 }
 
 pub fn normalize_capability_list(items: &[String]) -> Vec<String> {
@@ -56,10 +62,11 @@ fn normalize_entry(entry: &GuardRegistryEntry) -> Option<GuardRegistryEntry> {
     if guard_id.is_empty() {
         return None;
     }
+    let capabilities = normalize_capability_list(&entry.capabilities);
     Some(GuardRegistryEntry {
         guard_id,
-        active: entry.active,
-        capabilities: normalize_capability_list(&entry.capabilities),
+        active: entry.active && !capabilities.is_empty(),
+        capabilities,
     })
 }
 

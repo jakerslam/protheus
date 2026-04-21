@@ -56,12 +56,25 @@ fn handle_global_receipts_lineage_get(
             root.join(candidate)
         })
     };
+    let sources = clean_text(
+        query_value(path, "sources")
+            .or_else(|| query_value(path, "sourcesCsv"))
+            .as_deref()
+            .unwrap_or(""),
+        4_000,
+    );
+    let sources_opt = if sources.is_empty() {
+        None
+    } else {
+        Some(sources.as_str())
+    };
     let payload = match crate::action_receipts_kernel::query_task_lineage(
         root,
         &task_id,
         trace_opt,
         limit,
         scan_root_path.as_deref(),
+        sources_opt,
     ) {
         Ok(out) => out,
         Err(err) => {

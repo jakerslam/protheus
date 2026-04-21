@@ -301,6 +301,12 @@
         this._messageDisplayKey = key;
         this.messageDisplayCount = Number(this.messageDisplayInitialLimit || 10);
       }
+      var rawQuery = String(this.searchQuery || '').trim();
+      if (!rawQuery) {
+        // Normal chat mode should keep full history visible; virtualization handles perf.
+        this.messageDisplayCount = total;
+        return;
+      }
       var base = Number(this.messageDisplayInitialLimit || 10);
       if (!Number.isFinite(base) || base < 1) base = 10;
       if (!Number.isFinite(Number(this.messageDisplayCount))) {
@@ -420,6 +426,17 @@
         baseHtml = this.escapeHtml(String(displayText || ''));
       }
       return this.highlightSearch(baseHtml);
+    },
+    messageTypingReserveStyle: function(msg) {
+      if (!msg || typeof msg !== 'object' || !msg._typingVisual) return '';
+      var finalText = String(msg._typewriterFinalText || msg.text || '');
+      if (!finalText.trim()) return '--typing-reserve-height:72px;';
+      var hardLines = finalText.split(/\r?\n/).length;
+      var softWrapLines = Math.ceil(Math.max(0, finalText.length - (hardLines * 20)) / 92);
+      var visualLines = Math.max(1, hardLines + softWrapLines);
+      var reserveHeight = 20 + (visualLines * 25);
+      reserveHeight = Math.max(72, Math.min(980, Math.round(reserveHeight)));
+      return '--typing-reserve-height:' + reserveHeight + 'px;';
     },
 
     renderMarkdown: renderMarkdown,

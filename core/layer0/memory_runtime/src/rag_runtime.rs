@@ -7,6 +7,7 @@ include!("rag_runtime_parts/050-base-args.rs");
 
 const RAG_CONTEXT_WINDOW_HARD_MIN_TOKENS: u32 = 16_000;
 const RAG_CONTEXT_WINDOW_WARN_BELOW_TOKENS: u32 = 32_000;
+const RAG_CONTEXT_WINDOW_HARD_MAX_TOKENS: u32 = 1_048_576;
 
 fn assim120_strip_invisible_unicode(raw: &str) -> String {
     raw.chars()
@@ -49,8 +50,12 @@ pub fn normalize_rag_retry_attempts(requested: u16) -> u16 {
     requested.clamp(1, 8)
 }
 
+pub fn bounded_rag_context_tokens(tokens: u32) -> u32 {
+    tokens.min(RAG_CONTEXT_WINDOW_HARD_MAX_TOKENS)
+}
+
 pub fn evaluate_rag_context_window_guard(tokens: u32) -> (bool, bool) {
-    let safe = tokens.min(2_000_000);
+    let safe = bounded_rag_context_tokens(tokens);
     let should_warn = safe > 0 && safe < RAG_CONTEXT_WINDOW_WARN_BELOW_TOKENS;
     let should_block = safe > 0 && safe < RAG_CONTEXT_WINDOW_HARD_MIN_TOKENS;
     (should_warn, should_block)
@@ -60,12 +65,19 @@ pub fn should_retry_rag_transport_error(raw_error: &str) -> bool {
     let folded = normalize_rag_query_text(raw_error, 240).to_ascii_lowercase();
     [
         "429",
+        "408",
+        "425",
+        "500",
+        "502",
+        "503",
+        "504",
         "timeout",
         "connect",
         "reset",
         "closed",
         "unavailable",
         "temporarily",
+        "rate limit",
     ]
     .iter()
     .any(|needle| folded.contains(needle))

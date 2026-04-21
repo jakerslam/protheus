@@ -1,0 +1,42 @@
+{
+  "version": "1.0",
+  "scope": {
+    "rust_scan_roots": [
+      "core/layer2"
+    ],
+    "cargo_scan_roots": [
+      "core/layer2"
+    ]
+  },
+  "nexus_crates": [
+    "protheus_nexus_core_v1"
+  ],
+  "allowed_foundation_crates": [
+    "infring_types"
+  ],
+  "fail_on_expired_exemptions": true,
+  "exemptions": {
+    "import_edges": [
+      {
+        "from_package": "conduit",
+        "to_crate": "conduit_security",
+        "reason": "Temporary split between conduit runtime and conduit-security crate pending nexus-mediated convergence.",
+        "expires": "2026-06-30"
+      }
+    ],
+    "cargo_path_edges": [
+      {
+        "from_manifest": "core/layer2/conduit/Cargo.toml",
+        "to_path": "../conduit-security",
+        "reason": "Temporary split until conduit-security path is converged behind nexus-mediated contracts.",
+        "expires": "2026-06-30"
+      },
+      {
+        "from_manifest": "core/layer2/execution/Cargo.toml",
+        "to_path": "../../layer1/infring_types",
+        "reason": "Execution depends on foundational typed contracts defined in layer1/infring_types.",
+        "expires": "2026-09-30"
+      }
+    ]
+  }
+}

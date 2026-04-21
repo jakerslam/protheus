@@ -18,13 +18,17 @@ fn chat_ui_expected_classification_from_diagnostics(
     if has_surface_degraded {
         return "tool_surface_degraded";
     }
-    if requires_live_web && web_search_calls == 0 {
-        return "tool_not_invoked";
+    let workflow_gate_blocked_signal = error_codes.contains_key("workflow_gate_blocked_web_tooling");
+    if workflow_gate_blocked_signal {
+        return "workflow_gate_blocked";
     }
     let blocked_signal = error_codes.contains_key("web_tool_policy_blocked")
         || chat_ui_receipt_status_count(diagnostics, "blocked") > 0;
     if blocked_signal {
         return "policy_blocked";
+    }
+    if requires_live_web && web_search_calls == 0 {
+        return "tool_not_invoked";
     }
     let not_found_signal = error_codes.contains_key("web_tool_not_found")
         || chat_ui_receipt_status_count(diagnostics, "not_found") > 0;

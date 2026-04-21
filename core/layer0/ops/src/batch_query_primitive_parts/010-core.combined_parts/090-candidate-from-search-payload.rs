@@ -68,6 +68,28 @@ fn candidate_from_search_payload(query: &str, payload: &Value) -> Result<Candida
     {
         snippet = trim_words(&summary, 56);
     }
+    if snippet.is_empty()
+        && !domains.is_empty()
+        && (summary_low_signal
+            || looks_like_domain_list_noise(&content_normalized)
+            || looks_like_url_dump_segment(&content_normalized))
+    {
+        let query_hint = clean_text(query, 140);
+        let domain_list = domains
+            .iter()
+            .take(5)
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(", ");
+        let query_suffix = if query_hint.is_empty() {
+            String::new()
+        } else {
+            format!(" for query \"{query_hint}\"")
+        };
+        snippet = format!(
+            "From web retrieval, candidate domains include {domain_list}. The search summary was low-signal chrome{query_suffix}; domains were extracted from full payload content for follow-up synthesis. These domains are candidate leads and require direct page verification before final claims."
+        );
+    }
     if snippet.is_empty() {
         return Err("no_usable_summary".to_string());
     }

@@ -116,8 +116,5 @@ fn web_tooling_live_smoke_uses_real_model_provider_when_enabled() {
 }
 
 // Decomposed for backend file-size/cohesion remediation; behavior preserved via ordered includes.
-include!("050-part_parts/000-part.rs");
-include!("050-part_parts/001-part.rs");
-include!("050-part_parts/002-part.rs");
 
 #[test]

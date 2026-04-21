@@ -201,12 +201,30 @@ fn context_command_payload(
         .clamp(ACTIVE_CONTEXT_MIN_RECENT_FLOOR as u64, 256)
         as usize;
     let recent_tool_outcomes = recent_tool_outcome_keyframes(&state, 4);
+    let recent_floor_target = recent_context_floor_target_count(&messages, active_context_min_recent);
+    let recent_floor_missing_before = recent_context_floor_missing_count(
+        &messages,
+        &pooled_messages_unfloored,
+        active_context_min_recent,
+    );
+    let recent_floor_coverage_before = recent_context_floor_coverage_ratio(
+        &messages,
+        &pooled_messages_unfloored,
+        active_context_min_recent,
+    );
     let (pooled_messages, recent_floor_injected) = enforce_recent_context_floor(
         &messages,
         &pooled_messages_unfloored,
         active_context_min_recent,
     );
     let recent_floor_enforced = recent_floor_injected > 0;
+    let recent_floor_satisfied =
+        recent_context_floor_satisfied(&messages, &pooled_messages, active_context_min_recent);
+    let recent_floor_coverage_after = recent_context_floor_coverage_ratio(
+        &messages,
+        &pooled_messages,
+        active_context_min_recent,
+    );
     let row_auto_compact_threshold_ratio = row
         .get("auto_compact_threshold_ratio")
         .and_then(Value::as_f64)
@@ -283,6 +301,34 @@ fn context_command_payload(
             context_pressure = context_pressure_label(context_ratio).to_string();
         }
     }
+    let recent_floor_active_missing =
+        recent_context_floor_missing_count(&messages, &active_messages, active_context_min_recent);
+    let recent_floor_active_satisfied = recent_floor_active_missing == 0;
+    let recent_floor_active_coverage =
+        recent_context_floor_coverage_ratio(&messages, &active_messages, active_context_min_recent);
+    let (
+        recent_floor_continuity_status,
+        recent_floor_continuity_action,
+        recent_floor_continuity_message,
+        recent_floor_continuity_reason,
+        recent_floor_continuity_retryable,
+    ) = if recent_floor_active_satisfied {
+        (
+            "ready".to_string(),
+            "none".to_string(),
+            "Active context satisfies the recent-floor continuity contract.".to_string(),
+            "none".to_string(),
+            false,
+        )
+    } else {
+        (
+            "degraded".to_string(),
+            "raise_active_context_floor_or_target".to_string(),
+            "Active context dropped below the recent-floor contract; increase min recent messages or target context tokens.".to_string(),
+            "active_recent_floor_missing".to_string(),
+            true,
+        )
+    };
     json!({
         "ok": true,
         "agent_id": agent_id,
@@ -310,6 +356,19 @@ fn context_command_payload(
             "pre_generation_pruned": pre_generation_pruned,
             "recent_floor_enforced": recent_floor_enforced,
             "recent_floor_injected": recent_floor_injected,
+            "recent_floor_target": recent_floor_target,
+            "recent_floor_missing_before": recent_floor_missing_before,
+            "recent_floor_satisfied": recent_floor_satisfied,
+            "recent_floor_coverage_before": recent_floor_coverage_before,
+            "recent_floor_coverage_after": recent_floor_coverage_after,
+            "recent_floor_active_missing": recent_floor_active_missing,
+            "recent_floor_active_satisfied": recent_floor_active_satisfied,
+            "recent_floor_active_coverage": recent_floor_active_coverage,
+            "recent_floor_continuity_status": recent_floor_continuity_status,
+            "recent_floor_continuity_action": recent_floor_continuity_action,
+            "recent_floor_continuity_message": recent_floor_continuity_message,
+            "recent_floor_continuity_reason": recent_floor_continuity_reason,
+            "recent_floor_continuity_retryable": recent_floor_continuity_retryable,
             "emergency_compact_enabled": true,
             "emergency_compact": emergency_compact
         },

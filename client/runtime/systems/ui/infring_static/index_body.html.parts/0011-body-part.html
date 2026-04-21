@@ -174,7 +174,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
         <div class="page-body" x-init="loadData()">
           <div class="info-card">
             <h4>Hands &mdash; Curated Autonomous Capability Packages</h4>
-            <p>Hands are pre-configured AI agents that autonomously handle specific tasks. Each hand includes a tuned system prompt, required tools, and a dashboard for tracking work.</p>
+            <p>Hands are pre-configured AI agents that autonomously handle specific tasks. Each hand includes a tuned system prompt, required tools, and a shell surface for tracking work.</p>
           </div>
 
           <div x-show="loading" class="loading-state"><div class="spinner"></div><span>Loading hands...</span></div>
@@ -274,7 +274,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
                     <div class="flex gap-2 mt-3">
                       <button class="btn btn-ghost btn-sm" @click="loadStats(inst)">Stats</button>
                       <template x-if="isTraderHand(inst)">
-                        <button class="btn btn-primary btn-sm" @click="openDashboard(inst)">Dashboard</button>
+                        <button class="btn btn-primary btn-sm" @click="openDashboard(inst)">Shell</button>
                       </template>
                       <template x-if="isBrowserHand(inst)">
                         <button class="btn btn-ghost btn-sm" @click="openBrowserViewer(inst)">View Browser</button>

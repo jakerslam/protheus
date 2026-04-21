@@ -22,16 +22,16 @@ Purpose: Validate binary blob assets used by fold/unfold logic.
 Purpose: Stream-of-thought mapping with optional intercept controls.
 
 6. Assimilate  
-Purpose: Ingest local/web sources into a deterministic sprint prompt with Core-5 review and safety gates.
+Purpose: Ingest local/web sources into a deterministic sprint prompt with Kernel-5 review and safety gates.
 Also available as a programmatic API (`client/runtime/systems/tools/assimilate_api.ts`) for loop/shadow self-use.
 
 7. Research  
-Purpose: Run natural-language research queries through hybrid evidence grading + Core-5 arbitration.
+Purpose: Run natural-language research queries through hybrid evidence grading + Kernel-5 arbitration.
 Also available as a programmatic API (`client/runtime/systems/tools/research_api.ts`) for loop/shadow self-use.
 Includes proactive assimilation suggestions when tool/path/URL mentions are detected in query text.
 
 8. Tutorial Suggestions
-Purpose: Context-aware command nudges in the main CLI loop (external tool, drift, planning signals) with light Core-5 safety review.
+Purpose: Context-aware command nudges in the main CLI loop (external tool, drift, planning signals) with light Kernel-5 safety review.
 Control via `protheus tutorial status|on|off`.
 
 ## CLI Entry

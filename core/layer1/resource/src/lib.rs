@@ -18,6 +18,7 @@ pub const EDGE_CPU_CORE_THRESHOLD: u16 = 1;
 pub const MAX_RESOURCE_QUOTA_CPU_MILLIS: u64 = 86_400_000;
 pub const MAX_RESOURCE_QUOTA_MEMORY_BYTES: u64 = 8 * 1024 * 1024 * 1024 * 1024;
 pub const MAX_RESOURCE_QUOTA_IO_BYTES: u64 = 16 * 1024 * 1024 * 1024 * 1024;
+pub const MAX_CPU_CORES: u16 = 4096;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct HardwareProfile {
@@ -71,18 +72,28 @@ fn normalize_hardware_profile(profile: HardwareProfile) -> HardwareProfile {
     }
 }
 
+fn normalize_usage(usage: ResourceUsage) -> Option<ResourceUsage> {
+    if usage.cpu_used_millis > MAX_RESOURCE_QUOTA_CPU_MILLIS
+        || usage.memory_used_bytes > MAX_RESOURCE_QUOTA_MEMORY_BYTES
+        || usage.io_used_bytes > MAX_RESOURCE_QUOTA_IO_BYTES
+    {
+        return None;
+    }
+    Some(usage)
+}
+
 impl ResourceBudget {
     pub fn allows(&self, usage: ResourceUsage) -> bool {
         let Some(normalized_budget) = normalize_budget(*self) else {
             return false;
         };
+        let Some(normalized_usage) = normalize_usage(usage) else {
+            return false;
+        };
 
-        usage.cpu_used_millis <= normalized_budget.cpu_quota_millis
-            && usage.memory_used_bytes <= normalized_budget.memory_quota_bytes
-            && usage.io_used_bytes <= normalized_budget.io_quota_bytes
-            && usage.cpu_used_millis <= MAX_RESOURCE_QUOTA_CPU_MILLIS
-            && usage.memory_used_bytes <= MAX_RESOURCE_QUOTA_MEMORY_BYTES
-            && usage.io_used_bytes <= MAX_RESOURCE_QUOTA_IO_BYTES
+        normalized_usage.cpu_used_millis <= normalized_budget.cpu_quota_millis
+            && normalized_usage.memory_used_bytes <= normalized_budget.memory_quota_bytes
+            && normalized_usage.io_used_bytes <= normalized_budget.io_quota_bytes
     }
 }
 
@@ -97,7 +108,10 @@ pub fn select_inference_backend(
     profile: HardwareProfile,
     backend_override: Option<BackendOverride>,
 ) -> BackendSelectionReceipt {
-    let invalid_profile_input = profile.total_memory_bytes == 0 || profile.cpu_cores == 0;
+    let invalid_profile_input = profile.total_memory_bytes == 0
+        || profile.cpu_cores == 0
+        || profile.cpu_cores > MAX_CPU_CORES
+        || profile.total_memory_bytes > MAX_RESOURCE_QUOTA_MEMORY_BYTES;
     if invalid_profile_input {
         return BackendSelectionReceipt {
             backend: InferenceBackend::Edge,

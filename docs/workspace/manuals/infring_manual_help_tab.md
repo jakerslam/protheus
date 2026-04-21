@@ -73,6 +73,21 @@ infring gateway
 
 If PATH has not refreshed in the same shell, run directly: `$HOME\.infring\bin\infring.cmd gateway`.
 
+Optional offline/cached reinstall (PowerShell):
+
+```powershell
+# Hydrate local cache once for this version.
+$env:INFRING_INSTALL_ASSET_CACHE = "1"
+& $tmp -Repair -Full -ReleaseVersion v0.3.12
+
+# Repeat install without network.
+$env:INFRING_INSTALL_OFFLINE = "1"
+& $tmp -Repair -Full -Offline -ReleaseVersion v0.3.12
+
+# Optional cleanup.
+Remove-Item Env:INFRING_INSTALL_OFFLINE -ErrorAction SilentlyContinue
+```
+
 If script execution is still restricted in your environment, use a no-file fallback:
 
 ```powershell

@@ -2,7 +2,7 @@
 
 Version: 1.0  
 Date: 2026-03-15  
-Owner: Protheus Core / Runtime Security
+Owner: Protheus Kernel / Runtime Security
 
 ## Objective
 

@@ -77,13 +77,45 @@ fn verify_black_box_export(export_path: &Path) -> Result<Value, String> {
         last_hash = stored_hash.to_string();
         last_seq = seq;
     }
+    if let Some(expected_entry_count) = export.get("entry_count").and_then(Value::as_u64) {
+        if expected_entry_count != entries.len() as u64 {
+            return Err(format!(
+                "offline_entry_count_mismatch:expected={expected_entry_count}:actual={}",
+                entries.len()
+            ));
+        }
+    }
+    if let Some(expected_last_seq) = export.get("last_seq").and_then(Value::as_u64) {
+        if expected_last_seq != last_seq {
+            return Err(format!(
+                "offline_last_seq_mismatch:expected={expected_last_seq}:actual={last_seq}"
+            ));
+        }
+    }
     if let Some(root) = export
         .get("published_roots")
         .and_then(Value::as_array)
         .and_then(|rows| rows.last())
     {
-        if root.get("root_hash").and_then(Value::as_str) != Some(last_hash.as_str()) {
+        let root_hash = root
+            .get("root_hash")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        if root_hash.is_empty() {
+            return Err("offline_published_root_hash_missing".to_string());
+        }
+        if root_hash != last_hash.as_str() {
             return Err("offline_published_root_hash_mismatch".to_string());
+        }
+        let root_seq = root
+            .get("seq")
+            .or_else(|| root.get("last_seq"))
+            .and_then(Value::as_u64)
+            .unwrap_or(last_seq);
+        if root_seq != last_seq {
+            return Err(format!(
+                "offline_published_root_seq_mismatch:expected={last_seq}:actual={root_seq}"
+            ));
         }
     }
     Ok(json!({
@@ -93,6 +125,7 @@ fn verify_black_box_export(export_path: &Path) -> Result<Value, String> {
         "entry_count": entries.len(),
         "last_seq": last_seq,
         "last_hash": last_hash,
+        "published_root_checked": export.get("published_roots").is_some(),
         "export_path": normalize_rel_path(export_path.to_string_lossy()),
     }))
 }

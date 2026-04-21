@@ -1,4 +1,4 @@
-# Kernel Naming Policy (Core Path Compatibility)
+# Kernel Naming Policy (Core Compatibility Alias + Path Compatibility)
 
 ## Goal
 
@@ -11,6 +11,14 @@ Current enforcement mode: **Yellow Flag (advisory)**.
 
 Canonical public term is `Kernel`.  
 `Core` remains a compatibility alias while repository paths and guard IDs transition.
+
+## Canonicalization Contract
+
+1. Use `Kernel` for all architecture, policy, release, and operator-facing language.
+2. Use `Core` only as:
+   - explicit compatibility alias (`Kernel` first, `Core` second)
+   - immutable repository path prefix (`core/**`) until path migration is explicitly approved.
+3. Any new policy/gate/docs content that uses `Core` as primary authority term is non-compliant.
 
 ## Enforced Scope
 

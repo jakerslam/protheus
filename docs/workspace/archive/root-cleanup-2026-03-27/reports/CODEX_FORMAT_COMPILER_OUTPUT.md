@@ -121,7 +121,7 @@
           "verification": "find local/state/ops/srs_contract_runtime -path '*/V6-WORKFLOW-*/latest.json' | wc -l",
           "expected_result": "47",
           "current_executed": "29",
-          "priority": "WORKFLOW-001.x (12) + WORKFLOW-002.x (6) - Core orchestration"
+          "priority": "WORKFLOW-001.x (12) + WORKFLOW-002.x (6) - Kernel orchestration"
         }
       ]
     },

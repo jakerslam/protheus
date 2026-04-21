@@ -3,6 +3,9 @@ fn chat_ui_turn_is_meta_control_message(raw_input: &str) -> bool {
     if lowered.is_empty() {
         return false;
     }
+    if chat_ui_is_meta_diagnostic_request(&lowered) {
+        return true;
+    }
     chat_ui_contains_any(
         &lowered,
         &[
@@ -20,6 +23,10 @@ fn chat_ui_turn_is_meta_control_message(raw_input: &str) -> bool {
             "did you try it",
             "did you do it",
             "what happened",
+            "whats going on",
+            "what's going on",
+            "why did that happen",
+            "why did you do that",
         ],
     ) && !chat_ui_contains_any(
         &lowered,

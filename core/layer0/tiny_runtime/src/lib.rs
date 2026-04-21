@@ -23,6 +23,7 @@ pub const TINY_PROFILE: TinyRuntimeProfile = TinyRuntimeProfile {
 
 pub const CONTEXT_WINDOW_HARD_MIN_TOKENS: u32 = 16_000;
 pub const CONTEXT_WINDOW_WARN_BELOW_TOKENS: u32 = 32_000;
+pub const CONTEXT_WINDOW_HARD_MAX_TOKENS: u32 = 1_048_576;
 
 pub fn tiny_profile() -> TinyRuntimeProfile {
     TINY_PROFILE
@@ -64,9 +65,14 @@ pub fn normalized_proxy_mode(enabled: bool, trusted_env_proxy: bool) -> u8 {
     }
 }
 
+pub fn bounded_context_window_tokens(requested_tokens: u32) -> u32 {
+    requested_tokens.clamp(0, CONTEXT_WINDOW_HARD_MAX_TOKENS)
+}
+
 pub fn evaluate_context_window_guard(tokens: u32) -> (bool, bool) {
-    let should_warn = tokens > 0 && tokens < CONTEXT_WINDOW_WARN_BELOW_TOKENS;
-    let should_block = tokens > 0 && tokens < CONTEXT_WINDOW_HARD_MIN_TOKENS;
+    let bounded = bounded_context_window_tokens(tokens);
+    let should_warn = bounded > 0 && bounded < CONTEXT_WINDOW_WARN_BELOW_TOKENS;
+    let should_block = bounded > 0 && bounded < CONTEXT_WINDOW_HARD_MIN_TOKENS;
     (should_warn, should_block)
 }
 

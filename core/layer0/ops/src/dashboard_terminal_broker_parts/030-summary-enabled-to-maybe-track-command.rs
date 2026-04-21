@@ -7,6 +7,17 @@ fn recovery_hints_enabled() -> bool {
     primitives_enabled() && bool_env("INFRING_TOOL_RECOVERY_HINTS_ENABLED", true)
 }
 
+fn primitive_gate_status() -> Value {
+    json!({
+        "turn_loop_primitives_enabled": primitives_enabled(),
+        "pre_tool_gate_enabled": pre_tool_gate_enabled(),
+        "post_tool_filter_enabled": post_tool_filter_enabled(),
+        "tracking_enabled": tracking_enabled(),
+        "tool_summary_enabled": tool_summary_enabled(),
+        "recovery_hints_enabled": recovery_hints_enabled()
+    })
+}
+
 fn default_deny_rules() -> Vec<String> {
     vec![
         "rm -rf /".to_string(),

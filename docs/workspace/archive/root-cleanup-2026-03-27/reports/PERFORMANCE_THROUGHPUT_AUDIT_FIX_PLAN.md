@@ -197,8 +197,8 @@ const ATTENTION_TTL_HOURS: i64 = 2;  // Shorter TTL for freshness
 
 | Phase | Fixes | Owner | Duration | Start Date |
 |-------|-------|-------|----------|------------|
-| Phase 1 | Fix 1 (Conduit Scaling) | Core Team | 3 days | 2026-03-26 |
-| Phase 2 | Fix 2 (Cockpit Drain) | Core Team | 2 days | 2026-03-29 |
+| Phase 1 | Fix 1 (Conduit Scaling) | Kernel Team | 3 days | 2026-03-26 |
+| Phase 2 | Fix 2 (Cockpit Drain) | Kernel Team | 2 days | 2026-03-29 |
 | Phase 3 | Fix 3 (Receipt Opt) | Performance Team | 2 days | 2026-03-31 |
 | Phase 4 | Fix 4 (Backpressure) | Performance Team | 1 day | 2026-04-02 |
 | Validation | All | QA Team | 2 days | 2026-04-03 |

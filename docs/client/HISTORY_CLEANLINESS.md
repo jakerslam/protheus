@@ -4,7 +4,7 @@
 
 Keep repository history auditable, searchable, and release-ready under high change volume.
 
-## Core Rules
+## Kernel Rules
 
 - `main` history is append-only in normal operation.
 - No force-push to protected branches.

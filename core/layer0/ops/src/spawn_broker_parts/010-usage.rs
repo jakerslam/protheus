@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: core/layer2/ops::spawn_broker (authoritative)
 use crate::contract_lane_utils as lane_utils;
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;

@@ -45,7 +45,7 @@ const CONTRACT_ID: &str = "V6-RESEARCH-035";
 const CONTRACT_CLAIM: &str = "async_spider_trait_with_crawl_engine_produces_deterministic_receipts";
 const SPIDER_CONTRACT_PATH: &str = "planes/contracts/research/spider_v1.json";
 
-/// Core Spider trait - async crawling abstraction
+/// Kernel Spider trait - async crawling abstraction
 pub trait Spider: Send + Sync {
     /// Unique spider identifier
     fn spider_id(&self) -> String;

@@ -202,5 +202,3 @@ fn direct_web_search_get_endpoint_emits_nexus_connection_metadata() {
         Some("web_search")
     );
 }
-
-include!("030-part.tail.rs");

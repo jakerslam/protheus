@@ -66,9 +66,29 @@ pub fn curve(age_days: f64, repetitions: u32, lambda: f64) -> RetentionCurve {
 
 pub fn evaluate_retention_guard(age_days: f64, repetitions: u32, lambda: f64) -> (f64, bool, bool) {
     let score = retention_score(age_days, repetitions, lambda);
-    let should_warn = score < RETENTION_WARN_BELOW;
-    let should_block = score < RETENTION_BLOCK_BELOW;
-    (score, should_warn, should_block)
+    let safe_score = if score.is_finite() {
+        score.clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    let should_warn = safe_score < RETENTION_WARN_BELOW;
+    let should_block = safe_score < RETENTION_BLOCK_BELOW;
+    (safe_score, should_warn, should_block)
+}
+
+pub fn retention_health_label(score: f64) -> &'static str {
+    let safe = if score.is_finite() {
+        score.clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    if safe < RETENTION_BLOCK_BELOW {
+        "critical"
+    } else if safe < RETENTION_WARN_BELOW {
+        "warn"
+    } else {
+        "stable"
+    }
 }
 
 #[allow(dead_code)]

@@ -11,17 +11,18 @@ Internal naming and placement cleanup is an incremental transition: existing `or
 
 ## Boundary Axiom
 
-Core decides what is true and allowed.  
+Kernel decides what is true and allowed.  
+Core decides what is true and allowed. (compatibility alias for Kernel)  
 Orchestration decides what should happen next.  
 Shell decides how it is shown and collected.
 
-## Core
+## Kernel
 
 ### Mission
 
 Own canonical truth, permission, and enforcement even if orchestration and shell disappear.
 
-### Core Owns
+### Kernel Owns
 
 - Canonical state and invariants.
 - Policy evaluation and hard safety gates.
@@ -29,7 +30,7 @@ Own canonical truth, permission, and enforcement even if orchestration and shell
 - Canonical scheduling and resource enforcement.
 - Deterministic receipt authority.
 
-### Core Must Not Own
+### Kernel Must Not Own
 
 - UX rendering or shell behavior.
 - Presentation formatting.
@@ -141,3 +142,18 @@ For each function/file:
 4. Is it external boundary integration/bridge logic? -> `adapters/` (Gateway layer)
 
 If code appears to satisfy multiple categories, split responsibilities.
+
+## Nexus Coupling Enforcement
+
+Core coupling governance is enforced by policy + CI:
+
+- Policy: `tests/tooling/config/core_nexus_coupling_policy.json`
+- Guard: `tests/tooling/scripts/ci/core_nexus_coupling_guard.ts`
+- Command: `npm run -s ops:nexus:core-coupling:guard`
+- CI workflow: `.github/workflows/core-nexus-coupling.yml`
+
+Rule intent:
+
+- Non-nexus core modules must not directly couple to other non-nexus core modules in enforced scope.
+- Cross-module connectivity should route through nexus contracts.
+- Temporary exemptions are explicit, dated, and fail-closed on expiry.

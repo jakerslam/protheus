@@ -36,7 +36,7 @@ Generated: 2026-03-01T03:27:30.118Z
 - [Perception Audit Program](PERCEPTION_AUDIT_PROGRAM.md)
 - [Public Collaboration Triage Contract](PUBLIC_COLLABORATION_TRIAGE.md)
 - [Public Collaboration Surface](PUBLIC_COLLABORATION_SURFACE.md)
-- [Core Migration Bridge](CORE_MIGRATION_BRIDGE.md)
+- [Kernel Migration Bridge](CORE_MIGRATION_BRIDGE.md)
 - [Community Repo Graduation Pack](COMMUNITY_REPO_GRADUATION_PACK.md)
 - [Universal Importers](UNIVERSAL_IMPORTERS.md)
 - [Self-Healing Migration Daemon](SELF_HEALING_MIGRATION_DAEMON.md)

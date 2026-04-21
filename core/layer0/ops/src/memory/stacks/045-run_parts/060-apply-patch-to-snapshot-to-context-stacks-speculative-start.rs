@@ -58,14 +58,12 @@ fn context_stacks_speculative_start(root: &Path, parsed: &crate::ParsedArgs) -> 
     if changed_slices.is_empty() {
         return json!({"ok": false, "status": "blocked", "error": "speculative_overlay_no_changes", "stack_id": stack_id});
     }
-    let overlay_id = clean(
-        parsed
-            .flags
-            .get("overlay-id")
-            .map(String::as_str)
-            .unwrap_or_else(|| generate_id("overlay").as_str()),
-        120,
-    );
+    let overlay_id_seed = parsed
+        .flags
+        .get("overlay-id")
+        .cloned()
+        .unwrap_or_else(|| generate_id("overlay"));
+    let overlay_id = clean(&overlay_id_seed, 120);
     if find_overlay_index(&state, &overlay_id).is_some() {
         return json!({"ok": false, "status": "blocked", "error": "overlay_exists", "overlay_id": overlay_id});
     }

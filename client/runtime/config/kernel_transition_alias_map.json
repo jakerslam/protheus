@@ -1,0 +1,78 @@
+{
+  "version": "2026-04-20",
+  "canonical_term": "Kernel",
+  "compatibility_alias": "Core",
+  "retirement_target": {
+    "version": "v0.5.0",
+    "date": "2026-07-15"
+  },
+  "path_compatibility": [
+    "core/**"
+  ],
+  "command_aliases": [
+    {
+      "canonical": "ops:kernel-naming:guard",
+      "alias": "ops:core-naming:guard",
+      "status": "compatibility"
+    },
+    {
+      "canonical": "ops:kernel-naming:guard:strict",
+      "alias": "ops:core-naming:guard:strict",
+      "status": "compatibility"
+    }
+  ],
+  "artifact_aliases": [
+    {
+      "canonical": "kernel_migration_bridge",
+      "alias": "core_migration_bridge",
+      "status": "compatibility"
+    },
+    {
+      "canonical": "kernel_naming_policy",
+      "alias": "core_naming_policy",
+      "status": "compatibility"
+    },
+    {
+      "canonical": "kernel_naming_policy_guard_current",
+      "alias": "core_naming_policy_guard_current",
+      "status": "compatibility"
+    },
+    {
+      "canonical": "KERNEL_NAMING_POLICY_GUARD_CURRENT",
+      "alias": "CORE_NAMING_POLICY_GUARD_CURRENT",
+      "status": "compatibility"
+    },
+    {
+      "canonical": "kernel_naming_policy_guard_current.json",
+      "alias": "core_naming_policy_guard_current.json",
+      "status": "compatibility"
+    },
+    {
+      "canonical": "KERNEL_NAMING_POLICY_GUARD_CURRENT.md",
+      "alias": "CORE_NAMING_POLICY_GUARD_CURRENT.md",
+      "status": "compatibility"
+    },
+    {
+      "canonical": "kernel_nexus_coupling_guard",
+      "alias": "core_nexus_coupling_guard",
+      "status": "compatibility"
+    },
+    {
+      "canonical": "kernel_nexus_coupling_guard_current",
+      "alias": "core_nexus_coupling_guard_current",
+      "status": "compatibility"
+    },
+    {
+      "canonical": "kernel_nexus_coupling_policy",
+      "alias": "core_nexus_coupling_policy",
+      "status": "compatibility"
+    }
+  ],
+  "doc_aliases": [
+    {
+      "canonical": "Kernel",
+      "alias": "Core",
+      "required_context": "compatibility alias"
+    }
+  ]
+}

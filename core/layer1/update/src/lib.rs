@@ -57,6 +57,12 @@ fn valid_version(version: &str) -> bool {
     if version.is_empty() || version.len() > MAX_VERSION_LEN {
         return false;
     }
+    if version.starts_with(['.', '-', '_']) || version.ends_with(['.', '-', '_']) {
+        return false;
+    }
+    if !version.chars().any(|ch| ch.is_ascii_digit()) {
+        return false;
+    }
     version
         .chars()
         .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '.' | '-' | '_'))

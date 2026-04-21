@@ -1,4 +1,4 @@
-# Rust Core File Size Policy
+# Rust Kernel File Size Policy
 
 - Scope: `core/**/*.rs`
 - Tests exempt: yes (`**/tests/**`, `*.test.*`, `**/__tests__/**`)

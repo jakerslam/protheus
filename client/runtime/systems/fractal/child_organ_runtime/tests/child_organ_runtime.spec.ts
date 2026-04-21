@@ -40,6 +40,10 @@ assert.deepStrictEqual(
   mod.mapArgs(['\u200Bunknown', '--organ-id=a']),
   ['status']
 );
+assert.deepStrictEqual(
+  mod.mapArgs(['spawn', '../escape', '--organ-id=a']),
+  ['spawn', '--organ-id=a']
+);
 assert.deepStrictEqual(mod.mapArgs([]), ['status']);
 
 const out = mod.ensureMutationReceipt({ payload: { ok: true, type: 'child_organ_runtime_plan' } }, 'plan');

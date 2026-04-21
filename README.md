@@ -23,11 +23,12 @@ Shell/runtime surfaces remain thin presentation wrappers around policy-governed 
   - [x] Artifact/config naming migrates from `core_*` to `kernel_*` with compatibility mapping.
   - [x] Release policy publishes a final alias removal target version/date.
   - Compatibility mapping: `client/runtime/config/kernel_transition_alias_map.json`
+  - Deprecation tracker: `client/runtime/config/terminology_transition_deprecation_tracker.json`
 
 ## Terminology Transition (External Boundary Layer)
 
 - Canonical public term: **Gateways**
-- Compatibility/internal alias: **Adapters** (legacy implementation term for the same external-boundary layer)
+- Compatibility alias: **Adapters** (legacy implementation term for the same external-boundary layer)
 - Canonical repository path remains `adapters/**` during compatibility transition.
 - Transition indicators:
   - [x] Public/operator docs use `Gateways` as the canonical external-boundary term.
@@ -36,6 +37,7 @@ Shell/runtime surfaces remain thin presentation wrappers around policy-governed 
   - [x] Artifact/config naming migrates from `adapter_*` to `gateway_*` with compatibility mapping.
   - [x] Release policy publishes a final adapter-alias removal target version/date.
   - Compatibility mapping: `client/runtime/config/gateway_transition_alias_map.json`
+  - Deprecation tracker: `client/runtime/config/terminology_transition_deprecation_tracker.json`
 
 ## Terminology Transition (Presentation Shell)
 
@@ -45,7 +47,7 @@ Shell/runtime surfaces remain thin presentation wrappers around policy-governed 
 - Transition indicators:
   - [x] Public/operator docs use `Shell` as the canonical presentation term.
   - [x] Boundary docs mark `Client` as a compatibility alias (not a separate layer).
-  - [ ] Tooling command IDs and guard names expose `shell`-first aliases.
+  - [x] Tooling command IDs and guard names expose `shell`-first aliases (`ops:shell-naming:guard*` with `ops:client-*` compatibility aliases).
   - [ ] Artifact/config naming migrates from `client_*` labels to `shell_*` labels with compatibility mapping.
   - [ ] Release policy publishes a final client-alias removal target version/date.
   - Internal transition notes: `docs/workspace/shell_transition_notes.md`
@@ -89,6 +91,7 @@ What is true in this repository today:
 - Production release channels are resident-IPC authoritative: process transport fallbacks are blocked (`process_transport_forbidden_in_production` / `process_fallback_forbidden_in_production`).
 - Release-closure evidence now includes topology diagnostics, live stateful upgrade/rollback rehearsal, recovery rehearsal, numeric release scorecards, and support-bundle export.
 - Runtime proof now supports dual-track evidence (`synthetic` canary + `empirical` live artifact track) with profile-scoped empirical sample budgets and required source/metric completeness enforced in release gating.
+- Runtime proof verify now publishes split artifact streams (`runtime_proof_synthetic_canary_current.json` and `runtime_proof_empirical_release_evidence_current.json`) plus empirical trend deltas (`runtime_proof_empirical_trends_current.json`).
 - Gateway release readiness (adapter compatibility layer) includes manifest-backed graduation checks (hooks + chaos scenarios) plus staged roadmap-adapter tracking under the same graduation manifest.
 - Layer2 parity guard requires every listed lane to be explicitly marked `complete`; provisional lanes are release blockers.
 - Release proof packs are assembled as grouped, checksummed artifacts under `releases/proof-packs/<version>/`.
@@ -113,7 +116,7 @@ What is true in this repository today:
 - Numeric release thresholds are enforced by `npm run -s ops:release:scorecard:gate` and re-checked directly by `npm run -s ops:production-closure:gate`.
 - Release evidence is staged: `ops:release:scorecard:gate` is pre-bundle, and `ops:production-closure:gate` is the final-seal gate after `npm run -s ops:support-bundle:export`.
 - Release scorecard compares against the previous release scorecard when a baseline is provided.
-- Runtime proof release gate accepts `--proof-track=synthetic|empirical|dual` (default: `dual`) and enforces rich-profile empirical proof budgets.
+- Runtime proof release gate accepts `--proof-track=synthetic|empirical|dual` (default: `dual`) and enforces profile-scoped empirical proof budgets (`rich`, `pure`, `tiny-max`).
 - Proof-pack assembly command: `npm run -s ops:release:proof-pack -- --version <release-tag-or-date>`.
 - Release verdict artifact: `npm run -s ops:release:verdict`.
 - Release-candidate dress rehearsal: `npm run -s ops:release:rc-rehearsal`.
@@ -124,7 +127,7 @@ What is true in this repository today:
 - Internal/maintenance lanes are not part of the public production SLA.
 - Operator diagnostics and incident export: `npm run -s ops:support-bundle:export`
 - Terminology transition release policy: `docs/workspace/policy/release_terminology_transition_policy.md`.
-- Alias retirement target (`Core`, `Adapters`): `v0.5.0` / `2026-07-15` (unless documented blocker exception).
+- Compatibility alias retirement target (`Core`, `Adapters`): `v0.5.0` / `2026-07-15` (unless documented blocker exception).
 
 ## Quick Start
 
@@ -179,6 +182,21 @@ Optional machine-readable install summary (JSON):
 
 ```powershell
 & $tmp -Repair -Full -Json
+```
+
+Optional offline/cached reinstall (PowerShell):
+
+```powershell
+# Hydrate local cache once for this version.
+$env:INFRING_INSTALL_ASSET_CACHE = "1"
+& $tmp -Repair -Full -ReleaseVersion v0.3.12
+
+# Repeat install without network.
+$env:INFRING_INSTALL_OFFLINE = "1"
+& $tmp -Repair -Full -Offline -ReleaseVersion v0.3.12
+
+# Optional cleanup.
+Remove-Item Env:INFRING_INSTALL_OFFLINE -ErrorAction SilentlyContinue
 ```
 
 If script execution is still restricted in your environment, use a no-file fallback:
@@ -417,7 +435,7 @@ Install Node.js 22+ to unlock full JS-assisted command surfaces.
 
 Behavior:
 
-- Known targets route to governed core bridge lanes.
+- Known targets route to governed Kernel bridge lanes.
 - Unknown targets fail as `unadmitted` by default.
 - Local simulation mode is test-only and must be explicitly enabled via `--allow-local-simulation=1`.
 - Use `--plan-only=1` to emit the canonical assimilation planning chain without executing bridge mutations.
@@ -542,7 +560,7 @@ Operator caveats:
 
 ## What Ships Today
 
-- Rust-authoritative control and policy lanes under `core/layer0`, `core/layer1`, and `core/layer2`
+- Rust-authoritative Kernel control and policy lanes under `core/layer0`, `core/layer1`, and `core/layer2`
 - Gateway runtime with dashboard serving and health probes
 - Agent/session/memory/rag/research command surfaces
 - Signed policy/config registry surfaces under `client/runtime/config/**`
@@ -568,7 +586,7 @@ Operator caveats:
 
 | Path | Responsibility |
 |---|---|
-| `core/` | Rust authority layers and runtime core |
+| `core/` | Rust authority layers and runtime Kernel |
 | `client/runtime/systems/` | Shell runtime wrappers and operator surfaces |
 | `client/runtime/config/` | Policy manifests, registries, and guardrails |
 | `adapters/` | Integration bridges |

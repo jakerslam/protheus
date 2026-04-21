@@ -120,6 +120,78 @@ jobs:
           echo "next_version=${NEXT_VERSION}" >> "$GITHUB_OUTPUT"
           echo "release_channel=${RELEASE_CHANNEL}" >> "$GITHUB_OUTPUT"
 
+      - name: Enforce release tag uniqueness progression
+        if: steps.semver.outputs.release_ready == '1'
+        env:
+          RELEASE_TAG: ${{ steps.semver.outputs.tag }}
+          PREVIOUS_TAG: ${{ steps.semver.outputs.previous_tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p core/local/artifacts
+          node <<'NODE'
+          const fs = require('fs');
+          const { execSync } = require('child_process');
+
+          function resolveTagCommit(tag) {
+            if (!tag || tag === 'none') return null;
+            try {
+              return execSync(`git rev-list -n 1 refs/tags/${tag}`, {
+                stdio: ['ignore', 'pipe', 'ignore'],
+              })
+                .toString()
+                .trim();
+            } catch {
+              return null;
+            }
+          }
+
+          const releaseTag = String(process.env.RELEASE_TAG || '').trim();
+          const previousTag = String(process.env.PREVIOUS_TAG || '').trim();
+          const headCommit = execSync('git rev-parse HEAD', {
+            stdio: ['ignore', 'pipe', 'ignore'],
+          })
+            .toString()
+            .trim();
+          const releaseTagCommit = resolveTagCommit(releaseTag);
+          const previousTagCommit = resolveTagCommit(previousTag);
+
+          const failures = [];
+          if (!releaseTag || releaseTag === 'none') {
+            failures.push('release_tag_missing');
+          }
+          if (previousTag && previousTag !== 'none' && releaseTag === previousTag) {
+            failures.push('release_tag_equals_previous_tag');
+          }
+          if (releaseTagCommit && releaseTagCommit !== headCommit) {
+            failures.push('release_tag_already_exists_on_non_head_commit');
+          }
+          if (releaseTagCommit && previousTagCommit && releaseTagCommit === previousTagCommit) {
+            failures.push('release_tag_points_to_same_commit_as_previous_tag');
+          }
+
+          const report = {
+            schema_id: 'infring_release_tag_uniqueness_gate',
+            schema_version: '1.0',
+            generated_at: new Date().toISOString(),
+            release_tag: releaseTag || null,
+            previous_tag: previousTag && previousTag !== 'none' ? previousTag : null,
+            head_commit: headCommit,
+            release_tag_commit: releaseTagCommit,
+            previous_tag_commit: previousTagCommit,
+            failures,
+            ok: failures.length === 0,
+          };
+          fs.writeFileSync(
+            'core/local/artifacts/release_tag_uniqueness_gate_current.json',
+            JSON.stringify(report, null, 2) + '\n',
+          );
+          if (!report.ok) {
+            console.error(`release_tag_uniqueness_gate_failed ${JSON.stringify(report)}`);
+            process.exit(1);
+          }
+          process.stdout.write('release_tag_uniqueness_gate_ok\n');
+          NODE
+
       - name: Stop when no releasable conventional commits
         if: steps.semver.outputs.release_ready != '1'
         run: |
@@ -192,13 +264,75 @@ jobs:
       - name: Release topology, compatibility, and recovery evidence
         if: steps.semver.outputs.release_ready == '1'
         run: |
+          npm run -s ops:node-critical-path:inventory
+          npm run -s ops:shell:truth-leak:guard
+          npm run -s ops:terminology:transition:inventory
+          npm run -s ops:capability-proof-burden:guard
+          npm run -s ops:srs:same-revision:guard
+          npm run -s ops:srs:todo-section:guard
           npm run -s ops:runtime-proof:verify
+          npm run -s ops:queue-backpressure:policy:gate
+          npm run -s ops:boundedness:release-gate
+          npm run -s ops:layer2:parity:guard
+          npm run -s ops:layer2:receipt:replay
+          npm run -s ops:layer3:contract:guard
+          npm run -s ops:trusted-core:report
+          npm run -s ops:release:proof-pack -- --version=${{ steps.semver.outputs.tag }}
           npm run -s ops:release:rc-rehearsal
           npm run -s ops:ipc-bridge:soak
+
+      - name: Enforce mandatory release proof-pack artifacts
+        if: steps.semver.outputs.release_ready == '1'
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const file = 'core/local/artifacts/release_proof_pack_current.json';
+          const payload = JSON.parse(fs.readFileSync(file, 'utf8'));
+          const requiredMissing = Number(
+            payload?.summary?.required_missing ??
+            (Array.isArray(payload?.required_missing) ? payload.required_missing.length : 0),
+          );
+          const categoryThresholdFailures = Number(
+            payload?.summary?.category_threshold_failure_count ??
+            (Array.isArray(payload?.category_threshold_failures) ? payload.category_threshold_failures.length : 0),
+          );
+          const mandatory = [
+            'core/local/artifacts/layer2_lane_parity_guard_current.json',
+            'core/local/artifacts/layer2_receipt_replay_current.json',
+            'core/local/artifacts/runtime_trusted_core_report_current.json',
+          ];
+          const artifacts = Array.isArray(payload?.artifacts) ? payload.artifacts : [];
+          const missingMandatory = mandatory.filter((artifactPath) => {
+            const row = artifacts.find((candidate) => String(candidate?.path || '') === artifactPath);
+            return !row || row.required !== true || row.exists !== true;
+          });
+          if (requiredMissing !== 0 || categoryThresholdFailures !== 0 || missingMandatory.length > 0) {
+            const detail = {
+              required_missing: requiredMissing,
+              category_threshold_failures: categoryThresholdFailures,
+              missing_mandatory: missingMandatory,
+            };
+            console.error(`release_proof_pack_contract_failed ${JSON.stringify(detail)}`);
+            process.exit(1);
+          }
+          process.stdout.write('release_proof_pack_contract_ok\n');
+          NODE
+
+      - name: Upload release proof-pack evidence
+        if: steps.semver.outputs.release_ready == '1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-proof-pack-${{ steps.semver.outputs.tag }}
+          path: |
+            core/local/artifacts/release_proof_pack_current.json
+            releases/proof-packs/${{ steps.semver.outputs.tag }}/**
+          if-no-files-found: error
 
       - name: Benchmark public artifact gate
         if: steps.semver.outputs.release_ready == '1'
         run: |
+          npm run -s ops:benchmark:refresh
           npm run -s ops:benchmark:sanity
           npm run -s ops:benchmark:public-audit
 

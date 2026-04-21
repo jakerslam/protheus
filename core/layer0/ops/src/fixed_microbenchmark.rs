@@ -2,7 +2,7 @@
 // Layer ownership: core/layer0/ops (authoritative)
 
 use crate::contract_lane_utils as lane_utils;
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::hint::black_box;

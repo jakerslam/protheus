@@ -31,7 +31,7 @@ Out of scope:
 
 This intake must obey repository placement policy.
 
-- Core authority remains in `core/`
+- Kernel authority remains in `core/`
 - Thin runtime and developer-facing UX remain in `client/runtime/systems/**`
 - Connector and protocol bridges live in `adapters/`
 - Optional demo/playground surfaces may exist in `apps/`, but only as deletable UI shells with no system authority

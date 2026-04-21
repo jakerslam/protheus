@@ -28,6 +28,3 @@ fn chat_ui_retry_loop_risk_detects_repeated_receipts_and_suppresses_retry() {
     assert_eq!(strategy, "halt_on_loop_risk");
     assert_eq!(lane, "manual_intervention");
 }
-
-#[cfg(test)]
-#[test]

@@ -1,5 +1,49 @@
 
 fn app_chat_rewrite_tooling_response(raw_input: &str, response: &str, tools: &[Value]) -> (String, String) {
+    let response_lower = clean_text(response, 16_000).to_ascii_lowercase();
+    let routing_policy = app_chat_tool_routing_policy(raw_input);
+    let local_tooling_intent = routing_policy
+        .get("local_tooling_intent")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let web_search_calls = app_chat_web_search_call_count(tools);
+
+    if app_chat_contains_malformed_tool_emit(response) {
+        return (
+            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+                "parse_failed",
+                "tool_call_schema_invalid",
+                Some("malformed_function_call"),
+            ),
+            "suppressed_malformed_tool_call".to_string(),
+        );
+    }
+    if local_tooling_intent && web_search_calls > 0 {
+        return (
+            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+                "policy_blocked",
+                "web_tool_not_allowed_for_local_intent",
+                Some("local_file_tooling_intent"),
+            ),
+            "blocked_web_for_local_intent".to_string(),
+        );
+    }
+    if local_tooling_intent
+        && (response_lower.contains("web search")
+            || response_lower.contains("originalurl:")
+            || response_lower.contains("featuredcontent:")
+            || response_lower.contains("provider:")
+            || response_lower.contains("tool trace complete"))
+    {
+        return (
+            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+                "parse_failed",
+                "local_intent_response_mismatch",
+                Some("unexpected_web_surface"),
+            ),
+            "suppressed_local_intent_mismatch".to_string(),
+        );
+    }
     if tools.is_empty() {
         return (response.to_string(), String::new());
     }
@@ -34,7 +78,11 @@ fn app_chat_rewrite_tooling_response(raw_input: &str, response: &str, tools: &[V
     });
     let speculative = app_chat_speculative_blocker_copy(response);
     let deferred = app_chat_deferred_terminal_copy(response);
-    let query_aligned = app_chat_web_result_matches_query(raw_input, response);
+    let query_aligned = if web_search_calls > 0 {
+        app_chat_web_result_matches_query(raw_input, response)
+    } else {
+        true
+    };
     if blocked {
         let mut evidence = Vec::<String>::new();
         for row in tools {
@@ -63,7 +111,7 @@ fn app_chat_rewrite_tooling_response(raw_input: &str, response: &str, tools: &[V
             "blocked_with_structured_evidence".to_string(),
         );
     }
-    if !blocked && !query_aligned {
+    if !blocked && web_search_calls > 0 && !query_aligned {
         return (
             crate::tool_output_match_filter::canonical_tooling_fallback_copy(
                 "provider_low_signal",

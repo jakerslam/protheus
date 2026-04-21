@@ -114,17 +114,18 @@ fn oracle_remaining_from_status(status: OracleStatus) -> Option<u64> {
 fn normalize_request(
     request: BurnOracleBudgetRequest,
 ) -> Result<BurnOracleBudgetRequest, &'static str> {
-    if request.requested_burn_units > MAX_BURN_UNITS_CAP
-        || request.max_allowed_burn_units > MAX_BURN_UNITS_CAP
-    {
-        return Err("budget_value_out_of_bounds");
+    if request.requested_burn_units > MAX_BURN_UNITS_CAP {
+        return Err("requested_burn_out_of_bounds");
+    }
+    if request.max_allowed_burn_units > MAX_BURN_UNITS_CAP {
+        return Err("max_allowed_burn_out_of_bounds");
     }
     if let OracleStatus::Available {
         remaining_burn_units,
     } = request.oracle_status
     {
         if remaining_burn_units > MAX_BURN_UNITS_CAP {
-            return Err("oracle_value_out_of_bounds");
+            return Err("oracle_remaining_out_of_bounds");
         }
     }
     Ok(request)

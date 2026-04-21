@@ -9,7 +9,8 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const ts = require('typescript');\nconst { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
+const ts = require('typescript');
+const { assertNoPlaceholderOrPromptLeak, assertStableToolingEnvelope } = require('./runtime_output_guard.ts');
 
 if (!require.extensions['.ts']) {
   require.extensions['.ts'] = function compileTs(module, filename) {
@@ -191,7 +192,11 @@ function run() {
   assert.strictEqual(status.checkpoints, 1);
   assert.strictEqual(status.intakes, 1);
 
-  fs.rmSync(path.join(process.cwd(), outputDir), { recursive: true, force: true });\n  assertNoPlaceholderOrPromptLeak(status, 'workflow_chain_bridge_test');\n  assertStableToolingEnvelope(status, 'workflow_chain_bridge_test');\n  console.log(JSON.stringify({ ok: true, type: 'workflow_chain_bridge_test' }));
+  fs.rmSync(path.join(process.cwd(), outputDir), { recursive: true, force: true });
+  assertNoPlaceholderOrPromptLeak(status, 'workflow_chain_bridge_test');
+  assertStableToolingEnvelope(status, 'workflow_chain_bridge_test');
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+  console.log(JSON.stringify({ ok: true, type: 'workflow_chain_bridge_test' }));
 }
 
 run();

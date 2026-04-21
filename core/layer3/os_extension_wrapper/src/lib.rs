@@ -7,6 +7,7 @@ const MAX_TOKEN_LEN: usize = 128;
 const MAX_SURFACE_ITEM_LEN: usize = 96;
 const MAX_SURFACE_ITEMS: usize = 128;
 const MAX_MANIFEST_HASH_LEN: usize = 128;
+const MAX_TS_MS: i64 = 9_999_999_999_999;
 
 fn sanitize_token(input: &str, max_len: usize) -> String {
     input
@@ -23,6 +24,18 @@ fn sanitize_token(input: &str, max_len: usize) -> String {
         .chars()
         .take(max_len)
         .collect()
+}
+
+fn sanitize_identifier(input: &str, max_len: usize, fallback: &str) -> String {
+    let filtered: String = sanitize_token(input, max_len)
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.'))
+        .collect();
+    if filtered.is_empty() {
+        fallback.to_string()
+    } else {
+        filtered
+    }
 }
 
 fn normalize_surface(entries: &[String]) -> Vec<String> {
@@ -85,8 +98,9 @@ pub fn wrap_os_extension(
     action: &str,
     ts_ms: i64,
 ) -> OsExtensionEnvelope {
-    let extension_id = sanitize_token(descriptor.extension_id.as_str(), MAX_TOKEN_LEN);
-    let namespace = sanitize_token(descriptor.namespace.as_str(), MAX_TOKEN_LEN);
+    let extension_id =
+        sanitize_identifier(descriptor.extension_id.as_str(), MAX_TOKEN_LEN, "unknown_extension");
+    let namespace = sanitize_identifier(descriptor.namespace.as_str(), MAX_TOKEN_LEN, "protheus.unknown");
     let syscall_surface = normalize_surface(&descriptor.syscall_surface);
     let driver_surface = normalize_surface(&descriptor.driver_surface);
     let manifest_hash = normalize_manifest_hash(descriptor.capability_manifest_hash.as_str());
@@ -96,18 +110,10 @@ pub fn wrap_os_extension(
     }
     OsExtensionEnvelope {
         source_layer: "layer3".to_string(),
-        extension_id: if extension_id.is_empty() {
-            "unknown_extension".to_string()
-        } else {
-            extension_id
-        },
-        namespace: if namespace.is_empty() {
-            "protheus.unknown".to_string()
-        } else {
-            namespace
-        },
+        extension_id,
+        namespace,
         action: normalized_action,
-        ts_ms: ts_ms.max(0),
+        ts_ms: ts_ms.clamp(0, MAX_TS_MS),
     }
 }
 

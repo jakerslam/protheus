@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::contract_lane_utils as lane_utils;
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 
 const DEFAULT_STATE_REL: &str = "local/state/ops/semantic_kernel_bridge/latest.json";
 const DEFAULT_HISTORY_REL: &str = "local/state/ops/semantic_kernel_bridge/history.jsonl";

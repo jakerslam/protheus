@@ -40,12 +40,45 @@ fn app_chat_has_explicit_web_intent(lowered: &str) -> bool {
         || lowered.contains("websearch")
         || lowered.contains("search the web")
         || lowered.contains("search online")
-        || lowered.contains("find information")
-        || lowered.contains("finding information")
         || lowered.contains("look it up")
         || lowered.contains("look this up")
         || lowered.contains("search again")
         || lowered.contains("best chili recipes")
+}
+
+fn app_chat_is_local_tooling_intent(lowered: &str) -> bool {
+    if lowered.is_empty() {
+        return false;
+    }
+    let local_hits = [
+        "file tooling",
+        "local file",
+        "local files",
+        "local filesystem",
+        "workspace file",
+        "workspace files",
+        "list files",
+        "show files",
+        "read file",
+        "open file",
+        "file_list",
+        "file read",
+        "directory listing",
+        "list directory",
+        "ls ",
+        "can you use file tooling",
+        "use file tooling",
+    ]
+    .iter()
+    .filter(|marker| lowered.contains(**marker))
+    .count();
+    if local_hits == 0 {
+        return false;
+    }
+    if app_chat_has_explicit_web_intent(lowered) && local_hits <= 1 {
+        return false;
+    }
+    true
 }
 
 fn app_chat_is_meta_diagnostic_request(lowered: &str) -> bool {
@@ -103,8 +136,12 @@ fn app_chat_requests_live_web(raw_input_lower: &str) -> bool {
         return false;
     }
     let explicit_web_intent = app_chat_has_explicit_web_intent(&lowered);
-    if explicit_web_intent {
+    let local_tooling_intent = app_chat_is_local_tooling_intent(&lowered);
+    if explicit_web_intent && !local_tooling_intent {
         return true;
+    }
+    if local_tooling_intent {
+        return false;
     }
     if app_chat_is_meta_diagnostic_request(&lowered) {
         return false;
@@ -123,6 +160,29 @@ fn app_chat_requests_live_web(raw_input_lower: &str) -> bool {
             || lowered.contains("best")
             || lowered.contains("compare"));
     inferred_online_research
+}
+
+fn app_chat_tool_routing_policy(raw_input: &str) -> Value {
+    let lowered = clean_text(raw_input, 2_000).to_ascii_lowercase();
+    let local_tooling_intent = app_chat_is_local_tooling_intent(&lowered);
+    let explicit_web_intent = app_chat_has_explicit_web_intent(&lowered);
+    let requires_live_web = !local_tooling_intent && app_chat_requests_live_web(&lowered);
+    let decision = if local_tooling_intent {
+        "local_tools_only"
+    } else if requires_live_web && explicit_web_intent {
+        "web_allowed"
+    } else if requires_live_web {
+        "web_not_allowed_without_explicit_intent"
+    } else {
+        "no_web_required"
+    };
+    json!({
+        "local_tooling_intent": local_tooling_intent,
+        "explicit_web_intent": explicit_web_intent,
+        "requires_live_web": requires_live_web,
+        "web_allowed": requires_live_web && explicit_web_intent,
+        "decision": decision
+    })
 }
 
 fn app_chat_extract_web_query(raw_input: &str) -> String {

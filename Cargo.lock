@@ -201,7 +201,7 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "hex",
- "infring_types",
+ "protheus-nexus-core-v1",
  "serde",
  "sha2",
  "snap",
@@ -312,8 +312,8 @@ dependencies = [
 name = "conduit"
 version = "0.1.0"
 dependencies = [
- "conduit-security",
  "hex",
+ "protheus-nexus-core-v1",
  "serde",
  "serde_json",
  "sha2",
@@ -608,7 +608,7 @@ dependencies = [
  "base64",
  "chrono",
  "hex",
- "infring_types",
+ "protheus-nexus-core-v1",
  "regex",
  "serde",
  "serde_json",
@@ -1096,7 +1096,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "hex",
- "infring-agent-derive",
+ "protheus-nexus-core-v1",
  "serde",
  "serde_json",
  "sha2",
@@ -1115,8 +1115,8 @@ dependencies = [
 name = "infring-desktop"
 version = "0.1.0"
 dependencies = [
- "protheus-ops-core",
  "serde_json",
+ "sha2",
  "tempfile",
 ]
 
@@ -1136,7 +1136,7 @@ version = "0.1.0"
 dependencies = [
  "blake3",
  "chrono",
- "infring-layer1-provenance",
+ "protheus-nexus-core-v1",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -1176,7 +1176,7 @@ dependencies = [
 name = "infring-layer2-tools"
 version = "0.1.0"
 dependencies = [
- "infring-task-fabric-core-v1",
+ "protheus-nexus-core-v1",
 ]
 
 [[package]]
@@ -1829,7 +1829,7 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "hex",
- "infring_types",
+ "protheus-nexus-core-v1",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -1917,7 +1917,17 @@ dependencies = [
 name = "protheus-nexus-core-v1"
 version = "0.1.0"
 dependencies = [
- "conduit",
+ "conduit-security",
+ "exotic_wrapper",
+ "infring-agent-derive",
+ "infring-layer1-provenance",
+ "infring-layer1-security",
+ "infring-task-fabric-core-v1",
+ "infring_types",
+ "protheus-memory-core-v6",
+ "protheus-ops-core-v1",
+ "protheus-spine-core-v1",
+ "protheus-stomach-core-v1",
  "serde",
  "serde_json",
  "sha2",
@@ -1929,8 +1939,7 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "hex",
- "infring_types",
- "protheus-memory-core-v6",
+ "protheus-nexus-core-v1",
  "serde",
  "serde_json",
  "sha2",
@@ -2009,7 +2018,7 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "hex",
- "infring_types",
+ "protheus-nexus-core-v1",
  "serde",
  "serde_json",
  "sha2",
@@ -2026,7 +2035,7 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "hex",
- "infring_types",
+ "protheus-nexus-core-v1",
  "protheus-observability-core-v1",
  "serde",
  "serde_json",
@@ -2090,7 +2099,7 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "hex",
- "infring_types",
+ "protheus-nexus-core-v1",
  "serde",
  "serde_json",
  "sha2",
@@ -2127,8 +2136,7 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "hex",
- "infring_types",
- "protheus-memory-core-v6",
+ "protheus-nexus-core-v1",
  "serde",
  "serde_json",
  "sha2",

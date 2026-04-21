@@ -8,7 +8,7 @@ As of 2026-02-19, this policy defines what is automatic, what is gated, and what
 - Prevent ambiguity between sensing and acting.
 - Make autonomy progression explicit and auditable.
 
-## Core Principle
+## Kernel Principle
 
 - Eyes are passive sensors.
 - Sensing is automatic.

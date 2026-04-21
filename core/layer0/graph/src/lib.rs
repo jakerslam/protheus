@@ -55,6 +55,7 @@ const MAX_NODE_KIND_LEN: usize = 64;
 const MAX_EDGE_CONDITION_LEN: usize = 96;
 const MAX_METADATA_KEY_LEN: usize = 64;
 const MAX_METADATA_VALUE_LEN: usize = 192;
+const MAX_METADATA_PAIRS_PER_NODE: usize = 64;
 
 fn strip_invisible_unicode(raw: &str) -> String {
     raw.chars()
@@ -114,6 +115,9 @@ fn normalize_workflow(mut workflow: GraphWorkflow) -> GraphWorkflow {
         let kind = normalize_token(&node.kind, MAX_NODE_KIND_LEN, "task");
         let mut metadata = BTreeMap::<String, String>::new();
         for (raw_key, raw_value) in node.metadata {
+            if metadata.len() >= MAX_METADATA_PAIRS_PER_NODE {
+                break;
+            }
             let key = normalize_token(&raw_key, MAX_METADATA_KEY_LEN, "");
             if key.is_empty() {
                 continue;
@@ -235,6 +239,9 @@ fn digest_receipt(
 
 pub fn run_workflow(yaml: &str) -> Result<GraphReceipt, String> {
     let policy = load_embedded_graph_policy().map_err(|e| e.to_string())?;
+    if policy.max_nodes == 0 || policy.max_edges == 0 {
+        return Err("graph_policy_invalid_limits".to_string());
+    }
     let workflow: GraphWorkflow =
         serde_yaml::from_str(yaml).map_err(|e| format!("workflow_parse_failed:{e}"))?;
     let mut workflow = normalize_workflow(workflow);
@@ -264,6 +271,8 @@ pub fn run_workflow(yaml: &str) -> Result<GraphReceipt, String> {
     if cyclic && !policy.allow_cycles {
         warnings.push("cycle_detected_under_non_cycle_policy".to_string());
     }
+    warnings.sort();
+    warnings.dedup();
 
     let digest = digest_receipt(&workflow.workflow_id, &ordered_nodes, cyclic, &warnings);
 

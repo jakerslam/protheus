@@ -312,7 +312,7 @@ Generated: 2026-03-15T20:48:59.676Z
 | V6-MEMORY-018 | backlog | V6 | done | Index freshness + stale-read gate (`REQ-36`) |  |
 | V6-MEMORY-019 | backlog | V6 | done | LensMap memory annotation schema (tags/nodes/jots in docs comments) (`REQ-36`) |  |
 | V7-TOP1-001 | backlog | V7 | done | Layer-0 machine-checked invariant proof pack (Lean/Coq/Rocq) |  |
-| V7-TOP1-002 | backlog | V7 | done | Core Rust formal proof coverage lane (Kani/Prusti) |  |
+| V7-TOP1-002 | backlog | V7 | done | Kernel Rust formal proof coverage lane (Kani/Prusti) |  |
 | V7-TOP1-005 | backlog | V7 | done | Single static `protheusd` binary profile (25-35MB target) |  |
 | V7-TOP1-006 | backlog | V7 | done | Single-binary reproducible supply-chain release contract |  |
 | V7-TOP1-007 | backlog | V7 | done | Public benchmark harness with strict performance thresholds |  |

@@ -34,5 +34,3 @@ fn scripted_batch_query_harness_response(root: &Path, query: &str) -> Option<Val
     let _ = write_json(&path, &script);
     Some(payload)
 }
-
-#[cfg(test)]

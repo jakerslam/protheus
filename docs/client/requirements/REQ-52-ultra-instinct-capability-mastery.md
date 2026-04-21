@@ -29,7 +29,7 @@ Out of scope:
 
 This intake must obey repository placement policy.
 
-- Core authority remains in `core/`
+- Kernel authority remains in `core/`
 - Thin operator/runtime surfaces remain in `client/runtime/systems/**`
 - Any substrate or platform bridges remain in `adapters/`
 - Optional `apps/` shells may expose controls or visualizations, but must remain deletable and non-authoritative
@@ -48,7 +48,7 @@ This intake must obey repository placement policy.
 
 ## Requirements
 
-### REQ-52-001: Persistent Ultra Instinct Core
+### REQ-52-001: Persistent Ultra Instinct Kernel
 
 **Requirement:** InfRing must maintain a persistent, always-available self-model of its capability surface and expose it through governed organism/capability primitives.
 

@@ -147,7 +147,7 @@ fn run_microkernel_safety(
         "instance-dna-default",
         128,
     );
-    let cryptographic_session_id = deterministic_receipt_hash(&json!({
+    let cryptographic_session_id = crate::deterministic_receipt_hash(&json!({
         "session_id": session_id,
         "instance_dna": instance_dna,
         "syscall": requested_syscall

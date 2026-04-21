@@ -37,6 +37,5 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 }
 
 #[cfg(test)]
-#[path = "collector_runtime_kernel_tests.rs"]
+#[path = "../collector_runtime_kernel_tests.rs"]
 mod collector_runtime_kernel_tests;
-

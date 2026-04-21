@@ -1,6 +1,6 @@
 use crate::contracts::{ClarificationReason, RequestClassification, TypedOrchestrationRequest};
 
-pub fn clarification_prompt_for(
+pub fn build_clarification_prompt(
     request: &TypedOrchestrationRequest,
     classification: &RequestClassification,
 ) -> Option<String> {
@@ -23,4 +23,12 @@ pub fn clarification_prompt_for(
             Some("no executable plan steps were generated".to_string())
         }
     }
+}
+
+// Compatibility alias during control-plane naming transition.
+pub fn clarification_prompt_for(
+    request: &TypedOrchestrationRequest,
+    classification: &RequestClassification,
+) -> Option<String> {
+    build_clarification_prompt(request, classification)
 }

@@ -9,7 +9,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::contract_lane_utils as lane_utils;
-use crate::{deterministic_receipt_hash, now_iso, parse_args};
+use crate::{now_iso, parse_args};
 
 fn usage() {
     println!("training-conduit-schema-kernel commands:");
@@ -433,4 +433,3 @@ fn retention_expiry(ts: &str, days: i64) -> Value {
     let expiry = parsed.with_timezone(&Utc) + Duration::days(days);
     Value::String(expiry.to_rfc3339())
 }
-

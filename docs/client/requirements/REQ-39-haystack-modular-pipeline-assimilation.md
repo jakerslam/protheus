@@ -32,7 +32,7 @@ Out of scope:
 
 This intake must obey repository placement policy.
 
-- Core authority remains in `core/`
+- Kernel authority remains in `core/`
 - Thin operator/runtime surfaces remain in `client/runtime/systems/**`
 - Connector shims and external-system bindings live in `adapters/`
 - Optional demos or playgrounds may exist in `apps/`, but the Haystack assimilation itself is not app-owned

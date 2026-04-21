@@ -1,7 +1,8 @@
 fn chat_ui_turn_tool_decision_tree(raw_input: &str) -> Value {
     let lowered = clean(raw_input, 1_200).to_ascii_lowercase();
-    let explicit_web_intent = chat_ui_has_explicit_web_intent(&lowered);
     let meta_control_message = chat_ui_turn_is_meta_control_message(raw_input);
+    let meta_diagnostic_request = chat_ui_is_meta_diagnostic_request(&lowered);
+    let explicit_web_intent = chat_ui_has_explicit_web_intent(&lowered) && !meta_diagnostic_request;
     let status_check_message = if meta_control_message {
         false
     } else {
@@ -12,7 +13,7 @@ fn chat_ui_turn_tool_decision_tree(raw_input: &str) -> Value {
     } else {
         chat_ui_turn_requires_file_mutation(raw_input)
     };
-    let requires_live_web = if meta_control_message || status_check_message {
+    let requires_live_web = if meta_control_message || status_check_message || meta_diagnostic_request {
         false
     } else {
         chat_ui_requests_live_web(raw_input) && explicit_web_intent
@@ -25,9 +26,11 @@ fn chat_ui_turn_tool_decision_tree(raw_input: &str) -> Value {
     let has_sufficient_information =
         meta_control_message
             || status_check_message
+            || meta_diagnostic_request
             || (!requires_file_mutation && !requires_live_web && !requires_local_lookup);
     let should_call_tools =
         !has_sufficient_information && (requires_file_mutation || requires_live_web || requires_local_lookup);
+    let workflow_route = if should_call_tools { "task" } else { "info" };
     let info_source = if requires_live_web {
         "web"
     } else if requires_local_lookup || requires_file_mutation {
@@ -44,17 +47,45 @@ fn chat_ui_turn_tool_decision_tree(raw_input: &str) -> Value {
     } else {
         "none"
     };
+    let reason_code = if requires_file_mutation {
+        "file_mutation_required"
+    } else if requires_live_web {
+        "explicit_live_web_required"
+    } else if requires_local_lookup {
+        "local_lookup_required"
+    } else if meta_diagnostic_request {
+        "meta_diagnostic_direct_answer"
+    } else if meta_control_message {
+        "meta_control_direct_answer"
+    } else if status_check_message {
+        "tool_status_check_direct_answer"
+    } else if has_sufficient_information {
+        "sufficient_info_direct_answer"
+    } else {
+        "insufficient_signal_default_direct_answer"
+    };
+    let automatic_tool_calls_allowed = false;
+    let tool_selection_authority = "llm_selected";
+    let llm_should_answer_directly = !should_call_tools;
+    let workflow_retry_limit = 1;
     json!({
-        "contract": "tool_decision_tree_v2",
+        "contract": "tool_decision_tree_v3",
         "requires_file_mutation": requires_file_mutation,
         "requires_local_lookup": requires_local_lookup,
         "requires_live_web": requires_live_web,
         "explicit_web_intent": explicit_web_intent,
         "has_sufficient_information": has_sufficient_information,
         "should_call_tools": should_call_tools,
+        "workflow_route": workflow_route,
+        "reason_code": reason_code,
+        "meta_diagnostic_request": meta_diagnostic_request,
         "info_source": info_source,
         "recommended_tool_family": recommended_tool_family,
         "meta_control_message": meta_control_message,
-        "status_check_message": status_check_message
+        "status_check_message": status_check_message,
+        "llm_should_answer_directly": llm_should_answer_directly,
+        "automatic_tool_calls_allowed": automatic_tool_calls_allowed,
+        "tool_selection_authority": tool_selection_authority,
+        "workflow_retry_limit": workflow_retry_limit
     })
 }

@@ -28,7 +28,7 @@ No single lane can bypass all controls. High-risk paths require cumulative appro
 
 ## 3. Governance Constraints
 
-Core invariants:
+Kernel invariants:
 
 - Deny-by-default for sensitive effect classes
 - Explicit reason codes for blocks/escalations
@@ -64,7 +64,7 @@ Governance is implemented as runtime policy, not informal convention.
   - `docs/client/OPERATOR_RUNBOOK.md`
   - `docs/client/BRANCH_PROTECTION_POLICY.md`
   - `docs/client/THREAT_MODEL_V1.md`
-- Core policy surfaces:
+- Kernel policy surfaces:
   - `client/runtime/config/security_integrity_policy.json`
   - `client/runtime/config/workflow_executor_policy.json`
   - `client/runtime/config/inversion_policy.json`

@@ -47,6 +47,19 @@ fn capability_switchboard_verify_chain(chain_path: &Path) -> Value {
     })
 }
 
+fn capability_switchboard_resolve_switch_id<'a>(
+    switches: &'a serde_json::Map<String, Value>,
+    requested: &'a str,
+) -> Option<&'a str> {
+    if switches.contains_key(requested) {
+        return Some(requested);
+    }
+    switches
+        .keys()
+        .find(|key| key.eq_ignore_ascii_case(requested))
+        .map(|key| key.as_str())
+}
+
 fn capability_switchboard_run_policy_root(
     script_path: &Path,
     scope: &str,
@@ -195,7 +208,7 @@ pub fn run_capability_switchboard(repo_root: &Path, argv: &[String]) -> (Value, 
             .find(|row| {
                 row.get("id")
                     .and_then(Value::as_str)
-                    .map(|v| v == switch_id)
+                    .map(|v| v.eq_ignore_ascii_case(&switch_id))
                     .unwrap_or(false)
             })
             .cloned();
@@ -246,12 +259,11 @@ pub fn run_capability_switchboard(repo_root: &Path, argv: &[String]) -> (Value, 
         }
         let target_enabled = requested_state.unwrap_or(true);
 
-        let switch_policy = policy
-            .get("switches")
-            .and_then(Value::as_object)
-            .and_then(|rows| rows.get(&switch_id))
-            .cloned();
-        if switch_policy.is_none() {
+        let switches = policy.get("switches").and_then(Value::as_object);
+        let resolved_switch_id = switches
+            .and_then(|rows| capability_switchboard_resolve_switch_id(rows, &switch_id))
+            .map(|id| id.to_string());
+        if resolved_switch_id.is_none() {
             return (
                 json!({
                     "ok": false,
@@ -262,7 +274,11 @@ pub fn run_capability_switchboard(repo_root: &Path, argv: &[String]) -> (Value, 
                 1,
             );
         }
-        let switch_policy = switch_policy.unwrap_or_else(|| json!({}));
+        let resolved_switch_id = resolved_switch_id.unwrap_or_else(|| switch_id.clone());
+        let switch_policy = switches
+            .and_then(|rows| rows.get(&resolved_switch_id))
+            .cloned()
+            .unwrap_or_else(|| json!({}));
         let security_locked = switch_policy
             .get("security_locked")
             .and_then(Value::as_bool)
@@ -272,7 +288,7 @@ pub fn run_capability_switchboard(repo_root: &Path, argv: &[String]) -> (Value, 
                 json!({
                     "ok": false,
                     "type": "capability_switchboard_set",
-                    "switch": switch_id,
+                    "switch": resolved_switch_id,
                     "reason": "security_locked_non_deactivatable"
                 }),
                 1,
@@ -318,12 +334,12 @@ pub fn run_capability_switchboard(repo_root: &Path, argv: &[String]) -> (Value, 
                     1,
                 );
             }
-            if approver_id == second_approver_id {
+            if approver_id.eq_ignore_ascii_case(&second_approver_id) {
                 return (
                     json!({
                         "ok": false,
                         "type": "capability_switchboard_set",
-                        "switch": switch_id,
+                        "switch": resolved_switch_id,
                         "reason": "dual_control_approver_must_differ"
                     }),
                     1,
@@ -366,7 +382,7 @@ pub fn run_capability_switchboard(repo_root: &Path, argv: &[String]) -> (Value, 
             capability_switchboard_run_policy_root(
                 &policy_root_script,
                 scope,
-                &switch_id,
+                &resolved_switch_id,
                 &approval_note,
                 lease_token,
                 source,
@@ -387,7 +403,7 @@ pub fn run_capability_switchboard(repo_root: &Path, argv: &[String]) -> (Value, 
                 json!({
                     "ok": false,
                     "type": "capability_switchboard_set",
-                    "switch": switch_id,
+                    "switch": resolved_switch_id,
                     "reason": "policy_root_denied",
                     "policy_root": policy_root
                 }),
@@ -402,7 +418,7 @@ pub fn run_capability_switchboard(repo_root: &Path, argv: &[String]) -> (Value, 
             .cloned()
             .unwrap_or_default();
         switches.insert(
-            switch_id.clone(),
+            resolved_switch_id.clone(),
             json!({
                 "enabled": target_enabled,
                 "updated_at": now_iso(),
@@ -417,7 +433,7 @@ pub fn run_capability_switchboard(repo_root: &Path, argv: &[String]) -> (Value, 
                 json!({
                     "ok": false,
                     "type": "capability_switchboard_set",
-                    "switch": switch_id,
+                    "switch": resolved_switch_id,
                     "reason": format!("state_write_failed:{err}")
                 }),
                 1,
@@ -427,7 +443,7 @@ pub fn run_capability_switchboard(repo_root: &Path, argv: &[String]) -> (Value, 
         let audit_row = json!({
             "ts": now_iso(),
             "type": "capability_switchboard_set",
-            "switch": switch_id.clone(),
+            "switch": resolved_switch_id.clone(),
             "enabled": target_enabled,
             "approver_id": approver_id.clone(),
             "second_approver_id": second_approver_id.clone(),
@@ -441,7 +457,7 @@ pub fn run_capability_switchboard(repo_root: &Path, argv: &[String]) -> (Value, 
             "ts": now_iso(),
             "type": "capability_switchboard_chain_event",
             "action": if target_enabled { "grant" } else { "revoke" },
-            "switch": switch_id.clone(),
+            "switch": resolved_switch_id.clone(),
             "enabled": target_enabled,
             "approver_id": approver_id.clone(),
             "second_approver_id": second_approver_id.clone(),
@@ -460,7 +476,7 @@ pub fn run_capability_switchboard(repo_root: &Path, argv: &[String]) -> (Value, 
                 json!({
                     "ok": false,
                     "type": "capability_switchboard_set",
-                    "switch": switch_id,
+                    "switch": resolved_switch_id,
                     "reason": format!("hash_chain_append_failed:{err}")
                 }),
                 1,
@@ -471,7 +487,7 @@ pub fn run_capability_switchboard(repo_root: &Path, argv: &[String]) -> (Value, 
             json!({
                 "ok": true,
                 "type": "capability_switchboard_set",
-                "switch": switch_id,
+                "switch": resolved_switch_id,
                 "enabled": target_enabled,
                 "policy_root": policy_root,
                 "hash_chain": {

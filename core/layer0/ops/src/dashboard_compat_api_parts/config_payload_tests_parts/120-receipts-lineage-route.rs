@@ -208,3 +208,88 @@ fn receipts_lineage_http_route_requires_task_id() {
         Some("task_id_required")
     );
 }
+
+#[test]
+fn receipts_lineage_http_route_supports_sources_override() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let task_id = "task-lineage-sources-001";
+
+    let default_path = root
+        .path()
+        .join("local/state/runtime/task_runtime/verity_receipts.jsonl");
+    let default_row = json!({
+        "type": "task_verity_receipt",
+        "event_type": "task_result",
+        "receipt_hash": "r-default",
+        "payload": {"task_id": task_id, "status": "from_default"}
+    });
+    if let Some(parent) = default_path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let _ = std::fs::write(
+        &default_path,
+        format!(
+            "{}\n{}\n",
+            serde_json::to_string(&default_row).expect("encode default row 1"),
+            serde_json::to_string(&default_row).expect("encode default row 2")
+        ),
+    );
+
+    let override_rel = "local/state/custom/lineage_override.jsonl";
+    let override_path = root.path().join(override_rel);
+    let override_row = json!({
+        "type": "task_verity_receipt",
+        "event_type": "task_result",
+        "receipt_hash": "r-override",
+        "payload": {"task_id": task_id, "status": "from_override"}
+    });
+    if let Some(parent) = override_path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let _ = std::fs::write(
+        &override_path,
+        format!(
+            "{}\n",
+            serde_json::to_string(&override_row).expect("encode override row")
+        ),
+    );
+
+    let response = handle(
+        root.path(),
+        "GET",
+        &format!("/api/receipts/lineage?task_id={task_id}&sources={override_rel}"),
+        &[],
+        &json!({"ok": true}),
+    )
+    .expect("lineage response");
+    assert_eq!(response.status, 200);
+    assert_eq!(
+        response
+            .payload
+            .pointer("/stats/sources_override")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/stats/scanned_files")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/lineage/task")
+            .and_then(Value::as_array)
+            .map(|rows| rows.len()),
+        Some(1)
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/lineage/task/0/receipt_hash")
+            .and_then(Value::as_str),
+        Some("r-override")
+    );
+}

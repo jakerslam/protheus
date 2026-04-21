@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 mod blob;
 
-use protheus_memory_core_v6::{
+use protheus_nexus_core_v1::{
     load_embedded_vault_policy as load_embedded_vault_policy_from_memory, EmbeddedVaultPolicy,
 };
 use serde::{Deserialize, Serialize};
@@ -11,6 +11,7 @@ use std::fmt::{Display, Formatter};
 use std::os::raw::c_char;
 
 const MIN_FHE_NOISE_BUDGET: u32 = 12;
+const ALLOWED_VAULT_ACTIONS: &[&str] = &["seal", "unseal", "rotate", "attest", "verify"];
 
 pub use blob::{
     load_embedded_vault_runtime_envelope, BlobError, VaultRuntimeEnvelope, VAULT_RUNTIME_BLOB_ID,
@@ -114,6 +115,12 @@ fn has_value(v: &Option<String>) -> bool {
     v.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false)
 }
 
+fn is_allowed_vault_action(action: &str) -> bool {
+    ALLOWED_VAULT_ACTIONS
+        .iter()
+        .any(|candidate| candidate.eq_ignore_ascii_case(action))
+}
+
 fn error_json(err: &VaultError) -> String {
     serde_json::json!({ "ok": false, "error": err.to_string() }).to_string()
 }
@@ -199,6 +206,16 @@ pub fn evaluate_vault_policy(
             passed: false,
             fail_closed: true,
             reason: "operation_or_key_id_missing".to_string(),
+        });
+    }
+
+    if action.is_empty() || !is_allowed_vault_action(&action) {
+        reasons.push("vault.action:unsupported_action".to_string());
+        rule_results.push(RuleEvaluation {
+            rule_id: "vault.action.allowed".to_string(),
+            passed: false,
+            fail_closed: true,
+            reason: "unsupported_action".to_string(),
         });
     }
 

@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 
 use crate::adaptive_layer_store_kernel;
 use crate::contract_lane_utils as lane_utils;
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 
 const DEFAULT_REL_PATH: &str = "habits/registry.json";
 const SOURCE_PATH: &str = "core/layer1/memory_runtime/adaptive/habit_store.ts";

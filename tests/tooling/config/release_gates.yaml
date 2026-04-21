@@ -7,6 +7,8 @@ profiles:
       empirical_min_sample_points: 12
     memory:
       peak_rss_mb_max: 1400
+    storage:
+      disk_mb_max: 3200
     queue:
       depth_max: 1800
       depth_p95_max: 1200
@@ -41,6 +43,8 @@ profiles:
       empirical_min_sample_points: 8
     memory:
       peak_rss_mb_max: 1000
+    storage:
+      disk_mb_max: 1800
     queue:
       depth_max: 1400
       depth_p95_max: 900
@@ -75,6 +79,8 @@ profiles:
       empirical_min_sample_points: 6
     memory:
       peak_rss_mb_max: 720
+    storage:
+      disk_mb_max: 1200
     queue:
       depth_max: 900
       depth_p95_max: 600

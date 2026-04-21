@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { cleanText, hasFlag, parseBool, readFlag } from '../../lib/cli.ts';
 import { currentRevision } from '../../lib/git.ts';
 import { emitStructuredResult, writeJsonArtifact, writeTextArtifact } from '../../lib/result.ts';
@@ -10,6 +10,18 @@ type CheckResult = {
   id: string;
   ok: boolean;
   detail: string;
+};
+
+type OrchestrationRegistryBinding = {
+  key: string;
+  scriptName: string;
+  systemId: string;
+  kind: string;
+};
+
+type OrchestrationShimBinding = {
+  key: string;
+  scriptFile: string;
 };
 
 const DEFAULT_OUT_JSON = 'core/local/artifacts/architecture_boundary_audit_current.json';
@@ -34,6 +46,60 @@ function isOrchestrationSurfaceShim(source: string, key: string): boolean {
     source.includes('adapters/runtime/orchestration_surface_modules.ts') &&
     source.includes(`bindOrchestrationSurfaceModule('${normalizedKey}', module)`)
   );
+}
+
+function orchestrationRegistryHasKey(source: string, key: string): boolean {
+  const normalizedKey = cleanText(key, 120);
+  return normalizedKey.length > 0 && source.includes(`${normalizedKey}: Object.freeze(`);
+}
+
+function parseOrchestrationRegistryBindings(source: string): OrchestrationRegistryBinding[] {
+  const rows: OrchestrationRegistryBinding[] = [];
+  const rowPattern = /^\s*([a-z0-9_]+):\s*Object\.freeze\(\{([^}]*)\}\),?\s*$/gim;
+  let match: RegExpExecArray | null = rowPattern.exec(source);
+  while (match) {
+    const key = cleanText(match[1] || '', 160);
+    const body = String(match[2] || '');
+    const scriptName = cleanText((body.match(/scriptName:\s*'([^']+)'/i)?.[1] || ''), 160);
+    const systemId = cleanText((body.match(/systemId:\s*'([^']+)'/i)?.[1] || ''), 200);
+    const kind = cleanText((body.match(/kind:\s*'([^']+)'/i)?.[1] || ''), 80);
+    if (key.length > 0) {
+      rows.push({ key, scriptName, systemId, kind });
+    }
+    match = rowPattern.exec(source);
+  }
+  return rows;
+}
+
+function parseOrchestrationShimBindings(scriptDir: string): OrchestrationShimBinding[] {
+  const rows: OrchestrationShimBinding[] = [];
+  for (const entry of readdirSync(scriptDir)) {
+    if (!entry.endsWith('.ts')) {
+      continue;
+    }
+    const source = read(join(scriptDir, entry));
+    const keyMatch = source.match(/bindOrchestrationSurfaceModule\('([a-z0-9_]+)'/i);
+    if (keyMatch && keyMatch[1]) {
+      rows.push({
+        key: cleanText(keyMatch[1], 160),
+        scriptFile: cleanText(entry, 220),
+      });
+    }
+  }
+  return rows;
+}
+
+function parseOrchestrationShimKeys(scriptDir: string): string[] {
+  const keys = new Set<string>();
+  for (const row of parseOrchestrationShimBindings(scriptDir)) {
+    keys.add(row.key);
+  }
+  return Array.from(keys).sort();
+}
+
+function isCanonicalToken(value: string): boolean {
+  const normalized = cleanText(value, 200);
+  return /^[a-z0-9_]+$/.test(normalized);
 }
 
 function toMarkdown(rows: CheckResult[]): string {
@@ -73,7 +139,9 @@ function main() {
   const clientProviderOnboardingWrapper = read('client/runtime/systems/routing/provider_onboarding_manifest.ts');
   const clientGatewayFailureClassifierWrapper = read('client/runtime/systems/routing/llm_gateway_failure_classifier.ts');
   const clientMorphPlannerWrapper = read('client/runtime/systems/fractal/morph_planner.ts');
-  const clientValueOfInformationPlannerWrapper = read('client/runtime/systems/sensory/value_information_planner_bridge.ts');
+  const clientValueOfInformationPlannerWrapper = read(
+    'client/runtime/systems/sensory/value_of_information_collection_planner.ts',
+  );
   const clientTaskDecompositionWrapper = read('client/runtime/systems/execution/task_decomposition_primitive.ts');
   const clientLearningConduitWrapper = read('client/runtime/systems/workflow/learning_conduit.ts');
   const clientRelationshipManagerWrapper = read('client/runtime/systems/workflow/client_relationship_manager.ts');
@@ -106,6 +174,119 @@ function main() {
   const surfaceZeroPermissionRuntime = read('surface/orchestration/scripts/zero_permission_conversational_layer.ts');
   const clientPersonaWrapper = read('client/runtime/systems/personas/orchestration.ts');
   const surfacePersonaRuntime = read('surface/orchestration/scripts/personas_orchestration.ts');
+  const orchestrationSurfaceRegistry = read('adapters/runtime/orchestration_surface_modules.ts');
+  const orchestrationSurfaceRegistryBindings = parseOrchestrationRegistryBindings(orchestrationSurfaceRegistry);
+  const orchestrationSurfaceRegistryBindingsByKey = new Map(
+    orchestrationSurfaceRegistryBindings.map((row) => [row.key, row]),
+  );
+  const auditedOrchestrationModuleKeys = [
+    'client_relationship_manager',
+    'gated_account_creation_organ',
+    'gated_self_improvement_loop',
+    'hold_remediation_engine',
+    'learning_conduit',
+    'lever_experiment_gate',
+    'llm_gateway_failure_classifier',
+    'model_catalog_loop',
+    'morph_planner',
+    'payment_skills_bridge',
+    'personas_orchestration',
+    'proactive_t1_initiative_engine',
+    'provider_onboarding_manifest',
+    'route_execute',
+    'route_task',
+    'self_improvement_cadence_orchestrator',
+    'swarm_orchestration_runtime',
+    'task_decomposition_primitive',
+    'universal_outreach_primitive',
+    'value_of_information_collection_planner',
+    'zero_permission_conversational_layer',
+  ];
+  const allowedRegistryScriptAliases = new Map<string, string>([
+    ['personas_orchestration', 'orchestration'],
+  ]);
+  const missingOrchestrationRegistryKeys = auditedOrchestrationModuleKeys.filter(
+    (key) => !orchestrationRegistryHasKey(orchestrationSurfaceRegistry, key),
+  );
+  const orchestrationShimBindings = parseOrchestrationShimBindings('surface/orchestration/scripts');
+  const orchestrationShimKeys = parseOrchestrationShimKeys('surface/orchestration/scripts');
+  const duplicateOrchestrationShimKeyBindings = Array.from(
+    orchestrationShimBindings.reduce((acc, row) => {
+      const scripts = acc.get(row.key) ?? [];
+      scripts.push(row.scriptFile);
+      acc.set(row.key, scripts);
+      return acc;
+    }, new Map<string, string[]>()),
+  )
+    .filter(([, scripts]) => scripts.length > 1)
+    .map(([key, scripts]) => `${key}:${scripts.sort().join(',')}`);
+  const missingRegistryKeysForShims = orchestrationShimKeys.filter(
+    (key) => !orchestrationSurfaceRegistryBindingsByKey.has(key),
+  );
+  const missingShimKeysForAuditedModules = auditedOrchestrationModuleKeys.filter(
+    (key) => !orchestrationShimKeys.includes(key),
+  );
+  const invalidRegistryBindings = orchestrationSurfaceRegistryBindings
+    .filter((row) => row.kind !== 'swarm' && (row.scriptName.length === 0 || row.systemId.length === 0))
+    .map((row) => row.key);
+  const invalidRegistryScriptNameFormats = orchestrationSurfaceRegistryBindings
+    .filter((row) => row.kind !== 'swarm' && !isCanonicalToken(row.scriptName))
+    .map((row) => `${row.key}->${row.scriptName}`);
+  const nonCanonicalRegistryScriptMappings = orchestrationSurfaceRegistryBindings
+    .filter((row) => {
+      if (row.kind === 'swarm') {
+        return false;
+      }
+      const alias = allowedRegistryScriptAliases.get(row.key);
+      if (alias) {
+        return row.scriptName !== alias;
+      }
+      return row.scriptName !== row.key;
+    })
+    .map((row) => `${row.key}->${row.scriptName}`);
+  const duplicateRegistryScriptNames = Array.from(
+    orchestrationSurfaceRegistryBindings
+      .filter((row) => row.kind !== 'swarm' && row.scriptName.length > 0)
+      .reduce((acc, row) => {
+        const keys = acc.get(row.scriptName) ?? [];
+        keys.push(row.key);
+        acc.set(row.scriptName, keys);
+        return acc;
+      }, new Map<string, string[]>()),
+  )
+    .filter(([, keys]) => keys.length > 1)
+    .map(([scriptName, keys]) => `${scriptName}:${keys.join(',')}`);
+  const duplicateRegistrySystemIds = Array.from(
+    orchestrationSurfaceRegistryBindings
+      .filter((row) => row.kind !== 'swarm' && row.systemId.length > 0)
+      .reduce((acc, row) => {
+        const keys = acc.get(row.systemId) ?? [];
+        keys.push(row.key);
+        acc.set(row.systemId, keys);
+        return acc;
+      }, new Map<string, string[]>()),
+  )
+    .filter(([, keys]) => keys.length > 1)
+    .map(([systemId, keys]) => `${systemId}:${keys.join(',')}`);
+  const registryScriptBindingRows = orchestrationSurfaceRegistryBindings
+    .filter((row) => row.kind !== 'swarm' && row.scriptName.length > 0)
+    .map((row) => {
+      const scriptPath = join('surface/orchestration/scripts', `${row.scriptName}.ts`);
+      const scriptExists = existsSync(scriptPath);
+      const keyBindingMatches = scriptExists ? isOrchestrationSurfaceShim(read(scriptPath), row.key) : false;
+      return {
+        key: row.key,
+        scriptPath,
+        scriptExists,
+        keyBindingMatches,
+      };
+    });
+  const missingRegistryScriptFiles = registryScriptBindingRows
+    .filter((row) => !row.scriptExists)
+    .map((row) => `${row.key}:${row.scriptPath}`);
+  const registryScriptKeyBindingMismatches = registryScriptBindingRows
+    .filter((row) => row.scriptExists && !row.keyBindingMatches)
+    .map((row) => `${row.key}:${row.scriptPath}`);
 
   const checks: CheckResult[] = [
     {
@@ -152,6 +333,20 @@ function main() {
       id: 'repo_surface_policy_declares_surface_code_root',
       ok: Array.isArray(repoSurfacePolicy.code_roots) && repoSurfacePolicy.code_roots.includes('surface'),
       detail: 'repo surface policy treats surface/ as canonical code root',
+    },
+    {
+      id: 'orchestration_registry_script_names_use_canonical_token_format',
+      ok: invalidRegistryScriptNameFormats.length === 0,
+      detail: invalidRegistryScriptNameFormats.length === 0
+        ? 'non-swarm orchestration registry scriptName values use canonical [a-z0-9_]+ tokens'
+        : `invalid scriptName tokens: ${invalidRegistryScriptNameFormats.join(', ')}`,
+    },
+    {
+      id: 'orchestration_surface_shim_keys_are_unique',
+      ok: duplicateOrchestrationShimKeyBindings.length === 0,
+      detail: duplicateOrchestrationShimKeyBindings.length === 0
+        ? 'surface orchestration shim key bindings are unique per script entrypoint'
+        : `duplicate shim key bindings: ${duplicateOrchestrationShimKeyBindings.join(', ')}`,
     },
     {
       id: 'client_swarm_orchestration_is_wrapper_only',
@@ -413,6 +608,97 @@ function main() {
       id: 'persona_orchestration_runtime_lives_under_surface',
       ok: isOrchestrationSurfaceShim(surfacePersonaRuntime, 'personas_orchestration'),
       detail: 'persona orchestration coordination implementation is hosted in surface/orchestration',
+    },
+    {
+      id: 'orchestration_surface_registry_is_adapter_boundary_only',
+      ok:
+        orchestrationSurfaceRegistry.includes('const ORCHESTRATION_SURFACE_REGISTRY = Object.freeze(') &&
+        orchestrationSurfaceRegistry.includes(
+          'bindRuntimeSystemModule(__dirname, binding.scriptName, binding.systemId, currentModule, argv)',
+        ) &&
+        !orchestrationSurfaceRegistry.includes('client/runtime/systems/'),
+      detail:
+        'adapter orchestration registry remains canonical boundary and does not embed client/runtime system paths',
+    },
+    {
+      id: 'orchestration_surface_registry_covers_audited_modules',
+      ok: missingOrchestrationRegistryKeys.length === 0,
+      detail:
+        missingOrchestrationRegistryKeys.length === 0
+          ? 'all audited orchestration wrapper modules are registered in adapters/runtime/orchestration_surface_modules.ts'
+          : `missing_registry_keys=${missingOrchestrationRegistryKeys.join(',')}`,
+    },
+    {
+      id: 'orchestration_surface_registry_bindings_parseable',
+      ok: orchestrationSurfaceRegistryBindings.length > 0,
+      detail:
+        orchestrationSurfaceRegistryBindings.length > 0
+          ? `parsed_bindings=${orchestrationSurfaceRegistryBindings.length}`
+          : 'no registry bindings parsed from adapters/runtime/orchestration_surface_modules.ts',
+    },
+    {
+      id: 'orchestration_surface_registry_bindings_have_required_fields',
+      ok: invalidRegistryBindings.length === 0,
+      detail:
+        invalidRegistryBindings.length === 0
+          ? 'all non-swarm registry bindings declare scriptName + systemId'
+          : `invalid_registry_bindings=${invalidRegistryBindings.join(',')}`,
+    },
+    {
+      id: 'orchestration_surface_registry_script_name_map_is_canonical',
+      ok: nonCanonicalRegistryScriptMappings.length === 0,
+      detail:
+        nonCanonicalRegistryScriptMappings.length === 0
+          ? 'registry scriptName map is canonical (key match or approved alias)'
+          : `noncanonical_script_mappings=${nonCanonicalRegistryScriptMappings.join(',')}`,
+    },
+    {
+      id: 'orchestration_surface_registry_script_names_are_unique',
+      ok: duplicateRegistryScriptNames.length === 0,
+      detail:
+        duplicateRegistryScriptNames.length === 0
+          ? 'registry scriptName bindings are one-to-one'
+          : `duplicate_script_names=${duplicateRegistryScriptNames.join('|')}`,
+    },
+    {
+      id: 'orchestration_surface_registry_system_ids_are_unique',
+      ok: duplicateRegistrySystemIds.length === 0,
+      detail:
+        duplicateRegistrySystemIds.length === 0
+          ? 'registry systemId bindings are one-to-one'
+          : `duplicate_system_ids=${duplicateRegistrySystemIds.join('|')}`,
+    },
+    {
+      id: 'orchestration_surface_registry_covers_surface_shims',
+      ok: missingRegistryKeysForShims.length === 0,
+      detail:
+        missingRegistryKeysForShims.length === 0
+          ? 'every surface/orchestration script shim is backed by an adapter registry key'
+          : `missing_registry_keys_for_shims=${missingRegistryKeysForShims.join(',')}`,
+    },
+    {
+      id: 'orchestration_surface_registry_script_files_exist',
+      ok: missingRegistryScriptFiles.length === 0,
+      detail:
+        missingRegistryScriptFiles.length === 0
+          ? 'every non-swarm registry binding points to an existing surface/orchestration script file'
+          : `missing_registry_script_files=${missingRegistryScriptFiles.join(',')}`,
+    },
+    {
+      id: 'orchestration_surface_registry_script_key_bindings_match',
+      ok: registryScriptKeyBindingMismatches.length === 0,
+      detail:
+        registryScriptKeyBindingMismatches.length === 0
+          ? 'every non-swarm registry script file binds the expected module key'
+          : `registry_script_key_binding_mismatches=${registryScriptKeyBindingMismatches.join(',')}`,
+    },
+    {
+      id: 'audited_orchestration_modules_have_surface_shims',
+      ok: missingShimKeysForAuditedModules.length === 0,
+      detail:
+        missingShimKeysForAuditedModules.length === 0
+          ? 'all audited orchestration modules have a surface/orchestration shim entrypoint'
+          : `missing_shim_keys_for_audited_modules=${missingShimKeysForAuditedModules.join(',')}`,
     },
   ];
 

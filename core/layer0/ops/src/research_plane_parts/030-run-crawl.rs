@@ -422,13 +422,93 @@ mod tests {
         let parsed = parse_args(&[
             "recover-selectors".to_string(),
             "--html=<main><p>hello world</p></main>".to_string(),
-            "--selectors=xpath=//main".to_string(),
+            "--selectors=XPATH=//main".to_string(),
         ]);
         let out = run_recover_selectors(root.path(), &parsed, true);
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
         assert_eq!(
             out.get("recovered_selector").and_then(Value::as_str),
-            Some("xpath=//main")
+            Some("XPATH=//main")
+        );
+        assert_eq!(
+            out.get("recovered_strategy").and_then(Value::as_str),
+            Some("css_or_xpath")
+        );
+    }
+
+    #[test]
+    fn selector_recovery_accepts_xpath_protocol_prefix_selector() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let parsed = parse_args(&[
+            "recover-selectors".to_string(),
+            "--html=<main><p>hello world</p></main>".to_string(),
+            "--selectors=xpath://main".to_string(),
+        ]);
+        let out = run_recover_selectors(root.path(), &parsed, true);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out.get("recovered_selector").and_then(Value::as_str),
+            Some("xpath://main")
+        );
+        assert_eq!(
+            out.get("recovered_strategy").and_then(Value::as_str),
+            Some("css_or_xpath")
+        );
+    }
+
+    #[test]
+    fn selector_recovery_accepts_xpath_colon_prefix_selector() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let parsed = parse_args(&[
+            "recover-selectors".to_string(),
+            "--html=<main><p>hello world</p></main>".to_string(),
+            "--selectors=xpath: //main".to_string(),
+        ]);
+        let out = run_recover_selectors(root.path(), &parsed, true);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out.get("recovered_selector").and_then(Value::as_str),
+            Some("xpath: //main")
+        );
+        assert_eq!(
+            out.get("recovered_strategy").and_then(Value::as_str),
+            Some("css_or_xpath")
+        );
+    }
+
+    #[test]
+    fn selector_recovery_accepts_xpath_spaced_equals_prefix_selector() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let parsed = parse_args(&[
+            "recover-selectors".to_string(),
+            "--html=<main><p>hello world</p></main>".to_string(),
+            "--selectors=xpath = //main".to_string(),
+        ]);
+        let out = run_recover_selectors(root.path(), &parsed, true);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out.get("recovered_selector").and_then(Value::as_str),
+            Some("xpath = //main")
+        );
+        assert_eq!(
+            out.get("recovered_strategy").and_then(Value::as_str),
+            Some("css_or_xpath")
+        );
+    }
+
+    #[test]
+    fn selector_recovery_accepts_xpath_spaced_colon_prefix_selector() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let parsed = parse_args(&[
+            "recover-selectors".to_string(),
+            "--html=<main><p>hello world</p></main>".to_string(),
+            "--selectors=XPATH : //main".to_string(),
+        ]);
+        let out = run_recover_selectors(root.path(), &parsed, true);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out.get("recovered_selector").and_then(Value::as_str),
+            Some("XPATH : //main")
         );
         assert_eq!(
             out.get("recovered_strategy").and_then(Value::as_str),

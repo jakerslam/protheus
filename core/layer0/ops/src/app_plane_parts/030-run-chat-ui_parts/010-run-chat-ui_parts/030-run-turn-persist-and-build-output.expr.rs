@@ -1,4 +1,58 @@
 {
+        let hard_guard_applied = hard_guard
+            .get("applied")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let tool_gate = chat_ui_turn_tool_decision_tree(&message);
+        let web_search_calls = chat_ui_web_search_call_count(&tools) as i64;
+        let workflow_route = clean(
+            tool_gate
+                .get("workflow_route")
+                .and_then(Value::as_str)
+                .unwrap_or("info"),
+            40,
+        );
+        let workflow_reason_code = clean(
+            tool_gate
+                .get("reason_code")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown"),
+            120,
+        );
+        let workflow_should_call_tools = tool_gate
+            .get("should_call_tools")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let workflow_retry_limit = tool_gate
+            .get("workflow_retry_limit")
+            .and_then(Value::as_i64)
+            .unwrap_or(1);
+        let workflow_selection_authority = clean(
+            tool_gate
+                .get("tool_selection_authority")
+                .and_then(Value::as_str)
+                .unwrap_or("llm_selected"),
+            80,
+        );
+        let workflow_auto_tools_allowed = tool_gate
+            .get("automatic_tool_calls_allowed")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let workflow_process_summary = json!({
+            "ts": crate::now_iso(),
+            "route": workflow_route.clone(),
+            "reason_code": workflow_reason_code.clone(),
+            "selection_authority": workflow_selection_authority.clone(),
+            "automatic_tool_calls_allowed": workflow_auto_tools_allowed,
+            "should_call_tools": workflow_should_call_tools,
+            "tool_calls_recorded": tools.len(),
+            "web_search_calls": web_search_calls,
+            "classification": web_classification.clone(),
+            "retry_limit": workflow_retry_limit,
+            "retry_recommended": guard_retry_recommended,
+            "retry_strategy": guard_retry_strategy,
+            "retry_lane": guard_retry_lane
+        });
         let trace_id = format!(
             "trace_{}",
             &sha256_hex_str(&format!(
@@ -63,6 +117,8 @@
                 "status": transaction_status,
                 "complete": transaction_complete,
                 "classification": web_classification.clone(),
+                "workflow_route": workflow_route.clone(),
+                "workflow_reason_code": workflow_reason_code.clone(),
                 "retry": {
                     "recommended": guard_retry_recommended,
                     "strategy": guard_retry_strategy,
@@ -70,7 +126,8 @@
                     "plan": guard_retry_plan.clone()
                 },
                 "closed_at": crate::now_iso()
-            }
+            },
+            "workflow_process_summary": workflow_process_summary.clone()
         });
         let mut turns = session
             .get("turns")
@@ -79,6 +136,18 @@
             .unwrap_or_default();
         turns.push(turn.clone());
         session["turns"] = Value::Array(turns);
+        let mut workflow_summaries = session
+            .get("workflow_summaries")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        workflow_summaries.push(workflow_process_summary.clone());
+        if workflow_summaries.len() > 10 {
+            let keep_from = workflow_summaries.len() - 10;
+            workflow_summaries = workflow_summaries.split_off(keep_from);
+        }
+        session["workflow_summaries"] = Value::Array(workflow_summaries.clone());
+        session["last_workflow_process_summary"] = workflow_process_summary.clone();
         session["updated_at"] = Value::String(crate::now_iso());
         let _ = write_json(&path, &session);
         let _ = append_jsonl(
@@ -94,6 +163,8 @@
             "session_id": session_id,
             "trace_id": trace_id,
             "turn": turn,
+            "workflow_process_summary": workflow_process_summary.clone(),
+            "workflow_recent_summaries": workflow_summaries.clone(),
             "provider": response.get("provider").cloned().unwrap_or_else(|| json!(provider)),
             "model": response.get("model").cloned().unwrap_or_else(|| json!(model)),
             "runtime_model": response.get("runtime_model").cloned().unwrap_or_else(|| json!(selected_model)),
@@ -130,6 +201,8 @@
                 "classification_guard": classification_guard,
                 "tool_diagnostics": tool_diagnostics,
                 "tool_gate": tool_gate,
+                "workflow_process_summary": workflow_process_summary,
+                "workflow_recent_summaries": workflow_summaries,
                 "capability_discovery": {
                     "contract": "tool_execution_receipt_v1",
                     "execution_statuses": ["ok", "error", "blocked", "not_found", "low_signal", "unknown"],

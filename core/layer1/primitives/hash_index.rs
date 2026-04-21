@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Plane ownership: Layer 1 direct primitives.
 
-use infring_layer1_provenance::{ProvenanceError, ReceiptDraft, ReceiptEmitter, ReceiptSink};
+use protheus_nexus_core_v1::{ProvenanceError, ReceiptDraft, ReceiptEmitter, ReceiptSink};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::{BTreeMap, BTreeSet};
@@ -131,7 +131,7 @@ impl HashIndex {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use infring_layer1_provenance::{InMemoryReceiptSink, ReceiptEmitter};
+    use protheus_nexus_core_v1::{InMemoryReceiptSink, ReceiptEmitter};
 
     #[test]
     fn valid_and_invalid_blake3_hash_validation() {

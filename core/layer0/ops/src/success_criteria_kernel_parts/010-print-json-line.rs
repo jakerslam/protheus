@@ -11,7 +11,7 @@ use std::fs;
 use std::path::Path;
 
 use crate::contract_lane_utils as lane_utils;
-use crate::{deterministic_receipt_hash, now_iso};
+use crate::now_iso;
 
 const ALL_KNOWN_METRICS: &[&str] = &[
     "execution_success",

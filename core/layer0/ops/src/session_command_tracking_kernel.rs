@@ -86,13 +86,20 @@ struct RecordInput {
 }
 
 fn parse_record_inputs(payload: &Map<String, Value>) -> Vec<RecordInput> {
-    let default_session = clean_text(
-        payload
-            .get("session_id")
-            .and_then(Value::as_str)
-            .unwrap_or("session"),
-        120,
-    );
+    let default_session = {
+        let cleaned = clean_text(
+            payload
+                .get("session_id")
+                .and_then(Value::as_str)
+                .unwrap_or("session"),
+            120,
+        );
+        if cleaned.is_empty() {
+            "session".to_string()
+        } else {
+            cleaned
+        }
+    };
     let default_output = payload
         .get("output_tokens")
         .and_then(Value::as_u64)
@@ -110,13 +117,18 @@ fn parse_record_inputs(payload: &Map<String, Value>) -> Vec<RecordInput> {
             if command.is_empty() {
                 continue;
             }
+            let record_session = clean_text(
+                obj.get("session_id")
+                    .and_then(Value::as_str)
+                    .unwrap_or(default_session.as_str()),
+                120,
+            );
             out.push(RecordInput {
-                session_id: clean_text(
-                    obj.get("session_id")
-                        .and_then(Value::as_str)
-                        .unwrap_or(default_session.as_str()),
-                    120,
-                ),
+                session_id: if record_session.is_empty() {
+                    default_session.clone()
+                } else {
+                    record_session
+                },
                 command,
                 output_tokens: obj
                     .get("output_tokens")
@@ -237,27 +249,36 @@ fn record_batch(root: &Path, payload: &Map<String, Value>) -> Result<Value, Stri
     }))
 }
 
-fn summary_query_filter(payload: &Map<String, Value>) -> (Option<i64>, Option<String>) {
+fn summary_query_filter(payload: &Map<String, Value>) -> (Option<i64>, Option<String>, Option<String>) {
     let since_days = payload.get("since_days").and_then(Value::as_i64);
     let session = payload
         .get("session_id")
         .and_then(Value::as_str)
         .map(|row| clean_text(row, 120))
         .filter(|row| !row.is_empty());
-    (since_days, session)
+    let status = payload
+        .get("status")
+        .or_else(|| payload.get("support_status"))
+        .and_then(Value::as_str)
+        .map(|row| clean_text(row, 40).to_ascii_lowercase())
+        .filter(|row| !row.is_empty());
+    (since_days, session, status)
 }
 
 fn summary(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
     let db = db_path(root, payload);
     let conn = open_db(&db)?;
-    let (since_days, session_filter) = summary_query_filter(payload);
-    let mut sql = "SELECT session_id, segment, supported, ignored, prefixed, estimated_savings_tokens, output_tokens FROM command_events".to_string();
+    let (since_days, session_filter, status_filter) = summary_query_filter(payload);
+    let mut sql = "SELECT session_id, segment, status, supported, ignored, prefixed, estimated_savings_tokens, output_tokens FROM command_events".to_string();
     let mut where_parts = Vec::<String>::new();
     if let Some(days) = since_days {
         where_parts.push(format!("ts >= datetime('now', '-{} days')", days.max(0)));
     }
     if let Some(session_id) = session_filter.clone() {
         where_parts.push(format!("session_id = '{}'", session_id.replace('\'', "''")));
+    }
+    if let Some(status) = status_filter.clone() {
+        where_parts.push(format!("status = '{}'", status.replace('\'', "''")));
     }
     if !where_parts.is_empty() {
         sql.push_str(" WHERE ");
@@ -271,11 +292,12 @@ fn summary(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
             Ok((
                 row.get::<_, String>(0)?,
                 row.get::<_, String>(1)?,
-                row.get::<_, i64>(2)?,
+                row.get::<_, String>(2)?,
                 row.get::<_, i64>(3)?,
                 row.get::<_, i64>(4)?,
                 row.get::<_, i64>(5)?,
                 row.get::<_, i64>(6)?,
+                row.get::<_, i64>(7)?,
             ))
         })
         .map_err(|err| format!("session_command_tracking_query_failed:{err}"))?;
@@ -285,12 +307,15 @@ fn summary(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
     let mut unsupported = 0usize;
     let mut ignored = 0usize;
     let mut prefixed = 0usize;
+    let mut status_existing_rows = 0usize;
+    let mut status_passthrough_rows = 0usize;
+    let mut status_other_rows = 0usize;
     let mut total_estimated = 0usize;
     let mut total_output = 0usize;
     let mut by_session = HashMap::<String, usize>::new();
     let mut by_segment = HashMap::<String, usize>::new();
     for row in rows {
-        let (session_id, segment, is_supported, is_ignored, is_prefixed, est, out_tokens) =
+        let (session_id, segment, status, is_supported, is_ignored, is_prefixed, est, out_tokens) =
             row.map_err(|err| format!("session_command_tracking_query_row_failed:{err}"))?;
         total += 1;
         if is_ignored == 1 {
@@ -303,6 +328,11 @@ fn summary(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
         if is_prefixed == 1 {
             prefixed += 1;
         }
+        match status.trim().to_ascii_lowercase().as_str() {
+            "existing" => status_existing_rows += 1,
+            "passthrough" => status_passthrough_rows += 1,
+            _ => status_other_rows += 1,
+        }
         total_estimated += est.max(0) as usize;
         total_output += out_tokens.max(0) as usize;
         *by_session.entry(session_id).or_insert(0) += 1;
@@ -312,6 +342,16 @@ fn summary(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
         0.0
     } else {
         (supported as f64 / total as f64) * 100.0
+    };
+    let supported_coverage_ratio = if total == 0 {
+        0.0
+    } else {
+        supported as f64 / total as f64
+    };
+    let estimated_savings_pct_of_output = if total_output == 0 {
+        0.0
+    } else {
+        (total_estimated as f64 / total_output as f64) * 100.0
     };
     let mut top_sessions = by_session.into_iter().collect::<Vec<_>>();
     top_sessions.sort_by(|a, b| b.1.cmp(&a.1));
@@ -328,9 +368,14 @@ fn summary(root: &Path, payload: &Map<String, Value>) -> Result<Value, String> {
       "unsupported_rows": unsupported,
       "ignored_rows": ignored,
       "prefixed_rows": prefixed,
+      "status_existing_rows": status_existing_rows,
+      "status_passthrough_rows": status_passthrough_rows,
+      "status_other_rows": status_other_rows,
       "adoption_pct": adoption_pct,
+      "supported_coverage_ratio": supported_coverage_ratio,
       "total_output_tokens": total_output,
       "estimated_savings_tokens": total_estimated,
+      "estimated_savings_pct_of_output": estimated_savings_pct_of_output,
       "top_sessions": top_sessions.into_iter().map(|row| json!({"session_id": row.0, "count": row.1})).collect::<Vec<_>>(),
       "top_segments": top_segments.into_iter().map(|row| json!({"segment": row.0, "count": row.1})).collect::<Vec<_>>()
     }))
@@ -410,6 +455,57 @@ mod tests {
         assert_eq!(
             status.get("supported_rows").and_then(Value::as_u64),
             Some(2)
+        );
+    }
+
+    #[test]
+    fn tracking_summary_reports_status_breakdown_and_status_filter() {
+        let tmp = tempdir().expect("tmp");
+        let payload = json!({
+          "db_path":"tracking.sqlite",
+          "session_id":"sess-2",
+          "records":[
+            {"command":"git status","output_tokens":120},
+            {"command":"cargo fmt","output_tokens":120},
+            {"command":"unknowncmd deploy","output_tokens":120}
+          ]
+        });
+        let _ = record_batch(tmp.path(), lane_utils::payload_obj(&payload)).expect("record");
+        let summary_all = summary(
+            tmp.path(),
+            lane_utils::payload_obj(&json!({"db_path":"tracking.sqlite"})),
+        )
+        .expect("summary all");
+        assert_eq!(
+            summary_all.get("status_existing_rows").and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            summary_all
+                .get("status_passthrough_rows")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        let summary_existing = summary(
+            tmp.path(),
+            lane_utils::payload_obj(&json!({"db_path":"tracking.sqlite","status":"existing"})),
+        )
+        .expect("summary existing");
+        assert_eq!(
+            summary_existing.get("tracked_rows").and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            summary_existing
+                .get("status_existing_rows")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            summary_existing
+                .get("status_passthrough_rows")
+                .and_then(Value::as_u64),
+            Some(0)
         );
     }
 }

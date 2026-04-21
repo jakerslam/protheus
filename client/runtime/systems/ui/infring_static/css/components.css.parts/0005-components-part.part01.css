@@ -104,46 +104,6 @@
   display: none;
 }
 
-.message-placeholder-shell {
-  opacity: 0.92;
-}
-
-.message-placeholder-bubble {
-  min-height: 36px;
-  display: flex;
-  align-items: center;
-}
-
-.message-placeholder-line {
-  display: block;
-  width: 68%;
-  height: 10px;
-  border-radius: 999px;
-}
-
-.message.user .message-placeholder-line {
-  margin-left: auto;
-  width: 56%;
-}
-
-.message-stats-row-static {
-  opacity: 0.48;
-}
-
-.message-placeholder-shell .message-bubble::before,
-.message-placeholder-shell .message-bubble::after {
-  content: none;
-  display: none;
-}
-
-.message.user .message-placeholder-bubble {
-  border-left: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
-}
-
-.message.agent .message-placeholder-bubble {
-  border-left: 1px solid color-mix(in srgb, var(--border) 86%, transparent);
-}
-
 .message.user .message-bubble::after,
 .message.user .message-bubble::before,
 .message.agent .message-bubble::before,

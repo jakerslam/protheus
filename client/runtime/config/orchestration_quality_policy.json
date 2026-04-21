@@ -20,6 +20,7 @@
     }
   },
   "planner_quality": {
+    "min_request_count": 10,
     "min_average_candidate_count": 2.0,
     "max_clarification_first_rate": 0.5,
     "max_degraded_rate": 0.6,

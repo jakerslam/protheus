@@ -1,0 +1,140 @@
+{
+  "schema_id": "infring_node_critical_path_burndown_plan",
+  "schema_version": "1.0",
+  "required_domains": [
+    "release",
+    "repair",
+    "topology_truth",
+    "recovery",
+    "status"
+  ],
+  "allowed_node_typescript_prefixes": [
+    "tests/tooling/scripts/",
+    "client/runtime/systems/ops/",
+    "client/runtime/systems/ui/",
+    "client/runtime/systems/extensions/",
+    "client/runtime/systems/marketplace/"
+  ],
+  "lanes": [
+    {
+      "id": "ops:release:proof-pack",
+      "domain": "release",
+      "owner": "ops-release",
+      "priority": 1,
+      "target_classification": "rust_native",
+      "target_date": "2026-06-15",
+      "migration_status": "in_progress",
+      "notes": "Migrate proof-pack assembly orchestration to Rust host lane."
+    },
+    {
+      "id": "ops:release:scorecard:gate",
+      "domain": "release",
+      "owner": "ops-release",
+      "priority": 1,
+      "target_classification": "rust_native",
+      "target_date": "2026-06-30",
+      "migration_status": "planned",
+      "notes": "Move numeric release scorecard generation to Rust-native gate surface."
+    },
+    {
+      "id": "ops:release:verdict",
+      "domain": "release",
+      "owner": "ops-release",
+      "priority": 1,
+      "target_classification": "rust_native",
+      "target_date": "2026-07-10",
+      "migration_status": "planned",
+      "notes": "Consolidate verdict aggregation under Rust authority runtime."
+    },
+    {
+      "id": "ops:stateful-upgrade-rollback:gate",
+      "domain": "repair",
+      "owner": "ops-reliability",
+      "priority": 1,
+      "target_classification": "rust_native",
+      "target_date": "2026-07-15",
+      "migration_status": "planned",
+      "notes": "Promote stateful upgrade/rollback checks into Rust-native repair lane."
+    },
+    {
+      "id": "ops:production-topology:gate",
+      "domain": "topology_truth",
+      "owner": "ops-topology",
+      "priority": 1,
+      "target_classification": "rust_native",
+      "target_date": "2026-06-20",
+      "migration_status": "planned",
+      "notes": "Remove Node dependency from topology truth gating."
+    },
+    {
+      "id": "ops:production-topology:status",
+      "domain": "status",
+      "owner": "ops-topology",
+      "priority": 1,
+      "target_classification": "rust_native",
+      "target_date": "2026-06-10",
+      "migration_status": "planned",
+      "notes": "Migrate status surface to Rust-native operator status command."
+    },
+    {
+      "id": "dr:gameday:gate",
+      "domain": "recovery",
+      "owner": "ops-reliability",
+      "priority": 1,
+      "target_classification": "rust_native",
+      "target_date": "2026-07-01",
+      "migration_status": "planned",
+      "notes": "Recovery rehearsal gate should run from Rust-native runtime controller."
+    },
+    {
+      "id": "ops:support-bundle:export",
+      "domain": "status",
+      "owner": "ops-reliability",
+      "priority": 2,
+      "target_classification": "rust_native",
+      "target_date": "2026-07-20",
+      "migration_status": "planned",
+      "notes": "Support-bundle export to become Rust-native with Node shims retired."
+    },
+    {
+      "id": "ops:runtime-proof:verify",
+      "domain": "release",
+      "owner": "ops-proofing",
+      "priority": 2,
+      "target_classification": "rust_native",
+      "target_date": "2026-08-15",
+      "migration_status": "planned",
+      "notes": "Runtime-proof orchestration to be hosted by Rust gate runner."
+    },
+    {
+      "id": "ops:layer2:parity:guard",
+      "domain": "topology_truth",
+      "owner": "ops-proofing",
+      "priority": 2,
+      "target_classification": "rust_native",
+      "target_date": "2026-08-01",
+      "migration_status": "planned",
+      "notes": "Layer2 parity guard to migrate to Rust-native checker."
+    },
+    {
+      "id": "ops:trusted-core:report",
+      "domain": "status",
+      "owner": "ops-proofing",
+      "priority": 2,
+      "target_classification": "rust_native",
+      "target_date": "2026-07-30",
+      "migration_status": "planned",
+      "notes": "Trusted core report generation to move into Rust-native reporter."
+    },
+    {
+      "id": "ops:node-critical-path:inventory",
+      "domain": "status",
+      "owner": "ops-governance",
+      "priority": 1,
+      "target_classification": "node_typescript",
+      "target_date": "2026-05-15",
+      "migration_status": "in_progress",
+      "notes": "Keep as TypeScript governance gate while confinement and burn-down policy remain enforced."
+    }
+  ]
+}

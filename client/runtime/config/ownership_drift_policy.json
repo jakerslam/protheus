@@ -1,0 +1,77 @@
+{
+  "version": "2026-04-20",
+  "import_boundaries": [
+    {
+      "id": "client_forbidden_orchestration_internal_import",
+      "scan_roots": [
+        "client/runtime/systems",
+        "client/cognition"
+      ],
+      "extensions": [
+        ".ts",
+        ".tsx",
+        ".rs"
+      ],
+      "forbidden_import_patterns": [
+        "surface/orchestration/src/",
+        "surface/orchestration/lib_parts/"
+      ],
+      "allow_import_patterns": [
+        "surface/orchestration/contracts/",
+        "surface/orchestration/public_contracts/"
+      ]
+    },
+    {
+      "id": "orchestration_forbidden_shell_internal_import",
+      "scan_roots": [
+        "surface/orchestration/src"
+      ],
+      "extensions": [
+        ".rs",
+        ".ts"
+      ],
+      "forbidden_import_patterns": [
+        "client/runtime/systems/",
+        "client/cognition/"
+      ],
+      "allow_import_patterns": [
+        "client/runtime/config/"
+      ]
+    }
+  ],
+  "symbol_boundaries": [
+    {
+      "id": "control_plane_authority_symbol_drift",
+      "scan_roots": [
+        "surface/orchestration/src"
+      ],
+      "extensions": [
+        ".rs"
+      ],
+      "forbidden_symbol_patterns": [
+        "re:\\\\b(issue|emit)_deterministic_receipt\\\\b",
+        "re:\\\\b(authorize|enforce)_policy_truth\\\\b",
+        "re:\\\\b(admit|admission)_task\\\\b"
+      ]
+    }
+  ],
+  "path_boundaries": [
+    {
+      "id": "shell_authority_path_drift",
+      "scan_roots": [
+        "client/runtime/systems"
+      ],
+      "extensions": [
+        ".ts",
+        ".tsx",
+        ".rs"
+      ],
+      "forbidden_path_patterns": [
+        "re:/authority/",
+        "re:/admission/",
+        "re:/scheduler_truth/"
+      ]
+    }
+  ]
+}
+

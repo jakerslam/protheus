@@ -146,7 +146,7 @@ Completion requires all of the following:
 - Runtime/operator utilities must live under `client/runtime/systems/**` (or `core/**` when authoritative).
 - If initialization/bootstrap installers need a dedicated surface, use `setup/` as the only root-level exception.
 - Ownership boundary axiom:
-  - Core decides what is true and allowed.
+  - Kernel decides what is true and allowed.
   - Orchestration decides what should happen next.
   - Shell decides how it is shown and collected.
 - Canonical ownership rulebook: `docs/workspace/orchestration_ownership_policy.md`.

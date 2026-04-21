@@ -42,7 +42,7 @@ fn usage() {
     println!(
         "  protheus-ops vbrowser-plane snapshot [--session-id=<id>] [--refs=1|0] [--strict=1|0]"
     );
-    println!("  protheus-ops vbrowser-plane screenshot [--session-id=<id>] [--annotate=1|0] [--delay-ms=<n>] [--strict=1|0]");
+    println!("  protheus-ops vbrowser-plane screenshot [--session-id=<id>] [--annotate=1|0] [--delay-ms=<n>|--delay_ms=<n>|--delay=<n>|--settle-ms=<n>|--settle_ms=<n>|--settle=<n>] [--strict=1|0]");
     println!("  protheus-ops vbrowser-plane action-policy [--session-id=<id>] [--action=<navigate|click|fill|submit>] [--action-policy=<path>] [--confirm=1|0] [--strict=1|0]");
     println!("  protheus-ops vbrowser-plane auth-save [--provider=<id>] [--profile=<id>] [--username=<id>] [--secret=<token>] [--strict=1|0]");
     println!("  protheus-ops vbrowser-plane auth-login [--provider=<id>] [--profile=<id>] [--strict=1|0]");

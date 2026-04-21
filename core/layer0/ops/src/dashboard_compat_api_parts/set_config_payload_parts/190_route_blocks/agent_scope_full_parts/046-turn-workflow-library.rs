@@ -331,12 +331,37 @@ fn workflow_turn_task_decomposition(
 }
 
 fn workflow_turn_tool_decision_tree(message: &str) -> Value {
+    let lowered = clean_text(message, 1_200).to_ascii_lowercase();
     let meta_control = workflow_turn_is_meta_control_message(message);
     let status_check = if meta_control {
         false
     } else {
         message_is_tooling_status_check(message)
     };
+    let meta_diagnostic_request = !meta_control
+        && !status_check
+        && workflow_turn_contains_any(
+            &lowered,
+            &[
+                "why did",
+                "what happened",
+                "automatic tool",
+                "auto tool",
+                "tool selection",
+                "tool routing",
+                "routing failure",
+                "workflow gate",
+                "web search kicking in",
+                "kicking in randomly",
+                "failing to synthesize",
+                "parroted my exact prompt",
+                "hallucination",
+                "off the rails",
+                "irrelevant results",
+                "did you use a tool",
+                "was this a tool call error",
+            ],
+        );
     let requires_file_mutation = if meta_control || status_check {
         false
     } else {
@@ -347,11 +372,12 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
     } else {
         workflow_turn_requires_local_lookup(message)
     };
-    let requires_live_web = if meta_control || status_check {
+    let explicit_web_intent = if meta_control || status_check || meta_diagnostic_request {
         false
     } else {
         workflow_turn_requires_live_web(message)
     };
+    let requires_live_web = explicit_web_intent;
     let route_class = workflow_turn_route_classification(
         message,
         requires_file_mutation,
@@ -381,8 +407,27 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
     } else {
         "none"
     };
+    let workflow_route = if route_class == "task" { "task" } else { "info" };
+    let reason_code = if meta_control {
+        "meta_control_direct_answer"
+    } else if status_check {
+        "status_check_direct_answer"
+    } else if meta_diagnostic_request {
+        "meta_diagnostic_direct_answer"
+    } else if requires_file_mutation {
+        "task_requires_file_mutation"
+    } else if requires_live_web {
+        "info_requires_live_web"
+    } else if requires_local_lookup {
+        "info_requires_local_lookup"
+    } else if has_sufficient_information {
+        "direct_answer_sufficient_context"
+    } else {
+        "direct_answer_default"
+    };
     let should_call_tools = !meta_control
         && !status_check
+        && !meta_diagnostic_request
         && !message_explicitly_disallows_tool_calls(message)
         && !has_sufficient_information
         && (requires_file_mutation || requires_live_web || requires_local_lookup);
@@ -392,26 +437,37 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
         requires_live_web,
     );
     json!({
-        "contract": "tool_decision_tree_v2",
-        "workflow_gate_contract": "workflow_gate_v2",
+        "contract": "tool_decision_tree_v3",
+        "workflow_gate_contract": "workflow_gate_v3",
+        "contract_compat": "tool_decision_tree_v2",
+        "workflow_gate_contract_compat": "workflow_gate_v2",
         "route_classification": route_class,
+        "workflow_route": workflow_route,
+        "reason_code": reason_code,
         "requires_file_mutation": requires_file_mutation,
         "requires_local_lookup": requires_local_lookup,
         "requires_live_web": requires_live_web,
+        "explicit_web_intent": explicit_web_intent,
         "has_sufficient_information": has_sufficient_information,
+        "llm_should_answer_directly": !should_call_tools,
         "should_call_tools": should_call_tools,
         "info_source": info_source,
         "recommended_tool_family": recommended_tool_family,
         "meta_control_message": meta_control,
         "status_check_message": status_check,
+        "meta_diagnostic_request": meta_diagnostic_request,
+        "automatic_tool_calls_allowed": false,
+        "tool_selection_authority": "llm_selected",
+        "workflow_retry_limit": 1,
         "gates": {
             "gate_1": {
                 "name": "task_or_info_route",
-                "route": route_class
+                "route": workflow_route,
+                "reason_code": reason_code
             },
             "gate_2": {
                 "name": "analysis",
-                "analysis_type": if route_class == "task" {
+                "analysis_type": if workflow_route == "task" {
                     "task_decomposition"
                 } else {
                     "info_sufficiency"
@@ -471,6 +527,28 @@ fn workflow_library_prompt_context(message: &str, latent_tool_candidates: &[Valu
         .get("should_call_tools")
         .and_then(Value::as_bool)
         .unwrap_or(false);
+    let workflow_route = clean_text(
+        tool_gate
+            .get("workflow_route")
+            .and_then(Value::as_str)
+            .unwrap_or("info"),
+        20,
+    );
+    let reason_code = clean_text(
+        tool_gate
+            .get("reason_code")
+            .and_then(Value::as_str)
+            .unwrap_or("direct_answer_default"),
+        80,
+    );
+    let meta_diagnostic_request = tool_gate
+        .get("meta_diagnostic_request")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let explicit_web_intent = tool_gate
+        .get("explicit_web_intent")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     let recommended_tool_family = clean_text(
         tool_gate
             .get("recommended_tool_family")
@@ -484,20 +562,27 @@ fn workflow_library_prompt_context(message: &str, latent_tool_candidates: &[Valu
             "agent_workflow_library_v1",
             default_turn_workflow_name()
         ),
-        "Default workflow contract: read the user request, decide whether tools are needed, emit inline `<function=...>{...}</function>` calls only when justified, wait for tool/system results, and write the final answer using the recorded evidence.".to_string(),
+        "Default workflow contract: read the user request, decide whether tools are needed, run only the minimal selected tool family when required, wait for tool/system results, and write the final answer using recorded evidence.".to_string(),
+        "Never emit raw `<function=...>` markup in user-facing output.".to_string(),
         "Chat operator syntax such as `tool::...` or slash tool requests are workflow hints, not pre-executed results. You still must decide whether to call the hinted tool.".to_string(),
         format!(
-            "Deterministic tool gate for this turn: requires_file_mutation={}, has_sufficient_information={}, info_source={}, should_call_tools={}, recommended_tool_family={}.",
+            "Deterministic tool gate for this turn: route={}, reason_code={}, requires_file_mutation={}, has_sufficient_information={}, info_source={}, explicit_web_intent={}, should_call_tools={}, recommended_tool_family={}, meta_diagnostic_request={}.",
+            workflow_route,
+            reason_code,
             requires_file_mutation,
             has_sufficient_information,
             info_source,
+            explicit_web_intent,
             should_call_tools,
             recommended_tool_family
+            ,
+            meta_diagnostic_request
         ),
-        "Decision tree v2: (1) classify route as `task` or `info`; (2) analyze sufficiency/decompose task; (3) select minimal tool family only when required; (4) wait for tool receipts if selected; (5) synthesize from recorded evidence; (6) run coherence check against the latest 2 messages with one retry; (7) return final answer or explicit grounded failure.".to_string(),
+        "Decision tree v3: (1) classify route as `task` or `info`; (2) analyze sufficiency/decompose task; (3) select minimal tool family only when required; (4) wait for tool receipts if selected; (5) synthesize from recorded evidence; (6) run coherence check against the latest 2 messages with one retry; (7) return final answer or explicit grounded failure.".to_string(),
+        "Selection authority: `llm_selected`. Automatic backend tool firing is not allowed.".to_string(),
         "Tooling is never default. Do not call web/file/memory tools unless the gate explicitly requires them for this turn.".to_string(),
         "Meta/control turns (for example: `that was just a test`) are direct-answer turns. Do not call web tools for those turns.".to_string(),
-        "Enforcement: if `should_call_tools` is false, do not emit `<function=...>` calls. If true, emit at least one tool call in the selected minimal family before final synthesis.".to_string(),
+        "Enforcement: if `should_call_tools` is false, answer directly from available context. If true, execute at least one tool call in the selected minimal family before final synthesis.".to_string(),
     ];
     if !grouped_catalog.is_empty() {
         lines.push("Modular tool catalog by domain:".to_string());
@@ -563,10 +648,33 @@ fn workflow_library_prompt_context(message: &str, latent_tool_candidates: &[Valu
     clean_text(&lines.join("\n"), 12_000)
 }
 
-fn turn_workflow_requires_final_llm(response_tools: &[Value], workflow_events: &[Value]) -> bool {
-    let _ = response_tools;
-    let _ = workflow_events;
-    true
+fn turn_workflow_requires_final_llm(
+    response_tools: &[Value],
+    workflow_events: &[Value],
+    draft_response: &str,
+) -> bool {
+    if !response_tools.is_empty() || !workflow_events.is_empty() {
+        return true;
+    }
+    let cleaned_draft = clean_text(draft_response, 4_000);
+    if cleaned_draft.is_empty() {
+        return true;
+    }
+    let (without_inline_calls, inline_calls) = extract_inline_tool_calls(&cleaned_draft, 6);
+    if !inline_calls.is_empty()
+        || without_inline_calls
+            .to_ascii_lowercase()
+            .contains("<function=")
+    {
+        return true;
+    }
+    if response_is_no_findings_placeholder(&cleaned_draft)
+        || response_looks_like_tool_ack_without_findings(&cleaned_draft)
+        || workflow_response_requests_more_tooling(&cleaned_draft)
+    {
+        return true;
+    }
+    false
 }
 
 fn turn_workflow_stage_rows(
@@ -575,7 +683,8 @@ fn turn_workflow_stage_rows(
     workflow_events: &[Value],
     draft_response: &str,
 ) -> Vec<Value> {
-    let requires_final_llm = turn_workflow_requires_final_llm(response_tools, workflow_events);
+    let requires_final_llm =
+        turn_workflow_requires_final_llm(response_tools, workflow_events, draft_response);
     let _ = workflow_mode;
     let cleaned_draft = clean_text(draft_response, 2_000);
     let final_stage_status = if requires_final_llm {
@@ -640,7 +749,8 @@ fn turn_workflow_metadata(
     } else {
         "present"
     };
-    let requires_final_llm = turn_workflow_requires_final_llm(response_tools, workflow_events);
+    let requires_final_llm =
+        turn_workflow_requires_final_llm(response_tools, workflow_events, draft_response);
     let tool_gate = workflow_turn_tool_decision_tree(message);
     json!({
         "contract": "agent_workflow_library_v1",

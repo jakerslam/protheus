@@ -154,7 +154,7 @@ use crate::{clean, deterministic_receipt_hash, now_iso, ParsedArgs};
 use crate::research_batch6;
 
 // ============================================================
-// Section 1: Core Spider Traits (Contract V6-RESEARCH-035)
+// Section 1: Kernel Spider Traits (Contract V6-RESEARCH-035)
 // ============================================================
 
 /// Unique identifier for spider instances
@@ -550,7 +550,7 @@ use crate::research_batch6;
 use crate::crawl_spider::{CrawlRequest, CrawlResponse, CrawlError};
 
 // ============================================================
-// Section 1: Core Middleware Traits (Contract V6-RESEARCH-036)
+// Section 1: Kernel Middleware Traits (Contract V6-RESEARCH-036)
 // ============================================================
 
 /// Middleware priority levels
@@ -1015,7 +1015,7 @@ use crate::research_batch6;
 use crate::crawl_spider::ExtractedItem;
 
 // ============================================================
-// Section 1: Core Pipeline Traits (Contract V6-RESEARCH-037)
+// Section 1: Kernel Pipeline Traits (Contract V6-RESEARCH-037)
 // ============================================================
 
 /// Pipeline processing result
@@ -2617,7 +2617,7 @@ The new implementations should gradually replace the synchronous `research_batch
 | Phase | Duration | Deliverables |
 |-------|----------|--------------|
 | Phase 1: Foundation | 2 weeks | Traits, basic types, unit tests |
-| Phase 2: Core Runtime | 3 weeks | SpiderEngine, MiddlewareChain, PipelineChain |
+| Phase 2: Kernel Runtime | 3 weeks | SpiderEngine, MiddlewareChain, PipelineChain |
 | Phase 3: Async Integration | 2 weeks | SignalBus, ConsoleState, tokio runtime |
 | Phase 4: HTTP Integration | 2 weeks | Actual http client, WebSocket console |
 | Phase 5: Production Polish | 2 weeks | Observability, metrics, error handling |

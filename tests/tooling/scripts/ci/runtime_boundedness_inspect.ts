@@ -10,6 +10,7 @@ type ProfileId = 'rich' | 'pure' | 'tiny-max';
 
 type ProfileGatePolicy = {
   memory: { peak_rss_mb_max: number };
+  storage: { disk_mb_max: number };
   queue: { depth_max: number; depth_p95_max: number };
   receipts: { throughput_per_min_min: number; p95_latency_ms_max: number };
   recovery: {
@@ -47,6 +48,14 @@ function parseArgs(argv: string[]) {
       readFlag(argv, 'metrics') || 'core/local/artifacts/runtime_proof_metrics_rich_current.json',
       400,
     ),
+    benchmarkPath: cleanText(
+      readFlag(argv, 'benchmark') || 'docs/client/reports/benchmark_matrix_run_latest.json',
+      400,
+    ),
+    queuePolicyPath: cleanText(
+      readFlag(argv, 'queue-policy') || 'client/runtime/config/queue_backpressure_policy.json',
+      400,
+    ),
     markdownOutPath: cleanText(
       readFlag(argv, 'out-markdown') || 'local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_CURRENT.md',
       400,
@@ -77,6 +86,7 @@ function parsePolicyYaml(raw: string): ParsedPolicy {
       if (!policy.profiles[currentProfile]) {
         policy.profiles[currentProfile] = {
           memory: { peak_rss_mb_max: 0 },
+          storage: { disk_mb_max: 0 },
           queue: { depth_max: 0, depth_p95_max: 0 },
           receipts: { throughput_per_min_min: 0, p95_latency_ms_max: 0 },
           recovery: {
@@ -124,10 +134,47 @@ function readJsonMaybe(relPath: string): any {
   return JSON.parse(fs.readFileSync(abs, 'utf8'));
 }
 
+function safeNumber(value: unknown, fallback = 0): number {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+}
+
 function statusForUtilization(value: number): 'healthy' | 'warning' | 'critical' {
   if (value >= 1) return 'critical';
   if (value >= 0.85) return 'warning';
   return 'healthy';
+}
+
+type QueueBand = {
+  id: string;
+  action: string;
+  min_utilization?: number;
+  max_utilization?: number;
+};
+
+function selectQueueBand(queuePolicy: any, utilization: number): QueueBand | null {
+  const bands = Array.isArray(queuePolicy?.utilization_bands) ? queuePolicy.utilization_bands : [];
+  for (const raw of bands) {
+    const band: QueueBand = {
+      id: cleanText(String(raw?.id || ''), 40),
+      action: cleanText(String(raw?.action || ''), 80),
+      min_utilization: raw?.min_utilization == null ? undefined : safeNumber(raw?.min_utilization, NaN),
+      max_utilization: raw?.max_utilization == null ? undefined : safeNumber(raw?.max_utilization, NaN),
+    };
+    if (!band.id || !band.action) continue;
+    const minOk =
+      band.min_utilization == null || Number.isNaN(band.min_utilization)
+        ? true
+        : utilization >= band.min_utilization;
+    const maxOk =
+      band.max_utilization == null || Number.isNaN(band.max_utilization)
+        ? true
+        : utilization <= band.max_utilization;
+    if (minOk && maxOk) {
+      return band;
+    }
+  }
+  return null;
 }
 
 function markdown(report: any): string {
@@ -153,6 +200,9 @@ function markdown(report: any): string {
   lines.push('- stale_surface_ttl_minutes: 30');
   lines.push('- compaction_trigger_queue_depth_ratio: 0.85');
   lines.push('- eviction_strategy: least_recent_receipt_first');
+  lines.push(`- queue_backpressure_band: ${report.controllers.queue_backpressure_band}`);
+  lines.push(`- queue_backpressure_action: ${report.controllers.queue_backpressure_action}`);
+  lines.push(`- queue_backpressure_policy_path: ${report.controllers.queue_backpressure_policy_path}`);
   lines.push('');
   return `${lines.join('\n')}\n`;
 }
@@ -196,12 +246,34 @@ export function run(argv: string[] = process.argv.slice(2)): number {
 
   const metricsPayload = readJsonMaybe(args.metricsPath) || {};
   const metrics = metricsPayload.metrics || metricsPayload;
+  const benchmarkPayload = readJsonMaybe(args.benchmarkPath) || {};
+  const queuePolicy = readJsonMaybe(args.queuePolicyPath) || {};
+
+  const profileLabel = args.profile === 'tiny-max' ? 'InfRing (tiny-max)' : `InfRing (${args.profile})`;
+  const benchmarkInstallSize = safeNumber(
+    benchmarkPayload?.projects?.[profileLabel]?.install_size_mb ??
+      benchmarkPayload?.medians?.[args.profile]?.install_size_mb ??
+      benchmarkPayload?.[args.profile]?.install_size_mb,
+    0,
+  );
+  const storageActual = safeNumber(
+    metrics.storage_usage_mb ??
+      metrics.install_size_mb ??
+      metrics.artifact_size_mb ??
+      benchmarkInstallSize,
+    0,
+  );
 
   const rowSet = [
     {
       metric: 'peak_rss_mb',
       actual: Number(metrics.peak_rss_mb || 0),
       limit: Number(profilePolicy.memory.peak_rss_mb_max || 0),
+    },
+    {
+      metric: 'storage_usage_mb',
+      actual: storageActual,
+      limit: Number(profilePolicy.storage.disk_mb_max || 0),
     },
     {
       metric: 'queue_depth_max',
@@ -266,9 +338,19 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     ? 'warning'
     : 'healthy';
 
+  const queueDepthMaxRow = rows.find((row) => row.metric === 'queue_depth_max');
+  const queueUtilization = safeNumber(queueDepthMaxRow?.utilization, 0);
+  const queueBand = selectQueueBand(queuePolicy, queueUtilization);
+
   const failures = rows
     .filter((row) => row.status === 'critical')
     .map((row) => ({ id: 'boundedness_violation', detail: `${row.metric}:actual=${row.actual},limit=${row.limit}` }));
+  if (!queueBand) {
+    failures.push({
+      id: 'queue_backpressure_policy_unresolved',
+      detail: `utilization=${queueUtilization};policy=${args.queuePolicyPath}`,
+    });
+  }
 
   const report = {
     ok: failures.length === 0,
@@ -278,6 +360,8 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     profile: args.profile,
     policy_path: args.policyPath,
     metrics_path: args.metricsPath,
+    benchmark_path: args.benchmarkPath,
+    queue_policy_path: args.queuePolicyPath,
     markdown_path: args.markdownOutPath,
     summary: {
       pass: failures.length === 0,
@@ -285,11 +369,24 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       failure_count: failures.length,
       overall_status: overallStatus,
     },
+    boundedness_contract: {
+      rss_ceiling_mb: Number(profilePolicy.memory.peak_rss_mb_max || 0),
+      storage_ceiling_mb: Number(profilePolicy.storage.disk_mb_max || 0),
+      queue_depth_max_ceiling: Number(profilePolicy.queue.depth_max || 0),
+      queue_depth_p95_ceiling: Number(profilePolicy.queue.depth_p95_max || 0),
+      stale_surface_incidents_max: Number(profilePolicy.stale_surface.incidents_max || 0),
+      conduit_recovery_ms_max: Number(profilePolicy.recovery.conduit_recovery_ms_max || 0),
+      adapter_recovery_ms_max: Number(profilePolicy.recovery.adapter_recovery_ms_max || 0),
+    },
     controllers: {
       receipt_retention_window_hours: 72,
       stale_surface_ttl_minutes: 30,
       compaction_trigger_queue_depth_ratio: 0.85,
       eviction_strategy: 'least_recent_receipt_first',
+      queue_backpressure_policy_path: args.queuePolicyPath,
+      queue_backpressure_utilization: queueUtilization,
+      queue_backpressure_band: queueBand?.id || 'unresolved',
+      queue_backpressure_action: queueBand?.action || 'unknown',
     },
     rows,
     failures,
