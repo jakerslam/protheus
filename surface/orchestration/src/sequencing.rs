@@ -35,7 +35,7 @@ pub fn build_plan_candidates(
     propose_decomposition_candidates(request, classification)
 }
 
-pub fn fallback_actions(
+pub fn project_fallback_actions(
     request: &TypedOrchestrationRequest,
     request_class: RequestClass,
     tool_context: Option<&ToolFallbackContext>,
@@ -46,7 +46,16 @@ pub fn fallback_actions(
     }
 }
 
-pub fn tool_fallback_context_from_payload(payload: &Value) -> Option<ToolFallbackContext> {
+// Compatibility alias during control-plane naming transition.
+pub fn fallback_actions(
+    request: &TypedOrchestrationRequest,
+    request_class: RequestClass,
+    tool_context: Option<&ToolFallbackContext>,
+) -> Vec<OrchestrationFallbackAction> {
+    project_fallback_actions(request, request_class, tool_context)
+}
+
+pub fn decode_tool_fallback_context(payload: &Value) -> Option<ToolFallbackContext> {
     let obj = payload.as_object()?;
     let tool_name = obj
         .get("tool_name")
@@ -112,6 +121,11 @@ pub fn tool_fallback_context_from_payload(payload: &Value) -> Option<ToolFallbac
         backend_class,
         reason_code,
     })
+}
+
+// Compatibility alias during control-plane naming transition.
+pub fn tool_fallback_context_from_payload(payload: &Value) -> Option<ToolFallbackContext> {
+    decode_tool_fallback_context(payload)
 }
 
 fn fallback_action(

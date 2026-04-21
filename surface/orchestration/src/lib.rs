@@ -180,7 +180,7 @@ impl OrchestrationSurfaceRuntime {
         } else {
             Vec::new()
         };
-        let execution_state = progress::execution_state_for(
+        let execution_state = progress::project_execution_state(
             &typed_request,
             execution_observation.as_ref(),
             &selected_plan,
@@ -201,8 +201,8 @@ impl OrchestrationSurfaceRuntime {
             recovery::coordinate_recovery_escalation(&typed_request, plan);
         let progress = progress::build_progress_projection(&plan);
         let tool_fallback_context =
-            sequencing::tool_fallback_context_from_payload(&typed_request.payload);
-        let fallback_actions = sequencing::fallback_actions(
+            sequencing::decode_tool_fallback_context(&typed_request.payload);
+        let fallback_actions = sequencing::project_fallback_actions(
             &typed_request,
             plan.request_class.clone(),
             tool_fallback_context.as_ref(),

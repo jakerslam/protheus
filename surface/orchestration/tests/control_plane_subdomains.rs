@@ -1,12 +1,11 @@
 // Layer ownership: tests (regression proof for orchestration surface contracts).
 use infring_orchestration_surface_v1::control_plane::{
-    control_plane_api_contract, subdomain_boundaries,
+    control_plane_api_contract, legacy_module_bindings, subdomain_boundaries,
+    subdomain_boundary_by_id,
 };
 
 fn require_domain(id: &str) -> infring_orchestration_surface_v1::control_plane::SubdomainBoundary {
-    subdomain_boundaries()
-        .into_iter()
-        .find(|row| row.id == id)
+    subdomain_boundary_by_id(id)
         .expect("missing control-plane subdomain boundary")
 }
 
@@ -85,3 +84,47 @@ fn control_plane_api_contract_enforces_kernel_boundary_rules() {
         .contains(&"kernel_is_final_authority"));
 }
 
+#[test]
+fn control_plane_subdomain_ids_are_unique() {
+    let mut ids = subdomain_boundaries()
+        .into_iter()
+        .map(|row| row.id)
+        .collect::<Vec<_>>();
+    ids.sort();
+    ids.dedup();
+    assert_eq!(ids.len(), 5);
+}
+
+#[test]
+fn legacy_module_bindings_are_unique_and_traceable() {
+    let modules = legacy_module_bindings();
+    assert!(modules
+        .iter()
+        .any(|row| row.module == "planner/plan_candidates"
+            && row.subdomain_id == "decomposition_planning"));
+    assert!(modules
+        .iter()
+        .any(|row| row.module == "result_packaging"
+            && row.subdomain_id == "result_shaping_packaging"));
+
+    let mut unique_pairs = modules
+        .iter()
+        .map(|row| format!("{}::{}", row.module, row.subdomain_id))
+        .collect::<Vec<_>>();
+    unique_pairs.sort();
+    unique_pairs.dedup();
+    assert_eq!(unique_pairs.len(), modules.len());
+
+    let progress_domains = modules
+        .iter()
+        .filter(|row| row.module == "progress")
+        .map(|row| row.subdomain_id)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        progress_domains,
+        vec![
+            "workflow_graph_dependency_tracking",
+            "result_shaping_packaging"
+        ]
+    );
+}
