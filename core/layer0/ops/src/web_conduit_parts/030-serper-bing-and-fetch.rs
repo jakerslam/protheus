@@ -282,6 +282,121 @@ fn payload_looks_low_signal_search(payload: &Value) -> bool {
     looks_like_low_signal_search_payload(&summary, &content)
 }
 
+fn search_lite_fallback_reason(
+    used_lite_fallback: bool,
+    initial_selected_provider: &str,
+    provider_errors: &[Value],
+) -> (&'static str, bool, bool, String) {
+    if !used_lite_fallback {
+        return ("none", false, false, "none".to_string());
+    }
+    let primary_challenge = provider_errors.iter().any(|row| {
+        row.get("provider").and_then(Value::as_str) == Some("duckduckgo")
+            && row.get("challenge").and_then(Value::as_bool).unwrap_or(false)
+    });
+    let primary_low_signal = provider_errors.iter().any(|row| {
+        row.get("provider").and_then(Value::as_str) == Some("duckduckgo")
+            && row.get("low_signal").and_then(Value::as_bool).unwrap_or(false)
+    });
+    let reason = if primary_challenge {
+        "duckduckgo_challenge"
+    } else if primary_low_signal {
+        "duckduckgo_low_signal"
+    } else if initial_selected_provider != "duckduckgo_lite" {
+        "provider_chain_fallback"
+    } else {
+        "requested_duckduckgo_lite"
+    };
+    let trigger_provider = if primary_challenge || primary_low_signal {
+        "duckduckgo".to_string()
+    } else if reason == "provider_chain_fallback" {
+        clean_text(
+            provider_errors
+                .iter()
+                .find_map(|row| row.get("provider").and_then(Value::as_str))
+                .unwrap_or(initial_selected_provider),
+            80,
+        )
+    } else {
+        "duckduckgo_lite".to_string()
+    };
+    (reason, primary_challenge, primary_low_signal, trigger_provider)
+}
+
+fn search_bing_fallback_reason(
+    used_bing_fallback: bool,
+    initial_selected_provider: &str,
+    provider_errors: &[Value],
+) -> (&'static str, bool, bool, String) {
+    if !used_bing_fallback {
+        return ("none", false, false, "none".to_string());
+    }
+    let duck_challenge_provider = provider_errors.iter().find_map(|row| {
+        if matches!(
+            row.get("provider").and_then(Value::as_str),
+            Some("duckduckgo") | Some("duckduckgo_lite")
+        ) && row.get("challenge").and_then(Value::as_bool).unwrap_or(false)
+        {
+            row.get("provider").and_then(Value::as_str)
+        } else {
+            None
+        }
+    });
+    let duck_chain_challenge = provider_errors.iter().any(|row| {
+        matches!(
+            row.get("provider").and_then(Value::as_str),
+            Some("duckduckgo") | Some("duckduckgo_lite")
+        ) && row.get("challenge").and_then(Value::as_bool).unwrap_or(false)
+    });
+    let duck_low_signal_provider = provider_errors.iter().find_map(|row| {
+        if matches!(
+            row.get("provider").and_then(Value::as_str),
+            Some("duckduckgo") | Some("duckduckgo_lite")
+        ) && row.get("low_signal").and_then(Value::as_bool).unwrap_or(false)
+        {
+            row.get("provider").and_then(Value::as_str)
+        } else {
+            None
+        }
+    });
+    let duck_chain_low_signal = provider_errors.iter().any(|row| {
+        matches!(
+            row.get("provider").and_then(Value::as_str),
+            Some("duckduckgo") | Some("duckduckgo_lite")
+        ) && row.get("low_signal").and_then(Value::as_bool).unwrap_or(false)
+    });
+    let reason = if duck_chain_challenge {
+        "duckduckgo_chain_challenge"
+    } else if duck_chain_low_signal {
+        "duckduckgo_chain_low_signal"
+    } else if initial_selected_provider != "bing_rss" {
+        "provider_chain_fallback"
+    } else {
+        "requested_bing_rss"
+    };
+    let trigger_provider = if let Some(provider) = duck_challenge_provider {
+        clean_text(provider, 80)
+    } else if let Some(provider) = duck_low_signal_provider {
+        clean_text(provider, 80)
+    } else if reason == "provider_chain_fallback" {
+        clean_text(
+            provider_errors
+                .iter()
+                .find_map(|row| row.get("provider").and_then(Value::as_str))
+                .unwrap_or(initial_selected_provider),
+            80,
+        )
+    } else {
+        "bing_rss".to_string()
+    };
+    (
+        reason,
+        duck_chain_challenge,
+        duck_chain_low_signal,
+        trigger_provider,
+    )
+}
+
 fn fetch_with_curl(
     url: &str,
     timeout_ms: u64,
