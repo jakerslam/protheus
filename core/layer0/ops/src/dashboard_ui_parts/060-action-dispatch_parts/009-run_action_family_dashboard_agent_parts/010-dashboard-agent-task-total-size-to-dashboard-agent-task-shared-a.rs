@@ -349,8 +349,8 @@ fn dashboard_agent_task_apply_favorite(root: &Path, task_id: &str, is_favorited:
             "error": "task_id_required"
         });
     }
-    let mut tasks = crate::dashboard_compat_api_comms_store::read_tasks(root);
-    let _ = crate::dashboard_compat_api_comms_store::apply_task_lifecycle(root, &mut tasks);
+    let mut tasks = dashboard_compat_api_comms_store::read_tasks(root);
+    let _ = dashboard_compat_api_comms_store::apply_task_lifecycle(root, &mut tasks);
     let mut updated_task = Value::Null;
     for row in tasks.iter_mut() {
         let row_id = clean_text(row.get("id").and_then(Value::as_str).unwrap_or(""), 80);
@@ -370,8 +370,8 @@ fn dashboard_agent_task_apply_favorite(root: &Path, task_id: &str, is_favorited:
             "task_id": normalized_id
         });
     }
-    crate::dashboard_compat_api_comms_store::write_tasks(root, &tasks);
-    crate::dashboard_compat_api_comms_store::append_event(
+    dashboard_compat_api_comms_store::write_tasks(root, &tasks);
+    dashboard_compat_api_comms_store::append_event(
         root,
         "task_favorite_updated",
         "DashboardUI",
@@ -404,7 +404,7 @@ fn dashboard_agent_task_apply_feedback(root: &Path, task_id: &str, feedback_raw:
     let normalized_id = clean_text(task_id, 80);
     let feedback_at = crate::now_iso();
     if normalized_id.is_empty() {
-        crate::dashboard_compat_api_comms_store::append_event(
+        dashboard_compat_api_comms_store::append_event(
             root,
             "task_feedback",
             "DashboardUI",
@@ -420,8 +420,8 @@ fn dashboard_agent_task_apply_feedback(root: &Path, task_id: &str, feedback_raw:
             "applied": false
         });
     }
-    let mut tasks = crate::dashboard_compat_api_comms_store::read_tasks(root);
-    let _ = crate::dashboard_compat_api_comms_store::apply_task_lifecycle(root, &mut tasks);
+    let mut tasks = dashboard_compat_api_comms_store::read_tasks(root);
+    let _ = dashboard_compat_api_comms_store::apply_task_lifecycle(root, &mut tasks);
     let mut updated_task = Value::Null;
     for row in tasks.iter_mut() {
         let row_id = clean_text(row.get("id").and_then(Value::as_str).unwrap_or(""), 80);
@@ -441,8 +441,8 @@ fn dashboard_agent_task_apply_feedback(root: &Path, task_id: &str, feedback_raw:
             "task_id": normalized_id
         });
     }
-    crate::dashboard_compat_api_comms_store::write_tasks(root, &tasks);
-    crate::dashboard_compat_api_comms_store::append_event(
+    dashboard_compat_api_comms_store::write_tasks(root, &tasks);
+    dashboard_compat_api_comms_store::append_event(
         root,
         "task_feedback",
         "DashboardUI",

@@ -44,8 +44,8 @@ Status legend:
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V12-GATEWAYS-001 | done | First-five production gateway graduation model with explicit checklists, shared readiness track, and published support levels | Roadmap gateways existed in manifest form, but graduation mechanics still relied on legacy conformance assumptions and did not publish per-gateway support/checklist state as a first-class gate output. | `tests/tooling/config/adapter_graduation_manifest.json` contains the five target gateways (`ollama`, `llama_cpp`, `mcp_baseline`, `otlp_exporter`, `durable_memory_local`) on one shared readiness track with checklist + owner/blocker metadata and support level fields; `tests/tooling/scripts/ci/adapter_runtime_chaos_gate.ts` enforces target-gateway manifest conformance (support-level validity, owner/blocker policy, checklist schema uniformity, shared readiness/required criteria), emits dedicated support-level artifact `core/local/artifacts/gateway_support_levels_current.json`, and publishes support-level markdown report `local/workspace/reports/ADAPTER_RUNTIME_CHAOS_GATE_CURRENT.md`; proof-pack governance includes the support-level artifact/report via `tests/tooling/config/release_proof_pack_manifest.json` and gate artifact declarations in `tests/tooling/config/tooling_gate_registry.json`; roadmap contract alignment documented in `docs/workspace/process/roadmap_adapter_graduation_plan.md`. | 9 | 0/1/2 |
-| V12-GATEWAYS-002 | done | Gateway status manifest gate for first-five targets with support-level policy and uniform checklist closure including recovery bounds | First-five production gateway readiness needed an explicit RC-published status manifest that guarantees consistent support-level semantics and uniform checklist criteria, rather than relying on implicit interpretation of chaos/support artifacts. | Added `tests/tooling/scripts/ci/gateway_status_manifest.ts` and command `ops:gateway-status:manifest` to emit `core/local/artifacts/gateway_status_manifest_current.json` + `local/workspace/reports/GATEWAY_STATUS_MANIFEST_CURRENT.md`; enforced support levels (`experimental`, `candidate`, `graduated`) and uniform checklist keys across first-five targets (`health_checks`, `chaos_scenarios`, `fallback_degradation_declaration`, `receipt_completeness`, `recovery_bounds`, with `fail_closed_behavior` included for graduated-level readiness); updated first-five entries in `tests/tooling/config/adapter_graduation_manifest.json` to include `recovery_bounds`; wired gate execution and artifact publication in `package.json`, `tests/tooling/config/tooling_gate_registry.json`, `.github/workflows/ci.yml`, `.github/workflows/release.yml`, and required proof-pack contracts in `tests/tooling/config/release_proof_pack_manifest.json`. | 9 | 0/1/2 |
+| V12-GATEWAYS-001 | done | First-five production gateway graduation model with explicit checklists, shared readiness track, and published support levels | Roadmap gateways existed in manifest form, but graduation mechanics still relied on legacy conformance assumptions and did not publish per-gateway support/checklist state as a first-class gate output. | `tests/tooling/config/gateway_graduation_manifest.json` contains the five target gateways (`ollama`, `llama_cpp`, `mcp_baseline`, `otlp_exporter`, `durable_memory_local`) on one shared readiness track with checklist + owner/blocker metadata and support level fields; `tests/tooling/scripts/ci/gateway_runtime_chaos_gate.ts` enforces target-gateway manifest conformance (support-level validity, owner/blocker policy, checklist schema uniformity, shared readiness/required criteria), emits dedicated support-level artifact `core/local/artifacts/gateway_support_levels_current.json`, and publishes support-level markdown report `local/workspace/reports/GATEWAY_RUNTIME_CHAOS_GATE_CURRENT.md`; proof-pack governance includes the support-level artifact/report via `tests/tooling/config/release_proof_pack_manifest.json` and gate artifact declarations in `tests/tooling/config/tooling_gate_registry.json`; roadmap contract alignment documented in `docs/workspace/process/roadmap_gateway_graduation_plan.md`. | 9 | 0/1/2 |
+| V12-GATEWAYS-002 | done | Gateway status manifest gate for first-five targets with support-level policy and uniform checklist closure including recovery bounds | First-five production gateway readiness needed an explicit RC-published status manifest that guarantees consistent support-level semantics and uniform checklist criteria, rather than relying on implicit interpretation of chaos/support artifacts. | Added `tests/tooling/scripts/ci/gateway_status_manifest.ts` and command `ops:gateway-status:manifest` to emit `core/local/artifacts/gateway_status_manifest_current.json` + `local/workspace/reports/GATEWAY_STATUS_MANIFEST_CURRENT.md`; enforced support levels (`experimental`, `candidate`, `graduated`) and uniform checklist keys across first-five targets (`health_checks`, `chaos_scenarios`, `fallback_degradation_declaration`, `receipt_completeness`, `recovery_bounds`, with `fail_closed_behavior` included for graduated-level readiness); updated first-five entries in `tests/tooling/config/gateway_graduation_manifest.json` to include `recovery_bounds`; wired gate execution and artifact publication in `package.json`, `tests/tooling/config/tooling_gate_registry.json`, `.github/workflows/ci.yml`, `.github/workflows/release.yml`, and required proof-pack contracts in `tests/tooling/config/release_proof_pack_manifest.json`. | 9 | 0/1/2 |
 
 ## Empirical Runtime Proof Expansion Intake (2026-04-20)
 
@@ -85,7 +85,7 @@ Status legend:
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V12-TERMS-001 | done | Kernel/Gateway terminology transition closure with operator alias inventory, canonical compatibility maps, and deprecation tracker guardrails | Canonical terminology policy referenced mapping files and retirement milestones, but required mapping artifacts and a fail-closed inventory guard were missing, leaving alias retirement credibility weak. | Added canonical compatibility maps [kernel_transition_alias_map.json](/Users/jay/.openclaw/workspace/client/runtime/config/kernel_transition_alias_map.json), [gateway_transition_alias_map.json](/Users/jay/.openclaw/workspace/client/runtime/config/gateway_transition_alias_map.json), and [shell_transition_alias_map.json](/Users/jay/.openclaw/workspace/client/runtime/config/shell_transition_alias_map.json), plus deprecation tracker [terminology_transition_deprecation_tracker.json](/Users/jay/.openclaw/workspace/client/runtime/config/terminology_transition_deprecation_tracker.json); implemented strict inventory gate [terminology_transition_inventory.ts](/Users/jay/.openclaw/workspace/tests/tooling/scripts/ci/terminology_transition_inventory.ts) with evidence artifacts (`core/local/artifacts/terminology_transition_inventory_current.json`, `local/workspace/reports/TERMINOLOGY_TRANSITION_INVENTORY_CURRENT.md`) and dynamic mapping-file coverage (kernel/gateway/shell); wired release/profiles/proof-pack via [package.json](/Users/jay/.openclaw/workspace/package.json), [tooling_gate_registry.json](/Users/jay/.openclaw/workspace/tests/tooling/config/tooling_gate_registry.json), [verify_profiles.json](/Users/jay/.openclaw/workspace/tests/tooling/config/verify_profiles.json), [release.yml](/Users/jay/.openclaw/workspace/.github/workflows/release.yml), and [release_proof_pack_manifest.json](/Users/jay/.openclaw/workspace/tests/tooling/config/release_proof_pack_manifest.json); documented tracker requirement in [release_terminology_transition_policy.md](/Users/jay/.openclaw/workspace/docs/workspace/policy/release_terminology_transition_policy.md) and [README.md](/Users/jay/.openclaw/workspace/README.md). Incremental hardening (2026-04-22): shell/client alias retirement target is now policy-published alongside kernel/core and gateways/adapters, and shell naming artifacts/configs now ship canonical `shell_*` names with explicit `client_*` compatibility mappings. | 9 | 0/2 |
+| V12-TERMS-001 | done | Kernel/Gateway terminology transition closure with operator alias inventory, canonical compatibility maps, and deprecation tracker guardrails | Canonical terminology policy referenced mapping files and retirement milestones, but required mapping artifacts and a fail-closed inventory guard were missing, leaving alias retirement credibility weak. | Added canonical compatibility maps [kernel_transition_alias_map.json](/Users/jay/.openclaw/workspace/client/runtime/config/kernel_transition_alias_map.json), [gateway_transition_alias_map.json](/Users/jay/.openclaw/workspace/client/runtime/config/gateway_transition_alias_map.json), and [shell_transition_alias_map.json](/Users/jay/.openclaw/workspace/client/runtime/config/shell_transition_alias_map.json), plus deprecation tracker [terminology_transition_deprecation_tracker.json](/Users/jay/.openclaw/workspace/client/runtime/config/terminology_transition_deprecation_tracker.json); implemented strict inventory gate [terminology_transition_inventory.ts](/Users/jay/.openclaw/workspace/tests/tooling/scripts/ci/terminology_transition_inventory.ts) with evidence artifacts (`core/local/artifacts/terminology_transition_inventory_current.json`, `local/workspace/reports/TERMINOLOGY_TRANSITION_INVENTORY_CURRENT.md`) and dynamic mapping-file coverage (kernel/gateway/shell); wired release/profiles/proof-pack via [package.json](/Users/jay/.openclaw/workspace/package.json), [tooling_gate_registry.json](/Users/jay/.openclaw/workspace/tests/tooling/config/tooling_gate_registry.json), [verify_profiles.json](/Users/jay/.openclaw/workspace/tests/tooling/config/verify_profiles.json), [release.yml](/Users/jay/.openclaw/workspace/.github/workflows/release.yml), and [release_proof_pack_manifest.json](/Users/jay/.openclaw/workspace/tests/tooling/config/release_proof_pack_manifest.json); documented tracker requirement in [release_terminology_transition_policy.md](/Users/jay/.openclaw/workspace/docs/workspace/policy/release_terminology_transition_policy.md) and [README.md](/Users/jay/.openclaw/workspace/README.md). Incremental hardening (2026-04-22): shell/client alias retirement target is now policy-published alongside kernel/core and gateways/adapters, and shell naming artifacts/configs now ship canonical `shell_*` names with explicit `client_*` compatibility mappings. Kernel terminology hardening now also enforces canonical authority wording in governance docs (`codex_enforcer.md`, `DEFINITION_OF_DONE.md`) and fails terminology inventory when `Core` is presented as a standalone primary authority term outside compatibility/path context. | 9 | 0/2 |
 | V12-TERMS-002 | done | Compatibility bridge temporary-exemption expiry governance for terminology transition | Terminology transition tracking had retirement targets and alias mapping coverage, but lacked explicit fail-on-expired checks for temporary compatibility bridges. | Added `temporary_compatibility_bridge_exemptions` contract in [`client/runtime/config/terminology_transition_deprecation_tracker.json`](/Users/jay/.openclaw/workspace/client/runtime/config/terminology_transition_deprecation_tracker.json), and hardened [`tests/tooling/scripts/ci/terminology_transition_inventory.ts`](/Users/jay/.openclaw/workspace/tests/tooling/scripts/ci/terminology_transition_inventory.ts) to normalize exemption rows, fail on invalid exemption records, fail on expired active exemptions, and publish exemption validity/expiry counts plus table output in the markdown report. | 8 | 0/2 |
 
 
@@ -15789,11 +15789,11 @@ Source summary:
 ### V11-ADAPTER-CHAOS-001 — Adapter Contract-Kit Chaos + Receipt-Fresh Dashboard Authority
 
 - Intent:
-  - Prove production adapter runtime behavior under chaos with fail-closed guarantees, pin release thresholds for adapter chaos, and expose authoritative freshness/conduit state in dashboard runtime blocks.
+  - Prove production adapter runtime behavior under chaos with fail-closed guarantees, pin release thresholds for gateway chaos, and expose authoritative freshness/conduit state in dashboard runtime blocks.
 - Acceptance criteria:
   - Adapter chaos gate runs real production adapter bridges (`workflow_graph-bridge`, `crewai-bridge`, `pydantic-ai-bridge`, `mastra-bridge`, `semantic-kernel-bridge`) through `run-governed-workflow`.
   - Chaos matrix covers `process_never_starts`, `starts_then_hangs`, `invalid_schema_response`, `response_too_large`, and `repeated_flapping`, each mapped to stable fail-closed error codes.
-  - Runtime proof release gate enforces pinned adapter chaos thresholds via `release_gates.yaml` (`baseline_pass_ratio_min` and `fail_closed_ratio_min`).
+  - Runtime proof release gate enforces pinned gateway chaos thresholds via `release_gates.yaml` (`baseline_pass_ratio_min` and `fail_closed_ratio_min`).
   - Dashboard snapshot emits explicit runtime blocks that surface freshness degradation and conduit lifecycle state without optimistic client-side inference.
   - Rust-authoritative integration test proves contract-kit fail-closed chaos behavior across all production frameworks.
 - Regression evidence pointers:
@@ -15801,14 +15801,14 @@ Source summary:
   - `core/layer0/ops/src/semantic_kernel_bridge_parts/010-usage.rs`
   - `core/layer0/ops/src/semantic_kernel_bridge_parts/040-run.rs`
   - `core/layer0/ops/src/dashboard_ui_parts/050-snapshot-builder.rs`
-  - `tests/tooling/scripts/ci/adapter_runtime_chaos_gate.ts`
+  - `tests/tooling/scripts/ci/gateway_runtime_chaos_gate.ts`
   - `tests/tooling/scripts/ci/runtime_proof_verify.ts`
   - `tests/tooling/scripts/ci/runtime_proof_release_gate.ts`
   - `tests/tooling/config/release_gates.yaml`
-  - `core/layer0/ops/tests/v11_adapter_contract_chaos_integration.rs`
-  - `npm run -s ops:adapter-runtime-chaos:gate -- --profile=rich`
+  - `core/layer0/ops/tests/v11_gateway_contract_chaos_integration.rs`
+  - `npm run -s ops:gateway-runtime-chaos:gate -- --profile=rich`
   - `npm run -s ops:runtime-proof:verify -- --profile=rich`
-  - `npm run -s test:ops:adapter-chaos:rust`
+  - `npm run -s test:ops:gateway-chaos:rust`
 
 ### 2026-04-16 Web Tooling Workflow Reliability Addendum (V11-WEB-WORKFLOW-002)
 
@@ -15876,7 +15876,7 @@ Source summary:
   - Final response contract appends stable machine-readable failure classification for non-web tooling failures, and `response_finalization` includes a first-class `tooling_invariant` block.
   - Web retrieval off-topic detection uses domain/topic mismatch scoring and fail-closes with `web_tool_off_topic_results`.
   - Web tooling soak script runs a transcript replay pack (soak + replay guards) and emits replay summary metrics.
-  - Runtime release gate enforces quality telemetry thresholds from soak taxonomy in addition to boundedness/adapter chaos metrics.
+  - Runtime release gate enforces quality telemetry thresholds from soak taxonomy in addition to boundedness/gateway chaos metrics.
   - Operator API exposes `/api/web/tooling/summary` with readiness status, runtime contract snapshot, and latest taxonomy/replay snapshots.
   - Compile-warning hotspots are cleaned for duplicate-unreachable routing and duplicated mode aliases.
 - Regression evidence pointers:
@@ -15900,16 +15900,16 @@ Source summary:
 ### 2026-04-17 Runtime Proof Artifact Refresh + Queue Backpressure Calibration Addendum (V11-WEB-WORKFLOW-005)
 
 - Intent:
-  - Make runtime-proof release gating robust and reproducible by eliminating stale-artifact dependence, hardening adapter chaos baseline execution against state-buffer blowups, and calibrating queue-saturation simulation to reflect bounded backpressure behavior under policy control.
+  - Make runtime-proof release gating robust and reproducible by eliminating stale-artifact dependence, hardening gateway chaos baseline execution against state-buffer blowups, and calibrating queue-saturation simulation to reflect bounded backpressure behavior under policy control.
 - Acceptance criteria:
-  - `runtime_proof_release_gate.ts` refreshes harness and adapter-chaos artifacts by default (`refresh-harness=always`, `refresh-adapter-chaos=always`) before threshold evaluation, with explicit support-run telemetry in the final gate report.
+  - `runtime_proof_release_gate.ts` refreshes harness and gateway-chaos artifacts by default (`refresh-harness=always`, `refresh-gateway-chaos=always`) before threshold evaluation, with explicit support-run telemetry in the final gate report.
   - Refresh logic supports `always|auto|never` modes and fail-closes with stable refresh error codes when dependency scripts cannot execute.
   - Adapter chaos gate isolates bridge runs via per-scenario ephemeral `--state-path` files and elevated spawn buffer, preventing false baseline failures from inherited large state payloads (`missing_ok` due spawn buffer saturation).
   - Queue saturation harness applies deterministic soft/hard ceiling policy and emergency drain behavior so proof metrics remain within configured boundedness thresholds while still exercising burst/backpressure dynamics.
-  - Release-gate checks continue to evaluate strict quality telemetry and adapter chaos pass ratios from refreshed artifacts (no stale snapshot dependence).
+  - Release-gate checks continue to evaluate strict quality telemetry and gateway chaos pass ratios from refreshed artifacts (no stale snapshot dependence).
 - Regression evidence pointers:
   - `tests/tooling/scripts/ci/runtime_proof_harness.ts`
-  - `tests/tooling/scripts/ci/adapter_runtime_chaos_gate.ts`
+  - `tests/tooling/scripts/ci/gateway_runtime_chaos_gate.ts`
   - `tests/tooling/scripts/ci/runtime_proof_release_gate.ts`
   - `tests/tooling/config/release_gates.yaml`
   - `node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/runtime_proof_release_gate.ts --profile=rich`
@@ -15921,7 +15921,7 @@ Source summary:
 - Acceptance criteria:
   - Runtime proof harness supports `--proof-track=synthetic|empirical|dual` and emits explicit `proof_tracks` metadata with sample-point accounting and source details.
   - Release gates enforce per-profile proof-track policy (`synthetic_required`, `empirical_required`, `empirical_min_sample_points`) and include proof-track checks in metrics/report artifacts.
-  - Adapter chaos gate consumes a canonical graduation manifest and computes `adapter_graduation_ratio` from required hook + scenario coverage.
+  - Adapter chaos gate consumes a canonical graduation manifest and computes `gateway_graduation_ratio` from required hook + scenario coverage.
   - Release gate enforces adapter graduation ratio minimum through `release_gates.yaml`.
   - Layer2 lane parity manifest carries explicit per-lane status and parity guard fails when any lane is not marked `complete`.
   - Dashboard runtime blocks expose block-level freshness contract metadata (`source`, `source_sequence`, `age_seconds`, `stale`) and dashboard authority guard fails when freshness metadata is missing.
@@ -15934,8 +15934,8 @@ Source summary:
   - `tests/tooling/scripts/ci/runtime_proof_release_gate.ts`
   - `tests/tooling/scripts/ci/runtime_proof_verify.ts`
   - `tests/tooling/config/release_gates.yaml`
-  - `tests/tooling/scripts/ci/adapter_runtime_chaos_gate.ts`
-  - `tests/tooling/config/adapter_graduation_manifest.json`
+  - `tests/tooling/scripts/ci/gateway_runtime_chaos_gate.ts`
+  - `tests/tooling/config/gateway_graduation_manifest.json`
   - `tests/tooling/config/layer2_lane_parity_manifest.json`
   - `tests/tooling/scripts/ci/layer2_lane_parity_guard.ts`
   - `core/layer0/ops/src/dashboard_ui_parts/050-snapshot-builder.rs`
@@ -16128,15 +16128,15 @@ Source summary:
 - Acceptance criteria:
   - `release_gates.yaml` requires empirical proof for `pure` and `tiny-max` with explicit empirical sample-point minimums.
   - Runtime proof release gate enforces profile-aware empirical source/metric completeness (rich keeps dashboard-source requirement; constrained profiles require boundedness + soak + support-bundle empirical evidence).
-  - Adapter chaos gate derives executable graduation adapters from `adapter_graduation_manifest.json` and supports staged non-blocking roadmap adapter entries (`required_for_graduation=false`) without drift from production graduation ratios.
+  - Adapter chaos gate derives executable graduation adapters from `gateway_graduation_manifest.json` and supports staged non-blocking roadmap adapter entries (`required_for_graduation=false`) without drift from production graduation ratios.
   - Adapter graduation manifest carries roadmap production adapters (`ollama`, `llama_cpp`, `mcp_baseline`, `otlp_exporter`, `durable_memory_local`) as tracked staged entries.
   - Release verification includes an explicit agent-surface status guard and proof packs include both node critical-path inventory and agent-surface status artifacts.
   - README current-state contract reflects profile-scoped empirical enforcement, staged adapter graduation tracking, and agent-surface status manifest guarding.
 - Regression evidence pointers:
   - `tests/tooling/config/release_gates.yaml`
   - `tests/tooling/scripts/ci/runtime_proof_release_gate.ts`
-  - `tests/tooling/config/adapter_graduation_manifest.json`
-  - `tests/tooling/scripts/ci/adapter_runtime_chaos_gate.ts`
+  - `tests/tooling/config/gateway_graduation_manifest.json`
+  - `tests/tooling/scripts/ci/gateway_runtime_chaos_gate.ts`
   - `tests/tooling/config/agent_surface_status_manifest.json`
   - `tests/tooling/scripts/ci/agent_surface_status_guard.ts`
   - `tests/tooling/config/release_proof_pack_manifest.json`
@@ -18178,18 +18178,18 @@ Source summary:
   - `docs/workspace/reports/CLINE_FILE_STATUS.tsv`
   - `docs/workspace/reports/OPENCLAW_FILE_STATUS.tsv`
 
-### 2026-04-19 Client Naming Policy Automation Guard
+### 2026-04-19 Shell Naming Policy Automation Guard
 
 - Intent:
-  - Enforce client naming conventions in CI so naming hygiene is continuously enforced instead of policy-only guidance.
+  - Enforce shell naming conventions in CI so naming hygiene is continuously enforced instead of policy-only guidance.
 - Acceptance criteria:
-  - Add a configurable client naming guard script that audits tracked client paths against deterministic segment/stem rules and banned generic code stems.
-  - Publish naming policy configuration under `client/runtime/config/client_naming_policy.json`.
-  - Register gate as `ops:client-naming:guard` in tooling registry and wire into `fast` + `release` verify profiles.
+  - Add a configurable shell naming guard script that audits tracked shell paths against deterministic segment/stem rules and banned generic code stems.
+  - Publish naming policy configuration under `client/runtime/config/shell_naming_policy.json`.
+  - Register gate as `ops:shell-naming:guard` in tooling registry and wire into `fast` + `release` verify profiles.
   - Expose stable artifacts (`json` + `markdown`) for auditability.
 - Regression evidence pointers:
-  - `tests/tooling/scripts/ci/client_naming_policy_guard.ts`
-  - `client/runtime/config/client_naming_policy.json`
+  - `tests/tooling/scripts/ci/naming_policy_guard.ts`
+  - `client/runtime/config/shell_naming_policy.json`
   - `tests/tooling/config/tooling_gate_registry.json`
   - `tests/tooling/config/verify_profiles.json`
   - `package.json`
@@ -18288,7 +18288,7 @@ Source summary:
 - Intent:
   - Enforce release-time runtime-proof closure across `rich`, `pure`, and `tiny-max` with mandatory dual-track proof, nonzero empirical coverage, deterministic checksums, and explicit boundedness/soak evidence artifacts.
 - Acceptance criteria:
-  - `ops:runtime-proof:verify` runs all three profiles in one invocation and fails closed if any profile fails harness, release gate, adapter-chaos gate, or empirical sample-point requirements.
+  - `ops:runtime-proof:verify` runs all three profiles in one invocation and fails closed if any profile fails harness, release gate, gateway-chaos gate, or empirical sample-point requirements.
   - Runtime proof verification emits deterministic evidence artifacts:
     - `core/local/artifacts/runtime_boundedness_72h_evidence_current.json`
     - `core/local/artifacts/runtime_multi_day_soak_evidence_current.json`
@@ -18943,22 +18943,22 @@ Source summary:
 - Intent:
   - Harden kernel architecture conformance by fail-closing stale nexus-coupling exemptions, enforcing package-level forbidden direct nexus dependencies, and removing unnecessary direct nexus coupling from layer0 helper surfaces.
 - Acceptance criteria:
-  - `core_nexus_coupling_guard.ts` fails when stale exemptions are present (policy-controlled via `fail_on_stale_exemptions`).
-  - `core_nexus_coupling_guard.ts` enforces `forbid_direct_nexus_for_packages` for both Rust imports and Cargo path dependencies, even when those packages are outside default layer2 scan roots.
-  - `core_nexus_coupling_guard.ts` fails any direct layer0->nexus coupling unless the source package is explicitly listed in `allow_direct_nexus_layer0_packages`.
-  - `core_nexus_coupling_guard.ts` fails any direct layer1->nexus coupling unless the source package is explicitly listed in `allow_direct_nexus_layer1_packages`.
-  - `core_nexus_coupling_guard.ts` emits deterministic markdown audit evidence at `local/workspace/reports/CORE_NEXUS_COUPLING_GUARD_CURRENT.md`.
-  - `ops:nexus:core-coupling:guard` is registered in tooling gate registry with both JSON and markdown artifact paths, and proof-pack manifest includes `core_nexus_coupling_guard_current.json` in release governance evidence plus markdown report in optional artifacts.
-  - Proof-pack required artifact contract explicitly includes `core/local/artifacts/core_nexus_coupling_guard_current.json`.
+  - `kernel_nexus_coupling_guard.ts` fails when stale exemptions are present (policy-controlled via `fail_on_stale_exemptions`).
+  - `kernel_nexus_coupling_guard.ts` enforces `forbid_direct_nexus_for_packages` for both Rust imports and Cargo path dependencies, even when those packages are outside default layer2 scan roots.
+  - `kernel_nexus_coupling_guard.ts` fails any direct layer0->nexus coupling unless the source package is explicitly listed in `allow_direct_nexus_layer0_packages`.
+  - `kernel_nexus_coupling_guard.ts` fails any direct layer1->nexus coupling unless the source package is explicitly listed in `allow_direct_nexus_layer1_packages`.
+  - `kernel_nexus_coupling_guard.ts` emits deterministic markdown audit evidence at `local/workspace/reports/KERNEL_NEXUS_COUPLING_GUARD_CURRENT.md`.
+  - `ops:nexus:kernel-coupling:guard` is registered in tooling gate registry with both JSON and markdown artifact paths, and proof-pack manifest includes `kernel_nexus_coupling_guard_current.json` in release governance evidence plus markdown report in optional artifacts.
+  - Proof-pack required artifact contract explicitly includes `core/local/artifacts/kernel_nexus_coupling_guard_current.json`.
   - `core/layer0/{vault,graph,pinnacle,swarm,security,mobile,red_legion}` no longer directly import nexus for blob/helper or observability loader surfaces migrated in this increment.
   - `core/layer0/memory_runtime` consumes `recall_policy` and `token_telemetry` directly from `core/layer1/memory_runtime` rather than nexus re-export paths.
   - `core/layer0/memory_runtime` consumes `memory_core_v1` directly from `core/layer2/memory` rather than nexus re-export paths.
   - `core/layer1/primitives` consumes provenance receipt primitives directly from `core/layer1/provenance` rather than nexus re-export paths.
 - Regression evidence pointers:
-  - `tests/tooling/scripts/ci/core_nexus_coupling_guard.ts`
-  - `tests/tooling/config/core_nexus_coupling_policy.json`
-  - `local/workspace/reports/CORE_NEXUS_COUPLING_GUARD_CURRENT.md`
-  - `package.json` (`ops:nexus:core-coupling:guard`)
+  - `tests/tooling/scripts/ci/kernel_nexus_coupling_guard.ts`
+  - `tests/tooling/config/kernel_nexus_coupling_policy.json`
+  - `local/workspace/reports/KERNEL_NEXUS_COUPLING_GUARD_CURRENT.md`
+  - `package.json` (`ops:nexus:kernel-coupling:guard`)
   - `core/layer0/vault/Cargo.toml`
   - `core/layer0/vault/src/lib.rs`
   - `core/layer0/vault/src/blob.rs`

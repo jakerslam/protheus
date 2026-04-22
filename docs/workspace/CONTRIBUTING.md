@@ -25,10 +25,10 @@ Run high-velocity change waves without losing correctness, architecture integrit
 
 ### Hard Architecture Constraints
 
-1. Rust Kernel (compat alias: Core; repo path `core/**`) is authoritative for truth, policy, execution, receipts, and security decisions.
-2. Shell (compat alias: Client; repo path `client/**`) is thin by design and exists only for:
+1. Rust Kernel (repo path `core/**`) is authoritative for truth, policy, execution, receipts, and security decisions.
+2. Shell (repo path `client/**`) is thin by design and exists only for:
    - building apps
-   - connecting existing apps through adapters
+   - connecting existing apps through gateways
    - exposing intentionally public/non-proprietary developer surfaces
    - exposing intended user-facing surfaces
    - providing interaction mechanisms with the system

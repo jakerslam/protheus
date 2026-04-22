@@ -21,7 +21,7 @@ profiles:
       adapter_recovery_ms_max: 15000
     stale_surface:
       incidents_max: 1
-    adapter_chaos:
+    gateway_chaos:
       baseline_pass_ratio_min: 1.0
       fail_closed_ratio_min: 1.0
       graduation_ratio_min: 1.0
@@ -42,7 +42,7 @@ profiles:
     proof_tracks:
       synthetic_required: 1
       empirical_required: 1
-      empirical_min_sample_points: 8
+      empirical_min_sample_points: 10
     memory:
       peak_rss_mb_max: 1000
     storage:
@@ -59,7 +59,7 @@ profiles:
       adapter_recovery_ms_max: 12000
     stale_surface:
       incidents_max: 1
-    adapter_chaos:
+    gateway_chaos:
       baseline_pass_ratio_min: 1.0
       fail_closed_ratio_min: 1.0
       graduation_ratio_min: 1.0
@@ -80,7 +80,7 @@ profiles:
     proof_tracks:
       synthetic_required: 1
       empirical_required: 1
-      empirical_min_sample_points: 6
+      empirical_min_sample_points: 8
     memory:
       peak_rss_mb_max: 720
     storage:
@@ -97,7 +97,7 @@ profiles:
       adapter_recovery_ms_max: 9500
     stale_surface:
       incidents_max: 1
-    adapter_chaos:
+    gateway_chaos:
       baseline_pass_ratio_min: 1.0
       fail_closed_ratio_min: 1.0
       graduation_ratio_min: 1.0

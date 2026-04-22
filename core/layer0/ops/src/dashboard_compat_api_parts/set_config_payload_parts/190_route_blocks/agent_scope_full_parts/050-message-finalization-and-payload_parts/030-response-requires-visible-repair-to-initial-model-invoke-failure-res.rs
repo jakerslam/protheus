@@ -127,9 +127,24 @@ fn repair_visible_response_after_workflow(
         );
     }
 
+    let fallback = workflow_unexpected_state_user_fallback(
+        message,
+        latest_assistant_text,
+        response_tools,
+    );
+    let guarded = ensure_no_retry_boilerplate_copy(
+        message,
+        latest_assistant_text,
+        response_tools,
+        &fallback,
+    );
     (
-        "I completed the workflow gate, but the visible response stayed empty or low-signal. Please retry and I’ll rerun the chain and explain what worked or failed directly.".to_string(),
-        "repaired_with_generic_workflow_failure".to_string(),
+        if guarded.is_empty() {
+            "I hit a response-synthesis failure on this turn, but I can continue with a direct answer from current context.".to_string()
+        } else {
+            guarded
+        },
+        "repaired_with_workflow_unexpected_state_fallback".to_string(),
         false,
         false,
     )

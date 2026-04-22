@@ -30,10 +30,9 @@ Each required domain must have at least one priority-1 lane with:
 
 ## Confinement Rule
 
-Any Node TypeScript critical path must stay inside allowed non-authoritative surfaces:
+Any Node TypeScript critical path must stay inside allowed non-authoritative Shell/flex/test surfaces:
 
 - `tests/tooling/scripts/`
-- `client/runtime/systems/ops/`
 - `client/runtime/systems/ui/`
 - `client/runtime/systems/extensions/`
 - `client/runtime/systems/marketplace/`
@@ -45,6 +44,8 @@ Anything outside the allowlist is a fail-closed gate violation.
 - `target_classification=rust_native` means lane is expected to migrate off Node by the target date.
 - If target date is passed and lane is still not at target classification, gate fails.
 - `target_classification=node_typescript` is allowed only for governance/flexibility lanes that remain explicitly non-authoritative and confined.
+- Operator-critical domains are explicitly tracked (`release`, `repair`, `topology_truth`, `recovery`, `status`) and priority-1 lanes in those domains must target `rust_native`.
+- Priority-1 operator-critical lane target dates are capped by `operator_critical_priority_cutoff_date`; dates beyond cutoff fail closed.
 
 ## Release Integration
 

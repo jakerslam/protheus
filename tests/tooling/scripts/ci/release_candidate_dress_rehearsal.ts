@@ -15,6 +15,10 @@ const CLOSURE_POLICY_PATH = path.join(
   process.cwd(),
   'client/runtime/config/production_readiness_closure_policy.json',
 );
+const REQUIRED_72H_BOUNDEDNESS_ARTIFACTS = [
+  'runtime_boundedness_72h_evidence_current.json',
+  'runtime_boundedness_profiles_current.json',
+];
 
 const DEFAULT_SEQUENCE = [
   'dr:gameday',
@@ -67,6 +71,15 @@ function parseJsonPayload(raw: string): any {
   } catch {
     return null;
   }
+}
+
+function hasRequiredArtifacts(paths: unknown, requiredFiles: string[]): { ok: boolean; present: string[] } {
+  const allPaths = Array.isArray(paths) ? paths.map((row) => clean(row, 320)).filter(Boolean) : [];
+  const present = requiredFiles.filter((required) => allPaths.some((candidate) => candidate.endsWith(required)));
+  return {
+    ok: present.length === requiredFiles.length,
+    present,
+  };
 }
 
 function readRequiredStepIds(): string[] {
@@ -123,8 +136,12 @@ function buildReport(argv: string[] = process.argv.slice(2)) {
     const layer2ReplayStep = steps.find((row) => row.gate_id === 'ops:layer2:receipt:replay');
     const trustedCoreStep = steps.find((row) => row.gate_id === 'ops:trusted-core:report');
     const proofPackStep = steps.find((row) => row.gate_id === 'ops:release:proof-pack');
+    const boundednessArtifacts = hasRequiredArtifacts(
+      runtimeProofStep?.artifact_paths,
+      REQUIRED_72H_BOUNDEDNESS_ARTIFACTS,
+    );
     return {
-      ok: failed.length === 0 && requiredStepsSatisfied,
+      ok: failed.length === 0 && requiredStepsSatisfied && boundednessArtifacts.ok,
       type: 'release_candidate_dress_rehearsal',
       generated_at: new Date().toISOString(),
       strict: args.strict,
@@ -138,7 +155,8 @@ function buildReport(argv: string[] = process.argv.slice(2)) {
         failed_count: failed.length,
         required_step_count: requiredStepGateIds.length,
         required_steps_satisfied: requiredStepsSatisfied,
-        candidate_ready: failed.length === 0 && requiredStepsSatisfied,
+        boundedness_required_artifacts_present: boundednessArtifacts.ok,
+        candidate_ready: failed.length === 0 && requiredStepsSatisfied && boundednessArtifacts.ok,
       },
       failures: failed,
       artifact_paths: steps.flatMap((row) => row.artifact_paths || []),
@@ -160,6 +178,11 @@ function buildReport(argv: string[] = process.argv.slice(2)) {
         ok: runtimeProofStep?.ok === true,
         payload_type: clean(runtimeProofStep?.payload_type || '', 120),
         artifact_paths: runtimeProofStep?.artifact_paths || [],
+      },
+      boundedness_72h: {
+        required_artifacts: REQUIRED_72H_BOUNDEDNESS_ARTIFACTS,
+        required_artifacts_present: boundednessArtifacts.ok,
+        present_artifacts: boundednessArtifacts.present,
       },
       topology: {
         ok: topologyStep?.ok === true,

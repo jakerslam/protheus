@@ -350,7 +350,7 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N1 | client/cognition/adaptive/rsi/rsi_bootstrap.ts | LOC=1597 | 2026-03-05T21:49:21Z
 - [x] N2 | client/runtime/systems/redteam/self_improving_redteam_trainer.ts | LOC=843 | 2026-03-05T21:49:23Z
 - [x] N3 | client/runtime/systems/blockchain/sovereign_blockchain_bridge.ts | LOC=823 | 2026-03-05T21:49:26Z
-- [x] N4 | client/runtime/systems/migration/core_migration_bridge.ts | LOC=768 | 2026-03-05T21:49:28Z
+- [x] N4 | client/runtime/systems/migration/kernel_migration_bridge.ts | LOC=768 | 2026-03-05T21:49:28Z
 - [x] N5 | client/runtime/systems/observability/metrics_exporter.ts | LOC=747 | 2026-03-05T21:49:31Z
 - [x] N6 | client/runtime/lib/directive_resolver.ts | LOC=715 | 2026-03-05T21:49:33Z
 - [x] N7 | client/runtime/systems/hardware/attested_assimilation_plane.ts | LOC=672 | 2026-03-05T21:49:36Z

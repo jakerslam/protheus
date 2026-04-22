@@ -15,7 +15,7 @@ fn non_legacy_surface_fixture_fallback_rate_stays_below_threshold() {
                     "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
                 },
                 "core_probe_envelope": {
-                    "execute_tool": {
+                    "web_search": {
                         "tool_available": true,
                         "transport_available": true
                     }
@@ -36,7 +36,7 @@ fn non_legacy_surface_fixture_fallback_rate_stays_below_threshold() {
                     ]
                 },
                 "core_probe_envelope": {
-                    "execute_tool": {
+                    "tool_route": {
                         "tool_available": true,
                         "transport_available": true
                     },
@@ -104,7 +104,7 @@ fn direct_tool_request_plan_variants_are_structurally_distinct() {
                     "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
                 },
                 "core_probe_envelope": {
-                    "execute_tool": {
+                    "web_search": {
                         "tool_available": true,
                         "transport_available": true
                     }
@@ -156,7 +156,7 @@ fn comparative_request_exposes_verifier_and_alternative_plan_provenance() {
                     ]
                 },
                 "core_probe_envelope": {
-                    "execute_tool": {
+                    "tool_route": {
                         "tool_available": true,
                         "transport_available": true
                     },
@@ -308,7 +308,7 @@ fn typed_execution_observation_derives_plan_status_from_step_outcomes() {
                     "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
                 },
                 "core_probe_envelope": {
-                    "execute_tool": {
+                    "web_search": {
                         "tool_available": true,
                         "transport_available": true
                     }

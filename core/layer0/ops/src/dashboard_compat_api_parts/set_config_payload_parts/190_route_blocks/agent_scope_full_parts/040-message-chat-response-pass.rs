@@ -32,17 +32,17 @@ fn handle_message_chat_response_pass(
         pre_generation_pruned,
         recent_floor_enforced,
         recent_floor_injected,
-        recent_floor_target: _recent_floor_target,
-        recent_floor_missing_before: _recent_floor_missing_before,
-        recent_floor_satisfied: _recent_floor_satisfied,
-        recent_floor_coverage_before: _recent_floor_coverage_before,
-        recent_floor_coverage_after: _recent_floor_coverage_after,
-        recent_floor_active_missing: _recent_floor_active_missing,
-        recent_floor_active_satisfied: _recent_floor_active_satisfied,
-        recent_floor_active_coverage: _recent_floor_active_coverage,
-        recent_floor_continuity_status: _recent_floor_continuity_status,
-        recent_floor_continuity_action: _recent_floor_continuity_action,
-        recent_floor_continuity_message: _recent_floor_continuity_message,
+        recent_floor_target,
+        recent_floor_missing_before,
+        recent_floor_satisfied,
+        recent_floor_coverage_before,
+        recent_floor_coverage_after,
+        recent_floor_active_missing,
+        recent_floor_active_satisfied,
+        recent_floor_active_coverage,
+        recent_floor_continuity_status,
+        recent_floor_continuity_action,
+        recent_floor_continuity_message,
         history_trim_confirmed,
         emergency_compact,
         workspace_hints,
@@ -343,16 +343,49 @@ fn handle_message_chat_response_pass(
                     "I dropped an unrelated context artifact and did not return it. Please resend your request and I will answer only that prompt.".to_string()
                 });
             }
-            let workflow_mode = if response_tools.is_empty() {
+            let conversation_bypass_control = workflow_conversation_bypass_control_for_turn(
+                message,
+                &active_messages,
+                gate_should_call_tools,
+                inline_tools_allowed,
+            );
+            let conversation_bypass_active = conversation_bypass_control
+                .get("enabled")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            let conversation_bypass_mode_override = clean_text(
+                conversation_bypass_control
+                    .get("workflow_mode_override")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                120,
+            );
+            let mut workflow_mode = if response_tools.is_empty() {
                 "model_direct_answer".to_string()
             } else {
                 "model_inline_tool_execution".to_string()
             };
-            let workflow_system_events = build_turn_workflow_events(
+            if conversation_bypass_active
+                && response_tools.is_empty()
+                && !conversation_bypass_mode_override.is_empty()
+            {
+                workflow_mode = conversation_bypass_mode_override;
+            }
+            let mut workflow_system_events = build_turn_workflow_events(
                 &response_tools,
                 inline_pending_confirmation.as_ref(),
                 false,
             );
+            if conversation_bypass_control
+                .get("should_emit_event")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+            {
+                workflow_system_events.push(turn_workflow_event(
+                    "conversation_bypass_control",
+                    conversation_bypass_control,
+                ));
+            }
             Some(finalize_message_finalization_and_payload(
                 root,
                 agent_id,

@@ -288,9 +288,15 @@ fn handle_agent_scope_message_route(
                     "workflow_unexpected_state",
                     180,
                 );
+                let fallback_response = ensure_no_retry_boilerplate_copy(
+                    &message,
+                    "",
+                    &response_tools,
+                    &workflow_unexpected_state_user_fallback(&message, "", &response_tools),
+                );
                 let (contracted, report, retry_outcome) = enforce_user_facing_finalization_contract(
                     &message,
-                    workflow_unexpected_state_user_fallback(&message, "", &response_tools),
+                    fallback_response,
                     &response_tools,
                 );
                 finalized_response = contracted;

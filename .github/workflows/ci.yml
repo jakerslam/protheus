@@ -44,18 +44,23 @@ jobs:
           npm run -s ops:orchestration:contract:guard
           npm run -s ops:orchestration:hidden-state:guard
           npm run -s ops:debt:expiry:guard
-          npm run -s ops:client-naming:guard
+          npm run -s ops:shell-naming:guard
           npm run -s ops:orchestration-naming:guard
-          npm run -s ops:core-naming:guard
+          npm run -s ops:kernel-naming:guard
           npm run -s ops:tooling-registry:contract:guard
           npm run -s ops:ci-workflow:check
           npm run -s ops:ci-quality:check
           npm run -s ops:dashboard:surface:guard
-          npm run -s ops:orchestration:adapter-fallback:guard
+          npm run -s ops:orchestration:gateway-fallback:guard
           npm run -s ops:orchestration:planner-quality:guard
           npm run -s ops:orchestration:ownership:guard
+          npm run -s ops:typed-probe:matrix:guard
           npm run -s ops:ownership:drift:guard
+          node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/orchestration_boundary_contract_guard.ts --strict=1 --out-json=core/local/artifacts/orchestration_boundary_contract_guard_current.json --out-md=local/workspace/reports/ORCHESTRATION_BOUNDARY_CONTRACT_GUARD_CURRENT.md
           npm run -s ops:ownership:placement-rationale:guard
+          node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/pr_template_contract_guard.ts --strict=1 --out-json=core/local/artifacts/pr_template_contract_guard_current.json --out-md=local/workspace/reports/PR_TEMPLATE_CONTRACT_GUARD_CURRENT.md
+          npm run -s ops:runtime-closure:board:guard
+          npm run -s ops:runtime-closure:feature-alignment:guard
           npm run -s ops:layer-placement:check
           npm run -s ops:nexus:boundary:audit
           npm run -s ops:client-import-integrity:audit
@@ -66,7 +71,10 @@ jobs:
           npm run -s ops:queue-backpressure:policy:gate
           npm run -s ops:layer2:parity:guard
           npm run -s ops:layer2:receipt:replay
+          npm run -s ops:gateway-status:manifest
+          npm run -s ops:workspace-tooling:context:soak
           npm run -s ops:runtime-proof:verify
+          npm run -s ops:workspace-tooling:release-proof
           npm run -s ops:boundedness:release-gate
           npm run -s ops:system:fitness:gate
 
@@ -178,10 +186,15 @@ jobs:
             core/local/artifacts/tooling_registry_contract_guard_current.json
             core/local/artifacts/ci_workflow_rationalization_contract_current.json
             core/local/artifacts/ci_quality_scorecard_current.json
-            core/local/artifacts/orchestration_adapter_fallback_guard_current.json
+            core/local/artifacts/orchestration_gateway_fallback_guard_current.json
             core/local/artifacts/orchestration_ownership_guard_current.json
+            core/local/artifacts/typed_probe_contract_matrix_guard_current.json
             core/local/artifacts/ownership_drift_guard_current.json
+            core/local/artifacts/orchestration_boundary_contract_guard_current.json
             core/local/artifacts/ownership_placement_rationale_guard_current.json
+            core/local/artifacts/pr_template_contract_guard_current.json
+            core/local/artifacts/runtime_closure_board_guard_current.json
+            core/local/artifacts/runtime_closure_feature_alignment_guard_current.json
             core/local/artifacts/client_import_integrity_audit_current.json
             core/local/artifacts/nexus_import_export_boundary_audit_current.json
             core/local/artifacts/shell_truth_leak_guard_current.json
@@ -191,6 +204,7 @@ jobs:
             core/local/artifacts/layer2_lane_parity_guard_current.json
             core/local/artifacts/layer2_receipt_replay_current.json
             core/local/artifacts/runtime_proof_verify_current.json
+            core/local/artifacts/gateway_status_manifest_current.json
             core/local/artifacts/runtime_proof_harness_rich_current.json
             core/local/artifacts/runtime_proof_harness_pure_current.json
             core/local/artifacts/runtime_proof_harness_tiny-max_current.json
@@ -205,8 +219,11 @@ jobs:
             core/local/artifacts/runtime_multi_day_soak_evidence_current.json
             core/local/artifacts/runtime_proof_empirical_release_evidence_current.json
             core/local/artifacts/runtime_proof_empirical_trends_current.json
+            core/local/artifacts/workspace_tooling_context_soak_current.json
+            core/local/artifacts/workspace_tooling_release_proof_current.json
             core/local/artifacts/runtime_boundedness_release_gate_current.json
             core/local/artifacts/dashboard_surface_authority_guard_current.json
+            core/local/artifacts/shell_naming_policy_guard_current.json
             core/local/artifacts/client_naming_policy_guard_current.json
             core/local/artifacts/orchestration_naming_policy_guard_current.json
             core/local/artifacts/core_naming_policy_guard_current.json
@@ -215,10 +232,16 @@ jobs:
             core/local/artifacts/policy_debt_summary_current.json
             local/workspace/reports/CI_WORKFLOW_RATIONALIZATION_CONTRACT_CURRENT.md
             local/workspace/reports/CI_QUALITY_SCORECARD_CURRENT.md
-            local/workspace/reports/ORCHESTRATION_ADAPTER_FALLBACK_GUARD_CURRENT.md
+            local/workspace/reports/ORCHESTRATION_GATEWAY_FALLBACK_GUARD_CURRENT.md
             local/workspace/reports/ORCHESTRATION_OWNERSHIP_GUARD_CURRENT.md
+            local/workspace/reports/TYPED_PROBE_CONTRACT_MATRIX_GUARD_CURRENT.md
             local/workspace/reports/OWNERSHIP_DRIFT_GUARD_CURRENT.md
+            local/workspace/reports/ORCHESTRATION_BOUNDARY_CONTRACT_GUARD_CURRENT.md
             local/workspace/reports/OWNERSHIP_PLACEMENT_RATIONALE_GUARD_CURRENT.md
+            local/workspace/reports/PR_TEMPLATE_CONTRACT_GUARD_CURRENT.md
+            local/workspace/reports/GATEWAY_STATUS_MANIFEST_CURRENT.md
+            local/workspace/reports/RUNTIME_CLOSURE_BOARD_GUARD_CURRENT.md
+            local/workspace/reports/RUNTIME_CLOSURE_FEATURE_ALIGNMENT_GUARD_CURRENT.md
             local/workspace/reports/SHELL_TRUTH_LEAK_GUARD_CURRENT.md
             local/workspace/reports/SHELL_TRANSITION_TRACKER_CURRENT.md
             local/workspace/reports/RELEASE_LANE_REVIEWER_REDUNDANCY_GUARD_CURRENT.md
@@ -232,11 +255,15 @@ jobs:
             local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_PURE_CURRENT.md
             local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_TINY-MAX_CURRENT.md
             local/workspace/reports/DASHBOARD_SURFACE_AUTHORITY_GUARD_CURRENT.md
+            local/workspace/reports/SHELL_NAMING_POLICY_GUARD_CURRENT.md
             local/workspace/reports/CLIENT_NAMING_POLICY_GUARD_CURRENT.md
             local/workspace/reports/ORCHESTRATION_NAMING_POLICY_GUARD_CURRENT.md
             local/workspace/reports/CORE_NAMING_POLICY_GUARD_CURRENT.md
             local/workspace/reports/TECH_DEBT_REPORT_CURRENT.md
             local/workspace/reports/POLICY_DEBT_SUMMARY_CURRENT.md
+            local/workspace/reports/WORKSPACE_TOOLING_CONTEXT_SOAK_CURRENT.md
+            local/workspace/reports/WORKSPACE_TOOLING_RELEASE_PROOF_CURRENT.md
+            artifacts/workspace_tooling_context_soak_report_latest.json
             local/workspace/reports/SRS_FULL_REGRESSION_CURRENT.md
           if-no-files-found: warn
 

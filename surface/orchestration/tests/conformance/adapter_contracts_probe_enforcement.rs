@@ -17,7 +17,7 @@ fn adapted_tool_request_requires_explicit_tool_probe() {
                     "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
                 },
                 "core_probe_envelope": {
-                    "execute_tool": {
+                    "web_search": {
                         "transport_available": true
                     }
                 }
@@ -45,7 +45,7 @@ fn adapted_tool_request_requires_explicit_tool_probe() {
     assert!(package.selected_plan.capability_probes.iter().any(|row| {
         row.capability.is_tool_family()
             && row.probe_sources.iter().any(|source| {
-                source == "probe.required_for_typed_surface.execute_tool.tool_available"
+                source == "probe.required_for_typed_surface.web_search.tool_available"
             })
     }));
 }
@@ -67,12 +67,12 @@ fn adapted_tool_request_rejects_payload_tool_probe_shortcut() {
                     "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
                 },
                 "core_probe_envelope": {
-                    "execute_tool": {
+                    "web_search": {
                         "transport_available": true
                     }
                 },
                 "capability_probes": {
-                    "execute_tool": {
+                    "web_search": {
                         "tool_available": true
                     }
                 }
@@ -88,7 +88,7 @@ fn adapted_tool_request_rejects_payload_tool_probe_shortcut() {
     assert!(package.selected_plan.capability_probes.iter().any(|row| {
         row.capability.is_tool_family()
             && row.probe_sources.iter().any(|source| {
-                source == "probe.required_for_typed_surface.execute_tool.tool_available"
+                source == "probe.required_for_typed_surface.web_search.tool_available"
             })
     }));
 }

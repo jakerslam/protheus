@@ -256,7 +256,7 @@
     "Release-candidate dress rehearsal: `npm run -s ops:release:rc-rehearsal`.",
     "Release-candidate recovery rehearsal is required every cycle through `npm run -s ops:release:rc-rehearsal`.",
     "Release-candidate rehearsal also requires chaos, replay, and orchestration hidden-state proofs.",
-    "Client authority regression guard: `npm run -s ops:client-layer:boundary`.",
+    "Shell authority regression guard: `npm run -s ops:client-layer:boundary`.",
     "Support bundle is the single incident truth package for release closure.",
     "`npm run -s ops:support-bundle:export`"
   ],

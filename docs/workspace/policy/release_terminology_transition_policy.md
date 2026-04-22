@@ -1,52 +1,40 @@
-# Release Terminology Transition Policy
+# Release Terminology Canonical Policy
 
 ## Purpose
 
-Define release-governed transition rules for canonical public terminology while preserving backward compatibility during migration windows.
+Define release-governed canonical terminology rules after alias retirement.
 
 ## Canonical Terms
 
-- Authority layer: `Kernel` (compatibility alias: `Core`)
-- External boundary layer: `Gateways` (compatibility alias: `Adapters`)
+- Authority layer: `Kernel`
+- External boundary layer: `Gateways`
+- Presentation layer: `Shell`
 
-## Compatibility Window
+## Alias Retirement State
 
-- Repository path compatibility remains:
-  - `core/**` for kernel authority
-  - `adapters/**` for gateway boundary layer
-- Legacy aliases are supported until retirement targets below.
-
-## Alias Retirement Targets
-
-- `Core` compatibility alias retirement target:
-  - version: `v0.5.0`
-  - date: `2026-07-15`
-- `Adapters` compatibility alias retirement target:
-  - version: `v0.5.0`
-  - date: `2026-07-15`
+- Compatibility aliases listed in the transition alias maps are retired effective:
+  - version: `retired-2026-04-22`
+  - date: `2026-04-22`
+- Legacy repository paths (`core/**`, `adapters/**`, `client/**`) remain implementation paths only.
 
 ## Release Checklist Requirements
 
 For each release candidate:
 
 1. Public docs must use canonical-first terminology (`Kernel`, `Gateways`, `Shell`).
-2. Compatibility aliases must be explicitly labeled as aliases when present.
-3. `Core` may only appear as compatibility alias or immutable path context (`core/**`), never as the primary authority term.
-4. Command aliases must remain functional during compatibility window:
-   - `ops:kernel-naming:guard` -> `ops:core-naming:guard`
-   - `ops:gateway-runtime-chaos:gate` -> `ops:adapter-runtime-chaos:gate`
-   - `test:ops:gateway-chaos:rust` -> `test:ops:adapter-chaos:rust`
-   - `ops:orchestration:gateway-fallback:guard` -> `ops:orchestration:adapter-fallback:guard`
-5. Compatibility mapping file must be present and current:
+2. Retired alias labels must not appear in public/operator docs as layer names.
+3. Terminology inventory must fail-closed on retired alias terms in scanned docs.
+4. Canonical transition/tracker files must be present and current:
    - `client/runtime/config/kernel_transition_alias_map.json`
    - `client/runtime/config/gateway_transition_alias_map.json`
+   - `client/runtime/config/shell_transition_alias_map.json`
    - `client/runtime/config/terminology_transition_deprecation_tracker.json`
-6. After retirement target date/version, releases must remove deprecated aliases unless an explicit blocker exception is documented.
+5. Public/operator docs must not present any retired authority alias as a standalone primary authority label; canonical form must be `Kernel`.
 
-## Exception Policy
+## Exception Policy (Break-Glass Only)
 
-If an alias cannot be retired by target:
+If a retired alias must be temporarily reintroduced:
 
 1. Record blocker + owner + new date in release notes.
 2. Add explicit exception note in README transition section.
-3. Keep alias in compatibility map with `status=extended`.
+3. Reintroduce alias only as a time-bounded break-glass override with explicit expiry.

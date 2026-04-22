@@ -111,6 +111,7 @@ function formatMarkdown(payload: any): string {
   lines.push(`- contract_file_failures: ${payload.summary.contract_file_failures}`);
   lines.push(`- error_violations: ${payload.summary.error_violations}`);
   lines.push(`- warning_violations: ${payload.summary.warning_violations}`);
+  lines.push(`- pattern_hits: ${payload.summary.pattern_hits}`);
   lines.push('');
   lines.push('## Required Field Coverage');
   lines.push('| field | category | hits | ok |');
@@ -159,6 +160,16 @@ function formatMarkdown(payload: any): string {
     }
   }
   lines.push('');
+  lines.push('## Pattern Hits');
+  lines.push('| pattern_id | severity | files | matches |');
+  lines.push('| --- | --- | ---: | ---: |');
+  for (const row of payload.pattern_hits || []) {
+    lines.push(`| ${row.pattern_id} | ${row.severity} | ${row.files} | ${row.matches} |`);
+  }
+  if (!(payload.pattern_hits || []).length) {
+    lines.push('| (none) | - | 0 | 0 |');
+  }
+  lines.push('');
   return `${lines.join('\n')}\n`;
 }
 
@@ -200,6 +211,13 @@ function main() {
 
   const errorViolations: Array<any> = [];
   const warningViolations: Array<any> = [];
+  const patternHitMap = new Map<string, {
+    pattern_id: string;
+    severity: 'error' | 'warn';
+    description: string;
+    files: Set<string>;
+    matches: number;
+  }>();
 
   for (const file of scannedFiles) {
     const abs = path.resolve(ROOT, file);
@@ -233,6 +251,16 @@ function main() {
       };
       if (row.severity === 'error') errorViolations.push(row);
       else warningViolations.push(row);
+      const existing = patternHitMap.get(row.pattern_id) || {
+        pattern_id: row.pattern_id,
+        severity: row.severity as 'error' | 'warn',
+        description: row.description,
+        files: new Set<string>(),
+        matches: 0,
+      };
+      existing.files.add(file);
+      existing.matches += row.matches;
+      patternHitMap.set(row.pattern_id, existing);
     }
   }
 
@@ -315,6 +343,15 @@ function main() {
 
   const coverageFailures = requiredFieldCoverage.filter((row) => !row.ok);
   const enumFailures = enumEvidence.filter((row) => !row.ok);
+  const patternHits = Array.from(patternHitMap.values())
+    .map((row) => ({
+      pattern_id: row.pattern_id,
+      severity: row.severity,
+      description: row.description,
+      files: row.files.size,
+      matches: row.matches,
+    }))
+    .sort((a, b) => a.pattern_id.localeCompare(b.pattern_id, 'en'));
 
   const report = {
     type: 'shell_truth_leak_guard',
@@ -331,6 +368,7 @@ function main() {
       contract_file_failures: contractFileFailures.length,
       error_violations: errorViolations.length,
       warning_violations: warningViolations.length,
+      pattern_hits: patternHits.length,
       pass: coverageFailures.length === 0
         && enumFailures.length === 0
         && contractFileFailures.length === 0
@@ -342,6 +380,7 @@ function main() {
     contract_file_failures: contractFileFailures,
     error_violations: errorViolations,
     warning_violations: warningViolations,
+    pattern_hits: patternHits,
   };
 
   const markdown = formatMarkdown({

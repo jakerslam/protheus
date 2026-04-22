@@ -22,7 +22,7 @@ fn non_legacy_surface_fixture_quality_stays_within_surface_thresholds() {
                     "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
                 },
                 "core_probe_envelope": {
-                    "execute_tool": {
+                    "web_search": {
                         "tool_available": true,
                         "transport_available": true
                     }
@@ -43,7 +43,7 @@ fn non_legacy_surface_fixture_quality_stays_within_surface_thresholds() {
                     ]
                 },
                 "core_probe_envelope": {
-                    "execute_tool": {
+                    "tool_route": {
                         "tool_available": true,
                         "transport_available": true
                     },

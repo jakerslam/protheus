@@ -16,7 +16,7 @@ Prevent false completion claims and keep execution ledgers truthful.
 
 An item may be marked `done` only if all checks are true:
 
-1. Authority change exists in the correct layer (core for canonical truth; `surface/orchestration/**` for non-canonical control-plane coordination such as decomposition/coordination/sequencing/recovery/packaging; shell path `client/**` only thin UX/wrapper).
+1. Authority change exists in the correct layer (Kernel authority via `core/**` compatibility path for canonical truth; `surface/orchestration/**` for non-canonical control-plane coordination such as decomposition/coordination/sequencing/recovery/packaging; shell path `client/**` only thin UX/wrapper).
 2. Evidence points to non-backlog files (code/tests/scripts/artifacts), not only TODO/SRS text.
 3. Evidence paths resolve:
    - concrete file path exists, or
@@ -26,7 +26,7 @@ An item may be marked `done` only if all checks are true:
 6. Repository churn is reconciled for the touched scope: no unresolved delete+untracked move pairs (`npm run -s ops:churn:guard`).
 7. Touched source files comply with canonical caps in `docs/workspace/repo_file_size_policy.json` (as mirrored in `docs/workspace/codex_enforcer.md`), or include a valid time-bounded exception per policy.
 8. Touched source files comply with the language allowlist in `docs/workspace/codex_enforcer.md` (no authored JavaScript).
-9. Any new authority introduced by the change is implemented in `core/**` (shell path `client/**` stays thin wrapper/UX only).
+9. Any new authority introduced by the change is implemented in Kernel authority (`core/**` compatibility path) (shell path `client/**` stays thin wrapper/UX only).
 10. Any net-new functionality in the revision has a matching SRS row/update in `docs/workspace/SRS.md` with acceptance criteria and regression evidence pointers.
 11. For Codex ledger assimilation updates, rows are completed in a 4-8 file disjoint wave with strict preflight (clean status + churn guard + queued-row verification) and targeted tests logged before `done` mutation.
 

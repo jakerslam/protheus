@@ -7,9 +7,9 @@ import { currentRevision, trackedFiles } from '../../lib/git.ts';
 import { emitStructuredResult } from '../../lib/result.ts';
 
 const ROOT = process.cwd();
-const DEFAULT_POLICY_PATH = 'tests/tooling/config/core_nexus_coupling_policy.json';
-const DEFAULT_OUT = 'core/local/artifacts/core_nexus_coupling_guard_current.json';
-const DEFAULT_REPORT = 'local/workspace/reports/CORE_NEXUS_COUPLING_GUARD_CURRENT.md';
+const DEFAULT_POLICY_PATH = 'tests/tooling/config/kernel_nexus_coupling_policy.json';
+const DEFAULT_OUT = 'core/local/artifacts/kernel_nexus_coupling_guard_current.json';
+const DEFAULT_REPORT = 'local/workspace/reports/KERNEL_NEXUS_COUPLING_GUARD_CURRENT.md';
 
 type ImportEdgeExemption = {
   from_package: string;
@@ -604,7 +604,7 @@ function main() {
     (!failOnStale || staleExemptions.length === 0);
 
   const payload = {
-    type: 'core_nexus_coupling_guard',
+    type: 'kernel_nexus_coupling_guard',
     generated_at: new Date().toISOString(),
     revision: currentRevision(ROOT),
     strict: args.strict,

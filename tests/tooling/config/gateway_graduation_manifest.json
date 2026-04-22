@@ -94,7 +94,8 @@
         "fail_closed_behavior": "in_progress",
         "chaos_scenarios": "in_progress",
         "receipt_completeness": "in_progress",
-        "fallback_degradation_declaration": "in_progress"
+        "fallback_degradation_declaration": "in_progress",
+        "recovery_bounds": "in_progress"
       },
       "notes": "roadmap adapter tracked in graduation manifest; bridge lane pending"
     },
@@ -113,7 +114,8 @@
         "fail_closed_behavior": "in_progress",
         "chaos_scenarios": "in_progress",
         "receipt_completeness": "in_progress",
-        "fallback_degradation_declaration": "in_progress"
+        "fallback_degradation_declaration": "in_progress",
+        "recovery_bounds": "in_progress"
       },
       "notes": "roadmap adapter tracked in graduation manifest; bridge lane pending"
     },
@@ -132,7 +134,8 @@
         "fail_closed_behavior": "in_progress",
         "chaos_scenarios": "in_progress",
         "receipt_completeness": "in_progress",
-        "fallback_degradation_declaration": "in_progress"
+        "fallback_degradation_declaration": "in_progress",
+        "recovery_bounds": "in_progress"
       },
       "notes": "roadmap adapter tracked in graduation manifest; baseline contract pending"
     },
@@ -151,7 +154,8 @@
         "fail_closed_behavior": "in_progress",
         "chaos_scenarios": "in_progress",
         "receipt_completeness": "in_progress",
-        "fallback_degradation_declaration": "in_progress"
+        "fallback_degradation_declaration": "in_progress",
+        "recovery_bounds": "in_progress"
       },
       "notes": "roadmap adapter tracked in graduation manifest; export lane pending"
     },
@@ -170,7 +174,8 @@
         "fail_closed_behavior": "in_progress",
         "chaos_scenarios": "in_progress",
         "receipt_completeness": "in_progress",
-        "fallback_degradation_declaration": "in_progress"
+        "fallback_degradation_declaration": "in_progress",
+        "recovery_bounds": "in_progress"
       },
       "notes": "roadmap adapter tracked in graduation manifest; local_durable_memory_backend compatibility alias"
     }
