@@ -170,24 +170,24 @@ fn tooling_pipeline_execute<F>(
 where
     F: FnOnce(&Value) -> Result<Value, String>,
 {
-    let mut broker = protheus_tooling_core_v1::ToolBroker::default();
+    let mut broker = crate::protheus_tooling_core_v1_bridge::ToolBroker::default();
     let _ = broker.recover_from_ledger();
-    let extractor = protheus_tooling_core_v1::EvidenceExtractor;
-    let mut store = protheus_tooling_core_v1::EvidenceStore::default();
+    let extractor = crate::protheus_tooling_core_v1_bridge::EvidenceExtractor;
+    let mut store = crate::protheus_tooling_core_v1_bridge::EvidenceStore::default();
     let _ = store.recover_from_ledger();
-    let verifier = protheus_tooling_core_v1::StructuredVerifier;
+    let verifier = crate::protheus_tooling_core_v1_bridge::StructuredVerifier;
     let tool_name_clean = clean_text(tool_name, 80);
     let capability_probe = broker.capability_probe(
-        protheus_tooling_core_v1::BrokerCaller::Client,
+        crate::protheus_tooling_core_v1_bridge::BrokerCaller::Client,
         tool_name_clean.as_str(),
     );
-    let request = protheus_tooling_core_v1::ToolCallRequest {
+    let request = crate::protheus_tooling_core_v1_bridge::ToolCallRequest {
         trace_id: clean_text(trace_id, 160),
         task_id: clean_text(task_id, 160),
         tool_name: tool_name_clean.clone(),
         args: tool_args.clone(),
         lineage: vec!["dashboard_compat_api".to_string()],
-        caller: protheus_tooling_core_v1::BrokerCaller::Client,
+        caller: crate::protheus_tooling_core_v1_bridge::BrokerCaller::Client,
         policy_revision: Some("policy.tooling.dashboard_compat_api.v1".to_string()),
         tool_version: Some(format!("{tool_name_clean}.v1")),
         freshness_window_ms: None,
@@ -218,11 +218,11 @@ where
         .map(|claim| (*claim).clone())
         .collect::<Vec<_>>();
     let status = if evidence_ids.is_empty() || claim_ref_validation.is_some() {
-        protheus_tooling_core_v1::WorkerTaskStatus::Blocked
+        crate::protheus_tooling_core_v1_bridge::WorkerTaskStatus::Blocked
     } else {
-        protheus_tooling_core_v1::WorkerTaskStatus::Completed
+        crate::protheus_tooling_core_v1_bridge::WorkerTaskStatus::Completed
     };
-    let worker_output = protheus_tooling_core_v1::WorkerOutput {
+    let worker_output = crate::protheus_tooling_core_v1_bridge::WorkerOutput {
         task_id: clean_text(task_id, 160),
         status,
         produced_evidence_ids: evidence_ids.clone(),
@@ -243,7 +243,7 @@ where
             rows.extend(claim_ref_validation);
             rows
         },
-        budget_used: protheus_tooling_core_v1::WorkerBudgetUsed {
+        budget_used: crate::protheus_tooling_core_v1_bridge::WorkerBudgetUsed {
             tool_calls: 1,
             input_tokens: (clean_text(&tool_args.to_string(), 8000).len() / 4).max(1),
             output_tokens: (clean_text(&raw_payload.to_string(), 8000).len() / 4).max(1),
@@ -251,7 +251,7 @@ where
     };
     json!({
         "ok": true,
-        "schema_contract": protheus_tooling_core_v1::published_schema_contract_v1(),
+        "schema_contract": crate::protheus_tooling_core_v1_bridge::published_schema_contract_v1(),
         "tool_display_meta": tooling_pipeline_display_meta(&tool_name_clean, tool_args),
         "tool_capability_probe": capability_probe,
         "tool_attempt": attempt,

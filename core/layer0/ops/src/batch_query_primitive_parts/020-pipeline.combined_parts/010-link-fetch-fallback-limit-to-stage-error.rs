@@ -96,26 +96,23 @@ fn framework_catalog_candidate_coverage(candidates: &[Candidate]) -> usize {
 }
 
 fn query_overlap_terms(query: &str, candidate: &Candidate) -> usize {
-    let query_tokens = query
-        .split(|ch: char| !ch.is_ascii_alphanumeric())
-        .map(str::trim)
-        .filter(|token| token.len() > 2)
-        .map(|token| token.to_ascii_lowercase())
-        .collect::<HashSet<_>>();
+    let query_tokens = tokenize_relevance(query, 40);
     if query_tokens.is_empty() {
         return 0;
     }
-    let haystack = clean_text(
+    let candidate_tokens = tokenize_relevance(
         &format!(
             "{} {} {}",
             candidate.title, candidate.snippet, candidate.locator
         ),
-        3_200,
-    )
-    .to_ascii_lowercase();
+        120,
+    );
+    if candidate_tokens.is_empty() {
+        return 0;
+    }
     query_tokens
         .iter()
-        .filter(|token| haystack.contains(token.as_str()))
+        .filter(|token| candidate_tokens.contains(token.as_str()))
         .count()
 }
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-use execution_core::{
+use crate::execution_lane_bridge::{
     band_for_score as initiative_band_for_score,
     front_jump_for_score as initiative_front_jump_for_score,
     initiative_for_score as initiative_contract_for_score, DEFAULT_FRONT_JUMP_THRESHOLD,
@@ -381,8 +381,8 @@ mod tests {
                 }
             });
             let layer0 = infer_from_event(&event, "info", &pm);
-            let layer2 = execution_core::evaluate_importance(
-                &execution_core::ImportanceInput {
+            let layer2 = crate::execution_lane_bridge::evaluate_importance(
+                &crate::execution_lane_bridge::ImportanceInput {
                     criticality: Some(score),
                     urgency: Some(score),
                     impact: Some(score),

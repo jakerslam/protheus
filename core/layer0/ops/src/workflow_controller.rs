@@ -148,7 +148,7 @@ fn usage() {
 }
 
 fn success_receipt(command: &str, scope: Option<&str>, argv: &[String], root: &Path) -> Value {
-    let mut out = protheus_autonomy_core_v1::workflow_receipt(command, scope);
+    let mut out = crate::protheus_autonomy_core_v1_bridge::workflow_receipt(command, scope);
     if let Some(obj) = out.as_object_mut() {
         obj.insert("argv".to_string(), json!(argv));
         obj.insert(
@@ -169,7 +169,7 @@ fn success_receipt(command: &str, scope: Option<&str>, argv: &[String], root: &P
             ]),
         );
     }
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
@@ -180,7 +180,7 @@ fn error_receipt(error: &str, argv: &[String]) -> Value {
         "error": error,
         "argv": argv
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
@@ -211,7 +211,7 @@ fn web_tooling_status_receipt(argv: &[String], root: &Path) -> Value {
             "sources": web_auth_sources()
         }
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
@@ -242,7 +242,7 @@ fn web_tooling_errors_receipt(argv: &[String], root: &Path) -> Value {
         "error_rows": rows,
         "count": rows.len()
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
@@ -271,7 +271,7 @@ fn web_tooling_probe_receipt(argv: &[String], root: &Path) -> Value {
             "canonical": canonical
         }
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
@@ -304,7 +304,7 @@ fn web_tooling_preferences_receipt(argv: &[String], _root: &Path) -> Value {
             }
         }
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 

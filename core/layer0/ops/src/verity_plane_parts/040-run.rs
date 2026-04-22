@@ -37,7 +37,7 @@ fn attach_execution_receipt(mut payload: Value, cmd: &str) -> Value {
         "source": VERITY_EXECUTION_RECEIPT_SOURCE,
         "tool_runtime_class": "receipt_wrapped"
     });
-    payload["receipt_hash"] = Value::String(deterministic_receipt_hash(&payload));
+    payload["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&payload));
     payload
 }
 
@@ -65,7 +65,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "error": "unknown_command",
                 "command": cmd,
             });
-            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
             out
         }
     };

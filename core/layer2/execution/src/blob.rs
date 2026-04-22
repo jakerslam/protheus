@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::fmt::{Display, Formatter};
-use protheus_nexus_core_v1::decode_normalized_blob_manifest;
+use infring_types::decode_normalized_blob_manifest;
 
 pub const EXECUTION_PROFILE_BLOB_ID: &str = "execution_runtime_profile";
 pub const EXECUTION_PROFILE_BLOB: &[u8] = include_bytes!("blobs/execution_runtime_profile.blob");

@@ -71,7 +71,7 @@ fn conduit_enforcement(root: &Path, parsed: &ParsedArgs, strict: bool, action: &
             }
         ]
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     let history_path = state_root(root).join("conduit").join("history.jsonl");
     let _ = append_jsonl(&history_path, &out);
     out

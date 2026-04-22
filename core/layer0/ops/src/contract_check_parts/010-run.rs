@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::now_iso;
-use foundation_hook_enforcer::{
+use crate::foundation_hook_enforcer_bridge::{
     evaluate_source_hook_coverage, HookCoverageReceipt, CHECK_ID_FOUNDATION_HOOKS,
     CHECK_ID_GUARD_REGISTRY_CONSUMPTION,
 };
@@ -80,7 +80,7 @@ pub fn run(root: &Path, args: &[String]) -> i32 {
     match execute_contract_checks(root, &args) {
         Ok(mut receipt) => {
             println!("contract_check: OK");
-            receipt["receipt_hash"] = Value::String(deterministic_receipt_hash(&receipt));
+            receipt["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&receipt));
             println!(
                 "{}",
                 serde_json::to_string_pretty(&receipt).unwrap_or_else(|_| "{}".to_string())
@@ -97,7 +97,7 @@ pub fn run(root: &Path, args: &[String]) -> i32 {
                 "ts": now_iso(),
                 "required_check_ids": contract_check_ids_from_args(&args),
             });
-            receipt["receipt_hash"] = Value::String(deterministic_receipt_hash(&receipt));
+            receipt["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&receipt));
             eprintln!(
                 "{}",
                 serde_json::to_string_pretty(&receipt).unwrap_or_else(|_| "{}".to_string())

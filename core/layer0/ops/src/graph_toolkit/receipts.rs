@@ -25,7 +25,7 @@ fn direct_error_payload(type_name: &str, error: &str) -> Value {
         "error": error,
         "exit_code": 2
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
@@ -57,7 +57,7 @@ pub fn emit(root: &Path, payload: Value) -> i32 {
 fn cache_key(command: &str, graph_hash: &str, params: &Value) -> String {
     sha256_hex_str(&format!(
         "{command}:{graph_hash}:{}",
-        deterministic_receipt_hash(params)
+        crate::deterministic_receipt_hash(params)
     ))
 }
 

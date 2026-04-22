@@ -226,7 +226,7 @@ fn stable_json_string(value: &Value) -> String {
 }
 
 pub fn deterministic_receipt_hash(value: &Value) -> String {
-    protheus_ops_core_v1::hot_path_allocators::deterministic_hash(value)
+    protheus_ops_core_v1_bridge::hot_path_allocators::deterministic_hash(value)
 }
 
 fn to_bool(v: Option<&str>, fallback: bool) -> bool {
@@ -1160,7 +1160,7 @@ mod tests {
         let mut reference = Sha256::new();
         reference.update(stable_json_string(&payload).as_bytes());
         let expected = hex::encode(reference.finalize());
-        assert_eq!(deterministic_receipt_hash(&payload), expected);
+        assert_eq!(crate::deterministic_receipt_hash(&payload), expected);
     }
 
     #[test]
@@ -1176,8 +1176,8 @@ mod tests {
             "alpha": 1
         });
         assert_eq!(
-            deterministic_receipt_hash(&left),
-            deterministic_receipt_hash(&right)
+            crate::deterministic_receipt_hash(&left),
+            crate::deterministic_receipt_hash(&right)
         );
     }
 

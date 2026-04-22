@@ -401,7 +401,7 @@ fn run_llm_gateway_guard(_root: &Path, argv: &[String], strict: bool) -> (Value,
 
 fn run_startup_attestation_boot_gate(root: &Path, argv: &[String]) -> (Value, i32) {
     if argv.is_empty() {
-        return infring_layer1_security::run_startup_attestation(root, &["status".to_string()]);
+        return crate::infring_layer1_security_bridge::run_startup_attestation(root, &["status".to_string()]);
     }
-    infring_layer1_security::run_startup_attestation(root, argv)
+    crate::infring_layer1_security_bridge::run_startup_attestation(root, argv)
 }

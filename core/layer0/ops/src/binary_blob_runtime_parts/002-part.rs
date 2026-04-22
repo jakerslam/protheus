@@ -34,7 +34,7 @@ fn emit(root: &Path, payload: Value) -> i32 {
 }
 
 fn verify_debug_token(root: &Path) -> Value {
-    let (payload, code) = infring_layer1_security::run_soul_token_guard(
+    let (payload, code) = crate::infring_layer1_security_bridge::run_soul_token_guard(
         root,
         &["verify".to_string(), "--strict=1".to_string()],
     );

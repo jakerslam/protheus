@@ -19,8 +19,7 @@ hex = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
-protheus-memory-core-v6 = { path = "../memory" }
-protheus-vault-core-v1 = { path = "../vault" }
+protheus-nexus-core-v1 = { path = "../../layer2/nexus" }
 
 [package.metadata.protheus]
 wasm_target = "wasm32-unknown-unknown"

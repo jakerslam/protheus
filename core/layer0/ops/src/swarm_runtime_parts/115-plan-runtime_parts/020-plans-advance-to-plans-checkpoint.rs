@@ -176,7 +176,7 @@ fn plans_checkpoint(state: &mut SwarmState, argv: &[String]) -> Result<Value, St
     });
     let checkpoint_id = format!(
         "chk-{}",
-        &deterministic_receipt_hash(&json!({
+        &crate::deterministic_receipt_hash(&json!({
             "plan_id": plan_id,
             "node_id": node_id,
             "ts": now_epoch_ms(),

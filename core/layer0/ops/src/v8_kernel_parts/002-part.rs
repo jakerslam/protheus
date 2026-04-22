@@ -92,6 +92,6 @@ mod tests {
             .as_object_mut()
             .expect("receipt payload")
             .remove("receipt_hash");
-        assert_eq!(deterministic_receipt_hash(&unhashed), receipt_hash);
+        assert_eq!(crate::deterministic_receipt_hash(&unhashed), receipt_hash);
     }
 }

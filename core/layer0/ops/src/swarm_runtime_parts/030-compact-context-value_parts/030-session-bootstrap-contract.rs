@@ -248,7 +248,7 @@ fn next_session_id(state: &SwarmState, task: &str, depth: u8) -> String {
             "salt": salt,
             "ts": now_epoch_ms()
         });
-        let digest = deterministic_receipt_hash(&candidate_seed);
+        let digest = crate::deterministic_receipt_hash(&candidate_seed);
         let candidate = format!("swarm-{}", &digest[..12]);
         if !state.sessions.contains_key(&candidate) {
             return candidate;

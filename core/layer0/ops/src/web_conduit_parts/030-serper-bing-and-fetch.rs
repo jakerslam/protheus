@@ -425,6 +425,18 @@ fn search_provider_failure_mode(
     }
 }
 
+fn search_cache_skip_reason_from_failure_mode(search_provider_failure_mode: &str) -> &'static str {
+    match search_provider_failure_mode {
+        "query_result_mismatch" => "query_result_mismatch",
+        "challenge_or_low_signal_response" => "challenge_or_low_signal_response",
+        "tool_surface_unavailable" => "tool_surface_unavailable",
+        "tool_surface_degraded" => "tool_surface_degraded",
+        "provider_chain_not_attempted" => "provider_chain_not_attempted",
+        "provider_chain_exhausted" => "provider_chain_exhausted",
+        _ => "",
+    }
+}
+
 fn fetch_with_curl(
     url: &str,
     timeout_ms: u64,

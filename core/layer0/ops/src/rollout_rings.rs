@@ -234,7 +234,7 @@ fn evaluate_receipt(root: &Path, args: &[String]) -> Value {
             }
         ]
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
@@ -251,7 +251,7 @@ fn status_receipt(root: &Path) -> Value {
         "promotion_requirements": policy.get("promotion_requirements").cloned().unwrap_or_else(|| json!({})),
         "auto_rollback": policy.get("auto_rollback").cloned().unwrap_or_else(|| json!({}))
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
@@ -302,7 +302,7 @@ pub fn run(root: &Path, args: &[String]) -> i32 {
                 "argv": args,
                 "exit_code": 2
             });
-            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
             print_json_line(&out);
             2
         }

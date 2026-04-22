@@ -17,7 +17,7 @@ pub use capability_pack::{
     CapabilityPackCatalog, CapabilityPackSpec, IssueOpsCapabilityPack, LeadGenCapabilityPack,
     ResearchCapabilityPack, SocialSignalCapabilityPack, WebOpsCapabilityPack,
 };
-pub use protheus_nexus_core_v1::{infring_agent, infring_tool};
+pub use infring_agent_derive::{infring_agent, infring_tool};
 pub use mcp::{mcp_handshake_receipt, McpBridge, McpServerConfig, McpTool};
 pub use provider::{
     LocalEchoProvider, ProviderClient, ProviderClientRegistry, ProviderError, ProviderErrorCode,

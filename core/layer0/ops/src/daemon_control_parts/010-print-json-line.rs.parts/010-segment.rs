@@ -175,7 +175,7 @@ fn verity_signature_payload(config: &VerityDriftSignedConfig) -> Value {
 
 fn sign_verity_config_payload(payload: &Value) -> String {
     let key = verity_drift_signing_key();
-    let digest = deterministic_receipt_hash(&json!({
+    let digest = crate::deterministic_receipt_hash(&json!({
         "payload": payload,
         "signing_key": key
     }));

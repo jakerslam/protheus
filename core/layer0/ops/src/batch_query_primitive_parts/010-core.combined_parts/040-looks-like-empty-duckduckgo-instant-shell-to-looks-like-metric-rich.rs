@@ -187,6 +187,11 @@ fn metric_number_regex() -> &'static Regex {
     })
 }
 
+fn plain_number_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| Regex::new(r"\b\d+(?:\.\d+)?\b").expect("plain-number"))
+}
+
 fn looks_like_metric_rich_text(text: &str) -> bool {
     let lowered = clean_text(text, 1_200).to_ascii_lowercase();
     if lowered.is_empty() {
@@ -213,5 +218,5 @@ fn looks_like_metric_rich_text(text: &str) -> bool {
     .iter()
     .filter(|marker| lowered.contains(**marker))
     .count();
-    metric_term_hits >= 2
+    plain_number_regex().is_match(&lowered) && metric_term_hits >= 2
 }

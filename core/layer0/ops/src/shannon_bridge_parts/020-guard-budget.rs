@@ -141,7 +141,7 @@ fn replay_run(
         "event_count": export.get("events").and_then(Value::as_array).map(|v| v.len()).unwrap_or(0),
         "receipt_ref_count": export.get("receipt_refs").and_then(Value::as_array).map(|v| v.len()).unwrap_or(0),
         "export_path": rel(root, &export_path),
-        "replay_hash": deterministic_receipt_hash(&export),
+        "replay_hash": crate::deterministic_receipt_hash(&export),
         "replayed_at": now_iso(),
     });
     let id = replay
@@ -245,7 +245,7 @@ fn sandbox_execute(state: &mut Value, payload: &Map<String, Value>) -> Result<Va
         "read_only": read_only,
         "fs_paths": fs_paths,
         "command": clean_text(payload.get("command").and_then(Value::as_str), 180),
-        "isolation_hash": deterministic_receipt_hash(&json!({"tenant_id": tenant_id, "read_only": read_only})),
+        "isolation_hash": crate::deterministic_receipt_hash(&json!({"tenant_id": tenant_id, "read_only": read_only})),
         "executed_at": now_iso(),
     });
     let id = record

@@ -237,7 +237,7 @@ fn wrap_receipt(
             }
         ]
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
 
     if write_state {
         let latest_path = root.join(&policy.outputs.latest_path);

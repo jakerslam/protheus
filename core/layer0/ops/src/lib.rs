@@ -15,6 +15,18 @@ macro_rules! include_parts {
 
 include!("lib.rs.inc");
 
+pub(crate) use protheus_nexus_core_v1::execution_core_v1 as execution_lane_bridge;
+pub(crate) use protheus_nexus_core_v1::autonomy_core as protheus_autonomy_core_v1_bridge;
+pub(crate) use protheus_nexus_core_v1::burn_oracle_budget_gate as burn_oracle_budget_gate_bridge;
+pub(crate) use protheus_nexus_core_v1::foundation_hook_enforcer as foundation_hook_enforcer_bridge;
+pub(crate) use protheus_nexus_core_v1::layer1_security as infring_layer1_security_bridge;
+pub(crate) use protheus_nexus_core_v1::llm_runtime as llm_runtime_bridge;
+pub(crate) use protheus_nexus_core_v1::memory_core_v1 as protheus_memory_core_v1_bridge;
+pub(crate) use protheus_nexus_core_v1::ops_core as protheus_ops_core_v1_bridge;
+pub(crate) use protheus_nexus_core_v1::persona_dispatch_security_gate as persona_dispatch_security_gate_bridge;
+pub(crate) use protheus_nexus_core_v1::tiny_runtime as protheus_tiny_runtime_bridge;
+pub(crate) use protheus_nexus_core_v1::tooling_core as protheus_tooling_core_v1_bridge;
+
 #[allow(dead_code)]
 pub(crate) fn contains_forbidden_runtime_context_marker(raw: &str) -> bool {
     const FORBIDDEN: [&str; 6] = [

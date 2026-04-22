@@ -1,11 +1,11 @@
 use protheus_memory_core_v1::{
-    CapabilityAction, CapabilityToken, Classification, DefaultVerityMemoryPolicy, MemoryKind,
-    MemoryObject, MemoryRecallHit, MemoryRecallQuery, MemoryScope, TrustState, UnifiedMemoryHeap,
-    UnifiedMemoryHeapConfig, OwnerScopeSettings,
+    self, CapabilityAction, CapabilityToken, Classification, DefaultVerityMemoryPolicy, MemoryKind,
+    MemoryObject, MemoryRecallHit, MemoryRecallQuery, MemoryScope, OwnerScopeSettings, TrustState,
+    UnifiedMemoryHeap, UnifiedMemoryHeapConfig,
 };
 
-fn runtime_memory_route() -> protheus_memory_core_v1::NexusRouteContext {
-    protheus_memory_core_v1::NexusRouteContext {
+fn runtime_memory_route() -> memory_core_v1::NexusRouteContext {
+    memory_core_v1::NexusRouteContext {
         issuer: "memory_runtime".to_string(),
         source: "memory_runtime".to_string(),
         target: "memory_heap".to_string(),

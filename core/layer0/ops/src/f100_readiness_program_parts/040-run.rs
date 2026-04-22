@@ -49,7 +49,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             lane_payload["strict"] = Value::Bool(strict);
             lane_payload["policy_path"] =
                 Value::String(policy.policy_path.to_string_lossy().to_string());
-            lane_payload["receipt_hash"] = Value::String(deterministic_receipt_hash(&lane_payload));
+            lane_payload["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&lane_payload));
 
             if let Err(err) = persist_lane(&policy, &lane, &lane_payload) {
                 let out = cli_error(argv, &format!("persist_lane_failed:{err}"), 1);
@@ -70,7 +70,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "ts": now_iso(),
                 "result": lane_payload
             });
-            receipt["receipt_hash"] = Value::String(deterministic_receipt_hash(&receipt));
+            receipt["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&receipt));
             let _ = write_text_atomic(
                 &policy.latest_path,
                 &(serde_json::to_string_pretty(&receipt).unwrap_or_else(|_| "{}".to_string())
@@ -98,7 +98,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 lane_payload["policy_path"] =
                     Value::String(policy.policy_path.to_string_lossy().to_string());
                 lane_payload["receipt_hash"] =
-                    Value::String(deterministic_receipt_hash(&lane_payload));
+                    Value::String(crate::deterministic_receipt_hash(&lane_payload));
                 if let Err(err) = persist_lane(&policy, lane, &lane_payload) {
                     persist_errors.push(json!({
                         "lane": lane,
@@ -123,7 +123,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "lanes": lane_results,
                 "persist_errors": persist_errors
             });
-            receipt["receipt_hash"] = Value::String(deterministic_receipt_hash(&receipt));
+            receipt["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&receipt));
             let _ = write_text_atomic(
                 &policy.latest_path,
                 &(serde_json::to_string_pretty(&receipt).unwrap_or_else(|_| "{}".to_string())

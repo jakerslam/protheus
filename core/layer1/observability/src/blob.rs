@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-use protheus_nexus_core_v1::{decode_normalized_blob_manifest, normalize_sha256_hash};
+use infring_types::{decode_normalized_blob_manifest, normalize_sha256_hash};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};

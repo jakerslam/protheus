@@ -95,7 +95,7 @@ fn emit(value: &Value) {
 }
 
 fn stamp_receipt(value: &mut Value) {
-    value["receipt_hash"] = Value::String(deterministic_receipt_hash(value));
+    value["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(value));
 }
 
 fn persist_and_emit(latest_path: &Path, receipts_path: &Path, value: &mut Value) {

@@ -41,7 +41,7 @@
                     "qty_positive": qty > 0.0
                 }
             });
-            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
             write_json(&latest, &out);
             append_jsonl(&history, &out);
             print_receipt(&out);
@@ -54,7 +54,7 @@
             "qty": qty,
             "custody": "non-custodial-intent"
         });
-        let intent_id = deterministic_receipt_hash(&order_intent);
+        let intent_id = crate::deterministic_receipt_hash(&order_intent);
         if apply {
             append_jsonl(
                 &trade_intents_path(root),
@@ -88,7 +88,7 @@
                 }
             ]
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         write_json(&latest, &out);
         append_jsonl(&history, &out);
         print_receipt(&out);
@@ -125,7 +125,7 @@
                 }
             ]
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         write_json(&latest, &out);
         append_jsonl(&history, &out);
         print_receipt(&out);

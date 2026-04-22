@@ -26,7 +26,7 @@ fn api_search_serper(
             "docs": "https://docs.openclaw.ai/tools/web"
         });
     };
-    let policy_eval = infring_layer1_security::evaluate_web_conduit_policy(
+    let policy_eval = crate::infring_layer1_security_bridge::evaluate_web_conduit_policy(
         root,
         &json!({
             "requested_url": requested_url,

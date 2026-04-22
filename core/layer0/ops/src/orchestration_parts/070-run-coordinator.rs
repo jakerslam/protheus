@@ -312,3 +312,185 @@ fn run_coordinator(root: &Path, input: &Value) -> Value {
         }
     })
 }
+
+fn invoke_taskgroup_completion_ops(root: &Path, op: &str, payload: &Value) -> Option<Value> {
+    match op {
+        "taskgroup.path" => {
+            let task_group_id = get_string_any(payload, &["task_group_id", "taskGroupId", "id"]);
+            let root_dir = payload_root_dir(payload);
+            Some(match taskgroup_path(root, &task_group_id, root_dir.as_deref()) {
+                Ok(file_path) => json!({
+                    "ok": true,
+                    "type": "orchestration_taskgroup_path",
+                    "task_group_id": task_group_id.to_ascii_lowercase(),
+                    "file_path": file_path
+                }),
+                Err(err) => json!({
+                    "ok": false,
+                    "type": "orchestration_taskgroup_path",
+                    "reason_code": err,
+                    "task_group_id": task_group_id.to_ascii_lowercase()
+                }),
+            })
+        }
+        "taskgroup.generate_id" => {
+            let task_type = get_string_any(payload, &["task_type", "taskType"]);
+            let now_ms = get_i64_any(payload, &["now_ms", "nowMs"], Utc::now().timestamp_millis());
+            let nonce = get_string_any(payload, &["nonce"]);
+            Some(json!({
+                "ok": true,
+                "type": "orchestration_taskgroup_generate_id",
+                "task_group_id": generate_task_group_id(
+                    if task_type.is_empty() { "task" } else { &task_type },
+                    now_ms,
+                    &nonce
+                )
+            }))
+        }
+        "taskgroup.status_counts" => {
+            let task_group = payload
+                .get("task_group")
+                .cloned()
+                .unwrap_or_else(|| payload.clone());
+            Some(json!({
+                "ok": true,
+                "type": "orchestration_taskgroup_status_counts",
+                "counts": status_counts(&task_group)
+            }))
+        }
+        "taskgroup.derive_status" => {
+            let task_group = payload
+                .get("task_group")
+                .cloned()
+                .unwrap_or_else(|| payload.clone());
+            Some(json!({
+                "ok": true,
+                "type": "orchestration_taskgroup_derive_status",
+                "status": derive_group_status(&task_group),
+                "counts": status_counts(&task_group)
+            }))
+        }
+        "taskgroup.ensure" => {
+            let root_dir = payload_root_dir(payload);
+            Some(ensure_task_group(root, payload, root_dir.as_deref()))
+        }
+        "taskgroup.query" => {
+            let task_group_id = get_string_any(payload, &["task_group_id", "taskGroupId", "id"]);
+            let root_dir = payload_root_dir(payload);
+            Some(query_task_group(root, &task_group_id, root_dir.as_deref()))
+        }
+        "taskgroup.load" => {
+            let task_group_id = get_string_any(payload, &["task_group_id", "taskGroupId", "id"]);
+            let root_dir = payload_root_dir(payload);
+            Some(match load_task_group(root, &task_group_id, root_dir.as_deref()) {
+                Ok(loaded) => {
+                    let counts = if loaded.exists {
+                        status_counts(&loaded.task_group)
+                    } else {
+                        status_counts(&json!({ "agents": [] }))
+                    };
+                    json!({
+                        "ok": true,
+                        "type": "orchestration_taskgroup_load",
+                        "task_group_id": task_group_id.trim().to_ascii_lowercase(),
+                        "exists": loaded.exists,
+                        "file_path": loaded.file_path,
+                        "task_group": loaded.task_group,
+                        "counts": counts
+                    })
+                }
+                Err(err) => json!({
+                    "ok": false,
+                    "type": "orchestration_taskgroup_load",
+                    "reason_code": err,
+                    "task_group_id": task_group_id.trim().to_ascii_lowercase()
+                }),
+            })
+        }
+        "taskgroup.save" => {
+            let task_group = payload
+                .get("task_group")
+                .cloned()
+                .unwrap_or_else(|| payload.clone());
+            let root_dir = payload_root_dir(payload);
+            Some(save_task_group(root, &task_group, root_dir.as_deref()))
+        }
+        "taskgroup.update_status" => {
+            let task_group_id = get_string_any(payload, &["task_group_id", "taskGroupId", "id"]);
+            let agent_id = get_string_any(payload, &["agent_id", "agentId"]);
+            let status = get_string_any(payload, &["status"]);
+            let details = payload
+                .get("details")
+                .cloned()
+                .unwrap_or(Value::Object(Map::new()));
+            let root_dir = payload_root_dir(payload);
+            Some(update_agent_status(
+                root,
+                &task_group_id,
+                &agent_id,
+                &status,
+                &details,
+                root_dir.as_deref(),
+            ))
+        }
+        "completion.status" => {
+            let task_group_id = get_string_any(payload, &["task_group_id", "taskGroupId", "id"]);
+            let root_dir = payload_root_dir(payload);
+            Some(ensure_and_summarize(root, &task_group_id, root_dir.as_deref()))
+        }
+        "completion.track" => {
+            let task_group_id = get_string_any(payload, &["task_group_id", "taskGroupId", "id"]);
+            let update = payload
+                .get("update")
+                .cloned()
+                .unwrap_or_else(|| payload.clone());
+            let root_dir = payload_root_dir(payload);
+            Some(track_agent_completion(
+                root,
+                &task_group_id,
+                &update,
+                root_dir.as_deref(),
+            ))
+        }
+        "completion.batch" => {
+            let task_group_id = get_string_any(payload, &["task_group_id", "taskGroupId", "id"]);
+            let updates = array_from_payload_value(
+                payload
+                    .get("updates")
+                    .or_else(|| payload.get("updates_json"))
+                    .or_else(|| payload.get("updatesJson")),
+            );
+            let root_dir = payload_root_dir(payload);
+            Some(track_batch_completion(
+                root,
+                &task_group_id,
+                &updates,
+                root_dir.as_deref(),
+            ))
+        }
+        "completion.summarize" => {
+            let task_group = payload
+                .get("task_group")
+                .cloned()
+                .unwrap_or_else(|| payload.clone());
+            let summary = completion_summary(&task_group);
+            let include_notification = payload
+                .get("include_notification")
+                .and_then(Value::as_bool)
+                .unwrap_or(true);
+            let complete = summary.get("complete").and_then(Value::as_bool) == Some(true);
+            Some(json!({
+                "ok": true,
+                "type": "orchestration_completion_summarize",
+                "task_group": task_group,
+                "summary": summary,
+                "notification": if include_notification && complete {
+                    build_completion_notification(&summary, &task_group)
+                } else {
+                    Value::Null
+                }
+            }))
+        }
+        _ => None,
+    }
+}

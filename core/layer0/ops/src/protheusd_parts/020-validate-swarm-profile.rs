@@ -115,7 +115,7 @@ fn memory_status_payload(root: &Path) -> Value {
         "bytes": bytes,
         "last_ts": last_ts
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
@@ -140,7 +140,7 @@ fn memory_write_payload(root: &Path, argv: &[String]) -> Result<Value, String> {
         "session_id": session_id,
         "ts": ts
     });
-    let derived_id = deterministic_receipt_hash(&id_seed)
+    let derived_id = crate::deterministic_receipt_hash(&id_seed)
         .chars()
         .take(16)
         .collect::<String>();
@@ -161,7 +161,7 @@ fn memory_write_payload(root: &Path, argv: &[String]) -> Result<Value, String> {
         "path": path.to_string_lossy(),
         "item": row
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     Ok(out)
 }
 
@@ -225,7 +225,7 @@ fn memory_query_payload(root: &Path, argv: &[String]) -> Value {
         "limit": limit,
         "matches": entries
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
@@ -312,7 +312,7 @@ fn think_payload(root: &Path, argv: &[String]) -> Result<Value, String> {
             "record_outcome_in_memory"
         ]
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     Ok(out)
 }
 

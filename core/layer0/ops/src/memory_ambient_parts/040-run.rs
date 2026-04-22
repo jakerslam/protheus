@@ -76,7 +76,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "last": latest,
             "claim_evidence": claim_evidence
         });
-        receipt["receipt_hash"] = Value::String(deterministic_receipt_hash(&receipt));
+        receipt["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&receipt));
         println!(
             "{}",
             serde_json::to_string(&receipt).unwrap_or_else(|_| "{\"ok\":false}".to_string())
@@ -152,7 +152,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "claim_evidence": gate_claim_evidence,
             "policy": policy_snapshot(&policy)
         });
-        receipt["receipt_hash"] = Value::String(deterministic_receipt_hash(&receipt));
+        receipt["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&receipt));
         write_json(&policy.latest_path, &receipt);
         append_jsonl(&policy.receipts_path, &receipt);
         update_mech_suit_status(
@@ -296,7 +296,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "rust_authoritative": policy.rust_authoritative,
         "memory_command": memory_command,
         "memory_args_count": memory_args.len(),
-        "memory_args_hash": deterministic_receipt_hash(&json!(memory_args)),
+        "memory_args_hash": crate::deterministic_receipt_hash(&json!(memory_args)),
         "severity": severity,
         "surfaced": surfaced,
         "attention_queue": attention_queue,
@@ -309,7 +309,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "claim_evidence": claim_evidence,
         "policy": policy_snapshot(&policy)
     });
-    receipt["receipt_hash"] = Value::String(deterministic_receipt_hash(&receipt));
+    receipt["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&receipt));
 
     append_jsonl(
         &token_telemetry_path(root),

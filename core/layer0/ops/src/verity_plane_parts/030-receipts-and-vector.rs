@@ -62,7 +62,7 @@ fn build_verity_receipt(
     metadata: Value,
 ) -> Value {
     let parent_hash = latest_receipt_hash(root);
-    let op_hash = deterministic_receipt_hash(&json!({
+    let op_hash = crate::deterministic_receipt_hash(&json!({
         "operation_type": operation_type,
         "metadata": metadata,
     }));
@@ -84,7 +84,7 @@ fn build_verity_receipt(
         "ultimate_vector": build_ultimate_vector_payload(),
         "metadata": metadata
     });
-    let receipt_hash = deterministic_receipt_hash(&receipt);
+    let receipt_hash = crate::deterministic_receipt_hash(&receipt);
     receipt["receipt_hash"] = Value::String(receipt_hash);
     append_jsonl(&verity_receipts_path(root), &receipt);
     write_json(&verity_latest_path(root), &receipt);
@@ -110,7 +110,7 @@ fn build_verity_event(root: &Path, event_type: &str, payload: Value) -> Value {
         "ts": now_iso(),
         "payload": payload,
     });
-    event["event_hash"] = Value::String(deterministic_receipt_hash(&event));
+    event["event_hash"] = Value::String(crate::deterministic_receipt_hash(&event));
     append_jsonl(&verity_events_path(root), &event);
     event
 }
@@ -248,7 +248,7 @@ fn status_payload(root: &Path, argv: &[String]) -> Value {
         "recent_events": events,
         "drift": load_verity_drift_snapshot(root, limit),
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
@@ -260,7 +260,7 @@ fn drift_status_payload(root: &Path, argv: &[String]) -> Value {
         "ultimate_vector": build_ultimate_vector_payload(),
         "drift": load_verity_drift_snapshot(root, limit),
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
@@ -325,7 +325,7 @@ fn run_record_event(root: &Path, argv: &[String]) -> Value {
         "verification_mode": mode,
         "receipt": receipt,
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
@@ -383,7 +383,7 @@ fn run_vector_check(root: &Path, argv: &[String]) -> Value {
         "event": event,
         "receipt": receipt,
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
@@ -446,6 +446,6 @@ fn run_refine_event(root: &Path, argv: &[String]) -> Value {
         "event": event,
         "receipt": receipt,
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }

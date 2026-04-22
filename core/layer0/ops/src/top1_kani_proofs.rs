@@ -11,8 +11,8 @@ const V7_TOP1_002_KANI_COVERAGE_ID: &str = "V7-TOP1-002-KANI-COVERAGE";
 #[kani::proof]
 fn prove_receipt_hash_is_deterministic_for_same_payload() {
     let payload = json!(true);
-    let left = deterministic_receipt_hash(&payload);
-    let right = deterministic_receipt_hash(&payload);
+    let left = crate::deterministic_receipt_hash(&payload);
+    let right = crate::deterministic_receipt_hash(&payload);
     assert_eq!(left, right);
 }
 
@@ -43,7 +43,7 @@ fn prove_stable_json_string_is_invariant_to_object_key_order() {
 #[kani::proof]
 fn prove_receipt_hash_has_stable_hex_shape() {
     let payload = json!(true);
-    let hash = deterministic_receipt_hash(&payload);
+    let hash = crate::deterministic_receipt_hash(&payload);
     assert_eq!(hash.len(), 64);
     assert!(hash.bytes().all(|byte| byte.is_ascii_hexdigit()));
 }
@@ -59,8 +59,8 @@ fn prove_receipt_hash_is_invariant_to_object_key_order() {
     reordered.insert("alpha".to_string(), json!(1));
     let right = Value::Object(reordered);
     assert_eq!(
-        deterministic_receipt_hash(&left),
-        deterministic_receipt_hash(&right)
+        crate::deterministic_receipt_hash(&left),
+        crate::deterministic_receipt_hash(&right)
     );
 }
 
@@ -85,8 +85,8 @@ fn prove_receipt_hash_is_invariant_for_execution_receipt_key_order() {
     reordered.insert("ok".to_string(), json!(true));
     let right = Value::Object(reordered);
     assert_eq!(
-        deterministic_receipt_hash(&left),
-        deterministic_receipt_hash(&right)
+        crate::deterministic_receipt_hash(&left),
+        crate::deterministic_receipt_hash(&right)
     );
 }
 

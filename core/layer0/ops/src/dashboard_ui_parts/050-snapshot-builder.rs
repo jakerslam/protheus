@@ -344,6 +344,53 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
     let web_ops_low_signal = i64_from_value(web_tooling_ops.get("low_signal"), 0);
     let web_ops_degraded = web_ops_no_response_rate > 0.05 || web_ops_blocked > 0 || web_ops_low_signal > 0;
     let web_tooling_ops_sequence = crate::deterministic_receipt_hash(&web_tooling_ops);
+    let mut ui_controller_payload = read_json_file(
+        &root.join("client/runtime/local/state/ui/infring_dashboard/ui_controller_state.json"),
+    )
+    .unwrap_or_else(|| {
+        json!({
+            "type": "dashboard_ui_controller_state",
+            "initialized": false,
+            "initialization_count": 0,
+            "last_initialized_at": "",
+            "terminal_execution_mode": "vscodeTerminal",
+            "subscriptions": {
+                "add_to_input": { "count": 0, "last_event_at": "", "last_payload": "" },
+                "chat_button_clicked": { "count": 0, "last_event_at": "", "last_payload": "" },
+                "history_button_clicked": { "count": 0, "last_event_at": "", "last_payload": "" }
+            },
+            "source": "dashboard.ui.controller",
+            "source_sequence": "",
+            "age_seconds": 0,
+            "stale": false,
+            "updated_at": ""
+        })
+    });
+    if ui_controller_payload
+        .get("source")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .is_empty()
+    {
+        ui_controller_payload["source"] = Value::String("dashboard.ui.controller".to_string());
+    }
+    if ui_controller_payload
+        .get("source_sequence")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .is_empty()
+    {
+        let mut seq_seed = ui_controller_payload.clone();
+        seq_seed["source_sequence"] = Value::String(String::new());
+        ui_controller_payload["source_sequence"] =
+            Value::String(crate::deterministic_receipt_hash(&seq_seed));
+    }
+    if ui_controller_payload.get("age_seconds").is_none() {
+        ui_controller_payload["age_seconds"] = Value::from(0);
+    }
+    if ui_controller_payload.get("stale").is_none() {
+        ui_controller_payload["stale"] = Value::Bool(false);
+    }
     let runtime_stall_detected =
         runtime_freshness_stale || runtime_backpressure_degraded || web_tooling_degraded;
     let normal_cadence_ms = flags.refresh_ms.max(500);
@@ -533,6 +580,7 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
                 "skills": "core/local/state/ops/skills_plane/latest.json",
                 "health": "client/runtime/local/state/ui/infring_dashboard/latest_snapshot.json#health",
                 "runtime_sync": "protheus-ops dashboard-ui runtime-sync",
+                "ui_controller": "client/runtime/local/state/ui/infring_dashboard/ui_controller_state.json",
                 "channel_registry": "client/runtime/local/state/ui/infring_dashboard/channel_registry.json",
                 "provider_registry": "client/runtime/local/state/ui/infring_dashboard/provider_registry.json"
             }
@@ -545,6 +593,7 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
         "app": app_payload,
         "collab": collab_payload,
         "skills": skills_payload,
+        "ui_controller": ui_controller_payload,
         "agents": {
             "session_summaries": dashboard_agent_state::session_summaries(root, 200),
             "contract_enforcement": contract_enforcement
@@ -625,7 +674,8 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
         "cockpit": crate::deterministic_receipt_hash(&cockpit_runtime),
         "memory": crate::deterministic_receipt_hash(&out["memory"]),
         "agent_lifecycle": crate::deterministic_receipt_hash(&out["agent_lifecycle"]),
-        "web_tooling": crate::deterministic_receipt_hash(&out["web_tooling"])
+        "web_tooling": crate::deterministic_receipt_hash(&out["web_tooling"]),
+        "ui_controller": crate::deterministic_receipt_hash(&out["ui_controller"])
     });
     let composite_checksum = crate::deterministic_receipt_hash(&component_checksums);
     let previous_composite = read_json_file(&root.join(SNAPSHOT_LATEST_REL))

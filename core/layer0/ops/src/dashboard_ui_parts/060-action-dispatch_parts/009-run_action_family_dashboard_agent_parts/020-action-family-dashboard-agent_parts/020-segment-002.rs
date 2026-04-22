@@ -134,7 +134,7 @@
                 payload: Some(result),
             }
         }
-        "dashboard.agent.task.new" => {
+        "dashboard.agent.task.new" | "dashboard.agent.task.newTask" => {
             let title = payload
                 .get("title")
                 .and_then(Value::as_str)
