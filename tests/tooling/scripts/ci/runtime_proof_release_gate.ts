@@ -88,6 +88,34 @@ const EMPIRICAL_REQUIRED_METRIC_KEYS_BY_PROFILE: Record<ProfileId, string[]> = {
   'tiny-max': ['peak_rss_mb', 'receipt_throughput_per_min', 'receipt_p95_latency_ms', 'conduit_recovery_ms'],
 };
 
+type QualityRefreshTarget = {
+  id: string;
+  script: string;
+};
+
+function resolveQualityRefreshTarget(relPath: string): QualityRefreshTarget | null {
+  const normalized = cleanText(relPath || '', 500).replace(/\\/g, '/');
+  if (
+    normalized === 'artifacts/web_tooling_context_soak_report_latest.json' ||
+    normalized.endsWith('/web_tooling_context_soak_report_latest.json')
+  ) {
+    return {
+      id: 'web_tooling_context_soak',
+      script: 'tests/tooling/scripts/ci/web_tooling_context_soak.ts',
+    };
+  }
+  if (
+    normalized === 'artifacts/workspace_tooling_context_soak_report_latest.json' ||
+    normalized.endsWith('/workspace_tooling_context_soak_report_latest.json')
+  ) {
+    return {
+      id: 'workspace_tooling_context_soak',
+      script: 'tests/tooling/scripts/ci/workspace_tooling_context_soak.ts',
+    };
+  }
+  return null;
+}
+
 function parseProfile(raw: string | undefined): ProfileId | null {
   const normalized = cleanText(raw || 'rich', 32).toLowerCase();
   if (normalized === 'rich') return 'rich';
@@ -116,11 +144,32 @@ function parseRefreshMode(raw: string | undefined, fallback: RefreshMode): Refre
   return 'auto';
 }
 
+function parseQualityPaths(raw: string | undefined): string[] {
+  const input = cleanText(raw || '', 800);
+  const parts = input
+    .split(',')
+    .map((row) => cleanText(row || '', 400))
+    .filter(Boolean);
+  const fallback = [
+    'artifacts/web_tooling_context_soak_report_latest.json',
+    'artifacts/workspace_tooling_context_soak_report_latest.json',
+  ];
+  const selected = parts.length > 0 ? parts : fallback;
+  const deduped: string[] = [];
+  for (const row of selected) {
+    if (!deduped.includes(row)) deduped.push(row);
+  }
+  return deduped;
+}
+
 function parseArgs(argv: string[]) {
   const common = parseStrictOutArgs(argv, {
     out: 'core/local/artifacts/runtime_proof_release_gate_current.json',
   });
   const profile = parseProfile(readFlag(argv, 'profile'));
+  const qualityPaths = parseQualityPaths(
+    readFlag(argv, 'quality-paths') || readFlag(argv, 'quality'),
+  );
   return {
     strict: common.strict,
     outPath: cleanText(readFlag(argv, 'out') || common.out || '', 400),
@@ -140,10 +189,7 @@ function parseArgs(argv: string[]) {
       readFlag(argv, 'metrics-out') || 'core/local/artifacts/runtime_proof_release_metrics_current.json',
       400,
     ),
-    qualityPath: cleanText(
-      readFlag(argv, 'quality') || 'artifacts/web_tooling_context_soak_report_latest.json',
-      400,
-    ),
+    qualityPaths,
     runtimeLaneStatePath: cleanText(
       readFlag(argv, 'runtime-lane-state') ||
         'local/state/infring_agent_surface/runtime_lane_state.json',
@@ -569,6 +615,42 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     });
   }
 
+  for (const relPath of args.qualityPaths) {
+    const absolute = path.resolve(root, relPath);
+    if (fs.existsSync(absolute)) continue;
+    const refreshTarget = resolveQualityRefreshTarget(relPath);
+    if (!refreshTarget) continue;
+    const refresh = runSupportScript(root, refreshTarget.script, []);
+    supportRuns.push({
+      id: refreshTarget.id,
+      script: refreshTarget.script,
+      refresh_mode: 'auto',
+      refreshed: true,
+      reason: 'artifact_missing',
+      status: refresh.status,
+      detail: refresh.detail,
+    });
+    if (refresh.status !== 0 || !fs.existsSync(absolute)) {
+      const payload = {
+        ok: false,
+        type: 'runtime_proof_release_gate',
+        error: 'quality_telemetry_refresh_failed',
+        detail: cleanText(
+          refresh.detail || 'quality telemetry artifact was missing and refresh did not produce it',
+          320,
+        ),
+        profile: args.profile,
+        quality_artifact_path: relPath,
+        script: refreshTarget.script,
+      };
+      return emitStructuredResult(payload, {
+        outPath: args.outPath,
+        strict: args.strict,
+        ok: false,
+      });
+    }
+  }
+
   const policyRaw = fs.readFileSync(path.resolve(root, args.policyPath), 'utf8');
   const policy = parsePolicyYaml(policyRaw);
   const profilePolicy = policy.profiles[args.profile];
@@ -589,7 +671,14 @@ export function run(argv: string[] = process.argv.slice(2)): number {
 
   const harness = readJson(harnessAbsolutePath);
   const adapterChaos = readJson(adapterChaosAbsolutePath);
-  const qualityRaw = readJsonBestEffort(path.resolve(root, args.qualityPath));
+  const qualityReports = args.qualityPaths.map((relPath) => {
+    const parsed = readJsonBestEffort(path.resolve(root, relPath));
+    return {
+      path: relPath,
+      ok: parsed.ok,
+      payload: parsed.payload,
+    };
+  });
   const runtimeLaneStateRaw = readJsonBestEffort(path.resolve(root, args.runtimeLaneStatePath));
   const metrics = harness?.metrics || {};
   const adapterChaosMetrics = adapterChaos?.metrics || {};
@@ -684,9 +773,43 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const syntheticSamplePoints = Number(proofTracks?.synthetic?.sample_points || 0);
   const empiricalSamplePoints = Number(empiricalTrack?.sample_points || 0);
   const empiricalAvailable = empiricalTrack?.available === true || empiricalSamplePoints > 0;
-  const qualityTaxonomy = qualityRaw.payload?.taxonomy || { parse_error: 'taxonomy_missing' };
-  const qualityParseError =
-    !qualityRaw.ok || cleanText(qualityTaxonomy.parse_error || '', 120).length > 0 ? 1 : 0;
+  const qualityTaxonomyRows = qualityReports.map((row) => {
+    const taxonomy = row.payload?.taxonomy && typeof row.payload.taxonomy === 'object'
+      ? row.payload.taxonomy
+      : {};
+    return {
+      path: row.path,
+      ok: row.ok,
+      payload_ok: row.payload?.ok,
+      taxonomy,
+      parse_error: cleanText(taxonomy?.parse_error || '', 120),
+    };
+  });
+  const qualityTaxonomy = qualityTaxonomyRows.reduce<Record<string, number>>((acc, row) => {
+    const asNumber = (value: unknown): number => {
+      const numeric = Number(value);
+      return Number.isFinite(numeric) ? numeric : 0;
+    };
+    acc.empty_final += asNumber(row.taxonomy?.empty_final);
+    acc.deferred_final += asNumber(row.taxonomy?.deferred_final);
+    acc.placeholder_final += asNumber(row.taxonomy?.placeholder_final);
+    acc.off_topic_final += asNumber(row.taxonomy?.off_topic_final);
+    acc.meta_status_tool_leak += asNumber(row.taxonomy?.meta_status_tool_leak);
+    acc.web_missing_tool_attempt += asNumber(row.taxonomy?.web_missing_tool_attempt);
+    return acc;
+  }, {
+    empty_final: 0,
+    deferred_final: 0,
+    placeholder_final: 0,
+    off_topic_final: 0,
+    meta_status_tool_leak: 0,
+    web_missing_tool_attempt: 0,
+  });
+  const qualityParseError = qualityTaxonomyRows.filter(
+    (row) => !row.ok || row.parse_error.length > 0,
+  ).length;
+  const qualityReportNotOkCount = qualityTaxonomyRows.filter((row) => row.payload_ok === false).length;
+  const qualityReportReadErrorCount = qualityTaxonomyRows.filter((row) => !row.ok).length;
   const runtimeLaneCounters = runtimeLaneStateRaw.payload?.release_gate_counters || {};
   const runtimeLanePauseCounts = runtimeLaneCounters.pause_reason_counts || {};
   const runtimeLanePauseReasonsTotal = Number(
@@ -705,6 +828,9 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     quality_meta_status_tool_leak: Number(qualityTaxonomy.meta_status_tool_leak || 0),
     quality_web_missing_tool_attempt: Number(qualityTaxonomy.web_missing_tool_attempt || 0),
     quality_taxonomy_parse_error: qualityParseError,
+    quality_report_not_ok_count: qualityReportNotOkCount,
+    quality_report_read_error_count: qualityReportReadErrorCount,
+    quality_reports_total: qualityTaxonomyRows.length,
     quality_denied_actions: Number(runtimeLaneCounters.denied_actions_total || 0),
     quality_pause_reason_events: Number(runtimeLanePauseReasonsTotal || 0),
     quality_merkle_chain_continuity_failures: Number(
@@ -856,6 +982,13 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     id: row.id,
     detail: row.detail,
   }));
+  const profileRequirements = {
+    synthetic_required: Number(profilePolicy.proof_tracks.synthetic_required || 0),
+    empirical_required: Number(profilePolicy.proof_tracks.empirical_required || 0),
+    empirical_min_sample_points: Number(
+      profilePolicy.proof_tracks.empirical_min_sample_points || 0,
+    ),
+  };
 
   const metricsPayload = {
     ok: failures.length === 0,
@@ -877,8 +1010,16 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       proof_track_empirical_required_sources_missing: missingEmpiricalSourceIds,
       proof_track_empirical_required_metrics_missing: missingEmpiricalProvidedKeys,
       proof_track_empirical_required_positive_metrics_missing: nonPositiveEmpiricalMetricKeys,
+      quality_input_paths: args.qualityPaths,
+      quality_report_statuses: qualityTaxonomyRows.map((row) => ({
+        path: row.path,
+        read_ok: row.ok,
+        payload_ok: row.payload_ok === true ? true : row.payload_ok === false ? false : null,
+        parse_error: row.parse_error,
+      })),
       runtime_lane_state_path: args.runtimeLaneStatePath,
     },
+    profile_requirements: profileRequirements,
   };
   writeJsonArtifact(args.metricsOutPath, metricsPayload);
   writeTextArtifact(args.tableOutPath, toMarkdownTable(args.profile, checks, args.metricsOutPath));
@@ -893,7 +1034,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       policy_path: args.policyPath,
       harness_path: args.harnessPath,
       adapter_chaos_path: args.adapterChaosPath,
-      quality_path: args.qualityPath,
+      quality_paths: args.qualityPaths,
       runtime_lane_state_path: args.runtimeLaneStatePath,
       proof_track: args.proofTrack,
       metrics_out: args.metricsOutPath,
@@ -912,6 +1053,8 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       support_runs_refreshed: supportRuns.filter((row) => row.refreshed).length,
       support_runs_reused: supportRuns.filter((row) => !row.refreshed).length,
     },
+    profile_requirements: profileRequirements,
+    effective_policy: profileRequirements,
     checks,
     failures,
     artifact_paths: [args.metricsOutPath, args.tableOutPath],

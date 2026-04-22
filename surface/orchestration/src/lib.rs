@@ -1,7 +1,7 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 pub mod clarification;
-pub mod control_plane;
 pub mod contracts;
+pub mod control_plane;
 pub mod ingress;
 pub mod planner;
 pub mod posture;
@@ -14,11 +14,12 @@ pub mod sequencing;
 pub mod transient_context;
 
 use contracts::{
-    ClosureState, ControlPlaneClosureState, ControlPlaneLifecycleState, CoreExecutionObservation,
-    DegradationReason, ExecutionCorrelation, ExecutionState, OrchestrationExecutionObservationUpdate,
-    OrchestrationPlan, OrchestrationRequest, OrchestrationResultPackage, PlanCandidate, PlanScore,
-    PlanStatus, PlanVariant, RecoveryDecision, RecoveryReason, RecoveryState, RuntimeQualitySignals,
-    WorkflowStage, WorkflowStageState, WorkflowStageStatus, WorkflowTemplate,
+    ClosureState, ControlPlaneClosureState, ControlPlaneHandoff, ControlPlaneLifecycleState,
+    CoreExecutionObservation, DegradationReason, ExecutionCorrelation, ExecutionState,
+    OrchestrationExecutionObservationUpdate, OrchestrationPlan, OrchestrationRequest,
+    OrchestrationResultPackage, PlanCandidate, PlanScore, PlanStatus, PlanVariant,
+    RecoveryDecision, RecoveryReason, RecoveryState, RuntimeQualitySignals, WorkflowStage,
+    WorkflowStageState, WorkflowStageStatus, WorkflowTemplate,
 };
 use std::time::{SystemTime, UNIX_EPOCH};
 use transient_context::{TransientContextStore, TransientSleepCleanupReport};
@@ -180,6 +181,48 @@ impl OrchestrationSurfaceRuntime {
                             note: "degraded halt package emitted".to_string(),
                         },
                     ],
+                    handoff_chain: vec![
+                        ControlPlaneHandoff {
+                            handoff_id: "handoff_user_request_to_decomposition".to_string(),
+                            from: "user_request_ingress".to_string(),
+                            to: "decomposition_planning".to_string(),
+                            owner: control_plane::lifecycle::workflow_owner().to_string(),
+                            artifact: "typed_request_snapshot".to_string(),
+                            status: WorkflowStageStatus::Completed,
+                        },
+                        ControlPlaneHandoff {
+                            handoff_id: "handoff_decomposition_to_coordination".to_string(),
+                            from: "decomposition_planning".to_string(),
+                            to: "coordination_sequencing".to_string(),
+                            owner: control_plane::lifecycle::workflow_owner().to_string(),
+                            artifact: "selected_plan_recommendation".to_string(),
+                            status: WorkflowStageStatus::Blocked,
+                        },
+                        ControlPlaneHandoff {
+                            handoff_id: "handoff_coordination_to_core_execution".to_string(),
+                            from: "coordination_sequencing".to_string(),
+                            to: "core_contract_execution".to_string(),
+                            owner: control_plane::lifecycle::workflow_owner().to_string(),
+                            artifact: "core_contract_call_envelope".to_string(),
+                            status: WorkflowStageStatus::Blocked,
+                        },
+                        ControlPlaneHandoff {
+                            handoff_id: "handoff_core_execution_to_verification".to_string(),
+                            from: "core_contract_execution".to_string(),
+                            to: "verification_closure".to_string(),
+                            owner: control_plane::lifecycle::workflow_owner().to_string(),
+                            artifact: "execution_observation_snapshot".to_string(),
+                            status: WorkflowStageStatus::Blocked,
+                        },
+                        ControlPlaneHandoff {
+                            handoff_id: "handoff_verification_to_memory_packaging".to_string(),
+                            from: "verification_closure".to_string(),
+                            to: "memory_packaging_projection".to_string(),
+                            owner: control_plane::lifecycle::workflow_owner().to_string(),
+                            artifact: "result_package_projection".to_string(),
+                            status: WorkflowStageStatus::Blocked,
+                        },
+                    ],
                     next_actions: vec!["restore_transient_context_then_retry".to_string()],
                     closure: ControlPlaneClosureState {
                         verification: ClosureState::Blocked,
@@ -202,14 +245,25 @@ impl OrchestrationSurfaceRuntime {
             classification.request_class.clone(),
             needs_clarification,
         );
-        let mut plan_candidates =
-            sequencing::propose_decomposition_candidates(&typed_request, &classification);
-        let selected_plan = plan_candidates
-            .first()
-            .cloned()
-            .unwrap_or_else(|| {
-                sequencing::propose_decomposition_candidate(&typed_request, &classification)
-            });
+        let planning_template_hint = control_plane::lifecycle::select_workflow_template(
+            &typed_request,
+            &classification,
+            PlanStatus::Planned,
+            needs_clarification,
+            None,
+        );
+        let mut plan_candidates = sequencing::propose_decomposition_candidates_with_template(
+            &typed_request,
+            &classification,
+            Some(&planning_template_hint),
+        );
+        let selected_plan = plan_candidates.first().cloned().unwrap_or_else(|| {
+            sequencing::propose_decomposition_candidate_with_template(
+                &typed_request,
+                &classification,
+                Some(&planning_template_hint),
+            )
+        });
         let alternative_plans = if plan_candidates.len() > 1 {
             plan_candidates.drain(1..).collect::<Vec<_>>()
         } else {
@@ -254,12 +308,11 @@ impl OrchestrationSurfaceRuntime {
             plan.needs_clarification,
             plan.execution_state.recovery.as_ref(),
         );
-        let control_plane_lifecycle =
-            control_plane::lifecycle::build_lifecycle_state(
-                workflow_template.clone(),
-                &plan,
-                fallback_actions.as_slice(),
-            );
+        let control_plane_lifecycle = control_plane::lifecycle::build_lifecycle_state(
+            workflow_template.clone(),
+            &plan,
+            fallback_actions.as_slice(),
+        );
         self.last_activity_ms = Some(now_ms);
         result_packaging::shape_result_package(
             &plan,

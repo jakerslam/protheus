@@ -1,9 +1,10 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
-    ClosureState, ControlPlaneClosureState, ControlPlaneLifecycleState, CoreContractCall,
-    OrchestrationFallbackAction, OrchestrationPlan, PlanStatus, RecoveryDecision, RecoveryState,
-    RequestClassification, RequestClass, RequestKind, ResourceKind, TypedOrchestrationRequest,
-    WorkflowStage, WorkflowStageState, WorkflowStageStatus, WorkflowTemplate,
+    ClosureState, ControlPlaneClosureState, ControlPlaneHandoff, ControlPlaneLifecycleState,
+    CoreContractCall, OrchestrationFallbackAction, OrchestrationPlan, PlanStatus, RecoveryDecision,
+    RecoveryState, RequestClass, RequestClassification, RequestKind, ResourceKind,
+    TypedOrchestrationRequest, WorkflowStage, WorkflowStageState, WorkflowStageStatus,
+    WorkflowTemplate,
 };
 
 const CONTROL_PLANE_OWNER: &str = "surface_orchestration_control_plane";
@@ -26,9 +27,7 @@ pub fn select_workflow_template(
         plan_status,
         PlanStatus::Failed | PlanStatus::Blocked | PlanStatus::ClarificationRequired
     ) || recovery
-        .map(|row| {
-            row.retryable || !matches!(row.decision, RecoveryDecision::None)
-        })
+        .map(|row| row.retryable || !matches!(row.decision, RecoveryDecision::None))
         .unwrap_or(false)
     {
         return WorkflowTemplate::DiagnoseRetryEscalate;
@@ -54,6 +53,7 @@ pub fn build_lifecycle_state(
     fallback_actions: &[OrchestrationFallbackAction],
 ) -> ControlPlaneLifecycleState {
     let closure = closure_state(plan);
+    let handoff_chain = build_handoff_chain(plan, &closure);
     let stages = vec![
         WorkflowStageState {
             stage: WorkflowStage::IntakeNormalization,
@@ -115,6 +115,7 @@ pub fn build_lifecycle_state(
         template,
         active_stage: active_stage(plan, &closure),
         stages,
+        handoff_chain,
         next_actions: lifecycle_next_actions(plan, fallback_actions, &closure),
         closure,
     }
@@ -130,7 +131,10 @@ fn active_stage(plan: &OrchestrationPlan, closure: &ControlPlaneClosureState) ->
     ) {
         return WorkflowStage::CoordinationSequencing;
     }
-    if matches!(plan.execution_state.plan_status, PlanStatus::Failed | PlanStatus::Blocked) {
+    if matches!(
+        plan.execution_state.plan_status,
+        PlanStatus::Failed | PlanStatus::Blocked
+    ) {
         return WorkflowStage::RecoveryEscalation;
     }
     if closure.verification != ClosureState::Complete
@@ -235,9 +239,21 @@ fn closure_state(plan: &OrchestrationPlan) -> ControlPlaneClosureState {
         PlanStatus::Blocked | PlanStatus::Failed => ClosureState::Blocked,
     };
 
-    let expected_receipts = plan.execution_state.correlation.expected_core_contract_ids.len();
-    let observed_receipts = plan.execution_state.correlation.observed_core_receipt_ids.len()
-        + plan.execution_state.correlation.observed_core_outcome_refs.len();
+    let expected_receipts = plan
+        .execution_state
+        .correlation
+        .expected_core_contract_ids
+        .len();
+    let observed_receipts = plan
+        .execution_state
+        .correlation
+        .observed_core_receipt_ids
+        .len()
+        + plan
+            .execution_state
+            .correlation
+            .observed_core_outcome_refs
+            .len();
     let receipt_correlation = if expected_receipts == 0 {
         ClosureState::Ready
     } else if observed_receipts > 0 {
@@ -298,9 +314,7 @@ fn lifecycle_next_actions(
     if let Some(recovery) = &plan.execution_state.recovery {
         if recovery.retryable {
             if let Some(first_fallback) = fallback_actions.first() {
-                actions.push(
-                    format!("retry_via_fallback:{}", first_fallback.kind).to_lowercase(),
-                );
+                actions.push(format!("retry_via_fallback:{}", first_fallback.kind).to_lowercase());
             } else {
                 actions.push("retry_selected_plan".to_string());
             }
@@ -320,8 +334,73 @@ fn lifecycle_next_actions(
     if closure.verification == ClosureState::Ready && !plan.needs_clarification {
         actions.push("run_verification_pass_before_final_emit".to_string());
     }
+    if closure.memory_packaging != ClosureState::Complete
+        && plan
+            .selected_plan
+            .steps
+            .iter()
+            .any(|step| matches!(step.target_contract, CoreContractCall::ContextAtomAppend))
+    {
+        actions.push("complete_memory_packaging_handoff".to_string());
+    }
     if actions.is_empty() {
         actions.push("no_additional_control_plane_action".to_string());
     }
     actions
+}
+
+fn build_handoff_chain(
+    plan: &OrchestrationPlan,
+    closure: &ControlPlaneClosureState,
+) -> Vec<ControlPlaneHandoff> {
+    let sequencing_status = sequencing_stage_status(plan.execution_state.plan_status.clone());
+    let verification_status = verification_stage_status(closure);
+    let memory_status = match closure.memory_packaging {
+        ClosureState::Complete => WorkflowStageStatus::Completed,
+        ClosureState::Ready => WorkflowStageStatus::Ready,
+        ClosureState::Pending => WorkflowStageStatus::Pending,
+        ClosureState::Blocked => WorkflowStageStatus::Blocked,
+    };
+    vec![
+        ControlPlaneHandoff {
+            handoff_id: "handoff_user_request_to_decomposition".to_string(),
+            from: "user_request_ingress".to_string(),
+            to: "decomposition_planning".to_string(),
+            owner: workflow_owner().to_string(),
+            artifact: "typed_request_snapshot".to_string(),
+            status: WorkflowStageStatus::Completed,
+        },
+        ControlPlaneHandoff {
+            handoff_id: "handoff_decomposition_to_coordination".to_string(),
+            from: "decomposition_planning".to_string(),
+            to: "coordination_sequencing".to_string(),
+            owner: workflow_owner().to_string(),
+            artifact: "selected_plan_recommendation".to_string(),
+            status: decomposition_stage_status(plan),
+        },
+        ControlPlaneHandoff {
+            handoff_id: "handoff_coordination_to_core_execution".to_string(),
+            from: "coordination_sequencing".to_string(),
+            to: "core_contract_execution".to_string(),
+            owner: workflow_owner().to_string(),
+            artifact: "core_contract_call_envelope".to_string(),
+            status: sequencing_status,
+        },
+        ControlPlaneHandoff {
+            handoff_id: "handoff_core_execution_to_verification".to_string(),
+            from: "core_contract_execution".to_string(),
+            to: "verification_closure".to_string(),
+            owner: workflow_owner().to_string(),
+            artifact: "execution_observation_snapshot".to_string(),
+            status: verification_status,
+        },
+        ControlPlaneHandoff {
+            handoff_id: "handoff_verification_to_memory_packaging".to_string(),
+            from: "verification_closure".to_string(),
+            to: "memory_packaging_projection".to_string(),
+            owner: workflow_owner().to_string(),
+            artifact: "result_package_projection".to_string(),
+            status: memory_status,
+        },
+    ]
 }

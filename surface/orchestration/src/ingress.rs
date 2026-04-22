@@ -77,7 +77,7 @@ pub fn normalize_request(input: OrchestrationRequest) -> ParseResult {
     let tool_hints = surface_adapted_request
         .as_ref()
         .map(|adapted_request| adapted_request.tool_hints.clone())
-        .unwrap_or_else(|| parser::extract_tool_hints(&payload, &operation_kind));
+        .unwrap_or_else(|| parser::extract_tool_hints(&payload, &operation_kind, &resource_kind));
     let policy_scope = classifier::infer_policy_scope(&resource_kind, &mutability);
     let user_constraints = parser::extract_user_constraints(&payload);
     let adapter_reasons = surface_adapted_request
@@ -421,6 +421,11 @@ fn parse_capability_name(value: &str) -> Option<Capability> {
     match value.trim().to_ascii_lowercase().as_str() {
         "read_memory" => Some(Capability::ReadMemory),
         "mutate_task" => Some(Capability::MutateTask),
+        "workspace_read" => Some(Capability::WorkspaceRead),
+        "workspace_search" => Some(Capability::WorkspaceSearch),
+        "web_search" => Some(Capability::WebSearch),
+        "web_fetch" => Some(Capability::WebFetch),
+        "tool_route" => Some(Capability::ToolRoute),
         "execute_tool" => Some(Capability::ExecuteTool),
         "plan_assimilation" => Some(Capability::PlanAssimilation),
         "verify_claim" => Some(Capability::VerifyClaim),
@@ -527,6 +532,108 @@ mod tests {
         });
         assert_eq!(parsed.typed_request.surface, RequestSurface::Sdk);
         assert_eq!(parsed.typed_request.operation_kind, OperationKind::Search);
+    }
+
+    #[test]
+    fn typed_surface_missing_probe_envelope_emits_contract_diagnostics() {
+        let parsed = normalize_request(OrchestrationRequest {
+            session_id: "sdk-probe-contract-missing".to_string(),
+            intent: "search".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "search",
+                    "resource_kind": "web",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "url", "value": "https://example.com" }]
+                }
+            }),
+        });
+        assert!(parsed
+            .reasons
+            .iter()
+            .any(|row| row == "typed_probe_contract_missing:core_probe_envelope"));
+        assert!(parsed
+            .reasons
+            .iter()
+            .any(|row| row == "typed_probe_contract_expected:execute_tool"));
+        assert!(parsed
+            .ambiguity
+            .contains(&crate::contracts::AmbiguityReason::TypedProbeContractViolation));
+    }
+
+    #[test]
+    fn typed_surface_incomplete_workspace_probe_emits_field_diagnostics() {
+        let parsed = normalize_request(OrchestrationRequest {
+            session_id: "sdk-workspace-probe-field-missing".to_string(),
+            intent: "search workspace".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "search",
+                    "resource_kind": "workspace",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "workspace_path", "value": "README.md" }]
+                },
+                "core_probe_envelope": {
+                    "workspace_search": {
+                        "transport_available": true
+                    }
+                }
+            }),
+        });
+        assert!(parsed.reasons.iter().any(|row| {
+            row == "typed_probe_contract_missing:field.workspace_search.tool_available"
+        }));
+        assert!(parsed
+            .ambiguity
+            .contains(&crate::contracts::AmbiguityReason::TypedProbeContractViolation));
+    }
+
+    #[test]
+    fn workspace_search_default_hints_do_not_inject_web_tools() {
+        let parsed = normalize_request(OrchestrationRequest {
+            session_id: "workspace-search-no-web-hint".to_string(),
+            intent: "find file planner".to_string(),
+            surface: RequestSurface::Legacy,
+            payload: json!({
+                "path": "surface/orchestration/src/planner/mod.rs"
+            }),
+        });
+        assert_eq!(parsed.typed_request.resource_kind, ResourceKind::Workspace);
+        assert!(parsed
+            .typed_request
+            .tool_hints
+            .contains(&"workspace_search".to_string()));
+        assert!(!parsed
+            .typed_request
+            .tool_hints
+            .contains(&"web_search".to_string()));
+        assert!(!parsed
+            .typed_request
+            .tool_hints
+            .contains(&"web_fetch".to_string()));
+    }
+
+    #[test]
+    fn web_search_default_hints_remain_web_scoped() {
+        let parsed = normalize_request(OrchestrationRequest {
+            session_id: "web-search-hint".to_string(),
+            intent: "search release notes".to_string(),
+            surface: RequestSurface::Legacy,
+            payload: json!({
+                "url": "https://example.com/releases"
+            }),
+        });
+        assert_eq!(parsed.typed_request.resource_kind, ResourceKind::Web);
+        assert!(parsed
+            .typed_request
+            .tool_hints
+            .contains(&"web_search".to_string()));
+        assert!(!parsed
+            .typed_request
+            .tool_hints
+            .contains(&"workspace_search".to_string()));
     }
 
     #[test]

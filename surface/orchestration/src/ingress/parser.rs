@@ -121,7 +121,11 @@ pub fn extract_target_refs(target_descriptors: &[TargetDescriptor]) -> Vec<Strin
     refs
 }
 
-pub fn extract_tool_hints(payload: &Value, operation_kind: &OperationKind) -> Vec<String> {
+pub fn extract_tool_hints(
+    payload: &Value,
+    operation_kind: &OperationKind,
+    resource_kind: &ResourceKind,
+) -> Vec<String> {
     let mut hints = Vec::new();
     for key in ["tool", "tool_name"] {
         if let Some(value) = payload.get(key).and_then(Value::as_str) {
@@ -131,10 +135,22 @@ pub fn extract_tool_hints(payload: &Value, operation_kind: &OperationKind) -> Ve
             }
         }
     }
-    match operation_kind {
-        OperationKind::Search => hints.push("web_search".to_string()),
-        OperationKind::Fetch => hints.push("web_fetch".to_string()),
-        OperationKind::InspectTooling => hints.push("tooling_route".to_string()),
+    match (resource_kind, operation_kind) {
+        (ResourceKind::Web, OperationKind::Search | OperationKind::Compare) => {
+            hints.push("web_search".to_string());
+        }
+        (ResourceKind::Web, OperationKind::Fetch) => {
+            hints.push("web_fetch".to_string());
+        }
+        (ResourceKind::Workspace, OperationKind::Search | OperationKind::Fetch) => {
+            hints.push("workspace_search".to_string());
+        }
+        (ResourceKind::Workspace, OperationKind::Read) => {
+            hints.push("workspace_read".to_string());
+        }
+        (ResourceKind::Tooling, _) | (_, OperationKind::InspectTooling) => {
+            hints.push("tooling_route".to_string());
+        }
         _ => {}
     }
     hints.sort();

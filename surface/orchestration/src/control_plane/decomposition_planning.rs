@@ -27,4 +27,3 @@ pub fn boundary() -> SubdomainBoundary {
         ],
     }
 }
-

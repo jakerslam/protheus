@@ -1,8 +1,9 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
     CoreExecutionObservation, OrchestrationFallbackAction, OrchestrationPlan, PlanCandidate,
-    PlanStatus, RecoveryDecision, RecoveryState, RequestClass, RequestClassification, ResourceKind,
-    ToolFallbackContext, TypedOrchestrationRequest,
+    PlanStatus, RecoveryDecision, RecoveryReason, RecoveryState, RequestClass,
+    RequestClassification, ResourceKind, StepStatus, ToolFallbackContext,
+    TypedOrchestrationRequest, WorkflowTemplate,
 };
 use protheus_tooling_core_v1::{ToolBackendClass, ToolReasonCode};
 use serde_json::Value;
@@ -11,14 +12,38 @@ pub fn propose_decomposition_candidate(
     request: &TypedOrchestrationRequest,
     classification: &RequestClassification,
 ) -> PlanCandidate {
-    crate::planner::propose_decomposition_candidate(request, classification)
+    propose_decomposition_candidate_with_template(request, classification, None)
+}
+
+pub fn propose_decomposition_candidate_with_template(
+    request: &TypedOrchestrationRequest,
+    classification: &RequestClassification,
+    template_hint: Option<&WorkflowTemplate>,
+) -> PlanCandidate {
+    crate::planner::propose_decomposition_candidate_with_template(
+        request,
+        classification,
+        template_hint,
+    )
 }
 
 pub fn propose_decomposition_candidates(
     request: &TypedOrchestrationRequest,
     classification: &RequestClassification,
 ) -> Vec<PlanCandidate> {
-    crate::planner::propose_decomposition_candidates(request, classification)
+    propose_decomposition_candidates_with_template(request, classification, None)
+}
+
+pub fn propose_decomposition_candidates_with_template(
+    request: &TypedOrchestrationRequest,
+    classification: &RequestClassification,
+    template_hint: Option<&WorkflowTemplate>,
+) -> Vec<PlanCandidate> {
+    crate::planner::propose_decomposition_candidates_with_template(
+        request,
+        classification,
+        template_hint,
+    )
 }
 
 // Compatibility aliases for existing callers during control-plane naming transition.
@@ -26,14 +51,14 @@ pub fn build_plan_candidate(
     request: &TypedOrchestrationRequest,
     classification: &RequestClassification,
 ) -> PlanCandidate {
-    propose_decomposition_candidate(request, classification)
+    propose_decomposition_candidate_with_template(request, classification, None)
 }
 
 pub fn build_plan_candidates(
     request: &TypedOrchestrationRequest,
     classification: &RequestClassification,
 ) -> Vec<PlanCandidate> {
-    propose_decomposition_candidates(request, classification)
+    propose_decomposition_candidates_with_template(request, classification, None)
 }
 
 pub fn project_fallback_actions(
@@ -76,12 +101,17 @@ pub fn apply_retry_reroute_feedback(
         return (plan, false);
     }
 
-    let replacement_index = plan
-        .alternative_plans
-        .iter()
-        .position(|candidate| candidate_improves_selection(candidate, &plan.selected_plan, selected_is_degraded));
+    let replacement_index = plan.alternative_plans.iter().position(|candidate| {
+        candidate_improves_selection(candidate, &plan.selected_plan, selected_is_degraded)
+    });
     let Some(index) = replacement_index else {
-        return (plan, false);
+        let applied_terminal_feedback = apply_terminal_feedback_when_no_reroute(
+            &mut plan,
+            execution_observation,
+            selected_is_unusable,
+            selected_is_degraded,
+        );
+        return (plan, applied_terminal_feedback);
     };
 
     let previous_plan_id = plan.selected_plan.plan_id.clone();
@@ -109,9 +139,9 @@ pub fn apply_retry_reroute_feedback(
             "control plane feedback rerouted from {previous_plan_id} to {replacement_plan_id}"
         ),
     });
-    plan.classification.reasons.push(
-        format!("feedback_reroute:{previous_plan_id}->{replacement_plan_id}").to_lowercase(),
-    );
+    plan.classification
+        .reasons
+        .push(format!("feedback_reroute:{previous_plan_id}->{replacement_plan_id}").to_lowercase());
     (plan, true)
 }
 
@@ -378,7 +408,86 @@ fn candidate_improves_selection(
 }
 
 fn candidate_is_executable(candidate: &PlanCandidate) -> bool {
-    !candidate.steps.is_empty() && candidate.blocked_on.is_empty() && !candidate.requires_clarification
+    !candidate.steps.is_empty()
+        && candidate.blocked_on.is_empty()
+        && !candidate.requires_clarification
+}
+
+fn apply_terminal_feedback_when_no_reroute(
+    plan: &mut OrchestrationPlan,
+    execution_observation: Option<&CoreExecutionObservation>,
+    selected_is_unusable: bool,
+    selected_is_degraded: bool,
+) -> bool {
+    if !execution_observation_failed(execution_observation) {
+        return false;
+    }
+    plan.classification
+        .reasons
+        .push("feedback_no_viable_reroute".to_string());
+    let previous_reason = plan
+        .execution_state
+        .recovery
+        .as_ref()
+        .and_then(|row| row.reason.clone());
+    if plan.needs_clarification || plan.selected_plan.requires_clarification || selected_is_unusable
+    {
+        if plan.clarification_prompt.is_none() {
+            plan.clarification_prompt =
+                Some("execution failed; clarify target or scope before retry".to_string());
+        }
+        plan.needs_clarification = true;
+        plan.classification.needs_clarification = true;
+        plan.execution_state.plan_status = PlanStatus::ClarificationRequired;
+        plan.execution_state.recovery = Some(RecoveryState {
+            decision: RecoveryDecision::Clarify,
+            reason: previous_reason.or(Some(RecoveryReason::PlannerContradiction)),
+            retryable: true,
+            note: "control plane feedback found no improved reroute; clarification required before retry".to_string(),
+        });
+        return true;
+    }
+    if selected_is_degraded {
+        plan.execution_state.recovery = Some(RecoveryState {
+            decision: RecoveryDecision::Degrade,
+            reason: previous_reason.or(Some(RecoveryReason::TransportFailure)),
+            retryable: true,
+            note: "control plane feedback found no improved reroute; retry selected degraded path with narrower scope".to_string(),
+        });
+        plan.classification
+            .reasons
+            .push("feedback_retry_selected_plan".to_string());
+        return true;
+    }
+    plan.execution_state.plan_status = PlanStatus::Failed;
+    plan.execution_state.recovery = Some(RecoveryState {
+        decision: RecoveryDecision::Halt,
+        reason: previous_reason.or(Some(RecoveryReason::PlannerContradiction)),
+        retryable: false,
+        note: "control plane feedback found no improved reroute; escalate to kernel authority"
+            .to_string(),
+    });
+    plan.classification
+        .reasons
+        .push("feedback_escalate_no_viable_reroute".to_string());
+    true
+}
+
+fn execution_observation_failed(execution_observation: Option<&CoreExecutionObservation>) -> bool {
+    execution_observation
+        .map(|observation| {
+            if matches!(observation.plan_status, Some(PlanStatus::Completed)) {
+                return false;
+            }
+            matches!(
+                observation.plan_status,
+                Some(PlanStatus::Failed | PlanStatus::Blocked | PlanStatus::ClarificationRequired)
+            ) || observation
+                .step_statuses
+                .iter()
+                .any(|step| step.status == StepStatus::Failed)
+        })
+        .unwrap_or(false)
 }
 
 #[cfg(test)]
