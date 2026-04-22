@@ -1,22 +1,27 @@
               </div>
             </div>
+            <infring-chat-archived-banner-shell>
             <div class="chat-archived-banner chat-archived-banner-bottom-center" x-show="currentAgent && isCurrentAgentArchived && isCurrentAgentArchived()">
               <button type="button" class="btn btn-primary btn-sm" @click="reviveCurrentArchivedAgent()">Revive Agent</button>
             </div>
+            </infring-chat-archived-banner-shell>
           </div>
         </div>
-      </div>
     </div>
+    </div>
+    </infring-chat-page-shell>
     </template>
 
     <!-- Page: Agents -->
     <template x-if="page === 'agents'">
+      <infring-agents-page-shell>
       <div x-data="agentsPage" @close-chat.window="closeChat()">
 
         <!-- MODE 1: Inline Chat (agent selected) -->
         <template x-if="activeChatAgent">
           <div x-data="chatPage" class="chat-wrapper" :class="{ 'chat-resize-blur-active': chatResizeBlurActive, 'chat-wrapper-archived-thread': isCurrentAgentArchived && isCurrentAgentArchived() }">
             <!-- Chat header with back button -->
+            <infring-chat-header-shell>
             <div class="page-header" x-show="currentAgent">
               <div class="flex items-center gap-2" style="min-width:0">
                 <button class="btn btn-ghost btn-sm" @click="$dispatch('close-chat')" title="Back to Agents" style="padding:4px 8px;margin-right:4px">
@@ -37,6 +42,7 @@
                   Generating...
                 </span>
                 <!-- Session switcher -->
+                <infring-session-switcher-shell>
                 <div style="position:relative">
                   <button class="btn btn-ghost btn-sm" @click="sessionsOpen = !sessionsOpen" title="Sessions" style="position:relative">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
@@ -59,6 +65,7 @@
                     <div class="text-xs text-dim" style="padding:8px 12px;text-align:center" x-show="!sessions.length">No sessions</div>
                   </infring-taskbar-menu-shell>
                 </div>
+                </infring-session-switcher-shell>
                 <button class="btn btn-ghost btn-sm" @click="toggleSearch()" title="Search messages (Ctrl+G)">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                 </button>
@@ -68,20 +75,25 @@
                 <button class="btn btn-danger btn-sm" @click="killAgent()">Stop</button>
               </div>
             </div>
+            </infring-chat-header-shell>
 
             <!-- Search bar -->
+            <infring-chat-search-shell>
             <div class="chat-search-bar" x-show="searchOpen" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 transform -translate-y-2" x-transition:enter-end="opacity-100 transform translate-y-0">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
               <input type="text" id="chat-search-input" x-model="searchQuery" x-ref="searchInput" placeholder="Search messages..." class="chat-search-input" @keydown.escape="toggleSearch()">
               <span class="text-xs text-dim" x-show="searchQuery.trim()" x-text="filteredMessages.length + ' of ' + messages.length"></span>
               <button class="btn btn-ghost btn-sm" @click="toggleSearch()" style="padding:2px 6px">&times;</button>
             </div>
+            </infring-chat-search-shell>
 
             <!-- Messages area -->
+            <infring-messages-surface-shell>
             <div class="messages" id="messages" x-ref="messagesEl" @scroll.passive="handleMessagesScroll($event)" @dragover.prevent="dragOver = true" @dragleave="dragOver = false" @drop.prevent="handleDrop($event); dragOver = false" @mouseenter="handleMessagesPointerMove($event)" @mousemove="handleMessagesPointerMove($event)" @mousedown="handleMessagesPointerDown($event)" @mouseup="handleMessagesPointerUp($event)" @selectstart="handleMessagesSelectStart($event)" @mouseleave="clearPointerFx($event)">
               <div class="chat-reflection-overlay" aria-hidden="true"></div>
               <div class="chat-grid-overlay" aria-hidden="true"></div>
               <!-- Empty state: no agent selected -->
+              <infring-chat-empty-state-shell>
               <template x-if="!currentAgent">
                 <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;padding:32px;opacity:0.8">
                   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:16px;opacity:0.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -89,8 +101,10 @@
                   <p class="text-dim" style="font-size:13px;max-width:320px">Choose an agent from the sidebar or go to the Agents tab to create a new one.</p>
                 </div>
               </template>
+              </infring-chat-empty-state-shell>
               <!-- Message list -->
               <template x-if="currentAgent">
+                <infring-chat-thread-shell>
                 <div class="chat-thread">
                   <template x-for="(msg, idx) in filteredMessages" :key="messageRenderKey(msg, idx)">
                     <div class="chat-message-block">
@@ -242,6 +256,7 @@
                             </template>
                           </div>
                         </template>
+                        <infring-tool-card-stack-shell>
                         <template x-for="tool in (msg.tools || [])" :key="tool.id">
                           <div class="tool-card" :class="{ 'tool-card-error': tool.is_error && !isBlockedTool(tool), 'tool-card-blocked': isBlockedTool(tool), 'tool-card-success': isToolSuccessful(tool), 'tool-card-thought': isThoughtTool(tool) }" :data-tool="tool.name">
                             <div class="tool-card-header" @click="tool.expanded = !tool.expanded">
@@ -299,7 +314,9 @@
                             </div>
                           </div>
                         </template>
+                        </infring-tool-card-stack-shell>
                         <!-- Timestamp + meta row -->
+                        <infring-message-meta-shell>
                         <div
                           class="message-stats-row"
                           x-show="!msg.thinking && ((msg.text && msg.text.trim()) || (msg.tools && msg.tools.length) || msg.meta || msg.ts)"
@@ -319,6 +336,7 @@
                           <span class="message-stat-meta" x-text="messageStatResponseTimeText(msg)" x-show="messageMetaVisible(msg, idx, filteredMessages) && messageStatResponseTimeText(msg)"></span>
                           <span class="message-stat-burn" x-show="messageMetaVisible(msg, idx, filteredMessages) && messageStatBurnLabelText(msg)"><img class="message-meta-icon message-stat-burn-icon" src="/icons/vecteezy_fire-icon-simple-vector-perfect-illustration_13821331.svg" alt="" aria-hidden="true"><span x-text="messageStatBurnLabelText(msg)"></span></span>
                         </div>
+                        </infring-message-meta-shell>
                         </div>
                       </infring-chat-stream-shell>
                     </div>
@@ -327,7 +345,9 @@
                     <button class="btn btn-ghost btn-sm" type="button" @click="expandDisplayedMessages()">Expand</button>
                   </div>
                 </div>
+                </infring-chat-thread-shell>
               </template>
+              <infring-chat-empty-state-shell>
               <template x-if="currentAgent && !sessionLoading && (!filteredMessages || filteredMessages.length === 0) && !showFreshArchetypeTiles">
                 <infring-chat-stream-shell class="empty-state">
                   <h4 x-text="searchQuery && searchQuery.trim() ? 'No matches' : 'No messages yet'"></h4>
@@ -338,11 +358,15 @@
                   </div>
                 </infring-chat-stream-shell>
               </template>
+              </infring-chat-empty-state-shell>
 
               <!-- Drop zone overlay -->
+              <infring-dropzone-overlay-shell>
               <infring-chat-stream-shell x-show="dragOver" style="position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:var(--surface);opacity:0.92;border:2px dashed var(--accent);border-radius:8px;pointer-events:none">
                 <span style="font-size:16px;color:var(--accent);font-weight:600">Drop files here</span>
               </infring-chat-stream-shell>
+              </infring-dropzone-overlay-shell>
+              <infring-workspace-panel-shell>
               <infring-popup-window-shell class="chat-workspace-panel overlay-shared-surface" x-show="isWorkspacePanelOpen()" x-transition.opacity @click.outside="closeWorkspacePanel()">
                 <div class="chat-workspace-panel-head">
                   <div>
@@ -382,14 +406,18 @@
                   </div>
                 </div>
               </infring-popup-window-shell>
+              </infring-workspace-panel-shell>
             </div>
+            </infring-messages-surface-shell>
             <infring-chat-map-shell class="chat-map" x-show="currentAgent && filteredMessages && filteredMessages.length > 0" :style="chatMapContainerStyle()" :hasmessages="!!(currentAgent && filteredMessages && filteredMessages.length > 0)" :dragging="!!chatMapDragActive" aria-label="Message map">
               <div class="chat-map-surface drag-bar overlay-shared-surface" :class="{ 'is-container-dragging': !!chatMapDragActive }" @pointerdown.capture="startChatMapPointerDrag($event)" @mousedown.capture="startChatMapPointerDrag($event)">
+              <infring-chat-map-rail-shell>
               <div class="chat-map-rail">
               <button class="chat-map-jump chat-map-jump-up" type="button" @click="stepMessageMap(filteredMessages, -1)" title="Previous message" aria-label="Previous message">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"></path></svg>
               </button>
               <div class="chat-map-items-wrap">
+              <infring-chat-map-viewport-shell>
               <div class="chat-map-viewport">
               <div class="chat-map-scroll" @scroll.passive="hideDashboardPopupBySource('chat-map')">
               <div class="chat-map-spacer" aria-hidden="true"></div>
@@ -431,15 +459,19 @@
               <div class="chat-map-spacer" aria-hidden="true"></div>
               </div>
               </div>
+              </infring-chat-map-viewport-shell>
               </div>
               <button class="chat-map-jump chat-map-jump-down" type="button" @click="stepMessageMap(filteredMessages, 1)" title="Next message" aria-label="Next message">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
               </button>
               </div>
+              </infring-chat-map-rail-shell>
               </div>
             </infring-chat-map-shell>
             <!-- Input area -->
+            <infring-chat-input-footer-shell>
             <div class="input-area" x-show="currentAgent && !(isCurrentAgentArchived && isCurrentAgentArchived())" style="position:relative" :class="{ 'terminal-mode': terminalMode }">
+              <infring-composer-lane-shell>
               <div class="chat-input-lane">
               <button class="chat-scroll-down" x-show="showScrollDown && currentAgent" @click="scrollToBottom({ buttonAnimated: true, force: true })" title="Scroll to latest" aria-label="Scroll to latest">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>

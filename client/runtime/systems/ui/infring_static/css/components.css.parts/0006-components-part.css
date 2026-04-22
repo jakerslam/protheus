@@ -75,11 +75,40 @@
     transform 0.2s var(--ease-smooth);
 }
 
+.message-bubble > .message-stats-row {
+  --message-meta-icon-size: 11px;
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 2px;
+  min-height: 14px;
+  max-height: 18px;
+  gap: 4px;
+  padding-top: 0;
+  font-size: 9px;
+  line-height: 1;
+  z-index: 4;
+}
+
+.message-bubble > .message-stats-row .message-stat-btn {
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+}
+
+.message-bubble > .message-stats-row .message-reply-label {
+  display: none;
+}
+
 .message.meta-expanded .message-stats-row {
   opacity: 1;
   max-height: 34px;
   transform: translateY(0);
   pointer-events: auto;
+}
+
+.message.meta-expanded .message-bubble > .message-stats-row {
+  max-height: 18px;
 }
 
 .message.meta-collapsed .message-stats-row {

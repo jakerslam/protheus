@@ -125,6 +125,17 @@
         "core/local/artifacts/arch_boundary_conformance_current.json"
       ]
     },
+    "ops:nexus:core-coupling:guard": {
+      "owner": "ops",
+      "description": "Core nexus coupling guard with forbidden-direct-nexus and layer0 allowlist enforcement.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:nexus:core-coupling:guard",
+      "artifact_paths": [
+        "core/local/artifacts/core_nexus_coupling_guard_current.json",
+        "local/workspace/reports/CORE_NEXUS_COUPLING_GUARD_CURRENT.md"
+      ]
+    },
     "ops:repo-health:check": {
       "owner": "ops",
       "description": "Repo health gate for package-script budget, file-size exception debt, shared tooling adoption, and root-surface drift.",
@@ -811,6 +822,8 @@
         "local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_GATE_FAILURES_CURRENT.md",
         "core/local/artifacts/runtime_proof_empirical_profile_readiness_current.json",
         "local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_READINESS_CURRENT.md",
+        "core/local/artifacts/runtime_proof_empirical_minimum_contract_current.json",
+        "local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_MINIMUM_CONTRACT_CURRENT.md",
         "core/local/state/ops/runtime_proof_empirical_history.jsonl",
         "core/local/artifacts/release_proof_checksums_current.json"
       ]

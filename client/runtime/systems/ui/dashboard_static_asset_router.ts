@@ -1,0 +1,6 @@
+#!/usr/bin/env tsx
+
+// TypeScript compatibility shim only.
+// Layer ownership: adapters/runtime::dashboard-asset-router.
+
+module.exports = require('../../../../adapters/runtime/dashboard_asset_router.ts');

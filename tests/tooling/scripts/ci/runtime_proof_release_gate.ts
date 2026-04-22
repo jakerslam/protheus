@@ -39,6 +39,8 @@ type ProfileGatePolicy = {
     meta_status_tool_leak_max: number;
     web_missing_tool_attempt_max: number;
     taxonomy_parse_error_max: number;
+    report_not_ok_max: number;
+    report_read_error_max: number;
     denied_actions_max: number;
     pause_reason_events_max: number;
     merkle_chain_continuity_failures_max: number;
@@ -258,6 +260,8 @@ function parsePolicyYaml(raw: string): ParsedPolicy {
             meta_status_tool_leak_max: 0,
             web_missing_tool_attempt_max: 0,
             taxonomy_parse_error_max: 0,
+            report_not_ok_max: 0,
+            report_read_error_max: 0,
             denied_actions_max: 0,
             pause_reason_events_max: 0,
             merkle_chain_continuity_failures_max: 0,
@@ -805,9 +809,12 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     meta_status_tool_leak: 0,
     web_missing_tool_attempt: 0,
   });
-  const qualityParseError = qualityTaxonomyRows.filter(
-    (row) => !row.ok || row.parse_error.length > 0,
-  ).length;
+  const qualityParseErrorRows = qualityTaxonomyRows.filter((row) => {
+    if (!row.ok) return false;
+    if (row.payload_ok === false) return false;
+    return row.parse_error.length > 0;
+  });
+  const qualityParseError = qualityParseErrorRows.length;
   const qualityReportNotOkCount = qualityTaxonomyRows.filter((row) => row.payload_ok === false).length;
   const qualityReportReadErrorCount = qualityTaxonomyRows.filter((row) => !row.ok).length;
   const runtimeLaneCounters = runtimeLaneStateRaw.payload?.release_gate_counters || {};
@@ -962,6 +969,16 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       profilePolicy.quality_telemetry.taxonomy_parse_error_max,
     ),
     buildCheckLe(
+      'quality_report_not_ok_max',
+      Number(qualityMetrics.quality_report_not_ok_count || 0),
+      profilePolicy.quality_telemetry.report_not_ok_max,
+    ),
+    buildCheckLe(
+      'quality_report_read_error_max',
+      Number(qualityMetrics.quality_report_read_error_count || 0),
+      profilePolicy.quality_telemetry.report_read_error_max,
+    ),
+    buildCheckLe(
       'quality_denied_actions_max',
       Number(qualityMetrics.quality_denied_actions || 0),
       profilePolicy.quality_telemetry.denied_actions_max,
@@ -1015,6 +1032,10 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         path: row.path,
         read_ok: row.ok,
         payload_ok: row.payload_ok === true ? true : row.payload_ok === false ? false : null,
+        parse_error: row.parse_error,
+      })),
+      quality_taxonomy_parse_error_rows: qualityParseErrorRows.map((row) => ({
+        path: row.path,
         parse_error: row.parse_error,
       })),
       runtime_lane_state_path: args.runtimeLaneStatePath,

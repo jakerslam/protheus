@@ -1,0 +1,60 @@
+/* Normalize taskbar controls to the theme toggle's visual height/radius. */
+.global-taskbar {
+  --taskbar-control-height: 24px;
+  --taskbar-control-radius: 999px;
+  --taskbar-control-inline-padding: 10px;
+  --taskbar-brand-logo-size: calc(var(--taskbar-control-height) - 6px);
+}
+
+.global-taskbar .theme-switcher {
+  --pill-opt-size: var(--taskbar-control-height);
+  --theme-opt-size: var(--taskbar-control-height);
+}
+
+.global-taskbar .taskbar-brand-trigger,
+.global-taskbar .taskbar-text-menu-btn,
+.global-taskbar .taskbar-icon-btn,
+.global-taskbar .taskbar-nav-pill,
+.global-taskbar .theme-switcher,
+.global-taskbar .health-indicator,
+.global-taskbar .taskbar-clock {
+  box-sizing: border-box;
+  height: var(--taskbar-control-height) !important;
+  min-height: var(--taskbar-control-height) !important;
+  border-radius: var(--taskbar-control-radius) !important;
+}
+
+.global-taskbar .taskbar-icon-btn {
+  width: var(--taskbar-control-height) !important;
+  min-width: var(--taskbar-control-height) !important;
+}
+
+.global-taskbar .taskbar-brand-trigger,
+.global-taskbar .taskbar-text-menu-btn,
+.global-taskbar .health-indicator,
+.global-taskbar .taskbar-clock {
+  padding-block: 0 !important;
+  padding-inline: var(--taskbar-control-inline-padding) !important;
+}
+
+.global-taskbar .taskbar-clock {
+  align-items: center !important;
+  line-height: 1;
+}
+
+.global-taskbar .taskbar-brand-trigger .infring-logo,
+.global-taskbar .taskbar-brand-trigger .brand-mark {
+  --infring-logo-size: var(--taskbar-brand-logo-size);
+  --infring-logo-font-size: calc(var(--taskbar-brand-logo-size) * 0.6);
+  width: var(--taskbar-brand-logo-size) !important;
+  height: var(--taskbar-brand-logo-size) !important;
+}
+
+.global-taskbar .taskbar-nav-pill .taskbar-nav-btn,
+.global-taskbar .theme-switcher .theme-opt {
+  height: var(--taskbar-control-height) !important;
+  min-height: var(--taskbar-control-height) !important;
+  width: var(--taskbar-control-height) !important;
+  min-width: var(--taskbar-control-height) !important;
+  border-radius: var(--taskbar-control-radius) !important;
+}

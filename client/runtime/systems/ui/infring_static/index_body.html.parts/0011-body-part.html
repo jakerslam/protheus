@@ -1,7 +1,9 @@
             </infring-chat-stream-shell>
           </div>
+          </infring-skills-clawhub-tab-shell>
 
           <!-- TAB: MCP Servers -->
+          <infring-skills-mcp-tab-shell>
           <div x-show="tab === 'mcp'">
             <div class="info-card">
               <h4>MCP Servers (Model Context Protocol)</h4>
@@ -72,8 +74,10 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
               </infring-chat-stream-shell>
             </div>
           </div>
+          </infring-skills-mcp-tab-shell>
 
           <!-- TAB: Quick Start (Create prompt-only plugins) -->
+          <infring-skills-create-tab-shell>
           <div x-show="tab === 'create'">
             <div class="info-card">
               <h4>Quick Start Plugins</h4>
@@ -94,6 +98,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
               </template>
             </div>
           </div>
+          </infring-skills-create-tab-shell>
 
           <!-- Skill Detail Modal -->
           <template x-if="skillDetail || detailLoading">
@@ -158,6 +163,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
           </div>
         </div>
       </div>
+      </infring-skills-page-shell>
     </template>
 
     <!-- Page: Hands -->

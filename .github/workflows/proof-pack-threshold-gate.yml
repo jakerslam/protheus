@@ -26,6 +26,12 @@ jobs:
 
       - name: Generate proof-pack closure artifacts
         run: |
+          if [ ! -f artifacts/web_tooling_context_soak_report_latest.json ]; then
+            node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/web_tooling_context_soak.ts || true
+          fi
+          if [ ! -f artifacts/workspace_tooling_context_soak_report_latest.json ]; then
+            node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/workspace_tooling_context_soak.ts || true
+          fi
           npm run -s ops:runtime-proof:verify
           npm run -s ops:layer2:parity:guard
           npm run -s ops:layer2:receipt:replay

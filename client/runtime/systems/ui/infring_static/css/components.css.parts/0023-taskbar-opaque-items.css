@@ -1,0 +1,44 @@
+/* Keep taskbar controls readable over image/pattern background templates. */
+.global-taskbar {
+  --taskbar-item-opaque-bg: color-mix(in srgb, var(--surface) 84%, var(--surface2) 16%);
+  --taskbar-item-opaque-hover-bg: color-mix(in srgb, var(--surface2) 82%, var(--accent) 18%);
+  --taskbar-item-opaque-active-bg: color-mix(in srgb, var(--surface2) 72%, var(--accent) 28%);
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.global-taskbar .taskbar-brand-trigger,
+.global-taskbar .taskbar-text-menu-btn,
+.global-taskbar .taskbar-icon-btn,
+.global-taskbar .taskbar-nav-pill,
+.global-taskbar .theme-switcher,
+.global-taskbar .health-indicator,
+.global-taskbar .taskbar-clock {
+  opacity: 1 !important;
+  background: var(--taskbar-item-opaque-bg) !important;
+}
+
+.global-taskbar .taskbar-brand-trigger:hover,
+.global-taskbar .taskbar-brand-trigger:focus-visible,
+.global-taskbar .taskbar-text-menu-btn:hover,
+.global-taskbar .taskbar-text-menu-btn:focus-visible,
+.global-taskbar .taskbar-text-menu-btn[aria-expanded='true'],
+.global-taskbar .taskbar-icon-btn:hover,
+.global-taskbar .taskbar-icon-btn:focus-visible,
+.global-taskbar .health-indicator:hover {
+  background: var(--taskbar-item-opaque-hover-bg) !important;
+}
+
+.global-taskbar .theme-switcher,
+.global-taskbar .taskbar-nav-pill {
+  --pill-track-color: var(--taskbar-item-opaque-bg);
+}
+
+.global-taskbar .theme-switcher::before,
+.global-taskbar .icon-pill-toggle::before {
+  opacity: 1 !important;
+  background: var(--taskbar-item-opaque-active-bg) !important;
+}

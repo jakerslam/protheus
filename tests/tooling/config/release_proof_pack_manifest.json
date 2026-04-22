@@ -40,6 +40,7 @@
     "release_governance": [
       "core/local/artifacts/production_readiness_closure_gate_current.json",
       "core/local/artifacts/runtime_trusted_core_report_current.json",
+      "core/local/artifacts/core_nexus_coupling_guard_current.json",
       "core/local/artifacts/layer3_contract_guard_current.json",
       "core/local/artifacts/node_critical_path_inventory_current.json",
       "core/local/artifacts/agent_surface_status_guard_current.json",
@@ -97,6 +98,7 @@
     "core/local/artifacts/layer2_lane_parity_guard_current.json",
     "core/local/artifacts/layer2_receipt_replay_current.json",
     "core/local/artifacts/runtime_trusted_core_report_current.json",
+    "core/local/artifacts/core_nexus_coupling_guard_current.json",
     "core/local/artifacts/layer3_contract_guard_current.json",
     "core/local/artifacts/node_critical_path_inventory_current.json",
     "core/local/artifacts/agent_surface_status_guard_current.json",
@@ -138,6 +140,7 @@
     "local/workspace/reports/TERMINOLOGY_TRANSITION_INVENTORY_CURRENT.md",
     "local/workspace/reports/SRS_SAME_REVISION_GUARD_CURRENT.md",
     "local/workspace/reports/CAPABILITY_PROOF_BURDEN_GUARD_CURRENT.md",
-    "local/workspace/reports/SRS_TODO_SECTION_GUARD_CURRENT.md"
+    "local/workspace/reports/SRS_TODO_SECTION_GUARD_CURRENT.md",
+    "local/workspace/reports/CORE_NEXUS_COUPLING_GUARD_CURRENT.md"
   ]
 }

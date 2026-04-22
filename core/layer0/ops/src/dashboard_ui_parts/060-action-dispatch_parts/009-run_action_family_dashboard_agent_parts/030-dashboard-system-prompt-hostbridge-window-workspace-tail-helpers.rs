@@ -142,7 +142,7 @@ fn dashboard_prompt_host_vscode_workspace_get_workspace_paths_describe() -> Valu
 }
 
 fn dashboard_prompt_hostbridge_window_workspace_tail_route_extension(
-    _root: &Path,
+    root: &Path,
     normalized: &str,
     payload: &Value,
 ) -> Option<Value> {
@@ -177,6 +177,10 @@ fn dashboard_prompt_hostbridge_window_workspace_tail_route_extension(
         "dashboard.prompts.system.hosts.vscode.hostbridge.workspace.getWorkspacePaths.describe" => {
             Some(dashboard_prompt_host_vscode_workspace_get_workspace_paths_describe())
         }
-        _ => None,
+        _ => dashboard_prompt_hostbridge_workspace_review_terminal_tail_route_extension(
+            root, normalized, payload,
+        ),
     }
 }
+
+include!("031-dashboard-system-prompt-hostbridge-workspace-review-terminal-tail-helpers.rs");

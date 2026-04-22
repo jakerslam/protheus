@@ -455,7 +455,7 @@
         if (stepSummary) return stepSummary;
       }
       if (finalization && finalization.applied === true) {
-        return 'I completed the run, but the final reply did not render. Ask me to continue and I will synthesize from the recorded workflow state.';
+        return 'I hit a response finalization edge on that turn. I can continue with a direct answer from current context and avoid extra tool calls unless you explicitly request one.';
       }
       if (
         data &&

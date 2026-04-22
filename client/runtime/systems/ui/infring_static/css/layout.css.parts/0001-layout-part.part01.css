@@ -11,9 +11,9 @@
 }
 .app-layout.taskbar-bottom {
   --shell-top-offset: 0px;
-  --shell-bottom-offset: 46px;
+  --shell-bottom-offset: 0px;
   padding-top: 0;
-  padding-bottom: 46px;
+  padding-bottom: 0;
 }
 body.dashboard-embedded-shell .app-layout {
   height: 100vh;

@@ -53,7 +53,7 @@
     "ops:module-cohesion:audit": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/module_cohesion_policy_audit.ts --strict=1",
     "ops:nexus:checklist": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/nexus_module_file_checklist.ts --strict=1",
     "ops:nexus:boundary:audit": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/nexus_import_export_boundary_audit.ts --strict=1",
-    "ops:nexus:core-coupling:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/core_nexus_coupling_guard.ts --strict=1 --policy=tests/tooling/config/core_nexus_coupling_policy.json --out=core/local/artifacts/core_nexus_coupling_guard_current.json",
+    "ops:nexus:core-coupling:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/core_nexus_coupling_guard.ts --strict=1 --policy=tests/tooling/config/core_nexus_coupling_policy.json --out=core/local/artifacts/core_nexus_coupling_guard_current.json --report=local/workspace/reports/CORE_NEXUS_COUPLING_GUARD_CURRENT.md",
     "ops:nexus:governance": "npm run -s ops:nexus:checklist && npm run -s ops:nexus:boundary:audit && npm run -s ops:nexus:core-coupling:guard",
     "ops:arch:boundary:audit": "npm run -s tooling:run -- --id=ops:arch:boundary:audit --strict=1",
     "ops:arch:governance": "npm run -s ops:nexus:governance && npm run -s ops:orchestration:ts-boundary:guard && npm run -s ops:arch:boundary:audit",

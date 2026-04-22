@@ -1,0 +1,43 @@
+:root {
+  --agent-details-glass-border: var(--overlay-magnified-surface-border);
+  --agent-details-glass-background: var(--overlay-magnified-surface-background);
+  --agent-details-glass-shadow: var(--overlay-magnified-surface-shell-shadow);
+  --agent-details-glass-rim-shadow: var(--overlay-magnified-surface-rim-shadow);
+  --agent-details-glass-specular: var(--overlay-magnified-surface-specular);
+  --agent-details-glass-specular-opacity: var(--overlay-magnified-surface-specular-opacity);
+  --agent-details-glass-filter:
+    var(--overlay-magnified-surface-distortion)
+    blur(var(--overlay-magnified-surface-blur))
+    saturate(var(--overlay-magnified-surface-saturate))
+    brightness(var(--overlay-magnified-surface-brightness))
+    contrast(var(--overlay-magnified-surface-contrast));
+  --agent-details-glass-lens-size: var(--overlay-magnified-surface-lens-size, 50%);
+  --agent-details-glass-lens-scale: var(--overlay-magnified-surface-lens-scale, 2);
+  --agent-details-glass-lens-opacity: var(--overlay-magnified-surface-lens-opacity, 0.34);
+  --agent-details-glass-lens-filter:
+    var(--overlay-magnified-surface-distortion)
+    blur(var(--overlay-magnified-surface-blur))
+    saturate(calc(var(--overlay-magnified-surface-saturate) + var(--overlay-magnified-surface-lens-saturate-boost, 0.08)))
+    brightness(calc(var(--overlay-magnified-surface-brightness) + var(--overlay-magnified-surface-lens-brightness-boost, 0.06)))
+    contrast(calc(var(--overlay-magnified-surface-contrast) + var(--overlay-magnified-surface-lens-contrast-boost, 0.08)));
+}
+
+.chat-thread-profile,
+.chat-agent-identity {
+  --chat-thread-profile-surface-border: var(--agent-details-glass-border);
+  --chat-thread-profile-surface-background: var(--agent-details-glass-background);
+  --chat-thread-profile-surface-shadow: var(--agent-details-glass-shadow);
+  --chat-thread-profile-surface-filter: var(--agent-details-glass-filter);
+  --chat-thread-profile-magnified-lens-size: var(--agent-details-glass-lens-size);
+  --chat-thread-profile-magnified-lens-scale: var(--agent-details-glass-lens-scale);
+  --chat-thread-profile-magnified-lens-opacity: var(--agent-details-glass-lens-opacity);
+  --chat-thread-profile-magnified-lens-filter: var(--agent-details-glass-lens-filter);
+  --chat-agent-identity-surface-border: var(--agent-details-glass-border);
+  --chat-agent-identity-surface-background: var(--agent-details-glass-background);
+  --chat-agent-identity-surface-shadow: var(--agent-details-glass-shadow);
+  --chat-agent-identity-surface-filter: var(--agent-details-glass-filter);
+  --chat-agent-identity-magnified-lens-size: var(--agent-details-glass-lens-size);
+  --chat-agent-identity-magnified-lens-scale: var(--agent-details-glass-lens-scale);
+  --chat-agent-identity-magnified-lens-opacity: var(--agent-details-glass-lens-opacity);
+  --chat-agent-identity-magnified-lens-filter: var(--agent-details-glass-lens-filter);
+}

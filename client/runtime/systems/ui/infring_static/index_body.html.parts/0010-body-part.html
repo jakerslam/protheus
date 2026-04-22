@@ -131,10 +131,12 @@
           </template>
         </div>
       </div>
+      </infring-channels-page-shell>
     </template>
 
     <!-- Page: Eyes -->
     <template x-if="page === 'eyes'">
+      <infring-eyes-page-shell>
       <div x-data="eyesPage">
         <div class="page-header page-header-subtabs-center">
           <div class="tabs mt-3" role="tablist">
@@ -236,10 +238,12 @@
           </div>
         </div>
       </div>
+      </infring-eyes-page-shell>
     </template>
 
     <!-- Page: Apps -->
     <template x-if="page === 'skills'">
+      <infring-skills-page-shell>
       <div x-data="skillsPage">
         <div class="page-header">
           <div class="tabs mt-3" role="tablist">
@@ -278,6 +282,7 @@
           </div>
 
           <!-- TAB: Installed Plugins -->
+          <infring-skills-installed-tab-shell>
           <div x-show="tab === 'installed'">
             <div class="card-grid" x-show="skills.length">
               <template x-for="skill in skills" :key="skill.name">
@@ -314,8 +319,10 @@
               </div>
             </infring-chat-stream-shell>
           </div>
+          </infring-skills-installed-tab-shell>
 
           <!-- TAB: ClawHub (Infring Ecosystem) -->
+          <infring-skills-clawhub-tab-shell>
           <div x-show="tab === 'clawhub'">
             <!-- Search bar with live search and clear button -->
             <div class="search-input mb-4" style="position:relative">
