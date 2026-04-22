@@ -13,6 +13,9 @@ pub fn build_clarification_prompt(
             "clarify requested operation before orchestration planning (parsed operation={:?}, resource={:?})",
             request.operation_kind, request.resource_kind
         ).to_lowercase()),
+        ClarificationReason::TypedProbeContractViolation => Some(
+            "typed surface request is missing required core_probe_envelope fields; refresh gateway/sdk probe contract and retry".to_string(),
+        ),
         ClarificationReason::MissingTargetRefs => {
             Some("specify target artifacts for assimilation planning".to_string())
         }

@@ -28,6 +28,7 @@
       "core/local/artifacts/runtime_proof_empirical_profile_gate_current.json",
       "core/local/artifacts/runtime_proof_empirical_profile_gate_failures_current.json",
       "core/local/artifacts/runtime_proof_empirical_profile_readiness_current.json",
+      "core/local/artifacts/runtime_proof_empirical_minimum_contract_current.json",
       "core/local/artifacts/release_proof_checksums_current.json"
     ],
     "adapter_and_orchestration": [
@@ -51,6 +52,7 @@
     ],
     "workload_and_quality": [
       "artifacts/web_tooling_context_soak_report_latest.json",
+      "artifacts/workspace_tooling_context_soak_report_latest.json",
       "docs/client/reports/benchmark_matrix_run_latest.json",
       "client/runtime/local/state/release/scorecard/release_scorecard.json"
     ]
@@ -88,6 +90,7 @@
     "core/local/artifacts/runtime_proof_empirical_profile_gate_current.json",
     "core/local/artifacts/runtime_proof_empirical_profile_gate_failures_current.json",
     "core/local/artifacts/runtime_proof_empirical_profile_readiness_current.json",
+    "core/local/artifacts/runtime_proof_empirical_minimum_contract_current.json",
     "core/local/artifacts/release_proof_checksums_current.json",
     "core/local/artifacts/adapter_runtime_chaos_gate_current.json",
     "core/local/artifacts/gateway_support_levels_current.json",
@@ -100,6 +103,7 @@
     "core/local/artifacts/production_readiness_closure_gate_current.json",
     "core/local/artifacts/support_bundle_latest.json",
     "artifacts/web_tooling_context_soak_report_latest.json",
+    "artifacts/workspace_tooling_context_soak_report_latest.json",
     "docs/client/reports/benchmark_matrix_run_latest.json",
     "client/runtime/local/state/release/scorecard/release_scorecard.json",
     "core/local/artifacts/shell_truth_leak_guard_current.json",
@@ -127,6 +131,7 @@
     "local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_GATE_CURRENT.md",
     "local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_GATE_FAILURES_CURRENT.md",
     "local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_READINESS_CURRENT.md",
+    "local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_MINIMUM_CONTRACT_CURRENT.md",
     "core/local/state/ops/runtime_proof_empirical_history.jsonl",
     "local/workspace/reports/RELEASE_SCORECARD_CURRENT.md",
     "local/workspace/reports/SHELL_TRUTH_LEAK_GUARD_CURRENT.md",

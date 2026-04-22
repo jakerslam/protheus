@@ -79,9 +79,64 @@ pub enum ExecutionPosture {
 pub enum Capability {
     ReadMemory,
     MutateTask,
+    WorkspaceRead,
+    WorkspaceSearch,
+    WebSearch,
+    WebFetch,
+    ToolRoute,
+    /// Legacy compatibility capability retained for older probe payloads.
     ExecuteTool,
     PlanAssimilation,
     VerifyClaim,
+}
+
+impl Capability {
+    pub fn is_tool_family(&self) -> bool {
+        matches!(
+            self,
+            Capability::WorkspaceRead
+                | Capability::WorkspaceSearch
+                | Capability::WebSearch
+                | Capability::WebFetch
+                | Capability::ToolRoute
+                | Capability::ExecuteTool
+        )
+    }
+
+    pub fn probe_keys(&self) -> &'static [&'static str] {
+        match self {
+            Capability::ReadMemory => &["read_memory"],
+            Capability::MutateTask => &["mutate_task"],
+            Capability::WorkspaceRead => &["workspace_read", "execute_tool"],
+            Capability::WorkspaceSearch => &["workspace_search", "execute_tool"],
+            Capability::WebSearch => &["web_search", "execute_tool"],
+            Capability::WebFetch => &["web_fetch", "execute_tool"],
+            Capability::ToolRoute => &["tool_route", "execute_tool"],
+            Capability::ExecuteTool => &["execute_tool"],
+            Capability::PlanAssimilation => &["plan_assimilation"],
+            Capability::VerifyClaim => &["verify_claim"],
+        }
+    }
+
+    pub fn primary_tool_for(
+        operation_kind: &OperationKind,
+        resource_kind: &ResourceKind,
+    ) -> Capability {
+        match (resource_kind, operation_kind) {
+            (ResourceKind::Workspace, OperationKind::Search) => Capability::WorkspaceSearch,
+            (ResourceKind::Workspace, OperationKind::Read) => Capability::WorkspaceRead,
+            (ResourceKind::Web, OperationKind::Fetch) => Capability::WebFetch,
+            (ResourceKind::Web, OperationKind::Search | OperationKind::Compare) => {
+                Capability::WebSearch
+            }
+            (ResourceKind::Tooling, _) => Capability::ToolRoute,
+            (ResourceKind::Mixed, OperationKind::Fetch) => Capability::WebFetch,
+            (ResourceKind::Mixed, _) => Capability::ToolRoute,
+            (ResourceKind::Web, _) => Capability::WebSearch,
+            (ResourceKind::Workspace, _) => Capability::WorkspaceRead,
+            _ => Capability::ToolRoute,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -244,6 +299,7 @@ pub enum AmbiguityReason {
     UnresolvedTargetDomain,
     LowConfidence,
     LegacyCompatOnly,
+    TypedProbeContractViolation,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -261,6 +317,7 @@ pub struct ParseResult {
 pub enum ClarificationReason {
     MissingSessionId,
     AmbiguousOperation,
+    TypedProbeContractViolation,
     MissingTargetRefs,
     MutationScopeRequired,
     PlannerGap,
@@ -531,6 +588,16 @@ pub struct WorkflowStageState {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ControlPlaneHandoff {
+    pub handoff_id: String,
+    pub from: String,
+    pub to: String,
+    pub owner: String,
+    pub artifact: String,
+    pub status: WorkflowStageStatus,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ClosureState {
     Pending,
@@ -552,6 +619,7 @@ pub struct ControlPlaneLifecycleState {
     pub template: WorkflowTemplate,
     pub active_stage: WorkflowStage,
     pub stages: Vec<WorkflowStageState>,
+    pub handoff_chain: Vec<ControlPlaneHandoff>,
     pub next_actions: Vec<String>,
     pub closure: ControlPlaneClosureState,
 }

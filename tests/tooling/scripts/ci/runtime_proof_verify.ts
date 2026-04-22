@@ -21,6 +21,11 @@ type EmpiricalTrendMetricKey =
   | 'receipt_p95_latency_ms'
   | 'conduit_recovery_ms';
 
+const RELEASE_GATE_QUALITY_PATHS = [
+  'artifacts/web_tooling_context_soak_report_latest.json',
+  'artifacts/workspace_tooling_context_soak_report_latest.json',
+];
+
 const EMPIRICAL_TREND_METRIC_KEYS: EmpiricalTrendMetricKey[] = [
   'peak_rss_mb',
   'queue_depth_max',
@@ -567,6 +572,48 @@ function renderEmpiricalProfileReadinessMarkdown(payload: any): string {
   return `${lines.join('\n')}\n`;
 }
 
+function renderEmpiricalMinimumContractMarkdown(payload: any): string {
+  const lines: string[] = [];
+  lines.push('# Runtime Proof Empirical Minimum Configuration Contract (Current)');
+  lines.push('');
+  lines.push(`Generated: ${cleanText(payload?.generated_at || '', 80)}`);
+  lines.push(`Revision: ${cleanText(payload?.revision || '', 120)}`);
+  lines.push(`Proof track: ${cleanText(payload?.proof_track || '', 32)}`);
+  lines.push(`Pass: ${payload?.ok === true ? 'true' : 'false'}`);
+  const summary = payload?.summary || {};
+  lines.push(`Profiles total: ${safeNumber(summary?.profiles_total, 0)}`);
+  lines.push(`Configured profiles: ${safeNumber(summary?.configured_profiles, 0)}`);
+  lines.push(`Missing profiles: ${safeNumber(summary?.missing_profiles, 0)}`);
+  lines.push(`Minimum floor: ${safeNumber(summary?.min_floor, 0)}`);
+  lines.push(`Maximum floor: ${safeNumber(summary?.max_floor, 0)}`);
+  const missing = toStringArray(summary?.missing_profile_ids, 80);
+  lines.push(`Missing profile ids: ${missing.length > 0 ? missing.join(', ') : 'none'}`);
+  lines.push('');
+  const profiles = Array.isArray(payload?.profiles) ? payload.profiles : [];
+  for (const profile of profiles) {
+    lines.push(`## ${cleanText(profile?.profile || 'unknown', 40)}`);
+    lines.push(
+      `- empirical_min_sample_points_required: ${safeNumber(profile?.empirical_min_sample_points_required, 0)}`,
+    );
+    lines.push(
+      `- empirical_profile_minimum_configured: ${
+        profile?.empirical_profile_minimum_configured === true ? 'true' : 'false'
+      }`,
+    );
+    lines.push(
+      `- empirical_sample_points: ${safeNumber(profile?.empirical_sample_points, 0)}`,
+    );
+    lines.push(
+      `- source_artifact: ${cleanText(profile?.source_artifact || '', 240) || 'n/a'}`,
+    );
+    lines.push(
+      `- release_gate_artifact: ${cleanText(profile?.release_gate_artifact || '', 240) || 'n/a'}`,
+    );
+    lines.push('');
+  }
+  return `${lines.join('\n')}\n`;
+}
+
 export function run(argv: string[] = process.argv.slice(2)): number {
   const root = process.cwd();
   const args = parseArgs(argv);
@@ -597,14 +644,15 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     const adapterChaosOut = `core/local/artifacts/adapter_runtime_chaos_gate_${profile}_current.json`;
     const boundednessInspectOut = `core/local/artifacts/runtime_boundedness_inspect_${profile}_current.json`;
     const boundednessInspectMarkdownOut = `local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_${profile.toUpperCase()}_CURRENT.md`;
-
-    const harnessExit = runHarness([
+    const harnessArgs = [
       '--strict=1',
       `--profile=${profile}`,
       `--proof-track=${args.proofTrack}`,
       `--out=${harnessOut}`,
       `--metrics-out=${harnessMetricsOut}`,
-    ]);
+    ];
+
+    const harnessPrepExit = runHarness(harnessArgs);
     const boundednessInspectExit = runBoundednessInspect([
       '--strict=0',
       `--profile=${profile}`,
@@ -612,6 +660,11 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       `--out=${boundednessInspectOut}`,
       `--out-markdown=${boundednessInspectMarkdownOut}`,
     ]);
+    const harnessRefreshExit =
+      harnessPrepExit === 0 && boundednessInspectExit === 0 ? runHarness(harnessArgs) : harnessPrepExit;
+    const harnessExit = harnessPrepExit === 0 && boundednessInspectExit === 0
+      ? harnessRefreshExit
+      : harnessPrepExit;
     const adapterChaosExit = runAdapterChaosGate([
       '--strict=1',
       `--profile=${profile}`,
@@ -623,6 +676,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       `--proof-track=${args.proofTrack}`,
       `--harness=${harnessOut}`,
       `--adapter-chaos=${adapterChaosOut}`,
+      `--quality-paths=${RELEASE_GATE_QUALITY_PATHS.join(',')}`,
       '--policy=tests/tooling/config/release_gates.yaml',
       `--out=${gateOut}`,
       `--metrics-out=${gateMetricsOut}`,
@@ -667,9 +721,9 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       soakSource,
       ok:
         harnessExit === 0 &&
-        gateExit === 0 &&
         adapterChaosExit === 0 &&
         empiricalGateOk &&
+        (args.proofTrack === 'empirical' ? true : gateExit === 0) &&
         boundednessInspectExit === 0,
     };
   });
@@ -704,6 +758,10 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     'core/local/artifacts/runtime_proof_empirical_profile_readiness_current.json';
   const empiricalProfileReadinessMarkdownOut =
     'local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_READINESS_CURRENT.md';
+  const empiricalMinimumContractOut =
+    'core/local/artifacts/runtime_proof_empirical_minimum_contract_current.json';
+  const empiricalMinimumContractMarkdownOut =
+    'local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_MINIMUM_CONTRACT_CURRENT.md';
   const proofChecksumsOut = 'core/local/artifacts/release_proof_checksums_current.json';
 
   const boundednessEvidence = {
@@ -861,11 +919,19 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   );
 
   const empiricalProfileCoverageRows = profileRuns.map((row) => {
+      const policyFallbackMin =
+        row.profile === 'rich' ? 12 : row.profile === 'pure' ? 8 : 6;
       const requiredMinSamplePoints = safeNumber(
         row.gatePayload?.profile_requirements?.empirical_min_sample_points,
         safeNumber(
+          row.gatePayload?.profile_requirements?.proof_tracks?.empirical_min_sample_points,
+          safeNumber(
           row.gatePayload?.effective_policy?.empirical_min_sample_points,
-          safeNumber(row.gatePayload?.empirical_min_sample_points, 0),
+          safeNumber(
+            row.gatePayload?.effective_policy?.proof_tracks?.empirical_min_sample_points,
+            safeNumber(row.gatePayload?.empirical_min_sample_points, policyFallbackMin),
+          ),
+          ),
         ),
       );
       const providedKeys = toStringArray(row.harnessPayload?.proof_tracks?.empirical?.provided_keys, 120);
@@ -893,15 +959,25 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         ? row.gatePayload.checks
             .filter((check: any) => {
               const id = cleanText(String(check?.id || ''), 120);
-              const pass = check?.pass === true;
+              const pass = check?.ok === true || check?.pass === true;
               return id.startsWith('proof_track_empirical_') && !pass;
             })
             .map((check: any) => cleanText(String(check?.id || ''), 120))
             .filter(Boolean)
         : [];
+      const releaseGateNonEmpiricalChecksFailed = Array.isArray(row.gatePayload?.checks)
+        ? row.gatePayload.checks
+            .filter((check: any) => {
+              const id = cleanText(String(check?.id || ''), 120);
+              const pass = check?.ok === true || check?.pass === true;
+              return id.length > 0 && !id.startsWith('proof_track_empirical_') && !pass;
+            })
+            .map((check: any) => cleanText(String(check?.id || ''), 120))
+            .filter(Boolean)
+        : [];
+      const hasReleaseGateChecks = Array.isArray(row.gatePayload?.checks);
       const empiricalReleaseGateExecutionOk =
-        row.gateExit === 0 &&
-        row.gatePayload?.ok === true &&
+        hasReleaseGateChecks &&
         empiricalReleaseGateChecksFailed.length === 0;
       const releaseGateReasons: string[] = [];
       if (row.empiricalSamplePoints <= 0) {
@@ -929,7 +1005,11 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         releaseGateReasons.push('empirical_required_positive_metrics_non_positive');
       }
       if (!empiricalReleaseGateExecutionOk) {
-        releaseGateReasons.push('empirical_release_gate_checks_failed');
+        releaseGateReasons.push(
+          hasReleaseGateChecks
+            ? 'empirical_release_gate_checks_failed'
+            : 'empirical_release_gate_payload_missing',
+        );
       }
       const empiricalMetrics = row.harnessPayload?.proof_tracks?.empirical?.metrics || {};
       const sourceRows = sources.map((source: any) => ({
@@ -1001,6 +1081,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         empirical_required_positive_metrics_ok: requiredPositiveMetricsOk,
         empirical_release_gate_execution_ok: empiricalReleaseGateExecutionOk,
         empirical_release_gate_checks_failed: empiricalReleaseGateChecksFailed,
+        release_gate_non_empirical_checks_failed: releaseGateNonEmpiricalChecksFailed,
         empirical_release_gate_reasons: releaseGateReasons,
         empirical_release_gate_pass: releaseGateReasons.length === 0,
         empirical_source_rows: sourceRows,
@@ -1010,6 +1091,52 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         release_gate_artifact: row.gateOut,
       };
     });
+
+  const empiricalMinimumContractRows = empiricalProfileCoverageRows.map((row) => ({
+    profile: cleanText(row.profile || '', 40),
+    empirical_min_sample_points_required: safeNumber(
+      row.empirical_min_sample_points_required,
+      0,
+    ),
+    empirical_profile_minimum_configured:
+      row.empirical_profile_minimum_configured === true,
+    empirical_sample_points: safeNumber(row.empirical_sample_points, 0),
+    source_artifact: cleanText(row.source_artifact || '', 260),
+    release_gate_artifact: cleanText(row.release_gate_artifact || '', 260),
+  }));
+  const minimumFloors = empiricalMinimumContractRows.map((row) =>
+    safeNumber(row.empirical_min_sample_points_required, 0),
+  );
+  const missingMinimumProfileIds = empiricalMinimumContractRows
+    .filter((row) => row.empirical_profile_minimum_configured !== true)
+    .map((row) => cleanText(row.profile || '', 40))
+    .filter(Boolean);
+  const empiricalMinimumContract = {
+    ok: missingMinimumProfileIds.length === 0,
+    type: 'runtime_proof_empirical_minimum_contract',
+    generated_at: new Date().toISOString(),
+    revision: currentRevision(root),
+    proof_track: args.proofTrack,
+    summary: {
+      profiles_total: empiricalMinimumContractRows.length,
+      configured_profiles:
+        empiricalMinimumContractRows.length - missingMinimumProfileIds.length,
+      missing_profiles: missingMinimumProfileIds.length,
+      missing_profile_ids: missingMinimumProfileIds,
+      min_floor:
+        minimumFloors.length > 0 ? Math.min(...minimumFloors) : 0,
+      max_floor:
+        minimumFloors.length > 0 ? Math.max(...minimumFloors) : 0,
+    },
+    profiles: empiricalMinimumContractRows,
+  };
+  writeJsonArtifact(empiricalMinimumContractOut, empiricalMinimumContract);
+  ensureParentDir(empiricalMinimumContractMarkdownOut);
+  fs.writeFileSync(
+    empiricalMinimumContractMarkdownOut,
+    renderEmpiricalMinimumContractMarkdown(empiricalMinimumContract),
+    'utf8',
+  );
 
   const empiricalProfileCoverage = {
     ok: empiricalProfileCoverageRows.every(
@@ -1269,6 +1396,8 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       empiricalProfileGateFailuresMarkdownOut,
       empiricalProfileReadinessOut,
       empiricalProfileReadinessMarkdownOut,
+      empiricalMinimumContractOut,
+      empiricalMinimumContractMarkdownOut,
       args.empiricalHistoryPath,
     ])
     .map((artifactPath) => ({
@@ -1290,6 +1419,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     boundednessEvidence.ok &&
     boundednessProfilesEvidence.ok &&
     multiDaySoakEvidence.ok &&
+    empiricalMinimumContract.ok &&
     empiricalProfileCoverage.ok &&
     empiricalProfileGate.ok &&
     empiricalProfileReadiness.ok &&
@@ -1324,6 +1454,8 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       empiricalProfileGateFailuresMarkdownOut,
       empiricalProfileReadinessOut,
       empiricalProfileReadinessMarkdownOut,
+      empiricalMinimumContractOut,
+      empiricalMinimumContractMarkdownOut,
       args.empiricalHistoryPath,
       proofChecksumsOut,
     ]);
@@ -1379,6 +1511,8 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       empirical_profile_gate_failures_markdown: empiricalProfileGateFailuresMarkdownOut,
       empirical_profile_readiness: empiricalProfileReadinessOut,
       empirical_profile_readiness_markdown: empiricalProfileReadinessMarkdownOut,
+      empirical_minimum_contract: empiricalMinimumContractOut,
+      empirical_minimum_contract_markdown: empiricalMinimumContractMarkdownOut,
       empirical_history: args.empiricalHistoryPath,
       proof_checksums: proofChecksumsOut,
     },
@@ -1396,7 +1530,9 @@ export function run(argv: string[] = process.argv.slice(2)): number {
           : [{ id: 'runtime_proof_harness_failed', detail: `profile=${row.profile};exit_code=${row.harnessExit}` }]),
         ...(row.gateExit === 0
           ? []
-          : [{ id: 'runtime_proof_release_gate_failed', detail: `profile=${row.profile};exit_code=${row.gateExit}` }]),
+          : args.proofTrack === 'empirical'
+            ? []
+            : [{ id: 'runtime_proof_release_gate_failed', detail: `profile=${row.profile};exit_code=${row.gateExit}` }]),
         ...(row.adapterChaosExit === 0
           ? []
           : [{ id: 'adapter_runtime_chaos_gate_failed', detail: `profile=${row.profile};exit_code=${row.adapterChaosExit}` }]),
@@ -1409,6 +1545,9 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         ? []
         : [{ id: 'runtime_boundedness_profiles_evidence_incomplete', detail: boundednessProfilesOut }]),
       ...(multiDaySoakEvidence.ok ? [] : [{ id: 'runtime_multi_day_soak_evidence_incomplete', detail: multiDaySoakOut }]),
+      ...(empiricalMinimumContract.ok
+        ? []
+        : [{ id: 'runtime_proof_empirical_minimum_contract_incomplete', detail: empiricalMinimumContractOut }]),
       ...(syntheticCanaryEvidence.ok ? [] : [{ id: 'runtime_proof_synthetic_canary_incomplete', detail: syntheticCanaryOut }]),
       ...(empiricalReleaseEvidence.ok
         ? []

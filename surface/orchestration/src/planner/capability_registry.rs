@@ -43,32 +43,22 @@ pub fn spec_for(capability: &Capability) -> CapabilitySpec {
             )],
             degraded_steps: Vec::new(),
         },
-        Capability::ExecuteTool => CapabilitySpec {
-            requires: vec![
-                Precondition::ToolAvailable,
-                Precondition::TransportAvailable,
-            ],
-            primary_steps: vec![
-                step(
-                    Capability::ExecuteTool,
-                    "step_tool_capability_probe",
-                    "probe_tool_capability",
-                    CoreContractCall::ToolCapabilityProbe,
-                ),
-                step(
-                    Capability::ExecuteTool,
-                    "step_tool_broker_request",
-                    "route_tool_call",
-                    CoreContractCall::ToolBrokerRequest,
-                ),
-            ],
-            degraded_steps: vec![step(
-                Capability::ExecuteTool,
-                "step_memory_fallback",
-                "request_materialized_view",
-                CoreContractCall::UnifiedMemoryRead,
-            )],
-        },
+        Capability::WorkspaceRead => tool_spec(
+            Capability::WorkspaceRead,
+            "workspace_read",
+            "route_workspace_read",
+        ),
+        Capability::WorkspaceSearch => tool_spec(
+            Capability::WorkspaceSearch,
+            "workspace_search",
+            "route_workspace_search",
+        ),
+        Capability::WebSearch => tool_spec(Capability::WebSearch, "web_search", "route_web_search"),
+        Capability::WebFetch => tool_spec(Capability::WebFetch, "web_fetch", "route_web_fetch"),
+        Capability::ToolRoute => tool_spec(Capability::ToolRoute, "tool_route", "route_tool_call"),
+        Capability::ExecuteTool => {
+            tool_spec(Capability::ExecuteTool, "execute_tool", "route_tool_call")
+        }
         Capability::PlanAssimilation => CapabilitySpec {
             requires: vec![Precondition::TargetExists, Precondition::PolicyAllows],
             primary_steps: vec![step(
@@ -139,5 +129,34 @@ fn step(
         rationale,
         expected_contract_refs: vec![format!("expect_{step_id}")],
         blocked_on: Vec::new(),
+    }
+}
+
+fn tool_spec(capability: Capability, step_key: &str, route_operation: &str) -> CapabilitySpec {
+    CapabilitySpec {
+        requires: vec![
+            Precondition::ToolAvailable,
+            Precondition::TransportAvailable,
+        ],
+        primary_steps: vec![
+            step(
+                capability.clone(),
+                &format!("step_{step_key}_capability_probe"),
+                "probe_tool_capability",
+                CoreContractCall::ToolCapabilityProbe,
+            ),
+            step(
+                capability.clone(),
+                &format!("step_{step_key}_broker_request"),
+                route_operation,
+                CoreContractCall::ToolBrokerRequest,
+            ),
+        ],
+        degraded_steps: vec![step(
+            capability,
+            &format!("step_{step_key}_memory_fallback"),
+            "request_materialized_view",
+            CoreContractCall::UnifiedMemoryRead,
+        )],
     }
 }

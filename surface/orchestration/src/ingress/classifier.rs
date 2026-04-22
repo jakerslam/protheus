@@ -1,7 +1,8 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
-    AmbiguityReason, Mutability, OperationKind, ParseResult, PolicyScope, RequestKind,
-    RequestSurface, ResourceKind, TargetDescriptor, TypedOrchestrationRequest,
+    AmbiguityReason, Capability, CapabilityProbeSnapshot, Mutability, OperationKind, ParseResult,
+    PolicyScope, RequestKind, RequestSurface, ResourceKind, TargetDescriptor,
+    TypedOrchestrationRequest,
 };
 
 pub fn select_operation_kind(candidates: &[OperationKind]) -> OperationKind {
@@ -80,6 +81,14 @@ pub fn parse_diagnostics(
     } else {
         vec!["legacy_intent_compatibility_shim".to_string()]
     };
+    let typed_probe_contract = typed_probe_contract_diagnostics(&typed_request);
+    if !typed_probe_contract.messages.is_empty() {
+        reasons.extend(typed_probe_contract.messages);
+    }
+    if typed_probe_contract.missing_count > 0 {
+        ambiguity.push(AmbiguityReason::TypedProbeContractViolation);
+        confidence -= (0.05 + (typed_probe_contract.missing_count as f32 * 0.01)).min(0.25);
+    }
 
     if typed_request.operation_kind != OperationKind::Unknown {
         confidence += 0.30;
@@ -156,5 +165,153 @@ pub fn parse_diagnostics(
         reasons,
         surface_adapter_used,
         surface_adapter_fallback,
+    }
+}
+
+#[derive(Debug, Default)]
+struct TypedProbeContractDiagnostics {
+    messages: Vec<String>,
+    missing_count: usize,
+}
+
+fn typed_probe_contract_diagnostics(
+    typed_request: &TypedOrchestrationRequest,
+) -> TypedProbeContractDiagnostics {
+    if !typed_request.adapted || matches!(typed_request.surface, RequestSurface::Legacy) {
+        return TypedProbeContractDiagnostics::default();
+    }
+
+    let required_capabilities =
+        crate::request_classifier::required_capabilities_for_typed_request(typed_request);
+    let mut requirements = required_capabilities
+        .iter()
+        .filter_map(required_probe_contract_for_capability)
+        .collect::<Vec<_>>();
+    requirements.sort_by_key(|row| row.0);
+    requirements.dedup_by_key(|row| row.0);
+    if requirements.is_empty() {
+        return TypedProbeContractDiagnostics {
+            messages: vec!["typed_probe_contract_complete".to_string()],
+            missing_count: 0,
+        };
+    }
+
+    let Some(envelope) = typed_request.core_probe_envelope.as_ref() else {
+        return TypedProbeContractDiagnostics {
+            messages: vec![
+                "typed_probe_contract_missing:core_probe_envelope".to_string(),
+                format!(
+                    "typed_probe_contract_expected:{}",
+                    requirements
+                        .iter()
+                        .map(|row| row.0)
+                        .collect::<Vec<_>>()
+                        .join(",")
+                ),
+            ],
+            missing_count: 1,
+        };
+    };
+
+    let mut diagnostics = TypedProbeContractDiagnostics::default();
+    for (capability_key, fields) in requirements {
+        let Some(snapshot) =
+            probe_snapshot_for_contract_key(envelope.probes.as_slice(), capability_key)
+        else {
+            diagnostics.messages.push(format!(
+                "typed_probe_contract_missing:capability.{capability_key}"
+            ));
+            diagnostics.missing_count += 1;
+            continue;
+        };
+        for field in fields {
+            if probe_field_is_missing(snapshot, field) {
+                diagnostics.messages.push(format!(
+                    "typed_probe_contract_missing:field.{capability_key}.{field}"
+                ));
+                diagnostics.missing_count += 1;
+            }
+        }
+    }
+
+    if diagnostics.messages.is_empty() {
+        diagnostics
+            .messages
+            .push("typed_probe_contract_complete".to_string());
+    }
+    diagnostics
+}
+
+fn required_probe_contract_for_capability(
+    capability: &Capability,
+) -> Option<(&'static str, &'static [&'static str])> {
+    match capability {
+        Capability::ReadMemory => None,
+        Capability::MutateTask => Some((
+            "mutate_task",
+            &[
+                "target_supplied",
+                "target_syntactically_valid",
+                "target_exists",
+                "authorization_valid",
+                "policy_allows",
+            ],
+        )),
+        Capability::PlanAssimilation => Some((
+            "plan_assimilation",
+            &[
+                "target_supplied",
+                "target_syntactically_valid",
+                "target_exists",
+                "policy_allows",
+            ],
+        )),
+        Capability::VerifyClaim => Some(("verify_claim", &["transport_available"])),
+        Capability::WorkspaceRead => {
+            Some(("workspace_read", &["tool_available", "transport_available"]))
+        }
+        Capability::WorkspaceSearch => Some((
+            "workspace_search",
+            &["tool_available", "transport_available"],
+        )),
+        Capability::WebSearch
+        | Capability::WebFetch
+        | Capability::ToolRoute
+        | Capability::ExecuteTool => {
+            Some(("execute_tool", &["tool_available", "transport_available"]))
+        }
+    }
+}
+
+fn probe_snapshot_for_contract_key<'a>(
+    probes: &'a [CapabilityProbeSnapshot],
+    capability_key: &str,
+) -> Option<&'a CapabilityProbeSnapshot> {
+    let capability = match capability_key {
+        "read_memory" => Capability::ReadMemory,
+        "mutate_task" => Capability::MutateTask,
+        "workspace_read" => Capability::WorkspaceRead,
+        "workspace_search" => Capability::WorkspaceSearch,
+        "web_search" => Capability::WebSearch,
+        "web_fetch" => Capability::WebFetch,
+        "tool_route" => Capability::ToolRoute,
+        "execute_tool" => Capability::ExecuteTool,
+        "plan_assimilation" => Capability::PlanAssimilation,
+        "verify_claim" => Capability::VerifyClaim,
+        _ => return None,
+    };
+    probes.iter().find(|row| row.capability == capability)
+}
+
+fn probe_field_is_missing(snapshot: &CapabilityProbeSnapshot, field: &str) -> bool {
+    match field {
+        "tool_available" => snapshot.tool_available.is_none(),
+        "target_supplied" => snapshot.target_supplied.is_none(),
+        "target_syntactically_valid" => snapshot.target_syntactically_valid.is_none(),
+        "target_exists" => snapshot.target_exists.is_none(),
+        "authorization_valid" => snapshot.authorization_valid.is_none(),
+        "policy_allows" => snapshot.policy_allows.is_none(),
+        "transport_available" => snapshot.transport_available.is_none(),
+        _ => false,
     }
 }

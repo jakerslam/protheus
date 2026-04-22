@@ -2,6 +2,7 @@
 use crate::contracts::{
     AmbiguityReason, Capability, ClarificationReason, Mutability, OperationKind, ParseResult,
     RequestClass, RequestClassification, RequestKind, RequestSurface, ResourceKind,
+    TypedOrchestrationRequest,
 };
 
 pub fn classify_request(parsed: &ParseResult) -> RequestClassification {
@@ -21,10 +22,7 @@ pub fn classify_request(parsed: &ParseResult) -> RequestClassification {
         _ => RequestClass::ReadOnly,
     };
 
-    let mut required_capabilities =
-        required_capabilities_for(request_class.clone(), request.request_kind.clone(), request.resource_kind.clone());
-    required_capabilities.sort_by_key(|row| format!("{row:?}"));
-    required_capabilities.dedup();
+    let required_capabilities = required_capabilities_for_typed_request(request);
 
     let mut clarification_reasons = Vec::new();
     if request.session_id.is_empty() {
@@ -32,6 +30,9 @@ pub fn classify_request(parsed: &ParseResult) -> RequestClassification {
     }
     if should_add_ambiguous_operation_clarification(parsed) {
         clarification_reasons.push(ClarificationReason::AmbiguousOperation);
+    }
+    if has_typed_probe_contract_violation(parsed) {
+        clarification_reasons.push(ClarificationReason::TypedProbeContractViolation);
     }
     if request.operation_kind == OperationKind::Assimilate && request.target_refs.is_empty() {
         clarification_reasons.push(ClarificationReason::MissingTargetRefs);
@@ -85,21 +86,65 @@ pub fn classify_request(parsed: &ParseResult) -> RequestClassification {
 fn required_capabilities_for(
     request_class: RequestClass,
     request_kind: RequestKind,
+    operation_kind: OperationKind,
     resource_kind: ResourceKind,
 ) -> Vec<Capability> {
     let mut required_capabilities = match request_class {
-        RequestClass::ToolCall => vec![Capability::ExecuteTool],
+        RequestClass::ToolCall => {
+            vec![Capability::primary_tool_for(
+                &operation_kind,
+                &resource_kind,
+            )]
+        }
         RequestClass::Assimilation => vec![Capability::PlanAssimilation, Capability::MutateTask],
         RequestClass::TaskProposal | RequestClass::Mutation => vec![Capability::MutateTask],
-        RequestClass::ReadOnly => vec![Capability::ReadMemory],
+        RequestClass::ReadOnly => {
+            if resource_kind == ResourceKind::Workspace {
+                vec![Capability::WorkspaceRead]
+            } else {
+                vec![Capability::ReadMemory]
+            }
+        }
     };
     if request_kind == RequestKind::Comparative || resource_kind == ResourceKind::Mixed {
-        if matches!(resource_kind, ResourceKind::Web | ResourceKind::Mixed) {
-            required_capabilities.push(Capability::ExecuteTool);
+        if !required_capabilities.iter().any(Capability::is_tool_family) {
+            required_capabilities.push(Capability::primary_tool_for(
+                &operation_kind,
+                &resource_kind,
+            ));
         }
         required_capabilities.push(Capability::VerifyClaim);
     }
     required_capabilities
+}
+
+pub fn required_capabilities_for_typed_request(
+    request: &TypedOrchestrationRequest,
+) -> Vec<Capability> {
+    let request_class = match (
+        &request.operation_kind,
+        &request.mutability,
+        &request.resource_kind,
+    ) {
+        (OperationKind::Search | OperationKind::Fetch | OperationKind::InspectTooling, _, _) => {
+            RequestClass::ToolCall
+        }
+        (OperationKind::Assimilate, _, _) => RequestClass::Assimilation,
+        (OperationKind::Plan, _, _) => RequestClass::TaskProposal,
+        (_, Mutability::Mutation, _) => RequestClass::Mutation,
+        (OperationKind::Compare, _, ResourceKind::Web) => RequestClass::ToolCall,
+        _ => RequestClass::ReadOnly,
+    };
+
+    let mut required = required_capabilities_for(
+        request_class,
+        request.request_kind.clone(),
+        request.operation_kind.clone(),
+        request.resource_kind.clone(),
+    );
+    required.sort_by_key(|row| format!("{row:?}"));
+    required.dedup();
+    required
 }
 
 fn should_add_ambiguous_operation_clarification(parsed: &ParseResult) -> bool {
@@ -107,15 +152,24 @@ fn should_add_ambiguous_operation_clarification(parsed: &ParseResult) -> bool {
     request.request_kind == RequestKind::Ambiguous
         || request.operation_kind == OperationKind::Unknown
         || parsed.confidence < 0.55
-        || parsed
-            .ambiguity
-            .iter()
-            .any(|row| !matches!(row, AmbiguityReason::LegacyCompatOnly))
+        || parsed.ambiguity.iter().any(|row| {
+            !matches!(
+                row,
+                AmbiguityReason::LegacyCompatOnly | AmbiguityReason::TypedProbeContractViolation
+            )
+        })
         || (request.surface != RequestSurface::Legacy
             && parsed
                 .ambiguity
                 .iter()
                 .any(|row| matches!(row, AmbiguityReason::LegacyCompatOnly)))
+}
+
+fn has_typed_probe_contract_violation(parsed: &ParseResult) -> bool {
+    parsed
+        .ambiguity
+        .iter()
+        .any(|row| matches!(row, AmbiguityReason::TypedProbeContractViolation))
 }
 
 #[cfg(test)]
@@ -222,7 +276,7 @@ mod tests {
             .contains(&Capability::VerifyClaim));
         assert!(classification
             .required_capabilities
-            .contains(&Capability::ExecuteTool));
+            .contains(&Capability::ToolRoute));
     }
 
     #[test]
@@ -254,6 +308,42 @@ mod tests {
         let classification = classify_request(&request);
         assert!(classification.needs_clarification);
         assert!(classification
+            .clarification_reasons
+            .contains(&ClarificationReason::AmbiguousOperation));
+    }
+
+    #[test]
+    fn typed_probe_contract_violation_emits_dedicated_clarification_reason() {
+        let request = ParseResult {
+            typed_request: crate::contracts::TypedOrchestrationRequest {
+                session_id: "sdk-probe-violation".to_string(),
+                surface: RequestSurface::Sdk,
+                legacy_intent: "search".to_string(),
+                adapted: true,
+                payload: json!({}),
+                request_kind: RequestKind::Direct,
+                operation_kind: OperationKind::Search,
+                resource_kind: ResourceKind::Web,
+                mutability: Mutability::ReadOnly,
+                target_descriptors: Vec::new(),
+                target_refs: Vec::new(),
+                tool_hints: vec!["web_search".to_string()],
+                policy_scope: crate::contracts::PolicyScope::WebOnly,
+                user_constraints: Vec::new(),
+                core_probe_envelope: None,
+            },
+            confidence: 0.72,
+            ambiguity: vec![AmbiguityReason::TypedProbeContractViolation],
+            reasons: vec!["typed_probe_contract_missing:core_probe_envelope".to_string()],
+            surface_adapter_used: true,
+            surface_adapter_fallback: false,
+        };
+        let classification = classify_request(&request);
+        assert!(classification.needs_clarification);
+        assert!(classification
+            .clarification_reasons
+            .contains(&ClarificationReason::TypedProbeContractViolation));
+        assert!(!classification
             .clarification_reasons
             .contains(&ClarificationReason::AmbiguousOperation));
     }
