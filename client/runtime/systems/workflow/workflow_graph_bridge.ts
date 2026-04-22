@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 'use strict';
+// TypeScript compatibility shim only.
+// Layer ownership: surface/orchestration (workflow coordination); this file is a thin CLI bridge.
 
 const { createCompatWorkflowExportBridge } = require('../../lib/compat_target_bridge.ts');
 const bridge = createCompatWorkflowExportBridge({

@@ -123,12 +123,12 @@
       "ownership": "science coordination"
     },
     {
-      "wrapper": "client/runtime/systems/sensory/value_information_planner_bridge.ts",
+      "wrapper": "client/runtime/systems/sensory/value_of_information_collection_planner.ts",
       "script": "surface/orchestration/scripts/value_of_information_collection_planner.ts",
       "ownership": "planning coordination"
     },
     {
-      "wrapper": "client/runtime/systems/strategy/strategy_learning_bridge.ts",
+      "wrapper": "client/runtime/systems/strategy/strategy_learner.ts",
       "script": "surface/orchestration/scripts/strategy_learner.ts",
       "ownership": "strategy coordination"
     },
@@ -145,6 +145,11 @@
     {
       "wrapper": "client/runtime/systems/workflow/learning_conduit.ts",
       "script": "surface/orchestration/scripts/learning_conduit.ts",
+      "ownership": "workflow coordination"
+    },
+    {
+      "wrapper": "client/runtime/systems/workflow/workflow_graph_bridge.ts",
+      "script": "client/runtime/lib/workflow_graph_bridge.ts",
       "ownership": "workflow coordination"
     },
     {

@@ -1,15 +1,20 @@
 {
   "version": "2026-04-21",
   "adapter_fallback": {
+    "min_surface_total": {
+      "sdk": 1,
+      "gateway": 1,
+      "dashboard": 3
+    },
     "max_fallback_rate": {
       "sdk": 0.05,
       "gateway": 0.05,
-      "dashboard": 0.5
+      "dashboard": 0.35
     },
     "max_low_confidence_rate": {
       "sdk": 0.05,
       "gateway": 0.05,
-      "dashboard": 0.5
+      "dashboard": 0.35
     },
     "ratchet": {
       "max_regression_delta": 0.0
@@ -20,14 +25,16 @@
     }
   },
   "planner_quality": {
-    "min_request_count": 10,
+    "min_request_count": 12,
     "min_average_candidate_count": 2.0,
     "max_clarification_first_rate": 0.4,
-    "max_degraded_rate": 0.45,
-    "max_heuristic_probe_rate": 0.45,
-    "max_zero_executable_candidate_rate": 0.45,
-    "max_all_candidates_require_clarification_rate": 0.45,
-    "max_all_candidates_degraded_rate": 0.35,
+    "max_degraded_rate": 0.35,
+    "max_selected_plan_requires_clarification_rate": 0.4,
+    "max_selected_plan_degraded_rate": 0.35,
+    "max_heuristic_probe_rate": 0.35,
+    "max_zero_executable_candidate_rate": 0.35,
+    "max_all_candidates_require_clarification_rate": 0.35,
+    "max_all_candidates_degraded_rate": 0.3,
     "ratchet": {
       "max_regression_delta": 0.0
     },
@@ -37,13 +44,16 @@
     }
   },
   "runtime_quality": {
-    "min_sample_size": 3,
+    "min_sample_size": 4,
     "min_average_candidate_count": 1.5,
-    "max_non_legacy_fallback_rate": 0.35,
-    "max_non_legacy_heuristic_probe_rate": 0.4,
-    "max_non_legacy_clarification_rate": 0.4,
-    "max_non_legacy_zero_executable_rate": 0.4,
-    "max_non_legacy_all_candidates_degraded_rate": 0.4,
+    "max_non_legacy_fallback_rate": 0.3,
+    "max_non_legacy_heuristic_probe_rate": 0.3,
+    "max_non_legacy_clarification_rate": 0.3,
+    "max_non_legacy_zero_executable_rate": 0.3,
+    "max_non_legacy_all_candidates_degraded_rate": 0.3,
+    "max_non_legacy_fallback_plus_heuristic_rate": 0.5,
+    "max_non_legacy_clarification_plus_degraded_rate": 0.6,
+    "max_non_legacy_fallback_minus_zero_executable_rate": 0.0,
     "ratchet": {
       "max_regression_delta": 0.0
     },

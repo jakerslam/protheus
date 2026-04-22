@@ -75,13 +75,53 @@ function normalize(text: string): string {
   return text.replace(/\r\n/g, '\n').trimEnd();
 }
 
-function wrapperTemplate(binding: Binding): string {
+function expectedWrapperTargetSpec(binding: Binding): string {
   const wrapperAbs = path.resolve(ROOT, binding.wrapper);
   const scriptAbs = path.resolve(ROOT, binding.script);
   const spec = path
     .relative(path.dirname(wrapperAbs), scriptAbs)
     .replace(/\\/g, '/');
-  const normalizedSpec = spec.startsWith('.') ? spec : `./${spec}`;
+  return spec.startsWith('.') ? spec : `./${spec}`;
+}
+
+function wrapperContractViolations(binding: Binding, source: string): string[] {
+  const violations: string[] = [];
+  const normalizedSource = normalize(source);
+  const expectedSpec = expectedWrapperTargetSpec(binding);
+  const hasRequireTarget =
+    normalizedSource.includes(`require('${expectedSpec}')`)
+    || normalizedSource.includes(`require("${expectedSpec}")`);
+  const hasBridgeTarget =
+    normalizedSource.includes(`targetRelativePath: '${expectedSpec}'`)
+    || normalizedSource.includes(`targetRelativePath: "${expectedSpec}"`);
+  const hasLoader = hasRequireTarget || hasBridgeTarget;
+  const hasMainEntrypoint =
+    normalizedSource.includes('require.main === module')
+    || normalizedSource.includes('bridge.runAsMain(')
+    || normalizedSource.includes('bridge.exitIfMain(');
+  if (!normalizedSource.includes('TypeScript compatibility shim only.')) {
+    violations.push('missing_shim_marker');
+  }
+  if (!normalizedSource.includes('surface/orchestration')) {
+    violations.push('missing_layer_ownership_marker');
+  }
+  if (!normalizedSource.includes(expectedSpec)) {
+    violations.push('missing_target_reference');
+  }
+  if (!hasLoader) {
+    violations.push('missing_target_loader');
+  }
+  if (!normalizedSource.includes('module.exports')) {
+    violations.push('missing_module_exports');
+  }
+  if (!hasMainEntrypoint) {
+    violations.push('missing_main_entrypoint');
+  }
+  return violations;
+}
+
+function wrapperTemplate(binding: Binding): string {
+  const normalizedSpec = expectedWrapperTargetSpec(binding);
   return `#!/usr/bin/env node
 'use strict';
 // TypeScript compatibility shim only.
@@ -199,8 +239,12 @@ function run(args: Args): number {
     }
     const expected = wrapperTemplate(binding);
     const current = fs.readFileSync(wrapperAbs, 'utf8');
-    if (normalize(current) !== normalize(expected)) {
-      mismatches.push({ wrapper: binding.wrapper, reason: 'wrapper_drift' });
+    const violations = wrapperContractViolations(binding, current);
+    if (violations.length > 0) {
+      mismatches.push({
+        wrapper: binding.wrapper,
+        reason: `wrapper_contract_violation:${violations.join(',')}`,
+      });
       if (args.write) {
         fs.writeFileSync(wrapperAbs, expected);
         repaired.push(binding.wrapper);

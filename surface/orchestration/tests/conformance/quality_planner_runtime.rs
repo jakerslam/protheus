@@ -159,6 +159,44 @@ fn planner_quality_fixture_metrics_stay_within_thresholds() {
                 }
             }),
         },
+        OrchestrationRequest {
+            session_id: "planner-quality-sdk-3".to_string(),
+            intent: "search release notes".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "search",
+                    "resource_kind": "web",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
+                },
+                "core_probe_envelope": {
+                    "web_search": {
+                        "tool_available": true,
+                        "transport_available": true
+                    }
+                }
+            }),
+        },
+        OrchestrationRequest {
+            session_id: "planner-quality-workspace-3".to_string(),
+            intent: "read workspace context".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "read",
+                    "resource_kind": "workspace",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "workspace_path", "value": "README.md" }]
+                },
+                "core_probe_envelope": {
+                    "workspace_read": {
+                        "tool_available": true,
+                        "transport_available": true
+                    }
+                }
+            }),
+        },
     ];
     let mut runtime = OrchestrationSurfaceRuntime::new();
     let mut candidate_counts = Vec::new();
@@ -226,7 +264,7 @@ fn planner_quality_fixture_metrics_stay_within_thresholds() {
     let all_candidates_degraded_rate = all_candidates_degraded_selected as f32 / total.max(1.0);
 
     assert!(
-        candidate_counts.len() >= 10,
+        candidate_counts.len() >= 12,
         "planner fixture request-count regression"
     );
     assert!(
@@ -241,21 +279,21 @@ fn planner_quality_fixture_metrics_stay_within_thresholds() {
         clarification_first_rate <= 0.40,
         "clarification-first selection rate regression"
     );
-    assert!(degraded_rate <= 0.45, "degraded selection rate regression");
+    assert!(degraded_rate <= 0.35, "degraded selection rate regression");
     assert!(
-        heuristic_probe_rate <= 0.45,
+        heuristic_probe_rate <= 0.35,
         "heuristic probe dependence regression"
     );
     assert!(
-        zero_executable_candidate_rate <= 0.45,
+        zero_executable_candidate_rate <= 0.35,
         "zero-executable candidate rate regression"
     );
     assert!(
-        all_candidates_require_clarification_rate <= 0.45,
+        all_candidates_require_clarification_rate <= 0.35,
         "all-candidates-clarification rate regression"
     );
     assert!(
-        all_candidates_degraded_rate <= 0.35,
+        all_candidates_degraded_rate <= 0.30,
         "all-candidates-degraded rate regression"
     );
 
@@ -337,6 +375,25 @@ fn runtime_quality_telemetry_metrics_stay_within_thresholds() {
             intent: "search web for release notes".to_string(),
             surface: RequestSurface::Legacy,
             payload: json!({}),
+        },
+        OrchestrationRequest {
+            session_id: "runtime-quality-sdk-workspace".to_string(),
+            intent: "read workspace context".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "read",
+                    "resource_kind": "workspace",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "workspace_path", "value": "README.md" }]
+                },
+                "core_probe_envelope": {
+                    "workspace_read": {
+                        "tool_available": true,
+                        "transport_available": true
+                    }
+                }
+            }),
         },
     ];
     let fixture_count = fixtures.len().max(1);
@@ -431,24 +488,24 @@ fn runtime_quality_telemetry_metrics_stay_within_thresholds() {
     let average_candidate_count = candidate_total as f32 / fixture_count as f32;
 
     assert!(
-        non_legacy_total >= 3,
+        non_legacy_total >= 4,
         "runtime non-legacy sample size regression"
     );
-    assert!(fallback_rate <= 0.35, "runtime fallback rate regression");
+    assert!(fallback_rate <= 0.30, "runtime fallback rate regression");
     assert!(
-        heuristic_probe_rate <= 0.40,
+        heuristic_probe_rate <= 0.30,
         "runtime heuristic probe rate regression"
     );
     assert!(
-        clarification_rate <= 0.40,
+        clarification_rate <= 0.30,
         "runtime clarification rate regression"
     );
     assert!(
-        zero_executable_rate <= 0.40,
+        zero_executable_rate <= 0.30,
         "runtime zero-executable rate regression"
     );
     assert!(
-        all_candidates_degraded_rate <= 0.40,
+        all_candidates_degraded_rate <= 0.30,
         "runtime all-candidates-degraded rate regression"
     );
     assert!(

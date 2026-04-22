@@ -75,6 +75,18 @@ fn non_legacy_surface_fixture_quality_stays_within_surface_thresholds() {
                 }
             }),
         },
+        OrchestrationRequest {
+            session_id: "dashboard-quality-2".to_string(),
+            intent: "opaque".to_string(),
+            surface: RequestSurface::Dashboard,
+            payload: json!({
+                "dashboard": {
+                    "operation_kind": "search",
+                    "resource_kind": "web",
+                    "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
+                }
+            }),
+        },
     ];
     let mut runtime = OrchestrationSurfaceRuntime::new();
     let mut sdk = SurfaceStats::default();
@@ -125,11 +137,11 @@ fn non_legacy_surface_fixture_quality_stays_within_surface_thresholds() {
         "gateway low-confidence rate regression"
     );
     assert!(
-        dashboard_fallback_rate <= 0.50,
+        dashboard_fallback_rate <= 0.35,
         "dashboard fallback rate regression"
     );
     assert!(
-        dashboard_low_confidence_rate <= 0.50,
+        dashboard_low_confidence_rate <= 0.35,
         "dashboard low-confidence rate regression"
     );
 
