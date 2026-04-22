@@ -130,6 +130,24 @@ function run(): number {
   });
 
   checks.push({
+    id: 'typed_probe_contract_matrix_workspace_search_tool_field_reason',
+    ok: ingressSource.includes('typed_probe_contract_missing:field.workspace_search.tool_available'),
+    detail: 'ingress regression covers workspace_search missing tool field reason',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_web_fetch_tool_field_reason',
+    ok: ingressSource.includes('typed_probe_contract_missing:field.web_fetch.tool_available'),
+    detail: 'ingress regression covers web_fetch missing tool field reason',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_tool_route_capability_reason',
+    ok: ingressSource.includes('typed_probe_contract_missing:capability.tool_route'),
+    detail: 'ingress regression covers tool_route missing capability reason',
+  });
+
+  checks.push({
     id: 'typed_probe_contract_matrix_no_generic_execute_expected_in_regression',
     ok: !ingressSource.includes('typed_probe_contract_expected:execute_tool'),
     detail: 'typed regression suite does not collapse expected probe keys to execute_tool',
