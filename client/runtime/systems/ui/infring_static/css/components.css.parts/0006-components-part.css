@@ -60,6 +60,7 @@
   --message-meta-icon-size: 13px;
   display: flex;
   align-items: center;
+  flex-wrap: nowrap;
   gap: 6px;
   margin-top: 0;
   padding-top: 4px;
@@ -87,7 +88,14 @@
   padding-top: 0;
   font-size: 9px;
   line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
   z-index: 4;
+  justify-content: center;
+}
+
+.message-bubble > .message-stats-row > * {
+  flex: 0 0 auto;
 }
 
 .message-bubble > .message-stats-row .message-stat-btn {
@@ -138,6 +146,10 @@
 
 .message.user .message-stats-row {
   justify-content: flex-end;
+}
+
+.message.user .message-bubble > .message-stats-row {
+  justify-content: center;
 }
 
 .chat-map {

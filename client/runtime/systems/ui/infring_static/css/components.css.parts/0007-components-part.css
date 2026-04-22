@@ -11,7 +11,7 @@
   height: 22px;
   border: 1px solid transparent;
   background: transparent;
-  color: var(--text-dim);
+  color: var(--text);
   border-radius: 6px;
   display: inline-flex;
   align-items: center;
@@ -34,7 +34,7 @@
 .message-stat-time,
 .message-stat-meta {
   font-size: 10px;
-  color: var(--text-muted);
+  color: var(--text);
   font-family: var(--font-mono);
   user-select: none;
 }
@@ -440,11 +440,62 @@ mark.search-highlight {
   border-top-color: var(--tool-border-top);
   border-left: 3px solid var(--accent);
   border-radius: var(--radius-md);
+  font-size: inherit;
+  line-height: inherit;
   margin: 0;
   overflow: hidden;
   box-shadow: -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2);
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
   animation: slideUp 0.2s var(--ease-smooth);
+  max-width: 100%;
+  min-width: 0;
+}
+
+.message-bubble > .tool-card {
+  position: relative;
+  display: block;
+  width: auto;
+  inline-size: fit-content;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  max-width: 100%;
+  margin: 0;
+  overflow: visible;
+  background: transparent;
+  border-color: transparent;
+  border-width: 0;
+  border-left-color: var(--accent);
+  box-shadow: none;
+}
+
+.message-bubble > .tool-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  border: 1px solid var(--border);
+  border-top-color: var(--tool-border-top);
+  border-left: 3px solid;
+  border-left-color: inherit;
+  border-radius: var(--radius-md);
+  box-shadow: -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.message-bubble > .tool-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.message-bubble > .tool-card:hover {
+  background: transparent;
+  box-shadow: none;
+}
+
+.message-bubble > .tool-card:hover::before {
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  box-shadow: -6px 0 12px -14px rgba(0, 0, 0, 0.36), 6px 0 12px -14px rgba(0, 0, 0, 0.36), 0 10px 18px -18px rgba(0, 0, 0, 0.58), 0 2px 6px rgba(0, 0, 0, 0.24);
 }
 
 .tool-card:hover {

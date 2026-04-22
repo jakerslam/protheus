@@ -510,7 +510,6 @@
       var role = this.messageGroupRole(msg);
       if (role !== 'user' && role !== 'agent' && role !== 'system') return false;
       // Tail only shows when this bubble is the terminal visible item in its source run.
-      if (!msg.thinking && this.messageHasTailBlockingBox(msg)) return false;
       var list = Array.isArray(rows) ? rows : this.messages;
       if (!Array.isArray(list) || idx < 0 || idx >= list.length) return true;
       return this.isLastInSourceRun(idx, list);
