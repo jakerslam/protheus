@@ -60,11 +60,31 @@ function nonceToken(length = 6) {
   return crypto.randomBytes(width).toString('hex').slice(0, width);
 }
 
+function hasOutcomeFlag(result) {
+  return Boolean(result) && typeof result.ok === 'boolean';
+}
+
+function isUnsupportedOpReason(reasonCode, operation) {
+  const op = String(operation || '').trim();
+  if (!op) return false;
+  return String(reasonCode || '').startsWith(`unsupported_op:${op}`);
+}
+
+function shouldFallbackForUnsupportedOp(result, operation) {
+  return hasOutcomeFlag(result) && !result.ok && (
+    isUnsupportedOpReason(result.reason_code, operation)
+    || isUnsupportedOpReason(result.reason, operation)
+  );
+}
+
 module.exports = {
   parseArgs,
   parseJson,
   stableHash,
   slug,
   timestampToken,
-  nonceToken
+  nonceToken,
+  hasOutcomeFlag,
+  isUnsupportedOpReason,
+  shouldFallbackForUnsupportedOp
 };
