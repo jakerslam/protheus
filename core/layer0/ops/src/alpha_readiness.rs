@@ -405,7 +405,7 @@ pub fn run(root: &Path, args: &[String]) -> i32 {
     };
 
     let mut with_hash = payload.clone();
-    with_hash["receipt_hash"] = Value::String(deterministic_receipt_hash(&payload));
+    with_hash["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&payload));
     println!(
         "{}",
         serde_json::to_string(&with_hash).unwrap_or_else(|_| "{}".to_string())

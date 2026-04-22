@@ -9,7 +9,7 @@ const LANE_ID: &str = "workflow_executor";
 const REPLACEMENT: &str = "protheus-ops workflow-executor";
 
 fn receipt_hash(v: &Value) -> String {
-    deterministic_receipt_hash(v)
+    crate::deterministic_receipt_hash(v)
 }
 
 fn print_json_line(value: &Value) {
@@ -36,7 +36,7 @@ fn status_receipt(root: &Path, cmd: &str, args: &[String]) -> Value {
         .map(|v| v.clamp(1, 500))
         .unwrap_or(25);
 
-    let mut out = protheus_autonomy_core_v1::workflow_receipt(cmd, Some(&scope));
+    let mut out = crate::protheus_autonomy_core_v1_bridge::workflow_receipt(cmd, Some(&scope));
     out["lane"] = Value::String(LANE_ID.to_string());
     out["ts"] = Value::String(now_iso());
     out["max"] = json!(max);

@@ -172,7 +172,7 @@ pub fn run_extract_structured(root: &Path, parsed: &ParsedArgs, strict: bool) ->
             }
         ]
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
@@ -356,6 +356,6 @@ pub fn run_monitor(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value {
             }
         ]
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }

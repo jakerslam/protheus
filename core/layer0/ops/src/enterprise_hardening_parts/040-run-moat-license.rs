@@ -108,7 +108,7 @@ fn run_moat_license(
         "license": license,
         "reviewer": reviewer
     });
-    let package_hash = deterministic_receipt_hash(&package_seed);
+    let package_hash = crate::deterministic_receipt_hash(&package_seed);
     let package_id = format!("moat_license_{}", &package_hash[..16]);
     let package_path = enterprise_state_root(root)
         .join("moat")
@@ -226,7 +226,7 @@ fn run_moat_contrast(
         "proven_ratio": proven_ratio,
         "narrative": narrative
     });
-    let contrast_hash = deterministic_receipt_hash(&contrast_seed);
+    let contrast_hash = crate::deterministic_receipt_hash(&contrast_seed);
     let contrast_id = format!("contrast_{}", &contrast_hash[..16]);
     let json_path = enterprise_state_root(root)
         .join("moat")
@@ -334,7 +334,7 @@ fn run_moat_launch_sim(
         "p99_latency_ms": p99_latency_ms,
         "readiness_score": readiness_score
     });
-    let sim_hash = deterministic_receipt_hash(&sim_seed);
+    let sim_hash = crate::deterministic_receipt_hash(&sim_seed);
     let sim_id = format!("launch_sim_{}", &sim_hash[..16]);
     let sim_path = enterprise_state_root(root)
         .join("moat")
@@ -417,7 +417,7 @@ fn run_genesis_truth_gate(
         "verify_pass": verify_pass,
         "ts": now_iso()
     });
-    let candidate_hash = deterministic_receipt_hash(&candidate_seed);
+    let candidate_hash = crate::deterministic_receipt_hash(&candidate_seed);
     let candidate_id = format!("launch_candidate_{}", &candidate_hash[..16]);
     let candidate_path = enterprise_state_root(root)
         .join("genesis")

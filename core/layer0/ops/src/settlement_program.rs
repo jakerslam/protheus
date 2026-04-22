@@ -106,7 +106,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "latest": read_json(&latest)
         });
         attach_execution_receipt(&mut out, "status", "success");
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         print_receipt(&out);
         return 0;
     }
@@ -120,7 +120,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "program_ids": SETTLE_IDS
         });
         attach_execution_receipt(&mut out, "list", "success");
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         print_receipt(&out);
         return 0;
     }
@@ -161,7 +161,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         }
     });
     attach_execution_receipt(&mut out, &command, "success");
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     write_json(&latest, &out);
     append_jsonl(&history, &out);
     print_receipt(&out);

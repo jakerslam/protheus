@@ -354,7 +354,7 @@ impl ReceiptJsonExt for Value {
         if let Some(obj) = unhashed.as_object_mut() {
             obj.remove("receipt_hash");
         }
-        self["receipt_hash"] = Value::String(deterministic_receipt_hash(&unhashed));
+        self["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&unhashed));
     }
 }
 

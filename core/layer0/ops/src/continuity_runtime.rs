@@ -39,7 +39,7 @@ fn print_json_line(value: &Value) {
 }
 
 fn receipt_hash(v: &Value) -> String {
-    deterministic_receipt_hash(v)
+    crate::deterministic_receipt_hash(v)
 }
 
 fn parse_flag(argv: &[String], key: &str) -> Option<String> {

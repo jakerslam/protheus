@@ -301,7 +301,7 @@ fn next_message_id(
     payload: &str,
 ) -> String {
     state.message_sequence = state.message_sequence.saturating_add(1);
-    let digest = deterministic_receipt_hash(&json!({
+    let digest = crate::deterministic_receipt_hash(&json!({
         "sender": sender_session_id,
         "recipient": recipient_session_id,
         "payload": payload,
@@ -354,7 +354,7 @@ fn send_session_message(
         ));
     }
 
-    let dedupe_key = deterministic_receipt_hash(&json!({
+    let dedupe_key = crate::deterministic_receipt_hash(&json!({
         "sender": sender_session_id,
         "recipient": recipient_session_id,
         "payload": payload,

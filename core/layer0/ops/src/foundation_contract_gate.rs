@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::contract_check::{foundation_hook_coverage_receipt, guard_registry_contract_receipt};
 use crate::now_iso;
-use burn_oracle_budget_gate::CHECK_ID as BURN_ORACLE_BUDGET_GATE_CHECK_ID;
-use foundation_hook_enforcer::{
+use crate::burn_oracle_budget_gate_bridge::CHECK_ID as BURN_ORACLE_BUDGET_GATE_CHECK_ID;
+use crate::foundation_hook_enforcer_bridge::{
     evaluate_required_hook_completeness, evaluate_source_hook_coverage, HookCoverageReceipt,
     CHECK_ID_FOUNDATION_HOOKS, CHECK_ID_GUARD_REGISTRY_CONSUMPTION,
     CHECK_ID_MERGE_GUARD_HOOK_COVERAGE,
 };
-use persona_dispatch_security_gate::CHECK_ID as PERSONA_DISPATCH_SECURITY_GATE_CHECK_ID;
+use crate::persona_dispatch_security_gate_bridge::CHECK_ID as PERSONA_DISPATCH_SECURITY_GATE_CHECK_ID;
 use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;
@@ -57,7 +57,7 @@ const WEB_PROVIDER_FAST_PATH_REQUIRED_TOKENS: &[&str] = &[
 ];
 
 fn receipt_hash(v: &Value) -> String {
-    deterministic_receipt_hash(v)
+    crate::deterministic_receipt_hash(v)
 }
 
 fn print_json_line(value: &Value) {

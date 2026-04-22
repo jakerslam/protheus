@@ -8,7 +8,7 @@ const LANE_ID: &str = "sensory_eyes_intake";
 const REPLACEMENT: &str = "protheus-ops sensory-eyes-intake";
 
 fn receipt_hash(v: &Value) -> String {
-    deterministic_receipt_hash(v)
+    crate::deterministic_receipt_hash(v)
 }
 
 fn print_json_line(value: &Value) {

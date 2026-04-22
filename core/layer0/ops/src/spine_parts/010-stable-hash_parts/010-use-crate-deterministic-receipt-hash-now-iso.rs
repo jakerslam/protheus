@@ -116,7 +116,7 @@ fn stable_hash(seed: &str, len: usize) -> String {
 }
 
 fn receipt_hash(v: &Value) -> String {
-    deterministic_receipt_hash(v)
+    crate::deterministic_receipt_hash(v)
 }
 
 fn value_f64(value: Option<&Value>, fallback: f64) -> f64 {

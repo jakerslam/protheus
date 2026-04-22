@@ -198,139 +198,37 @@ fn invoke(root: &Path, op: &str, payload: &Value) -> Value {
             let root_dir = payload_root_dir(payload);
             handle_timeout(root, &task_id, &metrics, root_dir.as_deref())
         }
-        "taskgroup.path" => {
+        "taskgroup.list_agents" => {
             let task_group_id = get_string_any(payload, &["task_group_id", "taskGroupId", "id"]);
             let root_dir = payload_root_dir(payload);
-            match taskgroup_path(root, &task_group_id, root_dir.as_deref()) {
-                Ok(file_path) => json!({
+            let queried = query_task_group(root, &task_group_id, root_dir.as_deref());
+            if queried.get("ok").and_then(Value::as_bool) != Some(true) {
+                queried
+            } else {
+                json!({
                     "ok": true,
-                    "type": "orchestration_taskgroup_path",
-                    "task_group_id": task_group_id.to_ascii_lowercase(),
-                    "file_path": file_path
-                }),
-                Err(err) => json!({
-                    "ok": false,
-                    "type": "orchestration_taskgroup_path",
-                    "reason_code": err,
-                    "task_group_id": task_group_id.to_ascii_lowercase()
-                }),
+                    "type": "orchestration_taskgroup_list_agents",
+                    "task_group_id": queried
+                        .get("task_group")
+                        .and_then(|value| value.get("task_group_id"))
+                        .cloned()
+                        .unwrap_or(Value::Null),
+                    "agents": queried
+                        .get("task_group")
+                        .and_then(|value| value.get("agents"))
+                        .cloned()
+                        .unwrap_or(Value::Array(Vec::new())),
+                    "counts": queried.get("counts").cloned().unwrap_or(Value::Null)
+                })
             }
         }
-        "taskgroup.generate_id" => {
-            let task_type = get_string_any(payload, &["task_type", "taskType"]);
-            let now_ms = get_i64_any(payload, &["now_ms", "nowMs"], Utc::now().timestamp_millis());
-            let nonce = get_string_any(payload, &["nonce"]);
-            let task_group_id = generate_task_group_id(
-                if task_type.is_empty() {
-                    "task"
-                } else {
-                    &task_type
-                },
-                now_ms,
-                &nonce,
-            );
-            json!({
-                "ok": true,
-                "type": "orchestration_taskgroup_generate_id",
-                "task_group_id": task_group_id
-            })
-        }
-        "taskgroup.status_counts" => {
-            let task_group = payload
-                .get("task_group")
-                .cloned()
-                .unwrap_or_else(|| payload.clone());
-            json!({
-                "ok": true,
-                "type": "orchestration_taskgroup_status_counts",
-                "counts": status_counts(&task_group)
-            })
-        }
-        "taskgroup.derive_status" => {
-            let task_group = payload
-                .get("task_group")
-                .cloned()
-                .unwrap_or_else(|| payload.clone());
-            json!({
-                "ok": true,
-                "type": "orchestration_taskgroup_derive_status",
-                "status": derive_group_status(&task_group),
-                "counts": status_counts(&task_group)
-            })
-        }
-        "taskgroup.ensure" => {
-            let root_dir = payload_root_dir(payload);
-            ensure_task_group(root, payload, root_dir.as_deref())
-        }
-        "taskgroup.query" => {
-            let task_group_id = get_string_any(payload, &["task_group_id", "taskGroupId", "id"]);
-            let root_dir = payload_root_dir(payload);
-            query_task_group(root, &task_group_id, root_dir.as_deref())
-        }
-        "taskgroup.update_status" => {
-            let task_group_id = get_string_any(payload, &["task_group_id", "taskGroupId", "id"]);
-            let agent_id = get_string_any(payload, &["agent_id", "agentId"]);
-            let status = get_string_any(payload, &["status"]);
-            let details = payload
-                .get("details")
-                .cloned()
-                .unwrap_or(Value::Object(Map::new()));
-            let root_dir = payload_root_dir(payload);
-            update_agent_status(
-                root,
-                &task_group_id,
-                &agent_id,
-                &status,
-                &details,
-                root_dir.as_deref(),
-            )
-        }
-        "completion.status" => {
-            let task_group_id = get_string_any(payload, &["task_group_id", "taskGroupId", "id"]);
-            let root_dir = payload_root_dir(payload);
-            ensure_and_summarize(root, &task_group_id, root_dir.as_deref())
-        }
-        "completion.track" => {
-            let task_group_id = get_string_any(payload, &["task_group_id", "taskGroupId", "id"]);
-            let update = payload
-                .get("update")
-                .cloned()
-                .unwrap_or_else(|| payload.clone());
-            let root_dir = payload_root_dir(payload);
-            track_agent_completion(root, &task_group_id, &update, root_dir.as_deref())
-        }
-        "completion.batch" => {
-            let task_group_id = get_string_any(payload, &["task_group_id", "taskGroupId", "id"]);
-            let updates = array_from_payload_value(
-                payload
-                    .get("updates")
-                    .or_else(|| payload.get("updates_json"))
-                    .or_else(|| payload.get("updatesJson")),
-            );
-            let root_dir = payload_root_dir(payload);
-            track_batch_completion(root, &task_group_id, &updates, root_dir.as_deref())
-        }
-        "completion.summarize" => {
-            let task_group = payload
-                .get("task_group")
-                .cloned()
-                .unwrap_or_else(|| payload.clone());
-            let summary = completion_summary(&task_group);
-            let include_notification = payload
-                .get("include_notification")
-                .and_then(Value::as_bool)
-                .unwrap_or(true);
-            let complete = summary.get("complete").and_then(Value::as_bool) == Some(true);
-            json!({
-                "ok": true,
-                "type": "orchestration_completion_summarize",
-                "task_group": task_group,
-                "summary": summary,
-                "notification": if include_notification && complete {
-                    build_completion_notification(&summary, &task_group)
-                } else {
-                    Value::Null
-                }
+        op if op.starts_with("taskgroup.") || op.starts_with("completion.") => {
+            invoke_taskgroup_completion_ops(root, op, payload).unwrap_or_else(|| {
+                json!({
+                    "ok": false,
+                    "type": "orchestration_invoke",
+                    "reason_code": format!("unsupported_op:{op}")
+                })
             })
         }
         "partial.normalize_decision" => {
@@ -412,7 +310,87 @@ fn invoke(root: &Path, op: &str, payload: &Value) -> Value {
                 "deduped_count": merged.get("deduped_count").cloned().unwrap_or(Value::Number(serde_json::Number::from(0)))
             })
         }
+        "coordinator.timeout" => {
+            let task_id = get_string_any(payload, &["task_id", "taskId", "id"]);
+            if task_id.is_empty() {
+                json!({
+                    "ok": false,
+                    "type": "orchestration_coordinator_timeout",
+                    "reason_code": "missing_task_id"
+                })
+            } else {
+                let items_total = payload
+                    .get("items")
+                    .and_then(Value::as_array)
+                    .map(|rows| rows.len() as i64)
+                    .unwrap_or(0);
+                let findings = payload
+                    .get("findings")
+                    .or_else(|| payload.get("partial_results"))
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default();
+                let metrics = json!({
+                    "processed_count": get_i64_any(payload, &["processed_count", "processed"], 0),
+                    "total_count": get_i64_any(payload, &["total_count", "total"], items_total),
+                    "partial_results": findings,
+                    "retry_count": get_i64_any(payload, &["retry_count", "retryCount"], 0),
+                    "now_ms": get_i64_any(payload, &["now_ms", "nowMs"], Utc::now().timestamp_millis())
+                });
+                let root_dir = payload_root_dir(payload);
+                handle_timeout(root, &task_id, &metrics, root_dir.as_deref())
+            }
+        }
         "coordinator.run" => run_coordinator(root, payload),
+        "coordinator.status" => {
+            let task_id = get_string_any(payload, &["task_id", "taskId", "id"]);
+            if task_id.is_empty() {
+                json!({
+                    "ok": false,
+                    "type": "orchestration_coordinator_status",
+                    "reason_code": "missing_task_id"
+                })
+            } else {
+                let root_dir = payload_root_dir(payload);
+                match load_scratchpad(root, &task_id, root_dir.as_deref()) {
+                    Ok(loaded) => {
+                        let progress = loaded
+                            .scratchpad
+                            .get("progress")
+                            .cloned()
+                            .unwrap_or_else(|| json!({ "processed": 0, "total": 0 }));
+                        let finding_count = loaded
+                            .scratchpad
+                            .get("findings")
+                            .and_then(Value::as_array)
+                            .map(|rows| rows.len())
+                            .unwrap_or(0);
+                        let checkpoint_count = loaded
+                            .scratchpad
+                            .get("checkpoints")
+                            .and_then(Value::as_array)
+                            .map(|rows| rows.len())
+                            .unwrap_or(0);
+                        json!({
+                            "ok": true,
+                            "type": "orchestration_coordinator_status",
+                            "task_id": task_id,
+                            "scratchpad_exists": loaded.exists,
+                            "scratchpad_path": loaded.file_path,
+                            "progress": progress,
+                            "finding_count": finding_count,
+                            "checkpoint_count": checkpoint_count
+                        })
+                    }
+                    Err(err) => json!({
+                        "ok": false,
+                        "type": "orchestration_coordinator_status",
+                        "reason_code": err,
+                        "task_id": task_id
+                    }),
+                }
+            }
+        }
         _ => json!({
             "ok": false,
             "type": "orchestration_invoke",

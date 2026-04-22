@@ -32,7 +32,7 @@ fn cli_receipt(kind: &str, payload: Value) -> Value {
         "date": ts[..10].to_string(),
         "payload": payload,
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 fn cli_error(kind: &str, error: &str) -> Value {
@@ -45,7 +45,7 @@ fn cli_error(kind: &str, error: &str) -> Value {
         "error": error,
         "fail_closed": true,
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 fn print_json_line(value: &Value) {

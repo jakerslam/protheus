@@ -17,7 +17,7 @@ fn evaluate_consensus(reports: &[AgentReport], fields: &[String], threshold: f64
                 report.values.get(field).cloned().unwrap_or(Value::Null),
             );
         }
-        let fingerprint = deterministic_receipt_hash(&Value::Object(selected.clone()));
+        let fingerprint = crate::deterministic_receipt_hash(&Value::Object(selected.clone()));
         groups
             .entry(fingerprint)
             .or_default()

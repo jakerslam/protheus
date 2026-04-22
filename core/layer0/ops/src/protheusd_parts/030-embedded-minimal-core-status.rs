@@ -33,7 +33,7 @@ fn embedded_minimal_core_status() -> Value {
             })
         })
         .collect();
-    let runner_ptr_fingerprint = deterministic_receipt_hash(&json!(lane_entries));
+    let runner_ptr_fingerprint = crate::deterministic_receipt_hash(&json!(lane_entries));
     let mut out = json!({
         "ok": true,
         "type": "protheusd_embedded_minimal_core_status",
@@ -43,14 +43,14 @@ fn embedded_minimal_core_status() -> Value {
         "runner_ptr_fingerprint": runner_ptr_fingerprint,
         "web_tooling_runtime_contract": web_tooling_runtime_contract_profile(),
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
 #[cfg(feature = "tiny")]
 fn tiny_status() -> Value {
-    let profile = protheus_tiny_runtime::tiny_profile();
-    let capacity = protheus_tiny_runtime::normalized_capacity_score(
+    let profile = crate::protheus_tiny_runtime_bridge::tiny_profile();
+    let capacity = crate::protheus_tiny_runtime_bridge::normalized_capacity_score(
         profile.max_heap_kib,
         profile.max_concurrent_hands,
     );
@@ -67,13 +67,13 @@ fn tiny_status() -> Value {
         "capacity_score": capacity,
         "web_tooling_runtime_contract": web_tooling_runtime_contract_profile()
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
 #[cfg(feature = "embedded-max")]
 fn tiny_max_status() -> Value {
-    let profile = protheus_tiny_runtime::tiny_profile();
+    let profile = crate::protheus_tiny_runtime_bridge::tiny_profile();
     let mut out = json!({
         "ok": true,
         "type": "protheusd_tiny_max_status",
@@ -86,7 +86,7 @@ fn tiny_max_status() -> Value {
         "max_concurrent_hands": profile.max_concurrent_hands,
         "web_tooling_runtime_contract": web_tooling_runtime_contract_profile()
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 

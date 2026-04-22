@@ -361,7 +361,7 @@ fn status(policy: &Policy, lane: &str) -> Value {
         "lane_history_path": lane_history,
         "latest": latest
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
@@ -375,6 +375,6 @@ fn cli_error(argv: &[String], err: &str, code: i32) -> Value {
         "error": err,
         "exit_code": code
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }

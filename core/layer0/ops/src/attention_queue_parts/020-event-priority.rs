@@ -343,7 +343,7 @@ fn normalize_event(event: &Value, contract: &AttentionContract) -> Result<Value,
         "importance": importance_json,
         "raw_event": event
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     Ok(out)
 }
 

@@ -34,7 +34,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "root": clean(root.display(), 280)
         });
         attach_execution_receipt(&mut out, "status", "success", None);
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         print_json_line(&out);
         return 0;
     }
@@ -50,7 +50,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "exit_code": 2
         });
         attach_execution_receipt(&mut out, &cmd, "error", None);
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         print_json_line(&out);
         return 2;
     }
@@ -68,7 +68,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "exit_code": 2
             });
             attach_execution_receipt(&mut out, "invoke", "error", None);
-            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
             print_json_line(&out);
             return 2;
         }
@@ -94,7 +94,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "root": clean(root.display(), 280)
             });
             attach_execution_receipt(&mut out, "invoke", "success", Some(op.as_str()));
-            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
             print_json_line(&out);
             0
         }
@@ -110,7 +110,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "exit_code": 2
             });
             attach_execution_receipt(&mut out, "invoke", "error", Some(op.as_str()));
-            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
             print_json_line(&out);
             2
         }

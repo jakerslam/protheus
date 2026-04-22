@@ -1283,6 +1283,10 @@
         tool_surface_ready,
         attempted.len(),
     );
+    let cache_skip_reason_runtime =
+        search_cache_skip_reason_from_failure_mode(search_provider_failure_mode);
+    let cache_store_allowed = cache_skip_reason_runtime.is_empty();
+    let cache_write_attempted = cache_ttl_seconds > 0 && cache_store_allowed;
     if let Some(obj) = out.as_object_mut() {
         obj.insert(
             "type".to_string(),
@@ -1452,27 +1456,16 @@
         );
         obj.insert(
             "cache_store_allowed".to_string(),
-            json!(!(challenge_like_failure || query_mismatch_only_failure)),
+            json!(cache_store_allowed),
         );
-        if query_mismatch_only_failure {
+        obj.insert(
+            "cache_write_attempted".to_string(),
+            json!(cache_write_attempted),
+        );
+        if !cache_skip_reason_runtime.is_empty() {
             obj.insert(
                 "cache_skip_reason".to_string(),
-                json!("query_result_mismatch"),
-            );
-        } else if challenge_like_failure {
-            obj.insert(
-                "cache_skip_reason".to_string(),
-                json!("challenge_or_low_signal_response"),
-            );
-        } else if search_provider_failure_mode == "tool_surface_unavailable" {
-            obj.insert(
-                "cache_skip_reason".to_string(),
-                json!("tool_surface_unavailable"),
-            );
-        } else if search_provider_failure_mode == "tool_surface_degraded" {
-            obj.insert(
-                "cache_skip_reason".to_string(),
-                json!("tool_surface_degraded"),
+                json!(cache_skip_reason_runtime),
             );
         }
         obj.insert("cache_status".to_string(), json!("miss"));
@@ -1611,7 +1604,7 @@
     if let Some(obj) = out.as_object_mut() {
         obj.insert("receipt".to_string(), receipt);
     }
-    if cache_ttl_seconds > 0 && !challenge_like_failure {
+    if cache_write_attempted {
         store_search_cache(
             root,
             &cache_key,

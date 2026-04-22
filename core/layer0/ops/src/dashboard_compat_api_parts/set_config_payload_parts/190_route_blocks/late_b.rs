@@ -452,7 +452,7 @@ fn handle_global_status_get_routes(
             }),
             "/api/capabilities/status" => {
                 let policy = tool_governance_policy(root);
-                let broker = protheus_tooling_core_v1::ToolBroker::default();
+                let broker = crate::protheus_tooling_core_v1_bridge::ToolBroker::default();
                 let catalog = broker.capability_catalog();
                 let grouped_catalog = broker.grouped_capability_catalog();
                 json!({
@@ -464,12 +464,12 @@ fn handle_global_status_get_routes(
                     "catalog_domains": grouped_catalog,
                     "tools": catalog.iter().map(|row| {
                         let tier = match row.status {
-                            protheus_tooling_core_v1::ToolCapabilityStatus::Available => {
+                            crate::protheus_tooling_core_v1_bridge::ToolCapabilityStatus::Available => {
                                 if row.read_only { "green" } else { "yellow" }
                             }
-                            protheus_tooling_core_v1::ToolCapabilityStatus::Degraded => "yellow",
-                            protheus_tooling_core_v1::ToolCapabilityStatus::Blocked => "red",
-                            protheus_tooling_core_v1::ToolCapabilityStatus::Unavailable => "gray",
+                            crate::protheus_tooling_core_v1_bridge::ToolCapabilityStatus::Degraded => "yellow",
+                            crate::protheus_tooling_core_v1_bridge::ToolCapabilityStatus::Blocked => "red",
+                            crate::protheus_tooling_core_v1_bridge::ToolCapabilityStatus::Unavailable => "gray",
                         };
                         json!({
                             "tool": row.tool_name,

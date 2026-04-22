@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-use protheus_nexus_core_v1::{
+use infring_types::{
     compute_blob_manifest_signature, decode_signed_bincode_blob_manifest_with_adapter,
     normalize_blob_id as normalize_blob_id_shared,
 };

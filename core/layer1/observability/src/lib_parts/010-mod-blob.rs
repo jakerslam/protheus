@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
+#[path = "../blob.rs"]
 mod blob;
 
-use protheus_nexus_core_v1::{
+use protheus_memory_core_v6::{
     load_embedded_observability_profile as load_embedded_profile_from_memory, EmbeddedChaosHook,
     EmbeddedObservabilityProfile,
 };

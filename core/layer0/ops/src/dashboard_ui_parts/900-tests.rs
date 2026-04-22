@@ -63,4 +63,25 @@ mod tests {
     include!("900-tests_parts/150-dashboard-troubleshooting-summary-pressure-contract-next-action-after-se.rs");
     include!("900-tests_parts/160-dashboard-troubleshooting-summary-pressure-contract-decision-lane-token-.rs");
     include!("900-tests_parts/170-dashboard-troubleshooting-summary-window-filter-excludes-old-entries.rs");
+    include!("900-tests_parts/180-dashboard-agent-task-history-favorites-feedback-and-ui-controller-con.rs");
+    include!("900-tests_parts/190-dashboard-agent-task-aliases-and-worktree-extended-controls-contract.rs");
+    include!("900-tests_parts/200-dashboard-hooks-governance-routes-contract.rs");
+    include!("900-tests_parts/210-dashboard-hooks-test-scenario-routes-contract.rs");
+    include!("900-tests_parts/220-dashboard-hooks-test-scenario-extended-routes-contract.rs");
+    include!("900-tests_parts/230-dashboard-lock-permission-prompt-routes-contract.rs");
+    include!("900-tests_parts/240-dashboard-system-prompt-compose-routes-contract.rs");
+    include!("900-tests_parts/250-dashboard-system-prompt-registry-and-spec-routes-contract.rs");
+    include!("900-tests_parts/260-dashboard-system-prompt-variant-routes-contract.rs");
+    include!("900-tests_parts/270-dashboard-system-prompt-variant-profile-and-builder-routes-contract.rs");
+    include!("900-tests_parts/280-dashboard-system-prompt-native-variant-routes-contract.rs");
+    include!("900-tests_parts/290-dashboard-system-prompt-variant-validator-and-storage-routes-contract.rs");
+    include!("900-tests_parts/300-dashboard-system-prompt-storage-and-task-routes-contract.rs");
+    include!("900-tests_parts/310-dashboard-system-prompt-focus-chain-and-task-analysis-routes-contract.rs");
+    include!("900-tests_parts/320-dashboard-system-prompt-task-utils-webview-workspace-routes-contract.rs");
+    include!("900-tests_parts/330-dashboard-system-prompt-workspace-extension-host-routes-contract.rs");
+    include!("900-tests_parts/340-dashboard-system-prompt-host-bridge-vscode-routes-contract.rs");
+    include!("900-tests_parts/350-dashboard-system-prompt-vscode-hostbridge-grpc-and-diff-ops-routes-contract.rs");
+    include!("900-tests_parts/360-dashboard-system-prompt-vscode-hostbridge-diff-env-tail-routes-contract.rs");
+    include!("900-tests_parts/370-dashboard-system-prompt-vscode-hostbridge-env-window-tail-routes-contract.rs");
+    include!("900-tests_parts/380-dashboard-system-prompt-vscode-hostbridge-window-workspace-tail-routes-contract.rs");
 }

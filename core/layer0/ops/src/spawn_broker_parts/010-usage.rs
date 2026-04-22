@@ -108,7 +108,7 @@ fn print_json_line(value: &Value) {
 }
 
 fn receipt_hash(value: &Value) -> String {
-    deterministic_receipt_hash(value)
+    crate::deterministic_receipt_hash(value)
 }
 
 fn now_ms() -> i64 {

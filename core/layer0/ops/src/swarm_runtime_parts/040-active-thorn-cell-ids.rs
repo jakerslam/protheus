@@ -403,7 +403,7 @@ pub fn run_thorn_contract(root: &Path, argv: &[String]) -> (Value, i32) {
                     "command": argv.first().cloned().unwrap_or_else(|| "status".to_string()),
                 }
             }]);
-            payload["receipt_hash"] = Value::String(deterministic_receipt_hash(&payload));
+            payload["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&payload));
             (payload, 0)
         }
         (Err(err), _) => (

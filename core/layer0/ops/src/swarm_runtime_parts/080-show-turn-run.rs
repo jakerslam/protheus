@@ -40,7 +40,7 @@ fn create_agent_network(
     }
     let network_id = format!(
         "net-{}",
-        &deterministic_receipt_hash(&json!({
+        &crate::deterministic_receipt_hash(&json!({
             "name": name,
             "node_count": nodes.len(),
             "ts": now_epoch_ms(),
@@ -272,7 +272,7 @@ fn wildcard_matches(pattern: &str, candidate: &str) -> bool {
 fn next_result_id(state: &SwarmState, session_id: &str, task_id: &str) -> String {
     let mut salt = 0u64;
     loop {
-        let digest = deterministic_receipt_hash(&json!({
+        let digest = crate::deterministic_receipt_hash(&json!({
             "session_id": session_id,
             "task_id": task_id,
             "salt": salt,

@@ -329,7 +329,7 @@ pub(super) fn run_replay(
         .collect::<Vec<_>>();
     let snapshot_value = Value::Object(snapshot.into_iter().collect());
     let replay_id =
-        deterministic_receipt_hash(&json!({"target_ms": target_ms, "receipt": requested_receipt}));
+        crate::deterministic_receipt_hash(&json!({"target_ms": target_ms, "receipt": requested_receipt}));
     let base = enterprise_state_root(root).join("moat/replay");
     let snapshot_path = base.join(format!("{}.json", &replay_id[..16]));
     write_json(

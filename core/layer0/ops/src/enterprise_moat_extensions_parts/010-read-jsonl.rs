@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use super::*;
 use crate::clean;
-use execution_core::run_importer_infring_json;
+use crate::execution_lane_bridge::run_importer_infring_json;
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::fs;

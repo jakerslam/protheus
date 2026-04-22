@@ -23,7 +23,7 @@
                 }
             ]
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         write_json(&latest, &out);
         append_jsonl(&history, &out);
         print_receipt(&out);
@@ -47,7 +47,7 @@
             "ts": now_iso(),
             "apply": apply,
             "action": action,
-            "contract_digest": deterministic_receipt_hash(&contract),
+            "contract_digest": crate::deterministic_receipt_hash(&contract),
             "claim_evidence": [
                 {
                     "id": "V6-ECONOMY-001.1",
@@ -56,7 +56,7 @@
                 }
             ]
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         write_json(&latest, &out);
         append_jsonl(&history, &out);
         print_receipt(&out);
@@ -80,7 +80,7 @@
             "ts": now_iso(),
             "apply": apply,
             "strategy": strategy,
-            "contract_digest": deterministic_receipt_hash(&contract),
+            "contract_digest": crate::deterministic_receipt_hash(&contract),
             "claim_evidence": [
                 {
                     "id": "V6-ECONOMY-001.2",
@@ -89,7 +89,7 @@
                 }
             ]
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         write_json(&latest, &out);
         append_jsonl(&history, &out);
         print_receipt(&out);
@@ -113,7 +113,7 @@
             "ts": now_iso(),
             "apply": apply,
             "source": source,
-            "contract_digest": deterministic_receipt_hash(&contract),
+            "contract_digest": crate::deterministic_receipt_hash(&contract),
             "claim_evidence": [
                 {
                     "id": "V6-ECONOMY-001.3",
@@ -122,7 +122,7 @@
                 }
             ]
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         write_json(&latest, &out);
         append_jsonl(&history, &out);
         print_receipt(&out);
@@ -146,7 +146,7 @@
             "ts": now_iso(),
             "apply": apply,
             "source": source,
-            "contract_digest": deterministic_receipt_hash(&contract),
+            "contract_digest": crate::deterministic_receipt_hash(&contract),
             "claim_evidence": [
                 {
                     "id": "V6-ECONOMY-001.4",
@@ -155,7 +155,7 @@
                 }
             ]
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         write_json(&latest, &out);
         append_jsonl(&history, &out);
         print_receipt(&out);

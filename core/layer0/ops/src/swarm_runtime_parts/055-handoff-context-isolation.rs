@@ -64,7 +64,7 @@ fn isolate_handoff_context(context: Value, reason: &str, importance: f64) -> (Va
         "max_keys": HANDOFF_CONTEXT_MAX_KEYS,
         "effective_key_count": isolated.as_object().map(|map| map.len()).unwrap_or(0),
         "dropped_keys": dropped_keys,
-        "context_hash": deterministic_receipt_hash(&isolated),
+        "context_hash": crate::deterministic_receipt_hash(&isolated),
         "summary": clean_text(&summary, 260),
     });
     (isolated, receipt)

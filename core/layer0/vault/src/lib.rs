@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 mod blob;
 
-use protheus_nexus_core_v1::{
+use protheus_memory_core_v6::{
     load_embedded_vault_policy as load_embedded_vault_policy_from_memory, EmbeddedVaultPolicy,
 };
 use serde::{Deserialize, Serialize};

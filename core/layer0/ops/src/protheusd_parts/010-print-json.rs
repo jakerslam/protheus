@@ -64,7 +64,7 @@ fn cli_error(error: &str, command: &str) -> Value {
         "error": error,
         "ts": now_iso()
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
@@ -432,7 +432,7 @@ fn capability_profile_payload(argv: &[String]) -> Value {
         "ts": now_iso(),
         "profile": profile.as_json()
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 

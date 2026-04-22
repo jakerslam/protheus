@@ -62,7 +62,7 @@
                 }
             ]
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         write_json(&latest, &out);
         append_jsonl(&history, &out);
         print_receipt(&out);
@@ -98,7 +98,7 @@
                 "network": network,
                 "allowed": ["litcoin", "minbot"]
             });
-            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
             write_json(&latest, &out);
             append_jsonl(&history, &out);
             print_receipt(&out);
@@ -172,7 +172,7 @@
                 }
             ]
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         write_json(&latest, &out);
         append_jsonl(&history, &out);
         print_receipt(&out);

@@ -140,11 +140,8 @@ fn evaluate_security_decision_payload(
     }
 }
 
-fn evaluate_security_decision_embedded(req: &Value) -> Result<Value, String> {
-    let request_json = serde_json::to_string(req).map_err(|err| clean(err.to_string(), 220))?;
-    let payload_json = protheus_security_core_v1::evaluate_operation_json(&request_json)
-        .map_err(|err| clean(err.to_string(), 220))?;
-    parse_json(&payload_json).ok_or_else(|| "invalid_security_payload".to_string())
+fn evaluate_security_decision_embedded(_req: &Value) -> Result<Value, String> {
+    Err("embedded_security_checker_not_linked_use_cargo".to_string())
 }
 
 fn evaluate_security_decision_via_cargo(

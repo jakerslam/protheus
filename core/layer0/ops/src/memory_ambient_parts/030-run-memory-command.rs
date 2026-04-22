@@ -137,7 +137,7 @@ fn enqueue_attention(
     run_context: &str,
     summary_line: &str,
 ) -> Result<Value, String> {
-    let summary_hash = deterministic_receipt_hash(&json!({
+    let summary_hash = crate::deterministic_receipt_hash(&json!({
         "memory_command": memory_command,
         "severity": severity,
         "ok": op_ok,
@@ -278,7 +278,7 @@ fn cli_error_receipt(
         "rust_authoritative": policy.rust_authoritative,
         "policy": policy_snapshot(policy)
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
@@ -318,7 +318,7 @@ fn cryonics_compat_receipt(
         "action": action,
         "run_context": run_context,
         "memory_args_count": memory_args.len(),
-        "memory_args_hash": deterministic_receipt_hash(&json!(memory_args)),
+        "memory_args_hash": crate::deterministic_receipt_hash(&json!(memory_args)),
         "severity": "info",
         "surfaced": false,
         "attention_queue": {
@@ -335,6 +335,6 @@ fn cryonics_compat_receipt(
         },
         "policy": policy_snapshot(policy)
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }

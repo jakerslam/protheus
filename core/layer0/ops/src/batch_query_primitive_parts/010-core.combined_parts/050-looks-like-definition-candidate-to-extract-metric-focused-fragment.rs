@@ -83,6 +83,14 @@ fn is_relevance_stop_token(token: &str) -> bool {
             | "with"
             | "you"
             | "your"
+            | "verify"
+            | "report"
+            | "top"
+            | "benchmark"
+            | "benchmarks"
+            | "metric"
+            | "metrics"
+            | "performance"
     )
 }
 

@@ -84,7 +84,7 @@ fn status_payload(root: &Path, snapshot: &Value, host_header: &str) -> Value {
     let memory_hygiene = memory_hygiene_payload(root, &continuity);
     let task_runtime = task_runtime_summary(root);
     let worker_runtime = worker_runtime_summary(root);
-    let hot_path_allocators = protheus_ops_core_v1::hot_path_allocators::snapshot_json();
+    let hot_path_allocators = crate::protheus_ops_core_v1_bridge::hot_path_allocators::snapshot_json();
     let web_conduit = crate::web_conduit::api_status(root);
     let (default_provider, default_model) = effective_app_settings(root, snapshot);
     let version_info = dashboard_runtime_version_info(root);

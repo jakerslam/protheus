@@ -103,7 +103,7 @@ impl LayerTopology {
 
 #[cfg(feature = "layer_minus_one")]
 pub mod layer_minus_one {
-    pub use exotic_wrapper::{
+    pub use protheus_nexus_core_v1::exotic::{
         default_degradation, wrap_exotic_signal, DegradationContract, ExoticDomain, ExoticEnvelope,
         Layer0Envelope,
     };
@@ -111,30 +111,37 @@ pub mod layer_minus_one {
 
 #[cfg(feature = "layer0")]
 pub mod layer0 {
-    pub use resource::{ResourceBudget, ResourceUsage};
-    pub use task::{ClaimEvidence, ScheduleDecision, Scheduler, Task};
+    pub use protheus_nexus_core_v1::resource::{ResourceBudget, ResourceUsage};
+    pub use protheus_nexus_core_v1::task::{ClaimEvidence, ScheduleDecision, Scheduler, Task};
 }
 
 #[cfg(feature = "layer1")]
 pub mod layer1 {
-    pub use ipc::{deterministic_envelope_hash, IpcEnvelope, IpcError, IpcPolicy};
-    pub use isolation::{CapabilityHandle, Sandbox};
-    pub use storage::{StorageEngine, StorageError, StorageRecord};
-    pub use update::{UpdateDecision, UpdatePackage, UpdatePolicy};
+    pub use protheus_nexus_core_v1::ipc::{
+        deterministic_envelope_hash, IpcEnvelope, IpcError, IpcPolicy,
+    };
+    pub use protheus_nexus_core_v1::isolation::{CapabilityHandle, Sandbox};
+    pub use protheus_nexus_core_v1::storage::{StorageEngine, StorageError, StorageRecord};
+    pub use protheus_nexus_core_v1::update::{UpdateDecision, UpdatePackage, UpdatePolicy};
 }
 
 #[cfg(feature = "layer2")]
 pub mod layer2 {
-    pub use conduit::{
-        conduit_message_contract_count, process_command, CrossingDirection,
-        KernelLaneCommandHandler, TsCommand, MAX_CONDUIT_MESSAGE_TYPES,
-    };
+    pub const MAX_CONDUIT_MESSAGE_TYPES: usize = 10;
+
+    pub const fn conduit_message_contract_count() -> usize {
+        MAX_CONDUIT_MESSAGE_TYPES
+    }
+
+    pub use protheus_nexus_core_v1::{ConduitBackedLink, ConduitManager};
 }
 
 #[cfg(feature = "layer3")]
 pub mod layer3 {
-    pub use os_extension_wrapper::{wrap_os_extension, OsExtensionDescriptor, OsExtensionEnvelope};
-    pub use protheus_observability::{
+    pub use protheus_nexus_core_v1::os_extension_wrapper::{
+        wrap_os_extension, OsExtensionDescriptor, OsExtensionEnvelope,
+    };
+    pub use protheus_nexus_core_v1::{
         evaluate_trace_window, load_embedded_observability_profile, TraceEvent, TraceWindowReport,
     };
 }

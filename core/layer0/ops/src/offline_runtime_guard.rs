@@ -155,7 +155,7 @@ fn evaluate(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
             }
         ]
     });
-    receipt["receipt_hash"] = Value::String(deterministic_receipt_hash(&receipt));
+    receipt["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&receipt));
     print_json(&receipt);
 
     let state_path = root.join(clean(&policy.state_path, 240));
@@ -243,7 +243,7 @@ fn error_receipt(error: &str) -> Value {
         "type": "offline_runtime_guard",
         "error": error
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 

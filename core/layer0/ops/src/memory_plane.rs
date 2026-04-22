@@ -2,7 +2,7 @@
 // Layer ownership: core/layer0/ops::memory_plane (authoritative)
 use crate::contract_lane_utils as lane_utils;
 use crate::{client_state_root, deterministic_receipt_hash, now_iso};
-use protheus_memory_core_v1::{
+use crate::protheus_memory_core_v1_bridge::{
     memory_scope_authority_matrix, owner_export_redaction_matrix, task_fabric_lease_cas_rules,
     trust_state_transition_matrix, DefaultVerityMemoryPolicy, UnifiedMemoryHeap,
 };
@@ -40,7 +40,7 @@ fn print_json_line(value: &Value) {
 }
 
 fn receipt_hash(v: &Value) -> String {
-    deterministic_receipt_hash(v)
+    crate::deterministic_receipt_hash(v)
 }
 
 fn parse_flag(argv: &[String], key: &str) -> Option<String> {

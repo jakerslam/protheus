@@ -244,7 +244,7 @@ fn run_multi_agent_debate(root: &Path, argv: &[String]) -> i32 {
             let policy = parse_flag(argv, "policy").map(PathBuf::from);
             let date = parse_flag(argv, "date").or_else(|| parse_positional(argv, 2));
             let persist = parse_bool(parse_flag(argv, "persist").as_deref(), true);
-            let out = protheus_autonomy_core_v1::run_multi_agent_debate(
+            let out = crate::protheus_autonomy_core_v1_bridge::run_multi_agent_debate(
                 root,
                 &payload,
                 policy.as_deref(),
@@ -263,7 +263,7 @@ fn run_multi_agent_debate(root: &Path, argv: &[String]) -> i32 {
             let policy = parse_flag(argv, "policy").map(PathBuf::from);
             let key = parse_positional(argv, 2).or_else(|| parse_flag(argv, "date"));
             let out =
-                protheus_autonomy_core_v1::debate_status(root, policy.as_deref(), key.as_deref());
+                crate::protheus_autonomy_core_v1_bridge::debate_status(root, policy.as_deref(), key.as_deref());
             let ok = out.get("ok").and_then(Value::as_bool).unwrap_or(false);
             print_json_line(&out);
             if ok {
@@ -297,7 +297,7 @@ fn run_ethical_reasoning(root: &Path, argv: &[String]) -> i32 {
             let policy = parse_flag(argv, "policy").map(PathBuf::from);
             let state_dir = parse_flag(argv, "state-dir").map(PathBuf::from);
             let persist = parse_bool(parse_flag(argv, "persist").as_deref(), true);
-            let out = protheus_autonomy_core_v1::run_ethical_reasoning(
+            let out = crate::protheus_autonomy_core_v1_bridge::run_ethical_reasoning(
                 root,
                 &payload,
                 policy.as_deref(),
@@ -315,7 +315,7 @@ fn run_ethical_reasoning(root: &Path, argv: &[String]) -> i32 {
         "status" => {
             let policy = parse_flag(argv, "policy").map(PathBuf::from);
             let state_dir = parse_flag(argv, "state-dir").map(PathBuf::from);
-            let out = protheus_autonomy_core_v1::ethical_reasoning_status(
+            let out = crate::protheus_autonomy_core_v1_bridge::ethical_reasoning_status(
                 root,
                 policy.as_deref(),
                 state_dir.as_deref(),
@@ -348,7 +348,7 @@ fn run_simulation_harness(root: &Path, argv: &[String]) -> i32 {
 
     match action.as_str() {
         "run" | "status" => {
-            let out = protheus_autonomy_core_v1::run_autonomy_simulation(
+            let out = crate::protheus_autonomy_core_v1_bridge::run_autonomy_simulation(
                 root,
                 date.as_deref(),
                 days,

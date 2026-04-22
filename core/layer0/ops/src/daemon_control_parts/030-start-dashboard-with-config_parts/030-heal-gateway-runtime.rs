@@ -122,7 +122,7 @@ fn verity_drift_status_receipt(root: &Path, argv: &[String]) -> Value {
         "recent_events_limit": limit,
         "recent_drift_events": recent_events,
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
@@ -146,7 +146,7 @@ pub(crate) fn success_receipt(
     argv: &[String],
     root: &Path,
 ) -> Value {
-    let mut out = protheus_ops_core_v1::daemon_control_receipt(command, mode);
+    let mut out = crate::protheus_ops_core_v1_bridge::daemon_control_receipt(command, mode);
     if let Some(obj) = out.as_object_mut() {
         obj.insert("argv".to_string(), json!(argv));
         obj.insert(
@@ -175,7 +175,7 @@ pub(crate) fn success_receipt(
             ]),
         );
     }
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
@@ -198,6 +198,6 @@ fn error_receipt(error: &str, argv: &[String]) -> Value {
         "error": error,
         "argv": argv,
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }

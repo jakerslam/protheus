@@ -138,7 +138,7 @@ fn run_scan_command(root: &Path, argv: &[String], strict: bool) -> (Value, i32) 
             "mcp_payload_sha256": hash_text(&mcp_payload)
         }
     });
-    let scan_id = deterministic_receipt_hash(&scan_payload);
+    let scan_id = crate::deterministic_receipt_hash(&scan_payload);
     let scan_path = scanner_state_dir(root).join(format!("scan_{}.json", &scan_id[..16]));
     write_json(&scan_path, &scan_payload);
     write_json(

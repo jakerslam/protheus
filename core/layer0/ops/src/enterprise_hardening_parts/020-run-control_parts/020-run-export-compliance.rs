@@ -30,7 +30,7 @@ fn run_export_compliance(
         "controls_failed": controls_failed,
         "ts": now_iso()
     });
-    let bundle_hash = deterministic_receipt_hash(&bundle_seed);
+    let bundle_hash = crate::deterministic_receipt_hash(&bundle_seed);
     let bundle_id = format!("enterprise_bundle_{}", &bundle_hash[..16]);
     let bundle_path = enterprise_state_root(root)
         .join("compliance_exports")

@@ -118,7 +118,7 @@ fn cli_error_receipt(root: &Path, argv: &[String], error: &str, exit_code: i32) 
         "error": error,
         "exit_code": exit_code
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
