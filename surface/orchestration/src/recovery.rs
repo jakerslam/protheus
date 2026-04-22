@@ -12,8 +12,7 @@ pub fn coordinate_recovery_escalation(
     if matches!(
         plan.execution_state.plan_status,
         PlanStatus::Running | PlanStatus::Completed | PlanStatus::Failed
-    )
-    {
+    ) {
         return (plan, false);
     }
 

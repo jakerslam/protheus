@@ -2,7 +2,7 @@
 use crate::contracts::{
     Capability, CapabilityProbeResult, CoreContractCall, OrchestrationPlanStep, PlanCandidate,
     PlanScore, PlanVariant, Precondition, RequestClass, RequestClassification, RequestKind,
-    ResourceKind, TypedOrchestrationRequest,
+    ResourceKind, TypedOrchestrationRequest, WorkflowTemplate,
 };
 
 use super::{capability_registry, preconditions, scoring};
@@ -19,6 +19,14 @@ pub fn propose_decomposition_candidates(
     request: &TypedOrchestrationRequest,
     classification: &RequestClassification,
 ) -> Vec<PlanCandidate> {
+    propose_decomposition_candidates_with_template(request, classification, None)
+}
+
+pub fn propose_decomposition_candidates_with_template(
+    request: &TypedOrchestrationRequest,
+    classification: &RequestClassification,
+    template_hint: Option<&WorkflowTemplate>,
+) -> Vec<PlanCandidate> {
     let capabilities = classification.required_capabilities.clone();
     let probes = preconditions::probe_capabilities(request, &capabilities);
     let mut candidates = vec![
@@ -28,6 +36,7 @@ pub fn propose_decomposition_candidates(
             &capabilities,
             &probes,
             PlanVariant::Safest,
+            template_hint,
         ),
         build_candidate_for_variant(
             request,
@@ -35,6 +44,7 @@ pub fn propose_decomposition_candidates(
             &capabilities,
             &probes,
             PlanVariant::Fastest,
+            template_hint,
         ),
         build_candidate_for_variant(
             request,
@@ -42,6 +52,7 @@ pub fn propose_decomposition_candidates(
             &capabilities,
             &probes,
             PlanVariant::DegradedFallback,
+            template_hint,
         ),
         build_candidate_for_variant(
             request,
@@ -49,6 +60,7 @@ pub fn propose_decomposition_candidates(
             &capabilities,
             &probes,
             PlanVariant::ClarificationFirst,
+            template_hint,
         ),
     ];
     candidates.sort_by(|left, right| {
@@ -79,7 +91,15 @@ pub fn propose_decomposition_candidate(
     request: &TypedOrchestrationRequest,
     classification: &RequestClassification,
 ) -> PlanCandidate {
-    propose_decomposition_candidates(request, classification)
+    propose_decomposition_candidate_with_template(request, classification, None)
+}
+
+pub fn propose_decomposition_candidate_with_template(
+    request: &TypedOrchestrationRequest,
+    classification: &RequestClassification,
+    template_hint: Option<&WorkflowTemplate>,
+) -> PlanCandidate {
+    propose_decomposition_candidates_with_template(request, classification, template_hint)
         .into_iter()
         .next()
         .unwrap_or_else(|| {
@@ -92,14 +112,14 @@ pub fn build_plan_candidates(
     request: &TypedOrchestrationRequest,
     classification: &RequestClassification,
 ) -> Vec<PlanCandidate> {
-    propose_decomposition_candidates(request, classification)
+    propose_decomposition_candidates_with_template(request, classification, None)
 }
 
 pub fn build_plan_candidate(
     request: &TypedOrchestrationRequest,
     classification: &RequestClassification,
 ) -> PlanCandidate {
-    propose_decomposition_candidate(request, classification)
+    propose_decomposition_candidate_with_template(request, classification, None)
 }
 
 fn build_candidate_for_variant(
@@ -108,6 +128,7 @@ fn build_candidate_for_variant(
     capabilities: &[Capability],
     probes: &[CapabilityProbeResult],
     variant: PlanVariant,
+    template_hint: Option<&WorkflowTemplate>,
 ) -> PlanCandidate {
     let mut steps = Vec::new();
     let mut reasons = classification.reasons.clone();
@@ -224,7 +245,7 @@ fn build_candidate_for_variant(
         .iter()
         .map(|row| row.target_contract.clone())
         .collect::<Vec<_>>();
-    let score = scoring::score_candidate(
+    let mut score = scoring::score_candidate(
         request,
         classification,
         contracts.as_slice(),
@@ -232,6 +253,12 @@ fn build_candidate_for_variant(
         degradation.len() + usize::from(variant_used_degraded),
         requires_clarification,
     );
+    let template_bias = template_variant_bias(template_hint, &variant);
+    if template_bias != 0.0 {
+        score.overall = (score.overall + template_bias).clamp(0.0, 0.99);
+        reasons
+            .push(format!("workflow_template_bias:{variant:?}:{template_bias:+.2}").to_lowercase());
+    }
     if steps.is_empty() {
         reasons.push("candidate_empty_after_capability_resolution".to_string());
     }
@@ -336,6 +363,34 @@ fn has_capability(capabilities: &[Capability], capability: Capability) -> bool {
     capabilities.iter().any(|row| row == &capability)
 }
 
+fn selected_tool_capability(
+    capabilities: &[Capability],
+    request: &TypedOrchestrationRequest,
+) -> Option<Capability> {
+    let preferred = Capability::primary_tool_for(&request.operation_kind, &request.resource_kind);
+    if capabilities.iter().any(|row| row == &preferred) {
+        return Some(preferred);
+    }
+    capabilities
+        .iter()
+        .find(|row| row.is_tool_family())
+        .cloned()
+}
+
+fn has_tool_capability(capabilities: &[Capability], request: &TypedOrchestrationRequest) -> bool {
+    selected_tool_capability(capabilities, request).is_some()
+}
+
+fn tool_capability_blocked(
+    capabilities: &[Capability],
+    request: &TypedOrchestrationRequest,
+    probes: &[CapabilityProbeResult],
+) -> bool {
+    selected_tool_capability(capabilities, request)
+        .map(|capability| capability_blocked(capability, probes))
+        .unwrap_or(false)
+}
+
 fn capability_blocked(capability: Capability, probes: &[CapabilityProbeResult]) -> bool {
     probes
         .iter()
@@ -357,15 +412,15 @@ fn strategy_capabilities_for_variant(
         match strategy_family {
             StrategyFamily::ToolFirst => {
                 let mut out = Vec::new();
-                if has_capability(capabilities, Capability::ExecuteTool) {
-                    out.push(Capability::ExecuteTool);
+                if let Some(tool_capability) = selected_tool_capability(capabilities, request) {
+                    out.push(tool_capability);
                 }
                 if has_capability(capabilities, Capability::VerifyClaim) {
                     out.push(Capability::VerifyClaim);
                 }
                 if has_capability(capabilities, Capability::ReadMemory)
                     && (transport_explicitly_unavailable(request)
-                        || capability_blocked(Capability::ExecuteTool, probes)
+                        || tool_capability_blocked(capabilities, request, probes)
                         || capability_blocked(Capability::VerifyClaim, probes))
                 {
                     out.push(Capability::ReadMemory);
@@ -387,11 +442,13 @@ fn strategy_capabilities_for_variant(
                 if has_capability(capabilities, Capability::ReadMemory) {
                     out.push(Capability::ReadMemory);
                 }
-                if has_capability(capabilities, Capability::ExecuteTool)
-                    && !capability_blocked(Capability::ExecuteTool, probes)
+                if has_tool_capability(capabilities, request)
+                    && !tool_capability_blocked(capabilities, request, probes)
                     && !transport_explicitly_unavailable(request)
                 {
-                    out.push(Capability::ExecuteTool);
+                    if let Some(tool_capability) = selected_tool_capability(capabilities, request) {
+                        out.push(tool_capability);
+                    }
                 }
                 if has_capability(capabilities, Capability::VerifyClaim)
                     && !capability_blocked(Capability::VerifyClaim, probes)
@@ -407,15 +464,15 @@ fn strategy_capabilities_for_variant(
         match strategy_family {
             StrategyFamily::ToolFirst => {
                 let mut out = Vec::new();
-                if has_capability(capabilities, Capability::ExecuteTool) {
-                    out.push(Capability::ExecuteTool);
+                if let Some(tool_capability) = selected_tool_capability(capabilities, request) {
+                    out.push(tool_capability);
                 }
                 if has_capability(capabilities, Capability::VerifyClaim) {
                     out.push(Capability::VerifyClaim);
                 }
                 if has_capability(capabilities, Capability::ReadMemory)
                     && (out.is_empty()
-                        || capability_blocked(Capability::ExecuteTool, probes)
+                        || tool_capability_blocked(capabilities, request, probes)
                         || capability_blocked(Capability::VerifyClaim, probes))
                 {
                     out.push(Capability::ReadMemory);
@@ -430,8 +487,10 @@ fn strategy_capabilities_for_variant(
                 if has_capability(capabilities, Capability::VerifyClaim) {
                     out.push(Capability::VerifyClaim);
                 }
-                if has_capability(capabilities, Capability::ExecuteTool) && out.is_empty() {
-                    out.push(Capability::ExecuteTool);
+                if has_tool_capability(capabilities, request) && out.is_empty() {
+                    if let Some(tool_capability) = selected_tool_capability(capabilities, request) {
+                        out.push(tool_capability);
+                    }
                 }
                 out
             }
@@ -458,12 +517,14 @@ fn strategy_capabilities_for_variant(
                 {
                     out.push(Capability::VerifyClaim);
                 }
-                if has_capability(capabilities, Capability::ExecuteTool)
-                    && !capability_blocked(Capability::ExecuteTool, probes)
+                if has_tool_capability(capabilities, request)
+                    && !tool_capability_blocked(capabilities, request, probes)
                     && !transport_explicitly_unavailable(request)
                     && out.is_empty()
                 {
-                    out.push(Capability::ExecuteTool);
+                    if let Some(tool_capability) = selected_tool_capability(capabilities, request) {
+                        out.push(tool_capability);
+                    }
                 }
                 out
             }
@@ -495,9 +556,9 @@ fn strategy_capabilities_for_variant(
     }
 
     if matches!(variant, PlanVariant::ClarificationFirst)
-        && has_capability(&selected, Capability::ExecuteTool)
+        && selected.iter().any(Capability::is_tool_family)
     {
-        selected.retain(|row| row != &Capability::ExecuteTool);
+        selected.retain(|row| !row.is_tool_family());
     }
 
     selected.retain(|row| capabilities.iter().any(|capability| capability == row));
@@ -592,17 +653,17 @@ fn chain_for_variant(
     spec: &capability_registry::CapabilitySpec,
 ) -> (Vec<OrchestrationPlanStep>, bool, bool) {
     match strategy_family {
-        StrategyFamily::MemoryFirst => match capability {
-            Capability::ReadMemory => return (spec.primary_steps.clone(), false, false),
-            Capability::ExecuteTool | Capability::VerifyClaim
-                if !spec.degraded_steps.is_empty()
-                    && (!probe.blocked_on.is_empty()
-                        || transport_explicitly_unavailable(request)) =>
+        StrategyFamily::MemoryFirst => {
+            if matches!(capability, Capability::ReadMemory) {
+                return (spec.primary_steps.clone(), false, false);
+            }
+            if (capability.is_tool_family() || matches!(capability, Capability::VerifyClaim))
+                && !spec.degraded_steps.is_empty()
+                && (!probe.blocked_on.is_empty() || transport_explicitly_unavailable(request))
             {
                 return (spec.degraded_steps.clone(), true, false);
             }
-            _ => {}
-        },
+        }
         StrategyFamily::TopologyFirst => {
             if is_structural_comparative_request(request)
                 && matches!(capability, Capability::ReadMemory)
@@ -621,7 +682,7 @@ fn chain_for_variant(
                 );
             }
             if is_structural_comparative_request(request)
-                && matches!(capability, Capability::ExecuteTool)
+                && capability.is_tool_family()
                 && matches!(variant, PlanVariant::ClarificationFirst)
                 && !transport_explicitly_unavailable(request)
             {
@@ -665,8 +726,10 @@ fn chain_for_variant(
             },
             PlanVariant::DegradedFallback => match capability {
                 Capability::ReadMemory => return (spec.primary_steps.clone(), false, false),
-                Capability::ExecuteTool | Capability::VerifyClaim
-                    if !probe.blocked_on.is_empty() && !spec.degraded_steps.is_empty() =>
+                _ if (capability.is_tool_family()
+                    || matches!(capability, Capability::VerifyClaim))
+                    && !probe.blocked_on.is_empty()
+                    && !spec.degraded_steps.is_empty() =>
                 {
                     return (spec.degraded_steps.clone(), true, false);
                 }
@@ -701,8 +764,8 @@ fn chain_for_variant(
             _ => {}
         },
         PlanVariant::DegradedFallback => match capability {
-            Capability::ExecuteTool | Capability::VerifyClaim
-                if !spec.degraded_steps.is_empty() =>
+            _ if (capability.is_tool_family() || matches!(capability, Capability::VerifyClaim))
+                && !spec.degraded_steps.is_empty() =>
             {
                 if !matches!(request.surface, crate::contracts::RequestSurface::Legacy) {
                     return (spec.degraded_steps.clone(), true, false);
@@ -711,10 +774,12 @@ fn chain_for_variant(
             _ => {}
         },
         PlanVariant::ClarificationFirst => {
-            if matches!(
-                capability,
-                Capability::ExecuteTool | Capability::MutateTask | Capability::PlanAssimilation
-            ) {
+            if capability.is_tool_family()
+                || matches!(
+                    capability,
+                    Capability::MutateTask | Capability::PlanAssimilation
+                )
+            {
                 return (Vec::new(), false, true);
             }
         }
@@ -751,7 +816,10 @@ fn strategy_family_for(
                 )
                 || matches!(
                     request.resource_kind,
-                    ResourceKind::Web | ResourceKind::Tooling | ResourceKind::Mixed
+                    ResourceKind::Web
+                        | ResourceKind::Workspace
+                        | ResourceKind::Tooling
+                        | ResourceKind::Mixed
                 )
             {
                 StrategyFamily::ToolFirst
@@ -775,7 +843,10 @@ fn strategy_family_for(
             if comparative
                 || matches!(
                     request.resource_kind,
-                    ResourceKind::Web | ResourceKind::Tooling | ResourceKind::Mixed
+                    ResourceKind::Web
+                        | ResourceKind::Workspace
+                        | ResourceKind::Tooling
+                        | ResourceKind::Mixed
                 )
             {
                 StrategyFamily::MemoryFirst
@@ -809,67 +880,91 @@ fn capability_priority(
     variant: &PlanVariant,
     capability: &Capability,
 ) -> usize {
+    let is_tool = capability.is_tool_family();
     match strategy_family {
-        StrategyFamily::ToolFirst => match capability {
-            Capability::ExecuteTool => 0,
-            Capability::VerifyClaim => 1,
-            Capability::ReadMemory => 2,
-            Capability::PlanAssimilation => 3,
-            Capability::MutateTask => 4,
-        },
-        StrategyFamily::TopologyFirst => match capability {
-            Capability::ReadMemory => 0,
-            Capability::VerifyClaim => 1,
-            Capability::ExecuteTool => 2,
-            Capability::PlanAssimilation => 3,
-            Capability::MutateTask => 4,
-        },
-        StrategyFamily::MemoryFirst => match capability {
-            Capability::ReadMemory => 0,
-            Capability::VerifyClaim => 1,
-            Capability::ExecuteTool => 2,
-            Capability::PlanAssimilation => 3,
-            Capability::MutateTask => 4,
-        },
+        StrategyFamily::ToolFirst => {
+            if is_tool {
+                0
+            } else {
+                match capability {
+                    Capability::VerifyClaim => 1,
+                    Capability::ReadMemory => 2,
+                    Capability::PlanAssimilation => 3,
+                    Capability::MutateTask => 4,
+                    _ => 5,
+                }
+            }
+        }
+        StrategyFamily::TopologyFirst => {
+            if is_tool {
+                2
+            } else {
+                match capability {
+                    Capability::ReadMemory => 0,
+                    Capability::VerifyClaim => 1,
+                    Capability::PlanAssimilation => 3,
+                    Capability::MutateTask => 4,
+                    _ => 5,
+                }
+            }
+        }
+        StrategyFamily::MemoryFirst => {
+            if is_tool {
+                2
+            } else {
+                match capability {
+                    Capability::ReadMemory => 0,
+                    Capability::VerifyClaim => 1,
+                    Capability::PlanAssimilation => 3,
+                    Capability::MutateTask => 4,
+                    _ => 5,
+                }
+            }
+        }
         StrategyFamily::Balanced => {
             if comparative {
                 match variant {
                     PlanVariant::Safest => match capability {
                         Capability::ReadMemory => 0,
-                        Capability::ExecuteTool => 1,
                         Capability::VerifyClaim => 2,
                         Capability::PlanAssimilation => 3,
                         Capability::MutateTask => 4,
+                        _ if is_tool => 1,
+                        _ => 5,
                     },
                     PlanVariant::Fastest => match capability {
-                        Capability::ExecuteTool => 0,
                         Capability::VerifyClaim => 1,
                         Capability::ReadMemory => 2,
                         Capability::PlanAssimilation => 3,
                         Capability::MutateTask => 4,
+                        _ if is_tool => 0,
+                        _ => 5,
                     },
                     PlanVariant::DegradedFallback => match capability {
                         Capability::ReadMemory => 0,
                         Capability::VerifyClaim => 1,
-                        Capability::ExecuteTool => 2,
                         Capability::PlanAssimilation => 3,
                         Capability::MutateTask => 4,
+                        _ if is_tool => 2,
+                        _ => 5,
                     },
                     PlanVariant::ClarificationFirst => match capability {
                         Capability::ReadMemory => 0,
-                        Capability::ExecuteTool => 1,
                         Capability::VerifyClaim => 2,
                         Capability::PlanAssimilation => 3,
                         Capability::MutateTask => 4,
+                        _ if is_tool => 1,
+                        _ => 5,
                     },
                 }
             } else {
                 match capability {
                     Capability::ReadMemory => 0,
-                    Capability::ExecuteTool => 1,
                     Capability::VerifyClaim => 2,
                     Capability::PlanAssimilation => 3,
                     Capability::MutateTask => 4,
+                    _ if is_tool => 1,
+                    _ => 5,
                 }
             }
         }
@@ -905,5 +1000,37 @@ fn variant_priority(variant: &PlanVariant) -> usize {
         PlanVariant::Fastest => 1,
         PlanVariant::DegradedFallback => 2,
         PlanVariant::ClarificationFirst => 3,
+    }
+}
+
+fn template_variant_bias(template_hint: Option<&WorkflowTemplate>, variant: &PlanVariant) -> f32 {
+    let Some(template) = template_hint else {
+        return 0.0;
+    };
+    match template {
+        WorkflowTemplate::ClarifyThenCoordinate => match variant {
+            PlanVariant::ClarificationFirst => 0.08,
+            PlanVariant::Safest => 0.04,
+            PlanVariant::Fastest => -0.02,
+            PlanVariant::DegradedFallback => -0.04,
+        },
+        WorkflowTemplate::ResearchSynthesizeVerify => match variant {
+            PlanVariant::Safest => 0.06,
+            PlanVariant::Fastest => 0.02,
+            PlanVariant::ClarificationFirst => 0.00,
+            PlanVariant::DegradedFallback => -0.04,
+        },
+        WorkflowTemplate::PlanExecuteReview => match variant {
+            PlanVariant::Fastest => 0.06,
+            PlanVariant::Safest => 0.02,
+            PlanVariant::DegradedFallback => 0.00,
+            PlanVariant::ClarificationFirst => -0.04,
+        },
+        WorkflowTemplate::DiagnoseRetryEscalate => match variant {
+            PlanVariant::DegradedFallback => 0.08,
+            PlanVariant::ClarificationFirst => 0.02,
+            PlanVariant::Safest => 0.00,
+            PlanVariant::Fastest => -0.02,
+        },
     }
 }

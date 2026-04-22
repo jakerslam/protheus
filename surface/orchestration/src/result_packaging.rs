@@ -66,7 +66,9 @@ fn summary_for_plan(plan: &OrchestrationPlan) -> String {
     }
     match plan.execution_state.plan_status {
         PlanStatus::Running => "orchestration is tracking in-flight core execution".to_string(),
-        PlanStatus::Completed => "orchestration completed with correlated core execution".to_string(),
+        PlanStatus::Completed => {
+            "orchestration completed with correlated core execution".to_string()
+        }
         PlanStatus::Failed => "orchestration observed a failed core execution outcome".to_string(),
         PlanStatus::Degraded => {
             "orchestration prepared degraded plan for core contract execution".to_string()

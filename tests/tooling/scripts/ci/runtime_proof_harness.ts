@@ -476,14 +476,21 @@ function extractEmpiricalTrack(root: string, profile: ProfileId): EmpiricalTrack
   const supportBundle = readJsonBestEffort(supportBundlePath);
   if (supportBundle.ok) {
     const supportedLatency = safeNumber(supportBundle.payload?.metrics?.supported_command_latency_ms, 0);
-    const maxLatency = safeNumber(supportBundle.payload?.metrics?.max_command_latency_ms, 0);
+    const adapterRecoveryFromSupportBundle =
+      safeNumber(supportBundle.payload?.metrics?.adapter_recovery_ms, 0) ||
+      safeNumber(supportBundle.payload?.metrics?.adapter_recovery_time_ms, 0) ||
+      safeNumber(supportBundle.payload?.metrics?.adapter_recovery_latency_ms, 0) ||
+      safeNumber(supportBundle.payload?.metrics?.adapter_recovery_p95_ms, 0);
+    const supportBundleSignals: string[] = [];
     if (!provided.has('receipt_p95_latency_ms') && supportedLatency > 0) {
       metrics.receipt_p95_latency_ms = round(supportedLatency);
       provided.add('receipt_p95_latency_ms');
+      supportBundleSignals.push('receipt_p95_latency_ms');
     }
-    if (maxLatency > 0) {
-      metrics.adapter_recovery_ms = round(maxLatency);
+    if (adapterRecoveryFromSupportBundle > 0) {
+      metrics.adapter_recovery_ms = round(adapterRecoveryFromSupportBundle);
       provided.add('adapter_recovery_ms');
+      supportBundleSignals.push('adapter_recovery_ms');
     }
     samplePoints += 1;
     sources.push({
@@ -491,7 +498,10 @@ function extractEmpiricalTrack(root: string, profile: ProfileId): EmpiricalTrack
       path: EMPIRICAL_ARTIFACT_PATHS.supportBundle,
       loaded: true,
       sample_points: 1,
-      detail: 'metrics_loaded',
+      detail:
+        supportBundleSignals.length > 0
+          ? `metrics_loaded:${supportBundleSignals.join(',')}`
+          : 'metrics_loaded:no_runtime_adapter_recovery_signal',
     });
   } else {
     sources.push({
@@ -503,68 +513,92 @@ function extractEmpiricalTrack(root: string, profile: ProfileId): EmpiricalTrack
     });
   }
 
-  const boundednessPath = path.resolve(root, EMPIRICAL_ARTIFACT_PATHS.boundedness);
-  const boundedness = readJsonBestEffort(boundednessPath);
-  if (boundedness.ok) {
+  const boundednessCandidates = [
+    `core/local/artifacts/runtime_boundedness_inspect_${profile}_current.json`,
+    EMPIRICAL_ARTIFACT_PATHS.boundedness,
+  ];
+  let boundednessLoaded = false;
+  let boundednessFailureDetail = '';
+  for (const boundednessRelPath of boundednessCandidates) {
+    const boundednessPath = path.resolve(root, boundednessRelPath);
+    const boundedness = readJsonBestEffort(boundednessPath);
+    if (!boundedness.ok) {
+      if (!boundednessFailureDetail) boundednessFailureDetail = boundedness.detail;
+      continue;
+    }
     const boundednessProfile = cleanText(boundedness.payload?.profile || '', 40).toLowerCase();
     if (boundednessProfile && boundednessProfile !== profile) {
-      sources.push({
-        id: 'runtime_boundedness_inspect',
-        path: EMPIRICAL_ARTIFACT_PATHS.boundedness,
-        loaded: false,
-        sample_points: 0,
-        detail: `profile_mismatch:${boundednessProfile}`,
-      });
-    } else {
+      if (!boundednessFailureDetail) boundednessFailureDetail = `profile_mismatch:${boundednessProfile}`;
+      continue;
+    }
     const boundedMetrics = boundedness.payload?.metrics || boundedness.payload || {};
     const boundedRows = Array.isArray(boundedness.payload?.rows) ? boundedness.payload.rows : [];
     const boundedPeakRow = boundedRows.find(
       (row: any) => cleanText(row?.metric || '', 80) === 'peak_rss_mb',
     );
-    const peakRss =
-      safeNumber(boundedMetrics?.peak_rss_mb, 0) || safeNumber(boundedPeakRow?.actual, 0);
+    const peakRss = safeNumber(boundedMetrics?.peak_rss_mb, 0) || safeNumber(boundedPeakRow?.actual, 0);
     if (peakRss > 0) {
       metrics.peak_rss_mb = round(peakRss);
       provided.add('peak_rss_mb');
     }
     sources.push({
       id: 'runtime_boundedness_inspect',
-      path: EMPIRICAL_ARTIFACT_PATHS.boundedness,
+      path: boundednessRelPath,
       loaded: true,
       sample_points: 1,
       detail: 'metrics_loaded',
     });
     samplePoints += 1;
-    }
-  } else {
+    boundednessLoaded = true;
+    break;
+  }
+  if (!boundednessLoaded) {
     sources.push({
       id: 'runtime_boundedness_inspect',
-      path: EMPIRICAL_ARTIFACT_PATHS.boundedness,
+      path: boundednessCandidates[0],
       loaded: false,
       sample_points: 0,
-      detail: boundedness.detail,
+      detail: boundednessFailureDetail || 'artifact_unavailable',
     });
   }
 
-  const adapterChaosPath = path.resolve(root, EMPIRICAL_ARTIFACT_PATHS.adapterChaos);
-  const adapterChaos = readJsonBestEffort(adapterChaosPath);
-  if (adapterChaos.ok) {
+  const adapterChaosCandidates = [
+    `core/local/artifacts/adapter_runtime_chaos_gate_${profile}_current.json`,
+    EMPIRICAL_ARTIFACT_PATHS.adapterChaos,
+  ];
+  let adapterChaosLoaded = false;
+  let adapterChaosFailureDetail = '';
+  for (const adapterChaosRelPath of adapterChaosCandidates) {
+    const adapterChaosPath = path.resolve(root, adapterChaosRelPath);
+    const adapterChaos = readJsonBestEffort(adapterChaosPath);
+    if (!adapterChaos.ok) {
+      if (!adapterChaosFailureDetail) adapterChaosFailureDetail = adapterChaos.detail;
+      continue;
+    }
+    const adapterChaosProfile = cleanText(adapterChaos.payload?.profile || '', 40).toLowerCase();
+    if (adapterChaosProfile && adapterChaosProfile !== profile) {
+      if (!adapterChaosFailureDetail) adapterChaosFailureDetail = `profile_mismatch:${adapterChaosProfile}`;
+      continue;
+    }
     const adaptersTotal = safeNumber(adapterChaos.payload?.summary?.adapters_total, 0);
     sources.push({
       id: 'adapter_runtime_chaos',
-      path: EMPIRICAL_ARTIFACT_PATHS.adapterChaos,
+      path: adapterChaosRelPath,
       loaded: true,
       sample_points: adaptersTotal > 0 ? adaptersTotal : 1,
       detail: `adapters=${adaptersTotal}`,
     });
     samplePoints += adaptersTotal > 0 ? adaptersTotal : 1;
-  } else {
+    adapterChaosLoaded = true;
+    break;
+  }
+  if (!adapterChaosLoaded) {
     sources.push({
       id: 'adapter_runtime_chaos',
-      path: EMPIRICAL_ARTIFACT_PATHS.adapterChaos,
+      path: adapterChaosCandidates[0],
       loaded: false,
       sample_points: 0,
-      detail: adapterChaos.detail,
+      detail: adapterChaosFailureDetail || 'artifact_unavailable',
     });
   }
 

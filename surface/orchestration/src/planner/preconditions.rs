@@ -6,16 +6,34 @@ use crate::contracts::{
 use serde_json::Value;
 
 fn capability_key(capability: &Capability) -> &'static str {
-    match capability {
-        Capability::ReadMemory => "read_memory",
-        Capability::MutateTask => "mutate_task",
-        Capability::ExecuteTool => "execute_tool",
-        Capability::PlanAssimilation => "plan_assimilation",
-        Capability::VerifyClaim => "verify_claim",
+    capability
+        .probe_keys()
+        .first()
+        .copied()
+        .unwrap_or("execute_tool")
+}
+
+fn required_probe_key(capability: &Capability) -> &'static str {
+    if matches!(
+        capability,
+        Capability::WorkspaceRead | Capability::WorkspaceSearch
+    ) {
+        capability_key(capability)
+    } else if capability.is_tool_family() {
+        "execute_tool"
+    } else {
+        capability_key(capability)
     }
 }
 
+fn allow_payload_probe_shortcuts(request: &TypedOrchestrationRequest) -> bool {
+    matches!(request.surface, RequestSurface::Legacy)
+}
+
 fn probe_bool(request: &TypedOrchestrationRequest, path: &[&str], top_level: &str) -> Option<bool> {
+    if !allow_payload_probe_shortcuts(request) {
+        return None;
+    }
     let mut cursor = request.payload.get("capability_probes");
     if let Some(capability_key) = path.first() {
         cursor = cursor.and_then(|row| row.get(*capability_key));
@@ -36,27 +54,36 @@ fn probe_bool(request: &TypedOrchestrationRequest, path: &[&str], top_level: &st
 
 fn envelope_probe_bool(
     request: &TypedOrchestrationRequest,
-    capability_key: &str,
+    capability: &Capability,
     field: Option<&str>,
-) -> Option<bool> {
+) -> Option<(bool, String)> {
     let field = field?;
-    let capability = parse_capability_key(capability_key)?;
-    let row = request
-        .core_probe_envelope
-        .as_ref()?
-        .probes
-        .iter()
-        .find(|row| row.capability == capability)?;
-    match field {
-        "tool_available" => row.tool_available,
-        "target_supplied" => row.target_supplied,
-        "target_syntactically_valid" => row.target_syntactically_valid,
-        "target_exists" => row.target_exists,
-        "authorization_valid" => row.authorization_valid,
-        "policy_allows" => row.policy_allows,
-        "transport_available" => row.transport_available,
-        _ => None,
+    for probe_key in capability.probe_keys() {
+        let parsed = parse_capability_key(probe_key)?;
+        let Some(row) = request
+            .core_probe_envelope
+            .as_ref()?
+            .probes
+            .iter()
+            .find(|row| row.capability == parsed)
+        else {
+            continue;
+        };
+        let value = match field {
+            "tool_available" => row.tool_available,
+            "target_supplied" => row.target_supplied,
+            "target_syntactically_valid" => row.target_syntactically_valid,
+            "target_exists" => row.target_exists,
+            "authorization_valid" => row.authorization_valid,
+            "policy_allows" => row.policy_allows,
+            "transport_available" => row.transport_available,
+            _ => None,
+        };
+        if let Some(value) = value {
+            return Some((value, envelope_probe_source(probe_key, field)));
+        }
     }
+    None
 }
 
 fn envelope_probe_source(capability_key: &str, field: &str) -> String {
@@ -67,6 +94,11 @@ fn parse_capability_key(value: &str) -> Option<Capability> {
     match value {
         "read_memory" => Some(Capability::ReadMemory),
         "mutate_task" => Some(Capability::MutateTask),
+        "workspace_read" => Some(Capability::WorkspaceRead),
+        "workspace_search" => Some(Capability::WorkspaceSearch),
+        "web_search" => Some(Capability::WebSearch),
+        "web_fetch" => Some(Capability::WebFetch),
+        "tool_route" => Some(Capability::ToolRoute),
         "execute_tool" => Some(Capability::ExecuteTool),
         "plan_assimilation" => Some(Capability::PlanAssimilation),
         "verify_claim" => Some(Capability::VerifyClaim),
@@ -92,7 +124,7 @@ fn fail_closed_on_missing_probe_for_typed_surface(
             false,
             format!(
                 "probe.required_for_typed_surface.{}.{}",
-                capability_key(capability),
+                required_probe_key(capability),
                 probe_name
             ),
         ));
@@ -109,42 +141,51 @@ fn authoritative_probe_required(
 }
 
 fn tool_available(request: &TypedOrchestrationRequest, capability: &Capability) -> (bool, String) {
-    let key = capability_key(capability);
-    if let Some(value) = envelope_probe_bool(request, key, Some("tool_available")) {
-        return (value, envelope_probe_source(key, "tool_available"));
+    if let Some((value, source)) = envelope_probe_bool(request, capability, Some("tool_available"))
+    {
+        return (value, source);
     }
     if let Some(required) = authoritative_probe_required(request, capability, "tool_available") {
         return required;
     }
-    if let Some(value) = probe_bool(request, &[key, "tool_available"], "tool_available") {
-        return (
-            value,
-            format!("probe.capability_probes.{key}.tool_available"),
-        );
+    for probe_key in capability.probe_keys() {
+        if let Some(value) = probe_bool(request, &[probe_key, "tool_available"], "tool_available") {
+            return (
+                value,
+                format!("probe.capability_probes.{probe_key}.tool_available"),
+            );
+        }
     }
     (
         !request.tool_hints.is_empty()
             || matches!(
                 request.resource_kind,
-                ResourceKind::Web | ResourceKind::Tooling | ResourceKind::Mixed
-            ),
+                ResourceKind::Web
+                    | ResourceKind::Workspace
+                    | ResourceKind::Tooling
+                    | ResourceKind::Mixed
+            )
+            || capability.is_tool_family(),
         "heuristic.tool_hints_or_resource_kind".to_string(),
     )
 }
 
 fn target_supplied(request: &TypedOrchestrationRequest, capability: &Capability) -> (bool, String) {
-    let key = capability_key(capability);
-    if let Some(value) = envelope_probe_bool(request, key, Some("target_supplied")) {
-        return (value, envelope_probe_source(key, "target_supplied"));
+    if let Some((value, source)) = envelope_probe_bool(request, capability, Some("target_supplied"))
+    {
+        return (value, source);
     }
     if let Some(required) = authoritative_probe_required(request, capability, "target_supplied") {
         return required;
     }
-    if let Some(value) = probe_bool(request, &[key, "target_supplied"], "target_supplied") {
-        return (
-            value,
-            format!("probe.capability_probes.{key}.target_supplied"),
-        );
+    for probe_key in capability.probe_keys() {
+        if let Some(value) = probe_bool(request, &[probe_key, "target_supplied"], "target_supplied")
+        {
+            return (
+                value,
+                format!("probe.capability_probes.{probe_key}.target_supplied"),
+            );
+        }
     }
     let supplied = !request.target_descriptors.is_empty();
     (supplied, "heuristic.target_descriptors_present".to_string())
@@ -154,27 +195,27 @@ fn target_syntax_valid(
     request: &TypedOrchestrationRequest,
     capability: &Capability,
 ) -> (bool, String) {
-    let key = capability_key(capability);
-    if let Some(value) = envelope_probe_bool(request, key, Some("target_syntactically_valid")) {
-        return (
-            value,
-            envelope_probe_source(key, "target_syntactically_valid"),
-        );
+    if let Some((value, source)) =
+        envelope_probe_bool(request, capability, Some("target_syntactically_valid"))
+    {
+        return (value, source);
     }
     if let Some(required) =
         authoritative_probe_required(request, capability, "target_syntactically_valid")
     {
         return required;
     }
-    if let Some(value) = probe_bool(
-        request,
-        &[key, "target_syntactically_valid"],
-        "target_syntactically_valid",
-    ) {
-        return (
-            value,
-            format!("probe.capability_probes.{key}.target_syntactically_valid"),
-        );
+    for probe_key in capability.probe_keys() {
+        if let Some(value) = probe_bool(
+            request,
+            &[probe_key, "target_syntactically_valid"],
+            "target_syntactically_valid",
+        ) {
+            return (
+                value,
+                format!("probe.capability_probes.{probe_key}.target_syntactically_valid"),
+            );
+        }
     }
     let valid = request
         .target_descriptors
@@ -184,18 +225,19 @@ fn target_syntax_valid(
 }
 
 fn target_exists(request: &TypedOrchestrationRequest, capability: &Capability) -> (bool, String) {
-    let key = capability_key(capability);
-    if let Some(value) = envelope_probe_bool(request, key, Some("target_exists")) {
-        return (value, envelope_probe_source(key, "target_exists"));
+    if let Some((value, source)) = envelope_probe_bool(request, capability, Some("target_exists")) {
+        return (value, source);
     }
     if let Some(required) = authoritative_probe_required(request, capability, "target_exists") {
         return required;
     }
-    if let Some(value) = probe_bool(request, &[key, "target_exists"], "target_exists") {
-        return (
-            value,
-            format!("probe.capability_probes.{key}.target_exists"),
-        );
+    for probe_key in capability.probe_keys() {
+        if let Some(value) = probe_bool(request, &[probe_key, "target_exists"], "target_exists") {
+            return (
+                value,
+                format!("probe.capability_probes.{probe_key}.target_exists"),
+            );
+        }
     }
     let exists = match request.mutability {
         Mutability::ReadOnly => true,
@@ -208,23 +250,26 @@ fn authorization_valid(
     request: &TypedOrchestrationRequest,
     capability: &Capability,
 ) -> (bool, String) {
-    let key = capability_key(capability);
-    if let Some(value) = envelope_probe_bool(request, key, Some("authorization_valid")) {
-        return (value, envelope_probe_source(key, "authorization_valid"));
+    if let Some((value, source)) =
+        envelope_probe_bool(request, capability, Some("authorization_valid"))
+    {
+        return (value, source);
     }
     if let Some(required) = authoritative_probe_required(request, capability, "authorization_valid")
     {
         return required;
     }
-    if let Some(value) = probe_bool(
-        request,
-        &[key, "authorization_valid"],
-        "authorization_valid",
-    ) {
-        return (
-            value,
-            format!("probe.capability_probes.{key}.authorization_valid"),
-        );
+    for probe_key in capability.probe_keys() {
+        if let Some(value) = probe_bool(
+            request,
+            &[probe_key, "authorization_valid"],
+            "authorization_valid",
+        ) {
+            return (
+                value,
+                format!("probe.capability_probes.{probe_key}.authorization_valid"),
+            );
+        }
     }
     (
         !(request.mutability == Mutability::Mutation
@@ -234,18 +279,19 @@ fn authorization_valid(
 }
 
 fn policy_allows(request: &TypedOrchestrationRequest, capability: &Capability) -> (bool, String) {
-    let key = capability_key(capability);
-    if let Some(value) = envelope_probe_bool(request, key, Some("policy_allows")) {
-        return (value, envelope_probe_source(key, "policy_allows"));
+    if let Some((value, source)) = envelope_probe_bool(request, capability, Some("policy_allows")) {
+        return (value, source);
     }
     if let Some(required) = authoritative_probe_required(request, capability, "policy_allows") {
         return required;
     }
-    if let Some(value) = probe_bool(request, &[key, "policy_allows"], "policy_allows") {
-        return (
-            value,
-            format!("probe.capability_probes.{key}.policy_allows"),
-        );
+    for probe_key in capability.probe_keys() {
+        if let Some(value) = probe_bool(request, &[probe_key, "policy_allows"], "policy_allows") {
+            return (
+                value,
+                format!("probe.capability_probes.{probe_key}.policy_allows"),
+            );
+        }
     }
     let allows = if request.mutability == Mutability::ReadOnly {
         true
@@ -260,28 +306,34 @@ fn transport_available(
     request: &TypedOrchestrationRequest,
     capability: &Capability,
 ) -> (bool, String) {
-    let key = capability_key(capability);
-    if let Some(value) = envelope_probe_bool(request, key, Some("transport_available")) {
-        return (value, envelope_probe_source(key, "transport_available"));
+    if let Some((value, source)) =
+        envelope_probe_bool(request, capability, Some("transport_available"))
+    {
+        return (value, source);
     }
     if let Some(required) = authoritative_probe_required(request, capability, "transport_available")
     {
         return required;
     }
-    if let Some(value) = probe_bool(
-        request,
-        &[key, "transport_available"],
-        "transport_available",
-    ) {
-        return (
-            value,
-            format!("probe.capability_probes.{key}.transport_available"),
-        );
+    for probe_key in capability.probe_keys() {
+        if let Some(value) = probe_bool(
+            request,
+            &[probe_key, "transport_available"],
+            "transport_available",
+        ) {
+            return (
+                value,
+                format!("probe.capability_probes.{probe_key}.transport_available"),
+            );
+        }
     }
     let likely_transport = !request.tool_hints.is_empty()
         || matches!(
             request.resource_kind,
-            ResourceKind::Web | ResourceKind::Tooling | ResourceKind::Mixed
+            ResourceKind::Web
+                | ResourceKind::Workspace
+                | ResourceKind::Tooling
+                | ResourceKind::Mixed
         )
         || matches!(
             request.operation_kind,
@@ -289,7 +341,8 @@ fn transport_available(
                 | OperationKind::Fetch
                 | OperationKind::Compare
                 | OperationKind::InspectTooling
-        );
+        )
+        || capability.is_tool_family();
     (
         likely_transport,
         "heuristic.transport_hints_or_operation".to_string(),
@@ -336,7 +389,7 @@ pub fn probe_capability(
         }
     }
 
-    if matches!(capability, Capability::ExecuteTool) {
+    if capability.is_tool_family() {
         let (available, source) = tool_available(request, capability);
         probe_sources.push(source);
         if !available {
@@ -345,10 +398,7 @@ pub fn probe_capability(
         }
     }
 
-    if matches!(
-        capability,
-        Capability::ExecuteTool | Capability::VerifyClaim
-    ) {
+    if capability.is_tool_family() || matches!(capability, Capability::VerifyClaim) {
         let (available, source) = transport_available(request, capability);
         probe_sources.push(source);
         if !available {
