@@ -18,12 +18,21 @@ function mergeFindings(findings) {
   });
 }
 
-function assignScopesToPartitions(partitions) {
-  return Array.isArray(partitions) ? partitions : [];
-}
-
 function runCoordinator(input = {}) {
   return invokeOrchestration('coordinator.run', {
+    ...(input && typeof input === 'object' ? input : {}),
+  });
+}
+
+function coordinatorStatus(taskId, options = {}) {
+  return invokeOrchestration('coordinator.status', {
+    task_id: String(taskId || '').trim(),
+    root_dir: options.rootDir || options.root_dir || undefined,
+  });
+}
+
+function coordinatorTimeout(input = {}) {
+  return invokeOrchestration('coordinator.timeout', {
     ...(input && typeof input === 'object' ? input : {}),
   });
 }
@@ -32,6 +41,8 @@ function run(argv = process.argv.slice(2)) {
   return runCoordinatorCli(argv, {
     runCoordinator,
     partitionWork,
+    coordinatorStatus,
+    coordinatorTimeout,
     loadScratchpad(taskId, options = {}) {
       const out = invokeOrchestration('scratchpad.status', {
         task_id: String(taskId || '').trim(),
@@ -64,7 +75,8 @@ if (require.main === module) {
 module.exports = {
   partitionWork,
   mergeFindings,
-  assignScopesToPartitions,
   runCoordinator,
+  coordinatorStatus,
+  coordinatorTimeout,
   run,
 };

@@ -1,9 +1,11 @@
         </div><!-- /activeChatAgent picker wrapper -->
       </div>
+      </infring-agents-page-shell>
     </template>
 
     <!-- Page: Approvals -->
     <template x-if="page === 'approvals'">
+      <infring-approvals-page-shell>
       <div x-data="approvalsPage" x-init="loadData()">
         <div class="page-header">
           <div class="tabs mt-3" role="tablist">
@@ -53,10 +55,12 @@
           </template>
         </div>
       </div>
+      </infring-approvals-page-shell>
     </template>
 
     <!-- Page: Workflows -->
     <template x-if="page === 'workflows'">
+      <infring-workflows-page-shell>
       <div
         x-data="{ wfTab: (localStorage.getItem('infring-workflows-subtab') === 'builder' ? 'builder' : 'list') }"
         @wf-switch-tab.window="
@@ -87,6 +91,7 @@
 
         <!-- Tab: List -->
         <template x-if="wfTab === 'list'">
+        <infring-workflows-list-tab-shell>
         <div x-data="workflowsPage">
         <div class="page-body" x-init="loadWorkflows()">
           <div x-show="loading" class="loading-state"><div class="spinner"></div><span>Loading workflows...</span></div>
@@ -220,10 +225,12 @@
           </template>
         </div>
         </div>
+        </infring-workflows-list-tab-shell>
         </template>
 
         <!-- Tab: Visual Builder -->
         <template x-if="wfTab === 'builder'">
+        <infring-workflows-builder-tab-shell>
         <div x-data="workflowBuilder()" x-init="init()">
           <div class="wf-builder-layout">
             <!-- Node palette (left sidebar) -->

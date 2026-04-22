@@ -382,18 +382,40 @@ body[data-theme='dark'] .chat-event-divider .chat-event-info-icon {
 
 .message-agent-name {
   display: block;
-  font-size: 11px;
-  line-height: 1.25;
+  font-size: 10px;
+  line-height: 10px;
   color: var(--text-muted);
   font-family: var(--font-mono);
   letter-spacing: 0.01em;
   text-align: left;
   margin: 0;
-  padding: 0 2px 4px;
+  padding: 0;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.message-bubble > .message-agent-name {
+  position: absolute;
+  top: 2px;
+  left: 16px;
+  right: 16px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.message.user .message-agent-name {
+  text-align: right;
+}
+
+.message.agent .message-agent-name,
+.message.system .message-agent-name {
+  text-align: left;
+}
+
+.message .message-bubble > .message-agent-name {
+  text-align: center;
 }
 
 .message-agent-name-label {
@@ -412,6 +434,7 @@ body[data-theme='dark'] .chat-event-divider .chat-event-info-icon {
 }
 
 .message-bubble {
+  --message-bubble-readable-width: min(76ch, 85%);
   padding: 12px 16px;
   border-radius: var(--radius-lg);
   font-size: 13.5px;
@@ -434,7 +457,7 @@ body[data-theme='dark'] .chat-event-divider .chat-event-info-icon {
   border-right-style: solid;
   border-right-width: 1px;
   border-radius: 22px;
-  max-width: min(76ch, 85%);
+  max-width: var(--message-bubble-readable-width);
   display: inline-block;
   backdrop-filter: var(--overlay-surface-filter-strong);
   -webkit-backdrop-filter: var(--overlay-surface-filter-strong);
@@ -493,4 +516,7 @@ body[data-theme='dark'] .chat-event-divider .chat-event-info-icon {
   padding: 12px 16px;
   font-size: 14.5px;
   line-height: 1.78;
-  width: 100%;
+  width: var(--message-bubble-readable-width);
+  max-width: var(--message-bubble-readable-width);
+  display: inline-block;
+  box-sizing: border-box;

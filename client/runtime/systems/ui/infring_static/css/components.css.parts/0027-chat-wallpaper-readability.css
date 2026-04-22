@@ -1,0 +1,51 @@
+/* Improve chat readability over wallpaper backgrounds. */
+.tool-card {
+  background: color-mix(in srgb, var(--surface) 94%, transparent) !important;
+}
+
+.tool-card:hover {
+  background: color-mix(in srgb, var(--surface) 97%, transparent) !important;
+}
+
+.tool-card-error {
+  background: color-mix(in srgb, var(--error-subtle) 94%, var(--surface) 6%) !important;
+}
+
+.tool-card-blocked {
+  background: color-mix(in srgb, #f59e0b 20%, var(--surface) 80%) !important;
+}
+
+.tool-card-success {
+  background: color-mix(in srgb, var(--success) 16%, var(--surface) 84%) !important;
+}
+
+.tool-card-thought {
+  background: color-mix(in srgb, var(--surface2) 92%, var(--surface) 8%) !important;
+}
+
+.tool-card-body {
+  background: color-mix(in srgb, var(--bg) 94%, transparent) !important;
+}
+
+.tool-pre {
+  background: color-mix(in srgb, var(--surface) 96%, transparent) !important;
+}
+
+.message-agent-name:not(.message-agent-name-user-ghost),
+.message-agent-name:not(.message-agent-name-user-ghost) .message-agent-name-label,
+.message-stat-time,
+.message-stat-meta,
+.message-stat-burn,
+.message-tool-trace-summary,
+.message-tool-trace-label,
+.message-tool-trace-detail,
+.chat-progress-meta,
+.message-source-chip,
+.message-source-chip-label,
+.message-source-chip-host {
+  color: #fff !important;
+}
+
+.message-stat-btn {
+  color: #fff;
+}

@@ -19,12 +19,15 @@
             </div>
           </template>
         </div>
+        </infring-workflows-builder-tab-shell>
         </template>
       </div>
+      </infring-workflows-page-shell>
     </template>
 
     <!-- Page: Scheduler -->
     <template x-if="page === 'scheduler'">
+      <infring-scheduler-page-shell>
       <div x-data="schedulerPage()">
         <div class="page-header page-header-subtabs-center">
           <div class="tabs mt-3" role="tablist">
@@ -49,6 +52,7 @@
           </div>
 
           <!-- ── TAB: Scheduled Jobs ── -->
+          <infring-scheduler-jobs-tab-shell>
           <div x-show="tab === 'jobs'">
             <div x-show="loading" class="loading-state"><div class="spinner"></div><span>Loading scheduled jobs...</span></div>
             <div x-show="!loading && loadError" class="error-state">
@@ -185,8 +189,10 @@
               </div>
             </template>
           </div>
+          </infring-scheduler-jobs-tab-shell>
 
           <!-- ── TAB: Event Triggers ── -->
+          <infring-scheduler-triggers-tab-shell>
           <div x-show="tab === 'triggers'">
             <div x-show="trigLoading" class="loading-state"><div class="spinner"></div><span>Loading triggers...</span></div>
             <div x-show="!trigLoading && trigLoadError" class="error-state">
@@ -231,8 +237,10 @@
               </infring-chat-stream-shell>
             </div>
           </div>
+          </infring-scheduler-triggers-tab-shell>
 
           <!-- ── TAB: Run History ── -->
+          <infring-scheduler-history-tab-shell>
           <div x-show="tab === 'history'">
             <div x-show="historyLoading" class="loading-state"><div class="spinner"></div><span>Loading run history...</span></div>
             <div x-show="!historyLoading">
@@ -264,13 +272,16 @@
               </infring-chat-stream-shell>
             </div>
           </div>
+          </infring-scheduler-history-tab-shell>
 
         </div>
       </div>
+      </infring-scheduler-page-shell>
     </template>
 
     <!-- Page: Channels -->
     <template x-if="page === 'channels'">
+      <infring-channels-page-shell>
       <div x-data="channelsPage">
         <div class="page-header page-header-subtabs-center">
           <div class="tabs mt-3" role="tablist">

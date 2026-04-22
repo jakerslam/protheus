@@ -81,6 +81,7 @@ The lifecycle projection is emitted by `control_plane::lifecycle::build_lifecycl
 - single control-plane owner (`surface_orchestration_control_plane`)
 - active stage
 - stage statuses (`pending|ready|running|completed|blocked|skipped`)
+- handoff chain ownership (`user_request_ingress -> decomposition_planning -> coordination_sequencing -> core_contract_execution -> verification_closure -> memory_packaging_projection`)
 - next actions
 - closure status vectors (`verification`, `receipt_correlation`, `memory_packaging`)
 
@@ -90,6 +91,7 @@ Control-plane sequencing must actively attempt reroute/retry when selected plans
 
 - Runtime path: `sequencing::apply_retry_reroute_feedback(...)`
 - Behavioral invariant: orchestration does not stop at first-candidate packaging when retryable alternatives exist.
+- No-reroute invariant: when execution is failed and no improved alternative exists, control-plane must emit terminal feedback (`clarify`, `retry selected degraded path`, or `escalate`) rather than silently stopping.
 
 ## Canonical Control-Plane Entrypoints (Compatibility Aliases Preserved)
 

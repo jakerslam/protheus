@@ -440,7 +440,7 @@ mark.search-highlight {
   border-top-color: var(--tool-border-top);
   border-left: 3px solid var(--accent);
   border-radius: var(--radius-md);
-  margin: 8px 0;
+  margin: 0;
   overflow: hidden;
   box-shadow: -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2);
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);

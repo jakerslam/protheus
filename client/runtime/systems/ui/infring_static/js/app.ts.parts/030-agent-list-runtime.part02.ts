@@ -106,6 +106,34 @@
       }
       return mode;
     },
+    uiBackgroundTemplateNormalized(modeRaw) {
+      var mode = String(modeRaw || '').trim().toLowerCase();
+      if (mode === 'unsplash-paper') return 'light-wood';
+      if (mode === 'default-grid') return 'default-grid';
+      if (mode === 'light-wood') return 'light-wood';
+      if (mode === 'sand') return 'sand';
+      return 'sand';
+    },
+    applyUiBackgroundTemplate(modeRaw, persistRaw) {
+      var mode = this.uiBackgroundTemplateNormalized(modeRaw);
+      this.uiBackgroundTemplate = mode;
+      var persist = persistRaw !== false;
+      if (document && document.documentElement) {
+        try {
+          document.documentElement.setAttribute('data-ui-background-template', mode);
+        } catch (_) {}
+      }
+      if (persist) {
+        try {
+          var rawDisplaySettings = localStorage.getItem('infring-display-settings') || '';
+          var displaySettings = rawDisplaySettings ? JSON.parse(rawDisplaySettings) : {};
+          displaySettings = displaySettings && typeof displaySettings === 'object' ? displaySettings : {};
+          displaySettings.background = mode;
+          localStorage.setItem('infring-display-settings', JSON.stringify(displaySettings));
+        } catch (_) {}
+      }
+      return mode;
+    },
     beginInstantThemeFlip() {
       var self = this;
       var body = document && document.body ? document.body : null;

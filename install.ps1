@@ -437,9 +437,11 @@ $script:RepairArchiveRun = ""
 $script:RepairRemovedCount = 0
 $script:RepairPreservedCount = 0
 $script:WorkspaceRuntimeRefreshReason = ""
+$script:WorkspaceRuntimeRefreshRequired = $false
 $script:WorkspaceRuntimeRefreshApplied = $false
 $script:WorkspaceReleaseTagPrevious = ""
 $script:WorkspaceReleaseTagCurrent = ""
+$script:WorkspaceReleaseTagWriteApplied = $false
 
 function Installer-TruthyFlag([string]$RawValue, [bool]$DefaultValue = $false) {
   if ([string]::IsNullOrWhiteSpace($RawValue)) {
@@ -2547,18 +2549,30 @@ function Resolve-WorkspaceRuntimeRefreshDecision {
     [bool]$Repair
   )
 
+  if ([string]::IsNullOrWhiteSpace($WorkspaceRoot)) {
+    return @{
+      refresh_required = $false
+      reason = ""
+      previous_tag = ""
+      target = ""
+      runtime_exists = $false
+      tag_state_missing = $false
+    }
+  }
+
   $target = Resolve-WorkspaceRuntimeRefreshTarget -WorkspaceRoot $WorkspaceRoot
   $runtimeExists = $false
   if (-not [string]::IsNullOrWhiteSpace($target)) {
     $runtimeExists = Test-Path $target -PathType Container
   }
   $previousTag = Get-WorkspaceInstallReleaseTag -WorkspaceRoot $WorkspaceRoot
+  $tagStateMissing = [string]::IsNullOrWhiteSpace($previousTag)
   $reason = ""
   if ($Repair) {
     $reason = "repair_mode"
   } elseif (-not $runtimeExists) {
     $reason = "runtime_missing"
-  } elseif ([string]::IsNullOrWhiteSpace($previousTag)) {
+  } elseif ($tagStateMissing) {
     $reason = "tag_state_missing"
   } elseif ($previousTag -ne $VersionTag) {
     $reason = "release_tag_changed"
@@ -2569,6 +2583,8 @@ function Resolve-WorkspaceRuntimeRefreshDecision {
     reason = $reason
     previous_tag = $previousTag
     target = $target
+    runtime_exists = [bool]$runtimeExists
+    tag_state_missing = [bool]$tagStateMissing
   }
 }
 
@@ -2687,15 +2703,15 @@ function Test-RepairArtifactBroken {
     return $true
   }
   if ($ArtifactName.ToLowerInvariant().EndsWith(".cmd")) {
-    $content = (Get-Content -Path $InstallPath -TotalCount 80 -ErrorAction SilentlyContinue) -join "`n"
+    $content = (Get-Content -LiteralPath $InstallPath -TotalCount 80 -ErrorAction SilentlyContinue) -join "`n"
     return (-not ($content -match ":_dispatch"))
   }
   if ($ArtifactName.ToLowerInvariant().EndsWith(".ps1")) {
-    $content = (Get-Content -Path $InstallPath -TotalCount 80 -ErrorAction SilentlyContinue) -join "`n"
-    if (-not ($content -match "Join-Path\\s+\\$PSScriptRoot")) {
+    $content = (Get-Content -LiteralPath $InstallPath -TotalCount 80 -ErrorAction SilentlyContinue) -join "`n"
+    if (-not ($content -match 'Join-Path\s+\$PSScriptRoot')) {
       return $true
     }
-    if (($content -match "Missing command wrapper") -and ($content -match "throw\\s+\"")) {
+    if (($content -match 'Missing command wrapper') -and ($content -match 'throw\s+"')) {
       return $true
     }
     return $false
@@ -2703,10 +2719,44 @@ function Test-RepairArtifactBroken {
   return $false
 }
 
+function Ensure-RepairBootstrapWrapperFloor {
+  param(
+    [string]$InstallDir
+  )
+
+  $cmdTemplate = @'
+@echo off
+setlocal
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0__PS1__" %*
+exit /b %ERRORLEVEL%
+'@
+  $wrapperPairs = @(
+    @{ cmd = "infring.cmd"; ps1 = "infring.ps1" },
+    @{ cmd = "infringctl.cmd"; ps1 = "infringctl.ps1" },
+    @{ cmd = "infringd.cmd"; ps1 = "infringd.ps1" }
+  )
+
+  foreach ($pair in $wrapperPairs) {
+    $cmdPath = Join-Path $InstallDir ([string]$pair.cmd)
+    if (Test-Path $cmdPath) {
+      continue
+    }
+    $ps1Path = Join-Path $InstallDir ([string]$pair.ps1)
+    if (-not (Test-Path $ps1Path)) {
+      continue
+    }
+    try {
+      $cmdContent = $cmdTemplate.Replace("__PS1__", [string]$pair.ps1)
+      Set-Content -Path $cmdPath -Value $cmdContent -Encoding ASCII
+      Write-Host "[infring install] repair bootstrapped command wrapper: $cmdPath"
+    } catch {
+      Write-Host "[infring install] repair warning: failed to bootstrap command wrapper: $cmdPath"
+    }
+  }
+}
+
 function Invoke-RepairInstallDir {
-  $wrapperTargets = @(
-    "infring.cmd", "infringctl.cmd", "infringd.cmd",
-    "infring.ps1", "infringctl.ps1", "infringd.ps1",
+  $legacyWrapperTargets = @(
     "protheus.cmd", "protheusctl.cmd", "protheusd.cmd"
   )
   $targets = @(
@@ -2727,10 +2777,10 @@ function Invoke-RepairInstallDir {
   foreach ($target in $targets) {
     $path = Join-Path $InstallDir $target
     if (Test-Path $path) {
-      if ($wrapperTargets -contains $target) {
+      if ($legacyWrapperTargets -contains $target) {
         Remove-Item -Force -Recurse $path
         $repairRemoved += 1
-        Write-Host "[infring install] repair removed stale command wrapper: $path"
+        Write-Host "[infring install] repair removed stale legacy command wrapper: $path"
         continue
       }
       $artifactBroken = Test-RepairArtifactBroken -InstallPath $path -ArtifactName $target
@@ -2750,6 +2800,7 @@ function Invoke-RepairInstallDir {
       Write-Host "[infring install] repair preserved healthy install artifact: $path"
     }
   }
+  Ensure-RepairBootstrapWrapperFloor -InstallDir $InstallDir
   $script:RepairArchiveRun = [string]$repairArchiveRun
   $script:RepairRemovedCount = [int]$repairRemoved
   $script:RepairPreservedCount = [int]$repairPreserved
@@ -3820,13 +3871,17 @@ if ($InstallPure) {
 
 $workspaceRootForState = Resolve-WorkspaceRootForRepair
 $workspaceRefreshDecision = Resolve-WorkspaceRuntimeRefreshDecision -WorkspaceRoot $workspaceRootForState -VersionTag $version -Repair ([bool]$InstallRepair)
+$script:WorkspaceRuntimeRefreshRequired = [bool]$workspaceRefreshDecision.refresh_required
 $script:WorkspaceRuntimeRefreshReason = [string]$workspaceRefreshDecision.reason
 $script:WorkspaceReleaseTagPrevious = [string]$workspaceRefreshDecision.previous_tag
 $script:WorkspaceReleaseTagCurrent = [string]$version
 $script:WorkspaceRuntimeRefreshApplied = $false
-if ([bool]$workspaceRefreshDecision.refresh_required) {
+if ([bool]$script:WorkspaceRuntimeRefreshRequired) {
   Write-Host "[infring install] workspace runtime refresh required: $($workspaceRefreshDecision.reason)"
   $script:WorkspaceRuntimeRefreshApplied = [bool](Invoke-WorkspaceRuntimeRefresh -WorkspaceRoot $workspaceRootForState -InstallDir $InstallDir -SourceFallbackDir $script:SourceFallbackDir -Reason ([string]$workspaceRefreshDecision.reason))
+}
+if ([bool]$script:WorkspaceRuntimeRefreshRequired -and (-not [bool]$script:WorkspaceRuntimeRefreshApplied)) {
+  throw "Workspace runtime refresh required but not applied (reason=$([string]$script:WorkspaceRuntimeRefreshReason)); refusing release-tag state update."
 }
 if ((-not $InstallPure) -and (-not [string]::IsNullOrWhiteSpace($workspaceRootForState))) {
   if (-not (Ensure-WorkspaceRuntimeContract -WorkspaceRoot $workspaceRootForState -InstallDir $InstallDir -SourceFallbackDir $script:SourceFallbackDir)) {
@@ -3834,8 +3889,11 @@ if ((-not $InstallPure) -and (-not [string]::IsNullOrWhiteSpace($workspaceRootFo
   }
 }
 if (-not [string]::IsNullOrWhiteSpace($workspaceRootForState)) {
-  if (Set-WorkspaceInstallReleaseTag -WorkspaceRoot $workspaceRootForState -VersionTag ([string]$version)) {
+  $script:WorkspaceReleaseTagWriteApplied = [bool](Set-WorkspaceInstallReleaseTag -WorkspaceRoot $workspaceRootForState -VersionTag ([string]$version))
+  if ([bool]$script:WorkspaceReleaseTagWriteApplied) {
     Write-Host "[infring install] workspace release tag state updated: $version"
+  } else {
+    throw "Workspace release tag state update failed for $workspaceRootForState."
   }
 }
 
@@ -4017,8 +4075,10 @@ $summaryPayload = @{
       preserved = [int]$script:RepairPreservedCount
     }
     workspace_runtime_refresh = @{
+      required = [bool]$script:WorkspaceRuntimeRefreshRequired
       reason = [string]$script:WorkspaceRuntimeRefreshReason
       applied = [bool]$script:WorkspaceRuntimeRefreshApplied
+      release_tag_write_applied = [bool]$script:WorkspaceReleaseTagWriteApplied
       previous_release_tag = [string]$script:WorkspaceReleaseTagPrevious
       current_release_tag = [string]$script:WorkspaceReleaseTagCurrent
     }
@@ -4051,6 +4111,9 @@ $summaryTextRows = @(
   "toolchain_policy: $([string]$script:InstallToolchainPolicy)",
   "binary_status: $binaryInstallStatus",
   "runtime_mode: $runtimeContractMode",
+  "workspace_runtime_refresh_required: $([string][bool]$script:WorkspaceRuntimeRefreshRequired).ToLower()",
+  "workspace_runtime_refresh_applied: $([string][bool]$script:WorkspaceRuntimeRefreshApplied).ToLower()",
+  "workspace_release_tag_written: $([string][bool]$script:WorkspaceReleaseTagWriteApplied).ToLower()",
   "verification_confidence: $verificationConfidence",
   "gateway_smoke: $gatewaySmokeStatus",
   "dashboard_smoke: $dashboardSmokeStatus",

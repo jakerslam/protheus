@@ -1,0 +1,59 @@
+.sidebar.chat-sidebar-dynamic {
+  --drag-bar-border-override: var(--overlay-fogged-surface-border);
+  --drag-bar-background-override: var(--overlay-fogged-surface-background);
+  --drag-bar-shadow-override: var(--overlay-fogged-surface-shadow);
+  --drag-bar-blur-override: var(--overlay-fogged-surface-blur);
+  --drag-bar-saturate-override: var(--overlay-fogged-surface-saturate);
+  --drag-bar-brightness-override: var(--overlay-fogged-surface-brightness);
+  --drag-bar-contrast-override: var(--overlay-fogged-surface-contrast);
+  --drag-bar-distortion-override: var(--overlay-fogged-surface-distortion);
+  --drag-bar-specular-override: var(--overlay-fogged-surface-specular);
+  --drag-bar-specular-opacity-override: var(--overlay-fogged-surface-specular-opacity);
+  --drag-bar-caustic-override: var(--overlay-fogged-surface-caustic);
+  --drag-bar-caustic-opacity-override: var(--overlay-fogged-surface-caustic-opacity);
+  --drag-bar-bottom-rim-color: var(--overlay-fogged-surface-bottom-rim-color);
+  --drag-bar-bottom-rim-glow: var(--overlay-fogged-surface-bottom-rim-glow);
+  --drag-bar-bottom-rim-width: var(--overlay-fogged-surface-bottom-rim-width);
+  --drag-bar-bottom-rim-blur: var(--overlay-fogged-surface-bottom-rim-blur);
+}
+
+.chat-map-surface.overlay-shared-surface {
+  --chat-map-surface-border: var(--overlay-fogged-surface-border);
+  --chat-map-surface-background: var(--overlay-fogged-surface-background);
+  --chat-map-surface-shadow: var(--overlay-fogged-surface-shadow);
+  --chat-map-surface-rim-shadow: var(--overlay-fogged-surface-rim-shadow);
+  --chat-map-surface-blur: var(--overlay-fogged-surface-blur);
+  --chat-map-surface-saturate: var(--overlay-fogged-surface-saturate);
+  --chat-map-surface-brightness: var(--overlay-fogged-surface-brightness);
+  --chat-map-surface-contrast: var(--overlay-fogged-surface-contrast);
+  --chat-map-surface-distortion: var(--overlay-fogged-surface-distortion);
+  --chat-map-surface-filter:
+    blur(var(--overlay-fogged-surface-blur))
+    saturate(var(--overlay-fogged-surface-saturate))
+    brightness(var(--overlay-fogged-surface-brightness))
+    contrast(var(--overlay-fogged-surface-contrast));
+  background: var(--chat-map-surface-background);
+  box-shadow: var(--chat-map-surface-shadow), var(--chat-map-surface-rim-shadow);
+  backdrop-filter: var(--chat-map-surface-filter);
+  -webkit-backdrop-filter: var(--chat-map-surface-filter);
+}
+
+.chat-map-surface.overlay-shared-surface::before {
+  background: var(--overlay-fogged-surface-specular);
+  opacity: var(--overlay-fogged-surface-specular-opacity);
+}
+
+.chat-map-surface.overlay-shared-surface::after {
+  background: var(--overlay-fogged-surface-caustic);
+  opacity: var(--overlay-fogged-surface-caustic-opacity);
+}
+
+.chat-map-surface .chat-map-item,
+.chat-map-surface .chat-map-bar,
+.chat-map-surface .chat-map-marker,
+.chat-map-surface .chat-map-day,
+.chat-map-surface .chat-map-day-chevron,
+.chat-map-surface .chat-map-day-icon,
+.chat-map-surface .chat-map-jump {
+  opacity: 1;
+}
