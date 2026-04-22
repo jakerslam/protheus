@@ -22,7 +22,18 @@ function parseJsonOutput(stdout) {
   return null;
 }
 
-function invokeOrchestration(op, payload = {}, options = {}) {
+function normalizeBridgePayload(out) {
+  if (!out || typeof out !== 'object') return null;
+  const normalized = { ...out };
+  if (typeof normalized.ok === 'boolean') {
+    if (!normalized.type) normalized.type = normalized.ok ? 'orchestration_bridge_result' : 'orchestration_bridge_error';
+    if (!normalized.reason_code && normalized.reason) normalized.reason_code = String(normalized.reason);
+    return normalized;
+  }
+  return normalized;
+}
+
+function invokeOrchestrationWithBridge(op, payload = {}, options = {}, invokeBridge = invokeProtheusOpsViaBridge) {
   const safePayload = payload && typeof payload === 'object' ? payload : {};
   const args = [
     'orchestration',
@@ -31,7 +42,7 @@ function invokeOrchestration(op, payload = {}, options = {}) {
     `--payload-json=${JSON.stringify(safePayload)}`,
   ];
 
-  const proc = invokeProtheusOpsViaBridge(args, {
+  const proc = invokeBridge(args, {
     unknownDomainFallback: false,
     env: { PROTHEUS_ROOT: ROOT, ...(options.env || {}) },
   });
@@ -44,12 +55,14 @@ function invokeOrchestration(op, payload = {}, options = {}) {
   }
 
   if (proc.payload && typeof proc.payload === 'object') {
-    return proc.payload;
+    const normalized = normalizeBridgePayload(proc.payload);
+    if (normalized) return normalized;
   }
 
   const parsed = parseJsonOutput(proc.stdout) || parseJsonOutput(proc.stderr);
   if (parsed && typeof parsed === 'object') {
-    return parsed;
+    const normalized = normalizeBridgePayload(parsed);
+    if (normalized) return normalized;
   }
 
   return {
@@ -60,9 +73,16 @@ function invokeOrchestration(op, payload = {}, options = {}) {
   };
 }
 
+function invokeOrchestration(op, payload = {}, options = {}) {
+  return invokeOrchestrationWithBridge(op, payload, options, invokeProtheusOpsViaBridge);
+}
+
 module.exports = {
   ROOT,
   parseArgs,
   parseJson,
+  parseJsonOutput,
+  normalizeBridgePayload,
+  invokeOrchestrationWithBridge,
   invokeOrchestration,
 };

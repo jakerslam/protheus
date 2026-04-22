@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 'use strict';
 
-const { parseArgs, parseJson } = require('./cli_shared.ts');
+const { parseArgs, parseJson, hasOutcomeFlag, shouldFallbackForUnsupportedOp } = require('./cli_shared.ts');
 
 function runTaskGroupCli(argv = [], api = {}) {
   const ensureTaskGroup = typeof api.ensureTaskGroup === 'function' ? api.ensureTaskGroup : null;
   const queryTaskGroup = typeof api.queryTaskGroup === 'function' ? api.queryTaskGroup : null;
+  const listTaskGroupAgents = typeof api.listTaskGroupAgents === 'function' ? api.listTaskGroupAgents : null;
   const updateAgentStatus = typeof api.updateAgentStatus === 'function' ? api.updateAgentStatus : null;
   if (!ensureTaskGroup || !queryTaskGroup || !updateAgentStatus) {
     return {
@@ -85,6 +86,14 @@ function runTaskGroupCli(argv = [], api = {}) {
         reason_code: 'missing_task_group_id'
       };
     }
+
+    if (listTaskGroupAgents) {
+      const listed = listTaskGroupAgents(taskGroupId);
+      if (hasOutcomeFlag(listed) && !shouldFallbackForUnsupportedOp(listed, 'taskgroup.list_agents')) {
+        return listed;
+      }
+    }
+
     const query = queryTaskGroup(taskGroupId);
     if (!query.ok) return query;
     return {
