@@ -396,6 +396,9 @@
       if (typeof this.messageIsAgentOrigin === 'function' && !this.messageIsAgentOrigin(msg)) {
         return false;
       }
+      if (!this.messageIsLatestAgentFromMeta(msg, idx, rows)) {
+        return false;
+      }
       return !!this.messageRetrySource(msg, idx, rows);
     },
 
@@ -423,6 +426,20 @@
       return -1;
     },
 
+    messageIsLatestAgentFromMeta: function(msg, idx, rows) {
+      var list = Array.isArray(rows) ? rows : (Array.isArray(this.messages) ? this.messages : []);
+      if (!list.length) return false;
+      var resolvedIndex = this._resolveMessageIndexFromMeta(msg, idx, list);
+      if (resolvedIndex < 0) return false;
+      for (var i = list.length - 1; i >= 0; i -= 1) {
+        var candidate = list[i];
+        if (!candidate || candidate.is_notice) continue;
+        if (typeof this.messageIsAgentOrigin === 'function' && !this.messageIsAgentOrigin(candidate)) continue;
+        return i === resolvedIndex;
+      }
+      return false;
+    },
+
     messageCanReplyFromMeta: function(msg, idx, rows) {
       var list = Array.isArray(rows) ? rows : (Array.isArray(this.messages) ? this.messages : []);
       if (!list.length) return false;
@@ -430,6 +447,7 @@
       if (resolvedIndex < 0) return false;
       var row = list[resolvedIndex];
       if (!row || row.is_notice) return false;
+      if (typeof this.messageIsHumanOrigin === 'function' && this.messageIsHumanOrigin(row)) return false;
       var text = String(row.text || '').trim();
       return text.length > 0;
     },
@@ -484,7 +502,7 @@
 
     retryMessageFromMeta: async function(msg, idx, rows) {
       if (this.sending) return;
-      if (typeof this.messageIsAgentOrigin === 'function' && !this.messageIsAgentOrigin(msg)) return;
+      if (!this.messageCanRetryFromMeta(msg, idx, rows)) return;
       var source = this.messageRetrySource(msg, idx, rows);
       if (!source) {
         if (typeof InfringToast !== 'undefined') InfringToast.info('No prior user prompt was found for retry.');

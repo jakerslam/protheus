@@ -90,7 +90,7 @@
 
 .chat-wrapper > infring-chat-header-shell > .chat-thread-topline {
   position: absolute;
-  top: 0;
+  top: var(--chat-agent-info-top-offset, 48px);
   left: 0;
   right: 0;
   z-index: 12;

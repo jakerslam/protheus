@@ -110,19 +110,47 @@
       return latest;
     },
 
+    agentStatusFreshness(agent) {
+      var raw = agent && agent.sidebar_status_freshness && typeof agent.sidebar_status_freshness === 'object'
+        ? agent.sidebar_status_freshness
+        : {};
+      var source = String((raw.source || (agent && agent.sidebar_status_source) || '')).trim();
+      var sourceSequence = String((raw.source_sequence || (agent && agent.sidebar_status_source_sequence) || '')).trim();
+      var ageRaw = Number(
+        typeof raw.age_seconds !== 'undefined'
+          ? raw.age_seconds
+          : (agent && agent.sidebar_status_age_seconds)
+      );
+      var ageSeconds = Number.isFinite(ageRaw) && ageRaw >= 0 ? ageRaw : 0;
+      var staleRaw = raw.stale;
+      if (typeof staleRaw !== 'boolean' && agent && typeof agent.sidebar_status_stale === 'boolean') {
+        staleRaw = agent.sidebar_status_stale;
+      }
+      var stale = staleRaw === true;
+      return {
+        source: source,
+        source_sequence: sourceSequence,
+        age_seconds: ageSeconds,
+        stale: stale
+      };
+    },
+
     agentStatusState(agent) {
       if (!agent) return 'offline';
       var serverState = String(agent.sidebar_status_state || '').trim().toLowerCase();
       if (serverState === 'active' || serverState === 'idle' || serverState === 'offline') return serverState;
+      var freshness = this.agentStatusFreshness(agent);
+      if (freshness.stale) return 'offline';
       return 'offline';
     },
 
     agentStatusLabel(agent) {
       var serverLabel = String(agent && agent.sidebar_status_label ? agent.sidebar_status_label : '').trim().toLowerCase();
       if (serverLabel === 'active' || serverLabel === 'idle' || serverLabel === 'offline') return serverLabel;
-      var status = this.agentStatusState(agent);
-      if (status === 'active') return 'active';
-      if (status === 'idle') return 'idle';
+      var serverState = String(agent && agent.sidebar_status_state ? agent.sidebar_status_state : '').trim().toLowerCase();
+      if (serverState === 'active' || serverState === 'idle' || serverState === 'offline') return serverState;
+      var freshness = this.agentStatusFreshness(agent);
+      if (freshness.stale) return 'offline';
       return 'offline';
     },
 

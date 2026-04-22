@@ -112,6 +112,7 @@
 /* Stable universal top bar for all pages */
 .global-taskbar {
   --taskbar-dock-transition: 220ms;
+  --taskbar-outer-visual-bg-alpha: 24%;
   min-height: 46px;
   height: 46px;
   display: flex;
@@ -133,9 +134,35 @@
   bottom: auto;
   /* Keep taskbar above sidebar/pulltab so seam shadow renders consistently. */
   z-index: 19300;
+  isolation: isolate;
   transition:
     top var(--taskbar-dock-transition) var(--ease-smooth),
     bottom var(--taskbar-dock-transition) var(--ease-smooth);
+}
+
+.global-taskbar::before {
+  content: '';
+  position: absolute;
+  inset: 5px 10px;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 999px;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, #fff 10%, transparent) 0%,
+      color-mix(in srgb, #fff 3%, transparent) 48%,
+      transparent 100%
+    ),
+    color-mix(in srgb, var(--surface) var(--taskbar-outer-visual-bg-alpha), transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 16%, transparent),
+    0 10px 24px -24px rgba(0, 0, 0, 0.48);
+}
+
+.global-taskbar > * {
+  position: relative;
+  z-index: 1;
 }
 
 .global-taskbar.is-dock-dragging {
