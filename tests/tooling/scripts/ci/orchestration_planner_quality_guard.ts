@@ -38,6 +38,8 @@ type PlannerPolicy = {
   min_average_candidate_count?: number;
   max_clarification_first_rate?: number;
   max_degraded_rate?: number;
+  max_selected_plan_requires_clarification_rate?: number;
+  max_selected_plan_degraded_rate?: number;
   max_heuristic_probe_rate?: number;
   max_zero_executable_candidate_rate?: number;
   max_all_candidates_require_clarification_rate?: number;
@@ -112,6 +114,10 @@ function evaluateThresholds(metrics: PlannerMetrics | null, policy: PlannerPolic
   const minAverageCandidateCount = numberOrNull(policy.min_average_candidate_count);
   const maxClarificationFirstRate = numberOrNull(policy.max_clarification_first_rate);
   const maxDegradedRate = numberOrNull(policy.max_degraded_rate);
+  const maxSelectedPlanRequiresClarificationRate = numberOrNull(
+    policy.max_selected_plan_requires_clarification_rate,
+  );
+  const maxSelectedPlanDegradedRate = numberOrNull(policy.max_selected_plan_degraded_rate);
   const maxHeuristicProbeRate = numberOrNull(policy.max_heuristic_probe_rate);
   const maxZeroExecutableCandidateRate = numberOrNull(policy.max_zero_executable_candidate_rate);
   const maxAllCandidatesRequireClarificationRate = numberOrNull(
@@ -148,6 +154,28 @@ function evaluateThresholds(metrics: PlannerMetrics | null, policy: PlannerPolic
     failures.push('missing_degraded_rate');
   } else if (maxDegradedRate != null && degradedRate > maxDegradedRate) {
     failures.push(`degraded_rate_exceeded:actual=${degradedRate.toFixed(4)}:max=${maxDegradedRate.toFixed(4)}`);
+  }
+
+  if (selectedPlanRequiresClarificationRate == null) {
+    failures.push('missing_selected_plan_requires_clarification_rate');
+  } else if (
+    maxSelectedPlanRequiresClarificationRate != null
+    && selectedPlanRequiresClarificationRate > maxSelectedPlanRequiresClarificationRate
+  ) {
+    failures.push(
+      `selected_plan_requires_clarification_rate_exceeded:actual=${selectedPlanRequiresClarificationRate.toFixed(4)}:max=${maxSelectedPlanRequiresClarificationRate.toFixed(4)}`,
+    );
+  }
+
+  if (selectedPlanDegradedRate == null) {
+    failures.push('missing_selected_plan_degraded_rate');
+  } else if (
+    maxSelectedPlanDegradedRate != null
+    && selectedPlanDegradedRate > maxSelectedPlanDegradedRate
+  ) {
+    failures.push(
+      `selected_plan_degraded_rate_exceeded:actual=${selectedPlanDegradedRate.toFixed(4)}:max=${maxSelectedPlanDegradedRate.toFixed(4)}`,
+    );
   }
 
   if (heuristicProbeRate == null) {
@@ -309,6 +337,34 @@ function evaluateMetricConsistency(metrics: PlannerMetrics | null): string[] {
   ) {
     failures.push(
       `inconsistent_all_candidates_require_clarification_rate_vs_zero_executable_candidate_rate:all_candidates_require_clarification_rate=${allCandidatesRequireClarificationRate.toFixed(4)}:zero_executable_candidate_rate=${zeroExecutableCandidateRate.toFixed(4)}`,
+    );
+  }
+  if (
+    selectedPlanRequiresClarificationRate != null
+    && selectedPlanDegradedRate != null
+    && selectedPlanRequiresClarificationRate + selectedPlanDegradedRate > 1
+  ) {
+    failures.push(
+      `inconsistent_selected_plan_rate_sum_over_1:sum=${(selectedPlanRequiresClarificationRate + selectedPlanDegradedRate).toFixed(4)}`,
+    );
+  }
+  if (
+    allCandidatesRequireClarificationRate != null
+    && allCandidatesDegradedRate != null
+    && allCandidatesRequireClarificationRate + allCandidatesDegradedRate > 1
+  ) {
+    failures.push(
+      `inconsistent_all_candidates_rate_sum_over_1:sum=${(allCandidatesRequireClarificationRate + allCandidatesDegradedRate).toFixed(4)}`,
+    );
+  }
+  if (
+    requestCount != null
+    && requestCount > 0
+    && averageCandidateCount != null
+    && averageCandidateCount < 1
+  ) {
+    failures.push(
+      `inconsistent_average_candidate_count_below_1_with_nonzero_requests:request_count=${requestCount.toFixed(4)}:average_candidate_count=${averageCandidateCount.toFixed(4)}`,
     );
   }
   return failures;

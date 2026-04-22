@@ -12,8 +12,8 @@ const DEFAULT_OUT_JSON = 'core/local/artifacts/orchestration_gateway_fallback_gu
 const DEFAULT_OUT_MD = 'local/workspace/reports/ORCHESTRATION_GATEWAY_FALLBACK_GUARD_CURRENT.md';
 const DEFAULT_POLICY_PATH = 'client/runtime/config/orchestration_quality_policy.json';
 const TEST_NAMES = [
-  'non_legacy_surface_fixture_fallback_rate_stays_below_threshold',
-  'non_legacy_surface_fixture_quality_stays_within_surface_thresholds',
+  'planning_execution::non_legacy_surface_fixture_fallback_rate_stays_below_threshold',
+  'quality_surface::non_legacy_surface_fixture_quality_stays_within_surface_thresholds',
 ] as const;
 const SURFACES = ['sdk', 'gateway', 'dashboard'] as const;
 
@@ -35,6 +35,7 @@ type SurfaceMetrics = {
 };
 
 type AdapterFallbackPolicy = {
+  min_surface_total?: Record<string, number>;
   max_fallback_rate?: Record<string, number>;
   max_low_confidence_rate?: Record<string, number>;
   ratchet?: {
@@ -84,9 +85,10 @@ function numberOrNull(value: unknown): number | null {
 }
 
 function thresholdRows(policy: AdapterFallbackPolicy) {
+  const minSurfaceTotal = policy.min_surface_total || {};
   const maxFallbackRate = policy.max_fallback_rate || {};
   const maxLowConfidenceRate = policy.max_low_confidence_rate || {};
-  return { maxFallbackRate, maxLowConfidenceRate };
+  return { minSurfaceTotal, maxFallbackRate, maxLowConfidenceRate };
 }
 
 function evaluateThresholds(
@@ -98,13 +100,22 @@ function evaluateThresholds(
     failures.push('surface_metrics_missing');
     return failures;
   }
-  const { maxFallbackRate, maxLowConfidenceRate } = thresholdRows(policy);
+  const { minSurfaceTotal, maxFallbackRate, maxLowConfidenceRate } = thresholdRows(policy);
   for (const surface of SURFACES) {
     const row = metrics[surface] || {};
+    const total = numberOrNull(row.total);
     const fallbackRate = numberOrNull(row.fallback_rate);
     const lowConfidenceRate = numberOrNull(row.low_confidence_rate);
+    const minTotal = numberOrNull(minSurfaceTotal[surface]);
     const maxFallback = numberOrNull(maxFallbackRate[surface]);
     const maxLowConfidence = numberOrNull(maxLowConfidenceRate[surface]);
+    if (total == null) {
+      failures.push(`missing_total:${surface}`);
+    } else if (minTotal != null && total < minTotal) {
+      failures.push(
+        `surface_total_below_min:${surface}:actual=${total.toFixed(4)}:min=${minTotal.toFixed(4)}`,
+      );
+    }
     if (fallbackRate == null) {
       failures.push(`missing_fallback_rate:${surface}`);
     } else if (maxFallback != null && fallbackRate > maxFallback) {
@@ -118,6 +129,50 @@ function evaluateThresholds(
       failures.push(
         `low_confidence_rate_exceeded:${surface}:actual=${lowConfidenceRate.toFixed(4)}:max=${maxLowConfidence.toFixed(4)}`,
       );
+    }
+  }
+  return failures;
+}
+
+function evaluateMetricConsistency(metrics: SurfaceMetrics | null): string[] {
+  const failures: string[] = [];
+  if (!metrics) return failures;
+  for (const surface of SURFACES) {
+    const row = metrics[surface] || {};
+    const total = numberOrNull(row.total);
+    const fallbackRate = numberOrNull(row.fallback_rate);
+    const lowConfidenceRate = numberOrNull(row.low_confidence_rate);
+    if (total == null) {
+      failures.push(`inconsistent_total_missing:${surface}`);
+      continue;
+    }
+    if (total < 0) {
+      failures.push(`inconsistent_total_negative:${surface}:value=${total.toFixed(4)}`);
+    }
+    if (!Number.isInteger(total)) {
+      failures.push(`inconsistent_total_non_integral:${surface}:value=${total.toFixed(4)}`);
+    }
+    if (fallbackRate != null && (fallbackRate < 0 || fallbackRate > 1)) {
+      failures.push(
+        `inconsistent_fallback_rate_out_of_domain:${surface}:value=${fallbackRate.toFixed(4)}:expected=0..1`,
+      );
+    }
+    if (lowConfidenceRate != null && (lowConfidenceRate < 0 || lowConfidenceRate > 1)) {
+      failures.push(
+        `inconsistent_low_confidence_rate_out_of_domain:${surface}:value=${lowConfidenceRate.toFixed(4)}:expected=0..1`,
+      );
+    }
+    if (total === 0) {
+      if (fallbackRate != null && fallbackRate !== 0) {
+        failures.push(
+          `inconsistent_nonzero_fallback_rate_with_zero_total:${surface}:value=${fallbackRate.toFixed(4)}`,
+        );
+      }
+      if (lowConfidenceRate != null && lowConfidenceRate !== 0) {
+        failures.push(
+          `inconsistent_nonzero_low_confidence_rate_with_zero_total:${surface}:value=${lowConfidenceRate.toFixed(4)}`,
+        );
+      }
     }
   }
   return failures;
@@ -165,7 +220,7 @@ function persistRatchet(policy: AdapterFallbackPolicy, snapshot: any): void {
 
 function toMarkdown(payload: any): string {
   const lines: string[] = [];
-  lines.push('# Orchestration Adapter Fallback Guard');
+  lines.push('# Orchestration Gateway Fallback Guard');
   lines.push('');
   lines.push(`Generated: ${payload.generated_at}`);
   lines.push(`Revision: ${payload.revision}`);
@@ -187,6 +242,11 @@ function toMarkdown(payload: any): string {
     lines.push('');
     lines.push('## Policy Failures');
     for (const row of payload.policy_failures) lines.push(`- ${row}`);
+  }
+  if (Array.isArray(payload.consistency_failures) && payload.consistency_failures.length > 0) {
+    lines.push('');
+    lines.push('## Consistency Failures');
+    for (const row of payload.consistency_failures) lines.push(`- ${row}`);
   }
   if (Array.isArray(payload.ratchet_failures) && payload.ratchet_failures.length > 0) {
     lines.push('');
@@ -242,8 +302,9 @@ function run(argv: string[]): number {
     ? readJsonMaybe<any>(adapterPolicy.paths.latest)
     : null;
   const policyFailures = evaluateThresholds(surfaceMetrics, adapterPolicy);
+  const consistencyFailures = evaluateMetricConsistency(surfaceMetrics);
   const ratchetFailures = evaluateRatchet(surfaceMetrics, adapterPolicy, previousLatest);
-  const ok = testsOk && policyFailures.length === 0 && ratchetFailures.length === 0;
+  const ok = testsOk && policyFailures.length === 0 && consistencyFailures.length === 0 && ratchetFailures.length === 0;
 
   const payload = {
     ok,
@@ -266,12 +327,14 @@ function run(argv: string[]): number {
     policy: adapterPolicy,
     surface_metrics: surfaceMetrics,
     policy_failures: policyFailures,
+    consistency_failures: consistencyFailures,
     ratchet_failures: ratchetFailures,
     summary: {
       pass: ok,
       tests_pass: testsOk,
       failed_tests: runs.filter((row) => row.status !== 0).map((row) => row.name),
       policy_failure_count: policyFailures.length,
+      consistency_failure_count: consistencyFailures.length,
       ratchet_failure_count: ratchetFailures.length,
     },
     output_excerpt: combinedOutput,
