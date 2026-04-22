@@ -36,9 +36,12 @@
 .message-stat-time,
 .message-stat-meta,
 .message-stat-burn,
-.message-tool-trace-summary,
-.message-tool-trace-label,
-.message-tool-trace-detail,
+.message-stat-btn,
+.message-stat-icon,
+.message-meta-icon {
+  color: var(--text) !important;
+}
+
 .chat-progress-meta,
 .message-source-chip,
 .message-source-chip-label,
@@ -47,5 +50,5 @@
 }
 
 .message-stat-btn {
-  color: #fff;
+  color: var(--text) !important;
 }

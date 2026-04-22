@@ -182,11 +182,32 @@
         });
         var createdId = String((res && (res.id || res.agent_id)) || '').trim();
         if (!createdId) throw new Error('spawn_failed');
+        var createdStatusState = String((res && res.sidebar_status_state) || '').trim().toLowerCase();
+        if (createdStatusState !== 'active' && createdStatusState !== 'idle' && createdStatusState !== 'offline') {
+          createdStatusState = '';
+        }
+        var createdStatusLabel = String((res && res.sidebar_status_label) || '').trim().toLowerCase();
+        if (createdStatusLabel !== 'active' && createdStatusLabel !== 'idle' && createdStatusLabel !== 'offline') {
+          createdStatusLabel = createdStatusState;
+        }
+        var createdFreshness = {
+          source: String((res && res.sidebar_status_source) || ''),
+          source_sequence: String((res && res.sidebar_status_source_sequence) || ''),
+          age_seconds: Number((res && res.sidebar_status_age_seconds) || 0),
+          stale: !!(res && res.sidebar_status_stale === true)
+        };
         var created = {
           id: createdId,
           name: String((res && res.name) || createdId),
           identity: (res && res.identity && typeof res.identity === 'object') ? res.identity : {},
-          state: String((res && res.sidebar_status_label) || 'pending'),
+          state: createdStatusLabel || createdStatusState || 'offline',
+          sidebar_status_state: createdStatusState || 'offline',
+          sidebar_status_label: createdStatusLabel || createdStatusState || 'offline',
+          sidebar_status_source: createdFreshness.source,
+          sidebar_status_source_sequence: createdFreshness.source_sequence,
+          sidebar_status_age_seconds: createdFreshness.age_seconds,
+          sidebar_status_stale: createdFreshness.stale,
+          sidebar_status_freshness: createdFreshness,
           model_name: String((res && (res.model_name || res.runtime_model || '')) || ''),
           model_provider: String((res && res.model_provider) || ''),
           runtime_model: String((res && res.runtime_model) || ''),
@@ -230,14 +251,31 @@
       var store = this.getAppStore();
       var archived = typeof this.isSidebarArchivedAgent === 'function' && this.isSidebarArchivedAgent(agent);
       if (store && archived) {
-        var pendingState = String(agent.sidebar_status_label || '').trim().toLowerCase();
-        if (!pendingState) pendingState = 'archived';
+        var pendingState = '';
+        if (typeof this.agentStatusLabel === 'function') {
+          pendingState = String(this.agentStatusLabel(agent) || '').trim().toLowerCase();
+        }
+        if (!pendingState) pendingState = 'offline';
         var pending = {
           id: String(agent.id),
           name: String(agent.name || agent.id),
           state: pendingState,
           archived: true,
           avatar_url: String(agent.avatar_url || '').trim(),
+          sidebar_status_state: String(agent.sidebar_status_state || '').trim().toLowerCase(),
+          sidebar_status_label: String(agent.sidebar_status_label || '').trim().toLowerCase(),
+          sidebar_status_source: String(agent.sidebar_status_source || ''),
+          sidebar_status_source_sequence: String(agent.sidebar_status_source_sequence || ''),
+          sidebar_status_age_seconds: Number(agent.sidebar_status_age_seconds || 0),
+          sidebar_status_stale: !!(agent.sidebar_status_stale === true),
+          sidebar_status_freshness: agent.sidebar_status_freshness && typeof agent.sidebar_status_freshness === 'object'
+            ? agent.sidebar_status_freshness
+            : {
+                source: String(agent.sidebar_status_source || ''),
+                source_sequence: String(agent.sidebar_status_source_sequence || ''),
+                age_seconds: Number(agent.sidebar_status_age_seconds || 0),
+                stale: !!(agent.sidebar_status_stale === true)
+              },
           identity: { emoji: String((agent.identity && agent.identity.emoji) || '') },
           role: String(agent.role || 'analyst')
         };

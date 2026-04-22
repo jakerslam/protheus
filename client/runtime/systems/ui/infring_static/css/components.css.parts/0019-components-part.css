@@ -455,17 +455,30 @@ body[data-theme='dark'] .message.agent .message-bubble,
 body[data-theme='dark'] .message.system .message-bubble {
   --message-tail-fill-color: color-mix(in srgb, var(--surface2) 76%, transparent);
   background: color-mix(in srgb, var(--surface2) 76%, transparent);
+  box-shadow:
+    0 12px 28px -18px rgba(0, 0, 0, 0.78),
+    0 0 24px -10px color-mix(in srgb, #fff 72%, transparent),
+    0 0 8px -4px color-mix(in srgb, #fff 52%, transparent),
+    0 0 0 1px color-mix(in srgb, #fff 12%, transparent);
 }
 
 body:not([data-theme='dark']) .message.user .message-bubble {
   --message-tail-fill-color: color-mix(in srgb, var(--user-bg) 78%, transparent);
   background: color-mix(in srgb, var(--user-bg) 78%, transparent);
+  box-shadow:
+    0 14px 30px -18px rgba(15, 23, 42, 0.36),
+    0 4px 12px -8px rgba(15, 23, 42, 0.24),
+    0 0 0 1px color-mix(in srgb, #fff 32%, transparent);
 }
 
 body:not([data-theme='dark']) .message.agent .message-bubble,
 body:not([data-theme='dark']) .message.system .message-bubble {
   --message-tail-fill-color: color-mix(in srgb, var(--surface2) 94%, transparent);
   background: color-mix(in srgb, var(--surface2) 94%, transparent);
+  box-shadow:
+    0 14px 30px -18px rgba(15, 23, 42, 0.34),
+    0 4px 12px -8px rgba(15, 23, 42, 0.22),
+    0 0 0 1px color-mix(in srgb, #fff 30%, transparent);
 }
 
 /* Theme switcher: when mode=system, highlight spans system + resolved light/dark icon. */
