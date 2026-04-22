@@ -3,7 +3,7 @@ use crate::importance::{band_rank, infer_from_event, to_json as importance_to_js
 use crate::now_iso;
 use base64::Engine;
 use chrono::{TimeZone, Utc};
-use execution_core::{
+use crate::execution_lane_bridge::{
     evaluate_importance_json, prioritize_attention_json, DEFAULT_FRONT_JUMP_THRESHOLD,
     INITIATIVE_POLICY_VERSION,
 };

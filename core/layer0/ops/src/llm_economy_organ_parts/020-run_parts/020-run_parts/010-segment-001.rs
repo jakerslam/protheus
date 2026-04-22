@@ -62,7 +62,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "latest": read_json(&latest),
             "contract": {
                 "path": ECONOMY_CONTRACT_PATH,
-                "sha256": deterministic_receipt_hash(&contract)
+                "sha256": crate::deterministic_receipt_hash(&contract)
             }
         });
         emit_with_receipt(&mut out);
@@ -86,7 +86,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "enabled_hands": enabled_map,
             "contract": {
                 "path": ECONOMY_CONTRACT_PATH,
-                "sha256": deterministic_receipt_hash(&contract)
+                "sha256": crate::deterministic_receipt_hash(&contract)
             },
             "claim_evidence": [
                 {

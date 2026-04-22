@@ -32,7 +32,7 @@ pub(super) fn run_sync(
             }
         }
     }
-    roots.push(deterministic_receipt_hash(
+    roots.push(crate::deterministic_receipt_hash(
         &json!({"root": root.display().to_string(), "rows": all_rows.len()}),
     ));
     for peer in &peers {
@@ -50,7 +50,7 @@ pub(super) fn run_sync(
         for (hash, row) in peer_hashes {
             all_rows.entry(hash).or_insert(row);
         }
-        roots.push(deterministic_receipt_hash(
+        roots.push(crate::deterministic_receipt_hash(
             &json!({"peer": peer_root.display().to_string(), "rows": all_rows.len()}),
         ));
     }
@@ -167,7 +167,7 @@ pub(super) fn run_migrate_ecosystem(
         return Err("migration_source_unsupported".to_string());
     };
     let base = enterprise_state_root(root).join("moat/migrations");
-    let id = deterministic_receipt_hash(&json!({"source": source, "bytes": payload_raw.len()}));
+    let id = crate::deterministic_receipt_hash(&json!({"source": source, "bytes": payload_raw.len()}));
     let path = base.join(format!("{}_{}.json", source, &id[..16]));
     write_json(&path, &imported)?;
     let ok = !strict || imported.get("ok").and_then(Value::as_bool).unwrap_or(false);
@@ -304,7 +304,7 @@ pub(super) fn run_chaos(
                 "attack": attack,
                 "success": success,
                 "severity": if success { "medium" } else if suite == "isolate" { "critical" } else { "low" },
-                "evidence_hash": deterministic_receipt_hash(&json!({"attack": attack, "agents": agents}))
+                "evidence_hash": crate::deterministic_receipt_hash(&json!({"attack": attack, "agents": agents}))
             })
         })
         .collect::<Vec<_>>();

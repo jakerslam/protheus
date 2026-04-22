@@ -122,7 +122,7 @@ fn scheduled_add(state: &mut SwarmState, argv: &[String], now_ms: u64) -> Result
     let max_runtime_sec = parse_u64_flag(argv, "max-runtime-sec", 30).max(1);
     let task_id = format!(
         "scheduled-{}",
-        &deterministic_receipt_hash(&json!({
+        &crate::deterministic_receipt_hash(&json!({
             "task": task,
             "interval_sec": interval_sec,
             "runs": runs,

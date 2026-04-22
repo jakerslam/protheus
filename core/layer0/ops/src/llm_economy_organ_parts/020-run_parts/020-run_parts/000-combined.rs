@@ -62,7 +62,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "latest": read_json(&latest),
             "contract": {
                 "path": ECONOMY_CONTRACT_PATH,
-                "sha256": deterministic_receipt_hash(&contract)
+                "sha256": crate::deterministic_receipt_hash(&contract)
             }
         });
         emit_with_receipt(&mut out);
@@ -86,7 +86,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "enabled_hands": enabled_map,
             "contract": {
                 "path": ECONOMY_CONTRACT_PATH,
-                "sha256": deterministic_receipt_hash(&contract)
+                "sha256": crate::deterministic_receipt_hash(&contract)
             },
             "claim_evidence": [
                 {
@@ -321,7 +321,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "side": side,
             "qty": qty
         });
-        let order_intent_id = deterministic_receipt_hash(&order);
+        let order_intent_id = crate::deterministic_receipt_hash(&order);
         let order_record = json!({
             "version": "v1",
             "ts": now_iso(),
@@ -360,7 +360,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 }
             ]
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         write_json(&latest, &out);
         append_jsonl(&history, &out);
         print_receipt(&out);
@@ -392,7 +392,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "error": "unknown_target",
                 "target": target
             });
-            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
             print_receipt(&out);
             return 2;
         }
@@ -422,7 +422,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 }
             ]
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         write_json(&latest, &out);
         append_jsonl(&history, &out);
         print_receipt(&out);
@@ -446,7 +446,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "ts": now_iso(),
             "apply": apply,
             "action": action,
-            "contract_digest": deterministic_receipt_hash(&contract),
+            "contract_digest": crate::deterministic_receipt_hash(&contract),
             "claim_evidence": [
                 {
                     "id": "V6-ECONOMY-001.1",
@@ -455,7 +455,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 }
             ]
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         write_json(&latest, &out);
         append_jsonl(&history, &out);
         print_receipt(&out);
@@ -479,7 +479,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "ts": now_iso(),
             "apply": apply,
             "strategy": strategy,
-            "contract_digest": deterministic_receipt_hash(&contract),
+            "contract_digest": crate::deterministic_receipt_hash(&contract),
             "claim_evidence": [
                 {
                     "id": "V6-ECONOMY-001.2",
@@ -488,7 +488,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 }
             ]
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         write_json(&latest, &out);
         append_jsonl(&history, &out);
         print_receipt(&out);
@@ -512,7 +512,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "ts": now_iso(),
             "apply": apply,
             "source": source,
-            "contract_digest": deterministic_receipt_hash(&contract),
+            "contract_digest": crate::deterministic_receipt_hash(&contract),
             "claim_evidence": [
                 {
                     "id": "V6-ECONOMY-001.3",
@@ -521,7 +521,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 }
             ]
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         write_json(&latest, &out);
         append_jsonl(&history, &out);
         print_receipt(&out);
@@ -545,7 +545,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "ts": now_iso(),
             "apply": apply,
             "source": source,
-            "contract_digest": deterministic_receipt_hash(&contract),
+            "contract_digest": crate::deterministic_receipt_hash(&contract),
             "claim_evidence": [
                 {
                     "id": "V6-ECONOMY-001.4",
@@ -554,7 +554,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 }
             ]
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         write_json(&latest, &out);
         append_jsonl(&history, &out);
         print_receipt(&out);
@@ -625,7 +625,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 }
             ]
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         write_json(&latest, &out);
         append_jsonl(&history, &out);
         print_receipt(&out);
@@ -661,7 +661,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "network": network,
                 "allowed": ["litcoin", "minbot"]
             });
-            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
             write_json(&latest, &out);
             append_jsonl(&history, &out);
             print_receipt(&out);
@@ -735,7 +735,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 }
             ]
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         write_json(&latest, &out);
         append_jsonl(&history, &out);
         print_receipt(&out);
@@ -784,7 +784,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "qty_positive": qty > 0.0
                 }
             });
-            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
             write_json(&latest, &out);
             append_jsonl(&history, &out);
             print_receipt(&out);
@@ -797,7 +797,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "qty": qty,
             "custody": "non-custodial-intent"
         });
-        let intent_id = deterministic_receipt_hash(&order_intent);
+        let intent_id = crate::deterministic_receipt_hash(&order_intent);
         if apply {
             append_jsonl(
                 &trade_intents_path(root),
@@ -831,7 +831,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 }
             ]
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         write_json(&latest, &out);
         append_jsonl(&history, &out);
         print_receipt(&out);
@@ -868,7 +868,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 }
             ]
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         write_json(&latest, &out);
         append_jsonl(&history, &out);
         print_receipt(&out);

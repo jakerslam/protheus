@@ -62,7 +62,7 @@ fn run_secrets_federation_command(root: &Path, argv: &[String], strict: bool) ->
                 return (out, if strict { 2 } else { 0 });
             };
             let ts = now_iso();
-            let handle_id = deterministic_receipt_hash(&json!({
+            let handle_id = crate::deterministic_receipt_hash(&json!({
                 "provider": provider,
                 "secret_path": secret_path,
                 "scope": scope,
@@ -342,7 +342,7 @@ fn wrap_capability_event(root: &Path, command: &str, argv: &[String], payload: V
         }));
     }
     out["claim_evidence"] = Value::Array(claim_rows);
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
 
     let log_row = json!({
         "ts": now_iso(),

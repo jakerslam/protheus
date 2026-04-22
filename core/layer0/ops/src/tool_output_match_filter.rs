@@ -182,6 +182,14 @@ fn ack_rules() -> &'static Vec<(MatchRule, Regex, Option<Regex>)> {
                 pattern: r"(?is)^\s*title:\s*.+\s+excerpt:\s*.+\s+(?:.*\s+){0,24}originalurl:\s*https?://",
                 unless: Some(r"(?is)(?:from web retrieval:|according to|source(?:s)?:)"),
             },
+            MatchRule {
+                pattern: r"(?is)^\s*<function=[a-z0-9_.:\-]+>\s*\{.*$",
+                unless: None,
+            },
+            MatchRule {
+                pattern: r"(?is)^\s*<tool_call\b.*$",
+                unless: None,
+            },
         ];
         specs
             .into_iter()
@@ -784,6 +792,18 @@ mod tests {
     fn detects_metadata_card_dump_as_ack_placeholder() {
         let raw = "title: Learn how to use Azure Functions\nexcerpt: Azure Functions is a great solution for processing data\noriginalUrl: https://youtube.com/watch?v=Av5cIs7Qkps\ntype: video\nprice: Free\nprovider:\nname: Microsoft\ndomain: microsoft.com";
         assert!(matches_ack_placeholder(raw));
+    }
+
+    #[test]
+    fn detects_raw_function_call_stub_as_ack_placeholder() {
+        assert!(matches_ack_placeholder(r#"<function=file_list>{"path":"."}"#));
+    }
+
+    #[test]
+    fn detects_raw_tool_call_tag_as_ack_placeholder() {
+        assert!(matches_ack_placeholder(
+            "<tool_call id=\"toolcall_1\">{\"tool\":\"web.search\"}"
+        ));
     }
 
     #[test]

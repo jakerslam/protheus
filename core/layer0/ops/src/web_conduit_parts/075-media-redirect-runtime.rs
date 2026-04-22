@@ -279,7 +279,7 @@ fn fetch_remote_media_binary(root: &Path, request: &Value) -> Result<LoadedMedia
         .first()
         .cloned()
         .unwrap_or_else(|| "direct_http".to_string());
-    let policy_eval = infring_layer1_security::evaluate_web_conduit_policy(
+    let policy_eval = crate::infring_layer1_security_bridge::evaluate_web_conduit_policy(
         root,
         &json!({
             "requested_url": resolved_url,

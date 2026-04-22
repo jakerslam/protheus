@@ -223,7 +223,7 @@ fn append_ledger_event(root: &Path, action: &str, details: &Value) -> Value {
             serde_json::to_string(details).unwrap_or_else(|_| "{}".to_string())
         ),
     ];
-    let (payload, _) = infring_layer1_security::run_black_box_ledger(root, &argv);
+    let (payload, _) = crate::infring_layer1_security_bridge::run_black_box_ledger(root, &argv);
     payload
 }
 
@@ -385,7 +385,7 @@ pub fn run(root: &Path, argv: &[String]) -> (Value, i32) {
             "sensitivity": sensitivity
         }
     })]);
-    payload["receipt_hash"] = Value::String(deterministic_receipt_hash(&payload));
+    payload["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&payload));
     let exit = if strict && payload.get("ok").and_then(Value::as_bool) == Some(false) {
         2
     } else {

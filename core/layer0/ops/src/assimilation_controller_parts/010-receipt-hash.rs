@@ -16,7 +16,7 @@ const SCHEDULED_HANDS_CONTRACT_PATH: &str =
     "planes/contracts/hands/scheduled_hands_contract_v1.json";
 
 fn receipt_hash(v: &Value) -> String {
-    deterministic_receipt_hash(v)
+    crate::deterministic_receipt_hash(v)
 }
 
 fn print_json_line(value: &Value) {

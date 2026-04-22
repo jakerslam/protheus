@@ -454,22 +454,60 @@ fn file_read_routing_follow_up_requires_partial_replay_input(
     requires_follow_up && requires_partial_replay
 }
 
+fn file_read_routing_follow_up_user_text_input_kind(
+    requires_follow_up: bool,
+    follow_up_owner: &str,
+    follow_up_requires_path_input: bool,
+    follow_up_requires_policy_repair_input: bool,
+    follow_up_requires_binary_opt_in_input: bool,
+    follow_up_requires_content_expansion_input: bool,
+    follow_up_requires_mixed_follow_up_input: bool,
+    follow_up_requires_partial_replay_input: bool,
+) -> &'static str {
+    if !requires_follow_up || follow_up_owner != "operator" {
+        return "none";
+    }
+    if follow_up_requires_path_input {
+        return "path_input";
+    }
+    if follow_up_requires_policy_repair_input {
+        return "policy_repair_input";
+    }
+    if follow_up_requires_binary_opt_in_input {
+        return "binary_opt_in_input";
+    }
+    if follow_up_requires_content_expansion_input {
+        return "content_expansion_input";
+    }
+    if follow_up_requires_mixed_follow_up_input {
+        return "mixed_follow_up_input";
+    }
+    if follow_up_requires_partial_replay_input {
+        return "partial_replay_input";
+    }
+    "user_text"
+}
+
 fn file_read_routing_follow_up_requires_user_text_input(
     requires_follow_up: bool,
     follow_up_owner: &str,
     follow_up_requires_path_input: bool,
     follow_up_requires_policy_repair_input: bool,
+    follow_up_requires_binary_opt_in_input: bool,
+    follow_up_requires_content_expansion_input: bool,
+    follow_up_requires_mixed_follow_up_input: bool,
+    follow_up_requires_partial_replay_input: bool,
 ) -> bool {
-    if !requires_follow_up || follow_up_owner != "operator" {
-        return false;
-    }
-    // Operator-owned follow-up lanes are modeled as requiring explicit user text,
-    // including binary/content/mixed/partial escalation flows. Path/policy inputs
-    // remain explicit hard requirements where applicable.
-    if follow_up_requires_path_input || follow_up_requires_policy_repair_input {
-        return true;
-    }
-    true
+    file_read_routing_follow_up_user_text_input_kind(
+        requires_follow_up,
+        follow_up_owner,
+        follow_up_requires_path_input,
+        follow_up_requires_policy_repair_input,
+        follow_up_requires_binary_opt_in_input,
+        follow_up_requires_content_expansion_input,
+        follow_up_requires_mixed_follow_up_input,
+        follow_up_requires_partial_replay_input,
+    ) != "none"
 }
 
 fn file_read_routing_blocker(
@@ -601,6 +639,7 @@ fn handle_agent_scope_file_read_routes(
                         "follow_up_requires_mixed_follow_up_input": false,
                         "follow_up_requires_partial_replay_input": false,
                         "follow_up_requires_user_text_input": true,
+                        "follow_up_user_text_input_kind": "path_input",
                         "requires_binary_opt_in": false,
                         "requires_path_repair": true,
                         "requires_content_expansion": false,
@@ -665,6 +704,7 @@ fn handle_agent_scope_file_read_routes(
                                 "follow_up_requires_mixed_follow_up_input": false,
                                 "follow_up_requires_partial_replay_input": false,
                                 "follow_up_requires_user_text_input": true,
+                                "follow_up_user_text_input_kind": "policy_repair_input",
                                 "requires_binary_opt_in": false,
                                 "requires_path_repair": false,
                                 "requires_content_expansion": false,
@@ -725,6 +765,7 @@ fn handle_agent_scope_file_read_routes(
                         "follow_up_requires_mixed_follow_up_input": false,
                         "follow_up_requires_partial_replay_input": false,
                         "follow_up_requires_user_text_input": true,
+                        "follow_up_user_text_input_kind": "path_input",
                         "requires_binary_opt_in": false,
                         "requires_path_repair": true,
                         "requires_content_expansion": false,
@@ -782,6 +823,7 @@ fn handle_agent_scope_file_read_routes(
                         "follow_up_requires_mixed_follow_up_input": false,
                         "follow_up_requires_partial_replay_input": false,
                         "follow_up_requires_user_text_input": true,
+                        "follow_up_user_text_input_kind": "path_input",
                         "requires_binary_opt_in": false,
                         "requires_path_repair": true,
                         "requires_content_expansion": false,
@@ -860,6 +902,7 @@ fn handle_agent_scope_file_read_routes(
                         "follow_up_requires_mixed_follow_up_input": false,
                         "follow_up_requires_partial_replay_input": false,
                         "follow_up_requires_user_text_input": false,
+                        "follow_up_user_text_input_kind": "none",
                         "requires_binary_opt_in": true,
                         "requires_path_repair": false,
                         "requires_content_expansion": false,
@@ -1059,6 +1102,21 @@ fn handle_agent_scope_file_read_routes(
                 routing_follow_up_owner,
                 routing_follow_up_requires_path_input,
                 routing_follow_up_requires_policy_repair_input,
+                routing_follow_up_requires_binary_opt_in_input,
+                routing_follow_up_requires_content_expansion_input,
+                routing_follow_up_requires_mixed_follow_up_input,
+                routing_follow_up_requires_partial_replay_input,
+            );
+        let routing_follow_up_user_text_input_kind =
+            file_read_routing_follow_up_user_text_input_kind(
+                routing_requires_follow_up,
+                routing_follow_up_owner,
+                routing_follow_up_requires_path_input,
+                routing_follow_up_requires_policy_repair_input,
+                routing_follow_up_requires_binary_opt_in_input,
+                routing_follow_up_requires_content_expansion_input,
+                routing_follow_up_requires_mixed_follow_up_input,
+                routing_follow_up_requires_partial_replay_input,
             );
         let mut payload = json!({
             "ok": true,
@@ -1104,6 +1162,7 @@ fn handle_agent_scope_file_read_routes(
                 "follow_up_requires_mixed_follow_up_input": routing_follow_up_requires_mixed_follow_up_input,
                 "follow_up_requires_partial_replay_input": routing_follow_up_requires_partial_replay_input,
                 "follow_up_requires_user_text_input": routing_follow_up_requires_user_text_input,
+                "follow_up_user_text_input_kind": routing_follow_up_user_text_input_kind,
                 "requires_binary_opt_in": routing_requires_binary_opt_in,
                 "requires_path_repair": routing_requires_path_repair,
                 "requires_content_expansion": routing_requires_content_expansion,
@@ -1225,6 +1284,7 @@ fn handle_agent_scope_file_read_routes(
                         "follow_up_requires_mixed_follow_up_input": false,
                         "follow_up_requires_partial_replay_input": false,
                         "follow_up_requires_user_text_input": true,
+                        "follow_up_user_text_input_kind": "path_input",
                         "requires_binary_opt_in": false,
                         "requires_path_repair": true,
                         "requires_content_expansion": false,
@@ -1298,6 +1358,7 @@ fn handle_agent_scope_file_read_routes(
                                 "follow_up_requires_mixed_follow_up_input": false,
                                 "follow_up_requires_partial_replay_input": false,
                                 "follow_up_requires_user_text_input": true,
+                                "follow_up_user_text_input_kind": "policy_repair_input",
                                 "requires_binary_opt_in": false,
                                 "requires_path_repair": false,
                                 "requires_content_expansion": false,
@@ -1582,6 +1643,21 @@ fn handle_agent_scope_file_read_routes(
                 routing_follow_up_owner,
                 routing_follow_up_requires_path_input,
                 routing_follow_up_requires_policy_repair_input,
+                routing_follow_up_requires_binary_opt_in_input,
+                routing_follow_up_requires_content_expansion_input,
+                routing_follow_up_requires_mixed_follow_up_input,
+                routing_follow_up_requires_partial_replay_input,
+            );
+        let routing_follow_up_user_text_input_kind =
+            file_read_routing_follow_up_user_text_input_kind(
+                routing_requires_follow_up,
+                routing_follow_up_owner,
+                routing_follow_up_requires_path_input,
+                routing_follow_up_requires_policy_repair_input,
+                routing_follow_up_requires_binary_opt_in_input,
+                routing_follow_up_requires_content_expansion_input,
+                routing_follow_up_requires_mixed_follow_up_input,
+                routing_follow_up_requires_partial_replay_input,
             );
         let routing_reason = file_read_many_routing_reason(routing_hint, allow_binary);
         let routing_retryable = file_read_many_routing_retryable(routing_hint);
@@ -1668,6 +1744,7 @@ fn handle_agent_scope_file_read_routes(
                 "follow_up_requires_mixed_follow_up_input": routing_follow_up_requires_mixed_follow_up_input,
                 "follow_up_requires_partial_replay_input": routing_follow_up_requires_partial_replay_input,
                 "follow_up_requires_user_text_input": routing_follow_up_requires_user_text_input,
+                "follow_up_user_text_input_kind": routing_follow_up_user_text_input_kind,
                 "requires_binary_opt_in": routing_requires_binary_opt_in,
                 "requires_path_repair": routing_requires_path_repair,
                 "requires_content_expansion": routing_requires_content_expansion,

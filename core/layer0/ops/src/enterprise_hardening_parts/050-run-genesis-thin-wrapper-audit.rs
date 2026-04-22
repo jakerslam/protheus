@@ -129,7 +129,7 @@ fn run_genesis_doc_freeze(
         "release_tag": release_tag,
         "entries": entries
     });
-    let freeze_hash = deterministic_receipt_hash(&freeze_seed);
+    let freeze_hash = crate::deterministic_receipt_hash(&freeze_seed);
     let freeze_id = format!("doc_freeze_{}", &freeze_hash[..16]);
     let manifest_path = enterprise_state_root(root)
         .join("genesis")
@@ -214,7 +214,7 @@ fn run_genesis_bootstrap(
     let mut checkpoints = Vec::<Value>::new();
     for step in step_ids {
         let seed = json!({"step": step, "previous": previous, "profile": profile, "ts": now_iso()});
-        let checkpoint_hash = deterministic_receipt_hash(&seed);
+        let checkpoint_hash = crate::deterministic_receipt_hash(&seed);
         checkpoints.push(json!({
             "step": step,
             "checkpoint_hash": checkpoint_hash,
@@ -229,7 +229,7 @@ fn run_genesis_bootstrap(
             .to_string();
     }
     let runbook_seed = json!({"profile": profile, "head": previous});
-    let runbook_hash = deterministic_receipt_hash(&runbook_seed);
+    let runbook_hash = crate::deterministic_receipt_hash(&runbook_seed);
     let runbook_id = format!("bootstrap_{}", &runbook_hash[..16]);
     let runbook_path = enterprise_state_root(root)
         .join("genesis")
@@ -302,7 +302,7 @@ fn run_genesis_installer_sim(
         .count();
     let ready = failed == 0;
     let sim_seed = json!({"profile": profile, "checks": checks});
-    let sim_hash = deterministic_receipt_hash(&sim_seed);
+    let sim_hash = crate::deterministic_receipt_hash(&sim_seed);
     let sim_id = format!("installer_sim_{}", &sim_hash[..16]);
     let sim_path = enterprise_state_root(root)
         .join("genesis")

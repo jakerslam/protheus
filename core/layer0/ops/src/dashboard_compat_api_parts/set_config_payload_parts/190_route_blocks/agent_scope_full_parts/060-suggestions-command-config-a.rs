@@ -233,13 +233,18 @@ fn handle_agent_scope_suggestions_command_config_routes(
             let permissions_parent_manifest_receipt = parent_manifest
                 .as_ref()
                 .map(crate::deterministic_receipt_hash);
-            let widening_blocked_count = AGENT_PERMISSION_KEYS
+            let widening_blocked_permissions: Vec<String> = AGENT_PERMISSION_KEYS
                 .iter()
                 .filter(|permission| {
                     permissions_manifest_allows(&requested_permissions_manifest, permission)
                         && !permissions_manifest_allows(&permissions_manifest, permission)
                 })
-                .count();
+                .map(|permission| permission.to_string())
+                .collect();
+            let widening_blocked_count = widening_blocked_permissions.len();
+            let widening_blocked_receipt = crate::deterministic_receipt_hash(&json!({
+                "permissions": widening_blocked_permissions
+            }));
             let previous_revision = existing
                 .as_ref()
                 .and_then(|row| row.get("contract"))
@@ -279,6 +284,13 @@ fn handle_agent_scope_suggestions_command_config_routes(
             patch["contract"]["permissions_enforcement_mode"] =
                 json!(permissions_enforcement_mode);
             patch["contract"]["permissions_widening_blocked_count"] = json!(widening_blocked_count);
+            patch["contract"]["permissions_widening_blocked_permissions"] =
+                json!(widening_blocked_permissions);
+            patch["contract"]["permissions_widening_blocked_receipt"] =
+                json!(widening_blocked_receipt);
+            patch["contract"]["permissions_manifest_changed_from_request"] = json!(
+                permissions_requested_receipt != permissions_manifest_receipt
+            );
             if let Some(contract_map) = patch.get_mut("contract").and_then(Value::as_object_mut) {
                 contract_map.remove("permissions");
                 contract_map.remove("permission_template");

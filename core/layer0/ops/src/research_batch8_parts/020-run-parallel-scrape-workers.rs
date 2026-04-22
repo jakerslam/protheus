@@ -176,7 +176,7 @@ pub fn run_parallel_scrape_workers(root: &Path, parsed: &ParsedArgs, strict: boo
             }
         ]
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
@@ -377,7 +377,7 @@ fn run_template_governance_common(
             }
         ]
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 

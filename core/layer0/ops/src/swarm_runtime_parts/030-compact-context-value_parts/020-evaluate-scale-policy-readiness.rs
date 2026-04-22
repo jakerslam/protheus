@@ -121,7 +121,7 @@ fn now_epoch_ms() -> u64 {
 }
 
 fn print_receipt(mut payload: Value) {
-    payload["receipt_hash"] = Value::String(deterministic_receipt_hash(&payload));
+    payload["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&payload));
     println!(
         "{}",
         serde_json::to_string(&payload)
@@ -146,7 +146,7 @@ fn append_dead_letter(
     let dead_letter = DeadLetterMessage {
         dead_letter_id: format!(
             "dlq-{}",
-            &deterministic_receipt_hash(&json!({
+            &crate::deterministic_receipt_hash(&json!({
                 "message_id": message.message_id,
                 "reason": reason,
                 "moved_at_ms": now_epoch_ms(),

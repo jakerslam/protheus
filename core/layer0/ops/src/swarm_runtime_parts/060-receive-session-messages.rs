@@ -310,7 +310,7 @@ fn register_handoff(
     )?;
     let handoff_id = format!(
         "handoff-{}",
-        &deterministic_receipt_hash(&json!({
+        &crate::deterministic_receipt_hash(&json!({
             "sender": sender_session_id,
             "recipient": recipient_session_id,
             "reason": reason,
@@ -419,7 +419,7 @@ fn register_json_schema_tool(
     }
     let manifest_id = format!(
         "tool-{}",
-        &deterministic_receipt_hash(&json!({
+        &crate::deterministic_receipt_hash(&json!({
             "session_id": session_id,
             "tool_name": tool_name,
             "entrypoint": entrypoint,

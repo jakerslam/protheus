@@ -5,7 +5,7 @@ use crate::runtime_system_contracts::{
     actionable_profiles, looks_like_contract_id, profile_for, RuntimeSystemContractProfile,
 };
 use crate::{client_state_root, deterministic_receipt_hash, now_iso};
-use llm_runtime::{
+use crate::llm_runtime_bridge::{
     choose_best_model, normalize_model_scores, ModelMetadata, ModelRuntimeKind, ModelSpecialty,
     RoutingRequest, WorkloadClass,
 };
@@ -29,7 +29,7 @@ fn print_json_line(value: &Value) {
 }
 
 fn receipt_hash(value: &Value) -> String {
-    deterministic_receipt_hash(value)
+    crate::deterministic_receipt_hash(value)
 }
 
 fn profile_json(profile: RuntimeSystemContractProfile) -> Value {

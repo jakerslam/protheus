@@ -223,7 +223,7 @@ fn stable_id(prefix: &str, seed: &str) -> String {
 }
 
 fn receipt_hash(v: &Value) -> String {
-    deterministic_receipt_hash(v)
+    crate::deterministic_receipt_hash(v)
 }
 
 fn read_json(path: &Path) -> Value {

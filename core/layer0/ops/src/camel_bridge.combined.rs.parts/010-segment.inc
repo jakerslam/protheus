@@ -512,7 +512,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                             "dataset_kind": kind,
                             "source_path": source_path,
                             "record_count": records.len(),
-                            "provenance_tag": deterministic_receipt_hash(&json!({"dataset_id": dataset_id, "records": records})),
+                            "provenance_tag": crate::deterministic_receipt_hash(&json!({"dataset_id": dataset_id, "records": records})),
                             "created_at": now_iso(),
                             "claim_evidence": claim("V6-WORKFLOW-013.4", "synthetic_dataset_ingestion"),
                         });

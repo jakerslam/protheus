@@ -188,6 +188,6 @@ fn run_with_policy(
             }
         ]
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     Ok(out)
 }

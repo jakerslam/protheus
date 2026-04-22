@@ -396,11 +396,15 @@ fn v6_batch32_observability_workflow_validates_schedule_and_compiles_step_traces
         .unwrap_or_default();
     let dispatched_providers = dispatch_receipts
         .into_iter()
-        .filter_map(|row| row.get("provider").and_then(Value::as_str))
-        .collect::<Vec<_>>();
+        .filter_map(|row| {
+            row.get("provider")
+                .and_then(Value::as_str)
+                .map(std::string::ToString::to_string)
+        })
+        .collect::<Vec<String>>();
     assert_eq!(dispatched_providers.len(), 2);
-    assert!(dispatched_providers.iter().any(|row| *row == "pagerduty"));
-    assert!(dispatched_providers.iter().any(|row| *row == "datadog"));
+    assert!(dispatched_providers.iter().any(|row| row == "pagerduty"));
+    assert!(dispatched_providers.iter().any(|row| row == "datadog"));
     assert_claim(&incident_latest, "V6-OBSERVABILITY-001.3");
 
     let bypass_exit = observability_plane::run(

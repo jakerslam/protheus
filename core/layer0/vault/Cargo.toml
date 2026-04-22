@@ -14,7 +14,8 @@ name = "vault_core"
 path = "src/main.rs"
 
 [dependencies]
-protheus-nexus-core-v1 = { path = "../../layer2/nexus" }
+infring_types = { path = "../../layer1/infring_types" }
+protheus-memory-core-v6 = { path = "../memory" }
 hex = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

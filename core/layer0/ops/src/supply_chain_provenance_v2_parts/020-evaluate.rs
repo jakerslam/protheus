@@ -337,7 +337,7 @@ fn run_cmd(
     let mut payload = evaluate(root, policy, bundle_path, vuln_summary_path);
     payload["strict"] = Value::Bool(strict);
     payload["policy_path"] = Value::String(policy.policy_path.to_string_lossy().to_string());
-    payload["receipt_hash"] = Value::String(deterministic_receipt_hash(&payload));
+    payload["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&payload));
 
     write_text_atomic(
         &policy.latest_path,

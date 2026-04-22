@@ -4,6 +4,7 @@ use protheus_ops_core::{
     configure_low_memory_allocator_env, deterministic_receipt_hash, parse_args, parse_os_args,
     run_runtime_efficiency_floor, status_runtime_efficiency_floor,
 };
+use protheus_nexus_core_v1::ops_core as protheus_ops_core_v1;
 use serde_json::{json, Value};
 use std::env;
 use std::path::PathBuf;
@@ -72,7 +73,7 @@ fn cli_error_receipt(
             }
         }
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 

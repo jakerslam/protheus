@@ -57,7 +57,7 @@ fn usage() {
 }
 
 fn stamp_receipt(value: &mut Value) {
-    value["receipt_hash"] = Value::String(deterministic_receipt_hash(value));
+    value["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(value));
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {

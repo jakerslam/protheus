@@ -7,45 +7,45 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let strict = parse_bool(parse_flag(rest, "strict"), true);
 
     let (payload, code) = match cmd.as_str() {
-        "guard" => infring_layer1_security::run_guard(root, rest),
+        "guard" => crate::infring_layer1_security_bridge::run_guard(root, rest),
         "anti-sabotage-shield" | "anti_sabotage_shield" => {
-            infring_layer1_security::run_anti_sabotage_shield(root, rest)
+            crate::infring_layer1_security_bridge::run_anti_sabotage_shield(root, rest)
         }
         "constitution-guardian" | "constitution_guardian" => {
-            infring_layer1_security::run_constitution_guardian(root, rest)
+            crate::infring_layer1_security_bridge::run_constitution_guardian(root, rest)
         }
         "remote-emergency-halt" | "remote_emergency_halt" => {
-            infring_layer1_security::run_remote_emergency_halt(root, rest)
+            crate::infring_layer1_security_bridge::run_remote_emergency_halt(root, rest)
         }
         "soul-token-guard" | "soul_token_guard" => {
-            infring_layer1_security::run_soul_token_guard(root, rest)
+            crate::infring_layer1_security_bridge::run_soul_token_guard(root, rest)
         }
         "integrity-reseal" | "integrity_reseal" => {
-            infring_layer1_security::run_integrity_reseal(root, rest)
+            crate::infring_layer1_security_bridge::run_integrity_reseal(root, rest)
         }
         "integrity-reseal-assistant" | "integrity_reseal_assistant" => {
-            infring_layer1_security::run_integrity_reseal_assistant(root, rest)
+            crate::infring_layer1_security_bridge::run_integrity_reseal_assistant(root, rest)
         }
         "capability-lease" | "capability_lease" => {
-            infring_layer1_security::run_capability_lease(root, rest)
+            crate::infring_layer1_security_bridge::run_capability_lease(root, rest)
         }
         "startup-attestation" | "startup_attestation" => {
-            infring_layer1_security::run_startup_attestation(root, rest)
+            crate::infring_layer1_security_bridge::run_startup_attestation(root, rest)
         }
         "directive-hierarchy-controller" | "directive_hierarchy_controller" => {
-            infring_layer1_security::run_directive_hierarchy_controller(root, rest)
+            crate::infring_layer1_security_bridge::run_directive_hierarchy_controller(root, rest)
         }
         "integrity-kernel" | "integrity_kernel" => {
-            infring_layer1_security::run_integrity_kernel(root, rest)
+            crate::infring_layer1_security_bridge::run_integrity_kernel(root, rest)
         }
         "emergency-stop" | "emergency_stop" => {
-            infring_layer1_security::run_emergency_stop(root, rest)
+            crate::infring_layer1_security_bridge::run_emergency_stop(root, rest)
         }
         "capability-switchboard" | "capability_switchboard" => {
-            infring_layer1_security::run_capability_switchboard(root, rest)
+            crate::infring_layer1_security_bridge::run_capability_switchboard(root, rest)
         }
         "black-box-ledger" | "black_box_ledger" => {
-            infring_layer1_security::run_black_box_ledger(root, rest)
+            crate::infring_layer1_security_bridge::run_black_box_ledger(root, rest)
         }
         "t0-invariants" | "t0_invariants" => crate::t0_invariants_kernel::run(root, rest),
         "thorn-swarm-protocol" | "thorn_swarm_protocol" | "thorn" => {
@@ -53,16 +53,16 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         }
         "psycheforge" => crate::psycheforge_kernel::run(root, rest),
         "goal-preservation-kernel" | "goal_preservation_kernel" => {
-            infring_layer1_security::run_goal_preservation_kernel(root, rest)
+            crate::infring_layer1_security_bridge::run_goal_preservation_kernel(root, rest)
         }
         "dream-warden-guard" | "dream_warden_guard" => {
-            infring_layer1_security::run_dream_warden_guard(root, rest)
+            crate::infring_layer1_security_bridge::run_dream_warden_guard(root, rest)
         }
         "truth-seeking-gate" | "truth_seeking_gate" | "truth-gate" | "truth_gate" => {
-            infring_layer1_security::run_truth_seeking_gate(root, rest)
+            crate::infring_layer1_security_bridge::run_truth_seeking_gate(root, rest)
         }
         "abac-policy-plane" | "abac_policy_plane" => {
-            infring_layer1_security::run_abac_policy_plane(root, rest)
+            crate::infring_layer1_security_bridge::run_abac_policy_plane(root, rest)
         }
         "scan" => run_scan_command(root, rest, strict),
         "remediate" | "auto-remediate" | "auto_remediate" => {

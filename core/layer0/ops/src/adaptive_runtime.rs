@@ -156,7 +156,7 @@ fn tick(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
             "path": policy_path.to_string_lossy().to_string()
         }
     });
-    receipt["receipt_hash"] = Value::String(deterministic_receipt_hash(&receipt));
+    receipt["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&receipt));
 
     let state_path = root.join(clean(&policy.state_path, 260));
     let receipts_path = root.join(clean(&policy.receipts_path, 260));
@@ -272,7 +272,7 @@ fn error_receipt(kind: &str, code: &str, detail: Option<String>) -> Value {
         "error": code,
         "detail": detail
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 

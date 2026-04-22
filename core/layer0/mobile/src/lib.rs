@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 mod blob;
+mod bridges;
 
-use execution_core::run_workflow;
-use protheus_graph_core_v1::run_workflow as run_graph_workflow;
-use protheus_observability_core_v1::{run_chaos_resilience, ChaosScenarioRequest, TraceEvent};
-use protheus_pinnacle_core_v1::merge_delta;
-use protheus_red_legion_core_v1::{run_chaos_game, ChaosGameRequest};
-use protheus_swarm_core_v1::{orchestrate_swarm, SwarmAgent, SwarmRequest, SwarmTask};
-use protheus_vault_core_v1::{
+use crate::bridges::execution_core_bridge::run_workflow;
+use crate::bridges::protheus_graph_core_v1_bridge::run_workflow as run_graph_workflow;
+use crate::bridges::protheus_pinnacle_core_v1_bridge::merge_delta;
+use crate::bridges::protheus_red_legion_core_v1_bridge::{run_chaos_game, ChaosGameRequest};
+use crate::bridges::protheus_swarm_core_v1_bridge::{
+    orchestrate_swarm, SwarmAgent, SwarmRequest, SwarmTask,
+};
+use crate::bridges::protheus_vault_core_v1_bridge::{
     evaluate_vault_policy, load_embedded_vault_policy, VaultOperationRequest,
 };
+use protheus_nexus_core_v1::{run_chaos_resilience, ChaosScenarioRequest, TraceEvent};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 

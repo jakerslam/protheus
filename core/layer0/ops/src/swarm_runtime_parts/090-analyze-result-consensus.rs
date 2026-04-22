@@ -13,7 +13,7 @@ fn analyze_result_consensus(results: &[AgentResult], field: &str, threshold: f64
         let Some(value) = consensus_value_from_result(result, field) else {
             continue;
         };
-        let fingerprint = deterministic_receipt_hash(&value);
+        let fingerprint = crate::deterministic_receipt_hash(&value);
         groups.entry(fingerprint).or_default().push((
             result.result_id.clone(),
             result.agent_label.clone(),
@@ -222,7 +222,7 @@ fn create_channel(
     }
     let channel_id = format!(
         "chan-{}",
-        &deterministic_receipt_hash(&json!({
+        &crate::deterministic_receipt_hash(&json!({
             "name": channel_name,
             "participants": cleaned,
             "ts": now_epoch_ms(),
@@ -260,7 +260,7 @@ fn publish_channel_message(
         .ok_or_else(|| format!("unknown_channel:{channel_id}"))?;
     let message_id = format!(
         "chanmsg-{}",
-        &deterministic_receipt_hash(&json!({
+        &crate::deterministic_receipt_hash(&json!({
             "channel_id": channel_id,
             "sender": sender_session_id,
             "payload": payload,

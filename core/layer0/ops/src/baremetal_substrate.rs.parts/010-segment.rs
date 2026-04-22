@@ -177,7 +177,7 @@ fn to_base36(mut value: u128) -> String {
 }
 
 fn stable_id(prefix: &str, basis: &Value) -> String {
-    let digest = deterministic_receipt_hash(basis);
+    let digest = crate::deterministic_receipt_hash(basis);
     format!("{prefix}_{}_{}", to_base36(now_millis()), &digest[..12])
 }
 

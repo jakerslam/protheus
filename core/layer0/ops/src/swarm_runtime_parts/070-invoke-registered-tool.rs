@@ -168,7 +168,7 @@ fn stream_emit(
     let turn_id = turn_id.unwrap_or_else(|| {
         format!(
             "turn-{}",
-            &deterministic_receipt_hash(&json!({
+            &crate::deterministic_receipt_hash(&json!({
                 "session_id": session_id,
                 "ts": now_epoch_ms(),
                 "kind": "stream",
@@ -214,7 +214,7 @@ fn stream_emit(
             })
             .unwrap_or_default();
         let chunk_receipt = json!({
-            "chunk_id": format!("chunk-{}", &deterministic_receipt_hash(&json!({
+            "chunk_id": format!("chunk-{}", &crate::deterministic_receipt_hash(&json!({
                 "session_id": session_id,
                 "turn_id": turn_id,
                 "idx": idx,
@@ -309,7 +309,7 @@ fn execute_turns(
     }
     let run_id = format!(
         "run-{}",
-        &deterministic_receipt_hash(&json!({
+        &crate::deterministic_receipt_hash(&json!({
             "session_id": session_id,
             "run_label": run_label,
             "turn_count": turns.len(),

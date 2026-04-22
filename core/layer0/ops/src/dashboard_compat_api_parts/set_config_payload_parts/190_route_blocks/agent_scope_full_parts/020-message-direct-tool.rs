@@ -290,8 +290,7 @@ fn handle_agent_scope_message_route(
                 );
                 let (contracted, report, retry_outcome) = enforce_user_facing_finalization_contract(
                     &message,
-                    "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly."
-                        .to_string(),
+                    workflow_unexpected_state_user_fallback(&message, "", &response_tools),
                     &response_tools,
                 );
                 finalized_response = contracted;

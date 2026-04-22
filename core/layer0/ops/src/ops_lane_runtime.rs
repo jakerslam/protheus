@@ -64,7 +64,7 @@ fn lane_receipt(root: &Path, cmd: &str, argv: &[String], spec: &LaneSpec<'_>) ->
         "root": root.to_string_lossy(),
         "claim_evidence": lane_claim_evidence(spec, cmd)
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
@@ -111,6 +111,6 @@ mod tests {
             .as_object_mut()
             .expect("obj")
             .remove("receipt_hash");
-        assert_eq!(deterministic_receipt_hash(&unhashed), hash);
+        assert_eq!(crate::deterministic_receipt_hash(&unhashed), hash);
     }
 }

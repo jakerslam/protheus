@@ -64,7 +64,7 @@ fn cursor_token_for_event(
         "attention_key": event.get("attention_key").cloned().unwrap_or(Value::Null),
         "event_ts": event.get("ts").cloned().unwrap_or(Value::Null)
     });
-    deterministic_receipt_hash(&seed)
+    crate::deterministic_receipt_hash(&seed)
 }
 
 fn load_active_queue(contract: &AttentionContract) -> (Vec<Value>, usize) {
@@ -104,7 +104,7 @@ fn next(root: &Path, flags: &BTreeMap<String, String>, auto_ack: bool) -> i32 {
             "run_context": run_context,
             "attention_contract": contract_snapshot(&contract)
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         emit(&out);
         return 2;
     }
@@ -217,7 +217,7 @@ fn next(root: &Path, flags: &BTreeMap<String, String>, auto_ack: bool) -> i32 {
         "events": events,
         "attention_contract": contract_snapshot(&contract)
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     append_jsonl(
         &contract.receipts_path,
         &json!({
@@ -260,7 +260,7 @@ fn ack(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
             "run_context": run_context,
             "attention_contract": contract_snapshot(&contract)
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         emit(&out);
         return 2;
     }
@@ -279,7 +279,7 @@ fn ack(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
             "run_context": run_context,
             "attention_contract": contract_snapshot(&contract)
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         emit(&out);
         return 2;
     };
@@ -293,7 +293,7 @@ fn ack(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
             "run_context": run_context,
             "attention_contract": contract_snapshot(&contract)
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         emit(&out);
         return 2;
     }
@@ -312,7 +312,7 @@ fn ack(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
             "expired_pruned": expired_pruned,
             "attention_contract": contract_snapshot(&contract)
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         emit(&out);
         return 2;
     }
@@ -331,7 +331,7 @@ fn ack(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
             "cursor_offset": old_offset,
             "attention_contract": contract_snapshot(&contract)
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         emit(&out);
         return 2;
     }
@@ -353,7 +353,7 @@ fn ack(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
             "through_index": through_index,
             "attention_contract": contract_snapshot(&contract)
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         emit(&out);
         return 2;
     }
@@ -383,7 +383,7 @@ fn ack(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
         "backpressure": backpressure_snapshot(active_rows.len(), &contract),
         "attention_contract": contract_snapshot(&contract)
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     append_jsonl(
         &contract.receipts_path,
         &json!({

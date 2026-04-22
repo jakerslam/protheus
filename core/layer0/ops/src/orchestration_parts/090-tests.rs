@@ -188,6 +188,60 @@ mod orchestration_regression_tests {
             1
         );
 
+        let taskgroup_root = root.path().join("taskgroup-store");
+        let taskgroup_root_string = taskgroup_root.display().to_string();
+        let saved = invoke(
+            root.path(),
+            "taskgroup.save",
+            &json!({
+                "root_dir": taskgroup_root_string,
+                "task_group": {
+                    "task_group_id": "audit-20260421000000-wave06",
+                    "task_type": "audit",
+                    "agent_count": 2,
+                    "agents": [
+                        { "agent_id": "agent-1", "status": "done" },
+                        { "agent_id": "agent-2", "status": "unknown" }
+                    ]
+                }
+            }),
+        );
+        assert_eq!(saved.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            saved.pointer("/task_group/agents/1/status")
+                .and_then(Value::as_str),
+            Some("pending")
+        );
+
+        let loaded = invoke(
+            root.path(),
+            "taskgroup.load",
+            &json!({
+                "root_dir": taskgroup_root_string,
+                "task_group_id": "audit-20260421000000-wave06"
+            }),
+        );
+        assert_eq!(loaded.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(loaded.get("exists").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            loaded
+                .pointer("/counts/total")
+                .and_then(Value::as_i64)
+                .unwrap_or_default(),
+            2
+        );
+
+        let missing = invoke(
+            root.path(),
+            "taskgroup.load",
+            &json!({
+                "root_dir": taskgroup_root_string,
+                "task_group_id": "audit-20260421000000-missing"
+            }),
+        );
+        assert_eq!(missing.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(missing.get("exists").and_then(Value::as_bool), Some(false));
+
         let derived = invoke(
             root.path(),
             "taskgroup.derive_status",
@@ -203,6 +257,29 @@ mod orchestration_regression_tests {
         );
         assert_eq!(derived.get("ok").and_then(Value::as_bool), Some(true));
         assert_eq!(derived.get("status").and_then(Value::as_str), Some("running"));
+
+        let listed = invoke(
+            root.path(),
+            "taskgroup.list_agents",
+            &json!({
+                "root_dir": taskgroup_root_string,
+                "task_group_id": "audit-20260421000000-wave06"
+            }),
+        );
+        assert_eq!(listed.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            listed
+                .get("type")
+                .and_then(Value::as_str),
+            Some("orchestration_taskgroup_list_agents")
+        );
+        assert_eq!(
+            listed
+                .get("agents")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len()),
+            Some(2)
+        );
 
         let summarized = invoke(
             root.path(),
@@ -325,6 +402,59 @@ mod orchestration_regression_tests {
         assert_eq!(
             from_checkpoint
                 .get("findings_sofar")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len()),
+            Some(1)
+        );
+
+        let coordinator_status = invoke(
+            root.path(),
+            "coordinator.status",
+            &json!({
+                "task_id": "invoke-test-task"
+            }),
+        );
+        assert_eq!(
+            coordinator_status.get("ok").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            coordinator_status
+                .get("type")
+                .and_then(Value::as_str),
+            Some("orchestration_coordinator_status")
+        );
+        assert_eq!(
+            coordinator_status
+                .get("task_id")
+                .and_then(Value::as_str),
+            Some("invoke-test-task")
+        );
+
+        let coordinator_timeout = invoke(
+            root.path(),
+            "coordinator.timeout",
+            &json!({
+                "task_id": "invoke-test-task",
+                "processed_count": 1,
+                "retry_count": 0,
+                "items": [{ "item_id": "REQ-1" }, { "item_id": "REQ-2" }],
+                "findings": [{ "item_id": "REQ-1", "severity": "high" }]
+            }),
+        );
+        assert_eq!(
+            coordinator_timeout.get("ok").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            coordinator_timeout
+                .get("type")
+                .and_then(Value::as_str),
+            Some("orchestration_checkpoint_timeout")
+        );
+        assert_eq!(
+            coordinator_timeout
+                .get("partial_results")
                 .and_then(Value::as_array)
                 .map(|rows| rows.len()),
             Some(1)

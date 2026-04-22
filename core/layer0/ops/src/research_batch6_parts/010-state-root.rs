@@ -97,7 +97,7 @@ fn finalize_receipt(mut out: Value) -> Value {
         .cloned()
         .unwrap_or_default();
     out["claim_evidence"] = Value::Array(normalize_claim_evidence(claims));
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 

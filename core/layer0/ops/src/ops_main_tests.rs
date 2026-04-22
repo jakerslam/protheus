@@ -35,5 +35,5 @@ fn cli_error_receipt_is_deterministic() {
         .as_object_mut()
         .expect("object")
         .remove("receipt_hash");
-    assert_eq!(deterministic_receipt_hash(&unhashed), expected_hash);
+    assert_eq!(crate::deterministic_receipt_hash(&unhashed), expected_hash);
 }

@@ -128,7 +128,7 @@ fn apply(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
         run_context
     };
 
-    let patch_hash = deterministic_receipt_hash(&json!({
+    let patch_hash = crate::deterministic_receipt_hash(&json!({
         "persona": persona,
         "patch": patch_map
     }));

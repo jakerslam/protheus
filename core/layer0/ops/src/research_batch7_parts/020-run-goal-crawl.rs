@@ -250,7 +250,7 @@ pub fn run_goal_crawl(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value {
             }
         ]
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
@@ -419,6 +419,6 @@ pub fn run_map_site(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value {
             }
         ]
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }

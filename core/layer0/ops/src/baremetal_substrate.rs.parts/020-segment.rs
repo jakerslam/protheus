@@ -80,7 +80,7 @@ fn fs_driver(
         "mount_fs": mount_fs,
         "prev_hash": prev_hash,
     });
-    let row_hash = deterministic_receipt_hash(&row_base);
+    let row_hash = crate::deterministic_receipt_hash(&row_base);
     let row = json!({
         "index": row_base["index"],
         "timestamp": row_base["timestamp"],

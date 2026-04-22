@@ -25,7 +25,7 @@ layer0-min-memory = []
 layer-1-substrate-detector = []
 mimalloc = ["dep:mimalloc"]
 no-client-bloat = []
-tiny = ["dep:protheus-tiny-runtime"]
+tiny = []
 no_std = ["tiny"]
 minimal-alloc = ["minimal"]
 pgo-profile = []
@@ -55,7 +55,6 @@ name = "infringd"
 path = "src/bin/infringd.rs"
 
 [dependencies]
-foundation_hook_enforcer = { path = "../foundation_hook_enforcer" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
@@ -73,22 +72,8 @@ hex = "0.4"
 memmap2 = "0.9"
 aes-gcm = { version = "0.10", features = ["aes"] }
 rand = "0.8"
-burn_oracle_budget_gate = { path = "../burn_oracle_budget_gate" }
-persona_dispatch_security_gate = { path = "../persona_dispatch_security_gate" }
-protheus-security-core-v1 = { path = "../security" }
-execution_core = { path = "../../layer2/execution" }
-infring-layer1-security = { path = "../../layer1/security" }
-protheus-autonomy-core-v1 = { path = "../../layer2/autonomy" }
 protheus-nexus-core-v1 = { path = "../../layer2/nexus" }
-protheus-ops-core-v1 = { path = "../../layer2/ops" }
-protheus-spine-core-v1 = { path = "../../layer2/spine" }
-protheus-memory-core-v1 = { path = "../../layer2/memory" }
-protheus-stomach-core-v1 = { path = "../../layer2/stomach" }
-protheus-tooling-core-v1 = { path = "../../layer2/tooling" }
-llm_runtime = { path = "../../layer1/llm_runtime" }
-exotic_wrapper = { path = "../../layer_minus_one/exotic_wrapper" }
 mimalloc = { version = "0.1", default-features = false, optional = true }
-protheus-tiny-runtime = { path = "../tiny_runtime", optional = true }
 protheus-pure-workspace = { path = "../../../client/pure-workspace", optional = true }
 crossbeam-channel = "0.5"
 parking_lot = "0.12"

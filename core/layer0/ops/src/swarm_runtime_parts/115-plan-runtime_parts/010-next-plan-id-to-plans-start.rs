@@ -1,5 +1,5 @@
 fn next_plan_id(state: &SwarmState, goal: &str) -> String {
-    let digest = deterministic_receipt_hash(&json!({
+    let digest = crate::deterministic_receipt_hash(&json!({
         "goal": goal,
         "ts": now_epoch_ms(),
         "plans": state.plan_registry.len(),
@@ -8,7 +8,7 @@ fn next_plan_id(state: &SwarmState, goal: &str) -> String {
 }
 
 fn next_plan_node_id(plan: &SwarmPlanGraph, seed: &str, depth: u8) -> String {
-    let digest = deterministic_receipt_hash(&json!({
+    let digest = crate::deterministic_receipt_hash(&json!({
         "plan_id": plan.plan_id,
         "seed": seed,
         "depth": depth,

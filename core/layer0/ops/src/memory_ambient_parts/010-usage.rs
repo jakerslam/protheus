@@ -218,7 +218,7 @@ fn ensure_digest_field(memory_payload: &mut Value, field: &str, digest_input: Va
     if let Some(map) = memory_payload.as_object_mut() {
         map.insert(
             field.to_string(),
-            Value::String(deterministic_receipt_hash(&digest_input)),
+            Value::String(crate::deterministic_receipt_hash(&digest_input)),
         );
     }
 }

@@ -256,8 +256,11 @@ fn finalize_message_finalization_and_payload(
         let (contract_finalized, contract_report, contract_outcome) =
             enforce_user_facing_finalization_contract(
                 message,
-                "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly."
-                    .to_string(),
+                workflow_unexpected_state_user_fallback(
+                    message,
+                    &latest_assistant_text,
+                    &response_tools,
+                ),
                 &response_tools,
             );
         finalized_response = contract_finalized;

@@ -294,7 +294,7 @@ fn run_openshell_runtime_command(root: &Path, argv: &[String], strict: bool) -> 
     match load_openshell_policy(&policy_path) {
         Ok((raw, parsed, errors)) => {
             loaded_policy = raw;
-            policy_digest = deterministic_receipt_hash(&loaded_policy);
+            policy_digest = crate::deterministic_receipt_hash(&loaded_policy);
             policy_errors = errors;
             parsed_policy = Some(parsed);
         }
@@ -409,7 +409,7 @@ fn run_openshell_runtime_command(root: &Path, argv: &[String], strict: bool) -> 
             "policy_path": policy_path.display().to_string(),
             "mode": parsed_policy.as_ref().map(|v| v.mode.clone()).unwrap_or_else(|| "production".to_string()),
             "signed_at": now_iso(),
-            "signature": deterministic_receipt_hash(&json!({
+            "signature": crate::deterministic_receipt_hash(&json!({
                 "schema_id": OPENSHELL_POLICY_SCHEMA_ID,
                 "policy_digest": policy_digest
             })),
@@ -419,7 +419,7 @@ fn run_openshell_runtime_command(root: &Path, argv: &[String], strict: bool) -> 
         payload["signed_policy"] = signed_record;
     }
 
-    payload["receipt_hash"] = Value::String(deterministic_receipt_hash(&payload));
+    payload["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&payload));
     persist_openshell_artifacts(root, &command, &payload);
     let exit = if strict && !ok { 2 } else { 0 };
     (payload, exit)

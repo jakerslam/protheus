@@ -370,7 +370,7 @@ fn append_jsonl(path: &Path, row: &Value) -> Result<(), String> {
 }
 
 fn receipt_hash(v: &Value) -> String {
-    deterministic_receipt_hash(v)
+    crate::deterministic_receipt_hash(v)
 }
 
 fn default_policy() -> Policy {

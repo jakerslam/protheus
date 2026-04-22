@@ -85,7 +85,7 @@
             "side": side,
             "qty": qty
         });
-        let order_intent_id = deterministic_receipt_hash(&order);
+        let order_intent_id = crate::deterministic_receipt_hash(&order);
         let order_record = json!({
             "version": "v1",
             "ts": now_iso(),
@@ -124,7 +124,7 @@
                 }
             ]
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         write_json(&latest, &out);
         append_jsonl(&history, &out);
         print_receipt(&out);
@@ -156,7 +156,7 @@
                 "error": "unknown_target",
                 "target": target
             });
-            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
             print_receipt(&out);
             return 2;
         }

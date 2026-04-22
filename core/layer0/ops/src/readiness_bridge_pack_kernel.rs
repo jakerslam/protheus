@@ -35,7 +35,7 @@ fn usage() {
 }
 
 fn with_receipt_hash(mut payload: Value) -> Value {
-    payload["receipt_hash"] = Value::String(deterministic_receipt_hash(&payload));
+    payload["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&payload));
     payload
 }
 

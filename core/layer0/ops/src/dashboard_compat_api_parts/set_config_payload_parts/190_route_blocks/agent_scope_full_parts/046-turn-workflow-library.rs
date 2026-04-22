@@ -505,7 +505,7 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
 }
 
 fn workflow_library_prompt_context(message: &str, latent_tool_candidates: &[Value]) -> String {
-    let broker = protheus_tooling_core_v1::ToolBroker::default();
+    let broker = crate::protheus_tooling_core_v1_bridge::ToolBroker::default();
     let grouped_catalog = broker.grouped_capability_catalog();
     let tool_gate = workflow_turn_tool_decision_tree(message);
     let requires_file_mutation = tool_gate

@@ -146,7 +146,7 @@
                     "state_path": state_file.display().to_string(),
                 }
             }]);
-            payload["receipt_hash"] = Value::String(deterministic_receipt_hash(&payload));
+            payload["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&payload));
             payload
         }),
         _ => Err(format!("unknown_command:{cmd}")),

@@ -135,7 +135,7 @@ fn compact(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
         "consumer_offsets_after": offsets_after,
         "attention_contract": contract_snapshot(&contract),
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     append_jsonl(
         &contract.receipts_path,
         &json!({
@@ -173,7 +173,7 @@ fn enqueue(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
                 "run_context": run_context,
                 "attention_contract": contract_snapshot(&contract)
             });
-            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
             emit(&out);
             return 2;
         }
@@ -190,7 +190,7 @@ fn enqueue(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
                 "run_context": run_context,
                 "attention_contract": contract_snapshot(&contract)
             });
-            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
             append_jsonl(
                 &contract.receipts_path,
                 &json!({
@@ -356,7 +356,7 @@ fn enqueue(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
     if queued {
         receipt["queued_event"] = event.clone();
     }
-    receipt["receipt_hash"] = Value::String(deterministic_receipt_hash(&receipt));
+    receipt["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&receipt));
 
     append_jsonl(
         &contract.receipts_path,
@@ -428,7 +428,7 @@ fn status(root: &Path) -> i32 {
         "attention_contract": contract_snapshot(&contract),
         "latest": latest
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     emit(&out);
     0
 }
@@ -456,7 +456,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "reason": "unknown_command",
                 "command": command
             });
-            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
             emit(&out);
             2
         }

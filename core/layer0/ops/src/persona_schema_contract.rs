@@ -90,7 +90,7 @@ pub fn run(root: &Path, args: &[String]) -> i32 {
                     }
                 ]
             });
-            receipt["receipt_hash"] = Value::String(deterministic_receipt_hash(&receipt));
+            receipt["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&receipt));
             print_json(&receipt);
             let _ = write_state(root, &receipt);
             if fail_closed {
@@ -312,7 +312,7 @@ fn error_receipt(schema_mode: &str, strict: bool, error: &str) -> Value {
         "fail_closed": true,
         "error": error
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
@@ -387,7 +387,7 @@ mod tests {
             .as_object_mut()
             .expect("object")
             .remove("receipt_hash");
-        assert_eq!(deterministic_receipt_hash(&no_hash), hash);
+        assert_eq!(crate::deterministic_receipt_hash(&no_hash), hash);
     }
 
     #[test]

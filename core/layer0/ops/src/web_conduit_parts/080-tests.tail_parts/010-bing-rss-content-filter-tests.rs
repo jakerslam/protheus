@@ -170,6 +170,24 @@ fn search_provider_failure_mode_marks_provider_chain_exhausted_after_attempts() 
 }
 
 #[test]
+fn search_cache_skip_reason_maps_provider_chain_exhausted() {
+    let reason = search_cache_skip_reason_from_failure_mode("provider_chain_exhausted");
+    assert_eq!(reason, "provider_chain_exhausted");
+}
+
+#[test]
+fn search_cache_skip_reason_maps_tool_surface_degraded() {
+    let reason = search_cache_skip_reason_from_failure_mode("tool_surface_degraded");
+    assert_eq!(reason, "tool_surface_degraded");
+}
+
+#[test]
+fn search_cache_skip_reason_returns_empty_for_success_mode() {
+    let reason = search_cache_skip_reason_from_failure_mode("none");
+    assert_eq!(reason, "");
+}
+
+#[test]
 fn meta_query_detector_flags_workflow_diagnostic_prompt() {
     assert!(search_query_is_meta_diagnostic(
         "was this a bad web request or training data hallucination again"

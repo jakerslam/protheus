@@ -118,7 +118,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             _ => json!({}),
         };
         receipt["dashboard"] = dashboard;
-        receipt["receipt_hash"] = Value::String(deterministic_receipt_hash(&receipt));
+        receipt["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&receipt));
         print_json_line(&receipt);
         return 0;
     }

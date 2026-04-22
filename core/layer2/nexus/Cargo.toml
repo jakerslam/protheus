@@ -5,9 +5,32 @@ edition = "2021"
 license = "SEE LICENSE IN LICENSE"
 
 [dependencies]
+burn_oracle_budget_gate = { path = "../../layer0/burn_oracle_budget_gate" }
 conduit-security = { path = "../conduit-security" }
 exotic_wrapper = { path = "../../layer_minus_one/exotic_wrapper" }
+foundation_hook_enforcer = { path = "../../layer0/foundation_hook_enforcer" }
+llm_runtime = { path = "../../layer1/llm_runtime" }
 infring-layer1-security = { path = "../../layer1/security" }
+protheus-layer1-memory-runtime = { path = "../../layer1/memory_runtime" }
+persona_dispatch_security_gate = { path = "../../layer0/persona_dispatch_security_gate" }
+protheus-autonomy-core-v1 = { path = "../autonomy" }
+execution_core = { path = "../execution" }
+protheus-memory-core-v1 = { path = "../memory" }
+protheus-observability-core-v1 = { path = "../../layer1/observability" }
+protheus-tiny-runtime = { path = "../../layer0/tiny_runtime" }
+protheus-tooling-core-v1 = { path = "../tooling" }
+protheus-vault-core-v1 = { path = "../../layer0/vault" }
+protheus-graph-core-v1 = { path = "../../layer0/graph" }
+protheus-pinnacle-core-v1 = { path = "../../layer0/pinnacle" }
+protheus-red-legion-core-v1 = { path = "../../layer0/red_legion" }
+protheus-swarm-core-v1 = { path = "../../layer0/swarm" }
+ipc = { path = "../../layer1/ipc" }
+isolation = { path = "../../layer1/isolation" }
+os_extension_wrapper = { path = "../../layer3/os_extension_wrapper" }
+resource = { path = "../../layer1/resource" }
+storage = { path = "../../layer1/storage" }
+task = { path = "../../layer1/task" }
+update = { path = "../../layer1/update" }
 infring-agent-derive = { path = "../../layer0/infring_agent_derive" }
 infring-task-fabric-core-v1 = { path = "../tools/task_fabric" }
 infring_types = { path = "../../layer1/infring_types" }

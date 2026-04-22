@@ -169,7 +169,7 @@ fn prepare_cmd(
             }
         }]
     });
-    payload["receipt_hash"] = Value::String(deterministic_receipt_hash(&payload));
+    payload["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&payload));
 
     write_text_atomic(
         &policy.latest_path,
@@ -207,7 +207,7 @@ fn status_cmd(policy: &Policy) -> Value {
         "latest_path": policy.latest_path,
         "history_path": policy.history_path
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 
@@ -221,7 +221,7 @@ fn cli_error_receipt(argv: &[String], err: &str, code: i32) -> Value {
         "error": err,
         "exit_code": code
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 

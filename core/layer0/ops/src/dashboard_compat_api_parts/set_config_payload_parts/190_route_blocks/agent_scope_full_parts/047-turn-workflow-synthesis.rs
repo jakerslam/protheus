@@ -136,8 +136,56 @@ fn workflow_final_response_used(workflow: &Value) -> bool {
 fn workflow_final_response_allows_system_fallback(workflow: &Value) -> bool {
     matches!(
         workflow_final_response_status(workflow).as_str(),
-        "invoke_failed" | "synthesis_failed" | "skipped_missing_model" | "skipped_test"
+        "invoke_failed"
+            | "synthesis_failed"
+            | "skipped_missing_model"
+            | "skipped_test"
+            | "skipped_not_required"
     )
+}
+
+fn workflow_response_repetition_breaker_active(latest_assistant_text: &str) -> bool {
+    let lowered = latest_assistant_text.to_lowercase();
+    lowered.contains("i completed the workflow gate, but the final workflow state was unexpected")
+        || lowered.contains("i completed the run, but the final reply did not render")
+}
+
+fn workflow_turn_has_policy_block(response_tools: &[Value]) -> bool {
+    response_tools.iter().any(|row| {
+        row.get("blocked").and_then(Value::as_bool).unwrap_or(false)
+            || row
+                .get("status")
+                .and_then(Value::as_str)
+                .map(|raw| raw.to_lowercase().contains("lease_denied"))
+                .unwrap_or(false)
+            || row
+                .get("result")
+                .and_then(Value::as_str)
+                .map(|raw| raw.to_lowercase().contains("lease_denied"))
+                .unwrap_or(false)
+    })
+}
+
+fn workflow_unexpected_state_user_fallback(
+    message: &str,
+    latest_assistant_text: &str,
+    response_tools: &[Value],
+) -> String {
+    let policy_blocked = workflow_turn_has_policy_block(response_tools);
+    let repeated_fallback = workflow_response_repetition_breaker_active(latest_assistant_text);
+    if repeated_fallback {
+        if policy_blocked {
+            return "I'm not hard-locked; the last turn was blocked by a local access policy gate. I can continue with a direct answer from current context right now, and I will avoid extra tool calls unless you explicitly request one.".to_string();
+        }
+        return "I'm not hard-locked. The previous fallback repeated, so I'm switching to a plain direct response path and avoiding extra tool calls unless you explicitly request one.".to_string();
+    }
+    if policy_blocked {
+        return "The prior step was blocked by a local access policy gate. I can still answer directly from current context without another tool call.".to_string();
+    }
+    if message.trim().is_empty() {
+        return "I hit a workflow finalization edge, but I can continue with a direct response from current context.".to_string();
+    }
+    "I hit a workflow finalization edge on this turn. I can still answer directly from current context, and I'll avoid extra tool calls unless you explicitly request one.".to_string()
 }
 
 fn tool_completion_report_for_response(
@@ -693,4 +741,46 @@ fn run_turn_workflow_final_response(
         workflow["final_llm_response"]["error"] = Value::String(last_error);
     }
     workflow
+}
+
+#[cfg(test)]
+mod workflow_fallback_tests {
+    use super::*;
+
+    #[test]
+    fn workflow_fallback_allowlist_includes_skipped_not_required() {
+        let workflow = json!({
+            "final_llm_response": {
+                "status": "skipped_not_required"
+            }
+        });
+        assert!(workflow_final_response_allows_system_fallback(&workflow));
+    }
+
+    #[test]
+    fn workflow_unexpected_state_fallback_mentions_policy_gate_for_blocked_tools() {
+        let tools = vec![json!({
+            "name": "file_list",
+            "blocked": true,
+            "result": "lease_denied:client_ingress_domain_boundary"
+        })];
+        let message = "So is it too strict or what?";
+        let response = workflow_unexpected_state_user_fallback(message, "", &tools);
+        assert!(response.to_lowercase().contains("policy"));
+        assert!(response.to_lowercase().contains("direct"));
+    }
+
+    #[test]
+    fn workflow_unexpected_state_fallback_breaks_repeated_legacy_copy() {
+        let tools = vec![json!({
+            "name": "file_list",
+            "blocked": true,
+            "result": "lease_denied:client_ingress_domain_boundary"
+        })];
+        let message = "hello";
+        let latest = "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.";
+        let response = workflow_unexpected_state_user_fallback(message, latest, &tools);
+        assert!(!response.contains("Please retry so I can rerun the chain cleanly."));
+        assert!(response.to_lowercase().contains("not hard-locked"));
+    }
 }

@@ -366,7 +366,7 @@ fn checkpoint_run(state: &mut Value, payload: &Map<String, Value>) -> Result<Val
         "thread_id": clean_token(payload.get("thread_id").and_then(Value::as_str), "thread"),
         "checkpoint_label": clean_token(payload.get("checkpoint_label").and_then(Value::as_str), "graph_step"),
         "snapshot": snapshot,
-        "snapshot_hash": deterministic_receipt_hash(&json!({"snapshot": payload.get("state_snapshot").cloned().unwrap_or_else(|| json!({}))})),
+        "snapshot_hash": crate::deterministic_receipt_hash(&json!({"snapshot": payload.get("state_snapshot").cloned().unwrap_or_else(|| json!({}))})),
         "replay_enabled": replay_enabled,
         "replay_token": if replay_enabled { json!(stable_id("lgreplay", &json!({"graph_id": graph_id}))) } else { json!(null) },
         "rewind_from": clean_token(payload.get("rewind_from").and_then(Value::as_str), ""),

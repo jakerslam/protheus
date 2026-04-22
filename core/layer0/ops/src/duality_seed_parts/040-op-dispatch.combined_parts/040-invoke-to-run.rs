@@ -30,7 +30,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "ts": now_iso(),
             "root": clean(root.display(), 280)
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         print_json_line(&out);
         return 0;
     }
@@ -45,7 +45,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "ts": now_iso(),
             "exit_code": 2
         });
-        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         print_json_line(&out);
         return 2;
     }
@@ -62,7 +62,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "ts": now_iso(),
                 "exit_code": 2
             });
-            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
             print_json_line(&out);
             return 2;
         }
@@ -87,7 +87,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "ts": now_iso(),
                 "root": clean(root.display(), 280)
             });
-            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
             print_json_line(&out);
             0
         }
@@ -102,7 +102,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "ts": now_iso(),
                 "exit_code": 2
             });
-            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
             print_json_line(&out);
             2
         }

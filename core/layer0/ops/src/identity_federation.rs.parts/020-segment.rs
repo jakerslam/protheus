@@ -43,7 +43,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let mut out = payload;
     out["policy_path"] = Value::String(policy.policy_path.to_string_lossy().to_string());
     out["strict"] = Value::Bool(strict);
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
 
     if let Err(err) = persist(&policy, &out) {
         let fail = cli_error(argv, &format!("persist_failed:{err}"), 1);

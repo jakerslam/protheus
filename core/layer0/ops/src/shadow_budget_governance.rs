@@ -228,7 +228,7 @@ fn evaluate(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
             }
         ]
     });
-    receipt["receipt_hash"] = Value::String(deterministic_receipt_hash(&receipt));
+    receipt["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&receipt));
     print_json(&receipt);
 
     if decision == DecisionKind::Deny {
@@ -273,7 +273,7 @@ fn status(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
             "compute_ms": policy.system_reserved_compute_budget_ms
         }
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     print_json(&out);
     0
 }
@@ -352,7 +352,7 @@ fn error_receipt(error: &str) -> Value {
         "type": "shadow_budget_governance",
         "error": error
     });
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
     out
 }
 

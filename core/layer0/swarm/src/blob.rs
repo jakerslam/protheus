@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
+use infring_types::decode_normalized_blob_manifest;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 use std::fmt::{Display, Formatter};
-use protheus_nexus_core_v1::decode_normalized_blob_manifest;
 
 pub const SWARM_STRATEGY_BLOB_ID: &str = "swarm_strategy";
 pub const SWARM_STRATEGY_BLOB: &[u8] = include_bytes!("blobs/swarm_strategy.blob");

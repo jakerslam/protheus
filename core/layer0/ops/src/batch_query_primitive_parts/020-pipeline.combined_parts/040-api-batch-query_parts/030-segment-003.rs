@@ -92,6 +92,9 @@
                 continue;
             }
             if benchmark_intent {
+                if !looks_like_metric_rich_text(&snippet_raw) && looks_like_instructional_query(&snippet_raw) {
+                    continue;
+                }
                 let comparison_haystack = clean_text(
                     &format!("{} {} {}", candidate.title, snippet_raw, candidate.locator),
                     1_600,

@@ -179,7 +179,7 @@ fn run_scale_certification(
         "throughput": throughput,
         "ts": now_iso()
     });
-    let cert_hash = deterministic_receipt_hash(&cert_seed);
+    let cert_hash = crate::deterministic_receipt_hash(&cert_seed);
     let cert_id = format!("scale_cert_{}", &cert_hash[..16]);
     let cert_path = enterprise_state_root(root)
         .join("scale_certifications")
@@ -389,7 +389,7 @@ fn run_enable_bedrock(
     }
 
     let ok = errors.is_empty();
-    let activation_hash = deterministic_receipt_hash(&json!({
+    let activation_hash = crate::deterministic_receipt_hash(&json!({
         "provider": provider,
         "region": region,
         "vpc": vpc,

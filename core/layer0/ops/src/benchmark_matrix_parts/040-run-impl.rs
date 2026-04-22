@@ -196,7 +196,7 @@ fn run_impl(
         }));
     }
 
-    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
 
     let latest_path = root.join(STATE_LATEST_REL);
     let history_path = root.join(STATE_HISTORY_REL);
@@ -376,7 +376,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "snapshot_path": snapshot_raw,
                 "error": err,
             });
-            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
             println!(
                 "{}",
                 serde_json::to_string_pretty(&out).unwrap_or_else(|_| {
@@ -470,7 +470,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "snapshot_path": snapshot_rel,
                     "error": err
                 });
-                out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+                out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
                 println!(
                     "{}",
                     serde_json::to_string_pretty(&out).unwrap_or_else(|_| {
@@ -490,7 +490,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "error": "unknown_command",
                 "command": cmd
             });
-            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
             println!(
                 "{}",
                 serde_json::to_string_pretty(&out)
