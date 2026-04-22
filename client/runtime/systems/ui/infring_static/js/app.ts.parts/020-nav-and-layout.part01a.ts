@@ -181,6 +181,31 @@ function app() {
     page: 'agents',
     themeMode: localStorage.getItem('infring-theme-mode') || 'system',
     overlayGlassTemplate: 'simple-glass',
+    uiBackgroundTemplate: (() => {
+      var mode = 'light-wood';
+      try {
+        var rawDisplaySettings = localStorage.getItem('infring-display-settings') || '';
+        var displaySettings = rawDisplaySettings ? JSON.parse(rawDisplaySettings) : {};
+        mode = String(displaySettings && displaySettings.background ? displaySettings.background : mode);
+        if (mode === 'sand') {
+          mode = 'light-wood';
+          displaySettings = displaySettings && typeof displaySettings === 'object' ? displaySettings : {};
+          displaySettings.background = mode;
+          localStorage.setItem('infring-display-settings', JSON.stringify(displaySettings));
+        }
+        if (!rawDisplaySettings || !displaySettings.background) {
+          displaySettings = displaySettings && typeof displaySettings === 'object' ? displaySettings : {};
+          displaySettings.background = mode;
+          localStorage.setItem('infring-display-settings', JSON.stringify(displaySettings));
+        }
+      } catch (_) {}
+      if (mode === 'unsplash-paper') mode = 'light-wood';
+      if (mode !== 'default-grid' && mode !== 'light-wood' && mode !== 'sand') mode = 'light-wood';
+      try {
+        document.documentElement.setAttribute('data-ui-background-template', mode);
+      } catch (_) {}
+      return mode;
+    })(),
     theme: (() => {
       var mode = localStorage.getItem('infring-theme-mode') || 'system';
       if (mode === 'system') return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';

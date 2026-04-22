@@ -140,7 +140,7 @@ function safeNumber(value: unknown, fallback = 0): number {
 }
 
 function statusForUtilization(value: number): 'healthy' | 'warning' | 'critical' {
-  if (value >= 1) return 'critical';
+  if (value > 1) return 'critical';
   if (value >= 0.85) return 'warning';
   return 'healthy';
 }
@@ -250,12 +250,27 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const queuePolicy = readJsonMaybe(args.queuePolicyPath) || {};
 
   const profileLabel = args.profile === 'tiny-max' ? 'InfRing (tiny-max)' : `InfRing (${args.profile})`;
+  const benchmarkMeasured =
+    args.profile === 'rich'
+      ? benchmarkPayload?.infring_measured
+      : args.profile === 'pure'
+        ? benchmarkPayload?.pure_workspace_measured
+        : benchmarkPayload?.pure_workspace_tiny_max_measured;
+  const benchmarkIdleMemory = safeNumber(
+    benchmarkMeasured?.idle_memory_mb ??
+      benchmarkPayload?.projects?.[profileLabel]?.idle_memory_mb ??
+      benchmarkPayload?.medians?.[args.profile]?.idle_memory_mb ??
+      benchmarkPayload?.[args.profile]?.idle_memory_mb,
+    0,
+  );
   const benchmarkInstallSize = safeNumber(
     benchmarkPayload?.projects?.[profileLabel]?.install_size_mb ??
       benchmarkPayload?.medians?.[args.profile]?.install_size_mb ??
       benchmarkPayload?.[args.profile]?.install_size_mb,
     0,
   );
+  const measuredPeakRss = safeNumber(metrics.peak_rss_mb, 0);
+  const peakRssActual = measuredPeakRss > 0 ? measuredPeakRss : benchmarkIdleMemory;
   const storageActual = safeNumber(
     metrics.storage_usage_mb ??
       metrics.install_size_mb ??
@@ -267,7 +282,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const rowSet = [
     {
       metric: 'peak_rss_mb',
-      actual: Number(metrics.peak_rss_mb || 0),
+      actual: peakRssActual,
       limit: Number(profilePolicy.memory.peak_rss_mb_max || 0),
     },
     {

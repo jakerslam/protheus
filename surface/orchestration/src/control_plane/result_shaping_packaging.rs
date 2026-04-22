@@ -1,5 +1,13 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
-use super::SubdomainBoundary;
+use super::{SubdomainBoundary, SubdomainContract};
+
+pub struct ResultShapingPackagingContract;
+
+impl SubdomainContract for ResultShapingPackagingContract {
+    fn boundary() -> SubdomainBoundary {
+        boundary()
+    }
+}
 
 pub fn boundary() -> SubdomainBoundary {
     SubdomainBoundary {

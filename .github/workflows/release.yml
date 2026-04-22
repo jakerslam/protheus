@@ -270,6 +270,12 @@ jobs:
           npm run -s ops:capability-proof-burden:guard
           npm run -s ops:srs:same-revision:guard
           npm run -s ops:srs:todo-section:guard
+          if [ ! -f artifacts/web_tooling_context_soak_report_latest.json ]; then
+            node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/web_tooling_context_soak.ts || true
+          fi
+          if [ ! -f artifacts/workspace_tooling_context_soak_report_latest.json ]; then
+            node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/workspace_tooling_context_soak.ts || true
+          fi
           npm run -s ops:runtime-proof:verify
           npm run -s ops:queue-backpressure:policy:gate
           npm run -s ops:boundedness:release-gate

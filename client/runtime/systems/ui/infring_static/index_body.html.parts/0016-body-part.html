@@ -4,6 +4,7 @@
         </div>
         <div class="page-body" x-init="startStreaming()">
           <!-- Live logs tab -->
+          <infring-logs-live-tab-shell>
           <div x-show="tab === 'live'">
             <div x-show="loading" class="loading-state"><div class="spinner"></div><span>Connecting to log stream...</span></div>
             <div x-show="!loading && loadError" class="error-state">
@@ -28,6 +29,7 @@
             </div>
             </div>
           </div>
+          </infring-logs-live-tab-shell>
 
           <!-- Audit trail tab -->
           <div x-show="tab === 'audit'">
@@ -85,6 +87,7 @@
           </div>
         </div>
       </div>
+      </infring-logs-page-shell>
     </template>
 
     <!-- Page: Comms -->

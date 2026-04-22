@@ -1,0 +1,105 @@
+/*
+ * UI background templates
+ *
+ * Toggle via:
+ *   document.documentElement.dataset.uiBackgroundTemplate = 'default-grid' | 'light-wood' | 'sand'
+ *
+ * default-grid preserves the original shell background. light-wood and sand
+ * use remote image templates and suppress the grid overlay.
+ */
+:root[data-ui-background-template='default-grid'] {
+  --ui-background-template-color: var(--bg);
+  --ui-background-template-dim-layer: none;
+  --ui-background-template-image: none;
+  --ui-background-template-size: auto;
+  --ui-background-template-position: 0% 0%;
+  --ui-background-template-repeat: repeat;
+  --ui-background-template-grid-size: 26px 26px;
+  --ui-background-template-grid-position: 0px 0px;
+  --ui-background-template-grid-light-x: color-mix(in srgb, #2aa0ff 30%, transparent);
+  --ui-background-template-grid-light-y: color-mix(in srgb, #2aa0ff 24%, transparent);
+  --ui-background-template-grid-light-opacity: 0.14;
+  --ui-background-template-grid-dark-x: color-mix(in srgb, #2aa0ff 62%, transparent);
+  --ui-background-template-grid-dark-y: color-mix(in srgb, #2aa0ff 54%, transparent);
+  --ui-background-template-grid-dark-opacity: calc(var(--chat-grid-active, 0) * 0.78);
+}
+
+:root,
+:root[data-ui-background-template='light-wood'] {
+  --ui-background-template-color: var(--bg);
+  --ui-background-template-dim-layer: none;
+  --ui-background-template-image: url('https://images.unsplash.com/photo-1495195129352-aeb325a55b65?q=80&w=2076&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D');
+  --ui-background-template-size: cover;
+  --ui-background-template-position: center center;
+  --ui-background-template-repeat: no-repeat;
+  --ui-background-template-grid-size: 26px 26px;
+  --ui-background-template-grid-position: 0px 0px;
+  --ui-background-template-grid-light-x: transparent;
+  --ui-background-template-grid-light-y: transparent;
+  --ui-background-template-grid-light-opacity: 0;
+  --ui-background-template-grid-dark-x: transparent;
+  --ui-background-template-grid-dark-y: transparent;
+  --ui-background-template-grid-dark-opacity: 0;
+}
+
+:root[data-ui-background-template='sand'] {
+  --ui-background-template-color: var(--bg);
+  --ui-background-template-dim-layer: none;
+  --ui-background-template-image: url('https://plus.unsplash.com/premium_photo-1681190674797-062b73f23709?q=80&w=2788&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D');
+  --ui-background-template-size: cover;
+  --ui-background-template-position: center center;
+  --ui-background-template-repeat: no-repeat;
+  --ui-background-template-grid-size: 26px 26px;
+  --ui-background-template-grid-position: 0px 0px;
+  --ui-background-template-grid-light-x: transparent;
+  --ui-background-template-grid-light-y: transparent;
+  --ui-background-template-grid-light-opacity: 0;
+  --ui-background-template-grid-dark-x: transparent;
+  --ui-background-template-grid-dark-y: transparent;
+  --ui-background-template-grid-dark-opacity: 0;
+}
+
+body {
+  background:
+    var(--ui-background-template-dim-layer),
+    var(--ui-background-template-image),
+    var(--ui-background-template-color);
+  background-size: auto, var(--ui-background-template-size), auto;
+  background-position: 0% 0%, var(--ui-background-template-position), 0% 0%;
+  background-repeat: repeat, var(--ui-background-template-repeat), repeat;
+  background-attachment: fixed, fixed, scroll;
+}
+
+:root[data-ui-background-template='light-wood'] body[data-theme='dark'],
+:root[data-ui-background-template='sand'] body[data-theme='dark'] {
+  --ui-background-template-dim-layer: linear-gradient(rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0.42));
+}
+
+.main-content,
+.messages,
+.page-header,
+.global-taskbar {
+  background-color: transparent !important;
+  background-image: none !important;
+  background-size: auto !important;
+  background-position: 0% 0% !important;
+  background-repeat: repeat !important;
+}
+
+body:not([data-theme='dark']) .chat-grid-overlay {
+  background-image:
+    linear-gradient(to right, var(--ui-background-template-grid-light-x) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--ui-background-template-grid-light-y) 1px, transparent 1px);
+  background-size: var(--ui-background-template-grid-size);
+  background-position: var(--ui-background-template-grid-position);
+  opacity: var(--ui-background-template-grid-light-opacity);
+}
+
+body[data-theme='dark'] .chat-grid-overlay {
+  background-image:
+    linear-gradient(to right, var(--ui-background-template-grid-dark-x) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--ui-background-template-grid-dark-y) 1px, transparent 1px);
+  background-size: var(--ui-background-template-grid-size);
+  background-position: var(--ui-background-template-grid-position);
+  opacity: var(--ui-background-template-grid-dark-opacity);
+}

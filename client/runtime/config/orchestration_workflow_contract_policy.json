@@ -11,7 +11,9 @@
         "diagnose_retry_escalate",
         "Lifecycle Loop (Required Stages)",
         "verification_closure",
-        "Feedback Loop Contract"
+        "Feedback Loop Contract",
+        "handoff chain ownership",
+        "No-reroute invariant"
       ]
     }
   ],
@@ -22,7 +24,9 @@
         "pub fn select_workflow_template(",
         "pub fn build_lifecycle_state(",
         "surface_orchestration_control_plane",
-        "WorkflowTemplate::DiagnoseRetryEscalate"
+        "WorkflowTemplate::DiagnoseRetryEscalate",
+        "handoff_user_request_to_decomposition",
+        "handoff_verification_to_memory_packaging"
       ]
     },
     {
@@ -30,7 +34,9 @@
       "required_phrases": [
         "pub fn apply_retry_reroute_feedback(",
         "feedback_reroute:",
-        "control plane feedback rerouted"
+        "control plane feedback rerouted",
+        "feedback_no_viable_reroute",
+        "feedback_escalate_no_viable_reroute"
       ]
     },
     {
@@ -38,7 +44,9 @@
       "required_phrases": [
         "pub enum WorkflowTemplate",
         "pub enum WorkflowStage",
+        "pub struct ControlPlaneHandoff",
         "pub struct ControlPlaneLifecycleState",
+        "pub handoff_chain: Vec<ControlPlaneHandoff>",
         "pub workflow_template: WorkflowTemplate",
         "pub control_plane_lifecycle: ControlPlaneLifecycleState"
       ]

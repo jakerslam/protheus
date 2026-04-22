@@ -29,9 +29,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 12px;
+  padding: 0 12px;
+  min-height: 0;
   cursor: pointer;
   font-size: 12px;
+  line-height: 1;
   color: var(--text-dim);
   transition: background var(--transition-fast);
 }
@@ -51,6 +53,7 @@
   color: var(--text);
   font-family: var(--font-mono);
   font-size: 11.5px;
+  line-height: 1;
 }
 
 .tool-card-spinner {
@@ -113,9 +116,10 @@
 }
 
 .tool-card-body {
-  padding: 4px 12px;
+  padding: 0 12px;
   border-top: 1px solid var(--border);
   font-size: 12px;
+  line-height: 1.2;
   max-height: 400px;
   overflow-y: auto;
   background: color-mix(in srgb, var(--bg) 84%, transparent);
@@ -128,16 +132,17 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--text-muted);
-  margin-bottom: 4px;
+  margin-bottom: 0;
 }
 
 .tool-pre {
   margin: 0;
-  padding: 6px 10px;
+  padding: 0 10px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   font-size: 11px;
+  line-height: 1.25;
   font-family: var(--font-mono);
   white-space: pre-wrap;
   word-break: break-word;

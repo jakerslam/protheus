@@ -1,12 +1,13 @@
 /* Visual trays for taskbar clusters; drag/reorder behavior stays on the inner wrappers. */
 .global-taskbar .taskbar-visual-group {
   --taskbar-visual-group-bg-alpha: 50%;
+  --taskbar-visual-group-item-gap: calc(var(--taskbar-control-height, 24px) * 8 / 46);
   display: inline-flex;
   align-items: center;
   min-width: 0;
   height: calc(var(--taskbar-control-height, 24px) + 8px);
   padding: 4px;
-  gap: 0;
+  gap: var(--taskbar-visual-group-item-gap);
   border-radius: 999px;
   background:
     linear-gradient(
@@ -21,6 +22,10 @@
     0 8px 18px -18px rgba(0, 0, 0, 0.48);
   box-sizing: border-box;
   overflow: visible;
+}
+
+.global-taskbar .taskbar-visual-group .taskbar-reorder-box {
+  gap: var(--taskbar-visual-group-item-gap);
 }
 
 .global-taskbar .taskbar-visual-group-left {

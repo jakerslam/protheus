@@ -258,6 +258,31 @@
       }
     },
 
+    dashboardPopupUsableAnchorRect(node) {
+      if (!node || typeof node.getBoundingClientRect !== 'function') return null;
+      var rect = null;
+      try {
+        rect = node.getBoundingClientRect();
+      } catch(_) {
+        rect = null;
+      }
+      var width = rect ? Math.abs(Number(rect.right || 0) - Number(rect.left || 0)) : 0;
+      var height = rect ? Math.abs(Number(rect.bottom || 0) - Number(rect.top || 0)) : 0;
+      if (rect && width > 0 && height > 0) return rect;
+      if (node && typeof node.closest === 'function') {
+        try {
+          var fallback = node.closest('[data-popup-origin-anchor], .composer-menu-pill, .composer-input-pill, .taskbar-text-menu-anchor, .taskbar-hero-menu-anchor, .notif-wrap');
+          if (fallback && fallback !== node && typeof fallback.getBoundingClientRect === 'function') {
+            rect = fallback.getBoundingClientRect();
+            width = rect ? Math.abs(Number(rect.right || 0) - Number(rect.left || 0)) : 0;
+            height = rect ? Math.abs(Number(rect.bottom || 0) - Number(rect.top || 0)) : 0;
+            if (rect && width > 0 && height > 0) return rect;
+          }
+        } catch(_) {}
+      }
+      return null;
+    },
+
     dashboardPopupSideAwayFromNearestWall(rect, fallbackSide) {
       var fallback = this.normalizeDashboardPopupSide('', fallbackSide);
       var affinity = this.dashboardPopupWallAffinity(rect);
@@ -327,13 +352,14 @@
       return this.dashboardPopupVerticalAwayFromNearestWall(rect, fallback);
     },
 
-    taskbarAnchoredDropdownClass(anchorNode, fallbackSide) {
+    taskbarAnchoredDropdownClass(anchorNode, fallbackSide, layoutKey) {
+      String(layoutKey == null ? '' : layoutKey);
       var fallback = this.normalizeDashboardPopupSide('', fallbackSide || 'bottom');
       var side = fallback;
       var inlineAway = 'right';
       var blockAway = 'bottom';
       if (anchorNode && typeof anchorNode.getBoundingClientRect === 'function') {
-        var anchorRect = anchorNode.getBoundingClientRect();
+        var anchorRect = this.dashboardPopupUsableAnchorRect(anchorNode);
         side = this.dashboardPopupAxisAwareSideAway(anchorRect, fallback);
         inlineAway = this.dashboardPopupHorizontalAwayFromNearestWall(anchorRect, 'right');
         blockAway = this.dashboardPopupVerticalAwayFromNearestWall(anchorRect, 'bottom');

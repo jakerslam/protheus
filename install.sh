@@ -2509,12 +2509,20 @@ workspace_release_meta_path() {
   printf '%s\n' "$workspace/local/state/ops/install_release_meta.json"
 }
 
-workspace_release_tag_matches() {
+read_workspace_release_tag() {
   workspace="$1"
-  expected_tag="$2"
   marker_path="$(workspace_release_tag_path "$workspace")"
   [ -f "$marker_path" ] || return 1
   installed_tag="$(head -n 1 "$marker_path" 2>/dev/null | tr -d '\r' | sed 's/[[:space:]]*$//')"
+  [ -n "$installed_tag" ] || return 1
+  printf '%s\n' "$installed_tag"
+  return 0
+}
+
+workspace_release_tag_matches() {
+  workspace="$1"
+  expected_tag="$2"
+  installed_tag="$(read_workspace_release_tag "$workspace" 2>/dev/null || true)"
   [ -n "$installed_tag" ] || return 1
   [ "$installed_tag" = "$expected_tag" ]
 }
@@ -4550,6 +4558,11 @@ ${ops_domain_dispatch}"
   fi
 
   workspace_ready=0
+  workspace_refresh_required=0
+  workspace_refresh_applied=0
+  workspace_refresh_reason=""
+  previous_workspace_release_tag=""
+  workspace_release_tag_written=0
   export INFRING_WORKSPACE_ROOT="$WORKSPACE_DIR"
   if is_truthy "$INSTALL_PURE"; then
     echo "[infring install] pure mode: skipping workspace runtime bootstrap"
@@ -4557,22 +4570,28 @@ ${ops_domain_dispatch}"
     INSTALL_RUNTIME_CONTRACT_OK=1
     INSTALL_CLIENT_RUNTIME_MODE="pure_profile"
   else
-    workspace_refresh_reason=""
+    previous_workspace_release_tag="$(read_workspace_release_tag "$WORKSPACE_DIR" 2>/dev/null || true)"
     if is_truthy "$INSTALL_REPAIR"; then
       workspace_refresh_reason="repair_mode"
     elif ! workspace_has_runtime "$WORKSPACE_DIR"; then
       workspace_refresh_reason="runtime_missing"
-    elif ! workspace_release_tag_matches "$WORKSPACE_DIR" "$version"; then
+    elif [ -z "$previous_workspace_release_tag" ]; then
+      workspace_refresh_reason="tag_state_missing"
+    elif [ "$previous_workspace_release_tag" != "$version" ]; then
       workspace_refresh_reason="release_tag_changed"
     fi
 
     if [ -z "$workspace_refresh_reason" ]; then
       workspace_ready=1
+      workspace_refresh_required=0
+      workspace_refresh_applied=0
       echo "[infring install] workspace runtime already present at $WORKSPACE_DIR"
     else
+      workspace_refresh_required=1
       echo "[infring install] refreshing workspace runtime at $WORKSPACE_DIR ($workspace_refresh_reason)"
       if install_client_bundle "$version" "$triple" "$WORKSPACE_DIR"; then
         workspace_ready=1
+        workspace_refresh_applied=1
         if is_truthy "$INSTALL_FULL"; then
           echo "[infring install] full mode enabled: workspace runtime installed at $WORKSPACE_DIR"
         else
@@ -4580,12 +4599,17 @@ ${ops_domain_dispatch}"
         fi
       elif install_workspace_from_source_fallback "$version" "$WORKSPACE_DIR"; then
         workspace_ready=1
+        workspace_refresh_applied=1
         echo "[infring install] workspace runtime bootstrapped from source fallback at $WORKSPACE_DIR"
       fi
     fi
     if [ "$workspace_ready" != "1" ]; then
       echo "[infring install] failed to provision workspace runtime for this release/platform" >&2
       echo "[infring install] expected workspace runtime root: $WORKSPACE_DIR" >&2
+      exit 1
+    fi
+    if [ "$workspace_refresh_required" = "1" ] && [ "$workspace_refresh_applied" != "1" ]; then
+      echo "[infring install] workspace runtime refresh required but not applied ($workspace_refresh_reason); refusing release-tag update" >&2
       exit 1
     fi
     ensure_workspace_source_member_closure "$version" "$WORKSPACE_DIR" || exit 1
@@ -4597,6 +4621,7 @@ ${ops_domain_dispatch}"
     fi
     INSTALL_CLIENT_RUNTIME_MODE="source_workspace"
     write_workspace_release_tag "$WORKSPACE_DIR" "$version" || exit 1
+    workspace_release_tag_written=1
     force_workspace_runtime_mode_source "$WORKSPACE_DIR" || exit 1
     ensure_node_runtime_notice || true
     if ! ensure_ollama_runtime_notice; then
@@ -4605,6 +4630,12 @@ ${ops_domain_dispatch}"
         exit 1
       fi
     fi
+    install_summary_note "workspace_runtime_refresh_required: ${workspace_refresh_required}"
+    install_summary_note "workspace_runtime_refresh_applied: ${workspace_refresh_applied}"
+    install_summary_note "workspace_runtime_refresh_reason: ${workspace_refresh_reason:-none}"
+    install_summary_note "workspace_release_tag_previous: ${previous_workspace_release_tag:-}"
+    install_summary_note "workspace_release_tag_current: ${version}"
+    install_summary_note "workspace_release_tag_written: ${workspace_release_tag_written}"
     install_summary_note "ollama_install_confirmed: ${OLLAMA_INSTALL_CONFIRMED}"
     install_summary_note "ollama_last_model_count: ${OLLAMA_LAST_MODEL_COUNT}"
     ensure_runtime_node_module_closure "$WORKSPACE_DIR" || exit 1

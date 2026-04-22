@@ -633,13 +633,13 @@
 }
 
 .taskbar-anchored-dropdown.is-block-away-bottom {
-  --taskbar-overlay-top: 0;
+  --taskbar-overlay-top: calc(100% + var(--taskbar-overlay-gap));
   --taskbar-overlay-bottom: auto;
 }
 
 .taskbar-anchored-dropdown.is-block-away-top {
   --taskbar-overlay-top: auto;
-  --taskbar-overlay-bottom: 0;
+  --taskbar-overlay-bottom: calc(100% + var(--taskbar-overlay-gap));
 }
 
 .taskbar-anchored-dropdown.is-side-top {
@@ -662,6 +662,17 @@
   --taskbar-overlay-left: calc(100% + var(--taskbar-overlay-gap));
   --taskbar-overlay-right: auto;
   --taskbar-overlay-transform: none;
+}
+
+/* Viewport-away axis rules must win over fallback side defaults. */
+.taskbar-anchored-dropdown.is-block-away-bottom {
+  --taskbar-overlay-top: calc(100% + var(--taskbar-overlay-gap));
+  --taskbar-overlay-bottom: auto;
+}
+
+.taskbar-anchored-dropdown.is-block-away-top {
+  --taskbar-overlay-top: auto;
+  --taskbar-overlay-bottom: calc(100% + var(--taskbar-overlay-gap));
 }
 
 .taskbar-brand-trigger {

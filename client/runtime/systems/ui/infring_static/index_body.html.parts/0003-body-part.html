@@ -195,6 +195,7 @@
             </template>
           </div>
         </aside>
+        </infring-agent-details-shell>
 
         <div class="messages" id="messages" x-ref="messagesEl" @scroll.passive="handleMessagesScroll($event)" @dragover.prevent="dragOver = true" @dragleave="dragOver = false" @drop.prevent="handleDrop($event); dragOver = false" @mouseenter="handleMessagesPointerMove($event)" @mousemove="handleMessagesPointerMove($event)" @mousedown="handleMessagesPointerDown($event)" @mouseup="handleMessagesPointerUp($event)" @selectstart="handleMessagesSelectStart($event)" @mouseleave="clearPointerFx($event)">
           <div class="chat-reflection-overlay" aria-hidden="true"></div>
@@ -208,14 +209,18 @@
           </template>
           <template x-if="currentAgent">
             <div class="chat-thread-shell">
+              <infring-chat-loading-overlay-shell>
               <div class="chat-loading-overlay" x-show="showFreshArchetypeTiles && freshInitLaunching">
+                <infring-chat-loading-content-shell>
                 <div class="chat-loading-overlay-content">
                   <div class="chat-loading-fairy" aria-hidden="true">
                     <span class="chat-loading-fairy-avatar agent-working-pulse"><span class="agent-mark infring-logo infring-logo--agent-default"><span class="infring-logo-glyph" aria-hidden="true">&infin;</span></span></span>
                   </div>
                   <span>Launching agent...</span>
                 </div>
+                </infring-chat-loading-content-shell>
               </div>
+              </infring-chat-loading-overlay-shell>
               <div class="chat-thread">
                 <template x-for="(msg, idx) in messages" :key="messageRenderKey(msg, idx)">
                   <div class="chat-message-block" :id="messageDomId(msg, idx)" :data-msg-idx="idx">
@@ -266,13 +271,13 @@
                           <span class="agent-mark infring-logo infring-logo--agent-default" aria-hidden="true"><span class="infring-logo-glyph" aria-hidden="true">&infin;</span></span>
                         </div>
                         <div class="message-body">
-                          <div
-                            class="message-agent-name"
-                            :class="{ 'terminal-actor-label': msg.terminal }"
-                            x-show="showMessageTitle(msg, idx, messages)"
-                            x-text="messageActorLabel(msg)"
-                          ></div>
                           <div class="message-bubble message-bubble-thinking" x-show="msg.thinking">
+                            <div
+                              class="message-agent-name"
+                              :class="{ 'terminal-actor-label': msg.terminal }"
+                              x-show="showMessageTitle(msg, idx, messages)"
+                              x-text="messageActorLabel(msg)"
+                            ></div>
                             <span class="thinking-orb-link" aria-hidden="true">
                               <span class="thinking-orb-link-dot thinking-orb-link-dot-1"></span>
                               <span class="thinking-orb-link-dot thinking-orb-link-dot-2"></span>
@@ -311,8 +316,33 @@
                             :class="{ 'message-error': !msg.thoughtStreaming && isErrorMessage(msg), 'thinking-live': !!msg.thoughtStreaming, 'markdown-body': ((String(msg.role || '').toLowerCase() === 'agent') || (String(msg.role || '').toLowerCase() === 'assistant') || (String(msg.role || '').toLowerCase() === 'system')) && !msg.thinking && !msg.isHtml }"
                             x-show="msg.text && msg.text.trim() && !msg.thinking && !(msg.terminal && terminalMessageCollapsed(msg, idx, messages))"
                           >
+                          <div
+                            class="message-agent-name"
+                            :class="{ 'terminal-actor-label': msg.terminal }"
+                            x-show="showMessageTitle(msg, idx, messages)"
+                            x-text="messageActorLabel(msg)"
+                          ></div>
                           <infring-chat-bubble-render :typing="!!msg._typingVisual" :html="messageBubbleHtml(msg, idx)" :plain="String(msg.text || '')"></infring-chat-bubble-render>
                           <div class="message-line-overflow" x-show="messageHasLineOverflow(msg, idx)"><span class="message-line-overflow-ellipsis">...</span><span class="message-line-overflow-link" role="button" tabindex="0" title="See more" style="cursor:pointer !important" @click.stop="expandMessageLines(msg, idx)" @keydown.enter.prevent.stop="expandMessageLines(msg, idx)" @keydown.space.prevent.stop="expandMessageLines(msg, idx)">See more</span></div>
+                          <div
+                            class="message-stats-row"
+                            x-show="!msg.thinking && ((msg.text && msg.text.trim()) || (msg.tools && msg.tools.length) || msg.meta || msg.ts)"
+                          >
+                            <button class="message-stat-btn" :class="{ copied: msg._copied }" @click="copyMessage(msg)" :title="msg._copied ? 'Copied' : 'Copy message'">
+                              <svg x-show="!msg._copied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                              <svg x-show="msg._copied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+                            </button>
+                            <button class="message-stat-btn" x-show="messageHasTools(msg)" @click="toggleMessageTools(msg)" :title="allToolsCollapsed(msg) ? 'Expand processes' : 'Collapse processes'">
+                              <svg x-show="allToolsCollapsed(msg)" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"></path></svg>
+                              <svg x-show="!allToolsCollapsed(msg)" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+                            </button>
+                            <button class="message-stat-btn" x-show="messageCanRetryFromMeta(msg, idx, messages)" @click="retryMessageFromMeta(msg, idx, messages)" title="Retry from this turn" aria-label="Retry from this turn"><svg class="message-stat-icon message-stat-icon-refresh" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path></svg></button>
+                            <button class="message-stat-btn message-action-reply" x-show="messageCanReplyFromMeta(msg, idx, messages)" @click="replyToMessageFromMeta(msg, idx, messages)" title="Reply to this message" aria-label="Reply to this message"><svg class="message-stat-icon message-stat-icon-reply" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 14-5-5 5-5"/><path d="M20 20v-5a6 6 0 0 0-6-6H4"/></svg><span class="message-reply-label">Reply</span></button>
+                            <button class="message-stat-btn" x-show="messageCanForkFromMeta(msg)" @click="forkMessageFromMeta(msg, idx, messages)" title="Fork to a new agent" aria-label="Fork to a new agent"><svg class="message-stat-icon message-stat-icon-fork" width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.251 2.251 0 1 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Zm6.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm-3 8.75a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Z"/></svg></button>
+                            <span class="message-stat-time" x-text="messageTs(msg)" x-show="messageMetaVisible(msg, idx, messages) && messageTs(msg)"></span>
+                            <span class="message-stat-meta" x-text="messageStatResponseTimeText(msg)" x-show="messageMetaVisible(msg, idx, messages) && messageStatResponseTimeText(msg)"></span>
+                            <span class="message-stat-burn" x-show="messageMetaVisible(msg, idx, messages) && messageStatBurnLabelText(msg)"><img class="message-meta-icon message-stat-burn-icon" src="/icons/vecteezy_fire-icon-simple-vector-perfect-illustration_13821331.svg" alt="" aria-hidden="true"><span x-text="messageStatBurnLabelText(msg)"></span></span>
+                          </div>
                           </div>
                           <div class="message-source-chips" x-show="messageHasSourceChips(msg)"><template x-for="chip in messageSourceChips(msg)" :key="chip.id"><a class="message-source-chip" :href="chip.url" target="_blank" rel="noopener" :title="chip.url"><span class="message-source-chip-label" x-text="chip.label"></span><span class="message-source-chip-host" x-show="chip.host" x-text="chip.host"></span></a></template></div>
                           <div class="message-tool-trace-summary" x-show="messageToolTraceSummary(msg).visible"><span class="message-tool-trace-label" x-text="messageToolTraceSummary(msg).label"></span><span class="message-tool-trace-detail" x-text="messageToolTraceSummary(msg).detail"></span></div>
@@ -398,25 +428,6 @@
                               </div>
                             </div>
                           </template>
-                          <div
-                            class="message-stats-row"
-                            x-show="!msg.thinking && ((msg.text && msg.text.trim()) || (msg.tools && msg.tools.length) || msg.meta || msg.ts)"
-                          >
-                            <button class="message-stat-btn" :class="{ copied: msg._copied }" @click="copyMessage(msg)" :title="msg._copied ? 'Copied' : 'Copy message'">
-                              <svg x-show="!msg._copied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                              <svg x-show="msg._copied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
-                            </button>
-                            <button class="message-stat-btn" x-show="messageHasTools(msg)" @click="toggleMessageTools(msg)" :title="allToolsCollapsed(msg) ? 'Expand processes' : 'Collapse processes'">
-                              <svg x-show="allToolsCollapsed(msg)" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"></path></svg>
-                              <svg x-show="!allToolsCollapsed(msg)" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
-                            </button>
-                            <button class="message-stat-btn" x-show="messageCanRetryFromMeta(msg, idx, messages)" @click="retryMessageFromMeta(msg, idx, messages)" title="Retry from this turn" aria-label="Retry from this turn"><svg class="message-stat-icon message-stat-icon-refresh" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path></svg></button>
-                            <button class="message-stat-btn message-action-reply" x-show="messageCanReplyFromMeta(msg, idx, messages)" @click="replyToMessageFromMeta(msg, idx, messages)" title="Reply to this message" aria-label="Reply to this message"><svg class="message-stat-icon message-stat-icon-reply" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 14-5-5 5-5"/><path d="M20 20v-5a6 6 0 0 0-6-6H4"/></svg><span class="message-reply-label">Reply</span></button>
-                            <button class="message-stat-btn" x-show="messageCanForkFromMeta(msg)" @click="forkMessageFromMeta(msg, idx, messages)" title="Fork to a new agent" aria-label="Fork to a new agent"><svg class="message-stat-icon message-stat-icon-fork" width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.251 2.251 0 1 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Zm6.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm-3 8.75a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Z"/></svg></button>
-                            <span class="message-stat-time" x-text="messageTs(msg)" x-show="messageMetaVisible(msg, idx, messages) && messageTs(msg)"></span>
-                            <span class="message-stat-meta" x-text="messageStatResponseTimeText(msg)" x-show="messageMetaVisible(msg, idx, messages) && messageStatResponseTimeText(msg)"></span>
-                            <span class="message-stat-burn" x-show="messageMetaVisible(msg, idx, messages) && messageStatBurnLabelText(msg)"><img class="message-meta-icon message-stat-burn-icon" src="/icons/vecteezy_fire-icon-simple-vector-perfect-illustration_13821331.svg" alt="" aria-hidden="true"><span x-text="messageStatBurnLabelText(msg)"></span></span>
-                          </div>
                         </div>
                       </infring-chat-stream-shell>
                     </template>
@@ -432,10 +443,12 @@
                     </div>
                   </infring-chat-stream-shell>
                 </template>
+                <infring-workspace-panel-shell>
                 <infring-popup-window-shell class="chat-workspace-panel overlay-shared-surface" x-show="isWorkspacePanelOpen()" x-transition.opacity @click.outside="closeWorkspacePanel()">
                   <div class="chat-workspace-panel-head"><div><div class="chat-workspace-panel-title">Workspace</div><div class="chat-workspace-panel-subtitle" x-text="workspacePanelPayload() ? (workspacePanelPayload().actor + (workspacePanelPayload().timestamp ? (' · ' + workspacePanelPayload().timestamp) : '')) : ''"></div></div><button type="button" class="message-stat-btn" @click="closeWorkspacePanel()" title="Close workspace">✕</button></div>
                   <div class="chat-workspace-panel-body" x-show="workspacePanelPayload()"><div class="chat-workspace-panel-section" x-show="workspacePanelPayload() && workspacePanelPayload().preview"><div class="chat-workspace-panel-label">Summary</div><div class="chat-workspace-panel-text" x-text="workspacePanelPayload().preview"></div></div></div>
                 </infring-popup-window-shell>
+                </infring-workspace-panel-shell>
                 <div class="chat-init-panel" :class="{ 'chat-init-panel-launching': freshInitLaunching }" x-show="showFreshArchetypeTiles && freshInitRevealMenu">
                   <div class="chat-archetype-title">Initialize Agent</div>
                   <div class="chat-archetype-subtitle">Pick role and lifespan, then launch. Optional tuning lives under advanced setup.</div>

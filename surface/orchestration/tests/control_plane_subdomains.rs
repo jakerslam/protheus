@@ -1,7 +1,13 @@
 // Layer ownership: tests (regression proof for orchestration surface contracts).
 use infring_orchestration_surface_v1::control_plane::{
-    control_plane_api_contract, legacy_module_bindings, subdomain_boundaries,
-    subdomain_boundary_by_id,
+    assert_contract_consistency, control_plane_api_contract, enforce_authority_domain,
+    enforce_subdomain_kernel_input, enforce_subdomain_kernel_output,
+    enforce_subdomain_message_boundary, legacy_module_bindings, subdomain_boundaries,
+    subdomain_boundary_by_id, ContractViolationKind, SubdomainContract,
+};
+use infring_orchestration_surface_v1::control_plane::{
+    decomposition_planning::DecompositionPlanningContract,
+    recovery_escalation::RecoveryEscalationContract,
 };
 
 fn require_domain(id: &str) -> infring_orchestration_surface_v1::control_plane::SubdomainBoundary {
@@ -122,5 +128,88 @@ fn legacy_module_bindings_are_unique_and_traceable() {
             "workflow_graph_dependency_tracking",
             "result_shaping_packaging"
         ]
+    );
+}
+
+#[test]
+fn executable_contract_enforcement_accepts_declared_tokens() {
+    assert!(
+        enforce_subdomain_kernel_input("intake_normalization", "typed_request_snapshot").is_ok()
+    );
+    assert!(enforce_subdomain_kernel_output(
+        "result_shaping_packaging",
+        "result_package_projection"
+    )
+    .is_ok());
+    assert!(enforce_subdomain_message_boundary(
+        "decomposition_planning",
+        "planning_to_graph_boundary"
+    )
+    .is_ok());
+}
+
+#[test]
+fn executable_contract_enforcement_rejects_disallowed_tokens() {
+    let denied_input =
+        enforce_subdomain_kernel_input("intake_normalization", "deterministic_receipt_authority")
+            .expect_err("kernel input should be denied");
+    assert_eq!(denied_input.kind, ContractViolationKind::KernelInputDenied);
+
+    let unknown_domain =
+        enforce_subdomain_kernel_output("unknown_domain", "result_package_projection")
+            .expect_err("unknown subdomain should be rejected");
+    assert_eq!(unknown_domain.kind, ContractViolationKind::UnknownSubdomain);
+
+    let denied_boundary = enforce_subdomain_message_boundary(
+        "workflow_graph_dependency_tracking",
+        "packaging_to_shell_boundary",
+    )
+    .expect_err("cross-domain message boundary should be denied");
+    assert_eq!(
+        denied_boundary.kind,
+        ContractViolationKind::MessageBoundaryDenied
+    );
+}
+
+#[test]
+fn executable_contract_enforcement_rejects_forbidden_authority_domains() {
+    let forbidden = enforce_authority_domain("deterministic_receipt_authority")
+        .expect_err("forbidden authority domain should be rejected");
+    assert_eq!(
+        forbidden.kind,
+        ContractViolationKind::ForbiddenAuthorityDomain
+    );
+
+    assert!(enforce_authority_domain("result_package_projection").is_ok());
+}
+
+#[test]
+fn subdomain_trait_contracts_execute_allow_deny_checks() {
+    assert!(
+        <DecompositionPlanningContract as SubdomainContract>::assert_kernel_input_allowed(
+            "typed_request_snapshot"
+        )
+        .is_ok()
+    );
+
+    let denied = <RecoveryEscalationContract as SubdomainContract>::assert_kernel_output_allowed(
+        "task_fabric_proposal_envelope",
+    )
+    .expect_err("recovery escalation cannot emit task-fabric proposals directly");
+    assert_eq!(denied.kind, ContractViolationKind::KernelOutputDenied);
+
+    assert!(
+        <RecoveryEscalationContract as SubdomainContract>::assert_kernel_output_allowed(
+            "recovery_recommendation_envelope"
+        )
+        .is_ok()
+    );
+}
+
+#[test]
+fn executable_contract_consistency_check_passes() {
+    assert!(
+        assert_contract_consistency().is_ok(),
+        "subdomain declarations should align with global control-plane contract"
     );
 }

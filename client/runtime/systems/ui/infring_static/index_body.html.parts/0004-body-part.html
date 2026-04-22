@@ -189,9 +189,11 @@
           </button>
           </div>
         </infring-chat-map-shell>
+        <infring-chat-archived-banner-shell>
         <div class="chat-archived-banner chat-archived-banner-bottom-center" x-show="currentAgent && isCurrentAgentArchived && isCurrentAgentArchived()">
           <button type="button" class="btn btn-primary btn-sm" @click="reviveCurrentArchivedAgent()">Revive Agent</button>
         </div>
+        </infring-chat-archived-banner-shell>
         <div class="input-area" x-show="currentAgent && !(isCurrentAgentArchived && isCurrentAgentArchived())" :class="{ 'terminal-mode': terminalMode }">
           <div class="chat-input-lane">
             <button class="chat-scroll-down" x-show="showScrollDown && currentAgent" @click="scrollToBottom({ buttonAnimated: true, force: true })" title="Scroll to latest" aria-label="Scroll to latest">
@@ -212,6 +214,7 @@
               </div>
             </template>
             <div class="composer-stack">
+              <infring-prompt-queue-shell>
               <div class="prompt-queue-row" x-show="!terminalMode && currentAgent && !showFreshArchetypeTiles && promptQueueItems.length > 0">
                 <div class="prompt-queue-list">
                   <template x-for="item in promptQueueItems" :key="'prompt-queue-' + item.queue_id">
@@ -231,6 +234,8 @@
                   </template>
                 </div>
               </div>
+              </infring-prompt-queue-shell>
+              <infring-prompt-suggestions-shell>
               <div class="prompt-suggestions-row" x-show="!terminalMode && currentAgent && !showFreshArchetypeTiles && promptSuggestionsEnabled && promptQueueItems.length === 0 && hasConversationSuggestionSeed() && promptSuggestions.length > 0">
                 <template x-for="(suggestion, sidx) in promptSuggestions" :key="'prompt-suggestion-' + sidx + '-' + suggestion">
                   <button
@@ -252,16 +257,19 @@
                   </button>
                 </template>
               </div>
+              </infring-prompt-suggestions-shell>
               <div class="input-row">
               <input type="file" x-ref="fileInput" multiple accept="image/*,.txt,.pdf,.md,.json,.csv,.mp3,.wav,.ogg,.webm,.m4a,.flac" @change="handleAttachInputChange($event)" style="display:none">
               <div class="composer-shell" :class="{ 'composer-shell-disabled': isFreshInitComposerLocked(), 'system-thread-active': isSystemThreadActive() }">
                 <div class="composer-main-row">
+                <div class="composer-display-pill" aria-label="Message input controls">
                 <div class="composer-menu-pill composer-shared-input-pill" x-show="!isSystemThreadActive()">
-                <div class="composer-plus-wrap composer-icon-left" :class="taskbarAnchoredDropdownClass($el, 'bottom')" @click.outside="showAttachMenu = false">
+                <div class="composer-plus-wrap composer-icon-left" :class="taskbarAnchoredDropdownClass($el, 'bottom', showAttachMenu || showModelSwitcher || showGitTreeMenu)" @click.outside="showAttachMenu = false">
                   <button class="composer-icon-btn composer-hamburger-btn" @click="showAttachMenu = !showAttachMenu" title="Add files and more (Ctrl+F)" aria-label="Add files and more" :aria-expanded="showAttachMenu ? 'true' : 'false'">
                     <svg class="composer-hamburger-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
                   </button>
                   <infring-taskbar-menu-shell class="composer-plus-menu dashboard-dropdown-surface" x-show="showAttachMenu || showModelSwitcher || showGitTreeMenu" x-transition:enter="transition ease-out duration-140" x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-0" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
+                    <infring-context-ring-shell>
                     <div
                       class="composer-plus-menu-item composer-plus-menu-context-row"
                       x-show="showAttachMenu && !terminalMode && currentAgent && !(isCurrentAgentArchived && isCurrentAgentArchived()) && !isSystemThreadActive()"
@@ -274,6 +282,7 @@
                         </svg>
                       </div>
                     </div>
+                    </infring-context-ring-shell>
                     <button
                       class="composer-plus-menu-item composer-plus-menu-item-toggle composer-plus-menu-item-suggestions composer-plus-menu-entry"
                       x-show="showAttachMenu && !terminalMode"
@@ -307,7 +316,8 @@
                     </button>
                     <div class="input-box-column input-box-column-selectors composer-plus-inline-controls" x-show="(showAttachMenu || showGitTreeMenu || showModelSwitcher) && currentAgent && !terminalMode">
                       <div class="input-box-selector-row" x-show="activeGitBranchMenuLabel && (showAttachMenu || showGitTreeMenu)">
-                        <div class="chat-branch-picker model-switcher-inline input-box-selector-control" :class="taskbarAnchoredDropdownClass($el, 'top')" @keydown.escape.prevent.stop="closeGitTreeMenu()" @click.outside="closeGitTreeMenu()">
+                        <infring-git-tree-picker-shell>
+                        <div class="chat-branch-picker model-switcher-inline input-box-selector-control" :class="taskbarAnchoredDropdownClass($el, 'top', showGitTreeMenu)" @keydown.escape.prevent.stop="closeGitTreeMenu()" @click.outside="closeGitTreeMenu()">
                           <button
                             type="button"
                             class="input-box-selector-activator composer-plus-menu-entry"
@@ -349,9 +359,11 @@
                             </button>
                           </infring-taskbar-menu-shell>
                         </div>
+                        </infring-git-tree-picker-shell>
                       </div>
                       <div class="input-box-selector-row" x-show="showAttachMenu || showModelSwitcher">
-                        <div class="model-switcher-inline input-box-selector-control" :class="taskbarAnchoredDropdownClass($el, 'top')" x-show="currentAgent && !terminalMode" style="position:relative" @click.outside="showModelSwitcher = false" @keydown.escape.window="showModelSwitcher = false">
+                        <infring-model-switcher-panel-shell>
+                        <div class="model-switcher-inline input-box-selector-control" :class="taskbarAnchoredDropdownClass($el, 'top', showModelSwitcher)" x-show="currentAgent && !terminalMode" style="position:relative" @click.outside="showModelSwitcher = false" @keydown.escape.window="showModelSwitcher = false">
                       <button type="button" class="input-box-selector-activator composer-plus-menu-entry" :aria-expanded="showModelSwitcher ? 'true' : 'false'" @click="toggleModelSwitcher()" :title="'Active model: ' + modelDisplayName">
                         <span class="composer-icon-btn composer-model-btn input-box-selector-trigger" :class="{ 'active': showModelSwitcher }" aria-hidden="true">
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
@@ -475,6 +487,7 @@
                           </div>
                         </template>
                       </div>
+                        </infring-model-switcher-panel-shell>
                       <div class="text-xs text-dim" x-show="modelSwitcherTruncatedCount > 0" style="padding:8px 10px;border-top:1px solid var(--border-subtle)">
                         Showing top <span x-text="renderedSwitcherModels.length"></span> of <span x-text="filteredSwitcherModels.length"></span> models. Refine search to narrow results.
                       </div>
@@ -563,6 +576,7 @@
                       </template>
                     </div>
                   </template>
+                </div>
                 </div>
                 </div>
                 </div>

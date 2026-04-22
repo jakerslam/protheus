@@ -61,8 +61,10 @@
             </div>
             </div>
           </div>
+          </infring-settings-security-tab-shell>
 
           <!-- Network tab -->
+          <infring-settings-network-tab-shell>
           <div x-show="tab === 'network'" x-data="{
             netStatus: null, a2aAgents: [], a2aDiscoverUrl: '', a2aDiscovering: false,
             async loadNetStatus() { try { this.netStatus = await InfringAPI.get('/api/network/status'); } catch(e) {} },
@@ -146,8 +148,10 @@
               <div class="text-xs text-dim" x-show="!a2aAgents.length">No external agents discovered yet. Enter a URL above to discover one.</div>
             </div>
           </div>
+          </infring-settings-network-tab-shell>
 
           <!-- Budget tab -->
+          <infring-settings-budget-tab-shell>
           <div x-show="tab === 'budget'" x-data="{
             budgetData: null, agentRanking: [], budgetLoading: true,
             editMode: false,
@@ -286,8 +290,10 @@
               <div class="text-xs text-dim" x-show="!agentRanking.length">No spending recorded today.</div>
             </div>
           </div>
+          </infring-settings-budget-tab-shell>
 
           <!-- Migration tab -->
+          <infring-settings-migration-tab-shell>
           <div x-show="tab === 'migration'">
             <div class="card mb-4" style="border-left:3px solid var(--accent)" x-show="migStep === 'intro'">
               <div class="font-bold" style="font-size:14px;margin-bottom:6px">Migrate into Infring</div>
@@ -374,14 +380,17 @@
               </div>
             </div>
           </div>
+          </infring-settings-migration-tab-shell>
 
           </div>
         </div>
       </div>
+      </infring-settings-page-shell>
     </template>
 
     <!-- Page: Analytics -->
     <template x-if="page === 'analytics'">
+      <infring-analytics-page-shell>
       <div x-data="analyticsPage">
         <div class="page-header page-header-subtabs-center">
           <div>

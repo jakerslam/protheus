@@ -4,6 +4,7 @@
             <div class="tab" :class="{ active: tab === 'by-agent' }" @click="tab = 'by-agent'">By Agent</div>
             <div class="tab" :class="{ active: tab === 'costs' }" @click="tab = 'costs'">Costs</div>
           </div>
+          <infring-analytics-summary-tab-shell>
           <div x-show="tab === 'summary'">
             <div class="card mt-4">
               <div class="card-header">Runtime Telemetry</div>
@@ -28,6 +29,8 @@
               </div>
             </div>
           </div>
+          </infring-analytics-summary-tab-shell>
+          <infring-analytics-by-model-tab-shell>
           <div x-show="tab === 'by-model'">
             <div class="table-wrap mt-4" x-show="byModel.length">
               <table>
@@ -48,6 +51,8 @@
             </div>
             <infring-chat-stream-shell class="empty-state" x-show="!byModel.length"><p>No model usage data yet.</p></infring-chat-stream-shell>
           </div>
+          </infring-analytics-by-model-tab-shell>
+          <infring-analytics-by-agent-tab-shell>
           <div x-show="tab === 'by-agent'">
             <div class="table-wrap mt-4" x-show="byAgent.length">
               <table>
@@ -65,8 +70,10 @@
             </div>
             <infring-chat-stream-shell class="empty-state" x-show="!byAgent.length"><p>No agent usage data yet.</p></infring-chat-stream-shell>
           </div>
+          </infring-analytics-by-agent-tab-shell>
 
           <!-- Costs Tab -->
+          <infring-analytics-costs-tab-shell>
           <div x-show="tab === 'costs'">
 
             <!-- Cost Summary Cards -->
@@ -224,9 +231,11 @@
             </div>
 
           </div>
+          </infring-analytics-costs-tab-shell>
           </div>
         </div>
       </div>
+      </infring-analytics-page-shell>
     </template>
 
     <!-- Page: Sessions -->
@@ -379,6 +388,7 @@
 
     <!-- Page: Logs -->
     <template x-if="page === 'logs'">
+      <infring-logs-page-shell>
       <div x-data="logsPage">
         <div class="page-header page-header-subtabs-center">
           <div>
@@ -388,6 +398,7 @@
               <div class="tab" role="tab" :class="{ active: page === 'logs' }" @click="navigate('logs')">Logs</div>
             </div>
           </div>
+          <infring-logs-live-controls-shell>
           <div class="flex gap-2 items-center" x-show="tab === 'live'">
             <!-- Connection status indicator -->
             <span class="live-indicator" :class="connectionClass">
@@ -407,8 +418,11 @@
             <div class="toggle" :class="{ active: autoRefresh }" @click="autoRefresh = !autoRefresh" title="Auto-scroll"></div>
             <span class="text-xs text-dim" x-text="autoRefresh ? 'Auto-scroll' : 'Scroll locked'"></span>
           </div>
+          </infring-logs-live-controls-shell>
+          <infring-logs-audit-controls-shell>
           <div class="flex gap-2 items-center" x-show="tab === 'audit'">
             <button class="btn btn-ghost btn-sm" @click="verifyChain()">Verify Chain</button>
             <span class="badge" :class="chainValid === true ? 'badge-running' : chainValid === false ? 'badge-crashed' : ''" x-text="chainValid === true ? 'VALID' : chainValid === false ? 'BROKEN' : ''" x-show="chainValid !== null"></span>
           </div>
+          </infring-logs-audit-controls-shell>
         </div>

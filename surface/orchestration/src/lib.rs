@@ -16,15 +16,26 @@ pub mod transient_context;
 use contracts::{
     ClosureState, ControlPlaneClosureState, ControlPlaneHandoff, ControlPlaneLifecycleState,
     CoreExecutionObservation, DegradationReason, ExecutionCorrelation, ExecutionState,
-    OrchestrationExecutionObservationUpdate, OrchestrationPlan, OrchestrationRequest,
-    OrchestrationResultPackage, PlanCandidate, PlanScore, PlanStatus, PlanVariant,
-    RecoveryDecision, RecoveryReason, RecoveryState, RuntimeQualitySignals, WorkflowStage,
-    WorkflowStageState, WorkflowStageStatus, WorkflowTemplate,
+    OrchestrationExecutionObservationUpdate, OrchestrationFallbackAction, OrchestrationPlan,
+    OrchestrationRequest, OrchestrationResultPackage, PlanCandidate, PlanScore, PlanStatus,
+    PlanVariant, RecoveryDecision, RecoveryReason, RecoveryState, RuntimeQualitySignals,
+    WorkflowStage, WorkflowStageState, WorkflowStageStatus, WorkflowTemplate,
 };
+use self_maintenance::contracts::{
+    ArchitectureAuditInput, CiReportInput, HealthMetricInput, MemoryPressureInput,
+    ObservationInputs, SupervisorMode,
+};
+use self_maintenance::GovernedSelfMaintenanceSupervisor;
 use std::time::{SystemTime, UNIX_EPOCH};
 use transient_context::{TransientContextStore, TransientSleepCleanupReport};
 
 const DEFAULT_SLEEP_CYCLE_IDLE_GAP_MS: u64 = 8 * 60 * 60 * 1000;
+
+#[derive(Debug, Clone)]
+struct SelfMaintenanceProjection {
+    fallback_actions: Vec<OrchestrationFallbackAction>,
+    lifecycle_next_actions: Vec<String>,
+}
 
 #[derive(Debug)]
 pub struct OrchestrationSurfaceRuntime {
@@ -293,14 +304,23 @@ impl OrchestrationSurfaceRuntime {
             execution_observation.as_ref(),
             plan,
         );
+        let self_maintenance_projection = project_self_maintenance_recommendations(
+            &typed_request,
+            &plan,
+            now_ms,
+            self.transient_context_store.len() as u64,
+        );
         let progress = progress::build_progress_projection(&plan);
         let tool_fallback_context =
             sequencing::decode_tool_fallback_context(&typed_request.payload);
-        let fallback_actions = sequencing::project_fallback_actions(
+        let mut fallback_actions = sequencing::project_fallback_actions(
             &typed_request,
             plan.request_class.clone(),
             tool_fallback_context.as_ref(),
         );
+        if let Some(projection) = &self_maintenance_projection {
+            fallback_actions.extend(projection.fallback_actions.clone());
+        }
         let workflow_template = control_plane::lifecycle::select_workflow_template(
             &typed_request,
             &plan.classification,
@@ -308,11 +328,17 @@ impl OrchestrationSurfaceRuntime {
             plan.needs_clarification,
             plan.execution_state.recovery.as_ref(),
         );
-        let control_plane_lifecycle = control_plane::lifecycle::build_lifecycle_state(
+        let mut control_plane_lifecycle = control_plane::lifecycle::build_lifecycle_state(
             workflow_template.clone(),
             &plan,
             fallback_actions.as_slice(),
         );
+        if let Some(projection) = &self_maintenance_projection {
+            control_plane_lifecycle
+                .next_actions
+                .extend(projection.lifecycle_next_actions.iter().cloned());
+            dedupe_actions(&mut control_plane_lifecycle.next_actions);
+        }
         self.last_activity_ms = Some(now_ms);
         result_packaging::shape_result_package(
             &plan,
@@ -395,6 +421,164 @@ fn transient_summary(request: &crate::contracts::TypedOrchestrationRequest) -> S
         request.request_kind, request.operation_kind, request.resource_kind, request.legacy_intent
     )
     .to_lowercase()
+}
+
+fn project_self_maintenance_recommendations(
+    request: &crate::contracts::TypedOrchestrationRequest,
+    plan: &OrchestrationPlan,
+    now_ms: u64,
+    transient_entry_count: u64,
+) -> Option<SelfMaintenanceProjection> {
+    if !should_project_self_maintenance(plan) {
+        return None;
+    }
+    let observation_inputs =
+        build_self_maintenance_observation_inputs(request, plan, transient_entry_count);
+    let mut supervisor = GovernedSelfMaintenanceSupervisor::new(
+        SupervisorMode::ObserveOnly,
+        format!("orchestration-control-plane:{}", request.session_id),
+    );
+    let run = supervisor.run_cycle(observation_inputs, now_ms).ok()?;
+    if run.claim_bundle.claims.is_empty() {
+        return None;
+    }
+
+    let unresolved = run.claim_bundle.unresolved_questions.len();
+    let conflicts = run.claim_bundle.conflicts.len();
+    let candidate_task_count = run.generated_task_ids.len();
+    let mut lifecycle_next_actions = vec![format!(
+        "self_maintenance_review_claim_bundle:{}",
+        run.claim_bundle.claim_bundle_id
+    )
+    .to_lowercase()];
+    if unresolved > 0 {
+        lifecycle_next_actions
+            .push("self_maintenance_clarify_unresolved_observations_before_retry".to_string());
+    }
+    if conflicts > 0 {
+        lifecycle_next_actions.push("self_maintenance_resolve_conflicting_evidence".to_string());
+    }
+
+    Some(SelfMaintenanceProjection {
+        fallback_actions: vec![OrchestrationFallbackAction {
+            kind: "self_maintenance_review".to_string(),
+            label: "Review maintenance signals".to_string(),
+            reason: format!(
+                "self-maintenance observed {candidate_task_count} candidate remediation task(s), unresolved={unresolved}, conflicts={conflicts}"
+            ),
+            backend_class: None,
+            reason_code: None,
+        }],
+        lifecycle_next_actions,
+    })
+}
+
+fn should_project_self_maintenance(plan: &OrchestrationPlan) -> bool {
+    matches!(
+        plan.execution_state.plan_status,
+        PlanStatus::Failed
+            | PlanStatus::Blocked
+            | PlanStatus::Degraded
+            | PlanStatus::ClarificationRequired
+    ) || plan.needs_clarification
+        || plan.classification.surface_adapter_fallback
+        || !plan.selected_plan.blocked_on.is_empty()
+        || plan.selected_plan.steps.is_empty()
+}
+
+fn build_self_maintenance_observation_inputs(
+    request: &crate::contracts::TypedOrchestrationRequest,
+    plan: &OrchestrationPlan,
+    transient_entry_count: u64,
+) -> ObservationInputs {
+    let mut inputs = ObservationInputs::empty();
+
+    if plan.classification.surface_adapter_fallback || plan.needs_clarification {
+        inputs.architecture_audits.push(ArchitectureAuditInput {
+            audit_id: format!("ingress-control-gap-{}", request.session_id),
+            summary:
+                "surface adapter fallback or clarification-first routing indicates ingress drift"
+                    .to_string(),
+            severity: "medium".to_string(),
+            source_ref: "surface/orchestration/src/ingress.rs".to_string(),
+        });
+    }
+
+    if matches!(
+        plan.execution_state.plan_status,
+        PlanStatus::Failed | PlanStatus::Blocked | PlanStatus::Degraded
+    ) {
+        inputs.ci_reports.push(CiReportInput {
+            report_id: format!("orchestration-plan-status-{}", request.session_id),
+            status: format!("{:?}", plan.execution_state.plan_status).to_ascii_lowercase(),
+            summary: "control-plane plan status indicates degraded runtime quality".to_string(),
+            source_ref: "surface/orchestration/src/lib.rs".to_string(),
+        });
+    }
+
+    inputs.task_fabric_signals.stale_tasks = plan
+        .selected_plan
+        .blocked_on
+        .iter()
+        .map(|precondition| format!("blocked_precondition::{precondition:?}").to_lowercase())
+        .collect::<Vec<_>>();
+
+    inputs.task_fabric_signals.blocked_tasks = plan
+        .execution_state
+        .steps
+        .iter()
+        .filter(|step| {
+            matches!(
+                step.status,
+                crate::contracts::StepStatus::Blocked | crate::contracts::StepStatus::Failed
+            )
+        })
+        .map(|step| step.step_id.clone())
+        .collect::<Vec<_>>();
+
+    let risk_score = self_maintenance_risk_score(plan);
+    inputs.health_metrics.push(HealthMetricInput {
+        metric_name: "orchestration_control_plane_risk_score".to_string(),
+        observed: risk_score,
+        threshold: 0.25,
+        source_ref: "surface/orchestration/src/lib.rs".to_string(),
+    });
+
+    inputs.memory_pressure.push(MemoryPressureInput {
+        scope: "orchestration_transient_context".to_string(),
+        used_bytes: transient_entry_count,
+        limit_bytes: 64,
+    });
+
+    inputs
+}
+
+fn self_maintenance_risk_score(plan: &OrchestrationPlan) -> f64 {
+    let mut risk = 0.0_f64;
+    if plan.needs_clarification || plan.selected_plan.requires_clarification {
+        risk += 0.35;
+    }
+    if !plan.selected_plan.blocked_on.is_empty() {
+        risk += 0.35;
+    }
+    if plan.selected_plan.steps.is_empty() {
+        risk += 0.30;
+    }
+    if plan.classification.surface_adapter_fallback {
+        risk += 0.20;
+    }
+    if matches!(
+        plan.execution_state.plan_status,
+        PlanStatus::Failed | PlanStatus::Blocked | PlanStatus::Degraded
+    ) {
+        risk += 0.45;
+    }
+    risk.clamp(0.0, 1.0)
+}
+
+fn dedupe_actions(actions: &mut Vec<String>) {
+    actions.sort();
+    actions.dedup();
 }
 
 fn runtime_now_ms() -> u64 {

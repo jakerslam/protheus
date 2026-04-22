@@ -1,5 +1,13 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
-use super::SubdomainBoundary;
+use super::{SubdomainBoundary, SubdomainContract};
+
+pub struct WorkflowGraphDependencyContract;
+
+impl SubdomainContract for WorkflowGraphDependencyContract {
+    fn boundary() -> SubdomainBoundary {
+        boundary()
+    }
+}
 
 pub fn boundary() -> SubdomainBoundary {
     SubdomainBoundary {

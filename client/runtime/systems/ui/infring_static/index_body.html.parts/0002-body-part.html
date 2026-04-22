@@ -6,6 +6,7 @@
 
     <!-- Page: Overview -->
     <template x-if="page === 'overview'">
+      <infring-overview-page-shell>
       <div x-data="overviewPage" x-init="loadOverview().then(() => startAutoRefresh())" @page-leave.window="stopAutoRefresh()">
         <div class="page-body">
           <!-- Loading skeleton state -->
@@ -327,10 +328,12 @@
           </div>
         </div>
       </div>
+      </infring-overview-page-shell>
     </template>
 
     <!-- Page: Chat -->
     <template x-if="page === 'chat'">
+      <infring-chat-page-shell>
       <div x-data="chatPage" class="chat-wrapper" :class="{ 'chat-resize-blur-active': chatResizeBlurActive, 'chat-wrapper-archived-thread': isCurrentAgentArchived && isCurrentAgentArchived() }">
         <!-- Keep selector wiring for later use, but hide visual control for now -->
         <div style="display:none" aria-hidden="true">
@@ -349,6 +352,7 @@
         </div>
 
         <template x-if="currentAgent">
+          <infring-chat-header-shell>
           <div class="chat-thread-topline">
             <div class="chat-thread-profile-center">
               <div
@@ -401,7 +405,9 @@
               </div>
             </div>
           </div>
+          </infring-chat-header-shell>
         </template>
+        <infring-agent-details-shell>
         <div class="chat-agent-drawer-backdrop" x-show="showAgentDrawer" x-transition.opacity @click="closeAgentDrawer()"></div>
         <aside class="chat-agent-drawer overlay-shared-surface" x-show="showAgentDrawer" x-transition:enter="transition ease-out duration-180" x-transition:enter-start="opacity-0 translate-x-4" x-transition:enter-end="opacity-100 translate-x-0" x-transition:leave="transition ease-in duration-140" x-transition:leave-start="opacity-100 translate-x-0" x-transition:leave-end="opacity-0 translate-x-4" @click.outside="closeAgentDrawer()">
           <div class="chat-agent-drawer-head">

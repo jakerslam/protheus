@@ -799,7 +799,7 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
     const reasoning = cleanText(completion && completion.reasoning ? completion.reasoning : '', 24000);
     if (reasoning && !textLooksNoFindingsPlaceholder(reasoning)) return reasoning;
     if (finalization && finalization.applied === true) {
-      return 'I completed the run, but the final reply did not render. Ask me to continue and I will synthesize from the recorded workflow state.';
+      return 'I hit a response finalization edge on that turn. I can continue with a direct answer from current context and avoid extra tool calls unless you explicitly request one.';
     }
     if (
       payload &&
@@ -812,7 +812,7 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
         payload.content != null
       )
     ) {
-      return 'I completed the run, but no visible reply was returned. Ask me to continue and I will retry the synthesis.';
+      return 'No visible reply was returned for that turn, but I can continue directly from the recorded context without repeating tool steps.';
     }
     return '';
   };

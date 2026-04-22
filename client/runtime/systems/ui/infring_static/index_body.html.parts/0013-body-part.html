@@ -43,6 +43,7 @@
 
     <!-- Page: Settings -->
     <template x-if="page === 'settings'">
+      <infring-settings-page-shell>
       <div x-data="settingsPage">
         <div class="page-header"><h2>Settings</h2></div>
         <div class="page-body" x-init="loadSettings()">
@@ -67,6 +68,7 @@
           </div>
 
           <!-- Providers tab -->
+          <infring-settings-providers-tab-shell>
           <div x-show="tab === 'providers'">
             <div class="info-card">
               <h4>LLM Providers</h4>
@@ -165,8 +167,10 @@
               <p class="hint">Provider information could not be loaded. Check that the API is running.</p>
             </infring-chat-stream-shell>
           </div>
+          </infring-settings-providers-tab-shell>
 
           <!-- Models tab -->
+          <infring-settings-models-tab-shell>
           <div x-show="tab === 'models'">
             <div class="info-card">
               <h4>Model Catalog</h4>
@@ -242,8 +246,10 @@
               </table>
             </div>
           </div>
+          </infring-settings-models-tab-shell>
 
           <!-- Tools tab -->
+          <infring-settings-tools-tab-shell>
           <div x-show="tab === 'tools'">
             <div class="search-input mb-4">
               <span style="color:var(--text-muted)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
@@ -270,8 +276,10 @@
               </table>
             </div>
           </div>
+          </infring-settings-tools-tab-shell>
 
           <!-- System Info tab -->
+          <infring-settings-info-tab-shell>
           <div x-show="tab === 'info'">
             <div class="stats-row">
               <div class="stat-card"><div class="stat-value" x-text="sysInfo.version || '-'"></div><div class="stat-label">Version</div></div>
@@ -284,8 +292,10 @@
               <div class="card-meta" x-text="sysInfo.default_provider + ' : ' + sysInfo.default_model"></div>
             </div>
           </div>
+          </infring-settings-info-tab-shell>
 
           <!-- Config tab -->
+          <infring-settings-config-tab-shell>
           <div x-show="tab === 'config'">
             <div class="info-card">
               <h4>Runtime Configuration</h4>
@@ -351,8 +361,10 @@
               <pre style="font-size:11px;white-space:pre-wrap;overflow:auto;max-height:400px;color:var(--text-dim);line-height:1.5;display:none" x-text="JSON.stringify(config, null, 2)"></pre>
             </div>
           </div>
+          </infring-settings-config-tab-shell>
 
           <!-- Security tab -->
+          <infring-settings-security-tab-shell>
           <div x-show="tab === 'security'">
             <div x-show="secLoading" class="loading-state"><div class="spinner"></div><span>Loading security data...</span></div>
             <div x-show="!secLoading">

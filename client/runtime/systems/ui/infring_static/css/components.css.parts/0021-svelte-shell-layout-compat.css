@@ -1,0 +1,127 @@
+/* Svelte shell wrappers are migration seams. Keep unstyled hosts out of layout. */
+:where(
+  infring-agent-details-shell,
+  infring-agents-page-shell,
+  infring-analytics-by-agent-tab-shell,
+  infring-analytics-by-model-tab-shell,
+  infring-analytics-costs-tab-shell,
+  infring-analytics-page-shell,
+  infring-analytics-summary-tab-shell,
+  infring-approvals-page-shell,
+  infring-channels-page-shell,
+  infring-chat-archived-banner-shell,
+  infring-chat-empty-state-shell,
+  infring-chat-header-shell,
+  infring-chat-input-footer-shell,
+  infring-chat-loading-content-shell,
+  infring-chat-loading-overlay-shell,
+  infring-chat-map-rail-shell,
+  infring-chat-map-viewport-shell,
+  infring-chat-page-shell,
+  infring-chat-search-shell,
+  infring-chat-thread-shell,
+  infring-composer-lane-shell,
+  infring-context-ring-shell,
+  infring-dropzone-overlay-shell,
+  infring-eyes-page-shell,
+  infring-git-tree-picker-shell,
+  infring-logs-audit-controls-shell,
+  infring-logs-live-controls-shell,
+  infring-logs-live-tab-shell,
+  infring-logs-page-shell,
+  infring-message-meta-shell,
+  infring-messages-surface-shell,
+  infring-model-picker-menu-shell,
+  infring-model-switcher-panel-shell,
+  infring-overview-page-shell,
+  infring-prompt-queue-shell,
+  infring-prompt-suggestions-shell,
+  infring-scheduler-history-tab-shell,
+  infring-scheduler-jobs-tab-shell,
+  infring-scheduler-page-shell,
+  infring-scheduler-triggers-tab-shell,
+  infring-session-switcher-shell,
+  infring-settings-budget-tab-shell,
+  infring-settings-config-tab-shell,
+  infring-settings-info-tab-shell,
+  infring-settings-migration-tab-shell,
+  infring-settings-models-tab-shell,
+  infring-settings-network-tab-shell,
+  infring-settings-page-shell,
+  infring-settings-providers-tab-shell,
+  infring-settings-security-tab-shell,
+  infring-settings-tools-tab-shell,
+  infring-skills-clawhub-tab-shell,
+  infring-skills-create-tab-shell,
+  infring-skills-installed-tab-shell,
+  infring-skills-mcp-tab-shell,
+  infring-skills-page-shell,
+  infring-slash-command-menu-shell,
+  infring-system-thread-placeholder-shell,
+  infring-taskbar-dropdown-cluster-shell,
+  infring-taskbar-hero-menu-shell,
+  infring-taskbar-nav-cluster-shell,
+  infring-tool-card-stack-shell,
+  infring-workflows-builder-tab-shell,
+  infring-workflows-list-tab-shell,
+  infring-workflows-page-shell,
+  infring-workspace-panel-shell
+):not([class]) {
+  display: contents;
+}
+
+.main-content > infring-chat-page-shell > .chat-wrapper {
+  overflow-y: visible;
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+.app-layout > .main-content > infring-chat-page-shell > .chat-wrapper {
+  --chat-column-shift: 0px;
+}
+
+.chat-wrapper > infring-chat-header-shell > .page-header {
+  position: relative;
+  z-index: 12;
+  border-bottom-left-radius: 14px;
+  border-bottom-right-radius: 14px;
+  overflow: hidden;
+}
+
+.chat-wrapper > infring-chat-header-shell > .chat-thread-topline {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 12;
+  pointer-events: none;
+}
+
+.chat-wrapper > infring-chat-header-shell > .chat-thread-topline .chat-thread-profile {
+  pointer-events: auto;
+}
+
+.chat-wrapper > infring-chat-input-footer-shell > .input-area {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: var(--chat-input-bottom-offset, 0px);
+  z-index: 12;
+  pointer-events: none;
+}
+
+.chat-wrapper > infring-chat-input-footer-shell > .input-area .chat-input-lane {
+  pointer-events: auto;
+}
+
+.chat-wrapper > infring-chat-input-footer-shell > .input-area::before {
+  content: none;
+}
+
+.messages > infring-chat-thread-shell > .chat-thread,
+.messages > infring-chat-empty-state-shell > .empty-state,
+.messages > infring-dropzone-overlay-shell > .empty-state,
+.messages > infring-workspace-panel-shell > .chat-workspace-panel {
+  position: relative;
+  z-index: 1;
+}
