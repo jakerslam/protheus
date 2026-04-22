@@ -68,6 +68,18 @@ fn non_legacy_surface_fixture_fallback_rate_stays_below_threshold() {
                 }
             }),
         },
+        OrchestrationRequest {
+            session_id: "dashboard-metric-direct".to_string(),
+            intent: "opaque".to_string(),
+            surface: RequestSurface::Dashboard,
+            payload: json!({
+                "dashboard": {
+                    "operation_kind": "search",
+                    "resource_kind": "web",
+                    "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
+                }
+            }),
+        },
     ];
     let mut runtime = OrchestrationSurfaceRuntime::new();
     let packages = fixtures
@@ -82,7 +94,7 @@ fn non_legacy_surface_fixture_fallback_rate_stays_below_threshold() {
     let fallback_rate = fallback_count as f32 / packages.len() as f32;
 
     assert!(
-        fallback_rate <= 0.25,
+        fallback_rate <= 0.21,
         "fallback rate should stay below threshold"
     );
     assert_eq!(fallback_count, 1);

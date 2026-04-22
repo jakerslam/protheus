@@ -38,6 +38,9 @@ type RuntimeQualityPolicy = {
   max_non_legacy_clarification_rate?: number;
   max_non_legacy_zero_executable_rate?: number;
   max_non_legacy_all_candidates_degraded_rate?: number;
+  max_non_legacy_fallback_plus_heuristic_rate?: number;
+  max_non_legacy_clarification_plus_degraded_rate?: number;
+  max_non_legacy_fallback_minus_zero_executable_rate?: number;
   ratchet?: {
     max_regression_delta?: number;
   };
@@ -108,6 +111,15 @@ function evaluateThresholds(metrics: RuntimeQualityMetrics | null, policy: Runti
   const maxAllCandidatesDegradedRate = numberOrNull(
     policy.max_non_legacy_all_candidates_degraded_rate,
   );
+  const maxFallbackPlusHeuristicRate = numberOrNull(
+    policy.max_non_legacy_fallback_plus_heuristic_rate,
+  );
+  const maxClarificationPlusDegradedRate = numberOrNull(
+    policy.max_non_legacy_clarification_plus_degraded_rate,
+  );
+  const maxFallbackMinusZeroExecutableRate = numberOrNull(
+    policy.max_non_legacy_fallback_minus_zero_executable_rate,
+  );
 
   if (sampleSize == null) {
     failures.push('missing_sample_size_non_legacy');
@@ -163,6 +175,39 @@ function evaluateThresholds(metrics: RuntimeQualityMetrics | null, policy: Runti
   ) {
     failures.push(
       `all_candidates_degraded_rate_non_legacy_exceeded:actual=${allCandidatesDegradedRate.toFixed(4)}:max=${maxAllCandidatesDegradedRate.toFixed(4)}`,
+    );
+  }
+
+  if (
+    fallbackRate != null
+    && heuristicProbeRate != null
+    && maxFallbackPlusHeuristicRate != null
+    && fallbackRate + heuristicProbeRate > maxFallbackPlusHeuristicRate
+  ) {
+    failures.push(
+      `fallback_plus_heuristic_rate_non_legacy_exceeded:actual=${(fallbackRate + heuristicProbeRate).toFixed(4)}:max=${maxFallbackPlusHeuristicRate.toFixed(4)}`,
+    );
+  }
+
+  if (
+    clarificationRate != null
+    && allCandidatesDegradedRate != null
+    && maxClarificationPlusDegradedRate != null
+    && clarificationRate + allCandidatesDegradedRate > maxClarificationPlusDegradedRate
+  ) {
+    failures.push(
+      `clarification_plus_all_candidates_degraded_rate_non_legacy_exceeded:actual=${(clarificationRate + allCandidatesDegradedRate).toFixed(4)}:max=${maxClarificationPlusDegradedRate.toFixed(4)}`,
+    );
+  }
+
+  if (
+    fallbackRate != null
+    && zeroExecutableRate != null
+    && maxFallbackMinusZeroExecutableRate != null
+    && fallbackRate - zeroExecutableRate > maxFallbackMinusZeroExecutableRate
+  ) {
+    failures.push(
+      `fallback_minus_zero_executable_rate_non_legacy_exceeded:actual=${(fallbackRate - zeroExecutableRate).toFixed(4)}:max=${maxFallbackMinusZeroExecutableRate.toFixed(4)}`,
     );
   }
 
@@ -232,6 +277,33 @@ function evaluateMetricConsistency(metrics: RuntimeQualityMetrics | null): strin
   ) {
     failures.push(
       `inconsistent_all_candidates_degraded_rate_vs_zero_executable_rate_non_legacy:all_candidates_degraded_rate_non_legacy=${allCandidatesDegradedRate.toFixed(4)}:zero_executable_rate_non_legacy=${zeroExecutableRate.toFixed(4)}`,
+    );
+  }
+  if (
+    fallbackRate != null
+    && zeroExecutableRate != null
+    && fallbackRate > zeroExecutableRate
+  ) {
+    failures.push(
+      `inconsistent_fallback_rate_vs_zero_executable_rate_non_legacy:fallback_rate_non_legacy=${fallbackRate.toFixed(4)}:zero_executable_rate_non_legacy=${zeroExecutableRate.toFixed(4)}`,
+    );
+  }
+  if (
+    fallbackRate != null
+    && heuristicProbeRate != null
+    && fallbackRate + heuristicProbeRate > 1
+  ) {
+    failures.push(
+      `inconsistent_fallback_plus_heuristic_rate_non_legacy_over_1:sum=${(fallbackRate + heuristicProbeRate).toFixed(4)}`,
+    );
+  }
+  if (
+    clarificationRate != null
+    && allCandidatesDegradedRate != null
+    && clarificationRate + allCandidatesDegradedRate > 1
+  ) {
+    failures.push(
+      `inconsistent_clarification_plus_all_candidates_degraded_rate_non_legacy_over_1:sum=${(clarificationRate + allCandidatesDegradedRate).toFixed(4)}`,
     );
   }
 

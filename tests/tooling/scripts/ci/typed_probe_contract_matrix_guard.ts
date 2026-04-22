@@ -135,6 +135,18 @@ function run(): number {
     detail: 'typed regression suite does not collapse expected probe keys to execute_tool',
   });
 
+  checks.push({
+    id: 'typed_probe_contract_matrix_no_execute_tool_collapse_in_classifier',
+    ok: !classifierSource.includes('typed_probe_contract_expected:execute_tool'),
+    detail: 'classifier does not emit execute_tool fallback diagnostics for typed probe routing',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_legacy_execute_tool_is_explicit_compatibility',
+    ok: contractsSource.includes('Legacy compatibility capability retained for older probe payloads.'),
+    detail: 'contracts surface keeps execute_tool only as explicit legacy compatibility',
+  });
+
   const matrixRows = MATRIX_CAPABILITIES.map((row) => ({
     capability_key: row.key,
     expected_missing_capability_reason: `typed_probe_contract_missing:capability.${row.key}`,
