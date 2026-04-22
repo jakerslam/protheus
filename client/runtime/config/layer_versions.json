@@ -128,7 +128,7 @@
       },
       "features": [
         "Server ping/pong every 20s",
-        "Client exponential backoff reconnect",
+        "Shell exponential backoff reconnect",
         "Event buffer (500 events / 10 min)"
       ]
     },

@@ -76,7 +76,7 @@ function run(argv: string[]): number {
   const policyDebt = readJsonMaybe<any>('core/local/artifacts/policy_debt_summary_current.json', null);
   const dashboardSurface = readJsonMaybe<any>('core/local/artifacts/dashboard_surface_authority_guard_current.json', null);
   const clientLegacy = readJsonMaybe<any>('core/local/artifacts/client_legacy_debt_report_current.json', null);
-  const adapterFallback = readJsonMaybe<any>('core/local/artifacts/orchestration_adapter_fallback_guard_current.json', null);
+  const gatewayFallback = readJsonMaybe<any>('core/local/artifacts/orchestration_gateway_fallback_guard_current.json', null);
 
   const items = Array.isArray(ledger.items) ? ledger.items : [];
   const openItems = items.filter((row) => row.status !== 'done');
@@ -115,7 +115,7 @@ function run(argv: string[]): number {
           Number(dashboardSurface?.summary?.redirect_alias_handlers ?? 0) > 0 ||
           dashboardSurface?.summary?.retired_alias_guard_present === false ||
           dashboardSurface?.summary?.svelte_dashboard_packaged === true),
-      adapter_fallback_guard_pass: Boolean(adapterFallback?.ok),
+      gateway_fallback_guard_pass: Boolean(gatewayFallback?.ok),
     },
     open_items: openItems,
     blocked_items: blockedItems,

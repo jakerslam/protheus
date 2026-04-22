@@ -1,0 +1,76 @@
+{
+  "schema_id": "runtime_closure_board",
+  "schema_version": 1,
+  "updated_at": "2026-04-22T00:00:00Z",
+  "buckets": [
+    {
+      "id": "layer2_parity",
+      "label": "Layer 2 parity",
+      "owner": "kernel-runtime",
+      "status": "active",
+      "validation_gates": [
+        "ops:layer2:parity:guard",
+        "ops:layer2:receipt:replay"
+      ],
+      "evidence_artifacts": [
+        "core/local/artifacts/layer2_lane_parity_guard_current.json",
+        "core/local/artifacts/layer2_receipt_replay_current.json"
+      ]
+    },
+    {
+      "id": "production_gateways",
+      "label": "Production gateways",
+      "owner": "gateway-runtime",
+      "status": "active",
+      "validation_gates": [
+        "ops:gateway-runtime-chaos:gate"
+      ],
+      "evidence_artifacts": [
+        "core/local/artifacts/gateway_runtime_chaos_gate_current.json",
+        "core/local/artifacts/gateway_support_levels_current.json"
+      ]
+    },
+    {
+      "id": "boundedness",
+      "label": "Boundedness",
+      "owner": "runtime-proof",
+      "status": "active",
+      "validation_gates": [
+        "ops:runtime-proof:verify",
+        "ops:boundedness:release-gate"
+      ],
+      "evidence_artifacts": [
+        "core/local/artifacts/runtime_boundedness_72h_evidence_current.json",
+        "core/local/artifacts/runtime_boundedness_release_gate_current.json"
+      ]
+    },
+    {
+      "id": "dashboard_truth",
+      "label": "Dashboard truth",
+      "owner": "shell-authority",
+      "status": "active",
+      "validation_gates": [
+        "ops:dashboard:surface:guard",
+        "ops:shell:truth-leak:guard"
+      ],
+      "evidence_artifacts": [
+        "core/local/artifacts/dashboard_surface_authority_guard_current.json",
+        "core/local/artifacts/shell_truth_leak_guard_current.json"
+      ]
+    },
+    {
+      "id": "auto_heal_backpressure",
+      "label": "Auto-heal and backpressure",
+      "owner": "runtime-recovery",
+      "status": "active",
+      "validation_gates": [
+        "ops:queue-backpressure:policy:gate",
+        "ops:runtime-proof:verify"
+      ],
+      "evidence_artifacts": [
+        "core/local/artifacts/queue_backpressure_policy_gate_current.json",
+        "core/local/artifacts/runtime_proof_verify_current.json"
+      ]
+    }
+  ]
+}

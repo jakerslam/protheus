@@ -6,23 +6,9 @@ use crate::contracts::{
 use serde_json::Value;
 
 fn capability_key(capability: &Capability) -> &'static str {
-    capability
-        .probe_keys()
-        .first()
-        .copied()
-        .unwrap_or("execute_tool")
-}
-
-fn required_probe_key(capability: &Capability) -> &'static str {
-    if matches!(
-        capability,
-        Capability::WorkspaceRead | Capability::WorkspaceSearch
-    ) {
-        capability_key(capability)
-    } else if capability.is_tool_family() {
-        "execute_tool"
-    } else {
-        capability_key(capability)
+    match capability.probe_keys().first().copied() {
+        Some(key) => key,
+        None => unreachable!("capability must declare at least one probe key"),
     }
 }
 
@@ -104,6 +90,10 @@ fn parse_capability_key(value: &str) -> Option<Capability> {
         "verify_claim" => Some(Capability::VerifyClaim),
         _ => None,
     }
+}
+
+fn required_probe_key(capability: &Capability) -> &'static str {
+    capability_key(capability)
 }
 
 fn traverse_bool(value: &Value, path: &[&str]) -> Option<bool> {

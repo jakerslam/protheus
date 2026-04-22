@@ -1,0 +1,60 @@
+{
+  "schema_id": "workspace_tooling_context_replay_matrix",
+  "schema_version": 1,
+  "required_replay_scenarios": [
+    "file_read",
+    "file_search",
+    "repo_path_targeting",
+    "mixed_workspace_tool_routing"
+  ],
+  "cases": [
+    {
+      "id": "routing_file_edit_classifies_to_task_route",
+      "lane": "routing",
+      "scenario": "file_read",
+      "test": "workflow_decision_tree_v2_classifies_file_edits_as_task_route"
+    },
+    {
+      "id": "routing_workspace_compare_not_forced_to_web",
+      "lane": "routing",
+      "scenario": "repo_path_targeting",
+      "test": "natural_web_intent_does_not_force_plain_workspace_peer_compare_into_web"
+    },
+    {
+      "id": "hints_compare_clusters_workspace_and_web_tools",
+      "lane": "hints",
+      "scenario": "file_search",
+      "test": "compare_workflow_hint_clusters_workspace_and_web_tools"
+    },
+    {
+      "id": "synthesis_decomposes_workspace_and_web_evidence",
+      "lane": "synthesis",
+      "scenario": "mixed_workspace_tool_routing",
+      "test": "compare_workflow_harness_decomposes_local_and_web_evidence_before_final_synthesis"
+    },
+    {
+      "id": "replay_file_read_contract",
+      "lane": "replay",
+      "scenario": "file_read",
+      "test": "workflow_decision_tree_v2_classifies_file_edits_as_task_route"
+    },
+    {
+      "id": "replay_file_search_contract",
+      "lane": "replay",
+      "scenario": "file_search",
+      "test": "compare_workflow_hint_clusters_workspace_and_web_tools"
+    },
+    {
+      "id": "replay_repo_path_targeting_contract",
+      "lane": "replay",
+      "scenario": "repo_path_targeting",
+      "test": "natural_web_intent_does_not_force_plain_workspace_peer_compare_into_web"
+    },
+    {
+      "id": "replay_mixed_workspace_tool_routing_contract",
+      "lane": "replay",
+      "scenario": "mixed_workspace_tool_routing",
+      "test": "compare_workflow_harness_decomposes_local_and_web_evidence_before_final_synthesis"
+    }
+  ]
+}

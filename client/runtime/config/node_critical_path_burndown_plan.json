@@ -8,9 +8,17 @@
     "recovery",
     "status"
   ],
+  "operator_critical_domains": [
+    "release",
+    "repair",
+    "topology_truth",
+    "recovery",
+    "status"
+  ],
+  "operator_critical_target_classification": "rust_native",
+  "operator_critical_priority_cutoff_date": "2026-07-15",
   "allowed_node_typescript_prefixes": [
     "tests/tooling/scripts/",
-    "client/runtime/systems/ops/",
     "client/runtime/systems/ui/",
     "client/runtime/systems/extensions/",
     "client/runtime/systems/marketplace/"
@@ -130,9 +138,9 @@
       "id": "ops:node-critical-path:inventory",
       "domain": "status",
       "owner": "ops-governance",
-      "priority": 1,
+      "priority": 2,
       "target_classification": "node_typescript",
-      "target_date": "2026-05-15",
+      "target_date": "2026-08-15",
       "migration_status": "in_progress",
       "notes": "Keep as TypeScript governance gate while confinement and burn-down policy remain enforced."
     }

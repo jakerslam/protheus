@@ -1157,7 +1157,7 @@ describe('conduit primitive wrapper contract', () => {
       'client/runtime/systems/edge/mobile_lifecycle_resilience.ts',
       'client/runtime/systems/edge/mobile_ops_top.ts',
       'client/runtime/systems/edge/protheus_edge_runtime.ts',
-      'client/runtime/systems/migration/core_migration_bridge.js',
+      'client/runtime/systems/migration/kernel_migration_bridge.js',
       'client/runtime/systems/migration/universal_importers.js',
       'client/runtime/systems/ops/fluxlattice_program.js',
       'client/runtime/systems/ops/host_adaptation_operator_surface.js',

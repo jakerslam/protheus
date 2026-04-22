@@ -20,6 +20,11 @@ type Layer3PolicyModule = {
     layer2_interface?: string;
     authority?: string;
   };
+  boundary_alignment?: {
+    layer2_authority_boundary?: string;
+    layer3_scope?: string;
+    gateway_boundary?: string;
+  };
   execution_unit?: {
     id?: string;
     lifecycle?: string[];
@@ -36,6 +41,25 @@ type Layer3Policy = {
   source_extensions?: string[];
   allowed_categories?: string[];
   allowed_statuses?: string[];
+  placement_boundaries?: {
+    layer2?: {
+      owns?: string[];
+      forbidden_in_layer3?: string[];
+    };
+    layer3?: {
+      owns?: string[];
+      must_consume_layer2_receipts?: boolean;
+    };
+    gateways?: {
+      owns?: string[];
+      forbidden_in_layer3?: string[];
+    };
+  };
+  require_module_boundary_alignment?: boolean;
+  reject_module_without_boundary_alignment?: boolean;
+  fail_on_dependency_boundary_violation?: boolean;
+  allowed_dependency_prefixes?: string[];
+  forbidden_dependency_prefixes?: string[];
   fail_on_unmapped_source_file?: boolean;
   modules?: Layer3PolicyModule[];
 };
@@ -97,13 +121,19 @@ function toMarkdown(report: any): string {
     `- policy: ${report.policy_path}`,
     `- layer3_root: ${report.layer3_root}`,
     `- overall_status: ${report.summary.overall_status}`,
+    `- module_count: ${report.summary.module_count}`,
+    `- source_file_count: ${report.summary.source_file_count}`,
+    `- unmapped_source_file_count: ${report.summary.unmapped_source_file_count}`,
+    `- placement_policy_failure_count: ${report.summary.placement_policy_failure_count}`,
+    `- boundary_alignment_failure_count: ${report.summary.boundary_alignment_failure_count}`,
+    `- dependency_boundary_failure_count: ${report.summary.dependency_boundary_failure_count}`,
     '',
-    '| module | status | category | matched_source_files | execution_unit_ok | boundary_ok |',
-    '| --- | --- | --- | ---: | --- | --- |',
+    '| module | status | category | matched_source_files | execution_unit_ok | scheduler_boundary_ok | boundary_alignment_ok | dependency_boundary_ok |',
+    '| --- | --- | --- | ---: | --- | --- | --- | --- |',
   ];
   for (const moduleRow of report.modules) {
     lines.push(
-      `| ${moduleRow.id} | ${moduleRow.status} | ${moduleRow.category} | ${moduleRow.matched_source_files} | ${moduleRow.execution_unit_ok} | ${moduleRow.scheduler_boundary_ok} |`,
+      `| ${moduleRow.id} | ${moduleRow.status} | ${moduleRow.category} | ${moduleRow.matched_source_files} | ${moduleRow.execution_unit_ok} | ${moduleRow.scheduler_boundary_ok} | ${moduleRow.boundary_alignment_ok} | ${moduleRow.dependency_boundary_ok} |`,
     );
   }
   lines.push('');
@@ -158,7 +188,47 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     ),
   );
   const modules = Array.isArray(policy.modules) ? policy.modules : [];
+  const placementBoundaries = policy.placement_boundaries || {};
+  const requireModuleBoundaryAlignment = policy.require_module_boundary_alignment !== false;
+  const rejectModuleWithoutBoundaryAlignment = policy.reject_module_without_boundary_alignment !== false;
+  const failOnDependencyBoundaryViolation = policy.fail_on_dependency_boundary_violation !== false;
+  const allowedDependencyPrefixes =
+    Array.isArray(policy.allowed_dependency_prefixes) && policy.allowed_dependency_prefixes.length > 0
+      ? policy.allowed_dependency_prefixes.map((value) => cleanText(String(value || ''), 200)).filter(Boolean)
+      : ['core/layer2/', 'core/layer3/'];
+  const forbiddenDependencyPrefixes =
+    Array.isArray(policy.forbidden_dependency_prefixes) && policy.forbidden_dependency_prefixes.length > 0
+      ? policy.forbidden_dependency_prefixes.map((value) => cleanText(String(value || ''), 200)).filter(Boolean)
+      : ['adapters/', 'surface/orchestration/', 'client/'];
   const failures: Array<{ id: string; detail: string }> = [];
+
+  const placementLayer2Owns = Array.isArray(placementBoundaries.layer2?.owns)
+    ? placementBoundaries.layer2?.owns || []
+    : [];
+  const placementLayer3Owns = Array.isArray(placementBoundaries.layer3?.owns)
+    ? placementBoundaries.layer3?.owns || []
+    : [];
+  const placementGatewaysOwns = Array.isArray(placementBoundaries.gateways?.owns)
+    ? placementBoundaries.gateways?.owns || []
+    : [];
+  if (placementLayer2Owns.length === 0) {
+    failures.push({ id: 'layer3_policy_placement_layer2_owns_missing', detail: 'placement_boundaries.layer2.owns' });
+  }
+  if (placementLayer3Owns.length === 0) {
+    failures.push({ id: 'layer3_policy_placement_layer3_owns_missing', detail: 'placement_boundaries.layer3.owns' });
+  }
+  if (placementGatewaysOwns.length === 0) {
+    failures.push({
+      id: 'layer3_policy_placement_gateways_owns_missing',
+      detail: 'placement_boundaries.gateways.owns',
+    });
+  }
+  if (placementBoundaries.layer3?.must_consume_layer2_receipts !== true) {
+    failures.push({
+      id: 'layer3_policy_must_consume_layer2_receipts_false',
+      detail: 'placement_boundaries.layer3.must_consume_layer2_receipts',
+    });
+  }
 
   const sourceFiles = walkFiles(layer3RootAbs)
     .map((abs) => rel(root, abs))
@@ -205,6 +275,27 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     if (!schedulerBoundaryOk) {
       failures.push({ id: 'layer3_module_scheduler_boundary_invalid', detail: id });
     }
+    if (schedulerBoundary.authority !== 'layer2_owns_scheduling') {
+      failures.push({
+        id: 'layer3_module_scheduler_authority_must_be_layer2',
+        detail: `${id}:${cleanText(schedulerBoundary.authority || '', 80)}`,
+      });
+    }
+    if (!String(schedulerBoundary.layer2_interface || '').toLowerCase().includes('layer2')) {
+      failures.push({
+        id: 'layer3_module_scheduler_interface_not_layer2_scoped',
+        detail: `${id}:${cleanText(schedulerBoundary.layer2_interface || '', 120)}`,
+      });
+    }
+
+    const boundaryAlignment = moduleRow.boundary_alignment || {};
+    const boundaryAlignmentOk =
+      isNonEmptyString(boundaryAlignment.layer2_authority_boundary) &&
+      isNonEmptyString(boundaryAlignment.layer3_scope) &&
+      isNonEmptyString(boundaryAlignment.gateway_boundary);
+    if (requireModuleBoundaryAlignment && rejectModuleWithoutBoundaryAlignment && !boundaryAlignmentOk) {
+      failures.push({ id: 'layer3_module_boundary_alignment_missing', detail: id });
+    }
 
     const executionUnit = moduleRow.execution_unit || {};
     const executionUnitOk =
@@ -221,6 +312,21 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       failures.push({ id: 'layer3_module_execution_unit_invalid', detail: id });
     }
 
+    const dependencyRows = Array.isArray(executionUnit.dependencies)
+      ? executionUnit.dependencies.map((value) => cleanText(String(value || ''), 300)).filter(Boolean)
+      : [];
+    const dependencyBoundaryViolations = dependencyRows.filter((dep) => {
+      const normalized = dep.replace(/\\/g, '/');
+      if (forbiddenDependencyPrefixes.some((prefix) => normalized.startsWith(prefix))) return true;
+      return !allowedDependencyPrefixes.some((prefix) => normalized.startsWith(prefix));
+    });
+    const dependencyBoundaryOk = dependencyBoundaryViolations.length === 0;
+    if (failOnDependencyBoundaryViolation && !dependencyBoundaryOk) {
+      for (const violation of dependencyBoundaryViolations) {
+        failures.push({ id: 'layer3_module_dependency_boundary_violation', detail: `${id}:${violation}` });
+      }
+    }
+
     return {
       id,
       path_prefix: prefix,
@@ -230,6 +336,8 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       matched_source_files: matchedSources.length,
       execution_unit_ok: executionUnitOk,
       scheduler_boundary_ok: schedulerBoundaryOk,
+      boundary_alignment_ok: boundaryAlignmentOk,
+      dependency_boundary_ok: dependencyBoundaryOk,
     };
   });
 
@@ -258,6 +366,13 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       module_count: moduleRows.length,
       source_file_count: sourceFiles.length,
       unmapped_source_file_count: unmappedSourceFiles.length,
+      placement_policy_failure_count: failures.filter((row) => row.id.startsWith('layer3_policy_')).length,
+      boundary_alignment_failure_count: failures.filter(
+        (row) => row.id === 'layer3_module_boundary_alignment_missing',
+      ).length,
+      dependency_boundary_failure_count: failures.filter(
+        (row) => row.id === 'layer3_module_dependency_boundary_violation',
+      ).length,
       failed_count: failures.length,
     },
     modules: moduleRows,

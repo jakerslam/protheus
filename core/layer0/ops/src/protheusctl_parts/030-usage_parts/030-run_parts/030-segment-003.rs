@@ -61,7 +61,7 @@
                         .collect()
                 };
                 Route {
-                    script_rel: "client/runtime/systems/migration/core_migration_bridge.js"
+                    script_rel: "client/runtime/systems/migration/kernel_migration_bridge.js"
                         .to_string(),
                     args,
                     forward_stdin: false,

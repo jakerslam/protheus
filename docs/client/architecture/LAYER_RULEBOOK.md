@@ -9,7 +9,7 @@ The repository has seven top-level product/code roots:
 - `/client` — shell surface path (developer-facing platform, SDKs, CLI, dashboards, and thin wrappers).
 - `/packages` — public SDK/package distribution surfaces, starter bundles, and installable developer-facing wrappers.
 - `/apps` — end-user applications built on top of the shell/platform surface.
-- `/adapters` — integration shims for external apps, services, and systems that were not originally designed for InfRing.
+- `/adapters` — Gateway layer implementation path (compat alias: Adapters) for external integration shims.
 - `/tests` — integration, end-to-end, regression, and system verification surfaces.
 
 All product code should live in one of these roots.
@@ -24,7 +24,7 @@ Placement is decided by authority before language.
 - If a surface exists to help developers call, inspect, visualize, package, or extend the system, it belongs in the shell path `client`.
 - If a surface exists to ship the public SDK/package layer to developers, it belongs in `packages`.
 - If a surface is an opinionated workflow/product on top of the platform, it belongs in `apps`.
-- If a surface exists to connect InfRing to something external, legacy, or third-party, it belongs in `adapters`.
+- If a surface exists to connect InfRing to something external, legacy, or third-party, it belongs in the Gateway layer (`adapters/**` path during compatibility transition).
 - If a surface exists only to verify behavior, it belongs in `tests` or adjacent unit-test locations.
 
 ### 2. Layer Definitions (Strict)
@@ -80,13 +80,13 @@ Apps are not part of the platform core and are allowed to be more opinionated.
 - Apps must not become the canonical owner of policy, receipts, or core state.
 - Apps should consume public platform contracts, not private core internals.
 
-### 2.5 Adapters Scope Contract
-Adapters exist to connect InfRing to non-native systems.
+### 2.5 Gateways Scope Contract (compat alias: Adapters)
+Gateways exist to connect InfRing to non-native systems.
 
-- Adapters may be polyglot.
-- Adapters may wrap third-party APIs, local tools, legacy services, or external applications.
-- Adapters must remain capability-scoped and must not bypass conduit/policy/receipt contracts.
-- If an adapter starts owning system truth, it is misplaced and must move into `core`.
+- Gateways may be polyglot.
+- Gateways may wrap third-party APIs, local tools, legacy services, or external applications.
+- Gateways must remain capability-scoped and must not bypass conduit/policy/receipt contracts.
+- If a gateway starts owning system truth, it is misplaced and must move into `core`.
 
 ### 2.6 Tests Scope Contract
 Tests are a separate verification surface, with one exception:
@@ -115,7 +115,7 @@ The extension boundary for apps and adapters is:
 - Client SDK/CLI/UI surfaces derived from that contract
 - Explicit manifests and schemas
 
-Apps and adapters should build against the contract, not against private implementation files.
+Apps and gateways should build against the contract, not against private implementation files.
 
 ### 4. Boundary Rules (Enforced)
 - Primary path is Client -> Orchestration Surface -> Kernel for user-driven execution flows.
@@ -123,7 +123,7 @@ Apps and adapters should build against the contract, not against private impleme
 - Orchestration Surface <-> core communication is conduit + scrambler + lease/policy validation.
 - Packages <-> core communication flows through public client/package contracts, never private authority backdoors.
 - No direct client-side policy authority over core decisions.
-- Apps/adapters must reach authority through platform contracts, not by importing private core internals.
+- Apps/gateways must reach authority through platform contracts, not by importing private core internals.
 - No direct back-channels, raw state bypasses, or legacy bridges around conduit.
 - Layer flow is upward-only:
   `Layer -1 -> Layer 0 -> Layer 1 -> Layer 2 -> Layer 3 -> Cognition`.

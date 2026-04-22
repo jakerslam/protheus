@@ -144,7 +144,7 @@ fn build_deterministic_final_fallback_response(
             "I can answer directly without tool calls. Ask your question naturally and I’ll respond conversationally unless you explicitly request a tool run.".to_string();
     }
     if deterministic_fallback.is_empty() {
-        deterministic_fallback = "I completed the workflow, but synthesis could not produce a valid final response in this turn. Please retry and I’ll rerun the chain with explicit failure details.".to_string();
+        deterministic_fallback = "I completed the workflow, but synthesis could not produce a valid final response in this turn. I can continue with a direct answer from current context, or rerun with explicit failure details if you want.".to_string();
     }
     clean_chat_text(&deterministic_fallback, 32_000)
 }
@@ -207,6 +207,8 @@ fn build_response_quality_telemetry_payload(
         "prompt_echo_reject": response_workflow_quality_count(response_workflow, "prompt_echo_reject"),
         "unsourced_claim_reject": response_workflow_quality_count(response_workflow, "unsourced_claim_reject"),
         "direct_answer_reject": response_workflow_quality_count(response_workflow, "direct_answer_reject"),
+        "legacy_retry_template_detected": response_workflow_quality_count(response_workflow, "legacy_retry_template_detected"),
+        "repeated_fallback_loop_detected": response_workflow_quality_count(response_workflow, "repeated_fallback_loop_detected"),
         "meta_control_tool_block": response_workflow_quality_value(response_workflow, "meta_control_tool_block")
             .and_then(Value::as_bool)
             .unwrap_or(false),

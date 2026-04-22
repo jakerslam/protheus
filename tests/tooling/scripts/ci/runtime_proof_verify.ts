@@ -8,7 +8,7 @@ import { currentRevision } from '../../lib/git.ts';
 import { emitStructuredResult, writeJsonArtifact } from '../../lib/result.ts';
 import { run as runHarness } from './runtime_proof_harness.ts';
 import { run as runReleaseGate } from './runtime_proof_release_gate.ts';
-import { run as runAdapterChaosGate } from './adapter_runtime_chaos_gate.ts';
+import { run as runAdapterChaosGate } from './gateway_runtime_chaos_gate.ts';
 import { run as runBoundednessInspect } from './runtime_boundedness_inspect.ts';
 
 type ProfileId = 'rich' | 'pure' | 'tiny-max';
@@ -641,7 +641,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     const gateOut = `core/local/artifacts/runtime_proof_release_gate_${profile}_current.json`;
     const gateMetricsOut = `core/local/artifacts/runtime_proof_release_metrics_${profile}_current.json`;
     const gateTableOut = `local/workspace/reports/RUNTIME_PROOF_RELEASE_GATE_${profile.toUpperCase()}_CURRENT.md`;
-    const adapterChaosOut = `core/local/artifacts/adapter_runtime_chaos_gate_${profile}_current.json`;
+    const gatewayChaosOut = `core/local/artifacts/gateway_runtime_chaos_gate_${profile}_current.json`;
     const boundednessInspectOut = `core/local/artifacts/runtime_boundedness_inspect_${profile}_current.json`;
     const boundednessInspectMarkdownOut = `local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_${profile.toUpperCase()}_CURRENT.md`;
     const harnessArgs = [
@@ -665,17 +665,17 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     const harnessExit = harnessPrepExit === 0 && boundednessInspectExit === 0
       ? harnessRefreshExit
       : harnessPrepExit;
-    const adapterChaosExit = runAdapterChaosGate([
+    const gatewayChaosExit = runAdapterChaosGate([
       '--strict=1',
       `--profile=${profile}`,
-      `--out=${adapterChaosOut}`,
+      `--out=${gatewayChaosOut}`,
     ]);
     const gateExit = runReleaseGate([
       '--strict=1',
       `--profile=${profile}`,
       `--proof-track=${args.proofTrack}`,
       `--harness=${harnessOut}`,
-      `--adapter-chaos=${adapterChaosOut}`,
+      `--gateway-chaos=${gatewayChaosOut}`,
       `--quality-paths=${RELEASE_GATE_QUALITY_PATHS.join(',')}`,
       '--policy=tests/tooling/config/release_gates.yaml',
       `--out=${gateOut}`,
@@ -703,7 +703,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       harnessExit,
       boundednessInspectExit,
       gateExit,
-      adapterChaosExit,
+      gatewayChaosExit,
       empiricalGateOk,
       empiricalSamplePoints,
       harnessOut,
@@ -713,7 +713,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       gateOut,
       gateMetricsOut,
       gateTableOut,
-      adapterChaosOut,
+      gatewayChaosOut,
       harnessPayload,
       gatePayload,
       boundednessInspectPayload,
@@ -721,7 +721,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       soakSource,
       ok:
         harnessExit === 0 &&
-        adapterChaosExit === 0 &&
+        gatewayChaosExit === 0 &&
         empiricalGateOk &&
         (args.proofTrack === 'empirical' ? true : gateExit === 0) &&
         boundednessInspectExit === 0,
@@ -878,6 +878,14 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       ? previousSnapshot.profiles.map((row: any) => [cleanText(row?.profile || '', 40), row])
       : [],
   );
+  const trendWindowSize = Math.min(empiricalHistory.length, 7);
+  const trendWindow = trendWindowSize > 0 ? empiricalHistory.slice(-trendWindowSize) : [];
+  const windowBaselineSnapshot = trendWindow.length > 0 ? trendWindow[0] : null;
+  const windowBaselineByProfile = new Map<string, any>(
+    Array.isArray(windowBaselineSnapshot?.profiles)
+      ? windowBaselineSnapshot.profiles.map((row: any) => [cleanText(row?.profile || '', 40), row])
+      : [],
+  );
   const empiricalTrends = {
     ok: profileRuns.every((row) => row.empiricalSamplePoints > 0),
     type: 'runtime_proof_empirical_trends',
@@ -885,27 +893,73 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     revision: currentRevision(root),
     history_samples: empiricalHistory.length,
     baseline_available: !!previousSnapshot,
+    trend_window_samples: trendWindowSize,
     proof_track: args.proofTrack,
     profiles: empiricalSnapshot.profiles.map((row) => {
       const previous = previousByProfile.get(row.profile);
       const previousSamplePoints = safeNumber(previous?.sample_points, 0);
+      const windowBaseline = windowBaselineByProfile.get(row.profile);
+      const windowBaselineSamplePoints = safeNumber(windowBaseline?.sample_points, 0);
+      const metricDeltas = EMPIRICAL_TREND_METRIC_KEYS.reduce(
+        (acc, key) => {
+          const currentValue = safeNumber(row.metrics?.[key], 0);
+          const previousValue = safeNumber(previous?.metrics?.[key], 0);
+          acc[key] = {
+            current: currentValue,
+            previous: previousValue,
+            delta: currentValue - previousValue,
+          };
+          return acc;
+        },
+        {} as Record<EmpiricalTrendMetricKey, { current: number; previous: number; delta: number }>,
+      );
+      const metricWindowDeltas = EMPIRICAL_TREND_METRIC_KEYS.reduce(
+        (acc, key) => {
+          const currentValue = safeNumber(row.metrics?.[key], 0);
+          const previousValue = safeNumber(previous?.metrics?.[key], 0);
+          const baselineValue = safeNumber(windowBaseline?.metrics?.[key], 0);
+          const deltaFromBaseline = currentValue - baselineValue;
+          acc[key] = {
+            current: currentValue,
+            previous: previousValue,
+            baseline: baselineValue,
+            delta: currentValue - previousValue,
+            delta_from_baseline: deltaFromBaseline,
+            direction: deltaFromBaseline > 0 ? 'up' : deltaFromBaseline < 0 ? 'down' : 'flat',
+          };
+          return acc;
+        },
+        {} as Record<
+          EmpiricalTrendMetricKey,
+          {
+            current: number;
+            previous: number;
+            baseline: number;
+            delta: number;
+            delta_from_baseline: number;
+            direction: 'up' | 'down' | 'flat';
+          }
+        >,
+      );
+      const metricDirectionCounts = EMPIRICAL_TREND_METRIC_KEYS.reduce(
+        (acc, key) => {
+          const direction = metricWindowDeltas[key].direction;
+          if (direction === 'up') acc.up += 1;
+          else if (direction === 'down') acc.down += 1;
+          else acc.flat += 1;
+          return acc;
+        },
+        { up: 0, down: 0, flat: 0 },
+      );
       return {
         profile: row.profile,
         sample_points: row.sample_points,
         sample_points_delta: row.sample_points - previousSamplePoints,
-        metric_deltas: EMPIRICAL_TREND_METRIC_KEYS.reduce(
-          (acc, key) => {
-            const currentValue = safeNumber(row.metrics?.[key], 0);
-            const previousValue = safeNumber(previous?.metrics?.[key], 0);
-            acc[key] = {
-              current: currentValue,
-              previous: previousValue,
-              delta: currentValue - previousValue,
-            };
-            return acc;
-          },
-          {} as Record<EmpiricalTrendMetricKey, { current: number; previous: number; delta: number }>,
-        ),
+        sample_points_baseline: windowBaselineSamplePoints,
+        sample_points_delta_from_baseline: row.sample_points - windowBaselineSamplePoints,
+        metric_deltas: metricDeltas,
+        metric_window_deltas: metricWindowDeltas,
+        metric_direction_counts: metricDirectionCounts,
       };
     }),
     history_path: args.empiricalHistoryPath,
@@ -920,7 +974,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
 
   const empiricalProfileCoverageRows = profileRuns.map((row) => {
       const policyFallbackMin =
-        row.profile === 'rich' ? 12 : row.profile === 'pure' ? 8 : 6;
+        row.profile === 'rich' ? 12 : row.profile === 'pure' ? 10 : 8;
       const requiredMinSamplePoints = safeNumber(
         row.gatePayload?.profile_requirements?.empirical_min_sample_points,
         safeNumber(
@@ -1374,7 +1428,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       row.boundednessInspectMarkdownOut,
       row.gateOut,
       row.gateMetricsOut,
-      row.adapterChaosOut,
+      row.gatewayChaosOut,
       row.gateTableOut,
     ])
     .concat([
@@ -1433,7 +1487,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       row.gateOut,
       row.gateMetricsOut,
       row.gateTableOut,
-      row.adapterChaosOut,
+      row.gatewayChaosOut,
     ])
     .concat([
       boundednessOut,
@@ -1478,7 +1532,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       ok: row.ok,
       harness_exit: row.harnessExit,
       release_gate_exit: row.gateExit,
-      adapter_runtime_chaos_exit: row.adapterChaosExit,
+      gateway_runtime_chaos_exit: row.gatewayChaosExit,
       empirical_sample_points: row.empiricalSamplePoints,
       empirical_sample_points_ok: row.empiricalGateOk,
       artifact_paths: [
@@ -1489,7 +1543,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         row.gateOut,
         row.gateMetricsOut,
         row.gateTableOut,
-        row.adapterChaosOut,
+        row.gatewayChaosOut,
       ],
     })),
     evidence: {
@@ -1533,9 +1587,9 @@ export function run(argv: string[] = process.argv.slice(2)): number {
           : args.proofTrack === 'empirical'
             ? []
             : [{ id: 'runtime_proof_release_gate_failed', detail: `profile=${row.profile};exit_code=${row.gateExit}` }]),
-        ...(row.adapterChaosExit === 0
+        ...(row.gatewayChaosExit === 0
           ? []
-          : [{ id: 'adapter_runtime_chaos_gate_failed', detail: `profile=${row.profile};exit_code=${row.adapterChaosExit}` }]),
+          : [{ id: 'gateway_runtime_chaos_gate_failed', detail: `profile=${row.profile};exit_code=${row.gatewayChaosExit}` }]),
         ...(row.empiricalGateOk
           ? []
           : [{ id: 'runtime_proof_empirical_sample_points_missing', detail: `profile=${row.profile};sample_points=${row.empiricalSamplePoints}` }]),

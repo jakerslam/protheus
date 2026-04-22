@@ -3,25 +3,20 @@
   "schema_version": "1.0.0",
   "canonical_term": "Shell",
   "compatibility_alias": "Client",
-  "retirement_target_version": "v0.5.0",
-  "retirement_target_date": "2026-07-15",
+  "retirement_target_version": "retired-2026-04-22",
+  "retirement_target_date": "2026-04-22",
+  "alias_state": "retired",
+  "required_alias_map_path": "client/runtime/config/shell_transition_alias_map.json",
   "required_docs_paths": [
     "docs/workspace/shell_transition_notes.md",
-    "docs/workspace/client_naming_policy.md"
+    "docs/workspace/client_naming_policy.md",
+    "docs/workspace/policy/release_terminology_transition_policy.md"
   ],
   "required_notes_markers": [
-    "Shell (compat alias: Client, repo path client/**)",
-    "Goal",
-    "Compatibility Contract (Do Not Break)"
+    "Shell",
+    "Goal"
   ],
-  "required_command_alias_pairs": [
-    {
-      "canonical": "ops:shell-naming:guard",
-      "compatibility": "ops:client-naming:guard"
-    },
-    {
-      "canonical": "ops:shell-naming:guard:strict",
-      "compatibility": "ops:client-naming:guard:strict"
-    }
-  ]
+  "required_command_alias_pairs": [],
+  "required_config_alias_pairs": [],
+  "required_artifact_alias_pairs": []
 }

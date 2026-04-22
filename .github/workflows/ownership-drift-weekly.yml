@@ -1,0 +1,36 @@
+name: Ownership Drift Weekly
+
+on:
+  schedule:
+    - cron: "0 14 * * 1"
+  workflow_dispatch:
+
+jobs:
+  ownership-drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Ownership drift guard (strict)
+        run: npm run -s ops:ownership:drift:guard
+
+      - name: Upload ownership drift artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ownership-drift-weekly-artifacts
+          path: |
+            core/local/artifacts/ownership_drift_guard_current.json
+            local/workspace/reports/OWNERSHIP_DRIFT_GUARD_CURRENT.md
+          if-no-files-found: warn

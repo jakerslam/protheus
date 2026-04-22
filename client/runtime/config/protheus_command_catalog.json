@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "category_order": [
-    "Core Commands",
+    "Kernel Commands",
     "Personas",
     "Orchestration",
     "Migration and Programs",
@@ -11,12 +11,12 @@
   ],
   "commands": {
     "status": {
-      "category": "Core Commands",
+      "category": "Kernel Commands",
       "usage": "protheus status",
       "summary": "Show operator health dashboard (Rust %, drift, shadows, heartbeat)."
     },
     "protheusctl": {
-      "category": "Core Commands",
+      "category": "Kernel Commands",
       "usage": "protheusctl --help",
       "summary": "Show protheusctl compatibility dispatch usage."
     },
@@ -26,47 +26,47 @@
       "summary": "Submit control-plane job requests for asynchronous execution."
     },
     "debug": {
-      "category": "Core Commands",
+      "category": "Kernel Commands",
       "usage": "protheus debug [--deep=1]",
       "summary": "Run parity/security diagnostics with log summaries."
     },
     "version": {
-      "category": "Core Commands",
+      "category": "Kernel Commands",
       "usage": "protheus version",
       "summary": "Show CLI version and update availability."
     },
     "update": {
-      "category": "Core Commands",
+      "category": "Kernel Commands",
       "usage": "protheus update",
       "summary": "Check updates and print one-line changelog."
     },
     "health": {
-      "category": "Core Commands",
+      "category": "Kernel Commands",
       "usage": "protheus health",
       "summary": "Run control-plane health checks."
     },
     "list": {
-      "category": "Core Commands",
+      "category": "Kernel Commands",
       "usage": "protheus list",
       "summary": "List available CLI commands with summaries."
     },
     "help": {
-      "category": "Core Commands",
+      "category": "Kernel Commands",
       "usage": "protheus help",
       "summary": "Show command guide."
     },
     "setup": {
-      "category": "Core Commands",
+      "category": "Kernel Commands",
       "usage": "protheus setup",
       "summary": "Run optional first-run setup wizard."
     },
     "--help": {
-      "category": "Core Commands",
+      "category": "Kernel Commands",
       "usage": "protheus --help",
       "summary": "Show command guide."
     },
     "-h": {
-      "category": "Core Commands",
+      "category": "Kernel Commands",
       "usage": "protheus -h",
       "summary": "Show command guide."
     },
@@ -103,7 +103,7 @@
     "research": {
       "category": "Tools",
       "usage": "protheus research \"<query>\" [--dry-run=1]",
-      "summary": "Run research organ with Core-5 review."
+      "summary": "Run research organ with Kernel-5 review."
     },
     "tutorial": {
       "category": "Tools",

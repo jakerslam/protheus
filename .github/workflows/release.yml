@@ -270,6 +270,8 @@ jobs:
           npm run -s ops:capability-proof-burden:guard
           npm run -s ops:srs:same-revision:guard
           npm run -s ops:srs:todo-section:guard
+          npm run -s ops:runtime-closure:board:guard
+          npm run -s ops:runtime-closure:feature-alignment:guard
           if [ ! -f artifacts/web_tooling_context_soak_report_latest.json ]; then
             node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/web_tooling_context_soak.ts || true
           fi
@@ -277,10 +279,12 @@ jobs:
             node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/workspace_tooling_context_soak.ts || true
           fi
           npm run -s ops:runtime-proof:verify
+          npm run -s ops:workspace-tooling:release-proof
           npm run -s ops:queue-backpressure:policy:gate
           npm run -s ops:boundedness:release-gate
           npm run -s ops:layer2:parity:guard
           npm run -s ops:layer2:receipt:replay
+          npm run -s ops:gateway-status:manifest
           npm run -s ops:layer3:contract:guard
           npm run -s ops:trusted-core:report
           npm run -s ops:release:proof-pack -- --version=${{ steps.semver.outputs.tag }}

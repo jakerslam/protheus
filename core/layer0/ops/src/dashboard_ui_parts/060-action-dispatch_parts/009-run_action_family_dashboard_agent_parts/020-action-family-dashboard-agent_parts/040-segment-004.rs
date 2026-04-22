@@ -28,9 +28,9 @@
                 .filter(|v| !v.is_empty())
                 .unwrap_or_else(|| "newest".to_string());
 
-            let mut tasks = crate::dashboard_compat_api_comms_store::read_tasks(root);
-            if crate::dashboard_compat_api_comms_store::apply_task_lifecycle(root, &mut tasks) {
-                crate::dashboard_compat_api_comms_store::write_tasks(root, &tasks);
+            let mut tasks = dashboard_compat_api_comms_store::read_tasks(root);
+            if dashboard_compat_api_comms_store::apply_task_lifecycle(root, &mut tasks) {
+                dashboard_compat_api_comms_store::write_tasks(root, &tasks);
             }
             let mut filtered = tasks
                 .into_iter()
@@ -119,9 +119,9 @@
             }
         }
         "dashboard.agent.task.totalSize" | "dashboard.agent.task.getTotalSize" => {
-            let mut tasks = crate::dashboard_compat_api_comms_store::read_tasks(root);
-            if crate::dashboard_compat_api_comms_store::apply_task_lifecycle(root, &mut tasks) {
-                crate::dashboard_compat_api_comms_store::write_tasks(root, &tasks);
+            let mut tasks = dashboard_compat_api_comms_store::read_tasks(root);
+            if dashboard_compat_api_comms_store::apply_task_lifecycle(root, &mut tasks) {
+                dashboard_compat_api_comms_store::write_tasks(root, &tasks);
             }
             LaneResult {
                 ok: true,
@@ -164,9 +164,9 @@
                 .and_then(Value::as_str)
                 .map(|v| clean_text(v, 20).to_ascii_lowercase())
                 .unwrap_or_else(|| "json".to_string());
-            let mut tasks = crate::dashboard_compat_api_comms_store::read_tasks(root);
-            if crate::dashboard_compat_api_comms_store::apply_task_lifecycle(root, &mut tasks) {
-                crate::dashboard_compat_api_comms_store::write_tasks(root, &tasks);
+            let mut tasks = dashboard_compat_api_comms_store::read_tasks(root);
+            if dashboard_compat_api_comms_store::apply_task_lifecycle(root, &mut tasks) {
+                dashboard_compat_api_comms_store::write_tasks(root, &tasks);
             }
             let task = tasks.into_iter().find(|row| {
                 clean_text(row.get("id").and_then(Value::as_str).unwrap_or(""), 80) == task_id
@@ -219,9 +219,9 @@
         }
         "dashboard.agent.task.explainChangesShared"
         | "dashboard.agent.task.taskCompletionViewChanges" => {
-            let mut tasks = crate::dashboard_compat_api_comms_store::read_tasks(root);
-            if crate::dashboard_compat_api_comms_store::apply_task_lifecycle(root, &mut tasks) {
-                crate::dashboard_compat_api_comms_store::write_tasks(root, &tasks);
+            let mut tasks = dashboard_compat_api_comms_store::read_tasks(root);
+            if dashboard_compat_api_comms_store::apply_task_lifecycle(root, &mut tasks) {
+                dashboard_compat_api_comms_store::write_tasks(root, &tasks);
             }
             let before = payload
                 .get("before")

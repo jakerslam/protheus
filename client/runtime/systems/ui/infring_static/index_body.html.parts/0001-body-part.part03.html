@@ -94,6 +94,8 @@
         'is-container-dragging': !!bottomDockContainerDragActive,
         'is-container-settling': !!bottomDockContainerSettling,
         'is-wall-locked': !!bottomDockWallLockNormalized(),
+        'is-taskbar-contained': bottomDockTaskbarContained(),
+        'is-hover-expansion-disabled': bottomDockHoverExpansionDisabled(),
         'is-side-bottom': bottomDockActiveSide() === 'bottom',
         'is-side-top': bottomDockActiveSide() === 'top',
         'is-side-left': bottomDockActiveSide() === 'left',

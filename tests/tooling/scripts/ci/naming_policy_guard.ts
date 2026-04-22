@@ -7,9 +7,9 @@ import { cleanText, parseStrictOutArgs, readFlag } from '../../lib/cli.ts';
 import { emitStructuredResult, writeTextArtifact } from '../../lib/result.ts';
 
 const ROOT = process.cwd();
-const DEFAULT_POLICY_PATH = 'client/runtime/config/client_naming_policy.json';
-const DEFAULT_OUT_JSON_PATH = 'core/local/artifacts/client_naming_policy_guard_current.json';
-const DEFAULT_OUT_MARKDOWN_PATH = 'local/workspace/reports/CLIENT_NAMING_POLICY_GUARD_CURRENT.md';
+const DEFAULT_POLICY_PATH = 'client/runtime/config/shell_naming_policy.json';
+const DEFAULT_OUT_JSON_PATH = 'core/local/artifacts/shell_naming_policy_guard_current.json';
+const DEFAULT_OUT_MARKDOWN_PATH = 'local/workspace/reports/SHELL_NAMING_POLICY_GUARD_CURRENT.md';
 
 function rel(p: string): string {
   return path.relative(ROOT, p).replace(/\\/g, '/');
@@ -90,7 +90,7 @@ function listTrackedFiles(includePrefixes: string[]): string[] {
 
 function buildMarkdown(report: any): string {
   const lines: string[] = [];
-  lines.push('# Client Naming Policy Guard');
+  lines.push('# Shell Naming Policy Guard');
   lines.push('');
   lines.push(`- Generated at: ${report.generated_at}`);
   lines.push(`- Revision: ${report.revision}`);
@@ -203,7 +203,7 @@ function main() {
 
   const report = {
     ok: violations.length === 0,
-    type: 'client_naming_policy_guard',
+    type: 'shell_naming_policy_guard',
     generated_at: new Date().toISOString(),
     strict: strictOut.strict,
     revision: currentRevision(),

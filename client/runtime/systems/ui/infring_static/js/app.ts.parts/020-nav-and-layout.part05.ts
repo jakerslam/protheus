@@ -8,6 +8,9 @@
       try {
         localStorage.setItem('infring-taskbar-dock-edge', this.taskbarDockEdge);
       } catch(_) {}
+      infringUpdateShellLayoutConfig(function(config) {
+        config.taskbar.edge = this.taskbarDockEdge;
+      }.bind(this));
     },
 
     taskbarReadHeight() {
@@ -122,6 +125,9 @@
       if (String(this.taskbarDragGroup || '').trim()) return;
       var target = ev && ev.target ? ev.target : null;
       if (this.shouldIgnoreTaskbarDockDragTarget(target)) return;
+      this._taskbarDockDraggingContainedBottomDock = this.bottomDockTaskbarContained()
+        ? this.bottomDockWallLockNormalized()
+        : '';
       this._taskbarDockPointerActive = true;
       this._taskbarDockPointerMoved = false;
       this._taskbarDockPointerStartX = Number(ev.clientX || 0);
@@ -159,10 +165,24 @@
       this.unbindTaskbarDockPointerListeners();
       if (!this._taskbarDockPointerMoved) {
         this.taskbarDockDragActive = false;
+        this._taskbarDockDraggingContainedBottomDock = '';
         return;
       }
       this._taskbarDockPointerMoved = false;
       this.taskbarDockEdge = this.taskbarNearestDockEdge(this.taskbarDockDragY);
+      var carriedBottomDock = String(this._taskbarDockDraggingContainedBottomDock || '');
+      if (carriedBottomDock) {
+        this.bottomDockSetWallLock(this.taskbarDockEdge);
+        this.taskbarDockDragY = this.taskbarAnchorForDockEdge(this.taskbarDockEdge);
+        this.taskbarPersistDockEdge();
+        var self = this;
+        window.requestAnimationFrame(function() {
+          self._taskbarDockDraggingContainedBottomDock = '';
+          self.taskbarDockDragActive = false;
+        });
+        return;
+      }
+      this._taskbarDockDraggingContainedBottomDock = '';
       this.taskbarDockDragActive = false;
       this.taskbarPersistDockEdge();
     },
@@ -509,6 +529,9 @@
       try {
         localStorage.setItem('infring-chat-map-placement-y', String(ratio));
       } catch(_) {}
+      infringUpdateShellLayoutConfig(function(config) {
+        config.chatMap.placementY = ratio;
+      });
     },
 
     shouldIgnoreChatMapDragTarget(target) {
@@ -603,6 +626,10 @@
       try {
         localStorage.setItem(this.taskbarReorderStorageKey(key), JSON.stringify(normalized));
       } catch(_) {}
+      infringUpdateShellLayoutConfig(function(config) {
+        if (key === 'right') config.taskbar.orderRight = normalized.slice();
+        else config.taskbar.orderLeft = normalized.slice();
+      });
     },
 
     taskbarReorderOrderIndex(group, item) {

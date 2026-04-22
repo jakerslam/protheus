@@ -203,6 +203,137 @@
   });
 });
 
+function infringShellLayoutDefaultProfile() {
+  var raw = '';
+  try {
+    raw = String((navigator && (navigator.userAgent || navigator.platform)) || '').toLowerCase();
+  } catch(_) {}
+  if (raw.indexOf('mac') >= 0 || raw.indexOf('darwin') >= 0) return 'mac';
+  if (raw.indexOf('win') >= 0) return 'windows';
+  if (raw.indexOf('linux') >= 0 || raw.indexOf('x11') >= 0) return 'linux';
+  return 'other';
+}
+
+function infringShellLayoutDefaultConfig() {
+  var profile = infringShellLayoutDefaultProfile();
+  var macLike = profile === 'mac';
+  return {
+    version: 1,
+    profile: profile,
+    dock: {
+      placement: 'center',
+      wallLock: macLike ? '' : 'bottom',
+      order: ['chat', 'overview', 'agents', 'scheduler', 'skills', 'runtime', 'settings']
+    },
+    taskbar: {
+      edge: macLike ? 'top' : 'bottom',
+      orderLeft: ['nav_cluster'],
+      orderRight: ['connectivity', 'theme', 'notifications', 'search', 'auth']
+    },
+    chatMap: { placementX: 1, placementY: 0.38, wallLock: 'right' },
+    chatBar: { placementX: 1, placementY: 0.5, placementTopPx: null, wallLock: 'right' }
+  };
+}
+
+function infringLocalStorageHasAny(keys) {
+  try {
+    for (var i = 0; i < keys.length; i += 1) {
+      if (localStorage.getItem(keys[i]) !== null) return true;
+    }
+  } catch(_) {}
+  return false;
+}
+
+function infringReadShellLayoutConfig() {
+  var key = 'infring-shell-layout-config';
+  var config = null;
+  try {
+    var raw = localStorage.getItem(key);
+    config = raw ? JSON.parse(raw) : null;
+  } catch(_) {
+    config = null;
+  }
+  if (!config || typeof config !== 'object') config = infringShellLayoutDefaultConfig();
+  var defaults = infringShellLayoutDefaultConfig();
+  config.dock = config.dock && typeof config.dock === 'object' ? config.dock : {};
+  config.taskbar = config.taskbar && typeof config.taskbar === 'object' ? config.taskbar : {};
+  config.chatMap = config.chatMap && typeof config.chatMap === 'object' ? config.chatMap : {};
+  config.chatBar = config.chatBar && typeof config.chatBar === 'object' ? config.chatBar : {};
+  config.dock.placement = String(config.dock.placement || defaults.dock.placement);
+  config.dock.wallLock = String(config.dock.wallLock || defaults.dock.wallLock || '');
+  config.taskbar.edge = String(config.taskbar.edge || defaults.taskbar.edge);
+  config.chatMap.placementX = Number.isFinite(Number(config.chatMap.placementX)) ? Number(config.chatMap.placementX) : defaults.chatMap.placementX;
+  config.chatMap.placementY = Number.isFinite(Number(config.chatMap.placementY)) ? Number(config.chatMap.placementY) : defaults.chatMap.placementY;
+  config.chatMap.wallLock = String(config.chatMap.wallLock || defaults.chatMap.wallLock || '');
+  config.chatBar.placementX = Number.isFinite(Number(config.chatBar.placementX)) ? Number(config.chatBar.placementX) : defaults.chatBar.placementX;
+  config.chatBar.placementY = Number.isFinite(Number(config.chatBar.placementY)) ? Number(config.chatBar.placementY) : defaults.chatBar.placementY;
+  config.chatBar.placementTopPx = Number.isFinite(Number(config.chatBar.placementTopPx)) ? Number(config.chatBar.placementTopPx) : null;
+  config.chatBar.wallLock = String(config.chatBar.wallLock || defaults.chatBar.wallLock || '');
+  if (!Array.isArray(config.dock.order)) config.dock.order = defaults.dock.order.slice();
+  if (!Array.isArray(config.taskbar.orderLeft)) config.taskbar.orderLeft = defaults.taskbar.orderLeft.slice();
+  if (!Array.isArray(config.taskbar.orderRight)) config.taskbar.orderRight = defaults.taskbar.orderRight.slice();
+  return config;
+}
+
+function infringWriteShellLayoutConfig(config) {
+  try {
+    localStorage.setItem('infring-shell-layout-config', JSON.stringify(config));
+  } catch(_) {}
+}
+
+function infringUpdateShellLayoutConfig(mutator) {
+  var config = infringReadShellLayoutConfig();
+  try { mutator(config); } catch(_) {}
+  infringShellLayoutConfig = config;
+  infringWriteShellLayoutConfig(config);
+}
+
+function infringSeedShellLayoutConfig() {
+  var config = infringReadShellLayoutConfig();
+  var existed = false;
+  try { existed = localStorage.getItem('infring-shell-layout-config') !== null; } catch(_) {}
+  if (!existed) {
+    var dockKeys = ['infring-bottom-dock-placement', 'infring-bottom-dock-wall-lock', 'infring-bottom-dock-order'];
+    var taskbarKeys = ['infring-taskbar-dock-edge', 'infring-taskbar-order-left', 'infring-taskbar-order-right'];
+    var chatMapKeys = ['infring-chat-map-placement-x', 'infring-chat-map-placement-y', 'infring-chat-map-wall-lock'];
+    var chatBarKeys = ['infring-chat-sidebar-placement-x', 'infring-chat-sidebar-placement-y', 'infring-chat-sidebar-placement-top-px', 'infring-chat-sidebar-wall-lock'];
+    try {
+      if (localStorage.getItem(dockKeys[0])) config.dock.placement = localStorage.getItem(dockKeys[0]);
+      if (localStorage.getItem(dockKeys[1])) config.dock.wallLock = localStorage.getItem(dockKeys[1]);
+      if (localStorage.getItem(dockKeys[2])) config.dock.order = JSON.parse(localStorage.getItem(dockKeys[2]) || '[]');
+      if (localStorage.getItem(taskbarKeys[0])) config.taskbar.edge = localStorage.getItem(taskbarKeys[0]);
+      if (localStorage.getItem(taskbarKeys[1])) config.taskbar.orderLeft = JSON.parse(localStorage.getItem(taskbarKeys[1]) || '[]');
+      if (localStorage.getItem(taskbarKeys[2])) config.taskbar.orderRight = JSON.parse(localStorage.getItem(taskbarKeys[2]) || '[]');
+      if (localStorage.getItem(chatMapKeys[0])) config.chatMap.placementX = Number(localStorage.getItem(chatMapKeys[0]));
+      if (localStorage.getItem(chatMapKeys[1])) config.chatMap.placementY = Number(localStorage.getItem(chatMapKeys[1]));
+      if (localStorage.getItem(chatMapKeys[2])) config.chatMap.wallLock = localStorage.getItem(chatMapKeys[2]);
+      if (localStorage.getItem(chatBarKeys[0])) config.chatBar.placementX = Number(localStorage.getItem(chatBarKeys[0]));
+      if (localStorage.getItem(chatBarKeys[1])) config.chatBar.placementY = Number(localStorage.getItem(chatBarKeys[1]));
+      if (localStorage.getItem(chatBarKeys[2])) config.chatBar.placementTopPx = Number(localStorage.getItem(chatBarKeys[2]));
+      if (localStorage.getItem(chatBarKeys[3])) config.chatBar.wallLock = localStorage.getItem(chatBarKeys[3]);
+    } catch(_) {}
+  }
+  try {
+    if (!infringLocalStorageHasAny(['infring-bottom-dock-placement'])) localStorage.setItem('infring-bottom-dock-placement', String(config.dock.placement || 'center'));
+    if (!infringLocalStorageHasAny(['infring-bottom-dock-wall-lock', 'infring-bottom-dock-smash-wall']) && config.dock.wallLock) localStorage.setItem('infring-bottom-dock-wall-lock', String(config.dock.wallLock));
+    if (!infringLocalStorageHasAny(['infring-bottom-dock-order'])) localStorage.setItem('infring-bottom-dock-order', JSON.stringify(config.dock.order || []));
+    if (!infringLocalStorageHasAny(['infring-taskbar-dock-edge'])) localStorage.setItem('infring-taskbar-dock-edge', String(config.taskbar.edge || 'top'));
+    if (!infringLocalStorageHasAny(['infring-taskbar-order-left'])) localStorage.setItem('infring-taskbar-order-left', JSON.stringify(config.taskbar.orderLeft || []));
+    if (!infringLocalStorageHasAny(['infring-taskbar-order-right'])) localStorage.setItem('infring-taskbar-order-right', JSON.stringify(config.taskbar.orderRight || []));
+    if (!infringLocalStorageHasAny(['infring-chat-map-placement-x'])) localStorage.setItem('infring-chat-map-placement-x', String(config.chatMap.placementX));
+    if (!infringLocalStorageHasAny(['infring-chat-map-placement-y'])) localStorage.setItem('infring-chat-map-placement-y', String(config.chatMap.placementY));
+    if (!infringLocalStorageHasAny(['infring-chat-map-wall-lock', 'infring-chat-map-smash-wall']) && config.chatMap.wallLock) localStorage.setItem('infring-chat-map-wall-lock', String(config.chatMap.wallLock));
+    if (!infringLocalStorageHasAny(['infring-chat-sidebar-placement-x'])) localStorage.setItem('infring-chat-sidebar-placement-x', String(config.chatBar.placementX));
+    if (!infringLocalStorageHasAny(['infring-chat-sidebar-placement-y'])) localStorage.setItem('infring-chat-sidebar-placement-y', String(config.chatBar.placementY));
+    if (!infringLocalStorageHasAny(['infring-chat-sidebar-placement-top-px']) && Number.isFinite(Number(config.chatBar.placementTopPx))) localStorage.setItem('infring-chat-sidebar-placement-top-px', String(config.chatBar.placementTopPx));
+    if (!infringLocalStorageHasAny(['infring-chat-sidebar-wall-lock', 'infring-chat-sidebar-smash-wall']) && config.chatBar.wallLock) localStorage.setItem('infring-chat-sidebar-wall-lock', String(config.chatBar.wallLock));
+  } catch(_) {}
+  infringWriteShellLayoutConfig(config);
+  return config;
+}
+
+var infringShellLayoutConfig = infringSeedShellLayoutConfig();
+
 // Main app component
 function app() {
   return {
