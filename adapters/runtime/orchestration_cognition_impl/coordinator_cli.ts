@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 'use strict';
 
-const { parseArgs, parseJson } = require('./cli_shared.ts');
+const { parseArgs, parseJson, hasOutcomeFlag, shouldFallbackForUnsupportedOp } = require('./cli_shared.ts');
 
 function runCoordinatorCli(argv = [], api = {}) {
   const runCoordinator = typeof api.runCoordinator === 'function' ? api.runCoordinator : null;
   const partitionWork = typeof api.partitionWork === 'function' ? api.partitionWork : null;
+  const coordinatorStatus = typeof api.coordinatorStatus === 'function' ? api.coordinatorStatus : null;
+  const coordinatorTimeout = typeof api.coordinatorTimeout === 'function' ? api.coordinatorTimeout : null;
   const loadScratchpad = typeof api.loadScratchpad === 'function' ? api.loadScratchpad : null;
   const handleTimeout = typeof api.handleTimeout === 'function' ? api.handleTimeout : null;
-  if (!runCoordinator || !partitionWork || !loadScratchpad || !handleTimeout) {
+  if (!runCoordinator || !partitionWork || (!coordinatorTimeout && !handleTimeout) || (!coordinatorStatus && !loadScratchpad)) {
     return {
       ok: false,
       type: 'orchestration_coordinator',
@@ -52,17 +54,23 @@ function runCoordinatorCli(argv = [], api = {}) {
       };
     }
 
-    const scopesPayload = parseJson(parsed.flags['scopes-json'] || parsed.flags.scopes_json, [], 'invalid_scopes_json');
-    if (!scopesPayload.ok) {
-      return {
-        ok: false,
-        type: 'orchestration_coordinator',
-        reason_code: scopesPayload.reason_code
-      };
-    }
-
     const timeout = String(parsed.flags.timeout || '0').trim() === '1';
     if (timeout) {
+      if (coordinatorTimeout) {
+        const timeoutOut = coordinatorTimeout({
+          task_id: taskId,
+          processed_count: Number(parsed.flags.processed || 0),
+          retry_count: Number(parsed.flags['retry-count'] || parsed.flags.retry_count || 0),
+          items: itemsPayload.value,
+          findings: findingsPayload.value,
+          now_ms: Date.now(),
+          root_dir: rootDir || undefined
+        });
+        if (hasOutcomeFlag(timeoutOut) && !shouldFallbackForUnsupportedOp(timeoutOut, 'coordinator.timeout')) {
+          return timeoutOut;
+        }
+      }
+
       return handleTimeout(taskId, {
         processed_count: Number(parsed.flags.processed || 0),
         total_count: Array.isArray(itemsPayload.value) ? itemsPayload.value.length : 0,
@@ -70,6 +78,15 @@ function runCoordinatorCli(argv = [], api = {}) {
         retry_count: Number(parsed.flags['retry-count'] || parsed.flags.retry_count || 0),
         now_ms: Date.now()
       }, rootDir ? { rootDir } : {});
+    }
+
+    const scopesPayload = parseJson(parsed.flags['scopes-json'] || parsed.flags.scopes_json, [], 'invalid_scopes_json');
+    if (!scopesPayload.ok) {
+      return {
+        ok: false,
+        type: 'orchestration_coordinator',
+        reason_code: scopesPayload.reason_code
+      };
     }
 
     return runCoordinator({
@@ -125,6 +142,16 @@ function runCoordinatorCli(argv = [], api = {}) {
         reason_code: 'missing_task_id'
       };
     }
+
+    if (coordinatorStatus) {
+      const status = coordinatorStatus(taskId, {
+        rootDir: parsed.flags['root-dir'] || parsed.flags.root_dir || undefined
+      });
+      if (hasOutcomeFlag(status) && !shouldFallbackForUnsupportedOp(status, 'coordinator.status')) {
+        return status;
+      }
+    }
+
     const loaded = loadScratchpad(taskId, {
       rootDir: parsed.flags['root-dir'] || parsed.flags.root_dir || undefined
     });
