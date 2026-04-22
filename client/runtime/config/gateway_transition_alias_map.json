@@ -1,83 +1,16 @@
 {
-  "version": "2026-04-20",
+  "version": "2026-04-22",
   "canonical_term": "Gateways",
   "compatibility_alias": "Adapters",
   "retirement_target": {
-    "version": "v0.5.0",
-    "date": "2026-07-15"
+    "version": "retired-2026-04-22",
+    "date": "2026-04-22"
   },
   "path_compatibility": [
     "adapters/**"
   ],
-  "command_aliases": [
-    {
-      "canonical": "ops:gateway-runtime-chaos:gate",
-      "alias": "ops:adapter-runtime-chaos:gate",
-      "status": "compatibility"
-    },
-    {
-      "canonical": "test:ops:gateway-chaos:rust",
-      "alias": "test:ops:adapter-chaos:rust",
-      "status": "compatibility"
-    },
-    {
-      "canonical": "ops:orchestration:gateway-fallback:guard",
-      "alias": "ops:orchestration:adapter-fallback:guard",
-      "status": "compatibility"
-    }
-  ],
-  "artifact_aliases": [
-    {
-      "canonical": "gateway_runtime_chaos_gate",
-      "alias": "adapter_runtime_chaos_gate",
-      "status": "compatibility"
-    },
-    {
-      "canonical": "gateway_runtime_chaos_gate_current",
-      "alias": "adapter_runtime_chaos_gate_current",
-      "status": "compatibility"
-    },
-    {
-      "canonical": "GATEWAY_RUNTIME_CHAOS_GATE_CURRENT",
-      "alias": "ADAPTER_RUNTIME_CHAOS_GATE_CURRENT",
-      "status": "compatibility"
-    },
-    {
-      "canonical": "gateway_runtime_chaos_gate_current.json",
-      "alias": "adapter_runtime_chaos_gate_current.json",
-      "status": "compatibility"
-    },
-    {
-      "canonical": "gateway_runtime_chaos_gate_pure_current",
-      "alias": "adapter_runtime_chaos_gate_pure_current",
-      "status": "compatibility"
-    },
-    {
-      "canonical": "gateway_runtime_chaos_gate_rich_current",
-      "alias": "adapter_runtime_chaos_gate_rich_current",
-      "status": "compatibility"
-    },
-    {
-      "canonical": "gateway_runtime_chaos_gate_tiny",
-      "alias": "adapter_runtime_chaos_gate_tiny",
-      "status": "compatibility"
-    },
-    {
-      "canonical": "orchestration_gateway_fallback_guard_current.json",
-      "alias": "orchestration_adapter_fallback_guard_current.json",
-      "status": "compatibility"
-    },
-    {
-      "canonical": "ORCHESTRATION_GATEWAY_FALLBACK_GUARD_CURRENT.md",
-      "alias": "ORCHESTRATION_ADAPTER_FALLBACK_GUARD_CURRENT.md",
-      "status": "compatibility"
-    }
-  ],
-  "doc_aliases": [
-    {
-      "canonical": "Gateways",
-      "alias": "Adapters",
-      "required_context": "compatibility alias"
-    }
-  ]
+  "alias_state": "retired",
+  "command_aliases": [],
+  "artifact_aliases": [],
+  "doc_aliases": []
 }

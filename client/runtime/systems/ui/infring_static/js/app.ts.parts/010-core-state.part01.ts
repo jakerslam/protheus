@@ -21,12 +21,35 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+function normalizeChatMarkdownListBreaks(text) {
+  var source = String(text || '');
+  if (!source) return '';
+  var markerPattern = /(?:^|[ \t])((?:\d{1,3}[.)]|[*+-])\s+\*\*[^*]+\*\*)/g;
+  var markers = [];
+  var match;
+  while ((match = markerPattern.exec(source)) !== null) {
+    markers.push({ index: match.index + match[0].indexOf(match[1]), marker: match[1] });
+  }
+  if (markers.length < 2) return source;
+  var out = '';
+  var cursor = 0;
+  for (var i = 0; i < markers.length; i += 1) {
+    var item = markers[i];
+    out += source.slice(cursor, item.index);
+    if (item.index > 0 && source.charAt(item.index - 1) !== '\n') out += '\n';
+    out += item.marker;
+    cursor = item.index + item.marker.length;
+  }
+  out += source.slice(cursor);
+  return out;
+}
+
 function renderMarkdown(text) {
   if (!text) return '';
   if (typeof marked !== 'undefined') {
     // Protect LaTeX blocks from marked.js mangling (underscores, backslashes, etc.)
     var latexBlocks = [];
-    var protected_ = text;
+    var protected_ = normalizeChatMarkdownListBreaks(text);
     // Protect display math $$...$$ first (greedy across lines)
     protected_ = protected_.replace(/\$\$([\s\S]+?)\$\$/g, function(match) {
       var idx = latexBlocks.length;

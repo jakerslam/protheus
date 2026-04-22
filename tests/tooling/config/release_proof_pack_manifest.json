@@ -32,15 +32,16 @@
       "core/local/artifacts/release_proof_checksums_current.json"
     ],
     "adapter_and_orchestration": [
-      "core/local/artifacts/adapter_runtime_chaos_gate_current.json",
+      "core/local/artifacts/gateway_runtime_chaos_gate_current.json",
       "core/local/artifacts/gateway_support_levels_current.json",
+      "core/local/artifacts/gateway_status_manifest_current.json",
       "core/local/artifacts/layer2_lane_parity_guard_current.json",
       "core/local/artifacts/layer2_receipt_replay_current.json"
     ],
     "release_governance": [
       "core/local/artifacts/production_readiness_closure_gate_current.json",
       "core/local/artifacts/runtime_trusted_core_report_current.json",
-      "core/local/artifacts/core_nexus_coupling_guard_current.json",
+      "core/local/artifacts/kernel_nexus_coupling_guard_current.json",
       "core/local/artifacts/layer3_contract_guard_current.json",
       "core/local/artifacts/node_critical_path_inventory_current.json",
       "core/local/artifacts/agent_surface_status_guard_current.json",
@@ -48,12 +49,16 @@
       "core/local/artifacts/shell_truth_leak_guard_current.json",
       "core/local/artifacts/terminology_transition_inventory_current.json",
       "core/local/artifacts/srs_same_revision_guard_current.json",
+      "core/local/artifacts/runtime_closure_board_guard_current.json",
+      "core/local/artifacts/runtime_closure_feature_alignment_guard_current.json",
       "core/local/artifacts/capability_proof_burden_guard_current.json",
       "core/local/artifacts/srs_todo_section_guard_current.json"
     ],
     "workload_and_quality": [
       "artifacts/web_tooling_context_soak_report_latest.json",
       "artifacts/workspace_tooling_context_soak_report_latest.json",
+      "core/local/artifacts/workspace_tooling_context_soak_current.json",
+      "core/local/artifacts/workspace_tooling_release_proof_current.json",
       "docs/client/reports/benchmark_matrix_run_latest.json",
       "client/runtime/local/state/release/scorecard/release_scorecard.json"
     ]
@@ -93,12 +98,13 @@
     "core/local/artifacts/runtime_proof_empirical_profile_readiness_current.json",
     "core/local/artifacts/runtime_proof_empirical_minimum_contract_current.json",
     "core/local/artifacts/release_proof_checksums_current.json",
-    "core/local/artifacts/adapter_runtime_chaos_gate_current.json",
+    "core/local/artifacts/gateway_runtime_chaos_gate_current.json",
     "core/local/artifacts/gateway_support_levels_current.json",
+    "core/local/artifacts/gateway_status_manifest_current.json",
     "core/local/artifacts/layer2_lane_parity_guard_current.json",
     "core/local/artifacts/layer2_receipt_replay_current.json",
     "core/local/artifacts/runtime_trusted_core_report_current.json",
-    "core/local/artifacts/core_nexus_coupling_guard_current.json",
+    "core/local/artifacts/kernel_nexus_coupling_guard_current.json",
     "core/local/artifacts/layer3_contract_guard_current.json",
     "core/local/artifacts/node_critical_path_inventory_current.json",
     "core/local/artifacts/agent_surface_status_guard_current.json",
@@ -106,11 +112,15 @@
     "core/local/artifacts/support_bundle_latest.json",
     "artifacts/web_tooling_context_soak_report_latest.json",
     "artifacts/workspace_tooling_context_soak_report_latest.json",
+    "core/local/artifacts/workspace_tooling_context_soak_current.json",
+    "core/local/artifacts/workspace_tooling_release_proof_current.json",
     "docs/client/reports/benchmark_matrix_run_latest.json",
     "client/runtime/local/state/release/scorecard/release_scorecard.json",
     "core/local/artifacts/shell_truth_leak_guard_current.json",
     "core/local/artifacts/terminology_transition_inventory_current.json",
     "core/local/artifacts/srs_same_revision_guard_current.json",
+    "core/local/artifacts/runtime_closure_board_guard_current.json",
+    "core/local/artifacts/runtime_closure_feature_alignment_guard_current.json",
     "core/local/artifacts/capability_proof_burden_guard_current.json",
     "core/local/artifacts/srs_todo_section_guard_current.json"
   ],
@@ -119,7 +129,8 @@
     "local/workspace/reports/LAYER2_LANE_PARITY_GUARD_CURRENT.md",
     "local/workspace/reports/LAYER2_RECEIPT_REPLAY_CURRENT.md",
     "local/workspace/reports/RUNTIME_TRUSTED_CORE_REPORT_CURRENT.md",
-    "local/workspace/reports/ADAPTER_RUNTIME_CHAOS_GATE_CURRENT.md",
+    "local/workspace/reports/GATEWAY_RUNTIME_CHAOS_GATE_CURRENT.md",
+    "local/workspace/reports/GATEWAY_STATUS_MANIFEST_CURRENT.md",
     "local/workspace/reports/LAYER3_CONTRACT_GUARD_CURRENT.md",
     "local/workspace/reports/NODE_CRITICAL_PATH_INVENTORY_CURRENT.md",
     "local/workspace/reports/AGENT_SURFACE_STATUS_GUARD_CURRENT.md",
@@ -134,13 +145,17 @@
     "local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_GATE_FAILURES_CURRENT.md",
     "local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_READINESS_CURRENT.md",
     "local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_MINIMUM_CONTRACT_CURRENT.md",
+    "local/workspace/reports/WORKSPACE_TOOLING_CONTEXT_SOAK_CURRENT.md",
+    "local/workspace/reports/WORKSPACE_TOOLING_RELEASE_PROOF_CURRENT.md",
     "core/local/state/ops/runtime_proof_empirical_history.jsonl",
     "local/workspace/reports/RELEASE_SCORECARD_CURRENT.md",
     "local/workspace/reports/SHELL_TRUTH_LEAK_GUARD_CURRENT.md",
     "local/workspace/reports/TERMINOLOGY_TRANSITION_INVENTORY_CURRENT.md",
     "local/workspace/reports/SRS_SAME_REVISION_GUARD_CURRENT.md",
+    "local/workspace/reports/RUNTIME_CLOSURE_BOARD_GUARD_CURRENT.md",
+    "local/workspace/reports/RUNTIME_CLOSURE_FEATURE_ALIGNMENT_GUARD_CURRENT.md",
     "local/workspace/reports/CAPABILITY_PROOF_BURDEN_GUARD_CURRENT.md",
     "local/workspace/reports/SRS_TODO_SECTION_GUARD_CURRENT.md",
-    "local/workspace/reports/CORE_NEXUS_COUPLING_GUARD_CURRENT.md"
+    "local/workspace/reports/KERNEL_NEXUS_COUPLING_GUARD_CURRENT.md"
   ]
 }

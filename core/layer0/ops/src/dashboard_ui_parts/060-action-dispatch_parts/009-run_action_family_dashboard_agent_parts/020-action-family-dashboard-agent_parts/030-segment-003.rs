@@ -3,7 +3,7 @@
                 "running"
             };
             let mut task = json!({
-                "id": crate::dashboard_compat_api_comms_store::make_task_id(&seed),
+                "id": dashboard_compat_api_comms_store::make_task_id(&seed),
                 "title": title,
                 "description": description,
                 "assigned_to": assigned_to,
@@ -22,16 +22,16 @@
                 "pending_agent_ids": [],
                 "partial_results": {}
             });
-            let _ = crate::dashboard_compat_api_comms_store::sync_swarm_progress(&mut task);
-            let mut tasks = crate::dashboard_compat_api_comms_store::read_tasks(root);
+            let _ = dashboard_compat_api_comms_store::sync_swarm_progress(&mut task);
+            let mut tasks = dashboard_compat_api_comms_store::read_tasks(root);
             tasks.insert(0, task.clone());
-            if crate::dashboard_compat_api_comms_store::apply_task_lifecycle(root, &mut tasks) {
-                crate::dashboard_compat_api_comms_store::write_tasks(root, &tasks);
+            if dashboard_compat_api_comms_store::apply_task_lifecycle(root, &mut tasks) {
+                dashboard_compat_api_comms_store::write_tasks(root, &tasks);
             } else {
-                crate::dashboard_compat_api_comms_store::write_tasks(root, &tasks);
+                dashboard_compat_api_comms_store::write_tasks(root, &tasks);
             }
             let task_id = clean_text(task.get("id").and_then(Value::as_str).unwrap_or(""), 80);
-            crate::dashboard_compat_api_comms_store::append_event(
+            dashboard_compat_api_comms_store::append_event(
                 root,
                 "task_posted",
                 "Swarm",

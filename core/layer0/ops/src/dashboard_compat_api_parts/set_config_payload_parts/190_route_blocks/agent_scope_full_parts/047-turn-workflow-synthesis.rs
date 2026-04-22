@@ -160,6 +160,39 @@ fn workflow_response_repetition_breaker_active(latest_assistant_text: &str) -> b
                 || lowered.contains("final reply did not render")))
 }
 
+fn recent_assistant_retry_loop_detected(active_messages: &[Value]) -> bool {
+    let mut assistant_turns_scanned = 0usize;
+    let mut retry_boilerplate_turns = 0usize;
+    for row in active_messages.iter().rev() {
+        let role = clean_text(row.get("role").and_then(Value::as_str).unwrap_or(""), 24)
+            .to_ascii_lowercase();
+        if role != "assistant" && role != "agent" {
+            continue;
+        }
+        let text = clean_chat_text(
+            row.get("text")
+                .or_else(|| row.get("content"))
+                .or_else(|| row.get("message"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            32_000,
+        );
+        if text.is_empty() {
+            continue;
+        }
+        assistant_turns_scanned += 1;
+        if response_contains_unexpected_state_retry_boilerplate(&text)
+            || workflow_response_repetition_breaker_active(&text)
+        {
+            retry_boilerplate_turns += 1;
+        }
+        if assistant_turns_scanned >= 3 {
+            break;
+        }
+    }
+    retry_boilerplate_turns >= 2
+}
+
 fn workflow_retry_macro_signal_count(lowered: &str) -> usize {
     let macro_signals = [
         "workflow gate",
@@ -704,10 +737,12 @@ fn should_force_direct_workflow_fallback(
     last_invalid_excerpt: &str,
     latest_assistant_text: &str,
     response_tools: &[Value],
+    recent_retry_loop_detected: bool,
 ) -> bool {
     last_reject_reason == "unexpected_state_retry_boilerplate"
         || response_contains_unexpected_state_retry_boilerplate(last_invalid_excerpt)
         || workflow_response_repetition_breaker_active(latest_assistant_text)
+        || recent_retry_loop_detected
         || workflow_turn_has_policy_block(response_tools)
 }
 
@@ -1047,6 +1082,7 @@ fn apply_final_retry_boilerplate_guard(
     }
     workflow["response"] = Value::String(guarded.clone());
     workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(true);
+    bump_workflow_quality_counter(workflow, "legacy_retry_template_detected");
     workflow["final_llm_response"]["fallback_sanitized_retry_loop"] = Value::Bool(true);
     workflow["final_llm_response"]["fallback_source"] = Value::String("generated_guard".to_string());
     workflow["final_llm_response"]["fallback_from_existing_draft"] = Value::Bool(false);
@@ -1523,6 +1559,8 @@ fn run_turn_workflow_final_response(
         "unsourced_claim_reject": 0,
         "direct_answer_reject": 0,
         "unexpected_state_loop_reject": 0,
+        "legacy_retry_template_detected": 0,
+        "repeated_fallback_loop_detected": 0,
         "meta_control_tool_block": workflow
             .pointer("/tool_gate/meta_control_message")
             .and_then(Value::as_bool)
@@ -1530,6 +1568,15 @@ fn run_turn_workflow_final_response(
             && response_tools.is_empty(),
         "final_fallback_used": false
     });
+    if response_contains_unexpected_state_retry_boilerplate(draft_response)
+        || response_contains_unexpected_state_retry_boilerplate(latest_assistant_text)
+    {
+        bump_workflow_quality_counter(&mut workflow, "legacy_retry_template_detected");
+    }
+    let recent_retry_loop_detected = recent_assistant_retry_loop_detected(active_messages);
+    if recent_retry_loop_detected {
+        bump_workflow_quality_counter(&mut workflow, "repeated_fallback_loop_detected");
+    }
     workflow["final_llm_response"]["attempted"] = Value::Bool(true);
     workflow["final_llm_response"]["max_attempts"] = json!(max_attempts);
     workflow["final_llm_response"]["coherence_window_messages"] =
@@ -1686,10 +1733,10 @@ fn run_turn_workflow_final_response(
     if !last_invalid_excerpt.is_empty() {
         workflow["final_llm_response"]["status"] = Value::String("synthesis_failed".to_string());
         set_turn_workflow_final_stage_status(&mut workflow, "synthesis_failed");
-        workflow["final_llm_response"]["error"] = Value::String(last_invalid_excerpt);
+        workflow["final_llm_response"]["error"] = Value::String(last_invalid_excerpt.clone());
         if !last_reject_reason.is_empty() {
             workflow["final_llm_response"]["last_reject_reason"] =
-                Value::String(last_reject_reason);
+                Value::String(last_reject_reason.clone());
         }
     } else {
         workflow["final_llm_response"]["status"] = Value::String("invoke_failed".to_string());
@@ -1701,6 +1748,7 @@ fn run_turn_workflow_final_response(
         &last_invalid_excerpt,
         latest_assistant_text,
         response_tools,
+        recent_retry_loop_detected,
     ) {
         let fallback_response =
             workflow_unexpected_state_user_fallback(message, latest_assistant_text, response_tools);
@@ -2162,7 +2210,8 @@ mod workflow_fallback_tests {
             "unexpected_state_retry_boilerplate",
             "",
             "",
-            &tools
+            &tools,
+            false,
         ));
     }
 
@@ -2173,7 +2222,7 @@ mod workflow_fallback_tests {
             "blocked": true,
             "result": "lease_denied:client_ingress_domain_boundary"
         })];
-        assert!(should_force_direct_workflow_fallback("", "", "", &tools));
+        assert!(should_force_direct_workflow_fallback("", "", "", &tools, false));
     }
 
     #[test]
@@ -2186,7 +2235,8 @@ mod workflow_fallback_tests {
             "",
             "",
             "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.",
-            &tools
+            &tools,
+            false,
         ));
     }
 
@@ -2200,7 +2250,44 @@ mod workflow_fallback_tests {
             "",
             "final reply did not render; please retry so i can rerun the chain cleanly",
             "",
-            &tools
+            &tools,
+            false,
+        ));
+    }
+
+    #[test]
+    fn recent_assistant_retry_loop_detector_triggers_on_two_of_last_three_assistant_turns() {
+        let messages = vec![
+            json!({"role": "assistant", "text": "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly."}),
+            json!({"role": "user", "text": "what?"}),
+            json!({"role": "assistant", "text": "Workflow gate completed but the final workflow state was unexpected. Next actions: run one targeted tool call, then provide a concise answer from current context."}),
+            json!({"role": "assistant", "text": "Normal answer now."}),
+        ];
+        assert!(recent_assistant_retry_loop_detected(&messages));
+    }
+
+    #[test]
+    fn recent_assistant_retry_loop_detector_ignores_single_retry_like_turn() {
+        let messages = vec![
+            json!({"role": "assistant", "text": "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly."}),
+            json!({"role": "assistant", "text": "I can answer directly from current context."}),
+            json!({"role": "assistant", "text": "Here is the direct answer."}),
+        ];
+        assert!(!recent_assistant_retry_loop_detected(&messages));
+    }
+
+    #[test]
+    fn force_direct_workflow_fallback_when_recent_loop_detected() {
+        let tools = vec![json!({
+            "name": "file_list",
+            "blocked": false
+        })];
+        assert!(should_force_direct_workflow_fallback(
+            "",
+            "",
+            "normal latest",
+            &tools,
+            true
         ));
     }
 

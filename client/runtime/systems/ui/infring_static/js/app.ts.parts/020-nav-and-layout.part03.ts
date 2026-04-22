@@ -303,6 +303,51 @@
       return this.dragSurfaceNormalizeWall(this.bottomDockContainerWallLock);
     },
 
+    bottomDockTaskbarContained() {
+      var wall = this.bottomDockWallLockNormalized();
+      if (wall !== 'top' && wall !== 'bottom') return false;
+      if (this.taskbarDockDragActive && String(this._taskbarDockDraggingContainedBottomDock || '') === wall) return true;
+      return wall === this.taskbarDockEdgeNormalized(this.taskbarDockEdge);
+    },
+
+    bottomDockHoverExpansionDisabled() {
+      return this.bottomDockTaskbarContained();
+    },
+
+    bottomDockTaskbarContainedAnchorX(sideHint) {
+      var side = this.bottomDockNormalizeSide(sideHint || this.bottomDockActiveSide());
+      var view = this.bottomDockReadViewportSize();
+      var size = this.bottomDockVisualSizeForSide(side);
+      var dockWidth = Math.max(1, Number(size && size.width || 1));
+      var left = 16;
+      try {
+        var textMenu = document.querySelector('.global-taskbar .taskbar-text-menus');
+        var rect = textMenu && typeof textMenu.getBoundingClientRect === 'function' ? textMenu.getBoundingClientRect() : null;
+        if (rect && Number.isFinite(Number(rect.right))) left = Number(rect.right) + 8;
+      } catch(_) {}
+      var minX = dockWidth / 2;
+      var maxX = Math.max(minX, Number(view.width || 0) - minX - 10);
+      return Math.max(minX, Math.min(maxX, left + (dockWidth / 2)));
+    },
+
+    bottomDockTaskbarContainedMetrics() {
+      var edge = this.taskbarDockEdgeNormalized(this.taskbarDockEdge);
+      var height = 32;
+      var centerY = edge === 'bottom' ? this.taskbarReadViewportHeight() - 23 : 23;
+      try {
+        var group = document.querySelector('.global-taskbar .taskbar-visual-group-left');
+        var rect = group && typeof group.getBoundingClientRect === 'function' ? group.getBoundingClientRect() : null;
+        if (rect && Number.isFinite(Number(rect.height)) && Number(rect.height) > 0) {
+          height = Number(rect.height);
+          centerY = Number(rect.top || 0) + (height / 2);
+        }
+      } catch(_) {}
+      if (this.taskbarDockDragActive && String(this._taskbarDockDraggingContainedBottomDock || '')) {
+        centerY = this.taskbarClampDragY(this.taskbarDockDragY) + (this.taskbarReadHeight() / 2);
+      }
+      return { height: height, centerY: centerY };
+    },
+
     bottomDockSetWallLock(wallRaw) {
       var wall = this.dragSurfaceNormalizeWall(wallRaw);
       this.bottomDockContainerWallLock = wall;
@@ -310,12 +355,14 @@
         if (wall) localStorage.setItem('infring-bottom-dock-wall-lock', wall);
         else localStorage.removeItem('infring-bottom-dock-wall-lock');
         localStorage.removeItem('infring-bottom-dock-smash-wall');
+        infringUpdateShellLayoutConfig(function(config) { config.dock.wallLock = wall; });
       } catch(_) {}
       return wall;
     },
 
     bottomDockBoundsScaleForSide(sideHint) {
       var side = this.bottomDockNormalizeSide(sideHint || this.bottomDockActiveSide());
+      if (this.bottomDockTaskbarContained()) return 1;
       if (side === 'left' || side === 'right') return 1;
       var expandedScale = this.bottomDockExpandedScale();
       var baseScale = 0.95;
@@ -323,6 +370,7 @@
         || !!this.bottomDockContainerSettling
         || !!String(this.bottomDockDragId || '').trim();
       var hovering = !!String(this.bottomDockHoverId || '').trim();
+      if (this.bottomDockHoverExpansionDisabled()) hovering = false;
       if (dragging || hovering) baseScale = expandedScale;
       if (!Number.isFinite(baseScale) || baseScale <= 0.01) baseScale = 0.95;
       return baseScale;

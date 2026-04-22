@@ -1,4 +1,4 @@
-name: Core Nexus Coupling Guard
+name: Kernel Nexus Coupling Guard
 
 on:
   pull_request:
@@ -7,7 +7,7 @@ on:
       - main
 
 jobs:
-  core-nexus-coupling-guard:
+  kernel-nexus-coupling-guard:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -24,5 +24,5 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run core nexus coupling guard
-        run: npm run -s ops:nexus:core-coupling:guard
+      - name: Run kernel nexus coupling guard
+        run: npm run -s ops:nexus:kernel-coupling:guard

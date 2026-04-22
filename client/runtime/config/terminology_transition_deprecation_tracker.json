@@ -1,12 +1,13 @@
 {
-  "version": "2026-04-20",
+  "version": "2026-04-22-canonical-only",
   "retirement_target": {
-    "version": "v0.5.0",
-    "date": "2026-07-15"
+    "version": "retired-2026-04-22",
+    "date": "2026-04-22"
   },
   "mapping_files": {
     "kernel": "client/runtime/config/kernel_transition_alias_map.json",
-    "gateway": "client/runtime/config/gateway_transition_alias_map.json"
+    "gateway": "client/runtime/config/gateway_transition_alias_map.json",
+    "shell": "client/runtime/config/shell_transition_alias_map.json"
   },
   "scan_files": [
     "package.json",
@@ -14,39 +15,19 @@
     "tests/tooling/config/verify_profiles.json",
     "README.md",
     "ARCHITECTURE.md",
+    "docs/workspace/codex_enforcer.md",
+    "docs/workspace/DEFINITION_OF_DONE.md",
     "docs/workspace/policy/release_terminology_transition_policy.md",
     "docs/workspace/naming_cleanup_compatibility_notes.md"
   ],
-  "required_command_aliases": [
-    {
-      "canonical": "ops:kernel-naming:guard",
-      "alias": "ops:core-naming:guard"
-    },
-    {
-      "canonical": "ops:kernel-naming:guard:strict",
-      "alias": "ops:core-naming:guard:strict"
-    },
-    {
-      "canonical": "ops:gateway-runtime-chaos:gate",
-      "alias": "ops:adapter-runtime-chaos:gate"
-    },
-    {
-      "canonical": "test:ops:gateway-chaos:rust",
-      "alias": "test:ops:adapter-chaos:rust"
-    },
-    {
-      "canonical": "ops:orchestration:gateway-fallback:guard",
-      "alias": "ops:orchestration:adapter-fallback:guard"
-    }
+  "required_command_aliases": [],
+  "required_artifact_aliases": [],
+  "legacy_token_enforcement_prefixes": [
+    "core_",
+    "adapter_"
   ],
-  "required_artifact_aliases": [
-    "core_naming_policy_guard_current.json",
-    "adapter_runtime_chaos_gate_current.json",
-    "orchestration_adapter_fallback_guard_current.json"
-  ],
-  "doc_alias_terms": [
-    "Core",
-    "Adapters"
-  ],
-  "doc_alias_context_regex": "compat(?:ibility)?\\s+alias"
+  "legacy_token_exemptions": [],
+  "doc_alias_terms": ["Core", "Adapters", "Client"],
+  "doc_alias_context_regex": "compat(?:ibility)?\\s+alias",
+  "temporary_compatibility_bridge_exemptions": []
 }

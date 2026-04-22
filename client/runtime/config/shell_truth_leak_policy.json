@@ -1,6 +1,7 @@
 {
   "version": "2026-04-20",
   "scan_roots": [
+    "client/runtime/systems/ui",
     "client/runtime/systems/ui/infring_static/js",
     "client/runtime/systems/ui/infring_static/index_body.html.parts"
   ],
@@ -43,6 +44,12 @@
       "regex": "\\bsidebar_status_label\\s*:\\s*['\"][^'\"]+['\"]"
     },
     {
+      "id": "sidebar_status_pending_fallback",
+      "severity": "error",
+      "description": "Shell must not inject synthetic pending status fallbacks for sidebar authority state.",
+      "regex": "\\bsidebar_status_(state|label)\\b[^\\n]{0,120}\\|\\|\\s*['\"]pending['\"]"
+    },
+    {
       "id": "sidebar_status_state_fallback",
       "severity": "warn",
       "description": "Fallback defaults for sidebar_status_state should be minimized and justified.",
@@ -57,13 +64,13 @@
     {
       "id": "client_retry_policy_branching",
       "severity": "warn",
-      "description": "Client retry/backoff policy branching should stay non-authoritative and observable only.",
+      "description": "Shell retry/backoff policy branching should stay non-authoritative and observable only.",
       "regex": "\\b(retry|backoff|quarantine|defer)\\w*\\s*\\("
     },
     {
       "id": "client_lane_selection_heuristic",
       "severity": "warn",
-      "description": "Client lane-selection heuristics indicate shell truth leakage risk.",
+      "description": "Shell lane-selection heuristics indicate shell truth leakage risk.",
       "regex": "\\b(select|choose|resolve)\\w*Lane\\s*\\("
     }
   ],

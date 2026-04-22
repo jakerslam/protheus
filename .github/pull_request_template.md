@@ -3,6 +3,13 @@
 - What changed
 - Why it changed
 
+## Layer Ownership + Proof Gate Declaration (required)
+
+- Which layer owns this, and which proof/gate covers it?
+- Primary owner layer:
+- Supporting layers touched:
+- Primary proof artifact(s) / gate(s):
+
 ## Validation
 
 - [ ] `npm run test`
@@ -33,6 +40,14 @@
   - `placement-test:gateway` —
   - `placement-test:apps` —
 
+## Runtime Closure Feature Alignment (required for major surface features)
+
+| Feature Surface | Scope (`major`/`minor`) | Runtime Closure Bucket | Validation Artifact / Gate |
+| --- | --- | --- | --- |
+|  |  |  |  |
+
+- [ ] If any feature scope is `major`, each major feature maps to a runtime-closure bucket and directly validates it with a linked proof artifact, replay fixture, or release gate.
+
 ## Evidence
 
 - Linked receipts/artifacts:
@@ -46,3 +61,4 @@ _Complete one row per new or expanded gateway/lane/shell-state/control-plane fea
 |  |  |  |  |  |  |  |
 
 - [ ] No exterior capability expansion without verifiable runtime truth increase.
+- [ ] Every visible capability change links to at least one proof artifact, replay fixture, or release gate.

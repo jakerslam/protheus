@@ -21,6 +21,14 @@ type LaneRow = {
   replay_fixture_path?: string;
   parity_test_path?: string;
   deterministic_receipt_test_path?: string;
+  proof_artifact_path?: string;
+  day_one_replay_coverage?: boolean;
+  day_one_deterministic_receipt_test?: boolean;
+  provisional_exemption?: {
+    ticket?: string;
+    reason?: string;
+    expires_at?: string;
+  };
   invariants: string[];
   contract_test_id: string;
 };
@@ -66,16 +74,21 @@ function hasConduitOnlyPath(input: string): boolean {
   return normalized.includes('conduit');
 }
 
+function parseIsoTimestamp(raw: string): number {
+  const time = Date.parse(raw);
+  return Number.isFinite(time) ? time : NaN;
+}
+
 function toMarkdown(rows: LaneRow[], violations: string[]): string {
   const lines = [
     '# Layer2 Lane Parity Guard',
     '',
-    '| lane | owner | status | action | expected receipt | timeout | retry | parity test | replay fixture | deterministic receipt test | runtime path | fallback path | contract test |',
-    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+    '| lane | owner | status | action | expected receipt | timeout | retry | parity test | replay fixture | deterministic receipt test | proof artifact | day-one replay | day-one deterministic receipt | runtime path | fallback path | contract test |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
   ];
   for (const row of rows) {
     lines.push(
-      `| ${row.id} | ${cleanText(row.owner || 'unknown', 40)} | ${cleanText(row.status || 'unknown', 20)} | ${row.requested_action} | ${row.expected_receipt_type} | ${cleanText(row.timeout_semantics || 'missing', 80)} | ${cleanText(row.retry_semantics || 'missing', 80)} | ${cleanText(row.parity_test_path || 'missing', 160)} | ${cleanText(row.replay_fixture_path || 'missing', 160)} | ${cleanText(row.deterministic_receipt_test_path || 'missing', 160)} | ${row.runtime_path} | ${row.fallback_path} | ${row.contract_test_id} |`,
+      `| ${row.id} | ${cleanText(row.owner || 'unknown', 40)} | ${cleanText(row.status || 'unknown', 20)} | ${row.requested_action} | ${row.expected_receipt_type} | ${cleanText(row.timeout_semantics || 'missing', 80)} | ${cleanText(row.retry_semantics || 'missing', 80)} | ${cleanText(row.parity_test_path || 'missing', 160)} | ${cleanText(row.replay_fixture_path || 'missing', 160)} | ${cleanText(row.deterministic_receipt_test_path || 'missing', 160)} | ${cleanText(row.proof_artifact_path || 'missing', 160)} | ${row.day_one_replay_coverage === true ? 'true' : 'false'} | ${row.day_one_deterministic_receipt_test === true ? 'true' : 'false'} | ${row.runtime_path} | ${row.fallback_path} | ${row.contract_test_id} |`,
     );
   }
   lines.push('');
@@ -118,14 +131,36 @@ export function run(argv: string[] = process.argv.slice(2)): number {
 
   const ids = new Set<string>();
   const tests = new Set<string>();
+  const nowEpoch = Date.now();
   let completeCount = 0;
-  const ALLOWED_STATUSES = new Set(['complete', 'experimental']);
+  let provisionalCount = 0;
+  let provisionalWithExemptionCount = 0;
+  const ALLOWED_STATUSES = new Set(['complete', 'experimental', 'provisional']);
   for (const row of manifest.lanes || []) {
     if (!row.id) violations.push('lane_missing_id');
     const status = cleanText(row.status || '', 20).toLowerCase();
     if (!status) violations.push(`lane_missing_status:${row.id || 'unknown'}`);
     if (status && !ALLOWED_STATUSES.has(status)) {
       violations.push(`lane_status_not_allowed:${row.id || 'unknown'}:${status}`);
+    }
+    if (status === 'provisional') {
+      provisionalCount += 1;
+      const exemption = row.provisional_exemption || {};
+      const ticket = cleanText(exemption.ticket || '', 120);
+      const reason = cleanText(exemption.reason || '', 200);
+      const expiresAt = cleanText(exemption.expires_at || '', 80);
+      if (!ticket || !reason || !expiresAt) {
+        violations.push(`lane_provisional_without_explicit_exemption:${row.id || 'unknown'}`);
+      } else {
+        const expiresEpoch = parseIsoTimestamp(expiresAt);
+        if (!Number.isFinite(expiresEpoch)) {
+          violations.push(`lane_provisional_exemption_expiry_invalid:${row.id || 'unknown'}:${expiresAt}`);
+        } else if (expiresEpoch <= nowEpoch) {
+          violations.push(`lane_provisional_exemption_expired:${row.id || 'unknown'}:${expiresAt}`);
+        } else {
+          provisionalWithExemptionCount += 1;
+        }
+      }
     }
     if (status === 'complete') completeCount += 1;
     if (!cleanText(row.owner || '', 80)) violations.push(`lane_missing_owner:${row.id || 'unknown'}`);
@@ -162,6 +197,15 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         `lane_deterministic_receipt_test_path_missing:${row.id || 'unknown'}:${cleanText(row.deterministic_receipt_test_path || '', 300)}`,
       );
     }
+    if (!cleanText(row.proof_artifact_path || '', 300)) {
+      violations.push(`lane_missing_proof_artifact_path:${row.id || 'unknown'}`);
+    }
+    if (row.day_one_replay_coverage !== true) {
+      violations.push(`lane_day_one_replay_coverage_not_true:${row.id || 'unknown'}`);
+    }
+    if (row.day_one_deterministic_receipt_test !== true) {
+      violations.push(`lane_day_one_deterministic_receipt_test_not_true:${row.id || 'unknown'}`);
+    }
     if (!row.contract_test_id) violations.push(`lane_missing_contract_test_id:${row.id || 'unknown'}`);
     if (row.id && ids.has(row.id)) violations.push(`lane_id_duplicate:${row.id}`);
     if (row.contract_test_id && tests.has(row.contract_test_id)) {
@@ -195,6 +239,8 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     summary: {
       lane_count: (manifest.lanes || []).length,
       complete_lane_count: completeCount,
+      provisional_lane_count: provisionalCount,
+      provisional_lane_with_exemption_count: provisionalWithExemptionCount,
       violation_count: violations.length,
       pass: violations.length === 0,
     },

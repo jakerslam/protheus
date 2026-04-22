@@ -229,9 +229,18 @@ fn finalize_message_finalization_and_payload(
                 "I can answer directly without tool calls. Ask your question naturally and I’ll respond conversationally unless you explicitly request a tool run.".to_string();
         }
         if fallback_response.is_empty() {
-            fallback_response =
-                "I hit a response-synthesis failure after collecting this turn. Please retry and I’ll explain what worked or failed directly.".to_string();
+            fallback_response = workflow_unexpected_state_user_fallback(
+                message,
+                &latest_assistant_text,
+                &response_tools,
+            );
         }
+        fallback_response = ensure_no_retry_boilerplate_copy(
+            message,
+            &latest_assistant_text,
+            &response_tools,
+            &fallback_response,
+        );
         workflow_system_fallback_used = true;
         final_fallback_used = true;
         finalization_outcome = merge_response_outcomes(
@@ -253,14 +262,20 @@ fn finalize_message_finalization_and_payload(
             "workflow_unexpected_state",
             200,
         );
+        let fallback_response = ensure_no_retry_boilerplate_copy(
+            message,
+            &latest_assistant_text,
+            &response_tools,
+            &workflow_unexpected_state_user_fallback(
+                message,
+                &latest_assistant_text,
+                &response_tools,
+            ),
+        );
         let (contract_finalized, contract_report, contract_outcome) =
             enforce_user_facing_finalization_contract(
                 message,
-                workflow_unexpected_state_user_fallback(
-                    message,
-                    &latest_assistant_text,
-                    &response_tools,
-                ),
+                fallback_response,
                 &response_tools,
             );
         finalized_response = contract_finalized;
@@ -443,7 +458,7 @@ fn finalize_message_finalization_and_payload(
         "forced_fallback_attempted": web_forced_fallback_attempted,
         "invariant_repair_used": web_invariant_repair_used
     });
-    let response_finalization = build_response_finalization_payload(
+    let mut response_finalization = build_response_finalization_payload(
         &finalization_outcome,
         initial_ack_only,
         final_ack_only,
@@ -456,6 +471,9 @@ fn finalize_message_finalization_and_payload(
         &tooling_invariant,
         &web_invariant,
     );
+    response_finalization["workflow_control"] = json!({
+        "conversation_bypass": workflow_conversation_bypass_control_from_workflow(&response_workflow)
+    });
     let process_summary =
         build_turn_process_summary(message, &response_tools, &response_workflow, &response_finalization);
     let turn_transaction = crate::dashboard_tool_turn_loop::turn_transaction_payload(

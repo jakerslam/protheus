@@ -11,7 +11,7 @@ const ROOT = process.cwd();
 const DEFAULT_OUT_JSON = 'core/local/artifacts/orchestration_runtime_quality_guard_current.json';
 const DEFAULT_OUT_MD = 'local/workspace/reports/ORCHESTRATION_RUNTIME_QUALITY_GUARD_CURRENT.md';
 const DEFAULT_POLICY_PATH = 'client/runtime/config/orchestration_quality_policy.json';
-const TEST_NAME = 'runtime_quality_telemetry_metrics_stay_within_thresholds';
+const TEST_NAME = 'quality_planner_runtime::runtime_quality_telemetry_metrics_stay_within_thresholds';
 
 type ScriptArgs = {
   strict: boolean;

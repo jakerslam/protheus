@@ -25,6 +25,8 @@ const SIMPLE_CONVERSATION_V1_STAGES: &[&str] = &[
     "gate_7_final_output_or_grounded_failure",
 ];
 
+const CONVERSATION_BYPASS_MAX_TURNS: u64 = 3;
+
 const WORKFLOW_LIBRARY: &[WorkflowDefinition] = &[
     WorkflowDefinition {
         name: "complex_prompt_chain_v1",
@@ -43,6 +45,15 @@ const WORKFLOW_LIBRARY: &[WorkflowDefinition] = &[
         stages: SIMPLE_CONVERSATION_V1_STAGES,
         final_response_policy: "llm_authored_when_online",
         gate_contract: "workflow_gate_v1",
+    },
+    WorkflowDefinition {
+        name: "conversation_bypass_v1",
+        workflow_type: "hard_agent_workflow",
+        default_workflow: false,
+        description: "Explicit direct-conversation override workflow. It remains workflow-gated, but prioritizes direct response continuity over additional orchestration hops.",
+        stages: SIMPLE_CONVERSATION_V1_STAGES,
+        final_response_policy: "llm_authored_when_online",
+        gate_contract: "workflow_gate_bypass_v1",
     },
 ];
 
@@ -145,6 +156,221 @@ fn selected_turn_workflow(workflow_mode: &str) -> Value {
 
 fn workflow_turn_contains_any(lowered: &str, markers: &[&str]) -> bool {
     markers.iter().any(|marker| lowered.contains(marker))
+}
+
+fn message_requests_conversation_bypass(message: &str) -> bool {
+    let lowered = clean_text(message, 1_200).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    workflow_turn_contains_any(
+        &lowered,
+        &[
+            "break the workflow",
+            "bypass the workflow",
+            "workflow bypass",
+            "respond directly",
+            "direct mode",
+            "talk freely",
+            "no workflow",
+            "skip workflow",
+        ],
+    )
+}
+
+fn message_requests_conversation_bypass_disable(message: &str) -> bool {
+    let lowered = clean_text(message, 1_200).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    workflow_turn_contains_any(
+        &lowered,
+        &[
+            "resume workflow",
+            "restore workflow",
+            "turn workflow back on",
+            "re-enable workflow",
+            "enable workflow",
+            "use normal workflow",
+        ],
+    )
+}
+
+fn message_requests_high_risk_external_action(message: &str) -> bool {
+    let lowered = clean_text(message, 1_200).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    workflow_turn_contains_any(
+        &lowered,
+        &[
+            "send email",
+            "send an email",
+            "tweet",
+            "post publicly",
+            "publish",
+            "deploy to production",
+            "drop database",
+            "delete production",
+            "exfiltrate",
+            "leak secrets",
+        ],
+    )
+}
+
+fn value_as_u64_like(value: Option<&Value>) -> u64 {
+    value
+        .and_then(|row| row.as_u64().or_else(|| row.as_i64().map(|v| v.max(0) as u64)))
+        .unwrap_or(0)
+}
+
+fn latest_assistant_conversation_bypass_remaining_turns(active_messages: &[Value]) -> u64 {
+    for row in active_messages.iter().rev() {
+        let role = clean_text(row.get("role").and_then(Value::as_str).unwrap_or(""), 24)
+            .to_ascii_lowercase();
+        if role != "assistant" && role != "agent" {
+            continue;
+        }
+        let from_finalization = value_as_u64_like(
+            row.pointer("/response_finalization/workflow_control/conversation_bypass/remaining_turns_after"),
+        );
+        if from_finalization > 0 {
+            return from_finalization;
+        }
+        let from_workflow = value_as_u64_like(
+            row.pointer("/response_workflow/workflow_control/conversation_bypass/remaining_turns_after"),
+        );
+        if from_workflow > 0 {
+            return from_workflow;
+        }
+    }
+    0
+}
+
+fn workflow_conversation_bypass_control_from_events(workflow_events: &[Value]) -> Value {
+    for row in workflow_events.iter().rev() {
+        let kind = clean_text(row.get("kind").and_then(Value::as_str).unwrap_or(""), 80);
+        if kind != "conversation_bypass_control" {
+            continue;
+        }
+        if let Some(detail) = row.get("detail").filter(|detail| detail.is_object()) {
+            return detail.clone();
+        }
+    }
+    json!({
+        "enabled": false,
+        "source": "none",
+        "reason": "not_requested",
+        "remaining_turns_before": 0,
+        "remaining_turns_after": 0,
+        "requested_ttl_turns": CONVERSATION_BYPASS_MAX_TURNS
+    })
+}
+
+fn workflow_conversation_bypass_control_from_workflow(workflow: &Value) -> Value {
+    if let Some(control) = workflow
+        .pointer("/workflow_control/conversation_bypass")
+        .filter(|control| control.is_object())
+    {
+        return control.clone();
+    }
+    if let Some(events) = workflow.get("system_events").and_then(Value::as_array) {
+        return workflow_conversation_bypass_control_from_events(events);
+    }
+    json!({
+        "enabled": false,
+        "source": "none",
+        "reason": "not_requested",
+        "remaining_turns_before": 0,
+        "remaining_turns_after": 0,
+        "requested_ttl_turns": CONVERSATION_BYPASS_MAX_TURNS
+    })
+}
+
+fn workflow_conversation_bypass_control_for_turn(
+    message: &str,
+    active_messages: &[Value],
+    gate_should_call_tools: bool,
+    inline_tools_allowed: bool,
+) -> Value {
+    let requested_enable = message_requests_conversation_bypass(message);
+    let requested_disable = message_requests_conversation_bypass_disable(message);
+    let previous_remaining = latest_assistant_conversation_bypass_remaining_turns(active_messages);
+    let sticky_requested = previous_remaining > 0;
+    let explicit_tool_request = inline_tool_calls_allowed_for_user_message(message)
+        && !message_explicitly_disallows_tool_calls(message);
+    let high_risk_external_action = message_requests_high_risk_external_action(message);
+    let mut enabled = false;
+    let mut source = "none";
+    let mut reason = "not_requested";
+    let mut blocked = false;
+    let mut block_reason = "";
+    let mut remaining_before = previous_remaining;
+    let mut remaining_after = 0u64;
+
+    if requested_disable {
+        source = "user_disable";
+        reason = "disabled_by_user";
+        remaining_before = previous_remaining;
+        remaining_after = 0;
+    } else if requested_enable || sticky_requested {
+        source = if requested_enable {
+            "user_override"
+        } else {
+            "sticky"
+        };
+        if high_risk_external_action {
+            blocked = true;
+            reason = "blocked_by_safety_gate";
+            block_reason = "high_risk_external_action";
+        } else if gate_should_call_tools || inline_tools_allowed || explicit_tool_request {
+            blocked = true;
+            reason = "blocked_by_tooling_requirement";
+            block_reason = "tooling_required_or_explicit";
+        } else {
+            enabled = true;
+            reason = if requested_enable {
+                "enabled_by_user_override"
+            } else {
+                "continued_from_sticky_state"
+            };
+            let ttl_seed = if requested_enable {
+                CONVERSATION_BYPASS_MAX_TURNS
+            } else {
+                previous_remaining.max(1)
+            };
+            remaining_before = ttl_seed;
+            remaining_after = ttl_seed.saturating_sub(1);
+        }
+    }
+
+    let workflow_mode_override = if enabled {
+        "workflow=conversation_bypass_v1".to_string()
+    } else {
+        String::new()
+    };
+    let should_emit_event =
+        requested_enable || requested_disable || sticky_requested || enabled || blocked;
+
+    json!({
+        "enabled": enabled,
+        "source": source,
+        "reason": reason,
+        "blocked": blocked,
+        "block_reason": block_reason,
+        "requested_enable": requested_enable,
+        "requested_disable": requested_disable,
+        "sticky_requested": sticky_requested,
+        "explicit_tool_request": explicit_tool_request,
+        "gate_should_call_tools": gate_should_call_tools,
+        "inline_tools_allowed": inline_tools_allowed,
+        "high_risk_external_action": high_risk_external_action,
+        "requested_ttl_turns": CONVERSATION_BYPASS_MAX_TURNS,
+        "remaining_turns_before": remaining_before,
+        "remaining_turns_after": remaining_after,
+        "workflow_mode_override": workflow_mode_override,
+        "should_emit_event": should_emit_event
+    })
 }
 
 fn workflow_turn_is_meta_control_message(message: &str) -> bool {
@@ -752,6 +978,8 @@ fn turn_workflow_metadata(
     let requires_final_llm =
         turn_workflow_requires_final_llm(response_tools, workflow_events, draft_response);
     let tool_gate = workflow_turn_tool_decision_tree(message);
+    let conversation_bypass_control =
+        workflow_conversation_bypass_control_from_events(workflow_events);
     json!({
         "contract": "agent_workflow_library_v1",
         "workflow_gate": {
@@ -769,6 +997,9 @@ fn turn_workflow_metadata(
         "draft_response_state": draft_response_state,
         "findings_summary": clean_text(&response_tools_summary_for_user(response_tools, 4), 2_000),
         "failure_summary": clean_text(&response_tools_failure_reason_for_user(response_tools, 4), 2_000),
+        "workflow_control": {
+            "conversation_bypass": conversation_bypass_control
+        },
         "system_events": workflow_events,
         "stage_statuses": turn_workflow_stage_rows(workflow_mode, response_tools, workflow_events, draft_response),
         "final_llm_response": {
@@ -899,4 +1130,99 @@ fn sanitize_workflow_final_response_candidate(response: &str) -> String {
         cleaned = cleaned[..idx].trim().trim_end_matches(&['\n', ' ', '-', ':'][..]).to_string();
     }
     clean_chat_text(cleaned.trim(), 32_000)
+}
+
+#[cfg(test)]
+mod workflow_control_tests {
+    use super::*;
+
+    #[test]
+    fn conversation_bypass_control_enables_for_direct_override_phrase() {
+        let control = workflow_conversation_bypass_control_for_turn(
+            "break the workflow and respond directly",
+            &[],
+            false,
+            false,
+        );
+        assert_eq!(control.get("enabled").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            control.get("source").and_then(Value::as_str),
+            Some("user_override")
+        );
+        assert_eq!(
+            control.get("workflow_mode_override").and_then(Value::as_str),
+            Some("workflow=conversation_bypass_v1")
+        );
+    }
+
+    #[test]
+    fn conversation_bypass_control_blocks_when_tooling_is_required() {
+        let control = workflow_conversation_bypass_control_for_turn(
+            "break the workflow and respond directly",
+            &[],
+            true,
+            true,
+        );
+        assert_eq!(control.get("enabled").and_then(Value::as_bool), Some(false));
+        assert_eq!(control.get("blocked").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            control.get("block_reason").and_then(Value::as_str),
+            Some("tooling_required_or_explicit")
+        );
+    }
+
+    #[test]
+    fn conversation_bypass_control_continues_sticky_state() {
+        let active_messages = vec![json!({
+            "role": "assistant",
+            "response_finalization": {
+                "workflow_control": {
+                    "conversation_bypass": {
+                        "remaining_turns_after": 2
+                    }
+                }
+            }
+        })];
+        let control =
+            workflow_conversation_bypass_control_for_turn("status?", &active_messages, false, false);
+        assert_eq!(control.get("enabled").and_then(Value::as_bool), Some(true));
+        assert_eq!(control.get("source").and_then(Value::as_str), Some("sticky"));
+        assert_eq!(
+            control.get("remaining_turns_before").and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            control.get("remaining_turns_after").and_then(Value::as_u64),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn conversation_bypass_control_disables_when_user_requests_resume() {
+        let active_messages = vec![json!({
+            "role": "assistant",
+            "response_finalization": {
+                "workflow_control": {
+                    "conversation_bypass": {
+                        "remaining_turns_after": 2
+                    }
+                }
+            }
+        })];
+        let control = workflow_conversation_bypass_control_for_turn(
+            "resume workflow now",
+            &active_messages,
+            false,
+            false,
+        );
+        assert_eq!(control.get("enabled").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            control.get("source").and_then(Value::as_str),
+            Some("user_disable")
+        );
+        assert_eq!(
+            control.get("remaining_turns_after").and_then(Value::as_u64),
+            Some(0)
+        );
+    }
 }

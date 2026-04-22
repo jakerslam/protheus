@@ -666,7 +666,7 @@
       "has_ts_peer": false
     },
     {
-      "path": "systems/migration/core_migration_bridge.js",
+      "path": "systems/migration/kernel_migration_bridge.js",
       "status": "unapproved_unpaired_js",
       "has_ts_peer": false
     },

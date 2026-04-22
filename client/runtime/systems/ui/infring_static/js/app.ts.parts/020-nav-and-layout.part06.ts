@@ -468,6 +468,9 @@
         else localStorage.removeItem('infring-chat-map-wall-lock');
         localStorage.removeItem('infring-chat-map-smash-wall');
       } catch(_) {}
+      infringUpdateShellLayoutConfig(function(config) {
+        config.chatMap.wallLock = wall;
+      });
       return wall;
     },
     chatMapResolvedLeft() {
@@ -498,6 +501,9 @@
       try {
         localStorage.setItem('infring-chat-map-placement-x', String(ratio));
       } catch(_) {}
+      infringUpdateShellLayoutConfig(function(config) {
+        config.chatMap.placementX = ratio;
+      });
     },
     chatMapContainerStyle() {
       if (!this.chatMapPlacementEnabled()) return '';

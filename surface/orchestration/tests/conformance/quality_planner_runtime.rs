@@ -15,7 +15,7 @@ fn planner_quality_fixture_metrics_stay_within_thresholds() {
                     "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
                 },
                 "core_probe_envelope": {
-                    "execute_tool": {
+                    "web_search": {
                         "tool_available": true,
                         "transport_available": true
                     }
@@ -36,7 +36,7 @@ fn planner_quality_fixture_metrics_stay_within_thresholds() {
                     ]
                 },
                 "core_probe_envelope": {
-                    "execute_tool": {
+                    "tool_route": {
                         "tool_available": true,
                         "transport_available": true
                     },
@@ -93,7 +93,7 @@ fn planner_quality_fixture_metrics_stay_within_thresholds() {
                     "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
                 },
                 "core_probe_envelope": {
-                    "execute_tool": {
+                    "web_search": {
                         "tool_available": true,
                         "transport_available": true
                     }
@@ -114,7 +114,7 @@ fn planner_quality_fixture_metrics_stay_within_thresholds() {
                     ]
                 },
                 "core_probe_envelope": {
-                    "execute_tool": {
+                    "tool_route": {
                         "tool_available": true,
                         "transport_available": true
                     },
@@ -291,7 +291,7 @@ fn runtime_quality_telemetry_metrics_stay_within_thresholds() {
                     "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
                 },
                 "core_probe_envelope": {
-                    "execute_tool": {
+                    "web_search": {
                         "tool_available": true,
                         "transport_available": true
                     }
@@ -312,7 +312,7 @@ fn runtime_quality_telemetry_metrics_stay_within_thresholds() {
                     ]
                 },
                 "core_probe_envelope": {
-                    "execute_tool": {
+                    "tool_route": {
                         "tool_available": true,
                         "transport_available": true
                     },

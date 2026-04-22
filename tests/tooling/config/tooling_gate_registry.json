@@ -125,15 +125,15 @@
         "core/local/artifacts/arch_boundary_conformance_current.json"
       ]
     },
-    "ops:nexus:core-coupling:guard": {
+    "ops:nexus:kernel-coupling:guard": {
       "owner": "ops",
       "description": "Core nexus coupling guard with forbidden-direct-nexus and layer0 allowlist enforcement.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "script": "ops:nexus:core-coupling:guard",
+      "script": "ops:nexus:kernel-coupling:guard",
       "artifact_paths": [
-        "core/local/artifacts/core_nexus_coupling_guard_current.json",
-        "local/workspace/reports/CORE_NEXUS_COUPLING_GUARD_CURRENT.md"
+        "core/local/artifacts/kernel_nexus_coupling_guard_current.json",
+        "local/workspace/reports/KERNEL_NEXUS_COUPLING_GUARD_CURRENT.md"
       ]
     },
     "ops:repo-health:check": {
@@ -356,15 +356,15 @@
         "local/state/ops/ci_quality_scorecard/latest.json"
       ]
     },
-    "ops:orchestration:adapter-fallback:guard": {
+    "ops:orchestration:gateway-fallback:guard": {
       "owner": "ops",
-      "description": "Typed-surface adapter fallback regression guard.",
+      "description": "Typed-surface gateway fallback regression guard.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 180,
-      "script": "ops:orchestration:adapter-fallback:guard",
+      "script": "ops:orchestration:gateway-fallback:guard",
       "artifact_paths": [
-        "core/local/artifacts/orchestration_adapter_fallback_guard_current.json",
-        "local/workspace/reports/ORCHESTRATION_ADAPTER_FALLBACK_GUARD_CURRENT.md"
+        "core/local/artifacts/orchestration_gateway_fallback_guard_current.json",
+        "local/workspace/reports/ORCHESTRATION_GATEWAY_FALLBACK_GUARD_CURRENT.md"
       ]
     },
     "ops:orchestration:planner-quality:guard": {
@@ -501,15 +501,15 @@
       "timeout_sec": 60,
       "script": "ops:legacy-alias:guard"
     },
-    "ops:client-naming:guard": {
+    "ops:shell-naming:guard": {
       "owner": "ops",
-      "description": "Client naming policy guard.",
+      "description": "Shell naming policy guard.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "script": "ops:client-naming:guard",
+      "script": "ops:shell-naming:guard",
       "artifact_paths": [
-        "core/local/artifacts/client_naming_policy_guard_current.json",
-        "local/workspace/reports/CLIENT_NAMING_POLICY_GUARD_CURRENT.md"
+        "core/local/artifacts/shell_naming_policy_guard_current.json",
+        "local/workspace/reports/SHELL_NAMING_POLICY_GUARD_CURRENT.md"
       ]
     },
     "ops:orchestration-naming:guard": {
@@ -523,15 +523,15 @@
         "local/workspace/reports/ORCHESTRATION_NAMING_POLICY_GUARD_CURRENT.md"
       ]
     },
-    "ops:core-naming:guard": {
+    "ops:kernel-naming:guard": {
       "owner": "ops",
-      "description": "Core naming policy guard.",
+      "description": "Kernel naming policy guard.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "script": "ops:core-naming:guard",
+      "script": "ops:kernel-naming:guard",
       "artifact_paths": [
-        "core/local/artifacts/core_naming_policy_guard_current.json",
-        "local/workspace/reports/CORE_NAMING_POLICY_GUARD_CURRENT.md"
+        "core/local/artifacts/kernel_naming_policy_guard_current.json",
+        "local/workspace/reports/KERNEL_NAMING_POLICY_GUARD_CURRENT.md"
       ]
     },
     "ops:simplicity:audit": {
@@ -801,9 +801,9 @@
         "core/local/artifacts/runtime_boundedness_inspect_tiny-max_current.json",
         "local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_TINY-MAX_CURRENT.md",
         "local/workspace/reports/RUNTIME_PROOF_RELEASE_GATE_TINY-MAX_CURRENT.md",
-        "core/local/artifacts/adapter_runtime_chaos_gate_rich_current.json",
-        "core/local/artifacts/adapter_runtime_chaos_gate_pure_current.json",
-        "core/local/artifacts/adapter_runtime_chaos_gate_tiny-max_current.json",
+        "core/local/artifacts/gateway_runtime_chaos_gate_rich_current.json",
+        "core/local/artifacts/gateway_runtime_chaos_gate_pure_current.json",
+        "core/local/artifacts/gateway_runtime_chaos_gate_tiny-max_current.json",
         "core/local/artifacts/runtime_boundedness_72h_evidence_current.json",
         "core/local/artifacts/runtime_boundedness_profiles_current.json",
         "core/local/artifacts/runtime_multi_day_soak_evidence_current.json",
@@ -828,24 +828,81 @@
         "core/local/artifacts/release_proof_checksums_current.json"
       ]
     },
-    "ops:adapter-runtime-chaos:gate": {
+    "ops:runtime-closure:board:guard": {
       "owner": "ops",
-      "description": "Adapter runtime chaos gate across governed production adapters.",
+      "description": "Runtime-closure board contract guard enforcing required closure buckets and gate/evidence linkage.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
-      "timeout_sec": 180,
-      "script": "ops:adapter-runtime-chaos:gate",
+      "timeout_sec": 90,
+      "script": "ops:runtime-closure:board:guard",
       "artifact_paths": [
-        "core/local/artifacts/adapter_runtime_chaos_gate_current.json",
-        "core/local/artifacts/gateway_support_levels_current.json",
-        "local/workspace/reports/ADAPTER_RUNTIME_CHAOS_GATE_CURRENT.md"
+        "core/local/artifacts/runtime_closure_board_guard_current.json",
+        "local/workspace/reports/RUNTIME_CLOSURE_BOARD_GUARD_CURRENT.md"
       ]
     },
-    "ops:adapter-chaos:rust": {
+    "ops:runtime-closure:feature-alignment:guard": {
       "owner": "ops",
-      "description": "Rust-authoritative adapter chaos contract integration test.",
+      "description": "PR/runtime-closure feature alignment guard that blocks major surface feature additions without closure-bucket validation links and enforces visible capability proof linkage.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:runtime-closure:feature-alignment:guard",
+      "artifact_paths": [
+        "core/local/artifacts/runtime_closure_feature_alignment_guard_current.json",
+        "local/workspace/reports/RUNTIME_CLOSURE_FEATURE_ALIGNMENT_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:workspace-tooling:context:soak": {
+      "owner": "ops",
+      "description": "Workspace/file tooling context soak with fixture-backed replay coverage (file read, file search, repo path targeting, mixed workspace/tool routing).",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 180,
-      "script": "test:ops:adapter-chaos:rust"
+      "script": "ops:workspace-tooling:context:soak",
+      "artifact_paths": [
+        "artifacts/workspace_tooling_context_soak_report_latest.json",
+        "core/local/artifacts/workspace_tooling_context_soak_current.json",
+        "local/state/ops/workspace_tooling_context_soak/latest.json",
+        "local/workspace/reports/WORKSPACE_TOOLING_CONTEXT_SOAK_CURRENT.md"
+      ]
+    },
+    "ops:workspace-tooling:release-proof": {
+      "owner": "ops",
+      "description": "Release-class proof artifact for workspace/file tooling reliability, sourced from fixture-backed replay scenario coverage.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:workspace-tooling:release-proof",
+      "artifact_paths": [
+        "core/local/artifacts/workspace_tooling_release_proof_current.json",
+        "local/workspace/reports/WORKSPACE_TOOLING_RELEASE_PROOF_CURRENT.md"
+      ]
+    },
+    "ops:gateway-runtime-chaos:gate": {
+      "owner": "ops",
+      "description": "Gateway runtime chaos gate across governed production gateways.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 180,
+      "script": "ops:gateway-runtime-chaos:gate",
+      "artifact_paths": [
+        "core/local/artifacts/gateway_runtime_chaos_gate_current.json",
+        "core/local/artifacts/gateway_support_levels_current.json",
+        "local/workspace/reports/GATEWAY_RUNTIME_CHAOS_GATE_CURRENT.md"
+      ]
+    },
+    "ops:gateway-status:manifest": {
+      "owner": "ops",
+      "description": "Gateway status manifest for first-five production targets with support-level and uniform checklist contracts.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:gateway-status:manifest",
+      "artifact_paths": [
+        "core/local/artifacts/gateway_status_manifest_current.json",
+        "local/workspace/reports/GATEWAY_STATUS_MANIFEST_CURRENT.md"
+      ]
+    },
+    "ops:gateway-chaos:rust": {
+      "owner": "ops",
+      "description": "Rust-authoritative gateway chaos contract integration test.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 180,
+      "script": "test:ops:gateway-chaos:rust"
     },
     "ops:v8:runtime-proof:gate": {
       "owner": "ops",
@@ -1195,6 +1252,17 @@
       "artifact_paths": [
         "core/local/artifacts/incident_operations_governance_gate_current.json",
         "local/workspace/reports/INCIDENT_OPERATIONS_GOVERNANCE_GATE_CURRENT.md"
+      ]
+    },
+    "ops:typed-probe:matrix:guard": {
+      "owner": "ops",
+      "description": "Typed probe capability matrix guard with distinct authoritative keys for workspace/web/tool-route families and capability-specific missing diagnostics.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:typed-probe:matrix:guard",
+      "artifact_paths": [
+        "core/local/artifacts/typed_probe_contract_matrix_guard_current.json",
+        "local/workspace/reports/TYPED_PROBE_CONTRACT_MATRIX_GUARD_CURRENT.md"
       ]
     },
     "ops:shell:truth-leak:guard": {

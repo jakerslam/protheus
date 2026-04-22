@@ -79,9 +79,9 @@ type AdapterGraduationResult = {
 
 const OPS_CARGO_BUILD_ARGS = ['build', '-q', '-p', 'protheus-ops-core', '--bin', 'protheus-ops'];
 const BRIDGE_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
-const DEFAULT_OUT_JSON = 'core/local/artifacts/adapter_runtime_chaos_gate_current.json';
+const DEFAULT_OUT_JSON = 'core/local/artifacts/gateway_runtime_chaos_gate_current.json';
 const DEFAULT_SUPPORT_LEVELS_OUT_JSON = 'core/local/artifacts/gateway_support_levels_current.json';
-const DEFAULT_OUT_MARKDOWN = 'local/workspace/reports/ADAPTER_RUNTIME_CHAOS_GATE_CURRENT.md';
+const DEFAULT_OUT_MARKDOWN = 'local/workspace/reports/GATEWAY_RUNTIME_CHAOS_GATE_CURRENT.md';
 
 const DEFAULT_TARGET_GATEWAY_ADAPTER_IDS = [
   'ollama',
@@ -130,7 +130,7 @@ function parseArgs(argv: string[]) {
     outMarkdownPath: cleanText(readFlag(argv, 'out-markdown') || DEFAULT_OUT_MARKDOWN, 400),
     profile,
     graduationManifestPath: cleanText(
-      readFlag(argv, 'graduation-manifest') || 'tests/tooling/config/adapter_graduation_manifest.json',
+      readFlag(argv, 'graduation-manifest') || 'tests/tooling/config/gateway_graduation_manifest.json',
       400,
     ),
   };
@@ -289,11 +289,11 @@ function scenarioStatePath(tempRoot: string, adapterId: string, scenarioId: stri
 
 function baselinePayload(adapter: AdapterLane) {
   return {
-    task_id: `adapter_chaos_baseline_${adapter.id}`,
-    trace_id: `adapter_chaos_trace_${adapter.id}`,
+    task_id: `gateway_chaos_baseline_${adapter.id}`,
+    trace_id: `gateway_chaos_trace_${adapter.id}`,
     tool_name: 'web_search',
     tool_args: {
-      query: `adapter chaos baseline ${adapter.id}`,
+      query: `gateway chaos baseline ${adapter.id}`,
     },
     raw_result: {
       results: [
@@ -309,12 +309,12 @@ function baselinePayload(adapter: AdapterLane) {
 
 function chaosPayload(adapter: AdapterLane, scenarioId: string) {
   return {
-    task_id: `adapter_chaos_${adapter.id}_${scenarioId}`,
-    trace_id: `adapter_chaos_trace_${adapter.id}_${scenarioId}`,
+    task_id: `gateway_chaos_${adapter.id}_${scenarioId}`,
+    trace_id: `gateway_chaos_trace_${adapter.id}_${scenarioId}`,
     tool_name: 'web_search',
     chaos_scenario: scenarioId,
     tool_args: {
-      query: `adapter chaos ${scenarioId}`,
+      query: `gateway chaos ${scenarioId}`,
     },
   };
 }
@@ -568,7 +568,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   if (!args.profile) {
     const payload = {
       ok: false,
-      type: 'adapter_runtime_chaos_gate',
+      type: 'gateway_runtime_chaos_gate',
       error: 'runtime_proof_profile_invalid',
       profile: cleanText(readFlag(argv, 'profile') || '', 40),
       allowed_profiles: ['rich', 'pure', 'tiny-max'],
@@ -586,8 +586,8 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   } catch (error) {
     const payload = {
       ok: false,
-      type: 'adapter_runtime_chaos_gate',
-      error: 'adapter_graduation_manifest_unavailable',
+      type: 'gateway_runtime_chaos_gate',
+      error: 'gateway_graduation_manifest_unavailable',
       detail: cleanText(error instanceof Error ? error.message : String(error), 500),
       manifest_path: args.graduationManifestPath,
     };
@@ -615,8 +615,8 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   if (graduationAdapters.length === 0) {
     const payload = {
       ok: false,
-      type: 'adapter_runtime_chaos_gate',
-      error: 'adapter_graduation_manifest_has_no_required_adapters',
+      type: 'gateway_runtime_chaos_gate',
+      error: 'gateway_graduation_manifest_has_no_required_adapters',
       manifest_path: args.graduationManifestPath,
     };
     return emitStructuredResult(payload, {
@@ -632,7 +632,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   } catch (error) {
     const payload = {
       ok: false,
-      type: 'adapter_runtime_chaos_gate',
+      type: 'gateway_runtime_chaos_gate',
       error: 'adapter_runtime_chaos_binary_unavailable',
       detail: cleanText(error instanceof Error ? error.message : String(error), 500),
     };
@@ -645,7 +645,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
 
   const baselineRows: ScenarioRow[] = [];
   const chaosRows: ScenarioRow[] = [];
-  const runtimeStateRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'infring-adapter-chaos-'));
+  const runtimeStateRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'infring-gateway-chaos-'));
 
   for (const adapter of graduationAdapters) {
     const baseline = runBridgeCommand(
@@ -752,21 +752,21 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     )
     .concat(
       manifestViolations.map((detail) => ({
-        id: 'adapter_graduation_manifest_violation',
+        id: 'gateway_graduation_manifest_violation',
         detail,
       })),
     );
 
   const metrics = {
-    adapter_baseline_pass_ratio: Number(baselinePassRatio.toFixed(4)),
-    adapter_chaos_fail_closed_ratio: Number(chaosFailClosedRatio.toFixed(4)),
-    adapter_chaos_scenarios_total: chaosTotal,
-    adapter_graduation_ratio: Number(graduationRatio.toFixed(4)),
+    gateway_baseline_pass_ratio: Number(baselinePassRatio.toFixed(4)),
+    gateway_chaos_fail_closed_ratio: Number(chaosFailClosedRatio.toFixed(4)),
+    gateway_chaos_scenarios_total: chaosTotal,
+    gateway_graduation_ratio: Number(graduationRatio.toFixed(4)),
   };
 
   const report = {
     ok: failures.length === 0,
-    type: 'adapter_runtime_chaos_gate',
+    type: 'gateway_runtime_chaos_gate',
     profile: args.profile,
     generated_at: new Date().toISOString(),
     revision: currentRevision(root),

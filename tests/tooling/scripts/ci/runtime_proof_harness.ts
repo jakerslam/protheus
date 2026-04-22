@@ -134,7 +134,7 @@ const EMPIRICAL_ARTIFACT_PATHS = {
   dashboard: 'client/runtime/local/state/ui/infring_dashboard/latest_snapshot.json',
   supportBundle: 'core/local/artifacts/support_bundle_latest.json',
   boundedness: 'core/local/artifacts/runtime_boundedness_inspect_current.json',
-  adapterChaos: 'core/local/artifacts/adapter_runtime_chaos_gate_current.json',
+  gatewayChaos: 'core/local/artifacts/gateway_runtime_chaos_gate_current.json',
 };
 
 function round(value: number, digits = 3): number {
@@ -562,43 +562,43 @@ function extractEmpiricalTrack(root: string, profile: ProfileId): EmpiricalTrack
     });
   }
 
-  const adapterChaosCandidates = [
-    `core/local/artifacts/adapter_runtime_chaos_gate_${profile}_current.json`,
-    EMPIRICAL_ARTIFACT_PATHS.adapterChaos,
+  const gatewayChaosCandidates = [
+    `core/local/artifacts/gateway_runtime_chaos_gate_${profile}_current.json`,
+    EMPIRICAL_ARTIFACT_PATHS.gatewayChaos,
   ];
-  let adapterChaosLoaded = false;
-  let adapterChaosFailureDetail = '';
-  for (const adapterChaosRelPath of adapterChaosCandidates) {
-    const adapterChaosPath = path.resolve(root, adapterChaosRelPath);
-    const adapterChaos = readJsonBestEffort(adapterChaosPath);
-    if (!adapterChaos.ok) {
-      if (!adapterChaosFailureDetail) adapterChaosFailureDetail = adapterChaos.detail;
+  let gatewayChaosLoaded = false;
+  let gatewayChaosFailureDetail = '';
+  for (const gatewayChaosRelPath of gatewayChaosCandidates) {
+    const gatewayChaosPath = path.resolve(root, gatewayChaosRelPath);
+    const gatewayChaos = readJsonBestEffort(gatewayChaosPath);
+    if (!gatewayChaos.ok) {
+      if (!gatewayChaosFailureDetail) gatewayChaosFailureDetail = gatewayChaos.detail;
       continue;
     }
-    const adapterChaosProfile = cleanText(adapterChaos.payload?.profile || '', 40).toLowerCase();
-    if (adapterChaosProfile && adapterChaosProfile !== profile) {
-      if (!adapterChaosFailureDetail) adapterChaosFailureDetail = `profile_mismatch:${adapterChaosProfile}`;
+    const gatewayChaosProfile = cleanText(gatewayChaos.payload?.profile || '', 40).toLowerCase();
+    if (gatewayChaosProfile && gatewayChaosProfile !== profile) {
+      if (!gatewayChaosFailureDetail) gatewayChaosFailureDetail = `profile_mismatch:${gatewayChaosProfile}`;
       continue;
     }
-    const adaptersTotal = safeNumber(adapterChaos.payload?.summary?.adapters_total, 0);
+    const adaptersTotal = safeNumber(gatewayChaos.payload?.summary?.adapters_total, 0);
     sources.push({
       id: 'adapter_runtime_chaos',
-      path: adapterChaosRelPath,
+      path: gatewayChaosRelPath,
       loaded: true,
       sample_points: adaptersTotal > 0 ? adaptersTotal : 1,
       detail: `adapters=${adaptersTotal}`,
     });
     samplePoints += adaptersTotal > 0 ? adaptersTotal : 1;
-    adapterChaosLoaded = true;
+    gatewayChaosLoaded = true;
     break;
   }
-  if (!adapterChaosLoaded) {
+  if (!gatewayChaosLoaded) {
     sources.push({
       id: 'adapter_runtime_chaos',
-      path: adapterChaosCandidates[0],
+      path: gatewayChaosCandidates[0],
       loaded: false,
       sample_points: 0,
-      detail: adapterChaosFailureDetail || 'artifact_unavailable',
+      detail: gatewayChaosFailureDetail || 'artifact_unavailable',
     });
   }
 

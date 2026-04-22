@@ -11,46 +11,15 @@ Kernel authority is Rust-first (`core/**`).
 Orchestration coordination lives in `surface/orchestration/**` (non-canonical, contract-driven).  
 Shell/runtime surfaces remain thin presentation wrappers around policy-governed kernel lanes.
 
-## Terminology Transition (Public Canonical Term)
+## Canonical Terminology (Enforced)
 
-- Canonical public term: **Kernel**
-- Compatibility alias: **Core** (legacy term for the same authoritative Rust surface)
-- Canonical repository path remains `core/**` during compatibility transition.
-- Transition indicators:
-  - [x] Public/operator docs use `Kernel` as the canonical authority term.
-  - [x] Boundary docs mark `Core` as a compatibility alias (not a separate authority).
-  - [x] Tooling command IDs and guard names expose `kernel`-first aliases.
-  - [x] Artifact/config naming migrates from `core_*` to `kernel_*` with compatibility mapping.
-  - [x] Release policy publishes a final alias removal target version/date.
-  - Compatibility mapping: `client/runtime/config/kernel_transition_alias_map.json`
-  - Deprecation tracker: `client/runtime/config/terminology_transition_deprecation_tracker.json`
-
-## Terminology Transition (External Boundary Layer)
-
-- Canonical public term: **Gateways**
-- Compatibility alias: **Adapters** (legacy implementation term for the same external-boundary layer)
-- Canonical repository path remains `adapters/**` during compatibility transition.
-- Transition indicators:
-  - [x] Public/operator docs use `Gateways` as the canonical external-boundary term.
-  - [x] Boundary docs mark `Adapters` as a compatibility alias (not a separate layer).
-  - [x] Tooling command IDs and guard names expose `gateway`-first aliases.
-  - [x] Artifact/config naming migrates from `adapter_*` to `gateway_*` with compatibility mapping.
-  - [x] Release policy publishes a final adapter-alias removal target version/date.
-  - Compatibility mapping: `client/runtime/config/gateway_transition_alias_map.json`
-  - Deprecation tracker: `client/runtime/config/terminology_transition_deprecation_tracker.json`
-
-## Terminology Transition (Presentation Shell)
-
-- Canonical public term: **Shell**
-- Compatibility/internal alias: **Client** (legacy implementation term for the same presentation layer)
-- Canonical repository path remains `client/**` during compatibility transition.
-- Transition indicators:
-  - [x] Public/operator docs use `Shell` as the canonical presentation term.
-  - [x] Boundary docs mark `Client` as a compatibility alias (not a separate layer).
-  - [x] Tooling command IDs and guard names expose `shell`-first aliases (`ops:shell-naming:guard*` with `ops:client-*` compatibility aliases).
-  - [ ] Artifact/config naming migrates from `client_*` labels to `shell_*` labels with compatibility mapping.
-  - [ ] Release policy publishes a final client-alias removal target version/date.
-  - Internal transition notes: `docs/workspace/shell_transition_notes.md`
+- Authority layer: **Kernel**
+- External boundary layer: **Gateways**
+- Presentation layer: **Shell**
+- Repository implementation paths remain `core/**`, `adapters/**`, and `client/**`.
+- Alias retirement state is governed by:
+  - `docs/workspace/policy/release_terminology_transition_policy.md`
+  - `client/runtime/config/terminology_transition_deprecation_tracker.json`
 
 ## Why InfRing
 
@@ -70,10 +39,10 @@ Shell/runtime surfaces remain thin presentation wrappers around policy-governed 
 
 Runtime split inside cognition:
 
-- Authoritative Kernel (compat alias: Core): `core/**`
+- Authoritative Kernel: `core/**`
 - Orchestration Surface: `surface/orchestration/**`
-- Presentation Shell (compat alias: Client): `client/**`
-- Gateway Layer (compat alias: Adapters): `adapters/**`
+- Presentation Shell: `client/**`
+- Gateway Layer: `adapters/**`
 
 See [planes/README.md](planes/README.md) for the canonical architecture contract.
 See [docs/client/PUBLIC_OPERATOR_PROFILE.md](docs/client/PUBLIC_OPERATOR_PROFILE.md) for the public operator-facing surface and support expectations.
@@ -92,7 +61,7 @@ What is true in this repository today:
 - Release-closure evidence now includes topology diagnostics, live stateful upgrade/rollback rehearsal, recovery rehearsal, numeric release scorecards, and support-bundle export.
 - Runtime proof now supports dual-track evidence (`synthetic` canary + `empirical` live artifact track) with profile-scoped empirical sample budgets and required source/metric completeness enforced in release gating.
 - Runtime proof verify now publishes split artifact streams (`runtime_proof_synthetic_canary_current.json` and `runtime_proof_empirical_release_evidence_current.json`) plus empirical trend deltas (`runtime_proof_empirical_trends_current.json`).
-- Gateway release readiness (adapter compatibility layer) includes manifest-backed graduation checks (hooks + chaos scenarios) plus staged roadmap-adapter tracking under the same graduation manifest.
+- Gateway release readiness includes manifest-backed graduation checks (hooks + chaos scenarios) plus staged roadmap-gateway tracking under the same graduation manifest.
 - Layer2 parity guard requires every listed lane to be explicitly marked `complete`; provisional lanes are release blockers.
 - Release proof packs are assembled as grouped, checksummed artifacts under `releases/proof-packs/<version>/`.
 - Dashboard runtime blocks now carry explicit freshness metadata fields (`source`, `source_sequence`, `age_seconds`, `stale`) and are guarded by the dashboard surface authority contract.
@@ -126,8 +95,7 @@ What is true in this repository today:
 - Support bundle is the single incident truth package for release closure.
 - Internal/maintenance lanes are not part of the public production SLA.
 - Operator diagnostics and incident export: `npm run -s ops:support-bundle:export`
-- Terminology transition release policy: `docs/workspace/policy/release_terminology_transition_policy.md`.
-- Compatibility alias retirement target (`Core`, `Adapters`): `v0.5.0` / `2026-07-15` (unless documented blocker exception).
+- Terminology canonical policy: `docs/workspace/policy/release_terminology_transition_policy.md`.
 
 ## Quick Start
 
@@ -253,10 +221,9 @@ infring list
 infring gateway status
 ```
 
-Canonical wrappers and deprecation note:
+Canonical wrappers:
 
 - Primary commands: `infring`, `infringctl`, `infringd`
-- Legacy aliases (`protheus`, `protheusctl`, `protheusd`) are compatibility-only and deprecated for new automation
 
 First-launch diagnostics contract (`infring gateway` start/restart):
 
@@ -484,7 +451,7 @@ Current measured rows in that artifact:
 | Throughput (kernel/shared workload) | 247,748.44 ops/sec | 247,748.44 ops/sec | 247,748.44 ops/sec |
 | Throughput (rich end-to-end command path) | 3.72 ops/sec | n/a | n/a |
 | Security systems | 83 | 83 | 83 |
-| Channel adapters | 6 | 0 | 0 |
+| Channel gateways | 6 | 0 | 0 |
 | LLM providers | 3 | 0 | 0 |
 | Data channels | 4 | 0 | 0 |
 | Plugin marketplace checks | 4 | 0 | 0 |
@@ -624,7 +591,7 @@ Operator caveats:
 
 InfRing uses dual licensing:
 
-- Apache-2.0 for open-core scope: [LICENSE-APACHE-2.0](LICENSE-APACHE-2.0)
+- Apache-2.0 for open Kernel scope: [LICENSE-APACHE-2.0](LICENSE-APACHE-2.0)
 - LicenseRef-InfRing-NC-1.0 for default NC scope: [LICENSE-INFRING-NC-1.0](LICENSE-INFRING-NC-1.0)
 
 Canonical SPDX matrix: [LICENSE_MATRIX.json](LICENSE_MATRIX.json)  

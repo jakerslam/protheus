@@ -149,6 +149,27 @@
   box-shadow: var(--bottom-dock-surface-shadow, -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2)), var(--bottom-dock-surface-rim-shadow);
 }
 
+.bottom-dock.is-taskbar-contained {
+  --bottom-dock-scale: 1;
+  --bottom-dock-expanded-scale: 1;
+  --bottom-dock-translate-y: -50%;
+  --bottom-dock-transform-origin: center center;
+  --dock-tile-size: var(--bottom-dock-taskbar-contained-tile-size, 24px);
+  --dock-tile-radius: max(7px, calc(var(--dock-tile-size) * 0.34375));
+  box-sizing: border-box;
+  height: var(--bottom-dock-taskbar-contained-height, 46px);
+  min-height: var(--bottom-dock-taskbar-contained-height, 46px);
+  max-height: var(--bottom-dock-taskbar-contained-height, 46px);
+  padding-block: 4px;
+  padding-inline: max(7px, calc(var(--bottom-dock-taskbar-contained-tile-size, 24px) * 0.375));
+  opacity: 1;
+}
+
+.bottom-dock.is-hover-expansion-disabled:hover,
+.bottom-dock.is-hover-expansion-disabled:active {
+  --bottom-dock-scale: 1;
+}
+
 .bottom-dock:hover .dock-tile,
 .bottom-dock:active .dock-tile {
   opacity: 1;
@@ -201,6 +222,16 @@
   opacity: 1;
 }
 
+.bottom-dock.is-taskbar-contained.is-container-dragging,
+.bottom-dock.is-taskbar-contained.is-container-settling {
+  --bottom-dock-scale: 1;
+}
+
+.bottom-dock.is-taskbar-contained .dock-tile-slot {
+  padding-inline: max(2px, calc(var(--dock-tile-size) * 0.125));
+  margin: 0;
+}
+
 .dock-tile {
   --dock-tile-fg: #d9dee6;
   --dock-tile-fg-hover: var(--dock-tile-fg);
@@ -209,10 +240,10 @@
   --dock-reorder-translate-x: 0px;
   --dock-reorder-translate-y: 0px;
   --dock-reorder-transition: 0ms;
-  width: 32px;
-  height: 32px;
+  width: var(--dock-tile-size, 32px);
+  height: var(--dock-tile-size, 32px);
   border: 1px solid color-mix(in srgb, #fff 24%, transparent);
-  border-radius: 11px;
+  border-radius: var(--dock-tile-radius, 11px);
   background: linear-gradient(to bottom right, #424242 0%, #000 100%);
   color: var(--dock-tile-fg);
   display: inline-flex;

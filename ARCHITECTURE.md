@@ -3,7 +3,7 @@
 InfRing is built as a Rust-first deterministic Kernel runtime with an explicit split between:
 - Authoritative Kernel (`core/**`)
 - Orchestration Control Plane (`surface/orchestration/**`)
-- Presentation Shell (compat alias: Client, repo path `client/**`)
+- Presentation Shell (repo path `client/**`)
 
 Canonical architecture contract:
 - `docs/SYSTEM-ARCHITECTURE-SPECS.md` (InfRing Layering Specification v1.0)
@@ -15,9 +15,9 @@ Boundary axiom:
 - Shell decides how it is shown and collected.
 
 Transition note (docs-first):
-- The architecture now defines orchestration as the Cognition Control Plane.
-- Internal code/path naming transitions remain incremental; existing `orchestration` identifiers stay valid compatibility aliases until migration is complete.
-- Shell/client terminology transition notes: `docs/workspace/shell_transition_notes.md`.
+- The architecture defines orchestration as the Cognition Control Plane.
+- Internal code/path naming transitions remain incremental where path stability is required.
+- Shell canonicalization notes: `docs/workspace/shell_transition_notes.md`.
 
 ## InfRing Direction
 
@@ -40,7 +40,7 @@ InfRing is explicitly modeled as a substrate-independent metakernel with three p
    - `core/layer3/` - OS Personality Template (traditional OS growth layer)
 2. Cognition plane (`planes/cognition`, implemented across `surface/orchestration/` and `client/`):
    - Orchestration Control Plane: decomposition, coordination, sequencing, recovery, and result shaping/packaging (among other things in non-canonical coordination).
-   - Presentation Shell (compat alias: Client): rendering, input, UX shells, and presentation-local state.
+   - Presentation Shell: rendering, input, UX shells, and presentation-local state.
 3. Substrate plane (`planes/substrate`): runtime/backend descriptors for CPU/MCU/GPU/NPU/QPU/neural channels with explicit degradation contracts and fallback declarations.
 
 Hard boundary:
@@ -96,7 +96,7 @@ Migration note:
 |---|---|---|---|
 | Safety | `planes/safety/` | `core/layer_minus_one/`, `core/layer0/`, `core/layer1/`, `core/layer2/`, `core/layer3/` | `core/local/` |
 | Cognition | `planes/cognition/` | `surface/orchestration/` (coordination) + `client/` (shell runtime path: `systems`, `lib`, `config`, `packages`, `tools`, `tests`, `observability`, `apps`, `developer`) | `client/runtime/local/` + `core/local/` (receipted orchestration artifacts) |
-| Substrate | `planes/substrate/` | Template adapters in `core/layer_minus_one/` + capability descriptors under `planes/substrate/` | `core/local/` + `client/runtime/local/` |
+| Substrate | `planes/substrate/` | Template gateways in `core/layer_minus_one/` + capability descriptors under `planes/substrate/` | `core/local/` + `client/runtime/local/` |
 
 Additional split rules:
 

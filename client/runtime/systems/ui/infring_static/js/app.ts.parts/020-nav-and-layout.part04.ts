@@ -25,6 +25,7 @@
       this.bottomDockPlacementId = String(snap && snap.id || 'center');
       try {
         localStorage.setItem('infring-bottom-dock-placement', this.bottomDockPlacementId);
+        infringUpdateShellLayoutConfig(function(config) { config.dock.placement = this.bottomDockPlacementId; }.bind(this));
       } catch(_) {}
     },
 
@@ -67,12 +68,13 @@
       try { dockNode = document.querySelector('.bottom-dock.drag-bar'); } catch(_) {}
       this.syncDragWallCapHostNode(sidebarNode, this.page === 'chat' ? this.chatSidebarWallLockNormalized() : '');
       this.syncDragWallCapHostNode(chatMapSurfaceNode, this.chatMapPlacementEnabled() ? this.chatMapWallLockNormalized() : '');
-      this.syncDragWallCapHostNode(dockNode, this.bottomDockWallLockNormalized());
+      this.syncDragWallCapHostNode(dockNode, this.bottomDockTaskbarContained() ? '' : this.bottomDockWallLockNormalized());
     },
 
     bottomDockContainerStyle() {
       this.syncDragWallCaps();
       var lockWall = this.bottomDockWallLockNormalized();
+      var taskbarContained = this.bottomDockTaskbarContained();
       var activeSnapId = this.bottomDockContainerDragActive
         ? this.bottomDockNearestSnapId(this.bottomDockContainerDragX, this.bottomDockContainerDragY)
         : this.bottomDockPlacementId;
@@ -88,6 +90,11 @@
         var lockedAnchor = this.bottomDockAnchorFromTopLeft(snapped.left, snapped.top, side);
         anchor = { x: Number(lockedAnchor.x || 0), y: Number(lockedAnchor.y || 0) };
       }
+      if (taskbarContained) {
+        var taskbarContainedMetrics = this.bottomDockTaskbarContainedMetrics();
+        anchor.x = this.bottomDockTaskbarContainedAnchorX(side);
+        anchor.y = Number(taskbarContainedMetrics.centerY || anchor.y || 0);
+      }
       var rotationDeg = Number(this.bottomDockRotationDeg);
       if (!Number.isFinite(rotationDeg)) {
         rotationDeg = this.bottomDockResolveRotationForSide(side, anchor.x, anchor.y);
@@ -96,8 +103,9 @@
       var upDeg = Number(this.bottomDockUpDegForSide(side) || 0);
       var tileRotationDeg = upDeg - Number(rotationDeg || 0);
       var iconRotationDeg = 0;
-      var durationMs = this.bottomDockContainerDragActive ? 0 : this.bottomDockMoveDurationMs();
-      var localLockWall = lockWall ? this.bottomDockLocalWallForRotation(lockWall, rotationDeg) : '';
+      var carriedByTaskbar = taskbarContained && this.taskbarDockDragActive;
+      var durationMs = (this.bottomDockContainerDragActive || carriedByTaskbar) ? 0 : this.bottomDockMoveDurationMs();
+      var localLockWall = lockWall && !taskbarContained ? this.bottomDockLocalWallForRotation(lockWall, rotationDeg) : '';
       var lockCss = this.dragSurfaceLockVisualCssVars('bottom-dock', localLockWall, {
         transformMs: this._dragSurfaceLockTransformMs
       });
@@ -105,6 +113,8 @@
         lockCss +
         '--bottom-dock-anchor-x:' + Math.round(Number(anchor.x || 0)) + 'px;' +
         '--bottom-dock-anchor-y:' + Math.round(Number(anchor.y || 0)) + 'px;' +
+        '--bottom-dock-taskbar-contained-height:' + Math.round(Number((taskbarContainedMetrics && taskbarContainedMetrics.height) || 32)) + 'px;' +
+        '--bottom-dock-taskbar-contained-tile-size:' + Math.max(18, Math.round(Number((taskbarContainedMetrics && taskbarContainedMetrics.height) || 32) - 10)) + 'px;' +
         '--bottom-dock-position-transition:' + Math.max(0, Math.round(Number(durationMs || 0))) + 'ms;' +
         '--bottom-dock-up-deg:' + Math.round(Number(upDeg || 0)) + 'deg;' +
         '--bottom-dock-rotation-deg:' + Math.round(Number(rotationDeg || 0)) + 'deg;' +

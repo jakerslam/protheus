@@ -20,6 +20,58 @@
     "complete",
     "experimental"
   ],
+  "placement_boundaries": {
+    "layer2": {
+      "owns": [
+        "scheduling_truth",
+        "admission_truth",
+        "execution_lane_truth",
+        "queue_authority",
+        "receipt_authority"
+      ],
+      "forbidden_in_layer3": [
+        "scheduler_truth",
+        "admission_policy_truth",
+        "queue_authority"
+      ]
+    },
+    "layer3": {
+      "owns": [
+        "process_model",
+        "service_model",
+        "namespace_model",
+        "vfs_abstractions",
+        "driver_facades",
+        "syscall_shape",
+        "windowing_shape",
+        "networking_shape"
+      ],
+      "must_consume_layer2_receipts": true
+    },
+    "gateways": {
+      "owns": [
+        "external_io_bridging",
+        "provider_protocol_translation"
+      ],
+      "forbidden_in_layer3": [
+        "direct_external_provider_authority",
+        "gateway_policy_truth"
+      ]
+    }
+  },
+  "require_module_boundary_alignment": true,
+  "reject_module_without_boundary_alignment": true,
+  "fail_on_dependency_boundary_violation": true,
+  "allowed_dependency_prefixes": [
+    "core/layer2/",
+    "core/layer3/",
+    "core/layer_minus_one/"
+  ],
+  "forbidden_dependency_prefixes": [
+    "adapters/",
+    "surface/orchestration/",
+    "client/"
+  ],
   "fail_on_unmapped_source_file": true,
   "modules": [
     {
@@ -36,8 +88,13 @@
       ],
       "parity_test_path": "core/layer3/os_extension_wrapper/src/lib.rs",
       "scheduler_boundary": {
-        "layer2_interface": "execution_lane_receipt_only",
+        "layer2_interface": "layer2_execution_lane_receipt_only",
         "authority": "layer2_owns_scheduling"
+      },
+      "boundary_alignment": {
+        "layer2_authority_boundary": "no_scheduler_or_admission_authority_in_layer3",
+        "layer3_scope": "os_personality_surface_only",
+        "gateway_boundary": "external_io_only_via_gateways"
       },
       "execution_unit": {
         "id": "layer3.os_extension_wrapper",

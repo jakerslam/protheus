@@ -3,7 +3,11 @@
   "backend_state": {
     "fields": [
       "sidebar_status_state",
-      "sidebar_status_label"
+      "sidebar_status_label",
+      "sidebar_status_source",
+      "sidebar_status_source_sequence",
+      "sidebar_status_age_seconds",
+      "sidebar_status_stale"
     ],
     "enum_values": [
       "active",
@@ -25,13 +29,18 @@
       "path": "client/runtime/systems/ui/infring_static/js/app.ts.parts/020-nav-and-layout.part01a.ts",
       "must_include": [
         "sidebar_status_state",
-        "sidebar_status_label"
+        "sidebar_status_label",
+        "agentStatusFreshness",
+        "source_sequence",
+        "age_seconds",
+        "stale"
       ]
     },
     {
       "path": "client/runtime/systems/ui/infring_static/js/app.ts.parts/040-events-and-actions.part01.ts",
       "must_include": [
-        "sidebar_status_label"
+        "sidebar_status_label",
+        "sidebar_status_freshness"
       ]
     },
     {

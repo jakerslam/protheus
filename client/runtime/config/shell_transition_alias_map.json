@@ -1,0 +1,17 @@
+{
+  "version": "2026-04-22-canonical-only",
+  "canonical_term": "Shell",
+  "compatibility_alias": "Client",
+  "retirement_target": {
+    "version": "retired-2026-04-22",
+    "date": "2026-04-22"
+  },
+  "path_compatibility": [
+    "client/**"
+  ],
+  "alias_state": "retired",
+  "command_aliases": [],
+  "artifact_aliases": [],
+  "config_aliases": [],
+  "doc_aliases": []
+}

@@ -61,8 +61,8 @@ function toMarkdown(payload: any): string {
   lines.push(`- forbidden_surface_directories: ${payload.debt.dashboard.forbidden_surface_directories}`);
   lines.push(`- redirect_alias_handlers: ${payload.debt.dashboard.redirect_alias_handlers}`);
   lines.push(`- retired_alias_guard_present: ${payload.debt.dashboard.retired_alias_guard_present}`);
-  lines.push(`- adapter_fallback_guard_pass: ${payload.debt.orchestration.adapter_fallback_guard_pass}`);
-  lines.push(`- adapter_fallback_threshold: ${payload.debt.orchestration.adapter_fallback_threshold}`);
+  lines.push(`- gateway_fallback_guard_pass: ${payload.debt.orchestration.gateway_fallback_guard_pass}`);
+  lines.push(`- gateway_fallback_threshold: ${payload.debt.orchestration.gateway_fallback_threshold}`);
   lines.push('');
   lines.push('## Top Expiring Soon');
   if (payload.top_expiring_soon.length === 0) {
@@ -94,7 +94,7 @@ function run(argv: string[]): number {
   const registry = readJsonMaybe<any>('core/local/artifacts/tooling_registry_contract_guard_current.json', null);
   const ciWorkflow = readJsonMaybe<any>('core/local/artifacts/ci_workflow_rationalization_contract_current.json', null);
   const ciQuality = readJsonMaybe<any>('core/local/artifacts/ci_quality_scorecard_current.json', null);
-  const adapterFallback = readJsonMaybe<any>('core/local/artifacts/orchestration_adapter_fallback_guard_current.json', null);
+  const gatewayFallback = readJsonMaybe<any>('core/local/artifacts/orchestration_gateway_fallback_guard_current.json', null);
   const techDebt = readJsonMaybe<any>('core/local/artifacts/tech_debt_report_current.json', null);
   const dashboardSurface = readJsonMaybe<any>('core/local/artifacts/dashboard_surface_authority_guard_current.json', null);
 
@@ -147,9 +147,9 @@ function run(argv: string[]): number {
         : 'missing_artifact',
     },
     {
-      id: 'orchestration_adapter_fallback_guard',
-      ok: adapterFallback?.summary?.pass === true,
-      detail: adapterFallback ? `exit_code=${adapterFallback.summary.exit_code}` : 'missing_artifact',
+      id: 'orchestration_gateway_fallback_guard',
+      ok: gatewayFallback?.summary?.pass === true,
+      detail: gatewayFallback ? `exit_code=${gatewayFallback.summary.exit_code}` : 'missing_artifact',
     },
     {
       id: 'tech_debt_report',
@@ -194,8 +194,8 @@ function run(argv: string[]): number {
         retired_alias_guard_present: dashboardSurface?.summary?.retired_alias_guard_present ?? null,
       },
       orchestration: {
-        adapter_fallback_guard_pass: adapterFallback?.ok ?? null,
-        adapter_fallback_threshold: adapterFallback?.threshold ?? null,
+        gateway_fallback_guard_pass: gatewayFallback?.ok ?? null,
+        gateway_fallback_threshold: gatewayFallback?.threshold ?? null,
       },
     },
     top_expiring_soon: Array.isArray(expiry?.expiring_soon) ? expiry.expiring_soon.slice(0, 10) : [],

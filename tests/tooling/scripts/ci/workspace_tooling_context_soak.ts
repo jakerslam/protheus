@@ -7,22 +7,51 @@ const ROOT = process.cwd();
 const ARTIFACT_DIR = path.join(ROOT, 'artifacts');
 const STATE_DIR = path.join(ROOT, 'local', 'state', 'ops', 'workspace_tooling_context_soak');
 const STATE_LATEST_PATH = path.join(STATE_DIR, 'latest.json');
+const CORE_ARTIFACT_PATH = path.join(
+  ROOT,
+  'core',
+  'local',
+  'artifacts',
+  'workspace_tooling_context_soak_current.json',
+);
+const MARKDOWN_PATH = path.join(
+  ROOT,
+  'local',
+  'workspace',
+  'reports',
+  'WORKSPACE_TOOLING_CONTEXT_SOAK_CURRENT.md',
+);
+const FIXTURE_PATH = path.join(
+  ROOT,
+  'tests',
+  'tooling',
+  'fixtures',
+  'workspace_tooling_context_replay_matrix.json',
+);
 const TIMEOUT_MS = Math.max(
   30_000,
   Number.parseInt(process.env.INFRING_WORKSPACE_TOOLING_SOAK_TIMEOUT_MS || '900000', 10) || 900_000,
 );
 
-type SoakLane = 'routing' | 'hints' | 'synthesis';
+type SoakLane = 'routing' | 'hints' | 'synthesis' | 'replay';
+
+type ReplayScenario =
+  | 'file_read'
+  | 'file_search'
+  | 'repo_path_targeting'
+  | 'mixed_workspace_tool_routing';
 
 type SoakCase = {
   id: string;
   lane: SoakLane;
+  scenario: ReplayScenario;
   test: string;
 };
 
 type SoakCaseResult = {
   id: string;
   lane: SoakLane;
+  scenario: ReplayScenario;
   test: string;
   status: number;
   ok: boolean;
@@ -34,7 +63,7 @@ type SoakCaseResult = {
 
 type SoakReport = {
   type: 'workspace_tooling_context_soak_report';
-  schema_version: 1;
+  schema_version: 2;
   started_at: string;
   finished_at: string;
   ok: boolean;
@@ -43,33 +72,11 @@ type SoakReport = {
   duration_ms: number;
   taxonomy: Record<string, unknown>;
   lane_pack: Record<string, unknown>;
+  replay_pack: Record<string, unknown>;
   tests: SoakCaseResult[];
   stdout_tail: string;
   stderr_tail: string;
 };
-
-const CASES: SoakCase[] = [
-  {
-    id: 'routing_file_edit_classifies_to_task_route',
-    lane: 'routing',
-    test: 'workflow_decision_tree_v2_classifies_file_edits_as_task_route',
-  },
-  {
-    id: 'routing_workspace_compare_not_forced_to_web',
-    lane: 'routing',
-    test: 'natural_web_intent_does_not_force_plain_workspace_peer_compare_into_web',
-  },
-  {
-    id: 'hints_compare_clusters_workspace_and_web_tools',
-    lane: 'hints',
-    test: 'compare_workflow_hint_clusters_workspace_and_web_tools',
-  },
-  {
-    id: 'synthesis_decomposes_workspace_and_web_evidence',
-    lane: 'synthesis',
-    test: 'compare_workflow_harness_decomposes_local_and_web_evidence_before_final_synthesis',
-  },
-];
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -89,6 +96,75 @@ function cleanText(raw: unknown, maxLen = 3200): string {
 function writeJson(pathname: string, payload: unknown): void {
   fs.mkdirSync(path.dirname(pathname), { recursive: true });
   fs.writeFileSync(pathname, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
+}
+
+function readFixture(): { cases: SoakCase[]; requiredReplayScenarios: ReplayScenario[]; error: string } {
+  let raw: any = null;
+  try {
+    raw = JSON.parse(fs.readFileSync(FIXTURE_PATH, 'utf8'));
+  } catch (error) {
+    return {
+      cases: [],
+      requiredReplayScenarios: [],
+      error: `fixture_unavailable:${cleanText(error instanceof Error ? error.message : String(error), 240)}`,
+    };
+  }
+  const rows = Array.isArray(raw?.cases) ? raw.cases : [];
+  const cases: SoakCase[] = rows
+    .map((row: any) => ({
+      id: cleanText(row?.id || '', 120),
+      lane: cleanText(row?.lane || '', 40) as SoakLane,
+      scenario: cleanText(row?.scenario || '', 80) as ReplayScenario,
+      test: cleanText(row?.test || '', 200),
+    }))
+    .filter((row) => row.id && row.test);
+  const laneSet = new Set(['routing', 'hints', 'synthesis', 'replay']);
+  const scenarioSet = new Set([
+    'file_read',
+    'file_search',
+    'repo_path_targeting',
+    'mixed_workspace_tool_routing',
+  ]);
+  const laneErrors = cases.filter((row) => !laneSet.has(row.lane));
+  const scenarioErrors = cases.filter((row) => !scenarioSet.has(row.scenario));
+  const requiredReplayScenarios = Array.isArray(raw?.required_replay_scenarios)
+    ? raw.required_replay_scenarios
+        .map((value: any) => cleanText(value || '', 80) as ReplayScenario)
+        .filter((value: ReplayScenario) => scenarioSet.has(value))
+    : [];
+  if (cases.length === 0) {
+    return {
+      cases: [],
+      requiredReplayScenarios: [],
+      error: 'fixture_cases_missing',
+    };
+  }
+  if (laneErrors.length > 0) {
+    return {
+      cases: [],
+      requiredReplayScenarios: [],
+      error: `fixture_lane_invalid:${laneErrors.map((row) => row.id).join(',')}`,
+    };
+  }
+  if (scenarioErrors.length > 0) {
+    return {
+      cases: [],
+      requiredReplayScenarios: [],
+      error: `fixture_scenario_invalid:${scenarioErrors.map((row) => row.id).join(',')}`,
+    };
+  }
+  if (requiredReplayScenarios.length === 0) {
+    return {
+      cases: [],
+      requiredReplayScenarios: [],
+      error: 'fixture_required_replay_scenarios_missing',
+    };
+  }
+  return {
+    cases,
+    requiredReplayScenarios,
+    error: '',
+  };
 }
 
 function runCargoTestWithTimeoutKill(testName: string): SoakCaseResult {
@@ -124,6 +200,7 @@ function runCargoTestWithTimeoutKill(testName: string): SoakCaseResult {
   return {
     id: '',
     lane: 'routing',
+    scenario: 'file_read',
     test: testName,
     status,
     ok: status === 0,
@@ -138,7 +215,7 @@ function runCargoTestWithTimeoutKill(testName: string): SoakCaseResult {
 }
 
 function laneSummary(results: SoakCaseResult[]): Record<string, unknown> {
-  const lanes: SoakLane[] = ['routing', 'hints', 'synthesis'];
+  const lanes: SoakLane[] = ['routing', 'hints', 'synthesis', 'replay'];
   const out: Record<string, unknown> = {};
   for (const lane of lanes) {
     const laneRows = results.filter((row) => row.lane === lane);
@@ -158,23 +235,119 @@ function caseOk(results: SoakCaseResult[], id: string): boolean {
   return results.find((row) => row.id === id)?.ok === true;
 }
 
+function renderMarkdown(report: SoakReport): string {
+  const lines: string[] = [];
+  lines.push('# Workspace Tooling Context Soak (Current)');
+  lines.push('');
+  lines.push(`- generated_at: ${cleanText(report.finished_at, 80)}`);
+  lines.push(`- ok: ${report.ok ? 'true' : 'false'}`);
+  lines.push(`- duration_ms: ${report.duration_ms}`);
+  const replayPack = (report.replay_pack || {}) as any;
+  lines.push(`- replay_required_missing: ${Number(replayPack.required_missing_count || 0)}`);
+  lines.push(`- replay_required_failed: ${Number(replayPack.required_failed_count || 0)}`);
+  lines.push('');
+  lines.push('## Replay Scenario Coverage');
+  const coverage = Array.isArray(replayPack.scenario_coverage) ? replayPack.scenario_coverage : [];
+  for (const row of coverage) {
+    lines.push(
+      `- ${cleanText(row?.scenario || 'unknown', 80)}: covered=${row?.covered === true ? 'true' : 'false'} ok=${row?.ok === true ? 'true' : 'false'} passed=${Number(row?.passed || 0)}/${Number(row?.total || 0)} failed_ids=${(Array.isArray(row?.failed_ids) ? row.failed_ids : []).join(',') || 'none'}`,
+    );
+  }
+  lines.push('');
+  lines.push('## Test Results');
+  for (const test of report.tests) {
+    lines.push(
+      `- ${cleanText(test.id, 120)} (${cleanText(test.lane, 40)} / ${cleanText(test.scenario, 80)}): ${test.ok ? 'pass' : 'fail'} (status=${test.status})`,
+    );
+  }
+  lines.push('');
+  return `${lines.join('\n')}\n`;
+}
+
 const startedAt = nowIso();
 const startedMs = Date.now();
 const results: SoakCaseResult[] = [];
+const fixture = readFixture();
 
-for (const row of CASES) {
+if (fixture.error) {
+  const report: SoakReport = {
+    type: 'workspace_tooling_context_soak_report',
+    schema_version: 2,
+    started_at: startedAt,
+    finished_at: nowIso(),
+    ok: false,
+    command: 'cargo test -p protheus-ops-core --lib <workspace-workflow-test-name> -- --nocapture',
+    status: 1,
+    duration_ms: Date.now() - startedMs,
+    taxonomy: {
+      family: 'workspace_file_tooling',
+      fixture_error: fixture.error,
+    },
+    lane_pack: {},
+    replay_pack: {
+      fixture_error: fixture.error,
+    },
+    tests: [],
+    stdout_tail: '',
+    stderr_tail: fixture.error,
+  };
+  writeJson(CORE_ARTIFACT_PATH, report);
+  writeJson(STATE_LATEST_PATH, report);
+  writeJson(path.join(ARTIFACT_DIR, 'workspace_tooling_context_soak_report_latest.json'), report);
+  fs.mkdirSync(path.dirname(MARKDOWN_PATH), { recursive: true });
+  fs.writeFileSync(MARKDOWN_PATH, renderMarkdown(report), 'utf8');
+  process.stdout.write(`${JSON.stringify(report)}\n`);
+  process.exit(1);
+}
+
+for (const row of fixture.cases) {
   const run = runCargoTestWithTimeoutKill(row.test);
   results.push({
     ...run,
     id: row.id,
     lane: row.lane,
+    scenario: row.scenario,
   });
 }
 
 const allTestsPassed = results.every((row) => row.ok);
 const lanePack = laneSummary(results);
+const replayRows = results.filter((row) => row.lane === 'replay');
+const replayFailedRows = replayRows.filter((row) => !row.ok);
+const replayScenarioCoverage = fixture.requiredReplayScenarios.map((scenario) => {
+  const rows = replayRows.filter((row) => row.scenario === scenario);
+  const failed = rows.filter((row) => !row.ok);
+  return {
+    scenario,
+    covered: rows.length > 0,
+    total: rows.length,
+    passed: rows.length - failed.length,
+    failed: failed.length,
+    failed_ids: failed.map((row) => row.id),
+    ok: rows.length > 0 && failed.length === 0,
+  };
+});
+const replayRequiredMissing = replayScenarioCoverage
+  .filter((row) => !row.covered)
+  .map((row) => row.scenario);
+const replayRequiredFailed = replayScenarioCoverage
+  .filter((row) => row.covered && !row.ok)
+  .map((row) => row.scenario);
+const replayPack = {
+  total: replayRows.length,
+  passed: replayRows.length - replayFailedRows.length,
+  failed: replayFailedRows.length,
+  failed_ids: replayFailedRows.map((row) => row.id),
+  required_scenarios: fixture.requiredReplayScenarios,
+  required_missing_count: replayRequiredMissing.length,
+  required_missing: replayRequiredMissing,
+  required_failed_count: replayRequiredFailed.length,
+  required_failed: replayRequiredFailed,
+  scenario_coverage: replayScenarioCoverage,
+};
 const taxonomy = {
   family: 'workspace_file_tooling',
+  fixture_path: path.relative(ROOT, FIXTURE_PATH),
   total_cases: results.length,
   passed_cases: results.filter((row) => row.ok).length,
   failed_cases: results.filter((row) => !row.ok).length,
@@ -190,20 +363,29 @@ const taxonomy = {
       results,
       'synthesis_decomposes_workspace_and_web_evidence',
     ),
+    replay_file_read_contract_ok:
+      replayScenarioCoverage.find((row) => row.scenario === 'file_read')?.ok === true,
+    replay_file_search_contract_ok:
+      replayScenarioCoverage.find((row) => row.scenario === 'file_search')?.ok === true,
+    replay_repo_path_targeting_contract_ok:
+      replayScenarioCoverage.find((row) => row.scenario === 'repo_path_targeting')?.ok === true,
+    replay_mixed_workspace_tool_routing_contract_ok:
+      replayScenarioCoverage.find((row) => row.scenario === 'mixed_workspace_tool_routing')?.ok === true,
   },
 };
 
 const report: SoakReport = {
   type: 'workspace_tooling_context_soak_report',
-  schema_version: 1,
+  schema_version: 2,
   started_at: startedAt,
   finished_at: nowIso(),
-  ok: allTestsPassed,
+  ok: allTestsPassed && replayRequiredMissing.length === 0 && replayRequiredFailed.length === 0,
   command: 'cargo test -p protheus-ops-core --lib <workspace-workflow-test-name> -- --nocapture',
-  status: allTestsPassed ? 0 : 1,
+  status: allTestsPassed && replayRequiredMissing.length === 0 && replayRequiredFailed.length === 0 ? 0 : 1,
   duration_ms: Date.now() - startedMs,
   taxonomy,
   lane_pack: lanePack,
+  replay_pack: replayPack,
   tests: results,
   stdout_tail: cleanText(
     results.map((row) => `${row.id}: ${row.stdout_tail}`).join('\n'),
@@ -222,6 +404,9 @@ const latestPath = path.join(ARTIFACT_DIR, 'workspace_tooling_context_soak_repor
 writeJson(stampedPath, report);
 writeJson(latestPath, report);
 writeJson(STATE_LATEST_PATH, report);
+writeJson(CORE_ARTIFACT_PATH, report);
+fs.mkdirSync(path.dirname(MARKDOWN_PATH), { recursive: true });
+fs.writeFileSync(MARKDOWN_PATH, renderMarkdown(report), 'utf8');
 
 process.stdout.write(`${JSON.stringify(report)}\n`);
 process.exit(report.ok ? 0 : 1);

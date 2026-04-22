@@ -21,15 +21,22 @@ type Tracker = {
     version?: string;
     date?: string;
   };
-  mapping_files?: {
-    kernel?: string;
-    gateway?: string;
-  };
+  mapping_files?: Record<string, string>;
   scan_files?: string[];
   required_command_aliases?: AliasPair[];
   required_artifact_aliases?: string[];
+  legacy_token_enforcement_prefixes?: string[];
+  legacy_token_exemptions?: string[];
   doc_alias_terms?: string[];
   doc_alias_context_regex?: string;
+  temporary_compatibility_bridge_exemptions?: Array<{
+    id?: string;
+    bridge?: string;
+    owner?: string;
+    reason?: string;
+    status?: string;
+    expires_at?: string;
+  }>;
 };
 
 const ROOT = process.cwd();
@@ -65,7 +72,7 @@ function safeRegex(pattern: string, flags = 'g'): RegExp | null {
 
 function extractLegacyTokens(source: string): string[] {
   const tokens = new Set<string>();
-  const regex = /\b(core_[a-z0-9_]+|adapter_[a-z0-9_]+)\b/gi;
+  const regex = /\b(core_[a-z0-9_]+|adapter_[a-z0-9_]+|client_[a-z0-9_]+)\b/gi;
   for (const match of source.matchAll(regex)) {
     tokens.add(String(match[1] || '').trim());
   }
@@ -79,6 +86,9 @@ function isImmutablePathAliasContext(term: string, line: string): boolean {
   }
   if (loweredTerm === 'adapters') {
     return /\badapters\/(?:\*\*|[a-z0-9_\-./]*)/i.test(line);
+  }
+  if (loweredTerm === 'client') {
+    return /\bclient\/(?:\*\*|[a-z0-9_\-./]*)/i.test(line);
   }
   return false;
 }
@@ -97,7 +107,11 @@ function markdown(report: any): string {
   lines.push(`- command_alias_pair_failures: ${report.summary.command_alias_pair_failures}`);
   lines.push(`- artifact_alias_failures: ${report.summary.artifact_alias_failures}`);
   lines.push(`- doc_alias_context_failures: ${report.summary.doc_alias_context_failures}`);
+  lines.push(`- doc_primary_authority_term_failures: ${report.summary.doc_primary_authority_term_failures}`);
   lines.push(`- unmapped_legacy_token_count: ${report.summary.unmapped_legacy_token_count}`);
+  lines.push(`- temporary_bridge_exemption_count: ${report.summary.temporary_bridge_exemption_count}`);
+  lines.push(`- temporary_bridge_exemption_expired_count: ${report.summary.temporary_bridge_exemption_expired_count}`);
+  lines.push(`- temporary_bridge_exemption_invalid_count: ${report.summary.temporary_bridge_exemption_invalid_count}`);
   lines.push('');
   lines.push('## Command Alias Pair Status');
   lines.push('| canonical | alias | canonical_present | alias_present | ok |');
@@ -124,6 +138,27 @@ function markdown(report: any): string {
     }
   }
   lines.push('');
+  lines.push('## Doc Primary-Authority Term Failures');
+  if (!(report.doc_primary_authority_term_failures || []).length) {
+    lines.push('- none');
+  } else {
+    for (const row of report.doc_primary_authority_term_failures) {
+      lines.push(`- ${row.file}:${row.line} term=${row.term} (${row.reason})`);
+    }
+  }
+  lines.push('');
+  lines.push('## Temporary Compatibility Bridge Exemptions');
+  lines.push('| id | bridge | owner | status | expires_at | expired | valid |');
+  lines.push('| --- | --- | --- | --- | --- | --- | --- |');
+  for (const row of report.temporary_compatibility_bridge_exemptions || []) {
+    lines.push(
+      `| ${row.id} | ${row.bridge} | ${row.owner} | ${row.status} | ${row.expires_at} | ${row.expired} | ${row.valid} |`,
+    );
+  }
+  if (!(report.temporary_compatibility_bridge_exemptions || []).length) {
+    lines.push('| (none) | - | - | - | - | false | true |');
+  }
+  lines.push('');
   lines.push('## Violations');
   if (!(report.violations || []).length) {
     lines.push('- none');
@@ -140,17 +175,16 @@ function run() {
   const trackerAbs = path.resolve(ROOT, args.tracker);
   const tracker = readJson<Tracker>(trackerAbs);
 
-  const mappingPaths = {
-    kernel: path.resolve(ROOT, String(tracker.mapping_files?.kernel || '')),
-    gateway: path.resolve(ROOT, String(tracker.mapping_files?.gateway || '')),
-  };
+  const mappingFiles = tracker.mapping_files && typeof tracker.mapping_files === 'object'
+    ? tracker.mapping_files
+    : {};
 
   const mappingMissing: string[] = [];
   const maps: AliasMap[] = [];
-  for (const key of ['kernel', 'gateway'] as const) {
-    const p = mappingPaths[key];
+  for (const [key, relPath] of Object.entries(mappingFiles)) {
+    const p = path.resolve(ROOT, String(relPath || ''));
     if (!p || !fs.existsSync(p)) {
-      mappingMissing.push(rel(p || String(tracker.mapping_files?.[key] || key)));
+      mappingMissing.push(rel(p || String(relPath || key)));
       continue;
     }
     maps.push(readJson<AliasMap>(p));
@@ -158,12 +192,15 @@ function run() {
 
   const mappedCommandAliases = new Set<string>();
   const mappedArtifactAliases = new Set<string>();
+  const mappedArtifactAliasesLower = new Set<string>();
   for (const map of maps) {
     for (const row of map.command_aliases || []) {
       mappedCommandAliases.add(String(row.alias || '').trim());
     }
     for (const row of map.artifact_aliases || []) {
-      mappedArtifactAliases.add(String(row.alias || '').trim());
+      const alias = String(row.alias || '').trim();
+      mappedArtifactAliases.add(alias);
+      mappedArtifactAliasesLower.add(alias.toLowerCase());
     }
   }
 
@@ -204,11 +241,28 @@ function run() {
     .sort((a, b) => a.localeCompare(b, 'en'));
 
   const scanFiles = (tracker.scan_files || []).map((v) => String(v).replace(/\\/g, '/')).filter(Boolean);
+  const legacyTokenEnforcementPrefixes =
+    Array.isArray(tracker.legacy_token_enforcement_prefixes) && tracker.legacy_token_enforcement_prefixes.length > 0
+      ? tracker.legacy_token_enforcement_prefixes
+          .map((value) => String(value || '').trim().toLowerCase())
+          .filter(Boolean)
+      : ['core_', 'adapter_'];
+  const legacyTokenExemptions = new Set(
+    (Array.isArray(tracker.legacy_token_exemptions) ? tracker.legacy_token_exemptions : [])
+      .map((value) => String(value || '').trim().toLowerCase())
+      .filter(Boolean),
+  );
   const docAliasTerms = (tracker.doc_alias_terms || []).map((v) => String(v).trim()).filter(Boolean);
   const docContextRegex = safeRegex(String(tracker.doc_alias_context_regex || ''), 'i') || /compat(?:ibility)?\s+alias/i;
 
   const legacyTokens: Array<{ token: string; file: string; mapped: boolean }> = [];
   const docAliasContextFailures: Array<{ file: string; line: number; term: string; reason: string }> = [];
+  const docPrimaryAuthorityTermFailures: Array<{
+    file: string;
+    line: number;
+    term: string;
+    reason: string;
+  }> = [];
 
   for (const file of scanFiles) {
     const abs = path.resolve(ROOT, file);
@@ -216,7 +270,7 @@ function run() {
     const source = fs.readFileSync(abs, 'utf8');
 
     for (const token of extractLegacyTokens(source)) {
-      const mapped = mappedArtifactAliases.has(token);
+      const mapped = mappedArtifactAliases.has(token) || mappedArtifactAliasesLower.has(token.toLowerCase());
       legacyTokens.push({ token, file, mapped });
     }
 
@@ -238,11 +292,37 @@ function run() {
             reason: 'missing_compatibility_alias_context',
           });
         }
+        const coreAsPrimaryAuthority =
+          /\bcore\b/i.test(line) &&
+          (lowered.includes('authority') ||
+            lowered.includes('canonical truth') ||
+            lowered.includes('canonical term') ||
+            lowered.includes('authoritative')) &&
+          !lowered.includes('must not present') &&
+          !lowered.includes('never as the primary authority term') &&
+          !lowered.includes('not a standalone primary authority') &&
+          !isImmutablePathAliasContext('core', line) &&
+          !lowered.includes('compat alias') &&
+          !lowered.includes('compatibility alias') &&
+          !docContextRegex.test(line);
+        if (coreAsPrimaryAuthority) {
+          docPrimaryAuthorityTermFailures.push({
+            file,
+            line: idx + 1,
+            term: 'Core',
+            reason: 'core_presented_as_primary_authority_term',
+          });
+        }
       }
     }
   }
 
-  const unmappedLegacyTokens = legacyTokens.filter((row) => !row.mapped);
+  const unmappedLegacyTokens = legacyTokens.filter((row) => {
+    if (row.mapped) return false;
+    const tokenLower = String(row.token || '').toLowerCase();
+    if (legacyTokenExemptions.has(tokenLower)) return false;
+    return legacyTokenEnforcementPrefixes.some((prefix) => tokenLower.startsWith(prefix));
+  });
   const violations: Array<{ type: string; detail: string }> = [];
 
   for (const missing of mappingMissing) {
@@ -281,6 +361,12 @@ function run() {
       detail: `${row.term} @ ${row.file}:${row.line}`,
     });
   }
+  for (const row of docPrimaryAuthorityTermFailures) {
+    violations.push({
+      type: 'doc_primary_authority_term_failure',
+      detail: `${row.term} @ ${row.file}:${row.line}`,
+    });
+  }
 
   const retirementVersion = String(tracker.retirement_target?.version || '').trim();
   const retirementDate = String(tracker.retirement_target?.date || '').trim();
@@ -302,15 +388,87 @@ function run() {
       command_alias_pair_failures: commandAliasPairs.filter((row) => !row.ok).length,
       artifact_alias_failures: artifactAliasFailures.length,
       doc_alias_context_failures: docAliasContextFailures.length,
+      doc_primary_authority_term_failures: docPrimaryAuthorityTermFailures.length,
       unmapped_legacy_token_count: unmappedLegacyTokens.length,
+      temporary_bridge_exemption_count: 0,
+      temporary_bridge_exemption_expired_count: 0,
+      temporary_bridge_exemption_invalid_count: 0,
       violation_count: violations.length,
       pass: violations.length === 0,
     },
     command_alias_pairs: commandAliasPairs,
     legacy_tokens: legacyTokens,
     doc_alias_context_failures: docAliasContextFailures,
+    doc_primary_authority_term_failures: docPrimaryAuthorityTermFailures,
     violations,
+    temporary_compatibility_bridge_exemptions: [] as Array<{
+      id: string;
+      bridge: string;
+      owner: string;
+      reason: string;
+      status: string;
+      expires_at: string;
+      expired: boolean;
+      valid: boolean;
+    }>,
   };
+
+  const nowEpoch = Date.now();
+  const temporaryExemptions = Array.isArray(tracker.temporary_compatibility_bridge_exemptions)
+    ? tracker.temporary_compatibility_bridge_exemptions
+    : [];
+  const normalizedTemporaryExemptions = temporaryExemptions.map((row) => {
+    const id = cleanText(String(row.id || ''), 160);
+    const bridge = cleanText(String(row.bridge || ''), 200);
+    const owner = cleanText(String(row.owner || ''), 120);
+    const reason = cleanText(String(row.reason || ''), 260);
+    const status = cleanText(String(row.status || 'active'), 40).toLowerCase();
+    const expiresAt = cleanText(String(row.expires_at || ''), 40);
+    const expiresEpoch = Number.isFinite(Date.parse(expiresAt)) ? Date.parse(expiresAt) : Number.NaN;
+    const valid =
+      !!id &&
+      !!bridge &&
+      !!owner &&
+      !!reason &&
+      !!expiresAt &&
+      Number.isFinite(expiresEpoch) &&
+      (status === 'active' || status === 'retired');
+    const expired = status === 'active' && Number.isFinite(expiresEpoch) && nowEpoch > expiresEpoch;
+    return {
+      id,
+      bridge,
+      owner,
+      reason,
+      status: status || 'active',
+      expires_at: expiresAt,
+      expired,
+      valid,
+    };
+  });
+  for (const row of normalizedTemporaryExemptions) {
+    if (!row.valid) {
+      report.violations.push({
+        type: 'invalid_temporary_compatibility_bridge_exemption',
+        detail: row.id || row.bridge || 'unknown',
+      });
+    }
+    if (row.expired) {
+      report.violations.push({
+        type: 'expired_temporary_compatibility_bridge_exemption',
+        detail: `${row.id}:${row.expires_at}`,
+      });
+    }
+  }
+  report.temporary_compatibility_bridge_exemptions = normalizedTemporaryExemptions;
+  report.summary.temporary_bridge_exemption_count = normalizedTemporaryExemptions.length;
+  report.summary.temporary_bridge_exemption_expired_count = normalizedTemporaryExemptions.filter(
+    (row) => row.expired,
+  ).length;
+  report.summary.temporary_bridge_exemption_invalid_count = normalizedTemporaryExemptions.filter(
+    (row) => !row.valid,
+  ).length;
+  report.summary.violation_count = report.violations.length;
+  report.summary.pass = report.violations.length === 0;
 
   writeTextArtifact(path.resolve(ROOT, args.outMarkdown), markdown({ ...report, ok: report.summary.pass }));
 

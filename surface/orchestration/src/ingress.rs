@@ -556,7 +556,7 @@ mod tests {
         assert!(parsed
             .reasons
             .iter()
-            .any(|row| row == "typed_probe_contract_expected:execute_tool"));
+            .any(|row| row == "typed_probe_contract_expected:web_search"));
         assert!(parsed
             .ambiguity
             .contains(&crate::contracts::AmbiguityReason::TypedProbeContractViolation));
@@ -585,6 +585,64 @@ mod tests {
         assert!(parsed.reasons.iter().any(|row| {
             row == "typed_probe_contract_missing:field.workspace_search.tool_available"
         }));
+        assert!(parsed
+            .ambiguity
+            .contains(&crate::contracts::AmbiguityReason::TypedProbeContractViolation));
+    }
+
+    #[test]
+    fn typed_surface_incomplete_web_fetch_probe_emits_exact_field_diagnostics() {
+        let parsed = normalize_request(OrchestrationRequest {
+            session_id: "sdk-web-fetch-probe-field-missing".to_string(),
+            intent: "fetch web page".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "fetch",
+                    "resource_kind": "web",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "url", "value": "https://example.com" }]
+                },
+                "core_probe_envelope": {
+                    "web_fetch": {
+                        "transport_available": true
+                    }
+                }
+            }),
+        });
+        assert!(parsed
+            .reasons
+            .iter()
+            .any(|row| row == "typed_probe_contract_missing:field.web_fetch.tool_available"));
+        assert!(parsed
+            .ambiguity
+            .contains(&crate::contracts::AmbiguityReason::TypedProbeContractViolation));
+    }
+
+    #[test]
+    fn typed_surface_missing_tool_route_probe_emits_exact_capability_diagnostic() {
+        let parsed = normalize_request(OrchestrationRequest {
+            session_id: "sdk-tool-route-probe-capability-missing".to_string(),
+            intent: "inspect tooling route".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "inspect_tooling",
+                    "resource_kind": "tooling",
+                    "request_kind": "direct"
+                },
+                "core_probe_envelope": {
+                    "workspace_search": {
+                        "tool_available": true,
+                        "transport_available": true
+                    }
+                }
+            }),
+        });
+        assert!(parsed
+            .reasons
+            .iter()
+            .any(|row| row == "typed_probe_contract_missing:capability.tool_route"));
         assert!(parsed
             .ambiguity
             .contains(&crate::contracts::AmbiguityReason::TypedProbeContractViolation));

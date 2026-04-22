@@ -45,23 +45,22 @@ Required execution behavior:
 - Implement all requested items as production code, not receipt scaffolds.
 - Authorized modification scope includes `core/`, `surface/`, `client/`, `apps/`, `adapters/`, `tests/`, and `docs/`.
 - You may add crates/packages, change schemas, and remove/replace placeholder flows when needed.
-- Enforce Rust-core authority and thin-shell boundaries on every implementation.
+- Enforce Rust-kernel authority and thin-shell boundaries on every implementation.
 - Terminology transition rule:
   - Canonical presentation term is `Shell`.
-  - Compatibility alias is `Client`.
   - Repository path remains `client/**` until an explicit migration program is approved.
 - Orchestration Surface (Control Plane) is Rust-first by policy:
   - New control-plane authority and coordination logic must land in `surface/orchestration/src/**` (`.rs`).
   - `surface/orchestration/**` must remain at least `95%` Rust by tracked source lines.
   - TypeScript in `surface/orchestration/scripts/**` is adapter-only and must remain minimal delegation code.
   - If control-plane logic requires TypeScript beyond adapter scope, stop with:
-    - `BLOCKED — control-plane authority must be Rust; TS allowed only for minimal adapters`
+    - `BLOCKED — control-plane authority must be Rust; TS allowed only for minimal gateways`
 - Any net-new functionality must be paired with a canonical SRS row update in `docs/workspace/SRS.md` before it can be considered complete (`done`), including acceptance criteria and regression-proof references.
 - No new authority may be introduced in the shell surface (`client/**`):
   - Shell code is wrapper/UX/integration only.
-  - Any new decision logic, policy logic, state mutation authority, or security-critical logic must land in `core/**`.
+  - Any new decision logic, policy logic, state mutation authority, or security-critical logic must land in Kernel authority (`core/**` compatibility path).
   - If a task would place new authority in shell/client, stop with:
-    - `BLOCKED — new authority in shell/client is prohibited; move implementation to core`
+    - `BLOCKED — new authority in shell/client is prohibited; move implementation to Kernel authority (`core/**` compatibility path)`
 - Do not mark any item `done` unless acceptance criteria are proven by:
   - behavior tests,
   - integration tests,
@@ -107,7 +106,7 @@ Completion requires all of the following:
 ## Rust Migration Rules
 - Use real public-source metrics only (tracked source files), not weighted/internal metrics.
 - Report `.rs` vs `.ts` lines from tracked files.
-- Treat the 50% Rust target as repository-wide source composition, not core-only subsets.
+- Treat the 50% Rust target as repository-wide source composition, not Kernel-only subsets (`core/**` compatibility path).
 - Do not inflate Rust percentage with stubs/scaffolding.
 - Before adding any **new file** (`git add` path that did not previously exist), run a projected Rust composition check.
 - If the projected repository Rust percentage would drop below **70.0%**, the change is blocked.
@@ -119,7 +118,7 @@ Completion requires all of the following:
 
 ## Language Allowlist Rules (Mandatory)
 - Approved implementation languages are:
-  - Rust (`.rs`) for authority/runtime/core logic.
+  - Rust (`.rs`) for authority/runtime/Kernel logic (`core/**` compatibility path).
   - TypeScript (`.ts`, `.tsx`) for shell wrappers, UX surfaces, and dev/test tooling where Rust is not the execution host.
 - JavaScript is prohibited for authored code:
   - Do not add or modify `.js`, `.jsx`, `.mjs`, or `.cjs` implementation files.
@@ -151,10 +150,10 @@ Completion requires all of the following:
   - Shell decides how it is shown and collected.
 - Canonical ownership rulebook: `docs/workspace/orchestration_ownership_policy.md`.
 - Placement decision rule:
-  - system authority/runtime path => `core/`
+  - system authority/runtime path => Kernel authority (`core/**` compatibility path)
   - control-plane coordination path (non-authoritative) => `surface/orchestration/**`
   - shell runtime wrappers/UX path => `client/runtime/systems/**` (thin runtime/shell surface only)
-  - system authority/runtime path => `core/` (or `client/runtime/systems/**` only as thin runtime/shell surface)
+  - system authority/runtime path => Kernel authority (`core/**` compatibility path) (or `client/runtime/systems/**` only as thin runtime/shell surface)
   - control-plane coordination path (non-canonical decomposition/coordination/sequencing/recovery/packaging) => `surface/orchestration/**`
   - developer/user operational scripts => shell path `client/`
   - test/CI tooling => `tests/`

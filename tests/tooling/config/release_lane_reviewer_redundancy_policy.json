@@ -25,7 +25,7 @@
       ]
     },
     {
-      "path_pattern": "/tests/tooling/scripts/ci/adapter_runtime_chaos_gate.ts",
+      "path_pattern": "/tests/tooling/scripts/ci/gateway_runtime_chaos_gate.ts",
       "min_reviewers": 2,
       "required_owners": [
         "@protheuslabs/ops"

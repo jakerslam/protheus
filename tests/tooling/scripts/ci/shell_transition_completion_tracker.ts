@@ -11,6 +11,18 @@ type AliasPair = {
   compatibility: string;
 };
 
+type ShellAliasMapPair = {
+  canonical?: string;
+  alias?: string;
+  compatibility?: string;
+};
+
+type ShellAliasMap = {
+  command_aliases?: ShellAliasMapPair[];
+  artifact_aliases?: ShellAliasMapPair[];
+  config_aliases?: ShellAliasMapPair[];
+};
+
 type AliasManifest = {
   schema_id: string;
   schema_version: string;
@@ -18,9 +30,12 @@ type AliasManifest = {
   compatibility_alias: string;
   retirement_target_version: string;
   retirement_target_date: string;
+  required_alias_map_path?: string;
   required_docs_paths: string[];
   required_notes_markers: string[];
   required_command_alias_pairs: AliasPair[];
+  required_config_alias_pairs?: AliasPair[];
+  required_artifact_alias_pairs?: AliasPair[];
 };
 
 function parseArgs(argv: string[]) {
@@ -73,6 +88,8 @@ function markdown(payload: any): string {
   lines.push(`- docs_checked: ${payload.summary.docs_checked}`);
   lines.push(`- markers_checked: ${payload.summary.markers_checked}`);
   lines.push(`- command_pairs_checked: ${payload.summary.command_pairs_checked}`);
+  lines.push(`- config_pairs_checked: ${payload.summary.config_pairs_checked}`);
+  lines.push(`- artifact_pairs_checked: ${payload.summary.artifact_pairs_checked}`);
   lines.push(`- failures: ${payload.summary.failures}`);
   lines.push('');
   lines.push('## Failures');
@@ -85,6 +102,16 @@ function markdown(payload: any): string {
   }
   lines.push('');
   return `${lines.join('\n')}\n`;
+}
+
+function pairMatches(row: ShellAliasMapPair | null | undefined, canonical: string, compatibility: string): boolean {
+  if (!row) return false;
+  const rowCanonical = cleanText(String(row.canonical || ''), 260);
+  const rowCompatibility = cleanText(
+    String(typeof row.compatibility === 'string' ? row.compatibility : (row.alias || '')),
+    260,
+  );
+  return rowCanonical === canonical && rowCompatibility === compatibility;
 }
 
 export function run(argv: string[] = process.argv.slice(2)): number {
@@ -122,6 +149,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const manifest = manifestJson.payload;
   const scripts = packageJson.payload.scripts || {};
   const failures: Array<{ id: string; detail: string }> = [];
+  let aliasMap: ShellAliasMap = {};
 
   const notesAbs = path.resolve(root, args.notesPath);
   const notesExists = fs.existsSync(notesAbs);
@@ -177,6 +205,69 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     }
   }
 
+  const aliasMapPath = cleanText(String(manifest.required_alias_map_path || ''), 500);
+  if (!aliasMapPath) {
+    failures.push({ id: 'shell_transition_alias_map_path_missing', detail: 'required_alias_map_path' });
+  } else {
+    const aliasMapAbs = path.resolve(root, aliasMapPath);
+    if (!fs.existsSync(aliasMapAbs)) {
+      failures.push({ id: 'shell_transition_alias_map_missing', detail: aliasMapPath });
+    } else {
+      try {
+        aliasMap = JSON.parse(fs.readFileSync(aliasMapAbs, 'utf8')) as ShellAliasMap;
+      } catch (error) {
+        failures.push({
+          id: 'shell_transition_alias_map_invalid_json',
+          detail: cleanText((error as Error)?.message || 'invalid_json', 220),
+        });
+      }
+    }
+  }
+
+  const requiredConfigPairs = Array.isArray(manifest.required_config_alias_pairs)
+    ? manifest.required_config_alias_pairs
+    : [];
+  for (const pair of requiredConfigPairs) {
+    const canonical = cleanText(pair?.canonical || '', 260);
+    const compatibility = cleanText(pair?.compatibility || '', 260);
+    if (!canonical || !compatibility) {
+      failures.push({
+        id: 'shell_transition_config_alias_pair_invalid',
+        detail: `${canonical || 'missing_canonical'}:${compatibility || 'missing_compatibility'}`,
+      });
+      continue;
+    }
+    const rows = Array.isArray(aliasMap.config_aliases) ? aliasMap.config_aliases : [];
+    if (!rows.some((row) => pairMatches(row, canonical, compatibility))) {
+      failures.push({
+        id: 'shell_transition_config_alias_pair_missing',
+        detail: `${canonical} -> ${compatibility}`,
+      });
+    }
+  }
+
+  const requiredArtifactPairs = Array.isArray(manifest.required_artifact_alias_pairs)
+    ? manifest.required_artifact_alias_pairs
+    : [];
+  for (const pair of requiredArtifactPairs) {
+    const canonical = cleanText(pair?.canonical || '', 260);
+    const compatibility = cleanText(pair?.compatibility || '', 260);
+    if (!canonical || !compatibility) {
+      failures.push({
+        id: 'shell_transition_artifact_alias_pair_invalid',
+        detail: `${canonical || 'missing_canonical'}:${compatibility || 'missing_compatibility'}`,
+      });
+      continue;
+    }
+    const rows = Array.isArray(aliasMap.artifact_aliases) ? aliasMap.artifact_aliases : [];
+    if (!rows.some((row) => pairMatches(row, canonical, compatibility))) {
+      failures.push({
+        id: 'shell_transition_artifact_alias_pair_missing',
+        detail: `${canonical} -> ${compatibility}`,
+      });
+    }
+  }
+
   if (!cleanText(manifest.canonical_term || '', 80).toLowerCase().includes('shell')) {
     failures.push({ id: 'shell_transition_manifest_canonical_term_invalid', detail: manifest.canonical_term || '' });
   }
@@ -206,6 +297,8 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       docs_checked: docs.length,
       markers_checked: markers.length,
       command_pairs_checked: aliasPairs.length,
+      config_pairs_checked: requiredConfigPairs.length,
+      artifact_pairs_checked: requiredArtifactPairs.length,
       failures: failures.length,
     },
     failures,

@@ -23,6 +23,9 @@ type BurnPlan = {
   schema_id: string;
   schema_version: string;
   required_domains: string[];
+  operator_critical_domains?: string[];
+  operator_critical_target_classification?: ScriptClass;
+  operator_critical_priority_cutoff_date?: string;
   allowed_node_typescript_prefixes: string[];
   lanes: BurnLane[];
 };
@@ -102,6 +105,9 @@ function markdown(payload: any): string {
     `- migration_outstanding: ${payload.summary.migration_outstanding_count}`,
     `- migration_overdue: ${payload.summary.migration_overdue_count}`,
     `- required_domains_missing: ${payload.summary.required_domains_missing_count}`,
+    `- operator_critical_priority_one_missing_rust: ${payload.summary.operator_critical_priority_one_missing_rust_count}`,
+    `- operator_critical_target_classification_violations: ${payload.summary.operator_critical_target_classification_violation_count}`,
+    `- operator_critical_cutoff_violations: ${payload.summary.operator_critical_cutoff_violation_count}`,
     `- ts_confinement_violations: ${payload.summary.ts_confinement_violation_count}`,
     '',
     '| script | domain | owner | priority | class | target_class | target_date | status | ts_target |',
@@ -211,6 +217,55 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const requiredPriorityOneMissing = requiredDomains.filter(
     (domain) => !lanes.some((lane) => lane.domain === domain && lane.priority === 1),
   );
+  const operatorCriticalDomains =
+    Array.isArray(burnPlan.operator_critical_domains) && burnPlan.operator_critical_domains.length > 0
+      ? burnPlan.operator_critical_domains.map((value) => cleanText(String(value || ''), 80)).filter(Boolean)
+      : requiredDomains;
+  const operatorCriticalTargetClassification = cleanText(
+    String(burnPlan.operator_critical_target_classification || 'rust_native'),
+    40,
+  ) as ScriptClass;
+  if (!['rust_native', 'node_typescript', 'npm_wrapper', 'unknown'].includes(operatorCriticalTargetClassification)) {
+    laneFailures.push({
+      id: 'node_burndown_operator_critical_target_classification_invalid',
+      detail: operatorCriticalTargetClassification || 'missing',
+    });
+  }
+  const operatorCriticalPriorityCutoffDate = cleanText(
+    String(burnPlan.operator_critical_priority_cutoff_date || ''),
+    40,
+  );
+  const operatorCriticalPriorityCutoffEpoch = Number.isFinite(Date.parse(operatorCriticalPriorityCutoffDate))
+    ? Date.parse(operatorCriticalPriorityCutoffDate)
+    : Number.NaN;
+  if (!Number.isFinite(operatorCriticalPriorityCutoffEpoch)) {
+    laneFailures.push({
+      id: 'node_burndown_operator_critical_priority_cutoff_date_invalid',
+      detail: operatorCriticalPriorityCutoffDate || 'missing',
+    });
+  }
+  const operatorCriticalPriorityOneMissingRust = operatorCriticalDomains.filter(
+    (domain) =>
+      !lanes.some(
+        (lane) =>
+          lane.domain === domain &&
+          lane.priority === 1 &&
+          lane.target_classification === operatorCriticalTargetClassification,
+      ),
+  );
+  const operatorCriticalTargetClassificationViolations = lanes.filter(
+    (lane) =>
+      operatorCriticalDomains.includes(lane.domain) &&
+      lane.priority === 1 &&
+      lane.target_classification !== operatorCriticalTargetClassification,
+  );
+  const operatorCriticalCutoffViolations = lanes.filter((lane) => {
+    if (!operatorCriticalDomains.includes(lane.domain)) return false;
+    if (lane.priority !== 1) return false;
+    const laneTargetEpoch = Number.isFinite(Date.parse(lane.target_date)) ? Date.parse(lane.target_date) : Number.NaN;
+    if (!Number.isFinite(laneTargetEpoch) || !Number.isFinite(operatorCriticalPriorityCutoffEpoch)) return false;
+    return laneTargetEpoch > operatorCriticalPriorityCutoffEpoch;
+  });
 
   const allowedNodeTypescriptPrefixes =
     Array.isArray(burnPlan.allowed_node_typescript_prefixes) &&
@@ -287,6 +342,24 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       })),
     )
     .concat(
+      operatorCriticalPriorityOneMissingRust.map((domain) => ({
+        id: 'node_burndown_operator_critical_priority_one_missing_rust_target',
+        detail: domain,
+      })),
+    )
+    .concat(
+      operatorCriticalTargetClassificationViolations.map((lane) => ({
+        id: 'node_burndown_operator_critical_target_classification_violation',
+        detail: `${lane.id}:domain=${lane.domain};priority=${lane.priority};target=${lane.target_classification};required=${operatorCriticalTargetClassification}`,
+      })),
+    )
+    .concat(
+      operatorCriticalCutoffViolations.map((lane) => ({
+        id: 'node_burndown_operator_critical_cutoff_violation',
+        detail: `${lane.id}:domain=${lane.domain};target_date=${lane.target_date};cutoff=${operatorCriticalPriorityCutoffDate}`,
+      })),
+    )
+    .concat(
       missing.map((row) => ({
         id: 'critical_script_missing',
         detail: row.id,
@@ -338,6 +411,9 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       migration_overdue_count: rows.filter((row) => row.migration_overdue).length,
       required_domains_missing_count: requiredDomainsMissing.length,
       required_priority_one_missing_count: requiredPriorityOneMissing.length,
+      operator_critical_priority_one_missing_rust_count: operatorCriticalPriorityOneMissingRust.length,
+      operator_critical_target_classification_violation_count: operatorCriticalTargetClassificationViolations.length,
+      operator_critical_cutoff_violation_count: operatorCriticalCutoffViolations.length,
       ts_confinement_violation_count: rows.filter(
         (row) => row.classification === 'node_typescript' && !row.ts_confinement_allowed,
       ).length,
@@ -351,6 +427,9 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       plan_path: args.burnPlanPath,
       lane_count: lanes.length,
       required_domains,
+      operator_critical_domains: operatorCriticalDomains,
+      operator_critical_target_classification: operatorCriticalTargetClassification,
+      operator_critical_priority_cutoff_date: operatorCriticalPriorityCutoffDate,
       allowed_node_typescript_prefixes: allowedNodeTypescriptPrefixes,
     },
     rows,

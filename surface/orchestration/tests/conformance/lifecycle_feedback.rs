@@ -33,7 +33,7 @@ fn runtime_execution_observation_channel_projects_into_execution_state() {
                     "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
                 },
                 "core_probe_envelope": {
-                    "execute_tool": {
+                    "web_search": {
                         "tool_available": true,
                         "transport_available": true
                     }
@@ -69,7 +69,7 @@ fn runtime_execution_observation_channel_projects_into_execution_state() {
                     "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
                 },
                 "core_probe_envelope": {
-                    "execute_tool": {
+                    "web_search": {
                         "tool_available": true,
                         "transport_available": true
                     }
@@ -104,7 +104,7 @@ fn control_plane_result_includes_template_lifecycle_and_owner_contract() {
                     ]
                 },
                 "core_probe_envelope": {
-                    "execute_tool": {
+                    "tool_route": {
                         "tool_available": true,
                         "transport_available": true
                     },
@@ -178,7 +178,7 @@ fn failed_execution_observation_triggers_feedback_reroute_contract() {
                     "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
                 },
                 "core_probe_envelope": {
-                    "execute_tool": {
+                    "web_search": {
                         "tool_available": true,
                         "transport_available": true
                     }

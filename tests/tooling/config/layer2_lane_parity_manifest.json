@@ -18,6 +18,9 @@
       "replay_fixture_path": "tests/tooling/fixtures/layer2_receipt_bundle_golden.json",
       "parity_test_path": "core/layer0/ops/tests/v8_runtime_proof.rs",
       "deterministic_receipt_test_path": "core/layer0/ops/tests/v8_runtime_proof.rs",
+      "proof_artifact_path": "core/local/artifacts/layer2_receipt_replay_current.json",
+      "day_one_replay_coverage": true,
+      "day_one_deterministic_receipt_test": true,
       "invariants": [
         "receipt_emission",
         "cancellation_semantics",
@@ -43,6 +46,9 @@
       "replay_fixture_path": "tests/tooling/fixtures/layer2_receipt_bundle_golden.json",
       "parity_test_path": "core/layer0/ops/tests/v8_runtime_proof.rs",
       "deterministic_receipt_test_path": "core/layer0/ops/tests/v8_runtime_proof.rs",
+      "proof_artifact_path": "core/local/artifacts/layer2_receipt_replay_current.json",
+      "day_one_replay_coverage": true,
+      "day_one_deterministic_receipt_test": true,
       "invariants": [
         "receipt_emission",
         "cancellation_semantics",
@@ -68,6 +74,9 @@
       "replay_fixture_path": "tests/tooling/fixtures/layer2_receipt_bundle_golden.json",
       "parity_test_path": "core/layer0/ops/tests/v8_runtime_proof.rs",
       "deterministic_receipt_test_path": "core/layer0/ops/tests/v8_runtime_proof.rs",
+      "proof_artifact_path": "core/local/artifacts/layer2_receipt_replay_current.json",
+      "day_one_replay_coverage": true,
+      "day_one_deterministic_receipt_test": true,
       "invariants": [
         "receipt_emission",
         "cancellation_semantics",
@@ -93,6 +102,9 @@
       "replay_fixture_path": "tests/tooling/fixtures/layer2_receipt_bundle_golden.json",
       "parity_test_path": "core/layer0/ops/tests/v8_runtime_proof.rs",
       "deterministic_receipt_test_path": "core/layer0/ops/tests/v8_runtime_proof.rs",
+      "proof_artifact_path": "core/local/artifacts/layer2_receipt_replay_current.json",
+      "day_one_replay_coverage": true,
+      "day_one_deterministic_receipt_test": true,
       "invariants": [
         "receipt_emission",
         "cancellation_semantics",
@@ -118,6 +130,9 @@
       "replay_fixture_path": "tests/tooling/fixtures/layer2_receipt_bundle_golden.json",
       "parity_test_path": "core/layer0/ops/tests/v8_runtime_proof.rs",
       "deterministic_receipt_test_path": "core/layer0/ops/tests/v8_runtime_proof.rs",
+      "proof_artifact_path": "core/local/artifacts/layer2_receipt_replay_current.json",
+      "day_one_replay_coverage": true,
+      "day_one_deterministic_receipt_test": true,
       "invariants": [
         "receipt_emission",
         "cancellation_semantics",
@@ -143,6 +158,9 @@
       "replay_fixture_path": "tests/tooling/fixtures/layer2_receipt_bundle_golden.json",
       "parity_test_path": "core/layer0/ops/tests/v8_runtime_proof.rs",
       "deterministic_receipt_test_path": "core/layer0/ops/tests/v8_runtime_proof.rs",
+      "proof_artifact_path": "core/local/artifacts/layer2_receipt_replay_current.json",
+      "day_one_replay_coverage": true,
+      "day_one_deterministic_receipt_test": true,
       "invariants": [
         "receipt_emission",
         "cancellation_semantics",

@@ -13,6 +13,25 @@ Layer 3 hosts OS-personality surfaces on top of Layer 2 execution guarantees wit
 - Layer 3 must not introduce parallel scheduler truth, queue authority, or policy authority that bypasses Layer 2.
 - Every Layer 3 module must be declared in `tests/tooling/config/layer3_contract_policy.json`.
 
+## Hard Placement Matrix (Layer 2 vs Layer 3 vs Gateways)
+
+- Layer 2 owns:
+  - scheduling truth
+  - admission truth
+  - execution-lane truth
+  - queue authority
+  - receipt authority
+- Layer 3 owns:
+  - process/service/namespace models
+  - VFS/driver/syscall/windowing/networking shape abstractions
+  - OS personality composition that consumes Layer 2 truth
+- Gateways own:
+  - external I/O and provider protocol translation
+  - non-authoritative bridging at system boundaries
+- Layer 3 is forbidden from:
+  - direct external provider authority (must go via Gateways)
+  - scheduler/admission/queue canonical truth (must remain in Layer 2)
+
 ## Required Module Fields
 
 Every Layer 3 module policy row must include:
@@ -28,6 +47,9 @@ Every Layer 3 module policy row must include:
 - `parity_test_path`
 - `scheduler_boundary.layer2_interface`
 - `scheduler_boundary.authority`
+- `boundary_alignment.layer2_authority_boundary`
+- `boundary_alignment.layer3_scope`
+- `boundary_alignment.gateway_boundary`
 - `execution_unit.id`
 - `execution_unit.lifecycle`
 - `execution_unit.budget`
@@ -70,4 +92,6 @@ Failure mode is fail-closed:
 
 - Unmapped Layer 3 source files fail.
 - Missing execution-unit or scheduler-boundary fields fail.
+- Missing boundary-alignment fields fail.
+- Dependency boundary violations (forbidden prefixes or non-allowed prefixes) fail.
 - Invalid category/status fail.

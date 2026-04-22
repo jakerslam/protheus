@@ -26,7 +26,7 @@ type ProfileGatePolicy = {
     adapter_recovery_ms_max: number;
   };
   stale_surface: { incidents_max: number };
-  adapter_chaos: {
+  gateway_chaos: {
     baseline_pass_ratio_min: number;
     fail_closed_ratio_min: number;
     graduation_ratio_min: number;
@@ -183,8 +183,8 @@ function parseArgs(argv: string[]) {
       readFlag(argv, 'harness') || 'core/local/artifacts/runtime_proof_harness_current.json',
       400,
     ),
-    adapterChaosPath: cleanText(
-      readFlag(argv, 'adapter-chaos') || 'core/local/artifacts/adapter_runtime_chaos_gate_current.json',
+    gatewayChaosPath: cleanText(
+      readFlag(argv, 'gateway-chaos') || 'core/local/artifacts/gateway_runtime_chaos_gate_current.json',
       400,
     ),
     metricsOutPath: cleanText(
@@ -202,7 +202,7 @@ function parseArgs(argv: string[]) {
       400,
     ),
     refreshHarness: parseRefreshMode(readFlag(argv, 'refresh-harness'), 'always'),
-    refreshAdapterChaos: parseRefreshMode(readFlag(argv, 'refresh-adapter-chaos'), 'always'),
+    refreshAdapterChaos: parseRefreshMode(readFlag(argv, 'refresh-gateway-chaos'), 'always'),
     profile,
     proofTrack: parseProofTrack(readFlag(argv, 'proof-track')),
   };
@@ -247,7 +247,7 @@ function parsePolicyYaml(raw: string): ParsedPolicy {
             adapter_recovery_ms_max: 0,
           },
           stale_surface: { incidents_max: 0 },
-          adapter_chaos: {
+          gateway_chaos: {
             baseline_pass_ratio_min: 0,
             fail_closed_ratio_min: 0,
             graduation_ratio_min: 0,
@@ -489,16 +489,16 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   }
 
   const harnessAbsolutePath = path.resolve(root, args.harnessPath);
-  const adapterChaosAbsolutePath = path.resolve(root, args.adapterChaosPath);
+  const gatewayChaosAbsolutePath = path.resolve(root, args.gatewayChaosPath);
   if (args.strict && (args.refreshHarness === 'never' || args.refreshAdapterChaos === 'never')) {
     const payload = {
       ok: false,
       type: 'runtime_proof_release_gate',
       error: 'runtime_proof_refresh_mode_never_forbidden',
-      detail: 'strict mode requires refresh-harness and refresh-adapter-chaos to be auto or always',
+      detail: 'strict mode requires refresh-harness and refresh-gateway-chaos to be auto or always',
       profile: args.profile,
       refresh_harness: args.refreshHarness,
-      refresh_adapter_chaos: args.refreshAdapterChaos,
+      refresh_gateway_chaos: args.refreshAdapterChaos,
     };
     return emitStructuredResult(payload, {
       outPath: args.outPath,
@@ -552,18 +552,18 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   }
 
   const adapterRefreshPlan = shouldRefreshArtifact(
-    adapterChaosAbsolutePath,
+    gatewayChaosAbsolutePath,
     args.refreshAdapterChaos,
     revision,
   );
   if (adapterRefreshPlan.refresh) {
-    const refresh = runSupportScript(root, 'tests/tooling/scripts/ci/adapter_runtime_chaos_gate.ts', [
+    const refresh = runSupportScript(root, 'tests/tooling/scripts/ci/gateway_runtime_chaos_gate.ts', [
       `--profile=${args.profile}`,
-      `--out=${args.adapterChaosPath}`,
+      `--out=${args.gatewayChaosPath}`,
     ]);
     supportRuns.push({
-      id: 'adapter_runtime_chaos_gate',
-      script: 'tests/tooling/scripts/ci/adapter_runtime_chaos_gate.ts',
+      id: 'gateway_runtime_chaos_gate',
+      script: 'tests/tooling/scripts/ci/gateway_runtime_chaos_gate.ts',
       refresh_mode: args.refreshAdapterChaos,
       refreshed: true,
       reason: adapterRefreshPlan.reason,
@@ -577,7 +577,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         error: 'adapter_runtime_chaos_refresh_failed',
         detail: refresh.detail,
         profile: args.profile,
-        script: 'tests/tooling/scripts/ci/adapter_runtime_chaos_gate.ts',
+        script: 'tests/tooling/scripts/ci/gateway_runtime_chaos_gate.ts',
       };
       return emitStructuredResult(payload, {
         outPath: args.outPath,
@@ -587,8 +587,8 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     }
   } else {
     supportRuns.push({
-      id: 'adapter_runtime_chaos_gate',
-      script: 'tests/tooling/scripts/ci/adapter_runtime_chaos_gate.ts',
+      id: 'gateway_runtime_chaos_gate',
+      script: 'tests/tooling/scripts/ci/gateway_runtime_chaos_gate.ts',
       refresh_mode: args.refreshAdapterChaos,
       refreshed: false,
       reason: adapterRefreshPlan.reason,
@@ -674,7 +674,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   }
 
   const harness = readJson(harnessAbsolutePath);
-  const adapterChaos = readJson(adapterChaosAbsolutePath);
+  const gatewayChaos = readJson(gatewayChaosAbsolutePath);
   const qualityReports = args.qualityPaths.map((relPath) => {
     const parsed = readJsonBestEffort(path.resolve(root, relPath));
     return {
@@ -685,20 +685,20 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   });
   const runtimeLaneStateRaw = readJsonBestEffort(path.resolve(root, args.runtimeLaneStatePath));
   const metrics = harness?.metrics || {};
-  const adapterChaosMetrics = adapterChaos?.metrics || {};
-  if (adapterChaos?.ok === false) {
+  const gatewayChaosMetrics = gatewayChaos?.metrics || {};
+  if (gatewayChaos?.ok === false) {
     const payload = {
       ok: false,
       type: 'runtime_proof_release_gate',
-      error: 'adapter_runtime_chaos_gate_not_ok',
+      error: 'gateway_runtime_chaos_gate_not_ok',
       detail: cleanText(
         String(
-          adapterChaos?.error || adapterChaos?.summary?.error || 'adapter_runtime_chaos_gate_reported_not_ok',
+          gatewayChaos?.error || gatewayChaos?.summary?.error || 'gateway_runtime_chaos_gate_reported_not_ok',
         ),
         320,
       ),
       profile: args.profile,
-      adapter_chaos_path: args.adapterChaosPath,
+      gateway_chaos_path: args.gatewayChaosPath,
     };
     return emitStructuredResult(payload, {
       outPath: args.outPath,
@@ -711,20 +711,20 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       const numeric = Number(value);
       return Number.isFinite(numeric) ? numeric : null;
     };
-    const baseline = asFinite(adapterChaosMetrics.adapter_baseline_pass_ratio);
-    const failClosed = asFinite(adapterChaosMetrics.adapter_chaos_fail_closed_ratio);
-    const graduation = asFinite(adapterChaosMetrics.adapter_graduation_ratio);
+    const baseline = asFinite(gatewayChaosMetrics.gateway_baseline_pass_ratio);
+    const failClosed = asFinite(gatewayChaosMetrics.gateway_chaos_fail_closed_ratio);
+    const graduation = asFinite(gatewayChaosMetrics.gateway_graduation_ratio);
     const missing_fields = [
-      ...(baseline == null ? ['adapter_baseline_pass_ratio'] : []),
-      ...(failClosed == null ? ['adapter_chaos_fail_closed_ratio'] : []),
-      ...(graduation == null ? ['adapter_graduation_ratio'] : []),
+      ...(baseline == null ? ['gateway_baseline_pass_ratio'] : []),
+      ...(failClosed == null ? ['gateway_chaos_fail_closed_ratio'] : []),
+      ...(graduation == null ? ['gateway_graduation_ratio'] : []),
     ];
     return {
       ok: missing_fields.length === 0,
       baseline: baseline ?? 0,
       fail_closed: failClosed ?? 0,
       graduation: graduation ?? 0,
-      source: 'adapter_runtime_chaos_gate.metrics',
+      source: 'gateway_runtime_chaos_gate.metrics',
       missing_fields,
     };
   })();
@@ -734,9 +734,9 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       type: 'runtime_proof_release_gate',
       error: 'adapter_runtime_chaos_ratio_inputs_missing',
       detail:
-        'adapter ratio metrics must be emitted by adapter_runtime_chaos_gate; manifest fallback is disabled',
+        'gateway ratio metrics must be emitted by gateway_runtime_chaos_gate; manifest fallback is disabled',
       profile: args.profile,
-      adapter_chaos_path: args.adapterChaosPath,
+      gateway_chaos_path: args.gatewayChaosPath,
       adapter_ratio_input_source: adapterRatioInputs.source,
       missing_fields: adapterRatioInputs.missing_fields,
     };
@@ -919,19 +919,19 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       profilePolicy.stale_surface.incidents_max,
     ),
     buildCheckGe(
-      'adapter_baseline_pass_ratio_min',
+      'gateway_baseline_pass_ratio_min',
       Number(adapterRatioInputs.baseline || 0),
-      profilePolicy.adapter_chaos.baseline_pass_ratio_min,
+      profilePolicy.gateway_chaos.baseline_pass_ratio_min,
     ),
     buildCheckGe(
-      'adapter_chaos_fail_closed_ratio_min',
+      'gateway_chaos_fail_closed_ratio_min',
       Number(adapterRatioInputs.fail_closed || 0),
-      profilePolicy.adapter_chaos.fail_closed_ratio_min,
+      profilePolicy.gateway_chaos.fail_closed_ratio_min,
     ),
     buildCheckGe(
-      'adapter_graduation_ratio_min',
+      'gateway_graduation_ratio_min',
       Number(adapterRatioInputs.graduation || 0),
-      profilePolicy.adapter_chaos.graduation_ratio_min,
+      profilePolicy.gateway_chaos.graduation_ratio_min,
     ),
     buildCheckLe(
       'quality_empty_final_max',
@@ -1015,11 +1015,11 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     checks,
     metrics: {
       ...metrics,
-      ...adapterChaosMetrics,
+      ...gatewayChaosMetrics,
       adapter_ratio_input_source: adapterRatioInputs.source,
-      adapter_baseline_pass_ratio_input: Number(adapterRatioInputs.baseline || 0),
-      adapter_chaos_fail_closed_ratio_input: Number(adapterRatioInputs.fail_closed || 0),
-      adapter_graduation_ratio_input: Number(adapterRatioInputs.graduation || 0),
+      gateway_baseline_pass_ratio_input: Number(adapterRatioInputs.baseline || 0),
+      gateway_chaos_fail_closed_ratio_input: Number(adapterRatioInputs.fail_closed || 0),
+      gateway_graduation_ratio_input: Number(adapterRatioInputs.graduation || 0),
       ...qualityMetrics,
       proof_track_selected: selectedTrack,
       proof_track_synthetic_sample_points: syntheticSamplePoints,
@@ -1054,14 +1054,14 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     inputs: {
       policy_path: args.policyPath,
       harness_path: args.harnessPath,
-      adapter_chaos_path: args.adapterChaosPath,
+      gateway_chaos_path: args.gatewayChaosPath,
       quality_paths: args.qualityPaths,
       runtime_lane_state_path: args.runtimeLaneStatePath,
       proof_track: args.proofTrack,
       metrics_out: args.metricsOutPath,
       table_out: args.tableOutPath,
       refresh_harness: args.refreshHarness,
-      refresh_adapter_chaos: args.refreshAdapterChaos,
+      refresh_gateway_chaos: args.refreshAdapterChaos,
     },
     support_runs: supportRuns,
     summary: {

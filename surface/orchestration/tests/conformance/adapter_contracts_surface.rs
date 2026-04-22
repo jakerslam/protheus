@@ -137,7 +137,7 @@ fn sdk_surface_adapter_bypasses_legacy_intent_shim() {
                     "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
                 },
                 "core_probe_envelope": {
-                    "execute_tool": {
+                    "web_search": {
                         "tool_available": true,
                         "transport_available": true
                     }
@@ -179,7 +179,7 @@ fn sdk_and_gateway_adapters_converge_on_same_tool_plan() {
                     ]
                 },
                 "core_probe_envelope": {
-                    "execute_tool": {
+                    "tool_route": {
                         "tool_available": true,
                         "transport_available": true
                     },
@@ -206,7 +206,7 @@ fn sdk_and_gateway_adapters_converge_on_same_tool_plan() {
                     ]
                 },
                 "core_probe_envelope": {
-                    "execute_tool": {
+                    "tool_route": {
                         "tool_available": true,
                         "transport_available": true
                     },
@@ -280,7 +280,7 @@ fn comparative_variants_expose_structurally_distinct_capability_graphs() {
                     ]
                 },
                 "core_probe_envelope": {
-                    "execute_tool": {
+                    "tool_route": {
                         "tool_available": true,
                         "transport_available": true
                     },
@@ -425,7 +425,7 @@ fn adapted_tool_request_requires_explicit_transport_probe() {
     assert!(package.selected_plan.capability_probes.iter().any(|row| {
         row.capability.is_tool_family()
             && row.probe_sources.iter().any(|source| {
-                source == "probe.required_for_typed_surface.execute_tool.transport_available"
+                source == "probe.required_for_typed_surface.web_search.transport_available"
             })
     }));
 }

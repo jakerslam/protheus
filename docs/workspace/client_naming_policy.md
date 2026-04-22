@@ -1,4 +1,4 @@
-# Shell Naming Policy (compat path: `client/**`)
+# Shell Naming Policy
 
 ## Goal
 
@@ -19,9 +19,9 @@ The guard applies to:
 - `client/cognition/shared/**`
 - `client/cognition/habits/scripts/**`
 
-Compatibility note:
+Path note:
 - Canonical docs term is `Shell`.
-- Repository path and guard IDs remain `client/**` until explicit tooling migration is approved.
+- Repository path remains `client/**` until explicit tooling migration is approved.
 
 ## Rules
 
@@ -38,16 +38,14 @@ Compatibility note:
 
 ## Automation
 
-- Guard script: `tests/tooling/scripts/ci/client_naming_policy_guard.ts`
-- Policy config: `client/runtime/config/client_naming_policy.json`
+- Guard script: `tests/tooling/scripts/ci/naming_policy_guard.ts`
+- Policy config (canonical): `client/runtime/config/shell_naming_policy.json`
 - npm command (canonical advisory/yellow flag): `npm run -s ops:shell-naming:guard`
 - npm command (canonical strict/blocking): `npm run -s ops:shell-naming:guard:strict`
-- compatibility alias (advisory): `npm run -s ops:client-naming:guard`
-- compatibility alias (strict): `npm run -s ops:client-naming:guard:strict`
-- tooling registry gate id: `ops:client-naming:guard` (compat), shell-first npm alias provided above
+- tooling registry gate id: `ops:shell-naming:guard`
 - CI workflow integration: `.github/workflows/ci.yml` (`Policy Baseline Contract` step)
 
 ## Artifacts
 
-- JSON: `core/local/artifacts/client_naming_policy_guard_current.json`
-- Markdown: `local/workspace/reports/CLIENT_NAMING_POLICY_GUARD_CURRENT.md`
+- JSON (canonical): `core/local/artifacts/shell_naming_policy_guard_current.json`
+- Markdown (canonical): `local/workspace/reports/SHELL_NAMING_POLICY_GUARD_CURRENT.md`

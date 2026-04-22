@@ -62,6 +62,9 @@
         else localStorage.removeItem('infring-chat-sidebar-wall-lock');
         localStorage.removeItem('infring-chat-sidebar-smash-wall');
       } catch(_) {}
+      infringUpdateShellLayoutConfig(function(config) {
+        config.chatBar.wallLock = wall;
+      });
       return wall;
     },
     chatSidebarResolvedLeft() {
@@ -84,6 +87,9 @@
       try {
         localStorage.setItem('infring-chat-sidebar-placement-x', String(ratio));
       } catch(_) {}
+      infringUpdateShellLayoutConfig(function(config) {
+        config.chatBar.placementX = ratio;
+      });
     },
     chatSidebarClampTop(topRaw) {
       var bounds = this.chatOverlayVerticalBounds();
@@ -120,6 +126,10 @@
       try {
         localStorage.setItem('infring-chat-sidebar-placement-y', String(ratio));
       } catch(_) {}
+      infringUpdateShellLayoutConfig(function(config) {
+        config.chatBar.placementTopPx = top;
+        config.chatBar.placementY = ratio;
+      });
     },
     chatSidebarContainerStyle() {
       if (this.page !== 'chat') return '';
@@ -760,6 +770,9 @@
       try {
         localStorage.setItem('infring-bottom-dock-order', JSON.stringify(this.bottomDockOrder));
       } catch(_) {}
+      infringUpdateShellLayoutConfig(function(config) {
+        config.dock.order = this.bottomDockOrder.slice();
+      }.bind(this));
     },
 
     bottomDockOrderIndex(id) {

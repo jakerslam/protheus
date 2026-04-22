@@ -8,6 +8,7 @@ Define a hard operating split between `core/`, `surface/orchestration/`, and the
 
 Documentation now defines `surface/orchestration/` as the Cognition Control Plane.
 Internal naming and placement cleanup is an incremental transition: existing `orchestration` path/module names remain valid compatibility surfaces until the internal migration closes.
+Readable control-plane flow maps live in `docs/workspace/orchestration_workflow_maps.md`.
 
 ## Boundary Axiom
 
@@ -160,9 +161,9 @@ If code appears to satisfy multiple categories, split responsibilities.
 
 Core coupling governance is enforced by policy + CI:
 
-- Policy: `tests/tooling/config/core_nexus_coupling_policy.json`
-- Guard: `tests/tooling/scripts/ci/core_nexus_coupling_guard.ts`
-- Command: `npm run -s ops:nexus:core-coupling:guard`
+- Policy: `tests/tooling/config/kernel_nexus_coupling_policy.json`
+- Guard: `tests/tooling/scripts/ci/kernel_nexus_coupling_guard.ts`
+- Command: `npm run -s ops:nexus:kernel-coupling:guard`
 - CI workflow: `.github/workflows/core-nexus-coupling.yml`
 
 Rule intent:

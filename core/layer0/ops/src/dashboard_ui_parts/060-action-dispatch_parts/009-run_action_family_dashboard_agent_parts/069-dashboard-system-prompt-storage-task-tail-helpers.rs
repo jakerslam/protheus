@@ -194,8 +194,10 @@ fn dashboard_prompt_storage_task_tail_route_extension(
         "dashboard.prompts.system.task.toolExecutor.describe" => {
             Some(dashboard_prompt_task_tool_executor_describe(payload))
         }
-        _ => dashboard_prompt_task_focus_chain_tail_route_extension(root, normalized, payload),
+        _ => dashboard_prompt_task_focus_chain_route_extension(root, normalized, payload),
     }
 }
 
-include!("070-dashboard-system-prompt-task-focus-chain-tail-helpers.rs");
+// NOTE: 070+ helper chain mirrors the existing 023+ chain and causes duplicate
+// symbol definitions when both are included in this module.
+// Keep 069 as the terminal include in the active chain.

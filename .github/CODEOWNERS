@@ -1,4 +1,4 @@
-# Core ownership for guarded infrastructure surfaces.
+# Kernel ownership for guarded infrastructure surfaces.
 
 /client/systems/ @jakerslam
 /client/config/ @jakerslam
@@ -13,5 +13,5 @@
 /tests/tooling/scripts/ci/release_* @jakerslam @protheuslabs/ops
 /tests/tooling/scripts/ci/runtime_proof_* @jakerslam @protheuslabs/ops
 /tests/tooling/scripts/ci/layer2_* @jakerslam @protheuslabs/ops
-/tests/tooling/scripts/ci/adapter_runtime_chaos_gate.ts @jakerslam @protheuslabs/ops
+/tests/tooling/scripts/ci/gateway_runtime_chaos_gate.ts @jakerslam @protheuslabs/ops
 /docs/workspace/policy/ @jakerslam @protheuslabs/ops
