@@ -69,16 +69,6 @@ fn handle_message_chat_response_pass(
             if response_text.is_empty() && response_had_context_meta {
                 response_text = "I have relevant prior context loaded and can keep going from here. Tell me what you want to do next.".to_string();
             }
-            let runtime_summary = runtime_sync_summary(snapshot);
-            let runtime_probe = runtime_probe_requested(message);
-            let runtime_denial = runtime_access_denied_phrase(&response_text);
-            if runtime_probe || runtime_denial {
-                response_text = if runtime_probe {
-                    runtime_access_summary_text(&runtime_summary)
-                } else {
-                    "I can access runtime telemetry, persistent memory, workspace files, channels, and approved command surfaces in this session. Tell me what you want me to check and I will run it now.".to_string()
-                };
-            }
             let local_workspace_tooling_probe_turn = {
                 let lowered = message.to_ascii_lowercase();
                 let local_tokens = [
@@ -91,18 +81,51 @@ fn handle_message_chat_response_pass(
                     "repo",
                     "path",
                 ];
-                let web_tokens = ["http://", "https://", "web", "internet", "online", "browser"];
+                let web_tokens = [
+                    "http://", "https://", "web", "internet", "online", "browser",
+                ];
                 local_tokens.iter().any(|token| lowered.contains(token))
                     && !web_tokens.iter().any(|token| lowered.contains(token))
             };
+            let runtime_capability_surface_template = "I can access runtime telemetry, persistent memory, workspace files, channels, and approved command surfaces in this session.";
+            let runtime_summary = runtime_sync_summary(snapshot);
+            let runtime_probe = runtime_probe_requested(message);
+            let runtime_denial = runtime_access_denied_phrase(&response_text);
+            if runtime_probe || runtime_denial {
+                response_text = if runtime_probe {
+                    runtime_access_summary_text(&runtime_summary)
+                } else if local_workspace_tooling_probe_turn {
+                    "This turn hit a local workspace policy boundary. I will stay in direct-answer mode from current context, and if you want a live workspace check I can run it in a workspace-read-enabled lane.".to_string()
+                } else {
+                    format!("{runtime_capability_surface_template} Tell me what you want me to check and I will run it now.")
+                };
+            }
             if local_workspace_tooling_probe_turn {
-                if response_text.contains("I completed the workflow gate, but the final workflow state was unexpected.")
-                    || response_text.contains("I completed the run, but the final reply did not render")
-                    || response_text.contains("Please retry so I can rerun the chain cleanly.")
+                let response_lowered = response_text.to_ascii_lowercase();
+                let route_classification_template = response_lowered.contains("the first gate")
+                    && (response_lowered.contains("workflow_route")
+                        || response_lowered.contains("task_or_info_route"))
+                    && (response_lowered.contains("still classifying this as an \"info\" route rather than a \"task\" route")
+                        || response_lowered.contains("still classifying this as an 'info' route rather than a 'task' route")
+                        || response_lowered.contains("binary classification")
+                        || response_lowered.contains("automated classification based on semantic analysis")
+                        || response_lowered.contains("not a true/false decision i control")
+                        || response_lowered.contains("defaults to info")
+                        || response_lowered.contains("[source:workflow_gate]")
+                        || response_lowered.contains("source:workflow_gate")
+                        || response_lowered.contains("explicit tool-related phrasing")
+                        || response_lowered.contains("task classification path")
+                        || response_lowered.contains("tool operation request"));
+                if response_contains_unexpected_state_retry_boilerplate(&response_text)
+                    || workflow_response_repetition_breaker_active(&response_text)
+                    || route_classification_template
                 {
                     response_text = "Tool routing is still LLM-controlled. This turn hit a workflow finalization edge, so I am continuing in direct-answer mode. For local workspace checks I will stay on file/workspace tooling unless you explicitly request web search.".to_string();
-                } else if response_text.contains("originalUrl:") && response_text.contains("title:") {
+                } else if response_text.contains("originalUrl:") && response_text.contains("title:")
+                {
                     response_text = "That looked like an unrelated web payload artifact. For this local workspace check I will avoid web routing and continue directly from local context.".to_string();
+                } else if response_text.contains(runtime_capability_surface_template) {
+                    response_text = "I’ll keep this local. For workspace/file checks I will stay on local tooling and avoid web routing; if this lane lacks workspace-read permission, I can still answer directly from current context.".to_string();
                 }
             }
             if memory_recall_requested(message) || persistent_memory_denied_phrase(&response_text) {
@@ -149,47 +172,23 @@ fn handle_message_chat_response_pass(
                 inline_tools_allowed,
             );
             response_text = tool_adjusted_response;
-            let tool_gate = workflow_turn_tool_decision_tree(message);
-            let gate_meta_control = tool_gate
-                .get("meta_control_message")
-                .and_then(Value::as_bool)
-                .unwrap_or(false);
-            let gate_status_check = tool_gate
-                .get("status_check_message")
-                .and_then(Value::as_bool)
-                .unwrap_or(false);
-            let gate_requires_live_web = tool_gate
-                .get("requires_live_web")
-                .and_then(Value::as_bool)
-                .unwrap_or(false);
-            let gate_should_call_tools = tool_gate
-                .get("should_call_tools")
-                .and_then(Value::as_bool)
-                .unwrap_or(false);
-            let latent_retry_from_failed_web_draft =
-                draft_response_implies_retryable_web_failure(&response_text);
-            let allow_draft_retry_fallback = latent_retry_from_failed_web_draft
-                && gate_requires_live_web
-                && gate_should_call_tools
-                && !gate_meta_control
-                && !gate_status_check
-                && !message_explicitly_disallows_tool_calls(message);
+            let allow_draft_retry_fallback = false;
             let supplemental_comparison_tools =
                 if inline_tools_allowed || allow_draft_retry_fallback {
-                latent_tool_candidate_completion_cards(
-                    root,
-                    snapshot,
-                    agent_id,
-                    Some(row),
-                    message,
-                    &response_text,
-                    allow_draft_retry_fallback,
-                    &latent_tool_candidates,
-                    &response_tools,
-                )
-            } else {
-                Vec::new()
-            };
+                    latent_tool_candidate_completion_cards(
+                        root,
+                        snapshot,
+                        agent_id,
+                        Some(row),
+                        message,
+                        &response_text,
+                        allow_draft_retry_fallback,
+                        &latent_tool_candidates,
+                        &response_tools,
+                    )
+                } else {
+                    Vec::new()
+                };
             if !supplemental_comparison_tools.is_empty() {
                 response_tools.extend(supplemental_comparison_tools);
                 let supplemented_summary =
@@ -318,6 +317,49 @@ fn handle_message_chat_response_pass(
                 response_text = abstract_runtime_mechanics_terms(&response_text);
             }
             response_text = strip_internal_cache_control_markup(&response_text);
+            let latest_assistant_text = active_messages
+                .iter()
+                .rev()
+                .find_map(|row| {
+                    let role =
+                        clean_text(row.get("role").and_then(Value::as_str).unwrap_or(""), 24)
+                            .to_ascii_lowercase();
+                    if role != "assistant" && role != "agent" {
+                        return None;
+                    }
+                    let text = clean_chat_text(
+                        row.get("text")
+                            .or_else(|| row.get("content"))
+                            .or_else(|| row.get("message"))
+                            .and_then(Value::as_str)
+                            .unwrap_or(""),
+                        32_000,
+                    );
+                    if text.trim().is_empty() {
+                        None
+                    } else {
+                        Some(text)
+                    }
+                })
+                .unwrap_or_default();
+            if response_contains_unexpected_state_retry_boilerplate(&response_text)
+                || workflow_response_repetition_breaker_active(&response_text)
+            {
+                let fallback = workflow_unexpected_state_user_fallback(
+                    message,
+                    &latest_assistant_text,
+                    &response_tools,
+                );
+                let guarded = ensure_no_retry_boilerplate_copy(
+                    message,
+                    &latest_assistant_text,
+                    &response_tools,
+                    &fallback,
+                );
+                if !guarded.trim().is_empty() {
+                    response_text = guarded;
+                }
+            }
             if response_is_unrelated_context_dump(message, &response_text) {
                 let strict_relevance_prompt = clean_text(
                     &format!(
@@ -372,7 +414,6 @@ fn handle_message_chat_response_pass(
             let conversation_bypass_control = workflow_conversation_bypass_control_for_turn(
                 message,
                 &active_messages,
-                gate_should_call_tools,
                 inline_tools_allowed,
             );
             let conversation_bypass_active = conversation_bypass_control
