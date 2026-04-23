@@ -1,6 +1,7 @@
 
 fn run_dashboard_watchdog(root: &Path, argv: &[String]) -> i32 {
     let cfg = parse_dashboard_launch_config(argv, "start");
+    let current_pid = std::process::id();
     if !cfg.enabled {
         print_json_line(&json!({
             "ok": true,
@@ -14,15 +15,46 @@ fn run_dashboard_watchdog(root: &Path, argv: &[String]) -> i32 {
     }
     let _ = fs::write(
         dashboard_watchdog_pid_path(root),
-        format!("{}\n", std::process::id()),
+        format!("{}\n", current_pid),
     );
+    let watchdog_pids = dashboard_watchdog_runtime_pids(&cfg);
+    let other_watchdogs = watchdog_pids
+        .iter()
+        .copied()
+        .filter(|pid| *pid != current_pid)
+        .collect::<Vec<_>>();
+    if !other_watchdogs.is_empty() {
+        append_watchdog_log(
+            root,
+            &json!({
+                "ok": false,
+                "type": "dashboard_watchdog",
+                "event": "duplicate_watchdog_preempted",
+                "pid": current_pid,
+                "other_watchdogs": other_watchdogs,
+                "watchdog_pids": watchdog_pids,
+                "port": cfg.port,
+            }),
+        );
+        print_json_line(&json!({
+            "ok": false,
+            "type": "dashboard_watchdog",
+            "running": false,
+            "reason": "duplicate_watchdog_running",
+            "pid": current_pid,
+            "other_watchdogs": other_watchdogs,
+            "watchdog_pids": watchdog_pids,
+            "port": cfg.port,
+        }));
+        return 2;
+    }
     append_watchdog_log(
         root,
         &json!({
             "ok": true,
             "type": "dashboard_watchdog",
             "event": "started",
-            "pid": std::process::id(),
+            "pid": current_pid,
             "host": cfg.host,
             "port": cfg.port,
             "interval_ms": cfg.watchdog_interval_ms,
@@ -32,7 +64,30 @@ fn run_dashboard_watchdog(root: &Path, argv: &[String]) -> i32 {
     );
     let mut fail_streak = 0usize;
     let mut last_health: Option<bool> = None;
+    let mut exit_reason = "stop_latch";
+    let mut exit_code = 0i32;
     loop {
+        let watchdog_pids = dashboard_watchdog_runtime_pids(&cfg);
+        if watchdog_pids.len() > 1 {
+            let leader = watchdog_pids.first().copied().unwrap_or(current_pid);
+            if leader != current_pid {
+                append_watchdog_log(
+                    root,
+                    &json!({
+                        "ok": false,
+                        "type": "dashboard_watchdog",
+                        "event": "duplicate_watchdog_preempted",
+                        "pid": current_pid,
+                        "leader_pid": leader,
+                        "watchdog_pids": watchdog_pids,
+                        "port": cfg.port,
+                    }),
+                );
+                exit_reason = "duplicate_watchdog_running";
+                exit_code = 2;
+                break;
+            }
+        }
         if dashboard_stop_latch_active(root) {
             if dashboard_desired_state_active(root) {
                 clear_dashboard_stop_latch(root);
@@ -114,23 +169,23 @@ fn run_dashboard_watchdog(root: &Path, argv: &[String]) -> i32 {
     append_watchdog_log(
         root,
         &json!({
-            "ok": true,
+            "ok": exit_code == 0,
             "type": "dashboard_watchdog",
             "event": "stopped",
-            "reason": "stop_latch",
+            "reason": exit_reason,
             "host": cfg.host,
             "port": cfg.port,
         }),
     );
     print_json_line(&json!({
-        "ok": true,
+        "ok": exit_code == 0,
         "type": "dashboard_watchdog",
         "running": false,
-        "reason": "stop_latch",
+        "reason": exit_reason,
         "host": cfg.host,
         "port": cfg.port,
     }));
-    0
+    exit_code
 }
 
 fn ensure_gateway_supervisor(

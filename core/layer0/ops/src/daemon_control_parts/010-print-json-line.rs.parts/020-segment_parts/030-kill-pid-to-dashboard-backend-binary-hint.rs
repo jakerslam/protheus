@@ -100,13 +100,91 @@ fn dashboard_listener_pids(_port: u16) -> Vec<u32> {
     Vec::new()
 }
 
+fn normalized_running_pids(mut pids: Vec<u32>) -> Vec<u32> {
+    pids.retain(|pid| *pid > 0 && pid_running(*pid));
+    pids.sort_unstable();
+    pids.dedup();
+    pids
+}
+
+fn pid_command_line(pid: u32) -> Option<String> {
+    if pid == 0 {
+        return None;
+    }
+    #[cfg(unix)]
+    {
+        return Command::new("ps")
+            .arg("-o")
+            .arg("command=")
+            .arg("-p")
+            .arg(pid.to_string())
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .output()
+            .ok()
+            .map(|out| String::from_utf8_lossy(&out.stdout).trim().to_string())
+            .filter(|value| !value.is_empty());
+    }
+    #[cfg(not(unix))]
+    {
+        None
+    }
+}
+
+fn command_pids_matching(pattern: &str) -> Vec<u32> {
+    #[cfg(unix)]
+    {
+        let output = Command::new("pgrep")
+            .arg("-f")
+            .arg(pattern)
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .output();
+        if let Ok(out) = output {
+            let mut pids = Vec::<u32>::new();
+            for line in String::from_utf8_lossy(&out.stdout).lines() {
+                if let Ok(pid) = line.trim().parse::<u32>() {
+                    pids.push(pid);
+                }
+            }
+            return normalized_running_pids(pids);
+        }
+    }
+    Vec::new()
+}
+
+fn dashboard_watchdog_runtime_pids(cfg: &DashboardLaunchConfig) -> Vec<u32> {
+    let mut pids = Vec::<u32>::new();
+    for pid in command_pids_matching("daemon-control") {
+        if let Some(cmd) = pid_command_line(pid) {
+            if cmd.contains("daemon-control")
+                && cmd.contains("watchdog")
+                && cmd.contains(format!("--dashboard-port={}", cfg.port).as_str())
+            {
+                pids.push(pid);
+            }
+        }
+    }
+    normalized_running_pids(pids)
+}
+
+fn dashboard_watchdog_candidate_pids(root: &Path, cfg: &DashboardLaunchConfig) -> Vec<u32> {
+    let mut pids = dashboard_watchdog_runtime_pids(cfg);
+    if let Some(pid) = read_pid_file(&dashboard_watchdog_pid_path(root)) {
+        pids.push(pid);
+    }
+    normalized_running_pids(pids)
+}
+
 fn resolve_dashboard_executable(current_exe: &Path) -> PathBuf {
     let file_name = current_exe
         .file_name()
         .and_then(|name| name.to_str())
         .unwrap_or_default()
         .to_ascii_lowercase();
-    if !file_name.contains("protheusd") {
+    if !file_name.contains("infringd") {
         return current_exe.to_path_buf();
     }
     let ext = current_exe
@@ -114,9 +192,9 @@ fn resolve_dashboard_executable(current_exe: &Path) -> PathBuf {
         .and_then(|value| value.to_str())
         .unwrap_or_default();
     let sibling_name = if ext.is_empty() {
-        "protheus-ops".to_string()
+        "infring-ops".to_string()
     } else {
-        format!("protheus-ops.{ext}")
+        format!("infring-ops.{ext}")
     };
     let candidate = current_exe.with_file_name(sibling_name);
     if candidate.exists() {
@@ -130,16 +208,16 @@ fn dashboard_backend_binary_hint() -> Option<String> {
     let current_exe = std::env::current_exe().ok()?;
     let resolved = resolve_dashboard_executable(&current_exe);
 
-    let protheus_name = if cfg!(windows) {
-        "protheus-ops.exe"
+    let infring_name = if cfg!(windows) {
+        "infring-ops.exe"
     } else {
-        "protheus-ops"
+        "infring-ops"
     };
 
     let mut candidates = Vec::<PathBuf>::new();
     if let Ok(cwd) = std::env::current_dir() {
-        candidates.push(cwd.join("target").join("debug").join(protheus_name));
-        candidates.push(cwd.join("target").join("release").join(protheus_name));
+        candidates.push(cwd.join("target").join("debug").join(infring_name));
+        candidates.push(cwd.join("target").join("release").join(infring_name));
     }
     candidates.push(resolved);
 
