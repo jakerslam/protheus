@@ -10,7 +10,14 @@ function run(args = process.argv.slice(2)) {
 }
 
 if (require.main === module) {
-  process.exit(run(process.argv.slice(2)));
+  const result = run(process.argv.slice(2));
+  if (typeof result === 'number' && Number.isFinite(result)) {
+    process.exit(result);
+  }
+  if (result && typeof result === 'object' && typeof result.ok === 'boolean') {
+    process.exit(result.ok ? 0 : 1);
+  }
+  process.exit(0);
 }
 
 module.exports = {

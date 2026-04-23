@@ -2,6 +2,7 @@
 mod autoscale;
 mod blob;
 mod decompose;
+mod execution_unit;
 mod graph_runtime;
 mod importers;
 mod initiative;
@@ -131,6 +132,10 @@ pub use decompose::{
     RouteHabitReadinessResponse, RouteMatchRequest, RouteMatchResponse, RoutePrimitivesRequest,
     RoutePrimitivesResponse, RouteReflexMatchRequest, RouteReflexMatchResponse, RouteReflexRoutine,
     TaskSummaryRequest, TaskSummaryResponse,
+};
+pub use execution_unit::{
+    ExecutionUnit, ExecutionUnitBudget, ExecutionUnitReceiptRef, ExecutionUnitState,
+    ExecutionUnitTracker, ExecutionUnitTransitionReceipt,
 };
 pub use graph_runtime::{
     run_graph_workflow, run_graph_workflow_json, GraphCheckpoint, GraphCheckpointStore,

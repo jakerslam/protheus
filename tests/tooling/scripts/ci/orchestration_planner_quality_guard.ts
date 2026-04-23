@@ -49,6 +49,8 @@ type PlannerPolicy = {
   consistency_epsilon?: number;
   ratchet?: {
     max_regression_delta?: number;
+    improvement_window?: number;
+    min_improvement_delta?: number;
   };
   paths?: {
     latest?: string;
@@ -87,6 +89,26 @@ function readJsonMaybe<T>(filePath: string): T | null {
     return JSON.parse(fs.readFileSync(path.resolve(ROOT, filePath), 'utf8')) as T;
   } catch {
     return null;
+  }
+}
+
+function readJsonLinesMaybe(filePath: string): any[] {
+  try {
+    const raw = fs.readFileSync(path.resolve(ROOT, filePath), 'utf8');
+    return raw
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .map((line) => {
+        try {
+          return JSON.parse(line);
+        } catch {
+          return null;
+        }
+      })
+      .filter((row) => row && typeof row === 'object');
+  } catch {
+    return [];
   }
 }
 
@@ -440,7 +462,12 @@ function evaluateMetricConsistency(metrics: PlannerMetrics | null, policy: Plann
   return failures;
 }
 
-function evaluateRatchet(metrics: PlannerMetrics | null, policy: PlannerPolicy, previous: any): string[] {
+function evaluateRatchet(
+  metrics: PlannerMetrics | null,
+  policy: PlannerPolicy,
+  previous: any,
+  historyRows: any[],
+): string[] {
   const failures: string[] = [];
   if (!metrics) return failures;
   const previousMetrics = previous?.metrics;
@@ -481,6 +508,54 @@ function evaluateRatchet(metrics: PlannerMetrics | null, policy: PlannerPolicy, 
     if (current != null && prior != null && current > prior + delta) {
       failures.push(
         `ratchet_${field}_regression:current=${current.toFixed(4)}:previous=${prior.toFixed(4)}:delta=${delta.toFixed(4)}`,
+      );
+    }
+  }
+
+  const improvementWindow = Math.max(2, Number(policy.ratchet?.improvement_window || 0));
+  const minImprovementDelta = Math.max(0, Number(policy.ratchet?.min_improvement_delta || 0));
+  const historyMetrics = historyRows
+    .map((row) => row?.metrics)
+    .filter((row) => row && typeof row === 'object') as PlannerMetrics[];
+  const trendSeries = [...historyMetrics, metrics];
+  if (trendSeries.length >= improvementWindow) {
+    const recent = trendSeries.slice(-improvementWindow);
+    const lowerIsBetter: Array<keyof PlannerMetrics> = [
+      'clarification_first_rate',
+      'degraded_rate',
+      'selected_plan_requires_clarification_rate',
+      'selected_plan_degraded_rate',
+      'heuristic_probe_rate',
+      'zero_executable_candidate_rate',
+      'all_candidates_require_clarification_rate',
+      'all_candidates_degraded_rate',
+    ];
+    const higherIsBetter: Array<keyof PlannerMetrics> = [
+      'request_count',
+      'average_candidate_count',
+    ];
+    let improvementEvents = 0;
+    for (let i = 1; i < recent.length; i += 1) {
+      const prev = recent[i - 1] || {};
+      const curr = recent[i] || {};
+      for (const field of lowerIsBetter) {
+        const previousValue = numberOrNull(prev[field]);
+        const currentValue = numberOrNull(curr[field]);
+        if (previousValue != null && currentValue != null && currentValue < previousValue - minImprovementDelta) {
+          improvementEvents += 1;
+        }
+      }
+      for (const field of higherIsBetter) {
+        const previousValue = numberOrNull(prev[field]);
+        const currentValue = numberOrNull(curr[field]);
+        if (previousValue != null && currentValue != null && currentValue > previousValue + minImprovementDelta) {
+          improvementEvents += 1;
+        }
+      }
+    }
+    if (improvementEvents === 0) {
+      failures.push(
+        `ratchet_no_improvement_window_exceeded:window=${improvementWindow}:min_improvement_delta=${minImprovementDelta.toFixed(4)}`,
       );
     }
   }
@@ -576,11 +651,14 @@ function run(argv: string[]): number {
   const previousLatest = plannerPolicy.paths?.latest
     ? readJsonMaybe<any>(plannerPolicy.paths.latest)
     : null;
+  const historyRows = plannerPolicy.paths?.history
+    ? readJsonLinesMaybe(plannerPolicy.paths.history)
+    : [];
   const requiredMetricFields = requiredPlannerFieldsFromPolicy(plannerPolicy);
   const missingMetricFields = collectMissingPlannerFields(metrics, requiredMetricFields);
   const policyFailures = evaluateThresholds(metrics, plannerPolicy);
   const consistencyFailures = evaluateMetricConsistency(metrics, plannerPolicy);
-  const ratchetFailures = evaluateRatchet(metrics, plannerPolicy, previousLatest);
+  const ratchetFailures = evaluateRatchet(metrics, plannerPolicy, previousLatest, historyRows);
   const metricFieldsPresent = metrics
     ? Object.values(metrics).filter((value) => numberOrNull(value) != null).length
     : 0;

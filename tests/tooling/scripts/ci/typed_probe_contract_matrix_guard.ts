@@ -90,12 +90,14 @@ function run(): number {
   const contractsPath = resolve('surface/orchestration/src/contracts.rs');
   const ingressPath = resolve('surface/orchestration/src/ingress.rs');
   const parserPath = resolve('surface/orchestration/src/ingress/parser.rs');
+  const probeMatrixPath = resolve('surface/orchestration/tests/conformance/probe_matrix.rs');
 
   const classifierSource = readFileSync(classifierPath, 'utf8');
   const preconditionsSource = readFileSync(preconditionsPath, 'utf8');
   const contractsSource = readFileSync(contractsPath, 'utf8');
   const ingressSource = readFileSync(ingressPath, 'utf8');
   const parserSource = readFileSync(parserPath, 'utf8');
+  const probeMatrixSource = readFileSync(probeMatrixPath, 'utf8');
 
   const checks: Check[] = [];
   const capabilityKeys = MATRIX_CAPABILITIES.map((row) => row.key);
@@ -286,6 +288,13 @@ function run(): number {
     detail: 'required probe key function must not collapse tool-family authority onto execute_tool',
   });
 
+  checks.push({
+    id: 'typed_probe_contract_matrix_conformance_no_tool_family_execute_tool_collapse',
+    ok: !probeMatrixSource.includes('if capability.is_tool_family() {'),
+    detail:
+      'probe matrix conformance helper must not collapse typed tool-family probe keys to execute_tool',
+  });
+
   const classifierRequiredContractCoverageCount = MATRIX_CAPABILITIES.filter((row) => {
     const contractRegex = new RegExp(
       `Capability::${reEscape(
@@ -404,6 +413,31 @@ function run(): number {
     detail: 'classifier does not emit execute_tool fallback diagnostics for typed probe routing',
   });
 
+  const strictProbeFields = ['tool_available', 'transport_available'] as const;
+  for (const row of MATRIX_CAPABILITIES) {
+    for (const field of strictProbeFields) {
+      const probeMatrixCaseRegex = new RegExp(
+        `capability:\\s*Capability::${reEscape(row.enumName)}\\s*,\\s*missing_field:\\s*"${field}"`,
+        'm',
+      );
+      checks.push({
+        id: `typed_probe_contract_matrix_conformance_case_${row.key}_${field}`,
+        ok: probeMatrixCaseRegex.test(probeMatrixSource),
+        detail:
+          `conformance matrix must include strict ${row.key} missing ${field} probe case`,
+      });
+    }
+  }
+
+  const expectedStrictMatrixRows = (MATRIX_CAPABILITIES.length * strictProbeFields.length) + 1 + 5 + 4;
+  const expectedTotalExecutedCases = (expectedStrictMatrixRows * 4) + 2;
+  checks.push({
+    id: 'typed_probe_contract_matrix_conformance_case_count_canonical',
+    ok: new RegExp(`executed_cases,\\s*${expectedTotalExecutedCases}`, 'm').test(probeMatrixSource),
+    detail:
+      `conformance matrix canonical executed-case count must remain ${expectedTotalExecutedCases} (strict surfaces + legacy compatibility cases)`,
+  });
+
   checks.push({
     id: 'typed_probe_contract_matrix_legacy_execute_tool_is_explicit_compatibility',
     ok: contractsSource.includes('Legacy compatibility capability retained for older probe payloads.'),
@@ -457,11 +491,38 @@ function run(): number {
   });
 
   checks.push({
+    id: 'typed_probe_contract_matrix_parser_local_workspace_hint_guard',
+    ok:
+      parserSource.includes('payload_local_workspace_intent')
+      && parserSource.includes('payload_web_intent')
+      && parserSource.includes('hints.retain(|hint| hint != "web_search" && hint != "web_fetch")'),
+    detail:
+      'parser must enforce local-workspace hint guard by stripping default web hints when no web intent exists',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_parser_hint_alias_normalization',
+    ok:
+      parserSource.includes('normalize_tool_hint_alias')
+      && parserSource.includes('"file_list"')
+      && parserSource.includes('"workspace_search"'),
+    detail:
+      'parser tool hints must normalize alias tokens (e.g. file_list) into canonical typed capability keys',
+  });
+
+  checks.push({
     id: 'typed_probe_contract_matrix_parser_workspace_target_keys_directory_folder',
     ok:
       parserSource.includes('"workspace_path"')
       && parserSource.includes('"repo_path"')
       && parserSource.includes('"repository_path"')
+      && parserSource.includes('"workspace_root"')
+      && parserSource.includes('"repo_root"')
+      && parserSource.includes('"root_path"')
+      && parserSource.includes('"working_directory"')
+      && parserSource.includes('"current_directory"')
+      && parserSource.includes('"directory_path"')
+      && parserSource.includes('"folder_path"')
       && parserSource.includes('"workspace_paths"')
       && parserSource.includes('"repo_paths"')
       && parserSource.includes('"repository_paths"')
@@ -472,7 +533,7 @@ function run(): number {
 
   checks.push({
     id: 'typed_probe_contract_matrix_parser_workspace_target_keys_cwd',
-    ok: parserSource.includes('"cwd_path"'),
+    ok: parserSource.includes('"cwd_path"') && parserSource.includes('"pwd_path"'),
     detail: 'parser workspace signal detection must include cwd_path payload keys for local file intents',
   });
 
@@ -490,6 +551,19 @@ function run(): number {
       && parserSource.includes("trimmed.starts_with(\"..\\\\\")"),
     detail:
       'parser generic target detection must classify Windows drive/backslash paths as workspace paths',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_parser_workspace_target_object_payloads',
+    ok:
+      parserSource.includes("extract_nested_target_scalar")
+      && parserSource.includes('"value"')
+      && parserSource.includes('"path"')
+      && parserSource.includes('"workspace_path"')
+      && parserSource.includes('"directory"')
+      && parserSource.includes('"folder"'),
+    detail:
+      'parser target extraction must normalize object-shaped workspace payload values (value/path/directory/folder) to avoid file-route misses',
   });
 
   const matrixRows = MATRIX_CAPABILITIES.map((row) => ({

@@ -39,6 +39,7 @@ function parseArgs(argv: string[]) {
     out: 'core/local/artifacts/runtime_boundedness_inspect_current.json',
   });
   const profile = parseProfile(readFlag(argv, 'profile'));
+  const profileSuffix = profile || 'unknown';
   return {
     strict: common.strict,
     profile,
@@ -58,6 +59,11 @@ function parseArgs(argv: string[]) {
     ),
     markdownOutPath: cleanText(
       readFlag(argv, 'out-markdown') || 'local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_CURRENT.md',
+      400,
+    ),
+    boundednessReportOutPath: cleanText(
+      readFlag(argv, 'out-boundedness-report') ||
+        `core/local/artifacts/runtime_boundedness_report_${profileSuffix}_current.json`,
       400,
     ),
   };
@@ -405,9 +411,38 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     },
     rows,
     failures,
-    artifact_paths: [args.markdownOutPath],
+    artifact_paths: [args.markdownOutPath, args.boundednessReportOutPath],
   };
 
+  const metric = (id: string) => rows.find((row) => row.metric === id);
+  const peakRss = safeNumber(metric('peak_rss_mb')?.actual, 0);
+  const queueDepthMax = safeNumber(metric('queue_depth_max')?.actual, 0);
+  const queueDepthP95 = safeNumber(metric('queue_depth_p95')?.actual, 0);
+  const staleSurfaceCount = safeNumber(metric('stale_surface_incidents')?.actual, 0);
+  const conduitRecoveryMs = safeNumber(metric('conduit_recovery_ms')?.actual, 0);
+  const adapterRecoveryMs = safeNumber(metric('adapter_recovery_ms')?.actual, 0);
+  const boundednessReport = {
+    ok: report.ok,
+    type: 'runtime_boundedness_report',
+    generated_at: report.generated_at,
+    revision: report.revision,
+    profile: args.profile,
+    source_inspect_artifact: args.outPath,
+    summary: {
+      pass: report.summary.pass,
+      overall_status: report.summary.overall_status,
+      max_rss_mb: peakRss,
+      queue_depth_max: queueDepthMax,
+      queue_depth_p95: queueDepthP95,
+      stale_surface_count: staleSurfaceCount,
+      recovery_time_ms_max: Math.max(conduitRecoveryMs, adapterRecoveryMs),
+      recovery_time_ms_conduit: conduitRecoveryMs,
+      recovery_time_ms_adapter: adapterRecoveryMs,
+    },
+  };
+  const boundednessReportAbs = path.resolve(root, args.boundednessReportOutPath);
+  fs.mkdirSync(path.dirname(boundednessReportAbs), { recursive: true });
+  fs.writeFileSync(boundednessReportAbs, `${JSON.stringify(boundednessReport, null, 2)}\n`, 'utf8');
   writeTextArtifact(args.markdownOutPath, markdown(report));
 
   return emitStructuredResult(report, {

@@ -66,6 +66,19 @@ pub fn execute_governed_workflow(
     );
     if let Some(chaos_error) = chaos_error_code(payload.get("chaos_scenario").and_then(Value::as_str))
     {
+        let chaos_scenario = clean_token(
+            payload
+                .get("chaos_scenario")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            80,
+        )
+        .to_ascii_lowercase();
+        if chaos_scenario == "repeated_flapping" || chaos_scenario == "flapping" {
+            return Err(format!(
+                "{chaos_error};runtime_circuit_state=open;runtime_quarantine_active=true"
+            ));
+        }
         return Err(chaos_error);
     }
 

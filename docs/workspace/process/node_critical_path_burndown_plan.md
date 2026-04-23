@@ -47,6 +47,19 @@ Anything outside the allowlist is a fail-closed gate violation.
 - Operator-critical domains are explicitly tracked (`release`, `repair`, `topology_truth`, `recovery`, `status`) and priority-1 lanes in those domains must target `rust_native`.
 - Priority-1 operator-critical lane target dates are capped by `operator_critical_priority_cutoff_date`; dates beyond cutoff fail closed.
 
+## Ordered Migration Queue
+
+`client/runtime/config/node_critical_path_burndown_plan.json` defines `ordered_migration_queue`.
+
+The queue is mandatory and CI fail-closes on:
+
+- missing queue
+- duplicate queue IDs
+- queue IDs not present in declared lane set
+- missing priority-1 operator-critical lanes in the queue
+
+This keeps migration execution deterministic and prevents silent priority drift.
+
 ## Release Integration
 
 Release evidence explicitly executes and captures this gate before proof-pack assembly in `.github/workflows/release.yml`.

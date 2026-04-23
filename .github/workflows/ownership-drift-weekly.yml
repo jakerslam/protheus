@@ -25,6 +25,9 @@ jobs:
       - name: Ownership drift guard (strict)
         run: npm run -s ops:ownership:drift:guard
 
+      - name: Ownership drift weekly report (high-severity threshold)
+        run: npm run -s ops:ownership:drift:weekly
+
       - name: Upload ownership drift artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -32,5 +35,7 @@ jobs:
           name: ownership-drift-weekly-artifacts
           path: |
             core/local/artifacts/ownership_drift_guard_current.json
+            core/local/artifacts/ownership_drift_weekly_current.json
             local/workspace/reports/OWNERSHIP_DRIFT_GUARD_CURRENT.md
+            local/workspace/reports/OWNERSHIP_DRIFT_WEEKLY_CURRENT.md
           if-no-files-found: warn

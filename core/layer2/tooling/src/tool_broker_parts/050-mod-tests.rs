@@ -83,6 +83,56 @@ mod tests {
     }
 
     #[test]
+    fn broker_canonicalizes_tool_route_aliases_to_workspace_analyze() {
+        let mut broker = ToolBroker::default();
+        let out = broker
+            .execute_and_normalize(
+                ToolCallRequest {
+                    trace_id: "trace-tool-alias".to_string(),
+                    task_id: "task-tool-alias".to_string(),
+                    tool_name: "tool_route".to_string(),
+                    args: json!({"query":"inspect route"}),
+                    lineage: vec![],
+                    caller: BrokerCaller::Worker,
+                    policy_revision: None,
+                    tool_version: None,
+                    freshness_window_ms: None,
+                    force_no_dedupe: false,
+                },
+                |_| Ok(json!({"results":[{"summary":"ok"}]})),
+            )
+            .expect("tool alias");
+        assert_eq!(out.normalized_result.tool_name, "workspace_analyze");
+    }
+
+    #[test]
+    fn broker_uses_freshness_window_from_request_args_when_not_explicit() {
+        let mut broker = ToolBroker::default();
+        let out = broker
+            .execute_and_normalize(
+                ToolCallRequest {
+                    trace_id: "trace-freshness".to_string(),
+                    task_id: "task-freshness".to_string(),
+                    tool_name: "workspace_analyze".to_string(),
+                    args: json!({"query":"inspect", "freshness_window_ms": 42000}),
+                    lineage: vec![],
+                    caller: BrokerCaller::Worker,
+                    policy_revision: None,
+                    tool_version: None,
+                    freshness_window_ms: None,
+                    force_no_dedupe: false,
+                },
+                |_| Ok(json!({"results":[{"summary":"ok"}]})),
+            )
+            .expect("freshness");
+        assert!(out
+            .normalized_result
+            .lineage
+            .iter()
+            .any(|row| row == "freshness_window_ms:42000"));
+    }
+
+    #[test]
     fn broker_dedupe_hash_changes_when_policy_revision_changes() {
         let mut broker = ToolBroker::default();
         let first = broker
@@ -387,4 +437,3 @@ mod tests {
         assert_eq!(trace_a[0].attempt_sequence, 1);
     }
 }
-

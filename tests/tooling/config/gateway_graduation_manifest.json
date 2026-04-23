@@ -23,6 +23,48 @@
     "otlp_exporter",
     "durable_memory_local"
   ],
+  "support_level_contract": {
+    "experimental": {
+      "required_checklist_keys": [
+        "health_checks",
+        "chaos_scenarios",
+        "fallback_degradation_declaration",
+        "receipt_completeness",
+        "recovery_bounds"
+      ],
+      "allowed_checklist_statuses": [
+        "pending",
+        "in_progress",
+        "complete"
+      ]
+    },
+    "candidate": {
+      "required_checklist_keys": [
+        "health_checks",
+        "chaos_scenarios",
+        "fallback_degradation_declaration",
+        "receipt_completeness",
+        "recovery_bounds"
+      ],
+      "allowed_checklist_statuses": [
+        "in_progress",
+        "complete"
+      ]
+    },
+    "graduated": {
+      "required_checklist_keys": [
+        "health_checks",
+        "fail_closed_behavior",
+        "chaos_scenarios",
+        "fallback_degradation_declaration",
+        "receipt_completeness",
+        "recovery_bounds"
+      ],
+      "allowed_checklist_statuses": [
+        "complete"
+      ]
+    }
+  },
   "adapters": [
     {
       "id": "langgraph",

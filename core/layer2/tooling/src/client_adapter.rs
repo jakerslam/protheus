@@ -29,6 +29,7 @@ pub trait ToolBridge {
     fn web_search(&self, args: &Value) -> Result<Value, String>;
     fn file_read(&self, args: &Value) -> Result<Value, String>;
     fn file_read_many(&self, args: &Value) -> Result<Value, String>;
+    fn workspace_analyze(&self, args: &Value) -> Result<Value, String>;
 }
 
 pub struct ThinClientDelegator {
@@ -93,6 +94,7 @@ impl ThinClientDelegator {
                     "web_search" => bridge.web_search(normalized_args),
                     "file_read" => bridge.file_read(normalized_args),
                     "file_read_many" => bridge.file_read_many(normalized_args),
+                    "workspace_analyze" => bridge.workspace_analyze(normalized_args),
                     _ => Err("unsupported_tool".to_string()),
                 },
             )?;
@@ -107,14 +109,35 @@ impl ThinClientDelegator {
             produced_evidence_ids.extend(ids);
         }
         if produced_evidence_ids.is_empty() {
-            open_questions.push(
-                "No usable evidence was produced. Retry with narrower web query or specific file path."
-                    .to_string(),
-            );
-            recommended_next_actions.push(
-                "Retry with one explicit source URL or one exact workspace file path.".to_string(),
-            );
+            if user_input_requests_local_workspace_only(request.user_input.as_str()) {
+                open_questions
+                    .push("No workspace target was supplied for this local tooling turn.".to_string());
+                recommended_next_actions.push(
+                    "Provide one exact workspace path (file or folder) so I can stay local and continue."
+                        .to_string(),
+                );
+            } else {
+                open_questions.push(
+                    "No usable evidence was produced. Retry with narrower web query or specific file path."
+                        .to_string(),
+                );
+                recommended_next_actions.push(
+                    "Retry with one explicit source URL or one exact workspace file path."
+                        .to_string(),
+                );
+            }
         }
+        append_synthesis_followups(
+            request,
+            &mut recommended_next_actions,
+            &mut open_questions,
+            &blockers,
+            tool_calls,
+        );
+        recommended_next_actions.sort();
+        recommended_next_actions.dedup();
+        open_questions.sort();
+        open_questions.dedup();
         let active_cards = produced_evidence_ids
             .iter()
             .filter_map(|id| self.evidence_store.evidence_by_id(id).cloned())
@@ -188,6 +211,89 @@ fn estimate_tokens(raw: &str) -> usize {
     (clean_text(raw, 8000).len() / 4).max(1)
 }
 
+fn contains_any(haystack: &str, needles: &[&str]) -> bool {
+    needles.iter().any(|needle| haystack.contains(needle))
+}
+
+fn user_input_requests_local_workspace_only(user_input: &str) -> bool {
+    let lowered = user_input.to_ascii_lowercase();
+    let local_tokens = [
+        "workspace",
+        "local",
+        "directory",
+        "folder",
+        "file tooling",
+        "file tool",
+        "repo",
+        "path",
+    ];
+    let web_tokens = ["http://", "https://", "web", "internet", "online", "browser"];
+    contains_any(lowered.as_str(), &local_tokens) && !contains_any(lowered.as_str(), &web_tokens)
+}
+
+fn user_input_requests_tooling_surface(user_input: &str) -> bool {
+    let lowered = user_input.to_ascii_lowercase();
+    contains_any(
+        lowered.as_str(),
+        &[
+            "mcp",
+            "tool route",
+            "tooling",
+            "gateway",
+            "/mcp",
+            "/tool",
+            "/tools",
+            "feature flag",
+            "remote config",
+            "telemetry",
+        ],
+    )
+}
+
+fn user_input_requests_worker_queue_context(user_input: &str) -> bool {
+    let lowered = user_input.to_ascii_lowercase();
+    contains_any(
+        lowered.as_str(),
+        &["worker", "queue", "backfill", "sync", "retry", "backoff"],
+    )
+}
+
+fn append_synthesis_followups(
+    request: &ClientAdapterRequest,
+    recommended_next_actions: &mut Vec<String>,
+    open_questions: &mut Vec<String>,
+    blockers: &[String],
+    tool_calls: usize,
+) {
+    if user_input_requests_tooling_surface(request.user_input.as_str()) {
+        recommended_next_actions.push(
+            "Include an explicit tool route scope (mcp, workspace, or web) to keep routing deterministic."
+                .to_string(),
+        );
+    }
+    if user_input_requests_worker_queue_context(request.user_input.as_str()) {
+        recommended_next_actions.push(
+            "Attach queue context (lane, retry budget, and backoff window) so worker recommendations stay reproducible."
+                .to_string(),
+        );
+    }
+    if tool_calls == 0 {
+        open_questions.push(
+            "No governed tool routes executed. Should this turn force a local workspace route, web route, or mixed route?"
+                .to_string(),
+        );
+    }
+    if blockers
+        .iter()
+        .any(|row| row.contains("tool_capability_unavailable"))
+    {
+        recommended_next_actions.push(
+            "Inspect capability probe status and re-run with a route that is marked available."
+                .to_string(),
+        );
+    }
+}
+
 fn plan_tools(request: &ClientAdapterRequest) -> Vec<(&'static str, Value)> {
     let mut out = Vec::<(&'static str, Value)>::new();
     let user_input = request.user_input.to_ascii_lowercase();
@@ -207,11 +313,25 @@ fn plan_tools(request: &ClientAdapterRequest) -> Vec<(&'static str, Value)> {
         .map(|v| clean_text(v, 2000))
         .filter(|v| !v.is_empty())
         .collect::<Vec<_>>();
-    let wants_web = user_input.contains("search") || user_input.contains("web");
+    let local_workspace_only_turn = user_input_requests_local_workspace_only(user_input.as_str());
+    let tooling_surface_turn = user_input_requests_tooling_surface(user_input.as_str());
+    let explicit_web_query = !web_query.is_empty();
+    let wants_web = explicit_web_query
+        || ((user_input.contains("search") || user_input.contains("web"))
+            && !local_workspace_only_turn);
     let wants_file = user_input.contains("file")
         || user_input.contains("read")
+        || user_input.contains("workspace")
+        || user_input.contains("directory")
+        || user_input.contains("folder")
         || !file_path.is_empty()
         || !file_paths.is_empty();
+    if tooling_surface_turn {
+        out.push((
+            "workspace_analyze",
+            json!({"query": format!("tooling route synthesis: {}", clean_text(request.user_input.as_str(), 800))}),
+        ));
+    }
     if wants_web {
         out.push(("web_search", json!({"query": web_query})));
     }
@@ -220,7 +340,13 @@ fn plan_tools(request: &ClientAdapterRequest) -> Vec<(&'static str, Value)> {
     } else if wants_file && !file_path.is_empty() {
         out.push(("file_read", json!({"path": file_path})));
     }
-    if out.is_empty() {
+    if out.is_empty() && local_workspace_only_turn {
+        out.push((
+            "workspace_analyze",
+            json!({"query": format!("workspace-only request: {}", clean_text(request.user_input.as_str(), 800))}),
+        ));
+    }
+    if out.is_empty() && !local_workspace_only_turn {
         out.push(("web_search", json!({"query": web_query})));
     }
     out
@@ -292,6 +418,19 @@ mod tests {
                         "excerpt": "batched file evidence"
                     })
                 }).collect::<Vec<_>>()
+            }))
+        }
+
+        fn workspace_analyze(&self, args: &Value) -> Result<Value, String> {
+            let query = args.get("query").and_then(Value::as_str).unwrap_or("");
+            Ok(json!({
+                "results": [
+                    {
+                        "source_ref": "workspace://analysis",
+                        "summary": format!("workspace analyze result for {query}"),
+                        "excerpt": "tooling route available; queue pressure nominal"
+                    }
+                ]
             }))
         }
     }
@@ -380,6 +519,23 @@ mod tests {
             .expect("run");
         assert!(!out.worker_output.produced_evidence_ids.is_empty());
         assert!(out.claim_bundle.coverage_score > 0.0);
+    }
+
+    #[test]
+    fn tooling_surface_requests_route_through_workspace_analyze() {
+        let mut delegator = ThinClientDelegator::default();
+        let out = delegator
+            .run(
+                &request("check mcp tooling route and gateway status", None, None),
+                &MockBridge,
+            )
+            .expect("run");
+        assert!(!out.worker_output.produced_evidence_ids.is_empty());
+        assert!(out
+            .worker_output
+            .recommended_next_actions
+            .iter()
+            .any(|row| row.contains("tool route scope")));
     }
 
     #[test]
