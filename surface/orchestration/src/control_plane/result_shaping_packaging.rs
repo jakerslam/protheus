@@ -17,6 +17,7 @@ pub fn boundary() -> SubdomainBoundary {
             "execution_observation_snapshot",
             "core_probe_envelope",
             "typed_request_snapshot",
+            "workspace_tooling_probe_snapshot",
         ],
         allowed_kernel_outputs: &[
             "result_package_projection",
@@ -25,6 +26,7 @@ pub fn boundary() -> SubdomainBoundary {
         ],
         message_boundaries: &[
             "packaging_to_shell_boundary",
+            "packaging_to_synthesis_summary_boundary",
             "packaging_to_kernel_recommendation_boundary",
         ],
     }

@@ -10,15 +10,11 @@ fn adapted_probe_authority_matrix_executes_50_real_cases() {
     }
 
     fn capability_key(capability: Capability) -> &'static str {
-        if capability.is_tool_family() {
-            "execute_tool"
-        } else {
-            capability
-                .probe_keys()
-                .first()
-                .copied()
-                .unwrap_or("execute_tool")
-        }
+        capability
+            .probe_keys()
+            .first()
+            .copied()
+            .unwrap_or_else(|| panic!("capability must expose at least one probe key"))
     }
 
     fn probe_snapshot_with_missing_field(
@@ -63,12 +59,19 @@ fn adapted_probe_authority_matrix_executes_50_real_cases() {
             refs,
             tool_hints,
         ) = match capability {
-            Capability::WorkspaceRead
-            | Capability::WorkspaceSearch
-            | Capability::WebSearch
-            | Capability::WebFetch
-            | Capability::ToolRoute
-            | Capability::ExecuteTool => (
+            Capability::WorkspaceRead | Capability::WorkspaceSearch => (
+                RequestKind::Direct,
+                OperationKind::Search,
+                ResourceKind::Workspace,
+                Mutability::ReadOnly,
+                PolicyScope::WorkspaceOnly,
+                vec![TargetDescriptor::WorkspacePath {
+                    value: "README.md".to_string(),
+                }],
+                vec!["README.md".to_string()],
+                vec!["workspace_search".to_string()],
+            ),
+            Capability::WebSearch | Capability::WebFetch => (
                 RequestKind::Direct,
                 OperationKind::Search,
                 ResourceKind::Web,
@@ -79,6 +82,18 @@ fn adapted_probe_authority_matrix_executes_50_real_cases() {
                 }],
                 vec!["https://example.com/releases".to_string()],
                 vec!["web_search".to_string()],
+            ),
+            Capability::ToolRoute | Capability::ExecuteTool => (
+                RequestKind::Direct,
+                OperationKind::InspectTooling,
+                ResourceKind::Tooling,
+                Mutability::ReadOnly,
+                PolicyScope::Default,
+                vec![TargetDescriptor::ToolName {
+                    value: "shell.exec".to_string(),
+                }],
+                vec!["shell.exec".to_string()],
+                vec!["tool_route".to_string()],
             ),
             Capability::VerifyClaim => (
                 RequestKind::Comparative,
@@ -208,12 +223,52 @@ fn adapted_probe_authority_matrix_executes_50_real_cases() {
 
     let matrix = vec![
         MatrixCase {
-            capability: Capability::ExecuteTool,
+            capability: Capability::WorkspaceRead,
             missing_field: "tool_available",
             expected_precondition: Precondition::ToolAvailable,
         },
         MatrixCase {
-            capability: Capability::ExecuteTool,
+            capability: Capability::WorkspaceRead,
+            missing_field: "transport_available",
+            expected_precondition: Precondition::TransportAvailable,
+        },
+        MatrixCase {
+            capability: Capability::WorkspaceSearch,
+            missing_field: "tool_available",
+            expected_precondition: Precondition::ToolAvailable,
+        },
+        MatrixCase {
+            capability: Capability::WorkspaceSearch,
+            missing_field: "transport_available",
+            expected_precondition: Precondition::TransportAvailable,
+        },
+        MatrixCase {
+            capability: Capability::WebSearch,
+            missing_field: "tool_available",
+            expected_precondition: Precondition::ToolAvailable,
+        },
+        MatrixCase {
+            capability: Capability::WebSearch,
+            missing_field: "transport_available",
+            expected_precondition: Precondition::TransportAvailable,
+        },
+        MatrixCase {
+            capability: Capability::WebFetch,
+            missing_field: "tool_available",
+            expected_precondition: Precondition::ToolAvailable,
+        },
+        MatrixCase {
+            capability: Capability::WebFetch,
+            missing_field: "transport_available",
+            expected_precondition: Precondition::TransportAvailable,
+        },
+        MatrixCase {
+            capability: Capability::ToolRoute,
+            missing_field: "tool_available",
+            expected_precondition: Precondition::ToolAvailable,
+        },
+        MatrixCase {
+            capability: Capability::ToolRoute,
             missing_field: "transport_available",
             expected_precondition: Precondition::TransportAvailable,
         },
@@ -308,6 +363,13 @@ fn adapted_probe_authority_matrix_executes_50_real_cases() {
                 !probe
                     .probe_sources
                     .iter()
+                    .any(|source| source.contains(".execute_tool.")),
+                "strict adapted surfaces must not collapse typed capability probe source to execute_tool"
+            );
+            assert!(
+                !probe
+                    .probe_sources
+                    .iter()
                     .any(|source| source.starts_with("heuristic.")),
                 "strict adapted surfaces must not consume heuristic probes"
             );
@@ -354,7 +416,7 @@ fn adapted_probe_authority_matrix_executes_50_real_cases() {
     executed_cases += 1;
 
     assert_eq!(
-        executed_cases, 50,
-        "probe authority matrix must execute 50 cases"
+        executed_cases, 82,
+        "probe authority matrix must execute 82 cases"
     );
 }

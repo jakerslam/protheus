@@ -14,12 +14,13 @@ pub mod sequencing;
 pub mod transient_context;
 
 use contracts::{
-    ClosureState, ControlPlaneClosureState, ControlPlaneHandoff, ControlPlaneLifecycleState,
-    CoreExecutionObservation, DegradationReason, ExecutionCorrelation, ExecutionState,
-    OrchestrationExecutionObservationUpdate, OrchestrationFallbackAction, OrchestrationPlan,
-    OrchestrationRequest, OrchestrationResultPackage, PlanCandidate, PlanScore, PlanStatus,
-    PlanVariant, RecoveryDecision, RecoveryReason, RecoveryState, RuntimeQualitySignals,
-    WorkflowStage, WorkflowStageState, WorkflowStageStatus, WorkflowTemplate,
+    ClosureState, ControlPlaneClosureState, ControlPlaneDecisionTrace, ControlPlaneHandoff,
+    ControlPlaneLifecycleState, CoreExecutionObservation, DegradationReason, ExecutionCorrelation,
+    ExecutionState, OrchestrationExecutionObservationUpdate, OrchestrationFallbackAction,
+    OrchestrationPlan, OrchestrationRequest, OrchestrationResultPackage, PlanCandidate, PlanScore,
+    PlanStatus, PlanVariant, ReceiptDebugMetadata, RecoveryDecision, RecoveryReason, RecoveryState,
+    RuntimeQualitySignals, WorkflowStage, WorkflowStageState, WorkflowStageStatus,
+    WorkflowTemplate,
 };
 use self_maintenance::contracts::{
     ArchitectureAuditInput, CiReportInput, HealthMetricInput, MemoryPressureInput,
@@ -122,6 +123,14 @@ impl OrchestrationSurfaceRuntime {
                         expected_core_contract_ids: Vec::new(),
                         observed_core_receipt_ids: Vec::new(),
                         observed_core_outcome_refs: Vec::new(),
+                        receipt_metadata: ReceiptDebugMetadata {
+                            decision_trace: ControlPlaneDecisionTrace {
+                                chosen: "plan_transient_context_failed".to_string(),
+                                alternatives_rejected: Vec::new(),
+                                confidence: 0.0,
+                                rationale: vec!["transient_context_unavailable".to_string()],
+                            },
+                        },
                     },
                 },
                 recovery_applied: true,
@@ -165,6 +174,15 @@ impl OrchestrationSurfaceRuntime {
                     all_candidates_degraded: false,
                     all_candidates_require_clarification: true,
                     surface_adapter_fallback,
+                    typed_probe_contract_gap_count: 0,
+                    decision_rationale_count: 1,
+                    fallback_action_count: 0,
+                },
+                decision_trace: ControlPlaneDecisionTrace {
+                    chosen: "plan_transient_context_failed".to_string(),
+                    alternatives_rejected: Vec::new(),
+                    confidence: 0.0,
+                    rationale: vec!["transient_context_unavailable".to_string()],
                 },
                 workflow_template: workflow_template.clone(),
                 control_plane_lifecycle: ControlPlaneLifecycleState {
