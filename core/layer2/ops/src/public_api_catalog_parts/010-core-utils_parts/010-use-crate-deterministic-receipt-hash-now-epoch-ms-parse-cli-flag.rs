@@ -16,14 +16,14 @@ const DEFAULT_MIN_SYNC_ACTIONS: usize = 1;
 
 const USAGE: &[&str] = &[
     "Usage:",
-    "  protheus-ops public-api-catalog status [--state-path=<path>] [--policy=<path>] [--strict=1|0]",
-    "  protheus-ops public-api-catalog sync|run [--catalog-path=<path>|--catalog-json=<json>] [--source=<label>] [--state-path=<path>] [--strict=1|0]",
-    "  protheus-ops public-api-catalog search --query=<text> [--limit=<n>] [--state-path=<path>]",
-    "  protheus-ops public-api-catalog integrate --action-id=<id> [--state-path=<path>] [--strict=1|0]",
-    "  protheus-ops public-api-catalog connect --platform=<name> [--connection-key=<key>] [--access-token=<token>] [--refresh-token=<token>] [--expires-epoch-ms=<u64>] [--oauth-passthrough=1|0] [--state-path=<path>]",
-    "  protheus-ops public-api-catalog import-flow [--flow-path=<path>|--flow-json=<json>] [--workflow-id=<id>] [--state-path=<path>] [--strict=1|0]",
-    "  protheus-ops public-api-catalog run-flow [--workflow-id=<id>|--flow-path=<path>] [--input-json=<json>] [--state-path=<path>] [--strict=1|0]",
-    "  protheus-ops public-api-catalog verify [--state-path=<path>] [--max-age-days=<f64>] [--strict=1|0]",
+    "  infring-ops public-api-catalog status [--state-path=<path>] [--policy=<path>] [--strict=1|0]",
+    "  infring-ops public-api-catalog sync|run [--catalog-path=<path>|--catalog-json=<json>] [--source=<label>] [--state-path=<path>] [--strict=1|0]",
+    "  infring-ops public-api-catalog search --query=<text> [--limit=<n>] [--state-path=<path>]",
+    "  infring-ops public-api-catalog integrate --action-id=<id> [--state-path=<path>] [--strict=1|0]",
+    "  infring-ops public-api-catalog connect --platform=<name> [--connection-key=<key>] [--access-token=<token>] [--refresh-token=<token>] [--expires-epoch-ms=<u64>] [--oauth-passthrough=1|0] [--state-path=<path>]",
+    "  infring-ops public-api-catalog import-flow [--flow-path=<path>|--flow-json=<json>] [--workflow-id=<id>] [--state-path=<path>] [--strict=1|0]",
+    "  infring-ops public-api-catalog run-flow [--workflow-id=<id>|--flow-path=<path>] [--input-json=<json>] [--state-path=<path>] [--strict=1|0]",
+    "  infring-ops public-api-catalog verify [--state-path=<path>] [--max-age-days=<f64>] [--strict=1|0]",
 ];
 
 #[derive(Debug, Clone)]

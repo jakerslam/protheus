@@ -12,9 +12,9 @@ const PLACEHOLDER_TYPES: &[&str] = &[
 
 fn usage() {
     println!("proposal-type-classifier-kernel commands:");
-    println!("  protheus-ops proposal-type-classifier-kernel normalize-type-key [--payload-base64=<json>]");
-    println!("  protheus-ops proposal-type-classifier-kernel extract-source-eye-id [--payload-base64=<json>]");
-    println!("  protheus-ops proposal-type-classifier-kernel classify [--payload-base64=<json>]");
+    println!("  infring-ops proposal-type-classifier-kernel normalize-type-key [--payload-base64=<json>]");
+    println!("  infring-ops proposal-type-classifier-kernel extract-source-eye-id [--payload-base64=<json>]");
+    println!("  infring-ops proposal-type-classifier-kernel classify [--payload-base64=<json>]");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {

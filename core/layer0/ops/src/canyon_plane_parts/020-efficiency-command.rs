@@ -54,7 +54,7 @@ fn efficiency_command(
         .flags
         .get("binary-path")
         .map(PathBuf::from)
-        .unwrap_or_else(|| root.join("target").join("debug").join("protheus-ops"));
+        .unwrap_or_else(|| root.join("target").join("debug").join("infring-ops"));
     let size_bytes = fs::metadata(&binary_path)
         .map(|m| m.len())
         .map_err(|err| format!("binary_metadata_failed:{}:{err}", binary_path.display()))?;
@@ -104,7 +104,7 @@ fn efficiency_command(
             .join("target")
             .join(target)
             .join("release")
-            .join("protheus-ops");
+            .join("infring-ops");
         let exists = candidate.exists();
         targets.push(json!({
             "target": target,

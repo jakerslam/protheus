@@ -28,13 +28,13 @@ const DEFAULT_MAPPING_ROOT: &str = "planes/contracts/parse/mappings";
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops parse-plane status");
-    println!("  protheus-ops parse-plane parse-doc [--file=<path>|--source=<text>] [--mapping=<id>|--mapping-path=<path>] [--strict=1|0]");
-    println!("  protheus-ops parse-plane visualize [--from-path=<path>] [--strict=1|0]");
-    println!("  protheus-ops parse-plane postprocess-table [--table-json=<json>|--table-path=<path>|--from-path=<path>] [--max-rows=<n>] [--max-cols=<n>] [--strict=1|0]");
-    println!("  protheus-ops parse-plane flatten [--json=<json>|--json-path=<path>|--from-path=<path>] [--max-depth=<n>] [--format=dot|slash] [--strict=1|0]");
-    println!("  protheus-ops parse-plane export [--from-path=<path>] [--output-path=<path>|--out-path=<path>] [--format=json|jsonl|md] [--strict=1|0]");
-    println!("  protheus-ops parse-plane template-governance [--manifest=<path>] [--templates-root=<path>] [--strict=1|0]");
+    println!("  infring-ops parse-plane status");
+    println!("  infring-ops parse-plane parse-doc [--file=<path>|--source=<text>] [--mapping=<id>|--mapping-path=<path>] [--strict=1|0]");
+    println!("  infring-ops parse-plane visualize [--from-path=<path>] [--strict=1|0]");
+    println!("  infring-ops parse-plane postprocess-table [--table-json=<json>|--table-path=<path>|--from-path=<path>] [--max-rows=<n>] [--max-cols=<n>] [--strict=1|0]");
+    println!("  infring-ops parse-plane flatten [--json=<json>|--json-path=<path>|--from-path=<path>] [--max-depth=<n>] [--format=dot|slash] [--strict=1|0]");
+    println!("  infring-ops parse-plane export [--from-path=<path>] [--output-path=<path>|--out-path=<path>] [--format=json|jsonl|md] [--strict=1|0]");
+    println!("  infring-ops parse-plane template-governance [--manifest=<path>] [--templates-root=<path>] [--strict=1|0]");
 }
 
 fn state_root(root: &Path) -> PathBuf {

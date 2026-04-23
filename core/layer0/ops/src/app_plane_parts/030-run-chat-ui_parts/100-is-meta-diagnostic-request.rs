@@ -2,6 +2,31 @@ fn chat_ui_is_meta_diagnostic_request(lowered: &str) -> bool {
     if lowered.is_empty() {
         return false;
     }
+    let starts_with_tool_operation_verb = lowered.starts_with("access ")
+        || lowered.starts_with("use ")
+        || lowered.starts_with("run ")
+        || lowered.starts_with("execute ")
+        || lowered.starts_with("inspect ")
+        || lowered.starts_with("search ")
+        || lowered.starts_with("read ")
+        || lowered.starts_with("open ");
+    let explicit_tool_operation_intent = starts_with_tool_operation_verb
+        && chat_ui_contains_any(
+            lowered,
+            &[
+                "tool",
+                "tooling",
+                "workspace",
+                "file",
+                "web search",
+                "web fetch",
+                "batch query",
+                "apply patch",
+            ],
+        );
+    if explicit_tool_operation_intent {
+        return false;
+    }
     let explicit_web_intent = chat_ui_has_explicit_web_intent(lowered);
     let explicit_web_diagnostic_qualifier = [
         "randomly again",

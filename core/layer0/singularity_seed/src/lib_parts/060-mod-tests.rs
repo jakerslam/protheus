@@ -13,7 +13,7 @@ mod tests {
     fn temp_blob_root() -> PathBuf {
         let counter = TEST_COUNTER.fetch_add(1, Ordering::Relaxed);
         let dir = std::env::temp_dir().join(format!(
-            "protheus-singularity-seed-test-{}-{}",
+            "infring-singularity-seed-test-{}-{}",
             std::process::id(),
             counter
         ));
@@ -28,7 +28,7 @@ mod tests {
     fn cycle_runs_and_advances_generation() {
         let _lock = ENV_LOCK.lock().expect("lock env");
         let root = temp_blob_root();
-        std::env::set_var("PROTHEUS_SINGULARITY_BLOB_DIR", root.display().to_string());
+        std::env::set_var("INFRING_SINGULARITY_BLOB_DIR", root.display().to_string());
 
         let report = run_guarded_cycle(&CycleRequest::default()).expect("cycle should run");
         assert!(report.ok);
@@ -36,7 +36,7 @@ mod tests {
         assert_eq!(report.outcomes.len(), 4);
         assert!(report.outcomes.iter().all(|row| row.next_generation >= 2));
 
-        std::env::remove_var("PROTHEUS_SINGULARITY_BLOB_DIR");
+        std::env::remove_var("INFRING_SINGULARITY_BLOB_DIR");
         let _ = std::fs::remove_dir_all(root);
     }
 
@@ -44,7 +44,7 @@ mod tests {
     fn cycle_fail_closed_when_drift_exceeds_threshold() {
         let _lock = ENV_LOCK.lock().expect("lock env");
         let root = temp_blob_root();
-        std::env::set_var("PROTHEUS_SINGULARITY_BLOB_DIR", root.display().to_string());
+        std::env::set_var("INFRING_SINGULARITY_BLOB_DIR", root.display().to_string());
 
         let request = CycleRequest {
             drift_overrides: vec![DriftOverride {
@@ -57,7 +57,7 @@ mod tests {
         assert!(report.fail_closed);
         assert!(report.max_drift_pct > DRIFT_FAIL_CLOSED_THRESHOLD_PCT);
 
-        std::env::remove_var("PROTHEUS_SINGULARITY_BLOB_DIR");
+        std::env::remove_var("INFRING_SINGULARITY_BLOB_DIR");
         let _ = std::fs::remove_dir_all(root);
     }
 

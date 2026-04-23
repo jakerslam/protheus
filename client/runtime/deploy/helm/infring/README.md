@@ -1,21 +1,21 @@
-# Protheus Helm Chart
+# Infring Helm Chart
 
-This chart deploys the scheduled Protheus spine workload with hardened defaults.
+This chart deploys the scheduled Infring spine workload with hardened defaults.
 It also supports an always-on daemon deployment profile for multi-node operations.
 
 ## Install
 
 ```bash
-helm upgrade --install protheus ./client/runtime/deploy/helm/protheus --namespace protheus --create-namespace
+helm upgrade --install infring ./client/runtime/deploy/helm/infring --namespace infring --create-namespace
 ```
 
 If runtime credentials are required, reference an existing secret:
 
 ```bash
-helm upgrade --install protheus ./client/runtime/deploy/helm/protheus \
-  --namespace protheus \
+helm upgrade --install infring ./client/runtime/deploy/helm/infring \
+  --namespace infring \
   --create-namespace \
-  --set secrets.existingSecretName=protheus-runtime-secrets
+  --set secrets.existingSecretName=infring-runtime-secrets
 ```
 
 ## Key Values

@@ -90,8 +90,8 @@ mod tests {
         let spec = LaneSpec {
             lane_id: "sample_lane",
             lane_type: "sample_lane",
-            replacement: "protheus-ops sample-lane",
-            usage: &["Usage:", "  protheus-ops sample-lane status"],
+            replacement: "infring-ops sample-lane",
+            usage: &["Usage:", "  infring-ops sample-lane status"],
             passthrough_flags: &["apply", "strict"],
         };
         let args = vec![

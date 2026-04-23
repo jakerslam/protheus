@@ -56,7 +56,7 @@
                 "apply": apply,
                 "migration": migrated,
                 "signature_repair": signature_repair,
-                "commands": ["protheus directives migrate", "protheus directives status", "protheus prime sign", "protheus directives supersede"],
+                "commands": ["infring directives migrate", "infring directives status", "infring prime sign", "infring directives supersede"],
                 "policy_hash": directive_vault_hash(root),
                 "layer_map": ["0","1","2","client","app"],
                 "claim_evidence": [

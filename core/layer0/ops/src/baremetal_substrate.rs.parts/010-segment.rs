@@ -17,13 +17,13 @@ const DEFAULT_LEDGER_REL: &str = "local/state/ops/baremetal_substrate/fs_ledger.
 
 fn usage() {
     println!("baremetal-substrate commands:");
-    println!("  protheus-ops baremetal-substrate status [--state-path=<path>]");
-    println!("  protheus-ops baremetal-substrate boot-kernel [--payload-base64=<json>] [--state-path=<path>] [--history-path=<path>]");
-    println!("  protheus-ops baremetal-substrate schedule [--payload-base64=<json>] [--state-path=<path>] [--history-path=<path>]");
-    println!("  protheus-ops baremetal-substrate memory-manager [--payload-base64=<json>] [--state-path=<path>] [--history-path=<path>]");
-    println!("  protheus-ops baremetal-substrate fs-driver [--payload-base64=<json>] [--state-path=<path>] [--history-path=<path>] [--ledger-path=<path>]");
-    println!("  protheus-ops baremetal-substrate network-stack [--payload-base64=<json>] [--state-path=<path>] [--history-path=<path>]");
-    println!("  protheus-ops baremetal-substrate security-model [--payload-base64=<json>] [--state-path=<path>] [--history-path=<path>]");
+    println!("  infring-ops baremetal-substrate status [--state-path=<path>]");
+    println!("  infring-ops baremetal-substrate boot-kernel [--payload-base64=<json>] [--state-path=<path>] [--history-path=<path>]");
+    println!("  infring-ops baremetal-substrate schedule [--payload-base64=<json>] [--state-path=<path>] [--history-path=<path>]");
+    println!("  infring-ops baremetal-substrate memory-manager [--payload-base64=<json>] [--state-path=<path>] [--history-path=<path>]");
+    println!("  infring-ops baremetal-substrate fs-driver [--payload-base64=<json>] [--state-path=<path>] [--history-path=<path>] [--ledger-path=<path>]");
+    println!("  infring-ops baremetal-substrate network-stack [--payload-base64=<json>] [--state-path=<path>] [--history-path=<path>]");
+    println!("  infring-ops baremetal-substrate security-model [--payload-base64=<json>] [--state-path=<path>] [--history-path=<path>]");
 }
 
 fn payload_json(argv: &[String]) -> Result<Value, String> {

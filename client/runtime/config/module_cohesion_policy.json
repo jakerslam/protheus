@@ -22,7 +22,7 @@
     "client/runtime/local/",
     "core/local/",
     "scripts/generated/",
-    "packages/protheus-npm/dist/"
+    "packages/infring-npm/dist/"
   ],
   "ignore_exact_paths": [],
   "hard_cap_lines_default": 600,

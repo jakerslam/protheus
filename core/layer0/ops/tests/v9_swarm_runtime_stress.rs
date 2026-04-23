@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-use protheus_ops_core::swarm_runtime;
+use infring_ops_core::swarm_runtime;
 use serde_json::Value;
 use std::collections::BTreeSet;
 use std::fs;

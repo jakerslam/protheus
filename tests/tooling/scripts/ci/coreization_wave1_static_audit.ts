@@ -15,7 +15,7 @@ const TARGETS = [
   { module: 'memory', dir: 'client/runtime/systems/memory' },
   { module: 'autonomy', dir: 'client/runtime/systems/autonomy' },
   { module: 'workflow', dir: 'client/runtime/systems/workflow' },
-  { module: 'ops-daemon', dir: 'client/runtime/systems/ops', include: ['protheusd.ts'] },
+  { module: 'ops-daemon', dir: 'client/runtime/systems/ops', include: ['infringd.ts'] },
 ];
 
 const WRAPPER_PATTERNS = [

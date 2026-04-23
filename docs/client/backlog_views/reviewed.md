@@ -83,7 +83,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | BL-076 | done | reviewed | pass | yes | Rust dual-logic growth guard |
 | BL-077 | done | reviewed | pass | yes | Rust hotspot inventory + milestone calculator |
 | BL-078 | done | reviewed | pass | yes | Autonomy policy-hold pressure snapshot Rust migration (`autonomy_controller` hotpath) |
-| BL-079 | done | reviewed | pass | yes | npm distribution wrapper for `npm install -g protheus` |
+| BL-079 | done | reviewed | pass | yes | npm distribution wrapper for `npm install -g infring` |
 | BL-080 | done | reviewed | pass | yes | Autonomy policy-hold repeat-pattern Rust migration (`objectivePolicyHoldPattern`) |
 | BL-081 | done | reviewed | pass | yes | Autonomy policy-hold cooldown Rust migration (`policyHoldCooldownMinutesForResult`) |
 | BL-082 | done | reviewed | pass | yes | Route execution policy-hold decision primitive Rust migration (`routeExecutionPolicyHold`) |
@@ -458,7 +458,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V3-004E | existing-coverage-validated | queued | needs_implementation | no | Fractal inheritance lock enforcement |
 | V3-004F | existing-coverage-validated | queued | needs_implementation | no | Emergency constitutional rollback switch |
 | V3-005 | existing-coverage-validated | queued | needs_implementation | no | External anti-sabotage provenance net |
-| V3-006 | existing-coverage-validated | queued | needs_implementation | no | Recursive mini-core instancing (nested Protheus branches) |
+| V3-006 | existing-coverage-validated | queued | needs_implementation | no | Recursive mini-core instancing (nested Infring branches) |
 | V3-007 | existing-coverage-validated | queued | needs_implementation | no | Self-code evolution sandbox + guarded merge |
 | V3-008 | existing-coverage-validated | queued | needs_implementation | no | Runtime symbiotic fusion execution chamber |
 | V3-009 | existing-coverage-validated | queued | needs_implementation | no | Resonance field actuation gates |
@@ -472,7 +472,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V3-017 | existing-coverage-validated | queued | needs_implementation | no | Full real-world claws actuation bundle |
 | V3-018 | existing-coverage-validated | queued | needs_implementation | no | Research Organ (long-horizon closed-loop research sub-organ) |
 | V3-019 | existing-coverage-validated | queued | needs_implementation | no | Forge Organ (rapid temporary capability assembly) |
-| V3-020 | existing-coverage-validated | queued | needs_implementation | no | Protheus Prime seed profile + bounded-core manifest |
+| V3-020 | existing-coverage-validated | queued | needs_implementation | no | Infring Prime seed profile + bounded-core manifest |
 | V3-021 | existing-coverage-validated | queued | needs_implementation | no | Attested hardware assimilation plane (node join + lease scheduler) |
 | V3-022 | existing-coverage-validated | queued | needs_implementation | no | [V3] Deep-tier inversion ladder (identity/directive scope, still human-gated) |
 | V3-023 | existing-coverage-validated | queued | needs_implementation | no | [V3] Neural interface dormant seed (research-only, locked) |
@@ -642,12 +642,12 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V3-OPS-001 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Spine Terminal Run-State Closure (`complete`/`failed`) |
 | V3-OPS-002 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Gated Integrity Auto-Reseal Lane |
 | V3-OPS-003 | existing-coverage-validated | queued | needs_implementation | no | [dependency-anchor / V3] Legacy dependency anchor (V3-OPS-003) |
-| V3-OPS-004 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Unified Protheus Control Plane CLI (`protheus`) |
+| V3-OPS-004 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Unified Infring Control Plane CLI (`infring`) |
 | V3-OPS-005 | existing-coverage-validated | queued | needs_implementation | no | [dependency-anchor / V3] Legacy dependency anchor (V3-OPS-005) |
 | V3-OPS-006 | existing-coverage-validated | queued | needs_implementation | no | [dependency-anchor / V3] Legacy dependency anchor (V3-OPS-006) |
 | V3-OPS-007 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Incident Command Primitive Pack (`drain`, `freeze`, `quarantine`, `break_glass`) |
 | V3-OPS-008 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Release Channel + Atomic Upgrade/Rollback Plane (`dev/canary/stable`) |
-| V3-OPS-009 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Operator TUI (`protheus top`) |
+| V3-OPS-009 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Operator TUI (`infring top`) |
 | V3-OPS-010 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Plugin/Capability Registry with Version Pinning |
 | V3-OPS-011 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] External Eye Auth Lifecycle Guard (Bird/X + OAuth eyes) |
 | V3-OPS-012 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Backlog ID Collision Guard + Allocator |
@@ -697,7 +697,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V3-RACE-036 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Multi-Mind Isolation & Shared-Consciousness Boundary Plane |
 | V3-RACE-037 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Long-Term Archival & Sovereign Resurrection Substrate |
 | V3-RACE-038 | existing-coverage-validated | queued | needs_implementation | no | [dependency-anchor / V3] Legacy dependency anchor (V3-RACE-038) |
-| V3-RACE-038A | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Inter-Protheus Federation Trust Web & Temporary Merge Contracts |
+| V3-RACE-038A | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Inter-Infring Federation Trust Web & Temporary Merge Contracts |
 | V3-RACE-039 | existing-coverage-validated | queued | needs_implementation | no | [primitive / V3] Human-Machine Merge Interface Security Substrate |
 | V3-RACE-040 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Continuous Chaos Engineering + Auto-Remediation Suite |
 | V3-RACE-041 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Enterprise SLO + Observability Command Dashboard |
@@ -823,13 +823,13 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V3-RACE-166 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] A2A Delegation Plane (Agent-to-Agent Protocol Contracts) |
 | V3-RACE-167 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V3] System-3 Executive Layer (Growth Journal + Intrinsic Goal Loop) |
 | V3-RACE-168 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Ops Hardening Pack (Audit Chain + Background Hands + Skills UX) |
-| V3-RACE-169 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V3] `protheus-core` Modular Extraction (Kernel Package Contract) |
+| V3-RACE-169 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V3] `infring-core` Modular Extraction (Kernel Package Contract) |
 | V3-RACE-170 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Spine Kernel Budget Gate (<600 LOC Orchestration-Only Contract) |
 | V3-RACE-171 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V3] Cyclic Strategy Graph Runner (Governed State-Graph Execution) |
 | V3-RACE-172 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Hierarchical Memory View Plane (Kernel/Edit/Summary + Swap-Safe Summarization) |
 | V3-RACE-173 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Role-Based Crew Spawn Orchestrator (Shared Namespace Governance) |
 | V3-RACE-174 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Competitive Observability + Benchmark Pack (Trace/Evals + Framework Parity) |
-| V3-RACE-175 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] `protheus-core` Runtime Envelope Tightening (`<5MB`, `<200ms`, Optional-Flag Matrix) |
+| V3-RACE-175 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] `infring-core` Runtime Envelope Tightening (`<5MB`, `<200ms`, Optional-Flag Matrix) |
 | V3-RACE-176 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] MCP/A2A Contract-Lane and Venom-Gate Convergence |
 | V3-RACE-177 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V3] System-3 Meta-Curriculum Bridge (`system3 -> strategy_learner/model_catalog_loop`) |
 | V3-RACE-178 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V3] RSI Bootstrap Orchestrator Canonicalization (`client/cognition/adaptive/rsi`) |
@@ -838,14 +838,14 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V3-RACE-181 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] RSI Integrity Chain + Merkle Rollback + Resurrection Linkage |
 | V3-RACE-182 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] RSI Swarm Spawn Bridge (Nursery + `spawn_broker` + Inherited Governance + Supply-Chain Gate) |
 | V3-RACE-183 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Always-On Idle RSI Scheduler (Background Hands + Freshness Loop) |
-| V3-RACE-184 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] RSI Control-Plane CLI Surface (`protheusctl rsi *` + `contract-lane status`) |
-| V3-RACE-185 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V3] `protheus-core` Rust Binding Plane (NAPI/WASM API-Parity Bridge) |
+| V3-RACE-184 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] RSI Control-Plane CLI Surface (`infringctl rsi *` + `contract-lane status`) |
+| V3-RACE-185 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V3] `infring-core` Rust Binding Plane (NAPI/WASM API-Parity Bridge) |
 | V3-RACE-186 | existing-coverage-validated | queued | needs_implementation | no | [status-reconciliation / V3] Execution Sandbox Rust/WASM Coprocessor Lane (Optional, Policy-Gated) |
 | V3-RACE-187 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Formal Verification Depth Pack for Critical Runtime Paths |
 | V3-RACE-188 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Hybrid Interface Stability Contract (Rust Kernel, TS Orchestration, Zero-Break Cutover) |
-| V3-RACE-189 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] `protheus-edge` Lightweight Runtime Package (Reflex + MemFS Cache + Remote Spine Sync) |
+| V3-RACE-189 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] `infring-edge` Lightweight Runtime Package (Reflex + MemFS Cache + Remote Spine Sync) |
 | V3-RACE-190 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Mobile Lifecycle Resilience & Power Envelope Contract (Doze/Kill Recovery) |
-| V3-RACE-191 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Mobile Operator CLI Surface (`protheusctl edge *`, `protheus-top --mobile`) |
+| V3-RACE-191 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Mobile Operator CLI Surface (`infringctl edge *`, `infring-top --mobile`) |
 | V3-RACE-192 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Mobile Edge-Node Swarm Bridge (Nursery/Spawn Enrollment with Inherited Governance) |
 | V3-RACE-193 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Mobile Wrapper & Runtime Distribution Pack (Android/Termux + iOS/Tauri) |
 | V3-RACE-194 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Mobile Competitive Benchmark & CI Matrix (Battery/Thermal/72h Autonomy) |
@@ -853,11 +853,11 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V3-RACE-196 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Probationary Security Habit Apply + Promotion Loop |
 | V3-RACE-197 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] V3-MINE Donor Reward Ledger + Mining-Share Issuance |
 | V3-RACE-198 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] V3-MINE Settlement & Attribution Bridge (Auto-Payout Safety Contract) |
-| V3-RACE-199 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Donor Mining Dashboard + CLI (`protheusctl mine dashboard`) |
-| V3-RACE-200 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V3] Protheus Compute Mesh Broker (Network-Scale Task Sharding Plane) |
+| V3-RACE-199 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Donor Mining Dashboard + CLI (`infringctl mine dashboard`) |
+| V3-RACE-200 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V3] Infring Compute Mesh Broker (Network-Scale Task Sharding Plane) |
 | V3-RACE-201 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Mesh Result Quorum + Provenance Aggregation Contract |
 | V3-RACE-202 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Mobile Mesh Participation Scheduler (Charging/Thermal/Battery Policy Lane) |
-| V3-RACE-203 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Mesh Operator Surfaces (`protheusctl mesh *` + Contribution Topology View) |
+| V3-RACE-203 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Mesh Operator Surfaces (`infringctl mesh *` + Contribution Topology View) |
 | V3-RACE-204 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Preview-Horizon Success Criteria Contract (Deferred Metrics in Score-Only) |
 | V3-RACE-205 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Deterministic Execution-Floor Bootstrap Lane (1 Shippable Outcome Minimum) |
 | V3-RACE-206 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Score-Only Manual-Gate Exclusion & Selector Penalty |
@@ -867,7 +867,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V3-RACE-210 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V3] Adaptation Channel ABI (Rust Trait + WASM Guest Contract + Generic Fallback) |
 | V3-RACE-211 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Five-System Adaptation Channel Pack (Ubuntu/FreeBSD/NixOS/RaspberryPiOS/Alpine) |
 | V3-RACE-212 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Universal Platform Abstraction Matrix (18 GENERAL Requirements) |
-| V3-RACE-213 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Host Adaptation Operator Surface (`protheusctl host adapt`) + Auto-Activation |
+| V3-RACE-213 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Host Adaptation Operator Surface (`infringctl host adapt`) + Auto-Activation |
 | V3-RACE-214 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] HostProfile Conformance Formal Gate (Lane-Activation Proof Contract) |
 | V3-RACE-215 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Architecture + Formal Spec Publication Kernel |
 | V3-RACE-216 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Monorepo Build-Graph Modernization (Turborepo + Nx Lane Contracts) |
@@ -881,7 +881,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V3-RACE-224 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Sovereign Microsoft Model Routing Profile (Phi-4 Local Default + Private Azure Fallback + Entra Binding) |
 | V3-RACE-225 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] AKS Federation Adapter for Lane Mesh Orchestration |
 | V3-RACE-226 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Forecast-to-Autoscale Actuation Plane (NPU/GPU/TPU) |
-| V3-RACE-227 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Enterprise Observability Surface (Azure Monitor + Desktop `protheus-top`) |
+| V3-RACE-227 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Enterprise Observability Surface (Azure Monitor + Desktop `infring-top`) |
 | V3-RACE-228 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Reproducible Distribution Artifact Pack (Nix Flakes + Docker/VM/Azure Marketplace) |
 | V3-RACE-229 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Enterprise Identity/Compliance Bridge (SOC2 Type II + Defender + Entra Sovereignty) |
 | V3-RACE-230 | existing-coverage-validated | queued | needs_implementation | no | [status-reconciliation / V3] Type-Derived Lane Docs Autogeneration (`typedoc` + `cargo-doc`) |
@@ -1013,7 +1013,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V3-RACE-356 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V3] PlatformSocket ABI + Signed Manifest Contract |
 | V3-RACE-357 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V3] Socket Discovery/Loader Runtime (Registry + Version Pin + Hot-Swap) |
 | V3-RACE-358 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] GenericSocket + Named Host Socket Refactor (Channels -> Sockets) |
-| V3-RACE-359 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Socket Lifecycle Operator Surface (`protheusctl socket *` + API) |
+| V3-RACE-359 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Socket Lifecycle Operator Surface (`infringctl socket *` + API) |
 | V3-RACE-360 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Socket Admission Proof Gate (Formal + Redteam + HostProfile Chaos Validation) |
 | V3-RACE-361 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Offline R Analytics Runner + Research Organ Best-Fit Integration |
 | V3-RACE-CONF-001 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] Open Platform Path-Contract Compatibility Pack (`platform/` artifacts) |
@@ -1073,8 +1073,8 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V3-TASK-001 | existing-coverage-validated | queued | needs_implementation | no | Task Decomposition Primitive + Parallel Micro-Task Execution |
 | V3-TASK-002 | existing-coverage-validated | queued | needs_implementation | no | Task Decomposition Live Execution Handoff |
 | V3-TTS-001 | existing-coverage-validated | queued | needs_implementation | no | `V3-LHP-001` (done) |
-| V3-USE-001 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] First-Run Onboarding Doctor (`protheus init`) |
-| V3-USE-002 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Redacted Diagnostics Bundle (`protheus doctor --bundle`) |
+| V3-USE-001 | existing-coverage-validated | queued | needs_implementation | no | [extension / V3] First-Run Onboarding Doctor (`infring init`) |
+| V3-USE-002 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Redacted Diagnostics Bundle (`infring doctor --bundle`) |
 | V3-USE-003 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] CLI UX Contract (Stable Flags + Completions + JSON Parity) |
 | V3-VAL-001 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V3] Real-World Outcome Scorecard Gate |
 | V3-VENOM-000 | existing-coverage-validated | queued | needs_implementation | no | No Offensive Behavior Invariant |
@@ -1100,7 +1100,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V4-AESTHETIC-001 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] Alien Technology Aesthetic Layer (`alien_aesthetic=1`) |
 | V4-AESTHETIC-002 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] Selective Ethereal Language Layer |
 | V4-AUTO-010 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] Autogenesis trust + reversibility UX layer |
-| V4-BRAND-001 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] Protheus Labs Org Identity Sweep |
+| V4-BRAND-001 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] Infring Labs Org Identity Sweep |
 | V4-BRAND-002 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V4] Legacy Identity Purge Gate |
 | V4-CLEAN-001 | existing-coverage-validated | queued | needs_implementation | no | [hygiene / V4] Habits path migration prep (abstraction + compatibility) |
 | V4-CLEAN-002 | existing-coverage-validated | queued | needs_implementation | no | [hygiene / V4] Helix codex surface hardening without runtime break |
@@ -1133,10 +1133,10 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V4-MIGR-003 | existing-coverage-validated | queued | needs_implementation | no | [interoperability / V4] Universal Importers (Infring/CrewAI/AutoGen/Workflow Graph/Common Dumps) |
 | V4-MIGR-004 | existing-coverage-validated | queued | needs_implementation | no | [migration / V4] Self-Healing Migration Daemon |
 | V4-MIGR-005 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] Post-Migration Verification + Premium Completion Report |
-| V4-OBS-011 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] Advanced `protheus-top` observability dashboard polish |
+| V4-OBS-011 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] Advanced `infring-top` observability dashboard polish |
 | V4-PKG-001 | existing-coverage-validated | queued | needs_implementation | no | [extension / V4] FluxLattice Standalone Crate + CLI Surface |
 | V4-PKG-002 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] Internal Tool Framing Pack (`README` + `CHANGELOG` + `internal-ci`) |
-| V4-PKG-003 | existing-coverage-validated | queued | needs_implementation | no | [extension / V4] FluxLattice Migration & Adoption Bridge (`protheusctl migrate`) |
+| V4-PKG-003 | existing-coverage-validated | queued | needs_implementation | no | [extension / V4] FluxLattice Migration & Adoption Bridge (`infringctl migrate`) |
 | V4-PKG-004 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] LensMap Standalone Internal Tool Repository |
 | V4-PKG-005 | existing-coverage-validated | queued | needs_implementation | no | [extension / V4] LensMap Boilerplate Simplification Suite |
 | V4-PKG-006 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] LensMap Internal Narrative + Release Polish |
@@ -1167,30 +1167,30 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V4-SCI-008 | existing-coverage-validated | queued | needs_implementation | no | [scientific / V4] Enhanced reasoning mirror for Phase-1 UI |
 | V4-SEC-014 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V4] Covenant Enforcement Across Flux/Morph/Shadow Operations |
 | V4-SEC-015 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V4] Tamper Self-Revocation + Vault Re-Coalesce |
-| V4-SEC-016 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] Live Security Mirror Panel in `protheus-top` |
+| V4-SEC-016 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] Live Security Mirror Panel in `infring-top` |
 | V4-SELF-001 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V4] Internal Illusion & Integrity Auditor |
 | V4-SETTLE-001 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V4] Kernel Settling Engine (Compile + Memory-Map + Re-exec) |
 | V4-SETTLE-002 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V4] Signed Snapshot Vault + Revert/Edit-Kernel Round Trip |
 | V4-SETTLE-003 | existing-coverage-validated | queued | needs_implementation | no | [extension / V4] Target Abstraction for Binary + Ternary/Exotic Compile Flags |
 | V4-SETTLE-004 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V4] Promotion-Coupled Re-Settlement Policy |
-| V4-SETTLE-005 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] Settled-State Operator Surface in `protheus-top` |
+| V4-SETTLE-005 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] Settled-State Operator Surface in `infring-top` |
 | V4-SETTLE-006 | existing-coverage-validated | queued | needs_implementation | no | [primitive-upgrade / V4] Modular System-Wide Settling + Rust BlobLoader |
-| V4-SETTLE-007 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V4] Per-Module Edit + Re-Settle Workflow (`protheusctl edit <module>`) |
-| V4-SETTLE-008 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] Multi-Module Settle Status Dashboard (`protheus-top`) |
+| V4-SETTLE-007 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V4] Per-Module Edit + Re-Settle Workflow (`infringctl edit <module>`) |
+| V4-SETTLE-008 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] Multi-Module Settle Status Dashboard (`infring-top`) |
 | V4-SETTLE-009 | existing-coverage-validated | queued | needs_implementation | no | [extension / V4] Pluggable Ternary + Future Architecture Module Settle Support |
 | V4-SETTLE-010 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V4] Autogenesis/Promotion-Coupled Differential Module Re-Settlement |
 | V4-SETTLE-011 | existing-coverage-validated | queued | needs_implementation | no | [extension / V4] Preferred Advanced Substrate Detection + Graceful Binary Fallback |
-| V4-SUITE-001 | existing-coverage-validated | queued | needs_implementation | no | [extension / V4] `protheus-graph` Deterministic Workflow Engine |
-| V4-SUITE-002 | existing-coverage-validated | queued | needs_implementation | no | [extension / V4] `protheus-mem` Long-Memory CLI Surface |
-| V4-SUITE-003 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] `protheus-telemetry` Trace + Sovereignty Export CLI |
-| V4-SUITE-004 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V4] `protheus-vault` Zero-Knowledge Secrets CLI |
-| V4-SUITE-005 | existing-coverage-validated | queued | needs_implementation | no | [extension / V4] `protheus-swarm` Multi-Agent Coordination CLI |
-| V4-SUITE-006 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V4] `protheus-redlegion` Adversarial Operations CLI |
-| V4-SUITE-007 | existing-coverage-validated | queued | needs_implementation | no | [extension / V4] `protheus-forge` Productization Uplift |
-| V4-SUITE-008 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] `protheus-bootstrap` Scaffolding CLI |
-| V4-SUITE-009 | existing-coverage-validated | queued | needs_implementation | no | [extension / V4] `protheus-econ` Unit-Economics CLI |
-| V4-SUITE-010 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] `protheus-soul` Public Export Mode |
-| V4-SUITE-011 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] `protheus-pinnacle` CLI Polish + Operability Pack |
+| V4-SUITE-001 | existing-coverage-validated | queued | needs_implementation | no | [extension / V4] `infring-graph` Deterministic Workflow Engine |
+| V4-SUITE-002 | existing-coverage-validated | queued | needs_implementation | no | [extension / V4] `infring-mem` Long-Memory CLI Surface |
+| V4-SUITE-003 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] `infring-telemetry` Trace + Sovereignty Export CLI |
+| V4-SUITE-004 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V4] `infring-vault` Zero-Knowledge Secrets CLI |
+| V4-SUITE-005 | existing-coverage-validated | queued | needs_implementation | no | [extension / V4] `infring-swarm` Multi-Agent Coordination CLI |
+| V4-SUITE-006 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V4] `infring-redlegion` Adversarial Operations CLI |
+| V4-SUITE-007 | existing-coverage-validated | queued | needs_implementation | no | [extension / V4] `infring-forge` Productization Uplift |
+| V4-SUITE-008 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] `infring-bootstrap` Scaffolding CLI |
+| V4-SUITE-009 | existing-coverage-validated | queued | needs_implementation | no | [extension / V4] `infring-econ` Unit-Economics CLI |
+| V4-SUITE-010 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] `infring-soul` Public Export Mode |
+| V4-SUITE-011 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] `infring-pinnacle` CLI Polish + Operability Pack |
 | V4-SUITE-012 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V4] Suite Governance Pack (Naming, Contracts, npm Hooks, CI Gates) |
 | V4-TRUST-001 | existing-coverage-validated | queued | needs_implementation | no | [hardening / V4] Git Provenance Integrity Guardrail (No History Rewrite on Protected Branches) |
 | V4-UX-001 | existing-coverage-validated | queued | needs_implementation | no | [launch-polish / V4] World-class first-run onboarding wizard |
@@ -1265,7 +1265,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V6-COCKPIT-011 | existing-coverage-validated | queued | needs_implementation | no | Moltbook skill-path contract repair + heartbeat verification lane (`REQ-37`) |
 | V6-COGNITION-010 | existing-coverage-validated | queued | needs_implementation | no | Conversation Eye default synthesis lane |
 | V6-COMP-001 | existing-coverage-validated | queued | needs_implementation | no | Competitive benchmark matrix with reproducible receipts |
-| V6-COMP-002 | existing-coverage-validated | queued | needs_implementation | no | `protheus migrate --from infring` importer lane |
+| V6-COMP-002 | existing-coverage-validated | queued | needs_implementation | no | `infring migrate --from infring` importer lane |
 | V6-COMP-003 | existing-coverage-validated | queued | needs_implementation | no | Evidence-first audit dashboard drilldown |
 | V6-COMP-004 | existing-coverage-validated | queued | needs_implementation | no | Security-layer inventory with evidence links |
 | V6-COMP-005 | blocked_external_prepared | queued | needs_implementation | no | Public multi-release cadence target (9+ tags) |
@@ -1290,7 +1290,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V6-DOM-411 | existing-coverage-validated | queued | needs_implementation | no | Open Agent Contracts specification pack |
 | V6-DOM-412 | existing-coverage-validated | queued | needs_implementation | no | Vertical compliance template compiler + TRiSM report lane |
 | V6-DOM-413 | existing-coverage-validated | queued | needs_implementation | no | Release Evidence Traceability Matrix Contract (`SRS -> code -> receipt -> artifact`) |
-| V6-DOM-414 | existing-coverage-validated | queued | needs_implementation | no | `protheusctl compliance export` Traceability Bundle Contract |
+| V6-DOM-414 | existing-coverage-validated | queued | needs_implementation | no | `infringctl compliance export` Traceability Bundle Contract |
 | V6-DOM-415 | existing-coverage-validated | queued | needs_implementation | no | Release Documentation Autogenesis Pack (README + Whitepaper PDF) |
 | V6-DOM-416 | existing-coverage-validated | queued | needs_implementation | no | Public Migration Guide Autogenesis + Importer Mapping Contract |
 | V6-DOM-417 | existing-coverage-validated | queued | needs_implementation | no | Anonymized Public Telemetry Benchmark Publication Contract |
@@ -1299,15 +1299,15 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V6-EDGE-003 | existing-coverage-validated | queued | needs_implementation | no | Edge backend feature-gated build profile integration |
 | V6-EDGE-004 | existing-coverage-validated | queued | needs_implementation | no | Edge lifecycle validation + substrate-swap proof |
 | V6-EDGE-005 | blocked_external_prepared | queued | needs_implementation | no | Third-party license and source-ingest decision for edge backend |
-| V6-EXT-701 | existing-coverage-validated | queued | needs_implementation | no | `protheus new-tool` scaffold lane |
-| V6-EXT-702 | existing-coverage-validated | queued | needs_implementation | no | `protheus new-app` scaffold lane |
+| V6-EXT-701 | existing-coverage-validated | queued | needs_implementation | no | `infring new-tool` scaffold lane |
+| V6-EXT-702 | existing-coverage-validated | queued | needs_implementation | no | `infring new-app` scaffold lane |
 | V6-EXT-703 | existing-coverage-validated | queued | needs_implementation | no | Extension SDK parity pack (TS/Python/Go/Rust) |
 | V6-EXT-704 | existing-coverage-validated | queued | needs_implementation | no | Capability-manifest + least-privilege enforcement lane |
 | V6-EXT-705 | existing-coverage-validated | queued | needs_implementation | no | Extension sandbox runtime + isolation contract |
 | V6-EXT-706 | existing-coverage-validated | queued | needs_implementation | no | One-click publish lane with governance checks |
 | V6-EXT-707 | existing-coverage-validated | queued | needs_implementation | no | Marketplace registry + dependency resolver lane |
 | V6-EXT-708 | existing-coverage-validated | queued | needs_implementation | no | Extension trust scoring and reputation receipts |
-| V6-EXT-709 | existing-coverage-validated | queued | needs_implementation | no | Developer hot-reload sandbox (`protheus dev`) |
+| V6-EXT-709 | existing-coverage-validated | queued | needs_implementation | no | Developer hot-reload sandbox (`infring dev`) |
 | V6-EXT-710 | existing-coverage-validated | queued | needs_implementation | no | Extension overhead performance gate |
 | V6-EXT-711 | existing-coverage-validated | queued | needs_implementation | no | Seven-Phase Codebase-to-Agent-CLI Generation Pipeline Contract |
 | V6-EXT-712 | existing-coverage-validated | queued | needs_implementation | no | Universal Agent CLI Skin Specification Contract (REPL + JSON + Help) |
@@ -1410,7 +1410,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V6-MPLAN-901 | existing-coverage-validated | queued | needs_implementation | no | Root invariant enforcer layer0-root consolidation lane |
 | V6-MPLAN-902 | existing-coverage-validated | queued | needs_implementation | no | Conduit-only type/runtime guard completion lane |
 | V6-MPLAN-903 | existing-coverage-validated | queued | needs_implementation | no | Receipt-to-origin cryptographic binding verifier lane |
-| V6-MPLAN-904 | existing-coverage-validated | queued | needs_implementation | no | `protheusd` self-audit daemon hardening lane |
+| V6-MPLAN-904 | existing-coverage-validated | queued | needs_implementation | no | `infringd` self-audit daemon hardening lane |
 | V6-MPLAN-905 | existing-coverage-validated | queued | needs_implementation | no | Constitution interpreter formal diff/rollback lane |
 | V6-MPLAN-906 | existing-coverage-validated | queued | needs_implementation | no | Full formal-proof command surface (`cargo prove`) lane |
 | V6-MPLAN-907 | existing-coverage-validated | queued | needs_implementation | no | Public benchmark crown gate uplift (<80ms, <20MB, 5k tps targets) |
@@ -1429,7 +1429,7 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V6-ORIGIN-001 | existing-coverage-validated | queued | needs_implementation | no | Root invariant enforcer lane (`REQ-29`) |
 | V6-ORIGIN-002 | existing-coverage-validated | queued | needs_implementation | no | Conduit-only + constitution hardening gate in origin checks |
 | V6-ORIGIN-003 | existing-coverage-validated | queued | needs_implementation | no | Receipt binding to exact safety-plane state |
-| V6-ORIGIN-004 | existing-coverage-validated | queued | needs_implementation | no | `protheusd` startup self-audit gate (30s fail-closed) |
+| V6-ORIGIN-004 | existing-coverage-validated | queued | needs_implementation | no | `infringd` startup self-audit gate (30s fail-closed) |
 | V6-ORIGIN-005 | existing-coverage-validated | queued | needs_implementation | no | Seed bootstrap verification via `verify.sh` certificate |
 | V6-ORIGIN-006 | existing-coverage-validated | queued | needs_implementation | no | Lean-proof extractor integration for origin lane |
 | V6-PAY-001 | existing-coverage-validated | queued | needs_implementation | no | HTTP 402 challenge middleware for stateless payment gating |
@@ -1571,10 +1571,10 @@ Summary: reviewed 316/1577 | pass 316 | warn 1261 | fail 0 | blocked 0
 | V7-TOP1-002 | done | reviewed | pass | yes | Kernel Rust formal proof coverage lane (Kani/Prusti) |
 | V7-TOP1-003 | existing-coverage-validated | queued | needs_implementation | no | Nightly full-kernel re-proof CI + `verify.sh` proof gate |
 | V7-TOP1-004 | existing-coverage-validated | queued | needs_implementation | no | Reproducible public proof VM artifact lane |
-| V7-TOP1-005 | done | reviewed | pass | yes | Single static `protheusd` binary profile (25-35MB target) |
+| V7-TOP1-005 | done | reviewed | pass | yes | Single static `infringd` binary profile (25-35MB target) |
 | V7-TOP1-006 | done | reviewed | pass | yes | Single-binary reproducible supply-chain release contract |
 | V7-TOP1-007 | done | reviewed | pass | yes | Public benchmark harness with strict performance thresholds |
-| V7-TOP1-008 | existing-coverage-validated | queued | needs_implementation | no | Public "Protheus vs X" CI-updated comparison matrix |
+| V7-TOP1-008 | existing-coverage-validated | queued | needs_implementation | no | Public "Infring vs X" CI-updated comparison matrix |
 | V7-TOP1-009 | blocked_external_prepared | queued | needs_implementation | no | Independent third-party verification publication lane |
 | V7-TOP1-010 | blocked_external_prepared | queued | needs_implementation | no | High-assurance profile release gate (medical/defense-class) |
 | V7-TOP1-011 | existing-coverage-validated | queued | needs_implementation | no | Sacred-Kernel Nightly Proof Coverage Floor Contract |

@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 use std::path::Path;
 
 const LANE_ID: &str = "proposal_enricher";
-const REPLACEMENT: &str = "protheus-ops autonomy-proposal-enricher";
+const REPLACEMENT: &str = "infring-ops autonomy-proposal-enricher";
 
 fn receipt_hash(v: &Value) -> String {
     crate::deterministic_receipt_hash(v)
@@ -16,8 +16,8 @@ fn print_json_line(value: &Value) {
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops autonomy-proposal-enricher status");
-    println!("  protheus-ops autonomy-proposal-enricher run [YYYY-MM-DD] [--dry-run=1|0]");
+    println!("  infring-ops autonomy-proposal-enricher status");
+    println!("  infring-ops autonomy-proposal-enricher run [YYYY-MM-DD] [--dry-run=1|0]");
 }
 
 fn parse_bool_flag(argv: &[String], key: &str, fallback: bool) -> bool {

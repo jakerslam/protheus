@@ -38,9 +38,9 @@ struct Policy {
 
 fn usage() {
     println!("egress-gateway-kernel commands:");
-    println!("  protheus-ops egress-gateway-kernel load-policy [--payload-base64=<json>]");
-    println!("  protheus-ops egress-gateway-kernel load-state [--payload-base64=<json>]");
-    println!("  protheus-ops egress-gateway-kernel authorize --payload-base64=<json>");
+    println!("  infring-ops egress-gateway-kernel load-policy [--payload-base64=<json>]");
+    println!("  infring-ops egress-gateway-kernel load-state [--payload-base64=<json>]");
+    println!("  infring-ops egress-gateway-kernel authorize --payload-base64=<json>");
 }
 
 fn as_str(value: Option<&Value>) -> String {
@@ -83,7 +83,7 @@ fn normalize_token(raw: &str, max_len: usize) -> String {
 }
 
 fn workspace_root(root: &Path) -> PathBuf {
-    if let Ok(raw) = std::env::var("PROTHEUS_WORKSPACE_ROOT") {
+    if let Ok(raw) = std::env::var("INFRING_WORKSPACE_ROOT") {
         let trimmed = raw.trim();
         if !trimmed.is_empty() {
             return PathBuf::from(trimmed);
@@ -97,7 +97,7 @@ fn runtime_root(root: &Path, payload: &Map<String, Value>) -> PathBuf {
     if !explicit.is_empty() {
         return PathBuf::from(explicit);
     }
-    if let Ok(raw) = std::env::var("PROTHEUS_RUNTIME_ROOT") {
+    if let Ok(raw) = std::env::var("INFRING_RUNTIME_ROOT") {
         let trimmed = raw.trim();
         if !trimmed.is_empty() {
             return PathBuf::from(trimmed);

@@ -308,7 +308,7 @@
         }
         if (role === 'agent') text = self.stripModelPrefix(text);
         var derivedSystemOrigin = '';
-        if (role === 'user' && /^\s*protheus(?:-ops)?\s+/i.test(String(text || ''))) {
+        if (role === 'user' && /^\s*infring(?:-ops)?\s+/i.test(String(text || ''))) {
           role = 'system';
           derivedSystemOrigin = 'runtime:ops_command';
         }

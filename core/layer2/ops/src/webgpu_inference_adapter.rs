@@ -5,7 +5,7 @@ use std::path::Path;
 
 const USAGE: &[&str] = &[
     "Usage:",
-    "  protheus-ops webgpu-inference-adapter run|status|enable|infer|metrics [--policy=<path>] [--state-path=<path>] [--strict=1|0]",
+    "  infring-ops webgpu-inference-adapter run|status|enable|infer|metrics [--policy=<path>] [--state-path=<path>] [--strict=1|0]",
 ];
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
@@ -15,7 +15,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         &standard_lane_spec(
             "webgpu_inference_adapter",
             "webgpu_inference_adapter",
-            "protheus-ops webgpu-inference-adapter",
+            "infring-ops webgpu-inference-adapter",
             USAGE,
         ),
     )

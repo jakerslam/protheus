@@ -115,7 +115,7 @@ fn load_contract(root: &Path) -> AttentionContract {
         })
         .filter(|rows| !rows.is_empty())
         .unwrap_or_else(|| vec!["critical".to_string()]);
-    let allow_layer0_fallback = bool_from_env("PROTHEUS_ATTENTION_ALLOW_LAYER0_FALLBACK")
+    let allow_layer0_fallback = bool_from_env("INFRING_ATTENTION_ALLOW_LAYER0_FALLBACK")
         .or_else(|| {
             contract_obj
                 .and_then(|v| v.get("allow_layer0_importance_fallback"))

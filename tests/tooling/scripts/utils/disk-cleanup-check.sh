@@ -10,7 +10,7 @@ set -euo pipefail
 
 # Configuration
 THRESHOLD=85
-LOG_DIR="/var/log/protheus"
+LOG_DIR="/var/log/infring"
 ALERT_ENDPOINT="${ALERT_ENDPOINT:-}"
 
 # Colors for output

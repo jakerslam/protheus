@@ -49,17 +49,17 @@ fn error_payload(error: &str, command: Option<&str>, exit_code: Option<i32>) -> 
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops graph-toolkit status");
-    println!("  protheus-ops graph-toolkit pagerank [--graph-json-base64=<b64>] [--dataset=memory-vault|code-graph] [--damping=0.85] [--iterations=24]");
-    println!("  protheus-ops graph-toolkit louvain [--graph-json-base64=<b64>] [--max-iter=24]");
+    println!("  infring-ops graph-toolkit status");
+    println!("  infring-ops graph-toolkit pagerank [--graph-json-base64=<b64>] [--dataset=memory-vault|code-graph] [--damping=0.85] [--iterations=24]");
+    println!("  infring-ops graph-toolkit louvain [--graph-json-base64=<b64>] [--max-iter=24]");
     println!(
-        "  protheus-ops graph-toolkit jaccard [--source=<node>] [--target=<node>] [--top-k=20]"
+        "  infring-ops graph-toolkit jaccard [--source=<node>] [--target=<node>] [--top-k=20]"
     );
-    println!("  protheus-ops graph-toolkit label-propagation [--max-iter=32]");
-    println!("  protheus-ops graph-toolkit betweenness [--normalize=1|0]");
-    println!("  protheus-ops graph-toolkit predict-links [--top-k=20]");
-    println!("  protheus-ops graph-toolkit centrality [--metric=pagerank|betweenness]");
-    println!("  protheus-ops graph-toolkit communities [--algo=louvain|label-propagation]");
+    println!("  infring-ops graph-toolkit label-propagation [--max-iter=32]");
+    println!("  infring-ops graph-toolkit betweenness [--normalize=1|0]");
+    println!("  infring-ops graph-toolkit predict-links [--top-k=20]");
+    println!("  infring-ops graph-toolkit centrality [--metric=pagerank|betweenness]");
+    println!("  infring-ops graph-toolkit communities [--algo=louvain|label-propagation]");
 }
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {

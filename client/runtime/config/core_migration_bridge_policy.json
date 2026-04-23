@@ -3,7 +3,7 @@
   "enabled": true,
   "strict_default": false,
   "signing": {
-    "key_env": "PROTHEUS_MIGRATION_SIGNING_KEY",
+    "key_env": "INFRING_MIGRATION_SIGNING_KEY",
     "default_key": "migration_dev_key",
     "algorithm": "sha256"
   },

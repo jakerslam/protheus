@@ -337,7 +337,7 @@ pub(super) fn run_zero_trust_profile(
     let cmek_key = flags
         .get("cmek-key")
         .cloned()
-        .unwrap_or_else(|| "kms://customer/protheus/main".to_string());
+        .unwrap_or_else(|| "kms://customer/infring/main".to_string());
     let private_link = flags
         .get("private-link")
         .cloned()

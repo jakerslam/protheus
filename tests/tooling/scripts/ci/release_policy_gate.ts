@@ -1554,7 +1554,7 @@ function checkReleaseWorkflowSizeGateContract(root: string): GateCheck {
 function checkInstallerChecksumVerification(root: string): GateCheck {
   const installPath = path.resolve(root, 'install.sh');
   const script = fs.readFileSync(installPath, 'utf8');
-  const strictDefault = /INSTALL_ALLOW_UNVERIFIED_ASSETS="\$\{INFRING_INSTALL_ALLOW_UNVERIFIED_ASSETS:-\$\{PROTHEUS_INSTALL_ALLOW_UNVERIFIED_ASSETS:-0\}\}"/.test(
+  const strictDefault = /INSTALL_ALLOW_UNVERIFIED_ASSETS="\$\{INFRING_INSTALL_ALLOW_UNVERIFIED_ASSETS:-\$\{INFRING_INSTALL_ALLOW_UNVERIFIED_ASSETS:-0\}\}"/.test(
     script
   );
   const hasVerifyFn = /verify_downloaded_asset\(\)/.test(script);
@@ -1573,7 +1573,7 @@ function checkProductionTransportPolicy(root: string): GateCheck {
   const sdkPath = path.resolve(root, 'packages/infring-sdk/src/transports.ts');
   const sdkCliDevOnlyPath = path.resolve(root, 'packages/infring-sdk/src/transports/cli_dev_only.ts');
   const bridgePath = path.resolve(root, 'adapters/runtime/ops_lane_bridge.ts');
-  const runnerPath = path.resolve(root, 'adapters/runtime/run_protheus_ops.ts');
+  const runnerPath = path.resolve(root, 'adapters/runtime/run_infring_ops.ts');
   const legacyHelperPath = path.resolve(root, 'adapters/runtime/dev_only/legacy_process_runner.ts');
   const processFallbackHelperPath = path.resolve(root, 'adapters/runtime/dev_only/ops_lane_process_fallback.ts');
   const sdkSource = fs.readFileSync(sdkPath, 'utf8');

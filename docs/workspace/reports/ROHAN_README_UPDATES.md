@@ -1,8 +1,8 @@
-# Protheus Operations Toolkit - README Updates
+# Infring Operations Toolkit - README Updates
 
 ## Project Overview Clarifications
 
-This repository contains operational tooling and documentation for the Protheus trading infrastructure. Key clarifications:
+This repository contains operational tooling and documentation for the Infring trading infrastructure. Key clarifications:
 
 ### What This Repository Contains
 

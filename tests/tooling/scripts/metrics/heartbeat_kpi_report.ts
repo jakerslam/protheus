@@ -33,19 +33,19 @@ function nowIso() {
 }
 
 function rootDir() {
-  const override = cleanText(process.env.PROTHEUS_HEARTBEAT_ROOT || '', 500);
+  const override = cleanText(process.env.INFRING_HEARTBEAT_ROOT || '', 500);
   if (override) return path.resolve(override);
   return path.resolve(__dirname, '..', '..', '..', '..');
 }
 
 function outputPath(root) {
-  const override = cleanText(process.env.PROTHEUS_HEARTBEAT_KPI_OUT || '', 500);
+  const override = cleanText(process.env.INFRING_HEARTBEAT_KPI_OUT || '', 500);
   if (override) return path.resolve(override);
   return path.join(root, 'artifacts', 'heartbeat', 'heartbeat_kpi_latest.json');
 }
 
 function historyPath(root) {
-  const override = cleanText(process.env.PROTHEUS_HEARTBEAT_KPI_HISTORY || '', 500);
+  const override = cleanText(process.env.INFRING_HEARTBEAT_KPI_HISTORY || '', 500);
   if (override) return path.resolve(override);
   return path.join(root, 'artifacts', 'heartbeat', 'heartbeat_kpi_history.jsonl');
 }
@@ -69,7 +69,7 @@ function runReminderSnapshot(root, mode) {
 }
 
 function runDeploymentHealth(root) {
-  if (String(process.env.PROTHEUS_HEARTBEAT_KPI_SKIP_DEPLOY || '0').trim() === '1') {
+  if (String(process.env.INFRING_HEARTBEAT_KPI_SKIP_DEPLOY || '0').trim() === '1') {
     return {
       ok: true,
       skipped: true,

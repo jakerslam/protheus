@@ -158,11 +158,11 @@ printf '{"ok":true,"type":"mock_plane_status","plane":"%s"}\n' "$1"
         );
 
         std::env::set_var(
-            "PROTHEUS_SRS_DISPATCH_BIN",
+            "INFRING_SRS_DISPATCH_BIN",
             dispatch_bin.display().to_string(),
         );
         let receipt = execute_contract_with_options(root, id, true, true).expect("execute");
-        std::env::remove_var("PROTHEUS_SRS_DISPATCH_BIN");
+        std::env::remove_var("INFRING_SRS_DISPATCH_BIN");
 
         assert_eq!(receipt.get("ok").and_then(Value::as_bool), Some(true));
         assert_eq!(
@@ -233,11 +233,11 @@ exit 1
         );
 
         std::env::set_var(
-            "PROTHEUS_SRS_DISPATCH_BIN",
+            "INFRING_SRS_DISPATCH_BIN",
             dispatch_bin.display().to_string(),
         );
         let receipt = execute_contract_with_options(root, id, true, true).expect("execute");
-        std::env::remove_var("PROTHEUS_SRS_DISPATCH_BIN");
+        std::env::remove_var("INFRING_SRS_DISPATCH_BIN");
 
         assert_eq!(receipt.get("ok").and_then(Value::as_bool), Some(false));
         assert_eq!(
@@ -280,11 +280,11 @@ exit 1
 "#,
         );
         std::env::set_var(
-            "PROTHEUS_SRS_DISPATCH_BIN",
+            "INFRING_SRS_DISPATCH_BIN",
             dispatch_bin.display().to_string(),
         );
         let receipt = execute_contract(root, id).expect("execute");
-        std::env::remove_var("PROTHEUS_SRS_DISPATCH_BIN");
+        std::env::remove_var("INFRING_SRS_DISPATCH_BIN");
 
         assert_eq!(receipt.get("ok").and_then(Value::as_bool), Some(false));
         assert_eq!(

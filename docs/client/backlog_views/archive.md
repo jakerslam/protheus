@@ -81,7 +81,7 @@ Generated: 2026-03-15T20:48:59.676Z
 | BL-076 | backlog | BL | done | Rust dual-logic growth guard |  |
 | BL-077 | backlog | BL | done | Rust hotspot inventory + milestone calculator |  |
 | BL-078 | backlog | BL | done | Autonomy policy-hold pressure snapshot Rust migration (`autonomy_controller` hotpath) |  |
-| BL-079 | backlog | BL | done | npm distribution wrapper for `npm install -g protheus` |  |
+| BL-079 | backlog | BL | done | npm distribution wrapper for `npm install -g infring` |  |
 | BL-080 | backlog | BL | done | Autonomy policy-hold repeat-pattern Rust migration (`objectivePolicyHoldPattern`) |  |
 | BL-081 | backlog | BL | done | Autonomy policy-hold cooldown Rust migration (`policyHoldCooldownMinutesForResult`) |  |
 | BL-082 | backlog | BL | done | Route execution policy-hold decision primitive Rust migration (`routeExecutionPolicyHold`) |  |
@@ -313,7 +313,7 @@ Generated: 2026-03-15T20:48:59.676Z
 | V6-MEMORY-019 | backlog | V6 | done | LensMap memory annotation schema (tags/nodes/jots in docs comments) (`REQ-36`) |  |
 | V7-TOP1-001 | backlog | V7 | done | Layer-0 machine-checked invariant proof pack (Lean/Coq/Rocq) |  |
 | V7-TOP1-002 | backlog | V7 | done | Kernel Rust formal proof coverage lane (Kani/Prusti) |  |
-| V7-TOP1-005 | backlog | V7 | done | Single static `protheusd` binary profile (25-35MB target) |  |
+| V7-TOP1-005 | backlog | V7 | done | Single static `infringd` binary profile (25-35MB target) |  |
 | V7-TOP1-006 | backlog | V7 | done | Single-binary reproducible supply-chain release contract |  |
 | V7-TOP1-007 | backlog | V7 | done | Public benchmark harness with strict performance thresholds |  |
 | V8-RSI-IGNITION-001 | backlog | V8 | done | True Recursive Self-Modification Loop Contract |  |

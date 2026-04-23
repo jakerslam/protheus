@@ -16,11 +16,11 @@ const BASE36: &[u8; 36] = b"0123456789abcdefghijklmnopqrstuvwxyz";
 
 fn usage() {
     println!("uid-kernel commands:");
-    println!("  protheus-ops uid-kernel normalize-prefix [--payload-base64=<json>]");
-    println!("  protheus-ops uid-kernel is-alnum [--payload-base64=<json>]");
-    println!("  protheus-ops uid-kernel stable-uid [--payload-base64=<json>]");
-    println!("  protheus-ops uid-kernel random-uid [--payload-base64=<json>]");
-    println!("  protheus-ops uid-kernel contract-uid [--payload-base64=<json>]");
+    println!("  infring-ops uid-kernel normalize-prefix [--payload-base64=<json>]");
+    println!("  infring-ops uid-kernel is-alnum [--payload-base64=<json>]");
+    println!("  infring-ops uid-kernel stable-uid [--payload-base64=<json>]");
+    println!("  infring-ops uid-kernel random-uid [--payload-base64=<json>]");
+    println!("  infring-ops uid-kernel contract-uid [--payload-base64=<json>]");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {

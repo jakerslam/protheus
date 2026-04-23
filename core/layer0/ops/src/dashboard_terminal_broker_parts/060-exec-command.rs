@@ -227,7 +227,7 @@ pub fn exec_command(root: &Path, request: &Value) -> Value {
     }
 
     let (ok, code, stdout, stderr) =
-        if executed_command.trim().eq_ignore_ascii_case("protheus-ops daemon ping") {
+        if executed_command.trim().eq_ignore_ascii_case("infring-ops daemon ping") {
             (true, 0, "pong".to_string(), String::new())
         } else {
             let output = Command::new("zsh")

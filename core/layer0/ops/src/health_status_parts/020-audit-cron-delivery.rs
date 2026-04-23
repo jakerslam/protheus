@@ -259,7 +259,7 @@ fn default_secrets_dir() -> PathBuf {
     let home = env::var("HOME").unwrap_or_else(|_| ".".to_string());
     PathBuf::from(home)
         .join(".config")
-        .join("protheus")
+        .join("infring")
         .join("secrets")
 }
 

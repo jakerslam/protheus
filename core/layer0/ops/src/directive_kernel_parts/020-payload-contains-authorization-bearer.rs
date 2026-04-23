@@ -380,7 +380,7 @@ fn legacy_source_paths(root: &Path) -> Vec<PathBuf> {
             .join("AGENT-CONSTITUTION.md"),
         root.join("docs")
             .join("client")
-            .join("PROTHEUS_PRIME_SEED.md"),
+            .join("INFRING_PRIME_SEED.md"),
         root.join("docs")
             .join("client")
             .join("internal")

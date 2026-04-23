@@ -71,23 +71,23 @@ fn has_parent_component(path: &std::path::Path) -> bool {
 
 fn resolve_repo_root() -> (PathBuf, Option<&'static str>) {
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    let Some(raw_root) = std::env::var("PROTHEUS_ROOT").ok() else {
+    let Some(raw_root) = std::env::var("INFRING_ROOT").ok() else {
         return (cwd, None);
     };
     let sanitized_root = sanitize_cli_token(&raw_root);
     if sanitized_root.is_empty() {
-        return (cwd, Some("protheus_root_empty"));
+        return (cwd, Some("infring_root_empty"));
     }
     let candidate = PathBuf::from(&sanitized_root);
     if has_parent_component(&candidate) {
-        return (cwd, Some("protheus_root_parent_blocked"));
+        return (cwd, Some("infring_root_parent_blocked"));
     }
     if candidate.is_absolute() {
-        return (cwd, Some("protheus_root_absolute_blocked"));
+        return (cwd, Some("infring_root_absolute_blocked"));
     }
     let resolved = cwd.join(candidate);
     if has_parent_component(&resolved) {
-        return (cwd, Some("protheus_root_parent_blocked_after_join"));
+        return (cwd, Some("infring_root_parent_blocked_after_join"));
     }
     (resolved, None)
 }

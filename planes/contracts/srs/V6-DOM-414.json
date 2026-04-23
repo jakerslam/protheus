@@ -1,6 +1,6 @@
 {
   "id": "V6-DOM-414",
-  "upgrade": "`protheusctl compliance export` Traceability Bundle Contract",
+  "upgrade": "`infringctl compliance export` Traceability Bundle Contract",
   "section": "Dominance Gap-Closing Source Coverage Intake (Doc `1Uu0M862I5n6soIbZuB2j3MXQN4VjdtY2ieH-XTspWe0`, 2026-03-11)",
   "impact": 8,
   "layer_map": "0/1/2",
@@ -27,8 +27,8 @@
     }
   ],
   "validation": {
-    "lane_command": "protheus-ops srs-contract-runtime run --id=V6-DOM-414",
-    "status_command": "protheus-ops srs-contract-runtime status --id=V6-DOM-414",
+    "lane_command": "infring-ops srs-contract-runtime run --id=V6-DOM-414",
+    "status_command": "infring-ops srs-contract-runtime status --id=V6-DOM-414",
     "fail_closed_on_missing_contract": true
   },
   "generated_from": {

@@ -2,7 +2,7 @@
 #
 # Log Rotation Script
 # 
-# Purpose: Automated log rotation for Protheus application logs
+# Purpose: Automated log rotation for Infring application logs
 # Author: Rohan Kapoor
 # Date: April 8, 2026
 #
@@ -13,8 +13,8 @@
 set -euo pipefail
 
 # Configuration
-LOG_DIR="${LOG_DIR:-/var/log/protheus}"
-ARCHIVE_DIR="${ARCHIVE_DIR:-/var/log/protheus/archive}"
+LOG_DIR="${LOG_DIR:-/var/log/infring}"
+ARCHIVE_DIR="${ARCHIVE_DIR:-/var/log/infring/archive}"
 RETENTION_DAYS="${RETENTION_DAYS:-90}"
 MAX_LOG_SIZE="${MAX_LOG_SIZE:-1G}"
 DATE_FORMAT="$(date +%Y%m%d_%H%M%S)"

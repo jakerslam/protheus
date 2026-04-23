@@ -51,8 +51,8 @@ pub(super) fn web_tooling_gate_hint_from_health(
         "policy_allow_runtime_channel": policy_runtime_channel,
         "missing_policy_codes_count": missing_codes,
         "actions": [
-            "protheus-ops network-protocol web-tooling-status --activate=1 --strict=1",
-            "protheus-ops directive-kernel repair-vault-signatures --apply=1 --allow-unsigned=1"
+            "infring-ops network-protocol web-tooling-status --activate=1 --strict=1",
+            "infring-ops directive-kernel repair-vault-signatures --apply=1 --allow-unsigned=1"
         ]
     })
 }

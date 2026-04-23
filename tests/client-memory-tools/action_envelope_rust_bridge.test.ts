@@ -13,8 +13,8 @@ function resetModule(modulePath) {
 }
 
 function main() {
-  process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
-  process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = '120000';
+  process.env.INFRING_OPS_USE_PREBUILT = '0';
+  process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = '120000';
 
   const mod = resetModule(path.join(ROOT, 'client/runtime/lib/action_envelope.ts'));
   const classification = mod.classifyAction({

@@ -2,7 +2,7 @@ import net from 'node:net';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge.ts');
 
-export const CONDUIT_SCHEMA_ID = 'protheus_conduit';
+export const CONDUIT_SCHEMA_ID = 'infring_conduit';
 export const CONDUIT_SCHEMA_VERSION = '1.0';
 export const MAX_CONDUIT_MESSAGE_TYPES = 10;
 
@@ -129,8 +129,8 @@ type StdioTransportOptions = {
   timeoutMs?: number;
 };
 
-process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
-process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
+process.env.INFRING_OPS_USE_PREBUILT = '0';
+process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '120000';
 const conduitSecurityBridge = createOpsLaneBridge(
   __dirname,
   'conduit_client_security',
@@ -205,7 +205,7 @@ function buildEnvelopeViaKernel(
   command: TsCommand,
   security: ConduitClientSecurityConfig,
 ): CommandEnvelope {
-  if (String(process.env.PROTHEUS_CONDUIT_TS_FALLBACK || '') === '1') {
+  if (String(process.env.INFRING_CONDUIT_TS_FALLBACK || '') === '1') {
     const token = `fallback-token-${request_id}-${security.client_id}-${ts_ms}`;
     return {
       schema_id: CONDUIT_SCHEMA_ID,

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://protheus.ai/schemas/substrate_descriptor.schema.json",
+  "$id": "https://infring.ai/schemas/substrate_descriptor.schema.json",
   "title": "SubstrateDescriptor",
   "type": "object",
   "required": [

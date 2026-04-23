@@ -84,12 +84,12 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     if matches!(command.as_str(), "help" | "--help" | "-h") {
         println!("Usage:");
-        println!("  protheus-ops settlement-program list|status");
+        println!("  infring-ops settlement-program list|status");
         println!(
-            "  protheus-ops settlement-program run --id=V4-SETTLE-001 [--apply=1|0] [--strict=1|0]"
+            "  infring-ops settlement-program run --id=V4-SETTLE-001 [--apply=1|0] [--strict=1|0]"
         );
         println!(
-            "  protheus-ops settlement-program run-all|settle|revert|edit-core|edit-module [flags]"
+            "  infring-ops settlement-program run-all|settle|revert|edit-core|edit-module [flags]"
         );
         return 0;
     }

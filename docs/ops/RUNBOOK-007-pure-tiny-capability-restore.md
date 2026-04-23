@@ -14,12 +14,12 @@ This runbook is the authoritative recovery path for:
 This runbook covers the following surfaces:
 
 - Kernel authority:
-  - `core/layer0/ops/src/protheusd.rs`
+  - `core/layer0/ops/src/infringd.rs`
   - `core/layer0/ops/tests/v9_pure_capability_profile_cli.rs`
 - Thin pure client passthrough:
   - `client/pure-workspace/src/main.rs`
 - Operator command discoverability:
-  - `client/runtime/systems/ops/protheus_command_list.js`
+  - `client/runtime/systems/ops/infring_command_list.js`
 - Documentation contract:
   - `README.md` mode matrix section
 
@@ -31,7 +31,7 @@ The system is healthy only if all invariants below hold:
    - `orchestration`
    - `swarm-runtime`
    - `capability-profile`
-2. `protheus-pure-workspace` forwards:
+2. `infring-pure-workspace` forwards:
    - `orchestration`
    - `swarm-runtime`
    - `capability-profile`
@@ -68,7 +68,7 @@ Common signs of regression:
 ### 1) Kernel unit/regression tests
 
 ```bash
-cargo test --manifest-path core/layer0/ops/Cargo.toml --bin protheusd -- --nocapture
+cargo test --manifest-path core/layer0/ops/Cargo.toml --bin infringd -- --nocapture
 ```
 
 Expected:
@@ -98,24 +98,24 @@ Expected:
 ### 4) Runnable CLI evidence
 
 ```bash
-cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheusd -- capability-profile --hardware-class=mcu --tiny-max=1 --memory-mb=256 --cpu-cores=1
+cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infringd -- capability-profile --hardware-class=mcu --tiny-max=1 --memory-mb=256 --cpu-cores=1
 ```
 
 Expected payload includes:
-- `type=protheusd_capability_profile`
+- `type=infringd_capability_profile`
 - `profile.hardware_class=mcu`
 - `profile.capabilities.research_fetch=false`
 - shed capabilities include `swarm.max_depth>1`
 
 ```bash
-cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheusd -- research fetch --url=https://example.com --hardware-class=mcu --tiny-max=1
+cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infringd -- research fetch --url=https://example.com --hardware-class=mcu --tiny-max=1
 ```
 
 Expected:
 - fail-closed response with `error=hardware_profile_blocks_research_fetch`.
 
 ```bash
-cargo build --manifest-path core/layer0/ops/Cargo.toml --bin protheusd
+cargo build --manifest-path core/layer0/ops/Cargo.toml --bin infringd
 PATH=\"$(pwd)/target/debug:$PATH\" cargo run --quiet --manifest-path client/pure-workspace/Cargo.toml -- orchestration invoke --op=coordinator.partition --payload-json='{\"items\":[\"a\",\"b\",\"c\"],\"agent_count\":2}'
 PATH=\"$(pwd)/target/debug:$PATH\" cargo run --quiet --manifest-path client/pure-workspace/Cargo.toml -- swarm-runtime status
 ```

@@ -25,12 +25,12 @@ struct PersonaAmbientPolicy {
 fn usage() {
     eprintln!("Usage:");
     eprintln!(
-        "  protheus-ops persona-ambient apply --persona=<id> --stance-json-base64=<base64-json> [--source=<value>] [--reason=<value>] [--run-context=<value>] [--full-reload=1|0]"
+        "  infring-ops persona-ambient apply --persona=<id> --stance-json-base64=<base64-json> [--source=<value>] [--reason=<value>] [--run-context=<value>] [--full-reload=1|0]"
     );
     eprintln!(
-        "  protheus-ops persona-ambient apply --persona=<id> --stance-json=<json-object> [flags]"
+        "  infring-ops persona-ambient apply --persona=<id> --stance-json=<json-object> [flags]"
     );
-    eprintln!("  protheus-ops persona-ambient status [--persona=<id>]");
+    eprintln!("  infring-ops persona-ambient status [--persona=<id>]");
 }
 
 fn read_json(path: &Path) -> Option<Value> {
@@ -230,6 +230,6 @@ fn repo_root_from_current_dir() -> PathBuf {
     std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
 }
 
-fn resolve_protheus_ops_command(root: &PathBuf, domain: &str) -> (String, Vec<String>) {
-    crate::contract_lane_utils::resolve_protheus_ops_command(root.as_path(), domain)
+fn resolve_infring_ops_command(root: &PathBuf, domain: &str) -> (String, Vec<String>) {
+    crate::contract_lane_utils::resolve_infring_ops_command(root.as_path(), domain)
 }

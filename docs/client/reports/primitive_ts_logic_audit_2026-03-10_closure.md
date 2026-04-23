@@ -15,7 +15,7 @@ Scope: `primitive_ts_wrapper_contract` policy entries + `client/runtime/systems/
 
 Scoped gate passes:
 
-- `./target/debug/protheus-ops contract-check --rust-contract-check-ids=primitive_ts_wrapper_contract`
+- `./target/debug/infring-ops contract-check --rust-contract-check-ids=primitive_ts_wrapper_contract`
 
 ## Primitive Wrapper Status
 

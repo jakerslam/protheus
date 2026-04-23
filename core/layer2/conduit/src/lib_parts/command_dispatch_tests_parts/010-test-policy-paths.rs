@@ -8,7 +8,7 @@ use super::{
     EchoCommandHandler, KernelLaneCommandHandler, PolicyGate, RegistryPolicyGate, RustEvent,
     MAX_CONDUIT_MESSAGE_TYPES, RUST_EVENT_TYPES, TS_COMMAND_TYPES,
 };
-use protheus_nexus_core_v1::{
+use infring_nexus_core_v1::{
     CapabilityTokenAuthority, MessageSigner, RateLimitPolicy, RateLimiter,
 };
 use serde_json::Value;

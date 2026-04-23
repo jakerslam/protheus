@@ -12,11 +12,11 @@ use crate::now_iso;
 
 fn usage() {
     println!("policy-runtime-kernel commands:");
-    println!("  protheus-ops policy-runtime-kernel deep-merge [--payload-base64=<json>]");
-    println!("  protheus-ops policy-runtime-kernel resolve-policy-path [--payload-base64=<json>]");
-    println!("  protheus-ops policy-runtime-kernel load-policy-runtime [--payload-base64=<json>]");
+    println!("  infring-ops policy-runtime-kernel deep-merge [--payload-base64=<json>]");
+    println!("  infring-ops policy-runtime-kernel resolve-policy-path [--payload-base64=<json>]");
+    println!("  infring-ops policy-runtime-kernel load-policy-runtime [--payload-base64=<json>]");
     println!(
-        "  protheus-ops policy-runtime-kernel resolve-policy-value-path [--payload-base64=<json>]"
+        "  infring-ops policy-runtime-kernel resolve-policy-value-path [--payload-base64=<json>]"
     );
 }
 

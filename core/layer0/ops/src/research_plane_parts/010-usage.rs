@@ -27,32 +27,32 @@ const POLICY_PATH: &str = "client/runtime/config/research_plane_policy.json";
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops research-plane status");
-    println!("  protheus-ops research-plane diagnostics [--strict=1|0]");
-    println!("  protheus-ops research-plane fetch --url=<url> [--mode=auto|http|stealth|browser] [--timeout-ms=<n>] [--max-bytes=<n>] [--strict=1|0]");
-    println!("  protheus-ops research-plane fetch --stealth --url=<url> [--timeout-ms=<n>] [--strict=1|0]");
-    println!("  protheus-ops research-plane recover-selectors [--html=<text>|--html-base64=<b64>|--html-path=<path>] [--selectors=a,b,c] [--target-text=<text>] [--strict=1|0]");
-    println!("  protheus-ops research-plane crawl --seed-urls=<u1,u2> [--max-pages=<n>] [--max-concurrency=<n>] [--max-retries=<n>] [--per-domain-qps=<n>] [--checkpoint-path=<path>] [--resume=1|0] [--strict=1|0]");
-    println!("  protheus-ops research-plane mcp-extract [--payload=<html>|--payload-path=<path>] [--source=<url>] [--query=<text>] [--strict=1|0]");
-    println!("  protheus-ops research-plane spider|crawl-spider [--graph-json=<json>|--graph-path=<path>] --seed-urls=<u1,u2> [--allow-rules=a,b] [--deny-rules=a,b] [--allowed-domains=a,b] [--max-depth=<n>] [--max-links=<n>] [--strict=1|0]");
-    println!("  protheus-ops research-plane middleware|crawl-middleware [--request-json=<json>] [--response-json=<json>] [--stack-json=<json>] [--strict=1|0]");
-    println!("  protheus-ops research-plane pipeline|crawl-pipeline [--items-json=<json>|--items-path=<path>] [--pipeline-json=<json>|--pipeline-path=<path>] [--export-format=json|csv] [--export-path=<path>] [--strict=1|0]");
-    println!("  protheus-ops research-plane signals|crawl-signals [--events-json=<json>] [--handlers-json=<json>] [--strict=1|0]");
-    println!("  protheus-ops research-plane console|crawl-console --op=<status|stats|queue|pause|resume|enqueue> --auth-token=<token> [--url=<u>] [--strict=1|0]");
-    println!("  protheus-ops research-plane template-governance [--manifest=<path>] [--templates-root=<dir>] [--strict=1|0]");
-    println!("  protheus-ops research-plane goal-crawl --goal=<text> [--max-pages=<n>] [--max-discovery=<n>] [--catalog-json=<json>|--catalog-path=<path>] [--strict=1|0]");
-    println!("  protheus-ops research-plane map-site --domain=<host|url> [--depth=<n>] [--graph-json=<json>|--graph-path=<path>] [--strict=1|0]");
-    println!("  protheus-ops research-plane extract-structured [--payload=<html>|--payload-path=<path>] [--schema-json=<json>|--schema-path=<path>|--prompt=<text>] [--strict=1|0]");
-    println!("  protheus-ops research-plane monitor --url=<url> [--content=<text>|--content-path=<path>] [--strict=1|0]");
-    println!("  protheus-ops research-plane firecrawl-template-governance [--manifest=<path>] [--templates-root=<dir>] [--strict=1|0]");
-    println!("  protheus-ops research-plane js-scrape --url=<url> [--mode=js-render|stealth-js] [--wait-ms=<n>] [--selector=<s>] [--form-json=<json>|--form-path=<path>] [--strict=1|0]");
-    println!("  protheus-ops research-plane auth-session --op=<open|login|status|close> [--session-id=<id>] [--username=<u> --password=<p>] [--strict=1|0]");
-    println!("  protheus-ops research-plane proxy-rotate [--proxies=a,b] [--attempt-signals=s1,s2] [--strict=1|0]");
-    println!("  protheus-ops research-plane parallel-scrape-workers [--targets=u1,u2|--targets-file=<path>] [--session-ids=s1,s2] [--max-concurrency=<n>] [--max-retries=<n>] [--strict=1|0]");
-    println!("  protheus-ops research-plane book-patterns-template-governance [--manifest=<path>] [--templates-root=<dir>] [--strict=1|0]");
-    println!("  protheus-ops research-plane decode-news-url --url=<news-url> [--proxy-mode=none|http|https|socks] [--proxy=<url>|--proxies=a,b] [--interval-ms=<n>] [--backoff-ms=<n>] [--max-attempts=<n>] [--strict=1|0]");
-    println!("  protheus-ops research-plane decode-news-urls [--urls=u1,u2|--urls-file=<path>] [--continue-on-error=1|0] [--proxy-mode=none|http|https|socks] [--proxy=<url>|--proxies=a,b] [--interval-ms=<n>] [--backoff-ms=<n>] [--max-attempts=<n>] [--strict=1|0]");
-    println!("  protheus-ops research-plane decoder-template-governance [--manifest=<path>] [--templates-root=<dir>] [--strict=1|0]");
+    println!("  infring-ops research-plane status");
+    println!("  infring-ops research-plane diagnostics [--strict=1|0]");
+    println!("  infring-ops research-plane fetch --url=<url> [--mode=auto|http|stealth|browser] [--timeout-ms=<n>] [--max-bytes=<n>] [--strict=1|0]");
+    println!("  infring-ops research-plane fetch --stealth --url=<url> [--timeout-ms=<n>] [--strict=1|0]");
+    println!("  infring-ops research-plane recover-selectors [--html=<text>|--html-base64=<b64>|--html-path=<path>] [--selectors=a,b,c] [--target-text=<text>] [--strict=1|0]");
+    println!("  infring-ops research-plane crawl --seed-urls=<u1,u2> [--max-pages=<n>] [--max-concurrency=<n>] [--max-retries=<n>] [--per-domain-qps=<n>] [--checkpoint-path=<path>] [--resume=1|0] [--strict=1|0]");
+    println!("  infring-ops research-plane mcp-extract [--payload=<html>|--payload-path=<path>] [--source=<url>] [--query=<text>] [--strict=1|0]");
+    println!("  infring-ops research-plane spider|crawl-spider [--graph-json=<json>|--graph-path=<path>] --seed-urls=<u1,u2> [--allow-rules=a,b] [--deny-rules=a,b] [--allowed-domains=a,b] [--max-depth=<n>] [--max-links=<n>] [--strict=1|0]");
+    println!("  infring-ops research-plane middleware|crawl-middleware [--request-json=<json>] [--response-json=<json>] [--stack-json=<json>] [--strict=1|0]");
+    println!("  infring-ops research-plane pipeline|crawl-pipeline [--items-json=<json>|--items-path=<path>] [--pipeline-json=<json>|--pipeline-path=<path>] [--export-format=json|csv] [--export-path=<path>] [--strict=1|0]");
+    println!("  infring-ops research-plane signals|crawl-signals [--events-json=<json>] [--handlers-json=<json>] [--strict=1|0]");
+    println!("  infring-ops research-plane console|crawl-console --op=<status|stats|queue|pause|resume|enqueue> --auth-token=<token> [--url=<u>] [--strict=1|0]");
+    println!("  infring-ops research-plane template-governance [--manifest=<path>] [--templates-root=<dir>] [--strict=1|0]");
+    println!("  infring-ops research-plane goal-crawl --goal=<text> [--max-pages=<n>] [--max-discovery=<n>] [--catalog-json=<json>|--catalog-path=<path>] [--strict=1|0]");
+    println!("  infring-ops research-plane map-site --domain=<host|url> [--depth=<n>] [--graph-json=<json>|--graph-path=<path>] [--strict=1|0]");
+    println!("  infring-ops research-plane extract-structured [--payload=<html>|--payload-path=<path>] [--schema-json=<json>|--schema-path=<path>|--prompt=<text>] [--strict=1|0]");
+    println!("  infring-ops research-plane monitor --url=<url> [--content=<text>|--content-path=<path>] [--strict=1|0]");
+    println!("  infring-ops research-plane firecrawl-template-governance [--manifest=<path>] [--templates-root=<dir>] [--strict=1|0]");
+    println!("  infring-ops research-plane js-scrape --url=<url> [--mode=js-render|stealth-js] [--wait-ms=<n>] [--selector=<s>] [--form-json=<json>|--form-path=<path>] [--strict=1|0]");
+    println!("  infring-ops research-plane auth-session --op=<open|login|status|close> [--session-id=<id>] [--username=<u> --password=<p>] [--strict=1|0]");
+    println!("  infring-ops research-plane proxy-rotate [--proxies=a,b] [--attempt-signals=s1,s2] [--strict=1|0]");
+    println!("  infring-ops research-plane parallel-scrape-workers [--targets=u1,u2|--targets-file=<path>] [--session-ids=s1,s2] [--max-concurrency=<n>] [--max-retries=<n>] [--strict=1|0]");
+    println!("  infring-ops research-plane book-patterns-template-governance [--manifest=<path>] [--templates-root=<dir>] [--strict=1|0]");
+    println!("  infring-ops research-plane decode-news-url --url=<news-url> [--proxy-mode=none|http|https|socks] [--proxy=<url>|--proxies=a,b] [--interval-ms=<n>] [--backoff-ms=<n>] [--max-attempts=<n>] [--strict=1|0]");
+    println!("  infring-ops research-plane decode-news-urls [--urls=u1,u2|--urls-file=<path>] [--continue-on-error=1|0] [--proxy-mode=none|http|https|socks] [--proxy=<url>|--proxies=a,b] [--interval-ms=<n>] [--backoff-ms=<n>] [--max-attempts=<n>] [--strict=1|0]");
+    println!("  infring-ops research-plane decoder-template-governance [--manifest=<path>] [--templates-root=<dir>] [--strict=1|0]");
 }
 
 fn state_root(root: &Path) -> PathBuf {
@@ -202,8 +202,8 @@ fn diagnostics(root: &Path) -> Value {
         "safety_plane_policy": policy.get("safety_plane").cloned().unwrap_or(Value::Null),
         "safety_plane_counters": safety,
         "developer_dx": {
-            "stealth_entrypoint": "protheus research --stealth --url=<url>",
-            "console_entrypoint": "protheus-ops research-plane console --op=stats --auth-token=<token>"
+            "stealth_entrypoint": "infring research --stealth --url=<url>",
+            "console_entrypoint": "infring-ops research-plane console --op=stats --auth-token=<token>"
         },
         "claim_evidence": [
             {

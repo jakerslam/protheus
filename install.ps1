@@ -31,7 +31,7 @@ $InstallDir = if ($InstallDir) {
   Join-Path $HOME ".infring\bin"
 }
 $InstallDirExplicit = $PSBoundParameters.ContainsKey("InstallDir")
-$legacyInstallDir = Join-Path $HOME ".protheus\bin"
+$legacyInstallDir = Join-Path $HOME ".infring\bin"
 $canonicalInstallDir = Join-Path $HOME ".infring\bin"
 $normalizedInstallDir = if ($InstallDir) { $InstallDir.TrimEnd("\", "/").ToLower() } else { "" }
 $normalizedLegacyInstallDir = $legacyInstallDir.TrimEnd("\", "/").ToLower()
@@ -40,8 +40,8 @@ if (
   $InstallDir -and
   (
     $normalizedInstallDir -eq $normalizedLegacyInstallDir -or
-    $normalizedInstallDir.EndsWith("\\.protheus\\bin") -or
-    $normalizedInstallDir.EndsWith("/.protheus/bin")
+    $normalizedInstallDir.EndsWith("\\.infring\\bin") -or
+    $normalizedInstallDir.EndsWith("/.infring/bin")
   )
 ) {
   Write-Host "[infring install] detected legacy compatibility install dir ($InstallDir); migrating to canonical $canonicalInstallDir"
@@ -141,9 +141,9 @@ $script:RuntimeNodeModuleManifestRel = if ($env:INFRING_RUNTIME_NODE_MODULE_MANI
   "client/runtime/config/install_runtime_node_modules_v1.txt"
 }
 $script:RuntimeTier1RequiredEntrypoints = @(
-  "client/runtime/systems/ops/protheusd.ts",
-  "client/runtime/systems/ops/protheus_status_dashboard.ts",
-  "client/runtime/systems/ops/protheus_unknown_guard.ts"
+  "client/runtime/systems/ops/infringd.ts",
+  "client/runtime/systems/ops/infring_status_dashboard.ts",
+  "client/runtime/systems/ops/infring_unknown_guard.ts"
 )
 $script:InstallToolchainPolicyRaw = if ($env:INFRING_INSTALL_TOOLCHAIN_POLICY) {
   [string]$env:INFRING_INSTALL_TOOLCHAIN_POLICY
@@ -670,9 +670,9 @@ function Remove-StaleWindowsCommandShims {
     "infring.ps1",
     "infringctl.ps1",
     "infringd.ps1",
-    "protheus.ps1",
-    "protheusctl.ps1",
-    "protheusd.ps1"
+    "infring.ps1",
+    "infringctl.ps1",
+    "infringd.ps1"
   )
   foreach ($shimTarget in $shimTargets) {
     $shimPath = Join-Path $ShimInstallDir $shimTarget
@@ -756,11 +756,11 @@ function Get-ReleasesFromApi {
 
 function Get-BinaryStemAliases([string]$Stem) {
   switch ($Stem) {
-    "infring-ops" { return @("infring-ops", "protheus-ops") }
-    "infringd" { return @("infringd", "protheusd") }
-    "infringd-tiny-max" { return @("infringd-tiny-max", "protheusd-tiny-max", "infringd", "protheusd") }
-    "infring-pure-workspace" { return @("infring-pure-workspace", "protheus-pure-workspace") }
-    "infring-pure-workspace-tiny-max" { return @("infring-pure-workspace-tiny-max", "protheus-pure-workspace-tiny-max", "infring-pure-workspace", "protheus-pure-workspace") }
+    "infring-ops" { return @("infring-ops", "infring-ops") }
+    "infringd" { return @("infringd", "infringd") }
+    "infringd-tiny-max" { return @("infringd-tiny-max", "infringd-tiny-max", "infringd", "infringd") }
+    "infring-pure-workspace" { return @("infring-pure-workspace", "infring-pure-workspace") }
+    "infring-pure-workspace-tiny-max" { return @("infring-pure-workspace-tiny-max", "infring-pure-workspace-tiny-max", "infring-pure-workspace", "infring-pure-workspace") }
     default { return @($Stem) }
   }
 }
@@ -2449,11 +2449,11 @@ function Resolve-WorkspaceRootForRepair {
   $candidates = @(
     $env:INFRING_WORKSPACE_ROOT,
     # Legacy compatibility only; canonical workspace root env is INFRING_WORKSPACE_ROOT.
-    $env:PROTHEUS_WORKSPACE_ROOT,
+    $env:INFRING_WORKSPACE_ROOT,
     (Get-Location).Path,
     (Join-Path $HOME ".infring/workspace"),
     # Legacy compatibility path.
-    (Join-Path $HOME ".protheus/workspace")
+    (Join-Path $HOME ".infring/workspace")
   )
   foreach ($candidate in $candidates) {
     if (-not $candidate) { continue }
@@ -2686,7 +2686,7 @@ function Test-RepairArtifactBroken {
     [string]$ArtifactName
   )
 
-  if ($ArtifactName -like "protheus*") {
+  if ($ArtifactName -like "infring*") {
     return $true
   }
   if (-not (Test-Path $InstallPath)) {
@@ -2829,17 +2829,17 @@ exit 0
 
 function Invoke-RepairInstallDir {
   $legacyWrapperTargets = @(
-    "protheus.cmd", "protheusctl.cmd", "protheusd.cmd"
+    "infring.cmd", "infringctl.cmd", "infringd.cmd"
   )
   $targets = @(
     "infring.cmd", "infringctl.cmd", "infringd.cmd",
     "infring.ps1", "infringctl.ps1", "infringd.ps1",
     # Legacy compatibility wrappers/artifacts (removed during repair migration).
-    "protheus.cmd", "protheusctl.cmd", "protheusd.cmd",
+    "infring.cmd", "infringctl.cmd", "infringd.cmd",
     "infring-ops.exe", "infring-pure-workspace.exe",
     "infringd.exe", "conduit_daemon.exe", "infring-client",
-    "protheus-ops.exe", "protheus-pure-workspace.exe",
-    "protheusd.exe", "protheus-client"
+    "infring-ops.exe", "infring-pure-workspace.exe",
+    "infringd.exe", "infring-client"
   )
   $repairArchiveRoot = Join-Path $InstallDir "_repair_archive"
   $repairArchiveRun = Join-Path $repairArchiveRoot (Get-Date -Format "yyyyMMddTHHmmss")

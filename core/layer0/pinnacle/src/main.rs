@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
-use protheus_pinnacle_core_v1::{get_sovereignty_index, merge_delta, merge_delta_json};
+use infring_pinnacle_core_v1::{get_sovereignty_index, merge_delta, merge_delta_json};
 use serde_json::{Map, Value};
 use std::env;
 use std::fs;

@@ -85,7 +85,7 @@ mod tests {
                 "providers": {
                     "okta": {
                         "issuer_prefix": "https://okta.example.com",
-                        "allowed_scopes": ["openid", "profile", "protheus.read"],
+                        "allowed_scopes": ["openid", "profile", "infring.read"],
                         "allowed_roles": ["operator", "security"],
                         "scim_enabled": true
                     }

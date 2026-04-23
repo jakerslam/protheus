@@ -10,8 +10,8 @@ const { requireFresh } = require('./_legacy_retired_test_wrapper.ts');
 const ROOT = path.resolve(__dirname, '../..');
 
 function main() {
-  process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
-  process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = '120000';
+  process.env.INFRING_OPS_USE_PREBUILT = '0';
+  process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = '120000';
   const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tool-response-compactor-'));
 
   const mod = requireFresh(path.join(ROOT, 'client/runtime/lib/tool_response_compactor.ts'));

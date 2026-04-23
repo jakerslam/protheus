@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use protheus_ops_core::{memory_ambient, rag_cli};
+use infring_ops_core::{memory_ambient, rag_cli};
 use serde_json::Value;
 use std::fs;
 use std::path::Path;

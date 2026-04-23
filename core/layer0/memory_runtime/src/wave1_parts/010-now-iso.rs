@@ -9,7 +9,7 @@ use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
-use protheus_layer1_memory_runtime::recall_policy::{
+use infring_layer1_memory_runtime::recall_policy::{
     enforce_descending_ranking, enforce_index_freshness, DEFAULT_INDEX_MAX_AGE_MS,
 };
 

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://protheus.ai/schemas/degradation_contract.schema.json",
+  "$id": "https://infring.ai/schemas/degradation_contract.schema.json",
   "title": "DegradationContract",
   "type": "object",
   "required": ["contract_id", "fallbacks"],

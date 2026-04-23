@@ -1,6 +1,6 @@
-# Protheus / Infring Superintelligence Seed (March 2, 2026)
+# Infring / Infring Superintelligence Seed (March 2, 2026)
 
-Vision: "Protheus / Infring — the first superintelligence seed, built on its live March 2 2026 architecture with contract lanes, System 3, and MemFS already in place"
+Vision: "Infring / Infring — the first superintelligence seed, built on its live March 2 2026 architecture with contract lanes, System 3, and MemFS already in place"
 
 ## Scope
 
@@ -16,18 +16,18 @@ This upgrade adds an RSI wrapper at `client/cognition/adaptive/rsi/rsi_bootstrap
 
 ## CLI Surface
 
-- `protheusctl rsi bootstrap --owner=<owner_id>`
-- `protheusctl rsi step --owner=<owner_id> [--target-path=...] [--proposal-id=...] [--apply=1]`
-- `protheusctl rsi status --owner=<owner_id>`
-- `protheusctl rsi hands-loop --owner=<owner_id> [--iterations=...] [--interval-sec=...]`
-- `protheusctl approve --rsi --owner=<owner_id> --approver=<id>`
-- `protheusctl contract-lane status --owner=<owner_id>`
+- `infringctl rsi bootstrap --owner=<owner_id>`
+- `infringctl rsi step --owner=<owner_id> [--target-path=...] [--proposal-id=...] [--apply=1]`
+- `infringctl rsi status --owner=<owner_id>`
+- `infringctl rsi hands-loop --owner=<owner_id> [--iterations=...] [--interval-sec=...]`
+- `infringctl approve --rsi --owner=<owner_id> --approver=<id>`
+- `infringctl contract-lane status --owner=<owner_id>`
 
 ## Benchmark and Test Plan (Agent0 / FAOS comparison lane)
 
 1. Baseline internal control:
-   - Measure `packages/protheus-core` cold start and package size:
-     - `node client/runtime/lib/ts_entrypoint.ts packages/protheus-core/starter.ts --mode=contract --max-mb=5 --max-ms=200`
+   - Measure `packages/infring-core` cold start and package size:
+     - `node client/runtime/lib/ts_entrypoint.ts packages/infring-core/starter.ts --mode=contract --max-mb=5 --max-ms=200`
 2. RSI orchestration latency:
    - `node client/cognition/adaptive/rsi/rsi_bootstrap.ts step --owner=operator --mock=1`
    - Record p50/p95 step duration from `state/client/cognition/adaptive/rsi/receipts.jsonl`.

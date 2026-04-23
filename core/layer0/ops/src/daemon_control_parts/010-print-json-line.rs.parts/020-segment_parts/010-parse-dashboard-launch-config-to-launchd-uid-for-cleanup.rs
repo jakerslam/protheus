@@ -8,14 +8,14 @@ fn parse_dashboard_launch_config(argv: &[String], command: &str) -> DashboardLau
     );
     let open_browser = parse_bool(
         parse_flag(argv, "dashboard-open")
-            .or_else(|| std::env::var("PROTHEUS_DASHBOARD_OPEN_ON_START").ok())
+            .or_else(|| std::env::var("INFRING_DASHBOARD_OPEN_ON_START").ok())
             .as_deref(),
         start_like,
     );
     let persistent_supervisor = parse_bool(
         parse_flag(argv, "gateway-persist")
             .or_else(|| parse_flag(argv, "gateway-supervisor"))
-            .or_else(|| std::env::var("PROTHEUS_GATEWAY_PERSIST").ok())
+            .or_else(|| std::env::var("INFRING_GATEWAY_PERSIST").ok())
             .as_deref(),
         start_like,
     );
@@ -36,7 +36,7 @@ fn parse_dashboard_launch_config(argv: &[String], command: &str) -> DashboardLau
     );
     let ready_timeout_ms = parse_u64(
         parse_flag(argv, "dashboard-ready-timeout-ms")
-            .or_else(|| std::env::var("PROTHEUS_DASHBOARD_READY_TIMEOUT_MS").ok())
+            .or_else(|| std::env::var("INFRING_DASHBOARD_READY_TIMEOUT_MS").ok())
             .as_deref(),
         36_000,
         1_500,
@@ -44,7 +44,7 @@ fn parse_dashboard_launch_config(argv: &[String], command: &str) -> DashboardLau
     );
     let watchdog_interval_ms = parse_u64(
         parse_flag(argv, "dashboard-watchdog-interval-ms")
-            .or_else(|| std::env::var("PROTHEUS_DASHBOARD_WATCHDOG_INTERVAL_MS").ok())
+            .or_else(|| std::env::var("INFRING_DASHBOARD_WATCHDOG_INTERVAL_MS").ok())
             .as_deref(),
         DASHBOARD_WATCHDOG_INTERVAL_DEFAULT_MS,
         DASHBOARD_WATCHDOG_INTERVAL_MIN_MS,
@@ -175,8 +175,8 @@ fn cleanup_dashboard_pid_files(root: &Path, cfg: &DashboardLaunchConfig) -> Valu
 #[cfg(target_os = "macos")]
 fn stale_launchd_labels_for_cleanup(current_label: &str) -> Vec<String> {
     let mut labels = vec![
-        "ai.protheus.gateway".to_string(),
-        "protheus.gateway".to_string(),
+        "ai.infring.gateway".to_string(),
+        "infring.gateway".to_string(),
         "ai.infring.gateway.legacy".to_string(),
     ];
     labels.retain(|label| label != current_label);

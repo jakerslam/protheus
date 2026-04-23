@@ -3,7 +3,7 @@
 // V6-WORKFLOW-004.4, V6-WORKFLOW-004.5, V6-WORKFLOW-004.6,
 // V6-WORKFLOW-004.7, V6-WORKFLOW-004.8, V6-WORKFLOW-004.9, V6-WORKFLOW-004.10
 
-use protheus_ops_core::crewai_bridge;
+use infring_ops_core::crewai_bridge;
 use serde_json::{json, Value};
 use std::collections::BTreeSet;
 use std::fs;

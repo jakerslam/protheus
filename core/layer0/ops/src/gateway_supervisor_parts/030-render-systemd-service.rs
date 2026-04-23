@@ -19,7 +19,7 @@ ExecStart=/bin/sh -lc {exec_start}\n\
 Restart=always\n\
 RestartSec=1\n\
 KillMode=process\n\
-Environment=PROTHEUS_ROOT={root_env}\n\
+Environment=INFRING_ROOT={root_env}\n\
 \n\
 [Install]\n\
 WantedBy=default.target\n",

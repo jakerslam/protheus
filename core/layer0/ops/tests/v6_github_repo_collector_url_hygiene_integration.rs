@@ -1,4 +1,4 @@
-use protheus_ops_core::github_repo_collector_kernel_support::{
+use infring_ops_core::github_repo_collector_kernel_support::{
     map_commit_items, map_pr_items, map_release_item,
 };
 use serde_json::json;

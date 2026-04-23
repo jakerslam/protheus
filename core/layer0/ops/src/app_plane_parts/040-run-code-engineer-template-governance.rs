@@ -417,7 +417,7 @@ fn run_code_engineer_build_internal(
             },
             {
                 "id": "V6-APP-006.4",
-                "claim": "protheus_build_executes_end_to_end_research_plan_code_test_package_with_stage_receipts",
+                "claim": "infring_build_executes_end_to_end_research_plan_code_test_package_with_stage_receipts",
                 "evidence": {
                     "run_id": run_id.clone(),
                     "stage_count": 5

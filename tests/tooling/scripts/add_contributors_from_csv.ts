@@ -72,7 +72,7 @@ function readJsonMaybe(filePath) {
 function buildAllContributors(existing, entries) {
   const base = existing && typeof existing === 'object' ? existing : {};
   const result = {
-    projectName: base.projectName || 'protheus',
+    projectName: base.projectName || 'infring',
     projectOwner: base.projectOwner || 'protheuslabs',
     repoType: base.repoType || 'github',
     repoHost: base.repoHost || 'https://github.com',

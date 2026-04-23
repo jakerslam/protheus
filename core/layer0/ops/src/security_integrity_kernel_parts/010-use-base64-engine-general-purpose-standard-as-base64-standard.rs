@@ -48,7 +48,7 @@ impl StringFallback for String {
 fn usage() {
     println!("security-integrity-kernel commands:");
     println!(
-        "  protheus-ops security-integrity-kernel <load-policy|collect-present-files|verify|seal|append-event> [--payload-base64=<base64_json>]"
+        "  infring-ops security-integrity-kernel <load-policy|collect-present-files|verify|seal|append-event> [--payload-base64=<base64_json>]"
     );
 }
 
@@ -143,7 +143,7 @@ fn workspace_root(root: &Path, payload: &Map<String, Value>) -> PathBuf {
     if !explicit_root.is_empty() {
         return PathBuf::from(explicit_root);
     }
-    if let Ok(raw) = std::env::var("PROTHEUS_WORKSPACE_ROOT") {
+    if let Ok(raw) = std::env::var("INFRING_WORKSPACE_ROOT") {
         let trimmed = raw.trim();
         if !trimmed.is_empty() {
             return PathBuf::from(trimmed);
@@ -153,7 +153,7 @@ fn workspace_root(root: &Path, payload: &Map<String, Value>) -> PathBuf {
 }
 
 fn runtime_root(root: &Path, payload: &Map<String, Value>) -> PathBuf {
-    if let Ok(raw) = std::env::var("PROTHEUS_RUNTIME_ROOT") {
+    if let Ok(raw) = std::env::var("INFRING_RUNTIME_ROOT") {
         let trimmed = raw.trim();
         if !trimmed.is_empty() {
             return PathBuf::from(trimmed);

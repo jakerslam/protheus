@@ -315,10 +315,10 @@ mod tests {
                 "strict_default": true,
                 "required_artifacts": [
                     {
-                        "id": "protheus-ops",
-                        "artifact_path": "target/release/protheus-ops",
-                        "sbom_path": "local/state/release/provenance/sbom/protheus-ops.cdx.json",
-                        "signature_path": "local/state/release/provenance/signatures/protheus-ops.sig"
+                        "id": "infring-ops",
+                        "artifact_path": "target/release/infring-ops",
+                        "sbom_path": "local/state/release/provenance/sbom/infring-ops.cdx.json",
+                        "signature_path": "local/state/release/provenance/signatures/infring-ops.sig"
                     }
                 ],
                 "bundle_path": "local/state/release/provenance_bundle/latest.json",
@@ -342,9 +342,9 @@ mod tests {
     fn make_fixture(root: &Path, critical: u64) {
         write_policy(root);
 
-        let artifact_path = root.join("target/release/protheus-ops");
-        let sbom_path = root.join("local/state/release/provenance/sbom/protheus-ops.cdx.json");
-        let sig_path = root.join("local/state/release/provenance/signatures/protheus-ops.sig");
+        let artifact_path = root.join("target/release/infring-ops");
+        let sbom_path = root.join("local/state/release/provenance/sbom/infring-ops.cdx.json");
+        let sig_path = root.join("local/state/release/provenance/signatures/infring-ops.sig");
         write_text(&artifact_path, "artifact-bytes");
         write_text(&sbom_path, "{\"sbom\":true}");
         write_text(&sig_path, "sig-bytes");
@@ -381,12 +381,12 @@ mod tests {
             "generated_at": now_iso(),
             "artifacts": [
                 {
-                    "id": "protheus-ops",
-                    "artifact_path": "target/release/protheus-ops",
+                    "id": "infring-ops",
+                    "artifact_path": "target/release/infring-ops",
                     "artifact_sha256": file_sha256(&artifact_path).unwrap(),
-                    "sbom_path": "local/state/release/provenance/sbom/protheus-ops.cdx.json",
+                    "sbom_path": "local/state/release/provenance/sbom/infring-ops.cdx.json",
                     "sbom_sha256": file_sha256(&sbom_path).unwrap(),
-                    "signature_path": "local/state/release/provenance/signatures/protheus-ops.sig",
+                    "signature_path": "local/state/release/provenance/signatures/infring-ops.sig",
                     "signature_sha256": file_sha256(&sig_path).unwrap(),
                     "signature_verified": true
                 }
@@ -423,7 +423,7 @@ mod tests {
         let temp = tempdir().expect("tempdir");
         let root = temp.path();
         write_policy(root);
-        write_text(&root.join("target/release/protheus-ops"), "artifact-bytes");
+        write_text(&root.join("target/release/infring-ops"), "artifact-bytes");
 
         let code = run(
             root,
@@ -447,12 +447,12 @@ mod tests {
             "bundle should be generated"
         );
         assert!(
-            root.join("local/state/release/provenance/sbom/protheus-ops.cdx.json")
+            root.join("local/state/release/provenance/sbom/infring-ops.cdx.json")
                 .exists(),
             "sbom should be generated"
         );
         assert!(
-            root.join("local/state/release/provenance/signatures/protheus-ops.sig")
+            root.join("local/state/release/provenance/signatures/infring-ops.sig")
                 .exists(),
             "signature should be generated"
         );

@@ -56,8 +56,8 @@ function loadConduitClient() {
 }
 
 function daemonCommand() {
-  if (process.env.PROTHEUS_CONDUIT_DAEMON_COMMAND) {
-    return process.env.PROTHEUS_CONDUIT_DAEMON_COMMAND;
+  if (process.env.INFRING_CONDUIT_DAEMON_COMMAND) {
+    return process.env.INFRING_CONDUIT_DAEMON_COMMAND;
   }
   const releaseBin = path.join(ROOT, 'target', 'release', 'conduit_daemon');
   if (fs.existsSync(releaseBin)) return releaseBin;
@@ -66,7 +66,7 @@ function daemonCommand() {
 }
 
 function daemonArgs(command) {
-  const raw = process.env.PROTHEUS_CONDUIT_DAEMON_ARGS;
+  const raw = process.env.INFRING_CONDUIT_DAEMON_ARGS;
   if (raw && String(raw).trim()) {
     return String(raw).trim().split(/\\s+/).filter(Boolean);
   }
@@ -130,7 +130,7 @@ function daemonArgs(command) {
     maxBuffer: 10 * 1024 * 1024,
     env: {
       ...process.env,
-      PROTHEUS_NODE_BINARY: process.execPath || 'node'
+      INFRING_NODE_BINARY: process.execPath || 'node'
     }
   });
 

@@ -19,8 +19,8 @@ struct GateCommand {
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops alpha-readiness run [--strict=1|0] [--run-gates=1|0]");
-    println!("  protheus-ops alpha-readiness status");
+    println!("  infring-ops alpha-readiness run [--strict=1|0] [--run-gates=1|0]");
+    println!("  infring-ops alpha-readiness status");
 }
 
 fn parse_bool_flag(value: Option<&String>, fallback: bool) -> bool {
@@ -89,9 +89,9 @@ fn check_package_bins(root: &Path) -> Value {
         "infring",
         "infringctl",
         "infringd",
-        "protheus",
-        "protheusctl",
-        "protheusd",
+        "infring",
+        "infringctl",
+        "infringd",
     ];
     let mut missing = Vec::<String>::new();
     match parsed
@@ -126,7 +126,7 @@ fn check_release_workflows(root: &Path) -> Value {
     let workflows = [
         ".github/workflows/release.yml",
         ".github/workflows/size-gate.yml",
-        ".github/workflows/protheusd-static-size-gate.yml",
+        ".github/workflows/infringd-static-size-gate.yml",
     ];
     let missing = workflows
         .iter()
@@ -268,7 +268,7 @@ fn evaluate(root: &Path, run_gates: bool) -> Value {
             root,
             "verify_proof_timeout_override",
             "verify.sh",
-            &["PROTHEUS_VERIFY_PROOF_TIMEOUT_SEC"],
+            &["INFRING_VERIFY_PROOF_TIMEOUT_SEC"],
         ),
         check_file_tokens(
             root,
@@ -436,7 +436,7 @@ mod tests {
             ),
             (
                 "verify.sh",
-                "PROTHEUS_VERIFY_PROOF_TIMEOUT_SEC=${PROTHEUS_VERIFY_PROOF_TIMEOUT_SEC:-420}\n",
+                "INFRING_VERIFY_PROOF_TIMEOUT_SEC=${INFRING_VERIFY_PROOF_TIMEOUT_SEC:-420}\n",
             ),
             (
                 "README.md",
@@ -444,12 +444,12 @@ mod tests {
             ),
             (
                 "package.json",
-                r#"{"bin":{"infring":"a","infringctl":"b","infringd":"c","protheus":"d","protheusctl":"e","protheusd":"f"}}"#,
+                r#"{"bin":{"infring":"a","infringctl":"b","infringd":"c","infring":"d","infringctl":"e","infringd":"f"}}"#,
             ),
             (".github/workflows/release.yml", "name: release\n"),
             (".github/workflows/size-gate.yml", "name: size gate\n"),
             (
-                ".github/workflows/protheusd-static-size-gate.yml",
+                ".github/workflows/infringd-static-size-gate.yml",
                 "name: static size gate\n",
             ),
             ("docs/workspace/templates/assistant/SOUL.md", "seed\n"),

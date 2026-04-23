@@ -4,9 +4,9 @@
   "strict_default": true,
   "checks": [
     {
-      "id": "protheus_control_plane_live",
-      "description": "protheus_control_plane no longer shadow by default",
-      "file_must_exist": "client/runtime/systems/ops/protheus_control_plane.ts"
+      "id": "infring_control_plane_live",
+      "description": "infring_control_plane no longer shadow by default",
+      "file_must_exist": "client/runtime/systems/ops/infring_control_plane.ts"
     },
     {
       "id": "event_stream_authoritative_live",

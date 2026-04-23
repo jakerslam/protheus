@@ -34,6 +34,6 @@ Top 10 targets from `docs/client/RUST_KERNEL_MIGRATION_CANDIDATES.md` lines 32-4
 ## Validation
 
 - `node` execution for all 10 target wrappers returns `ok: true` with Rust-generated deterministic lane receipts.
-- `cargo check -p conduit -p protheus-ops-core` passed.
+- `cargo check -p conduit -p infring-ops-core` passed.
 - `npm run -s formal:invariants:run` passed (`failed_invariants: 0`).
 - Benchmark matrix rerun uses live `run` metrics with no fallback (`runtime_metric_source.mode=run`, `fallback_reason=null`).

@@ -365,7 +365,7 @@ fn looks_like_shell_command_line(line: &str) -> bool {
             | "kubectl"
             | "infring"
             | "infringctl"
-            | "protheus-ops"
+            | "infring-ops"
     )
 }
 

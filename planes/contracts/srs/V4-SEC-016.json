@@ -1,6 +1,6 @@
 {
   "id": "V4-SEC-016",
-  "upgrade": "[launch-polish / V4] Live Security Mirror Panel in `protheus-top`",
+  "upgrade": "[launch-polish / V4] Live Security Mirror Panel in `infring-top`",
   "section": "Security Nasty Reinforcement Program (Google Doc Intake 2026-03-03)",
   "impact": 10,
   "layer_map": "0/1/2/client",
@@ -27,8 +27,8 @@
     }
   ],
   "validation": {
-    "lane_command": "protheus-ops srs-contract-runtime run --id=V4-SEC-016",
-    "status_command": "protheus-ops srs-contract-runtime status --id=V4-SEC-016",
+    "lane_command": "infring-ops srs-contract-runtime run --id=V4-SEC-016",
+    "status_command": "infring-ops srs-contract-runtime status --id=V4-SEC-016",
     "fail_closed_on_missing_contract": true
   },
   "generated_from": {

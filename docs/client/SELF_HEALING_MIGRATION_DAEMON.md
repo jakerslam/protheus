@@ -18,8 +18,8 @@ node client/runtime/systems/migration/self_healing_migration_daemon.ts scan --wo
 # Consent-gated upgrade (invokes core migration bridge)
 node client/runtime/systems/migration/self_healing_migration_daemon.ts upgrade \
   --workspace=. \
-  --to=acme/protheus-core \
-  --workspace-target=../protheus-core \
+  --to=acme/infring-core \
+  --workspace-target=../infring-core \
   --consent-token=MIGR-CONSENT-20260303
 ```
 

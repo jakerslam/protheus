@@ -49,21 +49,21 @@ struct Layer2ImportanceDecision {
 fn usage() {
     eprintln!("Usage:");
     eprintln!(
-        "  protheus-ops attention-queue enqueue --event-json-base64=<base64> [--run-context=<value>]"
+        "  infring-ops attention-queue enqueue --event-json-base64=<base64> [--run-context=<value>]"
     );
-    eprintln!("  protheus-ops attention-queue enqueue --event-json=<json> [--run-context=<value>]");
-    eprintln!("  protheus-ops attention-queue status");
+    eprintln!("  infring-ops attention-queue enqueue --event-json=<json> [--run-context=<value>]");
+    eprintln!("  infring-ops attention-queue status");
     eprintln!(
-        "  protheus-ops attention-queue next [--consumer=<id>] [--limit=<n>] [--wait-ms=<n>] [--run-context=<value>]"
-    );
-    eprintln!(
-        "  protheus-ops attention-queue ack --consumer=<id> --through-index=<n> --cursor-token=<token> [--run-context=<value>]"
+        "  infring-ops attention-queue next [--consumer=<id>] [--limit=<n>] [--wait-ms=<n>] [--run-context=<value>]"
     );
     eprintln!(
-        "  protheus-ops attention-queue drain [--consumer=<id>] [--limit=<n>] [--wait-ms=<n>] [--run-context=<value>]"
+        "  infring-ops attention-queue ack --consumer=<id> --through-index=<n> --cursor-token=<token> [--run-context=<value>]"
     );
     eprintln!(
-        "  protheus-ops attention-queue compact [--retain=<n>] [--min-acked=<n>] [--run-context=<value>]"
+        "  infring-ops attention-queue drain [--consumer=<id>] [--limit=<n>] [--wait-ms=<n>] [--run-context=<value>]"
+    );
+    eprintln!(
+        "  infring-ops attention-queue compact [--retain=<n>] [--min-acked=<n>] [--run-context=<value>]"
     );
 }
 

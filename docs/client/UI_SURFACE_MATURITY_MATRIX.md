@@ -8,7 +8,7 @@ This document is evidence-only: no claims without shipped artifacts.
 
 ## Scope
 
-- CLI surfaces: `protheus`, `protheusd`, `protheusctl`, `protheus-top`
+- CLI surfaces: `infring`, `infringd`, `infringctl`, `infring-top`
 - Operator docs surfaces (runbooks, architecture, governance)
 - Control plane interaction surfaces (status, verification, receipts)
 
@@ -24,7 +24,7 @@ This document is evidence-only: no claims without shipped artifacts.
 
 | Surface | Owner | Current | Target | Required Evidence |
 |---|---|---|---|---|
-| CLI command family (`protheus*`) | Platform | L2 | L4 | command docs, test suite, release notes |
+| CLI command family (`infring*`) | Platform | L2 | L4 | command docs, test suite, release notes |
 | Operator runbooks (`docs/client/OPERATOR_RUNBOOK.md`) | Ops | L2 | L4 | escalation path, drill receipts, dated review |
 | Backlog and governance views | Governance | L3 | L4 | sync receipts, no manual edits, freshness checks |
 | Security policy surfaces | Security | L2 | L4 | policy docs, template routing, review cadence |

@@ -11,7 +11,7 @@ fn context_stacks_nexus_enabled(parsed: &crate::ParsedArgs) -> bool {
         .get("nexus")
         .map(|raw| bool_like(raw.as_str()))
         .or_else(|| {
-            std::env::var("PROTHEUS_HIERARCHICAL_NEXUS_V1")
+            std::env::var("INFRING_HIERARCHICAL_NEXUS_V1")
                 .ok()
                 .map(|raw| bool_like(raw.as_str()))
         })
@@ -19,7 +19,7 @@ fn context_stacks_nexus_enabled(parsed: &crate::ParsedArgs) -> bool {
 }
 
 fn context_stacks_force_block_pair_enabled() -> bool {
-    std::env::var("PROTHEUS_HIERARCHICAL_NEXUS_BLOCK_CONTEXT_STACKS_ROUTE")
+    std::env::var("INFRING_HIERARCHICAL_NEXUS_BLOCK_CONTEXT_STACKS_ROUTE")
         .ok()
         .map(|raw| bool_like(raw.as_str()))
         .unwrap_or(false)

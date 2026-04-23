@@ -15,15 +15,15 @@ const PROVIDER_FAMILY_CONTRACT_TARGETS: &[&str] =
 
 fn usage() {
     println!("dynamic-burn-budget-signal-kernel commands:");
-    println!("  protheus-ops dynamic-burn-budget-signal-kernel normalize-pressure [--payload-base64=<json>]");
+    println!("  infring-ops dynamic-burn-budget-signal-kernel normalize-pressure [--payload-base64=<json>]");
     println!(
-        "  protheus-ops dynamic-burn-budget-signal-kernel pressure-rank [--payload-base64=<json>]"
+        "  infring-ops dynamic-burn-budget-signal-kernel pressure-rank [--payload-base64=<json>]"
     );
     println!(
-        "  protheus-ops dynamic-burn-budget-signal-kernel cost-pressure [--payload-base64=<json>]"
+        "  infring-ops dynamic-burn-budget-signal-kernel cost-pressure [--payload-base64=<json>]"
     );
     println!(
-        "  protheus-ops dynamic-burn-budget-signal-kernel load-signal [--payload-base64=<json>]"
+        "  infring-ops dynamic-burn-budget-signal-kernel load-signal [--payload-base64=<json>]"
     );
 }
 

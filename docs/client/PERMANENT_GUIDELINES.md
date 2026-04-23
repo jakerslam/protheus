@@ -1,3 +1,3 @@
 # Permanent Guidelines
 
-Canonical covenant-first governance guidelines for Protheus operations.
+Canonical covenant-first governance guidelines for Infring operations.

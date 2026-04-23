@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "description": "AIE (Agent Improvement Engine) Event Schema - Tracks Protheus agent outputs for quality evaluation",
+  "description": "AIE (Agent Improvement Engine) Event Schema - Tracks Infring agent outputs for quality evaluation",
   "event_types": {
     "patch_applied": {
       "description": "Code/script changes applied to repo",

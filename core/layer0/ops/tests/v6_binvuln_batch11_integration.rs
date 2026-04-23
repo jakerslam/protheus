@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use protheus_ops_core::{binary_vuln_plane, hermes_plane};
+use infring_ops_core::{binary_vuln_plane, hermes_plane};
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 use std::fs;
@@ -368,7 +368,7 @@ fn v6_binvuln_batch30_rulepack_install_enable_and_cockpit_observability() {
                 })
             })
             .unwrap_or(false),
-        "protheus-top cockpit should surface binary-vuln scans as security blocks"
+        "infring-top cockpit should surface binary-vuln scans as security blocks"
     );
 }
 

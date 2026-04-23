@@ -15,29 +15,29 @@ enum Invocation {
 
 fn usage() {
     eprintln!("Usage:");
-    eprintln!("  protheus-ops rag status");
-    eprintln!("  protheus-ops rag start");
-    eprintln!("  protheus-ops rag ingest [--path=<path>] [--chunk-size=<n>] [--chunk-overlap=<n>]");
-    eprintln!("  protheus-ops rag search --q=<query> [--top=<n>]");
-    eprintln!("  protheus-ops rag chat --q=<query> [--top=<n>]");
-    eprintln!("  protheus-ops rag chat nano [--q=<query>] [--top=<n>]");
-    eprintln!("  protheus-ops rag train nano [--depth=<n>] [--profile=<name>]");
-    eprintln!("  protheus-ops rag nano fork [--target=<path>]");
-    eprintln!("  protheus-ops rag merge-vault [--max-merge=<n>]");
-    eprintln!("  protheus-ops rag memory status");
-    eprintln!("  protheus-ops rag memory search --q=<query> [--top=<n>]");
-    eprintln!("  protheus-ops rag memory get-node --node-id=<id> | --uid=<uid>");
-    eprintln!("  protheus-ops rag memory build-index");
-    eprintln!("  protheus-ops rag memory upgrade byterover");
-    eprintln!("  protheus-ops rag memory taxonomy");
-    eprintln!("  protheus-ops rag memory enable metacognitive");
-    eprintln!("  protheus-ops rag memory enable causality");
-    eprintln!("  protheus-ops rag memory benchmark ama");
-    eprintln!("  protheus-ops rag memory share --persona=<id> --scope=task|step --consent=true");
-    eprintln!("  protheus-ops rag memory evolve [--generation=<n>]");
-    eprintln!("  protheus-ops rag memory causal-retrieve --q=<query> [--depth=<n>]");
-    eprintln!("  protheus-ops rag memory fuse");
-    eprintln!("  protheus-ops rag memory library enable stable");
+    eprintln!("  infring-ops rag status");
+    eprintln!("  infring-ops rag start");
+    eprintln!("  infring-ops rag ingest [--path=<path>] [--chunk-size=<n>] [--chunk-overlap=<n>]");
+    eprintln!("  infring-ops rag search --q=<query> [--top=<n>]");
+    eprintln!("  infring-ops rag chat --q=<query> [--top=<n>]");
+    eprintln!("  infring-ops rag chat nano [--q=<query>] [--top=<n>]");
+    eprintln!("  infring-ops rag train nano [--depth=<n>] [--profile=<name>]");
+    eprintln!("  infring-ops rag nano fork [--target=<path>]");
+    eprintln!("  infring-ops rag merge-vault [--max-merge=<n>]");
+    eprintln!("  infring-ops rag memory status");
+    eprintln!("  infring-ops rag memory search --q=<query> [--top=<n>]");
+    eprintln!("  infring-ops rag memory get-node --node-id=<id> | --uid=<uid>");
+    eprintln!("  infring-ops rag memory build-index");
+    eprintln!("  infring-ops rag memory upgrade byterover");
+    eprintln!("  infring-ops rag memory taxonomy");
+    eprintln!("  infring-ops rag memory enable metacognitive");
+    eprintln!("  infring-ops rag memory enable causality");
+    eprintln!("  infring-ops rag memory benchmark ama");
+    eprintln!("  infring-ops rag memory share --persona=<id> --scope=task|step --consent=true");
+    eprintln!("  infring-ops rag memory evolve [--generation=<n>]");
+    eprintln!("  infring-ops rag memory causal-retrieve --q=<query> [--depth=<n>]");
+    eprintln!("  infring-ops rag memory fuse");
+    eprintln!("  infring-ops rag memory library enable stable");
 }
 
 fn print_json(value: &Value) {

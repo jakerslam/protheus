@@ -214,7 +214,7 @@ pub(super) fn command_ignite(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
             "type": "organism_layer_ignite",
             "lane": "core/layer0/ops",
             "apply": apply,
-            "commands": ["protheus organism ignite", "protheus organism status"],
+            "commands": ["infring organism ignite", "infring organism status"],
             "organism_view": {
                 "dream": dream,
                 "vitals": {
@@ -292,7 +292,7 @@ pub(super) fn command_ignite(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
                     "claim": "creative_mutation_paths_are_available_for_proactive_opt_in_evolution",
                     "evidence": {
                         "active": apply && allowed,
-                        "preview_command": "protheus organism mutate --apply=1"
+                        "preview_command": "infring organism mutate --apply=1"
                     }
                 },
                 {
@@ -317,8 +317,8 @@ pub(super) fn command_ignite(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
                     "id": "V8-ORGANISM-001.8",
                     "claim": "one_command_ignite_surfaces_a_full_organism_view_without_client_authority_bypass",
                     "evidence": {
-                        "activation_command": "protheus organism ignite",
-                        "status_command": "protheus organism status",
+                        "activation_command": "infring organism ignite",
+                        "status_command": "infring organism status",
                         "web_tooling_ready": web_tooling_ready,
                         "activated_components": {
                             "dream": apply && allowed,

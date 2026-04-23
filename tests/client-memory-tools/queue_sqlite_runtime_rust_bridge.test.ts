@@ -23,10 +23,10 @@ function main() {
     `${JSON.stringify({ lane_id: 'BL-1', action: 'queued', ts: '2026-03-17T00:00:00Z' })}\n`
   );
 
-  const prevUsePrebuilt = process.env.PROTHEUS_OPS_USE_PREBUILT;
-  const prevTimeout = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS;
-  process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
-  process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = '120000';
+  const prevUsePrebuilt = process.env.INFRING_OPS_USE_PREBUILT;
+  const prevTimeout = process.env.INFRING_OPS_LOCAL_TIMEOUT_MS;
+  process.env.INFRING_OPS_USE_PREBUILT = '0';
+  process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = '120000';
 
   try {
     const mod = resetModule(path.join(ROOT, 'client/lib/queue_sqlite_runtime.ts'));
@@ -69,10 +69,10 @@ function main() {
     assert.equal(Number.isFinite(Number(stats.items)), true);
     assert.ok(['number', 'string'].includes(typeof stats.receipts));
   } finally {
-    if (prevUsePrebuilt == null) delete process.env.PROTHEUS_OPS_USE_PREBUILT;
-    else process.env.PROTHEUS_OPS_USE_PREBUILT = prevUsePrebuilt;
-    if (prevTimeout == null) delete process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS;
-    else process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = prevTimeout;
+    if (prevUsePrebuilt == null) delete process.env.INFRING_OPS_USE_PREBUILT;
+    else process.env.INFRING_OPS_USE_PREBUILT = prevUsePrebuilt;
+    if (prevTimeout == null) delete process.env.INFRING_OPS_LOCAL_TIMEOUT_MS;
+    else process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = prevTimeout;
   }
 
   console.log(JSON.stringify({ ok: true, type: 'queue_sqlite_runtime_rust_bridge_test' }));

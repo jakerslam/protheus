@@ -10,4 +10,4 @@
 
 - Pull only consented channels/inboxes.
 - Redact secrets, credentials, and regulated identifiers before persistence.
-- Append a summarized sync entry to `correspondence.md` via `protheus lens update-stream rohan_kapoor`.
+- Append a summarized sync entry to `correspondence.md` via `infring lens update-stream rohan_kapoor`.

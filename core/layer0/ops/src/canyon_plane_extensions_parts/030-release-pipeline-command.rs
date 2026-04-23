@@ -31,16 +31,16 @@ pub(super) fn release_pipeline_command(
         return Err("release_pipeline_op_invalid".to_string());
     }
 
-    let cargo_bin = command_path("cargo", "PROTHEUS_CARGO_BIN");
-    let profdata_bin = command_path("llvm-profdata", "PROTHEUS_LLVM_PROFDATA_BIN");
-    let bolt_bin = command_path("llvm-bolt", "PROTHEUS_LLVM_BOLT_BIN");
-    let strip_bin = command_path("strip", "PROTHEUS_STRIP_BIN");
+    let cargo_bin = command_path("cargo", "INFRING_CARGO_BIN");
+    let profdata_bin = command_path("llvm-profdata", "INFRING_LLVM_PROFDATA_BIN");
+    let bolt_bin = command_path("llvm-bolt", "INFRING_LLVM_BOLT_BIN");
+    let strip_bin = command_path("strip", "INFRING_STRIP_BIN");
     let binary = clean(
         parsed
             .flags
             .get("binary")
             .map(String::as_str)
-            .unwrap_or("protheusd"),
+            .unwrap_or("infringd"),
         80,
     );
     let target = clean(

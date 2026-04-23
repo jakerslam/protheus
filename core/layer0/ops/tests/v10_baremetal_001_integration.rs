@@ -2,7 +2,7 @@
 // SRS coverage: V10-BAREMETAL-001.1, V10-BAREMETAL-001.2, V10-BAREMETAL-001.3,
 // V10-BAREMETAL-001.4, V10-BAREMETAL-001.5, V10-BAREMETAL-001.6
 
-use protheus_ops_core::baremetal_substrate;
+use infring_ops_core::baremetal_substrate;
 use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;

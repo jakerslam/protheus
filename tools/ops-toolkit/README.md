@@ -8,7 +8,7 @@
 
 ## Overview
 
-The Ops Toolkit is a collection of scripts, runbooks, and automation utilities designed to streamline platform operations for the Protheus infrastructure. This repository serves as the central source of truth for operational procedures, incident response playbooks, and infrastructure automation.
+The Ops Toolkit is a collection of scripts, runbooks, and automation utilities designed to streamline platform operations for the Infring infrastructure. This repository serves as the central source of truth for operational procedures, incident response playbooks, and infrastructure automation.
 
 ## Repository Structure
 
@@ -133,4 +133,4 @@ MIT License - See [LICENSE](./LICENSE) for details
 
 ---
 
-*For internal Protheus use. Not for redistribution without approval.*
+*For internal Infring use. Not for redistribution without approval.*

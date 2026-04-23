@@ -16,7 +16,7 @@ fn canonicalize_path(path: &Path) -> String {
 fn stale_workspace_root_refs(workspace_root: &Path) -> Vec<Value> {
     let active = canonicalize_path(workspace_root);
     let mut rows = Vec::<Value>::new();
-    for key in ["INFRING_WORKSPACE_ROOT", "PROTHEUS_WORKSPACE_ROOT"] {
+    for key in ["INFRING_WORKSPACE_ROOT", "INFRING_WORKSPACE_ROOT"] {
         let Ok(raw) = env::var(key) else {
             continue;
         };
@@ -291,7 +291,7 @@ fn run_fail_playbook(
         actions.push("Then: infring update --repair --full".to_string());
     }
     if doctor_check_ok(&doctor, "stale_workspace_root_refs") == Some(false) {
-        actions.push("Run: unset INFRING_WORKSPACE_ROOT PROTHEUS_WORKSPACE_ROOT".to_string());
+        actions.push("Run: unset INFRING_WORKSPACE_ROOT INFRING_WORKSPACE_ROOT".to_string());
         actions.push("Then: rerun infring recover".to_string());
     }
     with_receipt(json!({

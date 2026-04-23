@@ -62,7 +62,7 @@ mod tests {
         assert_eq!(entries.len(), set.len());
         assert!(entries
             .iter()
-            .any(|row| *row == "client/runtime/systems/ops/protheusd.ts"));
+            .any(|row| *row == "client/runtime/systems/ops/infringd.ts"));
     }
 
     #[test]

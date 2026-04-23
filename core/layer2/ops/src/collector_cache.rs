@@ -121,7 +121,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "load" => Ok(cmd_load(root, argv)),
         "save" => cmd_save(root, argv),
         "help" | "--help" | "-h" => {
-            println!("Usage:\n  protheus-ops collector-cache load|save|status [--collector-id=<id>] [--max-age-hours=<n>] [--items-json=<json>]");
+            println!("Usage:\n  infring-ops collector-cache load|save|status [--collector-id=<id>] [--max-age-hours=<n>] [--items-json=<json>]");
             return 0;
         }
         _ => Ok(json!({"ok":false,"error":format!("unknown_command:{cmd}")})),

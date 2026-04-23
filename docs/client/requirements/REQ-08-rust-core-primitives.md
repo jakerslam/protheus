@@ -2,11 +2,11 @@
 
 Version: 1.0  
 Date: 2026-03-06  
-Owner: Protheus Kernel Kernel
+Owner: Infring Kernel Kernel
 
 ## Objective
 
-Enforce Rust as the only source of truth for the seven core primitives required for portable, auditable, and substrate-swappable Protheus runtime.
+Enforce Rust as the only source of truth for the seven core primitives required for portable, auditable, and substrate-swappable Infring runtime.
 
 Kernel primitives:
 - `task`

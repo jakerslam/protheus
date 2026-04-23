@@ -71,7 +71,7 @@ function startServer() {
 
 async function main() {
   const bridgeOnly = process.argv.includes('--collector-bridge-only=1');
-  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'protheus-collector-runtime-test-'));
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'infring-collector-runtime-test-'));
   process.env.EYES_STATE_DIR = stateDir;
   process.env.EYES_COLLECTOR_ALLOW_DIRECT_FETCH_FALLBACK = '1';
   process.env.EYES_COLLECTOR_BACKOFF_BASE_MS = '5';

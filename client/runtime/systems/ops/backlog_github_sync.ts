@@ -4,7 +4,7 @@
 // TypeScript compatibility shim only.
 // Layer ownership: core/layer0/ops::backlog-github-sync (authoritative domain route).
 
-const mod = require('../../../../adapters/runtime/protheus_cli_modules.ts').backlogGithubSync;
+const mod = require('../../../../adapters/runtime/infring_cli_modules.ts').backlogGithubSync;
 
 function normalizeCompatArgv(argv = process.argv.slice(2)) {
   const args = Array.isArray(argv) ? argv.map((token) => String(token || '').trim()).filter(Boolean) : [];

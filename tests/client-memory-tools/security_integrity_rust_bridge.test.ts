@@ -26,10 +26,10 @@ function main() {
   writeFile(runtimeRoot, 'systems/security/guard.js', 'module.exports = 1;\n');
   writeFile(runtimeRoot, 'config/directives/policy.yaml', 'mode: strict\n');
 
-  process.env.PROTHEUS_WORKSPACE_ROOT = workspace;
-  process.env.PROTHEUS_RUNTIME_ROOT = runtimeRoot;
-  process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
-  process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = '120000';
+  process.env.INFRING_WORKSPACE_ROOT = workspace;
+  process.env.INFRING_RUNTIME_ROOT = runtimeRoot;
+  process.env.INFRING_OPS_USE_PREBUILT = '0';
+  process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = '120000';
 
   const mod = resetModule(path.join(ROOT, 'client/runtime/lib/security_integrity.ts'));
 

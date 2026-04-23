@@ -3,7 +3,7 @@
 // V6-WORKFLOW-014.4, V6-WORKFLOW-014.5, V6-WORKFLOW-014.6, V6-WORKFLOW-014.7,
 // V6-WORKFLOW-014.8, V6-WORKFLOW-014.9
 
-use protheus_ops_core::workflow_chain_bridge;
+use infring_ops_core::workflow_chain_bridge;
 use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;

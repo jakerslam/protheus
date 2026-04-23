@@ -9,25 +9,25 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     if matches!(command.as_str(), "help" | "--help" | "-h") {
         println!("Usage:");
-        println!("  protheus-ops llm-economy-organ run [--apply=1|0]");
-        println!("  protheus-ops llm-economy-organ enable <all|virtuals|bankrbot|nookplot|owocki|heurist|daydreams|fairscale|trade_router> [--apply=1|0]");
-        println!("  protheus-ops llm-economy-organ upgrade-trading-hand [--mode=analysis|paper|live] [--symbol=<pair>] [--apply=1|0]");
-        println!("  protheus-ops llm-economy-organ debate-bullbear [--symbol=<pair>] [--bull-score=<0..1>] [--bear-score=<0..1>] [--apply=1|0]");
-        println!("  protheus-ops llm-economy-organ alpaca-execute [--mode=analysis|paper|live] [--symbol=<pair>] [--side=buy|sell] [--qty=<n>] [--apply=1|0]");
+        println!("  infring-ops llm-economy-organ run [--apply=1|0]");
+        println!("  infring-ops llm-economy-organ enable <all|virtuals|bankrbot|nookplot|owocki|heurist|daydreams|fairscale|trade_router> [--apply=1|0]");
+        println!("  infring-ops llm-economy-organ upgrade-trading-hand [--mode=analysis|paper|live] [--symbol=<pair>] [--apply=1|0]");
+        println!("  infring-ops llm-economy-organ debate-bullbear [--symbol=<pair>] [--bull-score=<0..1>] [--bear-score=<0..1>] [--apply=1|0]");
+        println!("  infring-ops llm-economy-organ alpaca-execute [--mode=analysis|paper|live] [--symbol=<pair>] [--side=buy|sell] [--qty=<n>] [--apply=1|0]");
         println!(
-            "  protheus-ops llm-economy-organ virtuals-acp [--action=build|earn] [--apply=1|0]"
+            "  infring-ops llm-economy-organ virtuals-acp [--action=build|earn] [--apply=1|0]"
         );
         println!(
-            "  protheus-ops llm-economy-organ bankrbot-defi [--strategy=<name>] [--apply=1|0]"
+            "  infring-ops llm-economy-organ bankrbot-defi [--strategy=<name>] [--apply=1|0]"
         );
-        println!("  protheus-ops llm-economy-organ jobs-marketplace [--source=nookplot|owocki] [--apply=1|0]");
-        println!("  protheus-ops llm-economy-organ skills-marketplace [--source=heurist|daydreams] [--apply=1|0]");
-        println!("  protheus-ops llm-economy-organ fairscale-credit [--delta=<n>] [--apply=1|0]");
-        println!("  protheus-ops llm-economy-organ mining-hand [--network=litcoin|minbot] [--hours=<n>] [--apply=1|0]");
-        println!("  protheus-ops llm-economy-organ trade-router [--chain=solana] [--symbol=<pair>] [--side=buy|sell] [--qty=<n>] [--apply=1|0]");
-        println!("  protheus-ops llm-economy-organ model-support-refresh [--apply=1|0]");
-        println!("  protheus-ops llm-economy-organ dashboard");
-        println!("  protheus-ops llm-economy-organ status");
+        println!("  infring-ops llm-economy-organ jobs-marketplace [--source=nookplot|owocki] [--apply=1|0]");
+        println!("  infring-ops llm-economy-organ skills-marketplace [--source=heurist|daydreams] [--apply=1|0]");
+        println!("  infring-ops llm-economy-organ fairscale-credit [--delta=<n>] [--apply=1|0]");
+        println!("  infring-ops llm-economy-organ mining-hand [--network=litcoin|minbot] [--hours=<n>] [--apply=1|0]");
+        println!("  infring-ops llm-economy-organ trade-router [--chain=solana] [--symbol=<pair>] [--side=buy|sell] [--qty=<n>] [--apply=1|0]");
+        println!("  infring-ops llm-economy-organ model-support-refresh [--apply=1|0]");
+        println!("  infring-ops llm-economy-organ dashboard");
+        println!("  infring-ops llm-economy-organ status");
         return 0;
     }
 

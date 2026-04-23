@@ -4,9 +4,9 @@ use std::path::Path;
 
 const USAGE: &[&str] = &[
     "Usage:",
-    "  protheus-ops backlog-github-sync sync [--apply=1|0] [--dry-run=1|0] [--strict=1|0] [--limit=<n>] [--statuses=<csv>]",
-    "  protheus-ops backlog-github-sync check [--dry-run=1|0] [--strict=1|0] [--statuses=<csv>]",
-    "  protheus-ops backlog-github-sync status [--strict=1|0]",
+    "  infring-ops backlog-github-sync sync [--apply=1|0] [--dry-run=1|0] [--strict=1|0] [--limit=<n>] [--statuses=<csv>]",
+    "  infring-ops backlog-github-sync check [--dry-run=1|0] [--strict=1|0] [--statuses=<csv>]",
+    "  infring-ops backlog-github-sync status [--strict=1|0]",
 ];
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
@@ -16,7 +16,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         &LaneSpec {
             lane_id: "backlog_github_sync",
             lane_type: "backlog_github_sync",
-            replacement: "protheus-ops backlog-github-sync",
+            replacement: "infring-ops backlog-github-sync",
             usage: USAGE,
             passthrough_flags: &["apply", "dry-run", "strict", "policy", "limit", "statuses"],
         },

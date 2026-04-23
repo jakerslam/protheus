@@ -1,6 +1,6 @@
 # V2 Grok Proposal Evaluation (2026-02-25)
 
-Scope: evaluate seven organism-style proposals against current Protheus architecture and decide whether to implement now, defer, or reject.
+Scope: evaluate seven organism-style proposals against current Infring architecture and decide whether to implement now, defer, or reject.
 
 ## Decision Summary
 

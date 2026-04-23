@@ -107,8 +107,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     if matches!(cmd.as_str(), "help" | "--help" | "-h") {
         println!("Usage:");
-        println!("  protheus-ops foundation-contract-gate status");
-        println!("  protheus-ops foundation-contract-gate run [--merge-guard-check-ids=a,b,c]");
+        println!("  infring-ops foundation-contract-gate status");
+        println!("  infring-ops foundation-contract-gate run [--merge-guard-check-ids=a,b,c]");
         return 0;
     }
 

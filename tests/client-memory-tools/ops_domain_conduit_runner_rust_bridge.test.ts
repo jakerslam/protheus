@@ -8,12 +8,12 @@ require(path.resolve(__dirname, '..', '..', 'client', 'runtime', 'lib', 'ts_boot
 const mod = require(path.resolve(__dirname, '..', '..', 'client', 'runtime', 'lib', 'ops_domain_conduit_runner.ts'));
 
 function run() {
-  process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
-  process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = '120000';
-  process.env.PROTHEUS_OPS_DOMAIN_SKIP_RUNTIME_GATE = '0';
-  process.env.PROTHEUS_OPS_DOMAIN_STDIO_TIMEOUT_MS = '34567';
-  delete process.env.PROTHEUS_OPS_DOMAIN_BRIDGE_TIMEOUT_MS;
-  delete process.env.PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS;
+  process.env.INFRING_OPS_USE_PREBUILT = '0';
+  process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = '120000';
+  process.env.INFRING_OPS_DOMAIN_SKIP_RUNTIME_GATE = '0';
+  process.env.INFRING_OPS_DOMAIN_STDIO_TIMEOUT_MS = '34567';
+  delete process.env.INFRING_OPS_DOMAIN_BRIDGE_TIMEOUT_MS;
+  delete process.env.INFRING_CONDUIT_BRIDGE_TIMEOUT_MS;
 
   const parsed = mod.parseArgs(['--domain', 'legacy-retired-lane', 'run', '--lane-id=FOO-3']);
   assert.equal(parsed.domain, 'legacy-retired-lane');

@@ -42,7 +42,7 @@
       "repo_scaffold": [
         "client/runtime/local/secrets/"
       ],
-      "external_root_default": "~/.client/runtime/config/protheus/client/runtime/local/secrets/",
+      "external_root_default": "~/.client/runtime/config/infring/client/runtime/local/secrets/",
       "controllers": [
         "client/runtime/lib/secret_broker.ts",
         "client/runtime/systems/security/secret_broker.ts"

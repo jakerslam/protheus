@@ -24,11 +24,11 @@ const RULEPACK_PATH: &str = "planes/contracts/binary_vuln/rulepack_v1.json";
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops binary-vuln-plane status");
-    println!("  protheus-ops binary-vuln-plane scan --input=<path> [--rulepack=<path>] [--format=json|jsonl] [--strict=1|0]");
-    println!("  protheus-ops binary-vuln-plane mcp-analyze --input=<path> [--transport=stdio|http-sse] [--rulepack=<path>] [--strict=1|0]");
-    println!("  protheus-ops binary-vuln-plane rulepack-install --rulepack=<path> [--name=<id>] [--signature=<sig:...>] [--provenance=<uri>] [--strict=1|0]");
-    println!("  protheus-ops binary-vuln-plane rulepack-enable --name=<id> [--strict=1|0]");
+    println!("  infring-ops binary-vuln-plane status");
+    println!("  infring-ops binary-vuln-plane scan --input=<path> [--rulepack=<path>] [--format=json|jsonl] [--strict=1|0]");
+    println!("  infring-ops binary-vuln-plane mcp-analyze --input=<path> [--transport=stdio|http-sse] [--rulepack=<path>] [--strict=1|0]");
+    println!("  infring-ops binary-vuln-plane rulepack-install --rulepack=<path> [--name=<id>] [--signature=<sig:...>] [--provenance=<uri>] [--strict=1|0]");
+    println!("  infring-ops binary-vuln-plane rulepack-enable --name=<id> [--strict=1|0]");
 }
 
 fn state_root(root: &Path) -> PathBuf {
@@ -154,7 +154,7 @@ fn status(root: &Path) -> Value {
             "installed_count": installed_count
         },
         "observability": {
-            "surface": "protheus-top",
+            "surface": "infring-top",
             "cockpit_lane": "core/layer0/ops/hermes_plane"
         }
     })
@@ -198,7 +198,7 @@ fn conduit_enforcement(
     if action == "scan" || action == "mcp-analyze" || action == "mcp_analyze" {
         claim_rows.push(json!({
             "id": "V6-BINVULN-001.6",
-            "claim": "developer_cli_aliases_route_to_core_binary_scan_lanes_and_surface_observability_in_protheus_top",
+            "claim": "developer_cli_aliases_route_to_core_binary_scan_lanes_and_surface_observability_in_infring_top",
             "evidence": {
                 "action": clean(action, 120),
                 "bypass_requested": bypass_requested

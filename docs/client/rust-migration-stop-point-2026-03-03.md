@@ -23,7 +23,7 @@ Command used:
 1. Foundation Lock Task 1 completion proof
 - Finalize memory-core parity coverage (Ebbinghaus, CRDT, compression, recall) with deterministic tests.
 - Keep TS as thin wrapper only for memory CLI operations.
-- Produce proof: `cargo test -p protheus-memory-core-v6` and `cargo build --target wasm32-unknown-unknown --release -p protheus-memory-core-v6`.
+- Produce proof: `cargo test -p infring-memory-core-v6` and `cargo build --target wasm32-unknown-unknown --release -p infring-memory-core-v6`.
 
 2. Foundation Lock Task 2 implementation
 - Create `client/runtime/systems/memory/abstraction/`:

@@ -32,7 +32,7 @@ function runKernel(command, payload) {
       '--manifest-path',
       MANIFEST,
       '--bin',
-      'protheus-ops',
+      'infring-ops',
       '--',
       'conversation-eye-collector-kernel',
       command,

@@ -55,7 +55,7 @@
       "role": "execution",
       "model": "task_decomposer",
       "framework": "infring",
-      "org": "protheus",
+      "org": "infring",
       "tenant": "local"
     }
   },

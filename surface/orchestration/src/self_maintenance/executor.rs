@@ -17,7 +17,7 @@ use infring_layer1_memory::{
 use infring_task_fabric_core_v1::{
     now_ms as task_now_ms, MutationEnvelope, MutationKind, Task, TaskFabric, VerityGate,
 };
-use protheus_tooling_core_v1::{
+use infring_tooling_core_v1::{
     BrokerCaller, EvidenceExtractor, EvidenceStore, StructuredVerifier, ToolBroker, ToolCallRequest,
 };
 use serde_json::json;

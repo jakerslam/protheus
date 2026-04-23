@@ -2,7 +2,7 @@
 
 Version: 1.0  
 Date: 2026-03-06  
-Owner: Protheus Security + Platform
+Owner: Infring Security + Platform
 
 ## Objective
 
@@ -17,7 +17,7 @@ Rust remains the only kernel source of truth for constitution, policy, claim-evi
 ### Phase 1: Immediate Credibility (1–2 weeks)
 
 1. `REQ-07-001` First audited release package must be publishable with SBOM, signed artifacts, and provenance bundle.
-- Acceptance: release workflow emits per-artifact CycloneDX SBOMs, detached signatures, dependency-vulnerability SLA summary, and release provenance bundle for `v*` tags; strict Rust gate `protheus-ops supply-chain-provenance-v2 run --strict=1` passes before upload.
+- Acceptance: release workflow emits per-artifact CycloneDX SBOMs, detached signatures, dependency-vulnerability SLA summary, and release provenance bundle for `v*` tags; strict Rust gate `infring-ops supply-chain-provenance-v2 run --strict=1` passes before upload.
 
 2. `REQ-07-002` Public security posture must be documented and linked from root docs.
 - Acceptance: `docs/client/SECURITY_POSTURE.md` exists and is referenced from `README.md`.

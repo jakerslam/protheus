@@ -38,7 +38,7 @@ assert.equal(deny.allow, false);
 assert.equal(deny.reason, 'unknown_provider_default_deny');
 const allow = mod.evaluateTrainingDatumTrainability({
   source: { provider: 'internal' },
-  license: { id: 'internal_protheus' },
+  license: { id: 'internal_infring' },
   consent: { status: 'granted', mode: 'operator_policy' }
 });
 assert.equal(allow.allow, true);

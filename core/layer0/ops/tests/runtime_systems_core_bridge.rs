@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-use protheus_ops_core::{child_organ_runtime, continuity_runtime, memory_plane, runtime_systems};
+use infring_ops_core::{child_organ_runtime, continuity_runtime, memory_plane, runtime_systems};
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -55,7 +55,7 @@ fn collect_system_ids(dir: &Path, out: &mut Vec<String>) {
 fn continuity_runtime_end_to_end_writes_checkpoint_and_vault() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let root = tmp.path();
-    std::env::set_var("PROTHEUS_CONTINUITY_VAULT_KEY", "integration-secret");
+    std::env::set_var("INFRING_CONTINUITY_VAULT_KEY", "integration-secret");
 
     let checkpoint_exit = continuity_runtime::run(
         root,
@@ -121,7 +121,7 @@ fn continuity_runtime_end_to_end_writes_checkpoint_and_vault() {
     let vault = read_json(&vault_file);
     assert!(vault.get("ciphertext_b64").is_some());
 
-    std::env::remove_var("PROTHEUS_CONTINUITY_VAULT_KEY");
+    std::env::remove_var("INFRING_CONTINUITY_VAULT_KEY");
 }
 
 #[test]

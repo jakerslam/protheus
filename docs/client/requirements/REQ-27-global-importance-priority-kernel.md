@@ -73,5 +73,5 @@ Establish one core-authoritative priority system that scores importance across a
 2. Queue processing order is priority-first (not FIFO when priorities differ).
 3. Existing ambient producers (`spine`, `memory-ambient`, `persona-ambient`, `dopamine-ambient`) inherit the new scoring path without interface breakage.
 4. Cockpit harness consumes events in priority order via existing queue APIs.
-5. `cargo test -p protheus-ops-core attention_queue` and `cargo test -p protheus-ops-core importance` pass.
+5. `cargo test -p infring-ops-core attention_queue` and `cargo test -p infring-ops-core importance` pass.
 6. `npm run -s ops:subconscious-boundary:check` passes and fails closed on violations.

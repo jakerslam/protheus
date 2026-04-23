@@ -1,5 +1,5 @@
 [package]
-name = "protheus-nexus-core-v1"
+name = "infring-nexus-core-v1"
 version = "0.1.0"
 edition = "2021"
 license = "SEE LICENSE IN LICENSE"
@@ -11,19 +11,19 @@ exotic_wrapper = { path = "../../layer_minus_one/exotic_wrapper" }
 foundation_hook_enforcer = { path = "../../layer0/foundation_hook_enforcer" }
 llm_runtime = { path = "../../layer1/llm_runtime" }
 infring-layer1-security = { path = "../../layer1/security" }
-protheus-layer1-memory-runtime = { path = "../../layer1/memory_runtime" }
+infring-layer1-memory-runtime = { path = "../../layer1/memory_runtime" }
 persona_dispatch_security_gate = { path = "../../layer0/persona_dispatch_security_gate" }
-protheus-autonomy-core-v1 = { path = "../autonomy" }
+infring-autonomy-core-v1 = { path = "../autonomy" }
 execution_core = { path = "../execution" }
-protheus-memory-core-v1 = { path = "../memory" }
-protheus-observability-core-v1 = { path = "../../layer1/observability" }
-protheus-tiny-runtime = { path = "../../layer0/tiny_runtime" }
-protheus-tooling-core-v1 = { path = "../tooling" }
-protheus-vault-core-v1 = { path = "../../layer0/vault" }
-protheus-graph-core-v1 = { path = "../../layer0/graph" }
-protheus-pinnacle-core-v1 = { path = "../../layer0/pinnacle" }
-protheus-red-legion-core-v1 = { path = "../../layer0/red_legion" }
-protheus-swarm-core-v1 = { path = "../../layer0/swarm" }
+infring-memory-core-v1 = { path = "../memory" }
+infring-observability-core-v1 = { path = "../../layer1/observability" }
+infring-tiny-runtime = { path = "../../layer0/tiny_runtime" }
+infring-tooling-core-v1 = { path = "../tooling" }
+infring-vault-core-v1 = { path = "../../layer0/vault" }
+infring-graph-core-v1 = { path = "../../layer0/graph" }
+infring-pinnacle-core-v1 = { path = "../../layer0/pinnacle" }
+infring-red-legion-core-v1 = { path = "../../layer0/red_legion" }
+infring-swarm-core-v1 = { path = "../../layer0/swarm" }
 ipc = { path = "../../layer1/ipc" }
 isolation = { path = "../../layer1/isolation" }
 os_extension_wrapper = { path = "../../layer3/os_extension_wrapper" }
@@ -35,10 +35,10 @@ infring-agent-derive = { path = "../../layer0/infring_agent_derive" }
 infring-task-fabric-core-v1 = { path = "../tools/task_fabric" }
 infring_types = { path = "../../layer1/infring_types" }
 infring-layer1-provenance = { path = "../../layer1/provenance" }
-protheus-ops-core-v1 = { path = "../ops" }
-protheus-memory-core-v6 = { path = "../../layer0/memory" }
-protheus-spine-core-v1 = { path = "../spine" }
-protheus-stomach-core-v1 = { path = "../stomach" }
+infring-ops-core-v1 = { path = "../ops" }
+infring-memory-core-v6 = { path = "../../layer0/memory" }
+infring-spine-core-v1 = { path = "../spine" }
+infring-stomach-core-v1 = { path = "../stomach" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"

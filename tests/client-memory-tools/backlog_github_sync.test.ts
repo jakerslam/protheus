@@ -27,17 +27,17 @@ function parseJsonOutput(text) {
 }
 
 function resolveOpsBinary() {
-  for (const rel of ['target/debug/protheus-ops', 'target/debug/infring-ops']) {
+  for (const rel of ['target/debug/infring-ops', 'target/debug/infring-ops']) {
     const full = path.join(ROOT, rel);
     if (fs.existsSync(full)) return full;
   }
-  const build = spawnSync('cargo', ['build', '--manifest-path', OPS_CARGO, '--bin', 'protheus-ops'], {
+  const build = spawnSync('cargo', ['build', '--manifest-path', OPS_CARGO, '--bin', 'infring-ops'], {
     cwd: ROOT,
     encoding: 'utf8',
   });
   assert.equal(build.status, 0, build.stderr || build.stdout || 'cargo build failed');
-  const built = path.join(ROOT, 'target/debug/protheus-ops');
-  assert.equal(fs.existsSync(built), true, 'expected built protheus-ops binary');
+  const built = path.join(ROOT, 'target/debug/infring-ops');
+  assert.equal(fs.existsSync(built), true, 'expected built infring-ops binary');
   return built;
 }
 
@@ -60,14 +60,14 @@ function main() {
   assert.equal(status.type, 'backlog_github_sync');
   assert.equal(status.command, 'status');
   assert.equal(status.lane, 'backlog_github_sync');
-  assert.equal(status.replacement, 'protheus-ops backlog-github-sync');
+  assert.equal(status.replacement, 'infring-ops backlog-github-sync');
   assert.equal(typeof status.receipt_hash, 'string');
 
   assert.equal(check.type, 'backlog_github_sync');
   assert.equal(check.command, 'check');
   assert.equal(check.flags.strict, '0');
   assert.equal(check.lane, 'backlog_github_sync');
-  assert.equal(check.replacement, 'protheus-ops backlog-github-sync');
+  assert.equal(check.replacement, 'infring-ops backlog-github-sync');
   assert.equal(typeof check.receipt_hash, 'string');
 
   console.log(JSON.stringify({ ok: true, type: 'backlog_github_sync_test' }));

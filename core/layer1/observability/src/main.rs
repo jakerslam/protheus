@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
-use protheus_observability_core_v1::{
+use infring_observability_core_v1::{
     load_embedded_observability_profile_json, run_chaos_resilience_json, ChaosScenarioRequest,
     TraceEvent,
 };

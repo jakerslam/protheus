@@ -182,14 +182,14 @@ fn nexus_enabled(argv: &[String]) -> bool {
     if let Some(raw) = parse_flag(argv, "nexus") {
         return bool_like(raw.as_str());
     }
-    std::env::var("PROTHEUS_HIERARCHICAL_NEXUS_V1")
+    std::env::var("INFRING_HIERARCHICAL_NEXUS_V1")
         .ok()
         .map(|raw| bool_like(raw.as_str()))
         .unwrap_or(true)
 }
 
 fn nexus_force_block_pair_enabled() -> bool {
-    std::env::var("PROTHEUS_HIERARCHICAL_NEXUS_BLOCK_STOMACH_ROUTE")
+    std::env::var("INFRING_HIERARCHICAL_NEXUS_BLOCK_STOMACH_ROUTE")
         .ok()
         .map(|raw| bool_like(raw.as_str()))
         .unwrap_or(false)

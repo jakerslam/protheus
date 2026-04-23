@@ -47,63 +47,63 @@ const SERPER_SEARCH_URL: &str = "https://google.serper.dev/search";
 
 fn usage() {
     println!("web-conduit commands:");
-    println!("  protheus-ops web-conduit status");
-    println!("  protheus-ops web-conduit receipts [--limit=<n>]");
+    println!("  infring-ops web-conduit status");
+    println!("  infring-ops web-conduit receipts [--limit=<n>]");
     println!(
-        "  protheus-ops web-conduit setup [--provider=<serperdev|duckduckgo|duckduckgo-lite|bing>] [--api-key=<key>] [--api-key-env=<ENV>] [--apply=1] [--summary-only=1]"
+        "  infring-ops web-conduit setup [--provider=<serperdev|duckduckgo|duckduckgo-lite|bing>] [--api-key=<key>] [--api-key-env=<ENV>] [--apply=1] [--summary-only=1]"
     );
     println!(
-        "  protheus-ops web-conduit migrate-legacy-config [--source-path=<path>] [--apply=1] [--summary-only=1]"
+        "  infring-ops web-conduit migrate-legacy-config [--source-path=<path>] [--apply=1] [--summary-only=1]"
     );
     println!(
-        "  protheus-ops web-conduit native-codex [--model-provider=<id>] [--model-api=<id>] [--payload-json=<json>] [--summary-only=1]"
+        "  infring-ops web-conduit native-codex [--model-provider=<id>] [--model-api=<id>] [--payload-json=<json>] [--summary-only=1]"
     );
     println!(
-        "  protheus-ops web-conduit fetch --url=<https://...> [--provider=auto|direct-http|curl] [--extract-mode=text|markdown] [--max-chars=<n>] [--cache-ttl-minutes=<n>] [--timeout-ms=<n>] [--max-response-bytes=<n>] [--resolve-citation-redirect=1] [--human-approved=1] [--approval-id=<id>] [--summary-only=1]"
+        "  infring-ops web-conduit fetch --url=<https://...> [--provider=auto|direct-http|curl] [--extract-mode=text|markdown] [--max-chars=<n>] [--cache-ttl-minutes=<n>] [--timeout-ms=<n>] [--max-response-bytes=<n>] [--resolve-citation-redirect=1] [--human-approved=1] [--approval-id=<id>] [--summary-only=1]"
     );
     println!(
-        "  protheus-ops web-conduit media --url=<https://...|file://...>|--path=<local-path> [--workspace-dir=<path>] [--local-roots=<path,...>|any] [--host-read-capability=1] [--max-bytes=<n>] [--optimize-images=1] [--raw=1] [--resolve-citation-redirect=1] [--human-approved=1] [--approval-id=<id>] [--summary-only=1]"
+        "  infring-ops web-conduit media --url=<https://...|file://...>|--path=<local-path> [--workspace-dir=<path>] [--local-roots=<path,...>|any] [--host-read-capability=1] [--max-bytes=<n>] [--optimize-images=1] [--raw=1] [--resolve-citation-redirect=1] [--human-approved=1] [--approval-id=<id>] [--summary-only=1]"
     );
     println!(
-        "  protheus-ops web-conduit audio-probe --url=<https://...|file://...>|--path=<local-path> [--workspace-dir=<path>] [--local-roots=<path,...>|any] [--host-read-capability=1] [--max-bytes=<n>]"
+        "  infring-ops web-conduit audio-probe --url=<https://...|file://...>|--path=<local-path> [--workspace-dir=<path>] [--local-roots=<path,...>|any] [--host-read-capability=1] [--max-bytes=<n>]"
     );
     println!(
-        "  protheus-ops web-conduit pdf-extract --url=<https://...|file://...>|--path=<local-path> [--max-pages=<n>] [--page-numbers=1,2] [--min-text-chars=<n>] [--extract-images=1] [--summary-only=1]"
+        "  infring-ops web-conduit pdf-extract --url=<https://...|file://...>|--path=<local-path> [--max-pages=<n>] [--page-numbers=1,2] [--min-text-chars=<n>] [--extract-images=1] [--summary-only=1]"
     );
     println!(
-        "  protheus-ops web-conduit pdf-native-analyze --provider=<anthropic|google> --model-id=<id> --prompt='<text>' [--path=<pdf>|--url=<pdf>|--sources-json=<json>] [--api-key=<key>|--api-key-env=<ENV>] [--base-url=<url>] [--max-tokens=<n>] [--summary-only=1]"
+        "  infring-ops web-conduit pdf-native-analyze --provider=<anthropic|google> --model-id=<id> --prompt='<text>' [--path=<pdf>|--url=<pdf>|--sources-json=<json>] [--api-key=<key>|--api-key-env=<ENV>] [--base-url=<url>] [--max-tokens=<n>] [--summary-only=1]"
     );
     println!(
-        "  protheus-ops web-conduit pdf-tool [--prompt='<text>'] [--model=<provider/model>|--provider=<provider> --model-id=<id>] [--path=<pdf>|--url=<pdf>|--pdf=<pdf>|--pdfs-json=<json>] [--pages=1-3,5] [--max-bytes-mb=<n>] [--max-pages=<n>] [--min-text-chars=<n>] [--api-key=<key>|--api-key-env=<ENV>] [--summary-only=1]"
+        "  infring-ops web-conduit pdf-tool [--prompt='<text>'] [--model=<provider/model>|--provider=<provider> --model-id=<id>] [--path=<pdf>|--url=<pdf>|--pdf=<pdf>|--pdfs-json=<json>] [--pages=1-3,5] [--max-bytes-mb=<n>] [--max-pages=<n>] [--min-text-chars=<n>] [--api-key=<key>|--api-key-env=<ENV>] [--summary-only=1]"
     );
     println!(
-        "  protheus-ops web-conduit image-metadata --url=<https://...|file://...>|--path=<local-path> [--workspace-dir=<path>] [--local-roots=<path,...>|any] [--host-read-capability=1] [--max-bytes=<n>] [--summary-only=1]"
+        "  infring-ops web-conduit image-metadata --url=<https://...|file://...>|--path=<local-path> [--workspace-dir=<path>] [--local-roots=<path,...>|any] [--host-read-capability=1] [--max-bytes=<n>] [--summary-only=1]"
     );
     println!(
-        "  protheus-ops web-conduit image-tool-status [--provider=<id>] [--model=<provider/model|model>] [--summary-only=1]"
+        "  infring-ops web-conduit image-tool-status [--provider=<id>] [--model=<provider/model|model>] [--summary-only=1]"
     );
     println!(
-        "  protheus-ops web-conduit image-tool [--prompt='<text>'] [--provider=<id>] [--model=<provider/model|model>] [--image=<path|url>|--images-json=<json>|--path=<path>|--url=<url>] [--max-images=<n>] [--max-bytes=<n>] [--timeout-seconds=<n>] [--max-tokens=<n>] [--summary-only=1]"
+        "  infring-ops web-conduit image-tool [--prompt='<text>'] [--provider=<id>] [--model=<provider/model|model>] [--image=<path|url>|--images-json=<json>|--path=<path>|--url=<url>] [--max-images=<n>] [--max-bytes=<n>] [--timeout-seconds=<n>] [--max-tokens=<n>] [--summary-only=1]"
     );
     println!(
-        "  protheus-ops web-conduit attachments [--context-json=<json>] [--attachments-json=<json>] [--media-path=<path>|--media-url=<url>|--media-type=<mime>] [--media-paths-json=<json>] [--media-urls-json=<json>] [--media-types-json=<json>] [--already-transcribed-indices=0,2] [--capability=image|audio|video] [--prefer=first|last|path|url] [--mode=first|all] [--max-attachments=<n>] [--summary-only=1]"
+        "  infring-ops web-conduit attachments [--context-json=<json>] [--attachments-json=<json>] [--media-path=<path>|--media-url=<url>|--media-type=<mime>] [--media-paths-json=<json>] [--media-urls-json=<json>] [--media-types-json=<json>] [--already-transcribed-indices=0,2] [--capability=image|audio|video] [--prefer=first|last|path|url] [--mode=first|all] [--max-attachments=<n>] [--summary-only=1]"
     );
     println!(
-        "  protheus-ops web-conduit media-host --url=<https://...|file://...>|--path=<local-path> [--workspace-dir=<path>] [--local-roots=<path,...>|any] [--ttl-seconds=<n>] [--base-url=<url>] [--summary-only=1]"
+        "  infring-ops web-conduit media-host --url=<https://...|file://...>|--path=<local-path> [--workspace-dir=<path>] [--local-roots=<path,...>|any] [--ttl-seconds=<n>] [--base-url=<url>] [--summary-only=1]"
     );
     println!(
-        "  protheus-ops web-conduit outbound-attachment --url=<https://...|file://...>|--path=<local-path> [--workspace-dir=<path>] [--local-roots=<path,...>|any] [--host-read-capability=1] [--optimize-images=1] [--raw=1] [--summary-only=1]"
+        "  infring-ops web-conduit outbound-attachment --url=<https://...|file://...>|--path=<local-path> [--workspace-dir=<path>] [--local-roots=<path,...>|any] [--host-read-capability=1] [--optimize-images=1] [--raw=1] [--summary-only=1]"
     );
-    println!("  protheus-ops web-conduit parse-media --text='<output with MEDIA:... tokens>'");
+    println!("  infring-ops web-conduit parse-media --text='<output with MEDIA:... tokens>'");
     println!(
-        "  protheus-ops web-conduit qr-image --text='<text>' [--scale=<n>] [--margin-modules=<n>] [--prompt-image-order=inline|offloaded] [--summary-only=1]"
+        "  infring-ops web-conduit qr-image --text='<text>' [--scale=<n>] [--margin-modules=<n>] [--prompt-image-order=inline|offloaded] [--summary-only=1]"
     );
-    println!("  protheus-ops web-conduit file-context --content='<text>' [--content-base64=<base64>] [--file-name=<name>] [--mime-type=<type>] [--fallback-name=<name>] [--compact=1]");
+    println!("  infring-ops web-conduit file-context --content='<text>' [--content-base64=<base64>] [--file-name=<name>] [--mime-type=<type>] [--fallback-name=<name>] [--compact=1]");
     println!(
-        "  protheus-ops web-conduit search --query=<terms> [--provider=auto|serper|duckduckgo|duckduckgo-lite|bing] [--top-k=8|--count=8] [--timeout-ms=<n>] [--cache-ttl-minutes=<n>] [--allowed-domains=docs.rs,github.com] [--exact-domain-only=1] [--country=<code>] [--language=<code>] [--freshness=<token>] [--date-after=<YYYY-MM-DD>] [--date-before=<YYYY-MM-DD>] [--human-approved=1] [--summary-only=1]"
+        "  infring-ops web-conduit search --query=<terms> [--provider=auto|serper|duckduckgo|duckduckgo-lite|bing] [--top-k=8|--count=8] [--timeout-ms=<n>] [--cache-ttl-minutes=<n>] [--allowed-domains=docs.rs,github.com] [--exact-domain-only=1] [--country=<code>] [--language=<code>] [--freshness=<token>] [--date-after=<YYYY-MM-DD>] [--date-before=<YYYY-MM-DD>] [--human-approved=1] [--summary-only=1]"
     );
-    println!("  protheus-ops web-conduit providers");
-    println!("  protheus-ops browse fetch --url=<https://...>");
+    println!("  infring-ops web-conduit providers");
+    println!("  infring-ops browse fetch --url=<https://...>");
 }
 
 fn clean_text(raw: &str, max_len: usize) -> String {

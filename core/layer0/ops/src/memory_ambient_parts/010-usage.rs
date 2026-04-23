@@ -24,12 +24,12 @@ struct MemoryAmbientPolicy {
 fn usage() {
     eprintln!("Usage:");
     eprintln!(
-        "  protheus-ops memory-ambient run <memory-command> [memory-args...] [--run-context=<value>]"
+        "  infring-ops memory-ambient run <memory-command> [memory-args...] [--run-context=<value>]"
     );
     eprintln!(
-        "  protheus-ops memory-ambient run --memory-command=<cmd> [--memory-arg=<arg> ...] [--memory-args-json=<json-array>] [--run-context=<value>]"
+        "  infring-ops memory-ambient run --memory-command=<cmd> [--memory-arg=<arg> ...] [--memory-args-json=<json-array>] [--run-context=<value>]"
     );
-    eprintln!("  protheus-ops memory-ambient status");
+    eprintln!("  infring-ops memory-ambient status");
 }
 
 fn read_json(path: &Path) -> Option<Value> {

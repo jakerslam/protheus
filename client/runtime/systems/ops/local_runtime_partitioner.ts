@@ -10,7 +10,7 @@ const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge.ts');
 const WORKSPACE_ROOT = path.resolve(__dirname, '..', '..', '..', '..');
 const RESET_CONFIRM = 'RESET_LOCAL';
 
-process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
+process.env.INFRING_OPS_USE_PREBUILT = process.env.INFRING_OPS_USE_PREBUILT || '0';
 const bridge = createOpsLaneBridge(__dirname, 'local_runtime_partitioner', 'local-runtime-partitioner');
 
 function parseArgValue(args, key) {

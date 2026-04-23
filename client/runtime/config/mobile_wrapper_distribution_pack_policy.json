@@ -17,14 +17,14 @@
   ],
   "wrappers": {
     "android_termux": {
-      "install_script_path": "packages/protheus-edge/wrappers/android_termux/install.sh",
-      "run_script_path": "packages/protheus-edge/wrappers/android_termux/run.sh",
-      "verify_script_path": "packages/protheus-edge/wrappers/android_termux/verify.sh"
+      "install_script_path": "packages/infring-edge/wrappers/android_termux/install.sh",
+      "run_script_path": "packages/infring-edge/wrappers/android_termux/run.sh",
+      "verify_script_path": "packages/infring-edge/wrappers/android_termux/verify.sh"
     },
     "ios_tauri": {
-      "install_script_path": "packages/protheus-edge/wrappers/ios_tauri/install.sh",
-      "run_script_path": "packages/protheus-edge/wrappers/ios_tauri/run.sh",
-      "verify_script_path": "packages/protheus-edge/wrappers/ios_tauri/verify.sh"
+      "install_script_path": "packages/infring-edge/wrappers/ios_tauri/install.sh",
+      "run_script_path": "packages/infring-edge/wrappers/ios_tauri/run.sh",
+      "verify_script_path": "packages/infring-edge/wrappers/ios_tauri/verify.sh"
     }
   },
   "paths": {

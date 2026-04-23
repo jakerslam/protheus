@@ -98,7 +98,7 @@ function writeSyncedReadme(readmePath, benchmarkReportPath) {
 function runOps(args, env, expectedType, options = {}) {
   const child = spawnSync(
     'cargo',
-    ['run', '-q', '-p', 'protheus-ops-core', '--bin', 'protheus-ops', '--', ...args],
+    ['run', '-q', '-p', 'infring-ops-core', '--bin', 'infring-ops', '--', ...args],
     {
       cwd: ROOT,
       env: { ...process.env, ...env },

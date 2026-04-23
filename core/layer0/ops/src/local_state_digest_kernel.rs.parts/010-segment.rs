@@ -12,8 +12,8 @@ use crate::contract_lane_utils as lane_utils;
 
 fn usage() {
     println!("local-state-digest-kernel commands:");
-    println!("  protheus-ops local-state-digest-kernel preflight --payload-base64=<json>");
-    println!("  protheus-ops local-state-digest-kernel collect --payload-base64=<json>");
+    println!("  infring-ops local-state-digest-kernel preflight --payload-base64=<json>");
+    println!("  infring-ops local-state-digest-kernel collect --payload-base64=<json>");
 }
 
 fn clean_text(raw: Option<&str>, max_len: usize) -> String {

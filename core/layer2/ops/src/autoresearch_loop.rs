@@ -5,7 +5,7 @@ use std::path::Path;
 
 const USAGE: &[&str] = &[
     "Usage:",
-    "  protheus-ops autoresearch-loop run|status|train|evaluate|commit [--policy=<path>] [--state-path=<path>] [--strict=1|0]",
+    "  infring-ops autoresearch-loop run|status|train|evaluate|commit [--policy=<path>] [--state-path=<path>] [--strict=1|0]",
 ];
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
@@ -15,7 +15,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         &standard_lane_spec(
             "autoresearch_loop",
             "autoresearch_loop",
-            "protheus-ops autoresearch-loop",
+            "infring-ops autoresearch-loop",
             USAGE,
         ),
     )

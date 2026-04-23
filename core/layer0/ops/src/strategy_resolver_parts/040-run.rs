@@ -17,8 +17,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     if matches!(cmd.as_str(), "help" | "--help" | "-h") {
         println!("Usage:");
-        println!("  protheus-ops strategy-resolver status");
-        println!("  protheus-ops strategy-resolver invoke --payload=<json>");
+        println!("  infring-ops strategy-resolver status");
+        println!("  infring-ops strategy-resolver invoke --payload=<json>");
         return 0;
     }
 

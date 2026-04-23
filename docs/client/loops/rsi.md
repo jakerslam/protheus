@@ -32,8 +32,8 @@ The RSI self-modification path now runs a mandatory Kernel-5 Shadow Conclave rev
 - Memory log:
   - `personas/organization/correspondence.md`
 - Environment overrides for test/runtime isolation:
-  - `PROTHEUS_CONCLAVE_RECEIPTS_PATH`
-  - `PROTHEUS_CONCLAVE_CORRESPONDENCE_PATH`
+  - `INFRING_CONCLAVE_RECEIPTS_PATH`
+  - `INFRING_CONCLAVE_CORRESPONDENCE_PATH`
 
 ## Verification
 

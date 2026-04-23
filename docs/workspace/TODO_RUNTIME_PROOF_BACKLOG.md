@@ -48,7 +48,7 @@ This file tracks remaining execution from the runtime-proof hardening intake aft
   - `infring inspect boundedness`
   - `infring replay layer2`
 - Added queue backpressure policy engine in core runtime:
-  - `protheus-ops queue-sqlite-kernel backpressure-policy`
+  - `infring-ops queue-sqlite-kernel backpressure-policy`
   - deterministic state/action mapping with defer/shed/quarantine policies and priority-aging multiplier
 
 ## Remaining TODO (next waves)

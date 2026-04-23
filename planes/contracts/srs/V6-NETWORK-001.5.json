@@ -1,6 +1,6 @@
 {
   "id": "V6-NETWORK-001.5",
-  "upgrade": "One-command browser/CLI node onboarding lane (`protheus node join`)",
+  "upgrade": "One-command browser/CLI node onboarding lane (`infring node join`)",
   "section": "P2P Gossip Network & Compute-Sharing Seed Intake (2026-03-09)",
   "impact": 10,
   "layer_map": "0/1/2/adapter/client",
@@ -27,8 +27,8 @@
     }
   ],
   "validation": {
-    "lane_command": "protheus-ops srs-contract-runtime run --id=V6-NETWORK-001.5",
-    "status_command": "protheus-ops srs-contract-runtime status --id=V6-NETWORK-001.5",
+    "lane_command": "infring-ops srs-contract-runtime run --id=V6-NETWORK-001.5",
+    "status_command": "infring-ops srs-contract-runtime status --id=V6-NETWORK-001.5",
     "fail_closed_on_missing_contract": true
   },
   "generated_from": {

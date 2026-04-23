@@ -27,8 +27,8 @@
     }
   ],
   "validation": {
-    "lane_command": "protheus-ops srs-contract-runtime run --id=V7-META-011",
-    "status_command": "protheus-ops srs-contract-runtime status --id=V7-META-011",
+    "lane_command": "infring-ops srs-contract-runtime run --id=V7-META-011",
+    "status_command": "infring-ops srs-contract-runtime status --id=V7-META-011",
     "fail_closed_on_missing_contract": true
   },
   "generated_from": {

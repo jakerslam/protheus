@@ -1,4 +1,4 @@
-# Human Body Systems vs Protheus: Capability Equivalence Map
+# Human Body Systems vs Infring: Capability Equivalence Map
 
 Purpose: map major human biological client/runtime/systems/capabilities to current system equivalents, identify missing equivalents, and surface new upgrade angles.
 
@@ -12,7 +12,7 @@ Date: 2026-02-22
 
 ## 1) Major Body Systems
 
-| Human System | Kernel Biological Function | Current Protheus Equivalent | Status | Key Gap / Angle |
+| Human System | Kernel Biological Function | Current Infring Equivalent | Status | Key Gap / Angle |
 |---|---|---|---|---|
 | Nervous System (CNS/PNS) | Global coordination, decision and control | `client/runtime/systems/spine/spine.ts`, `client/runtime/systems/routing/model_router.ts`, `client/runtime/systems/autonomy/autonomy_controller.ts` | Strong | Improve higher-order arbitration under conflicting objectives. |
 | Sensory System | Capture external/internal signals | `client/cognition/habits/scripts/external_eyes.ts`, `client/runtime/systems/sensory/collector_driver.ts`, `client/runtime/systems/sensory/focus_controller.ts`, `client/runtime/systems/sensory/temporal_patterns.ts` | Strong | Internal sensing is still weaker than external sensing. |

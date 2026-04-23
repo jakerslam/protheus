@@ -23,7 +23,7 @@
     "evidence_verify_latency_ms": 42
   },
   "engines": [
-    "protheus",
+    "infring",
     "infring",
     "workflow_graph",
     "mastra",

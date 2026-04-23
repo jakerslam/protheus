@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use persona_dispatch_security_gate::evaluate_persona_dispatch_gate;
 
-const SCRIPT_REL: &str = "client/runtime/systems/ops/protheus_control_plane.js";
+const SCRIPT_REL: &str = "client/runtime/systems/ops/infring_control_plane.js";
 const LENSES: &[&str] = &["guardian", "operator"];
 
 fn decision(

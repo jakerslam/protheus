@@ -58,7 +58,7 @@ function main() {
   };
 
   const tinyDaemonPath = resolve(
-    'target/x86_64-unknown-linux-musl/release/protheusd_tiny_max',
+    'target/x86_64-unknown-linux-musl/release/infringd_tiny_max',
   );
   const tinyDaemonBytes = existsSync(tinyDaemonPath) ? fileSizeBytes(tinyDaemonPath) : null;
   const tinyDaemonMb = tinyDaemonBytes == null ? null : Number((tinyDaemonBytes / 1_000_000).toFixed(3));

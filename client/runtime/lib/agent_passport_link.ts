@@ -12,11 +12,11 @@ function cleanText(value, maxLen = 240) {
 
 function resolveAutoLinkEnabled() {
   const preferred = String(process.env.INFRING_AGENT_PASSPORT_AUTOLINK || '').trim();
-  const legacy = String(process.env.PROTHEUS_AGENT_PASSPORT_AUTOLINK || '').trim();
+  const legacy = String(process.env.INFRING_AGENT_PASSPORT_AUTOLINK || '').trim();
   if (!preferred && legacy) {
     process.env.INFRING_AGENT_PASSPORT_AUTOLINK = legacy;
   } else if (preferred && !legacy) {
-    process.env.PROTHEUS_AGENT_PASSPORT_AUTOLINK = preferred;
+    process.env.INFRING_AGENT_PASSPORT_AUTOLINK = preferred;
   }
   const finalValue = preferred || legacy || String(process.env.AGENT_PASSPORT_AUTOLINK || '1').trim();
   return finalValue !== '0';

@@ -1,7 +1,7 @@
 {
   "version": "v1",
   "kind": "snowball_engine_contract",
-  "entrypoint": "protheus snowball start",
+  "entrypoint": "infring snowball start",
   "allowed_actions": [
     "start",
     "melt-refine",

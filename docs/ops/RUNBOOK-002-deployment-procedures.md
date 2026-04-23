@@ -9,7 +9,7 @@
 
 ## Overview
 
-This runbook defines standard operating procedures for deploying the Protheus platform across staging and production environments. All deployments must follow these procedures to ensure consistency, traceability, and rollback capability.
+This runbook defines standard operating procedures for deploying the Infring platform across staging and production environments. All deployments must follow these procedures to ensure consistency, traceability, and rollback capability.
 
 ## Pre-Deployment Checklist
 
@@ -127,10 +127,10 @@ Monitor these dashboards during and immediately after deployment:
 
 | Dashboard | URL | Check Frequency |
 |-----------|-----|-----------------|
-| Application Metrics | https://grafana.protheus.io/d/app-metrics | Every 2 minutes |
-| Error Rates | https://grafana.protheus.io/d/error-rates | Every 1 minute |
-| Infrastructure | https://grafana.protheus.io/d/infrastructure | Every 5 minutes |
-| Database | https://grafana.protheus.io/d/database | Every 5 minutes |
+| Application Metrics | https://grafana.infring.io/d/app-metrics | Every 2 minutes |
+| Error Rates | https://grafana.infring.io/d/error-rates | Every 1 minute |
+| Infrastructure | https://grafana.infring.io/d/infrastructure | Every 5 minutes |
+| Database | https://grafana.infring.io/d/database | Every 5 minutes |
 
 ## Communication Templates
 

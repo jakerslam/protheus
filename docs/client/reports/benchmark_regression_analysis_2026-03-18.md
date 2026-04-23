@@ -62,7 +62,7 @@ Conclusion: the live refresh overstated the damage, but the stabilized pack stil
 To separate host/harness drift from product-path regressions, use:
 
 ```bash
-protheus-ops fixed-microbenchmark run --rounds=9 --warmup-runs=2 --sample-ms=800
+infring-ops fixed-microbenchmark run --rounds=9 --warmup-runs=2 --sample-ms=800
 ```
 
 This measures a fixed SHA-256 workload only and excludes:

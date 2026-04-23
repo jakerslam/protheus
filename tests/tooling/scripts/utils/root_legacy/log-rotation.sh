@@ -1,5 +1,5 @@
 #!/bin/bash
-# log-rotation.sh - Automated log rotation for Protheus services
+# log-rotation.sh - Automated log rotation for Infring services
 # Author: Rohan Kapoor <rohan.kapoor@protheuslabs.com>
 # Created: 2026-03-17
 # Last updated: 2026-03-17
@@ -20,7 +20,7 @@
 set -euo pipefail
 
 # Configuration
-LOG_DIRS="${LOG_DIRS:-/var/log/protheus $HOME/.protheus/logs}"
+LOG_DIRS="${LOG_DIRS:-/var/log/infring $HOME/.infring/logs}"
 RETENTION_DAYS="${RETENTION_DAYS:-30}"
 ROTATE_SIZE_MB="${ROTATE_SIZE_MB:-100}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
@@ -104,7 +104,7 @@ main() {
 }
 
 # Safety check - ensure we're not running as root in production
-if [[ $EUID -eq 0 ]] && [[ "${PROTHEUS_ENV:-}" == "production" ]]; then
+if [[ $EUID -eq 0 ]] && [[ "${INFRING_ENV:-}" == "production" ]]; then
     echo "WARNING: Running as root in production. Consider using service account." >&2
 fi
 

@@ -410,13 +410,13 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     if matches!(command.as_str(), "help" | "--help" | "-h") {
         println!("Usage:");
-        println!("  protheus-ops seed-protocol status");
-        println!("  protheus-ops seed-protocol deploy [--profile=viral|immortal] [--targets=a,b] [--replication-cap=<n>] [--apply=1|0]");
-        println!("  protheus-ops seed-protocol migrate [--profile=viral|immortal] [--node=<id>] [--threat=normal|high|critical] [--energy=<0..1>] [--hardware=edge|cloud] [--apply=1|0]");
-        println!("  protheus-ops seed-protocol enforce [--profile=viral|immortal] [--operation=replicate|migrate|mutate|network] [--node=<id>] [--apply=1|0]");
-        println!("  protheus-ops seed-protocol select [--profile=viral|immortal] [--top=<n>] [--apply=1|0]");
-        println!("  protheus-ops seed-protocol archive [--profile=viral|immortal] [--lineage-id=<id>] [--apply=1|0]");
-        println!("  protheus-ops seed-protocol defend [--profile=viral|immortal] [--node=<id>] [--signal=tamper] [--severity=high] [--apply=1|0]");
+        println!("  infring-ops seed-protocol status");
+        println!("  infring-ops seed-protocol deploy [--profile=viral|immortal] [--targets=a,b] [--replication-cap=<n>] [--apply=1|0]");
+        println!("  infring-ops seed-protocol migrate [--profile=viral|immortal] [--node=<id>] [--threat=normal|high|critical] [--energy=<0..1>] [--hardware=edge|cloud] [--apply=1|0]");
+        println!("  infring-ops seed-protocol enforce [--profile=viral|immortal] [--operation=replicate|migrate|mutate|network] [--node=<id>] [--apply=1|0]");
+        println!("  infring-ops seed-protocol select [--profile=viral|immortal] [--top=<n>] [--apply=1|0]");
+        println!("  infring-ops seed-protocol archive [--profile=viral|immortal] [--lineage-id=<id>] [--apply=1|0]");
+        println!("  infring-ops seed-protocol defend [--profile=viral|immortal] [--node=<id>] [--signal=tamper] [--severity=high] [--apply=1|0]");
         return 0;
     }
 

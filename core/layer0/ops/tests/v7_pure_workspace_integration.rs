@@ -1,4 +1,4 @@
-use protheus_ops_core::canyon_plane;
+use infring_ops_core::canyon_plane;
 use serde_json::Value;
 use std::fs;
 use std::path::Path;
@@ -45,12 +45,12 @@ fn ecosystem_init_pure_dry_run_emits_pure_components() {
     fs::create_dir_all(&state_root).expect("state root");
 
     std::env::set_var(
-        "PROTHEUS_CANYON_PLANE_STATE_ROOT",
+        "INFRING_CANYON_PLANE_STATE_ROOT",
         state_root.to_string_lossy().as_ref(),
     );
-    std::env::set_var("PROTHEUS_V8_CONDUIT_ENFORCE", "0");
-    std::env::set_var("PROTHEUS_V8_CONDUIT_AUDIT_ONLY", "1");
-    std::env::set_var("PROTHEUS_V8_CONDUIT_TRACE", "0");
+    std::env::set_var("INFRING_V8_CONDUIT_ENFORCE", "0");
+    std::env::set_var("INFRING_V8_CONDUIT_AUDIT_ONLY", "1");
+    std::env::set_var("INFRING_V8_CONDUIT_TRACE", "0");
 
     let code = canyon_plane::run(
         root,
@@ -92,12 +92,12 @@ fn ecosystem_init_tiny_max_dry_run_sets_tiny_max_contract() {
     fs::create_dir_all(&state_root).expect("state root");
 
     std::env::set_var(
-        "PROTHEUS_CANYON_PLANE_STATE_ROOT",
+        "INFRING_CANYON_PLANE_STATE_ROOT",
         state_root.to_string_lossy().as_ref(),
     );
-    std::env::set_var("PROTHEUS_V8_CONDUIT_ENFORCE", "0");
-    std::env::set_var("PROTHEUS_V8_CONDUIT_AUDIT_ONLY", "1");
-    std::env::set_var("PROTHEUS_V8_CONDUIT_TRACE", "0");
+    std::env::set_var("INFRING_V8_CONDUIT_ENFORCE", "0");
+    std::env::set_var("INFRING_V8_CONDUIT_AUDIT_ONLY", "1");
+    std::env::set_var("INFRING_V8_CONDUIT_TRACE", "0");
 
     let code = canyon_plane::run(
         root,

@@ -23,12 +23,12 @@ const DEFAULT_PROVIDER_AUTH_ENV_KEYS: [&str; 4] = [
 
 fn usage() {
     println!("catalog-store-kernel commands:");
-    println!("  protheus-ops catalog-store-kernel paths [--payload-base64=<json>]");
-    println!("  protheus-ops catalog-store-kernel default-state");
-    println!("  protheus-ops catalog-store-kernel normalize-state [--payload-base64=<json>]");
-    println!("  protheus-ops catalog-store-kernel read-state [--payload-base64=<json>]");
-    println!("  protheus-ops catalog-store-kernel ensure-state [--payload-base64=<json>]");
-    println!("  protheus-ops catalog-store-kernel set-state [--payload-base64=<json>]");
+    println!("  infring-ops catalog-store-kernel paths [--payload-base64=<json>]");
+    println!("  infring-ops catalog-store-kernel default-state");
+    println!("  infring-ops catalog-store-kernel normalize-state [--payload-base64=<json>]");
+    println!("  infring-ops catalog-store-kernel read-state [--payload-base64=<json>]");
+    println!("  infring-ops catalog-store-kernel ensure-state [--payload-base64=<json>]");
+    println!("  infring-ops catalog-store-kernel set-state [--payload-base64=<json>]");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
@@ -75,13 +75,13 @@ fn clean_text(value: Option<&Value>, max_len: usize) -> String {
 }
 
 fn runtime_root(root: &Path) -> PathBuf {
-    if let Ok(raw) = std::env::var("PROTHEUS_RUNTIME_ROOT") {
+    if let Ok(raw) = std::env::var("INFRING_RUNTIME_ROOT") {
         let trimmed = raw.trim();
         if !trimmed.is_empty() {
             return PathBuf::from(trimmed);
         }
     }
-    let workspace = if let Ok(raw) = std::env::var("PROTHEUS_WORKSPACE_ROOT") {
+    let workspace = if let Ok(raw) = std::env::var("INFRING_WORKSPACE_ROOT") {
         let trimmed = raw.trim();
         if !trimmed.is_empty() {
             PathBuf::from(trimmed)

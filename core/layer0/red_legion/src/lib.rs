@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 mod blob;
 
-use protheus_observability_core_v1::{
+use infring_observability_core_v1::{
     run_chaos_resilience, ChaosResilienceReport, ChaosScenarioRequest, TraceEvent,
 };
 use serde::{Deserialize, Serialize};

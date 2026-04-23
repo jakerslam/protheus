@@ -1,8 +1,8 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: protheus-default
-  namespace: protheus
+  name: infring-default
+  namespace: infring
 spec:
   podSelector: {}
   policyTypes:

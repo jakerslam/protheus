@@ -41,19 +41,19 @@ const VALUE_CURRENCY_KEYS: &[&str] = &[
 
 fn usage() {
     println!("outcome-fitness-kernel commands:");
-    println!("  protheus-ops outcome-fitness-kernel load-policy --payload-base64=<json>");
-    println!("  protheus-ops outcome-fitness-kernel normalize-threshold-overrides --payload-base64=<json>");
+    println!("  infring-ops outcome-fitness-kernel load-policy --payload-base64=<json>");
+    println!("  infring-ops outcome-fitness-kernel normalize-threshold-overrides --payload-base64=<json>");
     println!(
-        "  protheus-ops outcome-fitness-kernel normalize-ranking-weights --payload-base64=<json>"
+        "  infring-ops outcome-fitness-kernel normalize-ranking-weights --payload-base64=<json>"
     );
-    println!("  protheus-ops outcome-fitness-kernel normalize-proposal-type-threshold-offsets --payload-base64=<json>");
-    println!("  protheus-ops outcome-fitness-kernel normalize-promotion-policy-overrides --payload-base64=<json>");
-    println!("  protheus-ops outcome-fitness-kernel normalize-value-currency-policy-overrides --payload-base64=<json>");
+    println!("  infring-ops outcome-fitness-kernel normalize-proposal-type-threshold-offsets --payload-base64=<json>");
+    println!("  infring-ops outcome-fitness-kernel normalize-promotion-policy-overrides --payload-base64=<json>");
+    println!("  infring-ops outcome-fitness-kernel normalize-value-currency-policy-overrides --payload-base64=<json>");
     println!(
-        "  protheus-ops outcome-fitness-kernel normalize-proposal-type-key --payload-base64=<json>"
+        "  infring-ops outcome-fitness-kernel normalize-proposal-type-key --payload-base64=<json>"
     );
-    println!("  protheus-ops outcome-fitness-kernel normalize-value-currency-token --payload-base64=<json>");
-    println!("  protheus-ops outcome-fitness-kernel proposal-type-threshold-offsets-for --payload-base64=<json>");
+    println!("  infring-ops outcome-fitness-kernel normalize-value-currency-token --payload-base64=<json>");
+    println!("  infring-ops outcome-fitness-kernel proposal-type-threshold-offsets-for --payload-base64=<json>");
 }
 
 fn stamp_receipt(value: &mut Value) {

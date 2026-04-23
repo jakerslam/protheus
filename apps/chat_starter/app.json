@@ -2,6 +2,6 @@
   "id": "chat_starter",
   "srs": "V6-APP-008.1",
   "layer": "app",
-  "entrypoint": "protheus app run chat-starter",
+  "entrypoint": "infring app run chat-starter",
   "authority": "core"
 }

@@ -38,24 +38,24 @@ Raw live queue size: **93**
 | 29 | client/runtime/lib/command_output_compactor.ts | 30 | 84 |
 | 30 | core/layer1/memory_runtime/adaptive/uid.ts | 53 | 79.5 |
 | 33 | client/cognition/shared/lib/legacy_retired_wrapper.ts | 38 | 57 |
-| 38 | client/lib/protheus_suite_tooling.ts | 18 | 39.6 |
+| 38 | client/lib/infring_suite_tooling.ts | 18 | 39.6 |
 | 39 | client/lib/redaction_classification.ts | 14 | 30.8 |
 
 ## Exclude Non-Authority / Flexible Surfaces
 
 | Rank | Path | LOC | Impact |
 |---:|---|---:|---:|
-| 12 | packages/protheus-npm/scripts/install.ts | 146 | 219 |
-| 13 | packages/protheus-edge/index.ts | 143 | 214.5 |
+| 12 | packages/infring-npm/scripts/install.ts | 146 | 219 |
+| 13 | packages/infring-edge/index.ts | 143 | 214.5 |
 | 14 | adapters/importers/generic_yaml_importer.ts | 93 | 195.3 |
-| 16 | packages/protheus-core/index.ts | 123 | 184.5 |
-| 18 | packages/protheus-npm/bin/protheus.ts | 96 | 144 |
+| 16 | packages/infring-core/index.ts | 123 | 184.5 |
+| 18 | packages/infring-npm/bin/infring.ts | 96 | 144 |
 | 19 | adapters/importers/infring_importer.ts | 67 | 140.7 |
 | 20 | adapters/importers/workflow_graph_importer.ts | 67 | 140.7 |
 | 21 | adapters/importers/generic_json_importer.ts | 66 | 138.6 |
 | 26 | client/cognition/orchestration/cli_shared.ts | 71 | 106.5 |
-| 31 | packages/protheus-core/core_profile_contract.ts | 53 | 79.5 |
-| 32 | packages/protheus-npm/scripts/smoke.ts | 43 | 64.5 |
+| 31 | packages/infring-core/core_profile_contract.ts | 53 | 79.5 |
+| 32 | packages/infring-npm/scripts/smoke.ts | 43 | 64.5 |
 | 35 | client/runtime/platform/api/donate_gpu.ts | 29 | 43.5 |
 | 36 | adapters/cognition/collectors/bird_x.ts | 19 | 39.9 |
 | 37 | adapters/cognition/collectors/ollama_search.ts | 19 | 39.9 |
@@ -71,7 +71,7 @@ Raw live queue size: **93**
 
 | Rank | Path | LOC | Impact |
 |---:|---|---:|---:|
-| 34 | client/cli/bin/protheus-graph.ts | 37 | 55.5 |
+| 34 | client/cli/bin/infring-graph.ts | 37 | 55.5 |
 | 40 | vitest.config.ts | 19 | 28.5 |
 | 48 | client/types/node_compat.d.ts | 12 | 18 |
 | 49 | client/lib/ts_entrypoint.ts | 6 | 13.2 |
@@ -107,16 +107,16 @@ Raw live queue size: **93**
 | 79 | client/lib/ts_bootstrap.ts | 5 | 11 |
 | 80 | client/lib/uid.ts | 5 | 11 |
 | 81 | client/lib/upgrade_lane_runtime.ts | 5 | 11 |
-| 82 | client/cli/bin/protheus-bootstrap.ts | 6 | 9 |
-| 83 | client/cli/bin/protheus-econ.ts | 6 | 9 |
-| 84 | client/cli/bin/protheus-forge.ts | 6 | 9 |
-| 85 | client/cli/bin/protheus-mem.ts | 6 | 9 |
-| 86 | client/cli/bin/protheus-pinnacle.ts | 6 | 9 |
-| 87 | client/cli/bin/protheus-redlegion.ts | 6 | 9 |
-| 88 | client/cli/bin/protheus-soul.ts | 6 | 9 |
-| 89 | client/cli/bin/protheus-swarm.ts | 6 | 9 |
-| 90 | client/cli/bin/protheus-telemetry.ts | 6 | 9 |
-| 91 | client/cli/bin/protheus-vault.ts | 6 | 9 |
+| 82 | client/cli/bin/infring-bootstrap.ts | 6 | 9 |
+| 83 | client/cli/bin/infring-econ.ts | 6 | 9 |
+| 84 | client/cli/bin/infring-forge.ts | 6 | 9 |
+| 85 | client/cli/bin/infring-mem.ts | 6 | 9 |
+| 86 | client/cli/bin/infring-pinnacle.ts | 6 | 9 |
+| 87 | client/cli/bin/infring-redlegion.ts | 6 | 9 |
+| 88 | client/cli/bin/infring-soul.ts | 6 | 9 |
+| 89 | client/cli/bin/infring-swarm.ts | 6 | 9 |
+| 90 | client/cli/bin/infring-telemetry.ts | 6 | 9 |
+| 91 | client/cli/bin/infring-vault.ts | 6 | 9 |
 | 92 | client/cognition/shared/adaptive/rsi/rsi_bootstrap.ts | 5 | 7.5 |
 | 93 | client/cognition/shared/adaptive/rsi/rsi_integrity_chain_guard.ts | 5 | 7.5 |
 

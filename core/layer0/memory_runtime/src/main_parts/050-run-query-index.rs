@@ -190,7 +190,7 @@ fn get_node_payload(args: &HashMap<String, String>) -> (serde_json::Value, i32) 
 
     let out = GetNodeResult {
         ok: true,
-        backend: "protheus_memory_core".to_string(),
+        backend: "infring_memory_core".to_string(),
         node_id: entry.node_id.clone(),
         uid: entry.uid.clone(),
         file: entry.file_rel.clone(),
@@ -328,7 +328,7 @@ fn build_index_payload(args: &HashMap<String, String>) -> BuildIndexResult {
 
     BuildIndexResult {
         ok: true,
-        backend: "protheus_memory_core".to_string(),
+        backend: "infring_memory_core".to_string(),
         node_count: entries.len(),
         tag_count,
         files_scanned,
@@ -435,7 +435,7 @@ fn set_hot_state_payload(args: &HashMap<String, String>) -> serde_json::Value {
             );
             json!({
                 "ok": true,
-                "backend": "protheus_memory_core",
+                "backend": "infring_memory_core",
                 "key": key,
                 "db_path": db.rel_db_path(&root)
             })
@@ -482,7 +482,7 @@ fn get_hot_state_payload(args: &HashMap<String, String>) -> serde_json::Value {
     match db.get_hot_state_json(&key) {
         Ok(value) => json!({
             "ok": true,
-            "backend": "protheus_memory_core",
+            "backend": "infring_memory_core",
             "key": key,
             "db_path": db.rel_db_path(&root),
             "value": value

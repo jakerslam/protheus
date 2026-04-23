@@ -209,7 +209,7 @@ export function run(rawArgs: Args | string[]): number {
     const allowedCoreContracts = new Set([
       'infring-layer1-memory',
       'infring-task-fabric-core-v1',
-      'protheus-tooling-core-v1',
+      'infring-tooling-core-v1',
     ]);
     const dependencyLine =
       /^([a-zA-Z0-9_-]+)\s*=\s*\{[^}]*path\s*=\s*"([^"]+)"[^}]*\}/gm;

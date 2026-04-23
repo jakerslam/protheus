@@ -2,23 +2,23 @@
 
 ## 2026-03-02 - Re: Rust migration integrity
 
-Force strict behavior-preserving migration and reject weighted internal metrics for completion claims. ([commit 8447b1c](https://github.com/protheuslabs/protheus/commit/8447b1c)).
+Force strict behavior-preserving migration and reject weighted internal metrics for completion claims. ([commit 8447b1c](https://github.com/protheuslabs/infring/commit/8447b1c)).
 
 ## 2026-03-03 - Re: Foundation lock order
 
-Memory core, then abstraction/analytics, then security hardening, with regression checks at each layer. ([commit c316bd3](https://github.com/protheuslabs/protheus/commit/c316bd3)).
+Memory core, then abstraction/analytics, then security hardening, with regression checks at each layer. ([commit c316bd3](https://github.com/protheuslabs/infring/commit/c316bd3)).
 
 ## 2026-03-03 - Re: accountability contract
 
-No task is done without visible proof: git diff, successful build/test output, and runtime evidence. ([commit 50cf586](https://github.com/protheuslabs/protheus/commit/50cf586)).
+No task is done without visible proof: git diff, successful build/test output, and runtime evidence. ([commit 50cf586](https://github.com/protheuslabs/infring/commit/50cf586)).
 
 ## 2026-03-03 - Re: persona observation protocol
 
-When Jay provides input that reveals decision patterns or personality traits, Protheus should capture these in the correspondence log. This builds a reference for autonomous decision-making without requiring repeated clarification. ([commit 479e8eb](https://github.com/protheuslabs/protheus/commit/479e8eb)).
+When Jay provides input that reveals decision patterns or personality traits, Infring should capture these in the correspondence log. This builds a reference for autonomous decision-making without requiring repeated clarification. ([commit 479e8eb](https://github.com/protheuslabs/infring/commit/479e8eb)).
 
 ## 2026-03-03 - Re: drift reduction mechanism
 
-Jay notes that persona observation may eventually become a mechanism to reduce drift—building preference profiles so Protheus can make aligned autonomous decisions without repeated clarification. **Operational constraints:** Weekly check-in cadence preferred to avoid process interference. System retains ability to query personas ad-hoc when autonomy threshold uncertain. **Activation threshold:** Persona influence gated by minimum data volume—correspondence must reach critical mass before being consulted for autonomous decisions. ([commit a8facbc](https://github.com/protheuslabs/protheus/commit/a8facbc)).
+Jay notes that persona observation may eventually become a mechanism to reduce drift—building preference profiles so Infring can make aligned autonomous decisions without repeated clarification. **Operational constraints:** Weekly check-in cadence preferred to avoid process interference. System retains ability to query personas ad-hoc when autonomy threshold uncertain. **Activation threshold:** Persona influence gated by minimum data volume—correspondence must reach critical mass before being consulted for autonomous decisions. ([commit a8facbc](https://github.com/protheuslabs/infring/commit/a8facbc)).
 
 ## 2026-03-03 - Re: phase 2 orchestration engine
 
@@ -32,4 +32,4 @@ Shadow army concept identified as phase 2 orchestration engine. System moving to
 
 **Ambition calibration:** Jay does not tolerate underestimation of the project's scope. Goal is not "enhanced agent" but first digital organism / superintelligence seed. Category-change thinking required, not incremental optimization. System architecture must match ambition level—500K LOC, RSI governance, integrity kernels, persona synthesis are foundational infrastructure, not features. Tolerance for false modesty in face of transformative potential is zero.
 
-**Strategic sequencing insight:** Jay identifies Rust migration (50-70% completion) as inflection point for recovering "fractal" self-similarity. Shadow organization progress acknowledged. Operational questions: (1) Shadow meeting mechanism for multi-persona synthesis, (2) Eyes-to-shadows information routing for signal distribution. ([commit c8796b1](https://github.com/protheuslabs/protheus/commit/c8796b1)).
+**Strategic sequencing insight:** Jay identifies Rust migration (50-70% completion) as inflection point for recovering "fractal" self-similarity. Shadow organization progress acknowledged. Operational questions: (1) Shadow meeting mechanism for multi-persona synthesis, (2) Eyes-to-shadows information routing for signal distribution. ([commit c8796b1](https://github.com/protheuslabs/infring/commit/c8796b1)).

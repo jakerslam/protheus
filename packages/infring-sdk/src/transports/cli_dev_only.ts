@@ -47,7 +47,7 @@ function asStringArray(value: unknown): string[] {
 
 function releaseChannel(env: NodeJS.ProcessEnv = process.env): string {
   const raw =
-    String(env.INFRING_RELEASE_CHANNEL || env.PROTHEUS_RELEASE_CHANNEL || '').trim().toLowerCase();
+    String(env.INFRING_RELEASE_CHANNEL || env.INFRING_RELEASE_CHANNEL || '').trim().toLowerCase();
   return raw || 'stable';
 }
 

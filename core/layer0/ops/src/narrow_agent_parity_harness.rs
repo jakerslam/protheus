@@ -34,9 +34,9 @@ fn normalized_command(argv: &[String]) -> String {
 fn usage() {
     println!("Usage:");
     println!(
-        "  protheus-ops narrow-agent-parity-harness run [YYYY-MM-DD] [--days=N] [--strict=1|0]"
+        "  infring-ops narrow-agent-parity-harness run [YYYY-MM-DD] [--days=N] [--strict=1|0]"
     );
-    println!("  protheus-ops narrow-agent-parity-harness status [latest|YYYY-MM-DD]");
+    println!("  infring-ops narrow-agent-parity-harness status [latest|YYYY-MM-DD]");
 }
 
 fn resolved_date(positional: &[String], date_flag: Option<&String>) -> String {

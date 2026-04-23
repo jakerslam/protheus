@@ -50,7 +50,7 @@ try {
 
   writeJson(path.join(repoDir, `${dateStr}.json`), {
     source_type: 'repo_activity',
-    source_id: 'github_protheus',
+    source_id: 'github_infring',
     features: [
       { key: 'commit_velocity', signal: 0.9, confidence: 0.8, weight: 0.24 },
       { key: 'issue_burst', signal: 0.4, confidence: 0.7 }

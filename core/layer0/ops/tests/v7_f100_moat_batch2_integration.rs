@@ -1,4 +1,4 @@
-use protheus_ops_core::enterprise_hardening;
+use infring_ops_core::enterprise_hardening;
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -6,7 +6,7 @@ use std::sync::{Mutex, MutexGuard, OnceLock};
 
 fn temp_root(prefix: &str) -> tempfile::TempDir {
     tempfile::Builder::new()
-        .prefix(&format!("protheus_{prefix}_"))
+        .prefix(&format!("infring_{prefix}_"))
         .tempdir()
         .expect("tempdir")
 }
@@ -17,7 +17,7 @@ fn test_env_lock() -> MutexGuard<'static, ()> {
 }
 
 fn core_state_root(root: &Path) -> PathBuf {
-    if let Ok(v) = std::env::var("PROTHEUS_CORE_STATE_ROOT") {
+    if let Ok(v) = std::env::var("INFRING_CORE_STATE_ROOT") {
         let trimmed = v.trim();
         if !trimmed.is_empty() {
             return PathBuf::from(trimmed);
@@ -95,7 +95,7 @@ fn v7_f100_and_moat_batch2_contracts_are_behavior_proven() {
     let tmp = temp_root("f100_moat_batch2");
     let root = tmp.path();
     let state_root = root.join("local").join("state");
-    std::env::set_var("PROTHEUS_CORE_STATE_ROOT", &state_root);
+    std::env::set_var("INFRING_CORE_STATE_ROOT", &state_root);
 
     write_text(
         root,
@@ -143,7 +143,7 @@ fn v7_f100_and_moat_batch2_contracts_are_behavior_proven() {
     );
 
     let ollama_bin = install_ollama_stub(root);
-    std::env::set_var("PROTHEUS_LOCAL_AI_BIN", &ollama_bin);
+    std::env::set_var("INFRING_LOCAL_AI_BIN", &ollama_bin);
 
     assert_eq!(
         enterprise_hardening::run(
@@ -152,7 +152,7 @@ fn v7_f100_and_moat_batch2_contracts_are_behavior_proven() {
                 "zero-trust-profile".to_string(),
                 "--strict=1".to_string(),
                 "--issuer=https://issuer.enterprise.local".to_string(),
-                "--cmek-key=kms://customer/protheus/main".to_string(),
+                "--cmek-key=kms://customer/infring/main".to_string(),
                 "--private-link=aws-privatelink".to_string(),
             ],
         ),
@@ -407,6 +407,6 @@ fn v7_f100_and_moat_batch2_contracts_are_behavior_proven() {
     );
     assert_claim(&super_gate, "V7-F100-002.7");
 
-    std::env::remove_var("PROTHEUS_CORE_STATE_ROOT");
-    std::env::remove_var("PROTHEUS_LOCAL_AI_BIN");
+    std::env::remove_var("INFRING_CORE_STATE_ROOT");
+    std::env::remove_var("INFRING_LOCAL_AI_BIN");
 }

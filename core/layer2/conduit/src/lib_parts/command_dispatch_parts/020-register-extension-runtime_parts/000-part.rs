@@ -118,8 +118,8 @@ fn repo_root_from_current_dir() -> PathBuf {
     start
 }
 
-fn resolve_protheus_ops_command(root: &PathBuf, domain: &str) -> (String, Vec<String>) {
-    let explicit = std::env::var("PROTHEUS_OPS_BIN").ok();
+fn resolve_infring_ops_command(root: &PathBuf, domain: &str) -> (String, Vec<String>) {
+    let explicit = std::env::var("INFRING_OPS_BIN").ok();
     if let Some(bin) = explicit {
         let trimmed = bin.trim();
         if !trimmed.is_empty() {
@@ -127,14 +127,14 @@ fn resolve_protheus_ops_command(root: &PathBuf, domain: &str) -> (String, Vec<St
         }
     }
 
-    let release = root.join("target").join("release").join("protheus-ops");
+    let release = root.join("target").join("release").join("infring-ops");
     if release.exists() {
         return (
             release.to_string_lossy().to_string(),
             vec![domain.to_string()],
         );
     }
-    let debug = root.join("target").join("debug").join("protheus-ops");
+    let debug = root.join("target").join("debug").join("infring-ops");
     if debug.exists() {
         return (
             debug.to_string_lossy().to_string(),
@@ -150,7 +150,7 @@ fn resolve_protheus_ops_command(root: &PathBuf, domain: &str) -> (String, Vec<St
             "--manifest-path".to_string(),
             "core/layer0/ops/Cargo.toml".to_string(),
             "--bin".to_string(),
-            "protheus-ops".to_string(),
+            "infring-ops".to_string(),
             "--".to_string(),
             domain.to_string(),
         ],
@@ -158,7 +158,7 @@ fn resolve_protheus_ops_command(root: &PathBuf, domain: &str) -> (String, Vec<St
 }
 
 fn bridge_command_timeout_ms() -> u64 {
-    std::env::var("PROTHEUS_OPS_BRIDGE_TIMEOUT_MS")
+    std::env::var("INFRING_OPS_BRIDGE_TIMEOUT_MS")
         .ok()
         .and_then(|raw| raw.trim().parse::<u64>().ok())
         .map(|ms| ms.clamp(1_000, 15 * 60 * 1_000))
@@ -183,7 +183,7 @@ fn collect_child_output(child: &mut std::process::Child) -> (String, String) {
 
 fn execute_ops_bridge_command(domain: &str, args: &[String], run_context: Option<&str>) -> Value {
     let root = repo_root_from_current_dir();
-    let (command, mut command_args) = resolve_protheus_ops_command(&root, domain);
+    let (command, mut command_args) = resolve_infring_ops_command(&root, domain);
     command_args.extend(args.iter().cloned());
     let timeout_ms = bridge_command_timeout_ms();
 
@@ -191,8 +191,8 @@ fn execute_ops_bridge_command(domain: &str, args: &[String], run_context: Option
     cmd.args(&command_args)
         .current_dir(&root)
         .env(
-            "PROTHEUS_NODE_BINARY",
-            std::env::var("PROTHEUS_NODE_BINARY").unwrap_or_else(|_| "node".to_string()),
+            "INFRING_NODE_BINARY",
+            std::env::var("INFRING_NODE_BINARY").unwrap_or_else(|_| "node".to_string()),
         )
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());

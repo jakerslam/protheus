@@ -30,7 +30,7 @@ fn pure_workspace_srs_rows_have_runtime_evidence_paths() {
         ("client/pure-workspace/src/main.rs", "benchmark-ping"),
         // V7-PURE-WORKSPACE-001.2
         (
-            "core/layer0/ops/src/protheusctl_routes_parts/010-command-routing.rs",
+            "core/layer0/ops/src/infringctl_routes_parts/010-command-routing.rs",
             "tiny-max",
         ),
         (
@@ -51,7 +51,7 @@ fn pure_workspace_srs_rows_have_runtime_evidence_paths() {
         // V7-PURE-WORKSPACE-002.1
         ("core/layer0/ops/Cargo.toml", "embedded-max"),
         (
-            "core/layer0/ops/src/protheusd_parts/030-embedded-minimal-core-status.rs",
+            "core/layer0/ops/src/infringd_parts/030-embedded-minimal-core-status.rs",
             "tiny-max-status",
         ),
         // V7-PURE-WORKSPACE-002.2
@@ -80,7 +80,7 @@ fn bench_recovery_srs_rows_have_runtime_evidence_paths() {
             "configure_low_memory_allocator_env",
         ),
         (
-            "core/layer0/ops/src/protheusd_parts/010-print-json.rs",
+            "core/layer0/ops/src/infringd_parts/010-print-json.rs",
             "configure_low_memory_allocator_env",
         ),
         // V7-BENCH-RECOVERY-001.3
@@ -90,10 +90,10 @@ fn bench_recovery_srs_rows_have_runtime_evidence_paths() {
         // V7-BENCH-RECOVERY-001.4
         (
             "core/layer0/tiny_runtime/Cargo.toml",
-            "protheus-tiny-runtime",
+            "infring-tiny-runtime",
         ),
         (
-            "core/layer0/ops/src/protheusd_parts/030-embedded-minimal-core-status.rs",
+            "core/layer0/ops/src/infringd_parts/030-embedded-minimal-core-status.rs",
             "tiny-status",
         ),
     ];

@@ -368,7 +368,7 @@ fn run_enable_bedrock(
                 .and_then(Value::as_str)
                 .map(|v| v.to_string())
         })
-        .unwrap_or_else(|| "/protheus/bedrock/proxy".to_string());
+        .unwrap_or_else(|| "/infring/bedrock/proxy".to_string());
 
     if strict && require_sigv4 {
         let mode_ok = policy
@@ -416,7 +416,7 @@ fn run_enable_bedrock(
         },
         "policy_path": policy_path_rel,
         "activation_hash": activation_hash,
-        "activation_command": "protheus enterprise enable bedrock",
+        "activation_command": "infring enterprise enable bedrock",
         "ts": now_iso()
     });
     let profile_path = enterprise_state_root(root)
@@ -451,7 +451,7 @@ fn run_enable_bedrock(
                 "id": "V7-ASSIMILATE-001.5.4",
                 "claim": "one_command_bedrock_activation_is_exposed_through_core_authoritative_surface",
                 "evidence": {
-                    "command": "protheus enterprise enable bedrock",
+                    "command": "infring enterprise enable bedrock",
                     "profile_path": profile_rel
                 }
             }

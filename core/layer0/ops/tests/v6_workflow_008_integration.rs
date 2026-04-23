@@ -3,7 +3,7 @@
 // V6-WORKFLOW-008.4, V6-WORKFLOW-008.5, V6-WORKFLOW-008.6,
 // V6-WORKFLOW-008.7, V6-WORKFLOW-008.8, V6-WORKFLOW-008.9
 
-use protheus_ops_core::semantic_kernel_bridge;
+use infring_ops_core::semantic_kernel_bridge;
 use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;

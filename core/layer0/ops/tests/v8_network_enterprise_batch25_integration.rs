@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use protheus_ops_core::{directive_kernel, enterprise_hardening, network_protocol, organism_layer};
+use infring_ops_core::{directive_kernel, enterprise_hardening, network_protocol, organism_layer};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::fs;
@@ -319,7 +319,7 @@ fn v8_batch25_organism_network_and_enterprise_contracts_are_behavior_proven() {
             "providers": {
                 "okta": {
                     "issuer_prefix": "https://okta.example.com/",
-                    "allowed_scopes": ["openid", "profile", "protheus.read"],
+                    "allowed_scopes": ["openid", "profile", "infring.read"],
                     "allowed_roles": ["operator", "admin"],
                     "scim_enabled": true
                 }
@@ -386,7 +386,7 @@ fn v8_batch25_organism_network_and_enterprise_contracts_are_behavior_proven() {
                 "identity-surface".to_string(),
                 "--provider=okta".to_string(),
                 "--token-issuer=https://okta.example.com/issuer".to_string(),
-                "--scopes=openid,profile,protheus.read".to_string(),
+                "--scopes=openid,profile,infring.read".to_string(),
                 "--roles=operator".to_string(),
                 "--strict=1".to_string(),
             ],

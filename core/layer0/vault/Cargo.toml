@@ -1,12 +1,12 @@
 [package]
-name = "protheus-vault-core-v1"
+name = "infring-vault-core-v1"
 version = "0.1.0"
 edition = "2021"
 license = "SEE LICENSE IN LICENSE"
 description = "Rust security/vault core with embedded blob-backed policy evaluation."
 
 [lib]
-name = "protheus_vault_core_v1"
+name = "infring_vault_core_v1"
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [[bin]]
@@ -15,7 +15,7 @@ path = "src/main.rs"
 
 [dependencies]
 infring_types = { path = "../../layer1/infring_types" }
-protheus-memory-core-v6 = { path = "../memory" }
+infring-memory-core-v6 = { path = "../memory" }
 hex = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -25,7 +25,7 @@ base64 = "0.22"
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2"
 
-[package.metadata.protheus]
+[package.metadata.infring]
 wasm_target = "wasm32-unknown-unknown"
 ios_targets = ["aarch64-apple-ios", "x86_64-apple-ios"]
 android_targets = ["aarch64-linux-android", "x86_64-linux-android"]

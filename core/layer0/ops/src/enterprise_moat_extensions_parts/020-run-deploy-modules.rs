@@ -33,16 +33,16 @@ pub(super) fn run_deploy_modules(
     let ansible_site = base.join("ansible/site.yml");
     write_markdown(
         &operator_yaml,
-        "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: protheus-operator\n",
+        "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: infring-operator\n",
     )?;
     write_markdown(&helm_values, "airgap: true\noperator:\n  enabled: true\n")?;
     write_markdown(
         &terraform_main,
-        "terraform {}\nresource \"null_resource\" \"protheus\" {}\n",
+        "terraform {}\nresource \"null_resource\" \"infring\" {}\n",
     )?;
     write_markdown(
         &ansible_site,
-        "- hosts: all\n  tasks:\n    - debug: msg='deploy protheus'\n",
+        "- hosts: all\n  tasks:\n    - debug: msg='deploy infring'\n",
     )?;
     let ok = operator_yaml.exists()
         && helm_values.exists()
@@ -259,7 +259,7 @@ pub(super) fn run_adoption_bootstrap(
     let bootstrap = base.join("bootstrap.json");
     write_json(
         &openapi,
-        &json!({"openapi": "3.1.0", "info": {"title": "Protheus Enterprise API", "version": "1.0.0"}}),
+        &json!({"openapi": "3.1.0", "info": {"title": "Infring Enterprise API", "version": "1.0.0"}}),
     )?;
     write_markdown(&manual, "# Operator Manual\n\nUse the enterprise bootstrap to provision SSO, RBAC, observability, and compliance starter packs.\n")?;
     write_markdown(&architecture, "# Reference Architecture\n\nPrivate ingress, signed JWT, CMEK, observability bridge, and compliance export.\n")?;
@@ -425,9 +425,9 @@ pub(super) fn run_ai(
     let prompt = flags
         .get("prompt")
         .cloned()
-        .unwrap_or_else(|| "hello from protheus".to_string());
+        .unwrap_or_else(|| "hello from infring".to_string());
     let local_only = flags.get("local-only").map(|v| v == "1").unwrap_or(true);
-    let bin = std::env::var("PROTHEUS_LOCAL_AI_BIN").unwrap_or_else(|_| "ollama".to_string());
+    let bin = std::env::var("INFRING_LOCAL_AI_BIN").unwrap_or_else(|_| "ollama".to_string());
     let mut errors = Vec::<String>::new();
     if local_only && !crate::model_router::is_local_ollama_model(&model) {
         errors.push("local_only_requires_ollama_model".to_string());

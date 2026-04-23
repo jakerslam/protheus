@@ -16,11 +16,11 @@ const DEFAULT_REL_PATH: &str = "habits/registry.json";
 const SOURCE_PATH: &str = "core/layer1/memory_runtime/adaptive/habit_store.ts";
 fn usage() {
     println!("habit-store-kernel commands:");
-    println!("  protheus-ops habit-store-kernel default-state");
-    println!("  protheus-ops habit-store-kernel normalize-state [--payload-base64=<json>]");
-    println!("  protheus-ops habit-store-kernel read-state [--payload-base64=<json>]");
-    println!("  protheus-ops habit-store-kernel ensure-state [--payload-base64=<json>]");
-    println!("  protheus-ops habit-store-kernel set-state --payload-base64=<json>");
+    println!("  infring-ops habit-store-kernel default-state");
+    println!("  infring-ops habit-store-kernel normalize-state [--payload-base64=<json>]");
+    println!("  infring-ops habit-store-kernel read-state [--payload-base64=<json>]");
+    println!("  infring-ops habit-store-kernel ensure-state [--payload-base64=<json>]");
+    println!("  infring-ops habit-store-kernel set-state --payload-base64=<json>");
 }
 fn cli_receipt(kind: &str, payload: Value) -> Value {
     let ts = now_iso();

@@ -5,7 +5,7 @@
   "source": {
     "capability_id": "desktop_ui",
     "source_type": "desktop_ui",
-    "provider": "protheus"
+    "provider": "infring"
   },
   "execution": {
     "adapter_kind": "browser_task",

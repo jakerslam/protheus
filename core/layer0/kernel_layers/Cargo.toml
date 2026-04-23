@@ -8,11 +8,11 @@ description = "Compile-time kernel layer topology for portable Rust-only substra
 [features]
 default = []
 no_std_probe = []
-layer_minus_one = ["dep:protheus-nexus-core-v1"]
+layer_minus_one = ["dep:infring-nexus-core-v1"]
 layer0 = ["layer_minus_one"]
 layer1 = ["layer0"]
 layer2 = ["layer1"]
 layer3 = ["layer2"]
 
 [dependencies]
-protheus-nexus-core-v1 = { path = "../../layer2/nexus", optional = true }
+infring-nexus-core-v1 = { path = "../../layer2/nexus", optional = true }

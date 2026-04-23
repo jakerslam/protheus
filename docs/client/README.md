@@ -1,4 +1,4 @@
-# Protheus Documentation Hub
+# Infring Documentation Hub
 
 Generated: 2026-03-01T03:27:30.118Z
 

@@ -1,8 +1,8 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: protheus-daily
-  namespace: protheus
+  name: infring-daily
+  namespace: infring
 spec:
   schedule: "0 */4 * * *"
   concurrencyPolicy: Forbid
@@ -14,7 +14,7 @@ spec:
       template:
         metadata:
           labels:
-            app.kubernetes.io/name: protheus
+            app.kubernetes.io/name: infring
             app.kubernetes.io/component: daily-orchestrator
         spec:
           restartPolicy: Never
@@ -24,14 +24,14 @@ spec:
               type: RuntimeDefault
           containers:
             - name: spine-daily
-              image: protheus:latest
+              image: infring:latest
               imagePullPolicy: IfNotPresent
               command: ["node", "client/runtime/systems/spine/spine.ts", "daily"]
               envFrom:
                 - configMapRef:
-                    name: protheus-runtime-config
+                    name: infring-runtime-config
                 - secretRef:
-                    name: protheus-runtime-secrets
+                    name: infring-runtime-secrets
                     optional: true
               securityContext:
                 allowPrivilegeEscalation: false

@@ -11,7 +11,7 @@
     "actor_id": "local_operator",
     "role": "system",
     "tenant_id": "local",
-    "org_id": "protheus",
+    "org_id": "infring",
     "framework_id": "infring",
     "model_id": "unknown"
   },

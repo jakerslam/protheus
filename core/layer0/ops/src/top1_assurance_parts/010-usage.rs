@@ -73,13 +73,13 @@ struct Top1Policy {
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops top1-assurance status");
-    println!("  protheus-ops top1-assurance proof-coverage [--strict=1|0] [--check-toolchains=1|0] [--execute-proofs=1|0] [--execute-optional-proofs=1|0]");
-    println!("  protheus-ops top1-assurance proof-vm [--strict=1|0] [--write-manifest=1|0]");
-    println!("  protheus-ops top1-assurance size-gate [--strict=1|0] [--binary-path=<path>] [--min-mb=<n>] [--max-mb=<n>]");
-    println!("  protheus-ops top1-assurance benchmark-thresholds [--strict=1|0] [--benchmark-path=<path>] [--sample-ms=<n>] [--refresh=1|0]");
-    println!("  protheus-ops top1-assurance comparison-matrix [--strict=1|0] [--snapshot-path=<path>] [--output-path=<path>] [--apply=1|0]");
-    println!("  protheus-ops top1-assurance run-all [--strict=1|0]");
+    println!("  infring-ops top1-assurance status");
+    println!("  infring-ops top1-assurance proof-coverage [--strict=1|0] [--check-toolchains=1|0] [--execute-proofs=1|0] [--execute-optional-proofs=1|0]");
+    println!("  infring-ops top1-assurance proof-vm [--strict=1|0] [--write-manifest=1|0]");
+    println!("  infring-ops top1-assurance size-gate [--strict=1|0] [--binary-path=<path>] [--min-mb=<n>] [--max-mb=<n>]");
+    println!("  infring-ops top1-assurance benchmark-thresholds [--strict=1|0] [--benchmark-path=<path>] [--sample-ms=<n>] [--refresh=1|0]");
+    println!("  infring-ops top1-assurance comparison-matrix [--strict=1|0] [--snapshot-path=<path>] [--output-path=<path>] [--apply=1|0]");
+    println!("  infring-ops top1-assurance run-all [--strict=1|0]");
     println!(
         "  provider-family contract targets: {}",
         PROVIDER_FAMILY_CONTRACT_TARGETS.join(",")
@@ -304,7 +304,7 @@ fn default_policy() -> Top1Policy {
             manifest_path: "local/state/ops/top1_assurance/proof_vm_manifest.json".to_string(),
         },
         size_gate: SizeGatePolicy {
-            binary_path: "target/x86_64-unknown-linux-musl/release/protheusd".to_string(),
+            binary_path: "target/x86_64-unknown-linux-musl/release/infringd".to_string(),
             min_mb: 0.0,
             max_mb: 35.0,
             require_static: true,
@@ -319,7 +319,7 @@ fn default_policy() -> Top1Policy {
         comparison: ComparisonMatrixPolicy {
             snapshot_path: "client/runtime/config/competitive_benchmark_snapshot_2026_02.json"
                 .to_string(),
-            output_path: "docs/comparison/protheus_vs_x.md".to_string(),
+            output_path: "docs/comparison/infring_vs_x.md".to_string(),
         },
         outputs: OutputPolicy {
             latest_path: "local/state/ops/top1_assurance/latest.json".to_string(),

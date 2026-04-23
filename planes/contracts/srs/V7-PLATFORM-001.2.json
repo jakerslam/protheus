@@ -22,8 +22,8 @@
     { "type": "app", "path": "apps/mcu-sensor-monitor-tiny-max/README.md" }
   ],
   "validation": {
-    "lane_command": "protheus-ops srs-contract-runtime run --id=V7-PLATFORM-001.2",
-    "status_command": "protheus-ops srs-contract-runtime status --id=V7-PLATFORM-001.2",
+    "lane_command": "infring-ops srs-contract-runtime run --id=V7-PLATFORM-001.2",
+    "status_command": "infring-ops srs-contract-runtime status --id=V7-PLATFORM-001.2",
     "fail_closed_on_missing_contract": true
   },
   "generated_from": {

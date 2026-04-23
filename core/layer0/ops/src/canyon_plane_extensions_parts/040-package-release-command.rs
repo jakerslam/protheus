@@ -27,8 +27,8 @@ pub(super) fn package_release_command(
     }
 
     let dist_root = root.join("dist");
-    let minimal_dir = dist_root.join("protheus-minimal");
-    let full_dir = dist_root.join("protheus-full");
+    let minimal_dir = dist_root.join("infring-minimal");
+    let full_dir = dist_root.join("infring-full");
     fs::create_dir_all(&minimal_dir)
         .map_err(|err| format!("mkdir_failed:{}:{err}", minimal_dir.display()))?;
     fs::create_dir_all(&full_dir)
@@ -53,8 +53,8 @@ pub(super) fn package_release_command(
     } else {
         Some(PathBuf::from(artifact_path))
     };
-    let minimal_artifact_path = minimal_dir.join("protheusd");
-    let full_artifact_path = full_dir.join("protheusd");
+    let minimal_artifact_path = minimal_dir.join("infringd");
+    let full_artifact_path = full_dir.join("infringd");
     let mut copy_errors = Vec::<String>::new();
     if let Some(ref source) = artifact {
         if source.exists() {
@@ -67,14 +67,14 @@ pub(super) fn package_release_command(
         }
     }
     let minimal_manifest = json!({
-        "package": "protheus-minimal",
+        "package": "infring-minimal",
         "features": ["minimal"],
         "target": release.get("target").cloned().unwrap_or(Value::Null),
         "artifact": minimal_artifact_path.display().to_string(),
         "generated_at": now_iso()
     });
     let full_manifest = json!({
-        "package": "protheus-full",
+        "package": "infring-full",
         "features": ["minimal", "full-substrate"],
         "target": release.get("target").cloned().unwrap_or(Value::Null),
         "artifact": full_artifact_path.display().to_string(),
@@ -99,8 +99,8 @@ pub(super) fn package_release_command(
     let signatures_dir = dist_root.join("signatures");
     fs::create_dir_all(&signatures_dir)
         .map_err(|err| format!("mkdir_failed:{}:{err}", signatures_dir.display()))?;
-    let minimal_sig_path = signatures_dir.join("protheus-minimal.sig");
-    let full_sig_path = signatures_dir.join("protheus-full.sig");
+    let minimal_sig_path = signatures_dir.join("infring-minimal.sig");
+    let full_sig_path = signatures_dir.join("infring-full.sig");
     fs::write(
         &minimal_sig_path,
         format!("{}\n{}\n", minimal_artifact_hash, minimal_manifest_hash),
@@ -317,12 +317,12 @@ pub(super) fn size_trust_command(
         ),
     )?;
     let size_gate_path = root.join(".github/workflows/size-gate.yml");
-    let static_size_gate_path = root.join(".github/workflows/protheusd-static-size-gate.yml");
+    let static_size_gate_path = root.join(".github/workflows/infringd-static-size-gate.yml");
     let nightly_trust_path = nightly_size_trust_workflow_path(root);
     let ci_size_gate_present = workflow_contains(
         &size_gate_path,
         &[
-            "Build static protheusd",
+            "Build static infringd",
             "Enforce throughput gate",
             "Enforce full install size gate",
         ],
@@ -330,7 +330,7 @@ pub(super) fn size_trust_command(
     let ci_static_gate_present = workflow_contains(
         &static_size_gate_path,
         &[
-            "Build static protheusd",
+            "Build static infringd",
             "Enforce static size gate",
             "Verify reproducible static rebuild",
         ],

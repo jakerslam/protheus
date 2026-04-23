@@ -283,7 +283,7 @@ fn load_policy(root: &Path) -> MemoryAmbientPolicy {
 }
 
 fn resolve_memory_command(root: &PathBuf) -> (String, Vec<String>) {
-    let explicit = std::env::var("PROTHEUS_MEMORY_CORE_BIN").ok();
+    let explicit = std::env::var("INFRING_MEMORY_CORE_BIN").ok();
     if let Some(bin) = explicit {
         let trimmed = bin.trim();
         if !trimmed.is_empty() {
@@ -296,14 +296,14 @@ fn resolve_memory_command(root: &PathBuf) -> (String, Vec<String>) {
     let release_primary = root
         .join("target")
         .join("release")
-        .join("protheus-memory-core");
+        .join("infring-memory-core");
     if release_primary.exists() {
         return (release_primary.to_string_lossy().to_string(), Vec::new());
     }
     let debug_primary = root
         .join("target")
         .join("debug")
-        .join("protheus-memory-core");
+        .join("infring-memory-core");
     if debug_primary.exists() {
         return (debug_primary.to_string_lossy().to_string(), Vec::new());
     }
@@ -318,14 +318,14 @@ fn resolve_memory_command(root: &PathBuf) -> (String, Vec<String>) {
     let ws_release_primary = workspace_root
         .join("target")
         .join("release")
-        .join("protheus-memory-core");
+        .join("infring-memory-core");
     if ws_release_primary.exists() {
         return (ws_release_primary.to_string_lossy().to_string(), Vec::new());
     }
     let ws_debug_primary = workspace_root
         .join("target")
         .join("debug")
-        .join("protheus-memory-core");
+        .join("infring-memory-core");
     if ws_debug_primary.exists() {
         return (ws_debug_primary.to_string_lossy().to_string(), Vec::new());
     }
@@ -347,14 +347,14 @@ fn resolve_memory_command(root: &PathBuf) -> (String, Vec<String>) {
             "--manifest-path".to_string(),
             manifest_path.to_string_lossy().to_string(),
             "--bin".to_string(),
-            "protheus-memory-core".to_string(),
+            "infring-memory-core".to_string(),
             "--".to_string(),
         ],
     )
 }
 
-fn resolve_protheus_ops_command(root: &PathBuf, domain: &str) -> (String, Vec<String>) {
-    crate::contract_lane_utils::resolve_protheus_ops_command(root.as_path(), domain)
+fn resolve_infring_ops_command(root: &PathBuf, domain: &str) -> (String, Vec<String>) {
+    crate::contract_lane_utils::resolve_infring_ops_command(root.as_path(), domain)
 }
 
 fn is_allowed_memory_command(command: &str) -> bool {

@@ -6,7 +6,7 @@ Last Updated: 2026-03-06
 
 ## Objective
 
-Define and implement sheddable Rust kernel layers so Protheus/InfRing can compile down to constrained hardware targets without maintaining separate compatibility modes.
+Define and implement sheddable Rust kernel layers so Infring/InfRing can compile down to constrained hardware targets without maintaining separate compatibility modes.
 
 ## Why
 
@@ -90,7 +90,7 @@ Code deliverables:
   - `layer0` -> `task`, `resource`
   - `layer1` -> `layer0` + `isolation`, `ipc`, `storage`, `update`
   - `layer2` -> `layer1` + `conduit`
-  - `layer3` -> `layer2` + `protheus-observability-core-v1`
+  - `layer3` -> `layer2` + `infring-observability-core-v1`
 - `core/layer0/kernel_layers/src/lib.rs` with strict `#[cfg(feature = ...)]` exports per layer and profile monotonicity tests.
 - Workspace member registration in root `Cargo.toml`.
 

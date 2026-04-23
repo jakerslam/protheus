@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-This report compares Infring's tooling, deployment, and operational infrastructure against the Infring Workspace (Protheus). The analysis reveals **significant maturity gaps** across all operational domains. While Infring has basic CI/CD and release automation, it lacks enterprise-grade operational tooling, incident response capabilities, monitoring, and governance controls present in the Infring Workspace.
+This report compares Infring's tooling, deployment, and operational infrastructure against the Infring Workspace (Infring). The analysis reveals **significant maturity gaps** across all operational domains. While Infring has basic CI/CD and release automation, it lacks enterprise-grade operational tooling, incident response capabilities, monitoring, and governance controls present in the Infring Workspace.
 
 | Category | Infring Status | Infring Workspace Status | Gap Severity |
 |----------|-----------------|--------------------------|--------------|
@@ -324,9 +324,9 @@ CMD ["start"]
 ```dockerfile
 FROM node:22-alpine AS deps
 FROM node:22-alpine AS runtime
-ARG PROTHEUS_FIPS_MODE=1  # FIPS compliance
+ARG INFRING_FIPS_MODE=1  # FIPS compliance
 ARG VCS_REF, BUILD_DATE
-USER protheus
+USER infring
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node client/systems/autonomy/health_status.js
 CMD ["node", "client/systems/spine/spine.js", "daily"]
@@ -400,7 +400,7 @@ CMD ["node", "client/systems/spine/spine.js", "daily"]
 - `codeql.yml` - Security scanning
 - `security-audit.yml` - Dependency audits
 - `release-security-artifacts.yml` - Signed releases
-- `protheusd-static-size-gate.yml` - 35MB size limit enforcement
+- `infringd-static-size-gate.yml` - 35MB size limit enforcement
 - And many more...
 
 **Key Features:**

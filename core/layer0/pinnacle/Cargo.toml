@@ -1,12 +1,12 @@
 [package]
-name = "protheus-pinnacle-core-v1"
+name = "infring-pinnacle-core-v1"
 version = "0.1.0"
 edition = "2021"
 license = "SEE LICENSE IN LICENSE"
 description = "Rust CRDT merge core with sovereignty index and embedded merge profile blob."
 
 [lib]
-name = "protheus_pinnacle_core_v1"
+name = "infring_pinnacle_core_v1"
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [[bin]]
@@ -24,7 +24,7 @@ sha2 = "0.10"
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2"
 
-[package.metadata.protheus]
+[package.metadata.infring]
 wasm_target = "wasm32-unknown-unknown"
 ios_targets = ["aarch64-apple-ios", "x86_64-apple-ios"]
 android_targets = ["aarch64-linux-android", "x86_64-linux-android"]

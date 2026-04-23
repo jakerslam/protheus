@@ -61,8 +61,8 @@ function loadConduitClient() {
 }
 
 function daemonCommand() {
-  if (process.env.PROTHEUS_CONDUIT_DAEMON_COMMAND) {
-    return process.env.PROTHEUS_CONDUIT_DAEMON_COMMAND;
+  if (process.env.INFRING_CONDUIT_DAEMON_COMMAND) {
+    return process.env.INFRING_CONDUIT_DAEMON_COMMAND;
   }
   const releaseBin = path.join(ROOT, 'target', 'release', 'conduit_daemon');
   if (fs.existsSync(releaseBin)) return releaseBin;
@@ -71,7 +71,7 @@ function daemonCommand() {
 }
 
 function daemonArgs(command) {
-  const raw = process.env.PROTHEUS_CONDUIT_DAEMON_ARGS;
+  const raw = process.env.INFRING_CONDUIT_DAEMON_ARGS;
   if (raw && String(raw).trim()) {
     return String(raw).trim().split(/\s+/).filter(Boolean);
   }
@@ -81,7 +81,7 @@ function daemonArgs(command) {
 }
 
 function resolveProbeTimeoutMs() {
-  const configured = Number(process.env.PROTHEUS_CONDUIT_PROBE_TIMEOUT_MS || 15000);
+  const configured = Number(process.env.INFRING_CONDUIT_PROBE_TIMEOUT_MS || 15000);
   if (!Number.isFinite(configured) || configured <= 0) {
     return 15000;
   }
@@ -106,8 +106,8 @@ function withTimeout(promise, ms, label) {
 
 async function run() {
   const timeoutMs = resolveProbeTimeoutMs();
-  if (!process.env.PROTHEUS_CONDUIT_STDIO_TIMEOUT_MS) {
-    process.env.PROTHEUS_CONDUIT_STDIO_TIMEOUT_MS = String(timeoutMs);
+  if (!process.env.INFRING_CONDUIT_STDIO_TIMEOUT_MS) {
+    process.env.INFRING_CONDUIT_STDIO_TIMEOUT_MS = String(timeoutMs);
   }
   const { ConduitClient } = loadConduitClient();
   const command = daemonCommand();

@@ -1,7 +1,7 @@
 {
   "id": "V3-ASSIM-011",
   "upgrade": "Generative Meta-Model Primitive",
-  "section": "Holo-viz Track (Separated from Core Protheus)",
+  "section": "Holo-viz Track (Separated from Core Infring)",
   "impact": 7,
   "layer_map": "1/2/client/adapter",
   "conduit_only_boundary": false,
@@ -27,8 +27,8 @@
     }
   ],
   "validation": {
-    "lane_command": "protheus-ops srs-contract-runtime run --id=V3-ASSIM-011",
-    "status_command": "protheus-ops srs-contract-runtime status --id=V3-ASSIM-011",
+    "lane_command": "infring-ops srs-contract-runtime run --id=V3-ASSIM-011",
+    "status_command": "infring-ops srs-contract-runtime status --id=V3-ASSIM-011",
     "fail_closed_on_missing_contract": true
   },
   "generated_from": {

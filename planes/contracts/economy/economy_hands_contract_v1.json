@@ -1,7 +1,7 @@
 {
   "version": "v1",
   "kind": "economy_hands_contract",
-  "entrypoint": "protheus economy <command>",
+  "entrypoint": "infring economy <command>",
   "allowed_actions": [
     "status",
     "dashboard",

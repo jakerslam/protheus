@@ -1,7 +1,7 @@
 
 fn execute_ops_bridge_command(domain: &str, args: &[String], run_context: Option<&str>) -> Value {
     let root = repo_root_from_current_dir();
-    let (command, mut command_args) = resolve_protheus_ops_command(&root, domain);
+    let (command, mut command_args) = resolve_infring_ops_command(&root, domain);
     command_args.extend(args.iter().cloned());
     let timeout_ms = bridge_command_timeout_ms();
 
@@ -9,8 +9,8 @@ fn execute_ops_bridge_command(domain: &str, args: &[String], run_context: Option
     cmd.args(&command_args)
         .current_dir(&root)
         .env(
-            "PROTHEUS_NODE_BINARY",
-            std::env::var("PROTHEUS_NODE_BINARY").unwrap_or_else(|_| "node".to_string()),
+            "INFRING_NODE_BINARY",
+            std::env::var("INFRING_NODE_BINARY").unwrap_or_else(|_| "node".to_string()),
         )
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());

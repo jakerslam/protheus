@@ -187,9 +187,9 @@ fn selected_profile(parsed: &crate::ParsedArgs) -> String {
 
 fn activation_command(profile: &str) -> String {
     if profile == "viral" {
-        "protheus seed deploy viral".to_string()
+        "infring seed deploy viral".to_string()
     } else {
-        "protheus seed deploy".to_string()
+        "infring seed deploy".to_string()
     }
 }
 

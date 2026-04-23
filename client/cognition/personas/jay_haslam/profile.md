@@ -6,7 +6,7 @@ Founder and Chief Architect
 
 ## Professional Profile
 
-- Founder of Protheus Labs, building a sovereign self-improving systems stack.
+- Founder of Infring Labs, building a sovereign self-improving systems stack.
 - Primary domains: memory/security foundations, behavior-preserving migration, and scale-readiness engineering.
 - Product direction: autonomous infrastructure that can eventually operate at million-user scale.
 

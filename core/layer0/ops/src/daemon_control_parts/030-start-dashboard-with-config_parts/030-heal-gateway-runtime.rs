@@ -128,7 +128,7 @@ fn verity_drift_status_receipt(root: &Path, argv: &[String]) -> Value {
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops daemon-control <start|stop|restart|status|heal|attach|subscribe|tick|diagnostics|drift-status|watchdog> [--mode=<value>]");
+    println!("  infring-ops daemon-control <start|stop|restart|status|heal|attach|subscribe|tick|diagnostics|drift-status|watchdog> [--mode=<value>]");
     println!("  Optional start/restart flags:");
     println!("    --dashboard-autoboot=1|0   (default: 1)");
     println!("    --dashboard-open=1|0       (default: 1)");
@@ -146,7 +146,7 @@ pub(crate) fn success_receipt(
     argv: &[String],
     root: &Path,
 ) -> Value {
-    let mut out = crate::protheus_ops_core_v1_bridge::daemon_control_receipt(command, mode);
+    let mut out = crate::infring_ops_core_v1_bridge::daemon_control_receipt(command, mode);
     if let Some(obj) = out.as_object_mut() {
         obj.insert("argv".to_string(), json!(argv));
         obj.insert(

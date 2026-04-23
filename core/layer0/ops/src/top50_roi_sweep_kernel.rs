@@ -26,10 +26,10 @@ struct Record {
 fn usage() {
     println!("top50-roi-sweep-kernel commands:");
     println!(
-        "  protheus-ops top50-roi-sweep-kernel <run|queue|status> [--max=<n>] [--policy=<path>]"
+        "  infring-ops top50-roi-sweep-kernel <run|queue|status> [--max=<n>] [--policy=<path>]"
     );
     println!(
-        "  protheus-ops top200-roi-sweep-kernel <run|queue|status> [--max=<n>] [--policy=<path>]"
+        "  infring-ops top200-roi-sweep-kernel <run|queue|status> [--max=<n>] [--policy=<path>]"
     );
 }
 fn print_json_line(value: &Value) {
@@ -162,9 +162,9 @@ fn is_thin_bridge(record: &Record) -> bool {
     let normalized = record.text.as_str();
     normalized.contains("createOpsLaneBridge")
         || normalized.contains("createManifestLaneBridge")
-        || normalized.contains("runProtheusOps(args")
-        || normalized.contains("runProtheusOps(['")
-        || normalized.contains("require('./run_protheus_ops.ts')")
+        || normalized.contains("runInfringOps(args")
+        || normalized.contains("runInfringOps(['")
+        || normalized.contains("require('./run_infring_ops.ts')")
         || normalized.contains("Thin TypeScript wrapper only")
         || normalized.contains("Thin runtime wrapper:")
         || normalized.contains("thin CLI bridge")
@@ -173,7 +173,7 @@ fn is_thin_bridge(record: &Record) -> bool {
         || normalized.contains("legacy_retired_wrapper.ts")
         || normalized.contains("bindLegacyRetiredModule(__filename, module)")
         || (normalized.contains("Layer ownership: core/layer0/ops")
-            && (normalized.contains("runProtheusOps(")
+            && (normalized.contains("runInfringOps(")
                 || normalized.contains("createOpsLaneBridge(")))
         || (normalized.contains("module.exports")
             && normalized.contains("require('./")
@@ -293,7 +293,7 @@ fn should_exclude(record: &Record) -> bool {
         || rel == "client/runtime/lib/tool_compactor_integration.ts"
         || rel == "client/runtime/lib/command_output_compactor.ts"
         || rel == "client/runtime/lib/eyes_catalog.ts"
-        || rel == "client/lib/protheus_suite_tooling.ts"
+        || rel == "client/lib/infring_suite_tooling.ts"
     {
         return true;
     }

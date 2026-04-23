@@ -4,14 +4,14 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 
 resolve_ops_binary() {
-  if [[ -n "${PROTHEUS_NPM_BINARY:-}" && -f "${PROTHEUS_NPM_BINARY}" ]]; then
-    printf '%s\n' "${PROTHEUS_NPM_BINARY}"
+  if [[ -n "${INFRING_NPM_BINARY:-}" && -f "${INFRING_NPM_BINARY}" ]]; then
+    printf '%s\n' "${INFRING_NPM_BINARY}"
     return 0
   fi
 
-  local vendor="$ROOT/client/cli/npm/vendor/protheus-ops"
-  local debug_bin="$ROOT/target/debug/protheus-ops"
-  local release_bin="$ROOT/target/release/protheus-ops"
+  local vendor="$ROOT/client/cli/npm/vendor/infring-ops"
+  local debug_bin="$ROOT/target/debug/infring-ops"
+  local release_bin="$ROOT/target/release/infring-ops"
 
   if [[ -f "$vendor" ]]; then
     printf '%s\n' "$vendor"
@@ -29,13 +29,13 @@ resolve_ops_binary() {
 }
 
 if BIN="$(resolve_ops_binary)"; then
-  exec "$BIN" protheusctl "$@"
+  exec "$BIN" infringctl "$@"
 fi
 
 if command -v cargo >/dev/null 2>&1; then
-  exec cargo run --quiet --manifest-path "$ROOT/core/layer0/ops/Cargo.toml" --bin protheus-ops -- protheusctl "$@"
+  exec cargo run --quiet --manifest-path "$ROOT/core/layer0/ops/Cargo.toml" --bin infring-ops -- infringctl "$@"
 fi
 
 echo "infring launcher failed: missing core ops binary and cargo." >&2
-echo "Install Rust/Cargo or set PROTHEUS_NPM_BINARY." >&2
+echo "Install Rust/Cargo or set INFRING_NPM_BINARY." >&2
 exit 1

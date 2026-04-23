@@ -65,8 +65,8 @@ struct ChangeControlFields {
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops sdlc-change-control run [--strict=1|0] [--policy=<path>] [--pr-body-path=<path>] [--changed-paths-path=<path>]");
-    println!("  protheus-ops sdlc-change-control status [--policy=<path>]");
+    println!("  infring-ops sdlc-change-control run [--strict=1|0] [--policy=<path>] [--pr-body-path=<path>] [--changed-paths-path=<path>]");
+    println!("  infring-ops sdlc-change-control status [--policy=<path>]");
 }
 
 fn print_json_line(value: &Value) {

@@ -5,7 +5,7 @@ use crate::contracts::{
     RequestClassification, ResourceKind, StepStatus, ToolFallbackContext,
     TypedOrchestrationRequest, WorkflowTemplate,
 };
-use protheus_tooling_core_v1::{ToolBackendClass, ToolReasonCode};
+use infring_tooling_core_v1::{ToolBackendClass, ToolReasonCode};
 use serde_json::Value;
 
 pub fn propose_decomposition_candidate(

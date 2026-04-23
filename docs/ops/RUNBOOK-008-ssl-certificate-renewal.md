@@ -10,7 +10,7 @@
 
 ## Purpose
 
-This runbook documents the standardized procedure for SSL/TLS certificate renewal across all Protheus infrastructure. Timely renewal prevents certificate expiration incidents that could result in service unavailability and security warnings for end users.
+This runbook documents the standardized procedure for SSL/TLS certificate renewal across all Infring infrastructure. Timely renewal prevents certificate expiration incidents that could result in service unavailability and security warnings for end users.
 
 ## Scope
 
@@ -57,8 +57,8 @@ aws acm describe-certificate \
 ```bash
 # Request new certificate with same SANs
 aws acm request-certificate \
-  --domain-name api.protheus.io \
-  --subject-alternative-names api.protheus.io *.protheus.io \
+  --domain-name api.infring.io \
+  --subject-alternative-names api.infring.io *.infring.io \
   --validation-method DNS \
   --idempotency-token renewal-$(date +%Y%m%d)
 ```
@@ -70,7 +70,7 @@ aws acm request-certificate \
 1. Retrieve validation records from ACM console
 2. Add DNS validation records to Route 53:
    - Type: CNAME
-   - Name: _validation.protheus.io
+   - Name: _validation.infring.io
    - Value: _validation.acm-validations.aws
 3. Wait for validation status to change to `SUCCESS` (typically 5-30 minutes)
 
@@ -92,11 +92,11 @@ aws elbv2 modify-listener \
 
 ```bash
 # Verify new certificate is served
-echo | openssl s_client -connect api.protheus.io:443 -servername api.protheus.io 2>/dev/null | \
+echo | openssl s_client -connect api.infring.io:443 -servername api.infring.io 2>/dev/null | \
   openssl x509 -noout -dates -subject
 
 # Check certificate chain completeness
-echo | openssl s_client -connect api.protheus.io:443 -servername api.protheus.io 2>/dev/null | \
+echo | openssl s_client -connect api.infring.io:443 -servername api.infring.io 2>/dev/null | \
   openssl x509 -noout -chain
 
 # Verify no SSL errors in application logs
@@ -129,7 +129,7 @@ aws elbv2 modify-listener \
   --certificates CertificateArn=arn:aws:acm:region:account-id:certificate/old-cert-id
 
 # Verify rollback
-curl -v https://api.protheus.io/health 2>&1 | grep -i "expire date"
+curl -v https://api.infring.io/health 2>&1 | grep -i "expire date"
 ```
 
 ## Troubleshooting
@@ -164,7 +164,7 @@ curl -v https://api.protheus.io/health 2>&1 | grep -i "expire date"
 
 - [AWS ACM Documentation](https://docs.aws.amazon.com/acm/)
 - [Route 53 DNS Validation](https://docs.aws.amazon.com/acm/latest/userguide/dns-validation.html)
-- [Internal Wiki: SSL Management](https://wiki.internal/protheus/ssl-management)
+- [Internal Wiki: SSL Management](https://wiki.internal/infring/ssl-management)
 
 ## Change Log
 

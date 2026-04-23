@@ -90,7 +90,7 @@ fn execute_native(root: &Path, cli: &CliArgs) -> i32 {
         "core/layer0/ops/src/security_plane.rs",
         "core/layer0/ops/src/autonomy_controller.rs",
         "core/layer0/ops/src/sensory_eyes_intake.rs",
-        "client/runtime/systems/ops/run_protheus_ops.ts",
+        "client/runtime/systems/ops/run_infring_ops.ts",
     ];
 
     let (constitution_ok, constitution_hash, expected_hash) = constitution_hash(root);

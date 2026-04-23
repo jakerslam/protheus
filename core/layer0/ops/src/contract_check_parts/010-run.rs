@@ -149,10 +149,10 @@ pub fn foundation_hook_coverage_receipt(source: &str) -> HookCoverageReceipt {
 
 fn print_usage() {
     println!("Usage:");
-    println!("  protheus-ops contract-check [status] [--help] [--rust-contract-check-ids=<ids>]");
+    println!("  infring-ops contract-check [status] [--help] [--rust-contract-check-ids=<ids>]");
     println!("Environment:");
-    println!("  PROTHEUS_RUNTIME_MODE=dist|source");
-    println!("  PROTHEUS_RUNTIME_DIST_REQUIRED=1 (required when mode=dist)");
+    println!("  INFRING_RUNTIME_MODE=dist|source");
+    println!("  INFRING_RUNTIME_DIST_REQUIRED=1 (required when mode=dist)");
     println!("  CONTRACT_CHECK_DIST_WRAPPER_STRICT=1 (enable dist wrapper existence checks)");
     println!("  CONTRACT_CHECK_DEEP_PROBES=1 (run runtime help probes)");
 }

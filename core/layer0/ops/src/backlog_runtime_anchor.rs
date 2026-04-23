@@ -104,8 +104,8 @@ pub fn run(_root: &Path, argv: &[String]) -> i32 {
 
     if matches!(cmd.as_str(), "help" | "--help" | "-h") {
         println!("Usage:");
-        println!("  protheus-ops backlog-runtime-anchor build --lane-id=<V3-RACE-XXX>");
-        println!("  protheus-ops backlog-runtime-anchor verify --lane-id=<V3-RACE-XXX>");
+        println!("  infring-ops backlog-runtime-anchor build --lane-id=<V3-RACE-XXX>");
+        println!("  infring-ops backlog-runtime-anchor verify --lane-id=<V3-RACE-XXX>");
         return 0;
     }
 

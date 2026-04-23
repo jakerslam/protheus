@@ -579,7 +579,7 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
                 "collab": format!("core/local/state/ops/collab_plane/dashboard/{team}.json"),
                 "skills": "core/local/state/ops/skills_plane/latest.json",
                 "health": "client/runtime/local/state/ui/infring_dashboard/latest_snapshot.json#health",
-                "runtime_sync": "protheus-ops dashboard-ui runtime-sync",
+                "runtime_sync": "infring-ops dashboard-ui runtime-sync",
                 "ui_controller": "client/runtime/local/state/ui/infring_dashboard/ui_controller_state.json",
                 "channel_registry": "client/runtime/local/state/ui/infring_dashboard/channel_registry.json",
                 "provider_registry": "client/runtime/local/state/ui/infring_dashboard/provider_registry.json"

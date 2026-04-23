@@ -5,7 +5,7 @@ fn write_security_panel(
     root: &Path,
 ) -> Result<Value, String> {
     let panel = json!({
-        "schema_id": "protheus_top_security_panel",
+        "schema_id": "infring_top_security_panel",
         "schema_version": "1.0",
         "ts": now_iso(),
         "covenant_state": state["covenant"]["state"],
@@ -230,7 +230,7 @@ fn run_lane(
                 }
                 fs::write(
                     &runbook_path,
-                    "# FluxLattice Migration Runbook\n\nUse `protheusctl migrate` with profile-driven dry-run + rollback checkpoints.\n",
+                    "# FluxLattice Migration Runbook\n\nUse `infringctl migrate` with profile-driven dry-run + rollback checkpoints.\n",
                 )
                 .map_err(|e| format!("write_runbook_failed:{}:{e}", runbook_path.display()))?;
             }
@@ -371,7 +371,7 @@ fn run_lane(
             let sync_res = run_node_json(
                 root,
                 "packages/lensmap/lensmap_cli.ts",
-                &["sync".to_string(), "--to=protheus".to_string()],
+                &["sync".to_string(), "--to=infring".to_string()],
             );
             let ok = import_res["ok"].as_bool().unwrap_or(false)
                 && sync_res["ok"].as_bool().unwrap_or(false);

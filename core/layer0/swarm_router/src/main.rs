@@ -1,4 +1,4 @@
-use protheus_swarm_router::{
+use infring_swarm_router::{
     apply_rollback, apply_upgrade, auto_id, build_metrics, build_receipt, plan_scaling,
     recovery_decision, status_payload, InFlightTracker, QueueArtifact, RecoveryPolicy,
     ScalingPolicy, SwarmEnvelope, UpgradePolicy,

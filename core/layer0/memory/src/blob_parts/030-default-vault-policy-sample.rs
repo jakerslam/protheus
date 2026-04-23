@@ -4,7 +4,7 @@ pub fn default_vault_policy_sample() -> EmbeddedVaultPolicy {
     EmbeddedVaultPolicy {
         policy_id: "vault_policy_primary".to_string(),
         version: 1,
-        key_domain: "protheus_runtime_vault".to_string(),
+        key_domain: "infring_runtime_vault".to_string(),
         cryptographic_profile: "fhe_bfv+zkp_groth16".to_string(),
         attestation_chain: vec![
             "hsm_root_attestation".to_string(),

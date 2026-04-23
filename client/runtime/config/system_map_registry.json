@@ -22,7 +22,7 @@
       "inbound": ["startup self-audit", "manual origin verify"],
       "outbound": ["origin integrity receipt", "degraded/fail-closed decision"],
       "failure_mode": "origin_integrity_timeout_or_mismatch",
-      "health_check": "protheus-ops origin-integrity status",
+      "health_check": "infring-ops origin-integrity status",
       "srs": ["V6-ORIGIN-001", "V6-ORIGIN-004"]
     },
     {
@@ -34,7 +34,7 @@
       "inbound": ["attention queue event", "severity and context metadata"],
       "outbound": ["score", "band", "priority", "initiative_action"],
       "failure_mode": "layer2_priority_authority_unavailable",
-      "health_check": "npm run -s ops:test:protheus-ops-core:attention",
+      "health_check": "npm run -s ops:test:infring-ops-core:attention",
       "srs": ["V6-INITIATIVE-013"]
     },
     {
@@ -46,7 +46,7 @@
       "inbound": ["eyes", "memory auto-recall", "dopamine", "spine", "shadow dispatch"],
       "outbound": ["priority-ordered events", "cursor/ack receipts"],
       "failure_mode": "queue_backpressure_or_gate_active",
-      "health_check": "protheus-ops attention-queue status",
+      "health_check": "infring-ops attention-queue status",
       "srs": ["V6-COCKPIT-002", "V6-COCKPIT-006", "V6-INITIATIVE-013"]
     },
     {
@@ -70,7 +70,7 @@
       "inbound": ["adaptive tick", "runtime metrics"],
       "outbound": ["adaptation receipt", "status snapshot"],
       "failure_mode": "adaptive_policy_guard_denied",
-      "health_check": "protheus-ops adaptive-runtime status",
+      "health_check": "infring-ops adaptive-runtime status",
       "srs": ["V6-ADAPT-CORE-001"]
     },
     {
@@ -98,7 +98,7 @@
       "srs": ["V6-COCKPIT-005", "V6-CONDUIT-RUNTIME-STALL-001"]
     },
     {
-      "id": "protheusd",
+      "id": "infringd",
       "subsystem": "Persistent Cockpit Daemon",
       "layer": "Client Ops",
       "owner": "client",
@@ -106,7 +106,7 @@
       "inbound": ["attach/start/subscribe commands", "attention queue drain"],
       "outbound": ["status envelopes", "degraded class diagnostics", "subscribe batches"],
       "failure_mode": "bridge_degraded_or_origin_pending",
-      "health_check": "node client/runtime/systems/ops/protheusd.ts status",
+      "health_check": "node client/runtime/systems/ops/infringd.ts status",
       "srs": ["V6-COCKPIT-001", "V6-COCKPIT-004", "V6-COCKPIT-005"]
     },
     {

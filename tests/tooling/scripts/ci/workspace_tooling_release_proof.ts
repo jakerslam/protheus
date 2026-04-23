@@ -351,7 +351,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     Number.isInteger(soakStatus) && (soakStatus === 0 || soakStatus === 1);
   const soakCommand = cleanText(soakPayload?.command || '', 240);
   const soakCommandValid =
-    soakCommand.length > 0 && soakCommand.includes('cargo test -p protheus-ops-core --lib');
+    soakCommand.length > 0 && soakCommand.includes('cargo test -p infring-ops-core --lib');
   const soakLanePack =
     soakPayload?.lane_pack && typeof soakPayload.lane_pack === 'object'
       ? (soakPayload.lane_pack as Record<string, any>)

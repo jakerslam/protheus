@@ -106,7 +106,7 @@ fn native_receipt(root: &Path, cmd: &str, argv: &[String]) -> Value {
         .unwrap_or(1);
     let objective = parse_flag(argv, "objective").unwrap_or_else(|| "default".to_string());
 
-    let mut out = crate::protheus_autonomy_core_v1_bridge::autonomy_receipt(cmd, Some(&objective));
+    let mut out = crate::infring_autonomy_core_v1_bridge::autonomy_receipt(cmd, Some(&objective));
     out["lane"] = Value::String(LANE_ID.to_string());
     out["ts"] = Value::String(now_iso());
     out["argv"] = json!(argv);
@@ -139,7 +139,7 @@ fn native_pain_signal_receipt(root: &Path, argv: &[String]) -> Value {
     let severity = parse_flag(argv, "severity");
     let risk = parse_flag(argv, "risk");
 
-    let mut out = crate::protheus_autonomy_core_v1_bridge::pain_signal_receipt(
+    let mut out = crate::infring_autonomy_core_v1_bridge::pain_signal_receipt(
         action.as_str(),
         source.as_deref(),
         code.as_deref(),

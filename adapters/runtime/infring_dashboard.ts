@@ -8,10 +8,10 @@ const { createHash } = require('node:crypto');
 const { spawn } = require('node:child_process');
 const {
   ROOT,
-  invokeProtheusOpsViaBridge,
+  invokeInfringOpsViaBridge,
   resolveBinary,
-  runProtheusOps,
-} = require('./run_protheus_ops.ts');
+  runInfringOps,
+} = require('./run_infring_ops.ts');
 const { buildPrimaryDashboardHtml, hasPrimaryDashboardUi, readBuildVersionInfo, readPrimaryDashboardAsset } = require('./dashboard_asset_router.ts');
 const { createAgentWsBridge } = require('./agent_ws_bridge.ts');
 
@@ -311,9 +311,9 @@ function bootstrapTroubleshootingFromSnapshot(snapshotPayload) {
   });
 }
 function runSnapshotWithCompatBootstrap(args, options) {
-  const out = invokeProtheusOpsViaBridge(['dashboard-ui', ...args], options);
+  const out = invokeInfringOpsViaBridge(['dashboard-ui', ...args], options);
   if (!out) {
-    const status = runProtheusOps(['dashboard-ui', ...args], options);
+    const status = runInfringOps(['dashboard-ui', ...args], options);
     if (Number(status) === 0 && fs.existsSync(STATUS_SNAPSHOT_PATH)) {
       try {
         const fallbackPayload = JSON.parse(fs.readFileSync(STATUS_SNAPSHOT_PATH, 'utf8'));
@@ -439,9 +439,9 @@ function spawnBackend(flags) {
   const laneArgs = ['dashboard-ui', 'serve', `--host=${flags.apiHost}`, `--port=${flags.apiPort}`, `--team=${flags.team}`, `--refresh-ms=${flags.refreshMs}`];
   const env = {
     ...process.env,
-    PROTHEUS_ROOT: ROOT,
-    PROTHEUS_OPS_ALLOW_STALE: process.env.PROTHEUS_OPS_ALLOW_STALE || '1',
-    PROTHEUS_NPM_ALLOW_STALE: process.env.PROTHEUS_NPM_ALLOW_STALE || '1',
+    INFRING_ROOT: ROOT,
+    INFRING_OPS_ALLOW_STALE: process.env.INFRING_OPS_ALLOW_STALE || '1',
+    INFRING_NPM_ALLOW_STALE: process.env.INFRING_NPM_ALLOW_STALE || '1',
   };
   const bin = resolveBinary({ env });
   if (!bin) throw new Error('dashboard_backend_binary_missing');
@@ -554,15 +554,15 @@ function dashboardSystemActionArgs(action, payload = {}) {
 function dashboardSystemActionEnv() {
   return {
     ...process.env,
-    PROTHEUS_ROOT: ROOT,
-    PROTHEUS_OPS_ALLOW_STALE: process.env.PROTHEUS_OPS_ALLOW_STALE || '1',
-    PROTHEUS_NPM_ALLOW_STALE: process.env.PROTHEUS_NPM_ALLOW_STALE || '1',
+    INFRING_ROOT: ROOT,
+    INFRING_OPS_ALLOW_STALE: process.env.INFRING_OPS_ALLOW_STALE || '1',
+    INFRING_NPM_ALLOW_STALE: process.env.INFRING_NPM_ALLOW_STALE || '1',
   };
 }
 function runDashboardSystemAction(action, payload = {}) {
   const args = dashboardSystemActionArgs(action, payload);
   const run =
-    invokeProtheusOpsViaBridge(args, {
+    invokeInfringOpsViaBridge(args, {
       allowProcessFallback: false,
       unknownDomainFallback: false,
     }) || {
@@ -918,12 +918,12 @@ async function run(argv = process.argv.slice(2)) {
   const opsOptions = {
     unknownDomainFallback: true,
     env: {
-      PROTHEUS_OPS_USE_PREBUILT: process.env.PROTHEUS_OPS_USE_PREBUILT || '0',
-      PROTHEUS_OPS_LOCAL_TIMEOUT_MS: process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000',
+      INFRING_OPS_USE_PREBUILT: process.env.INFRING_OPS_USE_PREBUILT || '0',
+      INFRING_OPS_LOCAL_TIMEOUT_MS: process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '120000',
     },
   };
   if (flags.mode === 'snapshot') return runSnapshotWithCompatBootstrap(args, opsOptions);
-  return runProtheusOps(['dashboard-ui', ...args], opsOptions);
+  return runInfringOps(['dashboard-ui', ...args], opsOptions);
 }
 module.exports = {
   cleanText,

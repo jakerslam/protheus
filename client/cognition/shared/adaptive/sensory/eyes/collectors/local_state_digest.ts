@@ -23,8 +23,8 @@ function resolveWorkspaceRoot(startDir = __dirname) {
 const WORKSPACE_DIR = resolveWorkspaceRoot();
 const STATE_DIR = path.join(WORKSPACE_DIR, 'local', 'state');
 
-process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
-process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
+process.env.INFRING_OPS_USE_PREBUILT = '0';
+process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '120000';
 
 const localStateDigestBridge = createOpsLaneBridge(
   __dirname,

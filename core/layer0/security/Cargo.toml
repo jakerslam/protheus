@@ -1,12 +1,12 @@
 [package]
-name = "protheus-security-core-v1"
+name = "infring-security-core-v1"
 version = "0.1.0"
 edition = "2021"
 license = "SEE LICENSE IN LICENSE"
 description = "Fail-closed Rust security gate enforcing covenant + sovereignty checks before operation execution."
 
 [lib]
-name = "protheus_security_core_v1"
+name = "infring_security_core_v1"
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [[bin]]
@@ -19,9 +19,9 @@ hex = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
-protheus-nexus-core-v1 = { path = "../../layer2/nexus" }
+infring-nexus-core-v1 = { path = "../../layer2/nexus" }
 
-[package.metadata.protheus]
+[package.metadata.infring]
 wasm_target = "wasm32-unknown-unknown"
 ios_targets = ["aarch64-apple-ios", "x86_64-apple-ios"]
 android_targets = ["aarch64-linux-android", "x86_64-linux-android"]

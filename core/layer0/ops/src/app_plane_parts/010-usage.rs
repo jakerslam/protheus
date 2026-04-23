@@ -23,27 +23,27 @@ const PRODUCT_BUILDER_CONTRACT_PATH: &str =
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops app-plane status [--app=<chat-starter|chat-ui|code-engineer>]");
+    println!("  infring-ops app-plane status [--app=<chat-starter|chat-ui|code-engineer>]");
     println!(
-        "  protheus-ops app-plane run --app=<chat-starter|chat-ui|code-engineer> [--session-id=<id>] [--message=<text>] [--prompt=<text>] [--strict=1|0]"
+        "  infring-ops app-plane run --app=<chat-starter|chat-ui|code-engineer> [--session-id=<id>] [--message=<text>] [--prompt=<text>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops app-plane history --app=<chat-starter|chat-ui> [--session-id=<id>] [--strict=1|0]"
+        "  infring-ops app-plane history --app=<chat-starter|chat-ui> [--session-id=<id>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops app-plane replay --app=<chat-starter|chat-ui> [--session-id=<id>] [--turn=<n>] [--strict=1|0]"
+        "  infring-ops app-plane replay --app=<chat-starter|chat-ui> [--session-id=<id>] [--turn=<n>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops app-plane switch-provider --app=chat-ui --provider=<openai|frontier_provider|grok|bedrock|minimax> [--model=<id>] [--strict=1|0]"
+        "  infring-ops app-plane switch-provider --app=chat-ui --provider=<openai|frontier_provider|grok|bedrock|minimax> [--model=<id>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops app-plane build --app=code-engineer --goal=<text> [--risk=<low|medium|high>] [--approved=1|0] [--strict=1|0]"
+        "  infring-ops app-plane build --app=code-engineer --goal=<text> [--risk=<low|medium|high>] [--approved=1|0] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops app-plane ingress --app=code-engineer --provider=<slack|telegram> --goal=<text> [--strict=1|0]"
+        "  infring-ops app-plane ingress --app=code-engineer --provider=<slack|telegram> --goal=<text> [--strict=1|0]"
     );
     println!(
-        "  protheus-ops app-plane template-governance --app=code-engineer --op=<install|update|list> [--template-id=builders://<id>] [--version=<semver>] [--strict=1|0]"
+        "  infring-ops app-plane template-governance --app=code-engineer --op=<install|update|list> [--template-id=builders://<id>] [--version=<semver>] [--strict=1|0]"
     );
 }
 

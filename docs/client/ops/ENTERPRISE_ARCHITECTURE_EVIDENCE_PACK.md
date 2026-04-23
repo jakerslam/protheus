@@ -6,7 +6,7 @@
 - TS surfaces: `client/runtime/systems/ui`, `client/runtime/systems/marketplace`, `client/runtime/systems/extensions`
 
 ## Failure Domains
-- Release gate failure is isolated via strict fail-closed checks in `protheus-ops` lanes.
+- Release gate failure is isolated via strict fail-closed checks in `infring-ops` lanes.
 - Runtime degradation is bounded by circuit-breaker and rollout ring controls.
 
 ## Security Model
@@ -14,7 +14,7 @@
 - Supply-chain artifacts must pass signed provenance checks before publish.
 
 ## Benchmark Claims
-- Benchmark matrix receipts are emitted by `protheus-ops benchmark-matrix run --refresh-runtime=1`.
+- Benchmark matrix receipts are emitted by `infring-ops benchmark-matrix run --refresh-runtime=1`.
 
 ## Rollback Narratives
 - Last-known-good rollback contract is encoded in `client/runtime/config/release_rollback_policy.json`.

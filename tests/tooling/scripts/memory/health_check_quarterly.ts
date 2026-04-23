@@ -196,7 +196,7 @@ console.log('  ☐ $WORKSPACE_ROOT/client/runtime/config/ (model_adapters.json +
 console.log('  ☐ Cron list: infring cron list → save to file');
 console.log();
 console.log('Quick backup command:');
-console.log('  tar -czf protheus-backup-$(date +%Y%m%d).tar.gz \\\
+console.log('  tar -czf infring-backup-$(date +%Y%m%d).tar.gz \\\
 ');
 console.log('    $WORKSPACE_ROOT/local/workspace/memory/ \\\
 ');

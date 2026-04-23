@@ -97,7 +97,7 @@ function binaryFreshEnough(root, binPath) {
     return binMtime >= srcMtime;
 }
 function deferOnHostStallEnabled() {
-    const raw = String(process.env.PROTHEUS_OPS_DEFER_ON_HOST_STALL || '0').trim().toLowerCase();
+    const raw = String(process.env.INFRING_OPS_DEFER_ON_HOST_STALL || '0').trim().toLowerCase();
     return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
 }
 function isTimeoutLikeSpawnError(err) {
@@ -112,7 +112,7 @@ function isTimeoutLikeSpawnError(err) {
 function defaultEnv() {
     return {
         ...process.env,
-        PROTHEUS_NODE_BINARY: process.execPath || 'node'
+        INFRING_NODE_BINARY: process.execPath || 'node'
     };
 }
 function envBool(names, fallback = false) {
@@ -128,7 +128,7 @@ function envBool(names, fallback = false) {
     return fallback;
 }
 function releaseChannel(env = process.env) {
-    const raw = String(env.INFRING_RELEASE_CHANNEL || env.PROTHEUS_RELEASE_CHANNEL || '').trim().toLowerCase();
+    const raw = String(env.INFRING_RELEASE_CHANNEL || env.INFRING_RELEASE_CHANNEL || '').trim().toLowerCase();
     return raw || 'stable';
 }
 function isProductionReleaseChannel(channel) {
@@ -140,7 +140,7 @@ function isProductionReleaseChannel(channel) {
         || normalized === 'release');
 }
 function processFallbackPolicy() {
-    const requested = envBool(['INFRING_OPS_ALLOW_PROCESS_FALLBACK', 'PROTHEUS_OPS_ALLOW_PROCESS_FALLBACK'], false);
+    const requested = envBool(['INFRING_OPS_ALLOW_PROCESS_FALLBACK', 'INFRING_OPS_ALLOW_PROCESS_FALLBACK'], false);
     if (!requested) {
         return {
             enabled: false,
@@ -193,10 +193,10 @@ function pruneIpcQueueFiles(queueDir, maxAgeMs) {
     }
 }
 function ipcBridgeEnabled() {
-    return envBool(['INFRING_OPS_IPC_DAEMON', 'PROTHEUS_OPS_IPC_DAEMON'], true);
+    return envBool(['INFRING_OPS_IPC_DAEMON', 'INFRING_OPS_IPC_DAEMON'], true);
 }
 function ipcStrictModeEnabled() {
-    return envBool(['INFRING_OPS_IPC_STRICT', 'PROTHEUS_OPS_IPC_STRICT'], true);
+    return envBool(['INFRING_OPS_IPC_STRICT', 'INFRING_OPS_IPC_STRICT'], true);
 }
 function processFallbackEnabled() {
     return processFallbackPolicy().enabled;
@@ -342,7 +342,7 @@ function ensureOpsIpcDaemon(root, options = {}) {
     if (forceRestart) {
         clearOpsIpcDaemon(root, true);
     }
-    const resolved = resolveProtheusOpsCommand(root, 'ops-domain-conduit-runner-kernel');
+    const resolved = resolveInfringOpsCommand(root, 'ops-domain-conduit-runner-kernel');
     const pollMs = parseTimeoutMs('INFRING_OPS_IPC_POLL_MS', 20, 5, 1000);
     const heartbeatTtlMs = parseTimeoutMs('INFRING_OPS_IPC_HEARTBEAT_TTL_MS', 5000, 500, 60000);
     const queueDir = queueRootForRepo(root);
@@ -425,11 +425,11 @@ function runLocalOpsDomainViaIpcOnce(root, domain, passArgs, cliMode, inheritStd
             error: err,
             rust_command: null,
             rust_args: [],
-            timeout_ms: parseTimeoutMs('PROTHEUS_OPS_LOCAL_TIMEOUT_MS', 45000),
+            timeout_ms: parseTimeoutMs('INFRING_OPS_LOCAL_TIMEOUT_MS', 45000),
             routed_via: 'ipc_daemon'
         };
     }
-    const timeoutMs = parseTimeoutMs('PROTHEUS_OPS_LOCAL_TIMEOUT_MS', 45000);
+    const timeoutMs = parseTimeoutMs('INFRING_OPS_LOCAL_TIMEOUT_MS', 45000);
     const requestId = `req_${Date.now()}_${process.pid}_${Math.floor(Math.random() * 1_000_000_000)}`;
     const requestPath = path.join(daemon.requestsDir, `${requestId}.json`);
     const responsePath = path.join(daemon.responsesDir, `${requestId}.json`);
@@ -554,11 +554,11 @@ function runLocalOpsDomainViaIpc(root, domain, passArgs, cliMode, inheritStdio) 
     }
     return retry || initial;
 }
-function resolveProtheusOpsCommand(root, domain) {
-    const preferCargo = envBool(['INFRING_OPS_PREFER_CARGO', 'PROTHEUS_OPS_PREFER_CARGO'], false);
-    const usePrebuiltOnly = envBool(['INFRING_OPS_USE_PREBUILT', 'PROTHEUS_OPS_USE_PREBUILT'], false);
-    const allowCargoFallback = envBool(['INFRING_OPS_ALLOW_CARGO_FALLBACK', 'PROTHEUS_OPS_ALLOW_CARGO_FALLBACK'], true);
-    const explicit = String(process.env.INFRING_OPS_BIN || process.env.PROTHEUS_OPS_BIN || '').trim();
+function resolveInfringOpsCommand(root, domain) {
+    const preferCargo = envBool(['INFRING_OPS_PREFER_CARGO', 'INFRING_OPS_PREFER_CARGO'], false);
+    const usePrebuiltOnly = envBool(['INFRING_OPS_USE_PREBUILT', 'INFRING_OPS_USE_PREBUILT'], false);
+    const allowCargoFallback = envBool(['INFRING_OPS_ALLOW_CARGO_FALLBACK', 'INFRING_OPS_ALLOW_CARGO_FALLBACK'], true);
+    const explicit = String(process.env.INFRING_OPS_BIN || process.env.INFRING_OPS_BIN || '').trim();
     if (explicit) {
         return {
             command: explicit,
@@ -568,10 +568,10 @@ function resolveProtheusOpsCommand(root, domain) {
     const prebuiltCandidates = [
         path.join(root, 'target', 'release-speed', 'infring-ops'),
         path.join(root, 'target', 'release', 'infring-ops'),
-        path.join(root, 'target', 'release-speed', 'protheus-ops'),
-        path.join(root, 'target', 'release', 'protheus-ops'),
+        path.join(root, 'target', 'release-speed', 'infring-ops'),
+        path.join(root, 'target', 'release', 'infring-ops'),
         path.join(root, 'target', 'debug', 'infring-ops'),
-        path.join(root, 'target', 'debug', 'protheus-ops')
+        path.join(root, 'target', 'debug', 'infring-ops')
     ];
     if (!preferCargo) {
         for (const candidate of prebuiltCandidates) {
@@ -714,7 +714,7 @@ function runLocalOpsDomain(root, domain, passArgs, cliMode, inheritStdio) {
             routed_via: 'ipc_only'
         };
     }
-    const resolved = resolveProtheusOpsCommand(root, domain);
+    const resolved = resolveInfringOpsCommand(root, domain);
     const initial = markProcessTransportFallback(runLocalOpsDomainOnce(root, domain, passArgs, cliMode, inheritStdio, resolved), processFallbackReason);
     if (resolved.command === 'cargo' || !shouldRetryWithCargo(initial)) {
         return initial;
@@ -744,7 +744,7 @@ function runBridge(config, args = [], cliMode = false) {
     const passArgs = Array.isArray(args) ? args.slice(0) : [];
     if (config.mode === 'ops_domain') {
         if (config.preferLocalCore === true) {
-            const resolved = resolveProtheusOpsCommand(root, config.domain);
+            const resolved = resolveInfringOpsCommand(root, config.domain);
             const initial = runLocalOpsDomainOnce(root, config.domain, passArgs, cliMode, config.inheritStdio, resolved);
             const local = resolved.command === 'cargo' || !shouldRetryWithCargo(initial)
                 ? initial
@@ -855,12 +855,12 @@ function createOpsLaneBridge(scriptDir, lane, domain, opts = {}) {
     // Explicit env overrides can still force prebuilt-only behavior when needed.
     process.env.INFRING_OPS_USE_PREBUILT =
         process.env.INFRING_OPS_USE_PREBUILT || '0';
-    process.env.PROTHEUS_OPS_USE_PREBUILT =
-        process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
-    process.env.PROTHEUS_OPS_DEFER_ON_HOST_STALL =
-        process.env.PROTHEUS_OPS_DEFER_ON_HOST_STALL || '0';
-    process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS =
-        process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '20000';
+    process.env.INFRING_OPS_USE_PREBUILT =
+        process.env.INFRING_OPS_USE_PREBUILT || '0';
+    process.env.INFRING_OPS_DEFER_ON_HOST_STALL =
+        process.env.INFRING_OPS_DEFER_ON_HOST_STALL || '0';
+    process.env.INFRING_OPS_LOCAL_TIMEOUT_MS =
+        process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '20000';
     const config = {
         scriptDir,
         lane,

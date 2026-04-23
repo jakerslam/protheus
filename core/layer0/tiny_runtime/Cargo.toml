@@ -1,11 +1,11 @@
 [package]
-name = "protheus-tiny-runtime"
+name = "infring-tiny-runtime"
 version = "0.1.0"
 edition = "2021"
 license = "SEE LICENSE IN ../../../LICENSE"
 
 [lib]
-name = "protheus_tiny_runtime"
+name = "infring_tiny_runtime"
 path = "src/lib.rs"
 
 [features]

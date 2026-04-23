@@ -10,7 +10,7 @@ Tracks temporary compatibility surfaces that must be removed after core-authorit
 | `client/runtime/systems/spine/spine_safe_launcher.ts` | Legacy launcher shell | Rust spine via conduit bridge | `spine_safe_launcher` callers migrated to direct conduit lane |
 | `client/runtime/systems/spine/heartbeat_trigger.ts` | Legacy trigger shell | Rust heartbeat policy | heartbeat scheduler references only conduit-managed runtime |
 | `client/runtime/lib/legacy_retired_lane_bridge.ts` | Legacy conduit fallback shim | `client/runtime/lib/spine_conduit_bridge.ts` and domain bridges | no production path imports legacy bridge |
-| `client/runtime/systems/ops/protheusd.ts` local fallback lane | Operational compatibility path | conduit-only runtime control | `--allow-legacy-fallback` path retired |
+| `client/runtime/systems/ops/infringd.ts` local fallback lane | Operational compatibility path | conduit-only runtime control | `--allow-legacy-fallback` path retired |
 | `client/runtime/systems/adaptive/core/*` TS primitives | Temporary adaptation bootstrap authority | `core/layer2` adaptation primitives (REQ-19 set) | `V6-ADAPT-CORE-001` complete |
 | legacy runtime roots (`state/`, `.clawhub/`, `.private-lenses/`, `client/logs/`) | Legacy mutable artifact paths | `client/runtime/local/*`, `core/local/*` partitions | `LOCAL-PARTITION-001` fully migrated and root-level duplicates removed |
 

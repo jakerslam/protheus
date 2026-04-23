@@ -126,9 +126,9 @@ fn print_json_line(value: &Value) {
 
 fn usage() {
     println!("success-criteria-kernel commands:");
-    println!("  protheus-ops success-criteria-kernel status");
-    println!("  protheus-ops success-criteria-kernel parse-rows --payload-base64=<base64_json>");
-    println!("  protheus-ops success-criteria-kernel evaluate --payload-base64=<base64_json>");
+    println!("  infring-ops success-criteria-kernel status");
+    println!("  infring-ops success-criteria-kernel parse-rows --payload-base64=<base64_json>");
+    println!("  infring-ops success-criteria-kernel evaluate --payload-base64=<base64_json>");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {

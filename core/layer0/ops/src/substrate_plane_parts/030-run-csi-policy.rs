@@ -248,7 +248,7 @@ fn run_eye_bind(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
         "source": source,
         "persona": clean(parsed.flags.get("persona").cloned().unwrap_or_else(|| "default".to_string()), 120),
         "shadow": clean(parsed.flags.get("shadow").cloned().unwrap_or_else(|| "default-shadow".to_string()), 120),
-        "command_alias": "protheus eye enable wifi",
+        "command_alias": "infring eye enable wifi",
         "enabled_at": crate::now_iso()
     });
     bindings["bindings"][&source] = binding.clone();

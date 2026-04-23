@@ -44,7 +44,7 @@ mod tests {
     fn temp_root(name: &str) -> PathBuf {
         let mut path = std::env::temp_dir();
         path.push(format!(
-            "protheus_autophagy_auto_approval_{name}_{}",
+            "infring_autophagy_auto_approval_{name}_{}",
             now_epoch_ms()
         ));
         let _ = fs::remove_dir_all(&path);

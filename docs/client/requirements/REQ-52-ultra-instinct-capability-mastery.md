@@ -92,5 +92,5 @@ This intake must obey repository placement policy.
 ## Execution Notes
 
 - This is a requirements intake only.
-- Normalize the source doc's `protheus instinct ...` language to `infring instinct ...` for operator-facing surfaces.
+- Normalize the source doc's `infring instinct ...` language to `infring instinct ...` for operator-facing surfaces.
 - Build this on top of existing capability discovery, organism scheduling, blob history, and compaction governance instead of inventing a parallel “instinct engine” subsystem.

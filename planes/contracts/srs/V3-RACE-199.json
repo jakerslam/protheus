@@ -1,6 +1,6 @@
 {
   "id": "V3-RACE-199",
-  "upgrade": "[extension / V3] Donor Mining Dashboard + CLI (`protheusctl mine dashboard`)",
+  "upgrade": "[extension / V3] Donor Mining Dashboard + CLI (`infringctl mine dashboard`)",
   "section": "External Requirements Intake (Google Doc `1qsY9ZcqDwE5R0gOd-qMl8XHajymG-mJVevICTpLnxpI`, 2026-03-02)",
   "impact": 9,
   "layer_map": "0/1/2/adapter/client",
@@ -27,8 +27,8 @@
     }
   ],
   "validation": {
-    "lane_command": "protheus-ops srs-contract-runtime run --id=V3-RACE-199",
-    "status_command": "protheus-ops srs-contract-runtime status --id=V3-RACE-199",
+    "lane_command": "infring-ops srs-contract-runtime run --id=V3-RACE-199",
+    "status_command": "infring-ops srs-contract-runtime status --id=V3-RACE-199",
     "fail_closed_on_missing_contract": true
   },
   "generated_from": {

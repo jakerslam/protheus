@@ -2,12 +2,12 @@
 # Orphan Process Detection Script
 # Author: Rohan Kapoor (VP Platform & Operations)
 # Date: 2026-03-13
-# Purpose: Identify and report orphaned processes in Protheus runtime
+# Purpose: Identify and report orphaned processes in Infring runtime
 
 set -euo pipefail
 
 SCRIPT_NAME="$(basename "$0")"
-LOG_FILE="/var/log/protheus/orphan-check.log"
+LOG_FILE="/var/log/infring/orphan-check.log"
 THRESHOLD_DAYS=3
 
 log_message() {
@@ -16,8 +16,8 @@ log_message() {
 
 log_message "INFO: Starting orphan process check"
 
-# Check for orphaned protheus-worker processes
-ORPHANS=$(ps aux | grep "protheus-worker" | grep -v grep | awk '{print $2, $9}' || true)
+# Check for orphaned infring-worker processes
+ORPHANS=$(ps aux | grep "infring-worker" | grep -v grep | awk '{print $2, $9}' || true)
 
 if [[ -z "$ORPHANS" ]]; then
     log_message "INFO: No orphan processes detected"

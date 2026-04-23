@@ -227,10 +227,10 @@ pub(super) fn run_assistant_mode(
         "hand": hand,
         "workspace": rel(root, &workspace),
         "steps": [
-            {"step": 1, "title": "Initialize project", "command": format!("protheus init {} --target-dir={}", hand, workspace.display())},
-            {"step": 2, "title": "Run shadow test", "command": format!("protheus flow run --goal=shadow_test --workspace={}", workspace.display())},
-            {"step": 3, "title": "Generate docs and tests", "command": format!("protheus assistant --topic={} --hand={}", topic, hand)},
-            {"step": 4, "title": "Export compliance pack", "command": "protheus enterprise export-compliance --profile=customer".to_string()}
+            {"step": 1, "title": "Initialize project", "command": format!("infring init {} --target-dir={}", hand, workspace.display())},
+            {"step": 2, "title": "Run shadow test", "command": format!("infring flow run --goal=shadow_test --workspace={}", workspace.display())},
+            {"step": 3, "title": "Generate docs and tests", "command": format!("infring assistant --topic={} --hand={}", topic, hand)},
+            {"step": 4, "title": "Export compliance pack", "command": "infring enterprise export-compliance --profile=customer".to_string()}
         ],
         "outputs": {
             "docs": "README.md",
@@ -242,7 +242,7 @@ pub(super) fn run_assistant_mode(
     write_markdown(
         &guide_md,
         &format!(
-            "# Protheus Assistant Mode\n\nTopic: {}\n\nHand: {}\n\n1. Initialize project\n2. Run shadow test\n3. Generate docs/tests\n4. Export compliance pack\n",
+            "# Infring Assistant Mode\n\nTopic: {}\n\nHand: {}\n\n1. Initialize project\n2. Run shadow test\n3. Generate docs/tests\n4. Export compliance pack\n",
             topic, hand
         ),
     )?;

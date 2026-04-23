@@ -24,24 +24,24 @@ const CALIBRATION_HISTORY_REL: &str =
 
 fn usage() {
     println!("trit-shadow-kernel commands:");
-    println!("  protheus-ops trit-shadow-kernel paths [--payload-base64=<json>]");
-    println!("  protheus-ops trit-shadow-kernel default-policy");
-    println!("  protheus-ops trit-shadow-kernel normalize-policy --payload-base64=<json>");
-    println!("  protheus-ops trit-shadow-kernel load-policy [--payload-base64=<json>]");
-    println!("  protheus-ops trit-shadow-kernel load-success-criteria [--payload-base64=<json>]");
-    println!("  protheus-ops trit-shadow-kernel load-trust-state [--payload-base64=<json>]");
-    println!("  protheus-ops trit-shadow-kernel save-trust-state --payload-base64=<json>");
-    println!("  protheus-ops trit-shadow-kernel build-trust-map --payload-base64=<json>");
-    println!("  protheus-ops trit-shadow-kernel evaluate-productivity [--payload-base64=<json>]");
-    println!("  protheus-ops trit-shadow-kernel evaluate-auto-stage [--payload-base64=<json>]");
-    println!("  protheus-ops trit-shadow-kernel resolve-stage-decision [--payload-base64=<json>]");
-    println!("  protheus-ops trit-shadow-kernel resolve-stage [--payload-base64=<json>]");
-    println!("  protheus-ops trit-shadow-kernel can-consume-override [--payload-base64=<json>]");
-    println!("  protheus-ops trit-shadow-kernel consume-override --payload-base64=<json>");
-    println!("  protheus-ops trit-shadow-kernel load-influence-guard [--payload-base64=<json>]");
-    println!("  protheus-ops trit-shadow-kernel save-influence-guard --payload-base64=<json>");
-    println!("  protheus-ops trit-shadow-kernel influence-blocked [--payload-base64=<json>]");
-    println!("  protheus-ops trit-shadow-kernel apply-influence-guard --payload-base64=<json>");
+    println!("  infring-ops trit-shadow-kernel paths [--payload-base64=<json>]");
+    println!("  infring-ops trit-shadow-kernel default-policy");
+    println!("  infring-ops trit-shadow-kernel normalize-policy --payload-base64=<json>");
+    println!("  infring-ops trit-shadow-kernel load-policy [--payload-base64=<json>]");
+    println!("  infring-ops trit-shadow-kernel load-success-criteria [--payload-base64=<json>]");
+    println!("  infring-ops trit-shadow-kernel load-trust-state [--payload-base64=<json>]");
+    println!("  infring-ops trit-shadow-kernel save-trust-state --payload-base64=<json>");
+    println!("  infring-ops trit-shadow-kernel build-trust-map --payload-base64=<json>");
+    println!("  infring-ops trit-shadow-kernel evaluate-productivity [--payload-base64=<json>]");
+    println!("  infring-ops trit-shadow-kernel evaluate-auto-stage [--payload-base64=<json>]");
+    println!("  infring-ops trit-shadow-kernel resolve-stage-decision [--payload-base64=<json>]");
+    println!("  infring-ops trit-shadow-kernel resolve-stage [--payload-base64=<json>]");
+    println!("  infring-ops trit-shadow-kernel can-consume-override [--payload-base64=<json>]");
+    println!("  infring-ops trit-shadow-kernel consume-override --payload-base64=<json>");
+    println!("  infring-ops trit-shadow-kernel load-influence-guard [--payload-base64=<json>]");
+    println!("  infring-ops trit-shadow-kernel save-influence-guard --payload-base64=<json>");
+    println!("  infring-ops trit-shadow-kernel influence-blocked [--payload-base64=<json>]");
+    println!("  infring-ops trit-shadow-kernel apply-influence-guard --payload-base64=<json>");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {

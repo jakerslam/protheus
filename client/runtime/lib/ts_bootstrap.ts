@@ -77,7 +77,7 @@ function readRuntimeModeFromState(repoRoot) {
   try {
     const statePathOverride = envAlias(
       'INFRING_RUNTIME_MODE_STATE_PATH',
-      'PROTHEUS_RUNTIME_MODE_STATE_PATH',
+      'INFRING_RUNTIME_MODE_STATE_PATH',
       ''
     );
     const statePath = statePathOverride
@@ -94,7 +94,7 @@ function readRuntimeModeFromState(repoRoot) {
 }
 
 function resolveRuntimeMode(repoRoot) {
-  const envMode = envAlias('INFRING_RUNTIME_MODE', 'PROTHEUS_RUNTIME_MODE', '').toLowerCase();
+  const envMode = envAlias('INFRING_RUNTIME_MODE', 'INFRING_RUNTIME_MODE', '').toLowerCase();
   if (envMode === 'dist' || envMode === 'source') return envMode;
   return readRuntimeModeFromState(repoRoot) || 'source';
 }
@@ -121,7 +121,7 @@ function parseJsonPayload(raw) {
 }
 
 function securityBinaryCandidates(repoRoot) {
-  const explicit = cleanText(envAlias('INFRING_SECURITY_CORE_BIN', 'PROTHEUS_SECURITY_CORE_BIN', ''), 500);
+  const explicit = cleanText(envAlias('INFRING_SECURITY_CORE_BIN', 'INFRING_SECURITY_CORE_BIN', ''), 500);
   const out = [
     explicit,
     path.join(repoRoot, 'target', 'release', 'security_core'),
@@ -157,7 +157,7 @@ function securityRequestFor(jsPath, repoRoot) {
 }
 
 function securityGateTimeoutMs() {
-  const raw = Number(envAlias('INFRING_SECURITY_GATE_TIMEOUT_MS', 'PROTHEUS_SECURITY_GATE_TIMEOUT_MS', '8000'));
+  const raw = Number(envAlias('INFRING_SECURITY_GATE_TIMEOUT_MS', 'INFRING_SECURITY_GATE_TIMEOUT_MS', '8000'));
   if (!Number.isFinite(raw)) return 8000;
   return Math.max(1000, Math.min(120000, Math.floor(raw)));
 }
@@ -172,10 +172,10 @@ function securitySpawnOptions(repoRoot) {
 }
 
 function runGlobalSecurityGate(jsPath, repoRoot) {
-  if (envAlias('INFRING_SECURITY_GLOBAL_GATE', 'PROTHEUS_SECURITY_GLOBAL_GATE', '0') === '0') {
+  if (envAlias('INFRING_SECURITY_GLOBAL_GATE', 'INFRING_SECURITY_GLOBAL_GATE', '0') === '0') {
     return;
   }
-  if (global.__protheus_security_global_gate_ok === true) {
+  if (global.__infring_security_global_gate_ok === true) {
     return;
   }
   const rel = String(jsPath || '').replace(/\\/g, '/');

@@ -1,10 +1,10 @@
 fn usage() {
     println!("batch-query commands:");
     println!(
-        "  protheus-ops batch-query query --source=web --query=\"...\" --aperture=small|medium"
+        "  infring-ops batch-query query --source=web --query=\"...\" --aperture=small|medium"
     );
-    println!("  protheus-ops batch-query status");
-    println!("  protheus-ops batch-query policy");
+    println!("  infring-ops batch-query status");
+    println!("  infring-ops batch-query policy");
 }
 
 fn print_payload(payload: &Value) {

@@ -1,4 +1,4 @@
-use protheus_ops_core::agency_plane;
+use infring_ops_core::agency_plane;
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};

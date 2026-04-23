@@ -240,7 +240,7 @@ fn resolve_predictive_mode_hint(args: &HashMap<String, String>) -> String {
     let env_mode = env::var("INFRING_RUNTIME_MODE")
         .ok()
         .filter(|v| !v.trim().is_empty())
-        .or_else(|| env::var("PROTHEUS_RUNTIME_MODE").ok())
+        .or_else(|| env::var("INFRING_RUNTIME_MODE").ok())
         .unwrap_or_else(|| PREDICTIVE_DEFRAG_MODE_PRODUCTION.to_string());
     normalize_predictive_mode(&env_mode)
 }

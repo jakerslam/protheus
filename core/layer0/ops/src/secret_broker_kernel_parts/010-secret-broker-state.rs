@@ -165,12 +165,12 @@ struct RotationHealthReport {
 
 fn usage() {
     println!("secret-broker-kernel commands:");
-    println!("  protheus-ops secret-broker-kernel load-policy [--payload-base64=<json>]");
-    println!("  protheus-ops secret-broker-kernel load-secret --payload-base64=<json>");
-    println!("  protheus-ops secret-broker-kernel rotation-health [--payload-base64=<json>]");
-    println!("  protheus-ops secret-broker-kernel status [--payload-base64=<json>]");
-    println!("  protheus-ops secret-broker-kernel issue-handle --payload-base64=<json>");
-    println!("  protheus-ops secret-broker-kernel resolve-handle --payload-base64=<json>");
+    println!("  infring-ops secret-broker-kernel load-policy [--payload-base64=<json>]");
+    println!("  infring-ops secret-broker-kernel load-secret --payload-base64=<json>");
+    println!("  infring-ops secret-broker-kernel rotation-health [--payload-base64=<json>]");
+    println!("  infring-ops secret-broker-kernel status [--payload-base64=<json>]");
+    println!("  infring-ops secret-broker-kernel issue-handle --payload-base64=<json>");
+    println!("  infring-ops secret-broker-kernel resolve-handle --payload-base64=<json>");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
@@ -286,7 +286,7 @@ fn default_secrets_dir() -> PathBuf {
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
     PathBuf::from(home)
         .join(".config")
-        .join("protheus")
+        .join("infring")
         .join("secrets")
 }
 

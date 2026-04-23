@@ -114,7 +114,7 @@ function classify(file) {
   if (file.startsWith('client/runtime/local/state/')) return 'tracked_state_debt';
   if (file.startsWith('client/runtime/tmp/')) return 'tmp_generated_debt';
   if (file.startsWith('client/runtime/patches/')) return 'platform_patch_surface';
-  if (file.startsWith('client/install.') || file.startsWith('client/runtime/deploy/') || file.startsWith('client/cli/bin/') || file.startsWith('packages/protheus-npm/') || file.startsWith('client/cli/tools/')) return 'installer_or_dev_shell';
+  if (file.startsWith('client/install.') || file.startsWith('client/runtime/deploy/') || file.startsWith('client/cli/bin/') || file.startsWith('packages/infring-npm/') || file.startsWith('client/cli/tools/')) return 'installer_or_dev_shell';
   if (file.startsWith('client/cognition/skills/')) return 'skill_script_or_connector';
   if (isRuntimeWrapper(file)) return 'compat_runtime_wrapper_surface';
   if ((file.startsWith('client/runtime/lib/') || file.startsWith('client/lib/')) && (isBootstrapWrapper(file) || isAliasWrapper(file) || hasTwinTs(file))) return 'platform_compat_surface';

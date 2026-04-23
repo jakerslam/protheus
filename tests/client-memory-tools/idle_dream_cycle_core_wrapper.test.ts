@@ -14,8 +14,8 @@ try {
     encoding: 'utf8',
     env: {
       ...process.env,
-      PROTHEUS_IDLE_DREAM_LEGACY_FALLBACK: '0',
-      PROTHEUS_IDLE_DREAM_TIMEOUT_MS: '1'
+      INFRING_IDLE_DREAM_LEGACY_FALLBACK: '0',
+      INFRING_IDLE_DREAM_TIMEOUT_MS: '1'
     }
   });
 

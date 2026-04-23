@@ -13,18 +13,18 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 const LANE_ID: &str = "nexus_plane";
-const ENV_KEY: &str = "PROTHEUS_NEXUS_PLANE_STATE_ROOT";
+const ENV_KEY: &str = "INFRING_NEXUS_PLANE_STATE_ROOT";
 
 fn usage() {
     println!("Usage:");
     for line in [
-        "  protheus-ops nexus-plane package-domain --domain=<id> [--strict=1|0]",
-        "  protheus-ops nexus-plane bridge --from-domain=<id> --to-domain=<id> [--payload-json=<json>] [--legal-contract-id=<id>] [--sanitize=1|0] [--strict=1|0]",
-        "  protheus-ops nexus-plane insurance --op=<quote|status> [--risk-json=<json>] [--strict=1|0]",
-        "  protheus-ops nexus-plane human-boundary --op=<authorize|status> [--action=<id>] [--human-a=<sig>] [--human-b=<sig>] [--strict=1|0]",
-        "  protheus-ops nexus-plane receipt-v2 --op=<validate|status> [--receipt-json=<json>] [--strict=1|0]",
-        "  protheus-ops nexus-plane merkle-forest --op=<build|status> [--strict=1|0]",
-        "  protheus-ops nexus-plane compliance-ledger --op=<append|query|status> [--entry-json=<json>] [--chain-id=<id>] [--strict=1|0]",
+        "  infring-ops nexus-plane package-domain --domain=<id> [--strict=1|0]",
+        "  infring-ops nexus-plane bridge --from-domain=<id> --to-domain=<id> [--payload-json=<json>] [--legal-contract-id=<id>] [--sanitize=1|0] [--strict=1|0]",
+        "  infring-ops nexus-plane insurance --op=<quote|status> [--risk-json=<json>] [--strict=1|0]",
+        "  infring-ops nexus-plane human-boundary --op=<authorize|status> [--action=<id>] [--human-a=<sig>] [--human-b=<sig>] [--strict=1|0]",
+        "  infring-ops nexus-plane receipt-v2 --op=<validate|status> [--receipt-json=<json>] [--strict=1|0]",
+        "  infring-ops nexus-plane merkle-forest --op=<build|status> [--strict=1|0]",
+        "  infring-ops nexus-plane compliance-ledger --op=<append|query|status> [--entry-json=<json>] [--chain-id=<id>] [--strict=1|0]",
     ] {
         println!("{line}");
     }

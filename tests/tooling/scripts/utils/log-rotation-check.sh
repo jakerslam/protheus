@@ -19,7 +19,7 @@ fi
 
 # Configuration
 LOG_DIRS=(
-    "${HOME}/.protheus/logs"
+    "${HOME}/.infring/logs"
     "${HOME}/.infring/workspace/logs"
 )
 MAX_LOG_AGE_DAYS=7

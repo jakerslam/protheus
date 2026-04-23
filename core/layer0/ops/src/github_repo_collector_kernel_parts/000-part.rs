@@ -10,25 +10,25 @@ use crate::github_repo_collector_kernel_support as support;
 
 fn usage() {
     println!("github-repo-collector-kernel commands:");
-    println!("  protheus-ops github-repo-collector-kernel run --payload-base64=<json>");
+    println!("  infring-ops github-repo-collector-kernel run --payload-base64=<json>");
     println!(
-        "  protheus-ops github-repo-collector-kernel resolve-run-params --payload-base64=<json>"
+        "  infring-ops github-repo-collector-kernel resolve-run-params --payload-base64=<json>"
     );
-    println!("  protheus-ops github-repo-collector-kernel resolve-auth --payload-base64=<json>");
+    println!("  infring-ops github-repo-collector-kernel resolve-auth --payload-base64=<json>");
     println!(
-        "  protheus-ops github-repo-collector-kernel prepare-repo-activity --payload-base64=<json>"
+        "  infring-ops github-repo-collector-kernel prepare-repo-activity --payload-base64=<json>"
     );
-    println!("  protheus-ops github-repo-collector-kernel build-repo-activity-fetch-plan --payload-base64=<json>");
-    println!("  protheus-ops github-repo-collector-kernel finalize-repo-activity --payload-base64=<json>");
+    println!("  infring-ops github-repo-collector-kernel build-repo-activity-fetch-plan --payload-base64=<json>");
+    println!("  infring-ops github-repo-collector-kernel finalize-repo-activity --payload-base64=<json>");
     println!(
-        "  protheus-ops github-repo-collector-kernel collect-repo-activity --payload-base64=<json>"
+        "  infring-ops github-repo-collector-kernel collect-repo-activity --payload-base64=<json>"
     );
-    println!("  protheus-ops github-repo-collector-kernel build-pr-review-fetch-plan --payload-base64=<json>");
-    println!("  protheus-ops github-repo-collector-kernel build-pr-review --payload-base64=<json>");
+    println!("  infring-ops github-repo-collector-kernel build-pr-review-fetch-plan --payload-base64=<json>");
+    println!("  infring-ops github-repo-collector-kernel build-pr-review --payload-base64=<json>");
     println!(
-        "  protheus-ops github-repo-collector-kernel collect-pr-review --payload-base64=<json>"
+        "  infring-ops github-repo-collector-kernel collect-pr-review --payload-base64=<json>"
     );
-    println!("  protheus-ops github-repo-collector-kernel file-risk-flags --payload-base64=<json>");
+    println!("  infring-ops github-repo-collector-kernel file-risk-flags --payload-base64=<json>");
 }
 
 fn payload_obj<'a>(value: &'a Value) -> &'a Map<String, Value> {

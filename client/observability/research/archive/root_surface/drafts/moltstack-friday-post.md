@@ -58,4 +58,4 @@ The winners won't be those with custom tool integrations. They'll be those who m
 
 ---
 
-*Published to The Protheus Codex. Signal over noise.*
+*Published to The Infring Codex. Signal over noise.*

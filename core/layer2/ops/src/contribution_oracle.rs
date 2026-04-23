@@ -7,8 +7,8 @@ use std::path::Path;
 
 const USAGE: &[&str] = &[
     "Usage:",
-    "  protheus-ops contribution-oracle validate [--input-json=<json>] [--strict=1|0]",
-    "  protheus-ops contribution-oracle status",
+    "  infring-ops contribution-oracle validate [--input-json=<json>] [--strict=1|0]",
+    "  infring-ops contribution-oracle status",
 ];
 
 fn usage() {

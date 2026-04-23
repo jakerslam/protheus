@@ -168,7 +168,7 @@ fn run_comparison_matrix(
         "install_size_mb": metrics.get("install_size_mb").and_then(Value::as_f64),
         "tasks_per_sec": metrics.get("tasks_per_sec").and_then(Value::as_f64)
     });
-    projects.insert("Protheus".to_string(), infring);
+    projects.insert("Infring".to_string(), infring);
 
     let generated_at = now_iso();
     let markdown = render_matrix_markdown(&generated_at, &projects, benchmark_rel, snapshot_rel);
@@ -318,14 +318,14 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "error": "unknown_command",
             "command": command,
             "usage": [
-                "protheus-ops top1-assurance status",
-                "protheus-ops top1-assurance proof-coverage --strict=1",
-                "protheus-ops top1-assurance proof-vm --strict=1",
-                "protheus-ops top1-assurance size-gate --strict=1",
-                "protheus-ops top1-assurance benchmark-thresholds --strict=1",
-                "protheus-ops top1-assurance tooling-contracts --strict=1",
-                "protheus-ops top1-assurance comparison-matrix --strict=1",
-                "protheus-ops top1-assurance run-all --strict=1"
+                "infring-ops top1-assurance status",
+                "infring-ops top1-assurance proof-coverage --strict=1",
+                "infring-ops top1-assurance proof-vm --strict=1",
+                "infring-ops top1-assurance size-gate --strict=1",
+                "infring-ops top1-assurance benchmark-thresholds --strict=1",
+                "infring-ops top1-assurance tooling-contracts --strict=1",
+                "infring-ops top1-assurance comparison-matrix --strict=1",
+                "infring-ops top1-assurance run-all --strict=1"
             ]
         }),
     };
@@ -366,7 +366,7 @@ mod tests {
     fn render_matrix_markdown_has_header_and_rows() {
         let mut projects = Map::<String, Value>::new();
         projects.insert(
-            "Protheus".to_string(),
+            "Infring".to_string(),
             json!({
                 "cold_start_ms": 50.0,
                 "idle_memory_mb": 20.0,
@@ -380,8 +380,8 @@ mod tests {
             "local/state/ops/top1_assurance/benchmark_latest.json",
             "client/runtime/config/competitive_benchmark_snapshot_2026_02.json",
         );
-        assert!(md.contains("# Protheus vs X (CI Generated)"));
-        assert!(md.contains("| Protheus |"));
+        assert!(md.contains("# Infring vs X (CI Generated)"));
+        assert!(md.contains("| Infring |"));
     }
 
     #[test]

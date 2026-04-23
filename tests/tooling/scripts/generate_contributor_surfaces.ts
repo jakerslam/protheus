@@ -66,7 +66,7 @@ function renderBlock(contributors) {
 }
 
 function upsertReadmeSection(readmePath, block) {
-  const content = fs.existsSync(readmePath) ? fs.readFileSync(readmePath, 'utf8') : '# Protheus\n\n';
+  const content = fs.existsSync(readmePath) ? fs.readFileSync(readmePath, 'utf8') : '# Infring\n\n';
   if (content.includes(START) && content.includes(END)) {
     const start = content.indexOf(START);
     const end = content.indexOf(END) + END.length;

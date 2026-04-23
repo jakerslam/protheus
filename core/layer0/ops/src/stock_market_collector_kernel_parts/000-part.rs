@@ -14,17 +14,17 @@ use crate::contract_lane_utils as lane_utils;
 
 fn usage() {
     println!("stock-market-collector-kernel commands:");
-    println!("  protheus-ops stock-market-collector-kernel run --payload-base64=<json>");
-    println!("  protheus-ops stock-market-collector-kernel prepare-run --payload-base64=<json>");
+    println!("  infring-ops stock-market-collector-kernel run --payload-base64=<json>");
+    println!("  infring-ops stock-market-collector-kernel prepare-run --payload-base64=<json>");
     println!(
-        "  protheus-ops stock-market-collector-kernel build-fetch-plan --payload-base64=<json>"
+        "  infring-ops stock-market-collector-kernel build-fetch-plan --payload-base64=<json>"
     );
-    println!("  protheus-ops stock-market-collector-kernel finalize-run --payload-base64=<json>");
-    println!("  protheus-ops stock-market-collector-kernel collect --payload-base64=<json>");
-    println!("  protheus-ops stock-market-collector-kernel extract-quotes --payload-base64=<json>");
-    println!("  protheus-ops stock-market-collector-kernel map-quotes --payload-base64=<json>");
+    println!("  infring-ops stock-market-collector-kernel finalize-run --payload-base64=<json>");
+    println!("  infring-ops stock-market-collector-kernel collect --payload-base64=<json>");
+    println!("  infring-ops stock-market-collector-kernel extract-quotes --payload-base64=<json>");
+    println!("  infring-ops stock-market-collector-kernel map-quotes --payload-base64=<json>");
     println!(
-        "  protheus-ops stock-market-collector-kernel fallback-indices --payload-base64=<json>"
+        "  infring-ops stock-market-collector-kernel fallback-indices --payload-base64=<json>"
     );
 }
 
@@ -196,7 +196,7 @@ fn curl_fetch_with_status(
         .arg("-H")
         .arg("Accept-Language: en-US,en;q=0.9")
         .arg("-w")
-        .arg("\n__PROTHEUS_STATUS__:%{http_code}\n")
+        .arg("\n__INFRING_STATUS__:%{http_code}\n")
         .arg(url)
         .output()
         .map_err(|err| format!("collector_fetch_spawn_failed:{err}"))?;
@@ -208,7 +208,7 @@ fn curl_fetch_with_status(
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    let marker = "\n__PROTHEUS_STATUS__:";
+    let marker = "\n__INFRING_STATUS__:";
     let marker_pos = stdout
         .rfind(marker)
         .ok_or_else(|| "collector_fetch_missing_status_marker".to_string())?;

@@ -157,83 +157,83 @@ function run(args: Args): number {
     }
   }
 
-  const runProtheusOpsPath = path.join(ROOT, 'adapters', 'runtime', 'run_protheus_ops.ts');
-  if (fs.existsSync(runProtheusOpsPath)) {
-    const source = fs.readFileSync(runProtheusOpsPath, 'utf8');
+  const runInfringOpsPath = path.join(ROOT, 'adapters', 'runtime', 'run_infring_ops.ts');
+  if (fs.existsSync(runInfringOpsPath)) {
+    const source = fs.readFileSync(runInfringOpsPath, 'utf8');
     if (!source.includes('createOpsLaneBridge')) {
       violations.push({
-        file: rel(runProtheusOpsPath),
-        reason: 'run_protheus_ops_bridge_first_contract_missing',
+        file: rel(runInfringOpsPath),
+        reason: 'run_infring_ops_bridge_first_contract_missing',
         detail: 'expected createOpsLaneBridge import/use for resident-first transport',
       });
     }
     if (!source.includes('preferLocalCore: true')) {
       violations.push({
-        file: rel(runProtheusOpsPath),
-        reason: 'run_protheus_ops_prefer_local_core_missing',
+        file: rel(runInfringOpsPath),
+        reason: 'run_infring_ops_prefer_local_core_missing',
         detail: 'expected preferLocalCore: true for bridge-first path',
       });
     }
     if (!source.includes('INFRING_OPS_FORCE_LEGACY_PROCESS_RUNNER')) {
       violations.push({
-        file: rel(runProtheusOpsPath),
-        reason: 'run_protheus_ops_legacy_escape_hatch_missing',
+        file: rel(runInfringOpsPath),
+        reason: 'run_infring_ops_legacy_escape_hatch_missing',
         detail: 'expected explicit legacy process runner override env',
       });
     }
     if (!source.includes('isProductionReleaseChannel')) {
       violations.push({
-        file: rel(runProtheusOpsPath),
-        reason: 'run_protheus_ops_production_channel_guard_missing',
+        file: rel(runInfringOpsPath),
+        reason: 'run_infring_ops_production_channel_guard_missing',
         detail: 'expected release-channel lock for legacy process runner overrides',
       });
     }
     if (!source.includes('process_fallback_forbidden_in_production')) {
       violations.push({
-        file: rel(runProtheusOpsPath),
-        reason: 'run_protheus_ops_production_fallback_lock_missing',
+        file: rel(runInfringOpsPath),
+        reason: 'run_infring_ops_production_fallback_lock_missing',
         detail: 'expected explicit production fallback lock marker for bridge path',
       });
     }
     if (!source.includes('INFRING_OPS_PROCESS_FALLBACK_POLICY_REASON')) {
       violations.push({
-        file: rel(runProtheusOpsPath),
-        reason: 'run_protheus_ops_production_fallback_reason_signal_missing',
+        file: rel(runInfringOpsPath),
+        reason: 'run_infring_ops_production_fallback_reason_signal_missing',
         detail: 'expected policy reason env signal when forcing fallback off in production',
       });
     }
     if (!source.includes('isProductionReleaseChannel(releaseChannel(process.env))')) {
       violations.push({
-        file: rel(runProtheusOpsPath),
-        reason: 'run_protheus_ops_bridge_path_release_guard_missing',
+        file: rel(runInfringOpsPath),
+        reason: 'run_infring_ops_bridge_path_release_guard_missing',
         detail: 'expected explicit production release-channel guard in bridge path',
       });
     }
     if (!source.includes("envOverrides.INFRING_OPS_ALLOW_PROCESS_FALLBACK = '0'")) {
       violations.push({
-        file: rel(runProtheusOpsPath),
-        reason: 'run_protheus_ops_bridge_infring_process_fallback_zero_missing',
+        file: rel(runInfringOpsPath),
+        reason: 'run_infring_ops_bridge_infring_process_fallback_zero_missing',
         detail: 'expected INFRING_OPS_ALLOW_PROCESS_FALLBACK forced to 0 in production bridge path',
       });
     }
-    if (!source.includes("envOverrides.PROTHEUS_OPS_ALLOW_PROCESS_FALLBACK = '0'")) {
+    if (!source.includes("envOverrides.INFRING_OPS_ALLOW_PROCESS_FALLBACK = '0'")) {
       violations.push({
-        file: rel(runProtheusOpsPath),
-        reason: 'run_protheus_ops_bridge_protheus_process_fallback_zero_missing',
-        detail: 'expected PROTHEUS_OPS_ALLOW_PROCESS_FALLBACK forced to 0 in production bridge path',
+        file: rel(runInfringOpsPath),
+        reason: 'run_infring_ops_bridge_infring_process_fallback_zero_missing',
+        detail: 'expected INFRING_OPS_ALLOW_PROCESS_FALLBACK forced to 0 in production bridge path',
       });
     }
     if (source.includes('spawnSync(')) {
       violations.push({
-        file: rel(runProtheusOpsPath),
-        reason: 'run_protheus_ops_spawn_sync_entrypoint_forbidden',
+        file: rel(runInfringOpsPath),
+        reason: 'run_infring_ops_spawn_sync_entrypoint_forbidden',
         detail: 'release-path entrypoint must not embed spawnSync legacy runner logic',
       });
     }
     if (!source.includes("./dev_only/legacy_process_runner.ts")) {
       violations.push({
-        file: rel(runProtheusOpsPath),
-        reason: 'run_protheus_ops_dev_only_legacy_runner_missing',
+        file: rel(runInfringOpsPath),
+        reason: 'run_infring_ops_dev_only_legacy_runner_missing',
         detail: 'expected legacy process runner to be quarantined under adapters/runtime/dev_only',
       });
     }

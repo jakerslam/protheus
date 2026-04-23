@@ -2,7 +2,7 @@
 
 **Status:** Accepted  
 **Date:** 2026-01-10  
-**Deciders:** Protheus, Jay
+**Deciders:** Infring, Jay
 
 ## Context
 

@@ -1,4 +1,4 @@
-use protheus_tooling_core_v1::{live_backend_registry, ToolCapabilityStatus};
+use infring_tooling_core_v1::{live_backend_registry, ToolCapabilityStatus};
 use std::fs::{create_dir_all, write};
 use tempfile::tempdir;
 

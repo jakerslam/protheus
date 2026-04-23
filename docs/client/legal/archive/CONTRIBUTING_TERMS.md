@@ -1,4 +1,4 @@
-# Protheus Contribution Terms
+# Infring Contribution Terms
 
 By submitting any contribution (code, documentation, tests, design artifacts,
 or configuration), you agree to the following:

@@ -15,19 +15,19 @@ const ABSOLUTE_PATH_PATTERNS: RegExp[] = [
 ];
 
 const LEGACY_ALIAS_PATTERNS: RegExp[] = [
-  /\bprotheus-pure-workspace\b/gi,
-  /\bprotheus-ops\b/gi,
-  /\bprotheusd\b/gi,
-  /\bprotheusctl\b/gi,
-  /\bprotheus\b/gi,
+  /\binfring-pure-workspace\b/gi,
+  /\binfring-ops\b/gi,
+  /\binfringd\b/gi,
+  /\binfringctl\b/gi,
+  /\binfring\b/gi,
 ];
 
 const LEGACY_ALIAS_REPLACEMENTS: Array<{ pattern: RegExp; replacement: string }> = [
-  { pattern: /\bprotheus-pure-workspace\b/gi, replacement: 'infring-pure-workspace' },
-  { pattern: /\bprotheus-ops\b/gi, replacement: 'infring-ops' },
-  { pattern: /\bprotheusd\b/gi, replacement: 'infringd' },
-  { pattern: /\bprotheusctl\b/gi, replacement: 'infringctl' },
-  { pattern: /\bprotheus\b/gi, replacement: 'infring' },
+  { pattern: /\binfring-pure-workspace\b/gi, replacement: 'infring-pure-workspace' },
+  { pattern: /\binfring-ops\b/gi, replacement: 'infring-ops' },
+  { pattern: /\binfringd\b/gi, replacement: 'infringd' },
+  { pattern: /\binfringctl\b/gi, replacement: 'infringctl' },
+  { pattern: /\binfring\b/gi, replacement: 'infring' },
 ];
 
 function normalizePathString(raw: string): string {

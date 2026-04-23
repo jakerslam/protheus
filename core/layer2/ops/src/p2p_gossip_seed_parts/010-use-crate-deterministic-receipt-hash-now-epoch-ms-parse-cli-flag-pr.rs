@@ -7,12 +7,12 @@ use std::path::{Path, PathBuf};
 
 const USAGE: &[&str] = &[
     "Usage:",
-    "  protheus-ops p2p-gossip-seed status|dashboard",
-    "  protheus-ops p2p-gossip-seed discover|join [--profile=hyperspace] [--node=<id>] [--apply=1|0]",
-    "  protheus-ops p2p-gossip-seed compute-proof [--share=1|0] [--matmul-size=<n>] [--credits=<n>]",
-    "  protheus-ops p2p-gossip-seed gossip [--topic=<topic>] [--breakthrough=<text>]",
-    "  protheus-ops p2p-gossip-seed idle-rss [--feed=<id>] [--note=<text>]",
-    "  protheus-ops p2p-gossip-seed ranking-evolve [--metric=ndcg@10] [--delta=<0..1>]",
+    "  infring-ops p2p-gossip-seed status|dashboard",
+    "  infring-ops p2p-gossip-seed discover|join [--profile=hyperspace] [--node=<id>] [--apply=1|0]",
+    "  infring-ops p2p-gossip-seed compute-proof [--share=1|0] [--matmul-size=<n>] [--credits=<n>]",
+    "  infring-ops p2p-gossip-seed gossip [--topic=<topic>] [--breakthrough=<text>]",
+    "  infring-ops p2p-gossip-seed idle-rss [--feed=<id>] [--note=<text>]",
+    "  infring-ops p2p-gossip-seed ranking-evolve [--metric=ndcg@10] [--delta=<0..1>]",
 ];
 
 fn parse_bool(raw: Option<String>, fallback: bool) -> bool {

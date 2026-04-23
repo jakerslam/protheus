@@ -136,7 +136,7 @@ pub fn append_jsonl_with_limits(
 }
 
 fn receipt_binary_queue_enabled() -> bool {
-    match std::env::var("PROTHEUS_RECEIPT_BINARY_QUEUE") {
+    match std::env::var("INFRING_RECEIPT_BINARY_QUEUE") {
         Ok(raw) => !matches!(
             raw.trim().to_ascii_lowercase().as_str(),
             "0" | "false" | "off" | "no"
@@ -158,14 +158,14 @@ fn parse_retention_max_bytes_env(name: &str, fallback: u64) -> u64 {
 
 fn receipt_history_max_bytes() -> u64 {
     parse_retention_max_bytes_env(
-        "PROTHEUS_RECEIPT_HISTORY_MAX_BYTES",
+        "INFRING_RECEIPT_HISTORY_MAX_BYTES",
         DEFAULT_RECEIPT_HISTORY_MAX_BYTES,
     )
 }
 
 fn receipt_binary_queue_max_bytes() -> u64 {
     parse_retention_max_bytes_env(
-        "PROTHEUS_RECEIPT_BINARY_QUEUE_MAX_BYTES",
+        "INFRING_RECEIPT_BINARY_QUEUE_MAX_BYTES",
         DEFAULT_RECEIPT_BINARY_MAX_BYTES,
     )
 }

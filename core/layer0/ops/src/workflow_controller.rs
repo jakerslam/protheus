@@ -130,25 +130,25 @@ fn web_auth_sources() -> Vec<String> {
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops workflow-controller <run|status|list|promote> [--scope=<value>] [--max=<n>]");
+    println!("  infring-ops workflow-controller <run|status|list|promote> [--scope=<value>] [--max=<n>]");
     println!(
-        "  protheus-ops workflow-controller workflow-generator [--action=<run|status>] [flags]"
+        "  infring-ops workflow-controller workflow-generator [--action=<run|status>] [flags]"
     );
     println!(
-        "  protheus-ops workflow-controller data-rights-engine [--action=<ingest|revoke|process|status>] [flags]"
+        "  infring-ops workflow-controller data-rights-engine [--action=<ingest|revoke|process|status>] [flags]"
     );
-    println!("  protheus-ops workflow-controller web-tooling-status [--provider=<id>]");
-    println!("  protheus-ops workflow-controller web-tooling-errors [--limit=<n>]");
+    println!("  infring-ops workflow-controller web-tooling-status [--provider=<id>]");
+    println!("  infring-ops workflow-controller web-tooling-errors [--limit=<n>]");
     println!(
-        "  protheus-ops workflow-controller web-tooling-probe --query=<text> [--domain=<host>] [--provider=<id>]"
+        "  infring-ops workflow-controller web-tooling-probe --query=<text> [--domain=<host>] [--provider=<id>]"
     );
     println!(
-        "  protheus-ops workflow-controller web-tooling-preferences [--provider-order=<csv>] [--max-queries=<n>] [--prefer-official-docs=<0|1>]"
+        "  infring-ops workflow-controller web-tooling-preferences [--provider-order=<csv>] [--max-queries=<n>] [--prefer-official-docs=<0|1>]"
     );
 }
 
 fn success_receipt(command: &str, scope: Option<&str>, argv: &[String], root: &Path) -> Value {
-    let mut out = crate::protheus_autonomy_core_v1_bridge::workflow_receipt(command, scope);
+    let mut out = crate::infring_autonomy_core_v1_bridge::workflow_receipt(command, scope);
     if let Some(obj) = out.as_object_mut() {
         obj.insert("argv".to_string(), json!(argv));
         obj.insert(

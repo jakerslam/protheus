@@ -21,7 +21,7 @@
   ],
   "validation": {
     "lane_command": "cargo test --manifest-path core/layer0/ops/Cargo.toml human_ai_symbiosis -- --nocapture && npm test -- tests/symbiosis",
-    "status_command": "cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- symbiosis status",
+    "status_command": "cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- symbiosis status",
     "fail_closed_on_missing_contract": true
   },
   "specification": {

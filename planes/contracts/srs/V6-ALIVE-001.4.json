@@ -1,7 +1,7 @@
 {
   "id": "V6-ALIVE-001.4",
   "upgrade": "Async Health Monitoring Envelope",
-  "section": "Protheus 2.0 “Instrumented Aliveness” Intake (Source: `local/workspace/proposals/protheus_optimization_v2.md`, AGE-10, 2026-03-10)",
+  "section": "Infring 2.0 “Instrumented Aliveness” Intake (Source: `local/workspace/proposals/infring_optimization_v2.md`, AGE-10, 2026-03-10)",
   "impact": 8,
   "layer_map": "1/2/client",
   "conduit_only_boundary": false,
@@ -27,8 +27,8 @@
     }
   ],
   "validation": {
-    "lane_command": "protheus-ops srs-contract-runtime run --id=V6-ALIVE-001.4",
-    "status_command": "protheus-ops srs-contract-runtime status --id=V6-ALIVE-001.4",
+    "lane_command": "infring-ops srs-contract-runtime run --id=V6-ALIVE-001.4",
+    "status_command": "infring-ops srs-contract-runtime status --id=V6-ALIVE-001.4",
     "fail_closed_on_missing_contract": true
   },
   "generated_from": {

@@ -44,31 +44,31 @@
     fn bridge_timeout_ms_uses_default_and_clamps_env_values() {
         let _guard = env_lock().lock().expect("env lock");
 
-        std::env::remove_var("PROTHEUS_OPS_BRIDGE_TIMEOUT_MS");
+        std::env::remove_var("INFRING_OPS_BRIDGE_TIMEOUT_MS");
         assert_eq!(super::bridge_command_timeout_ms(), 110_000);
 
-        std::env::set_var("PROTHEUS_OPS_BRIDGE_TIMEOUT_MS", "1");
+        std::env::set_var("INFRING_OPS_BRIDGE_TIMEOUT_MS", "1");
         assert_eq!(super::bridge_command_timeout_ms(), 1_000);
 
-        std::env::set_var("PROTHEUS_OPS_BRIDGE_TIMEOUT_MS", "999999999");
+        std::env::set_var("INFRING_OPS_BRIDGE_TIMEOUT_MS", "999999999");
         assert_eq!(super::bridge_command_timeout_ms(), 15 * 60 * 1_000);
 
-        std::env::remove_var("PROTHEUS_OPS_BRIDGE_TIMEOUT_MS");
+        std::env::remove_var("INFRING_OPS_BRIDGE_TIMEOUT_MS");
     }
 
     #[test]
-    fn resolve_protheus_ops_command_honors_explicit_bin_and_fallbacks() {
+    fn resolve_infring_ops_command_honors_explicit_bin_and_fallbacks() {
         let _guard = env_lock().lock().expect("env lock");
         let temp = tempfile::tempdir().expect("tempdir");
         let root = temp.path().to_path_buf();
 
-        std::env::set_var("PROTHEUS_OPS_BIN", "/tmp/protheus-ops-explicit");
-        let (command, args) = super::resolve_protheus_ops_command(&root, "spine");
-        assert_eq!(command, "/tmp/protheus-ops-explicit");
+        std::env::set_var("INFRING_OPS_BIN", "/tmp/infring-ops-explicit");
+        let (command, args) = super::resolve_infring_ops_command(&root, "spine");
+        assert_eq!(command, "/tmp/infring-ops-explicit");
         assert_eq!(args, vec!["spine".to_string()]);
-        std::env::remove_var("PROTHEUS_OPS_BIN");
+        std::env::remove_var("INFRING_OPS_BIN");
 
-        let (fallback_command, fallback_args) = super::resolve_protheus_ops_command(&root, "spine");
+        let (fallback_command, fallback_args) = super::resolve_infring_ops_command(&root, "spine");
         assert_eq!(fallback_command, "cargo");
         assert!(fallback_args.contains(&"--manifest-path".to_string()));
         assert_eq!(fallback_args.last().map(String::as_str), Some("spine"));
@@ -78,11 +78,11 @@
     fn execute_ops_bridge_command_reports_spawn_error_when_binary_missing() {
         let _guard = env_lock().lock().expect("env lock");
         std::env::set_var(
-            "PROTHEUS_OPS_BIN",
-            "/definitely/missing/protheus-ops-bridge-bin",
+            "INFRING_OPS_BIN",
+            "/definitely/missing/infring-ops-bridge-bin",
         );
         let detail = super::execute_ops_bridge_command("spine", &[], None);
-        std::env::remove_var("PROTHEUS_OPS_BIN");
+        std::env::remove_var("INFRING_OPS_BIN");
 
         assert_eq!(detail.get("ok").and_then(Value::as_bool), Some(false));
         assert_eq!(
@@ -111,11 +111,11 @@
         fs::write(&script_path, "#!/bin/sh\nsleep 2\n").expect("write script");
         fs::set_permissions(&script_path, fs::Permissions::from_mode(0o755)).expect("chmod script");
 
-        std::env::set_var("PROTHEUS_OPS_BIN", script_path.display().to_string());
-        std::env::set_var("PROTHEUS_OPS_BRIDGE_TIMEOUT_MS", "1000");
+        std::env::set_var("INFRING_OPS_BIN", script_path.display().to_string());
+        std::env::set_var("INFRING_OPS_BRIDGE_TIMEOUT_MS", "1000");
         let detail = super::execute_ops_bridge_command("spine", &[], None);
-        std::env::remove_var("PROTHEUS_OPS_BIN");
-        std::env::remove_var("PROTHEUS_OPS_BRIDGE_TIMEOUT_MS");
+        std::env::remove_var("INFRING_OPS_BIN");
+        std::env::remove_var("INFRING_OPS_BRIDGE_TIMEOUT_MS");
 
         assert_eq!(detail.get("ok").and_then(Value::as_bool), Some(false));
         assert_eq!(
@@ -241,8 +241,8 @@
     fn edge_bridge_domain_variants_execute_ops_bridge_paths() {
         let _guard = env_lock().lock().expect("env lock");
         std::env::set_var(
-            "PROTHEUS_OPS_BIN",
-            "/definitely/missing/protheus-ops-bridge-bin",
+            "INFRING_OPS_BIN",
+            "/definitely/missing/infring-ops-bridge-bin",
         );
 
         let cases = vec![
@@ -309,7 +309,7 @@
             }
         }
 
-        std::env::remove_var("PROTHEUS_OPS_BIN");
+        std::env::remove_var("INFRING_OPS_BIN");
     }
 
     #[test]

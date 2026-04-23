@@ -13,7 +13,7 @@ const V10_RUNTIME_REGRESSION_EVIDENCE: RowEvidence[] = [
   {
     id: 'V10-TASK-RUNTIME-001.1',
     paths: [
-      'core/layer0/ops/src/protheusctl_routes_parts/010-command-routing.rs',
+      'core/layer0/ops/src/infringctl_routes_parts/010-command-routing.rs',
       'core/layer2/ops/src/workspace_gateway_runtime_parts/040-task-commands.rs',
     ],
   },
@@ -67,7 +67,7 @@ const V10_RUNTIME_REGRESSION_EVIDENCE: RowEvidence[] = [
   {
     id: 'V10-OPS-009.2',
     paths: [
-      'client/runtime/systems/ops/protheus_status_dashboard.ts',
+      'client/runtime/systems/ops/infring_status_dashboard.ts',
       'core/layer0/ops/src/daemon_control_parts/030-start-dashboard-with-config.rs',
     ],
   },

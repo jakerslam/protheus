@@ -22,12 +22,12 @@ const MAX_PAYLOAD_BYTES: usize = 256 * 1024;
 
 fn usage() {
     println!("mech-suit-mode-kernel commands:");
-    println!("  protheus-ops mech-suit-mode-kernel load-policy [--payload-base64=<json>]");
-    println!("  protheus-ops mech-suit-mode-kernel approx-token-count [--payload-base64=<json>]");
-    println!("  protheus-ops mech-suit-mode-kernel classify-severity [--payload-base64=<json>]");
-    println!("  protheus-ops mech-suit-mode-kernel should-emit-console [--payload-base64=<json>]");
-    println!("  protheus-ops mech-suit-mode-kernel update-status --payload-base64=<json>");
-    println!("  protheus-ops mech-suit-mode-kernel append-attention-event --payload-base64=<json>");
+    println!("  infring-ops mech-suit-mode-kernel load-policy [--payload-base64=<json>]");
+    println!("  infring-ops mech-suit-mode-kernel approx-token-count [--payload-base64=<json>]");
+    println!("  infring-ops mech-suit-mode-kernel classify-severity [--payload-base64=<json>]");
+    println!("  infring-ops mech-suit-mode-kernel should-emit-console [--payload-base64=<json>]");
+    println!("  infring-ops mech-suit-mode-kernel update-status --payload-base64=<json>");
+    println!("  infring-ops mech-suit-mode-kernel append-attention-event --payload-base64=<json>");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {

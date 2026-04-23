@@ -14,17 +14,17 @@ use uuid::Uuid;
 
 const LEGACY_USAGE: &[&str] = &[
     "Usage:",
-    "  protheus-ops workspace-gateway-runtime run|status|bootstrap|gateway|dmscope|heartbeat [--policy=<path>] [--state-path=<path>] [--strict=1|0]",
+    "  infring-ops workspace-gateway-runtime run|status|bootstrap|gateway|dmscope|heartbeat [--policy=<path>] [--state-path=<path>] [--strict=1|0]",
 ];
 
 const TASK_USAGE: &[&str] = &[
     "Usage:",
-    "  protheus-ops workspace-gateway-runtime task submit [--kind=<id>] [--estimated-seconds=<n>] [--steps=<n>] [--bus=<auto|nats|local>]",
-    "  protheus-ops workspace-gateway-runtime task status <ticket_id>",
-    "  protheus-ops workspace-gateway-runtime task list [--limit=<n>]",
-    "  protheus-ops workspace-gateway-runtime task cancel <ticket_id>",
-    "  protheus-ops workspace-gateway-runtime task worker [--max-tasks=<n>] [--wait-ms=<n>] [--idle-hibernate-ms=<n>] [--service=1|0] [--bus=<auto|nats|local>]",
-    "  protheus-ops workspace-gateway-runtime task slow-test [--seconds=<n>] [--progress-interval-seconds=<n>] [--bus=<auto|nats|local>]",
+    "  infring-ops workspace-gateway-runtime task submit [--kind=<id>] [--estimated-seconds=<n>] [--steps=<n>] [--bus=<auto|nats|local>]",
+    "  infring-ops workspace-gateway-runtime task status <ticket_id>",
+    "  infring-ops workspace-gateway-runtime task list [--limit=<n>]",
+    "  infring-ops workspace-gateway-runtime task cancel <ticket_id>",
+    "  infring-ops workspace-gateway-runtime task worker [--max-tasks=<n>] [--wait-ms=<n>] [--idle-hibernate-ms=<n>] [--service=1|0] [--bus=<auto|nats|local>]",
+    "  infring-ops workspace-gateway-runtime task slow-test [--seconds=<n>] [--progress-interval-seconds=<n>] [--bus=<auto|nats|local>]",
 ];
 
 const TASK_STATE_ROOT_ENV: &str = "INFRING_TASK_RUNTIME_STATE_ROOT";
@@ -234,7 +234,7 @@ fn run_legacy_lane(root: &Path, argv: &[String]) -> i32 {
         &LaneSpec {
             lane_id: "workspace_gateway_runtime",
             lane_type: "workspace_gateway_runtime",
-            replacement: "protheus-ops workspace-gateway-runtime",
+            replacement: "infring-ops workspace-gateway-runtime",
             usage: LEGACY_USAGE,
             passthrough_flags: &["strict", "policy", "state-path"],
         },

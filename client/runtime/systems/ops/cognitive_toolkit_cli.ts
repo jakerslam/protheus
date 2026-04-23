@@ -3,7 +3,7 @@
 
 // Layer ownership: core/layer0/ops + core/layer1/memory_runtime (authoritative)
 // Thin TypeScript compatibility bridge for the public `toolkit` CLI surface.
-const { runProtheusOps } = require('./run_protheus_ops.ts');
+const { runInfringOps } = require('./run_infring_ops.ts');
 const fs = require('fs');
 const path = require('path');
 
@@ -280,7 +280,7 @@ function dispatchBridgeSurface(surface, domain, rawArgs, asJson) {
     );
     return 0;
   }
-  return runProtheusOps([domain, ...passthrough], {
+  return runInfringOps([domain, ...passthrough], {
     unknownDomainFallback: false,
     allowProcessFallback: false
   });

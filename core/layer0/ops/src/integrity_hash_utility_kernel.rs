@@ -14,14 +14,14 @@ use crate::now_iso;
 fn usage() {
     println!("integrity-hash-utility-kernel commands:");
     println!(
-        "  protheus-ops integrity-hash-utility-kernel stable-stringify [--payload-base64=<json>]"
+        "  infring-ops integrity-hash-utility-kernel stable-stringify [--payload-base64=<json>]"
     );
-    println!("  protheus-ops integrity-hash-utility-kernel sha256-hex [--payload-base64=<json>]");
+    println!("  infring-ops integrity-hash-utility-kernel sha256-hex [--payload-base64=<json>]");
     println!(
-        "  protheus-ops integrity-hash-utility-kernel hash-file-sha256 [--payload-base64=<json>]"
+        "  infring-ops integrity-hash-utility-kernel hash-file-sha256 [--payload-base64=<json>]"
     );
     println!(
-        "  protheus-ops integrity-hash-utility-kernel hash-contract-entry [--payload-base64=<json>]"
+        "  infring-ops integrity-hash-utility-kernel hash-contract-entry [--payload-base64=<json>]"
     );
 }
 

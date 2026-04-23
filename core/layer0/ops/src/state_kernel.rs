@@ -10,8 +10,8 @@ use std::path::Path;
 use std::path::PathBuf;
 
 const LANE_ID: &str = "state_kernel";
-const REPLACEMENT: &str = "protheus-ops state-kernel";
-const SETUP_WIZARD_STATE_REL: &str = "local/state/ops/protheus_setup_wizard/latest.json";
+const REPLACEMENT: &str = "infring-ops state-kernel";
+const SETUP_WIZARD_STATE_REL: &str = "local/state/ops/infring_setup_wizard/latest.json";
 const MAX_SETUP_WIZARD_PAYLOAD_BYTES: usize = 64 * 1024;
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -44,9 +44,9 @@ fn print_json_line(value: &Value) {
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops state-kernel queue-enqueue --queue-name=<name> --payload-json=<json>");
-    println!("  protheus-ops state-kernel setup-wizard --payload-base64=<base64_json_payload>");
-    println!("  protheus-ops state-kernel status");
+    println!("  infring-ops state-kernel queue-enqueue --queue-name=<name> --payload-json=<json>");
+    println!("  infring-ops state-kernel setup-wizard --payload-base64=<base64_json_payload>");
+    println!("  infring-ops state-kernel status");
 }
 
 fn native_receipt(root: &Path, cmd: &str, argv: &[String]) -> Value {
@@ -202,7 +202,7 @@ fn run_setup_wizard(root: &Path, payload: &SetupWizardPayload) -> Result<Value, 
     {
         return Ok(json!({
             "ok": true,
-            "type": "protheus_setup_wizard",
+            "type": "infring_setup_wizard",
             "command": "run",
             "skipped": true,
             "reason": "already_completed",
@@ -244,7 +244,7 @@ fn run_setup_wizard(root: &Path, payload: &SetupWizardPayload) -> Result<Value, 
         "interactive"
     };
     let saved = json!({
-        "type": "protheus_setup_wizard_state",
+        "type": "infring_setup_wizard_state",
         "completed": true,
         "completed_at": now_iso(),
         "completion_mode": completion_mode,
@@ -260,7 +260,7 @@ fn run_setup_wizard(root: &Path, payload: &SetupWizardPayload) -> Result<Value, 
     write_json(&state_path, &saved)?;
     Ok(json!({
         "ok": true,
-        "type": "protheus_setup_wizard",
+        "type": "infring_setup_wizard",
         "command": "run",
         "state_path": state_path.to_string_lossy().to_string(),
         "state": saved
@@ -272,11 +272,11 @@ fn setup_wizard_status(root: &Path) -> Value {
     let existing = read_json(&state_path);
     json!({
         "ok": true,
-        "type": "protheus_setup_wizard",
+        "type": "infring_setup_wizard",
         "command": "status",
         "state_path": state_path.to_string_lossy().to_string(),
         "state": existing.unwrap_or_else(|| json!({
-            "type": "protheus_setup_wizard_state",
+            "type": "infring_setup_wizard_state",
             "completed": false,
             "version": 1
         }))
@@ -288,7 +288,7 @@ fn setup_wizard_reset(root: &Path) -> Value {
     let removed = fs::remove_file(&state_path).is_ok();
     json!({
         "ok": true,
-        "type": "protheus_setup_wizard",
+        "type": "infring_setup_wizard",
         "command": "reset",
         "state_path": state_path.to_string_lossy().to_string(),
         "removed": removed
@@ -298,13 +298,13 @@ fn setup_wizard_reset(root: &Path) -> Value {
 fn setup_wizard_help() -> Value {
     json!({
         "ok": true,
-        "type": "protheus_setup_wizard_help",
+        "type": "infring_setup_wizard_help",
         "usage": [
-            "protheus setup [run|status|reset] [--json]",
-            "protheus setup run [--force] [--yes] [--defaults] [--interaction=<proactive|silent>] [--notifications=<all|critical|none>]",
-            "protheus setup run --skip",
-            "protheus setup status",
-            "protheus setup reset"
+            "infring setup [run|status|reset] [--json]",
+            "infring setup run [--force] [--yes] [--defaults] [--interaction=<proactive|silent>] [--notifications=<all|critical|none>]",
+            "infring setup run --skip",
+            "infring setup status",
+            "infring setup reset"
         ]
     })
 }

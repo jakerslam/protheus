@@ -22,9 +22,9 @@ const DEFAULT_PROVIDER_CONTRACT: &str = "webFetchProviders";
 fn usage() {
     println!("fixed-microbenchmark commands:");
     println!(
-        "  protheus-ops fixed-microbenchmark run [--rounds=9] [--warmup-runs=2] [--sample-ms=800] [--work-factor=16] [--workload-id=sha256_fixed_workload_v1] [--provider-contract=webFetchProviders] [--provider-plugin-id=<id>]"
+        "  infring-ops fixed-microbenchmark run [--rounds=9] [--warmup-runs=2] [--sample-ms=800] [--work-factor=16] [--workload-id=sha256_fixed_workload_v1] [--provider-contract=webFetchProviders] [--provider-plugin-id=<id>]"
     );
-    println!("  protheus-ops fixed-microbenchmark status");
+    println!("  infring-ops fixed-microbenchmark status");
 }
 
 fn print_json_line(value: &Value) {

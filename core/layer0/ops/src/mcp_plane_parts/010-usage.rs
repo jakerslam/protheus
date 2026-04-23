@@ -27,20 +27,20 @@ const TEMPLATE_MANIFEST_PATH: &str = "planes/contracts/mcp/template_pack_manifes
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops mcp-plane status");
-    println!("  protheus-ops mcp-plane capability-matrix [--server-capabilities=a,b] [--server-capabilities-file=<path>] [--strict=1|0]");
-    println!("  protheus-ops mcp-plane client [--server-capabilities=a,b] [--server-capabilities-file=<path>] [--strict=1|0]");
+    println!("  infring-ops mcp-plane status");
+    println!("  infring-ops mcp-plane capability-matrix [--server-capabilities=a,b] [--server-capabilities-file=<path>] [--strict=1|0]");
+    println!("  infring-ops mcp-plane client [--server-capabilities=a,b] [--server-capabilities-file=<path>] [--strict=1|0]");
     println!(
-        "  protheus-ops mcp-plane server --agent=<id> [--tools=a,b] [--max-rps=<n>] [--strict=1|0]"
+        "  infring-ops mcp-plane server --agent=<id> [--tools=a,b] [--max-rps=<n>] [--strict=1|0]"
     );
-    println!("  protheus-ops mcp-plane workflow --op=<start|pause|resume|retry|status> [--workflow-id=<id>] [--checkpoint-json=<json>|--checkpoint-path=<path>] [--reason=<text>] [--strict=1|0]");
+    println!("  infring-ops mcp-plane workflow --op=<start|pause|resume|retry|status> [--workflow-id=<id>] [--checkpoint-json=<json>|--checkpoint-path=<path>] [--reason=<text>] [--strict=1|0]");
     println!(
-        "  protheus-ops mcp-plane expose --agent=<id> [--tools=a,b] [--max-rps=<n>] [--strict=1|0]"
+        "  infring-ops mcp-plane expose --agent=<id> [--tools=a,b] [--max-rps=<n>] [--strict=1|0]"
     );
-    println!("  protheus-ops mcp-plane pattern-pack [--pattern=router|map-reduce|orchestrator|evaluator|swarm|fanout|sequential] [--tasks=a,b] [--tasks-file=<path>] [--steps-json=<json>|--steps-path=<path>] [--strict=1|0]");
-    println!("  protheus-ops mcp-plane template-governance [--manifest=<path>] [--templates-root=<path>] [--strict=1|0]");
-    println!("  protheus-ops mcp-plane template-suite [--template=<id>] [--strict=1|0]");
-    println!("  protheus-ops mcp-plane interop-status [--server-capabilities=a,b] [--server-capabilities-file=<path>] [--agent=<id>] [--tools=a,b] [--max-rps=<n>] [--strict=1|0]");
+    println!("  infring-ops mcp-plane pattern-pack [--pattern=router|map-reduce|orchestrator|evaluator|swarm|fanout|sequential] [--tasks=a,b] [--tasks-file=<path>] [--steps-json=<json>|--steps-path=<path>] [--strict=1|0]");
+    println!("  infring-ops mcp-plane template-governance [--manifest=<path>] [--templates-root=<path>] [--strict=1|0]");
+    println!("  infring-ops mcp-plane template-suite [--template=<id>] [--strict=1|0]");
+    println!("  infring-ops mcp-plane interop-status [--server-capabilities=a,b] [--server-capabilities-file=<path>] [--agent=<id>] [--tools=a,b] [--max-rps=<n>] [--strict=1|0]");
 }
 
 fn state_root(root: &Path) -> PathBuf {

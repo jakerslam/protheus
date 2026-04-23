@@ -2,7 +2,7 @@
 
 ## Bootstrap vs Dynamic Context Guard
 
-`protheus lens` now separates context into two tiers before every invocation:
+`infring lens` now separates context into two tiers before every invocation:
 
 - Bootstrap context (always-on): profile highlights, core lens constraints, values constraints, and non-negotiables.
 - Dynamic context (query-scoped): correspondence recall, feed signals, system-passed entries, and memory recall.

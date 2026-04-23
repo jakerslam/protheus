@@ -8,7 +8,7 @@ import { spawnSync } from 'node:child_process';
 const ROOT = process.cwd();
 const OUT_DIR = path.join(
   ROOT,
-  readAliasedEnv('INFRING_ROI100_OUT_DIR', 'PROTHEUS_ROI100_OUT_DIR') || 'local/state/ops/roi100_moves'
+  readAliasedEnv('INFRING_ROI100_OUT_DIR', 'INFRING_ROI100_OUT_DIR') || 'local/state/ops/roi100_moves'
 );
 const LATEST_JSON = path.join(OUT_DIR, 'latest.json');
 const LATEST_MD = path.join(OUT_DIR, 'latest.md');
@@ -57,16 +57,16 @@ function mkId(n) {
 function parseArgs(argv) {
   const defaultCount = Math.max(
     1,
-    readAliasedInt('INFRING_ROI100_COUNT', 'PROTHEUS_ROI100_COUNT', 100)
+    readAliasedInt('INFRING_ROI100_COUNT', 'INFRING_ROI100_COUNT', 100)
   );
   const defaultLaneTimeoutMs = Math.max(
     1000,
-    readAliasedInt('INFRING_ROI100_LANE_TIMEOUT_MS', 'PROTHEUS_ROI100_LANE_TIMEOUT_MS', 120000)
+    readAliasedInt('INFRING_ROI100_LANE_TIMEOUT_MS', 'INFRING_ROI100_LANE_TIMEOUT_MS', 120000)
   );
   const out = {
     count: defaultCount,
-    extendLanes: readAliasedBool('INFRING_ROI100_EXTEND_LANES', 'PROTHEUS_ROI100_EXTEND_LANES', null),
-    laneOnly: readAliasedBool('INFRING_ROI100_LANE_ONLY', 'PROTHEUS_ROI100_LANE_ONLY', null),
+    extendLanes: readAliasedBool('INFRING_ROI100_EXTEND_LANES', 'INFRING_ROI100_EXTEND_LANES', null),
+    laneOnly: readAliasedBool('INFRING_ROI100_LANE_ONLY', 'INFRING_ROI100_LANE_ONLY', null),
     laneTimeoutMs: defaultLaneTimeoutMs,
   };
   for (const rawArg of argv || []) {
@@ -206,14 +206,14 @@ function buildMoves(options = {}) {
   const moves = [];
   const scripts = readPackageScripts();
   const push = (move) => moves.push(move);
-  const protheusOpsBridgeArgs = [
+  const infringOpsBridgeArgs = [
     'client/runtime/lib/ts_entrypoint.ts',
-    'client/runtime/systems/ops/run_protheus_ops.ts',
+    'client/runtime/systems/ops/run_infring_ops.ts',
   ];
   const swarm = (...args) => ({
     kind: 'cmd',
     cmd: 'node',
-    args: [...protheusOpsBridgeArgs, 'swarm-runtime', ...args, `--state-path=${STATE}`],
+    args: [...infringOpsBridgeArgs, 'swarm-runtime', ...args, `--state-path=${STATE}`],
   });
   const swarmWrapper = (...args) => ({
     kind: 'cmd',
@@ -380,7 +380,7 @@ function buildMoves(options = {}) {
         title: `Core integration ${testName}`,
         kind: 'cmd',
         cmd: 'cargo',
-        args: ['test', '-p', 'protheus-ops-core', '--test', 'v9_swarm_runtime_integration', testName],
+        args: ['test', '-p', 'infring-ops-core', '--test', 'v9_swarm_runtime_integration', testName],
         timeout_ms: 180000,
       });
     }
@@ -423,7 +423,7 @@ function buildMoves(options = {}) {
       'client/runtime/systems/autonomy/swarm_orchestration_runtime.ts',
       'tests/client-memory-tools/swarm_orchestration_runtime.test.ts',
       'tests/client-memory-tools/swarm_runtime_smoothness.test.ts',
-      'client/runtime/systems/ops/run_protheus_ops.ts',
+      'client/runtime/systems/ops/run_infring_ops.ts',
       'core/layer0/ops/src/swarm_runtime.rs',
       'core/layer0/ops/tests/v9_swarm_runtime_integration.rs',
       'docs/workspace/codex_enforcer.md',

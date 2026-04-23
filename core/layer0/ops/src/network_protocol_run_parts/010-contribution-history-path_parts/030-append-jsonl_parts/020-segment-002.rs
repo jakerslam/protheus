@@ -47,7 +47,7 @@
                 "ok": true,
                 "type": "network_protocol_dashboard",
                 "lane": "core/layer0/ops",
-                "activation_command": "protheus network ignite bitcoin",
+                "activation_command": "infring network ignite bitcoin",
                 "token_flow": {
                     "accounts": balances.len(),
                     "total_balance": total_balance,

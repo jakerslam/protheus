@@ -293,5 +293,5 @@ fn secret_env_var_name(provider: &str, secret_path: &str) -> String {
         .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '_' })
         .collect::<String>()
         .to_ascii_uppercase();
-    format!("PROTHEUS_SECRET_{}_{}", provider, path)
+    format!("INFRING_SECRET_{}_{}", provider, path)
 }

@@ -18,7 +18,7 @@ runtimeConfig:
   SPINE_PUBLIC_BENCHMARK_ENABLED: "0"
   SPINE_WORKFLOW_LAYER_ENABLED: "1"
   SPINE_STRATEGY_PRINCIPLES_ENABLED: "1"
-  PROTHEUS_TELEMETRY_OPT_IN: "0"
+  INFRING_TELEMETRY_OPT_IN: "0"
 
 cron:
   enabled: true
@@ -36,7 +36,7 @@ daemon:
   replicas: 2
   command:
     - node
-    - client/runtime/systems/ops/protheusd.ts
+    - client/runtime/systems/ops/infringd.ts
     - run
   args: []
   strategy:

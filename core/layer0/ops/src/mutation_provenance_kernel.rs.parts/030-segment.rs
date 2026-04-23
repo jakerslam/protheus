@@ -7,7 +7,7 @@ mod tests {
     #[test]
     fn normalize_meta_prefers_runtime_relative_source() {
         let tmp = tempdir().expect("tempdir");
-        std::env::set_var("PROTHEUS_WORKSPACE_ROOT", tmp.path());
+        std::env::set_var("INFRING_WORKSPACE_ROOT", tmp.path());
         let runtime_source = tmp
             .path()
             .join("client")
@@ -26,7 +26,7 @@ mod tests {
     #[test]
     fn strict_enforcement_blocks_violation() {
         let tmp = tempdir().expect("tempdir");
-        std::env::set_var("PROTHEUS_WORKSPACE_ROOT", tmp.path());
+        std::env::set_var("INFRING_WORKSPACE_ROOT", tmp.path());
         let policy_path = tmp
             .path()
             .join("client")

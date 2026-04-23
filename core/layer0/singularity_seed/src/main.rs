@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
-use protheus_singularity_seed_core_v1::{
+use infring_singularity_seed_core_v1::{
     freeze_seed, run_guarded_cycle, show_seed_state_json, CycleRequest, DriftOverride,
 };
 use std::collections::BTreeMap;

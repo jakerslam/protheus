@@ -7,7 +7,7 @@ use crate::v8_kernel::{
     read_json, scoped_state_root, sha256_hex_str, split_csv_clean, write_json,
 };
 use crate::{clean, parse_args};
-use protheus_nexus_core_v1::exotic::{
+use infring_nexus_core_v1::exotic::{
     default_degradation, wrap_exotic_signal, ExoticDomain, ExoticEnvelope,
 };
 use serde_json::{json, Value};
@@ -36,36 +36,36 @@ const BIO_ENABLE_CONTRACT_PATH: &str =
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops substrate-plane status");
+    println!("  infring-ops substrate-plane status");
     println!(
-        "  protheus-ops substrate-plane csi-capture [--adapter=<id>] [--signal-ref=<ref>] [--strict=1|0]"
+        "  infring-ops substrate-plane csi-capture [--adapter=<id>] [--signal-ref=<ref>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops substrate-plane csi-module --op=<register|activate|list> [--module=<id>] [--input-contract=<id>] [--budget-units=<n>] [--privacy-class=<local|sensitive|restricted>] [--degrade-behavior=<id>] [--strict=1|0]"
+        "  infring-ops substrate-plane csi-module --op=<register|activate|list> [--module=<id>] [--input-contract=<id>] [--budget-units=<n>] [--privacy-class=<local|sensitive|restricted>] [--degrade-behavior=<id>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops substrate-plane csi-embedded-profile [--target=<esp32>] [--power-mw=<n>] [--latency-ms=<n>] [--bounded-memory-kb=<n>] [--offline=1|0] [--strict=1|0]"
+        "  infring-ops substrate-plane csi-embedded-profile [--target=<esp32>] [--power-mw=<n>] [--latency-ms=<n>] [--bounded-memory-kb=<n>] [--offline=1|0] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops substrate-plane csi-policy [--consent=1|0] [--locality=<local-only|restricted-edge>] [--retention-minutes=<n>] [--biometric-risk=<low|medium|high>] [--allow-export=1|0] [--strict=1|0]"
+        "  infring-ops substrate-plane csi-policy [--consent=1|0] [--locality=<local-only|restricted-edge>] [--retention-minutes=<n>] [--biometric-risk=<low|medium|high>] [--allow-export=1|0] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops substrate-plane eye-bind --op=<enable|status> [--source=<wifi>] [--persona=<id>] [--shadow=<id>] [--strict=1|0]"
+        "  infring-ops substrate-plane eye-bind --op=<enable|status> [--source=<wifi>] [--persona=<id>] [--shadow=<id>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops substrate-plane bio-interface --op=<ingest|status> [--channels=<n>] [--payload-ref=<ref>] [--strict=1|0]"
+        "  infring-ops substrate-plane bio-interface --op=<ingest|status> [--channels=<n>] [--payload-ref=<ref>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops substrate-plane bio-feedback --op=<stimulate|degrade|status> [--mode=<closed-loop|silicon-only>] [--consent=1|0] [--strict=1|0]"
+        "  infring-ops substrate-plane bio-feedback --op=<stimulate|degrade|status> [--mode=<closed-loop|silicon-only>] [--consent=1|0] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops substrate-plane bio-adapter-template --op=<emit|status> [--adapter=<id>] [--spike-channels=a,b] [--stimulation-channels=x,y] [--health-telemetry=latency_ms,power_mw] [--strict=1|0]"
+        "  infring-ops substrate-plane bio-adapter-template --op=<emit|status> [--adapter=<id>] [--spike-channels=a,b] [--stimulation-channels=x,y] [--health-telemetry=latency_ms,power_mw] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops substrate-plane bioethics-policy --op=<status|approve|enforce> [--approval=<HMAN-BIO-001>] [--artifact-ref=<ref>] [--consent=1|0] [--high-risk=1|0] [--strict=1|0]"
+        "  infring-ops substrate-plane bioethics-policy --op=<status|approve|enforce> [--approval=<HMAN-BIO-001>] [--artifact-ref=<ref>] [--consent=1|0] [--high-risk=1|0] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops substrate-plane bio-enable [--mode=<biological|silicon-only>] [--persona=<id>] [--adapter=<id>] [--strict=1|0]"
+        "  infring-ops substrate-plane bio-enable [--mode=<biological|silicon-only>] [--persona=<id>] [--adapter=<id>] [--strict=1|0]"
     );
 }
 

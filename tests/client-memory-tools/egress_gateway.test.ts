@@ -51,13 +51,13 @@ function main() {
     }
   }, null, 2));
 
-  process.env.PROTHEUS_WORKSPACE_ROOT = workspace;
-  process.env.PROTHEUS_RUNTIME_ROOT = runtimeRoot;
+  process.env.INFRING_WORKSPACE_ROOT = workspace;
+  process.env.INFRING_RUNTIME_ROOT = runtimeRoot;
   process.env.EGRESS_GATEWAY_POLICY_PATH = policyPath;
   delete process.env.EGRESS_GATEWAY_STATE_PATH;
   delete process.env.EGRESS_GATEWAY_AUDIT_PATH;
-  process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
-  process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = '120000';
+  process.env.INFRING_OPS_USE_PREBUILT = '0';
+  process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = '120000';
 
   const mod = resetModule(path.join(ROOT, 'client', 'runtime', 'lib', 'egress_gateway.ts'));
   const policy = mod.loadPolicy();

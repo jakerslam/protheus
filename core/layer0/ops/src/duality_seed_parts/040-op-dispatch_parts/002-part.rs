@@ -11,8 +11,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     if matches!(cmd.as_str(), "help" | "--help" | "-h") {
         println!("Usage:");
-        println!("  protheus-ops duality-seed status");
-        println!("  protheus-ops duality-seed invoke --payload=<json>");
+        println!("  infring-ops duality-seed status");
+        println!("  infring-ops duality-seed invoke --payload=<json>");
         return 0;
     }
 

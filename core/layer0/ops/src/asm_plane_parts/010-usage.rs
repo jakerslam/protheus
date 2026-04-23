@@ -25,22 +25,22 @@ const INDUSTRIAL_CHECKLIST_PATH: &str = "planes/contracts/industrial/validation_
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops asm-plane status");
-    println!("  protheus-ops asm-plane wasm-dual-meter [--strict=1|0] [--ticks=<n>] [--fuel-budget=<n>] [--epoch-budget=<n>] [--fuel-per-tick=<n>] [--epoch-step=<n>]");
+    println!("  infring-ops asm-plane status");
+    println!("  infring-ops asm-plane wasm-dual-meter [--strict=1|0] [--ticks=<n>] [--fuel-budget=<n>] [--epoch-budget=<n>] [--fuel-per-tick=<n>] [--epoch-step=<n>]");
     println!(
-        "  protheus-ops asm-plane hands-runtime [--strict=1|0] [--op=status|install|start|pause|rotate] [--manifest=<path>] [--version=<semver>]"
+        "  infring-ops asm-plane hands-runtime [--strict=1|0] [--op=status|install|start|pause|rotate] [--manifest=<path>] [--version=<semver>]"
     );
     println!(
-        "  protheus-ops asm-plane crdt-adapter [--strict=1|0] [--op=merge|replay] [--left-json=<json>] [--right-json=<json>]"
+        "  infring-ops asm-plane crdt-adapter [--strict=1|0] [--op=merge|replay] [--left-json=<json>] [--right-json=<json>]"
     );
     println!(
-        "  protheus-ops asm-plane trust-chain [--strict=1|0] [--policy=<path>] [--allow-missing-rekor=1|0]"
+        "  infring-ops asm-plane trust-chain [--strict=1|0] [--policy=<path>] [--allow-missing-rekor=1|0]"
     );
     println!(
-        "  protheus-ops asm-plane fastpath [--strict=1|0] [--policy=<path>] [--workload=1,2,3] [--inject-mismatch=1|0]"
+        "  infring-ops asm-plane fastpath [--strict=1|0] [--policy=<path>] [--workload=1,2,3] [--inject-mismatch=1|0]"
     );
     println!(
-        "  protheus-ops asm-plane industrial-pack [--strict=1|0] [--isa95=<path>] [--rami=<path>] [--checklist=<path>]"
+        "  infring-ops asm-plane industrial-pack [--strict=1|0] [--isa95=<path>] [--rami=<path>] [--checklist=<path>]"
     );
 }
 

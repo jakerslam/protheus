@@ -54,7 +54,7 @@ Out of scope:
 
 6. `REQ-16-006` CLI + shadow integration
 - Acceptance:
-  - Add native browser CLI path (`protheus browser --native ...`) with daemon controls.
+  - Add native browser CLI path (`infring browser --native ...`) with daemon controls.
   - Shadow/persona orchestration can invoke native browser tasks through governed interfaces.
   - Integration tests cover native navigation + snapshot + session restore flow.
 

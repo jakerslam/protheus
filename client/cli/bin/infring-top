@@ -8,16 +8,16 @@ if [[ -x "$SCRIPT_DIR/infringctl" ]]; then
   exec "$SCRIPT_DIR/infringctl" top "$@"
 fi
 
-if [[ -x "$ROOT/target/release/protheus-ops" ]]; then
-  exec "$ROOT/target/release/protheus-ops" protheusctl top "$@"
+if [[ -x "$ROOT/target/release/infring-ops" ]]; then
+  exec "$ROOT/target/release/infring-ops" infringctl top "$@"
 fi
 
-if [[ -x "$ROOT/target/debug/protheus-ops" ]]; then
-  exec "$ROOT/target/debug/protheus-ops" protheusctl top "$@"
+if [[ -x "$ROOT/target/debug/infring-ops" ]]; then
+  exec "$ROOT/target/debug/infring-ops" infringctl top "$@"
 fi
 
 if command -v cargo >/dev/null 2>&1; then
-  exec cargo run --quiet --manifest-path "$ROOT/core/layer0/ops/Cargo.toml" --bin protheus-ops -- protheusctl top "$@"
+  exec cargo run --quiet --manifest-path "$ROOT/core/layer0/ops/Cargo.toml" --bin infring-ops -- infringctl top "$@"
 fi
 
 echo "infring-top launcher failed: missing core ops binary and cargo." >&2

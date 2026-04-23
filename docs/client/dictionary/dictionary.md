@@ -1,6 +1,6 @@
-# Protheus Dictionary of Novel Concepts
+# Infring Dictionary of Novel Concepts
 
-Alphabetical glossary of key breakthroughs and ideas in Protheus. Each entry includes definition, purpose, and references.
+Alphabetical glossary of key breakthroughs and ideas in Infring. Each entry includes definition, purpose, and references.
 
 ## Binary Blobs
 - **Definition**: Large sections of code, logic, or state serialized into opaque, compressed binary files embedded at compile time (for example via Rust `include_bytes!`). Each blob is mapped through a manifest entry with stable ID and hash verification for unfolding.

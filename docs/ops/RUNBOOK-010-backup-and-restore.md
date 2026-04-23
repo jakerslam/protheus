@@ -10,7 +10,7 @@
 
 ## Overview
 
-This runbook defines the procedures for backing up critical Protheus system data and performing restores when necessary. All backup operations are automated, but manual intervention procedures are documented here for incident response and disaster recovery scenarios.
+This runbook defines the procedures for backing up critical Infring system data and performing restores when necessary. All backup operations are automated, but manual intervention procedures are documented here for incident response and disaster recovery scenarios.
 
 ## Backup Scope
 
@@ -32,7 +32,7 @@ Automatic hourly snapshots are captured by the `state-backup` service:
 
 ```bash
 # Verify backup service status
-systemctl status protheus-state-backup
+systemctl status infring-state-backup
 
 # Check last successful backup timestamp
 ./scripts/utils/backup-status.sh --component state
@@ -69,7 +69,7 @@ If automated backups are failing, manually trigger a state backup:
 ./scripts/utils/backup-state.sh --immediate --tag emergency-$(date +%Y%m%d-%H%M%S)
 
 # Verify the backup was created
-aws s3 ls s3://protheus-backups/state/ --recursive | tail -5
+aws s3 ls s3://infring-backups/state/ --recursive | tail -5
 ```
 
 ### Pre-Deployment Configuration Backup
@@ -92,13 +92,13 @@ echo "Backup: pre-deploy-$(git rev-parse --short HEAD)" >> deployment.log
 
 ```bash
 # Step 1: Identify target backup
-aws s3 ls s3://protheus-backups/state/ --recursive | grep "2026-03-18"
+aws s3 ls s3://infring-backups/state/ --recursive | grep "2026-03-18"
 
 # Step 2: Stop writes to state (maintenance mode)
 ./scripts/maintenance-mode.sh --enable --reason "state-restore-$(date +%Y%m%d)"
 
 # Step 3: Execute restore
-./scripts/utils/restore-state.sh --from s3://protheus-backups/state/2026-03-18-140000.tar.gz --verify
+./scripts/utils/restore-state.sh --from s3://infring-backups/state/2026-03-18-140000.tar.gz --verify
 
 # Step 4: Resume operations
 ./scripts/maintenance-mode.sh --disable
@@ -156,9 +156,9 @@ The following checks run automatically:
 
 ### Dashboards
 
-- Backup Status: `https://grafana.protheus.io/d/backup-status`
-- Restore History: `https://grafana.protheus.io/d/restore-history`
-- S3 Bucket Metrics: `https://grafana.protheus.io/d/s3-backup-metrics`
+- Backup Status: `https://grafana.infring.io/d/backup-status`
+- Restore History: `https://grafana.infring.io/d/restore-history`
+- S3 Bucket Metrics: `https://grafana.infring.io/d/s3-backup-metrics`
 
 ## Disaster Recovery
 
@@ -177,10 +177,10 @@ Backups are automatically replicated to secondary region:
 
 ```bash
 # Check replication status
-aws s3 sync --dry-run s3://protheus-backups/state/ s3://protheus-backups-dr/state/
+aws s3 sync --dry-run s3://infring-backups/state/ s3://infring-backups-dr/state/
 
 # List DR region backups
-aws s3 ls s3://protheus-backups-dr/state/ --profile dr-region
+aws s3 ls s3://infring-backups-dr/state/ --profile dr-region
 ```
 
 ## Communication
@@ -212,7 +212,7 @@ When restore/recovery activity intersects with install/runtime drift, capture th
   - `local/state/ops/onboarding_portal/bootstrap_<role>.txt`
   - `local/state/ops/onboarding_portal/bootstrap_<role>_failure_snapshot.json` (failure snapshot)
 - Setup state:
-  - `local/state/ops/protheus_setup_wizard/latest.json`
+  - `local/state/ops/infring_setup_wizard/latest.json`
   - `local/state/ops/first_run_onboarding_wizard/latest.json`
 - Runtime logs:
   - `$HOME/.infring/logs/dashboard_ui.log`

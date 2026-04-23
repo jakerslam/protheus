@@ -29,7 +29,7 @@ const REPORT_REL: &str = "local/workspace/reports/SECURITY_LAYER_INVENTORY_CURRE
 fn usage() {
     println!("security-layer-inventory-gate-kernel commands:");
     println!(
-        "  protheus-ops security-layer-inventory-gate-kernel <run|status> [--strict=1|0] [--write=1|0]"
+        "  infring-ops security-layer-inventory-gate-kernel <run|status> [--strict=1|0] [--write=1|0]"
     );
 }
 
@@ -92,16 +92,16 @@ fn sha256_value(value: &Value) -> String {
 }
 
 fn ops_binary(root: &Path) -> PathBuf {
-    if let Ok(explicit) = std::env::var("PROTHEUS_OPS_BIN") {
+    if let Ok(explicit) = std::env::var("INFRING_OPS_BIN") {
         let trimmed = explicit.trim();
         if !trimmed.is_empty() {
             return PathBuf::from(trimmed);
         }
     }
     let bin_name = if cfg!(target_os = "windows") {
-        "protheus-ops.exe"
+        "infring-ops.exe"
     } else {
-        "protheus-ops"
+        "infring-ops"
     };
     let debug = root.join("target").join("debug").join(bin_name);
     if debug.exists() {
@@ -111,7 +111,7 @@ fn ops_binary(root: &Path) -> PathBuf {
     if release.exists() {
         return release;
     }
-    std::env::current_exe().unwrap_or_else(|_| PathBuf::from("protheus-ops"))
+    std::env::current_exe().unwrap_or_else(|_| PathBuf::from("infring-ops"))
 }
 
 fn run_runtime_check(root: &Path, spec: &RuntimeCheckSpec) -> RuntimeCheckResult {

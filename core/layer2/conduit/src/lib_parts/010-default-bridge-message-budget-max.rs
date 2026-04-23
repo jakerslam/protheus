@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-use protheus_nexus_core_v1::{
+use infring_nexus_core_v1::{
     conduit_deterministic_hash as deterministic_hash, CapabilityToken,
     CapabilityTokenAuthority, MessageSigner, RateLimitPolicy, RateLimiter, SecurityError,
 };
@@ -19,7 +19,7 @@ use wait_timeout::ChildExt;
 #[path = "../runtime_paths.rs"]
 
 mod runtime_paths;
-pub const CONDUIT_SCHEMA_ID: &str = "protheus_conduit";
+pub const CONDUIT_SCHEMA_ID: &str = "infring_conduit";
 pub const CONDUIT_SCHEMA_VERSION: &str = "1.0";
 pub const MAX_CONDUIT_MESSAGE_TYPES: usize = 10;
 

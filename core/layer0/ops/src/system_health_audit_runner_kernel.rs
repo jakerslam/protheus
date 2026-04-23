@@ -44,9 +44,9 @@ struct CheckRun {
 fn usage() {
     println!("system-health-audit-runner-kernel commands:");
     println!(
-        "  protheus-ops system-health-audit-runner-kernel run [--strict=1|0] [--policy=<path>]"
+        "  infring-ops system-health-audit-runner-kernel run [--strict=1|0] [--policy=<path>]"
     );
-    println!("  protheus-ops system-health-audit-runner-kernel status [--policy=<path>]");
+    println!("  infring-ops system-health-audit-runner-kernel status [--policy=<path>]");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
@@ -158,12 +158,12 @@ fn load_policy(root: &Path, argv: &[String]) -> HealthPolicy {
 }
 
 fn run_ops_capture(domain: &str, args: &[&str], timeout_ms: u64) -> CheckRun {
-    let command = std::env::var("PROTHEUS_OPS_BIN")
+    let command = std::env::var("INFRING_OPS_BIN")
         .ok()
         .filter(|value| !value.trim().is_empty())
         .map(PathBuf::from)
         .unwrap_or_else(|| {
-            std::env::current_exe().unwrap_or_else(|_| PathBuf::from("protheus-ops"))
+            std::env::current_exe().unwrap_or_else(|_| PathBuf::from("infring-ops"))
         });
     let output = Command::new(command).arg(domain).args(args).output();
     let Ok(output) = output else {
@@ -243,7 +243,7 @@ where
     let mut checks = [
         (
             "control_plane",
-            "protheus-control-plane",
+            "infring-control-plane",
             vec!["status", if strict { "--strict=1" } else { "--strict=0" }],
         ),
         ("alpha_readiness", "alpha-readiness", vec!["status"]),

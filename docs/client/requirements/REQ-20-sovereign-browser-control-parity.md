@@ -5,7 +5,7 @@ Date: 2026-03-06
 
 ## Objective
 
-Deliver a Rust-authoritative browser-control plane that matches pinchtab-class operational features (zero-config startup, token-efficient text/diff snapshots, persistent sessions, multi-instance orchestration) while preserving Protheus covenant, receipt, and sovereignty guarantees.
+Deliver a Rust-authoritative browser-control plane that matches pinchtab-class operational features (zero-config startup, token-efficient text/diff snapshots, persistent sessions, multi-instance orchestration) while preserving Infring covenant, receipt, and sovereignty guarantees.
 
 ## Scope
 
@@ -62,7 +62,7 @@ Out of scope:
 
 7. `REQ-20-007` Shadow/persona bridge with drift/breaker instrumentation
 - Acceptance:
-  - `protheus browser` orchestration can route through persona/shadow governance.
+  - `infring browser` orchestration can route through persona/shadow governance.
   - Browser interaction drift metrics are emitted and breaker thresholds are enforceable.
   - High-risk browser actions can escalate to review with explicit governance receipts.
 

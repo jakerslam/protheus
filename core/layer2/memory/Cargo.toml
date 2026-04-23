@@ -1,5 +1,5 @@
 [package]
-name = "protheus-memory-core-v1"
+name = "infring-memory-core-v1"
 version = "0.1.0"
 edition = "2021"
 license = "SEE LICENSE IN LICENSE"

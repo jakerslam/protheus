@@ -16,11 +16,11 @@ const DEFAULT_REL_PATH: &str = "reflex/registry.json";
 const SOURCE_PATH: &str = "core/layer1/memory_runtime/adaptive/reflex_store.ts";
 fn usage() {
     println!("reflex-store-kernel commands:");
-    println!("  protheus-ops reflex-store-kernel default-state");
-    println!("  protheus-ops reflex-store-kernel normalize-state [--payload-base64=<json>]");
-    println!("  protheus-ops reflex-store-kernel read-state [--payload-base64=<json>]");
-    println!("  protheus-ops reflex-store-kernel ensure-state [--payload-base64=<json>]");
-    println!("  protheus-ops reflex-store-kernel set-state --payload-base64=<json>");
+    println!("  infring-ops reflex-store-kernel default-state");
+    println!("  infring-ops reflex-store-kernel normalize-state [--payload-base64=<json>]");
+    println!("  infring-ops reflex-store-kernel read-state [--payload-base64=<json>]");
+    println!("  infring-ops reflex-store-kernel ensure-state [--payload-base64=<json>]");
+    println!("  infring-ops reflex-store-kernel set-state --payload-base64=<json>");
 }
 fn cli_receipt(kind: &str, payload: Value) -> Value {
     let ts = now_iso();

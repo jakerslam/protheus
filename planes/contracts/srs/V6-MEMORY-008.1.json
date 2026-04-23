@@ -1,6 +1,6 @@
 {
   "id": "V6-MEMORY-008.1",
-  "upgrade": "One-Command Local RAG Start Profile Contract (`protheus rag start`)",
+  "upgrade": "One-Command Local RAG Start Profile Contract (`infring rag start`)",
   "section": "One-Command Local RAG Platform with Visual Workflows Intake (Doc/Source `V6-MEMORY-008`, 2026-03-11)",
   "impact": 8,
   "layer_map": "0/1/2/client/app",
@@ -27,8 +27,8 @@
     }
   ],
   "validation": {
-    "lane_command": "protheus-ops srs-contract-runtime run --id=V6-MEMORY-008.1",
-    "status_command": "protheus-ops srs-contract-runtime status --id=V6-MEMORY-008.1",
+    "lane_command": "infring-ops srs-contract-runtime run --id=V6-MEMORY-008.1",
+    "status_command": "infring-ops srs-contract-runtime status --id=V6-MEMORY-008.1",
     "fail_closed_on_missing_contract": true
   },
   "generated_from": {

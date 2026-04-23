@@ -19,22 +19,22 @@ const DEFAULT_TRACE_REL: &str = "local/state/ops/crewai_bridge/amp_trace.jsonl";
 
 fn usage() {
     println!("crewai-bridge commands:");
-    println!("  protheus-ops crewai-bridge status [--state-path=<path>]");
-    println!("  protheus-ops crewai-bridge register-crew [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops crewai-bridge run-process [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  infring-ops crewai-bridge status [--state-path=<path>]");
+    println!("  infring-ops crewai-bridge register-crew [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops crewai-bridge run-process [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
     println!(
-        "  protheus-ops crewai-bridge run-flow [--payload-base64=<json>] [--state-path=<path>]"
+        "  infring-ops crewai-bridge run-flow [--payload-base64=<json>] [--state-path=<path>]"
     );
-    println!("  protheus-ops crewai-bridge memory-bridge [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops crewai-bridge ingest-config [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops crewai-bridge route-delegation [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  protheus-ops crewai-bridge review-crew [--payload-base64=<json>] [--state-path=<path>] [--approval-queue-path=<path>]");
-    println!("  protheus-ops crewai-bridge record-amp-trace [--payload-base64=<json>] [--state-path=<path>] [--trace-path=<path>]");
-    println!("  protheus-ops crewai-bridge benchmark-parity [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops crewai-bridge memory-bridge [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops crewai-bridge ingest-config [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops crewai-bridge route-delegation [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  infring-ops crewai-bridge review-crew [--payload-base64=<json>] [--state-path=<path>] [--approval-queue-path=<path>]");
+    println!("  infring-ops crewai-bridge record-amp-trace [--payload-base64=<json>] [--state-path=<path>] [--trace-path=<path>]");
+    println!("  infring-ops crewai-bridge benchmark-parity [--payload-base64=<json>] [--state-path=<path>]");
     println!(
-        "  protheus-ops crewai-bridge route-model [--payload-base64=<json>] [--state-path=<path>]"
+        "  infring-ops crewai-bridge route-model [--payload-base64=<json>] [--state-path=<path>]"
     );
-    println!("  protheus-ops crewai-bridge run-governed-workflow [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops crewai-bridge run-governed-workflow [--payload-base64=<json>] [--state-path=<path>]");
 }
 
 fn payload_json(argv: &[String]) -> Result<Value, String> {

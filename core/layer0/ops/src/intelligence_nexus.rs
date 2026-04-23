@@ -442,15 +442,15 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         .unwrap_or_else(|| "status".to_string());
     if matches!(command.as_str(), "help" | "--help" | "-h") {
         println!("Usage:");
-        println!("  protheus-ops intelligence-nexus status");
-        println!("  protheus-ops intelligence-nexus open");
-        println!("  protheus-ops intelligence-nexus add-key [--provider=<id>] [--key=<value>|--key-env=<ENV>]");
-        println!("  protheus-ops intelligence-nexus rotate-key [--provider=<id>] [--key=<value>|--key-env=<ENV>] [--allow-same=1|0] [--apply=1|0]");
-        println!("  protheus-ops intelligence-nexus revoke-key [--provider=<id>] [--reason=<text>] [--apply=1|0]");
-        println!("  protheus-ops intelligence-nexus credits-status [--provider=<id>] [--credits=<n>] [--burn-rate-per-day=<n>] [--probe-cmd=<shell>]");
-        println!("  protheus-ops intelligence-nexus workspace-view");
-        println!("  protheus-ops intelligence-nexus buy-credits [--provider=<id>] [--amount=<n>] [--spend-limit=<n>] [--rail=nexus|stripe|crypto] [--actor=<id>] [--apply=1|0]");
-        println!("  protheus-ops intelligence-nexus autobuy-evaluate [--provider=<id>] [--threshold=<n>] [--refill=<n>] [--daily-cap=<n>] [--priority=low|normal|high] [--apply=1|0]");
+        println!("  infring-ops intelligence-nexus status");
+        println!("  infring-ops intelligence-nexus open");
+        println!("  infring-ops intelligence-nexus add-key [--provider=<id>] [--key=<value>|--key-env=<ENV>]");
+        println!("  infring-ops intelligence-nexus rotate-key [--provider=<id>] [--key=<value>|--key-env=<ENV>] [--allow-same=1|0] [--apply=1|0]");
+        println!("  infring-ops intelligence-nexus revoke-key [--provider=<id>] [--reason=<text>] [--apply=1|0]");
+        println!("  infring-ops intelligence-nexus credits-status [--provider=<id>] [--credits=<n>] [--burn-rate-per-day=<n>] [--probe-cmd=<shell>]");
+        println!("  infring-ops intelligence-nexus workspace-view");
+        println!("  infring-ops intelligence-nexus buy-credits [--provider=<id>] [--amount=<n>] [--spend-limit=<n>] [--rail=nexus|stripe|crypto] [--actor=<id>] [--apply=1|0]");
+        println!("  infring-ops intelligence-nexus autobuy-evaluate [--provider=<id>] [--threshold=<n>] [--refill=<n>] [--daily-cap=<n>] [--priority=low|normal|high] [--apply=1|0]");
         return 0;
     }
     match command.as_str() {

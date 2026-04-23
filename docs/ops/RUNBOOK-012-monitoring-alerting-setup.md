@@ -9,7 +9,7 @@
 
 ## Overview
 
-This runbook provides guidance on configuring and maintaining the monitoring and alerting infrastructure for the Protheus platform. Proper alerting ensures the team is notified of issues before they impact users.
+This runbook provides guidance on configuring and maintaining the monitoring and alerting infrastructure for the Infring platform. Proper alerting ensures the team is notified of issues before they impact users.
 
 ## Alerting Philosophy
 
@@ -36,14 +36,14 @@ Our alerting strategy follows these principles:
 ```yaml
 # Example alert configuration
 alert: ServiceDown
-expr: up{job=~"protheus-.*"} == 0
+expr: up{job=~"infring-.*"} == 0
 for: 2m
 labels:
   severity: critical
 annotations:
   summary: "Service {{ $labels.job }} is down"
   description: "Service has been down for more than 2 minutes"
-  runbook_url: "https://wiki.protheus/ops/runbooks/service-down"
+  runbook_url: "https://wiki.infring/ops/runbooks/service-down"
 ```
 
 ### Resource Utilization Alerts
@@ -51,7 +51,7 @@ annotations:
 ```yaml
 # Database connection pool
 alert: DBPoolHigh
-expr: protheus_db_pool_usage_percent > 80
+expr: infring_db_pool_usage_percent > 80
 for: 5m
 labels:
   severity: warning
@@ -73,7 +73,7 @@ annotations:
 ```yaml
 # High latency
 alert: HighLatency
-expr: protheus_request_duration_seconds{quantile="0.95"} > 2
+expr: infring_request_duration_seconds{quantile="0.95"} > 2
 for: 5m
 labels:
   severity: warning
@@ -88,7 +88,7 @@ annotations:
 1. **Define the alert condition** - Must be actionable and specific
 2. **Set appropriate severity** - Consider impact and urgency
 3. **Add runbook link** - Every alert should point to remediation steps
-4. **Test the alert** - Use `protheusctl alert test` to verify firing
+4. **Test the alert** - Use `infringctl alert test` to verify firing
 5. **Document in CHANGELOG** - Include in weekly ops review
 
 ### Silencing Alerts
@@ -97,7 +97,7 @@ Sometimes alerts need temporary suppression:
 
 ```bash
 # Silence for planned maintenance
-protheusctl alert silence \
+infringctl alert silence \
   --alert ServiceDown \
   --duration 30m \
   --reason "Planned database migration - see ENG-1234"
@@ -146,10 +146,10 @@ If an alert fires frequently without action:
 
 Maintain bookmarks for incident response:
 
-- **Overview Dashboard:** https://grafana.protheus/d/overview
-- **Service Health:** https://grafana.protheus/d/service-health
-- **Database Metrics:** https://grafana.protheus/d/db-metrics
-- **Request Latency:** https://grafana.protheus/d/latency
+- **Overview Dashboard:** https://grafana.infring/d/overview
+- **Service Health:** https://grafana.infring/d/service-health
+- **Database Metrics:** https://grafana.infring/d/db-metrics
+- **Request Latency:** https://grafana.infring/d/latency
 
 ## Document History
 
@@ -160,6 +160,6 @@ Maintain bookmarks for incident response:
 ---
 
 *TODO(rohan): Add section on custom metrics for new services*
-*TODO(rohan): Document alert testing procedures once protheusctl alert test is GA*
+*TODO(rohan): Document alert testing procedures once infringctl alert test is GA*
 
 *This document is living documentation. All team members are encouraged to suggest improvements via PR.*

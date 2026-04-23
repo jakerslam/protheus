@@ -156,7 +156,7 @@ fn sanitize_blob_root_override(raw: &str) -> Option<PathBuf> {
 }
 
 fn blob_root() -> PathBuf {
-    if let Ok(explicit) = std::env::var("PROTHEUS_SINGULARITY_BLOB_DIR") {
+    if let Ok(explicit) = std::env::var("INFRING_SINGULARITY_BLOB_DIR") {
         if let Some(safe) = sanitize_blob_root_override(&explicit) {
             return safe;
         }

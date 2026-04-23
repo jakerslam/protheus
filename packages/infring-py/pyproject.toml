@@ -1,0 +1,34 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "infring-cli-wrapper"
+version = "0.1.0"
+description = "Thin Python wrapper for the Rust infring-ops CLI"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Infring Non-Commercial License v1.0" }
+authors = [
+  { name = "Infring Labs" }
+]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "License :: Other/Proprietary License",
+  "Operating System :: OS Independent",
+  "Environment :: Console",
+  "Intended Audience :: Developers"
+]
+
+[project.urls]
+Homepage = "https://github.com/protheuslabs/InfRing"
+Repository = "https://github.com/protheuslabs/InfRing"
+
+[project.scripts]
+infring = "infring_cli_wrapper.cli:main"
+infring = "infring_cli_wrapper.cli:main"
+infring-py = "infring_cli_wrapper.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/infring_cli_wrapper"]

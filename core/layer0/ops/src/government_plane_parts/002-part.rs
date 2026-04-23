@@ -148,7 +148,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         strict,
         &command,
         "government_plane_conduit_enforcement",
-        "client/protheusctl -> core/government-plane",
+        "client/infringctl -> core/government-plane",
         bypass,
         vec![json!({
             "id": "V7-GOV-001.8",

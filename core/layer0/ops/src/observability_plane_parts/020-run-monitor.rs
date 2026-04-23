@@ -106,7 +106,7 @@ fn run_monitor(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             .flags
             .get("source")
             .cloned()
-            .unwrap_or_else(|| "protheusd".to_string()),
+            .unwrap_or_else(|| "infringd".to_string()),
         120,
     );
     let alert_class = clean(

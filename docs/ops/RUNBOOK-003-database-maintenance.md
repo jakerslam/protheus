@@ -9,7 +9,7 @@
 
 ## Overview
 
-This runbook defines standard operating procedures for routine database maintenance tasks on the Protheus platform. Regular maintenance prevents performance degradation and ensures data integrity across all environments.
+This runbook defines standard operating procedures for routine database maintenance tasks on the Infring platform. Regular maintenance prevents performance degradation and ensures data integrity across all environments.
 
 ## Maintenance Categories
 
@@ -95,16 +95,16 @@ LIMIT 20;
 
 ```bash
 # Check database connection pool status
-protheusctl db status --pool
+infringctl db status --pool
 
 # Check replication lag (if applicable)
-protheusctl db replication --lag
+infringctl db replication --lag
 
 # View recent slow queries
-protheusctl db logs --slow-queries --limit 50
+infringctl db logs --slow-queries --limit 50
 
 # Verify backup integrity
-protheusctl db backup --verify-latest
+infringctl db backup --verify-latest
 ```
 
 ## Rollback Procedures

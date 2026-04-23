@@ -8,22 +8,22 @@ const path = require('path');
 const { createOpsLaneBridge } = require('../../../../client/runtime/lib/rust_lane_bridge.ts');
 
 function workspaceRoot() {
-  return process.env.PROTHEUS_WORKSPACE_ROOT
-    ? path.resolve(String(process.env.PROTHEUS_WORKSPACE_ROOT))
+  return process.env.INFRING_WORKSPACE_ROOT
+    ? path.resolve(String(process.env.INFRING_WORKSPACE_ROOT))
     : path.resolve(__dirname, '..', '..', '..', '..');
 }
 
 function runtimeRoot() {
-  return process.env.PROTHEUS_RUNTIME_ROOT
-    ? path.resolve(String(process.env.PROTHEUS_RUNTIME_ROOT))
+  return process.env.INFRING_RUNTIME_ROOT
+    ? path.resolve(String(process.env.INFRING_RUNTIME_ROOT))
     : path.join(workspaceRoot(), 'client', 'runtime');
 }
 
 const DEFAULT_REL_PATH = 'sensory/eyes/focus_triggers.json';
 const DEFAULT_ABS_PATH = path.join(runtimeRoot(), 'adaptive', DEFAULT_REL_PATH);
 
-process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
-process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
+process.env.INFRING_OPS_USE_PREBUILT = process.env.INFRING_OPS_USE_PREBUILT || '0';
+process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '120000';
 const bridge = createOpsLaneBridge(__dirname, 'focus_trigger_store', 'focus-trigger-store-kernel');
 const FORBIDDEN_RUNTIME_CONTEXT_MARKERS = [
   'You are an expert Python programmer.',

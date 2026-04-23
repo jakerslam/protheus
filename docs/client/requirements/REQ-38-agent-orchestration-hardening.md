@@ -2,7 +2,7 @@
 
 Version: 1.0
 Date: 2026-03-15
-Owner: Protheus Kernel / Cognition
+Owner: Infring Kernel / Cognition
 
 ## Objective
 
@@ -234,4 +234,4 @@ Out of scope:
   - `tests/client-memory-tools/rsi_swarm_spawn_bridge.test.ts`
   - `tests/client-memory-tools/swarm_verification_mode.test.ts`
   - `tests/client-memory-tools/mobile_edge_swarm_bridge.test.ts`
-  - `core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security.rs`
+  - `core/layer0/ops/src/infringctl_parts/020-evaluate-dispatch-security.rs`

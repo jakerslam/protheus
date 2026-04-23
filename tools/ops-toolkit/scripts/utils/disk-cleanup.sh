@@ -5,7 +5,7 @@
 # Last Updated: 2026-03-17
 # Version: 1.0.0
 #
-# Purpose: Automated disk space management for Protheus infrastructure nodes.
+# Purpose: Automated disk space management for Infring infrastructure nodes.
 #          Safely removes temporary files, old logs, and cached data while
 #          preserving critical system files and recent operational data.
 #

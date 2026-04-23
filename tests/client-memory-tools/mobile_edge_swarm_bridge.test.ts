@@ -28,7 +28,7 @@ function main() {
   const bridgePolicy = readJson('client/runtime/config/mobile_edge_swarm_bridge_policy.json');
   const topPolicy = readJson('client/runtime/config/mobile_ops_top_policy.json');
   const routeSource = fs.readFileSync(
-    path.join(ROOT, 'core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security.rs'),
+    path.join(ROOT, 'core/layer0/ops/src/infringctl_parts/020-evaluate-dispatch-security.rs'),
     'utf8',
   );
 
@@ -38,7 +38,7 @@ function main() {
   assert.equal(bridgePolicy.event_stream.stream, 'spawn.mobile_edge');
   assert.equal(bridgePolicy.paths.latest_path, topPolicy.paths.swarm_latest_path);
   assert(
-    routeSource.includes('client/runtime/systems/ops/run_protheus_ops.ts'),
+    routeSource.includes('client/runtime/systems/ops/run_infring_ops.ts'),
     'expected edge swarm route to delegate through the live ops bridge surface'
   );
   assert(

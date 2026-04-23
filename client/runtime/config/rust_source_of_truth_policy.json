@@ -8,13 +8,13 @@
       "\"contract-check\" =>",
       "\"state-kernel\" =>",
       "\"autonomy-controller\" =>",
-      "\"protheusctl\" =>"
+      "\"infringctl\" =>"
     ]
   },
   "conduit_strict_gate": {
-    "path": "client/runtime/systems/ops/protheusd.ts",
+    "path": "client/runtime/systems/ops/infringd.ts",
     "required_tokens": [
-      "PROTHEUS_CONDUIT_STRICT",
+      "INFRING_CONDUIT_STRICT",
       "--allow-legacy-fallback",
       "conduit_required_strict"
     ]
@@ -29,9 +29,9 @@
     ]
   },
   "status_dashboard_gate": {
-    "path": "client/runtime/systems/ops/protheus_status_dashboard.ts",
+    "path": "client/runtime/systems/ops/infring_status_dashboard.ts",
     "required_tokens": [
-      "protheus-ops",
+      "infring-ops",
       "status",
       "--dashboard"
     ]
@@ -51,23 +51,23 @@
   },
   "js_wrapper_contract": {
     "required_wrapper_paths": [
-      "client/runtime/systems/ops/protheusd.ts"
+      "client/runtime/systems/ops/infringd.ts"
     ]
   },
   "rust_shim_contract": {
     "entries": [
       {
-        "path": "client/runtime/systems/ops/protheus_control_plane.ts",
+        "path": "client/runtime/systems/ops/infring_control_plane.ts",
         "required_tokens": [
-          "runProtheusOps",
-          "protheus-control-plane"
+          "runInfringOps",
+          "infring-control-plane"
         ]
       },
       {
-        "path": "client/runtime/systems/ops/protheus_status_dashboard.ts",
+        "path": "client/runtime/systems/ops/infring_status_dashboard.ts",
         "required_tokens": [
           "status",
-          "runProtheusOps"
+          "runInfringOps"
         ]
       }
     ]
@@ -99,10 +99,10 @@
   "tcb_ts_exception_contract": {
     "path": "client/runtime/config/rust_ts_exceptions.json",
     "wrapper_tokens": [
-      "runProtheusOps",
+      "runInfringOps",
       "createConduitLaneModule",
       "core://",
-      "protheus-ops",
+      "infring-ops",
       "bindLegacyRetiredModule",
       "legacy_retired_wrapper",
       "bindNativeRustModule"

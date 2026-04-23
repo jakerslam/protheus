@@ -11,10 +11,10 @@ import { emitStructuredResult, writeJsonArtifact, writeTextArtifact } from '../.
 const SRS_PATH = 'docs/workspace/SRS.md';
 const TODO_PATH = 'docs/workspace/TODO.md';
 const OUT_JSON =
-  readAliasedEnv('INFRING_SRS_FULL_REGRESSION_OUT_JSON', 'PROTHEUS_SRS_FULL_REGRESSION_OUT_JSON')
+  readAliasedEnv('INFRING_SRS_FULL_REGRESSION_OUT_JSON', 'INFRING_SRS_FULL_REGRESSION_OUT_JSON')
   || 'core/local/artifacts/srs_full_regression_current.json';
 const OUT_MD =
-  readAliasedEnv('INFRING_SRS_FULL_REGRESSION_OUT_MD', 'PROTHEUS_SRS_FULL_REGRESSION_OUT_MD')
+  readAliasedEnv('INFRING_SRS_FULL_REGRESSION_OUT_MD', 'INFRING_SRS_FULL_REGRESSION_OUT_MD')
   || 'local/workspace/reports/SRS_FULL_REGRESSION_CURRENT.md';
 
 function readAliasedEnv(primary, legacy) {
@@ -44,7 +44,7 @@ function parseCliFlags(argv = process.argv.slice(2)) {
         readFlag(argv, 'strict'),
         readAliasedBool(
           'INFRING_SRS_FULL_REGRESSION_STRICT',
-          'PROTHEUS_SRS_FULL_REGRESSION_STRICT',
+          'INFRING_SRS_FULL_REGRESSION_STRICT',
           false
         )
       ),
@@ -54,7 +54,7 @@ function parseCliFlags(argv = process.argv.slice(2)) {
         readFlag(argv, 'fail-on-warn'),
         readAliasedBool(
           'INFRING_SRS_FULL_REGRESSION_FAIL_ON_WARN',
-          'PROTHEUS_SRS_FULL_REGRESSION_FAIL_ON_WARN',
+          'INFRING_SRS_FULL_REGRESSION_FAIL_ON_WARN',
           false
         )
       ),

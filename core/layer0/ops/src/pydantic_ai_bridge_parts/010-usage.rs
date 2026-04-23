@@ -16,20 +16,20 @@ const DEFAULT_APPROVAL_QUEUE_REL: &str = "client/runtime/local/state/pydantic_ai
 
 fn usage() {
     println!("pydantic-ai-bridge commands:");
-    println!("  protheus-ops pydantic-ai-bridge status [--state-path=<path>]");
-    println!("  protheus-ops pydantic-ai-bridge register-agent [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops pydantic-ai-bridge validate-output [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops pydantic-ai-bridge register-tool-context [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops pydantic-ai-bridge invoke-tool-context [--payload-base64=<json>] [--state-path=<path>] [--approval-queue-path=<path>]");
-    println!("  protheus-ops pydantic-ai-bridge bridge-protocol [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  protheus-ops pydantic-ai-bridge durable-run [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  protheus-ops pydantic-ai-bridge approval-checkpoint [--payload-base64=<json>] [--state-path=<path>] [--approval-queue-path=<path>]");
-    println!("  protheus-ops pydantic-ai-bridge record-logfire [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops pydantic-ai-bridge execute-graph [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  protheus-ops pydantic-ai-bridge stream-model [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops pydantic-ai-bridge record-eval [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops pydantic-ai-bridge assimilate-intake [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops pydantic-ai-bridge run-governed-workflow [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops pydantic-ai-bridge status [--state-path=<path>]");
+    println!("  infring-ops pydantic-ai-bridge register-agent [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops pydantic-ai-bridge validate-output [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops pydantic-ai-bridge register-tool-context [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops pydantic-ai-bridge invoke-tool-context [--payload-base64=<json>] [--state-path=<path>] [--approval-queue-path=<path>]");
+    println!("  infring-ops pydantic-ai-bridge bridge-protocol [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  infring-ops pydantic-ai-bridge durable-run [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  infring-ops pydantic-ai-bridge approval-checkpoint [--payload-base64=<json>] [--state-path=<path>] [--approval-queue-path=<path>]");
+    println!("  infring-ops pydantic-ai-bridge record-logfire [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops pydantic-ai-bridge execute-graph [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  infring-ops pydantic-ai-bridge stream-model [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops pydantic-ai-bridge record-eval [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops pydantic-ai-bridge assimilate-intake [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops pydantic-ai-bridge run-governed-workflow [--payload-base64=<json>] [--state-path=<path>]");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {

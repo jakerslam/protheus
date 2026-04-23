@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
 const ROOT = resolve('.');
-const BIN = resolve(ROOT, 'target/debug/protheus-ops');
+const BIN = resolve(ROOT, 'target/debug/infring-ops');
 const OUT_JSON = 'core/local/artifacts/srs_contract_receipts_20260312.json';
 const OUT_MD = 'local/workspace/archive/docs-workspace/SRS_CONTRACT_RECEIPTS_20260312.md';
 
@@ -38,7 +38,7 @@ const checks = [
   },
   {
     id: 'V6-EVAL-001.4',
-    argv: ['protheusctl', 'eval', 'enable', 'neuralavb', '--enabled=1'],
+    argv: ['infringctl', 'eval', 'enable', 'neuralavb', '--enabled=1'],
     expectedTypes: ['ab_lane_eval_neuralavb_enable', 'eval_plane_enable_neuralavb'],
   },
   {
@@ -86,7 +86,7 @@ const checks = [
   },
   {
     id: 'V6-ECONOMY-001.8',
-    argv: ['protheusctl', 'economy', 'enable', 'all', '--apply=1'],
+    argv: ['infringctl', 'economy', 'enable', 'all', '--apply=1'],
     expectedType: 'llm_economy_organ_enable',
   },
   {
@@ -152,12 +152,12 @@ const checks = [
   },
   {
     id: 'V6-MODEL-003.4',
-    argv: ['protheusctl', 'agent', 'reset', '--scope=routing'],
+    argv: ['infringctl', 'agent', 'reset', '--scope=routing'],
     expectedType: 'model_router_agent_reset',
   },
   {
     id: 'V6-MODEL-003.5',
-    argv: ['protheusctl', 'model', 'use', 'cheap'],
+    argv: ['infringctl', 'model', 'use', 'cheap'],
     expectedType: 'model_router_optimize_cheap',
   },
   {
@@ -199,23 +199,23 @@ const checks = [
   },
   {
     id: 'V6-NETWORK-004.6',
-    argv: ['protheusctl', 'network', 'join', 'hyperspace', '--apply=1'],
+    argv: ['infringctl', 'network', 'join', 'hyperspace', '--apply=1'],
     expectedTypes: ['p2p_gossip_seed_join', 'network_protocol_join_hyperspace'],
   },
   {
     id: 'V6-COGNITION-012.1',
-    argv: ['protheusctl', 'skills', 'enable', 'perplexity-mode', '--apply=1'],
+    argv: ['infringctl', 'skills', 'enable', 'perplexity-mode', '--apply=1'],
     expectedType: 'assimilation_controller_skills_enable',
   },
   {
     id: 'V6-COGNITION-012.2',
-    argv: ['protheusctl', 'skill', 'create', '--task=triage github issues'],
+    argv: ['infringctl', 'skill', 'create', '--task=triage github issues'],
     expectedTypes: ['assimilation_controller_skill_create', 'skills_plane_create'],
   },
   {
     id: 'V6-COGNITION-012.3',
     argv: [
-      'protheusctl',
+      'infringctl',
       'skills',
       'spawn-subagents',
       '--task=triage backlog',
@@ -226,7 +226,7 @@ const checks = [
   {
     id: 'V6-COGNITION-012.4',
     argv: [
-      'protheusctl',
+      'infringctl',
       'skills',
       'computer-use',
       '--action=collect screenshot',
@@ -237,77 +237,77 @@ const checks = [
   },
   {
     id: 'V6-COGNITION-012.5',
-    argv: ['protheusctl', 'skills', 'dashboard'],
+    argv: ['infringctl', 'skills', 'dashboard'],
     expectedTypes: ['assimilation_controller_skills_dashboard', 'skills_plane_dashboard'],
   },
   {
     id: 'V6-COCKPIT-026.1',
-    argv: ['protheusctl', 'chat', 'nano', '--q=teach me nanochat', '--top=3'],
+    argv: ['infringctl', 'chat', 'nano', '--q=teach me nanochat', '--top=3'],
     expectedType: 'nano_chat_mode',
   },
   {
     id: 'V6-COCKPIT-026.2',
-    argv: ['protheusctl', 'train', 'nano', '--depth=12', '--profile=edu'],
+    argv: ['infringctl', 'train', 'nano', '--depth=12', '--profile=edu'],
     expectedType: 'nano_train_mode',
   },
   {
     id: 'V6-COCKPIT-026.3',
-    argv: ['protheusctl', 'nano', 'fork', '--target=.nanochat/fork-harness'],
+    argv: ['infringctl', 'nano', 'fork', '--target=.nanochat/fork-harness'],
     expectedType: 'nano_fork_mode',
   },
   {
     id: 'V6-COCKPIT-026.4',
-    argv: ['protheusctl', 'chat', 'nano', '--q=boundary check', '--top=2'],
+    argv: ['infringctl', 'chat', 'nano', '--q=boundary check', '--top=2'],
     expectedType: 'nano_chat_mode',
   },
   {
     id: 'V6-MEMORY-011.1',
-    argv: ['protheusctl', 'memory', 'taxonomy'],
+    argv: ['infringctl', 'memory', 'taxonomy'],
     expectedType: 'memory_taxonomy_4w',
   },
   {
     id: 'V6-MEMORY-011.2',
-    argv: ['protheusctl', 'memory', 'enable', 'metacognitive'],
+    argv: ['infringctl', 'memory', 'enable', 'metacognitive'],
     expectedType: 'memory_metacognitive_enable',
   },
   {
     id: 'V6-MEMORY-011.3',
-    argv: ['protheusctl', 'memory', 'share', '--scope=task', '--target=shadow-a', '--consent=true'],
+    argv: ['infringctl', 'memory', 'share', '--scope=task', '--target=shadow-a', '--consent=true'],
     expectedType: 'memory_share',
   },
   {
     id: 'V6-MEMORY-011.4',
-    argv: ['protheusctl', 'memory', 'evolve', '--generation=2'],
+    argv: ['infringctl', 'memory', 'evolve', '--generation=2'],
     expectedType: 'memory_evolve',
   },
   {
     id: 'V6-MEMORY-011.5',
-    argv: ['protheusctl', 'memory', 'taxonomy'],
+    argv: ['infringctl', 'memory', 'taxonomy'],
     expectedType: 'memory_taxonomy_4w',
   },
   {
     id: 'V6-MEMORY-012.1',
-    argv: ['protheusctl', 'memory', 'enable', 'causality'],
+    argv: ['infringctl', 'memory', 'enable', 'causality'],
     expectedType: 'memory_causality_enable',
   },
   {
     id: 'V6-MEMORY-012.2',
-    argv: ['protheusctl', 'memory', 'causal-retrieve', '--q=event', '--depth=2'],
+    argv: ['infringctl', 'memory', 'causal-retrieve', '--q=event', '--depth=2'],
     expectedType: 'memory_causal_retrieve',
   },
   {
     id: 'V6-MEMORY-012.3',
-    argv: ['protheusctl', 'memory', 'benchmark', 'ama'],
+    argv: ['infringctl', 'memory', 'benchmark', 'ama'],
     expectedType: 'memory_benchmark_ama',
   },
   {
     id: 'V6-MEMORY-012.4',
-    argv: ['protheusctl', 'memory', 'fuse'],
+    argv: ['infringctl', 'memory', 'fuse'],
     expectedType: 'memory_fuse',
   },
   {
     id: 'V6-MEMORY-012.5',
-    argv: ['protheusctl', 'memory', 'enable', 'causality'],
+    argv: ['infringctl', 'memory', 'enable', 'causality'],
     expectedType: 'memory_causality_enable',
   },
 ];
@@ -358,7 +358,7 @@ function collectReceiptHashes(node, out) {
 
 function ensureBinary() {
   if (existsSync(BIN)) return;
-  execFileSync('cargo', ['build', '-q', '-p', 'protheus-ops-core', '--bin', 'protheus-ops'], {
+  execFileSync('cargo', ['build', '-q', '-p', 'infring-ops-core', '--bin', 'infring-ops'], {
     cwd: ROOT,
     stdio: 'inherit',
   });

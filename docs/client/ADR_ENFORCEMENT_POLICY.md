@@ -24,7 +24,7 @@ This policy defines fail-closed ADR requirements for architecture-impacting chan
 Primary enforcement is validated by the enterprise hardening gate:
 
 ```bash
-cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- enterprise-hardening run --strict=1
+cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- enterprise-hardening run --strict=1
 ```
 
 If this gate fails, release/promotion is blocked until ADR policy compliance is restored.

@@ -9,17 +9,17 @@ fn v7_canyon_release_pipeline_strict_fails_when_optional_llvm_tools_are_missing(
     write_text(
         root,
         "core/layer0/ops/Cargo.toml",
-        "[package]\nname='protheus-ops-core'\n[features]\nminimal = []\n",
+        "[package]\nname='infring-ops-core'\n[features]\nminimal = []\n",
     );
     let toolbin = install_tool_stubs(root);
-    std::env::set_var("PROTHEUS_CARGO_BIN", toolbin.join("cargo"));
-    std::env::set_var("PROTHEUS_STRIP_BIN", toolbin.join("strip"));
+    std::env::set_var("INFRING_CARGO_BIN", toolbin.join("cargo"));
+    std::env::set_var("INFRING_STRIP_BIN", toolbin.join("strip"));
     std::env::set_var(
-        "PROTHEUS_LLVM_PROFDATA_BIN",
+        "INFRING_LLVM_PROFDATA_BIN",
         root.join("missing").join("llvm-profdata"),
     );
     std::env::set_var(
-        "PROTHEUS_LLVM_BOLT_BIN",
+        "INFRING_LLVM_BOLT_BIN",
         root.join("missing").join("llvm-bolt"),
     );
 
@@ -29,7 +29,7 @@ fn v7_canyon_release_pipeline_strict_fails_when_optional_llvm_tools_are_missing(
             &[
                 "release-pipeline".to_string(),
                 "--op=run".to_string(),
-                "--binary=protheusd".to_string(),
+                "--binary=infringd".to_string(),
                 "--target=x86_64-unknown-linux-musl".to_string(),
                 "--profile=release-minimal".to_string(),
                 "--strict=1".to_string(),
@@ -65,18 +65,18 @@ fn v7_canyon_release_pipeline_reuses_real_release_artifact_when_minimal_profile_
     write_text(
         root,
         "core/layer0/ops/Cargo.toml",
-        "[package]\nname='protheus-ops-core'\n[features]\nminimal = []\n",
+        "[package]\nname='infring-ops-core'\n[features]\nminimal = []\n",
     );
     write_release_security_workflow(root);
     let toolbin = install_tool_stubs(root);
-    std::env::set_var("PROTHEUS_CARGO_BIN", toolbin.join("cargo"));
-    std::env::set_var("PROTHEUS_STRIP_BIN", toolbin.join("strip"));
-    std::env::remove_var("PROTHEUS_LLVM_PROFDATA_BIN");
-    std::env::remove_var("PROTHEUS_LLVM_BOLT_BIN");
+    std::env::set_var("INFRING_CARGO_BIN", toolbin.join("cargo"));
+    std::env::set_var("INFRING_STRIP_BIN", toolbin.join("strip"));
+    std::env::remove_var("INFRING_LLVM_PROFDATA_BIN");
+    std::env::remove_var("INFRING_LLVM_BOLT_BIN");
 
     write_large_binary(
         root,
-        "target/x86_64-unknown-linux-musl/release/protheusd",
+        "target/x86_64-unknown-linux-musl/release/infringd",
         1_200_000,
     );
 
@@ -86,7 +86,7 @@ fn v7_canyon_release_pipeline_reuses_real_release_artifact_when_minimal_profile_
             &[
                 "release-pipeline".to_string(),
                 "--op=run".to_string(),
-                "--binary=protheusd".to_string(),
+                "--binary=infringd".to_string(),
                 "--target=x86_64-unknown-linux-musl".to_string(),
                 "--profile=release-minimal".to_string(),
                 "--strict=0".to_string(),
@@ -100,7 +100,7 @@ fn v7_canyon_release_pipeline_reuses_real_release_artifact_when_minimal_profile_
     assert_eq!(
         latest.get("artifact_source").and_then(Value::as_str),
         Some(
-            root.join("target/x86_64-unknown-linux-musl/release/protheusd")
+            root.join("target/x86_64-unknown-linux-musl/release/infringd")
                 .to_string_lossy()
                 .as_ref()
         )

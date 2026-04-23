@@ -22,19 +22,19 @@ mod tests {
     "required_tokens": ["\"spine\" =>"]
   },
   "conduit_strict_gate": {
-    "path": "client/runtime/systems/ops/protheusd.ts",
-    "required_tokens": ["PROTHEUS_CONDUIT_STRICT"]
+    "path": "client/runtime/systems/ops/infringd.ts",
+    "required_tokens": ["INFRING_CONDUIT_STRICT"]
   },
   "conduit_budget_gate": {
     "path": "core/layer2/conduit/src/lib.rs",
     "required_tokens": ["MAX_CONDUIT_MESSAGE_TYPES: usize = 10"]
   },
   "status_dashboard_gate": {
-    "path": "client/runtime/systems/ops/protheus_status_dashboard.ts",
+    "path": "client/runtime/systems/ops/infring_status_dashboard.ts",
     "required_tokens": ["status", "--dashboard"]
   },
   "js_wrapper_contract": {
-    "required_wrapper_paths": ["client/runtime/systems/ops/protheusd.js"]
+    "required_wrapper_paths": ["client/runtime/systems/ops/infringd.js"]
   },
   "rust_shim_contract": {
     "entries": [
@@ -57,8 +57,8 @@ mod tests {
         );
         write_text(
             root,
-            "client/runtime/systems/ops/protheusd.ts",
-            "const PROTHEUS_CONDUIT_STRICT = true;",
+            "client/runtime/systems/ops/infringd.ts",
+            "const INFRING_CONDUIT_STRICT = true;",
         );
         write_text(
             root,
@@ -67,12 +67,12 @@ mod tests {
         );
         write_text(
             root,
-            "client/runtime/systems/ops/protheus_status_dashboard.ts",
+            "client/runtime/systems/ops/infring_status_dashboard.ts",
             "run status --dashboard",
         );
         write_text(
             root,
-            "client/runtime/systems/ops/protheusd.js",
+            "client/runtime/systems/ops/infringd.js",
             "#!/usr/bin/env node\n'use strict';\nrequire('../../client/runtime/lib/ts_bootstrap').bootstrap(__filename, module);\n",
         );
         write_text(

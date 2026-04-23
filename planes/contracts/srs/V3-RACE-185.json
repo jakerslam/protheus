@@ -1,6 +1,6 @@
 {
   "id": "V3-RACE-185",
-  "upgrade": "[primitive-upgrade / V3] `protheus-core` Rust Binding Plane (NAPI/WASM API-Parity Bridge)",
+  "upgrade": "[primitive-upgrade / V3] `infring-core` Rust Binding Plane (NAPI/WASM API-Parity Bridge)",
   "section": "External Requirements Intake (Google Doc `1zxYaW0wNMbFnnpx_Ps0WCVgMf-uGraobSctE7cCGx80`, 2026-03-02)",
   "impact": 9,
   "layer_map": "0/1/2/adapter/client",
@@ -27,8 +27,8 @@
     }
   ],
   "validation": {
-    "lane_command": "protheus-ops srs-contract-runtime run --id=V3-RACE-185",
-    "status_command": "protheus-ops srs-contract-runtime status --id=V3-RACE-185",
+    "lane_command": "infring-ops srs-contract-runtime run --id=V3-RACE-185",
+    "status_command": "infring-ops srs-contract-runtime status --id=V3-RACE-185",
     "fail_closed_on_missing_contract": true
   },
   "generated_from": {

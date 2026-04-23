@@ -13,15 +13,15 @@ Purpose: run runtime entrypoints from deterministic `dist/` output while preserv
 
 `client/runtime/lib/ts_bootstrap.ts` now resolves mode in this order:
 
-1. `PROTHEUS_RUNTIME_MODE` env (`dist|source`)
+1. `INFRING_RUNTIME_MODE` env (`dist|source`)
 2. `state/ops/runtime_mode.json` (`set-mode` writes this)
 3. fallback `source`
 
-In `dist` mode, wrappers compile from `dist/<same-path>.js` when present. If missing and `PROTHEUS_RUNTIME_DIST_REQUIRED=1`, startup fails closed.
+In `dist` mode, wrappers compile from `dist/<same-path>.js` when present. If missing and `INFRING_RUNTIME_DIST_REQUIRED=1`, startup fails closed.
 
 ## Guardrails
 
-- `client/runtime/systems/spine/contract_check_bridge.ts` now fails if runtime mode resolves to `dist` while `PROTHEUS_RUNTIME_DIST_REQUIRED` is not `1`.
+- `client/runtime/systems/spine/contract_check_bridge.ts` now fails if runtime mode resolves to `dist` while `INFRING_RUNTIME_DIST_REQUIRED` is not `1`.
 - Optional strict wrapper coverage check:
   - `CONTRACT_CHECK_DIST_WRAPPER_STRICT=1 node client/runtime/systems/spine/contract_check_bridge.ts`
   - Fails if any TS bootstrap wrapper lacks its `dist/` counterpart.
@@ -29,12 +29,12 @@ In `dist` mode, wrappers compile from `dist/<same-path>.js` when present. If mis
 ## Rollback
 
 - Immediate rollback: `set-mode --mode=source`
-- Emergency one-shot rollback: run process with `PROTHEUS_RUNTIME_MODE=source`
+- Emergency one-shot rollback: run process with `INFRING_RUNTIME_MODE=source`
 
 ## Validation
 
 `verify` runs:
 
 1. `npm run build:systems:verify` (optional)
-2. `contract_check` under `PROTHEUS_RUNTIME_MODE=dist`
-3. `schema_contract_check` under `PROTHEUS_RUNTIME_MODE=dist`
+2. `contract_check` under `INFRING_RUNTIME_MODE=dist`
+3. `schema_contract_check` under `INFRING_RUNTIME_MODE=dist`

@@ -10,7 +10,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 const LANE_ID: &str = "vertical_plane";
-const ENV_KEY: &str = "PROTHEUS_VERTICAL_PLANE_STATE_ROOT";
+const ENV_KEY: &str = "INFRING_VERTICAL_PLANE_STATE_ROOT";
 
 #[derive(Clone)]
 struct DomainSpec {
@@ -159,12 +159,12 @@ fn domain_specs() -> BTreeMap<&'static str, DomainSpec> {
 fn usage() {
     println!("Usage:");
     println!(
-        "  protheus-ops vertical-plane activate --domain=<industrial|grid|avionics|automotive|telecom|retail|education|legal|gaming|agriculture|construction|logistics|pharma> [--profile-json=<json>] [--strict=1|0]"
+        "  infring-ops vertical-plane activate --domain=<industrial|grid|avionics|automotive|telecom|retail|education|legal|gaming|agriculture|construction|logistics|pharma> [--profile-json=<json>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops vertical-plane compile-profile --domain=<id> --profile-json=<json> [--strict=1|0]"
+        "  infring-ops vertical-plane compile-profile --domain=<id> --profile-json=<json> [--strict=1|0]"
     );
-    println!("  protheus-ops vertical-plane status [--strict=1|0]");
+    println!("  infring-ops vertical-plane status [--strict=1|0]");
 }
 
 fn lane_root(root: &Path) -> PathBuf {
@@ -382,7 +382,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         strict,
         &command,
         "vertical_plane_conduit_enforcement",
-        "client/protheusctl -> core/vertical-plane",
+        "client/infringctl -> core/vertical-plane",
         bypass,
         vec![json!({
             "id": "V7-VERTICAL-001.14",

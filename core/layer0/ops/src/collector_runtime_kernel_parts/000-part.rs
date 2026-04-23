@@ -16,15 +16,15 @@ const EYES_STATE_DEFAULT_REL: &str = "local/state/sensory/eyes";
 
 fn usage() {
     println!("collector-runtime-kernel commands:");
-    println!("  protheus-ops collector-runtime-kernel classify-error --payload-base64=<json>");
-    println!("  protheus-ops collector-runtime-kernel resolve-controls --payload-base64=<json>");
-    println!("  protheus-ops collector-runtime-kernel begin-collection --payload-base64=<json>");
-    println!("  protheus-ops collector-runtime-kernel prepare-run --payload-base64=<json>");
-    println!("  protheus-ops collector-runtime-kernel finalize-run --payload-base64=<json>");
-    println!("  protheus-ops collector-runtime-kernel fetch-text --payload-base64=<json>");
-    println!("  protheus-ops collector-runtime-kernel prepare-attempt --payload-base64=<json>");
-    println!("  protheus-ops collector-runtime-kernel mark-success --payload-base64=<json>");
-    println!("  protheus-ops collector-runtime-kernel mark-failure --payload-base64=<json>");
+    println!("  infring-ops collector-runtime-kernel classify-error --payload-base64=<json>");
+    println!("  infring-ops collector-runtime-kernel resolve-controls --payload-base64=<json>");
+    println!("  infring-ops collector-runtime-kernel begin-collection --payload-base64=<json>");
+    println!("  infring-ops collector-runtime-kernel prepare-run --payload-base64=<json>");
+    println!("  infring-ops collector-runtime-kernel finalize-run --payload-base64=<json>");
+    println!("  infring-ops collector-runtime-kernel fetch-text --payload-base64=<json>");
+    println!("  infring-ops collector-runtime-kernel prepare-attempt --payload-base64=<json>");
+    println!("  infring-ops collector-runtime-kernel mark-success --payload-base64=<json>");
+    println!("  infring-ops collector-runtime-kernel mark-failure --payload-base64=<json>");
 }
 
 fn now_ms_u64() -> u64 {

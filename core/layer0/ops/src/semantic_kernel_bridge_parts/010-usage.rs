@@ -15,21 +15,21 @@ const DEFAULT_SWARM_STATE_REL: &str = "local/state/ops/semantic_kernel_bridge/sw
 
 fn usage() {
     println!("semantic-kernel-bridge commands:");
-    println!("  protheus-ops semantic-kernel-bridge status [--state-path=<path>]");
-    println!("  protheus-ops semantic-kernel-bridge register-service [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops semantic-kernel-bridge register-plugin [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops semantic-kernel-bridge invoke-plugin [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops semantic-kernel-bridge collaborate [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  protheus-ops semantic-kernel-bridge plan [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops semantic-kernel-bridge register-vector-connector [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops semantic-kernel-bridge retrieve [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops semantic-kernel-bridge register-llm-connector [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops semantic-kernel-bridge route-llm [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops semantic-kernel-bridge validate-structured-output [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops semantic-kernel-bridge emit-enterprise-event [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops semantic-kernel-bridge register-dotnet-bridge [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops semantic-kernel-bridge invoke-dotnet-bridge [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops semantic-kernel-bridge run-governed-workflow [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops semantic-kernel-bridge status [--state-path=<path>]");
+    println!("  infring-ops semantic-kernel-bridge register-service [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops semantic-kernel-bridge register-plugin [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops semantic-kernel-bridge invoke-plugin [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops semantic-kernel-bridge collaborate [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  infring-ops semantic-kernel-bridge plan [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops semantic-kernel-bridge register-vector-connector [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops semantic-kernel-bridge retrieve [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops semantic-kernel-bridge register-llm-connector [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops semantic-kernel-bridge route-llm [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops semantic-kernel-bridge validate-structured-output [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops semantic-kernel-bridge emit-enterprise-event [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops semantic-kernel-bridge register-dotnet-bridge [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops semantic-kernel-bridge invoke-dotnet-bridge [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops semantic-kernel-bridge run-governed-workflow [--payload-base64=<json>] [--state-path=<path>]");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {

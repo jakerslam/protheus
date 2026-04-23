@@ -1,6 +1,6 @@
 {
   "id": "V6-PARSE-001.7",
-  "upgrade": "Unstructured Extraction Profile Alias Contract (`protheus extract`)",
+  "upgrade": "Unstructured Extraction Profile Alias Contract (`infring extract`)",
   "section": "2026 Hiring Projects Source Coverage Intake (Doc `1qgE2wXUFVwVt1Ei0lnud8ILNZPKx3DHoqemS3z9zYmk`, 2026-03-11)",
   "impact": 7,
   "layer_map": "0/1/2/adapter/client",
@@ -27,8 +27,8 @@
     }
   ],
   "validation": {
-    "lane_command": "protheus-ops srs-contract-runtime run --id=V6-PARSE-001.7",
-    "status_command": "protheus-ops srs-contract-runtime status --id=V6-PARSE-001.7",
+    "lane_command": "infring-ops srs-contract-runtime run --id=V6-PARSE-001.7",
+    "status_command": "infring-ops srs-contract-runtime status --id=V6-PARSE-001.7",
     "fail_closed_on_missing_contract": true
   },
   "generated_from": {

@@ -34,7 +34,7 @@
     {
       "id": "step",
       "command": "step",
-      "args": ["--mock=1", "--apply=0", "--target-path=client/runtime/systems/ops/protheusctl.ts", "--objective-id=canon_objective"],
+      "args": ["--mock=1", "--apply=0", "--target-path=client/runtime/systems/ops/infringctl.ts", "--objective-id=canon_objective"],
       "expect_type": "rsi_step",
       "timeout_ms": 240000
     },

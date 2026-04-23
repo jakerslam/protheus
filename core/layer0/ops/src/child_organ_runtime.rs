@@ -34,9 +34,9 @@ mod tests;
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops child-organ-runtime plan --organ-id=<id> [--budget-json=<json>] [--apply=1|0]");
-    println!("  protheus-ops child-organ-runtime spawn --organ-id=<id> --command=<cmd> [--arg=<v> ...] [--budget-json=<json>] [--apply=1|0]");
-    println!("  protheus-ops child-organ-runtime status [--organ-id=<id>]");
+    println!("  infring-ops child-organ-runtime plan --organ-id=<id> [--budget-json=<json>] [--apply=1|0]");
+    println!("  infring-ops child-organ-runtime spawn --organ-id=<id> --command=<cmd> [--arg=<v> ...] [--budget-json=<json>] [--apply=1|0]");
+    println!("  infring-ops child-organ-runtime status [--organ-id=<id>]");
 }
 
 fn print_json_line(value: &Value) {
@@ -145,7 +145,7 @@ fn default_policy() -> RuntimePolicy {
             "echo".to_string(),
             "true".to_string(),
             "false".to_string(),
-            "protheus-ops".to_string(),
+            "infring-ops".to_string(),
             "cargo".to_string(),
         ],
     }

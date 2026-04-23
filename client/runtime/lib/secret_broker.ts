@@ -11,7 +11,7 @@ const { createOpsLaneBridge } = require('./rust_lane_bridge.ts');
 const REPO_ROOT = path.resolve(__dirname, '..');
 const DEFAULT_SECRETS_DIR = process.env.SECRET_BROKER_SECRETS_DIR
   ? path.resolve(process.env.SECRET_BROKER_SECRETS_DIR)
-  : path.join(os.homedir(), '.config', 'protheus', 'secrets');
+  : path.join(os.homedir(), '.config', 'infring', 'secrets');
 const POLICY_PATH = process.env.SECRET_BROKER_POLICY_PATH
   ? path.resolve(process.env.SECRET_BROKER_POLICY_PATH)
   : path.join(REPO_ROOT, 'config', 'secret_broker_policy.json');
@@ -22,7 +22,7 @@ const AUDIT_PATH = process.env.SECRET_BROKER_AUDIT_PATH
   ? path.resolve(process.env.SECRET_BROKER_AUDIT_PATH)
   : path.join(REPO_ROOT, 'local', 'state', 'security', 'secret_broker_audit.jsonl');
 
-process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
+process.env.INFRING_OPS_USE_PREBUILT = process.env.INFRING_OPS_USE_PREBUILT || '0';
 const bridge = createOpsLaneBridge(__dirname, 'secret_broker', 'secret-broker-kernel', {
   preferLocalCore: true
 });

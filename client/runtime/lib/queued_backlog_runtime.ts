@@ -20,10 +20,10 @@ function mirrorLegacyEnvAlias(targetKey, legacyKey, fallback = '') {
     }
 }
 function normalizeOpsBridgeEnvAliases() {
-    mirrorLegacyEnvAlias('INFRING_WORKSPACE', 'PROTHEUS_WORKSPACE');
-    mirrorLegacyEnvAlias('INFRING_NOW_ISO', 'PROTHEUS_NOW_ISO');
-    mirrorLegacyEnvAlias('INFRING_OPS_USE_PREBUILT', 'PROTHEUS_OPS_USE_PREBUILT', '0');
-    mirrorLegacyEnvAlias('INFRING_OPS_LOCAL_TIMEOUT_MS', 'PROTHEUS_OPS_LOCAL_TIMEOUT_MS', '120000');
+    mirrorLegacyEnvAlias('INFRING_WORKSPACE', 'INFRING_WORKSPACE');
+    mirrorLegacyEnvAlias('INFRING_NOW_ISO', 'INFRING_NOW_ISO');
+    mirrorLegacyEnvAlias('INFRING_OPS_USE_PREBUILT', 'INFRING_OPS_USE_PREBUILT', '0');
+    mirrorLegacyEnvAlias('INFRING_OPS_LOCAL_TIMEOUT_MS', 'INFRING_OPS_LOCAL_TIMEOUT_MS', '120000');
 }
 normalizeOpsBridgeEnvAliases();
 function hasWorkspaceMarkers(absPath) {
@@ -70,7 +70,7 @@ function resolveWorkspaceRoot() {
 }
 const ROOT = resolveWorkspaceRoot();
 function nowIso() {
-    const override = cleanText(process.env.INFRING_NOW_ISO || process.env.PROTHEUS_NOW_ISO || '', 80);
+    const override = cleanText(process.env.INFRING_NOW_ISO || process.env.INFRING_NOW_ISO || '', 80);
     if (override) {
         const ms = Date.parse(override);
         if (Number.isFinite(ms))

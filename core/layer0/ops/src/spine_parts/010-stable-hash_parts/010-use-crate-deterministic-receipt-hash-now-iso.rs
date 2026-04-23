@@ -4,7 +4,7 @@ use crate::now_iso;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
 use parking_lot::Mutex;
-use protheus_nexus_core_v1::spine_core::{
+use infring_nexus_core_v1::spine_core::{
     run_background_hands_scheduler, run_evidence_run_plan, run_rsi_idle_hands_scheduler,
 };
 use serde_json::{json, Value};

@@ -2,7 +2,7 @@
 
 Version: 1.0  
 Date: 2026-03-05  
-Owner: Protheus Kernel (Rust TCB)
+Owner: Infring Kernel (Rust TCB)
 
 ## Objective
 
@@ -12,7 +12,7 @@ Codify and enforce the operational controls needed to move the platform from B+/
 
 In scope:
 - Reliability, alerting, incident response, runbooks, release safety, and governance controls
-- Rust-enforced hardening gate in `protheus-ops`
+- Rust-enforced hardening gate in `infring-ops`
 - CI required-check integration for hardening policy
 - Deterministic receipts for hardening evaluations
 
@@ -90,7 +90,7 @@ Acceptance: control `f100_conduit_policy_budget` passes.
 Acceptance: every enabled job in `client/runtime/config/cron_jobs.json` has `delivery.mode=announce` and `delivery.channel=main`.
 
 22. `REQ-06-022` Status dashboard must expose measurable SLO metrics, not only pass/fail checks.
-Acceptance: `protheus-ops status --dashboard` emits `slo.metrics` entries for spine success rate, receipt latency, assimilation pain score, cron health, and PQTS slippage MAPE.
+Acceptance: `infring-ops status --dashboard` emits `slo.metrics` entries for spine success rate, receipt latency, assimilation pain score, cron health, and PQTS slippage MAPE.
 
 23. `REQ-06-023` Runtime model recovery policy must include deterministic retries plus explicit fallback routing for degraded families.
 Acceptance: `client/runtime/config/model_health_recovery_policy.json` and `client/runtime/config/model_health_auto_recovery_policy.json` define bounded backoff and fallback model bindings for `llama3.2:*`.
@@ -105,18 +105,18 @@ Acceptance: scheduled secret-rotation attestation job exists in `client/runtime/
 Acceptance: `tests/tooling/scripts/memory/rebuild_exclusive.ts` is part of the recurring operational schedule and produces refreshed index artifacts without archive leakage.
 
 27. `REQ-06-027` SDLC risk-class governance must be fail-closed at merge time.
-Acceptance: `protheus-ops sdlc-change-control run --strict=1` rejects PRs that understate risk class or lack required RFC/ADR/approver/rollback evidence for `major`/`high-risk` changes.
+Acceptance: `infring-ops sdlc-change-control run --strict=1` rejects PRs that understate risk class or lack required RFC/ADR/approver/rollback evidence for `major`/`high-risk` changes.
 
 28. `REQ-06-028` Release supply-chain provenance must be enforced before publish.
-Acceptance: `protheus-ops supply-chain-provenance-v2 run --strict=1` verifies per-artifact SBOM/signature/hash parity, dependency vulnerability SLA budget, and rollback-to-last-known-good contract from release provenance bundle.
+Acceptance: `infring-ops supply-chain-provenance-v2 run --strict=1` verifies per-artifact SBOM/signature/hash parity, dependency vulnerability SLA budget, and rollback-to-last-known-good contract from release provenance bundle.
 
 ## Enforcement
 
 Runtime gate:
-- `protheus-ops enterprise-hardening run --strict=1`
-- `protheus-ops f100-reliability-certification run --strict=1`
-- `protheus-ops sdlc-change-control run --strict=1`
-- `protheus-ops supply-chain-provenance-v2 run --strict=1`
+- `infring-ops enterprise-hardening run --strict=1`
+- `infring-ops f100-reliability-certification run --strict=1`
+- `infring-ops sdlc-change-control run --strict=1`
+- `infring-ops supply-chain-provenance-v2 run --strict=1`
 
 Policy file:
 - `client/runtime/config/f100_enterprise_hardening_policy.json`
@@ -130,8 +130,8 @@ Expected output contract:
 ## CI Gate
 
 `Required Checks` must execute this gate on every protected merge path:
-- `cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- enterprise-hardening run --strict=1`
-- `cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- sdlc-change-control run --strict=1 --policy=client/runtime/config/sdlc_change_control_policy.json --pr-body-path=state/ops/sdlc_change_control/pr_body.md --changed-paths-path=state/ops/sdlc_change_control/changed_paths.txt`
+- `cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- enterprise-hardening run --strict=1`
+- `cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- sdlc-change-control run --strict=1 --policy=client/runtime/config/sdlc_change_control_policy.json --pr-body-path=state/ops/sdlc_change_control/pr_body.md --changed-paths-path=state/ops/sdlc_change_control/changed_paths.txt`
 
 ## Backlog Mapping
 

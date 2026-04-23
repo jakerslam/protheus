@@ -32,26 +32,26 @@ Includes proactive assimilation suggestions when tool/path/URL mentions are dete
 
 8. Tutorial Suggestions
 Purpose: Context-aware command nudges in the main CLI loop (external tool, drift, planning signals) with light Kernel-5 safety review.
-Control via `protheus tutorial status|on|off`.
+Control via `infring tutorial status|on|off`.
 
 ## CLI Entry
 
 Use the suite wrapper:
 
 ```bash
-protheus toolkit list
+infring toolkit list
 ```
 
 Tool routes:
 
 ```bash
-protheus toolkit personas --list
-protheus toolkit dictionary term "Binary Blobs"
-protheus toolkit orchestration status
-protheus toolkit blob-morphing status
-protheus toolkit comment-mapper --persona=vikram_menon --query="Should we prioritize memory or security first?" --gap=1 --active=1
-protheus toolkit assimilate ./docs/client/cognitive_toolkit.md --dry-run=1
-protheus toolkit research "creating a quant trading software" --dry-run=1
+infring toolkit personas --list
+infring toolkit dictionary term "Binary Blobs"
+infring toolkit orchestration status
+infring toolkit blob-morphing status
+infring toolkit comment-mapper --persona=vikram_menon --query="Should we prioritize memory or security first?" --gap=1 --active=1
+infring toolkit assimilate ./docs/client/cognitive_toolkit.md --dry-run=1
+infring toolkit research "creating a quant trading software" --dry-run=1
 ```
 
 ## Examples

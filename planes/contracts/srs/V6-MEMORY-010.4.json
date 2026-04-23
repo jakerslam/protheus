@@ -1,6 +1,6 @@
 {
   "id": "V6-MEMORY-010.4",
-  "upgrade": "One-Command Production Upgrade Contract (`protheus memory upgrade byterover`)",
+  "upgrade": "One-Command Production Upgrade Contract (`infring memory upgrade byterover`)",
   "section": "ByteRover Production-Grade Context Tree + Hybrid Sync Intake (Doc/Source `V6-MEMORY-010`, 2026-03-11)",
   "impact": 7,
   "layer_map": "1/2/client/app",
@@ -27,8 +27,8 @@
     }
   ],
   "validation": {
-    "lane_command": "protheus-ops srs-contract-runtime run --id=V6-MEMORY-010.4",
-    "status_command": "protheus-ops srs-contract-runtime status --id=V6-MEMORY-010.4",
+    "lane_command": "infring-ops srs-contract-runtime run --id=V6-MEMORY-010.4",
+    "status_command": "infring-ops srs-contract-runtime status --id=V6-MEMORY-010.4",
     "fail_closed_on_missing_contract": true
   },
   "generated_from": {

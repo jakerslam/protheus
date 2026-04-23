@@ -1,0 +1,39 @@
+{
+  "name": "infring",
+  "version": "0.2.1-alpha.1",
+  "description": "Thin npm distribution wrapper for the Infring Rust CLI binary.",
+  "license": "LicenseRef-Infring-NC-1.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/protheuslabs/InfRing.git"
+  },
+  "homepage": "https://github.com/protheuslabs/InfRing",
+  "bugs": {
+    "url": "https://github.com/protheuslabs/InfRing/issues"
+  },
+  "bin": {
+    "infring": "./bin/infring.ts",
+    "infring": "./bin/infring.ts"
+  },
+  "files": [
+    "bin/",
+    "scripts/",
+    "vendor/",
+    "README.md"
+  ],
+  "scripts": {
+    "postinstall": "node ./scripts/install.ts",
+    "test:smoke": "node ./scripts/smoke.ts"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "keywords": [
+    "infring",
+    "infring",
+    "cli",
+    "rust",
+    "agents",
+    "orchestration"
+  ]
+}

@@ -19,7 +19,7 @@
 - `client/runtime/systems/economy/public_donation_api.ts`
 - `client/runtime/systems/economy/flywheel_acceptance_harness.ts`
 - `platform/api/donate_gpu.ts` (open-platform compatibility API surface)
-- `client/runtime/systems/economy/protheus_token_engine.ts` (`V3-RACE-130`)
+- `client/runtime/systems/economy/infring_token_engine.ts` (`V3-RACE-130`)
 - `client/runtime/systems/economy/global_directive_fund.ts` (`V3-RACE-130`)
 - `client/runtime/systems/economy/peer_lending_market.ts` (`V3-RACE-133`)
 
@@ -52,7 +52,7 @@ node client/runtime/systems/economy/public_donation_api.ts register --donor_id=a
 node client/runtime/systems/economy/public_donation_api.ts donate --donor_id=alice --gpu_hours=24 --proof_ref=tx_1
 node client/runtime/systems/economy/public_donation_api.ts status --donor_id=alice
 node client/runtime/systems/economy/donor_mining_dashboard.ts dashboard
-protheusctl mine dashboard --human=1
+infringctl mine dashboard --human=1
 node client/runtime/systems/economy/flywheel_acceptance_harness.ts --donor_id=sim --gpu_hours=240
 node platform/api/donate_gpu.js donate --donor_id=alice --gpu_hours=24 --proof_ref=tx_2
 ```

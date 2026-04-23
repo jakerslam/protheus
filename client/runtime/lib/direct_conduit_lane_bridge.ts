@@ -58,8 +58,8 @@ function loadConduitClient(root) {
     throw new Error('conduit_client_missing');
 }
 function daemonCommand(root) {
-    if (process.env.PROTHEUS_CONDUIT_DAEMON_COMMAND) {
-        return process.env.PROTHEUS_CONDUIT_DAEMON_COMMAND;
+    if (process.env.INFRING_CONDUIT_DAEMON_COMMAND) {
+        return process.env.INFRING_CONDUIT_DAEMON_COMMAND;
     }
     const releaseBin = path.join(root, 'target', 'release', 'conduit_daemon');
     if (fs.existsSync(releaseBin))
@@ -68,7 +68,7 @@ function daemonCommand(root) {
     return fs.existsSync(debugBin) ? debugBin : 'cargo';
 }
 function daemonArgs(command) {
-    const raw = process.env.PROTHEUS_CONDUIT_DAEMON_ARGS;
+    const raw = process.env.INFRING_CONDUIT_DAEMON_ARGS;
     if (raw && String(raw).trim()) {
         return String(raw)
             .trim()

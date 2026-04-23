@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use protheus_ops_core::backlog_delivery_plane;
+use infring_ops_core::backlog_delivery_plane;
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -11,7 +11,7 @@ fn temp_root(name: &str) -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .expect("clock")
         .as_nanos();
-    let root = std::env::temp_dir().join(format!("protheus_backlog_delivery_{name}_{nonce}"));
+    let root = std::env::temp_dir().join(format!("infring_backlog_delivery_{name}_{nonce}"));
     fs::create_dir_all(&root).expect("mkdir");
     root
 }
@@ -116,11 +116,11 @@ fn all_ids() -> Vec<&'static str> {
 #[test]
 fn backlog_delivery_plane_executes_all_actionable_ids_with_receipts() {
     let root = temp_root("all");
-    let prior_receipt_stdout = std::env::var("PROTHEUS_SUPPRESS_RECEIPT_STDOUT").ok();
+    let prior_receipt_stdout = std::env::var("INFRING_SUPPRESS_RECEIPT_STDOUT").ok();
     // This integration test executes many lanes and persists receipts to disk; suppress
     // stdout receipt dumping so CI logs stay bounded and execution remains stable.
     unsafe {
-        std::env::set_var("PROTHEUS_SUPPRESS_RECEIPT_STDOUT", "1");
+        std::env::set_var("INFRING_SUPPRESS_RECEIPT_STDOUT", "1");
     }
     seed_skill_graph_fixture(&root);
 
@@ -165,10 +165,10 @@ fn backlog_delivery_plane_executes_all_actionable_ids_with_receipts() {
 
     match prior_receipt_stdout {
         Some(value) => unsafe {
-            std::env::set_var("PROTHEUS_SUPPRESS_RECEIPT_STDOUT", value);
+            std::env::set_var("INFRING_SUPPRESS_RECEIPT_STDOUT", value);
         },
         None => unsafe {
-            std::env::remove_var("PROTHEUS_SUPPRESS_RECEIPT_STDOUT");
+            std::env::remove_var("INFRING_SUPPRESS_RECEIPT_STDOUT");
         },
     }
     let _ = fs::remove_dir_all(root);

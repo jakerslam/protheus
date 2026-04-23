@@ -40,7 +40,7 @@ mod tests {
     fn temp_root(name: &str) -> PathBuf {
         let mut root = std::env::temp_dir();
         let nonce = chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0);
-        root.push(format!("protheus_bird_x_kernel_{name}_{nonce}"));
+        root.push(format!("infring_bird_x_kernel_{name}_{nonce}"));
         fs::create_dir_all(&root).expect("mkdir temp root");
         root
     }

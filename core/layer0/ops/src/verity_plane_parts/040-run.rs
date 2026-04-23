@@ -8,7 +8,7 @@ fn print_json(value: &Value) {
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops verity-plane <status|drift-status|vector-check|record-event|refine-event> [flags]");
+    println!("  infring-ops verity-plane <status|drift-status|vector-check|record-event|refine-event> [flags]");
     println!("  Flags:");
     println!("    --limit=<n>                 recent rows limit for status commands");
     println!("    --operation=<id>            operation type for record-event");

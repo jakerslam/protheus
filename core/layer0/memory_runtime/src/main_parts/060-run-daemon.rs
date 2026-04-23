@@ -119,7 +119,7 @@ fn run_daemon(args: &HashMap<String, String>) {
                 json!({
                     "ok": true,
                     "type": "memory_daemon_pong",
-                    "backend": "protheus_memory_core"
+                    "backend": "infring_memory_core"
                 }),
                 false,
             ),

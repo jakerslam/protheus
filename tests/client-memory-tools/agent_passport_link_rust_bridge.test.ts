@@ -28,9 +28,9 @@ if (!require.extensions['.ts']) {
 
 const ROOT = path.resolve(__dirname, '../..');
 const runtimeRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'passport-link-'));
-process.env.PROTHEUS_RUNTIME_ROOT = runtimeRoot;
-process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
-process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = '120000';
+process.env.INFRING_RUNTIME_ROOT = runtimeRoot;
+process.env.INFRING_OPS_USE_PREBUILT = '0';
+process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = '120000';
 const mod = require(path.join(ROOT, 'client/runtime/lib/agent_passport_link.ts'));
 const out = mod.linkReceiptToPassport('/tmp/receipt.json', { ok: true, type: 'unit' });
 assert.equal(out && out.ok, true);

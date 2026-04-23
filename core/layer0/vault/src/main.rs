@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
-use protheus_vault_core_v1::{
+use infring_vault_core_v1::{
     evaluate_vault_policy_json, load_embedded_vault_policy_json, VaultOperationRequest,
 };
 use std::env;

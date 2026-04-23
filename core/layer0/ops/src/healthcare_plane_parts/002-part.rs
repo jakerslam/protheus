@@ -95,7 +95,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         strict,
         &command,
         "healthcare_plane_conduit_enforcement",
-        "client/protheusctl -> core/healthcare-plane",
+        "client/infringctl -> core/healthcare-plane",
         bypass,
         vec![json!({
             "id": "V7-HEALTH-001.2",

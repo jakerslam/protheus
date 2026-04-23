@@ -2,7 +2,7 @@
 #[path = "../blob.rs"]
 mod blob;
 
-use protheus_memory_core_v6::{
+use infring_memory_core_v6::{
     load_embedded_observability_profile as load_embedded_profile_from_memory, EmbeddedChaosHook,
     EmbeddedObservabilityProfile,
 };

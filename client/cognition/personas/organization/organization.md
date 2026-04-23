@@ -1,4 +1,4 @@
-# Protheus Personas Organization
+# Infring Personas Organization
 
 ## Purpose
 
@@ -49,15 +49,15 @@ jay_haslam (Founder / Principal)
 - Project artifacts: `personas/organization/projects/ledger.jsonl` (hash-chained rows)
 - Telemetry artifacts: `personas/organization/telemetry.jsonl` (formula-bound metrics)
 - Shadow mode state: `personas/organization/shadow_mode_state.json`
-- Live telemetry report: `protheus orchestrate telemetry`
-- Artifact audit command: `protheus orchestrate audit "<artifact_id>"`
-- Retention prune command: `protheus orchestrate prune [--ttl-days=90]`
+- Live telemetry report: `infring orchestrate telemetry`
+- Artifact audit command: `infring orchestrate audit "<artifact_id>"`
+- Retention prune command: `infring orchestrate prune [--ttl-days=90]`
 
 ## Resolved Disagreements
 
-- `dis-001` Rust migration acceptance criteria: safety invariants gate rollout sequencing ([commit 479e8eb](https://github.com/protheuslabs/protheus/commit/479e8eb)).
-- `dis-002` telemetry scope vs product pacing: measurement baseline first ([commit ff2d695](https://github.com/protheuslabs/protheus/commit/ff2d695)).
-- `dis-003` override governance posture: token-backed high-risk authorization ([commit 6bed345](https://github.com/protheuslabs/protheus/commit/6bed345)).
+- `dis-001` Rust migration acceptance criteria: safety invariants gate rollout sequencing ([commit 479e8eb](https://github.com/protheuslabs/infring/commit/479e8eb)).
+- `dis-002` telemetry scope vs product pacing: measurement baseline first ([commit ff2d695](https://github.com/protheuslabs/infring/commit/ff2d695)).
+- `dis-003` override governance posture: token-backed high-risk authorization ([commit 6bed345](https://github.com/protheuslabs/infring/commit/6bed345)).
 
 ## Feature Gates
 

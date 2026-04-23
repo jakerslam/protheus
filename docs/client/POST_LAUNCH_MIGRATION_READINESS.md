@@ -4,7 +4,7 @@ This document is the PLM control playbook for `PLM-001..PLM-010`.
 
 ## Scope
 
-- Base migration from Infring runtime to extracted Protheus base.
+- Base migration from Infring runtime to extracted Infring base.
 - Preserve governance, replay determinism, and rollback posture.
 
 ## Gate Mapping

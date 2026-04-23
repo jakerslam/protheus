@@ -21,7 +21,7 @@ const LANE_ID: &str = "runtime_systems";
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops runtime-systems <status|verify|run|build|manifest|roi-sweep|bootstrap|package|settle> [--system-id=<id>|--lane-id=<id>] [flags]");
+    println!("  infring-ops runtime-systems <status|verify|run|build|manifest|roi-sweep|bootstrap|package|settle> [--system-id=<id>|--lane-id=<id>] [flags]");
 }
 
 fn print_json_line(value: &Value) {

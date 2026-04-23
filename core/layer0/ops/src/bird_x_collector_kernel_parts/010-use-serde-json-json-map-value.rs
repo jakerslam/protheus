@@ -10,11 +10,11 @@ use crate::contract_lane_utils as lane_utils;
 fn usage() {
     for line in [
         "bird-x-collector-kernel commands:",
-        "  protheus-ops bird-x-collector-kernel preflight --payload-base64=<json>",
-        "  protheus-ops bird-x-collector-kernel prepare-run --payload-base64=<json>",
-        "  protheus-ops bird-x-collector-kernel map-results --payload-base64=<json>",
-        "  protheus-ops bird-x-collector-kernel finalize-run --payload-base64=<json>",
-        "  protheus-ops bird-x-collector-kernel collect --payload-base64=<json>",
+        "  infring-ops bird-x-collector-kernel preflight --payload-base64=<json>",
+        "  infring-ops bird-x-collector-kernel prepare-run --payload-base64=<json>",
+        "  infring-ops bird-x-collector-kernel map-results --payload-base64=<json>",
+        "  infring-ops bird-x-collector-kernel finalize-run --payload-base64=<json>",
+        "  infring-ops bird-x-collector-kernel collect --payload-base64=<json>",
     ] { println!("{line}"); }
 }
 

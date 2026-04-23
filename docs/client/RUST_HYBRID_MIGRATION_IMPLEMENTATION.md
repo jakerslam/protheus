@@ -1,7 +1,7 @@
 # Rust Hybrid Migration Implementation
 
 This document defines the executable implementation for `V5-RUST-HYB-001..010`.
-It is part of the Protheus Labs runtime migration program.
+It is part of the Infring Labs runtime migration program.
 
 ## Runtime Surface
 

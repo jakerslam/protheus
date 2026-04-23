@@ -127,7 +127,7 @@ fn contract_defaults(profile: RuntimeSystemContractProfile) -> Value {
         "ecosystem_scale_v11" => json!({
             "migration_hub": true,
             "persistent_actions": true,
-            "marketplace": "protheus_hub",
+            "marketplace": "infring_hub",
             "sdk_surface": ["rust", "python", "typescript", "go", "wasm"],
             "economic_governance_layer": true
         }),

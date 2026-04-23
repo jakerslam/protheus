@@ -2,7 +2,7 @@
 #[test]
 fn direct_web_search_endpoint_fails_closed_when_ingress_route_pair_blocked() {
     let _guard = WEB_ENDPOINT_ENV_MUTEX.lock().expect("lock");
-    std::env::set_var("PROTHEUS_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE", "1");
+    std::env::set_var("INFRING_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE", "1");
     let root = terminated_temp_root();
     init_git_repo(root.path());
 
@@ -14,7 +14,7 @@ fn direct_web_search_endpoint_fails_closed_when_ingress_route_pair_blocked() {
         &terminated_ok_snapshot(),
     )
     .expect("web search denied");
-    std::env::remove_var("PROTHEUS_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE");
+    std::env::remove_var("INFRING_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE");
     assert_eq!(out.status, 403);
     assert_eq!(
         out.payload.get("error").and_then(Value::as_str),

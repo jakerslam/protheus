@@ -96,19 +96,19 @@ fn bool_env(name: &str, fallback: bool) -> bool {
 }
 
 fn ingress_nexus_enabled() -> bool {
-    bool_env("PROTHEUS_HIERARCHICAL_NEXUS_V1", true)
+    bool_env("INFRING_HIERARCHICAL_NEXUS_V1", true)
 }
 
 fn ingress_force_block_pair_enabled() -> bool {
     bool_env(
-        "PROTHEUS_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE",
+        "INFRING_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE",
         false,
     )
 }
 
 fn web_tooling_relaxed_test_mode_enabled() -> bool {
     bool_env("INFRING_WEB_TOOLING_RELAXED_TEST_MODE", false)
-        || bool_env("PROTHEUS_WEB_TOOLING_RELAXED_TEST_MODE", false)
+        || bool_env("INFRING_WEB_TOOLING_RELAXED_TEST_MODE", false)
 }
 
 fn ingress_nexus_relaxed_bypass_allowed_tool(tool_name: &str) -> bool {
@@ -140,7 +140,7 @@ fn parse_module_lifecycle(raw: &str) -> Option<ModuleLifecycleState> {
 }
 
 fn ingress_lifecycle_override_from_env() -> Option<ModuleLifecycleState> {
-    std::env::var("PROTHEUS_HIERARCHICAL_NEXUS_CLIENT_INGRESS_LIFECYCLE")
+    std::env::var("INFRING_HIERARCHICAL_NEXUS_CLIENT_INGRESS_LIFECYCLE")
         .ok()
         .and_then(|raw| parse_module_lifecycle(raw.as_str()))
 }

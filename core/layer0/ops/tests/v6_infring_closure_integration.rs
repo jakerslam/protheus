@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use protheus_nexus_core_v1::layer1_security::run_black_box_ledger;
-use protheus_ops_core::{mcp_plane, security_plane, swarm_runtime};
+use infring_nexus_core_v1::layer1_security::run_black_box_ledger;
+use infring_ops_core::{mcp_plane, security_plane, swarm_runtime};
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};

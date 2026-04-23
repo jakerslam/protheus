@@ -55,7 +55,7 @@ const WEB_PROVIDER_AUTH_TARGETS: &[&str] = &["openai_codex", "github_copilot"];
 
 fn usage() {
     println!("quorum-validator-kernel commands:");
-    println!("  protheus-ops quorum-validator-kernel evaluate --payload-base64=<base64_json>");
+    println!("  infring-ops quorum-validator-kernel evaluate --payload-base64=<base64_json>");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {

@@ -15,21 +15,21 @@ use crate::{deterministic_receipt_hash, now_iso};
 type HmacSha256 = Hmac<Sha256>;
 fn usage() {
     println!("request-envelope-kernel commands:");
-    println!("  protheus-ops request-envelope-kernel envelope-payload --payload-base64=<json>");
-    println!("  protheus-ops request-envelope-kernel canonical-string --payload-base64=<json>");
-    println!("  protheus-ops request-envelope-kernel sign --payload-base64=<json>");
-    println!("  protheus-ops request-envelope-kernel verify --payload-base64=<json>");
-    println!("  protheus-ops request-envelope-kernel stamp-env --payload-base64=<json>");
-    println!("  protheus-ops request-envelope-kernel verify-from-env --payload-base64=<json>");
-    println!("  protheus-ops request-envelope-kernel normalize-files --payload-base64=<json>");
-    println!("  protheus-ops request-envelope-kernel normalize-key-id --payload-base64=<json>");
-    println!("  protheus-ops request-envelope-kernel normalize-web-query --payload-base64=<json>");
-    println!("  protheus-ops request-envelope-kernel normalize-web-date --payload-base64=<json>");
+    println!("  infring-ops request-envelope-kernel envelope-payload --payload-base64=<json>");
+    println!("  infring-ops request-envelope-kernel canonical-string --payload-base64=<json>");
+    println!("  infring-ops request-envelope-kernel sign --payload-base64=<json>");
+    println!("  infring-ops request-envelope-kernel verify --payload-base64=<json>");
+    println!("  infring-ops request-envelope-kernel stamp-env --payload-base64=<json>");
+    println!("  infring-ops request-envelope-kernel verify-from-env --payload-base64=<json>");
+    println!("  infring-ops request-envelope-kernel normalize-files --payload-base64=<json>");
+    println!("  infring-ops request-envelope-kernel normalize-key-id --payload-base64=<json>");
+    println!("  infring-ops request-envelope-kernel normalize-web-query --payload-base64=<json>");
+    println!("  infring-ops request-envelope-kernel normalize-web-date --payload-base64=<json>");
     println!(
-        "  protheus-ops request-envelope-kernel normalize-web-freshness --payload-base64=<json>"
+        "  infring-ops request-envelope-kernel normalize-web-freshness --payload-base64=<json>"
     );
     println!(
-        "  protheus-ops request-envelope-kernel secret-key-env-var-name --payload-base64=<json>"
+        "  infring-ops request-envelope-kernel secret-key-env-var-name --payload-base64=<json>"
     );
 }
 fn cli_receipt(kind: &str, payload: Value) -> Value {

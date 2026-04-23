@@ -6,7 +6,7 @@ use std::path::Path;
 use std::{env, fs};
 
 const LANE_ID: &str = "workflow_executor";
-const REPLACEMENT: &str = "protheus-ops workflow-executor";
+const REPLACEMENT: &str = "infring-ops workflow-executor";
 
 fn receipt_hash(v: &Value) -> String {
     crate::deterministic_receipt_hash(v)
@@ -18,13 +18,13 @@ fn print_json_line(value: &Value) {
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops workflow-executor status [--scope=<value>]");
-    println!("  protheus-ops workflow-executor run [--scope=<value>] [--max=<n>]");
+    println!("  infring-ops workflow-executor status [--scope=<value>]");
+    println!("  infring-ops workflow-executor run [--scope=<value>] [--max=<n>]");
     println!(
-        "  protheus-ops workflow-executor web-status [--provider=<id>] [--history-window=<n>]"
+        "  infring-ops workflow-executor web-status [--provider=<id>] [--history-window=<n>]"
     );
     println!(
-        "  protheus-ops workflow-executor web-probe --query=<text> [--domain=<host>] [--provider=<id>]"
+        "  infring-ops workflow-executor web-probe --query=<text> [--domain=<host>] [--provider=<id>]"
     );
 }
 
@@ -36,7 +36,7 @@ fn status_receipt(root: &Path, cmd: &str, args: &[String]) -> Value {
         .map(|v| v.clamp(1, 500))
         .unwrap_or(25);
 
-    let mut out = crate::protheus_autonomy_core_v1_bridge::workflow_receipt(cmd, Some(&scope));
+    let mut out = crate::infring_autonomy_core_v1_bridge::workflow_receipt(cmd, Some(&scope));
     out["lane"] = Value::String(LANE_ID.to_string());
     out["ts"] = Value::String(now_iso());
     out["max"] = json!(max);

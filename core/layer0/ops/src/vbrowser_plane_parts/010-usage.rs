@@ -27,27 +27,27 @@ const PRIVACY_CONTRACT_PATH: &str = "planes/contracts/vbrowser/privacy_security_
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops vbrowser-plane status");
-    println!("  protheus-ops vbrowser-plane session-start|start|open [--session-id=<id>] [--url=<url>] [--shadow=<id>] [--strict=1|0]");
-    println!("  protheus-ops vbrowser-plane session-control|control --op=<join|handoff|leave|status> [--session-id=<id>] [--actor=<id>] [--role=<watch-only|shared-control>] [--to=<id>] [--strict=1|0]");
-    println!("  protheus-ops vbrowser-plane goto|navigate [--session-id=<id>] [--url=<url>] [--wait-until=<load|domcontentloaded|networkidle|commit>] [--strict=1|0]");
-    println!("  protheus-ops vbrowser-plane navback|back [--session-id=<id>] [--wait-until=<load|domcontentloaded|networkidle|commit>] [--strict=1|0]");
-    println!("  protheus-ops vbrowser-plane wait|pause [--session-id=<id>] [--time-ms=<n>] [--strict=1|0]");
-    println!("  protheus-ops vbrowser-plane scroll [--session-id=<id>] [--direction=up|down] [--percentage=<1-200>] [--x=<n>] [--y=<n>] [--strict=1|0]");
-    println!("  protheus-ops vbrowser-plane click [--session-id=<id>] [--x=<n>] [--y=<n>] [--coordinates=<x,y>] [--describe=<text>] [--strict=1|0]");
-    println!("  protheus-ops vbrowser-plane type [--session-id=<id>] [--x=<n>] [--y=<n>] [--coordinates=<x,y>] [--describe=<text>] [--text=<value>] [--variables-json=<json>] [--strict=1|0]");
-    println!("  protheus-ops vbrowser-plane automate --session-id=<id> [--actions=navigate,click,type] [--strict=1|0]");
-    println!("  protheus-ops vbrowser-plane key-input|keys [--session-id=<id>] [--method=press|type] [--value=<text|combo>] [--repeat=<n>] [--delay-ms=<n>] [--strict=1|0]");
-    println!("  protheus-ops vbrowser-plane privacy-guard|privacy [--session-id=<id>] [--network=isolated|restricted|public] [--recording=0|1] [--allow-recording=0|1] [--budget-tokens=<n>] [--strict=1|0]");
+    println!("  infring-ops vbrowser-plane status");
+    println!("  infring-ops vbrowser-plane session-start|start|open [--session-id=<id>] [--url=<url>] [--shadow=<id>] [--strict=1|0]");
+    println!("  infring-ops vbrowser-plane session-control|control --op=<join|handoff|leave|status> [--session-id=<id>] [--actor=<id>] [--role=<watch-only|shared-control>] [--to=<id>] [--strict=1|0]");
+    println!("  infring-ops vbrowser-plane goto|navigate [--session-id=<id>] [--url=<url>] [--wait-until=<load|domcontentloaded|networkidle|commit>] [--strict=1|0]");
+    println!("  infring-ops vbrowser-plane navback|back [--session-id=<id>] [--wait-until=<load|domcontentloaded|networkidle|commit>] [--strict=1|0]");
+    println!("  infring-ops vbrowser-plane wait|pause [--session-id=<id>] [--time-ms=<n>] [--strict=1|0]");
+    println!("  infring-ops vbrowser-plane scroll [--session-id=<id>] [--direction=up|down] [--percentage=<1-200>] [--x=<n>] [--y=<n>] [--strict=1|0]");
+    println!("  infring-ops vbrowser-plane click [--session-id=<id>] [--x=<n>] [--y=<n>] [--coordinates=<x,y>] [--describe=<text>] [--strict=1|0]");
+    println!("  infring-ops vbrowser-plane type [--session-id=<id>] [--x=<n>] [--y=<n>] [--coordinates=<x,y>] [--describe=<text>] [--text=<value>] [--variables-json=<json>] [--strict=1|0]");
+    println!("  infring-ops vbrowser-plane automate --session-id=<id> [--actions=navigate,click,type] [--strict=1|0]");
+    println!("  infring-ops vbrowser-plane key-input|keys [--session-id=<id>] [--method=press|type] [--value=<text|combo>] [--repeat=<n>] [--delay-ms=<n>] [--strict=1|0]");
+    println!("  infring-ops vbrowser-plane privacy-guard|privacy [--session-id=<id>] [--network=isolated|restricted|public] [--recording=0|1] [--allow-recording=0|1] [--budget-tokens=<n>] [--strict=1|0]");
     println!(
-        "  protheus-ops vbrowser-plane snapshot [--session-id=<id>] [--refs=1|0] [--strict=1|0]"
+        "  infring-ops vbrowser-plane snapshot [--session-id=<id>] [--refs=1|0] [--strict=1|0]"
     );
-    println!("  protheus-ops vbrowser-plane screenshot [--session-id=<id>] [--annotate=1|0] [--delay-ms=<n>|--delay_ms=<n>|--delay=<n>|--settle-ms=<n>|--settle_ms=<n>|--settle=<n>] [--strict=1|0]");
-    println!("  protheus-ops vbrowser-plane action-policy [--session-id=<id>] [--action=<navigate|click|fill|submit>] [--action-policy=<path>] [--confirm=1|0] [--strict=1|0]");
-    println!("  protheus-ops vbrowser-plane auth-save [--provider=<id>] [--profile=<id>] [--username=<id>] [--secret=<token>] [--strict=1|0]");
-    println!("  protheus-ops vbrowser-plane auth-login [--provider=<id>] [--profile=<id>] [--strict=1|0]");
+    println!("  infring-ops vbrowser-plane screenshot [--session-id=<id>] [--annotate=1|0] [--delay-ms=<n>|--delay_ms=<n>|--delay=<n>|--settle-ms=<n>|--settle_ms=<n>|--settle=<n>] [--strict=1|0]");
+    println!("  infring-ops vbrowser-plane action-policy [--session-id=<id>] [--action=<navigate|click|fill|submit>] [--action-policy=<path>] [--confirm=1|0] [--strict=1|0]");
+    println!("  infring-ops vbrowser-plane auth-save [--provider=<id>] [--profile=<id>] [--username=<id>] [--secret=<token>] [--strict=1|0]");
+    println!("  infring-ops vbrowser-plane auth-login [--provider=<id>] [--profile=<id>] [--strict=1|0]");
     println!(
-        "  protheus-ops vbrowser-plane native [--session-id=<id>] [--url=<url>] [--strict=1|0]"
+        "  infring-ops vbrowser-plane native [--session-id=<id>] [--url=<url>] [--strict=1|0]"
     );
 }
 
@@ -473,7 +473,7 @@ fn run_session_start(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> V
             },
             {
                 "id": "V6-VBROWSER-001.5",
-                "claim": "protheus_browser_and_shadow_browser_surfaces_route_to_core_vbrowser_lane",
+                "claim": "infring_browser_and_shadow_browser_surfaces_route_to_core_vbrowser_lane",
                 "evidence": {
                     "session_id": sid,
                     "shadow": shadow

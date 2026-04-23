@@ -11,14 +11,14 @@ use crate::contract_lane_utils as lane_utils;
 
 fn usage() {
     println!("queued-backlog-kernel commands:");
-    println!("  protheus-ops queued-backlog-kernel ensure-dir --payload-base64=<json>");
-    println!("  protheus-ops queued-backlog-kernel read-json --payload-base64=<json>");
-    println!("  protheus-ops queued-backlog-kernel write-json-atomic --payload-base64=<json>");
-    println!("  protheus-ops queued-backlog-kernel append-jsonl --payload-base64=<json>");
-    println!("  protheus-ops queued-backlog-kernel read-jsonl --payload-base64=<json>");
-    println!("  protheus-ops queued-backlog-kernel resolve-path --payload-base64=<json>");
-    println!("  protheus-ops queued-backlog-kernel stable-hash --payload-base64=<json>");
-    println!("  protheus-ops queued-backlog-kernel load-policy --payload-base64=<json>");
+    println!("  infring-ops queued-backlog-kernel ensure-dir --payload-base64=<json>");
+    println!("  infring-ops queued-backlog-kernel read-json --payload-base64=<json>");
+    println!("  infring-ops queued-backlog-kernel write-json-atomic --payload-base64=<json>");
+    println!("  infring-ops queued-backlog-kernel append-jsonl --payload-base64=<json>");
+    println!("  infring-ops queued-backlog-kernel read-jsonl --payload-base64=<json>");
+    println!("  infring-ops queued-backlog-kernel resolve-path --payload-base64=<json>");
+    println!("  infring-ops queued-backlog-kernel stable-hash --payload-base64=<json>");
+    println!("  infring-ops queued-backlog-kernel load-policy --payload-base64=<json>");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {

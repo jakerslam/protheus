@@ -14,14 +14,14 @@
   },
   "deliverables": [
     { "type": "core_authority", "path": "core/layer0/ops/src/viral_replication.rs", "status": "pending" },
-    { "type": "cli_route", "path": "core/layer0/ops/src/protheusctl_routes.rs", "status": "pending" },
+    { "type": "cli_route", "path": "core/layer0/ops/src/infringctl_routes.rs", "status": "pending" },
     { "type": "behavior_tests", "path": "core/layer0/ops/tests/viral_replication_tests.rs", "status": "pending" },
     { "type": "integration_tests", "path": "core/layer0/ops/tests/v10_viral_replication_integration.rs", "status": "pending" },
     { "type": "state_receipt", "path": "local/state/ops/srs_contract_runtime/V10-ULTIMATE-001.1/latest.json", "status": "pending" }
   ],
   "validation": {
-    "lane_command": "cargo test --manifest-path core/layer0/ops/Cargo.toml v10_viral_replication -- --nocapture && cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- viral-replication status",
-    "status_command": "cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- viral-replication status",
+    "lane_command": "cargo test --manifest-path core/layer0/ops/Cargo.toml v10_viral_replication -- --nocapture && cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- viral-replication status",
+    "status_command": "cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- viral-replication status",
     "fail_closed_on_missing_contract": true
   },
   "specification": {

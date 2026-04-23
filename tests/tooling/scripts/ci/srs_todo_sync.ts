@@ -195,7 +195,7 @@ function toTodo(rows: SrsRow[]) {
   lines.push('');
   lines.push('## Regression Runbook');
   lines.push('- npm run -s ops:backlog:actionable-report');
-  lines.push('- cargo run -q -p protheus-ops-core --bin protheus-ops -- backlog-queue-executor run --all=1 --with-tests=1');
+  lines.push('- cargo run -q -p infring-ops-core --bin infring-ops -- backlog-queue-executor run --all=1 --with-tests=1');
   lines.push('- npm run -s ops:srs:full:regression');
   lines.push('- npm run -s ops:srs:top200:regression');
   lines.push('- npm run -s test:ops:srs-contract-runtime-evidence');

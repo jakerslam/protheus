@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use protheus_ops_core::{assimilation_controller, memory_ambient, rag_cli};
+use infring_ops_core::{assimilation_controller, memory_ambient, rag_cli};
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -172,7 +172,7 @@ fn v6_batch21_cognition_and_cockpit_lanes_are_receipted() {
         .unwrap_or(false));
 
     let mock_bin = write_mock_memory_bin(root_path);
-    std::env::set_var("PROTHEUS_MEMORY_CORE_BIN", &mock_bin);
+    std::env::set_var("INFRING_MEMORY_CORE_BIN", &mock_bin);
 
     assert_eq!(
         rag_cli::run(
@@ -261,7 +261,7 @@ fn v6_batch21_cognition_and_cockpit_lanes_are_receipted() {
         Some("stable-nano-fork")
     );
 
-    std::env::remove_var("PROTHEUS_MEMORY_CORE_BIN");
+    std::env::remove_var("INFRING_MEMORY_CORE_BIN");
 }
 
 #[test]

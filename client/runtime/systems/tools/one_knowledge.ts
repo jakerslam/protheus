@@ -10,8 +10,8 @@ export {};
 const { runCli } = require('../../lib/one_knowledge.ts');
 
 process.env.INFRING_OPS_ALLOW_PROCESS_FALLBACK = process.env.INFRING_OPS_ALLOW_PROCESS_FALLBACK || '0';
-process.env.PROTHEUS_OPS_ALLOW_PROCESS_FALLBACK =
-  process.env.PROTHEUS_OPS_ALLOW_PROCESS_FALLBACK || '0';
+process.env.INFRING_OPS_ALLOW_PROCESS_FALLBACK =
+  process.env.INFRING_OPS_ALLOW_PROCESS_FALLBACK || '0';
 
 function normalizeArgs(argv) {
   if (!Array.isArray(argv)) return [];

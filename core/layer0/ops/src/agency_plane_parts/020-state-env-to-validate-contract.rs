@@ -12,16 +12,16 @@ const WORKFLOW_BINDING_CONTRACT_PATH: &str =
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops agency-plane status");
+    println!("  infring-ops agency-plane status");
     println!(
-        "  protheus-ops agency-plane create-shadow --template=<id> [--name=<shadow-name>] [--strict=1|0]"
+        "  infring-ops agency-plane create-shadow --template=<id> [--name=<shadow-name>] [--strict=1|0]"
     );
-    println!("  protheus-ops agency-plane topology [--manifest-json=<json>] [--strict=1|0]");
+    println!("  infring-ops agency-plane topology [--manifest-json=<json>] [--strict=1|0]");
     println!(
-        "  protheus-ops agency-plane orchestrate [--team=<id>] [--run-id=<id>] [--agents=<n>] [--strict=1|0]"
+        "  infring-ops agency-plane orchestrate [--team=<id>] [--run-id=<id>] [--agents=<n>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops agency-plane workflow-bind --template=<id> [--run-id=<id>] [--workflow-json=<json>] [--strict=1|0]"
+        "  infring-ops agency-plane workflow-bind --template=<id> [--run-id=<id>] [--workflow-json=<json>] [--strict=1|0]"
     );
 }
 

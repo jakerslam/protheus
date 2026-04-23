@@ -1,12 +1,12 @@
 
 pub fn parse_args(argv: &[String]) -> Options {
     let mut out = Options {
-        json: parse_bool_flag(std::env::var("PROTHEUS_GLOBAL_JSON").ok().as_deref(), false),
+        json: parse_bool_flag(std::env::var("INFRING_GLOBAL_JSON").ok().as_deref(), false),
         prewarm: true,
         allow_local_simulation: parse_bool_flag(
             std::env::var("INFRING_ALLOW_LOCAL_SIMULATION")
                 .ok()
-                .or_else(|| std::env::var("PROTHEUS_ALLOW_LOCAL_SIMULATION").ok())
+                .or_else(|| std::env::var("INFRING_ALLOW_LOCAL_SIMULATION").ok())
                 .as_deref(),
             false,
         ),

@@ -1,4 +1,4 @@
-use protheus_ops_core::alpha_readiness;
+use infring_ops_core::alpha_readiness;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -11,7 +11,7 @@ fn seed_workspace(root: &Path) {
         ),
         (
             "verify.sh",
-            "PROTHEUS_VERIFY_PROOF_TIMEOUT_SEC=${PROTHEUS_VERIFY_PROOF_TIMEOUT_SEC:-420}\n",
+            "INFRING_VERIFY_PROOF_TIMEOUT_SEC=${INFRING_VERIFY_PROOF_TIMEOUT_SEC:-420}\n",
         ),
         (
             "README.md",
@@ -19,12 +19,12 @@ fn seed_workspace(root: &Path) {
         ),
         (
             "package.json",
-            r#"{"bin":{"infring":"a","infringctl":"b","infringd":"c","protheus":"d","protheusctl":"e","protheusd":"f"}}"#,
+            r#"{"bin":{"infring":"a","infringctl":"b","infringd":"c"}}"#,
         ),
         (".github/workflows/release.yml", "name: release\n"),
         (".github/workflows/size-gate.yml", "name: size gate\n"),
         (
-            ".github/workflows/protheusd-static-size-gate.yml",
+            ".github/workflows/infringd-static-size-gate.yml",
             "name: static size gate\n",
         ),
         ("docs/workspace/templates/assistant/SOUL.md", "seed\n"),

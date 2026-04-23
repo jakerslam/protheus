@@ -4,7 +4,7 @@
   "enabled": true,
   "repo": {
     "owner": "jakerslam",
-    "name": "protheus",
+    "name": "infring",
     "visibility_expected": "private"
   },
   "least_privilege": {

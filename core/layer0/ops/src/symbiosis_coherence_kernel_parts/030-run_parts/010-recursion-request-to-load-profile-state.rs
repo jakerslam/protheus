@@ -110,7 +110,7 @@ fn default_profile_state() -> Value {
 }
 
 fn profile_edit_later_path() -> &'static str {
-    "protheus-ops symbiosis-coherence-kernel profile-update --payload='{\"response_style\":\"direct\",\"detail_level\":\"detailed\",\"proactivity_tolerance\":\"high\",\"risk_appetite\":\"cautious\"}'"
+    "infring-ops symbiosis-coherence-kernel profile-update --payload='{\"response_style\":\"direct\",\"detail_level\":\"detailed\",\"proactivity_tolerance\":\"high\",\"risk_appetite\":\"cautious\"}'"
 }
 
 fn normalize_choice(raw: Option<&Value>, fallback: &str, allowed: &[&str]) -> String {

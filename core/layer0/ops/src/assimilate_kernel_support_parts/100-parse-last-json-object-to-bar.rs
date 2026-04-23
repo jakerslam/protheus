@@ -89,7 +89,7 @@ pub fn maybe_prewarm(root: &Path, enabled: bool) {
     if now_ms - state.ts_ms < DEFAULT_PREWARM_TTL_MS {
         return;
     }
-    let exe = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("protheus-ops"));
+    let exe = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("infring-ops"));
     let _ = Command::new(exe)
         .current_dir(root)
         .arg("health-status")
@@ -108,7 +108,7 @@ pub fn maybe_prewarm(root: &Path, enabled: bool) {
 
 pub fn run_core_assimilation(root: &Path, domain: &str, args: &[String]) -> RunResult {
     let start = Instant::now();
-    let exe = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("protheus-ops"));
+    let exe = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("infring-ops"));
     match Command::new(exe)
         .current_dir(root)
         .arg(domain)

@@ -103,7 +103,7 @@ impl LayerTopology {
 
 #[cfg(feature = "layer_minus_one")]
 pub mod layer_minus_one {
-    pub use protheus_nexus_core_v1::exotic::{
+    pub use infring_nexus_core_v1::exotic::{
         default_degradation, wrap_exotic_signal, DegradationContract, ExoticDomain, ExoticEnvelope,
         Layer0Envelope,
     };
@@ -111,18 +111,18 @@ pub mod layer_minus_one {
 
 #[cfg(feature = "layer0")]
 pub mod layer0 {
-    pub use protheus_nexus_core_v1::resource::{ResourceBudget, ResourceUsage};
-    pub use protheus_nexus_core_v1::task::{ClaimEvidence, ScheduleDecision, Scheduler, Task};
+    pub use infring_nexus_core_v1::resource::{ResourceBudget, ResourceUsage};
+    pub use infring_nexus_core_v1::task::{ClaimEvidence, ScheduleDecision, Scheduler, Task};
 }
 
 #[cfg(feature = "layer1")]
 pub mod layer1 {
-    pub use protheus_nexus_core_v1::ipc::{
+    pub use infring_nexus_core_v1::ipc::{
         deterministic_envelope_hash, IpcEnvelope, IpcError, IpcPolicy,
     };
-    pub use protheus_nexus_core_v1::isolation::{CapabilityHandle, Sandbox};
-    pub use protheus_nexus_core_v1::storage::{StorageEngine, StorageError, StorageRecord};
-    pub use protheus_nexus_core_v1::update::{UpdateDecision, UpdatePackage, UpdatePolicy};
+    pub use infring_nexus_core_v1::isolation::{CapabilityHandle, Sandbox};
+    pub use infring_nexus_core_v1::storage::{StorageEngine, StorageError, StorageRecord};
+    pub use infring_nexus_core_v1::update::{UpdateDecision, UpdatePackage, UpdatePolicy};
 }
 
 #[cfg(feature = "layer2")]
@@ -133,15 +133,15 @@ pub mod layer2 {
         MAX_CONDUIT_MESSAGE_TYPES
     }
 
-    pub use protheus_nexus_core_v1::{ConduitBackedLink, ConduitManager};
+    pub use infring_nexus_core_v1::{ConduitBackedLink, ConduitManager};
 }
 
 #[cfg(feature = "layer3")]
 pub mod layer3 {
-    pub use protheus_nexus_core_v1::os_extension_wrapper::{
+    pub use infring_nexus_core_v1::os_extension_wrapper::{
         wrap_os_extension, OsExtensionDescriptor, OsExtensionEnvelope,
     };
-    pub use protheus_nexus_core_v1::{
+    pub use infring_nexus_core_v1::{
         evaluate_trace_window, load_embedded_observability_profile, TraceEvent, TraceWindowReport,
     };
 }
@@ -239,7 +239,7 @@ mod tests {
         };
         let descriptor = crate::layer3::OsExtensionDescriptor {
             extension_id: "os.fs.v1".to_string(),
-            namespace: "protheus.fs".to_string(),
+            namespace: "infring.fs".to_string(),
             capability_manifest_hash: "abc123".to_string(),
             syscall_surface: vec!["fs.mount".to_string()],
             driver_surface: vec!["driver.block".to_string()],

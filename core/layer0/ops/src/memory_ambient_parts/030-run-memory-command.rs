@@ -159,7 +159,7 @@ fn enqueue_attention(
     let encoded = base64::engine::general_purpose::STANDARD.encode(payload.as_bytes());
 
     let root_buf = root.to_path_buf();
-    let (command, mut args) = resolve_protheus_ops_command(&root_buf, "attention-queue");
+    let (command, mut args) = resolve_infring_ops_command(&root_buf, "attention-queue");
     args.push("enqueue".to_string());
     args.push(format!("--event-json-base64={encoded}"));
     args.push(format!("--run-context={run_context}"));
@@ -168,8 +168,8 @@ fn enqueue_attention(
         .args(args)
         .current_dir(root)
         .env(
-            "PROTHEUS_NODE_BINARY",
-            std::env::var("PROTHEUS_NODE_BINARY").unwrap_or_else(|_| "node".to_string()),
+            "INFRING_NODE_BINARY",
+            std::env::var("INFRING_NODE_BINARY").unwrap_or_else(|_| "node".to_string()),
         )
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

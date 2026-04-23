@@ -87,19 +87,19 @@ fn clamp_retention_score(score: f64) -> f64 {
 
 #[allow(dead_code)]
 pub fn default_db_path() -> std::path::PathBuf {
-    if let Ok(v) = std::env::var("PROTHEUS_MEMORY_DB_PATH") {
+    if let Ok(v) = std::env::var("INFRING_MEMORY_DB_PATH") {
         let s = v.trim();
         if !s.is_empty() {
             return std::path::PathBuf::from(s);
         }
     }
-    if let Ok(core_root) = std::env::var("PROTHEUS_CORE_STATE_ROOT") {
+    if let Ok(core_root) = std::env::var("INFRING_CORE_STATE_ROOT") {
         let s = core_root.trim();
         if !s.is_empty() {
             return std::path::PathBuf::from(s).join("memory/runtime_memory.sqlite");
         }
     }
-    if let Ok(client_root) = std::env::var("PROTHEUS_CLIENT_STATE_ROOT") {
+    if let Ok(client_root) = std::env::var("INFRING_CLIENT_STATE_ROOT") {
         let s = client_root.trim();
         if !s.is_empty() {
             return std::path::PathBuf::from(s).join("memory/runtime_memory.sqlite");

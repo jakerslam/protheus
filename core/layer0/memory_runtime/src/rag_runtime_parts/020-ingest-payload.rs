@@ -275,7 +275,7 @@ pub fn ingest_payload(args: &HashMap<String, String>) -> Value {
     let out = receipt(json!({
         "ok": true,
         "type": "local_rag_ingest",
-        "backend": "protheus_memory_core",
+        "backend": "infring_memory_core",
         "schema_version": "1.0",
         "root": root.to_string_lossy().to_string(),
         "target": target_raw,
@@ -302,7 +302,7 @@ pub fn status_payload(args: &HashMap<String, String>) -> Value {
         Some(idx) => json!({
             "ok": true,
             "type": "local_rag_status",
-            "backend": "protheus_memory_core",
+            "backend": "infring_memory_core",
             "schema_version": idx.schema_version,
             "generated_at": idx.generated_at,
             "source_count": idx.source_count,
@@ -380,7 +380,7 @@ pub fn search_payload(args: &HashMap<String, String>) -> Value {
     let out = receipt(json!({
         "ok": true,
         "type": "local_rag_search",
-        "backend": "protheus_memory_core",
+        "backend": "infring_memory_core",
         "query": query,
         "token_count": query_tokens.len(),
         "index_path": normalize_rel_path(&root, &idx_path),
@@ -427,7 +427,7 @@ pub fn chat_payload(args: &HashMap<String, String>) -> Value {
     receipt(json!({
         "ok": true,
         "type": "local_rag_chat",
-        "backend": "protheus_memory_core",
+        "backend": "infring_memory_core",
         "answer": answer,
         "citations": hits
     }))
@@ -512,7 +512,7 @@ pub fn merge_vault_payload(args: &HashMap<String, String>) -> Value {
     let result = receipt(json!({
         "ok": true,
         "type": "local_rag_merge_vault",
-        "backend": "protheus_memory_core",
+        "backend": "infring_memory_core",
         "index_path": normalize_rel_path(&root, &idx_path),
         "memory_index_path": normalize_rel_path(&root, &memory_index_path),
         "rows_added": added

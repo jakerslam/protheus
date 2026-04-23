@@ -85,14 +85,14 @@ For each candidate lane:
 
 Highest-impact files from `client/runtime/systems/ops` + `client/runtime/systems/security` by tracked TS line count:
 
-1. `client/runtime/systems/ops/execution_yield_recovery.ts` (1437) -> `protheus-ops execution-yield-recovery`
-2. `client/runtime/systems/ops/protheus_control_plane.ts` (1257) -> `protheus-ops protheus-control-plane`
-3. `client/runtime/systems/ops/rust50_migration_program.ts` (1214) -> `protheus-ops rust50-migration-program`
-4. `client/runtime/systems/security/venom_containment_layer.ts` (1197) -> `protheus-ops venom-containment-layer`
-5. `client/runtime/systems/ops/dynamic_burn_budget_oracle.ts` (1104) -> `protheus-ops dynamic-burn-budget-oracle`
-6. `client/runtime/systems/ops/backlog_registry.ts` (1026) -> `protheus-ops backlog-registry`
-7. `client/runtime/systems/ops/rust_enterprise_productivity_program.ts` (1021) -> `protheus-ops rust-enterprise-productivity-program`
-8. `client/runtime/systems/ops/backlog_github_sync.ts` (998) -> `protheus-ops backlog-github-sync`
+1. `client/runtime/systems/ops/execution_yield_recovery.ts` (1437) -> `infring-ops execution-yield-recovery`
+2. `client/runtime/systems/ops/infring_control_plane.ts` (1257) -> `infring-ops infring-control-plane`
+3. `client/runtime/systems/ops/rust50_migration_program.ts` (1214) -> `infring-ops rust50-migration-program`
+4. `client/runtime/systems/security/venom_containment_layer.ts` (1197) -> `infring-ops venom-containment-layer`
+5. `client/runtime/systems/ops/dynamic_burn_budget_oracle.ts` (1104) -> `infring-ops dynamic-burn-budget-oracle`
+6. `client/runtime/systems/ops/backlog_registry.ts` (1026) -> `infring-ops backlog-registry`
+7. `client/runtime/systems/ops/rust_enterprise_productivity_program.ts` (1021) -> `infring-ops rust-enterprise-productivity-program`
+8. `client/runtime/systems/ops/backlog_github_sync.ts` (998) -> `infring-ops backlog-github-sync`
 
 Migration shape:
 

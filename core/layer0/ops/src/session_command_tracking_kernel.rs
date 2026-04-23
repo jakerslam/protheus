@@ -20,7 +20,7 @@ use crate::now_iso;
 fn usage() {
     println!("session-command-tracking-kernel commands:");
     println!(
-        "  protheus-ops session-command-tracking-kernel <record|summary|status> [--payload=<json>|--payload-base64=<base64_json>]"
+        "  infring-ops session-command-tracking-kernel <record|summary|status> [--payload=<json>|--payload-base64=<base64_json>]"
     );
 }
 

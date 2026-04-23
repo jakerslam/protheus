@@ -12,7 +12,7 @@ function assert(condition, message) {
 function runOps(args) {
   return spawnSync(
     'cargo',
-    ['run', '-q', '-p', 'protheus-ops-core', '--bin', 'protheus-ops', '--', 'security-plane', 'truth-seeking-gate', ...args],
+    ['run', '-q', '-p', 'infring-ops-core', '--bin', 'infring-ops', '--', 'security-plane', 'truth-seeking-gate', ...args],
     {
       cwd: ROOT,
       encoding: 'utf8',

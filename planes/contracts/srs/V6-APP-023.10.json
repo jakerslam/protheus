@@ -28,7 +28,7 @@
   ],
   "validation": {
     "lane_command": "npm run -s lane:v6-app-023.10:run",
-    "status_command": "protheus-ops srs-contract-runtime status --id=V6-APP-023.10",
+    "status_command": "infring-ops srs-contract-runtime status --id=V6-APP-023.10",
     "fail_closed_on_missing_contract": true
   },
   "generated_from": {

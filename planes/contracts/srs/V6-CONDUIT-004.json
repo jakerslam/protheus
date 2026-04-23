@@ -1,7 +1,7 @@
 {
   "id": "V6-CONDUIT-004",
   "upgrade": "[scale-readiness / V6] Substrate-Swap and Performance Certification Gate",
-  "section": "Protheus Conduit Program (Requirements Intake 2026-03-05)",
+  "section": "Infring Conduit Program (Requirements Intake 2026-03-05)",
   "impact": 10,
   "layer_map": "-1/0/1/2/3/adapter",
   "conduit_only_boundary": false,
@@ -27,8 +27,8 @@
     }
   ],
   "validation": {
-    "lane_command": "protheus-ops srs-contract-runtime run --id=V6-CONDUIT-004",
-    "status_command": "protheus-ops srs-contract-runtime status --id=V6-CONDUIT-004",
+    "lane_command": "infring-ops srs-contract-runtime run --id=V6-CONDUIT-004",
+    "status_command": "infring-ops srs-contract-runtime status --id=V6-CONDUIT-004",
     "fail_closed_on_missing_contract": true
   },
   "generated_from": {

@@ -22,8 +22,8 @@
 - Cron delivery integrity: `100%` enabled isolated jobs with valid announce delivery (no `mode=none`)
 
 ## Mandatory Health Commands
-- `protheus-ops status --dashboard`
-- `protheus-ops contract-check`
+- `infring-ops status --dashboard`
+- `infring-ops contract-check`
 - `npm run -s formal:invariants:run`
 
 ## Alerting Contract

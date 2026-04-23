@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use protheus_ops_core::{parse_plane, research_plane};
+use infring_ops_core::{parse_plane, research_plane};
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -151,7 +151,7 @@ fn v6_fetch_parse_batch10_research_and_parse_lanes_harden_edge_cases() {
     );
 
     let source_path = root.join("fixtures").join("unknown_strategy.txt");
-    fs::write(&source_path, "Company: Protheus Labs").expect("write parse source");
+    fs::write(&source_path, "Company: Infring Labs").expect("write parse source");
     let mapping_path = root.join("fixtures").join("unknown_strategy_mapping.json");
     fs::write(
         &mapping_path,

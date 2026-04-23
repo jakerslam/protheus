@@ -1,10 +1,10 @@
 #!/bin/bash
-# health-check.sh - Comprehensive health check for Protheus services
+# health-check.sh - Comprehensive health check for Infring services
 # Author: Rohan Kapoor <rohan.kapoor@protheuslabs.com>
 # Created: 2026-03-20
 # Last updated: 2026-03-20
 #
-# Purpose: Perform multi-layer health verification across Protheus
+# Purpose: Perform multi-layer health verification across Infring
 # infrastructure components. Designed for use in monitoring scripts,
 # CI pipelines, and manual operator diagnostics.
 #
@@ -129,7 +129,7 @@ check_daemon() {
     log "Checking daemon status..."
     
     # Check if daemon process is running
-    if pgrep -x "protheusd" > /dev/null 2>&1; then
+    if pgrep -x "infringd" > /dev/null 2>&1; then
         CHECK_RESULTS["daemon_process"]="PASS"
         CHECK_MESSAGES["daemon_process"]="Daemon process is running"
     else
@@ -138,9 +138,9 @@ check_daemon() {
     fi
     
     # Check daemon responsiveness via status endpoint
-    # NOTE: This assumes protheusctl is in PATH and configured
-    if command -v protheusctl &> /dev/null; then
-        if timeout "$TIMEOUT_SECONDS" protheusctl status &> /dev/null; then
+    # NOTE: This assumes infringctl is in PATH and configured
+    if command -v infringctl &> /dev/null; then
+        if timeout "$TIMEOUT_SECONDS" infringctl status &> /dev/null; then
             CHECK_RESULTS["daemon_responsive"]="PASS"
             CHECK_MESSAGES["daemon_responsive"]="Daemon responding to status queries"
         else
@@ -149,7 +149,7 @@ check_daemon() {
         fi
     else
         CHECK_RESULTS["daemon_responsive"]="WARN"
-        CHECK_MESSAGES["daemon_responsive"]="protheusctl not in PATH, skipping responsiveness check"
+        CHECK_MESSAGES["daemon_responsive"]="infringctl not in PATH, skipping responsiveness check"
     fi
 }
 
@@ -157,7 +157,7 @@ check_router() {
     log "Checking router status..."
     
     # Check spine router health
-    if [[ -S "/tmp/protheus_spine.sock" ]] || [[ -S "$HOME/.protheus/spine.sock" ]]; then
+    if [[ -S "/tmp/infring_spine.sock" ]] || [[ -S "$HOME/.infring/spine.sock" ]]; then
         CHECK_RESULTS["router_socket"]="PASS"
         CHECK_MESSAGES["router_socket"]="Spine router socket exists"
     else
@@ -176,7 +176,7 @@ check_storage() {
     
     # Check available disk space
     local avail_gb
-    avail_gb=$(df -BG "$HOME/.protheus" 2>/dev/null | awk 'NR==2 {print $4}' | tr -d 'G' || echo "0")
+    avail_gb=$(df -BG "$HOME/.infring" 2>/dev/null | awk 'NR==2 {print $4}' | tr -d 'G' || echo "0")
     if [[ "$avail_gb" -gt 5 ]]; then
         CHECK_RESULTS["storage_space"]="PASS"
         CHECK_MESSAGES["storage_space"]="Storage has ${avail_gb}GB available"
@@ -189,8 +189,8 @@ check_storage() {
     fi
     
     # Check state directory permissions
-    if [[ -d "$HOME/.protheus/state" ]]; then
-        if [[ -r "$HOME/.protheus/state" && -w "$HOME/.protheus/state" ]]; then
+    if [[ -d "$HOME/.infring/state" ]]; then
+        if [[ -r "$HOME/.infring/state" && -w "$HOME/.infring/state" ]]; then
             CHECK_RESULTS["storage_permissions"]="PASS"
             CHECK_MESSAGES["storage_permissions"]="State directory has correct permissions"
         else

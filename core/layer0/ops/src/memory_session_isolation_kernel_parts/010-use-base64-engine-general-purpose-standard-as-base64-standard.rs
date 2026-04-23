@@ -17,12 +17,12 @@ const DEFAULT_STATE_REL: &str = "client/runtime/local/state/memory/session_isola
 
 fn usage() {
     println!("memory-session-isolation-kernel commands:");
-    println!("  protheus-ops memory-session-isolation-kernel load-state [--payload-base64=<base64_json>]");
-    println!("  protheus-ops memory-session-isolation-kernel save-state [--payload-base64=<base64_json>]");
+    println!("  infring-ops memory-session-isolation-kernel load-state [--payload-base64=<base64_json>]");
+    println!("  infring-ops memory-session-isolation-kernel save-state [--payload-base64=<base64_json>]");
     println!(
-        "  protheus-ops memory-session-isolation-kernel validate [--payload-base64=<base64_json>]"
+        "  infring-ops memory-session-isolation-kernel validate [--payload-base64=<base64_json>]"
     );
-    println!("  protheus-ops memory-session-isolation-kernel failure-result [--payload-base64=<base64_json>]");
+    println!("  infring-ops memory-session-isolation-kernel failure-result [--payload-base64=<base64_json>]");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {

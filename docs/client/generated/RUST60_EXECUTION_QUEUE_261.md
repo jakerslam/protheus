@@ -19,7 +19,7 @@ Generated: 2026-04-19T23:38:05.062Z
 | 13 | examples/apps/reference-receipts-memory/src/main.ts | 36 | 54 | 1822 | 81.596 |
 | 14 | examples/apps/reference-assimilation-policy/src/main.ts | 32 | 48 | 1854 | 81.6 |
 | 15 | examples/apps/reference-task-submit/src/main.ts | 27 | 40.5 | 1881 | 81.604 |
-| 16 | client/runtime/systems/hybrid/mobile/protheus_mobile_adapter.ts | 20 | 30 | 1901 | 81.606 |
+| 16 | client/runtime/systems/hybrid/mobile/infring_mobile_adapter.ts | 20 | 30 | 1901 | 81.606 |
 | 17 | client/runtime/systems/migration/post_migration_verification_report.ts | 20 | 30 | 1921 | 81.609 |
 | 18 | client/runtime/systems/migration/self_healing_migration_daemon.ts | 20 | 30 | 1941 | 81.611 |
 | 19 | client/runtime/systems/observability/metrics_exporter.ts | 20 | 30 | 1961 | 81.614 |

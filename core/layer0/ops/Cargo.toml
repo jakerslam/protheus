@@ -1,12 +1,12 @@
 [package]
-name = "protheus-ops-core"
+name = "infring-ops-core"
 version = "0.1.0"
 edition = "2021"
 license = "SEE LICENSE IN ../../LICENSE"
 default-run = "personas_core"
 
 [lib]
-name = "protheus_ops_core"
+name = "infring_ops_core"
 path = "src/lib.rs"
 
 [features]
@@ -30,13 +30,13 @@ no_std = ["tiny"]
 minimal-alloc = ["minimal"]
 pgo-profile = []
 embedded-max = ["no_std", "minimal-alloc", "pgo-profile"]
-pure-workspace = ["dep:protheus-pure-workspace"]
+pure-workspace = ["dep:infring-pure-workspace"]
 minimal = []
 full-substrate = []
 
 [[bin]]
-name = "protheus-ops"
-path = "src/bin/protheus-ops.rs"
+name = "infring-ops"
+path = "src/bin/infring-ops.rs"
 
 [[bin]]
 name = "infring-ops"
@@ -47,8 +47,8 @@ name = "personas_core"
 path = "src/personas_core.rs"
 
 [[bin]]
-name = "protheusd"
-path = "src/bin/protheusd.rs"
+name = "infringd"
+path = "src/bin/infringd.rs"
 
 [[bin]]
 name = "infringd"
@@ -72,9 +72,9 @@ hex = "0.4"
 memmap2 = "0.9"
 aes-gcm = { version = "0.10", features = ["aes"] }
 rand = "0.8"
-protheus-nexus-core-v1 = { path = "../../layer2/nexus" }
+infring-nexus-core-v1 = { path = "../../layer2/nexus" }
 mimalloc = { version = "0.1", default-features = false, optional = true }
-protheus-pure-workspace = { path = "../../../client/pure-workspace", optional = true }
+infring-pure-workspace = { path = "../../../client/pure-workspace", optional = true }
 crossbeam-channel = "0.5"
 parking_lot = "0.12"
 rusqlite = { version = "0.32", features = ["bundled"] }

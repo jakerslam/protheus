@@ -8,7 +8,7 @@ const assert = require('assert');
 const { spawnSync } = require('child_process');
 
 (function main() {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'protheus-empty-fort-visuals-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'infring-empty-fort-visuals-'));
   const manifestPath = path.join(tmp, 'manifest.json');
   fs.writeFileSync(manifestPath, JSON.stringify({ contributors: [{ login: 'alice' }, { login: 'bob' }] }, null, 2));
 

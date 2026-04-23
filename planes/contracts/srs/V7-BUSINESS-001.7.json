@@ -36,13 +36,13 @@
     }
   ],
   "validation": {
-    "lane_command": "protheus-ops srs-contract-runtime run --id=V7-BUSINESS-001.7",
-    "status_command": "protheus-ops srs-contract-runtime status --id=V7-BUSINESS-001.7",
+    "lane_command": "infring-ops srs-contract-runtime run --id=V7-BUSINESS-001.7",
+    "status_command": "infring-ops srs-contract-runtime status --id=V7-BUSINESS-001.7",
     "fail_closed_on_missing_contract": true
   },
   "generated_from": {
     "source": "audit_gap_repair",
-    "acceptance": "Ship `protheusctl continuity audit --days=<n> --report=business_format` harness covering 7-day chain integrity, cross-shadow handoff, interruption resume accuracy, and multi-business isolation, producing deterministic audit artifacts and pass/fail receipts.",
+    "acceptance": "Ship `infringctl continuity audit --days=<n> --report=business_format` harness covering 7-day chain integrity, cross-shadow handoff, interruption resume accuracy, and multi-business isolation, producing deterministic audit artifacts and pass/fail receipts.",
     "generated_at": "2026-03-17T06:46:11.295Z"
   }
 }

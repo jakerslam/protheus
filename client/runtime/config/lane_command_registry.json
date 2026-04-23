@@ -73,7 +73,7 @@
     },
     "V3-RACE-DEF-031A": {
       "id": "V3-RACE-DEF-031A",
-      "command": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/run_protheus_ops.ts security-plane thorn-swarm-protocol status",
+      "command": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/run_infring_ops.ts security-plane thorn-swarm-protocol status",
       "source_script": "lane:v3-race-def-031a:run"
     },
     "V3-RACE-DEF-031B": {

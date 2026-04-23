@@ -83,7 +83,7 @@ fn evaluate(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
     if force_offline {
         offline_reasons.push("forced_by_flag".to_string());
     }
-    let env_offline = parse_env_bool("PROTHEUS_OFFLINE", false);
+    let env_offline = parse_env_bool("INFRING_OFFLINE", false);
     if env_offline {
         offline_reasons.push("forced_by_env".to_string());
     }

@@ -236,7 +236,7 @@ fn run_cockpit(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
         "version": "v1",
         "mode": "premium",
         "render": {
-            "ascii_header": "PROTHEUS TOP",
+            "ascii_header": "INFRING TOP",
             "stream_blocks": blocks,
             "total_blocks": blocks.len()
         },

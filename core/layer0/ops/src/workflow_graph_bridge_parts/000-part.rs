@@ -17,16 +17,16 @@ const DEFAULT_TRACE_REL: &str = "local/state/ops/workflow_graph_bridge/native_tr
 
 fn usage() {
     println!("workflow_graph-bridge commands:");
-    println!("  protheus-ops workflow_graph-bridge status [--state-path=<path>]");
-    println!("  protheus-ops workflow_graph-bridge register-graph [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops workflow_graph-bridge checkpoint-run [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops workflow_graph-bridge inspect-state [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops workflow_graph-bridge interrupt-run [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops workflow_graph-bridge resume-run [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops workflow_graph-bridge coordinate-subgraph [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  protheus-ops workflow_graph-bridge record-trace [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops workflow_graph-bridge stream-graph [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops workflow_graph-bridge run-governed-workflow [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops workflow_graph-bridge status [--state-path=<path>]");
+    println!("  infring-ops workflow_graph-bridge register-graph [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops workflow_graph-bridge checkpoint-run [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops workflow_graph-bridge inspect-state [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops workflow_graph-bridge interrupt-run [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops workflow_graph-bridge resume-run [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops workflow_graph-bridge coordinate-subgraph [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  infring-ops workflow_graph-bridge record-trace [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops workflow_graph-bridge stream-graph [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops workflow_graph-bridge run-governed-workflow [--payload-base64=<json>] [--state-path=<path>]");
 }
 
 fn payload_json(argv: &[String]) -> Result<Value, String> {

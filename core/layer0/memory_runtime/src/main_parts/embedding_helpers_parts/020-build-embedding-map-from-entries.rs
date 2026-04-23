@@ -312,7 +312,7 @@ fn query_error(
 ) -> QueryResult {
     QueryResult {
         ok: false,
-        backend: "protheus_memory_core".to_string(),
+        backend: "infring_memory_core".to_string(),
         score_mode: "hybrid".to_string(),
         vector_enabled: true,
         recall_mode: "heap_hybrid".to_string(),

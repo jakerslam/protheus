@@ -452,7 +452,7 @@ fn handle_global_status_get_routes(
             }),
             "/api/capabilities/status" => {
                 let policy = tool_governance_policy(root);
-                let broker = crate::protheus_tooling_core_v1_bridge::ToolBroker::default();
+                let broker = crate::infring_tooling_core_v1_bridge::ToolBroker::default();
                 let catalog = broker.capability_catalog();
                 let grouped_catalog = broker.grouped_capability_catalog();
                 json!({
@@ -464,12 +464,12 @@ fn handle_global_status_get_routes(
                     "catalog_domains": grouped_catalog,
                     "tools": catalog.iter().map(|row| {
                         let tier = match row.status {
-                            crate::protheus_tooling_core_v1_bridge::ToolCapabilityStatus::Available => {
+                            crate::infring_tooling_core_v1_bridge::ToolCapabilityStatus::Available => {
                                 if row.read_only { "green" } else { "yellow" }
                             }
-                            crate::protheus_tooling_core_v1_bridge::ToolCapabilityStatus::Degraded => "yellow",
-                            crate::protheus_tooling_core_v1_bridge::ToolCapabilityStatus::Blocked => "red",
-                            crate::protheus_tooling_core_v1_bridge::ToolCapabilityStatus::Unavailable => "gray",
+                            crate::infring_tooling_core_v1_bridge::ToolCapabilityStatus::Degraded => "yellow",
+                            crate::infring_tooling_core_v1_bridge::ToolCapabilityStatus::Blocked => "red",
+                            crate::infring_tooling_core_v1_bridge::ToolCapabilityStatus::Unavailable => "gray",
                         };
                         json!({
                             "tool": row.tool_name,
@@ -485,7 +485,7 @@ fn handle_global_status_get_routes(
             "/api/tools" => json!({
                 "ok": true,
                 "tools": [
-                    {"name": "protheus-ops", "category": "runtime"},
+                    {"name": "infring-ops", "category": "runtime"},
                     {"name": "infringd", "category": "runtime"},
                     {"name": "web_conduit", "category": "runtime"},
                     {"name": "git", "category": "cli"},

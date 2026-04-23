@@ -1,4 +1,4 @@
-use protheus_ops_core::enterprise_hardening;
+use infring_ops_core::enterprise_hardening;
 use serde_json::Value;
 use std::fs;
 use std::path::Path;
@@ -7,7 +7,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 fn temp_root(prefix: &str) -> tempfile::TempDir {
     tempfile::Builder::new()
-        .prefix(&format!("protheus_{prefix}_"))
+        .prefix(&format!("infring_{prefix}_"))
         .tempdir()
         .expect("tempdir")
 }
@@ -18,7 +18,7 @@ fn test_env_lock() -> MutexGuard<'static, ()> {
 }
 
 fn core_state_root(root: &Path) -> std::path::PathBuf {
-    if let Ok(v) = std::env::var("PROTHEUS_CORE_STATE_ROOT") {
+    if let Ok(v) = std::env::var("INFRING_CORE_STATE_ROOT") {
         let trimmed = v.trim();
         if !trimmed.is_empty() {
             return std::path::PathBuf::from(trimmed);
@@ -92,10 +92,10 @@ fn v7_moat_and_genesis_lanes_are_behavior_proven() {
         .join("local")
         .join("state")
         .join(format!("run_{nonce}"));
-    std::env::set_var("PROTHEUS_CORE_STATE_ROOT", &state_root);
+    std::env::set_var("INFRING_CORE_STATE_ROOT", &state_root);
     std::env::set_var("DIRECTIVE_KERNEL_SIGNING_KEY", "test-sign-key");
 
-    write_text(root, "README.md", "# Protheus\n");
+    write_text(root, "README.md", "# Infring\n");
     write_text(root, "docs/workspace/SRS.md", "# SRS\n");
     write_text(root, "docs/workspace/DEFINITION_OF_DONE.md", "# DoD\n");
     write_text(root, "docs/workspace/codex_enforcer.md", "# Enforcer\n");
@@ -268,7 +268,7 @@ fn v7_moat_and_genesis_lanes_are_behavior_proven() {
     );
     assert_claim(&latest, "V7-GENESIS-001.5");
 
-    std::env::remove_var("PROTHEUS_CORE_STATE_ROOT");
+    std::env::remove_var("INFRING_CORE_STATE_ROOT");
     std::env::remove_var("DIRECTIVE_KERNEL_SIGNING_KEY");
 }
 
@@ -279,7 +279,7 @@ fn v7_genesis_truth_gate_and_thin_wrapper_fail_closed_when_unsafe() {
     let root = tmp.path();
 
     let state_root = root.join("local").join("state");
-    std::env::set_var("PROTHEUS_CORE_STATE_ROOT", &state_root);
+    std::env::set_var("INFRING_CORE_STATE_ROOT", &state_root);
 
     // Truth gate must fail in strict mode when required gates are absent.
     assert_eq!(
@@ -308,5 +308,5 @@ fn v7_genesis_truth_gate_and_thin_wrapper_fail_closed_when_unsafe() {
         1
     );
 
-    std::env::remove_var("PROTHEUS_CORE_STATE_ROOT");
+    std::env::remove_var("INFRING_CORE_STATE_ROOT");
 }

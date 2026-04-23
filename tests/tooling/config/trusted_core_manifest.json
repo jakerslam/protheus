@@ -2,8 +2,8 @@
   "version": 1,
   "trusted_modules": [
     "core/layer0/ops/src/main.rs.inc",
-    "core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security.combined.rs",
-    "core/layer0/ops/src/protheusctl_routes_parts/010-command-routing.rs",
+    "core/layer0/ops/src/infringctl_parts/020-evaluate-dispatch-security.combined.rs",
+    "core/layer0/ops/src/infringctl_routes_parts/010-command-routing.rs",
     "core/layer0/ops/src/queue_sqlite_kernel.combined.rs",
     "core/layer0/ops/src/dashboard_ui_parts/070-http-and-receipts.rs",
     "core/layer0/ops/src/orchestration.rs"
@@ -16,7 +16,7 @@
   "bridge_points": [
     {
       "id": "bridge_cli_to_core_domain",
-      "from": "core/layer0/ops/src/protheusctl",
+      "from": "core/layer0/ops/src/infringctl",
       "to": "core/layer0/ops/src/main.rs.inc",
       "policy_choke_point": "evaluate_dispatch_security"
     },
@@ -35,7 +35,7 @@
   "fallback_declarations": [
     {
       "id": "install_doctor_fallback",
-      "scope": "protheusctl",
+      "scope": "infringctl",
       "mode": "degraded_allow_read_only",
       "fail_closed": true
     },

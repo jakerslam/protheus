@@ -63,9 +63,9 @@
       "tests/client-memory-tools/observability_sovereignty_index.test.ts"
     ],
     "V6-RUST50-006": [
-      "client/runtime/systems/hybrid/mobile/protheus_mobile_adapter.ts",
+      "client/runtime/systems/hybrid/mobile/infring_mobile_adapter.ts",
       "client/runtime/systems/hybrid/rust/src/wasm_bridge.rs",
-      "client/runtime/config/protheus_mobile_adapter_policy.json"
+      "client/runtime/config/infring_mobile_adapter_policy.json"
     ],
     "V6-RUST50-007": [
       "client/runtime/systems/ops/rust50_migration_program.ts",

@@ -39,7 +39,7 @@ struct SwarmExec {
 
 fn usage() {
     println!("swarm-sessions-bridge commands:");
-    println!("  protheus-ops swarm-sessions-bridge --command=<sessions_spawn|sessions_send|...> --options-json='<json>'");
+    println!("  infring-ops swarm-sessions-bridge --command=<sessions_spawn|sessions_send|...> --options-json='<json>'");
 }
 
 fn parse_last_json(stdout: &str) -> Option<Value> {

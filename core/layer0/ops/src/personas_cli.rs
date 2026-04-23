@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 use std::path::Path;
 
 const LANE_ID: &str = "personas_cli";
-const REPLACEMENT: &str = "protheus-ops personas-cli";
+const REPLACEMENT: &str = "infring-ops personas-cli";
 
 fn receipt_hash(v: &Value) -> String {
     crate::deterministic_receipt_hash(v)
@@ -16,8 +16,8 @@ fn print_json_line(value: &Value) {
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops personas-cli lens <name> [--schema=json]");
-    println!("  protheus-ops personas-cli status");
+    println!("  infring-ops personas-cli lens <name> [--schema=json]");
+    println!("  infring-ops personas-cli status");
 }
 
 fn native_receipt(root: &Path, cmd: &str, argv: &[String]) -> Value {

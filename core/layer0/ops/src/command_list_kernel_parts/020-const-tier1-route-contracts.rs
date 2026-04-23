@@ -48,9 +48,9 @@ const TIER1_ROUTE_CONTRACTS: &[Tier1RouteContract] = &[
 ];
 
 const TIER1_RUNTIME_ENTRYPOINTS: &[&str] = &[
-    "client/runtime/systems/ops/protheusd.ts",
-    "client/runtime/systems/ops/protheus_status_dashboard.ts",
-    "client/runtime/systems/ops/protheus_unknown_guard.ts",
+    "client/runtime/systems/ops/infringd.ts",
+    "client/runtime/systems/ops/infring_status_dashboard.ts",
+    "client/runtime/systems/ops/infring_unknown_guard.ts",
 ];
 
 const COMMAND_ALIASES: &[CommandAlias] = &[

@@ -255,8 +255,8 @@ fn run_trust_chain(root: &Path, parsed: &ParsedArgs, strict: bool) -> Value {
             "kind": "trust_chain_integration",
             "bundle_path": "local/state/release/provenance_bundle/latest.json",
             "required_signature_paths": [
-                "local/state/release/provenance/signatures/protheus-ops.sig",
-                "local/state/release/provenance/signatures/protheusd.sig"
+                "local/state/release/provenance/signatures/infring-ops.sig",
+                "local/state/release/provenance/signatures/infringd.sig"
             ],
             "rekor_bundle_path": "local/state/release/provenance/rekor_entries.json",
             "require_rekor": true

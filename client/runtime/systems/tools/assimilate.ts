@@ -5,7 +5,7 @@
 // Thin TypeScript wrapper only.
 
 const path = require('path');
-const { runProtheusOps } = require('../ops/run_protheus_ops.ts');
+const { runInfringOps } = require('../ops/run_infring_ops.ts');
 
 function normalizeArgs(argv) {
   if (!Array.isArray(argv)) return [];
@@ -36,10 +36,10 @@ function ensureLocalSimulationCompat(args) {
 function run(argv = process.argv.slice(2)) {
   const args = ensureLocalSimulationCompat(normalizeArgs(argv));
   const domainArgs = args[0] === 'assimilate-kernel' ? args : ['assimilate-kernel', ...args];
-  return runProtheusOps(domainArgs, {
+  return runInfringOps(domainArgs, {
     env: {
-      PROTHEUS_OPS_USE_PREBUILT: '0',
-      PROTHEUS_OPS_LOCAL_TIMEOUT_MS: '120000'
+      INFRING_OPS_USE_PREBUILT: '0',
+      INFRING_OPS_LOCAL_TIMEOUT_MS: '120000'
     },
     unknownDomainFallback: false
   });

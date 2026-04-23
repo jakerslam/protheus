@@ -1,4 +1,4 @@
-# Protheus System Health Audit
+# Infring System Health Audit
 Date: 2026-02-28
 Mode: Manual framework audit (scored 1-10)
 

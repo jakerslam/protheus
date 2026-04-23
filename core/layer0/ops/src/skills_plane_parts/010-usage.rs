@@ -30,22 +30,22 @@ const DEFAULT_SKILLS_ROOT: &str = "client/runtime/systems/skills/packages";
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops skills-plane status");
-    println!("  protheus-ops skills-plane list [--skills-root=<path>] [--strict=1|0]");
-    println!("  protheus-ops skills-plane dashboard [--skills-root=<path>] [--strict=1|0]");
-    println!("  protheus-ops skills-plane create --name=<skill-name> [--skills-root=<path>] [--strict=1|0]");
-    println!("  protheus-ops skills-plane activate --skill=<id> --trigger=<text> [--skills-root=<path>] [--strict=1|0]");
-    println!("  protheus-ops skills-plane chain-validate [--chain-json=<json>|--chain-path=<path>] [--skills-root=<path>] [--strict=1|0]");
-    println!("  protheus-ops skills-plane install --skill-path=<path> [--strict=1|0]");
-    println!("  protheus-ops skills-plane rollback --skill=<id> [--target-version=<version>] [--strict=1|0]");
-    println!("  protheus-ops skills-plane quarantine --op=<status|quarantine|release> [--skill=<id>] [--reason=<text>] [--strict=1|0]");
-    println!("  protheus-ops skills-plane run --skill=<id> [--input=<text>] [--strict=1|0]");
-    println!("  protheus-ops skills-plane share --skill=<id> [--target=<text>] [--strict=1|0]");
-    println!("  protheus-ops skills-plane gallery --op=<ingest|list|load> [--manifest=<path>] [--gallery-root=<path>] [--skill=<id>] [--strict=1|0]");
+    println!("  infring-ops skills-plane status");
+    println!("  infring-ops skills-plane list [--skills-root=<path>] [--strict=1|0]");
+    println!("  infring-ops skills-plane dashboard [--skills-root=<path>] [--strict=1|0]");
+    println!("  infring-ops skills-plane create --name=<skill-name> [--skills-root=<path>] [--strict=1|0]");
+    println!("  infring-ops skills-plane activate --skill=<id> --trigger=<text> [--skills-root=<path>] [--strict=1|0]");
+    println!("  infring-ops skills-plane chain-validate [--chain-json=<json>|--chain-path=<path>] [--skills-root=<path>] [--strict=1|0]");
+    println!("  infring-ops skills-plane install --skill-path=<path> [--strict=1|0]");
+    println!("  infring-ops skills-plane rollback --skill=<id> [--target-version=<version>] [--strict=1|0]");
+    println!("  infring-ops skills-plane quarantine --op=<status|quarantine|release> [--skill=<id>] [--reason=<text>] [--strict=1|0]");
+    println!("  infring-ops skills-plane run --skill=<id> [--input=<text>] [--strict=1|0]");
+    println!("  infring-ops skills-plane share --skill=<id> [--target=<text>] [--strict=1|0]");
+    println!("  infring-ops skills-plane gallery --op=<ingest|list|load> [--manifest=<path>] [--gallery-root=<path>] [--skill=<id>] [--strict=1|0]");
     println!(
-        "  protheus-ops skills-plane react-minimal --task=<text> [--max-steps=<n>] [--strict=1|0]"
+        "  infring-ops skills-plane react-minimal --task=<text> [--max-steps=<n>] [--strict=1|0]"
     );
-    println!("  protheus-ops skills-plane tot-deliberate --task=<text> [--strategy=<bfs|dfs>] [--max-depth=<n>] [--branching=<n>] [--strict=1|0]");
+    println!("  infring-ops skills-plane tot-deliberate --task=<text> [--strategy=<bfs|dfs>] [--max-depth=<n>] [--branching=<n>] [--strict=1|0]");
 }
 
 fn path_has_disallowed_tokens(raw: &str) -> bool {

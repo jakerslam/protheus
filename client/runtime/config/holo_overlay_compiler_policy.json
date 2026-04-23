@@ -9,7 +9,7 @@
     "fusion_path": "local/state/fractal/symbiotic_fusion_chamber/latest.json",
     "resonance_path": "local/state/fractal/resonance_field_gates/latest.json",
     "inversion_path": "local/state/autonomy/inversion/latest.json",
-    "runtime_path": "local/state/ops/protheus_top/latest.json",
+    "runtime_path": "local/state/ops/infring_top/latest.json",
     "router_path": "local/state/routing/model_router/latest.json",
     "weaver_path": "local/state/weaver/latest.json"
   }

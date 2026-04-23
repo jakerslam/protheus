@@ -3,7 +3,7 @@
 // V6-WORKFLOW-017.4, V6-WORKFLOW-017.5, V6-WORKFLOW-017.6, V6-WORKFLOW-017.7,
 // V6-WORKFLOW-017.8
 
-use protheus_ops_core::dspy_bridge;
+use infring_ops_core::dspy_bridge;
 use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;

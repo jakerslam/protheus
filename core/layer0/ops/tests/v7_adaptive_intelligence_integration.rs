@@ -1,4 +1,4 @@
-use protheus_ops_core::adaptive_intelligence;
+use infring_ops_core::adaptive_intelligence;
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -6,7 +6,7 @@ use std::sync::{Mutex, MutexGuard, OnceLock};
 
 fn temp_root(prefix: &str) -> tempfile::TempDir {
     tempfile::Builder::new()
-        .prefix(&format!("protheus_{prefix}_"))
+        .prefix(&format!("infring_{prefix}_"))
         .tempdir()
         .expect("tempdir")
 }
@@ -17,7 +17,7 @@ fn test_env_lock() -> MutexGuard<'static, ()> {
 }
 
 fn core_state_root(root: &Path) -> PathBuf {
-    if let Ok(v) = std::env::var("PROTHEUS_CORE_STATE_ROOT") {
+    if let Ok(v) = std::env::var("INFRING_CORE_STATE_ROOT") {
         let trimmed = v.trim();
         if !trimmed.is_empty() {
             return PathBuf::from(trimmed);
@@ -109,9 +109,9 @@ fn v7_adaptive_intelligence_dual_runtime_connector_and_degradation_are_behavior_
     let tmp = temp_root("adaptive_intelligence_dual");
     let root = tmp.path();
     let state_root = root.join("local").join("state");
-    std::env::set_var("PROTHEUS_CORE_STATE_ROOT", &state_root);
+    std::env::set_var("INFRING_CORE_STATE_ROOT", &state_root);
     let ollama_bin = install_ollama_stub(root);
-    std::env::set_var("PROTHEUS_LOCAL_AI_BIN", &ollama_bin);
+    std::env::set_var("INFRING_LOCAL_AI_BIN", &ollama_bin);
 
     write_text(
         root,
@@ -195,7 +195,7 @@ fn v7_adaptive_intelligence_shadow_training_and_human_only_graduation_are_proven
     let tmp = temp_root("adaptive_intelligence_train");
     let root = tmp.path();
     let state_root = root.join("local").join("state");
-    std::env::set_var("PROTHEUS_CORE_STATE_ROOT", &state_root);
+    std::env::set_var("INFRING_CORE_STATE_ROOT", &state_root);
 
     write_text(
         root,

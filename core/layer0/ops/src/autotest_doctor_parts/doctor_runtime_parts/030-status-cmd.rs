@@ -144,8 +144,8 @@ fn cli_failure_receipt(cmd: &str, error: &str, code: i32) -> Value {
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops autotest-doctor run [YYYY-MM-DD|latest] [--policy=path] [--apply=1|0] [--max-actions=N] [--force=1|0] [--reset-kill-switch=1]");
-    println!("  protheus-ops autotest-doctor status [latest|YYYY-MM-DD] [--policy=path]");
+    println!("  infring-ops autotest-doctor run [YYYY-MM-DD|latest] [--policy=path] [--apply=1|0] [--max-actions=N] [--force=1|0] [--reset-kill-switch=1]");
+    println!("  infring-ops autotest-doctor status [latest|YYYY-MM-DD] [--policy=path]");
 }
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {

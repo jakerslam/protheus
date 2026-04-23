@@ -5,7 +5,7 @@ fn repo_root_from_env_or_cwd() -> PathBuf {
         .filter(|v| !v.trim().is_empty())
         .map(PathBuf::from)
         .or_else(|| {
-            std::env::var("PROTHEUS_ROOT")
+            std::env::var("INFRING_ROOT")
                 .ok()
                 .filter(|v| !v.trim().is_empty())
                 .map(PathBuf::from)

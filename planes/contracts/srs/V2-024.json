@@ -1,7 +1,7 @@
 {
   "id": "V2-024",
   "upgrade": "[V2] System organism visualization cockpit (graph + timeline + policy overlays)",
-  "section": "Holo-viz Track (Separated from Core Protheus)",
+  "section": "Holo-viz Track (Separated from Core Infring)",
   "impact": 10,
   "layer_map": "0/1/2/adapter/client",
   "conduit_only_boundary": false,
@@ -27,8 +27,8 @@
     }
   ],
   "validation": {
-    "lane_command": "protheus-ops srs-contract-runtime run --id=V2-024",
-    "status_command": "protheus-ops srs-contract-runtime status --id=V2-024",
+    "lane_command": "infring-ops srs-contract-runtime run --id=V2-024",
+    "status_command": "infring-ops srs-contract-runtime status --id=V2-024",
     "fail_closed_on_missing_contract": true
   },
   "generated_from": {

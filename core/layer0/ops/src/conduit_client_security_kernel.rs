@@ -10,13 +10,13 @@ use crate::now_iso;
 fn usage() {
     println!("conduit-client-security-kernel commands:");
     println!(
-        "  protheus-ops conduit-client-security-kernel build-security --payload-base64=<json>"
+        "  infring-ops conduit-client-security-kernel build-security --payload-base64=<json>"
     );
     println!(
-        "  protheus-ops conduit-client-security-kernel build-envelope --payload-base64=<json>"
+        "  infring-ops conduit-client-security-kernel build-envelope --payload-base64=<json>"
     );
-    println!("  protheus-ops conduit-client-security-kernel resolve-security-config --payload-base64=<json>");
-    println!("  protheus-ops conduit-client-security-kernel resolve-transport-policy --payload-base64=<json>");
+    println!("  infring-ops conduit-client-security-kernel resolve-security-config --payload-base64=<json>");
+    println!("  infring-ops conduit-client-security-kernel resolve-transport-policy --payload-base64=<json>");
 }
 
 fn print_json_line(value: &Value) {
@@ -92,8 +92,8 @@ fn env_u64(key: &str) -> Option<u64> {
 fn resolve_transport_policy(payload: &Map<String, Value>) -> Value {
     let override_ms = payload.get("timeout_ms").and_then(Value::as_u64);
     let configured = override_ms
-        .or_else(|| env_u64("PROTHEUS_CONDUIT_STDIO_TIMEOUT_MS"))
-        .or_else(|| env_u64("PROTHEUS_CONDUIT_TIMEOUT_MS"))
+        .or_else(|| env_u64("INFRING_CONDUIT_STDIO_TIMEOUT_MS"))
+        .or_else(|| env_u64("INFRING_CONDUIT_TIMEOUT_MS"))
         .unwrap_or(30_000)
         .clamp(1_000, 300_000);
     json!({
@@ -216,7 +216,7 @@ fn build_security(payload: &Map<String, Value>) -> Result<Value, String> {
 
     let nonce = format!("nonce-{request_id}-{issued_at_ms}");
     let signing_payload = json!({
-        "schema_id": "protheus_conduit",
+        "schema_id": "infring_conduit",
         "schema_version": "1.0",
         "request_id": request_id,
         "ts_ms": ts_ms,
@@ -265,7 +265,7 @@ fn build_envelope(payload: &Map<String, Value>) -> Result<Value, String> {
     let security_metadata = build_security(&security_payload)?;
 
     Ok(json!({
-        "schema_id": "protheus_conduit",
+        "schema_id": "infring_conduit",
         "schema_version": "1.0",
         "request_id": request_id,
         "ts_ms": ts_ms,
@@ -412,7 +412,7 @@ mod tests {
             build_envelope(payload.as_object().expect("payload object")).expect("build envelope");
         assert_eq!(
             out.get("schema_id").and_then(Value::as_str),
-            Some("protheus_conduit")
+            Some("infring_conduit")
         );
         assert_eq!(
             out.get("schema_version").and_then(Value::as_str),

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use protheus_ops_core::{assimilation_controller, enterprise_hardening, research_plane};
+use infring_ops_core::{assimilation_controller, enterprise_hardening, research_plane};
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -394,7 +394,7 @@ fn v7_assimilate_001_5_x_bedrock_and_scheduled_hands_are_runtime_proven() {
             "--region=us-west-2".to_string(),
             "--vpc=vpc-batch26".to_string(),
             "--subnet=subnet-private-az1".to_string(),
-            "--ssm-path=/protheus/bedrock/proxy".to_string(),
+            "--ssm-path=/infring/bedrock/proxy".to_string(),
         ],
     );
     assert_eq!(bedrock_exit, 0);

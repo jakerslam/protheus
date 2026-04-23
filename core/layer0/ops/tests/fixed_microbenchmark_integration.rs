@@ -37,7 +37,7 @@ fn fixed_microbenchmark_run_and_status_emit_receipts_and_persist_latest() {
         "--workload-id=test-fixed-workload".to_string(),
     ];
     assert_eq!(
-        protheus_ops_core::fixed_microbenchmark::run(root.path(), &args),
+        infring_ops_core::fixed_microbenchmark::run(root.path(), &args),
         0
     );
 
@@ -61,7 +61,7 @@ fn fixed_microbenchmark_run_and_status_emit_receipts_and_persist_latest() {
 
     let status_args = vec!["status".to_string()];
     assert_eq!(
-        protheus_ops_core::fixed_microbenchmark::run(root.path(), &status_args),
+        infring_ops_core::fixed_microbenchmark::run(root.path(), &status_args),
         0
     );
 }

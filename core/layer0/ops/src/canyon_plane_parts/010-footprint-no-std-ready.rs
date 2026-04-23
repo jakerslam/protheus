@@ -16,7 +16,7 @@ use std::process::Command;
 use std::time::Instant;
 
 const LANE_ID: &str = "canyon_plane";
-const ENV_KEY: &str = "PROTHEUS_CANYON_PLANE_STATE_ROOT";
+const ENV_KEY: &str = "INFRING_CANYON_PLANE_STATE_ROOT";
 
 pub(crate) fn footprint_no_std_ready(default_empty: bool, source_body: &str) -> bool {
     if default_empty {
@@ -58,23 +58,23 @@ pub(crate) fn footprint_no_std_ready(default_empty: bool, source_body: &str) -> 
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops canyon-plane efficiency [--strict=1|0] [--binary-path=<path>] [--idle-memory-mb=<n>] [--concurrent-agents=<n>]");
-    println!("  protheus-ops canyon-plane hands-army [--op=bootstrap|schedule|run|status] [--hand-id=<id>] [--cron=<expr>] [--trigger=cron|event|importance] [--strict=1|0]");
-    println!("  protheus-ops canyon-plane evolution [--op=propose|shadow-simulate|review|apply|rollback|status] [--proposal-id=<id>] [--kind=<id>] [--description=<text>] [--approved=1|0] [--strict=1|0]");
-    println!("  protheus-ops canyon-plane sandbox [--op=run|status|snapshot|resume] [--session-id=<id>] [--snapshot-id=<id>] [--tier=native|wasm|firecracker] [--language=python|ts|go|rust] [--fuel=<n>] [--epoch=<n>] [--logical-only=1|0] [--escape-attempt=1|0] [--strict=1|0]");
-    println!("  protheus-ops canyon-plane ecosystem [--op=bootstrap|status|init|marketplace-status|marketplace-publish|marketplace-install] [--target-dir=<path>] [--sdk=python|typescript|go|rust] [--template=<id>] [--workspace-mode=infring|pure] [--pure=1|0] [--tiny-max=1|0] [--dry-run=1|0] [--hand-id=<id>] [--receipt-file=<path>] [--version=<semver>] [--chaos-score=<n>] [--reputation=<n>] [--strict=1|0]");
-    println!("  protheus-ops canyon-plane workflow [--op=run|status] [--goal=<text>] [--workspace=<path>] [--strict=1|0]");
-    println!("  protheus-ops canyon-plane scheduler [--op=simulate|status] [--agents=<n>] [--nodes=<n>] [--modes=kubernetes,edge,distributed] [--strict=1|0]");
-    println!("  protheus-ops canyon-plane control-plane [--op=snapshot|status] [--rbac=1|0] [--sso=1|0] [--hitl=1|0] [--strict=1|0]");
-    println!("  protheus-ops canyon-plane adoption [--op=run-demo|status] [--tutorial=<id>] [--strict=1|0]");
-    println!("  protheus-ops canyon-plane benchmark-gate [--op=run|status] [--milestone=day90|day180] [--strict=1|0]");
-    println!("  protheus-ops canyon-plane footprint [--op=run|status] [--strict=1|0]");
-    println!("  protheus-ops canyon-plane lazy-substrate [--op=enable|load|status] [--feature-set=minimal|full-substrate] [--adapter=<id>] [--strict=1|0]");
-    println!("  protheus-ops canyon-plane release-pipeline [--op=run|status] [--binary=<id>] [--target=<triple>] [--profile=<id>] [--strict=1|0]");
-    println!("  protheus-ops canyon-plane receipt-batching [--op=flush|status] [--strict=1|0]");
-    println!("  protheus-ops canyon-plane package-release [--op=build|status] [--strict=1|0]");
-    println!("  protheus-ops canyon-plane size-trust [--strict=1|0]");
-    println!("  protheus-ops canyon-plane status");
+    println!("  infring-ops canyon-plane efficiency [--strict=1|0] [--binary-path=<path>] [--idle-memory-mb=<n>] [--concurrent-agents=<n>]");
+    println!("  infring-ops canyon-plane hands-army [--op=bootstrap|schedule|run|status] [--hand-id=<id>] [--cron=<expr>] [--trigger=cron|event|importance] [--strict=1|0]");
+    println!("  infring-ops canyon-plane evolution [--op=propose|shadow-simulate|review|apply|rollback|status] [--proposal-id=<id>] [--kind=<id>] [--description=<text>] [--approved=1|0] [--strict=1|0]");
+    println!("  infring-ops canyon-plane sandbox [--op=run|status|snapshot|resume] [--session-id=<id>] [--snapshot-id=<id>] [--tier=native|wasm|firecracker] [--language=python|ts|go|rust] [--fuel=<n>] [--epoch=<n>] [--logical-only=1|0] [--escape-attempt=1|0] [--strict=1|0]");
+    println!("  infring-ops canyon-plane ecosystem [--op=bootstrap|status|init|marketplace-status|marketplace-publish|marketplace-install] [--target-dir=<path>] [--sdk=python|typescript|go|rust] [--template=<id>] [--workspace-mode=infring|pure] [--pure=1|0] [--tiny-max=1|0] [--dry-run=1|0] [--hand-id=<id>] [--receipt-file=<path>] [--version=<semver>] [--chaos-score=<n>] [--reputation=<n>] [--strict=1|0]");
+    println!("  infring-ops canyon-plane workflow [--op=run|status] [--goal=<text>] [--workspace=<path>] [--strict=1|0]");
+    println!("  infring-ops canyon-plane scheduler [--op=simulate|status] [--agents=<n>] [--nodes=<n>] [--modes=kubernetes,edge,distributed] [--strict=1|0]");
+    println!("  infring-ops canyon-plane control-plane [--op=snapshot|status] [--rbac=1|0] [--sso=1|0] [--hitl=1|0] [--strict=1|0]");
+    println!("  infring-ops canyon-plane adoption [--op=run-demo|status] [--tutorial=<id>] [--strict=1|0]");
+    println!("  infring-ops canyon-plane benchmark-gate [--op=run|status] [--milestone=day90|day180] [--strict=1|0]");
+    println!("  infring-ops canyon-plane footprint [--op=run|status] [--strict=1|0]");
+    println!("  infring-ops canyon-plane lazy-substrate [--op=enable|load|status] [--feature-set=minimal|full-substrate] [--adapter=<id>] [--strict=1|0]");
+    println!("  infring-ops canyon-plane release-pipeline [--op=run|status] [--binary=<id>] [--target=<triple>] [--profile=<id>] [--strict=1|0]");
+    println!("  infring-ops canyon-plane receipt-batching [--op=flush|status] [--strict=1|0]");
+    println!("  infring-ops canyon-plane package-release [--op=build|status] [--strict=1|0]");
+    println!("  infring-ops canyon-plane size-trust [--strict=1|0]");
+    println!("  infring-ops canyon-plane status");
 }
 
 fn lane_root(root: &Path) -> PathBuf {
@@ -224,9 +224,9 @@ fn top1_benchmark_fallback(root: &Path) -> Option<(u64, f64, f64, String)> {
 
 fn top1_binary_size_paths(root: &Path) -> Vec<PathBuf> {
     vec![
-        root.join("target/x86_64-unknown-linux-musl/release/protheusd"),
-        root.join("target/release/protheusd"),
-        root.join("target/debug/protheusd"),
+        root.join("target/x86_64-unknown-linux-musl/release/infringd"),
+        root.join("target/release/infringd"),
+        root.join("target/debug/infringd"),
     ]
 }
 

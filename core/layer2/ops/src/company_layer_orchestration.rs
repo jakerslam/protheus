@@ -5,7 +5,7 @@ use std::path::Path;
 
 const USAGE: &[&str] = &[
     "Usage:",
-    "  protheus-ops company-layer-orchestration run|status|org-chart|budget|ticket|heartbeat [--policy=<path>] [--state-path=<path>] [--strict=1|0]",
+    "  infring-ops company-layer-orchestration run|status|org-chart|budget|ticket|heartbeat [--policy=<path>] [--state-path=<path>] [--strict=1|0]",
 ];
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
@@ -15,7 +15,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         &lane_spec(
             "company_layer_orchestration",
             "company_layer_orchestration",
-            "protheus-ops company-layer-orchestration",
+            "infring-ops company-layer-orchestration",
             USAGE,
             &["strict", "policy", "state-path", "budget"],
         ),

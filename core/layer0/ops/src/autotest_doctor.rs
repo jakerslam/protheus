@@ -26,20 +26,20 @@ pub fn web_tooling_repair_plan(root: &std::path::Path) -> serde_json::Value {
         recommended.push(serde_json::json!({
             "id": "web_tool_policy",
             "priority": "high",
-            "command": "protheus-ops directive-kernel prime-sign --directive=allow:web-search --signer=operator",
+            "command": "infring-ops directive-kernel prime-sign --directive=allow:web-search --signer=operator",
             "reason": "directive_allow_web_search_missing_or_related"
         }));
         recommended.push(serde_json::json!({
             "id": "web_tool_policy_fetch",
             "priority": "high",
-            "command": "protheus-ops directive-kernel prime-sign --directive=allow:web-fetch --signer=operator",
+            "command": "infring-ops directive-kernel prime-sign --directive=allow:web-fetch --signer=operator",
             "reason": "directive_allow_web_fetch_missing_or_related"
         }));
     }
     recommended.push(serde_json::json!({
         "id": "runtime_refresh",
         "priority": "medium",
-        "command": "protheus-ops network-protocol web-tooling-status --activate=1 --strict=1",
+        "command": "infring-ops network-protocol web-tooling-status --activate=1 --strict=1",
         "reason": "refresh_receipted_runtime_state"
     }));
 

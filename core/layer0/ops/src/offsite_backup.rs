@@ -45,10 +45,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     if matches!(command.as_str(), "help" | "--help" | "-h") {
         println!("Usage:");
         println!(
-            "  protheus-ops offsite-backup sync [--profile=<id>] [--snapshot=<id>] [--strict=1|0]"
+            "  infring-ops offsite-backup sync [--profile=<id>] [--snapshot=<id>] [--strict=1|0]"
         );
-        println!("  protheus-ops offsite-backup restore-drill [--profile=<id>] [--snapshot=<id>] [--strict=1|0]");
-        println!("  protheus-ops offsite-backup status|diagnose|list [flags]");
+        println!("  infring-ops offsite-backup restore-drill [--profile=<id>] [--snapshot=<id>] [--strict=1|0]");
+        println!("  infring-ops offsite-backup status|diagnose|list [flags]");
         return 0;
     }
 

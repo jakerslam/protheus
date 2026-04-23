@@ -9,10 +9,10 @@
   "auto_quarantine_on_anomaly": true,
   "signature_required": true,
   "allow_auto_generated_local_key": true,
-  "static_watermark": "protheus-local",
+  "static_watermark": "infring-local",
   "identity_drift_allowed": false,
   "secrets": {
-    "signing_key_env": "PROTHEUS_HEARTBEAT_SIGNING_KEY",
+    "signing_key_env": "INFRING_HEARTBEAT_SIGNING_KEY",
     "signing_key_path": "local/state/security/remote_tamper_heartbeat/signing_key.txt"
   },
   "paths": {

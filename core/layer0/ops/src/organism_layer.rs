@@ -162,15 +162,15 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     if matches!(command.as_str(), "help" | "--help" | "-h") {
         println!("Usage:");
-        println!("  protheus-ops organism-layer status");
-        println!("  protheus-ops organism-layer ignite [--apply=1|0]");
-        println!("  protheus-ops organism-layer dream [--idle-hours=<n>] [--experiments=<n>] [--apply=1|0]");
-        println!("  protheus-ops organism-layer homeostasis [--coherence=<0..1>] [--metabolism=<0..1>] [--apply=1|0]");
-        println!("  protheus-ops organism-layer crystallize [--persona=<id>] [--delta=<text>] [--apply=1|0]");
-        println!("  protheus-ops organism-layer symbiosis [--nodes=<n>] [--memory-share=<0..1>] [--apply=1|0]");
-        println!("  protheus-ops organism-layer mutate [--proposal=<text>] [--module=<id>] [--apply=1|0]");
-        println!("  protheus-ops organism-layer sensory [--pain=<0..1>] [--pleasure=<0..1>] [--apply=1|0]");
-        println!("  protheus-ops organism-layer narrative [--summary=<text>] [--coherence=<0..1>] [--apply=1|0]");
+        println!("  infring-ops organism-layer status");
+        println!("  infring-ops organism-layer ignite [--apply=1|0]");
+        println!("  infring-ops organism-layer dream [--idle-hours=<n>] [--experiments=<n>] [--apply=1|0]");
+        println!("  infring-ops organism-layer homeostasis [--coherence=<0..1>] [--metabolism=<0..1>] [--apply=1|0]");
+        println!("  infring-ops organism-layer crystallize [--persona=<id>] [--delta=<text>] [--apply=1|0]");
+        println!("  infring-ops organism-layer symbiosis [--nodes=<n>] [--memory-share=<0..1>] [--apply=1|0]");
+        println!("  infring-ops organism-layer mutate [--proposal=<text>] [--module=<id>] [--apply=1|0]");
+        println!("  infring-ops organism-layer sensory [--pain=<0..1>] [--pleasure=<0..1>] [--apply=1|0]");
+        println!("  infring-ops organism-layer narrative [--summary=<text>] [--coherence=<0..1>] [--apply=1|0]");
         return 0;
     }
 
@@ -212,7 +212,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("clock")
             .as_nanos();
-        let root = std::env::temp_dir().join(format!("protheus_organism_layer_{name}_{nonce}"));
+        let root = std::env::temp_dir().join(format!("infring_organism_layer_{name}_{nonce}"));
         fs::create_dir_all(&root).expect("mkdir");
         root
     }

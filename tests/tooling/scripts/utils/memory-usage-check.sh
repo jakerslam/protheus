@@ -4,7 +4,7 @@
 # Author: Rohan Kapoor
 # Created: 2026-03-12
 #
-# Monitors memory usage of Protheus processes and reports status.
+# Monitors memory usage of Infring processes and reports status.
 # Useful for identifying memory trends before they become issues.
 #
 # Usage: ./scripts/utils/memory-usage-check.sh [--warning=<mb>] [--critical=<mb>]
@@ -28,7 +28,7 @@ set -euo pipefail
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-PROTHEUS_HOST_PATTERN="protheus"
+INFRING_HOST_PATTERN="infring"
 
 # Default thresholds
 WARNING_THRESHOLD=2048
@@ -126,21 +126,21 @@ write_log() {
   fi
 }
 
-# Check if running on Protheus infrastructure
+# Check if running on Infring infrastructure
 check_host_validity() {
   log_section "Host validation"
   
   local hostname
   hostname=$(hostname -s 2>/dev/null || hostname)
   
-  if [[ "$hostname" =~ $PROTHEUS_HOST_PATTERN ]]; then
-    log_pass "Running on Protheus host: $hostname"
+  if [[ "$hostname" =~ $INFRING_HOST_PATTERN ]]; then
+    log_pass "Running on Infring host: $hostname"
     write_log "Host check passed: $hostname"
     return 0
   else
-    log_warn "Hostname '$hostname' does not match Protheus pattern"
-    log_info "This script is designed for Protheus infrastructure"
-    write_log "Host warning: $hostname (non-Protheus)"
+    log_warn "Hostname '$hostname' does not match Infring pattern"
+    log_info "This script is designed for Infring infrastructure"
+    write_log "Host warning: $hostname (non-Infring)"
     return 0  # Don't fail, just warn
   fi
 }
@@ -191,15 +191,15 @@ get_system_memory() {
   fi
 }
 
-# Find Protheus processes and calculate usage
-get_protheus_memory() {
-  log_section "Protheus process analysis"
+# Find Infring processes and calculate usage
+get_infring_memory() {
+  log_section "Infring process analysis"
   
-  local total_protheus_mem=0
-  local protheus_count=0
+  local total_infring_mem=0
+  local infring_count=0
   local pids=""
   
-  # Look for Protheus-related processes
+  # Look for Infring-related processes
   while IFS= read -r line; do
     [[ -z "$line" ]] && continue
     
@@ -210,30 +210,30 @@ get_protheus_memory() {
     # Convert KB to MB
     local mem_mb=$((mem_kb / 1024))
     
-    total_protheus_mem=$((total_protheus_mem + mem_mb))
-    protheus_count=$((protheus_count + 1))
+    total_infring_mem=$((total_infring_mem + mem_mb))
+    infring_count=$((infring_count + 1))
     
     [[ -n "$pids" ]] && pids="${pids},"
     pids="${pids}${pid}"
     
     [[ $VERBOSE -eq 1 ]] && log_info "PID $pid: ${mem_mb}MB"
     
-  done < <(ps aux 2>/dev/null | grep -i protheus | grep -v grep || true)
+  done < <(ps aux 2>/dev/null | grep -i infring | grep -v grep || true)
   
-  if [[ $protheus_count -eq 0 ]]; then
-    log_warn "No Protheus processes found"
-    echo "PROTHEUS_MEM=0"
-    echo "PROTHEUS_COUNT=0"
+  if [[ $infring_count -eq 0 ]]; then
+    log_warn "No Infring processes found"
+    echo "INFRING_MEM=0"
+    echo "INFRING_COUNT=0"
     return 1
   fi
   
-  log_pass "Found $protheus_count Protheus process(es)"
-  log_pass "Total Protheus memory usage: ${total_protheus_mem}MB"
+  log_pass "Found $infring_count Infring process(es)"
+  log_pass "Total Infring memory usage: ${total_infring_mem}MB"
   
-  echo "PROTHEUS_MEM=$total_protheus_mem"
-  echo "PROTHEUS_COUNT=$protheus_count"
+  echo "INFRING_MEM=$total_infring_mem"
+  echo "INFRING_COUNT=$infring_count"
   
-  write_log "Protheus processes: $protheus_count, Memory: ${total_protheus_mem}MB"
+  write_log "Infring processes: $infring_count, Memory: ${total_infring_mem}MB"
   
   return 0
 }
@@ -288,10 +288,10 @@ send_notification() {
   
   [[ $SLACK_NOTIFY -eq 0 ]] && return 0
   
-  local webhook_url="${PROTHEUS_SLACK_WEBHOOK:-}"
+  local webhook_url="${INFRING_SLACK_WEBHOOK:-}"
   
   if [[ -z "$webhook_url" ]]; then
-    log_warn "Slack webhook not configured (set PROTHEUS_SLACK_WEBHOOK)"
+    log_warn "Slack webhook not configured (set INFRING_SLACK_WEBHOOK)"
     return 1
   fi
   
@@ -306,7 +306,7 @@ send_notification() {
 
 # Main execution
 main() {
-  echo "=== Protheus Memory Usage Monitor ==="
+  echo "=== Infring Memory Usage Monitor ==="
   echo "Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
   echo "Version: 1.0.0"
   echo "Author: Rohan Kapoor"
@@ -322,33 +322,33 @@ main() {
   check_host_validity
   get_system_memory
   
-  # Get Protheus memory
-  local protheus_mem=0
+  # Get Infring memory
+  local infring_mem=0
   local process_info
-  process_info=$(get_protheus_memory) || true
+  process_info=$(get_infring_memory) || true
   
   if [[ -n "$process_info" ]]; then
-    protheus_mem=$(echo "$process_info" | grep "PROTHEUS_MEM=" | cut -d= -f2 || echo "0")
-    [[ -z "$protheus_mem" ]] && protheus_mem=0
+    infring_mem=$(echo "$process_info" | grep "INFRING_MEM=" | cut -d= -f2 || echo "0")
+    [[ -z "$infring_mem" ]] && infring_mem=0
   fi
   
   show_top_consumers
   
   # Evaluate thresholds
   local exit_status=0
-  check_thresholds "$protheus_mem" || exit_status=$?
+  check_thresholds "$infring_mem" || exit_status=$?
   
   # Send notifications if needed
   if [[ $exit_status -eq 2 ]]; then
-    send_notification "CRITICAL" "Memory usage at ${protheus_mem}MB"
+    send_notification "CRITICAL" "Memory usage at ${infring_mem}MB"
   elif [[ $exit_status -eq 1 ]]; then
-    send_notification "WARNING" "Memory usage at ${protheus_mem}MB"
+    send_notification "WARNING" "Memory usage at ${infring_mem}MB"
   fi
   
   # Summary
   echo ""
   echo "=== Summary ==="
-  echo -e "Protheus processes: ${BLUE}${process_info:-0}${NC}\n      Memory usage: ${BLUE}${protheus_mem:-0}MB${NC}"
+  echo -e "Infring processes: ${BLUE}${process_info:-0}${NC}\n      Memory usage: ${BLUE}${infring_mem:-0}MB${NC}"
   echo -e "  Warning level: ${YELLOW}${WARNING_THRESHOLD}MB${NC}"
   echo -e "  Critical level: ${RED}${CRITICAL_THRESHOLD}MB${NC}"
   

@@ -4,7 +4,7 @@ Last updated: March 6, 2026
 
 ## Overview
 
-This document describes the operational procedures for managing log rotation across Protheus infrastructure to prevent disk capacity issues.
+This document describes the operational procedures for managing log rotation across Infring infrastructure to prevent disk capacity issues.
 
 ## Manual Log Rotation
 
@@ -12,7 +12,7 @@ This document describes the operational procedures for managing log rotation acr
 
 ```bash
 # View largest log files
-find /var/log/protheus -type f -name "*.log" -exec ls -lh {} \; | sort -k5 -hr | head -20
+find /var/log/infring -type f -name "*.log" -exec ls -lh {} \; | sort -k5 -hr | head -20
 
 # Check disk usage
 df -h /var/log
@@ -22,10 +22,10 @@ df -h /var/log
 
 ```bash
 # Signal logrotate to run
-sudo logrotate -f /etc/logrotate.d/protheus
+sudo logrotate -f /etc/logrotate.d/infring
 
 # Verify rotation
-ls -lh /var/log/protheus/
+ls -lh /var/log/infring/
 ```
 
 ## Automated Rotation Schedule
@@ -44,9 +44,9 @@ ls -lh /var/log/protheus/
 **Symptoms:** Disk space warnings, stale log timestamps
 
 **Resolution:**
-1. Check logrotate status: `sudo logrotate -d /etc/logrotate.d/protheus`
+1. Check logrotate status: `sudo logrotate -d /etc/logrotate.d/infring`
 2. Verify cron job: `crontab -l | grep logrotate`
-3. Fix permissions if needed: `sudo chmod 644 /var/log/protheus/*.log`
+3. Fix permissions if needed: `sudo chmod 644 /var/log/infring/*.log`
 
 ## Related Documentation
 

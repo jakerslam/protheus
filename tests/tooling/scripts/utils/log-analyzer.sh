@@ -80,7 +80,7 @@ Options:
   -h, --help              Show this help message
 
 Examples:
-  $(basename "$0") /var/log/protheus/app.log
+  $(basename "$0") /var/log/infring/app.log
   $(basename "$0") --errors-only --summary app.log
   $(basename "$0") --time-range 09:00-10:00 --pattern "timeout" app.log
   $(basename "$0") --top-errors 20 -o report.txt app.log

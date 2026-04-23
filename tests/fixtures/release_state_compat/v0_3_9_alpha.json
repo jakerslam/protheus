@@ -58,7 +58,7 @@
     "schema_version": "1.0",
     "packages": [
       {
-        "name": "@protheus/core",
+        "name": "@infring/core",
         "support_level": "compatibility_facade",
         "transport_mode": "resident_ipc_authoritative",
         "supported_commands": [
@@ -68,7 +68,7 @@
         ]
       },
       {
-        "name": "@protheus/edge",
+        "name": "@infring/edge",
         "support_level": "experimental_supported_subset",
         "transport_mode": "resident_ipc_authoritative",
         "supported_commands": [

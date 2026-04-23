@@ -300,7 +300,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         strict,
         &command,
         "canyon_plane_conduit_enforcement",
-        "client/protheusctl -> core/canyon-plane",
+        "client/infringctl -> core/canyon-plane",
         bypass,
         vec![json!({
             "id": "V7-CANYON-001.10",

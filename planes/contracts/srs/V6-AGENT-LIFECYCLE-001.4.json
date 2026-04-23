@@ -18,8 +18,8 @@
     { "type": "test", "path": "tests/client-memory-tools/infring_dashboard_llm_runtime_e2e.test.ts" }
   ],
   "validation": {
-    "lane_command": "protheus-ops srs-contract-runtime run --id=V6-AGENT-LIFECYCLE-001.4",
-    "status_command": "protheus-ops srs-contract-runtime status --id=V6-AGENT-LIFECYCLE-001.4",
+    "lane_command": "infring-ops srs-contract-runtime run --id=V6-AGENT-LIFECYCLE-001.4",
+    "status_command": "infring-ops srs-contract-runtime status --id=V6-AGENT-LIFECYCLE-001.4",
     "fail_closed_on_missing_contract": true
   },
   "generated_from": {

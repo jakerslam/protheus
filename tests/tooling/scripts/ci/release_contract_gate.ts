@@ -1161,7 +1161,7 @@ function installerContractCheck(): Check {
   const source = read('install.sh');
   const ok =
     source.includes('api.github.com/repos') &&
-    source.includes('protheus-ops') &&
+    source.includes('infring-ops') &&
     source.includes('infringd') &&
     source.includes('--repair') &&
     source.includes('verify_workspace_runtime_contract') &&
@@ -1294,7 +1294,7 @@ function windowsAndDocsCheck(): Check {
   const hasFailureHintTokenCoverage = failureHintRequiredTokens.every((token) => installPs.includes(token));
   const hasFailureReasonTaxonomyCoverage = failureReasonTaxonomyTokens.every((token) => installPs.includes(token));
   const ok =
-    installPs.includes('protheus-ops.exe') &&
+    installPs.includes('infring-ops.exe') &&
     installPs.includes('infringd.cmd') &&
     installPs.includes('Install-AllowNoMsvcSourceFallback') &&
     installPs.includes('INFRING_INSTALL_ALLOW_NO_MSVC_SOURCE_FALLBACK') &&
@@ -1429,7 +1429,7 @@ function transportLockCheck(): Check {
   const sdk = read('packages/infring-sdk/src/transports.ts');
   const sdkCliDevOnly = read('packages/infring-sdk/src/transports/cli_dev_only.ts');
   const bridge = read('adapters/runtime/ops_lane_bridge.ts');
-  const runner = read('adapters/runtime/run_protheus_ops.ts');
+  const runner = read('adapters/runtime/run_infring_ops.ts');
   const ok =
     sdk.includes('resident_ipc_authoritative') &&
     sdk.includes('createResidentIpcTransport') &&

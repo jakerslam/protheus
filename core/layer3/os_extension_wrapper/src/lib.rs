@@ -100,7 +100,7 @@ pub fn wrap_os_extension(
 ) -> OsExtensionEnvelope {
     let extension_id =
         sanitize_identifier(descriptor.extension_id.as_str(), MAX_TOKEN_LEN, "unknown_extension");
-    let namespace = sanitize_identifier(descriptor.namespace.as_str(), MAX_TOKEN_LEN, "protheus.unknown");
+    let namespace = sanitize_identifier(descriptor.namespace.as_str(), MAX_TOKEN_LEN, "infring.unknown");
     let syscall_surface = normalize_surface(&descriptor.syscall_surface);
     let driver_surface = normalize_surface(&descriptor.driver_surface);
     let manifest_hash = normalize_manifest_hash(descriptor.capability_manifest_hash.as_str());
@@ -125,7 +125,7 @@ mod tests {
     fn wraps_extension_action() {
         let d = OsExtensionDescriptor {
             extension_id: "os.netstack.v1".to_string(),
-            namespace: "protheus.net".to_string(),
+            namespace: "infring.net".to_string(),
             capability_manifest_hash: "abc123".to_string(),
             syscall_surface: vec!["net.open".to_string()],
             driver_surface: vec!["driver.nic".to_string()],
@@ -146,7 +146,7 @@ mod tests {
         };
         let env = wrap_os_extension(&d, "start", -42);
         assert_eq!(env.extension_id, "unknown_extension");
-        assert_eq!(env.namespace, "protheus.unknown");
+        assert_eq!(env.namespace, "infring.unknown");
         assert_eq!(env.action, "activate");
         assert_eq!(env.ts_ms, 0);
     }
@@ -155,7 +155,7 @@ mod tests {
     fn fails_closed_to_status_when_manifest_or_surfaces_are_missing() {
         let d = OsExtensionDescriptor {
             extension_id: "os.netstack.v1".to_string(),
-            namespace: "protheus.net".to_string(),
+            namespace: "infring.net".to_string(),
             capability_manifest_hash: " \u{200B} ".to_string(),
             syscall_surface: vec![],
             driver_surface: vec![],

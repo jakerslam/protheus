@@ -71,7 +71,7 @@ fn session_tool_manifest(state: &SwarmState, session: &SessionMetadata) -> Value
         "network_registry_size": state.network_registry.len(),
         "resumption": {
             "persistent": session.persistent.is_some(),
-            "resume_command": format!("protheus-ops swarm-runtime sessions resume --session-id={session_id}"),
+            "resume_command": format!("infring-ops swarm-runtime sessions resume --session-id={session_id}"),
         },
         "agent_bootstrap": session_bootstrap_contract(state, session),
     })

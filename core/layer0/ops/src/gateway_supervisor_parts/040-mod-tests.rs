@@ -47,7 +47,7 @@ mod tests {
             watchdog_interval_ms: 2000,
             node_binary: "/usr/bin/node".to_string(),
         };
-        let args = watchdog_args(Path::new("/tmp/protheus-ops"), &cfg);
+        let args = watchdog_args(Path::new("/tmp/infring-ops"), &cfg);
         assert_eq!(args.get(1).map(String::as_str), Some("daemon-control"));
         assert_eq!(args.get(2).map(String::as_str), Some("watchdog"));
         assert!(args
@@ -68,7 +68,7 @@ mod tests {
             watchdog_interval_ms: 2000,
             node_binary: "/usr/bin/node".to_string(),
         };
-        let args = watchdog_args(Path::new("/tmp/protheus-ops"), &cfg);
+        let args = watchdog_args(Path::new("/tmp/infring-ops"), &cfg);
         let plist = render_launchd_plist(
             Path::new("/tmp/workspace"),
             Path::new("/tmp/watchdog.log"),
@@ -76,10 +76,10 @@ mod tests {
             &args,
         );
         assert!(plist.contains("<key>EnvironmentVariables</key>"));
-        assert!(plist.contains("<key>PROTHEUS_OPS_ALLOW_STALE</key>"));
-        assert!(plist.contains("<key>PROTHEUS_NPM_ALLOW_STALE</key>"));
-        assert!(plist.contains("<key>PROTHEUS_NPM_BINARY</key>"));
-        assert!(plist.contains("/tmp/protheus-ops"));
+        assert!(plist.contains("<key>INFRING_OPS_ALLOW_STALE</key>"));
+        assert!(plist.contains("<key>INFRING_NPM_ALLOW_STALE</key>"));
+        assert!(plist.contains("<key>INFRING_NPM_BINARY</key>"));
+        assert!(plist.contains("/tmp/infring-ops"));
     }
 
     #[cfg(target_os = "linux")]
@@ -97,7 +97,7 @@ mod tests {
         let service = render_systemd_service(
             Path::new("/tmp/workspace"),
             &cfg,
-            Path::new("/tmp/protheus-ops"),
+            Path::new("/tmp/infring-ops"),
         );
         assert!(service.contains("Restart=always"));
         assert!(service.contains("daemon-control watchdog"));

@@ -1,13 +1,13 @@
 {
   "schema_id": "helix_codex_root",
   "schema_version": "1.0",
-  "codex_id": "protheus_helix_codex",
+  "codex_id": "infring_helix_codex",
   "created_at": "2026-02-27T08:49:39.477Z",
   "updated_at": "2026-02-27T08:49:39.477Z",
   "root_hash": "aeec0f5ac97a3be2d38c5e8c98d41990d9cda1636c67666e313eb022300c44a8",
   "signature": "",
   "body": {
-    "codex_id": "protheus_helix_codex",
+    "codex_id": "infring_helix_codex",
     "bootstrap_truths": [
       "preserve_constitutional_root",
       "preserve_user_sovereignty",

@@ -5,14 +5,14 @@ mod rag_runtime;
 #[path = "../wave1.rs"]
 mod wave1;
 use db::{DbIndexEntry, HotStateEnvelopeStats, MemoryDb};
-use protheus_layer1_memory_runtime::recall_policy::{
+use infring_layer1_memory_runtime::recall_policy::{
     enforce_hydration_guard, enforce_index_first, enforce_index_freshness, enforce_node_only,
     enforce_recall_budget, FailClosedMode, HydrationGuardInput, RecallBudgetInput,
     DEFAULT_BOOTSTRAP_HYDRATION_TOKEN_CAP, DEFAULT_BURN_THRESHOLD_TOKENS, DEFAULT_EXPAND_LINES,
     DEFAULT_INDEX_MAX_AGE_MS, DEFAULT_MAX_FILES, DEFAULT_RECALL_TOP, MAX_EXPAND_LINES,
     MAX_MAX_FILES, MAX_RECALL_TOP,
 };
-use protheus_layer1_memory_runtime::token_telemetry::{
+use infring_layer1_memory_runtime::token_telemetry::{
     evaluate_burn_slo, RetrievalMode, TokenTelemetryEvent,
 };
 use serde::{Deserialize, Serialize};

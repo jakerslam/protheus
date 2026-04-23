@@ -18,16 +18,16 @@ const LEGACY_SURFACES: [&str; 3] = ["state", "client/runtime/state", "local"];
 
 fn usage() {
     println!("runtime-path-registry-kernel commands:");
-    println!("  protheus-ops runtime-path-registry-kernel constants");
+    println!("  infring-ops runtime-path-registry-kernel constants");
     println!(
-        "  protheus-ops runtime-path-registry-kernel normalize-for-root [--payload-base64=<json>]"
+        "  infring-ops runtime-path-registry-kernel normalize-for-root [--payload-base64=<json>]"
     );
     println!(
-        "  protheus-ops runtime-path-registry-kernel resolve-canonical [--payload-base64=<json>]"
+        "  infring-ops runtime-path-registry-kernel resolve-canonical [--payload-base64=<json>]"
     );
-    println!("  protheus-ops runtime-path-registry-kernel resolve-client-state [--payload-base64=<json>]");
+    println!("  infring-ops runtime-path-registry-kernel resolve-client-state [--payload-base64=<json>]");
     println!(
-        "  protheus-ops runtime-path-registry-kernel resolve-core-state [--payload-base64=<json>]"
+        "  infring-ops runtime-path-registry-kernel resolve-core-state [--payload-base64=<json>]"
     );
 }
 

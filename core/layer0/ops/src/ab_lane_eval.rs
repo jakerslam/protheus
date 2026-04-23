@@ -344,11 +344,11 @@ fn status_receipt(root: &Path) -> Value {
 }
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops ab-lane-eval status");
-    println!("  protheus-ops ab-lane-eval run --lane=<id> --variant-a=<A> --variant-b=<B> --a-quality=<n> --a-drift=<n> --a-escalation=<n> --a-cost=<n> --b-quality=<n> --b-drift=<n> --b-escalation=<n> --b-cost=<n> [--min-promote-delta=<n>]");
-    println!("  protheus-ops ab-lane-eval enable-neuralavb [--enabled=1|0]");
-    println!("  protheus-ops ab-lane-eval experiment-loop [--build-score=<0..1>] [--experiment-score=<0..1>] [--evaluate-score=<0..1>] [--baseline-cost-usd=<n>] [--run-cost-usd=<n>] [--baseline-accuracy=<0..1>] [--run-accuracy=<0..1>] [--iterations=<n>]");
-    println!("  protheus-ops ab-lane-eval benchmark-neuralavb");
+    println!("  infring-ops ab-lane-eval status");
+    println!("  infring-ops ab-lane-eval run --lane=<id> --variant-a=<A> --variant-b=<B> --a-quality=<n> --a-drift=<n> --a-escalation=<n> --a-cost=<n> --b-quality=<n> --b-drift=<n> --b-escalation=<n> --b-cost=<n> [--min-promote-delta=<n>]");
+    println!("  infring-ops ab-lane-eval enable-neuralavb [--enabled=1|0]");
+    println!("  infring-ops ab-lane-eval experiment-loop [--build-score=<0..1>] [--experiment-score=<0..1>] [--evaluate-score=<0..1>] [--baseline-cost-usd=<n>] [--run-cost-usd=<n>] [--baseline-accuracy=<0..1>] [--run-accuracy=<0..1>] [--iterations=<n>]");
+    println!("  infring-ops ab-lane-eval benchmark-neuralavb");
 }
 pub fn run(root: &Path, args: &[String]) -> i32 {
     if args

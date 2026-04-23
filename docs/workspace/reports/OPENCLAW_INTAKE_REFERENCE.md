@@ -262,7 +262,7 @@
     - `core/layer0/ops/src/quorum_validator_kernel.rs`
     - `core/layer0/ops/src/metakernel_parts/010-state-root.rs`
     - `core/layer0/ops/src/system_health_audit_runner_kernel.rs`
-    - `core/layer0/ops/src/protheusd_parts/030-embedded-minimal-core-status.rs`
+    - `core/layer0/ops/src/infringd_parts/030-embedded-minimal-core-status.rs`
 
 - `OPENCLAW-TOOLING-WEB-050`:
   - Re-assimilated provider-family contract semantics from:
@@ -593,7 +593,7 @@
     - `src/agents/tools/web-tools.enabled-defaults.test.ts`
     - `src/plugins/web-search-providers.runtime.test.ts`
   - Landed in:
-    - `core/layer0/ops/src/protheusctl_plane_shortcuts.rs`
+    - `core/layer0/ops/src/infringctl_plane_shortcuts.rs`
     - `core/layer0/ops/src/action_envelope_kernel.rs`
     - `core/layer0/ops/src/upgrade_lane_kernel.rs`
     - `core/layer0/ops/src/request_envelope_kernel.rs`
@@ -668,7 +668,7 @@
     - `src/plugins/runtime/runtime-web-channel-plugin.ts`
     - `src/plugins/provider-discovery.runtime.ts`
   - Landed in:
-    - `core/layer0/ops/src/protheusctl_tests_parts/060-persona-blocked-path-fails-closed.rs`
+    - `core/layer0/ops/src/infringctl_tests_parts/060-persona-blocked-path-fails-closed.rs`
     - `core/layer0/ops/src/fixed_microbenchmark.rs`
     - `core/layer0/ops/src/strategy_resolver_parts/010-print-json-line.rs`
     - `core/layer0/ops/src/contract_check_parts/010-run.rs`
@@ -810,7 +810,7 @@
     - `extensions/xai/web-search.ts`
     - `src/commands/doctor/shared/legacy-config-migrations.web-search.ts`
   - Landed in:
-    - `core/layer0/ops/src/protheusctl_tests_parts/010-env-guard.rs`
+    - `core/layer0/ops/src/infringctl_tests_parts/010-env-guard.rs`
     - `core/layer0/ops/src/state_kernel.rs`
     - `core/layer0/ops/src/rust_hotpath_inventory_kernel.rs`
     - `core/layer0/ops/src/autonomy_controller_parts/052-autoreason.rs`
@@ -830,7 +830,7 @@
     - `core/layer0/ops/src/f100_readiness_program_parts/010-usage.rs`
     - `core/layer0/ops/src/passport_iteration_chain_kernel.rs`
     - `core/layer0/ops/src/mech_suit_mode_kernel_parts/010-usage.rs`
-    - `core/layer0/ops/src/protheusd_parts/010-print-json.rs`
+    - `core/layer0/ops/src/infringd_parts/010-print-json.rs`
   - Burned source snapshot: `openclaw-20260416-005919`
 
 
@@ -1398,7 +1398,7 @@
     - `core/layer0/ops/src/settlement_program.rs`
     - `core/layer0/ops/src/organ_atrophy_controller.rs`
     - `core/layer0/ops/src/skills_plane_parts/050-run-tot-deliberate.rs`
-    - `core/layer0/ops/src/protheusd_launcher_kernel.rs`
+    - `core/layer0/ops/src/infringd_launcher_kernel.rs`
     - `core/layer0/ops/src/personas_cli.rs`
 
 - `OPENCLAW-TOOLING-WEB-101`:
@@ -1426,7 +1426,7 @@
     - `core/layer0/ops/src/binary_vuln_plane_parts/040-run.rs`
     - `core/layer0/ops/src/verity_plane_parts/040-run.rs`
     - `core/layer0/ops/src/verity_plane_parts/010-prelude-and-constants.rs`
-    - `core/layer0/ops/src/protheus_control_plane.rs`
+    - `core/layer0/ops/src/infring_control_plane.rs`
     - `core/layer0/ops/src/dynamic_burn_budget_oracle.rs`
 
 - `OPENCLAW-TOOLING-WEB-103`:
@@ -1858,7 +1858,7 @@
     - `src/agents/compaction.identifier-policy.test.ts`
     - `src/agents/compaction.identifier-preservation.test.ts`
     - `src/agents/compaction.retry.test.ts`
-  - Assimilated into: `core/layer0/ops/src/{duality_seed,f100_readiness_program,flow_plane,observability_plane,protheusctl,seed_protocol,strategy_resolver,success_criteria_kernel}.rs` via shared forbidden runtime-context marker helper injection.
+  - Assimilated into: `core/layer0/ops/src/{duality_seed,f100_readiness_program,flow_plane,observability_plane,infringctl,seed_protocol,strategy_resolver,success_criteria_kernel}.rs` via shared forbidden runtime-context marker helper injection.
   - Burned to: `local/state/assimilation/burned/openclaw-20260417-091814`
 
 - `OPENCLAW-TOOLING-WEB-148`:
@@ -1910,7 +1910,7 @@
     - `src/agents/harness/builtin-pi.ts`
     - `src/agents/harness/index.ts`
     - `src/agents/harness/registry.test.ts`
-  - Assimilated into: `core/layer0/ops/src/{company_plane,contract_check,finance_plane,fluxlattice_program,focus_trigger_store_kernel,mech_suit_mode_kernel,origin_integrity,protheusctl_parts/040-protheusctl-tests}.rs` via shared forbidden runtime-context marker helper injection.
+  - Assimilated into: `core/layer0/ops/src/{company_plane,contract_check,finance_plane,fluxlattice_program,focus_trigger_store_kernel,mech_suit_mode_kernel,origin_integrity,infringctl_parts/040-infringctl-tests}.rs` via shared forbidden runtime-context marker helper injection.
   - Burned to: `local/state/assimilation/burned/openclaw-20260417-092226`
 
 - `OPENCLAW-TOOLING-WEB-150`:
@@ -1936,7 +1936,7 @@
     - `src/agents/internal-events.ts`
     - `src/agents/lanes.test.ts`
     - `src/agents/lanes.ts`
-  - Assimilated into: `core/layer0/ops/src/{protheusd,supply_chain_provenance_v2,symbiosis_coherence_kernel,enterprise_moat_extensions,llm_economy_organ,main}.rs` and `core/layer2/{autonomy/src/simulation,ops/src/public_api_catalog}.rs` via shared forbidden runtime-context marker helper injection.
+  - Assimilated into: `core/layer0/ops/src/{infringd,supply_chain_provenance_v2,symbiosis_coherence_kernel,enterprise_moat_extensions,llm_economy_organ,main}.rs` and `core/layer2/{autonomy/src/simulation,ops/src/public_api_catalog}.rs` via shared forbidden runtime-context marker helper injection.
   - Burned to: `local/state/assimilation/burned/openclaw-20260417-092433`
 
 - `OPENCLAW-TOOLING-WEB-151`:

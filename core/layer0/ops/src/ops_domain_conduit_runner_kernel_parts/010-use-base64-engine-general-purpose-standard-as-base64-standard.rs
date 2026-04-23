@@ -16,17 +16,17 @@ use crate::now_iso;
 
 fn usage() {
     println!("ops-domain-conduit-runner-kernel commands:");
-    println!("  protheus-ops ops-domain-conduit-runner-kernel parse-argv --payload-base64=<json>");
+    println!("  infring-ops ops-domain-conduit-runner-kernel parse-argv --payload-base64=<json>");
     println!(
-        "  protheus-ops ops-domain-conduit-runner-kernel build-pass-args --payload-base64=<json>"
+        "  infring-ops ops-domain-conduit-runner-kernel build-pass-args --payload-base64=<json>"
     );
-    println!("  protheus-ops ops-domain-conduit-runner-kernel build-run-options [--payload-base64=<json>]");
+    println!("  infring-ops ops-domain-conduit-runner-kernel build-run-options [--payload-base64=<json>]");
     println!(
-        "  protheus-ops ops-domain-conduit-runner-kernel prepare-run [--payload-base64=<json>]"
+        "  infring-ops ops-domain-conduit-runner-kernel prepare-run [--payload-base64=<json>]"
     );
-    println!("  protheus-ops ops-domain-conduit-runner-kernel run --payload-base64=<json>");
+    println!("  infring-ops ops-domain-conduit-runner-kernel run --payload-base64=<json>");
     println!(
-        "  protheus-ops ops-domain-conduit-runner-kernel ipc-daemon [--queue-dir=<path>] [--poll-ms=<n>]"
+        "  infring-ops ops-domain-conduit-runner-kernel ipc-daemon [--queue-dir=<path>] [--poll-ms=<n>]"
     );
 }
 
@@ -206,7 +206,7 @@ fn build_run_options_value(parsed: &Map<String, Value>) -> Value {
     let skip_runtime_gate = parse_bool_text(
         as_str(parsed.get("skip-runtime-gate")).as_str(),
         parse_bool_text(
-            std::env::var("PROTHEUS_OPS_DOMAIN_SKIP_RUNTIME_GATE")
+            std::env::var("INFRING_OPS_DOMAIN_SKIP_RUNTIME_GATE")
                 .unwrap_or_else(|_| "true".to_string())
                 .as_str(),
             true,
@@ -215,8 +215,8 @@ fn build_run_options_value(parsed: &Map<String, Value>) -> Value {
     let stdio_timeout_ms = parse_i64_text(
         as_str(parsed.get("stdio-timeout-ms")).as_str(),
         parse_i64_text(
-            std::env::var("PROTHEUS_OPS_DOMAIN_STDIO_TIMEOUT_MS")
-                .or_else(|_| std::env::var("PROTHEUS_CONDUIT_STDIO_TIMEOUT_MS"))
+            std::env::var("INFRING_OPS_DOMAIN_STDIO_TIMEOUT_MS")
+                .or_else(|_| std::env::var("INFRING_CONDUIT_STDIO_TIMEOUT_MS"))
                 .unwrap_or_else(|_| "120000".to_string())
                 .as_str(),
             120000,
@@ -225,8 +225,8 @@ fn build_run_options_value(parsed: &Map<String, Value>) -> Value {
     let timeout_ms = parse_i64_text(
         as_str(parsed.get("timeout-ms")).as_str(),
         parse_i64_text(
-            std::env::var("PROTHEUS_OPS_DOMAIN_BRIDGE_TIMEOUT_MS")
-                .or_else(|_| std::env::var("PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS"))
+            std::env::var("INFRING_OPS_DOMAIN_BRIDGE_TIMEOUT_MS")
+                .or_else(|_| std::env::var("INFRING_CONDUIT_BRIDGE_TIMEOUT_MS"))
                 .unwrap_or_else(|_| (stdio_timeout_ms + 1000).max(125000).to_string())
                 .as_str(),
             (stdio_timeout_ms + 1000).max(125000),

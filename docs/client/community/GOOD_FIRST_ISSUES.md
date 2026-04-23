@@ -21,7 +21,7 @@ Apply these labels to each issue:
 2. **Ops dashboard: add queue depth sparkline for last 24h**
 - Area: `area/ops`
 - Acceptance:
-  - Extend `protheus-ops status --dashboard` output with queue sparkline.
+  - Extend `infring-ops status --dashboard` output with queue sparkline.
   - Add regression test covering empty/non-empty queue history.
 
 3. **Docs: add failure-mode troubleshooting section to GETTING_STARTED**
@@ -52,7 +52,7 @@ Apply these labels to each issue:
 - Area: `area/deploy`
 - Acceptance:
   - Add Terraform variable + helm values wiring for imagePullSecrets.
-  - Document usage in `client/runtime/deploy/terraform/protheus_helm/README.md`.
+  - Document usage in `client/runtime/deploy/terraform/infring_helm/README.md`.
 
 8. **Helm chart: add pod annotations + labels override values**
 - Area: `area/deploy`

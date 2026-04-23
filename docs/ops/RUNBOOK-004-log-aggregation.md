@@ -9,14 +9,14 @@
 
 ## Overview
 
-This runbook documents procedures for aggregating and analyzing system logs across the Protheus platform. Proper log management ensures operational visibility and supports incident response.
+This runbook documents procedures for aggregating and analyzing system logs across the Infring platform. Proper log management ensures operational visibility and supports incident response.
 
 ## Log Aggregation Architecture
 
-The Protheus platform generates logs across multiple components:
-- **Kernel kernel** logs: `/var/log/protheus/core/`  
-- **Client runtime** logs: `/var/log/protheus/client/`  
-- **Adapter layer** logs: `/var/log/protheus/adapters/`  
+The Infring platform generates logs across multiple components:
+- **Kernel kernel** logs: `/var/log/infring/core/`  
+- **Client runtime** logs: `/var/log/infring/client/`  
+- **Adapter layer** logs: `/var/log/infring/adapters/`  
 - **CI pipeline** logs: Centralized via internal tooling
 
 ## Log Retention Policy
@@ -49,7 +49,7 @@ Review patterns for anomalies:
 ## Troubleshooting Common Issues
 
 **Issue:** Missing logs from adapter nodes  
-**Solution:** Verify adapter health: `protheusctl adapter status`  
+**Solution:** Verify adapter health: `infringctl adapter status`  
 
 **Issue:** Compressed logs appear corrupted  
 **Solution:** Re-run with `--force-recompress` flag

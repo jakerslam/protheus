@@ -275,8 +275,8 @@ pub fn api_migrate_legacy_config(root: &Path, request: &Value) -> Value {
             "source_path_default": policy_path(root).display().to_string(),
             "archives_unsupported_legacy_config": true,
             "commands": [
-                "protheus-ops web-conduit migrate-legacy-config --source-path=<path>",
-                "protheus-ops web-conduit migrate-legacy-config --source-path=<path> --apply=1"
+                "infring-ops web-conduit migrate-legacy-config --source-path=<path>",
+                "infring-ops web-conduit migrate-legacy-config --source-path=<path> --apply=1"
             ]
         }
     });

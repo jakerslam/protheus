@@ -1,4 +1,4 @@
-use protheus_nexus_core_v1::{
+use infring_nexus_core_v1::{
     DefaultNexusPolicy, DeliveryAuthorizationInput, LeaseIssueRequest, MainNexusControlPlane,
     NexusFeatureFlags, TrustClass, VerityClass,
 };

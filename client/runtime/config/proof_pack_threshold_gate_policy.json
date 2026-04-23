@@ -28,7 +28,7 @@
       ],
       "timeout_ms": 240000
     },
-    "protheus_vs_infring": {
+    "infring_vs_infring": {
       "bin": "node",
       "args": [
         "client/runtime/systems/ops/narrow_agent_parity_harness.ts",

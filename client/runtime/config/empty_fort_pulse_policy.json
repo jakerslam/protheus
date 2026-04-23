@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "service_account": "protheus-bot",
+  "service_account": "infring-bot",
   "max_prs_per_day": 2,
   "allow_apply": true,
   "labels": [

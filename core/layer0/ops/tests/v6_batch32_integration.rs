@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use protheus_ops_core::{company_plane, observability_plane, substrate_plane};
+use infring_ops_core::{company_plane, observability_plane, substrate_plane};
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
