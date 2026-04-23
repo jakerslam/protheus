@@ -32,7 +32,7 @@ const WORKFLOW_LIBRARY: &[WorkflowDefinition] = &[
         name: "complex_prompt_chain_v1",
         workflow_type: "hard_agent_workflow",
         default_workflow: true,
-        description: "Default workflow with deterministic gate checks: classify info vs task, decide whether tool calls are truly needed, execute only selected tools, synthesize evidence, and run coherence validation before final output.",
+        description: "Default workflow with advisory gate hints: LLM decides need_tool_access, then selects minimal tools when needed, synthesizes evidence, and runs coherence validation before final output.",
         stages: COMPLEX_PROMPT_CHAIN_V1_STAGES,
         final_response_policy: "llm_authored_when_online",
         gate_contract: "workflow_gate_v3",
@@ -220,7 +220,10 @@ fn message_requests_high_risk_external_action(message: &str) -> bool {
 
 fn value_as_u64_like(value: Option<&Value>) -> u64 {
     value
-        .and_then(|row| row.as_u64().or_else(|| row.as_i64().map(|v| v.max(0) as u64)))
+        .and_then(|row| {
+            row.as_u64()
+                .or_else(|| row.as_i64().map(|v| v.max(0) as u64))
+        })
         .unwrap_or(0)
 }
 
@@ -231,15 +234,15 @@ fn latest_assistant_conversation_bypass_remaining_turns(active_messages: &[Value
         if role != "assistant" && role != "agent" {
             continue;
         }
-        let from_finalization = value_as_u64_like(
-            row.pointer("/response_finalization/workflow_control/conversation_bypass/remaining_turns_after"),
-        );
+        let from_finalization = value_as_u64_like(row.pointer(
+            "/response_finalization/workflow_control/conversation_bypass/remaining_turns_after",
+        ));
         if from_finalization > 0 {
             return from_finalization;
         }
-        let from_workflow = value_as_u64_like(
-            row.pointer("/response_workflow/workflow_control/conversation_bypass/remaining_turns_after"),
-        );
+        let from_workflow = value_as_u64_like(row.pointer(
+            "/response_workflow/workflow_control/conversation_bypass/remaining_turns_after",
+        ));
         if from_workflow > 0 {
             return from_workflow;
         }
@@ -290,7 +293,6 @@ fn workflow_conversation_bypass_control_from_workflow(workflow: &Value) -> Value
 fn workflow_conversation_bypass_control_for_turn(
     message: &str,
     active_messages: &[Value],
-    gate_should_call_tools: bool,
     inline_tools_allowed: bool,
 ) -> Value {
     let requested_enable = message_requests_conversation_bypass(message);
@@ -323,7 +325,7 @@ fn workflow_conversation_bypass_control_for_turn(
             blocked = true;
             reason = "blocked_by_safety_gate";
             block_reason = "high_risk_external_action";
-        } else if gate_should_call_tools || inline_tools_allowed || explicit_tool_request {
+        } else if inline_tools_allowed || explicit_tool_request {
             blocked = true;
             reason = "blocked_by_tooling_requirement";
             block_reason = "tooling_required_or_explicit";
@@ -362,7 +364,7 @@ fn workflow_conversation_bypass_control_for_turn(
         "requested_disable": requested_disable,
         "sticky_requested": sticky_requested,
         "explicit_tool_request": explicit_tool_request,
-        "gate_should_call_tools": gate_should_call_tools,
+        "gate_is_advisory": true,
         "inline_tools_allowed": inline_tools_allowed,
         "high_risk_external_action": high_risk_external_action,
         "requested_ttl_turns": CONVERSATION_BYPASS_MAX_TURNS,
@@ -399,19 +401,8 @@ fn workflow_turn_is_meta_control_message(message: &str) -> bool {
     ) && !workflow_turn_contains_any(
         &lowered,
         &[
-            "search",
-            "web",
-            "online",
-            "internet",
-            "file",
-            "patch",
-            "edit",
-            "update",
-            "create",
-            "read",
-            "memory",
-            "repo",
-            "codebase",
+            "search", "web", "online", "internet", "file", "patch", "edit", "update", "create",
+            "read", "memory", "repo", "codebase",
         ],
     )
 }
@@ -467,7 +458,7 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
         .get("has_sufficient_information")
         .and_then(Value::as_bool)
         .unwrap_or(true);
-    let should_call_tools = canonical_gate
+    let should_call_tools_hint = canonical_gate
         .get("should_call_tools")
         .and_then(Value::as_bool)
         .unwrap_or(false);
@@ -475,7 +466,14 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
         canonical_gate
             .get("workflow_route")
             .and_then(Value::as_str)
-            .unwrap_or(if should_call_tools { "task" } else { "info" }),
+            .unwrap_or("llm_decides"),
+        24,
+    );
+    let workflow_route_hint = clean_text(
+        canonical_gate
+            .get("workflow_route_hint")
+            .and_then(Value::as_str)
+            .unwrap_or(if should_call_tools_hint { "task" } else { "info" }),
         24,
     );
     let reason_code = clean_text(
@@ -503,6 +501,14 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
         canonical_gate
             .get("selected_tool_family")
             .and_then(Value::as_str)
+            .unwrap_or("none"),
+        40,
+    );
+    let selected_tool_family_hint = clean_text(
+        canonical_gate
+            .get("selected_tool_family_hint")
+            .or_else(|| canonical_gate.get("selected_tool_family"))
+            .and_then(Value::as_str)
             .unwrap_or(&recommended_tool_family),
         40,
     );
@@ -521,7 +527,7 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
     let llm_should_answer_directly = canonical_gate
         .get("llm_should_answer_directly")
         .and_then(Value::as_bool)
-        .unwrap_or(!should_call_tools);
+        .unwrap_or(!should_call_tools_hint);
     let automatic_tool_calls_allowed = canonical_gate
         .get("automatic_tool_calls_allowed")
         .and_then(Value::as_bool)
@@ -530,9 +536,27 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
         canonical_gate
             .get("tool_selection_authority")
             .and_then(Value::as_str)
-            .unwrap_or("llm_selected"),
+            .unwrap_or("llm_selected_advisory_gate"),
         32,
     );
+    let decision_authority_mode = clean_text(
+        canonical_gate
+            .get("decision_authority_mode")
+            .and_then(Value::as_str)
+            .unwrap_or("llm_controlled_advisory_v1"),
+        40,
+    );
+    let gate_enforcement_mode = clean_text(
+        canonical_gate
+            .get("gate_enforcement_mode")
+            .and_then(Value::as_str)
+            .unwrap_or("advisory_only"),
+        32,
+    );
+    let gate_is_advisory = canonical_gate
+        .get("gate_is_advisory")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
     let workflow_retry_limit = canonical_gate
         .get("workflow_retry_limit")
         .and_then(Value::as_i64)
@@ -540,7 +564,7 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
     let needs_tool_access = canonical_gate
         .get("needs_tool_access")
         .and_then(Value::as_bool)
-        .unwrap_or(should_call_tools);
+        .unwrap_or(should_call_tools_hint);
     let gate_prompt = clean_text(
         canonical_gate
             .get("gate_prompt")
@@ -569,7 +593,11 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
         "contract": "tool_decision_tree_v3",
         "workflow_gate_contract": "workflow_gate_v3",
         "route_classification": workflow_route,
+        "route_classification_hint": workflow_route_hint,
+        "route_classification_is_hint": true,
         "workflow_route": workflow_route,
+        "workflow_route_hint": workflow_route_hint,
+        "workflow_route_is_hint": true,
         "reason_code": reason_code,
         "requires_file_mutation": requires_file_mutation,
         "requires_local_lookup": requires_local_lookup,
@@ -577,12 +605,21 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
         "explicit_web_intent": explicit_web_intent,
         "has_sufficient_information": has_sufficient_information,
         "llm_should_answer_directly": llm_should_answer_directly,
-        "should_call_tools": should_call_tools,
+        "should_call_tools": should_call_tools_hint,
+        "should_call_tools_hint": should_call_tools_hint,
+        "should_call_tools_is_hint": true,
         "needs_tool_access": needs_tool_access,
+        "needs_tool_access_hint": needs_tool_access,
+        "needs_tool_access_is_hint": true,
         "gate_prompt": gate_prompt,
         "info_source": info_source,
         "recommended_tool_family": recommended_tool_family,
         "selected_tool_family": selected_tool_family,
+        "selected_tool_family_hint": selected_tool_family_hint,
+        "selected_tool_family_is_hint": true,
+        "decision_authority_mode": decision_authority_mode,
+        "gate_enforcement_mode": gate_enforcement_mode,
+        "gate_is_advisory": gate_is_advisory,
         "tool_family_menu": tool_family_menu,
         "tool_menu": tool_menu,
         "manual_tool_selection": manual_tool_selection,
@@ -597,12 +634,14 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
                 "name": "needs_tool_access",
                 "question": gate_prompt,
                 "required": needs_tool_access,
+                "required_is_hint": true,
                 "route": workflow_route,
+                "route_hint": workflow_route_hint,
                 "reason_code": reason_code
             },
             "gate_2": {
                 "name": "analysis",
-                "analysis_type": if workflow_route == "task" {
+                "analysis_type": if needs_tool_access {
                     "task_decomposition"
                 } else {
                     "info_sufficiency"
@@ -613,13 +652,14 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
             "gate_3": {
                 "name": "tool_selection",
                 "tooling_default": "disabled",
-                "selected_family": recommended_tool_family,
-                "selected_minimal": should_call_tools
+                "selected_family": selected_tool_family,
+                "selected_family_hint": selected_tool_family_hint,
+                "selected_minimal": needs_tool_access
             },
             "gate_4": {
                 "name": "tool_execution_wait",
-                "wait_for_tools": should_call_tools,
-                "skip_when_no_tools": !should_call_tools
+                "wait_for_tools": needs_tool_access,
+                "skip_when_no_tools": !needs_tool_access
             },
             "gate_5": {
                 "name": "result_synthesis",
@@ -658,7 +698,7 @@ fn workflow_library_prompt_context(message: &str, latent_tool_candidates: &[Valu
             .unwrap_or("none"),
         40,
     );
-    let should_call_tools = tool_gate
+    let should_call_tools_hint = tool_gate
         .get("should_call_tools")
         .and_then(Value::as_bool)
         .unwrap_or(false);
@@ -666,9 +706,21 @@ fn workflow_library_prompt_context(message: &str, latent_tool_candidates: &[Valu
         tool_gate
             .get("workflow_route")
             .and_then(Value::as_str)
-            .unwrap_or("info"),
+            .unwrap_or("llm_decides"),
         20,
     );
+    let workflow_route_hint = clean_text(
+        tool_gate
+            .get("workflow_route_hint")
+            .or_else(|| tool_gate.get("workflow_route"))
+            .and_then(Value::as_str)
+            .unwrap_or("none"),
+        20,
+    );
+    let needs_tool_access_hint = tool_gate
+        .get("needs_tool_access")
+        .and_then(Value::as_bool)
+        .unwrap_or(should_call_tools_hint);
     let reason_code = clean_text(
         tool_gate
             .get("reason_code")
@@ -691,6 +743,32 @@ fn workflow_library_prompt_context(message: &str, latent_tool_candidates: &[Valu
             .unwrap_or("none"),
         80,
     );
+    let selected_tool_family_hint = clean_text(
+        tool_gate
+            .get("selected_tool_family_hint")
+            .or_else(|| tool_gate.get("selected_tool_family"))
+            .and_then(Value::as_str)
+            .unwrap_or("none"),
+        80,
+    );
+    let decision_authority_mode = clean_text(
+        tool_gate
+            .get("decision_authority_mode")
+            .and_then(Value::as_str)
+            .unwrap_or("llm_controlled_advisory_v1"),
+        80,
+    );
+    let gate_enforcement_mode = clean_text(
+        tool_gate
+            .get("gate_enforcement_mode")
+            .and_then(Value::as_str)
+            .unwrap_or("advisory_only"),
+        80,
+    );
+    let gate_is_advisory = tool_gate
+        .get("gate_is_advisory")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
     let mut lines = vec![
         format!(
             "Workflow library gate: every chat turn must pass through `{}`. The default selected workflow is `{}`.",
@@ -701,23 +779,29 @@ fn workflow_library_prompt_context(message: &str, latent_tool_candidates: &[Valu
         "Never emit raw `<function=...>` markup in user-facing output.".to_string(),
         "Chat operator syntax such as `tool::...` or slash tool requests are workflow hints, not pre-executed results. You still must decide whether to call the hinted tool.".to_string(),
         format!(
-            "Deterministic tool gate for this turn: route={}, reason_code={}, requires_file_mutation={}, has_sufficient_information={}, info_source={}, explicit_web_intent={}, should_call_tools={}, recommended_tool_family={}, meta_diagnostic_request={}.",
+            "Advisory decision tree for this turn (LLM-controlled): route={}, route_hint={}, reason_code={}, requires_file_mutation={}, has_sufficient_information={}, info_source={}, explicit_web_intent={}, should_call_tools_hint={}, needs_tool_access_hint={}, recommended_tool_family_hint={}, selected_tool_family_hint={}, meta_diagnostic_request={}, decision_authority_mode={}, gate_enforcement_mode={}, gate_is_advisory={}.",
             workflow_route,
+            workflow_route_hint,
             reason_code,
             requires_file_mutation,
             has_sufficient_information,
             info_source,
             explicit_web_intent,
-            should_call_tools,
-            recommended_tool_family
-            ,
-            meta_diagnostic_request
+            should_call_tools_hint,
+            needs_tool_access_hint,
+            recommended_tool_family,
+            selected_tool_family_hint,
+            meta_diagnostic_request,
+            decision_authority_mode,
+            gate_enforcement_mode,
+            gate_is_advisory
         ),
-        "Decision tree v3: (1) classify route as `task` or `info`; (2) analyze sufficiency/decompose task; (3) select minimal tool family only when required; (4) wait for tool receipts if selected; (5) synthesize from recorded evidence; (6) run coherence check against the latest 2 messages with one retry; (7) return final answer or explicit grounded failure.".to_string(),
-        "Selection authority: `llm_selected`. Automatic backend tool firing is not allowed.".to_string(),
-        "Tooling is never default. Do not call web/file/memory tools unless the gate explicitly requires them for this turn.".to_string(),
+        "Decision tree v3: (1) decide `need_tool_access` explicitly; (2) analyze sufficiency/decompose task; (3) select minimal tool family only when required; (4) wait for tool receipts if selected; (5) synthesize from recorded evidence; (6) run coherence check against the latest 2 messages with one retry; (7) return final answer or explicit grounded failure.".to_string(),
+        "Canonical gate names: `need_tool_access`, `tool_family_selection`, `post_tool_decision`. Deprecated names like `task_or_info_route` must never appear in user-facing responses.".to_string(),
+        "Selection authority: `llm_selected_advisory_gate`. Automatic backend tool firing is not allowed.".to_string(),
+        "Tooling is never default. Gate fields are advisory telemetry only; the LLM must make the final per-turn tool/no-tool decision.".to_string(),
         "Meta/control turns (for example: `that was just a test`) are direct-answer turns. Do not call web tools for those turns.".to_string(),
-        "Enforcement: if `should_call_tools` is false, answer directly from available context. If true, execute at least one tool call in the selected minimal family before final synthesis.".to_string(),
+        "Policy mode: no deterministic route/tool enforcement. Follow the decision-tree guidance, then choose intentionally.".to_string(),
     ];
     if !grouped_catalog.is_empty() {
         lines.push("Modular tool catalog by domain:".to_string());
@@ -919,7 +1003,10 @@ fn turn_workflow_metadata(
 }
 
 fn set_turn_workflow_final_stage_status(workflow: &mut Value, status: &str) {
-    if let Some(rows) = workflow.get_mut("stage_statuses").and_then(Value::as_array_mut) {
+    if let Some(rows) = workflow
+        .get_mut("stage_statuses")
+        .and_then(Value::as_array_mut)
+    {
         for row in rows.iter_mut() {
             if row
                 .get("stage")
@@ -1011,10 +1098,7 @@ fn sanitize_workflow_final_response_candidate(response: &str) -> String {
     } else {
         without_inline_calls.trim()
     };
-    let mut cleaned = clean_chat_text(
-        strip_dangling_inline_tool_markup(candidate).trim(),
-        32_000,
-    );
+    let mut cleaned = clean_chat_text(strip_dangling_inline_tool_markup(candidate).trim(), 32_000);
     let lowered = cleaned.to_ascii_lowercase();
     let cutoff = [
         "let me try",
@@ -1032,11 +1116,14 @@ fn sanitize_workflow_final_response_candidate(response: &str) -> String {
         "if you'd like, i can look deeper",
         "if you would like, i can look deeper",
     ]
-        .iter()
-        .filter_map(|marker| lowered.find(marker))
-        .min();
+    .iter()
+    .filter_map(|marker| lowered.find(marker))
+    .min();
     if let Some(idx) = cutoff {
-        cleaned = cleaned[..idx].trim().trim_end_matches(&['\n', ' ', '-', ':'][..]).to_string();
+        cleaned = cleaned[..idx]
+            .trim()
+            .trim_end_matches(&['\n', ' ', '-', ':'][..])
+            .to_string();
     }
     clean_chat_text(cleaned.trim(), 32_000)
 }
@@ -1051,7 +1138,6 @@ mod workflow_control_tests {
             "break the workflow and respond directly",
             &[],
             false,
-            false,
         );
         assert_eq!(control.get("enabled").and_then(Value::as_bool), Some(true));
         assert_eq!(
@@ -1059,7 +1145,9 @@ mod workflow_control_tests {
             Some("user_override")
         );
         assert_eq!(
-            control.get("workflow_mode_override").and_then(Value::as_str),
+            control
+                .get("workflow_mode_override")
+                .and_then(Value::as_str),
             Some("workflow=conversation_bypass_v1")
         );
     }
@@ -1069,7 +1157,6 @@ mod workflow_control_tests {
         let control = workflow_conversation_bypass_control_for_turn(
             "break the workflow and respond directly",
             &[],
-            true,
             true,
         );
         assert_eq!(control.get("enabled").and_then(Value::as_bool), Some(false));
@@ -1093,11 +1180,16 @@ mod workflow_control_tests {
             }
         })];
         let control =
-            workflow_conversation_bypass_control_for_turn("status?", &active_messages, false, false);
+            workflow_conversation_bypass_control_for_turn("status?", &active_messages, false);
         assert_eq!(control.get("enabled").and_then(Value::as_bool), Some(true));
-        assert_eq!(control.get("source").and_then(Value::as_str), Some("sticky"));
         assert_eq!(
-            control.get("remaining_turns_before").and_then(Value::as_u64),
+            control.get("source").and_then(Value::as_str),
+            Some("sticky")
+        );
+        assert_eq!(
+            control
+                .get("remaining_turns_before")
+                .and_then(Value::as_u64),
             Some(2)
         );
         assert_eq!(
@@ -1121,7 +1213,6 @@ mod workflow_control_tests {
         let control = workflow_conversation_bypass_control_for_turn(
             "resume workflow now",
             &active_messages,
-            false,
             false,
         );
         assert_eq!(control.get("enabled").and_then(Value::as_bool), Some(false));
