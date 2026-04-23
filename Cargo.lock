@@ -1112,12 +1112,46 @@ dependencies = [
 ]
 
 [[package]]
+name = "infring-autonomy-core-v1"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "hex",
+ "serde_json",
+ "sha2",
+ "tempfile",
+]
+
+[[package]]
 name = "infring-desktop"
 version = "0.1.0"
 dependencies = [
  "serde_json",
  "sha2",
  "tempfile",
+]
+
+[[package]]
+name = "infring-graph-core-v1"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "hex",
+ "infring_types",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "sha2",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "infring-hybrid-core"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
 ]
 
 [[package]]
@@ -1129,6 +1163,10 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
 ]
+
+[[package]]
+name = "infring-layer1-memory-runtime"
+version = "0.1.0"
 
 [[package]]
 name = "infring-layer1-primitives"
@@ -1180,12 +1218,307 @@ dependencies = [
 ]
 
 [[package]]
+name = "infring-memory-core"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "hex",
+ "infring-layer1-memory-runtime",
+ "infring-memory-core-v1",
+ "napi",
+ "napi-derive",
+ "rand 0.8.5",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "sqlite-vec",
+ "tempfile",
+ "time",
+]
+
+[[package]]
+name = "infring-memory-core-v1"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
+name = "infring-memory-core-v6"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "hex",
+ "infring_types",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "snap",
+]
+
+[[package]]
+name = "infring-mobile-core-v1"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "hex",
+ "infring-nexus-core-v1",
+ "serde",
+ "serde_json",
+ "sha2",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "infring-nexus-core-v1"
+version = "0.1.0"
+dependencies = [
+ "burn_oracle_budget_gate",
+ "conduit-security",
+ "execution_core",
+ "exotic_wrapper",
+ "foundation_hook_enforcer",
+ "infring-agent-derive",
+ "infring-autonomy-core-v1",
+ "infring-graph-core-v1",
+ "infring-layer1-memory-runtime",
+ "infring-layer1-provenance",
+ "infring-layer1-security",
+ "infring-memory-core-v1",
+ "infring-memory-core-v6",
+ "infring-observability-core-v1",
+ "infring-ops-core-v1",
+ "infring-pinnacle-core-v1",
+ "infring-red-legion-core-v1",
+ "infring-spine-core-v1",
+ "infring-stomach-core-v1",
+ "infring-swarm-core-v1",
+ "infring-task-fabric-core-v1",
+ "infring-tiny-runtime",
+ "infring-tooling-core-v1",
+ "infring-vault-core-v1",
+ "infring_types",
+ "ipc",
+ "isolation",
+ "llm_runtime",
+ "os_extension_wrapper",
+ "persona_dispatch_security_gate",
+ "resource",
+ "serde",
+ "serde_json",
+ "sha2",
+ "storage",
+ "task",
+ "update",
+]
+
+[[package]]
+name = "infring-observability-core-v1"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "hex",
+ "infring-memory-core-v6",
+ "infring_types",
+ "serde",
+ "serde_json",
+ "sha2",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "infring-ops-core"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "base64",
+ "chrono",
+ "crossbeam-channel",
+ "ed25519-dalek",
+ "hex",
+ "hmac",
+ "infring-nexus-core-v1",
+ "infring-pure-workspace",
+ "lopdf",
+ "memmap2",
+ "mimalloc",
+ "num_cpus",
+ "parking_lot",
+ "png",
+ "proptest",
+ "qrcodegen",
+ "rand 0.8.5",
+ "regex",
+ "rusqlite",
+ "semver",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "sha2",
+ "sysinfo",
+ "tempfile",
+ "urlencoding",
+ "walkdir",
+]
+
+[[package]]
+name = "infring-ops-core-v1"
+version = "0.1.0"
+dependencies = [
+ "async-nats",
+ "chrono",
+ "futures",
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "infring-pinnacle-core-v1"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "hex",
+ "infring_types",
+ "serde",
+ "serde_json",
+ "sha2",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "infring-pure-workspace"
+version = "0.1.0"
+
+[[package]]
+name = "infring-red-legion-core-v1"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "hex",
+ "infring-observability-core-v1",
+ "infring_types",
+ "serde",
+ "serde_json",
+ "sha2",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "infring-security-core-v1"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "hex",
+ "infring-nexus-core-v1",
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
+name = "infring-singularity-seed-core-v1"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "bincode",
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "snap",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "infring-spine-core-v1"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "chrono",
+ "hex",
+ "serde_json",
+ "sha2",
+ "tempfile",
+]
+
+[[package]]
+name = "infring-stomach-core-v1"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "walkdir",
+]
+
+[[package]]
+name = "infring-swarm-core-v1"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "hex",
+ "infring_types",
+ "serde",
+ "serde_json",
+ "sha2",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "infring-swarm-router"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "infring-task-fabric-core-v1"
 version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
  "sha2",
+]
+
+[[package]]
+name = "infring-tiny-runtime"
+version = "0.1.0"
+
+[[package]]
+name = "infring-tooling-core-v1"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+]
+
+[[package]]
+name = "infring-vault-core-v1"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "hex",
+ "infring-memory-core-v6",
+ "infring_types",
+ "serde",
+ "serde_json",
+ "sha2",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -1801,339 +2134,6 @@ dependencies = [
  "rusty-fork",
  "tempfile",
  "unarray",
-]
-
-[[package]]
-name = "infring-autonomy-core-v1"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "hex",
- "serde_json",
- "sha2",
- "tempfile",
-]
-
-[[package]]
-name = "infring-graph-core-v1"
-version = "0.1.0"
-dependencies = [
- "base64",
- "hex",
- "infring_types",
- "serde",
- "serde_json",
- "serde_yaml",
- "sha2",
- "wasm-bindgen",
-]
-
-[[package]]
-name = "infring-hybrid-core"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "sha2",
-]
-
-[[package]]
-name = "infring-layer1-memory-runtime"
-version = "0.1.0"
-
-[[package]]
-name = "infring-memory-core"
-version = "0.1.0"
-dependencies = [
- "aes-gcm",
- "hex",
- "napi",
- "napi-derive",
- "infring-layer1-memory-runtime",
- "infring-memory-core-v1",
- "rand 0.8.5",
- "rusqlite",
- "serde",
- "serde_json",
- "sha2",
- "sqlite-vec",
- "tempfile",
- "time",
-]
-
-[[package]]
-name = "infring-memory-core-v1"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "sha2",
-]
-
-[[package]]
-name = "infring-memory-core-v6"
-version = "0.1.0"
-dependencies = [
- "bincode",
- "hex",
- "infring_types",
- "rusqlite",
- "serde",
- "serde_json",
- "sha2",
- "snap",
-]
-
-[[package]]
-name = "infring-mobile-core-v1"
-version = "0.1.0"
-dependencies = [
- "base64",
- "hex",
- "infring-nexus-core-v1",
- "serde",
- "serde_json",
- "sha2",
- "wasm-bindgen",
-]
-
-[[package]]
-name = "infring-nexus-core-v1"
-version = "0.1.0"
-dependencies = [
- "burn_oracle_budget_gate",
- "conduit-security",
- "execution_core",
- "exotic_wrapper",
- "foundation_hook_enforcer",
- "infring-agent-derive",
- "infring-layer1-provenance",
- "infring-layer1-security",
- "infring-task-fabric-core-v1",
- "infring_types",
- "ipc",
- "isolation",
- "llm_runtime",
- "os_extension_wrapper",
- "persona_dispatch_security_gate",
- "infring-autonomy-core-v1",
- "infring-graph-core-v1",
- "infring-layer1-memory-runtime",
- "infring-memory-core-v1",
- "infring-memory-core-v6",
- "infring-observability-core-v1",
- "infring-ops-core-v1",
- "infring-pinnacle-core-v1",
- "infring-red-legion-core-v1",
- "infring-spine-core-v1",
- "infring-stomach-core-v1",
- "infring-swarm-core-v1",
- "infring-tiny-runtime",
- "infring-tooling-core-v1",
- "infring-vault-core-v1",
- "resource",
- "serde",
- "serde_json",
- "sha2",
- "storage",
- "task",
- "update",
-]
-
-[[package]]
-name = "infring-observability-core-v1"
-version = "0.1.0"
-dependencies = [
- "base64",
- "hex",
- "infring_types",
- "infring-memory-core-v6",
- "serde",
- "serde_json",
- "sha2",
- "wasm-bindgen",
-]
-
-[[package]]
-name = "infring-ops-core"
-version = "0.1.0"
-dependencies = [
- "aes-gcm",
- "base64",
- "chrono",
- "crossbeam-channel",
- "ed25519-dalek",
- "hex",
- "hmac",
- "lopdf",
- "memmap2",
- "mimalloc",
- "num_cpus",
- "parking_lot",
- "png",
- "proptest",
- "infring-nexus-core-v1",
- "infring-pure-workspace",
- "qrcodegen",
- "rand 0.8.5",
- "regex",
- "rusqlite",
- "semver",
- "serde",
- "serde_json",
- "serde_yaml",
- "sha2",
- "sysinfo",
- "tempfile",
- "urlencoding",
- "walkdir",
-]
-
-[[package]]
-name = "infring-ops-core-v1"
-version = "0.1.0"
-dependencies = [
- "async-nats",
- "chrono",
- "futures",
- "hex",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "tokio",
- "uuid",
-]
-
-[[package]]
-name = "infring-pinnacle-core-v1"
-version = "0.1.0"
-dependencies = [
- "base64",
- "hex",
- "infring_types",
- "serde",
- "serde_json",
- "sha2",
- "wasm-bindgen",
-]
-
-[[package]]
-name = "infring-pure-workspace"
-version = "0.1.0"
-
-[[package]]
-name = "infring-red-legion-core-v1"
-version = "0.1.0"
-dependencies = [
- "base64",
- "hex",
- "infring_types",
- "infring-observability-core-v1",
- "serde",
- "serde_json",
- "sha2",
- "wasm-bindgen",
-]
-
-[[package]]
-name = "infring-security-core-v1"
-version = "0.1.0"
-dependencies = [
- "base64",
- "hex",
- "infring-nexus-core-v1",
- "serde",
- "serde_json",
- "sha2",
-]
-
-[[package]]
-name = "infring-singularity-seed-core-v1"
-version = "0.1.0"
-dependencies = [
- "base64",
- "bincode",
- "hex",
- "serde",
- "serde_json",
- "sha2",
- "snap",
- "wasm-bindgen",
-]
-
-[[package]]
-name = "infring-spine-core-v1"
-version = "0.1.0"
-dependencies = [
- "base64",
- "chrono",
- "hex",
- "serde_json",
- "sha2",
- "tempfile",
-]
-
-[[package]]
-name = "infring-stomach-core-v1"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "walkdir",
-]
-
-[[package]]
-name = "infring-swarm-core-v1"
-version = "0.1.0"
-dependencies = [
- "base64",
- "hex",
- "infring_types",
- "serde",
- "serde_json",
- "sha2",
- "wasm-bindgen",
-]
-
-[[package]]
-name = "infring-swarm-router"
-version = "0.1.0"
-dependencies = [
- "hex",
- "serde",
- "serde_json",
- "sha2",
-]
-
-[[package]]
-name = "infring-tiny-runtime"
-version = "0.1.0"
-
-[[package]]
-name = "infring-tooling-core-v1"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
-]
-
-[[package]]
-name = "infring-vault-core-v1"
-version = "0.1.0"
-dependencies = [
- "base64",
- "hex",
- "infring_types",
- "infring-memory-core-v6",
- "serde",
- "serde_json",
- "sha2",
- "wasm-bindgen",
 ]
 
 [[package]]

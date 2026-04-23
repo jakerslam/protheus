@@ -41,13 +41,44 @@ fn important_memory_terms(text: &str, limit: usize) -> Vec<String> {
     out
 }
 
+fn contains_deprecated_workflow_ghost_phrase(text: &str) -> bool {
+    let lowered = clean_text(text, 4_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    lowered.contains("task_or_info_route")
+        || lowered.contains("i completed the workflow gate, but the final workflow state was unexpected")
+        || lowered.contains("please retry so i can rerun the chain cleanly")
+}
+
+fn scrub_deprecated_workflow_ghost_text(text: &str) -> String {
+    let mut cleaned = clean_text(text, 4_000);
+    if cleaned.is_empty() {
+        return cleaned;
+    }
+    cleaned = cleaned.replace("task_or_info_route", "workflow_route");
+    cleaned = cleaned.replace(
+        "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.",
+        "Workflow state was recovered after a retry-loop guard. Proceed with the next explicit tool step.",
+    );
+    cleaned = cleaned.replace(
+        "I completed the workflow gate, but the final workflow state was unexpected.",
+        "Workflow state was recovered after a retry-loop guard.",
+    );
+    clean_text(&cleaned, 1_400)
+}
+
 fn passive_memory_attention_event(
     agent_id: &str,
     user_text: &str,
     assistant_text: &str,
 ) -> Option<Value> {
     let user = clean_text(user_text, 1400);
-    let assistant = clean_text(assistant_text, 1400);
+    let assistant_raw = clean_text(assistant_text, 1400);
+    if contains_deprecated_workflow_ghost_phrase(&assistant_raw) {
+        return None;
+    }
+    let assistant = scrub_deprecated_workflow_ghost_text(&assistant_raw);
     if user.is_empty() && assistant.is_empty() {
         return None;
     }

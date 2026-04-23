@@ -13,6 +13,29 @@ fn run_dashboard_watchdog(root: &Path, argv: &[String]) -> i32 {
         }));
         return 0;
     }
+    if let Some(duplicate_runtime) = dashboard_runtime_duplicate_guard(root, &cfg) {
+        append_watchdog_log(
+            root,
+            &json!({
+                "ok": false,
+                "type": "dashboard_watchdog",
+                "event": "authority_guard_blocked",
+                "pid": current_pid,
+                "duplicate_runtime": duplicate_runtime,
+                "port": cfg.port,
+            }),
+        );
+        print_json_line(&json!({
+            "ok": false,
+            "type": "dashboard_watchdog",
+            "running": false,
+            "reason": "dashboard_duplicate_runtime_detected",
+            "pid": current_pid,
+            "duplicate_runtime": duplicate_runtime,
+            "port": cfg.port,
+        }));
+        return 2;
+    }
     let _ = fs::write(
         dashboard_watchdog_pid_path(root),
         format!("{}\n", current_pid),

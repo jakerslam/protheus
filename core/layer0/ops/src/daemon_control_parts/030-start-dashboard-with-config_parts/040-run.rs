@@ -89,6 +89,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "status" => {
                 let cfg = parse_dashboard_launch_config(argv, "start");
                 let auto_heal = parse_bool(parse_flag(argv, "auto-heal").as_deref(), true);
+                let authority_guard = dashboard_runtime_duplicate_guard(root, &cfg);
                 let self_heal = if auto_heal {
                     heal_gateway_runtime(root, &cfg)
                 } else {
@@ -109,6 +110,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "watchdog": dashboard_watchdog_status(root),
                     "supervisor": gateway_supervisor::status(root).payload,
                     "self_heal": self_heal,
+                    "authority_guard": authority_guard,
                 })
             }
             "heal" => {
