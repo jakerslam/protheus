@@ -41,6 +41,9 @@ type RuntimeQualityPolicy = {
   max_non_legacy_fallback_plus_heuristic_rate?: number;
   max_non_legacy_clarification_plus_degraded_rate?: number;
   max_non_legacy_fallback_minus_zero_executable_rate?: number;
+  required_metric_fields?: string[];
+  max_missing_metric_fields?: number;
+  consistency_epsilon?: number;
   ratchet?: {
     max_regression_delta?: number;
   };
@@ -53,6 +56,16 @@ type RuntimeQualityPolicy = {
 type OrchestrationQualityPolicy = {
   runtime_quality?: RuntimeQualityPolicy;
 };
+
+const DEFAULT_REQUIRED_RUNTIME_FIELDS: Array<keyof RuntimeQualityMetrics> = [
+  'sample_size_non_legacy',
+  'fallback_rate_non_legacy',
+  'heuristic_probe_rate_non_legacy',
+  'clarification_rate_non_legacy',
+  'zero_executable_rate_non_legacy',
+  'all_candidates_degraded_rate_non_legacy',
+  'average_candidate_count',
+];
 
 function resolveArgs(argv: string[]): ScriptArgs {
   return {
@@ -85,6 +98,20 @@ function parseRuntimeMetrics(output: string): RuntimeQualityMetrics | null {
 
 function numberOrNull(value: unknown): number | null {
   return Number.isFinite(Number(value)) ? Number(value) : null;
+}
+
+function requiredMetricFieldsFromPolicy(policy: RuntimeQualityPolicy): string[] {
+  if (!Array.isArray(policy.required_metric_fields) || policy.required_metric_fields.length === 0) {
+    return [...DEFAULT_REQUIRED_RUNTIME_FIELDS];
+  }
+  return policy.required_metric_fields
+    .map((field) => String(field || '').trim())
+    .filter((field) => field.length > 0);
+}
+
+function collectMissingMetricFields(metrics: RuntimeQualityMetrics | null, requiredFields: string[]): string[] {
+  if (!metrics) return [...requiredFields];
+  return requiredFields.filter((field) => numberOrNull((metrics as Record<string, unknown>)[field]) == null);
 }
 
 function evaluateThresholds(metrics: RuntimeQualityMetrics | null, policy: RuntimeQualityPolicy): string[] {
@@ -120,6 +147,17 @@ function evaluateThresholds(metrics: RuntimeQualityMetrics | null, policy: Runti
   const maxFallbackMinusZeroExecutableRate = numberOrNull(
     policy.max_non_legacy_fallback_minus_zero_executable_rate,
   );
+  const requiredMetricFields = requiredMetricFieldsFromPolicy(policy);
+  const missingMetricFields = collectMissingMetricFields(metrics, requiredMetricFields);
+  const maxMissingMetricFields = Math.max(0, Number(policy.max_missing_metric_fields ?? 0));
+  if (missingMetricFields.length > maxMissingMetricFields) {
+    failures.push(
+      `missing_metric_fields_exceeded:actual=${missingMetricFields.length}:max=${maxMissingMetricFields}`,
+    );
+  }
+  for (const field of missingMetricFields) {
+    failures.push(`missing_metric_field:${field}`);
+  }
 
   if (sampleSize == null) {
     failures.push('missing_sample_size_non_legacy');
@@ -214,9 +252,13 @@ function evaluateThresholds(metrics: RuntimeQualityMetrics | null, policy: Runti
   return failures;
 }
 
-function evaluateMetricConsistency(metrics: RuntimeQualityMetrics | null): string[] {
+function evaluateMetricConsistency(
+  metrics: RuntimeQualityMetrics | null,
+  policy: RuntimeQualityPolicy,
+): string[] {
   const failures: string[] = [];
   if (!metrics) return failures;
+  const epsilon = Math.max(0, Number(policy.consistency_epsilon ?? 0));
 
   const sampleSize = numberOrNull(metrics.sample_size_non_legacy);
   const averageCandidateCount = numberOrNull(metrics.average_candidate_count);
@@ -255,34 +297,62 @@ function evaluateMetricConsistency(metrics: RuntimeQualityMetrics | null): strin
 
   if (
     sampleSize != null
-    && sampleSize === 0
-    && rateRows.some((row) => row.value != null && row.value !== 0)
+    && Math.abs(sampleSize) <= epsilon
+    && rateRows.some((row) => row.value != null && Math.abs(row.value) > epsilon)
   ) {
     failures.push('inconsistent_non_legacy_rates_with_zero_sample_size');
   }
   if (
     sampleSize != null
-    && sampleSize === 0
+    && Math.abs(sampleSize) <= epsilon
     && averageCandidateCount != null
-    && averageCandidateCount > 0
+    && averageCandidateCount > epsilon
   ) {
     failures.push(
       `inconsistent_average_candidate_count_with_zero_sample_size:value=${averageCandidateCount.toFixed(4)}`,
     );
   }
+  if (sampleSize != null && sampleSize > epsilon) {
+    for (const row of rateRows) {
+      if (row.value == null) {
+        failures.push(`inconsistent_missing_${row.key}_with_positive_sample_size`);
+      }
+    }
+    if (averageCandidateCount == null) {
+      failures.push('inconsistent_missing_average_candidate_count_with_positive_sample_size');
+    }
+  }
   if (
     allCandidatesDegradedRate != null
     && zeroExecutableRate != null
-    && allCandidatesDegradedRate > zeroExecutableRate
+    && allCandidatesDegradedRate > zeroExecutableRate + epsilon
   ) {
     failures.push(
       `inconsistent_all_candidates_degraded_rate_vs_zero_executable_rate_non_legacy:all_candidates_degraded_rate_non_legacy=${allCandidatesDegradedRate.toFixed(4)}:zero_executable_rate_non_legacy=${zeroExecutableRate.toFixed(4)}`,
     );
   }
   if (
+    clarificationRate != null
+    && zeroExecutableRate != null
+    && clarificationRate > zeroExecutableRate + epsilon
+  ) {
+    failures.push(
+      `inconsistent_clarification_rate_vs_zero_executable_rate_non_legacy:clarification_rate_non_legacy=${clarificationRate.toFixed(4)}:zero_executable_rate_non_legacy=${zeroExecutableRate.toFixed(4)}`,
+    );
+  }
+  if (
+    allCandidatesDegradedRate != null
+    && clarificationRate != null
+    && allCandidatesDegradedRate > clarificationRate + epsilon
+  ) {
+    failures.push(
+      `inconsistent_all_candidates_degraded_rate_vs_clarification_rate_non_legacy:all_candidates_degraded_rate_non_legacy=${allCandidatesDegradedRate.toFixed(4)}:clarification_rate_non_legacy=${clarificationRate.toFixed(4)}`,
+    );
+  }
+  if (
     fallbackRate != null
     && zeroExecutableRate != null
-    && fallbackRate > zeroExecutableRate
+    && fallbackRate > zeroExecutableRate + epsilon
   ) {
     failures.push(
       `inconsistent_fallback_rate_vs_zero_executable_rate_non_legacy:fallback_rate_non_legacy=${fallbackRate.toFixed(4)}:zero_executable_rate_non_legacy=${zeroExecutableRate.toFixed(4)}`,
@@ -291,7 +361,7 @@ function evaluateMetricConsistency(metrics: RuntimeQualityMetrics | null): strin
   if (
     fallbackRate != null
     && heuristicProbeRate != null
-    && fallbackRate + heuristicProbeRate > 1
+    && fallbackRate + heuristicProbeRate > 1 + epsilon
   ) {
     failures.push(
       `inconsistent_fallback_plus_heuristic_rate_non_legacy_over_1:sum=${(fallbackRate + heuristicProbeRate).toFixed(4)}`,
@@ -300,7 +370,7 @@ function evaluateMetricConsistency(metrics: RuntimeQualityMetrics | null): strin
   if (
     clarificationRate != null
     && allCandidatesDegradedRate != null
-    && clarificationRate + allCandidatesDegradedRate > 1
+    && clarificationRate + allCandidatesDegradedRate > 1 + epsilon
   ) {
     failures.push(
       `inconsistent_clarification_plus_all_candidates_degraded_rate_non_legacy_over_1:sum=${(clarificationRate + allCandidatesDegradedRate).toFixed(4)}`,
@@ -382,6 +452,16 @@ function toMarkdown(payload: any): string {
     lines.push(JSON.stringify(payload.metrics, null, 2));
     lines.push('```');
   }
+  if (payload.metric_completeness) {
+    lines.push('');
+    lines.push('## Metric Completeness');
+    lines.push(`- required: ${payload.metric_completeness.required_metric_fields.length}`);
+    lines.push(`- present: ${payload.metric_completeness.present_metric_fields}`);
+    lines.push(`- missing: ${payload.metric_completeness.missing_metric_fields.length}`);
+    if (payload.metric_completeness.missing_metric_fields.length > 0) {
+      for (const row of payload.metric_completeness.missing_metric_fields) lines.push(`- missing_field: ${row}`);
+    }
+  }
   if (Array.isArray(payload.policy_failures) && payload.policy_failures.length > 0) {
     lines.push('');
     lines.push('## Policy Failures');
@@ -435,9 +515,14 @@ function run(argv: string[]): number {
   const previousLatest = runtimePolicy.paths?.latest
     ? readJsonMaybe<any>(runtimePolicy.paths.latest)
     : null;
+  const requiredMetricFields = requiredMetricFieldsFromPolicy(runtimePolicy);
+  const missingMetricFields = collectMissingMetricFields(metrics, requiredMetricFields);
   const policyFailures = evaluateThresholds(metrics, runtimePolicy);
-  const consistencyFailures = evaluateMetricConsistency(metrics);
+  const consistencyFailures = evaluateMetricConsistency(metrics, runtimePolicy);
   const ratchetFailures = evaluateRatchet(metrics, runtimePolicy, previousLatest);
+  const metricFieldsPresent = metrics
+    ? Object.values(metrics).filter((value) => numberOrNull(value) != null).length
+    : 0;
   const ok =
     testsOk
     && policyFailures.length === 0
@@ -466,8 +551,16 @@ function run(argv: string[]): number {
       policy_failure_count: policyFailures.length,
       consistency_failure_count: consistencyFailures.length,
       ratchet_failure_count: ratchetFailures.length,
+      metric_fields_present: metricFieldsPresent,
+      required_metric_field_count: requiredMetricFields.length,
+      missing_metric_field_count: missingMetricFields.length,
     },
     metrics,
+    metric_completeness: {
+      required_metric_fields: requiredMetricFields,
+      missing_metric_fields: missingMetricFields,
+      present_metric_fields: requiredMetricFields.length - missingMetricFields.length,
+    },
     policy_failures: policyFailures,
     consistency_failures: consistencyFailures,
     ratchet_failures: ratchetFailures,

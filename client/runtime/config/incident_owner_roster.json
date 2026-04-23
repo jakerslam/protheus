@@ -1,0 +1,32 @@
+{
+  "owners": [
+    {
+      "owner_id": "runtime_primary",
+      "display_name": "Runtime Primary",
+      "contact": "#runtime-oncall",
+      "roles": ["runtime_owner", "ops_oncall"],
+      "active": true
+    },
+    {
+      "owner_id": "incident_command_primary",
+      "display_name": "Incident Command Primary",
+      "contact": "#incident-command",
+      "roles": ["incident_commander", "release_owner"],
+      "active": true
+    },
+    {
+      "owner_id": "adapter_primary",
+      "display_name": "Gateway Primary",
+      "contact": "#gateway-oncall",
+      "roles": ["adapter_owner"],
+      "active": true
+    },
+    {
+      "owner_id": "dashboard_primary",
+      "display_name": "Shell Observability Primary",
+      "contact": "#shell-ops",
+      "roles": ["dashboard_owner"],
+      "active": true
+    }
+  ]
+}

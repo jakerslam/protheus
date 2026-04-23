@@ -255,10 +255,10 @@
 
 @keyframes thinking-status-shimmer {
   0% {
-    background-position: -180% 0;
+    background-position: 180% 0;
   }
   100% {
-    background-position: 180% 0;
+    background-position: -180% 0;
   }
 }
 
@@ -266,22 +266,33 @@
 .message-bubble.message-bubble-thinking .thinking-inline-text > em,
 .message-bubble.message-bubble-thinking .thinking-inline-subtext {
   display: inline-block;
+  position: relative;
   --thinking-shimmer-base: rgba(108, 118, 132, 0.98);
   --thinking-shimmer-soft: rgba(255, 255, 255, 0.72);
   --thinking-shimmer-peak: rgba(255, 255, 255, 0.98);
   color: var(--thinking-shimmer-base);
+}
+
+.thinking-shimmer-text::after,
+.message-bubble.message-bubble-thinking .thinking-inline-text > em::after,
+.message-bubble.message-bubble-thinking .thinking-inline-subtext::after {
+  content: attr(data-shimmer-text);
+  position: absolute;
+  inset: 0;
+  color: transparent;
+  pointer-events: none;
   background-image: linear-gradient(
     90deg,
-    var(--thinking-shimmer-base) 0%,
-    var(--thinking-shimmer-base) 43%,
+    transparent 0%,
+    transparent 43%,
     var(--thinking-shimmer-soft) 48%,
     var(--thinking-shimmer-peak) 50%,
     var(--thinking-shimmer-soft) 52%,
-    var(--thinking-shimmer-base) 57%,
-    var(--thinking-shimmer-base) 100%
+    transparent 57%,
+    transparent 100%
   );
   background-size: 220% 100%;
-  background-position: -180% 0;
+  background-position: 180% 0;
   background-repeat: no-repeat;
   -webkit-background-clip: text;
   background-clip: text;
@@ -309,6 +320,12 @@ body[data-theme='dark'] .message-bubble.message-bubble-thinking .thinking-inline
   .thinking-shimmer-text,
   .message-bubble.message-bubble-thinking .thinking-inline-text > em,
   .message-bubble.message-bubble-thinking .thinking-inline-subtext {
+    animation: none;
+  }
+
+  .thinking-shimmer-text::after,
+  .message-bubble.message-bubble-thinking .thinking-inline-text > em::after,
+  .message-bubble.message-bubble-thinking .thinking-inline-subtext::after {
     animation: none;
     background-position: 0 0;
   }

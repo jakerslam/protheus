@@ -16,7 +16,7 @@ const CHAT_BUBBLE_COMPONENT_SOURCE = String.raw`<svelte:options customElement={{
 </script>
 
 {#if isTyping}
-  <div class="message-bubble-content message-bubble-content-typing">{plain}</div>
+  <div class="message-bubble-content message-bubble-content-typing">{@html html || plain}</div>
 {:else}
   <div class="message-bubble-content">{@html html}</div>
 {/if}

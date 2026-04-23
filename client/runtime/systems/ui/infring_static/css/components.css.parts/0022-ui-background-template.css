@@ -72,7 +72,7 @@ body {
 
 :root[data-ui-background-template='light-wood'] body[data-theme='dark'],
 :root[data-ui-background-template='sand'] body[data-theme='dark'] {
-  --ui-background-template-dim-layer: linear-gradient(rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0.42));
+  --ui-background-template-dim-layer: linear-gradient(rgba(0, 0, 0, 0.656), rgba(0, 0, 0, 0.656));
 }
 
 .main-content,

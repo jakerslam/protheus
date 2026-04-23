@@ -200,16 +200,28 @@ function checkOwnershipMap(policy: GovernancePolicy): GateCheck {
     'dashboard_owner',
     'release_owner',
   ];
+  const requiredLaneKeys = [
+    'runtime_authority',
+    'adapter_fail_closed',
+    'dashboard_freshness',
+    'release_governance',
+    'incident_command',
+  ];
   const missingRoles = requiredRoles.filter((role) => !roles.includes(role));
+  const missingLanes = requiredLaneKeys.filter((lane) => cleanText(lanes[lane], 120).length === 0);
   const laneValues = Object.values(lanes).map((row) => cleanText(row, 120)).filter(Boolean);
   const laneRoleViolations = laneValues.filter((value) => !roles.includes(value));
-  const ok = missingRoles.length === 0 && laneRoleViolations.length === 0 && Object.keys(lanes).length > 0;
+  const ok =
+    missingRoles.length === 0
+    && missingLanes.length === 0
+    && laneRoleViolations.length === 0
+    && Object.keys(lanes).length > 0;
   return {
     id: 'ownership_map',
     ok,
     detail: ok
       ? `roles=${roles.length};lanes=${Object.keys(lanes).length}`
-      : `missing_roles=${missingRoles.join(',') || 'none'};lane_role_violations=${laneRoleViolations.join(',') || 'none'};lane_count=${Object.keys(lanes).length}`,
+      : `missing_roles=${missingRoles.join(',') || 'none'};missing_lanes=${missingLanes.join(',') || 'none'};lane_role_violations=${laneRoleViolations.join(',') || 'none'};lane_count=${Object.keys(lanes).length}`,
   };
 }
 
@@ -250,19 +262,36 @@ function checkOwnerRoster(policy: GovernancePolicy, ownerRosterPath: string): Ga
     const ownerRoles = uniqueNonEmpty(owner.roles);
     return ownerRoles.includes(requiredRole);
   }));
+  const criticalRoleOwnerIds = new Set<string>();
+  for (const owner of activeOwners) {
+    const ownerId = cleanText(owner.owner_id, 120);
+    const ownerRoles = uniqueNonEmpty(owner.roles);
+    if (!ownerId) continue;
+    if (ownerRoles.includes('incident_commander') || ownerRoles.includes('ops_oncall')) {
+      criticalRoleOwnerIds.add(ownerId);
+    }
+  }
+  const criticalRoleSeparationViolation = criticalRoleOwnerIds.size < 2;
 
-  const ok = missingRoles.length === 0 && duplicateIds.size === 0 && placeholderOwners.length === 0;
+  const ok =
+    missingRoles.length === 0
+    && duplicateIds.size === 0
+    && placeholderOwners.length === 0
+    && !criticalRoleSeparationViolation;
   return {
     id: 'owner_roster_contract',
     ok,
     detail: ok
       ? `path=${ownerRosterPath};active_owners=${activeOwners.length}`
-      : `missing_roles=${missingRoles.join(',') || 'none'};duplicate_owner_ids=${Array.from(duplicateIds).join(',') || 'none'};placeholder_or_invalid_owners=${placeholderOwners.join(',') || 'none'}`,
+      : `missing_roles=${missingRoles.join(',') || 'none'};duplicate_owner_ids=${Array.from(duplicateIds).join(',') || 'none'};placeholder_or_invalid_owners=${placeholderOwners.join(',') || 'none'};critical_role_owner_separation=${criticalRoleSeparationViolation ? 'failed' : 'ok'}`,
   };
 }
 
 function checkEscalationSla(policy: GovernancePolicy): GateCheck {
-  const required = ['P0', 'P1', 'P2', 'P3'];
+  const required = uniqueNonEmpty(policy.hard_gates?.severity_taxonomy?.required_levels);
+  if (required.length === 0) {
+    required.push('P0', 'P1', 'P2', 'P3');
+  }
   const sla = policy.hard_gates?.escalation_sla_minutes || {};
   const missing = required.filter((id) => !(id in sla));
   const orderViolations: string[] = [];
@@ -282,6 +311,7 @@ function checkEscalationSla(policy: GovernancePolicy): GateCheck {
     const cadence = Number(row.update_cadence);
     if (Number.isFinite(ack) && Number.isFinite(escalate) && Number.isFinite(cadence)) {
       if (!(ack <= escalate && escalate <= cadence)) orderViolations.push(severity);
+      if (cadence > 1440) orderViolations.push(`${severity}_cadence_exceeds_24h`);
     }
   }
 
@@ -396,13 +426,22 @@ function checkProcessDoc(policy: GovernancePolicy, processPath: string): GateChe
   try {
     const raw = fs.readFileSync(path.resolve(ROOT, processPath), 'utf8');
     const missing = requiredHeadings.filter((heading) => !raw.includes(heading));
-    const ok = missing.length === 0;
+    const headingPositions = requiredHeadings.map((heading) => raw.indexOf(heading));
+    const orderViolations: string[] = [];
+    for (let i = 0; i < headingPositions.length - 1; i += 1) {
+      const currentPos = headingPositions[i];
+      const nextPos = headingPositions[i + 1];
+      if (currentPos >= 0 && nextPos >= 0 && currentPos > nextPos) {
+        orderViolations.push(`${requiredHeadings[i]}>${requiredHeadings[i + 1]}`);
+      }
+    }
+    const ok = missing.length === 0 && orderViolations.length === 0;
     return {
       id: 'process_doc_contract',
       ok,
       detail: ok
         ? `path=${processPath};headings=${requiredHeadings.length}`
-        : `path=${processPath};missing_headings=${missing.join('|')}`,
+        : `path=${processPath};missing_headings=${missing.join('|') || 'none'};heading_order_violations=${orderViolations.join('|') || 'none'}`,
     };
   } catch {
     return {

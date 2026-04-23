@@ -4,7 +4,7 @@ fn workflow_decision_tree_v2_selects_minimal_web_tools_only_when_needed() {
     );
     assert_eq!(
         decision.get("route_classification").and_then(Value::as_str),
-        Some("info")
+        Some("task")
     );
     assert_eq!(
         decision

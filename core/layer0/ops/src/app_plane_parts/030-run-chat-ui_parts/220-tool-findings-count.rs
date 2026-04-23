@@ -9,5 +9,19 @@ fn tool_findings_count(row: &Value) -> usize {
             return count;
         }
     }
+    let result_text = clean(
+        row.get("result")
+            .or_else(|| row.pointer("/result/summary"))
+            .or_else(|| row.pointer("/result/text"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        2_000,
+    );
+    if !result_text.is_empty()
+        && !crate::tool_output_match_filter::matches_ack_placeholder(&result_text)
+        && !result_text.contains("<function=")
+    {
+        return 1;
+    }
     0
 }

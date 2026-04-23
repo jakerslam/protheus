@@ -17,6 +17,15 @@ const DEFAULT_OUT = path.join(ROOT, 'core/local/artifacts/release_contract_gate_
 const GATE_REGISTRY_PATH = 'tests/tooling/config/tooling_gate_registry.json';
 const TS_ENTRYPOINT = path.join(ROOT, 'client/runtime/lib/ts_entrypoint.ts');
 const TOPOLOGY_STATUS_SCRIPT = path.join(ROOT, 'client/runtime/systems/ops/transport_topology_status.ts');
+const RELEASE_CHANNEL_POLICY_PATH = 'client/runtime/config/release_channel_policy.json';
+const RELEASE_COMPATIBILITY_POLICY_PATH = 'client/runtime/config/release_compatibility_policy.json';
+const SCHEMA_VERSIONING_POLICY_PATH = 'client/runtime/config/schema_versioning_gate_policy.json';
+const DEPENDENCY_UPDATE_POLICY_PATH = 'client/runtime/config/dependency_update_policy.json';
+const API_CLI_REGISTRY_PATH = 'client/runtime/config/api_cli_contract_registry.json';
+const TOOLING_GATE_REGISTRY_PATH = 'tests/tooling/config/tooling_gate_registry.json';
+const VERIFY_PROFILES_PATH = 'tests/tooling/config/verify_profiles.json';
+const RELEASE_WORKFLOW_PATH = '.github/workflows/release.yml';
+const RELEASE_PROOF_PACK_MANIFEST_PATH = 'tests/tooling/config/release_proof_pack_manifest.json';
 const WRAPPER_FILES = [
   'client/runtime/systems/autonomy/self_improvement_cadence_orchestrator.ts',
   'client/runtime/systems/memory/causal_temporal_graph.ts',
@@ -35,6 +44,216 @@ function read(relPath: string): string {
   return fs.readFileSync(path.join(ROOT, relPath), 'utf8');
 }
 
+function parseJson(relPath: string): { ok: true; value: any } | { ok: false; detail: string } {
+  try {
+    return { ok: true, value: JSON.parse(read(relPath)) };
+  } catch (error: any) {
+    return {
+      ok: false,
+      detail: `${relPath}:parse_error:${String(error?.message || error || 'unknown')}`,
+    };
+  }
+}
+
+function asTrimmedString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function isNonEmptyString(value: unknown): boolean {
+  return asTrimmedString(value).length > 0;
+}
+
+function isSemverToken(value: unknown): boolean {
+  return /^\d+\.\d+\.\d+$/.test(asTrimmedString(value));
+}
+
+function isCanonicalRelativePathToken(
+  value: string,
+  requiredPrefix = '',
+  requiredSuffix = '',
+): boolean {
+  const normalized = asTrimmedString(value);
+  if (!normalized) return false;
+  if (path.isAbsolute(normalized)) return false;
+  if (normalized.includes('\\')) return false;
+  if (normalized.includes('..')) return false;
+  if (normalized.includes('//')) return false;
+  if (/\s/.test(normalized)) return false;
+  if (requiredPrefix && !normalized.startsWith(requiredPrefix)) return false;
+  if (requiredSuffix && !normalized.endsWith(requiredSuffix)) return false;
+  return true;
+}
+
+function releaseContractPathAndConstantChecks(args: ReturnType<typeof parseArgs>): Check[] {
+  const outRaw = asTrimmedString(args.out) || DEFAULT_OUT;
+  const outAbs = path.resolve(ROOT, outRaw);
+  const artifactsRoot = path.resolve(ROOT, 'core/local/artifacts');
+  const outRelFromArtifacts = path.relative(artifactsRoot, outAbs).replace(/\\/g, '/');
+  const outInsideArtifacts =
+    outRelFromArtifacts.length > 0
+    && outRelFromArtifacts !== '..'
+    && !outRelFromArtifacts.startsWith('../')
+    && !path.isAbsolute(outRelFromArtifacts);
+  const policyPaths = [
+    RELEASE_CHANNEL_POLICY_PATH,
+    RELEASE_COMPATIBILITY_POLICY_PATH,
+    SCHEMA_VERSIONING_POLICY_PATH,
+    DEPENDENCY_UPDATE_POLICY_PATH,
+    API_CLI_REGISTRY_PATH,
+  ];
+  const policyPathDuplicates = policyPaths.filter((row, idx, arr) => arr.indexOf(row) !== idx);
+  const policyPathsCanonical = policyPaths.every((row) =>
+    isCanonicalRelativePathToken(row, 'client/runtime/config/', '.json')
+  );
+  return [
+    {
+      id: 'release_contract_gate_out_path_canonical_contract',
+      ok: isNonEmptyString(outRaw) && !outRaw.includes('\0'),
+      detail: outRaw || 'missing',
+    },
+    {
+      id: 'release_contract_gate_out_path_json_suffix_contract',
+      ok: outAbs.endsWith('.json'),
+      detail: outRaw || 'missing',
+    },
+    {
+      id: 'release_contract_gate_out_path_current_suffix_contract',
+      ok: outAbs.endsWith('_current.json'),
+      detail: outRaw || 'missing',
+    },
+    {
+      id: 'release_contract_gate_out_path_artifacts_scope_contract',
+      ok: outInsideArtifacts,
+      detail: outRaw || 'missing',
+    },
+    {
+      id: 'release_contract_gate_registry_path_constant_alignment_contract',
+      ok: GATE_REGISTRY_PATH === TOOLING_GATE_REGISTRY_PATH,
+      detail: `gate=${GATE_REGISTRY_PATH};tooling=${TOOLING_GATE_REGISTRY_PATH}`,
+    },
+    {
+      id: 'release_contract_policy_paths_unique_contract',
+      ok: policyPathDuplicates.length === 0,
+      detail:
+        policyPathDuplicates.length === 0
+          ? 'ok'
+          : Array.from(new Set(policyPathDuplicates)).join(','),
+    },
+    {
+      id: 'release_contract_policy_paths_canonical_contract',
+      ok: policyPathsCanonical,
+      detail: policyPaths.join(','),
+    },
+    {
+      id: 'release_contract_release_workflow_path_canonical_contract',
+      ok:
+        RELEASE_WORKFLOW_PATH === '.github/workflows/release.yml'
+        && isCanonicalRelativePathToken(RELEASE_WORKFLOW_PATH, '.github/workflows/', '.yml'),
+      detail: RELEASE_WORKFLOW_PATH,
+    },
+    {
+      id: 'release_contract_proof_pack_manifest_path_canonical_contract',
+      ok:
+        RELEASE_PROOF_PACK_MANIFEST_PATH === 'tests/tooling/config/release_proof_pack_manifest.json'
+        && isCanonicalRelativePathToken(
+          RELEASE_PROOF_PACK_MANIFEST_PATH,
+          'tests/tooling/config/',
+          '.json',
+        ),
+      detail: RELEASE_PROOF_PACK_MANIFEST_PATH,
+    },
+    {
+      id: 'release_contract_verify_profiles_path_canonical_contract',
+      ok:
+        VERIFY_PROFILES_PATH === 'tests/tooling/config/verify_profiles.json'
+        && isCanonicalRelativePathToken(VERIFY_PROFILES_PATH, 'tests/tooling/config/', '.json'),
+      detail: VERIFY_PROFILES_PATH,
+    },
+  ];
+}
+
+function releaseContractFilePresenceChecks(): Check[] {
+  const policyPaths = [
+    RELEASE_CHANNEL_POLICY_PATH,
+    RELEASE_COMPATIBILITY_POLICY_PATH,
+    SCHEMA_VERSIONING_POLICY_PATH,
+    DEPENDENCY_UPDATE_POLICY_PATH,
+    API_CLI_REGISTRY_PATH,
+  ];
+  const missingPolicyFiles = policyPaths.filter((row) => !fs.existsSync(path.join(ROOT, row)));
+  return [
+    {
+      id: 'release_contract_policy_files_exist_contract',
+      ok: missingPolicyFiles.length === 0,
+      detail: missingPolicyFiles.length === 0 ? 'ok' : missingPolicyFiles.join(','),
+    },
+    {
+      id: 'release_contract_release_workflow_exists_contract',
+      ok: fs.existsSync(path.join(ROOT, RELEASE_WORKFLOW_PATH)),
+      detail: RELEASE_WORKFLOW_PATH,
+    },
+    {
+      id: 'release_contract_proof_pack_manifest_exists_contract',
+      ok: fs.existsSync(path.join(ROOT, RELEASE_PROOF_PACK_MANIFEST_PATH)),
+      detail: RELEASE_PROOF_PACK_MANIFEST_PATH,
+    },
+    {
+      id: 'release_contract_verify_profiles_exists_contract',
+      ok: fs.existsSync(path.join(ROOT, VERIFY_PROFILES_PATH)),
+      detail: VERIFY_PROFILES_PATH,
+    },
+    {
+      id: 'release_contract_gate_registry_exists_contract',
+      ok: fs.existsSync(path.join(ROOT, TOOLING_GATE_REGISTRY_PATH)),
+      detail: TOOLING_GATE_REGISTRY_PATH,
+    },
+  ];
+}
+
+function releaseContractWrapperListChecks(): Check[] {
+  const duplicates = WRAPPER_FILES.filter((row, idx, arr) => arr.indexOf(row) !== idx);
+  const nonCanonical = WRAPPER_FILES.filter((row) =>
+    !isCanonicalRelativePathToken(row, 'client/runtime/systems/', '.ts')
+  );
+  const missing = WRAPPER_FILES.filter((row) => !fs.existsSync(path.join(ROOT, row)));
+  return [
+    {
+      id: 'release_contract_wrapper_files_nonempty_contract',
+      ok: WRAPPER_FILES.length > 0,
+      detail: String(WRAPPER_FILES.length),
+    },
+    {
+      id: 'release_contract_wrapper_files_unique_contract',
+      ok: duplicates.length === 0,
+      detail: duplicates.length === 0 ? 'ok' : Array.from(new Set(duplicates)).join(','),
+    },
+    {
+      id: 'release_contract_wrapper_files_canonical_contract',
+      ok: nonCanonical.length === 0,
+      detail: nonCanonical.length === 0 ? 'ok' : nonCanonical.join(','),
+    },
+    {
+      id: 'release_contract_wrapper_files_exist_contract',
+      ok: missing.length === 0,
+      detail: missing.length === 0 ? 'ok' : missing.join(','),
+    },
+  ];
+}
+
+function objectKeysetViolations(
+  value: unknown,
+  requiredKeys: string[],
+): { missing: string[]; unexpected: string[] } {
+  const keys =
+    value && typeof value === 'object' && !Array.isArray(value)
+      ? Object.keys(value as Record<string, unknown>)
+      : [];
+  const required = new Set(requiredKeys);
+  const missing = requiredKeys.filter((key) => !keys.includes(key));
+  const unexpected = keys.filter((key) => !required.has(key));
+  return { missing, unexpected };
+}
+
 function runGateCheck(id: string): Check {
   const out = executeGate(id, {
     registryPath: GATE_REGISTRY_PATH,
@@ -46,6 +265,876 @@ function runGateCheck(id: string): Check {
     detail: out.ok
       ? 'ok'
       : String(out.failures[0]?.detail || `status=${out.summary.exit_code}`).slice(0, 500),
+  };
+}
+
+function releaseChannelPolicySchemaContractCheck(): Check {
+  const parsed = parseJson(RELEASE_CHANNEL_POLICY_PATH);
+  if (!parsed.ok) return { id: 'release_channel_policy_schema_contract', ok: false, detail: parsed.detail };
+  const policy = parsed.value || {};
+  const channels = Array.isArray(policy.channels) ? policy.channels : [];
+  const canonicalChannels = ['alpha', 'beta', 'stable'];
+  const violations: string[] = [];
+  if (policy.schema_id !== 'release_channel_policy') violations.push('schema_id');
+  if (policy.schema_version !== '1.0') violations.push('schema_version');
+  if (policy.default_channel !== 'alpha') violations.push('default_channel');
+  if (channels.length !== canonicalChannels.length) violations.push('channels:length');
+  if (new Set(channels).size !== channels.length) violations.push('channels:duplicate');
+  if (!channels.every((row: any, idx: number) => row === canonicalChannels[idx])) violations.push('channels:order_or_token');
+  return {
+    id: 'release_channel_policy_schema_contract',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function releaseChannelPromotionContractCheck(): Check {
+  const parsed = parseJson(RELEASE_CHANNEL_POLICY_PATH);
+  if (!parsed.ok) return { id: 'release_channel_promotion_contract', ok: false, detail: parsed.detail };
+  const policy = parsed.value || {};
+  const channels = Array.isArray(policy.channels) ? policy.channels : [];
+  const promotions = Array.isArray(policy.promotion_rules) ? policy.promotion_rules : [];
+  const canonicalRules = ['alpha->beta', 'beta->stable', 'alpha->stable'];
+  const encodedRules = promotions.map((row: any) => `${String(row?.from || '')}->${String(row?.to || '')}`);
+  const violations: string[] = [];
+  if (encodedRules.length !== canonicalRules.length) violations.push('promotion_rules:length');
+  if (new Set(encodedRules).size !== encodedRules.length) violations.push('promotion_rules:duplicate');
+  if (!encodedRules.every((row: string, idx: number) => row === canonicalRules[idx])) violations.push('promotion_rules:order_or_token');
+  if (!promotions.every((row: any) => channels.includes(row?.from) && channels.includes(row?.to))) {
+    violations.push('promotion_rules:unknown_channel');
+  }
+  return {
+    id: 'release_channel_promotion_contract',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function releaseCompatibilityPolicyContractCheck(): Check {
+  const parsed = parseJson(RELEASE_COMPATIBILITY_POLICY_PATH);
+  if (!parsed.ok) return { id: 'release_compatibility_policy_contract', ok: false, detail: parsed.detail };
+  const policy = parsed.value || {};
+  const violations: string[] = [];
+  if (policy.schema_id !== 'release_compatibility_policy') violations.push('schema_id');
+  if (policy.schema_version !== '1.0') violations.push('schema_version');
+  if (!(Number.isInteger(policy.required_deprecation_days) && policy.required_deprecation_days >= 90)) {
+    violations.push('required_deprecation_days');
+  }
+  if (policy.require_migration_guide !== true) violations.push('require_migration_guide');
+  if (policy.require_deprecation_notice !== true) violations.push('require_deprecation_notice');
+  if (policy.registry_path !== API_CLI_REGISTRY_PATH) violations.push('registry_path');
+  return {
+    id: 'release_compatibility_policy_contract',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function apiCliContractRegistrySchemaContractCheck(): Check {
+  const parsed = parseJson(API_CLI_REGISTRY_PATH);
+  if (!parsed.ok) return { id: 'api_cli_registry_schema_contract', ok: false, detail: parsed.detail };
+  const registry = parsed.value || {};
+  const violations: string[] = [];
+  if (registry.schema_id !== 'api_cli_contract_registry') violations.push('schema_id');
+  if (registry.schema_version !== '1.0') violations.push('schema_version');
+  const apiContracts = Array.isArray(registry.api_contracts) ? registry.api_contracts : [];
+  const cliContracts = Array.isArray(registry.cli_contracts) ? registry.cli_contracts : [];
+  if (apiContracts.length === 0) violations.push('api_contracts:empty');
+  if (cliContracts.length === 0) violations.push('cli_contracts:empty');
+  const allNames = [...apiContracts, ...cliContracts].map((row: any) => asTrimmedString(row?.name));
+  if (allNames.some((row: string) => row.length === 0)) violations.push('contracts:name_empty');
+  if (new Set(allNames).size !== allNames.length) violations.push('contracts:name_duplicate');
+  const hasInvalidStatus = [...apiContracts, ...cliContracts].some((row: any) => {
+    const status = asTrimmedString(row?.status);
+    return status !== 'active' && status !== 'deprecated';
+  });
+  if (hasInvalidStatus) violations.push('contracts:status');
+  return {
+    id: 'api_cli_registry_schema_contract',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function apiCliContractRegistryDeprecationContractCheck(): Check {
+  const compatibilityParsed = parseJson(RELEASE_COMPATIBILITY_POLICY_PATH);
+  if (!compatibilityParsed.ok) return { id: 'api_cli_registry_deprecation_contract', ok: false, detail: compatibilityParsed.detail };
+  const registryParsed = parseJson(API_CLI_REGISTRY_PATH);
+  if (!registryParsed.ok) return { id: 'api_cli_registry_deprecation_contract', ok: false, detail: registryParsed.detail };
+  const compatibility = compatibilityParsed.value || {};
+  const registry = registryParsed.value || {};
+  const minimumWindow = Number(compatibility.required_deprecation_days || 0);
+  const rows = [...(Array.isArray(registry.api_contracts) ? registry.api_contracts : []), ...(Array.isArray(registry.cli_contracts) ? registry.cli_contracts : [])];
+  const deprecatedRows = rows.filter((row: any) => asTrimmedString(row?.status) === 'deprecated');
+  const violations: string[] = [];
+  if (deprecatedRows.length === 0) violations.push('deprecated_contracts:missing');
+  for (const row of deprecatedRows) {
+    const name = asTrimmedString(row?.name) || '<unknown>';
+    if (compatibility.require_deprecation_notice === true && !isNonEmptyString(row?.deprecation_notice)) {
+      violations.push(`${name}:deprecation_notice`);
+    }
+    if (compatibility.require_migration_guide === true && !isNonEmptyString(row?.migration_guide)) {
+      violations.push(`${name}:migration_guide`);
+    }
+    if (!(Number.isInteger(row?.deprecation_window_days) && row.deprecation_window_days >= minimumWindow)) {
+      violations.push(`${name}:deprecation_window_days`);
+    }
+  }
+  return {
+    id: 'api_cli_registry_deprecation_contract',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function schemaVersioningGatePolicyContractCheck(): Check {
+  const parsed = parseJson(SCHEMA_VERSIONING_POLICY_PATH);
+  if (!parsed.ok) return { id: 'schema_versioning_gate_policy_contract', ok: false, detail: parsed.detail };
+  const policy = parsed.value || {};
+  const targets = Array.isArray(policy.targets) ? policy.targets : [];
+  const targetIds = targets.map((row: any) => asTrimmedString(row?.id));
+  const violations: string[] = [];
+  if (policy.version !== '1.0') violations.push('version');
+  if (policy.enabled !== true) violations.push('enabled');
+  if (targets.length === 0) violations.push('targets:empty');
+  if (targetIds.some((row: string) => row.length === 0)) violations.push('targets:id_empty');
+  if (new Set(targetIds).size !== targetIds.length) violations.push('targets:id_duplicate');
+  const badTargetShape = targets.some((row: any) => {
+    return (
+      !isNonEmptyString(row?.path) ||
+      !isNonEmptyString(row?.required_schema_id) ||
+      !isNonEmptyString(row?.min_schema_version) ||
+      row?.kind !== 'json'
+    );
+  });
+  if (badTargetShape) violations.push('targets:shape');
+  const migrations = policy.migrations || {};
+  if (migrations.target_default_version !== '1.0') violations.push('migrations:target_default_version');
+  if (migrations.allow_add_missing_fields_only !== true) violations.push('migrations:allow_add_missing_fields_only');
+  return {
+    id: 'schema_versioning_gate_policy_contract',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function schemaVersioningGateOutputsContractCheck(): Check {
+  const parsed = parseJson(SCHEMA_VERSIONING_POLICY_PATH);
+  if (!parsed.ok) return { id: 'schema_versioning_gate_outputs_contract', ok: false, detail: parsed.detail };
+  const outputs = parsed.value?.outputs || {};
+  const latest = asTrimmedString(outputs.latest_path);
+  const history = asTrimmedString(outputs.history_path);
+  const violations: string[] = [];
+  if (!latest.startsWith('local/state/contracts/schema_versioning_gate/')) violations.push('outputs:latest_path_prefix');
+  if (!latest.endsWith('/latest.json') && !latest.endsWith('latest.json')) violations.push('outputs:latest_path_suffix');
+  if (!history.startsWith('local/state/contracts/schema_versioning_gate/')) violations.push('outputs:history_path_prefix');
+  if (!history.endsWith('/history.jsonl') && !history.endsWith('history.jsonl')) violations.push('outputs:history_path_suffix');
+  if (latest.length === 0 || history.length === 0) violations.push('outputs:missing');
+  return {
+    id: 'schema_versioning_gate_outputs_contract',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function dependencyUpdatePolicyContractCheck(): Check {
+  const parsed = parseJson(DEPENDENCY_UPDATE_POLICY_PATH);
+  if (!parsed.ok) return { id: 'dependency_update_policy_contract', ok: false, detail: parsed.detail };
+  const policy = parsed.value || {};
+  const ecosystems = Array.isArray(policy.dependabot_required_ecosystems) ? policy.dependabot_required_ecosystems : [];
+  const canonical = ['npm', 'cargo', 'github-actions'];
+  const violations: string[] = [];
+  if (policy.schema_id !== 'dependency_update_policy') violations.push('schema_id');
+  if (policy.schema_version !== '1.0') violations.push('schema_version');
+  if (!(Number.isInteger(policy.security_patch_sla_days) && policy.security_patch_sla_days > 0 && policy.security_patch_sla_days <= 14)) {
+    violations.push('security_patch_sla_days');
+  }
+  if (policy.max_critical_vulnerabilities !== 0) violations.push('max_critical_vulnerabilities');
+  if (policy.max_high_vulnerabilities !== 0) violations.push('max_high_vulnerabilities');
+  if (ecosystems.length !== canonical.length) violations.push('dependabot_required_ecosystems:length');
+  if (new Set(ecosystems).size !== ecosystems.length) violations.push('dependabot_required_ecosystems:duplicate');
+  if (!canonical.every((row) => ecosystems.includes(row))) violations.push('dependabot_required_ecosystems:missing');
+  return {
+    id: 'dependency_update_policy_contract',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function dependencyUpdateBlocklistContractCheck(): Check {
+  const parsed = parseJson(DEPENDENCY_UPDATE_POLICY_PATH);
+  if (!parsed.ok) return { id: 'dependency_update_blocklist_contract', ok: false, detail: parsed.detail };
+  const policy = parsed.value || {};
+  const blocked = Array.isArray(policy.blocked_packages) ? policy.blocked_packages : [];
+  const allowedEcosystems = new Set(
+    Array.isArray(policy.dependabot_required_ecosystems) ? policy.dependabot_required_ecosystems : [],
+  );
+  const signatures = blocked.map((row: any) => `${asTrimmedString(row?.ecosystem)}:${asTrimmedString(row?.name)}`);
+  const violations: string[] = [];
+  if (blocked.length === 0) violations.push('blocked_packages:empty');
+  if (new Set(signatures).size !== signatures.length) violations.push('blocked_packages:duplicate');
+  const badRows = blocked.some((row: any) => {
+    const ecosystem = asTrimmedString(row?.ecosystem);
+    const name = asTrimmedString(row?.name);
+    const reason = asTrimmedString(row?.reason);
+    return !allowedEcosystems.has(ecosystem) || name.length === 0 || reason.length === 0;
+  });
+  if (badRows) violations.push('blocked_packages:shape_or_ecosystem');
+  return {
+    id: 'dependency_update_blocklist_contract',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function releaseChannelPolicyKeysetContractCheck(): Check {
+  const parsed = parseJson(RELEASE_CHANNEL_POLICY_PATH);
+  if (!parsed.ok) return { id: 'release_channel_policy_keyset_contract', ok: false, detail: parsed.detail };
+  const policy = parsed.value || {};
+  const { missing, unexpected } = objectKeysetViolations(policy, [
+    'schema_id',
+    'schema_version',
+    'default_channel',
+    'channels',
+    'promotion_rules',
+  ]);
+  const violations: string[] = [];
+  if (missing.length > 0) violations.push(`missing=${missing.join(',')}`);
+  if (unexpected.length > 0) violations.push(`unexpected=${unexpected.join(',')}`);
+  return {
+    id: 'release_channel_policy_keyset_contract',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function releaseChannelPolicyChannelTokenFormatContractCheck(): Check {
+  const parsed = parseJson(RELEASE_CHANNEL_POLICY_PATH);
+  if (!parsed.ok) return { id: 'release_channel_policy_channel_token_format_contract', ok: false, detail: parsed.detail };
+  const policy = parsed.value || {};
+  const channels = Array.isArray(policy.channels) ? policy.channels : [];
+  const violations: string[] = [];
+  const invalidChannels = channels
+    .map((row: unknown) => asTrimmedString(row))
+    .filter((row: string) => !/^[a-z][a-z0-9-]*$/.test(row));
+  if (invalidChannels.length > 0) violations.push(`channels=${invalidChannels.join(',')}`);
+  if (!channels.includes(policy.default_channel)) violations.push('default_channel_not_in_channels');
+  return {
+    id: 'release_channel_policy_channel_token_format_contract',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function releaseChannelPromotionRuleShapeContractCheck(): Check {
+  const parsed = parseJson(RELEASE_CHANNEL_POLICY_PATH);
+  if (!parsed.ok) return { id: 'release_channel_promotion_rule_shape_contract', ok: false, detail: parsed.detail };
+  const policy = parsed.value || {};
+  const channels = new Set(Array.isArray(policy.channels) ? policy.channels.map((row: unknown) => asTrimmedString(row)) : []);
+  const rows = Array.isArray(policy.promotion_rules) ? policy.promotion_rules : [];
+  const signatures = rows.map((row: any) => `${asTrimmedString(row?.from)}->${asTrimmedString(row?.to)}`);
+  const duplicates = signatures.filter((row, idx, arr) => arr.indexOf(row) !== idx);
+  const violations: string[] = [];
+  for (const row of rows) {
+    const from = asTrimmedString(row?.from);
+    const to = asTrimmedString(row?.to);
+    if (!(from && to)) violations.push('empty_from_or_to');
+    if (from === to) violations.push(`self_edge=${from}`);
+    if (!channels.has(from) || !channels.has(to)) violations.push(`unknown_channel=${from}->${to}`);
+    const keys = row && typeof row === 'object' && !Array.isArray(row) ? Object.keys(row) : [];
+    const missing = ['from', 'to'].filter((key) => !keys.includes(key));
+    const unexpected = keys.filter((key) => key !== 'from' && key !== 'to');
+    if (missing.length > 0) violations.push(`missing_keys=${missing.join(',')}`);
+    if (unexpected.length > 0) violations.push(`unexpected_keys=${unexpected.join(',')}`);
+  }
+  if (duplicates.length > 0) violations.push(`duplicate_edges=${Array.from(new Set(duplicates)).join(',')}`);
+  return {
+    id: 'release_channel_promotion_rule_shape_contract',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function releaseCompatibilityPolicyKeysetContractCheck(): Check {
+  const parsed = parseJson(RELEASE_COMPATIBILITY_POLICY_PATH);
+  if (!parsed.ok) return { id: 'release_compatibility_policy_keyset_contract', ok: false, detail: parsed.detail };
+  const policy = parsed.value || {};
+  const { missing, unexpected } = objectKeysetViolations(policy, [
+    'schema_id',
+    'schema_version',
+    'required_deprecation_days',
+    'require_migration_guide',
+    'require_deprecation_notice',
+    'registry_path',
+  ]);
+  const violations: string[] = [];
+  if (missing.length > 0) violations.push(`missing=${missing.join(',')}`);
+  if (unexpected.length > 0) violations.push(`unexpected=${unexpected.join(',')}`);
+  return {
+    id: 'release_compatibility_policy_keyset_contract',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function releaseCompatibilityRegistryPathFormatContractCheck(): Check {
+  const parsed = parseJson(RELEASE_COMPATIBILITY_POLICY_PATH);
+  if (!parsed.ok) return { id: 'release_compatibility_registry_path_format_contract', ok: false, detail: parsed.detail };
+  const policy = parsed.value || {};
+  const registryPath = asTrimmedString(policy.registry_path);
+  const violations: string[] = [];
+  if (!registryPath.startsWith('client/runtime/config/')) violations.push('registry_path_prefix');
+  if (!registryPath.endsWith('.json')) violations.push('registry_path_suffix');
+  if (registryPath.includes('..') || /\s/.test(registryPath)) violations.push('registry_path_noncanonical');
+  return {
+    id: 'release_compatibility_registry_path_format_contract',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function apiCliRegistryContractVersionSemverContractCheck(): Check {
+  const parsed = parseJson(API_CLI_REGISTRY_PATH);
+  if (!parsed.ok) return { id: 'api_cli_registry_contract_version_semver_contract', ok: false, detail: parsed.detail };
+  const registry = parsed.value || {};
+  const rows = [
+    ...(Array.isArray(registry.api_contracts) ? registry.api_contracts : []),
+    ...(Array.isArray(registry.cli_contracts) ? registry.cli_contracts : []),
+  ];
+  const violations = rows
+    .filter((row: any) => !isSemverToken(row?.version))
+    .map((row: any) => `${asTrimmedString(row?.name) || '<unknown>'}:${asTrimmedString(row?.version) || 'missing'}`);
+  return {
+    id: 'api_cli_registry_contract_version_semver_contract',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function apiCliRegistryContractNameTokenContractCheck(): Check {
+  const parsed = parseJson(API_CLI_REGISTRY_PATH);
+  if (!parsed.ok) return { id: 'api_cli_registry_contract_name_token_contract', ok: false, detail: parsed.detail };
+  const registry = parsed.value || {};
+  const rows = [
+    ...(Array.isArray(registry.api_contracts) ? registry.api_contracts : []),
+    ...(Array.isArray(registry.cli_contracts) ? registry.cli_contracts : []),
+  ];
+  const violations = rows
+    .filter((row: any) => !/^[a-z0-9][a-z0-9._-]*$/.test(asTrimmedString(row?.name)))
+    .map((row: any) => asTrimmedString(row?.name) || '<missing>');
+  return {
+    id: 'api_cli_registry_contract_name_token_contract',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function schemaVersioningTargetIdTokenContractCheck(): Check {
+  const parsed = parseJson(SCHEMA_VERSIONING_POLICY_PATH);
+  if (!parsed.ok) return { id: 'schema_versioning_target_id_token_contract', ok: false, detail: parsed.detail };
+  const targets = Array.isArray(parsed.value?.targets) ? parsed.value.targets : [];
+  const violations = targets
+    .filter((row: any) => !/^[a-z0-9_]+$/.test(asTrimmedString(row?.id)))
+    .map((row: any) => asTrimmedString(row?.id) || '<missing>');
+  return {
+    id: 'schema_versioning_target_id_token_contract',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function schemaVersioningTargetPathContractCheck(): Check {
+  const parsed = parseJson(SCHEMA_VERSIONING_POLICY_PATH);
+  if (!parsed.ok) return { id: 'schema_versioning_target_path_contract', ok: false, detail: parsed.detail };
+  const targets = Array.isArray(parsed.value?.targets) ? parsed.value.targets : [];
+  const violations = targets
+    .filter((row: any) => {
+      const targetPath = asTrimmedString(row?.path);
+      return (
+        !targetPath.startsWith('client/runtime/config/contracts/')
+        || !targetPath.endsWith('.schema.json')
+        || targetPath.includes('..')
+        || /\s/.test(targetPath)
+      );
+    })
+    .map((row: any) => `${asTrimmedString(row?.id) || '<unknown>'}:${asTrimmedString(row?.path) || 'missing'}`);
+  return {
+    id: 'schema_versioning_target_path_contract',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function schemaVersioningTargetSchemaIdAlignmentContractCheck(): Check {
+  const parsed = parseJson(SCHEMA_VERSIONING_POLICY_PATH);
+  if (!parsed.ok) return { id: 'schema_versioning_target_schema_id_alignment_contract', ok: false, detail: parsed.detail };
+  const targets = Array.isArray(parsed.value?.targets) ? parsed.value.targets : [];
+  const violations = targets
+    .filter((row: any) => asTrimmedString(row?.id) !== asTrimmedString(row?.required_schema_id))
+    .map((row: any) => `${asTrimmedString(row?.id) || '<missing>'}:${asTrimmedString(row?.required_schema_id) || 'missing'}`);
+  return {
+    id: 'schema_versioning_target_schema_id_alignment_contract',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function schemaVersioningTargetVersionSemverContractCheck(): Check {
+  const parsed = parseJson(SCHEMA_VERSIONING_POLICY_PATH);
+  if (!parsed.ok) return { id: 'schema_versioning_target_version_semver_contract', ok: false, detail: parsed.detail };
+  const targets = Array.isArray(parsed.value?.targets) ? parsed.value.targets : [];
+  const violations = targets
+    .filter((row: any) => !isSemverToken(row?.min_schema_version))
+    .map((row: any) => `${asTrimmedString(row?.id) || '<missing>'}:${asTrimmedString(row?.min_schema_version) || 'missing'}`);
+  return {
+    id: 'schema_versioning_target_version_semver_contract',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function schemaVersioningOutputsKeysetContractCheck(): Check {
+  const parsed = parseJson(SCHEMA_VERSIONING_POLICY_PATH);
+  if (!parsed.ok) return { id: 'schema_versioning_outputs_keyset_contract', ok: false, detail: parsed.detail };
+  const outputs = parsed.value?.outputs || {};
+  const { missing, unexpected } = objectKeysetViolations(outputs, ['latest_path', 'history_path']);
+  const violations: string[] = [];
+  if (missing.length > 0) violations.push(`missing=${missing.join(',')}`);
+  if (unexpected.length > 0) violations.push(`unexpected=${unexpected.join(',')}`);
+  return {
+    id: 'schema_versioning_outputs_keyset_contract',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function dependencyUpdatePolicyKeysetContractCheck(): Check {
+  const parsed = parseJson(DEPENDENCY_UPDATE_POLICY_PATH);
+  if (!parsed.ok) return { id: 'dependency_update_policy_keyset_contract', ok: false, detail: parsed.detail };
+  const policy = parsed.value || {};
+  const { missing, unexpected } = objectKeysetViolations(policy, [
+    'schema_id',
+    'schema_version',
+    'security_patch_sla_days',
+    'max_critical_vulnerabilities',
+    'max_high_vulnerabilities',
+    'dependabot_required_ecosystems',
+    'blocked_packages',
+  ]);
+  const violations: string[] = [];
+  if (missing.length > 0) violations.push(`missing=${missing.join(',')}`);
+  if (unexpected.length > 0) violations.push(`unexpected=${unexpected.join(',')}`);
+  return {
+    id: 'dependency_update_policy_keyset_contract',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function dependencyUpdateBlockedPackageNameTokenContractCheck(): Check {
+  const parsed = parseJson(DEPENDENCY_UPDATE_POLICY_PATH);
+  if (!parsed.ok) return { id: 'dependency_update_blocked_package_name_token_contract', ok: false, detail: parsed.detail };
+  const policy = parsed.value || {};
+  const blocked = Array.isArray(policy.blocked_packages) ? policy.blocked_packages : [];
+  const violations = blocked
+    .filter((row: any) => !/^[a-z0-9][a-z0-9._-]*$/.test(asTrimmedString(row?.name)))
+    .map((row: any) => `${asTrimmedString(row?.ecosystem) || '<missing>'}:${asTrimmedString(row?.name) || '<missing>'}`);
+  return {
+    id: 'dependency_update_blocked_package_name_token_contract',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function dependencyUpdateBlockedPackageReasonQualityContractCheck(): Check {
+  const parsed = parseJson(DEPENDENCY_UPDATE_POLICY_PATH);
+  if (!parsed.ok) return { id: 'dependency_update_blocked_package_reason_quality_contract', ok: false, detail: parsed.detail };
+  const policy = parsed.value || {};
+  const blocked = Array.isArray(policy.blocked_packages) ? policy.blocked_packages : [];
+  const violations = blocked
+    .filter((row: any) => asTrimmedString(row?.reason).length < 12)
+    .map((row: any) => `${asTrimmedString(row?.ecosystem) || '<missing>'}:${asTrimmedString(row?.name) || '<missing>'}`);
+  return {
+    id: 'dependency_update_blocked_package_reason_quality_contract',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function verifyProfilesReleaseGateUniquenessContractCheck(): Check {
+  const parsed = parseJson(VERIFY_PROFILES_PATH);
+  if (!parsed.ok) return { id: 'verify_profiles_release_gate_uniqueness_contract', ok: false, detail: parsed.detail };
+  const gateIds = Array.isArray(parsed.value?.profiles?.release?.gate_ids) ? parsed.value.profiles.release.gate_ids : [];
+  const duplicates = gateIds.filter((row: string, idx: number, arr: string[]) => arr.indexOf(row) !== idx);
+  return {
+    id: 'verify_profiles_release_gate_uniqueness_contract',
+    ok: duplicates.length === 0,
+    detail: duplicates.length === 0 ? 'ok' : `duplicates=${Array.from(new Set(duplicates)).join(',')}`,
+  };
+}
+
+function verifyProfilesRuntimeProofGateUniquenessContractCheck(): Check {
+  const parsed = parseJson(VERIFY_PROFILES_PATH);
+  if (!parsed.ok) return { id: 'verify_profiles_runtime_proof_gate_uniqueness_contract', ok: false, detail: parsed.detail };
+  const gateIds = Array.isArray(parsed.value?.profiles?.['runtime-proof']?.gate_ids)
+    ? parsed.value.profiles['runtime-proof'].gate_ids
+    : [];
+  const duplicates = gateIds.filter((row: string, idx: number, arr: string[]) => arr.indexOf(row) !== idx);
+  return {
+    id: 'verify_profiles_runtime_proof_gate_uniqueness_contract',
+    ok: duplicates.length === 0,
+    detail: duplicates.length === 0 ? 'ok' : `duplicates=${Array.from(new Set(duplicates)).join(',')}`,
+  };
+}
+
+function releaseProofPackManifestCategoryKeysetContractCheck(): Check {
+  const parsed = parseJson(RELEASE_PROOF_PACK_MANIFEST_PATH);
+  if (!parsed.ok) return { id: 'release_proof_pack_manifest_category_keyset_contract', ok: false, detail: parsed.detail };
+  const groups = parsed.value?.artifact_groups || {};
+  const { missing, unexpected } = objectKeysetViolations(groups, [
+    'runtime_proof',
+    'adapter_and_orchestration',
+    'release_governance',
+    'workload_and_quality',
+  ]);
+  const violations: string[] = [];
+  if (missing.length > 0) violations.push(`missing=${missing.join(',')}`);
+  if (unexpected.length > 0) violations.push(`unexpected=${unexpected.join(',')}`);
+  return {
+    id: 'release_proof_pack_manifest_category_keyset_contract',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function releaseProofPackManifestRequiredArtifactUniquenessContractCheck(): Check {
+  const parsed = parseJson(RELEASE_PROOF_PACK_MANIFEST_PATH);
+  if (!parsed.ok) return { id: 'release_proof_pack_manifest_required_artifact_uniqueness_contract', ok: false, detail: parsed.detail };
+  const required = Array.isArray(parsed.value?.required_artifacts) ? parsed.value.required_artifacts : [];
+  const duplicates = required.filter((row: string, idx: number, arr: string[]) => arr.indexOf(row) !== idx);
+  const noncanonical = required.filter(
+    (row: string) =>
+      typeof row !== 'string'
+      || row.trim().length === 0
+      || /\s/.test(row)
+      || row.includes('..'),
+  );
+  const violations: string[] = [];
+  if (duplicates.length > 0) violations.push(`duplicates=${Array.from(new Set(duplicates)).join(',')}`);
+  if (noncanonical.length > 0) violations.push(`noncanonical=${noncanonical.join(',')}`);
+  return {
+    id: 'release_proof_pack_manifest_required_artifact_uniqueness_contract',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function releaseWorkflowDispatchChannelOptionsContractCheck(): Check {
+  const source = read(RELEASE_WORKFLOW_PATH);
+  const requiredNeedles = [
+    'workflow_dispatch:',
+    'release_channel:',
+    'default: alpha',
+    'type: choice',
+    '- alpha',
+    '- beta',
+    '- stable',
+  ];
+  const missing = requiredNeedles.filter((needle) => !source.includes(needle));
+  return {
+    id: 'release_workflow_dispatch_channel_options_contract',
+    ok: missing.length === 0,
+    detail: missing.length === 0 ? 'ok' : `missing=${missing.join(',')}`,
+  };
+}
+
+function crossPolicyReleaseContractAlignmentCheck(): Check {
+  const channelParsed = parseJson(RELEASE_CHANNEL_POLICY_PATH);
+  if (!channelParsed.ok) return { id: 'cross_policy_release_contract_alignment', ok: false, detail: channelParsed.detail };
+  const compatibilityParsed = parseJson(RELEASE_COMPATIBILITY_POLICY_PATH);
+  if (!compatibilityParsed.ok) return { id: 'cross_policy_release_contract_alignment', ok: false, detail: compatibilityParsed.detail };
+  const schemaParsed = parseJson(SCHEMA_VERSIONING_POLICY_PATH);
+  if (!schemaParsed.ok) return { id: 'cross_policy_release_contract_alignment', ok: false, detail: schemaParsed.detail };
+  const dependencyParsed = parseJson(DEPENDENCY_UPDATE_POLICY_PATH);
+  if (!dependencyParsed.ok) return { id: 'cross_policy_release_contract_alignment', ok: false, detail: dependencyParsed.detail };
+  const registryParsed = parseJson(API_CLI_REGISTRY_PATH);
+  if (!registryParsed.ok) return { id: 'cross_policy_release_contract_alignment', ok: false, detail: registryParsed.detail };
+  const compatibility = compatibilityParsed.value || {};
+  const registry = registryParsed.value || {};
+  const rows = [...(Array.isArray(registry.api_contracts) ? registry.api_contracts : []), ...(Array.isArray(registry.cli_contracts) ? registry.cli_contracts : [])];
+  const minimumWindow = Number(compatibility.required_deprecation_days || 0);
+  const violations: string[] = [];
+  if (compatibility.registry_path !== API_CLI_REGISTRY_PATH) violations.push('registry_path_alignment');
+  const channelVersion = asTrimmedString(channelParsed.value?.schema_version);
+  const compatibilityVersion = asTrimmedString(compatibilityParsed.value?.schema_version);
+  const dependencyVersion = asTrimmedString(dependencyParsed.value?.schema_version);
+  const registryVersion = asTrimmedString(registryParsed.value?.schema_version);
+  const schemaGateVersion = asTrimmedString(schemaParsed.value?.version);
+  const versions = [channelVersion, compatibilityVersion, dependencyVersion, registryVersion, schemaGateVersion];
+  if (!versions.every((row) => row === '1.0')) violations.push('version_alignment');
+  const hasShortWindow = rows.some((row: any) => Number.isInteger(row?.deprecation_window_days) && row.deprecation_window_days < minimumWindow);
+  if (hasShortWindow) violations.push('deprecation_window_alignment');
+  return {
+    id: 'cross_policy_release_contract_alignment',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function gateRegistryReleaseContractIdsCheck(): Check {
+  const parsed = parseJson(TOOLING_GATE_REGISTRY_PATH);
+  if (!parsed.ok) return { id: 'gate_registry_release_contract_ids', ok: false, detail: parsed.detail };
+  const gates = parsed.value?.gates || {};
+  const requiredGateIds = [
+    'ops:release-contract:gate',
+    'release_policy_gate',
+    'ops:production-closure:gate',
+    'ops:release:scorecard:gate',
+    'ops:release:verdict',
+    'ops:runtime-proof:verify',
+    'ops:gateway-runtime-chaos:gate',
+    'ops:gateway-status:manifest',
+    'ops:layer2:parity:guard',
+    'ops:layer2:receipt:replay',
+    'ops:trusted-core:report',
+    'ops:release:proof-pack',
+  ];
+  const missing = requiredGateIds.filter((id) => typeof gates[id] !== 'object' || gates[id] === null);
+  return {
+    id: 'gate_registry_release_contract_ids',
+    ok: missing.length === 0,
+    detail: missing.length === 0 ? 'ok' : `missing=${missing.join(',')}`,
+  };
+}
+
+function gateRegistryReleaseArtifactBindingsCheck(): Check {
+  const parsed = parseJson(TOOLING_GATE_REGISTRY_PATH);
+  if (!parsed.ok) return { id: 'gate_registry_release_artifact_bindings', ok: false, detail: parsed.detail };
+  const gates = parsed.value?.gates || {};
+  const expectedBindings: Array<{ id: string; artifact: string }> = [
+    { id: 'ops:release-contract:gate', artifact: 'core/local/artifacts/release_contract_gate_current.json' },
+    { id: 'release_policy_gate', artifact: 'core/local/artifacts/release_policy_gate_current.json' },
+    { id: 'ops:production-closure:gate', artifact: 'core/local/artifacts/production_readiness_closure_gate_current.json' },
+    { id: 'ops:release:verdict', artifact: 'core/local/artifacts/release_verdict_current.json' },
+    { id: 'ops:runtime-proof:verify', artifact: 'core/local/artifacts/runtime_proof_verify_current.json' },
+    { id: 'ops:gateway-runtime-chaos:gate', artifact: 'core/local/artifacts/gateway_runtime_chaos_gate_current.json' },
+    { id: 'ops:gateway-status:manifest', artifact: 'core/local/artifacts/gateway_status_manifest_current.json' },
+    { id: 'ops:layer2:parity:guard', artifact: 'core/local/artifacts/layer2_lane_parity_guard_current.json' },
+    { id: 'ops:layer2:receipt:replay', artifact: 'core/local/artifacts/layer2_receipt_replay_current.json' },
+    { id: 'ops:trusted-core:report', artifact: 'core/local/artifacts/runtime_trusted_core_report_current.json' },
+    { id: 'ops:release:proof-pack', artifact: 'core/local/artifacts/release_proof_pack_current.json' },
+  ];
+  const missingBindings: string[] = [];
+  for (const expected of expectedBindings) {
+    const row = gates[expected.id];
+    const paths = Array.isArray(row?.artifact_paths) ? row.artifact_paths : [];
+    if (!paths.includes(expected.artifact)) missingBindings.push(`${expected.id}:${expected.artifact}`);
+  }
+  return {
+    id: 'gate_registry_release_artifact_bindings',
+    ok: missingBindings.length === 0,
+    detail: missingBindings.length === 0 ? 'ok' : missingBindings.join('; '),
+  };
+}
+
+function verifyProfilesReleaseCoverageCheck(): Check {
+  const parsed = parseJson(VERIFY_PROFILES_PATH);
+  if (!parsed.ok) return { id: 'verify_profiles_release_coverage_contract', ok: false, detail: parsed.detail };
+  const releaseGateIds = Array.isArray(parsed.value?.profiles?.release?.gate_ids) ? parsed.value.profiles.release.gate_ids : [];
+  const required = [
+    'ops:release-contract:gate',
+    'release_policy_gate',
+    'ops:runtime-proof:verify',
+    'ops:gateway-runtime-chaos:gate',
+    'ops:gateway-status:manifest',
+    'ops:layer2:parity:guard',
+    'ops:layer2:receipt:replay',
+    'ops:trusted-core:report',
+    'ops:release:proof-pack',
+    'ops:production-closure:gate',
+    'ops:release:scorecard:gate',
+    'ops:release:verdict',
+  ];
+  const missing = required.filter((id) => !releaseGateIds.includes(id));
+  return {
+    id: 'verify_profiles_release_coverage_contract',
+    ok: missing.length === 0,
+    detail: missing.length === 0 ? 'ok' : `missing=${missing.join(',')}`,
+  };
+}
+
+function verifyProfilesRuntimeProofCoverageCheck(): Check {
+  const parsed = parseJson(VERIFY_PROFILES_PATH);
+  if (!parsed.ok) return { id: 'verify_profiles_runtime_proof_coverage_contract', ok: false, detail: parsed.detail };
+  const runtimeGateIds = Array.isArray(parsed.value?.profiles?.['runtime-proof']?.gate_ids)
+    ? parsed.value.profiles['runtime-proof'].gate_ids
+    : [];
+  const required = [
+    'ops:runtime-proof:verify',
+    'ops:gateway-runtime-chaos:gate',
+    'ops:layer2:parity:guard',
+    'ops:layer2:receipt:replay',
+    'ops:boundedness:release-gate',
+    'ops:trusted-core:report',
+  ];
+  const missing = required.filter((id) => !runtimeGateIds.includes(id));
+  return {
+    id: 'verify_profiles_runtime_proof_coverage_contract',
+    ok: missing.length === 0,
+    detail: missing.length === 0 ? 'ok' : `missing=${missing.join(',')}`,
+  };
+}
+
+function releaseWorkflowContractStepsCheck(): Check {
+  const source = read(RELEASE_WORKFLOW_PATH);
+  const requiredNeedles = [
+    'Release Runtime Contract Gate',
+    'SRS Full Regression Gate (Strict)',
+    'npm run -s ops:runtime-proof:verify',
+    'npm run -s ops:workspace-tooling:release-proof',
+    'npm run -s ops:layer2:parity:guard',
+    'npm run -s ops:layer2:receipt:replay',
+    'npm run -s ops:gateway-status:manifest',
+    'npm run -s ops:trusted-core:report',
+    'npm run -s ops:release:proof-pack -- --version=${{ steps.semver.outputs.tag }}',
+    'npm run -s ops:production-closure:gate',
+    'npm run -s ops:release:verdict',
+  ];
+  const missing = requiredNeedles.filter((needle) => !source.includes(needle));
+  return {
+    id: 'release_workflow_contract_steps',
+    ok: missing.length === 0,
+    detail: missing.length === 0 ? 'ok' : `missing=${missing.join(',')}`,
+  };
+}
+
+function releaseWorkflowProofPackEnforcementCheck(): Check {
+  const source = read(RELEASE_WORKFLOW_PATH);
+  const requiredNeedles = [
+    'Enforce mandatory release proof-pack artifacts',
+    'required_missing',
+    'category_threshold_failure_count',
+    'layer2_lane_parity_guard_current.json',
+    'layer2_receipt_replay_current.json',
+    'runtime_trusted_core_report_current.json',
+    'release_proof_pack_contract_failed',
+  ];
+  const missing = requiredNeedles.filter((needle) => !source.includes(needle));
+  return {
+    id: 'release_workflow_proof_pack_enforcement_contract',
+    ok: missing.length === 0,
+    detail: missing.length === 0 ? 'ok' : `missing=${missing.join(',')}`,
+  };
+}
+
+function releaseProofPackManifestSchemaCheck(): Check {
+  const parsed = parseJson(RELEASE_PROOF_PACK_MANIFEST_PATH);
+  if (!parsed.ok) return { id: 'release_proof_pack_manifest_schema_contract', ok: false, detail: parsed.detail };
+  const manifest = parsed.value || {};
+  const groups = manifest.artifact_groups || {};
+  const completeness = manifest.category_completeness_min || {};
+  const violations: string[] = [];
+  if (manifest.version !== 1) violations.push('version');
+  const requiredGroups = ['runtime_proof', 'adapter_and_orchestration', 'release_governance', 'workload_and_quality'];
+  for (const group of requiredGroups) {
+    if (!Array.isArray(groups[group])) violations.push(`artifact_groups:${group}`);
+    if (completeness[group] !== 1) violations.push(`category_completeness_min:${group}`);
+  }
+  if (!Array.isArray(manifest.required_artifacts) || manifest.required_artifacts.length === 0) {
+    violations.push('required_artifacts');
+  }
+  return {
+    id: 'release_proof_pack_manifest_schema_contract',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function releaseProofPackManifestRequiredArtifactsCheck(): Check {
+  const parsed = parseJson(RELEASE_PROOF_PACK_MANIFEST_PATH);
+  if (!parsed.ok) return { id: 'release_proof_pack_manifest_required_artifacts_contract', ok: false, detail: parsed.detail };
+  const required = Array.isArray(parsed.value?.required_artifacts) ? parsed.value.required_artifacts : [];
+  const mustHave = [
+    'core/local/artifacts/layer2_lane_parity_guard_current.json',
+    'core/local/artifacts/layer2_receipt_replay_current.json',
+    'core/local/artifacts/runtime_trusted_core_report_current.json',
+    'core/local/artifacts/release_proof_pack_current.json',
+    'core/local/artifacts/runtime_proof_verify_current.json',
+    'core/local/artifacts/gateway_status_manifest_current.json',
+    'core/local/artifacts/gateway_runtime_chaos_gate_current.json',
+    'core/local/artifacts/production_readiness_closure_gate_current.json',
+    'core/local/artifacts/shell_truth_leak_guard_current.json',
+    'core/local/artifacts/windows_installer_contract_guard_current.json',
+  ];
+  const missing = mustHave.filter((artifact) => !required.includes(artifact));
+  return {
+    id: 'release_proof_pack_manifest_required_artifacts_contract',
+    ok: missing.length === 0,
+    detail: missing.length === 0 ? 'ok' : `missing=${missing.join(',')}`,
+  };
+}
+
+function releaseProofPackManifestCategoryMembershipCheck(): Check {
+  const parsed = parseJson(RELEASE_PROOF_PACK_MANIFEST_PATH);
+  if (!parsed.ok) return { id: 'release_proof_pack_manifest_category_membership_contract', ok: false, detail: parsed.detail };
+  const groups = parsed.value?.artifact_groups || {};
+  const runtimeProof = Array.isArray(groups.runtime_proof) ? groups.runtime_proof : [];
+  const adapterAndOrchestration = Array.isArray(groups.adapter_and_orchestration) ? groups.adapter_and_orchestration : [];
+  const releaseGovernance = Array.isArray(groups.release_governance) ? groups.release_governance : [];
+  const workloadAndQuality = Array.isArray(groups.workload_and_quality) ? groups.workload_and_quality : [];
+  const violations: string[] = [];
+  if (!runtimeProof.includes('core/local/artifacts/runtime_proof_verify_current.json')) violations.push('runtime_proof:runtime_proof_verify');
+  if (!adapterAndOrchestration.includes('core/local/artifacts/gateway_status_manifest_current.json')) {
+    violations.push('adapter_and_orchestration:gateway_status_manifest');
+  }
+  if (!adapterAndOrchestration.includes('core/local/artifacts/layer2_lane_parity_guard_current.json')) {
+    violations.push('adapter_and_orchestration:layer2_lane_parity_guard');
+  }
+  if (!releaseGovernance.includes('core/local/artifacts/runtime_trusted_core_report_current.json')) {
+    violations.push('release_governance:runtime_trusted_core_report');
+  }
+  if (!workloadAndQuality.includes('core/local/artifacts/workspace_tooling_release_proof_current.json')) {
+    violations.push('workload_and_quality:workspace_tooling_release_proof');
+  }
+  return {
+    id: 'release_proof_pack_manifest_category_membership_contract',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
+  };
+}
+
+function releaseFlowCrossContractAlignmentCheck(): Check {
+  const registryParsed = parseJson(TOOLING_GATE_REGISTRY_PATH);
+  if (!registryParsed.ok) return { id: 'release_flow_cross_contract_alignment', ok: false, detail: registryParsed.detail };
+  const profileParsed = parseJson(VERIFY_PROFILES_PATH);
+  if (!profileParsed.ok) return { id: 'release_flow_cross_contract_alignment', ok: false, detail: profileParsed.detail };
+  const manifestParsed = parseJson(RELEASE_PROOF_PACK_MANIFEST_PATH);
+  if (!manifestParsed.ok) return { id: 'release_flow_cross_contract_alignment', ok: false, detail: manifestParsed.detail };
+  const registryGates = registryParsed.value?.gates || {};
+  const releaseProfileGateIds = Array.isArray(profileParsed.value?.profiles?.release?.gate_ids)
+    ? profileParsed.value.profiles.release.gate_ids
+    : [];
+  const requiredArtifacts = Array.isArray(manifestParsed.value?.required_artifacts) ? manifestParsed.value.required_artifacts : [];
+  const alignmentChecks = [
+    { gate: 'ops:layer2:parity:guard', artifact: 'core/local/artifacts/layer2_lane_parity_guard_current.json' },
+    { gate: 'ops:layer2:receipt:replay', artifact: 'core/local/artifacts/layer2_receipt_replay_current.json' },
+    { gate: 'ops:trusted-core:report', artifact: 'core/local/artifacts/runtime_trusted_core_report_current.json' },
+    { gate: 'ops:gateway-status:manifest', artifact: 'core/local/artifacts/gateway_status_manifest_current.json' },
+    { gate: 'ops:gateway-runtime-chaos:gate', artifact: 'core/local/artifacts/gateway_runtime_chaos_gate_current.json' },
+    { gate: 'ops:runtime-proof:verify', artifact: 'core/local/artifacts/runtime_proof_verify_current.json' },
+  ];
+  const violations: string[] = [];
+  for (const row of alignmentChecks) {
+    const gateRow = registryGates[row.gate];
+    const gateArtifacts = Array.isArray(gateRow?.artifact_paths) ? gateRow.artifact_paths : [];
+    if (!releaseProfileGateIds.includes(row.gate)) violations.push(`${row.gate}:missing_from_release_profile`);
+    if (!gateArtifacts.includes(row.artifact)) violations.push(`${row.gate}:missing_registry_artifact`);
+    if (!requiredArtifacts.includes(row.artifact)) violations.push(`${row.gate}:missing_manifest_required_artifact`);
+  }
+  return {
+    id: 'release_flow_cross_contract_alignment',
+    ok: violations.length === 0,
+    detail: violations.length === 0 ? 'ok' : violations.join('; '),
   };
 }
 
@@ -384,7 +1473,28 @@ function topologyModeChecks(): Check[] {
     INFRING_OPS_ALLOW_PROCESS_FALLBACK: '0',
     INFRING_SDK_ALLOW_PROCESS_TRANSPORT: '0',
   });
+  const devShapeOk =
+    !!dev
+    && typeof dev === 'object'
+    && typeof dev.ok === 'boolean'
+    && Array.isArray(dev.violations)
+    && !!dev.transport
+    && typeof dev.transport === 'object'
+    && typeof dev.transport.process_fallback_effective === 'boolean';
+  const stableShapeOk =
+    !!stable
+    && typeof stable === 'object'
+    && typeof stable.ok === 'boolean'
+    && Array.isArray(stable.violations)
+    && !!stable.transport
+    && typeof stable.transport === 'object'
+    && typeof stable.transport.process_fallback_effective === 'boolean';
   return [
+    {
+      id: 'transport_topology_payload_shape_contract',
+      ok: devShapeOk && stableShapeOk,
+      detail: `dev_shape=${String(devShapeOk)};stable_shape=${String(stableShapeOk)}`,
+    },
     {
       id: 'transport_topology_dev_guard',
       ok: dev.ok === false && dev.violations.some((row: any) => row.id === 'ops_process_fallback_effective'),
@@ -398,13 +1508,56 @@ function topologyModeChecks(): Check[] {
   ];
 }
 
-function buildReport() {
+function buildReport(args: ReturnType<typeof parseArgs>) {
   const checks: Check[] = [
+    ...releaseContractPathAndConstantChecks(args),
+    ...releaseContractFilePresenceChecks(),
+    ...releaseContractWrapperListChecks(),
     runGateCheck('runtime_dependency_contract'),
     runGateCheck('ops:legacy-runner:release-guard'),
     runGateCheck('ops:transport:spawn-audit'),
     runGateCheck('release_policy_gate'),
     runGateCheck('ops:assimilation:v1:support:guard'),
+    releaseChannelPolicySchemaContractCheck(),
+    releaseChannelPromotionContractCheck(),
+    releaseChannelPolicyKeysetContractCheck(),
+    releaseChannelPolicyChannelTokenFormatContractCheck(),
+    releaseChannelPromotionRuleShapeContractCheck(),
+    releaseCompatibilityPolicyContractCheck(),
+    releaseCompatibilityPolicyKeysetContractCheck(),
+    releaseCompatibilityRegistryPathFormatContractCheck(),
+    apiCliContractRegistrySchemaContractCheck(),
+    apiCliRegistryContractVersionSemverContractCheck(),
+    apiCliRegistryContractNameTokenContractCheck(),
+    apiCliContractRegistryDeprecationContractCheck(),
+    schemaVersioningGatePolicyContractCheck(),
+    schemaVersioningTargetIdTokenContractCheck(),
+    schemaVersioningTargetPathContractCheck(),
+    schemaVersioningTargetSchemaIdAlignmentContractCheck(),
+    schemaVersioningTargetVersionSemverContractCheck(),
+    schemaVersioningOutputsKeysetContractCheck(),
+    schemaVersioningGateOutputsContractCheck(),
+    dependencyUpdatePolicyContractCheck(),
+    dependencyUpdatePolicyKeysetContractCheck(),
+    dependencyUpdateBlocklistContractCheck(),
+    dependencyUpdateBlockedPackageNameTokenContractCheck(),
+    dependencyUpdateBlockedPackageReasonQualityContractCheck(),
+    crossPolicyReleaseContractAlignmentCheck(),
+    gateRegistryReleaseContractIdsCheck(),
+    gateRegistryReleaseArtifactBindingsCheck(),
+    verifyProfilesReleaseCoverageCheck(),
+    verifyProfilesReleaseGateUniquenessContractCheck(),
+    verifyProfilesRuntimeProofCoverageCheck(),
+    verifyProfilesRuntimeProofGateUniquenessContractCheck(),
+    releaseWorkflowContractStepsCheck(),
+    releaseWorkflowDispatchChannelOptionsContractCheck(),
+    releaseWorkflowProofPackEnforcementCheck(),
+    releaseProofPackManifestSchemaCheck(),
+    releaseProofPackManifestCategoryKeysetContractCheck(),
+    releaseProofPackManifestRequiredArtifactsCheck(),
+    releaseProofPackManifestRequiredArtifactUniquenessContractCheck(),
+    releaseProofPackManifestCategoryMembershipCheck(),
+    releaseFlowCrossContractAlignmentCheck(),
     wrapperContractCheck(),
     installerContractCheck(),
     windowsAndDocsCheck(),
@@ -428,7 +1581,7 @@ function buildReport() {
 
 function run(argv: string[] = process.argv.slice(2)) {
   const args = parseArgs(argv);
-  const report = buildReport();
+  const report = buildReport(args);
   const outPath = path.resolve(ROOT, args.out);
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');

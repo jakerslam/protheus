@@ -271,8 +271,22 @@ fn adapter_token_strings(surface: RequestSurface, obj: &Map<String, Value>) -> V
 
 fn parse_operation_kind(value: &str) -> Option<OperationKind> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "read" | "status" | "inspect" => Some(OperationKind::Read),
-        "search" | "query" | "lookup" => Some(OperationKind::Search),
+        "read"
+        | "status"
+        | "inspect"
+        | "list"
+        | "ls"
+        | "dir"
+        | "directory"
+        | "folder"
+        | "browse"
+        | "open"
+        | "view"
+        | "look"
+        | "cat"
+        | "head"
+        | "tail" => Some(OperationKind::Read),
+        "search" | "query" | "lookup" | "grep" | "rg" | "glob" => Some(OperationKind::Search),
         "fetch" | "download" | "retrieve" => Some(OperationKind::Fetch),
         "compare" => Some(OperationKind::Compare),
         "inspect_tooling" | "tool" | "tool_call" | "runtime_bridge" => {
@@ -288,7 +302,20 @@ fn parse_operation_kind(value: &str) -> Option<OperationKind> {
 fn parse_resource_kind(value: &str) -> Option<ResourceKind> {
     match value.trim().to_ascii_lowercase().as_str() {
         "web" | "url" => Some(ResourceKind::Web),
-        "workspace" | "file" | "repo" => Some(ResourceKind::Workspace),
+        "workspace"
+        | "file"
+        | "repo"
+        | "repository"
+        | "repo_path"
+        | "repository_path"
+        | "directory"
+        | "folder"
+        | "filesystem"
+        | "disk"
+        | "project"
+        | "local"
+        | "cwd"
+        | "pwd" => Some(ResourceKind::Workspace),
         "tooling" | "tool" | "runtime" => Some(ResourceKind::Tooling),
         "task" | "task_graph" | "workflow" => Some(ResourceKind::TaskGraph),
         "memory" | "history" => Some(ResourceKind::Memory),
@@ -591,6 +618,34 @@ mod tests {
     }
 
     #[test]
+    fn typed_surface_missing_workspace_transport_field_emits_exact_diagnostic() {
+        let parsed = normalize_request(OrchestrationRequest {
+            session_id: "sdk-workspace-probe-transport-field-missing".to_string(),
+            intent: "search workspace".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "search",
+                    "resource_kind": "workspace",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "workspace_path", "value": "README.md" }]
+                },
+                "core_probe_envelope": {
+                    "workspace_search": {
+                        "tool_available": true
+                    }
+                }
+            }),
+        });
+        assert!(parsed.reasons.iter().any(|row| {
+            row == "typed_probe_contract_missing:field.workspace_search.transport_available"
+        }));
+        assert!(parsed
+            .ambiguity
+            .contains(&crate::contracts::AmbiguityReason::TypedProbeContractViolation));
+    }
+
+    #[test]
     fn typed_surface_incomplete_web_fetch_probe_emits_exact_field_diagnostics() {
         let parsed = normalize_request(OrchestrationRequest {
             session_id: "sdk-web-fetch-probe-field-missing".to_string(),
@@ -620,6 +675,118 @@ mod tests {
     }
 
     #[test]
+    fn typed_surface_incomplete_web_fetch_transport_probe_emits_exact_field_diagnostics() {
+        let parsed = normalize_request(OrchestrationRequest {
+            session_id: "sdk-web-fetch-probe-transport-field-missing".to_string(),
+            intent: "fetch web page".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "fetch",
+                    "resource_kind": "web",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "url", "value": "https://example.com" }]
+                },
+                "core_probe_envelope": {
+                    "web_fetch": {
+                        "tool_available": true
+                    }
+                }
+            }),
+        });
+        assert!(parsed.reasons.iter().any(|row| {
+            row == "typed_probe_contract_missing:field.web_fetch.transport_available"
+        }));
+        assert!(parsed
+            .ambiguity
+            .contains(&crate::contracts::AmbiguityReason::TypedProbeContractViolation));
+    }
+
+    #[test]
+    fn typed_surface_incomplete_web_search_probe_emits_exact_field_diagnostics() {
+        let parsed = normalize_request(OrchestrationRequest {
+            session_id: "sdk-web-search-probe-field-missing".to_string(),
+            intent: "search release notes".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "search",
+                    "resource_kind": "web",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
+                },
+                "core_probe_envelope": {
+                    "web_search": {
+                        "transport_available": true
+                    }
+                }
+            }),
+        });
+        assert!(parsed
+            .reasons
+            .iter()
+            .any(|row| row == "typed_probe_contract_missing:field.web_search.tool_available"));
+        assert!(parsed
+            .ambiguity
+            .contains(&crate::contracts::AmbiguityReason::TypedProbeContractViolation));
+    }
+
+    #[test]
+    fn typed_surface_incomplete_tool_route_probe_emits_exact_field_diagnostics() {
+        let parsed = normalize_request(OrchestrationRequest {
+            session_id: "sdk-tool-route-probe-field-missing".to_string(),
+            intent: "inspect tooling route".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "inspect_tooling",
+                    "resource_kind": "tooling",
+                    "request_kind": "direct"
+                },
+                "core_probe_envelope": {
+                    "tool_route": {
+                        "transport_available": true
+                    }
+                }
+            }),
+        });
+        assert!(parsed
+            .reasons
+            .iter()
+            .any(|row| row == "typed_probe_contract_missing:field.tool_route.tool_available"));
+        assert!(parsed
+            .ambiguity
+            .contains(&crate::contracts::AmbiguityReason::TypedProbeContractViolation));
+    }
+
+    #[test]
+    fn typed_surface_missing_tool_route_transport_field_emits_exact_diagnostic() {
+        let parsed = normalize_request(OrchestrationRequest {
+            session_id: "sdk-tool-route-probe-transport-field-missing".to_string(),
+            intent: "inspect tooling route".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "inspect_tooling",
+                    "resource_kind": "tooling",
+                    "request_kind": "direct"
+                },
+                "core_probe_envelope": {
+                    "tool_route": {
+                        "tool_available": true
+                    }
+                }
+            }),
+        });
+        assert!(parsed.reasons.iter().any(|row| {
+            row == "typed_probe_contract_missing:field.tool_route.transport_available"
+        }));
+        assert!(parsed
+            .ambiguity
+            .contains(&crate::contracts::AmbiguityReason::TypedProbeContractViolation));
+    }
+
+    #[test]
     fn typed_surface_missing_tool_route_probe_emits_exact_capability_diagnostic() {
         let parsed = normalize_request(OrchestrationRequest {
             session_id: "sdk-tool-route-probe-capability-missing".to_string(),
@@ -643,6 +810,126 @@ mod tests {
             .reasons
             .iter()
             .any(|row| row == "typed_probe_contract_missing:capability.tool_route"));
+        assert!(parsed
+            .ambiguity
+            .contains(&crate::contracts::AmbiguityReason::TypedProbeContractViolation));
+    }
+
+    #[test]
+    fn typed_surface_missing_workspace_read_probe_emits_exact_capability_diagnostic() {
+        let parsed = normalize_request(OrchestrationRequest {
+            session_id: "sdk-workspace-read-probe-capability-missing".to_string(),
+            intent: "read workspace file".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "read",
+                    "resource_kind": "workspace",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "workspace_path", "value": "README.md" }]
+                },
+                "core_probe_envelope": {
+                    "workspace_search": {
+                        "tool_available": true,
+                        "transport_available": true
+                    }
+                }
+            }),
+        });
+        assert!(parsed
+            .reasons
+            .iter()
+            .any(|row| row == "typed_probe_contract_missing:capability.workspace_read"));
+        assert!(parsed
+            .ambiguity
+            .contains(&crate::contracts::AmbiguityReason::TypedProbeContractViolation));
+    }
+
+    #[test]
+    fn typed_surface_missing_web_search_probe_emits_exact_capability_diagnostic() {
+        let parsed = normalize_request(OrchestrationRequest {
+            session_id: "sdk-web-search-probe-capability-missing".to_string(),
+            intent: "search release notes".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "search",
+                    "resource_kind": "web",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
+                },
+                "core_probe_envelope": {
+                    "workspace_read": {
+                        "tool_available": true,
+                        "transport_available": true
+                    }
+                }
+            }),
+        });
+        assert!(parsed
+            .reasons
+            .iter()
+            .any(|row| row == "typed_probe_contract_missing:capability.web_search"));
+        assert!(parsed
+            .ambiguity
+            .contains(&crate::contracts::AmbiguityReason::TypedProbeContractViolation));
+    }
+
+    #[test]
+    fn typed_surface_missing_workspace_search_probe_emits_exact_capability_diagnostic() {
+        let parsed = normalize_request(OrchestrationRequest {
+            session_id: "sdk-workspace-search-probe-capability-missing".to_string(),
+            intent: "search workspace for planner".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "search",
+                    "resource_kind": "workspace",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "workspace_path", "value": "surface/orchestration/src" }]
+                },
+                "core_probe_envelope": {
+                    "workspace_read": {
+                        "tool_available": true,
+                        "transport_available": true
+                    }
+                }
+            }),
+        });
+        assert!(parsed
+            .reasons
+            .iter()
+            .any(|row| row == "typed_probe_contract_missing:capability.workspace_search"));
+        assert!(parsed
+            .ambiguity
+            .contains(&crate::contracts::AmbiguityReason::TypedProbeContractViolation));
+    }
+
+    #[test]
+    fn typed_surface_missing_web_fetch_probe_emits_exact_capability_diagnostic() {
+        let parsed = normalize_request(OrchestrationRequest {
+            session_id: "sdk-web-fetch-probe-capability-missing".to_string(),
+            intent: "fetch web page".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "fetch",
+                    "resource_kind": "web",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "url", "value": "https://example.com" }]
+                },
+                "core_probe_envelope": {
+                    "web_search": {
+                        "tool_available": true,
+                        "transport_available": true
+                    }
+                }
+            }),
+        });
+        assert!(parsed
+            .reasons
+            .iter()
+            .any(|row| row == "typed_probe_contract_missing:capability.web_fetch"));
         assert!(parsed
             .ambiguity
             .contains(&crate::contracts::AmbiguityReason::TypedProbeContractViolation));
