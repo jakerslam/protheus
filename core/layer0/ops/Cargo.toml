@@ -77,7 +77,7 @@ lopdf = "0.40"
 
 [dev-dependencies]
 tempfile = "3.13"
-proptest = "1.5"
+proptest = "1.11"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
