@@ -9,9 +9,9 @@ use crate::now_iso;
 
 fn usage() {
     println!("strategy-campaign-scheduler-kernel commands:");
-    println!("  protheus-ops strategy-campaign-scheduler-kernel normalize-campaigns --payload-base64=<json>");
-    println!("  protheus-ops strategy-campaign-scheduler-kernel annotate-priority --payload-base64=<json>");
-    println!("  protheus-ops strategy-campaign-scheduler-kernel build-decomposition-plans --payload-base64=<json>");
+    println!("  infring-ops strategy-campaign-scheduler-kernel normalize-campaigns --payload-base64=<json>");
+    println!("  infring-ops strategy-campaign-scheduler-kernel annotate-priority --payload-base64=<json>");
+    println!("  infring-ops strategy-campaign-scheduler-kernel build-decomposition-plans --payload-base64=<json>");
 }
 
 fn payload_json(argv: &[String]) -> Result<Value, String> {

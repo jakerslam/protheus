@@ -2,6 +2,6 @@
 # One relative path per line. Blank lines and comments are ignored.
 # Installer verifies each entry exists, accepting .js/.ts counterpart fallback.
 
-client/runtime/systems/ops/protheusd.ts
-client/runtime/systems/ops/protheus_status_dashboard.ts
-client/runtime/systems/ops/protheus_unknown_guard.ts
+client/runtime/systems/ops/infringd.ts
+client/runtime/systems/ops/infring_status_dashboard.ts
+client/runtime/systems/ops/infring_unknown_guard.ts

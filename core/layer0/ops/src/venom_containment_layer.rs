@@ -4,8 +4,8 @@ use std::path::Path;
 
 const USAGE: &[&str] = &[
     "Usage:",
-    "  protheus-ops venom-containment-layer evaluate [--session-id=<id>] [--apply=1|0]",
-    "  protheus-ops venom-containment-layer status",
+    "  infring-ops venom-containment-layer evaluate [--session-id=<id>] [--apply=1|0]",
+    "  infring-ops venom-containment-layer status",
     "  Optional telemetry flags: --trace-id=<id> --call-id=<id> --request-id=<id> --source=<tag>",
 ];
 
@@ -16,7 +16,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         &LaneSpec {
             lane_id: "venom_containment_layer",
             lane_type: "venom_containment_layer",
-            replacement: "protheus-ops venom-containment-layer",
+            replacement: "infring-ops venom-containment-layer",
             usage: USAGE,
             passthrough_flags: &[
                 "apply",

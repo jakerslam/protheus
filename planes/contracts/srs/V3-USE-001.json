@@ -1,6 +1,6 @@
 {
   "id": "V3-USE-001",
-  "upgrade": "[extension / V3] First-Run Onboarding Doctor (`protheus init`)",
+  "upgrade": "[extension / V3] First-Run Onboarding Doctor (`infring init`)",
   "section": "Infring Parity+ Deployment/Usability/Runtime Pack (Queued, 2026-02-28)",
   "impact": 10,
   "layer_map": "0/1/2/adapter/client",
@@ -27,8 +27,8 @@
     }
   ],
   "validation": {
-    "lane_command": "protheus-ops srs-contract-runtime run --id=V3-USE-001",
-    "status_command": "protheus-ops srs-contract-runtime status --id=V3-USE-001",
+    "lane_command": "infring-ops srs-contract-runtime run --id=V3-USE-001",
+    "status_command": "infring-ops srs-contract-runtime status --id=V3-USE-001",
     "fail_closed_on_missing_contract": true
   },
   "generated_from": {

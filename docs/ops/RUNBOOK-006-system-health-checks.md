@@ -9,12 +9,12 @@
 
 ## Overview
 
-This runbook defines standard health check procedures for the Protheus platform. These checks should be performed regularly during on-call shifts and before any deployment activity.
+This runbook defines standard health check procedures for the Infring platform. These checks should be performed regularly during on-call shifts and before any deployment activity.
 
 Wrapper-first command policy:
 
 - Canonical wrappers: `infring`, `infringctl`, `infringd`
-- Legacy aliases (`protheus`, `protheusctl`, `protheusd`) are deprecated compatibility-only shims.
+- Legacy aliases (`infring`, `infringctl`, `infringd`) are deprecated compatibility-only shims.
 
 ## First-Run Failure Decision Tree (Operator Quick Path)
 
@@ -32,7 +32,7 @@ Use this path before escalation when a new machine fails first launch:
    - `curl -fsS http://127.0.0.1:4173/healthz`
 4. Stale workspace root/path drift
    - `infringctl doctor --json`
-   - Validate `INFRING_WORKSPACE_ROOT` / `PROTHEUS_WORKSPACE_ROOT`
+   - Validate `INFRING_WORKSPACE_ROOT` / `INFRING_WORKSPACE_ROOT`
 5. Missing full-surface dependencies
    - `curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --full --install-node`
 
@@ -172,7 +172,7 @@ For comprehensive manual verification:
 #!/bin/bash
 # save as: health-check-manual.sh
 
-echo "=== Protheus Health Check ==="
+echo "=== Infring Health Check ==="
 echo "Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 echo ""
 
@@ -186,7 +186,7 @@ echo "[3/5] Queue Status..."
 infringctl queue status --all | grep -E "(queue|depth)"
 
 echo "[4/5] Disk Usage..."
-df -h | grep protheus
+df -h | grep infring
 
 echo "[5/5] Recent Errors..."
 infringctl logs --level error --since "5m" | wc -l

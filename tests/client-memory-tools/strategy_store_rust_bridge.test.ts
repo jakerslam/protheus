@@ -38,10 +38,10 @@ function main() {
   const runtimeRoot = path.join(workspace, 'client', 'runtime');
   fs.mkdirSync(runtimeRoot, { recursive: true });
 
-  process.env.PROTHEUS_WORKSPACE_ROOT = workspace;
-  process.env.PROTHEUS_RUNTIME_ROOT = runtimeRoot;
-  process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
-  process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = '120000';
+  process.env.INFRING_WORKSPACE_ROOT = workspace;
+  process.env.INFRING_RUNTIME_ROOT = runtimeRoot;
+  process.env.INFRING_OPS_USE_PREBUILT = '0';
+  process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = '120000';
   delete process.env.STRATEGY_STORE_PATH;
 
   const mod = resetModule(path.join(ROOT, 'client/runtime/systems/adaptive/strategy/strategy_store.ts'));

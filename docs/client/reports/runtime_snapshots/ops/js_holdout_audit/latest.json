@@ -421,12 +421,12 @@
       "has_ts_peer": false
     },
     {
-      "path": "systems/economy/protheus_token_engine.js",
+      "path": "systems/economy/infring_token_engine.js",
       "status": "unapproved_unpaired_js",
       "has_ts_peer": false
     },
     {
-      "path": "systems/edge/protheus_edge_runtime.ts",
+      "path": "systems/edge/infring_edge_runtime.ts",
       "status": "unapproved_unpaired_js",
       "has_ts_peer": false
     },
@@ -546,7 +546,7 @@
       "has_ts_peer": false
     },
     {
-      "path": "systems/hybrid/mobile/protheus_mobile_adapter.js",
+      "path": "systems/hybrid/mobile/infring_mobile_adapter.js",
       "status": "unapproved_unpaired_js",
       "has_ts_peer": false
     },

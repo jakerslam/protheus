@@ -9,7 +9,7 @@ use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 
 const LANE_ID: &str = "health_status";
-const REPLACEMENT: &str = "protheus-ops health-status";
+const REPLACEMENT: &str = "infring-ops health-status";
 const CRON_JOBS_REL: &str = "client/runtime/config/cron_jobs.json";
 const RUST_SOURCE_OF_TRUTH_POLICY_REL: &str =
     "client/runtime/config/rust_source_of_truth_policy.json";
@@ -42,9 +42,9 @@ fn print_json_line(value: &Value) {
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops health-status status [--dashboard]");
-    println!("  protheus-ops health-status run [--dashboard]");
-    println!("  protheus-ops health-status dashboard");
+    println!("  infring-ops health-status status [--dashboard]");
+    println!("  infring-ops health-status run [--dashboard]");
+    println!("  infring-ops health-status dashboard");
 }
 
 fn latest_snapshot_path(root: &Path) -> PathBuf {

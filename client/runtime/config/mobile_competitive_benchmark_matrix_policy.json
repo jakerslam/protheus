@@ -16,7 +16,7 @@
     "max_thermal_c": 44,
     "min_survival_hours": 72,
     "min_sync_integrity": 0.997,
-    "min_protheus_parity_score": 72
+    "min_infring_parity_score": 72
   },
   "ci": {
     "scenarios": [

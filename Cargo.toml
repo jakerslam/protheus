@@ -17,7 +17,7 @@ exclude = [
 edition = "2021"
 license = "SEE LICENSE IN LICENSE"
 
-[workspace.metadata.protheus]
+[workspace.metadata.infring]
 msrv = "1.84.0"
 owner = "runtime-foundation"
 

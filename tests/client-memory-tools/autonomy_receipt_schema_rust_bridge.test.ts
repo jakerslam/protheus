@@ -13,8 +13,8 @@ function resetModule(modulePath) {
 }
 
 function main() {
-  process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
-  process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = '120000';
+  process.env.INFRING_OPS_USE_PREBUILT = '0';
+  process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = '120000';
 
   const mod = resetModule(path.join(ROOT, 'client/lib/autonomy_receipt_schema.ts'));
   const record = mod.toSuccessCriteriaRecord({}, { required: true, min_count: 2 });

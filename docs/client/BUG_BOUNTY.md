@@ -5,7 +5,7 @@ Date: 2026-03-06
 
 ## Program Goal
 
-Incentivize responsible disclosure for high-signal vulnerabilities affecting Protheus kernel security, conduit boundaries, and release trust.
+Incentivize responsible disclosure for high-signal vulnerabilities affecting Infring kernel security, conduit boundaries, and release trust.
 
 ## Initial Budget
 

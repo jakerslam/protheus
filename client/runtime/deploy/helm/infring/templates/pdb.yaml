@@ -2,15 +2,15 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: {{ include "protheus.fullname" . }}-daemon
+  name: {{ include "infring.fullname" . }}-daemon
   labels:
-    app.kubernetes.io/name: {{ include "protheus.name" . }}
+    app.kubernetes.io/name: {{ include "infring.name" . }}
     app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
   minAvailable: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ include "protheus.name" . }}
+      app.kubernetes.io/name: {{ include "infring.name" . }}
       app.kubernetes.io/instance: {{ .Release.Name }}
       app.kubernetes.io/component: daemon
 {{- end }}

@@ -35,23 +35,23 @@ fn parse_json_output(stdout: &[u8], stderr: &[u8]) -> Value {
     );
 }
 
-fn run_protheusd(args: &[&str]) -> std::process::Output {
+fn run_infringd(args: &[&str]) -> std::process::Output {
     Command::new("cargo")
         .arg("run")
         .arg("--quiet")
         .arg("--manifest-path")
         .arg(format!("{}/Cargo.toml", env!("CARGO_MANIFEST_DIR")))
         .arg("--bin")
-        .arg("protheusd")
+        .arg("infringd")
         .arg("--")
         .args(args)
         .output()
-        .expect("run protheusd")
+        .expect("run infringd")
 }
 
 #[test]
 fn capability_profile_reports_mcu_shedding() {
-    let output = run_protheusd(&[
+    let output = run_infringd(&[
         "capability-profile",
         "--hardware-class=mcu",
         "--tiny-max=1",
@@ -69,7 +69,7 @@ fn capability_profile_reports_mcu_shedding() {
             .get("type")
             .and_then(Value::as_str)
             .unwrap_or_default(),
-        "protheusd_capability_profile"
+        "infringd_capability_profile"
     );
     assert_eq!(
         payload
@@ -89,7 +89,7 @@ fn capability_profile_reports_mcu_shedding() {
 
 #[test]
 fn microcontroller_profile_blocks_heavy_orchestration_op() {
-    let output = run_protheusd(&[
+    let output = run_infringd(&[
         "orchestration",
         "invoke",
         "--op=coordinator.run",
@@ -107,7 +107,7 @@ fn microcontroller_profile_blocks_heavy_orchestration_op() {
             .get("type")
             .and_then(Value::as_str)
             .unwrap_or_default(),
-        "protheusd_error"
+        "infringd_error"
     );
     assert!(
         payload
@@ -125,7 +125,7 @@ fn microcontroller_profile_blocks_swarm_depth_overflow() {
     let state_path = temp.path().join("swarm.json");
 
     let state_path_owned = state_path.to_string_lossy().to_string();
-    let output = run_protheusd(&[
+    let output = run_infringd(&[
         "swarm-runtime",
         "spawn",
         "--task=test",
@@ -144,7 +144,7 @@ fn microcontroller_profile_blocks_swarm_depth_overflow() {
             .get("type")
             .and_then(Value::as_str)
             .unwrap_or_default(),
-        "protheusd_error"
+        "infringd_error"
     );
     assert!(
         payload

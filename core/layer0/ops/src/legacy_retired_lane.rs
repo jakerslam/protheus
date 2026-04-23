@@ -136,8 +136,8 @@ pub fn run(_root: &Path, argv: &[String]) -> i32 {
 
     if matches!(cmd.as_str(), "help" | "--help" | "-h") {
         println!("Usage:");
-        println!("  protheus-ops legacy-retired-lane build --lane-id=<ID>");
-        println!("  protheus-ops legacy-retired-lane verify --lane-id=<ID>");
+        println!("  infring-ops legacy-retired-lane build --lane-id=<ID>");
+        println!("  infring-ops legacy-retired-lane verify --lane-id=<ID>");
         return 0;
     }
 
@@ -181,11 +181,11 @@ mod tests {
     #[test]
     fn build_receipt_is_deterministic_for_same_lane_and_ts() {
         let a = build_receipt_with_ts(
-            "SYSTEMS-OPS-PROTHEUS-STATUS-DASHBOARD",
+            "SYSTEMS-OPS-INFRING-STATUS-DASHBOARD",
             "2026-03-05T00:00:00.000Z",
         );
         let b = build_receipt_with_ts(
-            "SYSTEMS-OPS-PROTHEUS-STATUS-DASHBOARD",
+            "SYSTEMS-OPS-INFRING-STATUS-DASHBOARD",
             "2026-03-05T00:00:00.000Z",
         );
         assert_eq!(a, b);
@@ -202,8 +202,8 @@ mod tests {
             "SYSTEMSOPSSTATUS"
         );
         assert_eq!(
-            clean_lane_id("systems-ops-protheus_status"),
-            "SYSTEMS-OPS-PROTHEUS_STATUS"
+            clean_lane_id("systems-ops-infring_status"),
+            "SYSTEMS-OPS-INFRING_STATUS"
         );
     }
 }

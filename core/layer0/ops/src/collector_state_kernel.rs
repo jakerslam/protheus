@@ -13,11 +13,11 @@ const META_SCHEMA_ID: &str = "collector_meta_v1";
 
 fn usage() {
     println!("collector-state-kernel commands:");
-    println!("  protheus-ops collector-state-kernel meta-load --payload-base64=<json>");
-    println!("  protheus-ops collector-state-kernel meta-save --payload-base64=<json>");
-    println!("  protheus-ops collector-state-kernel cadence-check --payload-base64=<json>");
-    println!("  protheus-ops collector-state-kernel cache-load --payload-base64=<json>");
-    println!("  protheus-ops collector-state-kernel cache-save --payload-base64=<json>");
+    println!("  infring-ops collector-state-kernel meta-load --payload-base64=<json>");
+    println!("  infring-ops collector-state-kernel meta-save --payload-base64=<json>");
+    println!("  infring-ops collector-state-kernel cadence-check --payload-base64=<json>");
+    println!("  infring-ops collector-state-kernel cache-load --payload-base64=<json>");
+    println!("  infring-ops collector-state-kernel cache-save --payload-base64=<json>");
 }
 
 #[cfg(test)]

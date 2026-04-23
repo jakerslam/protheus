@@ -26,9 +26,9 @@
       "id": "f100_status_dashboard_contract",
       "title": "Operator dashboard is Rust-authoritative with explicit dashboard mode",
       "type": "file_contains_all",
-      "path": "client/runtime/systems/ops/protheus_status_dashboard.ts",
+      "path": "client/runtime/systems/ops/infring_status_dashboard.ts",
       "required_tokens": [
-        "protheus-ops",
+        "infring-ops",
         "createOpsLaneBridge",
         "status",
         "--dashboard"
@@ -229,7 +229,7 @@
       "id": "f100_conduit_policy_budget",
       "title": "Conduit policy constrains command capabilities and message budget",
       "type": "json_fields",
-      "path": "client/runtime/config/protheus_conduit_policy.json",
+      "path": "client/runtime/config/infring_conduit_policy.json",
       "required_fields": [
         "command_required_capabilities.start_agent",
         "command_required_capabilities.install_extension",

@@ -23,13 +23,13 @@ function resolveCatalogEnvValue(envValue: unknown): string {
   const explicit = String(envValue || '').trim();
   if (explicit) return explicit;
   const preferred = String(process.env.INFRING_EYES_CATALOG_PATH || '').trim();
-  const legacy = String(process.env.PROTHEUS_EYES_CATALOG_PATH || '').trim();
+  const legacy = String(process.env.INFRING_EYES_CATALOG_PATH || '').trim();
   if (!preferred && legacy) {
     process.env.INFRING_EYES_CATALOG_PATH = legacy;
     return legacy;
   }
   if (preferred && !legacy) {
-    process.env.PROTHEUS_EYES_CATALOG_PATH = preferred;
+    process.env.INFRING_EYES_CATALOG_PATH = preferred;
   }
   return preferred;
 }

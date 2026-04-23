@@ -12,10 +12,10 @@ use crate::contract_lane_utils as lane_utils;
 
 fn usage() {
     println!("collector-content-kernel commands:");
-    println!("  protheus-ops collector-content-kernel extract-entries --payload-base64=<json>");
-    println!("  protheus-ops collector-content-kernel extract-json-rows --payload-base64=<json>");
-    println!("  protheus-ops collector-content-kernel map-feed-items --payload-base64=<json>");
-    println!("  protheus-ops collector-content-kernel map-json-items --payload-base64=<json>");
+    println!("  infring-ops collector-content-kernel extract-entries --payload-base64=<json>");
+    println!("  infring-ops collector-content-kernel extract-json-rows --payload-base64=<json>");
+    println!("  infring-ops collector-content-kernel map-feed-items --payload-base64=<json>");
+    println!("  infring-ops collector-content-kernel map-json-items --payload-base64=<json>");
 }
 
 fn clean_text(raw: Option<&str>, max_len: usize) -> String {

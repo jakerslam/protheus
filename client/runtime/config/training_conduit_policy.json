@@ -1,13 +1,13 @@
 {
   "version": "1.0",
   "schema": {
-    "id": "protheus_training_conduit_datum",
+    "id": "infring_training_conduit_datum",
     "version": "1.0.0"
   },
   "defaults": {
     "owner_id": "local_operator",
     "owner_type": "human_operator",
-    "license_id": "internal_protheus",
+    "license_id": "internal_infring",
     "consent_status": "granted",
     "consent_mode": "operator_policy",
     "consent_evidence_ref": "client/runtime/config/training_conduit_policy.json",

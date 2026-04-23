@@ -2,20 +2,20 @@
 
 ## 2026-03-01 - Re: Prototype
 
-Built a blob prototype. ([commit 083d82b](https://github.com/protheuslabs/protheus/commit/083d82b)).
+Built a blob prototype. ([commit 083d82b](https://github.com/protheuslabs/infring/commit/083d82b)).
 
 ## 2026-03-02 - Re: Update
 
-Tested the singularity seed. ([commit c57ea20](https://github.com/protheuslabs/protheus/commit/c57ea20)).
+Tested the singularity seed. ([commit c57ea20](https://github.com/protheuslabs/infring/commit/c57ea20)).
 
 ## 2026-03-03 - Re: Team Note
 
-Suggest prototype for loops. ([commit 8447b1c](https://github.com/protheuslabs/protheus/commit/8447b1c)).
+Suggest prototype for loops. ([commit 8447b1c](https://github.com/protheuslabs/infring/commit/8447b1c)).
 
 ## 2026-03-04 - Operational note 4
 
-Quick calibration note: this change is acceptable only when parity evidence is attached and rollback remains one command away. ([commit c316bd3](https://github.com/protheuslabs/protheus/commit/c316bd3)).
+Quick calibration note: this change is acceptable only when parity evidence is attached and rollback remains one command away. ([commit c316bd3](https://github.com/protheuslabs/infring/commit/c316bd3)).
 
 ## 2026-03-05 - Operational note 5
 
-Short update after review: behavior stayed stable in smoke tests, but we should keep the drift threshold visible before promotion. ([commit 50cf586](https://github.com/protheuslabs/protheus/commit/50cf586)).
+Short update after review: behavior stayed stable in smoke tests, but we should keep the drift threshold visible before promotion. ([commit 50cf586](https://github.com/protheuslabs/infring/commit/50cf586)).

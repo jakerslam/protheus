@@ -1,8 +1,8 @@
 # Infra Onboarding Track
 
 1. Bootstrap using the canonical install -> setup sequence:
-`./tests/tooling/scripts/onboarding/protheus_onboarding_bootstrap.sh --role=infra --install=1 --setup=1 --install-mode=full`.
-2. Run `protheus-ops benchmark-matrix run --refresh-runtime=1`.
+`./tests/tooling/scripts/onboarding/infring_onboarding_bootstrap.sh --role=infra --install=1 --setup=1 --install-mode=full`.
+2. Run `infring-ops benchmark-matrix run --refresh-runtime=1`.
 3. Verify release-security workflow contract in `.github/workflows/release-security-artifacts.yml`.
 4. Verify setup status with `infring setup status --json`.
 5. Verify receipts:

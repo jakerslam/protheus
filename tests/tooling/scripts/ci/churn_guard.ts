@@ -180,8 +180,8 @@ function detectLikelyUnstagedMoves(rows) {
         expectedPaths.push(`${toPrefix}${oldPath.slice(fromPrefix.length)}`);
       }
     }
-    if (oldPath === 'apps/_shared/run_protheus_ops.ts') {
-      expectedPaths.push('client/runtime/systems/ops/run_protheus_ops.ts');
+    if (oldPath === 'apps/_shared/run_infring_ops.ts') {
+      expectedPaths.push('client/runtime/systems/ops/run_infring_ops.ts');
     }
     let match = expectedPaths.find((candidate) => untrackedSet.has(candidate)) || null;
     if (!match) {
@@ -224,12 +224,12 @@ function detectSessionChurnSignals() {
         .filter((row) => /ts_entrypoint\.ts .*infring_dashboard\.ts serve/.test(row.command))
         .map((row) => [row.pid, row]),
     );
-    const opsHosts = parsedRows.filter((row) => /protheus-ops dashboard-ui serve/.test(row.command));
+    const opsHosts = parsedRows.filter((row) => /infring-ops dashboard-ui serve/.test(row.command));
     const dashboardHosts = [...tsHosts.values(), ...opsHosts];
 
     const hostGroups = new Set();
     for (const host of dashboardHosts) {
-      if (/protheus-ops dashboard-ui serve/.test(host.command) && tsHosts.has(host.ppid)) {
+      if (/infring-ops dashboard-ui serve/.test(host.command) && tsHosts.has(host.ppid)) {
         hostGroups.add(`ts:${host.ppid}`);
       } else if (/ts_entrypoint\.ts .*infring_dashboard\.ts serve/.test(host.command)) {
         hostGroups.add(`ts:${host.pid}`);

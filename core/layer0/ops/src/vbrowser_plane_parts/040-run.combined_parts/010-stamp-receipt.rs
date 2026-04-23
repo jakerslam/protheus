@@ -99,7 +99,7 @@ fn run_native(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
         "version": "v1",
         "session_id": sid,
         "target_url": url,
-        "origin": "protheusctl-browser-native",
+        "origin": "infringctl-browser-native",
         "native_mode": true,
         "host_state_access": false,
         "started_at": crate::now_iso()

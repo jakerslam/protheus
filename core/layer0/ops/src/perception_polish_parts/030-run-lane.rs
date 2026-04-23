@@ -26,7 +26,7 @@ fn run_lane(
     match id {
         "V4-OBS-011" => {
             let panel = json!({
-                "schema_id": "protheus_top_observability_panel",
+                "schema_id": "infring_top_observability_panel",
                 "schema_version": "1.0",
                 "ts": now_iso(),
                 "trend": {
@@ -43,7 +43,7 @@ fn run_lane(
                     "Export signed trace bundle before raising attempt cap."
                 ],
                 "export": {
-                    "receipt_bundle_path": "local/state/ops/protheus_top/exports/observability_trace_bundle.jsonl"
+                    "receipt_bundle_path": "local/state/ops/infring_top/exports/observability_trace_bundle.jsonl"
                 }
             });
             if apply {

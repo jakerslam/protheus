@@ -13,18 +13,18 @@ const DEFAULT_SWARM_STATE_REL: &str = "local/state/ops/dspy_bridge/swarm_state.j
 
 fn usage() {
     println!("dspy-bridge commands:");
-    println!("  protheus-ops dspy-bridge status [--state-path=<path>]");
-    println!("  protheus-ops dspy-bridge register-signature [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops dspy-bridge compile-program [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops dspy-bridge optimize-program [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops dspy-bridge status [--state-path=<path>]");
+    println!("  infring-ops dspy-bridge register-signature [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops dspy-bridge compile-program [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops dspy-bridge optimize-program [--payload-base64=<json>] [--state-path=<path>]");
     println!(
-        "  protheus-ops dspy-bridge assert-program [--payload-base64=<json>] [--state-path=<path>]"
+        "  infring-ops dspy-bridge assert-program [--payload-base64=<json>] [--state-path=<path>]"
     );
-    println!("  protheus-ops dspy-bridge import-integration [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops dspy-bridge execute-multihop [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  protheus-ops dspy-bridge record-benchmark [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops dspy-bridge record-optimization-trace [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops dspy-bridge assimilate-intake [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops dspy-bridge import-integration [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops dspy-bridge execute-multihop [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  infring-ops dspy-bridge record-benchmark [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops dspy-bridge record-optimization-trace [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops dspy-bridge assimilate-intake [--payload-base64=<json>] [--state-path=<path>]");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {

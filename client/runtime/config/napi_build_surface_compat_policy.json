@@ -5,7 +5,7 @@
   "strict_build_requires_cargo": false,
   "commands": {
     "rust_build": ["cargo", "build", "--manifest-path", "core/layer0/memory_runtime/Cargo.toml", "--release"],
-    "rust_probe": ["cargo", "run", "--quiet", "--manifest-path", "core/layer0/ops/Cargo.toml", "--bin", "protheus-ops", "--", "memory-ambient", "status", "--json"]
+    "rust_probe": ["cargo", "run", "--quiet", "--manifest-path", "core/layer0/ops/Cargo.toml", "--bin", "infring-ops", "--", "memory-ambient", "status", "--json"]
   },
   "matrix": {
     "profiles": [

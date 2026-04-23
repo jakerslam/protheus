@@ -19,10 +19,10 @@ Before any deployment, verify that environment files match expected schemas:
 
 ```bash
 # Validate .env file syntax
-protheusctl config validate --env-file=.env.production --schema=config/schemas/env-schema.json
+infringctl config validate --env-file=.env.production --schema=config/schemas/env-schema.json
 
 # Check for required variables
-protheusctl config check-required --env-file=.env.production --required-list=config/required-vars.txt
+infringctl config check-required --env-file=.env.production --required-list=config/required-vars.txt
 ```
 
 ### 2. Secret Reference Validation
@@ -31,10 +31,10 @@ Ensure all secret references point to valid vault paths:
 
 ```bash
 # List all secret references
-protheusctl config scan-secrets --env-file=.env.production
+infringctl config scan-secrets --env-file=.env.production
 
 # Verify vault connectivity and secret existence
-protheusctl vault verify --paths-from=secret-refs.txt
+infringctl vault verify --paths-from=secret-refs.txt
 ```
 
 **Required Secret Patterns:**
@@ -58,7 +58,7 @@ Before production deployment, verify feature flags are in expected states:
 
 ```bash
 # Export current feature flag configuration
-protheusctl feature-flags export --output=feature-flags-current.json
+infringctl feature-flags export --output=feature-flags-current.json
 
 # Compare against expected baseline
 diff feature-flags-current.json config/baselines/feature-flags-production.json
@@ -80,12 +80,12 @@ validate-config:
     
     - name: Validate environment configuration
       run: |
-        protheusctl config validate --strict
-        protheusctl config check-secrets --fail-on-missing
+        infringctl config validate --strict
+        infringctl config check-secrets --fail-on-missing
     
     - name: Verify no hardcoded secrets
       run: |
-        protheusctl security scan --detect-hardcoded-secrets --fail-on-detection
+        infringctl security scan --detect-hardcoded-secrets --fail-on-detection
 ```
 
 ### Pre-Commit Hooks
@@ -99,7 +99,7 @@ cat > .git/hooks/pre-commit << 'EOF'
 # Validate environment files before commit
 if git diff --cached --name-only | grep -q '\.env'; then
     echo "Environment files changed - running validation..."
-    protheusctl config validate --env-files-changed
+    infringctl config validate --env-files-changed
 fi
 EOF
 chmod +x .git/hooks/pre-commit
@@ -143,13 +143,13 @@ After deployment completes, verify configuration was applied correctly:
 
 ```bash
 # Check running configuration
-protheusctl config export --running > running-config.json
+infringctl config export --running > running-config.json
 
 # Compare against expected
 diff running-config.json expected-config.json
 
 # Verify critical settings
-protheusctl config verify-critical \
+infringctl config verify-critical \
   --check CLEARANCE=3 \
   --check CIRCUIT_BREAKER_THRESHOLD=0.5 \
   --check WS_DEBUG=0

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use protheus_ops_core::parse_plane;
+use infring_ops_core::parse_plane;
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -78,7 +78,7 @@ fn v6_parse_batch8_parse_doc_and_visualize_with_receipts() {
     }
     fs::write(
         &source_path,
-        "<html><head><title>Q1 Filing</title></head><body>\nCompany: Protheus Labs\nSummary: Strong revenue growth and reduced burn. EndSummary\nRisk factor coverage included.\n</body></html>",
+        "<html><head><title>Q1 Filing</title></head><body>\nCompany: Infring Labs\nSummary: Strong revenue growth and reduced burn. EndSummary\nRisk factor coverage included.\n</body></html>",
     )
     .expect("write source");
 

@@ -15,17 +15,17 @@ const DEFAULT_OUTPUT_DIR_REL: &str = "client/runtime/local/state/camel-shell";
 
 fn usage() {
     println!("camel-bridge commands:");
-    println!("  protheus-ops camel-bridge status [--state-path=<path>]");
-    println!("  protheus-ops camel-bridge register-society [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops camel-bridge run-society [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  protheus-ops camel-bridge simulate-world [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops camel-bridge import-dataset [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops camel-bridge route-conversation [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  protheus-ops camel-bridge record-crab-benchmark [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops camel-bridge register-tool-gateway [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops camel-bridge invoke-tool-gateway [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops camel-bridge record-scaling-observation [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops camel-bridge assimilate-intake [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops camel-bridge status [--state-path=<path>]");
+    println!("  infring-ops camel-bridge register-society [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops camel-bridge run-society [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  infring-ops camel-bridge simulate-world [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops camel-bridge import-dataset [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops camel-bridge route-conversation [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  infring-ops camel-bridge record-crab-benchmark [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops camel-bridge register-tool-gateway [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops camel-bridge invoke-tool-gateway [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops camel-bridge record-scaling-observation [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops camel-bridge assimilate-intake [--payload-base64=<json>] [--state-path=<path>]");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {

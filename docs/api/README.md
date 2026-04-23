@@ -4,22 +4,22 @@ This directory is the canonical API reference surface for InfRing/Infring runtim
 
 ## Scope
 
-- CLI command surfaces (`protheus-ops`, `protheusd`)
+- CLI command surfaces (`infring-ops`, `infringd`)
 - Runtime bridge contracts (client runtime lane wrappers)
 - State/receipt artifact interfaces
 - Compatibility and versioning notes
 
 ## Primary Interfaces
 
-1. `protheus-ops` command families
-2. `protheusd` daemon command/router surfaces
+1. `infring-ops` command families
+2. `infringd` daemon command/router surfaces
 3. Thin runtime wrappers under `client/runtime/systems/**`
 4. Adapter bridges under `adapters/**`
 
 ## Source-of-Truth Pointers
 
 - Ops CLI usage: `core/layer0/ops/src/ops_main_usage.rs`
-- Route dispatch: `core/layer0/ops/src/protheusctl_routes.rs`
+- Route dispatch: `core/layer0/ops/src/infringctl_routes.rs`
 - Runtime wrappers: `client/runtime/systems/`
 - Rust authority contracts: `core/layer0/ops/src/contract_check.rs`
 

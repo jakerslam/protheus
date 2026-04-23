@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use protheus_ops_core::top1_assurance;
+use infring_ops_core::top1_assurance;
 use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;
@@ -34,7 +34,7 @@ fn stage_top1_fixture() -> tempfile::TempDir {
                 "manifest_path": "core/local/state/ops/top1_assurance/proof_vm_manifest.json"
             },
             "size_gate": {
-                "binary_path": "target/x86_64-unknown-linux-musl/release/protheusd",
+                "binary_path": "target/x86_64-unknown-linux-musl/release/infringd",
                 "min_mb": 25,
                 "max_mb": 35,
                 "require_static": false
@@ -48,7 +48,7 @@ fn stage_top1_fixture() -> tempfile::TempDir {
             },
             "comparison": {
                 "snapshot_path": "client/runtime/config/competitive_benchmark_snapshot_2026_02.json",
-                "output_path": "docs/comparison/protheus_vs_x.md"
+                "output_path": "docs/comparison/infring_vs_x.md"
             },
             "outputs": {
                 "latest_path": "core/local/state/ops/top1_assurance/latest.json",
@@ -162,7 +162,7 @@ fn stage_top1_fixture() -> tempfile::TempDir {
         }),
     );
 
-    let binary = root.join("target/x86_64-unknown-linux-musl/release/protheusd");
+    let binary = root.join("target/x86_64-unknown-linux-musl/release/infringd");
     if let Some(parent) = binary.parent() {
         fs::create_dir_all(parent).expect("mkdir");
     }
@@ -235,8 +235,8 @@ fn top1_assurance_strict_lanes_emit_receipts() {
         );
     }
 
-    let matrix = fs::read_to_string(root.join("docs/comparison/protheus_vs_x.md")).expect("matrix");
-    assert!(matrix.contains("# Protheus vs X (CI Generated)"));
+    let matrix = fs::read_to_string(root.join("docs/comparison/infring_vs_x.md")).expect("matrix");
+    assert!(matrix.contains("# Infring vs X (CI Generated)"));
 }
 
 #[test]
@@ -348,7 +348,7 @@ fn top1_assurance_proof_coverage_skips_optional_commands_by_default() {
 fn top1_assurance_size_gate_fails_closed_when_binary_missing() {
     let fixture = stage_top1_fixture();
     let root = fixture.path();
-    let binary = root.join("target/x86_64-unknown-linux-musl/release/protheusd");
+    let binary = root.join("target/x86_64-unknown-linux-musl/release/infringd");
     fs::remove_file(binary).expect("remove");
 
     let exit = top1_assurance::run(root, &["size-gate".to_string(), "--strict=1".to_string()]);

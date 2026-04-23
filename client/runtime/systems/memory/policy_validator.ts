@@ -4,7 +4,7 @@
 // Layer ownership: core/layer0/ops (authoritative)
 // Thin TypeScript wrapper only.
 
-const { invokeKernelPayload } = require('../../lib/protheus_kernel_bridge.ts');
+const { invokeKernelPayload } = require('../../lib/infring_kernel_bridge.ts');
 
 const KNOWN_COMMANDS = new Set([
   'status',

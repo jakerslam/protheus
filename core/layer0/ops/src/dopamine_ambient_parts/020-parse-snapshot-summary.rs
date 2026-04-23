@@ -80,7 +80,7 @@ fn run_snapshot(
     mode: &str,
     date: &str,
 ) -> Result<Value, String> {
-    let node = std::env::var("PROTHEUS_NODE_BINARY")
+    let node = std::env::var("INFRING_NODE_BINARY")
         .ok()
         .filter(|v| !v.trim().is_empty())
         .unwrap_or_else(|| "node".to_string());
@@ -110,8 +110,8 @@ fn run_snapshot(
     })
 }
 
-fn resolve_protheus_ops_command(root: &PathBuf, domain: &str) -> (String, Vec<String>) {
-    crate::contract_lane_utils::resolve_protheus_ops_command(root.as_path(), domain)
+fn resolve_infring_ops_command(root: &PathBuf, domain: &str) -> (String, Vec<String>) {
+    crate::contract_lane_utils::resolve_infring_ops_command(root.as_path(), domain)
 }
 
 fn enqueue_attention(
@@ -147,7 +147,7 @@ fn enqueue_attention(
         .map_err(|err| format!("attention_event_encode_failed:{err}"))?;
     let encoded = base64::engine::general_purpose::STANDARD.encode(payload.as_bytes());
     let root_buf = root.to_path_buf();
-    let (command, mut args) = resolve_protheus_ops_command(&root_buf, "attention-queue");
+    let (command, mut args) = resolve_infring_ops_command(&root_buf, "attention-queue");
     args.push("enqueue".to_string());
     args.push(format!("--event-json-base64={encoded}"));
     args.push(format!("--run-context={run_context}"));
@@ -156,8 +156,8 @@ fn enqueue_attention(
         .args(args)
         .current_dir(root)
         .env(
-            "PROTHEUS_NODE_BINARY",
-            std::env::var("PROTHEUS_NODE_BINARY").unwrap_or_else(|_| "node".to_string()),
+            "INFRING_NODE_BINARY",
+            std::env::var("INFRING_NODE_BINARY").unwrap_or_else(|_| "node".to_string()),
         )
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

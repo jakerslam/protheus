@@ -33,7 +33,7 @@ fn v7_canyon_batch2_contracts_are_behavior_proven() {
     write_text(
         root,
         "core/layer0/ops/Cargo.toml",
-        "[package]\nname='protheus-ops-core'\n[features]\nminimal = []\n",
+        "[package]\nname='infring-ops-core'\n[features]\nminimal = []\n",
     );
     write_text(
         root,
@@ -46,10 +46,10 @@ fn v7_canyon_batch2_contracts_are_behavior_proven() {
 
     let stub_bin = install_stub_binary(root);
     let toolbin = install_tool_stubs(root);
-    std::env::set_var("PROTHEUS_CARGO_BIN", toolbin.join("cargo"));
-    std::env::set_var("PROTHEUS_STRIP_BIN", toolbin.join("strip"));
-    std::env::set_var("PROTHEUS_LLVM_PROFDATA_BIN", toolbin.join("llvm-profdata"));
-    std::env::set_var("PROTHEUS_LLVM_BOLT_BIN", toolbin.join("llvm-bolt"));
+    std::env::set_var("INFRING_CARGO_BIN", toolbin.join("cargo"));
+    std::env::set_var("INFRING_STRIP_BIN", toolbin.join("strip"));
+    std::env::set_var("INFRING_LLVM_PROFDATA_BIN", toolbin.join("llvm-profdata"));
+    std::env::set_var("INFRING_LLVM_BOLT_BIN", toolbin.join("llvm-bolt"));
 
     assert_eq!(
         canyon_plane::run(root, &["footprint".to_string(), "--strict=1".to_string()]),
@@ -95,7 +95,7 @@ fn v7_canyon_batch2_contracts_are_behavior_proven() {
             &[
                 "release-pipeline".to_string(),
                 "--op=run".to_string(),
-                "--binary=protheusd".to_string(),
+                "--binary=infringd".to_string(),
                 "--target=x86_64-unknown-linux-musl".to_string(),
                 "--profile=release-minimal".to_string(),
                 "--strict=1".to_string(),
@@ -238,19 +238,19 @@ fn v7_canyon_release_pipeline_allows_missing_optional_llvm_tools_when_not_strict
     write_text(
         root,
         "core/layer0/ops/Cargo.toml",
-        "[package]\nname='protheus-ops-core'\n[features]\nminimal = []\n",
+        "[package]\nname='infring-ops-core'\n[features]\nminimal = []\n",
     );
     write_release_security_workflow(root);
     write_size_trust_workflows(root);
     let toolbin = install_tool_stubs(root);
-    std::env::set_var("PROTHEUS_CARGO_BIN", toolbin.join("cargo"));
-    std::env::set_var("PROTHEUS_STRIP_BIN", toolbin.join("strip"));
+    std::env::set_var("INFRING_CARGO_BIN", toolbin.join("cargo"));
+    std::env::set_var("INFRING_STRIP_BIN", toolbin.join("strip"));
     std::env::set_var(
-        "PROTHEUS_LLVM_PROFDATA_BIN",
+        "INFRING_LLVM_PROFDATA_BIN",
         root.join("missing").join("llvm-profdata"),
     );
     std::env::set_var(
-        "PROTHEUS_LLVM_BOLT_BIN",
+        "INFRING_LLVM_BOLT_BIN",
         root.join("missing").join("llvm-bolt"),
     );
 
@@ -262,7 +262,7 @@ fn v7_canyon_release_pipeline_allows_missing_optional_llvm_tools_when_not_strict
             &[
                 "release-pipeline".to_string(),
                 "--op=run".to_string(),
-                "--binary=protheusd".to_string(),
+                "--binary=infringd".to_string(),
                 "--target=x86_64-unknown-linux-musl".to_string(),
                 "--profile=release-minimal".to_string(),
                 "--strict=0".to_string(),

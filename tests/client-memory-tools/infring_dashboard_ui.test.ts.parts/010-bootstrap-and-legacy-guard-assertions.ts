@@ -108,7 +108,7 @@ const STATIC_UI_AUTHORITY_PATTERNS = [
   /\bspawnSync\s*\(/,
   /\bexecSync\s*\(/,
   /\bchild_process\b/,
-  /\bprotheus-ops\b/,
+  /\binfring-ops\b/,
   /\bcollab-plane\b/,
   /\battention-queue\b/,
   /\bhermes-plane\b/,
@@ -169,7 +169,7 @@ function isRustDashboardLaneWrapperSource(source) {
   if (!text) return false;
   const legacyWrapperSignature =
     text.includes('Thin client wrapper only: delegates all dashboard authority to Rust core.') &&
-    text.includes("runProtheusOps(['dashboard-ui'");
+    text.includes("runInfringOps(['dashboard-ui'");
   const apiHostWrapperSignature =
     text.includes('Thin dashboard UI host: serves the Infring browser UI over the Rust API lane.') &&
     text.includes("authority: 'primary_dashboard_ui_over_rust_core_api'") &&
@@ -349,7 +349,7 @@ function assertLegacyDashboardArtifactsRemoved() {
   const todoSource = readUtf8(path.resolve(ROOT, 'docs/workspace/TODO.md'));
   const srsSource = readUtf8(path.resolve(ROOT, 'docs/workspace/SRS.md'));
   const packageSource = readUtf8(path.resolve(ROOT, 'package.json'));
-  const cliSource = readUtf8(path.resolve(ROOT, 'core/layer0/ops/src/protheusctl.rs'));
+  const cliSource = readUtf8(path.resolve(ROOT, 'core/layer0/ops/src/infringctl.rs'));
   const rustUiSource = readUtf8(path.resolve(ROOT, 'core/layer0/ops/src/dashboard_ui.rs'));
   const laneSource = readUtf8(TARGET_SOURCE);
   const cohesionSource = readUtf8(

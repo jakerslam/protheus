@@ -115,11 +115,11 @@ mod tests {
     }
 
     #[test]
-    fn resolve_dashboard_executable_prefers_sibling_protheus_ops_for_protheusd() {
+    fn resolve_dashboard_executable_prefers_sibling_infring_ops_for_infringd() {
         let temp = tempfile::tempdir().expect("tempdir");
         let dir = temp.path();
-        let current = dir.join("protheusd");
-        let sibling = dir.join("protheus-ops");
+        let current = dir.join("infringd");
+        let sibling = dir.join("infring-ops");
         std::fs::write(&current, b"#!/bin/sh\n").expect("write current");
         std::fs::write(&sibling, b"#!/bin/sh\n").expect("write sibling");
         let resolved = resolve_dashboard_executable(&current);
@@ -129,7 +129,7 @@ mod tests {
     #[test]
     fn resolve_dashboard_executable_keeps_current_when_sibling_missing() {
         let temp = tempfile::tempdir().expect("tempdir");
-        let current = temp.path().join("protheusd");
+        let current = temp.path().join("infringd");
         std::fs::write(&current, b"#!/bin/sh\n").expect("write current");
         let resolved = resolve_dashboard_executable(&current);
         assert_eq!(resolved, current);

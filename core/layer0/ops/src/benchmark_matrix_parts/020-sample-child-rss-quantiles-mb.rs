@@ -136,9 +136,9 @@ fn measure_pure_workspace(
             "target/release/infring-pure-workspace",
             "target/debug/infring-pure-workspace",
             "target/x86_64-unknown-linux-musl/release/infring-pure-workspace",
-            "target/release/protheus-pure-workspace",
-            "target/debug/protheus-pure-workspace",
-            "target/x86_64-unknown-linux-musl/release/protheus-pure-workspace",
+            "target/release/infring-pure-workspace",
+            "target/debug/infring-pure-workspace",
+            "target/x86_64-unknown-linux-musl/release/infring-pure-workspace",
         ],
     );
     let Some(pure_probe_bin) = pure_probe_bin else {
@@ -151,9 +151,9 @@ fn measure_pure_workspace(
             "target/x86_64-unknown-linux-musl/release/infring-pure-workspace",
             "target/release/infring-pure-workspace",
             "target/debug/infring-pure-workspace",
-            "target/x86_64-unknown-linux-musl/release/protheus-pure-workspace",
-            "target/release/protheus-pure-workspace",
-            "target/debug/protheus-pure-workspace",
+            "target/x86_64-unknown-linux-musl/release/infring-pure-workspace",
+            "target/release/infring-pure-workspace",
+            "target/debug/infring-pure-workspace",
         ],
     )
     .unwrap_or_else(|| pure_probe_bin.clone());
@@ -164,9 +164,9 @@ fn measure_pure_workspace(
             "target/x86_64-unknown-linux-musl/release/infringd",
             "target/release/infringd",
             "target/debug/infringd",
-            "target/x86_64-unknown-linux-musl/release/protheusd",
-            "target/release/protheusd",
-            "target/debug/protheusd",
+            "target/x86_64-unknown-linux-musl/release/infringd",
+            "target/release/infringd",
+            "target/debug/infringd",
         ],
     );
 
@@ -203,11 +203,11 @@ fn measure_pure_workspace(
             "target/x86_64-unknown-linux-musl/release/infringd-tiny-max",
             "target/release/infringd_tiny_max",
             "target/release/infringd-tiny-max",
-            "target/x86_64-unknown-linux-musl/release/protheusd_tiny_max",
-            "target/x86_64-unknown-linux-musl/release/protheusd-tiny-max",
-            "target/release/protheusd_tiny_max",
-            "target/release/protheusd-tiny-max",
-            "local/tmp/daemon-sizes/protheusd.pure",
+            "target/x86_64-unknown-linux-musl/release/infringd_tiny_max",
+            "target/x86_64-unknown-linux-musl/release/infringd-tiny-max",
+            "target/release/infringd_tiny_max",
+            "target/release/infringd-tiny-max",
+            "local/tmp/daemon-sizes/infringd.pure",
         ],
     )
     .or_else(|| daemon_bin_default.clone());

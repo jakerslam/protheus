@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use protheus_ops_core::government_plane;
+use infring_ops_core::government_plane;
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -40,7 +40,7 @@ fn v7_gov_001_1_to_001_9_runtime_contracts_proven() {
     let root = tempfile::tempdir().expect("tempdir");
     let root_path = root.path();
 
-    std::env::set_var("PROTHEUS_HSM_RECEIPT_KEY", "test-hsm");
+    std::env::set_var("INFRING_HSM_RECEIPT_KEY", "test-hsm");
     let attest_exit = run_cmd(
         root_path,
         &[

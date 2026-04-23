@@ -37,10 +37,10 @@ function main() {
   const runtimeRoot = path.join(workspace, 'client', 'runtime');
   fs.mkdirSync(runtimeRoot, { recursive: true });
 
-  process.env.PROTHEUS_WORKSPACE_ROOT = workspace;
-  process.env.PROTHEUS_RUNTIME_ROOT = runtimeRoot;
-  process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
-  process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = '120000';
+  process.env.INFRING_WORKSPACE_ROOT = workspace;
+  process.env.INFRING_RUNTIME_ROOT = runtimeRoot;
+  process.env.INFRING_OPS_USE_PREBUILT = '0';
+  process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = '120000';
 
   const store = resetModule(path.join(ROOT, 'core/layer1/memory_runtime/adaptive/focus_trigger_store.ts'));
   const state = store.ensureFocusState();

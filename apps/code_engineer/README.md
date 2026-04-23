@@ -4,5 +4,5 @@ Thin code generation reference app surface over Rust core `app-plane`.
 
 ## Commands
 
-- `protheus app run code-engineer "build a task tracker API"`
-- `protheus app status code-engineer`
+- `infring app run code-engineer "build a task tracker API"`
+- `infring app status code-engineer`

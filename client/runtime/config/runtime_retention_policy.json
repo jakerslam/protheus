@@ -6,11 +6,11 @@
   },
   "jsonl_targets": [
     {
-      "path": "local/state/ops/protheus_control_plane/commands.jsonl",
+      "path": "local/state/ops/infring_control_plane/commands.jsonl",
       "keep_lines": 5000
     },
     {
-      "path": "local/state/ops/protheus_control_plane/receipts.jsonl",
+      "path": "local/state/ops/infring_control_plane/receipts.jsonl",
       "keep_lines": 10000
     },
     {

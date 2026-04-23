@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
-use protheus_swarm_core_v1::{orchestrate_swarm, orchestrate_swarm_json, SwarmRequest};
+use infring_swarm_core_v1::{orchestrate_swarm, orchestrate_swarm_json, SwarmRequest};
 use std::env;
 use std::fs;
 use std::io::{self, Read};
@@ -89,13 +89,13 @@ fn demo_request() -> SwarmRequest {
         swarm_id: "swarm_demo".to_string(),
         mode: "deterministic".to_string(),
         agents: vec![
-            protheus_swarm_core_v1::SwarmAgent {
+            infring_swarm_core_v1::SwarmAgent {
                 id: "a1".to_string(),
                 skills: vec!["research".to_string(), "coding".to_string()],
                 capacity: 3,
                 reliability_pct: 91.0,
             },
-            protheus_swarm_core_v1::SwarmAgent {
+            infring_swarm_core_v1::SwarmAgent {
                 id: "a2".to_string(),
                 skills: vec!["coding".to_string()],
                 capacity: 2,
@@ -103,13 +103,13 @@ fn demo_request() -> SwarmRequest {
             },
         ],
         tasks: vec![
-            protheus_swarm_core_v1::SwarmTask {
+            infring_swarm_core_v1::SwarmTask {
                 id: "t1".to_string(),
                 required_skill: "coding".to_string(),
                 weight: 2,
                 priority: 8,
             },
-            protheus_swarm_core_v1::SwarmTask {
+            infring_swarm_core_v1::SwarmTask {
                 id: "t2".to_string(),
                 required_skill: "research".to_string(),
                 weight: 1,

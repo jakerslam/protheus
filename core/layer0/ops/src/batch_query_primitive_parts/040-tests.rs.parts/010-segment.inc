@@ -743,7 +743,7 @@ mod tests {
     fn batch_query_fails_closed_when_ingress_lifecycle_blocks_new_leases() {
         let _guard = TEST_ENV_MUTEX.lock().expect("lock");
         std::env::set_var(
-            "PROTHEUS_HIERARCHICAL_NEXUS_CLIENT_INGRESS_LIFECYCLE",
+            "INFRING_HIERARCHICAL_NEXUS_CLIENT_INGRESS_LIFECYCLE",
             "quiesced",
         );
         let tmp = tempfile::tempdir().expect("tempdir");
@@ -751,7 +751,7 @@ mod tests {
             tmp.path(),
             &json!({"source":"web","query":"lifecycle deny path","aperture":"small"}),
         );
-        std::env::remove_var("PROTHEUS_HIERARCHICAL_NEXUS_CLIENT_INGRESS_LIFECYCLE");
+        std::env::remove_var("INFRING_HIERARCHICAL_NEXUS_CLIENT_INGRESS_LIFECYCLE");
         assert_eq!(out.get("status").and_then(Value::as_str), Some("blocked"));
         assert_eq!(
             out.get("error").and_then(Value::as_str),

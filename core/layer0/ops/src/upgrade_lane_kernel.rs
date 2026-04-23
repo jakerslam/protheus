@@ -19,9 +19,9 @@ const DEFAULT_RECEIPTS_PATH: &str = "local/state/ops/lanes/receipts.jsonl";
 
 fn usage() {
     println!("upgrade-lane-kernel commands:");
-    println!("  protheus-ops upgrade-lane-kernel status --payload-base64=<json>");
-    println!("  protheus-ops upgrade-lane-kernel record --payload-base64=<json>");
-    println!("  protheus-ops upgrade-lane-kernel web-tooling-status --payload-base64=<json>");
+    println!("  infring-ops upgrade-lane-kernel status --payload-base64=<json>");
+    println!("  infring-ops upgrade-lane-kernel record --payload-base64=<json>");
+    println!("  infring-ops upgrade-lane-kernel web-tooling-status --payload-base64=<json>");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
@@ -517,7 +517,7 @@ mod tests {
         let payload = json!({
             "lane_id": "V3-RACE-169",
             "lane_type": "core_profile_contract",
-            "script_rel": "packages/protheus-core/core_profile_contract.js",
+            "script_rel": "packages/infring-core/core_profile_contract.js",
             "policy_path": policy_path.to_string_lossy().to_string(),
             "paths": {
                 "adaptive_index_path": root.join("adaptive/index.json").to_string_lossy().to_string(),

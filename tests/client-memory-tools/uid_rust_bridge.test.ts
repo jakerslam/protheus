@@ -26,8 +26,8 @@ if (!require.extensions['.ts']) {
 }
 
 const ROOT = path.resolve(__dirname, '../..');
-process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
-process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = '120000';
+process.env.INFRING_OPS_USE_PREBUILT = '0';
+process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = '120000';
 
 const runtimeUid = require(path.join(ROOT, 'client/runtime/lib/uid.ts'));
 const adaptiveUid = require(path.join(ROOT, 'core/layer1/memory_runtime/adaptive/uid.ts'));

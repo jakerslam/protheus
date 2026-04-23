@@ -274,7 +274,7 @@ pub fn default_policy(root: &Path) -> Policy {
             latest_path: root.join("local/state/ops/fluxlattice_program/latest.json"),
             receipts_path: root.join("local/state/ops/fluxlattice_program/receipts.jsonl"),
             history_path: root.join("local/state/ops/fluxlattice_program/history.jsonl"),
-            security_panel_path: root.join("local/state/ops/protheus_top/security_panel.json"),
+            security_panel_path: root.join("local/state/ops/infring_top/security_panel.json"),
             flux_events_path: root.join("local/state/ops/fluxlattice_program/flux_events.jsonl"),
             migration_profiles_path: root
                 .join("client/runtime/config/fluxlattice_migration_profiles.json"),
@@ -350,7 +350,7 @@ pub fn load_policy(root: &Path, policy_path: &Path) -> Policy {
         security_panel_path: resolve_path(
             root,
             paths.get("security_panel_path"),
-            "local/state/ops/protheus_top/security_panel.json",
+            "local/state/ops/infring_top/security_panel.json",
         ),
         flux_events_path: resolve_path(
             root,

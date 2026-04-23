@@ -7,7 +7,7 @@
       "schedule": { "expr": "0 0,8,12,16,20 * * *", "tz": "America/Denver" },
       "sessionTarget": "main",
       "wakeMode": "next-heartbeat",
-      "payload": { "kind": "systemEvent", "text": "MOLTCHECK: Before any action, verify secret availability via protheus-ops secret-broker-kernel status --payload='{\"secret_ids\":[\"moltbook_api_key\"]}'. If unavailable, emit status=SKIPPED_CREDENTIALS once and stop quietly (no retry spam). If available, browse Moltbook feed, upvote interesting posts or add relevant comments, and report activity." },
+      "payload": { "kind": "systemEvent", "text": "MOLTCHECK: Before any action, verify secret availability via infring-ops secret-broker-kernel status --payload='{\"secret_ids\":[\"moltbook_api_key\"]}'. If unavailable, emit status=SKIPPED_CREDENTIALS once and stop quietly (no retry spam). If available, browse Moltbook feed, upvote interesting posts or add relevant comments, and report activity." },
       "delivery": { "mode": "announce", "channel": "main" },
       "enabled": true,
       "id": "5f453976-52dc-44d6-821d-686bfd5cf5bf"
@@ -37,7 +37,7 @@
       "schedule": { "expr": "0 18 * * 0", "tz": "America/Denver" },
       "sessionTarget": "main",
       "wakeMode": "next-heartbeat",
-      "payload": { "kind": "systemEvent", "text": "Reminder: It's Sunday 6PM. Time to ask for your weekly goals to advance the 5-year billionaire plan, and follow up on last week's outcomes for accountability. Remember: leadership goes both ways. (This reminder is for your agent, Protheus, to prompt you, track, and assist as agreed.)" },
+      "payload": { "kind": "systemEvent", "text": "Reminder: It's Sunday 6PM. Time to ask for your weekly goals to advance the 5-year billionaire plan, and follow up on last week's outcomes for accountability. Remember: leadership goes both ways. (This reminder is for your agent, Infring, to prompt you, track, and assist as agreed.)" },
       "delivery": { "mode": "announce", "channel": "main" },
       "enabled": true,
       "id": "70569979-d9cf-4ad9-819f-9709d6e278a9"
@@ -67,7 +67,7 @@
       "schedule": { "expr": "0 12 * * 5", "tz": "America/Denver" },
       "sessionTarget": "isolated",
       "wakeMode": "now",
-      "payload": { "kind": "agentTurn", "message": "Write and publish a post to The Protheus Codex on MoltStack. Topic: analyze a current trend in AI agents, software engineering, or income strategies. Use client/cognition/skills/moltstack/scripts/publish.ts after quality check. Log to memory." },
+      "payload": { "kind": "agentTurn", "message": "Write and publish a post to The Infring Codex on MoltStack. Topic: analyze a current trend in AI agents, software engineering, or income strategies. Use client/cognition/skills/moltstack/scripts/publish.ts after quality check. Log to memory." },
       "delivery": { "mode": "announce", "channel": "main" },
       "enabled": true,
       "id": "0fe0abd9-0672-4c44-b946-4581da3eb68f"

@@ -1,23 +1,23 @@
 fn context_stacks_usage() {
     println!("context-stacks commands:");
-    println!("  protheus-ops context-stacks create --stack-id=<id> [--system-prompt=<text>] [--tools=a,b] [--stable-nodes-json='[\"...\"]']");
-    println!("  protheus-ops context-stacks list [--all=1]");
-    println!("  protheus-ops context-stacks archive --stack-id=<id>");
-    println!("  protheus-ops context-stacks tail-merge --stack-id=<id> [--tail-id=<id>] --merge-type=<append_working_note|append_turn|replace_objective> --value=<text>");
-    println!("  protheus-ops context-stacks tail-promote --stack-id=<id> [--tail-id=<id>]");
-    println!("  protheus-ops context-stacks render --stack-id=<id>");
-    println!("  protheus-ops context-stacks batch-class --stack-id=<id> [--lane=live_microbatch|provider_batch]");
-    println!("  protheus-ops context-stacks scheduler-check --stack-id=<id> [--prompt-tokens=<n>] [--stable-prefix-tokens=<n>] [--fresh-cohort-size=<n>]");
-    println!("  protheus-ops context-stacks node-spike --stack-id=<id> --node-id=<id> --delta=<0..1> [--staleness-seconds=<n>] [--external-trigger=1]");
-    println!("  protheus-ops context-stacks contract-verify --stack-id=<id>");
-    println!("  protheus-ops context-stacks taste-tune --family=<name> --merge-lift=<-1..1>");
-    println!("  protheus-ops context-stacks partial-merge --stack-id=<id> --patch-json=<json>");
-    println!("  protheus-ops context-stacks hybrid-retrieve --stack-id=<id> --query=<text> --vector-json=<json> --edges-json=<json> [--top-k=<n>]");
-    println!("  protheus-ops context-stacks speculative-start --stack-id=<id> --patch-json=<json> [--overlay-id=<id>] [--approval-note=<text>] [--verify-merge=1|0]");
-    println!("  protheus-ops context-stacks speculative-merge --overlay-id=<id> [--approval-note=<text>] [--verify-merge=1|0]");
-    println!("  protheus-ops context-stacks speculative-rollback --overlay-id=<id> [--reason=<text>]");
-    println!("  protheus-ops context-stacks speculative-status [--overlay-id=<id>] [--stack-id=<id>]");
-    println!("  protheus-ops context-stacks status");
+    println!("  infring-ops context-stacks create --stack-id=<id> [--system-prompt=<text>] [--tools=a,b] [--stable-nodes-json='[\"...\"]']");
+    println!("  infring-ops context-stacks list [--all=1]");
+    println!("  infring-ops context-stacks archive --stack-id=<id>");
+    println!("  infring-ops context-stacks tail-merge --stack-id=<id> [--tail-id=<id>] --merge-type=<append_working_note|append_turn|replace_objective> --value=<text>");
+    println!("  infring-ops context-stacks tail-promote --stack-id=<id> [--tail-id=<id>]");
+    println!("  infring-ops context-stacks render --stack-id=<id>");
+    println!("  infring-ops context-stacks batch-class --stack-id=<id> [--lane=live_microbatch|provider_batch]");
+    println!("  infring-ops context-stacks scheduler-check --stack-id=<id> [--prompt-tokens=<n>] [--stable-prefix-tokens=<n>] [--fresh-cohort-size=<n>]");
+    println!("  infring-ops context-stacks node-spike --stack-id=<id> --node-id=<id> --delta=<0..1> [--staleness-seconds=<n>] [--external-trigger=1]");
+    println!("  infring-ops context-stacks contract-verify --stack-id=<id>");
+    println!("  infring-ops context-stacks taste-tune --family=<name> --merge-lift=<-1..1>");
+    println!("  infring-ops context-stacks partial-merge --stack-id=<id> --patch-json=<json>");
+    println!("  infring-ops context-stacks hybrid-retrieve --stack-id=<id> --query=<text> --vector-json=<json> --edges-json=<json> [--top-k=<n>]");
+    println!("  infring-ops context-stacks speculative-start --stack-id=<id> --patch-json=<json> [--overlay-id=<id>] [--approval-note=<text>] [--verify-merge=1|0]");
+    println!("  infring-ops context-stacks speculative-merge --overlay-id=<id> [--approval-note=<text>] [--verify-merge=1|0]");
+    println!("  infring-ops context-stacks speculative-rollback --overlay-id=<id> [--reason=<text>]");
+    println!("  infring-ops context-stacks speculative-status [--overlay-id=<id>] [--stack-id=<id>]");
+    println!("  infring-ops context-stacks status");
 }
 
 fn stack_id_from(parsed: &crate::ParsedArgs) -> String {

@@ -16,47 +16,47 @@
   "items": [
     {
       "id": "V4-SUITE-001",
-      "title": "protheus-graph Deterministic Workflow Engine"
+      "title": "infring-graph Deterministic Workflow Engine"
     },
     {
       "id": "V4-SUITE-002",
-      "title": "protheus-mem Long-Memory CLI Surface"
+      "title": "infring-mem Long-Memory CLI Surface"
     },
     {
       "id": "V4-SUITE-003",
-      "title": "protheus-telemetry Trace + Sovereignty Export CLI"
+      "title": "infring-telemetry Trace + Sovereignty Export CLI"
     },
     {
       "id": "V4-SUITE-004",
-      "title": "protheus-vault Zero-Knowledge Secrets CLI"
+      "title": "infring-vault Zero-Knowledge Secrets CLI"
     },
     {
       "id": "V4-SUITE-005",
-      "title": "protheus-swarm Multi-Agent Coordination CLI"
+      "title": "infring-swarm Multi-Agent Coordination CLI"
     },
     {
       "id": "V4-SUITE-006",
-      "title": "protheus-redlegion Adversarial Operations CLI"
+      "title": "infring-redlegion Adversarial Operations CLI"
     },
     {
       "id": "V4-SUITE-007",
-      "title": "protheus-forge Productization Uplift"
+      "title": "infring-forge Productization Uplift"
     },
     {
       "id": "V4-SUITE-008",
-      "title": "protheus-bootstrap Scaffolding CLI"
+      "title": "infring-bootstrap Scaffolding CLI"
     },
     {
       "id": "V4-SUITE-009",
-      "title": "protheus-econ Unit-Economics CLI"
+      "title": "infring-econ Unit-Economics CLI"
     },
     {
       "id": "V4-SUITE-010",
-      "title": "protheus-soul Public Export Mode"
+      "title": "infring-soul Public Export Mode"
     },
     {
       "id": "V4-SUITE-011",
-      "title": "protheus-pinnacle CLI Polish + Operability Pack"
+      "title": "infring-pinnacle CLI Polish + Operability Pack"
     },
     {
       "id": "V4-SUITE-012",
@@ -64,7 +64,7 @@
     },
     {
       "id": "V4-BRAND-001",
-      "title": "Protheus Labs Org Identity Sweep"
+      "title": "Infring Labs Org Identity Sweep"
     },
     {
       "id": "V4-BRAND-002",

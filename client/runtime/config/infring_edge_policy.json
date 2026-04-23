@@ -1,0 +1,34 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "risk": {
+    "default_tier": 2,
+    "require_explicit_approval_tier": 3
+  },
+  "event_stream": {
+    "enabled": true,
+    "publish": true,
+    "stream": "edge.runtime"
+  },
+  "edge_runtime": {
+    "require_contract_lane_verified": true,
+    "allow_profiles": [
+      "mobile_seed",
+      "offline_cache",
+      "low_power",
+      "recovery"
+    ],
+    "fallback_profile": "offline_cache",
+    "max_cache_snapshots": 200
+  },
+  "paths": {
+    "memory_dir": "client/memory/edge/infring_edge",
+    "adaptive_index_path": "client/cognition/adaptive/edge/infring_edge/index.json",
+    "events_path": "local/state/edge/infring_edge/events.jsonl",
+    "latest_path": "local/state/edge/infring_edge/latest.json",
+    "receipts_path": "local/state/edge/infring_edge/receipts.jsonl",
+    "session_state_path": "local/state/edge/infring_edge/session_state.json",
+    "cache_index_path": "local/state/edge/infring_edge/cache_index.json"
+  }
+}

@@ -8,7 +8,7 @@ const { spawnSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const ENTRYPOINT = path.join(ROOT, 'client', 'runtime', 'lib', 'ts_entrypoint.ts');
-const OPS = path.join(ROOT, 'client', 'runtime', 'systems', 'ops', 'run_protheus_ops.ts');
+const OPS = path.join(ROOT, 'client', 'runtime', 'systems', 'ops', 'run_infring_ops.ts');
 const POLICY_PATH = path.join(ROOT, 'client', 'runtime', 'config', 'mcp_a2a_venom_contract_gate_policy.json');
 
 function parseLastJson(stdout) {
@@ -34,9 +34,9 @@ function runOps(args) {
     encoding: 'utf8',
     env: {
       ...process.env,
-      PROTHEUS_OPS_LOCAL_TIMEOUT_MS: '240000',
       INFRING_OPS_LOCAL_TIMEOUT_MS: '240000',
-      PROTHEUS_OPS_USE_PREBUILT: '0',
+      INFRING_OPS_LOCAL_TIMEOUT_MS: '240000',
+      INFRING_OPS_USE_PREBUILT: '0',
       INFRING_OPS_USE_PREBUILT: '0',
     },
   });

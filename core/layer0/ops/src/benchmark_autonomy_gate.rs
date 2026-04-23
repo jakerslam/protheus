@@ -372,8 +372,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         }
         "help" | "--help" | "-h" => {
             println!("benchmark-autonomy-gate commands:");
-            println!("  protheus-ops benchmark-autonomy-gate run [--strict=1|0]");
-            println!("  protheus-ops benchmark-autonomy-gate status");
+            println!("  infring-ops benchmark-autonomy-gate run [--strict=1|0]");
+            println!("  infring-ops benchmark-autonomy-gate status");
             return 0;
         }
         _ => Err(format!("benchmark_autonomy_gate_unknown_command:{command}")),

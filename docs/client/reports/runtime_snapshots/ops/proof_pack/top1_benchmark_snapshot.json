@@ -39,7 +39,7 @@
           "client/runtime": 16.158,
           "core/layer0/ops": 9.802,
           "dist": 25.84,
-          "target/release/protheusd": 2.072
+          "target/release/infringd": 2.072
         },
         "sum_mb": 53.872
       },

@@ -3,7 +3,7 @@
   "schema_version": "1.0",
   "api_contracts": [
     {
-      "name": "protheus_conduit_v1",
+      "name": "infring_conduit_v1",
       "version": "1.2.0",
       "status": "active",
       "deprecation_window_days": 120
@@ -11,7 +11,7 @@
   ],
   "cli_contracts": [
     {
-      "name": "protheus-ops",
+      "name": "infring-ops",
       "version": "0.2.0",
       "status": "active",
       "deprecation_window_days": 120
@@ -21,8 +21,8 @@
       "version": "0.1.0",
       "status": "deprecated",
       "deprecation_window_days": 120,
-      "deprecation_notice": "Legacy bridge will be removed after deprecation window; migrate to protheus-ops contracts.",
-      "migration_guide": "docs/client/RELEASE_MIGRATION_NOTES.md#legacy-bridge-to-protheus-ops"
+      "deprecation_notice": "Legacy bridge will be removed after deprecation window; migrate to infring-ops contracts.",
+      "migration_guide": "docs/client/RELEASE_MIGRATION_NOTES.md#legacy-bridge-to-infring-ops"
     }
   ]
 }

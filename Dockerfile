@@ -44,9 +44,9 @@ ENV CLEARANCE=3
 ENV TZ=UTC
 ENV INFRING_FIPS_MODE=${INFRING_FIPS_MODE}
 ENV INFRING_NPM_BINARY=/app/target/release/infring-ops
-ENV PROTHEUS_RUNTIME_MODE=dist
-# Legacy compatibility alias for older wrappers still reading PROTHEUS_NPM_BINARY.
-ENV PROTHEUS_NPM_BINARY=${INFRING_NPM_BINARY}
+ENV INFRING_RUNTIME_MODE=dist
+# Legacy compatibility alias for older wrappers still reading INFRING_NPM_BINARY.
+ENV INFRING_NPM_BINARY=${INFRING_NPM_BINARY}
 
 LABEL org.opencontainers.image.title="infring" \
       org.opencontainers.image.description="InfRing runtime image" \

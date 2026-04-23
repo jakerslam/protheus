@@ -198,7 +198,7 @@ pub fn run(cli_root: &Path, argv: &[String]) -> i32 {
         "run" => cmd_run(&root, argv),
         "status" => Ok(cmd_status(&root, argv)),
         "help" | "--help" | "-h" => {
-            println!("Usage:\n  protheus-ops observability-slo-runbook-closure run|status [--policy=<path>] [--strict=1|0]");
+            println!("Usage:\n  infring-ops observability-slo-runbook-closure run|status [--policy=<path>] [--strict=1|0]");
             return 0;
         }
         _ => Ok(json!({"ok":false,"error":format!("unknown_command:{cmd}")})),

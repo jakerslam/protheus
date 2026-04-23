@@ -79,16 +79,16 @@ fn cli_error(kind: &str, error: &str) -> Value {
 
 fn usage() {
     println!("approval-gate-kernel commands:");
-    println!("  protheus-ops approval-gate-kernel status [--queue-path=<path>]");
-    println!("  protheus-ops approval-gate-kernel queue --payload-base64=<base64_json> [--queue-path=<path>]");
-    println!("  protheus-ops approval-gate-kernel approve --action-id=<id> [--queue-path=<path>]");
-    println!("  protheus-ops approval-gate-kernel deny --action-id=<id> [--reason=<text>] [--queue-path=<path>]");
+    println!("  infring-ops approval-gate-kernel status [--queue-path=<path>]");
+    println!("  infring-ops approval-gate-kernel queue --payload-base64=<base64_json> [--queue-path=<path>]");
+    println!("  infring-ops approval-gate-kernel approve --action-id=<id> [--queue-path=<path>]");
+    println!("  infring-ops approval-gate-kernel deny --action-id=<id> [--reason=<text>] [--queue-path=<path>]");
     println!(
-        "  protheus-ops approval-gate-kernel was-approved --action-id=<id> [--queue-path=<path>]"
+        "  infring-ops approval-gate-kernel was-approved --action-id=<id> [--queue-path=<path>]"
     );
-    println!("  protheus-ops approval-gate-kernel parse-command --text-base64=<base64_text>");
-    println!("  protheus-ops approval-gate-kernel parse-yaml --text-base64=<base64_text>");
-    println!("  protheus-ops approval-gate-kernel replace --payload-base64=<base64_json> [--queue-path=<path>]");
+    println!("  infring-ops approval-gate-kernel parse-command --text-base64=<base64_text>");
+    println!("  infring-ops approval-gate-kernel parse-yaml --text-base64=<base64_text>");
+    println!("  infring-ops approval-gate-kernel replace --payload-base64=<base64_json> [--queue-path=<path>]");
 }
 
 fn resolve_queue_path(root: &Path, argv: &[String]) -> PathBuf {
@@ -104,7 +104,7 @@ fn resolve_queue_path(root: &Path, argv: &[String]) -> PathBuf {
     }
     for env_name in [
         "APPROVAL_GATE_QUEUE_PATH",
-        "PROTHEUS_APPROVAL_GATE_QUEUE_PATH",
+        "INFRING_APPROVAL_GATE_QUEUE_PATH",
     ] {
         if let Ok(raw) = std::env::var(env_name) {
             let cleaned = raw.trim();

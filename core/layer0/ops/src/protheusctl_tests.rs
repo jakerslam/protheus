@@ -1,9 +1,0 @@
-include_parts!(
-    "protheusctl_tests_parts/010-env-guard.rs",
-    "protheusctl_tests_parts/020-core-shortcut-routes-enterprise-moat-license.rs",
-    "protheusctl_tests_parts/030-core-shortcut-routes-parse-export.rs",
-    "protheusctl_tests_parts/040-core-shortcut-routes-init-tiny-max.rs",
-    "protheusctl_tests_parts/050-core-shortcut-routes-observability-monitor.rs",
-    "protheusctl_tests_parts/060-persona-blocked-path-fails-closed.rs",
-    "protheusctl_tests_parts/070-core-shortcut-routes-verity-plane.rs",
-);

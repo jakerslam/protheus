@@ -5,19 +5,19 @@
   "providers": {
     "okta": {
       "issuer_prefix": "https://",
-      "allowed_scopes": ["openid", "profile", "email", "groups", "offline_access", "protheus.read", "protheus.write"],
+      "allowed_scopes": ["openid", "profile", "email", "groups", "offline_access", "infring.read", "infring.write"],
       "allowed_roles": ["operator", "admin", "security", "auditor"],
       "scim_enabled": true
     },
     "entra": {
       "issuer_prefix": "https://login.microsoftonline.com/",
-      "allowed_scopes": ["openid", "profile", "email", "protheus.read", "protheus.write"],
+      "allowed_scopes": ["openid", "profile", "email", "infring.read", "infring.write"],
       "allowed_roles": ["operator", "admin", "security", "auditor"],
       "scim_enabled": true
     },
     "google": {
       "issuer_prefix": "https://accounts.google.com",
-      "allowed_scopes": ["openid", "profile", "email", "protheus.read"],
+      "allowed_scopes": ["openid", "profile", "email", "infring.read"],
       "allowed_roles": ["operator", "auditor"],
       "scim_enabled": false
     }

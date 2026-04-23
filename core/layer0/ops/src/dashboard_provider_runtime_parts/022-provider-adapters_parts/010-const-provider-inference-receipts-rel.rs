@@ -23,7 +23,7 @@ fn provider_network_policy_path(root: &Path) -> PathBuf {
 fn web_tooling_relaxed_test_mode_env_enabled() -> bool {
     for name in [
         "INFRING_WEB_TOOLING_RELAXED_TEST_MODE",
-        "PROTHEUS_WEB_TOOLING_RELAXED_TEST_MODE",
+        "INFRING_WEB_TOOLING_RELAXED_TEST_MODE",
     ] {
         if let Ok(raw) = std::env::var(name) {
             match clean_text(&raw, 40).to_ascii_lowercase().as_str() {

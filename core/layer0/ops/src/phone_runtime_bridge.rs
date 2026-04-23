@@ -18,12 +18,12 @@ const DEFAULT_SENSOR_REL: &str = "client/runtime/local/state/phone_sensor_state.
 
 fn usage() {
     println!("phone-runtime-bridge commands:");
-    println!("  protheus-ops phone-runtime-bridge status [--state-path=<path>]");
-    println!("  protheus-ops phone-runtime-bridge battery-schedule [--payload-base64=<json>] [--state-path=<path>] [--history-path=<path>]");
-    println!("  protheus-ops phone-runtime-bridge sensor-intake [--payload-base64=<json>] [--state-path=<path>] [--history-path=<path>] [--sensor-state-path=<path>]");
-    println!("  protheus-ops phone-runtime-bridge interaction-mode [--payload-base64=<json>] [--state-path=<path>] [--history-path=<path>]");
-    println!("  protheus-ops phone-runtime-bridge background-daemon [--payload-base64=<json>] [--state-path=<path>] [--history-path=<path>] [--background-state-path=<path>]");
-    println!("  protheus-ops phone-runtime-bridge phone-profile [--payload-base64=<json>] [--state-path=<path>] [--history-path=<path>]");
+    println!("  infring-ops phone-runtime-bridge status [--state-path=<path>]");
+    println!("  infring-ops phone-runtime-bridge battery-schedule [--payload-base64=<json>] [--state-path=<path>] [--history-path=<path>]");
+    println!("  infring-ops phone-runtime-bridge sensor-intake [--payload-base64=<json>] [--state-path=<path>] [--history-path=<path>] [--sensor-state-path=<path>]");
+    println!("  infring-ops phone-runtime-bridge interaction-mode [--payload-base64=<json>] [--state-path=<path>] [--history-path=<path>]");
+    println!("  infring-ops phone-runtime-bridge background-daemon [--payload-base64=<json>] [--state-path=<path>] [--history-path=<path>] [--background-state-path=<path>]");
+    println!("  infring-ops phone-runtime-bridge phone-profile [--payload-base64=<json>] [--state-path=<path>] [--history-path=<path>]");
 }
 
 fn payload_json(argv: &[String]) -> Result<Value, String> {

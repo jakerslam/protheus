@@ -114,7 +114,7 @@ function runCargoTestWithTimeoutKill(testName: string): {
   const commandArgs = [
     'test',
     '-p',
-    'protheus-ops-core',
+    'infring-ops-core',
     '--lib',
     testName,
     '--quiet',
@@ -132,7 +132,7 @@ function runCargoTestWithTimeoutKill(testName: string): {
   const timedOut =
     !!run.error && (timeoutMessage.includes('timed out') || timeoutMessage.includes('etimedout'));
   if (timedOut) {
-    const pattern = `cargo test -p protheus-ops-core --lib ${testName}`;
+    const pattern = `cargo test -p infring-ops-core --lib ${testName}`;
     spawnSync('pkill', ['-TERM', '-f', pattern], { cwd: ROOT, stdio: 'ignore' });
     spawnSync('pkill', ['-KILL', '-f', pattern], { cwd: ROOT, stdio: 'ignore' });
   }
@@ -200,7 +200,7 @@ const report: SoakReport = {
   started_at: startedAt,
   finished_at: nowIso(),
   ok,
-  command: 'cargo test -p protheus-ops-core --lib <workflow-test-name> -- --nocapture',
+  command: 'cargo test -p infring-ops-core --lib <workflow-test-name> -- --nocapture',
   status: ok ? 0 : 1,
   duration_ms: Date.now() - startedMs,
   taxonomy,

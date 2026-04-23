@@ -21,42 +21,42 @@ pub use execution_core as execution_core_v1;
 pub use ipc;
 pub use infring_layer1_security as layer1_security;
 pub use isolation;
-pub use protheus_layer1_memory_runtime::{recall_policy, token_telemetry};
+pub use infring_layer1_memory_runtime::{recall_policy, token_telemetry};
 pub use os_extension_wrapper;
 pub use infring_types::{
     compute_blob_manifest_signature, decode_normalized_blob_manifest,
     decode_signed_bincode_blob_manifest_with_adapter, normalize_blob_id, normalize_sha256_hash,
     NormalizedBlobManifestEntry,
 };
-pub use protheus_memory_core_v1 as memory_core_v1;
-pub use protheus_autonomy_core_v1 as autonomy_core;
-pub use protheus_graph_core_v1 as graph_core_v1;
-pub use protheus_pinnacle_core_v1 as pinnacle_core_v1;
-pub use protheus_red_legion_core_v1 as red_legion_core_v1;
-pub use protheus_swarm_core_v1 as swarm_core_v1;
-pub use protheus_observability_core_v1::{
+pub use infring_memory_core_v1 as memory_core_v1;
+pub use infring_autonomy_core_v1 as autonomy_core;
+pub use infring_graph_core_v1 as graph_core_v1;
+pub use infring_pinnacle_core_v1 as pinnacle_core_v1;
+pub use infring_red_legion_core_v1 as red_legion_core_v1;
+pub use infring_swarm_core_v1 as swarm_core_v1;
+pub use infring_observability_core_v1::{
     evaluate_trace_window, load_embedded_observability_profile, run_chaos_resilience,
     ChaosResilienceReport, ChaosScenarioRequest, TraceEvent, TraceWindowReport,
 };
-pub use protheus_tiny_runtime as tiny_runtime;
+pub use infring_tiny_runtime as tiny_runtime;
 pub use resource;
 pub use storage;
 pub use task;
 pub use update;
-pub use protheus_vault_core_v1 as vault_core_v1;
+pub use infring_vault_core_v1 as vault_core_v1;
 pub use infring_layer1_provenance::{
     InMemoryReceiptSink, ProvenanceError, ReceiptDraft, ReceiptEmitter, ReceiptSink,
 };
-pub use protheus_ops_core_v1 as ops_core;
-pub use protheus_spine_core_v1 as spine_core;
-pub use protheus_stomach_core_v1 as stomach_core;
-pub use protheus_tooling_core_v1 as tooling_core;
-pub use protheus_memory_core_v6::{
+pub use infring_ops_core_v1 as ops_core;
+pub use infring_spine_core_v1 as spine_core;
+pub use infring_stomach_core_v1 as stomach_core;
+pub use infring_tooling_core_v1 as tooling_core;
+pub use infring_memory_core_v6::{
     load_embedded_vault_policy, EmbeddedVaultPolicy,
     load_embedded_observability_profile as load_embedded_profile_from_memory, EmbeddedChaosHook,
     EmbeddedObservabilityProfile,
 };
-pub use protheus_memory_core_v6 as memory_core_v6;
+pub use infring_memory_core_v6 as memory_core_v6;
 pub use infring_types as types_core;
 pub use conduit_manager::{ConduitBackedLink, ConduitManager};
 pub use main_nexus::{

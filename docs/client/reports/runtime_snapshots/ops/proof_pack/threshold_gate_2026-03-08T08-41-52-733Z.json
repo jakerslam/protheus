@@ -861,8 +861,8 @@
         "report_path": "/client/runtime/local/state/autonomy/simulations/2026-03-08.json"
       }
     },
-    "protheus_vs_infring": {
-      "id": "protheus_vs_infring",
+    "infring_vs_infring": {
+      "id": "infring_vs_infring",
       "ok": true,
       "status": 0,
       "elapsed_ms": 199,

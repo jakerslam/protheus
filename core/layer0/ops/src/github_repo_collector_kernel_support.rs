@@ -266,7 +266,7 @@ pub fn curl_fetch_with_status(
         cmd.arg("-H").arg(format!("{k}: {v}"));
     }
     cmd.arg("-w")
-        .arg("\n__PROTHEUS_STATUS__:%{http_code}\n")
+        .arg("\n__INFRING_STATUS__:%{http_code}\n")
         .arg(url);
 
     let output = cmd
@@ -279,7 +279,7 @@ pub fn curl_fetch_with_status(
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    let marker = "\n__PROTHEUS_STATUS__:";
+    let marker = "\n__INFRING_STATUS__:";
     let marker_pos = stdout
         .rfind(marker)
         .ok_or_else(|| "collector_fetch_missing_status_marker".to_string())?;

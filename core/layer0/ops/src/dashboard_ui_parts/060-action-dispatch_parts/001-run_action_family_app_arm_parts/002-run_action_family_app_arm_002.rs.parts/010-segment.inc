@@ -421,7 +421,7 @@ fn run_action_family_app_arm_002(root: &Path, normalized: &str, payload: &Value)
                     i64_from_value(runtime_sync.get("cockpit_total_blocks"), 0);
                 let conduit_signals = i64_from_value(runtime_sync.get("conduit_signals"), 0);
                 let authoritative = format!(
-                    "Current queue depth: {queue_depth}, cockpit blocks: {cockpit_blocks} active ({cockpit_total_blocks} total), conduit signals: {conduit_signals}. Attention queue is readable. Runtime memory context and protheus/infring command surfaces are available through this dashboard lane."
+                    "Current queue depth: {queue_depth}, cockpit blocks: {cockpit_blocks} active ({cockpit_total_blocks} total), conduit signals: {conduit_signals}. Attention queue is readable. Runtime memory context and infring/infring command surfaces are available through this dashboard lane."
                 );
                 lane_payload["response"] = json!(authoritative.clone());
                 lane_payload["output"] = json!(authoritative.clone());
@@ -531,7 +531,7 @@ fn run_action_family_app_arm_002(root: &Path, normalized: &str, payload: &Value)
                     .unwrap_or_default();
                 for raw_line in raw_input.lines() {
                     let line = raw_line.trim();
-                    if !line.starts_with("protheus-ops collab-plane launch-role") {
+                    if !line.starts_with("infring-ops collab-plane launch-role") {
                         continue;
                     }
                     let mut team = DEFAULT_TEAM.to_string();

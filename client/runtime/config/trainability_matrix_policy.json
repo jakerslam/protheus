@@ -6,7 +6,7 @@
     "internal": {
       "allow": true,
       "allowed_license_ids": [
-        "internal_protheus"
+        "internal_infring"
       ],
       "allowed_consent_modes": [
         "operator_policy",

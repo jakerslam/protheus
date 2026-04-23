@@ -158,4 +158,4 @@ This intake must obey repository placement policy.
 
 - This is a requirements intake only. No status in SRS should imply implementation.
 - Normalize the source doc's `apps/haystack/` suggestion into core/client/adapters placement unless a later task explicitly scopes a deletable demo app.
-- Prefer `infring` naming in operator surfaces; legacy `protheus` aliases may be referenced only where backward compatibility matters.
+- Prefer `infring` naming in operator surfaces; legacy `infring` aliases may be referenced only where backward compatibility matters.

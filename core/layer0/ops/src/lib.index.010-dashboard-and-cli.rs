@@ -14,6 +14,6 @@ pub mod dashboard_terminal_broker;
 pub mod dashboard_tool_turn_loop;
 pub mod dashboard_ui;
 pub mod personas_cli;
-pub mod protheusctl;
+pub mod infringctl;
 pub mod rag_cli;
 pub mod workspace_file_search;

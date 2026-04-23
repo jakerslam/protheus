@@ -684,7 +684,7 @@ fn truncate(s: &str, max_len: usize) -> String {
 //! Unit tests for V6-SEC-010: scan command
 //! Coverage target: 90%+
 
-use protheus_ops_core::security_plane_scanner::*;
+use infring_ops_core::security_plane_scanner::*;
 use serde_json::json;
 
 #[test]
@@ -1461,7 +1461,7 @@ This document provides comprehensive implementation plans for the 7 P0 security 
 2. Update existing security_plane.rs to integrate enhanced implementations
 3. Add unit test files for each module
 4. Run `cargo test` to validate coverage targets
-5. Run contract verification: `cargo run -p protheus-ops-core --bin protheus-ops -- security-plane scan --strict=1`
+5. Run contract verification: `cargo run -p infring-ops-core --bin infring-ops -- security-plane scan --strict=1`
 
 ### Acceptance Criteria (Per Command)
 

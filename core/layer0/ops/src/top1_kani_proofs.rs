@@ -129,7 +129,7 @@ fn prove_canyon_footprint_no_std_helper_is_true_when_default_feature_empty() {
 fn prove_cross_plane_guard_requires_signed_jwt() {
     assert!(!crate::enterprise_hardening::cross_plane_guard_ok(
         false,
-        "kms://customer/protheus/main",
+        "kms://customer/infring/main",
         "aws-privatelink",
         "deny"
     ));
@@ -139,7 +139,7 @@ fn prove_cross_plane_guard_requires_signed_jwt() {
 fn prove_cross_plane_guard_accepts_valid_enterprise_profile() {
     assert!(crate::enterprise_hardening::cross_plane_guard_ok(
         true,
-        "kms://customer/protheus/main",
+        "kms://customer/infring/main",
         "aws-privatelink",
         "deny"
     ));

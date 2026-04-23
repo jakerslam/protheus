@@ -63,9 +63,9 @@ struct CompiledBacklog {
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops backlog-registry sync [--policy=<path>]");
-    println!("  protheus-ops backlog-registry check [--strict=1|0] [--policy=<path>]");
-    println!("  protheus-ops backlog-registry status [--policy=<path>]");
+    println!("  infring-ops backlog-registry sync [--policy=<path>]");
+    println!("  infring-ops backlog-registry check [--strict=1|0] [--policy=<path>]");
+    println!("  infring-ops backlog-registry status [--policy=<path>]");
 }
 
 fn normalize_token(raw: &str, max_len: usize) -> String {

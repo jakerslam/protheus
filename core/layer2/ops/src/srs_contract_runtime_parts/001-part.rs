@@ -32,10 +32,10 @@ fn print_json_line(value: &Value) {
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops srs-contract-runtime run --id=<V6-...>");
-    println!("  protheus-ops srs-contract-runtime run-many --ids=<ID1,ID2,...>");
-    println!("  protheus-ops srs-contract-runtime run-many --ids-file=<path>");
-    println!("  protheus-ops srs-contract-runtime status --id=<V6-...>");
+    println!("  infring-ops srs-contract-runtime run --id=<V6-...>");
+    println!("  infring-ops srs-contract-runtime run-many --ids=<ID1,ID2,...>");
+    println!("  infring-ops srs-contract-runtime run-many --ids-file=<path>");
+    println!("  infring-ops srs-contract-runtime status --id=<V6-...>");
 }
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
@@ -354,11 +354,11 @@ printf '{"ok":true,"type":"mock_plane_status","plane":"%s"}\n' "$1"
         );
 
         std::env::set_var(
-            "PROTHEUS_SRS_DISPATCH_BIN",
+            "INFRING_SRS_DISPATCH_BIN",
             dispatch_bin.display().to_string(),
         );
         let receipt = execute_contract_with_options(root, id, true, true).expect("execute");
-        std::env::remove_var("PROTHEUS_SRS_DISPATCH_BIN");
+        std::env::remove_var("INFRING_SRS_DISPATCH_BIN");
 
         assert_eq!(receipt.get("ok").and_then(Value::as_bool), Some(true));
         assert_eq!(

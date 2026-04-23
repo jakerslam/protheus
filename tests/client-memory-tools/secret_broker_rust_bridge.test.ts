@@ -82,7 +82,7 @@ function main() {
   process.env.SECRET_BROKER_KEY = 'test-secret-broker-key';
   process.env.MOLTBOOK_TOKEN = 'mb-live-secret';
   process.env.MOLTBOOK_TOKEN_ROTATED_AT = '2026-03-01T00:00:00Z';
-  process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
+  process.env.INFRING_OPS_USE_PREBUILT = '0';
 
   const mod = resetModule(path.join(ROOT, 'client/runtime/lib/secret_broker.ts'));
 

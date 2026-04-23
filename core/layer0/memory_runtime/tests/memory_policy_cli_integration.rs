@@ -36,7 +36,7 @@ body
 }
 
 fn run_cli(args: &[&str]) -> Value {
-    let bin = env!("CARGO_BIN_EXE_protheus-memory-core");
+    let bin = env!("CARGO_BIN_EXE_infring-memory-core");
     let output = Command::new(bin)
         .args(args)
         .output()

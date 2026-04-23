@@ -10,12 +10,12 @@ use crate::now_iso;
 
 fn usage() {
     println!("autonomy-receipt-schema-kernel commands:");
-    println!("  protheus-ops autonomy-receipt-schema-kernel to-success-criteria-record --payload-base64=<json>");
-    println!("  protheus-ops autonomy-receipt-schema-kernel with-success-criteria-verification --payload-base64=<json>");
+    println!("  infring-ops autonomy-receipt-schema-kernel to-success-criteria-record --payload-base64=<json>");
+    println!("  infring-ops autonomy-receipt-schema-kernel with-success-criteria-verification --payload-base64=<json>");
     println!(
-        "  protheus-ops autonomy-receipt-schema-kernel normalize-receipt --payload-base64=<json>"
+        "  infring-ops autonomy-receipt-schema-kernel normalize-receipt --payload-base64=<json>"
     );
-    println!("  protheus-ops autonomy-receipt-schema-kernel success-criteria-from-receipt --payload-base64=<json>");
+    println!("  infring-ops autonomy-receipt-schema-kernel success-criteria-from-receipt --payload-base64=<json>");
 }
 
 fn receipt_envelope(kind: &str, ok: bool) -> Value {

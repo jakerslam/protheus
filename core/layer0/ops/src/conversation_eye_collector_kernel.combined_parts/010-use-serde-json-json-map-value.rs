@@ -18,27 +18,27 @@ const DEFAULT_MEMORY_DIR_REL: &str = "local/state/memory/conversation_eye";
 fn usage() {
     println!("conversation-eye-collector-kernel commands:");
     println!(
-        "  protheus-ops conversation-eye-collector-kernel begin-collection --payload-base64=<json>"
+        "  infring-ops conversation-eye-collector-kernel begin-collection --payload-base64=<json>"
     );
-    println!("  protheus-ops conversation-eye-collector-kernel preflight --payload-base64=<json>");
+    println!("  infring-ops conversation-eye-collector-kernel preflight --payload-base64=<json>");
     println!(
-        "  protheus-ops conversation-eye-collector-kernel load-source-rows --payload-base64=<json>"
-    );
-    println!(
-        "  protheus-ops conversation-eye-collector-kernel normalize-topics --payload-base64=<json>"
-    );
-    println!("  protheus-ops conversation-eye-collector-kernel load-index --payload-base64=<json>");
-    println!("  protheus-ops conversation-eye-collector-kernel apply-node --payload-base64=<json>");
-    println!(
-        "  protheus-ops conversation-eye-collector-kernel process-nodes --payload-base64=<json>"
+        "  infring-ops conversation-eye-collector-kernel load-source-rows --payload-base64=<json>"
     );
     println!(
-        "  protheus-ops conversation-eye-collector-kernel append-memory-row --payload-base64=<json>"
+        "  infring-ops conversation-eye-collector-kernel normalize-topics --payload-base64=<json>"
+    );
+    println!("  infring-ops conversation-eye-collector-kernel load-index --payload-base64=<json>");
+    println!("  infring-ops conversation-eye-collector-kernel apply-node --payload-base64=<json>");
+    println!(
+        "  infring-ops conversation-eye-collector-kernel process-nodes --payload-base64=<json>"
     );
     println!(
-        "  protheus-ops conversation-eye-collector-kernel append-memory-rows --payload-base64=<json>"
+        "  infring-ops conversation-eye-collector-kernel append-memory-row --payload-base64=<json>"
     );
-    println!("  protheus-ops conversation-eye-collector-kernel save-index --payload-base64=<json>");
+    println!(
+        "  infring-ops conversation-eye-collector-kernel append-memory-rows --payload-base64=<json>"
+    );
+    println!("  infring-ops conversation-eye-collector-kernel save-index --payload-base64=<json>");
 }
 
 fn nested_obj<'a>(payload: &'a Map<String, Value>, key: &str) -> Option<&'a Map<String, Value>> {

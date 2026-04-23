@@ -456,7 +456,7 @@
       "planned_batch_date": "2026-06-15"
     },
     {
-      "path": "core/layer0/ops/src/protheusctl_tests_parts/010-env-guard.rs",
+      "path": "core/layer0/ops/src/infringctl_tests_parts/010-env-guard.rs",
       "owner": "jay",
       "reason": "legacy oversize debt; scheduled decomposition batch",
       "expires": "2026-06-15",

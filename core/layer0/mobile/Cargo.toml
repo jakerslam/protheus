@@ -1,12 +1,12 @@
 [package]
-name = "protheus-mobile-core-v1"
+name = "infring-mobile-core-v1"
 version = "0.1.0"
 edition = "2021"
 license = "SEE LICENSE IN LICENSE"
 description = "Rust mobile adapter exposing core crates with battery-governed runtime cycles."
 
 [lib]
-name = "protheus_mobile_core_v1"
+name = "infring_mobile_core_v1"
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [[bin]]
@@ -14,7 +14,7 @@ name = "mobile_core"
 path = "src/main.rs"
 
 [dependencies]
-protheus-nexus-core-v1 = { path = "../../layer2/nexus" }
+infring-nexus-core-v1 = { path = "../../layer2/nexus" }
 base64 = "0.22"
 hex = "0.4"
 serde = { version = "1", features = ["derive"] }
@@ -24,7 +24,7 @@ sha2 = "0.10"
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2"
 
-[package.metadata.protheus]
+[package.metadata.infring]
 wasm_target = "wasm32-unknown-unknown"
 ios_targets = ["aarch64-apple-ios", "x86_64-apple-ios"]
 android_targets = ["aarch64-linux-android", "x86_64-linux-android"]

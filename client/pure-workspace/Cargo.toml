@@ -1,15 +1,15 @@
 [package]
-name = "protheus-pure-workspace"
+name = "infring-pure-workspace"
 version = "0.1.0"
 edition = "2021"
 license = "SEE LICENSE IN ../../LICENSE"
 
 [lib]
-name = "protheus_pure_workspace"
+name = "infring_pure_workspace"
 path = "src/lib.rs"
 
 [[bin]]
-name = "protheus-pure-workspace"
+name = "infring-pure-workspace"
 path = "src/main.rs"
 
 [[bin]]

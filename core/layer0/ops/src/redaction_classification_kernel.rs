@@ -14,15 +14,15 @@ use crate::now_iso;
 fn usage() {
     println!("redaction-classification-kernel commands:");
     println!(
-        "  protheus-ops redaction-classification-kernel load-policy [--payload-base64=<json>]"
+        "  infring-ops redaction-classification-kernel load-policy [--payload-base64=<json>]"
     );
     println!(
-        "  protheus-ops redaction-classification-kernel classify-text [--payload-base64=<json>]"
+        "  infring-ops redaction-classification-kernel classify-text [--payload-base64=<json>]"
     );
     println!(
-        "  protheus-ops redaction-classification-kernel redact-text [--payload-base64=<json>]"
+        "  infring-ops redaction-classification-kernel redact-text [--payload-base64=<json>]"
     );
-    println!("  protheus-ops redaction-classification-kernel classify-and-redact [--payload-base64=<json>]");
+    println!("  infring-ops redaction-classification-kernel classify-and-redact [--payload-base64=<json>]");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {

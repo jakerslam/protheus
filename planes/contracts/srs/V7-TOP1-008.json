@@ -1,6 +1,6 @@
 {
   "id": "V7-TOP1-008",
-  "upgrade": "Public “Protheus vs X” CI-updated comparison matrix",
+  "upgrade": "Public “Infring vs X” CI-updated comparison matrix",
   "section": "Technical Excellence #1 Intake (Doc `12_nnoI-1YXaxVc6YSgYRCMRKXNIWCcP1XKCJHv_NBeY`, 2026-03-09)",
   "impact": 10,
   "layer_map": "0/1/2",
@@ -27,8 +27,8 @@
     }
   ],
   "validation": {
-    "lane_command": "protheus-ops srs-contract-runtime run --id=V7-TOP1-008",
-    "status_command": "protheus-ops srs-contract-runtime status --id=V7-TOP1-008",
+    "lane_command": "infring-ops srs-contract-runtime run --id=V7-TOP1-008",
+    "status_command": "infring-ops srs-contract-runtime status --id=V7-TOP1-008",
     "fail_closed_on_missing_contract": true
   },
   "generated_from": {

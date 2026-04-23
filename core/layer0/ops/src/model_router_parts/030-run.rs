@@ -78,21 +78,21 @@ pub fn run(root: &Path, args: &[String]) -> i32 {
 
     if matches!(cmd.as_str(), "help" | "--help" | "-h") {
         println!("Usage:");
-        println!("  protheus-ops model-router status");
-        println!("  protheus-ops model-router infer --intent=<text> --task=<text> [--risk=low|medium|high] [--complexity=low|medium|high]");
-        println!("  protheus-ops model-router optimize [minimax] [--compact-lines=24] [--target-cost=0.30] [--baseline-cost=5.0] [--quality-target-pct=95]");
-        println!("  protheus-ops model-router compact-context [--max-lines=24] [--source=soul,memory,task]");
-        println!("  protheus-ops model-router decompose-task [--task=<text>]");
+        println!("  infring-ops model-router status");
+        println!("  infring-ops model-router infer --intent=<text> --task=<text> [--risk=low|medium|high] [--complexity=low|medium|high]");
+        println!("  infring-ops model-router optimize [minimax] [--compact-lines=24] [--target-cost=0.30] [--baseline-cost=5.0] [--quality-target-pct=95]");
+        println!("  infring-ops model-router compact-context [--max-lines=24] [--source=soul,memory,task]");
+        println!("  infring-ops model-router decompose-task [--task=<text>]");
         println!(
-            "  protheus-ops model-router adapt-repo [--repo=<url|path>] [--strategy=reuse-first]"
+            "  infring-ops model-router adapt-repo [--repo=<url|path>] [--strategy=reuse-first]"
         );
-        println!("  protheus-ops model-router reset-agent [--preserve-identity=1|0] [--scope=routing+session-cache]");
-        println!("  protheus-ops model-router night-schedule [--start-hour=0] [--end-hour=6] [--timezone=America/Denver] [--cheap-model=minimax/m2.5]");
-        println!("  protheus-ops model-router bitnet-backend [--kernel=bitnet.cpp] [--model-format=bitnet-q3] [--strict=1|0]");
-        println!("  protheus-ops model-router bitnet-auto-route [--battery-pct=20] [--offline=1|0] [--edge=1|0]");
-        println!("  protheus-ops model-router bitnet-use [--source-model=hf://...] [--target-model=bitnet/local]");
-        println!("  protheus-ops model-router bitnet-telemetry [--throughput=<n>] [--energy-j=<n>] [--baseline-energy-j=<n>] [--memory-mb=<n>] [--hardware-class=<id>]");
-        println!("  protheus-ops model-router bitnet-attest [--model-digest=<hex>] [--provenance=<uri>] [--strict=1|0]");
+        println!("  infring-ops model-router reset-agent [--preserve-identity=1|0] [--scope=routing+session-cache]");
+        println!("  infring-ops model-router night-schedule [--start-hour=0] [--end-hour=6] [--timezone=America/Denver] [--cheap-model=minimax/m2.5]");
+        println!("  infring-ops model-router bitnet-backend [--kernel=bitnet.cpp] [--model-format=bitnet-q3] [--strict=1|0]");
+        println!("  infring-ops model-router bitnet-auto-route [--battery-pct=20] [--offline=1|0] [--edge=1|0]");
+        println!("  infring-ops model-router bitnet-use [--source-model=hf://...] [--target-model=bitnet/local]");
+        println!("  infring-ops model-router bitnet-telemetry [--throughput=<n>] [--energy-j=<n>] [--baseline-energy-j=<n>] [--memory-mb=<n>] [--hardware-class=<id>]");
+        println!("  infring-ops model-router bitnet-attest [--model-digest=<hex>] [--provenance=<uri>] [--strict=1|0]");
         return 0;
     }
 

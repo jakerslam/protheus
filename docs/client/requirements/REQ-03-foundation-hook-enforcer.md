@@ -2,7 +2,7 @@
 
 Version: 1.0  
 Date: 2026-03-15  
-Owner: Protheus Kernel / Runtime Operations
+Owner: Infring Kernel / Runtime Operations
 
 ## Objective
 

@@ -212,7 +212,7 @@ fn append_self_documentation_closeout(
     }
 
     let args = vec![
-        "client/runtime/systems/ops/run_protheus_ops.ts".to_string(),
+        "client/runtime/systems/ops/run_infring_ops.ts".to_string(),
         "autonomy-controller".to_string(),
         "self-documentation-closeout".to_string(),
         format!("--date={date}"),

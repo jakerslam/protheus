@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 use std::path::Path;
 
 const LANE_ID: &str = "sensory_eyes_intake";
-const REPLACEMENT: &str = "protheus-ops sensory-eyes-intake";
+const REPLACEMENT: &str = "infring-ops sensory-eyes-intake";
 
 fn receipt_hash(v: &Value) -> String {
     crate::deterministic_receipt_hash(v)
@@ -17,10 +17,10 @@ fn print_json_line(value: &Value) {
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops sensory-eyes-intake list");
-    println!("  protheus-ops sensory-eyes-intake status [--eye=<id>]");
-    println!("  protheus-ops sensory-eyes-intake create --name=<id> [--parser=<json|rss>] [--directive=<id>]");
-    println!("  protheus-ops sensory-eyes-intake run [--eye=<id>]");
+    println!("  infring-ops sensory-eyes-intake list");
+    println!("  infring-ops sensory-eyes-intake status [--eye=<id>]");
+    println!("  infring-ops sensory-eyes-intake create --name=<id> [--parser=<json|rss>] [--directive=<id>]");
+    println!("  infring-ops sensory-eyes-intake run [--eye=<id>]");
 }
 
 fn native_receipt(root: &Path, cmd: &str, argv: &[String]) -> Value {

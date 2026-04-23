@@ -313,7 +313,7 @@ name = "conduit"
 version = "0.1.0"
 dependencies = [
  "hex",
- "protheus-nexus-core-v1",
+ "infring-nexus-core-v1",
  "serde",
  "serde_json",
  "sha2",
@@ -1176,7 +1176,7 @@ dependencies = [
 name = "infring-layer2-tools"
 version = "0.1.0"
 dependencies = [
- "protheus-nexus-core-v1",
+ "infring-nexus-core-v1",
 ]
 
 [[package]]
@@ -1282,7 +1282,7 @@ dependencies = [
 name = "kernel_layers"
 version = "0.1.0"
 dependencies = [
- "protheus-nexus-core-v1",
+ "infring-nexus-core-v1",
 ]
 
 [[package]]
@@ -1804,7 +1804,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "protheus-autonomy-core-v1"
+name = "infring-autonomy-core-v1"
 version = "0.1.0"
 dependencies = [
  "chrono",
@@ -1815,7 +1815,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "protheus-graph-core-v1"
+name = "infring-graph-core-v1"
 version = "0.1.0"
 dependencies = [
  "base64",
@@ -1829,7 +1829,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "protheus-hybrid-core"
+name = "infring-hybrid-core"
 version = "0.1.0"
 dependencies = [
  "serde",
@@ -1838,19 +1838,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "protheus-layer1-memory-runtime"
+name = "infring-layer1-memory-runtime"
 version = "0.1.0"
 
 [[package]]
-name = "protheus-memory-core"
+name = "infring-memory-core"
 version = "0.1.0"
 dependencies = [
  "aes-gcm",
  "hex",
  "napi",
  "napi-derive",
- "protheus-layer1-memory-runtime",
- "protheus-memory-core-v1",
+ "infring-layer1-memory-runtime",
+ "infring-memory-core-v1",
  "rand 0.8.5",
  "rusqlite",
  "serde",
@@ -1862,7 +1862,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "protheus-memory-core-v1"
+name = "infring-memory-core-v1"
 version = "0.1.0"
 dependencies = [
  "serde",
@@ -1871,7 +1871,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "protheus-memory-core-v6"
+name = "infring-memory-core-v6"
 version = "0.1.0"
 dependencies = [
  "bincode",
@@ -1885,12 +1885,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "protheus-mobile-core-v1"
+name = "infring-mobile-core-v1"
 version = "0.1.0"
 dependencies = [
  "base64",
  "hex",
- "protheus-nexus-core-v1",
+ "infring-nexus-core-v1",
  "serde",
  "serde_json",
  "sha2",
@@ -1898,7 +1898,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "protheus-nexus-core-v1"
+name = "infring-nexus-core-v1"
 version = "0.1.0"
 dependencies = [
  "burn_oracle_budget_gate",
@@ -1916,21 +1916,21 @@ dependencies = [
  "llm_runtime",
  "os_extension_wrapper",
  "persona_dispatch_security_gate",
- "protheus-autonomy-core-v1",
- "protheus-graph-core-v1",
- "protheus-layer1-memory-runtime",
- "protheus-memory-core-v1",
- "protheus-memory-core-v6",
- "protheus-observability-core-v1",
- "protheus-ops-core-v1",
- "protheus-pinnacle-core-v1",
- "protheus-red-legion-core-v1",
- "protheus-spine-core-v1",
- "protheus-stomach-core-v1",
- "protheus-swarm-core-v1",
- "protheus-tiny-runtime",
- "protheus-tooling-core-v1",
- "protheus-vault-core-v1",
+ "infring-autonomy-core-v1",
+ "infring-graph-core-v1",
+ "infring-layer1-memory-runtime",
+ "infring-memory-core-v1",
+ "infring-memory-core-v6",
+ "infring-observability-core-v1",
+ "infring-ops-core-v1",
+ "infring-pinnacle-core-v1",
+ "infring-red-legion-core-v1",
+ "infring-spine-core-v1",
+ "infring-stomach-core-v1",
+ "infring-swarm-core-v1",
+ "infring-tiny-runtime",
+ "infring-tooling-core-v1",
+ "infring-vault-core-v1",
  "resource",
  "serde",
  "serde_json",
@@ -1941,13 +1941,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "protheus-observability-core-v1"
+name = "infring-observability-core-v1"
 version = "0.1.0"
 dependencies = [
  "base64",
  "hex",
  "infring_types",
- "protheus-memory-core-v6",
+ "infring-memory-core-v6",
  "serde",
  "serde_json",
  "sha2",
@@ -1955,7 +1955,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "protheus-ops-core"
+name = "infring-ops-core"
 version = "0.1.0"
 dependencies = [
  "aes-gcm",
@@ -1972,8 +1972,8 @@ dependencies = [
  "parking_lot",
  "png",
  "proptest",
- "protheus-nexus-core-v1",
- "protheus-pure-workspace",
+ "infring-nexus-core-v1",
+ "infring-pure-workspace",
  "qrcodegen",
  "rand 0.8.5",
  "regex",
@@ -1990,7 +1990,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "protheus-ops-core-v1"
+name = "infring-ops-core-v1"
 version = "0.1.0"
 dependencies = [
  "async-nats",
@@ -2006,7 +2006,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "protheus-pinnacle-core-v1"
+name = "infring-pinnacle-core-v1"
 version = "0.1.0"
 dependencies = [
  "base64",
@@ -2019,17 +2019,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "protheus-pure-workspace"
+name = "infring-pure-workspace"
 version = "0.1.0"
 
 [[package]]
-name = "protheus-red-legion-core-v1"
+name = "infring-red-legion-core-v1"
 version = "0.1.0"
 dependencies = [
  "base64",
  "hex",
  "infring_types",
- "protheus-observability-core-v1",
+ "infring-observability-core-v1",
  "serde",
  "serde_json",
  "sha2",
@@ -2037,19 +2037,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "protheus-security-core-v1"
+name = "infring-security-core-v1"
 version = "0.1.0"
 dependencies = [
  "base64",
  "hex",
- "protheus-nexus-core-v1",
+ "infring-nexus-core-v1",
  "serde",
  "serde_json",
  "sha2",
 ]
 
 [[package]]
-name = "protheus-singularity-seed-core-v1"
+name = "infring-singularity-seed-core-v1"
 version = "0.1.0"
 dependencies = [
  "base64",
@@ -2063,7 +2063,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "protheus-spine-core-v1"
+name = "infring-spine-core-v1"
 version = "0.1.0"
 dependencies = [
  "base64",
@@ -2075,7 +2075,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "protheus-stomach-core-v1"
+name = "infring-stomach-core-v1"
 version = "0.1.0"
 dependencies = [
  "serde",
@@ -2086,7 +2086,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "protheus-swarm-core-v1"
+name = "infring-swarm-core-v1"
 version = "0.1.0"
 dependencies = [
  "base64",
@@ -2099,7 +2099,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "protheus-swarm-router"
+name = "infring-swarm-router"
 version = "0.1.0"
 dependencies = [
  "hex",
@@ -2109,11 +2109,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "protheus-tiny-runtime"
+name = "infring-tiny-runtime"
 version = "0.1.0"
 
 [[package]]
-name = "protheus-tooling-core-v1"
+name = "infring-tooling-core-v1"
 version = "0.1.0"
 dependencies = [
  "serde",
@@ -2123,13 +2123,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "protheus-vault-core-v1"
+name = "infring-vault-core-v1"
 version = "0.1.0"
 dependencies = [
  "base64",
  "hex",
  "infring_types",
- "protheus-memory-core-v6",
+ "infring-memory-core-v6",
  "serde",
  "serde_json",
  "sha2",

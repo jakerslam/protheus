@@ -1,6 +1,6 @@
 # Singularity Seed Lane
 
-This lane treats Protheus as an open seed for crowdsourcing superintelligence.
+This lane treats Infring as an open seed for crowdsourcing superintelligence.
 
 Core loop set:
 - `autogenesis_loop`

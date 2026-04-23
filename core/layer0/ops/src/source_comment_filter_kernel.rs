@@ -348,7 +348,7 @@ fn apply_filter(content: &str, lang: Language, level: FilterLevel) -> String {
 fn usage() {
     println!("source-comment-filter-kernel commands:");
     println!(
-        "  protheus-ops source-comment-filter-kernel <filter|detect-language> [--payload=<json>|--payload-base64=<base64_json>]"
+        "  infring-ops source-comment-filter-kernel <filter|detect-language> [--payload=<json>|--payload-base64=<base64_json>]"
     );
 }
 

@@ -12,23 +12,23 @@ use crate::{deterministic_receipt_hash, now_iso};
 
 fn usage() {
     println!("symbiosis-coherence-kernel commands:");
-    println!("  protheus-ops symbiosis-coherence-kernel load-policy [--payload-base64=<json>]");
-    println!("  protheus-ops symbiosis-coherence-kernel evaluate [--payload-base64=<json>]");
-    println!("  protheus-ops symbiosis-coherence-kernel load [--payload-base64=<json>]");
+    println!("  infring-ops symbiosis-coherence-kernel load-policy [--payload-base64=<json>]");
+    println!("  infring-ops symbiosis-coherence-kernel evaluate [--payload-base64=<json>]");
+    println!("  infring-ops symbiosis-coherence-kernel load [--payload-base64=<json>]");
     println!(
-        "  protheus-ops symbiosis-coherence-kernel recursion-request [--payload-base64=<json>]"
+        "  infring-ops symbiosis-coherence-kernel recursion-request [--payload-base64=<json>]"
     );
     println!(
-        "  protheus-ops symbiosis-coherence-kernel profile-summary [--payload-base64=<json>]"
+        "  infring-ops symbiosis-coherence-kernel profile-summary [--payload-base64=<json>]"
     );
     println!(
-        "  protheus-ops symbiosis-coherence-kernel profile-update [--payload-base64=<json>]"
+        "  infring-ops symbiosis-coherence-kernel profile-update [--payload-base64=<json>]"
     );
     println!(
-        "  protheus-ops symbiosis-coherence-kernel profile-reset [--payload-base64=<json>]"
+        "  infring-ops symbiosis-coherence-kernel profile-reset [--payload-base64=<json>]"
     );
     println!(
-        "  protheus-ops symbiosis-coherence-kernel profile-checklist [--payload-base64=<json>]"
+        "  infring-ops symbiosis-coherence-kernel profile-checklist [--payload-base64=<json>]"
     );
 }
 

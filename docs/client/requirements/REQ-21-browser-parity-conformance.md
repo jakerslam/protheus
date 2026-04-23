@@ -5,7 +5,7 @@ Date: 2026-03-06
 
 ## Objective
 
-Add explicit parity and conformance gates so Protheus browser control can be measured against Pinch-class expectations with deterministic receipts (API compatibility, token efficiency, zero-config startup, and portable binary footprint).
+Add explicit parity and conformance gates so Infring browser control can be measured against Pinch-class expectations with deterministic receipts (API compatibility, token efficiency, zero-config startup, and portable binary footprint).
 
 ## Scope
 

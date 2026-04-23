@@ -1,4 +1,4 @@
-# Protheus Kubernetes Manifests
+# Infring Kubernetes Manifests
 
 Apply order:
 
@@ -13,4 +13,4 @@ kubectl apply -f client/runtime/deploy/k8s/cronjob-daily.yaml
 Notes:
 
 - Replace placeholder values in `secret.runtime.example.yaml` before apply.
-- `cronjob-daily.yaml` references `protheus-runtime-secrets` as `optional: true` to keep bootstrap fail-closed but migration-friendly.
+- `cronjob-daily.yaml` references `infring-runtime-secrets` as `optional: true` to keep bootstrap fail-closed but migration-friendly.

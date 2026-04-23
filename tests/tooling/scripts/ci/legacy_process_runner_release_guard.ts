@@ -49,7 +49,7 @@ function readJson<T>(filePath: string, fallback: T): T {
 }
 
 function buildReport() {
-  const runnerPath = 'adapters/runtime/run_protheus_ops.ts';
+  const runnerPath = 'adapters/runtime/run_infring_ops.ts';
   const bridgePath = 'adapters/runtime/ops_lane_bridge.ts';
   const legacyHelperPath = 'adapters/runtime/dev_only/legacy_process_runner.ts';
   const processFallbackHelperPath = 'adapters/runtime/dev_only/ops_lane_process_fallback.ts';
@@ -91,7 +91,7 @@ function buildReport() {
     {
       id: 'runner_entrypoint_has_no_spawn_sync',
       ok: !runnerSource.includes('spawnSync('),
-      detail: 'run_protheus_ops.ts must stay resident-first',
+      detail: 'run_infring_ops.ts must stay resident-first',
     },
     {
       id: 'bridge_entrypoint_has_no_spawn_sync',

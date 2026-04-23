@@ -1,0 +1,8 @@
+{
+  "enabled": true,
+  "require_mcp_flag": true,
+  "paths": {
+    "latest_path": "local/state/ops/infringctl_skills_discover/latest.json",
+    "receipts_path": "local/state/ops/infringctl_skills_discover/receipts.jsonl"
+  }
+}

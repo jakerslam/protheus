@@ -77,7 +77,7 @@ node $WORKSPACE_ROOT/client/cognition/skills/polymarket-arbitrage/cli.js --mode=
 - **T+7d**: Consider live with small budget ($10)
 
 ## Status: IN MOTION
-Protheus is now capable of advisory-mode execution.
+Infring is now capable of advisory-mode execution.
 Polymarket arbitrage detection is the first experiment.
 
 **Commander authorized. Soldier executing.** 🔥

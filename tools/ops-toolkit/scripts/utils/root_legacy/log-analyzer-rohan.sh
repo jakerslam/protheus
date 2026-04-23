@@ -1,19 +1,19 @@
 #!/bin/bash
 #
-# Protheus Log Analysis Utility
+# Infring Log Analysis Utility
 # Author: Rohan Kapoor
 # Version: 1.0.0
 # Date: April 15, 2026
 #
 # Description:
-#   Parses and analyzes Protheus application logs to extract useful metrics
+#   Parses and analyzes Infring application logs to extract useful metrics
 #   and identify patterns. Useful for debugging, performance analysis, and
 #   generating operational reports.
 #
 # Usage:
 #   ./log-analyzer.sh [options] <log_file>
-#   ./log-analyzer.sh --summary /var/log/protheus/app.log
-#   ./log-analyzer.sh --errors --since="24 hours ago" /var/log/protheus/app.log
+#   ./log-analyzer.sh --summary /var/log/infring/app.log
+#   ./log-analyzer.sh --errors --since="24 hours ago" /var/log/infring/app.log
 #
 # Exit Codes:
 #   0 - Analysis completed successfully
@@ -25,7 +25,7 @@ set -o pipefail
 
 # Configuration
 readonly SCRIPT_VERSION="1.0.0"
-readonly DEFAULT_LOG_DIR="/var/log/protheus"
+readonly DEFAULT_LOG_DIR="/var/log/infring"
 
 # Analysis modes
 MODE="summary"
@@ -183,9 +183,9 @@ Options:
     --version               Show script version
 
 Examples:
-    $(basename "$0") /var/log/protheus/app.log
-    $(basename "$0") -m errors -s "24 hours ago" /var/log/protheus/app.log
-    $(basename "$0") -m performance -n 20 /var/log/protheus/app.log
+    $(basename "$0") /var/log/infring/app.log
+    $(basename "$0") -m errors -s "24 hours ago" /var/log/infring/app.log
+    $(basename "$0") -m performance -n 20 /var/log/infring/app.log
 
 EOF
 }

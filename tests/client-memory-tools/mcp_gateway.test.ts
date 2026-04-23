@@ -36,7 +36,7 @@ function writeJson(filePath, value) {
 }
 
 function main() {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'protheus-mcp-gateway-test-'));
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'infring-mcp-gateway-test-'));
   const stateRoot = path.join(tempRoot, 'local', 'state', 'client', 'cognition', 'skills', 'mcp_gateway');
   const policyPath = path.join(tempRoot, 'policy.json');
   const registryPath = path.join(tempRoot, 'registry.json');

@@ -16,7 +16,7 @@ fn is_ts_bootstrap_wrapper(source: &str) -> bool {
 }
 
 fn effective_runtime_mode(root: &Path) -> String {
-    let env_mode = std::env::var("PROTHEUS_RUNTIME_MODE")
+    let env_mode = std::env::var("INFRING_RUNTIME_MODE")
         .unwrap_or_default()
         .trim()
         .to_ascii_lowercase();
@@ -24,7 +24,7 @@ fn effective_runtime_mode(root: &Path) -> String {
         return env_mode;
     }
 
-    let state_path = std::env::var("PROTHEUS_RUNTIME_MODE_STATE_PATH")
+    let state_path = std::env::var("INFRING_RUNTIME_MODE_STATE_PATH")
         .map(|v| root.join(v))
         .unwrap_or_else(|_| root.join(RUNTIME_MODE_STATE_REL));
     let Ok(raw) = fs::read_to_string(&state_path) else {
@@ -57,9 +57,9 @@ fn check_dist_runtime_guardrails(root: &Path) -> Result<Value, String> {
         }));
     }
 
-    if std::env::var("PROTHEUS_RUNTIME_DIST_REQUIRED").unwrap_or_default() != "1" {
+    if std::env::var("INFRING_RUNTIME_DIST_REQUIRED").unwrap_or_default() != "1" {
         return Err(
-            "dist_mode_requires_PROTHEUS_RUNTIME_DIST_REQUIRED=1_to_prevent_source_fallback"
+            "dist_mode_requires_INFRING_RUNTIME_DIST_REQUIRED=1_to_prevent_source_fallback"
                 .to_string(),
         );
     }
@@ -220,7 +220,7 @@ fn check_script_help_tokens(
     if !script_path.exists() {
         return Err(format!("missing_probe_script:{rel_path}"));
     }
-    let node_bin = std::env::var("PROTHEUS_NODE_BINARY").unwrap_or_else(|_| "node".to_string());
+    let node_bin = std::env::var("INFRING_NODE_BINARY").unwrap_or_else(|_| "node".to_string());
     let output = Command::new(&node_bin)
         .arg(&script_path)
         .arg("--help")

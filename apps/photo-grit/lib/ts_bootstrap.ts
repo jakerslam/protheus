@@ -9,8 +9,8 @@ const ts = require('typescript');
 
 function readRuntimeModeFromState(repoRoot) {
   try {
-    const statePath = process.env.PROTHEUS_RUNTIME_MODE_STATE_PATH
-      ? path.resolve(process.env.PROTHEUS_RUNTIME_MODE_STATE_PATH)
+    const statePath = process.env.INFRING_RUNTIME_MODE_STATE_PATH
+      ? path.resolve(process.env.INFRING_RUNTIME_MODE_STATE_PATH)
       : path.join(repoRoot, 'state', 'ops', 'runtime_mode.json');
     if (!fs.existsSync(statePath)) return null;
     const payload = JSON.parse(fs.readFileSync(statePath, 'utf8'));
@@ -23,7 +23,7 @@ function readRuntimeModeFromState(repoRoot) {
 }
 
 function resolveRuntimeMode(repoRoot) {
-  const envMode = String(process.env.PROTHEUS_RUNTIME_MODE || '').trim().toLowerCase();
+  const envMode = String(process.env.INFRING_RUNTIME_MODE || '').trim().toLowerCase();
   if (envMode === 'dist' || envMode === 'source') return envMode;
   return readRuntimeModeFromState(repoRoot) || 'source';
 }
@@ -50,7 +50,7 @@ function parseJsonPayload(raw) {
 }
 
 function securityBinaryCandidates(repoRoot) {
-  const explicit = cleanText(process.env.PROTHEUS_SECURITY_CORE_BIN || '', 500);
+  const explicit = cleanText(process.env.INFRING_SECURITY_CORE_BIN || '', 500);
   const out = [
     explicit,
     path.join(repoRoot, 'target', 'release', 'security_core'),
@@ -84,13 +84,13 @@ function securityRequestFor(jsPath, repoRoot) {
 }
 
 function runGlobalSecurityGate(jsPath, repoRoot) {
-  if (String(process.env.PROTHEUS_SECURITY_GLOBAL_GATE || '1') === '0') {
+  if (String(process.env.INFRING_SECURITY_GLOBAL_GATE || '1') === '0') {
     return;
   }
-  if (String(process.env.PROTHEUS_SECURITY_GATE_BYPASS || '0') === '1') {
+  if (String(process.env.INFRING_SECURITY_GATE_BYPASS || '0') === '1') {
     return;
   }
-  if (global.__protheus_security_global_gate_ok === true) {
+  if (global.__infring_security_global_gate_ok === true) {
     return;
   }
 
@@ -108,7 +108,7 @@ function runGlobalSecurityGate(jsPath, repoRoot) {
       });
       const payload = parseJsonPayload(out.stdout);
       if (Number(out.status) === 0 && payload && payload.ok === true && payload.decision && payload.decision.ok === true && payload.decision.fail_closed !== true) {
-        global.__protheus_security_global_gate_ok = true;
+        global.__infring_security_global_gate_ok = true;
         return;
       }
       attempts.push(`bin:${candidate}:${cleanText(out.stderr || out.stdout || '', 140)}`);
@@ -135,7 +135,7 @@ function runGlobalSecurityGate(jsPath, repoRoot) {
     });
     const payload = parseJsonPayload(out.stdout);
     if (Number(out.status) === 0 && payload && payload.ok === true && payload.decision && payload.decision.ok === true && payload.decision.fail_closed !== true) {
-      global.__protheus_security_global_gate_ok = true;
+      global.__infring_security_global_gate_ok = true;
       return;
     }
     attempts.push(`cargo:${cleanText(out.stderr || out.stdout || '', 140)}`);
@@ -171,7 +171,7 @@ function bootstrap(jsPath, mod) {
       mod._compile(distSource, distPath);
       return;
     }
-    if (String(process.env.PROTHEUS_RUNTIME_DIST_REQUIRED || '0') === '1') {
+    if (String(process.env.INFRING_RUNTIME_DIST_REQUIRED || '0') === '1') {
       throw new Error(`ts_bootstrap: missing_dist_runtime:${String(distPath || 'unknown')}`);
     }
   }

@@ -5,7 +5,7 @@ Status: Working draft for operator review
 
 ## Abstract
 
-This draft describes the Snowball Method as applied to InfRing/Protheus: an iterative, evidence-first cycle that compounds architecture quality while preserving strict governance boundaries (Rust-core authority, thin-client surface, deterministic receipts, and fail-closed policy checks). The latest cycle demonstrates an ultra-compact Tiny-max runtime profile with sub-300KB daemon size, low cold-start latency, and high throughput while maintaining the same security system depth as richer operating modes.
+This draft describes the Snowball Method as applied to InfRing/Infring: an iterative, evidence-first cycle that compounds architecture quality while preserving strict governance boundaries (Rust-core authority, thin-client surface, deterministic receipts, and fail-closed policy checks). The latest cycle demonstrates an ultra-compact Tiny-max runtime profile with sub-300KB daemon size, low cold-start latency, and high throughput while maintaining the same security system depth as richer operating modes.
 
 ## 1. Method
 
@@ -39,7 +39,7 @@ Against public baseline values in Infring/OpenHands tables, the Tiny-max profile
 Primary evidence sources are repo-local, deterministic, and refreshable:
 
 1. `npm run -s ops:benchmark:refresh` regenerates benchmark matrices.
-2. Tiny-max daemon size is verified via `stat` on `protheusd_tiny_max`.
+2. Tiny-max daemon size is verified via `stat` on `infringd_tiny_max`.
 3. README benchmark section is updated only from these artifacts.
 
 ## 5. External Blocker and Next Experiment

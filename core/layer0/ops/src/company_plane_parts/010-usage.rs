@@ -22,18 +22,18 @@ const WEB_TOOLING_PROVIDER_TARGETS: [&str; 4] = ["brave", "duckduckgo", "moonsho
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops company-plane status");
+    println!("  infring-ops company-plane status");
     println!(
-        "  protheus-ops company-plane orchestrate-agency --team=<id> [--org-json=<json>] [--strict=1|0]"
+        "  infring-ops company-plane orchestrate-agency --team=<id> [--org-json=<json>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops company-plane budget-enforce --agent=<id> [--period=daily|weekly] [--tokens=<n>] [--cost-usd=<n>] [--compute-ms=<n>] [--privacy-units=<n>] [--web-requests=<n>] [--web-cost-usd=<n>] [--web-provider=<id>] [--strict=1|0]"
+        "  infring-ops company-plane budget-enforce --agent=<id> [--period=daily|weekly] [--tokens=<n>] [--cost-usd=<n>] [--compute-ms=<n>] [--privacy-units=<n>] [--web-requests=<n>] [--web-cost-usd=<n>] [--web-provider=<id>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops company-plane ticket --op=<create|assign|transition|handoff|close|status> [--team=<id>] [--ticket-id=<id>] [--title=<text>] [--state=<id>] [--assignee=<id>] [--from=<id>] [--to=<id>] [--tool-call-id=<id>] [--strict=1|0]"
+        "  infring-ops company-plane ticket --op=<create|assign|transition|handoff|close|status> [--team=<id>] [--ticket-id=<id>] [--title=<text>] [--state=<id>] [--assignee=<id>] [--from=<id>] [--to=<id>] [--tool-call-id=<id>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops company-plane heartbeat --op=<tick|status|remote-feed> [--team=<id>] [--status=<healthy|degraded|critical>] [--agents-online=<n>] [--queue-depth=<n>] [--strict=1|0]"
+        "  infring-ops company-plane heartbeat --op=<tick|status|remote-feed> [--team=<id>] [--status=<healthy|degraded|critical>] [--agents-online=<n>] [--queue-depth=<n>] [--strict=1|0]"
     );
     println!(
         "  company-plane web tooling provider targets (contract-aligned): {}",
@@ -192,7 +192,7 @@ fn run_orchestrate_agency(root: &Path, parsed: &crate::ParsedArgs, strict: bool)
         "team": team,
         "instantiated_at": crate::now_iso(),
         "hierarchy": hierarchy,
-        "command_alias": format!("protheus orchestrate agency {}", team)
+        "command_alias": format!("infring orchestrate agency {}", team)
     });
     let path = state_root(root).join("org").join(format!("{team}.json"));
     let _ = write_json(&path, &artifact);

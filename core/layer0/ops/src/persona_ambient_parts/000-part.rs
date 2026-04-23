@@ -25,12 +25,12 @@ struct PersonaAmbientPolicy {
 fn usage() {
     eprintln!("Usage:");
     eprintln!(
-        "  protheus-ops persona-ambient apply --persona=<id> --stance-json-base64=<base64-json> [--source=<value>] [--reason=<value>] [--run-context=<value>] [--full-reload=1|0]"
+        "  infring-ops persona-ambient apply --persona=<id> --stance-json-base64=<base64-json> [--source=<value>] [--reason=<value>] [--run-context=<value>] [--full-reload=1|0]"
     );
     eprintln!(
-        "  protheus-ops persona-ambient apply --persona=<id> --stance-json=<json-object> [flags]"
+        "  infring-ops persona-ambient apply --persona=<id> --stance-json=<json-object> [flags]"
     );
-    eprintln!("  protheus-ops persona-ambient status [--persona=<id>]");
+    eprintln!("  infring-ops persona-ambient status [--persona=<id>]");
 }
 
 fn read_json(path: &Path) -> Option<Value> {
@@ -230,8 +230,8 @@ fn repo_root_from_current_dir() -> PathBuf {
     std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
 }
 
-fn resolve_protheus_ops_command(root: &PathBuf, domain: &str) -> (String, Vec<String>) {
-    crate::contract_lane_utils::resolve_protheus_ops_command(root.as_path(), domain)
+fn resolve_infring_ops_command(root: &PathBuf, domain: &str) -> (String, Vec<String>) {
+    crate::contract_lane_utils::resolve_infring_ops_command(root.as_path(), domain)
 }
 
 fn enqueue_attention(persona: &str, patch_hash: &str, run_context: &str) -> Result<Value, String> {
@@ -251,7 +251,7 @@ fn enqueue_attention(persona: &str, patch_hash: &str, run_context: &str) -> Resu
         .map_err(|err| format!("attention_event_encode_failed:{err}"))?;
     let encoded = base64::engine::general_purpose::STANDARD.encode(payload.as_bytes());
 
-    let (command, mut args) = resolve_protheus_ops_command(&root, "attention-queue");
+    let (command, mut args) = resolve_infring_ops_command(&root, "attention-queue");
     args.push("enqueue".to_string());
     args.push(format!("--event-json-base64={encoded}"));
     args.push(format!("--run-context={run_context}"));
@@ -260,8 +260,8 @@ fn enqueue_attention(persona: &str, patch_hash: &str, run_context: &str) -> Resu
         .args(&args)
         .current_dir(&root)
         .env(
-            "PROTHEUS_NODE_BINARY",
-            std::env::var("PROTHEUS_NODE_BINARY").unwrap_or_else(|_| "node".to_string()),
+            "INFRING_NODE_BINARY",
+            std::env::var("INFRING_NODE_BINARY").unwrap_or_else(|_| "node".to_string()),
         )
         .output()
         .map_err(|err| format!("attention_queue_spawn_failed:{err}"))?;

@@ -58,7 +58,7 @@ Use this deterministic path for first-run issues before deeper incident lanes:
 4. Stale root/path drift
 - Diagnose:
 `infring doctor --json`
-- Confirm active root aligns with `INFRING_WORKSPACE_ROOT` (and compatibility alias `PROTHEUS_WORKSPACE_ROOT`) for this workspace.
+- Confirm active root aligns with `INFRING_WORKSPACE_ROOT` (and compatibility alias `INFRING_WORKSPACE_ROOT`) for this workspace.
 
 5. Full command surface unavailable due to missing Node
 - Reinstall full with Node bootstrap:
@@ -84,7 +84,7 @@ Capture these artifacts on first-run failures:
   - `local/state/ops/onboarding_portal/bootstrap_<role>.txt`
   - `local/state/ops/onboarding_portal/bootstrap_<role>_failure_snapshot.json` (on failure)
 - Setup wizard state:
-  - `local/state/ops/protheus_setup_wizard/latest.json`
+  - `local/state/ops/infring_setup_wizard/latest.json`
   - `local/state/ops/first_run_onboarding_wizard/latest.json`
 - Installer/runtime logs:
   - `$HOME/.infring/logs/dashboard_ui.log`
@@ -483,8 +483,8 @@ Symptoms:
 
 Diagnose:
 
-1. `protheus-ops status --dashboard`
-2. `protheus-ops health-status status`
+1. `infring-ops status --dashboard`
+2. `infring-ops health-status status`
 3. Inspect cron definitions:
 `cat client/runtime/config/cron_jobs.json`
 
@@ -498,7 +498,7 @@ Containment / Recovery:
 
 Verification:
 
-1. `protheus-ops status --dashboard` returns `cron_delivery_integrity.status=pass`.
+1. `infring-ops status --dashboard` returns `cron_delivery_integrity.status=pass`.
 2. `health_status` alert list no longer includes `cron_delivery_integrity`.
 3. Latest health receipt hash is present.
 
@@ -512,8 +512,8 @@ Symptoms:
 
 Diagnose:
 
-1. `protheus-ops contract-check`
-2. `protheus-ops status --dashboard`
+1. `infring-ops contract-check`
+2. `infring-ops status --dashboard`
 3. Inspect policy:
 `cat client/runtime/config/rust_source_of_truth_policy.json`
 
@@ -522,8 +522,8 @@ Containment / Recovery:
 1. Restore required gate tokens in:
    - `core/layer0/ops/src/main.rs`
    - `core/layer2/conduit/src/lib.rs`
-   - `client/runtime/systems/ops/protheusd.ts`
-   - `client/runtime/systems/ops/protheus_status_dashboard.ts`
+   - `client/runtime/systems/ops/infringd.ts`
+   - `client/runtime/systems/ops/infring_status_dashboard.ts`
 2. Ensure wrappers remain wrappers:
    - `.js` wrappers use `ts_bootstrap`
    - Rust shims remain `.js` spawn bridges only
@@ -531,8 +531,8 @@ Containment / Recovery:
 
 Verification:
 
-1. `protheus-ops contract-check` exits `0`.
-2. `protheus-ops status --dashboard` returns `rust_source_of_truth.status=pass`.
+1. `infring-ops contract-check` exits `0`.
+2. `infring-ops status --dashboard` returns `rust_source_of_truth.status=pass`.
 3. Formal invariants remain green.
 
 ## BL-034 Incident Contract

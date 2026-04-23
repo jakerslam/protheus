@@ -7,7 +7,7 @@ use std::fs;
 use std::path::Path;
 
 const LANE_ID: &str = "assimilation_controller";
-const REPLACEMENT: &str = "protheus-ops assimilation-controller";
+const REPLACEMENT: &str = "infring-ops assimilation-controller";
 const VARIANT_PROFILE_DIR: &str = "planes/contracts/variant_profiles";
 const MPU_PROFILE_PATH: &str = "planes/contracts/mpu_compartment_profile_v1.json";
 const WASM_DUAL_METER_POLICY_PATH: &str = "planes/contracts/wasm_dual_meter_policy_v1.json";
@@ -25,28 +25,28 @@ fn print_json_line(value: &Value) {
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops assimilation-controller status [--capability-id=<id>]");
-    println!("  protheus-ops assimilation-controller run [YYYY-MM-DD] [--capability-id=<id>] [--apply=1|0]");
-    println!("  protheus-ops assimilation-controller assess [--capability-id=<id>]");
+    println!("  infring-ops assimilation-controller status [--capability-id=<id>]");
+    println!("  infring-ops assimilation-controller run [YYYY-MM-DD] [--capability-id=<id>] [--apply=1|0]");
+    println!("  infring-ops assimilation-controller assess [--capability-id=<id>]");
     println!(
-        "  protheus-ops assimilation-controller record-use --capability-id=<id> [--success=1|0]"
+        "  infring-ops assimilation-controller record-use --capability-id=<id> [--success=1|0]"
     );
     println!(
-        "  protheus-ops assimilation-controller rollback --capability-id=<id> [--reason=<text>]"
+        "  infring-ops assimilation-controller rollback --capability-id=<id> [--reason=<text>]"
     );
     println!(
-        "  protheus-ops assimilation-controller skills-enable [perplexity-mode] [--apply=1|0]"
+        "  infring-ops assimilation-controller skills-enable [perplexity-mode] [--apply=1|0]"
     );
-    println!("  protheus-ops assimilation-controller skill-create --task=<text>");
-    println!("  protheus-ops assimilation-controller skills-dashboard");
-    println!("  protheus-ops assimilation-controller skills-spawn-subagents --task=<text> [--roles=researcher,executor,reviewer]");
-    println!("  protheus-ops assimilation-controller skills-computer-use --action=<text> [--target=<text>] [--apply=1|0]");
-    println!("  protheus-ops assimilation-controller variant-profiles [--strict=1|0]");
-    println!("  protheus-ops assimilation-controller mpu-compartments [--strict=1|0]");
-    println!("  protheus-ops assimilation-controller capability-ledger --op=<grant|revoke|verify|status> [--capability=<id>] [--subject=<id>] [--reason=<text>] [--strict=1|0]");
-    println!("  protheus-ops assimilation-controller wasm-dual-meter [--ticks=<n>] [--fuel-budget=<n>] [--epoch-budget=<n>] [--fuel-per-tick=<n>] [--epoch-step=<n>] [--strict=1|0]");
-    println!("  protheus-ops assimilation-controller hands-runtime --op=<status|install|start|pause|rotate> [--manifest=<path>] [--version=<semver>] [--strict=1|0]");
-    println!("  protheus-ops assimilation-controller scheduled-hands --op=<enable|run|status|dashboard|disable> [--strict=1|0] [--iterations=<n>] [--task=<text>] [--cross-refs=a,b]");
+    println!("  infring-ops assimilation-controller skill-create --task=<text>");
+    println!("  infring-ops assimilation-controller skills-dashboard");
+    println!("  infring-ops assimilation-controller skills-spawn-subagents --task=<text> [--roles=researcher,executor,reviewer]");
+    println!("  infring-ops assimilation-controller skills-computer-use --action=<text> [--target=<text>] [--apply=1|0]");
+    println!("  infring-ops assimilation-controller variant-profiles [--strict=1|0]");
+    println!("  infring-ops assimilation-controller mpu-compartments [--strict=1|0]");
+    println!("  infring-ops assimilation-controller capability-ledger --op=<grant|revoke|verify|status> [--capability=<id>] [--subject=<id>] [--reason=<text>] [--strict=1|0]");
+    println!("  infring-ops assimilation-controller wasm-dual-meter [--ticks=<n>] [--fuel-budget=<n>] [--epoch-budget=<n>] [--fuel-per-tick=<n>] [--epoch-step=<n>] [--strict=1|0]");
+    println!("  infring-ops assimilation-controller hands-runtime --op=<status|install|start|pause|rotate> [--manifest=<path>] [--version=<semver>] [--strict=1|0]");
+    println!("  infring-ops assimilation-controller scheduled-hands --op=<enable|run|status|dashboard|disable> [--strict=1|0] [--iterations=<n>] [--task=<text>] [--cross-refs=a,b]");
 }
 
 fn parse_flag(argv: &[String], key: &str) -> Option<String> {

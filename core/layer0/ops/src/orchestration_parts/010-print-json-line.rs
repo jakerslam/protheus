@@ -20,8 +20,8 @@ fn print_json_line(value: &Value) {
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops orchestration invoke --op=<operation> [--payload-json=<json>]");
-    println!("  protheus-ops orchestration help");
+    println!("  infring-ops orchestration invoke --op=<operation> [--payload-json=<json>]");
+    println!("  infring-ops orchestration help");
 }
 
 fn to_clean_string(value: Option<&Value>) -> String {

@@ -13,9 +13,9 @@ const LANE: &str = "spine_conduit_bridge_kernel";
 fn usage() {
     println!("spine-conduit-bridge-kernel commands:");
     println!(
-        "  protheus-ops spine-conduit-bridge-kernel run-domain --domain=<name> [--normalize-spine=1|0] -- <args...>"
+        "  infring-ops spine-conduit-bridge-kernel run-domain --domain=<name> [--normalize-spine=1|0] -- <args...>"
     );
-    println!("  protheus-ops spine-conduit-bridge-kernel normalize-spine-args -- <args...>");
+    println!("  infring-ops spine-conduit-bridge-kernel normalize-spine-args -- <args...>");
 }
 
 fn is_yyyy_mm_dd(raw: &str) -> bool {
@@ -104,7 +104,7 @@ fn collect_passthrough(args: &[String]) -> Vec<String> {
 }
 
 fn resolve_command_and_args(domain: &str) -> (String, Vec<String>) {
-    let explicit = std::env::var("PROTHEUS_OPS_BIN")
+    let explicit = std::env::var("INFRING_OPS_BIN")
         .ok()
         .map(|v| v.trim().to_string())
         .filter(|v| !v.is_empty());
@@ -123,9 +123,9 @@ fn resolve_command_and_args(domain: &str) -> (String, Vec<String>) {
             "run".to_string(),
             "--quiet".to_string(),
             "-p".to_string(),
-            "protheus-ops-core".to_string(),
+            "infring-ops-core".to_string(),
             "--bin".to_string(),
-            "protheus-ops".to_string(),
+            "infring-ops".to_string(),
             "--".to_string(),
             domain.to_string(),
         ],

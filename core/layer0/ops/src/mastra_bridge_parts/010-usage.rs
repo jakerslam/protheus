@@ -16,25 +16,25 @@ const DEFAULT_APPROVAL_QUEUE_REL: &str = "client/runtime/local/state/mastra_appr
 
 fn usage() {
     println!("mastra-bridge commands:");
-    println!("  protheus-ops mastra-bridge status [--state-path=<path>]");
-    println!("  protheus-ops mastra-bridge register-graph [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops mastra-bridge execute-graph [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  protheus-ops mastra-bridge run-agent-loop [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  protheus-ops mastra-bridge memory-recall [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops mastra-bridge suspend-run [--payload-base64=<json>] [--state-path=<path>] [--approval-queue-path=<path>]");
-    println!("  protheus-ops mastra-bridge resume-run [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>] [--approval-queue-path=<path>]");
-    println!("  protheus-ops mastra-bridge register-mcp-bridge [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops mastra-bridge invoke-mcp-bridge [--payload-base64=<json>] [--state-path=<path>] [--approval-queue-path=<path>]");
-    println!("  protheus-ops mastra-bridge record-eval-trace [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops mastra-bridge status [--state-path=<path>]");
+    println!("  infring-ops mastra-bridge register-graph [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops mastra-bridge execute-graph [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  infring-ops mastra-bridge run-agent-loop [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  infring-ops mastra-bridge memory-recall [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops mastra-bridge suspend-run [--payload-base64=<json>] [--state-path=<path>] [--approval-queue-path=<path>]");
+    println!("  infring-ops mastra-bridge resume-run [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>] [--approval-queue-path=<path>]");
+    println!("  infring-ops mastra-bridge register-mcp-bridge [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops mastra-bridge invoke-mcp-bridge [--payload-base64=<json>] [--state-path=<path>] [--approval-queue-path=<path>]");
+    println!("  infring-ops mastra-bridge record-eval-trace [--payload-base64=<json>] [--state-path=<path>]");
     println!(
-        "  protheus-ops mastra-bridge deploy-shell [--payload-base64=<json>] [--state-path=<path>]"
+        "  infring-ops mastra-bridge deploy-shell [--payload-base64=<json>] [--state-path=<path>]"
     );
-    println!("  protheus-ops mastra-bridge register-runtime-bridge [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops mastra-bridge register-runtime-bridge [--payload-base64=<json>] [--state-path=<path>]");
     println!(
-        "  protheus-ops mastra-bridge route-model [--payload-base64=<json>] [--state-path=<path>]"
+        "  infring-ops mastra-bridge route-model [--payload-base64=<json>] [--state-path=<path>]"
     );
-    println!("  protheus-ops mastra-bridge scaffold-intake [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops mastra-bridge run-governed-workflow [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops mastra-bridge scaffold-intake [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops mastra-bridge run-governed-workflow [--payload-base64=<json>] [--state-path=<path>]");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {

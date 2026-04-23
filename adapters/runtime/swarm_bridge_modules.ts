@@ -4,9 +4,9 @@
 const path = require('path');
 const {
   ROOT,
-  invokeProtheusOpsViaBridge,
-  runProtheusOps,
-} = require('./run_protheus_ops.ts');
+  invokeInfringOpsViaBridge,
+  runInfringOps,
+} = require('./run_infring_ops.ts');
 
 const SWARM_RUNTIME_DEFAULT_STATE_PATH = path.join(
   ROOT,
@@ -154,7 +154,7 @@ function createSwarmSessionsBridgeModule(options = {}) {
       parsed.state_path = defaultStatePath;
     }
     const run =
-      invokeProtheusOpsViaBridge(
+      invokeInfringOpsViaBridge(
         [
           'swarm-sessions-bridge',
           `--command=${command}`,
@@ -268,7 +268,7 @@ function createSwarmOrchestrationRuntimeModule(options = {}) {
   );
 
   function runOps(args) {
-    return runProtheusOps(args, { unknownDomainFallback: true });
+    return runInfringOps(args, { unknownDomainFallback: true });
   }
 
   function runRecursive(parsed) {

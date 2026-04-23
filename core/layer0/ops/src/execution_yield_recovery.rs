@@ -4,8 +4,8 @@ use std::path::Path;
 
 const USAGE: &[&str] = &[
     "Usage:",
-    "  protheus-ops execution-yield-recovery run [--apply=1|0] [--strict=1|0] [--policy=<path>]",
-    "  protheus-ops execution-yield-recovery status [--policy=<path>]",
+    "  infring-ops execution-yield-recovery run [--apply=1|0] [--strict=1|0] [--policy=<path>]",
+    "  infring-ops execution-yield-recovery status [--policy=<path>]",
     "  Optional telemetry flags: --trace-id=<id> --call-id=<id> --request-id=<id> --source=<tag>",
 ];
 
@@ -16,7 +16,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         &LaneSpec {
             lane_id: "execution_yield_recovery",
             lane_type: "execution_yield_recovery",
-            replacement: "protheus-ops execution-yield-recovery",
+            replacement: "infring-ops execution-yield-recovery",
             usage: USAGE,
             passthrough_flags: &[
                 "apply",

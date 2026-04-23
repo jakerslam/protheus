@@ -7,7 +7,7 @@ import { invokeTsModuleSync } from '../../../../client/runtime/lib/in_process_ts
 
 const ROOT = process.cwd();
 const CLOSURE_POLICY_PATH = path.join(ROOT, 'client/runtime/config/production_readiness_closure_policy.json');
-const RUNNER_PATH = path.join(ROOT, 'adapters/runtime/run_protheus_ops.ts');
+const RUNNER_PATH = path.join(ROOT, 'adapters/runtime/run_infring_ops.ts');
 const BRIDGE_PATH = path.join(ROOT, 'adapters/runtime/ops_lane_bridge.ts');
 const DEFAULT_OUT = path.join(ROOT, 'core/local/artifacts/production_topology_diagnostic_current.json');
 
@@ -84,7 +84,7 @@ function buildReport() {
   const runnerSource = fs.existsSync(RUNNER_PATH) ? fs.readFileSync(RUNNER_PATH, 'utf8') : '';
   const bridgeSource = fs.existsSync(BRIDGE_PATH) ? fs.readFileSync(BRIDGE_PATH, 'utf8') : '';
   const releaseChannel = clean(
-    process.env.INFRING_RELEASE_CHANNEL || process.env.PROTHEUS_RELEASE_CHANNEL || 'stable',
+    process.env.INFRING_RELEASE_CHANNEL || process.env.INFRING_RELEASE_CHANNEL || 'stable',
     64,
   ).toLowerCase() || 'stable';
   const supportSurface = closurePolicy?.production_surface_contract || {};

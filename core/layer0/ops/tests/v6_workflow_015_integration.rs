@@ -3,7 +3,7 @@
 // V6-WORKFLOW-015.4, V6-WORKFLOW-015.5, V6-WORKFLOW-015.6, V6-WORKFLOW-015.7,
 // V6-WORKFLOW-015.8, V6-WORKFLOW-015.9, V6-WORKFLOW-015.10
 
-use protheus_ops_core::pydantic_ai_bridge;
+use infring_ops_core::pydantic_ai_bridge;
 use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;

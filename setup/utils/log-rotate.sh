@@ -1,13 +1,13 @@
 #!/bin/bash
 # =============================================================================
-# Log Rotation Utility for Protheus Services
+# Log Rotation Utility for Infring Services
 # =============================================================================
 # Author: Rohan Kapoor
 # Created: 2026-03-29
 # Version: 1.0
 #
 # Description:
-#   Rotates log files for Protheus services to prevent disk saturation.
+#   Rotates log files for Infring services to prevent disk saturation.
 #   Designed to run via cron daily or weekly depending on log volume.
 #
 # Usage:
@@ -33,14 +33,14 @@
 #
 # Cron Setup:
 #   Daily rotation at 2 AM:
-#   0 2 * * * /usr/local/bin/log-rotate.sh >> /var/log/protheus/rotate.log 2>&1
+#   0 2 * * * /usr/local/bin/log-rotate.sh >> /var/log/infring/rotate.log 2>&1
 #
 # =============================================================================
 
 set -euo pipefail
 
 # Configuration
-LOG_BASE_DIR="${PROTHEUS_LOG_DIR:-/var/log/protheus}"
+LOG_BASE_DIR="${INFRING_LOG_DIR:-/var/log/infring}"
 RETENTION_DAYS=30
 COMPRESS=true
 DRY_RUN=false
@@ -123,7 +123,7 @@ TOTAL_ROTATED=0
 TOTAL_DELETED=0
 TOTAL_BYTES_SAVED=0
 
-log_info "=== Protheus Log Rotation Started ==="
+log_info "=== Infring Log Rotation Started ==="
 log_info "Log directory: $LOG_BASE_DIR"
 log_info "Retention period: $RETENTION_DAYS days"
 log_info "Compression: $COMPRESS"

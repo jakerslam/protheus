@@ -29,12 +29,12 @@ struct Policy {
 fn usage() {
     println!("Usage:");
     println!(
-        "  protheus-ops identity-federation authorize --provider=<id> --subject=<id> --token-issuer=<url> --scopes=a,b [--roles=r1,r2] [--policy=<path>]"
+        "  infring-ops identity-federation authorize --provider=<id> --subject=<id> --token-issuer=<url> --scopes=a,b [--roles=r1,r2] [--policy=<path>]"
     );
     println!(
-        "  protheus-ops identity-federation scim-lifecycle --provider=<id> --operation=<create|update|delete> --user-id=<id> [--entitlements=e1,e2] [--policy=<path>]"
+        "  infring-ops identity-federation scim-lifecycle --provider=<id> --operation=<create|update|delete> --user-id=<id> [--entitlements=e1,e2] [--policy=<path>]"
     );
-    println!("  protheus-ops identity-federation status [--policy=<path>]");
+    println!("  infring-ops identity-federation status [--policy=<path>]");
 }
 
 fn resolve_path(root: &Path, raw: Option<&str>, fallback: &str) -> PathBuf {
@@ -150,7 +150,7 @@ fn load_policy(root: &Path, policy_override: Option<&String>) -> Policy {
             "okta".to_string(),
             ProviderPolicy {
                 allowed_scopes: split_csv(
-                    "openid,profile,email,groups,offline_access,protheus.read,protheus.write",
+                    "openid,profile,email,groups,offline_access,infring.read,infring.write",
                 ),
                 issuer_prefix: "https://".to_string(),
                 allowed_roles: split_csv("operator,admin,security,auditor"),

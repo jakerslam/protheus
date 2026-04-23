@@ -28,7 +28,7 @@ Out of scope:
   - CLI exposes schema mode and validation result metadata.
 - Implementation (2026-03-06):
   - Rust lane: `core/layer0/ops/src/persona_schema_contract.rs`
-  - CLI surface: `protheus-ops persona-schema-contract <validate|status>`
+  - CLI surface: `infring-ops persona-schema-contract <validate|status>`
   - Deterministic fail-closed receipts + state artifact at `state/ops/persona_schema_contract/latest.json`
   - Coverage: unit tests in `core/layer0/ops/src/persona_schema_contract.rs`
 
@@ -40,7 +40,7 @@ Out of scope:
 - Implementation (2026-03-06):
   - Policy contract: `client/runtime/config/shadow_budget_governance_policy.json`
   - Runtime lane: `core/layer0/ops/src/shadow_budget_governance.rs`
-  - CLI surface: `protheus-ops shadow-budget-governance <evaluate|status>`
+  - CLI surface: `infring-ops shadow-budget-governance <evaluate|status>`
   - Deterministic decision receipts include fairness/reserve metadata and policy path references.
 
 3. `REQ-14-003` Offline mode detection + degraded execution
@@ -51,7 +51,7 @@ Out of scope:
 - Implementation (2026-03-06):
   - Policy contract: `client/runtime/config/offline_runtime_guard_policy.json`
   - Runtime lane: `core/layer0/ops/src/offline_runtime_guard.rs`
-  - CLI surface: `protheus-ops offline-runtime-guard <evaluate|status>`
+  - CLI surface: `infring-ops offline-runtime-guard <evaluate|status>`
   - Deterministic offline reasons + degraded capability map emitted in receipts and persisted to state.
 
 4. `REQ-14-004` Hardware-aware local model routing hardening
@@ -62,7 +62,7 @@ Out of scope:
 - Implementation (2026-03-06):
   - Policy contract: `client/runtime/config/hardware_route_hardening_policy.json`
   - Runtime lane: `core/layer0/ops/src/hardware_route_hardening.rs`
-  - CLI surface: `protheus-ops hardware-route-hardening <evaluate|status>`
+  - CLI surface: `infring-ops hardware-route-hardening <evaluate|status>`
   - Receipts include resolved profile, requested task class, selected model, and deterministic fallback reasons.
 
 ## Verification Requirements

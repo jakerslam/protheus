@@ -106,14 +106,14 @@ fn cli_error(kind: &str, error: &str) -> Value {
 
 fn usage() {
     println!("memory-policy-kernel commands:");
-    println!("  protheus-ops memory-policy-kernel status");
-    println!("  protheus-ops memory-policy-kernel parse-cli --payload-base64=<base64_json>");
-    println!("  protheus-ops memory-policy-kernel command-name --payload-base64=<base64_json>");
-    println!("  protheus-ops memory-policy-kernel validate --payload-base64=<base64_json>");
-    println!("  protheus-ops memory-policy-kernel validate-ranking --payload-base64=<base64_json>");
-    println!("  protheus-ops memory-policy-kernel validate-lensmap --payload-base64=<base64_json>");
-    println!("  protheus-ops memory-policy-kernel severity-rank --payload-base64=<base64_json>");
-    println!("  protheus-ops memory-policy-kernel guard-failure --payload-base64=<base64_json>");
+    println!("  infring-ops memory-policy-kernel status");
+    println!("  infring-ops memory-policy-kernel parse-cli --payload-base64=<base64_json>");
+    println!("  infring-ops memory-policy-kernel command-name --payload-base64=<base64_json>");
+    println!("  infring-ops memory-policy-kernel validate --payload-base64=<base64_json>");
+    println!("  infring-ops memory-policy-kernel validate-ranking --payload-base64=<base64_json>");
+    println!("  infring-ops memory-policy-kernel validate-lensmap --payload-base64=<base64_json>");
+    println!("  infring-ops memory-policy-kernel severity-rank --payload-base64=<base64_json>");
+    println!("  infring-ops memory-policy-kernel guard-failure --payload-base64=<base64_json>");
 }
 
 fn load_payload(argv: &[String]) -> Result<KernelPayload, String> {

@@ -15,19 +15,19 @@ const DEFAULT_SWARM_STATE_REL: &str = "local/state/ops/workflow_chain_bridge/swa
 
 fn usage() {
     println!("workflow_chain-bridge commands:");
-    println!("  protheus-ops workflow_chain-bridge status [--state-path=<path>]");
-    println!("  protheus-ops workflow_chain-bridge register-chain [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops workflow_chain-bridge execute-chain [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  protheus-ops workflow_chain-bridge register-middleware [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops workflow_chain-bridge run-deep-agent [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  protheus-ops workflow_chain-bridge register-memory-bridge [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops workflow_chain-bridge recall-memory [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops workflow_chain-bridge import-integration [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops workflow_chain-bridge route-prompt [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops workflow_chain-bridge parse-structured-output [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops workflow_chain-bridge record-trace [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops workflow_chain-bridge checkpoint-run [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  protheus-ops workflow_chain-bridge assimilate-intake [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops workflow_chain-bridge status [--state-path=<path>]");
+    println!("  infring-ops workflow_chain-bridge register-chain [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops workflow_chain-bridge execute-chain [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  infring-ops workflow_chain-bridge register-middleware [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops workflow_chain-bridge run-deep-agent [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  infring-ops workflow_chain-bridge register-memory-bridge [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops workflow_chain-bridge recall-memory [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops workflow_chain-bridge import-integration [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops workflow_chain-bridge route-prompt [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops workflow_chain-bridge parse-structured-output [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops workflow_chain-bridge record-trace [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops workflow_chain-bridge checkpoint-run [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  infring-ops workflow_chain-bridge assimilate-intake [--payload-base64=<json>] [--state-path=<path>]");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {

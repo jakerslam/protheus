@@ -69,7 +69,7 @@ pub fn validate_manifest_detailed(m: &AdapterManifest) -> ManifestValidation {
     {
         errors.push("schema_version_invalid".to_string());
     }
-    if !normalized.adapter.starts_with("protheus_") {
+    if !normalized.adapter.starts_with("infring_") {
         errors.push("adapter_prefix_invalid".to_string());
     }
     if normalized.exports.is_empty() {
@@ -97,7 +97,7 @@ pub fn validate_manifest(m: &AdapterManifest) -> bool {
 pub fn sample_report() -> serde_json::Value {
     let manifest = AdapterManifest {
         schema_version: " 1.0 ".into(),
-        adapter: "protheus_wasm_bridge ".into(),
+        adapter: "infring_wasm_bridge ".into(),
         exports: vec![
             "query".into(),
             "merge".into(),
@@ -130,7 +130,7 @@ mod tests {
     fn manifest_validation_works() {
         let m = AdapterManifest {
             schema_version: "1.0".into(),
-            adapter: "protheus_wasm_bridge".into(),
+            adapter: "infring_wasm_bridge".into(),
             exports: vec!["run".into()],
             fallback: "ts".into(),
         };
@@ -155,7 +155,7 @@ mod tests {
     fn manifest_validation_rejects_unknown_fallback() {
         let m = AdapterManifest {
             schema_version: "1.0".into(),
-            adapter: "protheus_wasm_bridge".into(),
+            adapter: "infring_wasm_bridge".into(),
             exports: vec!["run".into()],
             fallback: "custom_lane".into(),
         };

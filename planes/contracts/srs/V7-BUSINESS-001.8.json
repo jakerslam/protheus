@@ -36,13 +36,13 @@
     }
   ],
   "validation": {
-    "lane_command": "protheus-ops srs-contract-runtime run --id=V7-BUSINESS-001.8",
-    "status_command": "protheus-ops srs-contract-runtime status --id=V7-BUSINESS-001.8",
+    "lane_command": "infring-ops srs-contract-runtime run --id=V7-BUSINESS-001.8",
+    "status_command": "infring-ops srs-contract-runtime status --id=V7-BUSINESS-001.8",
     "fail_closed_on_missing_contract": true
   },
   "generated_from": {
     "source": "audit_gap_repair",
-    "acceptance": "Add append-only business receipt archive, daily Merkle-root anchor publication, audit query interface (`protheusctl audit --date-range=<range> --business=<id-or-ALL>`), and PDF/structured export artifacts with deterministic hash-linked evidence receipts.",
+    "acceptance": "Add append-only business receipt archive, daily Merkle-root anchor publication, audit query interface (`infringctl audit --date-range=<range> --business=<id-or-ALL>`), and PDF/structured export artifacts with deterministic hash-linked evidence receipts.",
     "generated_at": "2026-03-17T06:46:11.295Z"
   }
 }

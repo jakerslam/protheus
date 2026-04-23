@@ -29,7 +29,7 @@ pub(super) fn command_open(root: &Path) -> i32 {
             "lane": "core/layer0/ops",
             "workspace_route": "/workspace/keys",
             "dashboard_vital": "credit_health",
-            "commands": ["protheus keys open", "protheus model buy credits"],
+            "commands": ["infring keys open", "infring model buy credits"],
             "gates": {
                 "conduit_required": true,
                 "prime_directive_gate": true,

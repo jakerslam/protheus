@@ -172,7 +172,7 @@ fn direct_search_slash_routes_through_web_search_tool() {
 #[test]
 fn direct_web_search_get_endpoint_emits_nexus_connection_metadata() {
     let _guard = WEB_ENDPOINT_ENV_MUTEX.lock().expect("lock");
-    std::env::remove_var("PROTHEUS_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE");
+    std::env::remove_var("INFRING_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE");
     let root = terminated_temp_root();
     init_git_repo(root.path());
 

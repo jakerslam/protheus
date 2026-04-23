@@ -9,7 +9,7 @@
 ### Test File: `core/layer0/ops/tests/security_plane_scan_tests.rs`
 
 ```rust
-use protheus_ops_core::security_plane;
+use infring_ops_core::security_plane;
 use serde_json::Value;
 use std::fs;
 use std::path::Path;
@@ -979,7 +979,7 @@ fn secrets_fetch_creates_handle() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let root = tmp.path();
 
-    env::set_var("PROTHEUS_SECRET_VAULT_APP_DB_PASSWORD", "my-secret");
+    env::set_var("INFRING_SECRET_VAULT_APP_DB_PASSWORD", "my-secret");
 
     security_plane::run(
         root,
@@ -999,7 +999,7 @@ fn secrets_fetch_creates_handle() {
         .expect("handle_id");
     assert!(!handle_id.is_empty(), "Should create handle_id");
 
-    env_remove("PROTHEUS_SECRET_VAULT_APP_DB_PASSWORD");
+    env_remove("INFRING_SECRET_VAULT_APP_DB_PASSWORD");
 }
 
 #[test]
@@ -1008,8 +1008,8 @@ fn secrets_fetch_fails_without_env_var() {
     let root = tmp.path();
 
     // Ensure env var is not set
-    env_remove("PROTHEUS_SECRET_VAULT_APP_DB_PASSWORD");
-    env_remove("PROTHEUS_SECRET_VALUE");
+    env_remove("INFRING_SECRET_VAULT_APP_DB_PASSWORD");
+    env_remove("INFRING_SECRET_VALUE");
 
     let exit = security_plane::run(
         root,
@@ -1035,7 +1035,7 @@ fn secrets_rotate_updates_handle() {
     let root = tmp.path();
 
     // Create handle
-    env::set_var("PROTHEUS_SECRET_VAULT_APP_DB_PASSWORD", "value");
+    env::set_var("INFRING_SECRET_VAULT_APP_DB_PASSWORD", "value");
     security_plane::run(
         root,
         &[
@@ -1065,7 +1065,7 @@ fn secrets_rotate_updates_handle() {
         .and_then(Value::as_str);
     assert!(rotated.is_some(), "Should have rotation timestamp");
 
-    env_remove("PROTHEUS_SECRET_VAULT_APP_DB_PASSWORD");
+    env_remove("INFRING_SECRET_VAULT_APP_DB_PASSWORD");
 }
 
 #[test]
@@ -1076,7 +1076,7 @@ fn secrets_revoke_marks_handle_revoked() {
     let root = tmp.path();
 
     // Create handle
-    env::set_var("PROTHEUS_SECRET_VAULT_APP_DB_PASSWORD", "value");
+    env::set_var("INFRING_SECRET_VAULT_APP_DB_PASSWORD", "value");
     security_plane::run(
         root,
         &[
@@ -1106,7 +1106,7 @@ fn secrets_revoke_marks_handle_revoked() {
         .and_then(Value::as_bool);
     assert_eq!(revoked, Some(true), "Should be revoked");
 
-    env_remove("PROTHEUS_SECRET_VAULT_APP_DB_PASSWORD");
+    env_remove("INFRING_SECRET_VAULT_APP_DB_PASSWORD");
 }
 
 #[test]
@@ -1116,7 +1116,7 @@ fn secrets_status_counts_active_handles() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let root = tmp.path();
 
-    env::set_var("PROTHEUS_SECRET_VAULT_APP_DB_PASSWORD", "v1");
+    env::set_var("INFRING_SECRET_VAULT_APP_DB_PASSWORD", "v1");
     security_plane::run(
         root,
         &[
@@ -1128,7 +1128,7 @@ fn secrets_status_counts_active_handles() {
     );
     let h1 = read_json(&latest_path(root)).get("handle_id").and_then(Value::as_str).unwrap().to_string();
 
-    env::set_var("PROTHEUS_SECRET_VAULT_APP_DB_PASSWORD", "v2");
+    env::set_var("INFRING_SECRET_VAULT_APP_DB_PASSWORD", "v2");
     security_plane::run(
         root,
         &[
@@ -1166,7 +1166,7 @@ fn secrets_status_counts_active_handles() {
     assert_eq!(active, Some(1), "Should have 1 active handle");
     assert_eq!(total, Some(2), "Should have 2 total handles");
 
-    env_remove("PROTHEUS_SECRET_VAULT_APP_DB_PASSWORD");
+    env_remove("INFRING_SECRET_VAULT_APP_DB_PASSWORD");
 }
 
 #[test]
@@ -1200,7 +1200,7 @@ fn secrets_events_logged() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let root = tmp.path();
 
-    env::set_var("PROTHEUS_SECRET_VAULT_APP_DB_PASSWORD", "secret");
+    env::set_var("INFRING_SECRET_VAULT_APP_DB_PASSWORD", "secret");
     
     security_plane::run(
         root,
@@ -1227,7 +1227,7 @@ fn secrets_events_logged() {
         assert_ne!(sha256, Some("secret"), "Should not store raw secret");
     }
 
-    env_remove("PROTHEUS_SECRET_VAULT_APP_DB_PASSWORD");
+    env_remove("INFRING_SECRET_VAULT_APP_DB_PASSWORD");
 }
 ```
 

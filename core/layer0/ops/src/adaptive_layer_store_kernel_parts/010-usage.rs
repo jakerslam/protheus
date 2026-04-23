@@ -27,13 +27,13 @@ struct WriteLock {
 
 fn usage() {
     println!("adaptive-layer-store-kernel commands:");
-    println!("  protheus-ops adaptive-layer-store-kernel paths [--payload-base64=<json>]");
-    println!("  protheus-ops adaptive-layer-store-kernel is-within-root --payload-base64=<json>");
-    println!("  protheus-ops adaptive-layer-store-kernel resolve-path --payload-base64=<json>");
-    println!("  protheus-ops adaptive-layer-store-kernel read-json --payload-base64=<json>");
-    println!("  protheus-ops adaptive-layer-store-kernel ensure-json --payload-base64=<json>");
-    println!("  protheus-ops adaptive-layer-store-kernel set-json --payload-base64=<json>");
-    println!("  protheus-ops adaptive-layer-store-kernel delete-path --payload-base64=<json>");
+    println!("  infring-ops adaptive-layer-store-kernel paths [--payload-base64=<json>]");
+    println!("  infring-ops adaptive-layer-store-kernel is-within-root --payload-base64=<json>");
+    println!("  infring-ops adaptive-layer-store-kernel resolve-path --payload-base64=<json>");
+    println!("  infring-ops adaptive-layer-store-kernel read-json --payload-base64=<json>");
+    println!("  infring-ops adaptive-layer-store-kernel ensure-json --payload-base64=<json>");
+    println!("  infring-ops adaptive-layer-store-kernel set-json --payload-base64=<json>");
+    println!("  infring-ops adaptive-layer-store-kernel delete-path --payload-base64=<json>");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
@@ -119,7 +119,7 @@ fn workspace_root(root: &Path, payload: &Map<String, Value>) -> PathBuf {
     if !explicit.is_empty() {
         return PathBuf::from(explicit);
     }
-    if let Ok(raw) = std::env::var("PROTHEUS_WORKSPACE_ROOT") {
+    if let Ok(raw) = std::env::var("INFRING_WORKSPACE_ROOT") {
         let trimmed = raw.trim();
         if !trimmed.is_empty() {
             return PathBuf::from(trimmed);
@@ -133,7 +133,7 @@ fn runtime_root(root: &Path, payload: &Map<String, Value>) -> PathBuf {
     if !explicit.is_empty() {
         return PathBuf::from(explicit);
     }
-    if let Ok(raw) = std::env::var("PROTHEUS_RUNTIME_ROOT") {
+    if let Ok(raw) = std::env::var("INFRING_RUNTIME_ROOT") {
         let trimmed = raw.trim();
         if !trimmed.is_empty() {
             return PathBuf::from(trimmed);

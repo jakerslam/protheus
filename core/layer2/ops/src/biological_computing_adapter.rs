@@ -5,7 +5,7 @@ use std::path::Path;
 
 const USAGE: &[&str] = &[
     "Usage:",
-    "  protheus-ops biological-computing-adapter run|status|observe|stimulate|fallback [--policy=<path>] [--state-path=<path>] [--strict=1|0]",
+    "  infring-ops biological-computing-adapter run|status|observe|stimulate|fallback [--policy=<path>] [--state-path=<path>] [--strict=1|0]",
 ];
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
@@ -15,7 +15,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         &lane_spec(
             "biological_computing_adapter",
             "biological_computing_adapter",
-            "protheus-ops biological-computing-adapter",
+            "infring-ops biological-computing-adapter",
             USAGE,
             &["strict", "policy", "state-path", "consent"],
         ),

@@ -404,10 +404,10 @@ fn cli_failure_receipt(cmd: &str, error: &str, code: i32) -> Value {
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops autotest-controller sync [--policy=path] [--strict=1|0]");
-    println!("  protheus-ops autotest-controller run [--policy=path] [--scope=critical|changed|all] [--max-tests=N] [--strict=1|0] [--sleep-only=1|0] [--force=1|0] [--run-timeout-ms=N]");
-    println!("  protheus-ops autotest-controller report [YYYY-MM-DD|latest] [--policy=path] [--write=1|0]");
-    println!("  protheus-ops autotest-controller status [--policy=path]");
-    println!("  protheus-ops autotest-controller pulse [--policy=path] [--scope=changed|critical|all] [--max-tests=N] [--strict=1|0] [--force=1|0] [--run-timeout-ms=N]");
-    println!("  protheus-ops autotest-controller daemon [--policy=path] [--interval-sec=N] [--max-cycles=N] [--scope=changed|critical|all] [--max-tests=N] [--strict=1|0] [--run-timeout-ms=N]");
+    println!("  infring-ops autotest-controller sync [--policy=path] [--strict=1|0]");
+    println!("  infring-ops autotest-controller run [--policy=path] [--scope=critical|changed|all] [--max-tests=N] [--strict=1|0] [--sleep-only=1|0] [--force=1|0] [--run-timeout-ms=N]");
+    println!("  infring-ops autotest-controller report [YYYY-MM-DD|latest] [--policy=path] [--write=1|0]");
+    println!("  infring-ops autotest-controller status [--policy=path]");
+    println!("  infring-ops autotest-controller pulse [--policy=path] [--scope=changed|critical|all] [--max-tests=N] [--strict=1|0] [--force=1|0] [--run-timeout-ms=N]");
+    println!("  infring-ops autotest-controller daemon [--policy=path] [--interval-sec=N] [--max-cycles=N] [--scope=changed|critical|all] [--max-tests=N] [--strict=1|0] [--run-timeout-ms=N]");
 }

@@ -126,7 +126,7 @@ infringctl --help
 infringd --help
 ```
 
-Legacy aliases (`protheus`, `protheusctl`, `protheusd`) are compatibility-only and should not be used in new automation.
+Legacy aliases (`infring`, `infringctl`, `infringd`) are compatibility-only and should not be used in new automation.
 
 ## Runtime manifest and mode contract
 
@@ -137,9 +137,9 @@ Install/runtime required entries are defined in:
 
 Current required runtime entries:
 
-- `client/runtime/systems/ops/protheusd.ts`
-- `client/runtime/systems/ops/protheus_status_dashboard.ts`
-- `client/runtime/systems/ops/protheus_unknown_guard.ts`
+- `client/runtime/systems/ops/infringd.ts`
+- `client/runtime/systems/ops/infring_status_dashboard.ts`
+- `client/runtime/systems/ops/infring_unknown_guard.ts`
 
 Current required runtime node modules:
 

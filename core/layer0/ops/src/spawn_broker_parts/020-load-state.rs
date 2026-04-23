@@ -97,7 +97,7 @@ fn parse_json_line_fallback(stdout: &str) -> Value {
 fn router_hardware_plan(root: &Path) -> RouterPlan {
     let script = router_script_path(root);
     let cwd = root_client_runtime(root);
-    let node_bin = std::env::var("PROTHEUS_NODE_BINARY")
+    let node_bin = std::env::var("INFRING_NODE_BINARY")
         .ok()
         .filter(|s| !s.trim().is_empty())
         .unwrap_or_else(|| "node".to_string());

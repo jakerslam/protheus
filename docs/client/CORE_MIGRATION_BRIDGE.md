@@ -2,7 +2,7 @@
 
 `V4-MIGR-001` introduces a deterministic migration bridge with signed receipts, rollback checkpoints, and a first-class operator command:
 
-- `protheusctl migrate --to=<org/repo|url> [--workspace=<path>]`
+- `infringctl migrate --to=<org/repo|url> [--workspace=<path>]`
 
 ## Scope
 
@@ -23,16 +23,16 @@ Each run emits signed receipts to:
 
 ```bash
 # Plan only (default)
-protheusctl migrate --to=acme/protheus-core --workspace=../protheus-core
+infringctl migrate --to=acme/infring-core --workspace=../infring-core
 
 # Apply transfer + remote update
-protheusctl migrate --to=acme/protheus-core --workspace=../protheus-core --apply=1
+infringctl migrate --to=acme/infring-core --workspace=../infring-core --apply=1
 
 # Inspect latest state
-protheusctl migrate status
+infringctl migrate status
 
 # Roll back a migration (requires approval note)
-protheusctl migrate rollback --migration-id=<id> --apply=1 --approval-note="operator_approved"
+infringctl migrate rollback --migration-id=<id> --apply=1 --approval-note="operator_approved"
 ```
 
 ## Safety Model

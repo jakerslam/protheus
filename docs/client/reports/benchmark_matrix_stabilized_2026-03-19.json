@@ -5,7 +5,7 @@
     "warmup_runs": 2,
     "measured_runs": 9,
     "aggregation": "median",
-    "notes": "Generated via repeated target/release/protheus-ops benchmark-matrix runs under low-background load."
+    "notes": "Generated via repeated target/release/infring-ops benchmark-matrix runs under low-background load."
   },
   "medians": {
     "rich": {

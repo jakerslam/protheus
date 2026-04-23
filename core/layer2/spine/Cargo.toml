@@ -1,12 +1,12 @@
 [package]
-name = "protheus-spine-core-v1"
+name = "infring-spine-core-v1"
 version = "0.1.0"
 edition = "2021"
 license = "SEE LICENSE IN LICENSE"
 description = "Layer 2 Rust spine authority for deterministic mech-suit runtime control."
 
 [lib]
-name = "protheus_spine_core_v1"
+name = "infring_spine_core_v1"
 path = "src/lib.rs"
 
 [dependencies]

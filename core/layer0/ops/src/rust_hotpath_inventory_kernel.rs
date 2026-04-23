@@ -79,7 +79,7 @@ fn default_milestones() -> Vec<f64> {
 fn usage() {
     println!("rust-hotpath-inventory-kernel commands:");
     println!(
-        "  protheus-ops rust-hotpath-inventory-kernel <run|status|inventory> [--policy=<path>]"
+        "  infring-ops rust-hotpath-inventory-kernel <run|status|inventory> [--policy=<path>]"
     );
 }
 
@@ -228,15 +228,15 @@ fn is_thin_bridge(path: &str, ext: &str, text: &str) -> bool {
     let normalized = text;
     normalized.contains("createOpsLaneBridge")
         || normalized.contains("createManifestLaneBridge")
-        || normalized.contains("runProtheusOps(args")
-        || normalized.contains("runProtheusOps(['")
-        || normalized.contains("require('./run_protheus_ops.ts')")
+        || normalized.contains("runInfringOps(args")
+        || normalized.contains("runInfringOps(['")
+        || normalized.contains("require('./run_infring_ops.ts')")
         || normalized.contains("Thin TypeScript wrapper only")
         || normalized.contains("Thin runtime wrapper:")
         || normalized.contains("thin CLI bridge")
         || normalized.contains("compatibility shim only")
         || (normalized.contains("Layer ownership: core/layer0/ops")
-            && (normalized.contains("runProtheusOps(")
+            && (normalized.contains("runInfringOps(")
                 || normalized.contains("createOpsLaneBridge(")))
         || (path.ends_with(".ts")
             && normalized.contains("module.exports")
@@ -515,7 +515,7 @@ mod tests {
     fn in_scan_roots_defaults_to_runtime_scope_when_roots_empty() {
         let roots = Vec::<String>::new();
         assert!(in_scan_roots(
-            "client/runtime/systems/ops/run_protheus_ops.ts",
+            "client/runtime/systems/ops/run_infring_ops.ts",
             &roots
         ));
         assert!(!in_scan_roots("core/layer0/ops/src/lib.rs", &roots));

@@ -432,7 +432,7 @@ fn startup_secret_candidates(repo_root: &Path) -> Vec<PathBuf> {
     if let Ok(home) = std::env::var("HOME") {
         let base = PathBuf::from(home)
             .join(".config")
-            .join("protheus")
+            .join("infring")
             .join("secrets");
         out.push(base.join("startup_attestation_key.txt"));
         out.push(base.join("secret_broker_key.txt"));

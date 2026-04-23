@@ -58,7 +58,7 @@ ls /dev/tty.usb* /dev/cu.usb* 2>/dev/null
 ```bash
 # Example; adjust chip/offsets to your board + image layout
 esptool --port /dev/cu.usbserial-XXXX chip_id
-esptool --port /dev/cu.usbserial-XXXX write_flash 0x10000 build/esp32/protheusd.bin
+esptool --port /dev/cu.usbserial-XXXX write_flash 0x10000 build/esp32/infringd.bin
 screen /dev/cu.usbserial-XXXX 115200
 ```
 
@@ -73,7 +73,7 @@ Capture:
 ```bash
 picotool info -a
 # board in BOOTSEL mode; copy UF2 or flash via openocd workflow
-cp build/rp2040/protheusd.uf2 /Volumes/RPI-RP2/
+cp build/rp2040/infringd.uf2 /Volumes/RPI-RP2/
 screen /dev/cu.usbmodemXXXX 115200
 ```
 

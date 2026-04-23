@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Log Rotation Utility for Protheus Services
+# Log Rotation Utility for Infring Services
 # Author: Rohan Kapoor <rohan@example.com>
 # Version: 1.0.0
 # Last Updated: 2026-03-14
@@ -27,8 +27,8 @@ set -euo pipefail
 # --- Configuration -----------------------------------------------------------
 readonly SCRIPT_VERSION="1.0.0"
 readonly DEFAULT_RETENTION_DAYS=30
-readonly DEFAULT_S3_BUCKET="protheus-logs-archive"
-readonly LOG_BASE_DIR="/var/log/protheus"
+readonly DEFAULT_S3_BUCKET="infring-logs-archive"
+readonly LOG_BASE_DIR="/var/log/infring"
 readonly ARCHIVE_DIR="${LOG_BASE_DIR}/archives"
 readonly LOCK_FILE="/var/run/log-rotation.lock"
 

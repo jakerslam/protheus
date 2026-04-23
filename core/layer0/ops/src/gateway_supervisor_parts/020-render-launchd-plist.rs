@@ -35,11 +35,11 @@ fn render_launchd_plist(
     <string>{env_home}</string>\n\
     <key>PATH</key>\n\
     <string>{env_path}</string>\n\
-    <key>PROTHEUS_OPS_ALLOW_STALE</key>\n\
+    <key>INFRING_OPS_ALLOW_STALE</key>\n\
     <string>1</string>\n\
-    <key>PROTHEUS_NPM_ALLOW_STALE</key>\n\
+    <key>INFRING_NPM_ALLOW_STALE</key>\n\
     <string>1</string>\n\
-    <key>PROTHEUS_NPM_BINARY</key>\n\
+    <key>INFRING_NPM_BINARY</key>\n\
     <string>{env_binary}</string>\n\
   </dict>\n\
   <key>KeepAlive</key>\n\

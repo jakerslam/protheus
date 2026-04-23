@@ -44,24 +44,24 @@ struct LauncherLimits {
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops collab-plane status");
+    println!("  infring-ops collab-plane status");
     println!(
-        "  protheus-ops collab-plane dashboard [--team=<id>] [--refresh-ms=<n>] [--strict=1|0]"
+        "  infring-ops collab-plane dashboard [--team=<id>] [--refresh-ms=<n>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops collab-plane launch-role --role=<id> [--team=<id>] [--shadow=<id>] [--strict=1|0]"
+        "  infring-ops collab-plane launch-role --role=<id> [--team=<id>] [--shadow=<id>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops collab-plane terminate-role --shadow=<id> [--team=<id>] [--reason=<id>] [--strict=1|0]"
+        "  infring-ops collab-plane terminate-role --shadow=<id> [--team=<id>] [--reason=<id>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops collab-plane schedule --op=<upsert|kickoff|list> [--team=<id>] [--job=<id>] [--cron=<expr>] [--shadows=a,b] [--strict=1|0]"
+        "  infring-ops collab-plane schedule --op=<upsert|kickoff|list> [--team=<id>] [--job=<id>] [--cron=<expr>] [--shadows=a,b] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops collab-plane throttle --plane=<id> [--team=<id>] [--max-depth=<n>] [--strategy=priority-shed] [--strict=1|0]"
+        "  infring-ops collab-plane throttle --plane=<id> [--team=<id>] [--max-depth=<n>] [--strategy=priority-shed] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops collab-plane continuity --op=<checkpoint|reconstruct|status> [--team=<id>] [--state-json=<json>] [--strict=1|0]"
+        "  infring-ops collab-plane continuity --op=<checkpoint|reconstruct|status> [--team=<id>] [--state-json=<json>] [--strict=1|0]"
     );
 }
 

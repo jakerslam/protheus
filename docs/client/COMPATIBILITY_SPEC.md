@@ -1,4 +1,4 @@
-# Protheus Compatibility Specification
+# Infring Compatibility Specification
 
 Version: 1.0
 

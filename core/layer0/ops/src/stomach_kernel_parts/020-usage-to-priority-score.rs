@@ -1,12 +1,12 @@
 
 fn usage() {
     println!("stomach-kernel commands:");
-    println!("  protheus-ops stomach-kernel run --id=<digest_id> --source-root=<path> --origin=<https://...> [--commit=<hash>] [--refs=refs/heads/main] [--spdx=<MIT>] [--transform=namespace_fix|header_injection|path_remap|adapter_scaffold] [--targets=a.rs,b.rs] [--header=...]");
-    println!("  protheus-ops stomach-kernel score --id=<digest_id> --source-root=<path> [--targets=a.rs,b.rs]");
-    println!("  protheus-ops stomach-kernel status --id=<digest_id>");
-    println!("  protheus-ops stomach-kernel rollback --id=<digest_id> --receipt=<receipt_id> [--reason=<text>]");
-    println!("  protheus-ops stomach-kernel retention --id=<digest_id> --action=hold|release|eligible [--reason=<text>] [--retained-until=<epoch_secs>] [--approve-receipt=<receipt_id>]");
-    println!("  protheus-ops stomach-kernel purge --id=<digest_id>");
+    println!("  infring-ops stomach-kernel run --id=<digest_id> --source-root=<path> --origin=<https://...> [--commit=<hash>] [--refs=refs/heads/main] [--spdx=<MIT>] [--transform=namespace_fix|header_injection|path_remap|adapter_scaffold] [--targets=a.rs,b.rs] [--header=...]");
+    println!("  infring-ops stomach-kernel score --id=<digest_id> --source-root=<path> [--targets=a.rs,b.rs]");
+    println!("  infring-ops stomach-kernel status --id=<digest_id>");
+    println!("  infring-ops stomach-kernel rollback --id=<digest_id> --receipt=<receipt_id> [--reason=<text>]");
+    println!("  infring-ops stomach-kernel retention --id=<digest_id> --action=hold|release|eligible [--reason=<text>] [--retained-until=<epoch_secs>] [--approve-receipt=<receipt_id>]");
+    println!("  infring-ops stomach-kernel purge --id=<digest_id>");
 }
 
 fn parse_flag(argv: &[String], key: &str) -> Option<String> {

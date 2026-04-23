@@ -2,7 +2,7 @@
 // SRS coverage: V6-WORKFLOW-009.1, V6-WORKFLOW-009.2, V6-WORKFLOW-009.3,
 // V6-WORKFLOW-009.4, V6-WORKFLOW-009.5, V6-WORKFLOW-009.6, V6-WORKFLOW-009.7
 
-use protheus_ops_core::llamaindex_bridge;
+use infring_ops_core::llamaindex_bridge;
 use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;

@@ -98,9 +98,9 @@ struct AutopauseState {
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops spawn-broker status [--module=<name>] [--profile=<id>]");
-    println!("  protheus-ops spawn-broker request --module=<name> --requested_cells=<n> [--profile=<id>] [--reason=<text>] [--apply=1|0] [--lease_sec=<n>]");
-    println!("  protheus-ops spawn-broker release --module=<name> [--reason=<text>]");
+    println!("  infring-ops spawn-broker status [--module=<name>] [--profile=<id>]");
+    println!("  infring-ops spawn-broker request --module=<name> --requested_cells=<n> [--profile=<id>] [--reason=<text>] [--apply=1|0] [--lease_sec=<n>]");
+    println!("  infring-ops spawn-broker release --module=<name> [--reason=<text>]");
 }
 
 fn print_json_line(value: &Value) {

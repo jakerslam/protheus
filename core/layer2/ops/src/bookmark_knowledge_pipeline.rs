@@ -5,7 +5,7 @@ use std::path::Path;
 
 const USAGE: &[&str] = &[
     "Usage:",
-    "  protheus-ops bookmark-knowledge-pipeline run|status|ingest|search|mindmap [--policy=<path>] [--state-path=<path>] [--strict=1|0]",
+    "  infring-ops bookmark-knowledge-pipeline run|status|ingest|search|mindmap [--policy=<path>] [--state-path=<path>] [--strict=1|0]",
 ];
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
@@ -15,7 +15,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         &standard_lane_spec(
             "bookmark_knowledge_pipeline",
             "bookmark_knowledge_pipeline",
-            "protheus-ops bookmark-knowledge-pipeline",
+            "infring-ops bookmark-knowledge-pipeline",
             USAGE,
         ),
     )

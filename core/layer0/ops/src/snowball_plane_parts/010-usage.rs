@@ -21,35 +21,35 @@ const DEFAULT_BENCHMARK_REPORT_PATH: &str =
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops snowball-plane status [--cycle-id=<id>]");
+    println!("  infring-ops snowball-plane status [--cycle-id=<id>]");
     println!(
-        "  protheus-ops snowball-plane start [--cycle-id=<id>] [--drops=<csv>] [--parallel=<n>] [--deps-json=<json>] [--strict=1|0]"
+        "  infring-ops snowball-plane start [--cycle-id=<id>] [--drops=<csv>] [--parallel=<n>] [--deps-json=<json>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops snowball-plane melt-refine|regress [--cycle-id=<id>] [--regression-suite=<id>] [--regression-pass=1|0] [--strict=1|0]"
+        "  infring-ops snowball-plane melt-refine|regress [--cycle-id=<id>] [--regression-suite=<id>] [--regression-pass=1|0] [--strict=1|0]"
     );
-    println!("  protheus-ops snowball-plane compact [--cycle-id=<id>] [--strict=1|0]");
+    println!("  infring-ops snowball-plane compact [--cycle-id=<id>] [--strict=1|0]");
     println!(
         "      compact flags: [--benchmark-report=<path>] [--assimilations-json=<json>] [--reliability-before=<f>] [--reliability-after=<f>]"
     );
     println!(
-        "  protheus-ops snowball-plane fitness-review [--cycle-id=<id>] [--benchmark-report=<path>] [--assimilations-json=<json>] [--reliability-before=<f>] [--reliability-after=<f>] [--strict=1|0]"
+        "  infring-ops snowball-plane fitness-review [--cycle-id=<id>] [--benchmark-report=<path>] [--assimilations-json=<json>] [--reliability-before=<f>] [--reliability-after=<f>] [--strict=1|0]"
     );
-    println!("  protheus-ops snowball-plane archive-discarded [--cycle-id=<id>] [--strict=1|0]");
+    println!("  infring-ops snowball-plane archive-discarded [--cycle-id=<id>] [--strict=1|0]");
     println!(
-        "  protheus-ops snowball-plane publish-benchmarks [--cycle-id=<id>] [--benchmark-report=<path>] [--readme-path=<path>] [--strict=1|0]"
-    );
-    println!(
-        "  protheus-ops snowball-plane promote [--cycle-id=<id>] [--allow-neutral=1|0] [--neutral-justification=<text>] [--strict=1|0]"
+        "  infring-ops snowball-plane publish-benchmarks [--cycle-id=<id>] [--benchmark-report=<path>] [--readme-path=<path>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops snowball-plane prime-update [--cycle-id=<id>] [--directive=<text>] [--signer=<id>] [--strict=1|0]"
+        "  infring-ops snowball-plane promote [--cycle-id=<id>] [--allow-neutral=1|0] [--neutral-justification=<text>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops snowball-plane backlog-pack [--cycle-id=<id>] [--unresolved-json=<json>] [--strict=1|0]"
+        "  infring-ops snowball-plane prime-update [--cycle-id=<id>] [--directive=<text>] [--signer=<id>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops snowball-plane control --op=<pause|resume|abort> [--cycle-id=<id>] [--strict=1|0]"
+        "  infring-ops snowball-plane backlog-pack [--cycle-id=<id>] [--unresolved-json=<json>] [--strict=1|0]"
+    );
+    println!(
+        "  infring-ops snowball-plane control --op=<pause|resume|abort> [--cycle-id=<id>] [--strict=1|0]"
     );
 }
 

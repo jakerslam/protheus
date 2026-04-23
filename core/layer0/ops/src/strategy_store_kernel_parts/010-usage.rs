@@ -28,28 +28,28 @@ const EXECUTION_MODES: &[&str] = &["score_only", "canary_execute", "execute"];
 
 fn usage() {
     println!("strategy-store-kernel commands:");
-    println!("  protheus-ops strategy-store-kernel paths [--payload-base64=<json>]");
-    println!("  protheus-ops strategy-store-kernel default-state");
-    println!("  protheus-ops strategy-store-kernel default-draft [--payload-base64=<json>]");
-    println!("  protheus-ops strategy-store-kernel normalize-mode [--payload-base64=<json>]");
+    println!("  infring-ops strategy-store-kernel paths [--payload-base64=<json>]");
+    println!("  infring-ops strategy-store-kernel default-state");
+    println!("  infring-ops strategy-store-kernel default-draft [--payload-base64=<json>]");
+    println!("  infring-ops strategy-store-kernel normalize-mode [--payload-base64=<json>]");
     println!(
-        "  protheus-ops strategy-store-kernel normalize-execution-mode [--payload-base64=<json>]"
+        "  infring-ops strategy-store-kernel normalize-execution-mode [--payload-base64=<json>]"
     );
-    println!("  protheus-ops strategy-store-kernel normalize-profile --payload-base64=<json>");
-    println!("  protheus-ops strategy-store-kernel validate-profile --payload-base64=<json>");
-    println!("  protheus-ops strategy-store-kernel normalize-queue-item --payload-base64=<json>");
-    println!("  protheus-ops strategy-store-kernel recommend-mode [--payload-base64=<json>]");
-    println!("  protheus-ops strategy-store-kernel read-state [--payload-base64=<json>]");
-    println!("  protheus-ops strategy-store-kernel ensure-state [--payload-base64=<json>]");
-    println!("  protheus-ops strategy-store-kernel set-state --payload-base64=<json>");
-    println!("  protheus-ops strategy-store-kernel upsert-profile --payload-base64=<json>");
-    println!("  protheus-ops strategy-store-kernel intake-signal --payload-base64=<json>");
-    println!("  protheus-ops strategy-store-kernel materialize-from-queue --payload-base64=<json>");
-    println!("  protheus-ops strategy-store-kernel touch-profile-usage --payload-base64=<json>");
+    println!("  infring-ops strategy-store-kernel normalize-profile --payload-base64=<json>");
+    println!("  infring-ops strategy-store-kernel validate-profile --payload-base64=<json>");
+    println!("  infring-ops strategy-store-kernel normalize-queue-item --payload-base64=<json>");
+    println!("  infring-ops strategy-store-kernel recommend-mode [--payload-base64=<json>]");
+    println!("  infring-ops strategy-store-kernel read-state [--payload-base64=<json>]");
+    println!("  infring-ops strategy-store-kernel ensure-state [--payload-base64=<json>]");
+    println!("  infring-ops strategy-store-kernel set-state --payload-base64=<json>");
+    println!("  infring-ops strategy-store-kernel upsert-profile --payload-base64=<json>");
+    println!("  infring-ops strategy-store-kernel intake-signal --payload-base64=<json>");
+    println!("  infring-ops strategy-store-kernel materialize-from-queue --payload-base64=<json>");
+    println!("  infring-ops strategy-store-kernel touch-profile-usage --payload-base64=<json>");
     println!(
-        "  protheus-ops strategy-store-kernel evaluate-gc-candidates [--payload-base64=<json>]"
+        "  infring-ops strategy-store-kernel evaluate-gc-candidates [--payload-base64=<json>]"
     );
-    println!("  protheus-ops strategy-store-kernel gc-profiles [--payload-base64=<json>]");
+    println!("  infring-ops strategy-store-kernel gc-profiles [--payload-base64=<json>]");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
@@ -255,7 +255,7 @@ fn json_string(value: &Value) -> String {
 }
 
 fn workspace_root(root: &Path) -> PathBuf {
-    if let Ok(raw) = std::env::var("PROTHEUS_WORKSPACE_ROOT") {
+    if let Ok(raw) = std::env::var("INFRING_WORKSPACE_ROOT") {
         let raw = raw.trim();
         if !raw.is_empty() {
             return PathBuf::from(raw);
@@ -265,7 +265,7 @@ fn workspace_root(root: &Path) -> PathBuf {
 }
 
 fn runtime_root(root: &Path) -> PathBuf {
-    if let Ok(raw) = std::env::var("PROTHEUS_RUNTIME_ROOT") {
+    if let Ok(raw) = std::env::var("INFRING_RUNTIME_ROOT") {
         let raw = raw.trim();
         if !raw.is_empty() {
             return PathBuf::from(raw);

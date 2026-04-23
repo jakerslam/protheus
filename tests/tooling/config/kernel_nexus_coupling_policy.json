@@ -9,26 +9,26 @@
     ]
   },
   "nexus_crates": [
-    "protheus_nexus_core_v1"
+    "infring_nexus_core_v1"
   ],
   "allowed_foundation_crates": [
     "infring_types"
   ],
   "forbid_direct_nexus_for_packages": [
-    "protheus_vault_core_v1",
-    "protheus_graph_core_v1",
-    "protheus_pinnacle_core_v1",
-    "protheus_swarm_core_v1",
-    "protheus_security_core_v1",
-    "protheus_mobile_core_v1",
-    "protheus_red_legion_core_v1",
-    "protheus_memory_core",
+    "infring_vault_core_v1",
+    "infring_graph_core_v1",
+    "infring_pinnacle_core_v1",
+    "infring_swarm_core_v1",
+    "infring_security_core_v1",
+    "infring_mobile_core_v1",
+    "infring_red_legion_core_v1",
+    "infring_memory_core",
     "infring_agent_surface",
     "infring_layer1_primitives"
   ],
   "allow_direct_nexus_layer0_packages": [
     "kernel_layers",
-    "protheus_ops_core"
+    "infring_ops_core"
   ],
   "allow_direct_nexus_layer1_packages": [],
   "fail_on_expired_exemptions": true,

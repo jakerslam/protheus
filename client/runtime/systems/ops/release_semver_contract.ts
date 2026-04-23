@@ -4,7 +4,7 @@
 // Layer ownership: core/layer0/ops::release-semver-contract (authoritative)
 // Thin TypeScript launcher wrapper only.
 
-const { runProtheusOps } = require('./run_protheus_ops.ts');
+const { runInfringOps } = require('./run_infring_ops.ts');
 const DEFAULT_COMMAND = 'status';
 const ALLOWED_COMMANDS = new Set(['status', 'run']);
 
@@ -27,15 +27,15 @@ function run(argv = process.argv.slice(2)) {
     command === DEFAULT_COMMAND && !ALLOWED_COMMANDS.has(String(args[0] || '').toLowerCase())
       ? [command, ...args]
       : [command, ...rest];
-  return runProtheusOps(
+  return runInfringOps(
     ['release-semver-contract', ...passArgs],
     {
       // Route through conduit kernel; direct local-core dispatch omits this domain key.
       preferLocalCore: false,
       env: {
         // Local core is authoritative for newest domains; prebuilt may lag.
-        PROTHEUS_OPS_USE_PREBUILT: process.env.PROTHEUS_OPS_USE_PREBUILT || '0',
-        PROTHEUS_OPS_LOCAL_TIMEOUT_MS: process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '600000',
+        INFRING_OPS_USE_PREBUILT: process.env.INFRING_OPS_USE_PREBUILT || '0',
+        INFRING_OPS_LOCAL_TIMEOUT_MS: process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '600000',
       },
     }
   );

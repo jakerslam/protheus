@@ -30,7 +30,7 @@ fn run_prepare_run(payload: &Map<String, Value>) -> Value {
 }
 
 fn resolve_command_and_args(domain: &str) -> (String, Vec<String>) {
-    let explicit = std::env::var("PROTHEUS_OPS_BIN")
+    let explicit = std::env::var("INFRING_OPS_BIN")
         .ok()
         .map(|v| v.trim().to_string())
         .filter(|v| !v.is_empty());
@@ -49,9 +49,9 @@ fn resolve_command_and_args(domain: &str) -> (String, Vec<String>) {
             "run".to_string(),
             "--quiet".to_string(),
             "-p".to_string(),
-            "protheus-ops-core".to_string(),
+            "infring-ops-core".to_string(),
             "--bin".to_string(),
-            "protheus-ops".to_string(),
+            "infring-ops".to_string(),
             "--".to_string(),
             domain.to_string(),
         ],

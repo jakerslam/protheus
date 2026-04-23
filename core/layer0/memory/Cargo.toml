@@ -1,12 +1,12 @@
 [package]
-name = "protheus-memory-core-v6"
+name = "infring-memory-core-v6"
 version = "0.1.0"
 edition = "2021"
 license = "SEE LICENSE IN LICENSE"
 description = "Authoritative Rust memory core (Ebbinghaus + CRDT + compression + recall + SQLite)."
 
 [lib]
-name = "protheus_memory_core_v6"
+name = "infring_memory_core_v6"
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [[bin]]
@@ -30,7 +30,7 @@ snap = "1.1"
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 rusqlite = { version = "0.32", features = ["bundled"] }
 
-[package.metadata.protheus]
+[package.metadata.infring]
 wasm_target = "wasm32-unknown-unknown"
 ios_targets = ["aarch64-apple-ios", "x86_64-apple-ios"]
 android_targets = ["aarch64-linux-android", "x86_64-linux-android"]

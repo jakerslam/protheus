@@ -77,7 +77,7 @@ fn env_true(keys: &[&str]) -> bool {
 
 fn release_channel() -> String {
     env::var("INFRING_RELEASE_CHANNEL")
-        .or_else(|_| env::var("PROTHEUS_RELEASE_CHANNEL"))
+        .or_else(|_| env::var("INFRING_RELEASE_CHANNEL"))
         .unwrap_or_else(|_| "stable".to_string())
         .trim()
         .to_ascii_lowercase()
@@ -96,10 +96,10 @@ fn resident_ipc_authoritative() -> bool {
     }
     !env_true(&[
         "INFRING_OPS_ALLOW_PROCESS_FALLBACK",
-        "PROTHEUS_OPS_ALLOW_PROCESS_FALLBACK",
+        "INFRING_OPS_ALLOW_PROCESS_FALLBACK",
         "INFRING_SDK_ALLOW_PROCESS_TRANSPORT",
         "INFRING_OPS_FORCE_LEGACY_PROCESS_RUNNER",
-        "PROTHEUS_OPS_FORCE_LEGACY_PROCESS_RUNNER",
+        "INFRING_OPS_FORCE_LEGACY_PROCESS_RUNNER",
     ])
 }
 

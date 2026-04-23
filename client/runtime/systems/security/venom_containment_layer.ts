@@ -4,7 +4,7 @@
 // TypeScript compatibility shim only.
 // Layer ownership: core/layer0/ops::venom-containment-layer (authoritative domain route).
 
-const mod = require('../../../../adapters/runtime/protheus_cli_modules.ts').venomContainmentLayer;
+const mod = require('../../../../adapters/runtime/infring_cli_modules.ts').venomContainmentLayer;
 
 function normalizeArgs(argv = process.argv.slice(2)) {
   return Array.isArray(argv) ? argv.map((token) => String(token || '').trim()).filter(Boolean) : [];

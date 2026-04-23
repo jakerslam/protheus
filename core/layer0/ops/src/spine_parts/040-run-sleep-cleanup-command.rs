@@ -420,7 +420,7 @@ fn constitution_hash(root: &Path) -> (bool, Option<String>, Option<String>) {
     match fs::read_to_string(&path) {
         Ok(raw) => {
             let digest = stable_hash(&raw, 64);
-            let expected = std::env::var("PROTHEUS_CONSTITUTION_HASH").ok();
+            let expected = std::env::var("INFRING_CONSTITUTION_HASH").ok();
             if let Some(exp) = expected {
                 (digest == exp, Some(digest), Some(exp))
             } else {

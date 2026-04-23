@@ -14,11 +14,11 @@ const DEFAULT_HOST: &str = "www.moltbook.com";
 
 fn usage() {
     println!("moltbook-hot-collector-kernel commands:");
-    println!("  protheus-ops moltbook-hot-collector-kernel run --payload-base64=<json>");
-    println!("  protheus-ops moltbook-hot-collector-kernel preflight --payload-base64=<json>");
-    println!("  protheus-ops moltbook-hot-collector-kernel classify-fetch-error --payload-base64=<json>");
-    println!("  protheus-ops moltbook-hot-collector-kernel map-posts --payload-base64=<json>");
-    println!("  protheus-ops moltbook-hot-collector-kernel collect --payload-base64=<json>");
+    println!("  infring-ops moltbook-hot-collector-kernel run --payload-base64=<json>");
+    println!("  infring-ops moltbook-hot-collector-kernel preflight --payload-base64=<json>");
+    println!("  infring-ops moltbook-hot-collector-kernel classify-fetch-error --payload-base64=<json>");
+    println!("  infring-ops moltbook-hot-collector-kernel map-posts --payload-base64=<json>");
+    println!("  infring-ops moltbook-hot-collector-kernel collect --payload-base64=<json>");
 }
 
 fn clean_text(raw: Option<&str>, max_len: usize) -> String {
@@ -91,7 +91,7 @@ fn curl_fetch_with_status(
         cmd.arg("-H").arg(format!("{k}: {v}"));
     }
     cmd.arg("-w")
-        .arg("\n__PROTHEUS_STATUS__:%{http_code}\n")
+        .arg("\n__INFRING_STATUS__:%{http_code}\n")
         .arg(url);
 
     let output = cmd
@@ -104,7 +104,7 @@ fn curl_fetch_with_status(
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    let marker = "\n__PROTHEUS_STATUS__:";
+    let marker = "\n__INFRING_STATUS__:";
     let marker_pos = stdout
         .rfind(marker)
         .ok_or_else(|| "collector_fetch_missing_status_marker".to_string())?;

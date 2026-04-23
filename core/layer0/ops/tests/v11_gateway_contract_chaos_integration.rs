@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SRS coverage: V11-ADAPTER-CHAOS-001
 
-use protheus_ops_core::framework_adapter_contract::execute_governed_workflow;
+use infring_ops_core::framework_adapter_contract::execute_governed_workflow;
 use serde_json::json;
 
 #[test]

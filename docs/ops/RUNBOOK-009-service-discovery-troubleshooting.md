@@ -20,7 +20,7 @@ Common symptoms:
 
 ## Prerequisites
 
-- Access to spine router logs (`/var/log/protheus/spine-router.log`)
+- Access to spine router logs (`/var/log/infring/spine-router.log`)
 - `curl` or `http` client for manual health checks
 - `infringctl` CLI access (for internal routing inspection)
 
@@ -46,7 +46,7 @@ If `services_healthy` is significantly lower than `services_registered`, continu
 ### 2. Review recent router logs
 
 ```bash
-tail -n 500 /var/log/protheus/spine-router.log | grep -E "(registration|deregistration|health.*fail|timeout)"
+tail -n 500 /var/log/infring/spine-router.log | grep -E "(registration|deregistration|health.*fail|timeout)"
 ```
 
 Look for patterns:
@@ -59,7 +59,7 @@ Look for patterns:
 Check if `SPINE_ROUTER_PROBE_ALL` is enabled (should be `1` in production):
 
 ```bash
-grep SPINE_ROUTER_PROBE_ALL /etc/protheus/environment
+grep SPINE_ROUTER_PROBE_ALL /etc/infring/environment
 ```
 
 ## Diagnostic Steps (10-15 minutes)
@@ -184,4 +184,4 @@ curl -s http://localhost:8080/api/v1/status
 
 ---
 
-*This document follows the Protheus operational runbook standards. For questions or updates, ping @rohan on Slack or open a PR.*
+*This document follows the Infring operational runbook standards. For questions or updates, ping @rohan on Slack or open a PR.*

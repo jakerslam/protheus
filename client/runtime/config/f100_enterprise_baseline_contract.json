@@ -66,7 +66,7 @@
     {
       "id": "helm_packaging_present",
       "type": "file_exists",
-      "path": "client/runtime/deploy/helm/protheus/Chart.yaml"
+      "path": "client/runtime/deploy/helm/infring/Chart.yaml"
     },
     {
       "id": "helm_conformance_ci_present",
@@ -76,40 +76,40 @@
     {
       "id": "helm_sso_values_present",
       "type": "file_contains",
-      "path": "client/runtime/deploy/helm/protheus/values.yaml",
+      "path": "client/runtime/deploy/helm/infring/values.yaml",
       "pattern": "sso:"
     },
     {
       "id": "helm_vault_values_present",
       "type": "file_contains",
-      "path": "client/runtime/deploy/helm/protheus/values.yaml",
+      "path": "client/runtime/deploy/helm/infring/values.yaml",
       "pattern": "vault:"
     },
     {
       "id": "helm_nvidia_values_present",
       "type": "file_contains",
-      "path": "client/runtime/deploy/helm/protheus/values.yaml",
+      "path": "client/runtime/deploy/helm/infring/values.yaml",
       "pattern": "nvidia:"
     },
     {
       "id": "helm_daemon_multinode_present",
       "type": "file_exists",
-      "path": "client/runtime/deploy/helm/protheus/templates/deployment.yaml"
+      "path": "client/runtime/deploy/helm/infring/templates/deployment.yaml"
     },
     {
       "id": "helm_conformance_test_hook_present",
       "type": "file_exists",
-      "path": "client/runtime/deploy/helm/protheus/templates/tests/conformance.yaml"
+      "path": "client/runtime/deploy/helm/infring/templates/tests/conformance.yaml"
     },
     {
       "id": "terraform_packaging_present",
       "type": "file_exists",
-      "path": "client/runtime/deploy/terraform/protheus_helm/main.tf"
+      "path": "client/runtime/deploy/terraform/infring_helm/main.tf"
     },
     {
       "id": "terraform_enterprise_inputs_present",
       "type": "file_contains",
-      "path": "client/runtime/deploy/terraform/protheus_helm/variables.tf",
+      "path": "client/runtime/deploy/terraform/infring_helm/variables.tf",
       "pattern": "daemon_replicas"
     },
     {
@@ -121,7 +121,7 @@
       "id": "dockerfile_fips_contract_present",
       "type": "file_contains",
       "path": "Dockerfile",
-      "pattern": "PROTHEUS_FIPS_MODE"
+      "pattern": "INFRING_FIPS_MODE"
     },
     {
       "id": "dependabot_required_checks_contract",
@@ -153,7 +153,7 @@
     {
       "id": "helm_secret_wiring_enabled",
       "type": "file_contains",
-      "path": "client/runtime/deploy/helm/protheus/templates/cronjob.yaml",
+      "path": "client/runtime/deploy/helm/infring/templates/cronjob.yaml",
       "pattern": "secretRef"
     },
     {

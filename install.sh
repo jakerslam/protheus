@@ -58,9 +58,9 @@ INSTALL_SUDO_SHIMS="${INFRING_INSTALL_SUDO_SHIMS:-auto}"
 RUNTIME_MANIFEST_REL="client/runtime/config/install_runtime_manifest_v1.txt"
 RUNTIME_NODE_MODULE_MANIFEST_REL="${INFRING_RUNTIME_NODE_MODULE_MANIFEST_REL:-client/runtime/config/install_runtime_node_modules_v1.txt}"
 RUNTIME_NODE_REQUIRED_MODULES="${INFRING_RUNTIME_NODE_REQUIRED_MODULES:-typescript ws}"
-RUNTIME_TIER1_REQUIRED_ENTRYPOINTS="${INFRING_RUNTIME_TIER1_REQUIRED_ENTRYPOINTS:-client/runtime/systems/ops/protheusd.ts client/runtime/systems/ops/protheus_status_dashboard.ts client/runtime/systems/ops/protheus_unknown_guard.ts}"
+RUNTIME_TIER1_REQUIRED_ENTRYPOINTS="${INFRING_RUNTIME_TIER1_REQUIRED_ENTRYPOINTS:-client/runtime/systems/ops/infringd.ts client/runtime/systems/ops/infring_status_dashboard.ts client/runtime/systems/ops/infring_unknown_guard.ts}"
 INSTALL_VERIFY_ASSETS="${INFRING_INSTALL_VERIFY_ASSETS:-1}"
-INSTALL_ALLOW_UNVERIFIED_ASSETS="${INFRING_INSTALL_ALLOW_UNVERIFIED_ASSETS:-${PROTHEUS_INSTALL_ALLOW_UNVERIFIED_ASSETS:-0}}"
+INSTALL_ALLOW_UNVERIFIED_ASSETS="${INFRING_INSTALL_ALLOW_UNVERIFIED_ASSETS:-${INFRING_INSTALL_ALLOW_UNVERIFIED_ASSETS:-0}}"
 INSTALL_STRICT_PRERELEASE_CHECKSUM="${INFRING_INSTALL_STRICT_PRERELEASE_CHECKSUM:-0}"
 INSTALL_ASSET_CACHE="${INFRING_INSTALL_ASSET_CACHE:-1}"
 INSTALL_OFFLINE="${INFRING_INSTALL_OFFLINE:-0}"
@@ -2066,20 +2066,20 @@ source_fallback_bin_candidates() {
   case "$stem_name" in
     infring-ops)
       printf '%s\n' "infring-ops"
-      # 'protheus-ops' is deprecated and kept as a compatibility alias for legacy release bundles.
-      printf '%s\n' "protheus-ops"
+      # 'infring-ops' is deprecated and kept as a compatibility alias for legacy release bundles.
+      printf '%s\n' "infring-ops"
       ;;
     infringd|infringd-tiny-max)
       printf '%s\n' "infringd"
-      # 'protheusd' is deprecated and kept as a compatibility alias for legacy release bundles.
-      printf '%s\n' "protheusd"
+      # 'infringd' is deprecated and kept as a compatibility alias for legacy release bundles.
+      printf '%s\n' "infringd"
       ;;
     conduit_daemon)
       printf '%s\n' "conduit_daemon"
       ;;
     infring-pure-workspace|infring-pure-workspace-tiny-max)
       printf '%s\n' "infring-pure-workspace"
-      printf '%s\n' "protheus-pure-workspace"
+      printf '%s\n' "infring-pure-workspace"
       ;;
     *) return 1 ;;
   esac
@@ -3016,7 +3016,7 @@ run_dashboard_health_smoke() {
 
   dashboard_smoke_root="${INFRING_WORKSPACE_ROOT:-}"
   if [ -z "$dashboard_smoke_root" ] || [ ! -d "$dashboard_smoke_root" ]; then
-    for candidate in "$HOME/.infring/workspace" "$HOME/.protheus/workspace"; do
+    for candidate in "$HOME/.infring/workspace" "$HOME/.infring/workspace"; do
       if [ -d "$candidate" ]; then
         dashboard_smoke_root="$candidate"
         break
@@ -3409,7 +3409,7 @@ case "$daemon_cmd" in
         if "$ops_bin" infringctl --help >/dev/null 2>&1; then
           ops_domain="infringctl"
         else
-          ops_domain="protheusctl"
+          ops_domain="infringctl"
         fi
       fi
       exec "$ops_bin" "$ops_domain" "$@"
@@ -4536,7 +4536,7 @@ if [ -z \"\$ops_domain\" ]; then
   if \"$ops_bin\" infringctl --help >/dev/null 2>&1; then
     ops_domain=\"infringctl\"
   else
-    ops_domain=\"protheusctl\"
+    ops_domain=\"infringctl\"
   fi
 fi
 exec \"$ops_bin\" \"\$ops_domain\" \"\$@\""

@@ -6,7 +6,7 @@
 
 const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge.ts');
 
-process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
+process.env.INFRING_OPS_USE_PREBUILT = process.env.INFRING_OPS_USE_PREBUILT || '0';
 const bridge = createOpsLaneBridge(__dirname, 'benchmark_autonomy_gate', 'benchmark-autonomy-gate', {
   inheritStdio: false
 });

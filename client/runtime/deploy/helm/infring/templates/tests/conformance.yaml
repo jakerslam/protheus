@@ -2,9 +2,9 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: {{ include "protheus.fullname" . }}-conformance
+  name: {{ include "infring.fullname" . }}-conformance
   labels:
-    app.kubernetes.io/name: {{ include "protheus.name" . }}
+    app.kubernetes.io/name: {{ include "infring.name" . }}
     app.kubernetes.io/instance: {{ .Release.Name }}
   annotations:
     "helm.sh/hook": test
@@ -19,13 +19,13 @@ spec:
         - |
           test -n "$NODE_ENV"
           test "$NODE_ENV" = "production"
-          test -n "$PROTHEUS_SSO_ENABLED"
+          test -n "$INFRING_SSO_ENABLED"
       envFrom:
         - configMapRef:
-            name: {{ include "protheus.fullname" . }}-runtime
+            name: {{ include "infring.fullname" . }}-runtime
 {{- if or .Values.secrets.create .Values.secrets.existingSecretName }}
         - secretRef:
-            name: {{ include "protheus.secretName" . }}
+            name: {{ include "infring.secretName" . }}
             optional: {{ .Values.secrets.optional }}
 {{- end }}
 {{- end }}

@@ -11,8 +11,8 @@ const DEFAULT_AUDIT_REL = 'local/state/security/egress_gateway/audit.jsonl';
 const BRIDGE_PATH = 'client/runtime/lib/egress_gateway.ts';
 const GATEWAY_KIND = 'egress_gateway';
 function runtimeRoot() {
-    if (process.env.PROTHEUS_RUNTIME_ROOT) {
-        return path.resolve(String(process.env.PROTHEUS_RUNTIME_ROOT));
+    if (process.env.INFRING_RUNTIME_ROOT) {
+        return path.resolve(String(process.env.INFRING_RUNTIME_ROOT));
     }
     return path.resolve(__dirname, '..');
 }
@@ -50,8 +50,8 @@ function statePath() {
 function auditPath() {
     return resolvePath(process.env.EGRESS_GATEWAY_AUDIT_PATH, DEFAULT_AUDIT_REL);
 }
-process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
-process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
+process.env.INFRING_OPS_USE_PREBUILT = process.env.INFRING_OPS_USE_PREBUILT || '0';
+process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '120000';
 const bridge = createOpsLaneBridge(__dirname, 'egress_gateway', 'egress-gateway-kernel');
 function encodeBase64(value) {
     return Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');

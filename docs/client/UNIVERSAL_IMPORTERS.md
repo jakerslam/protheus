@@ -17,10 +17,10 @@
 node client/runtime/systems/migration/universal_importers.ts run --from=infring --path=./dump/infring.json --apply=1 --strict=1
 
 # Control-plane façade
-protheusctl import --from=infring --path=./dump/infring.json --apply=1 --strict=1
+infringctl import --from=infring --path=./dump/infring.json --apply=1 --strict=1
 
 # Migration alias façade
-protheusctl migrate --from=infring --path=./dump/infring.json --apply=1 --strict=1
+infringctl migrate --from=infring --path=./dump/infring.json --apply=1 --strict=1
 ```
 
 ## Contract

@@ -29,9 +29,9 @@ mod tests;
 fn usage() {
     println!("Usage:");
     println!(
-        "  protheus-ops continuity-runtime resurrection-protocol <checkpoint|restore|status> [flags]"
+        "  infring-ops continuity-runtime resurrection-protocol <checkpoint|restore|status> [flags]"
     );
-    println!("  protheus-ops continuity-runtime session-continuity-vault <put|get|status> [flags]");
+    println!("  infring-ops continuity-runtime session-continuity-vault <put|get|status> [flags]");
 }
 
 fn print_json_line(value: &Value) {
@@ -119,7 +119,7 @@ fn default_policy() -> ContinuityPolicy {
         allow_degraded_restore: false,
         allow_sessionless_resurrection: true,
         require_vault_encryption: true,
-        vault_key_env: "PROTHEUS_CONTINUITY_VAULT_KEY".to_string(),
+        vault_key_env: "INFRING_CONTINUITY_VAULT_KEY".to_string(),
     }
 }
 

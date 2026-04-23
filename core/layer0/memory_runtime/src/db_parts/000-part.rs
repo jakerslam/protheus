@@ -80,7 +80,7 @@ fn resolve_db_path(root: &Path, raw: &str) -> PathBuf {
 }
 
 fn derive_key_material(root: &Path) -> String {
-    if let Ok(v) = env::var("PROTHEUS_MEMORY_DB_KEY") {
+    if let Ok(v) = env::var("INFRING_MEMORY_DB_KEY") {
         let trimmed = v.trim().to_string();
         if !trimmed.is_empty() {
             return trimmed;

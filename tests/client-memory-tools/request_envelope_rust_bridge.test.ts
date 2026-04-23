@@ -13,8 +13,8 @@ function resetModule(modulePath) {
 }
 
 function main() {
-  process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
-  process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = '120000';
+  process.env.INFRING_OPS_USE_PREBUILT = '0';
+  process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = '120000';
 
   const mod = resetModule(path.join(ROOT, 'client/lib/request_envelope.ts'));
   assert.deepEqual(mod.normalizeFiles(['b.txt', 'a.txt', 'a.txt', 'c\\x.txt']), ['a.txt', 'b.txt', 'c/x.txt']);

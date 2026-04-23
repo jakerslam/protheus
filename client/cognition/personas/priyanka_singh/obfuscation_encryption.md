@@ -2,7 +2,7 @@
 
 - **Enabled:** false
 - **Mode:** off
-- **Key Env Var:** PROTHEUS_PERSONA_ENCRYPTION_KEY
+- **Key Env Var:** INFRING_PERSONA_ENCRYPTION_KEY
 
 ## Modes
 

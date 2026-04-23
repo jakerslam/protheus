@@ -12,7 +12,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("clock")
             .as_nanos();
-        let root = std::env::temp_dir().join(format!("protheus_directive_kernel_{name}_{nonce}"));
+        let root = std::env::temp_dir().join(format!("infring_directive_kernel_{name}_{nonce}"));
         fs::create_dir_all(&root).expect("mkdir");
         root
     }

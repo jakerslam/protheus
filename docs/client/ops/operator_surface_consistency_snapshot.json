@@ -2,15 +2,15 @@
   "schema_id": "operator_surface_consistency_snapshot",
   "schema_version": "1.0",
   "surfaces": {
-    "protheus": {
+    "infring": {
       "status_vocab": ["ok", "degraded", "blocked"],
       "error_shape": ["code", "message", "receipt_hash"]
     },
-    "protheusctl": {
+    "infringctl": {
       "status_vocab": ["ok", "degraded", "blocked"],
       "error_shape": ["code", "message", "receipt_hash"]
     },
-    "protheus_top": {
+    "infring_top": {
       "status_vocab": ["ok", "degraded", "blocked"],
       "error_shape": ["code", "message", "receipt_hash"]
     }

@@ -1,6 +1,6 @@
 # client/memory/README.md
 
-This directory is the versioned memory knowledge surface for Protheus.
+This directory is the versioned memory knowledge surface for Infring.
 Runtime/user-instance memory belongs under `client/runtime/local/memory` (ignored).
 
 Conversation synthesis runtime output is emitted to:

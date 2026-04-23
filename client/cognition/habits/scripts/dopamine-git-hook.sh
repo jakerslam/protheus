@@ -2,7 +2,7 @@
 #
 # post-commit hook - Auto-capture artifacts after each git commit
 # Install:
-#   WORKSPACE_ROOT="${INFRING_WORKSPACE:-${PROTHEUS_WORKSPACE:-$HOME/.infring/workspace}}"
+#   WORKSPACE_ROOT="${INFRING_WORKSPACE:-${INFRING_WORKSPACE:-$HOME/.infring/workspace}}"
 #   ln -sf "$WORKSPACE_ROOT/client/cognition/habits/scripts/dopamine-git-hook.sh" .git/hooks/post-commit
 #
 

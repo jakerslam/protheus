@@ -4,7 +4,7 @@
 # Author: Rohan Kapoor
 # Last Updated: 2026-03-18
 #
-# Monitors disk usage for Protheus deployments and alerts when thresholds
+# Monitors disk usage for Infring deployments and alerts when thresholds
 # are exceeded. Designed to be run via cron or CI health checks.
 #
 # Usage:
@@ -75,7 +75,7 @@ parse_args() {
                 shift 2
                 ;;
             --help|-h)
-                echo "Disk Usage Monitor for Protheus"
+                echo "Disk Usage Monitor for Infring"
                 echo ""
                 echo "Options:"
                 echo "  --notify       Send notifications if thresholds exceeded"
@@ -225,7 +225,7 @@ main() {
     
     # Header for non-JSON output
     if [ "$OUTPUT_JSON" = false ]; then
-        log "=== Protheus Disk Usage Monitor ==="
+        log "=== Infring Disk Usage Monitor ==="
         log "Checking paths (warn: ${WARN_THRESHOLD}%, critical: ${CRITICAL_THRESHOLD}%)"
         echo ""
     fi

@@ -113,7 +113,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "ok": true,
             "type": "workspace_file_search_status",
             "source": "cline:file-search",
-            "ripgrep_binary": std::env::var("PROTHEUS_RG_BINARY").unwrap_or_else(|_| "rg".to_string()),
+            "ripgrep_binary": std::env::var("INFRING_RG_BINARY").unwrap_or_else(|_| "rg".to_string()),
             "ripgrep_install_hint": ripgrep_install_hint()
         }),
         "list" => run_search(root, &parsed, ""),

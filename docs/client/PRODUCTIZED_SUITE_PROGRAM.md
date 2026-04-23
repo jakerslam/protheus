@@ -1,7 +1,7 @@
 # Productized Suite Program
 
 This program executes and verifies the backlog implementation lanes for the
-`protheus-*` productized tool suite and linked organization-provenance controls.
+`infring-*` productized tool suite and linked organization-provenance controls.
 
 ## Covered Backlog IDs
 
@@ -17,8 +17,8 @@ This program executes and verifies the backlog implementation lanes for the
 
 - Program: `node client/runtime/systems/ops/productized_suite_program.ts <list|run|run-all|status>`
 - Policy: `client/runtime/config/productized_suite_program_policy.json`
-- Tool runtime: `node client/runtime/systems/cli/protheus_suite_tooling.ts <tool> <command> [--k=v]`
-- Standalone wrappers: `client/cli/bin/protheus-graph.ts`, `client/cli/bin/protheus-mem.ts`, `client/cli/bin/protheus-telemetry.ts`, `client/cli/bin/protheus-vault.ts`, `client/cli/bin/protheus-swarm.ts`, `client/cli/bin/protheus-redlegion.ts`, `client/cli/bin/protheus-forge.ts`, `client/cli/bin/protheus-bootstrap.ts`, `client/cli/bin/protheus-econ.ts`, `client/cli/bin/protheus-soul.ts`, `client/cli/bin/protheus-pinnacle.ts`
+- Tool runtime: `node client/runtime/systems/cli/infring_suite_tooling.ts <tool> <command> [--k=v]`
+- Standalone wrappers: `client/cli/bin/infring-graph.ts`, `client/cli/bin/infring-mem.ts`, `client/cli/bin/infring-telemetry.ts`, `client/cli/bin/infring-vault.ts`, `client/cli/bin/infring-swarm.ts`, `client/cli/bin/infring-redlegion.ts`, `client/cli/bin/infring-forge.ts`, `client/cli/bin/infring-bootstrap.ts`, `client/cli/bin/infring-econ.ts`, `client/cli/bin/infring-soul.ts`, `client/cli/bin/infring-pinnacle.ts`
 
 ## Verification and Receipts
 

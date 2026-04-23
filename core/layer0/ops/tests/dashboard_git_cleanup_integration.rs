@@ -1,4 +1,4 @@
-use protheus_ops_core::dashboard_git_runtime::{
+use infring_ops_core::dashboard_git_runtime::{
     cleanup_agent_git_artifacts, git_branch_exists, git_current_branch, switch_agent_worktree,
     workspace_for_agent_branch,
 };

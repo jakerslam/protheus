@@ -70,7 +70,7 @@ fn agent_terminal_routes_through_command_router() {
             .payload
             .get("executed_command")
             .and_then(Value::as_str),
-        Some("protheus-ops daemon ping")
+        Some("infring-ops daemon ping")
     );
     assert_eq!(
         translated
@@ -84,7 +84,7 @@ fn agent_terminal_routes_through_command_router() {
             .payload
             .get("translation_reason")
             .and_then(Value::as_str),
-        Some("translated_infring_cli_alias_to_protheus_ops")
+        Some("translated_infring_cli_alias_to_infring_ops")
     );
 }
 

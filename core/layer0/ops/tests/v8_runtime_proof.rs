@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use protheus_ops_core::{
+use infring_ops_core::{
     binary_blob_runtime, directive_kernel, intelligence_nexus, mcp_plane, network_protocol,
     organism_layer,
 };
@@ -26,7 +26,7 @@ fn temp_root(name: &str) -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .expect("clock")
         .as_nanos();
-    let root = std::env::temp_dir().join(format!("protheus_v8_runtime_proof_{name}_{nonce}"));
+    let root = std::env::temp_dir().join(format!("infring_v8_runtime_proof_{name}_{nonce}"));
     fs::create_dir_all(&root).expect("mkdir");
     root
 }

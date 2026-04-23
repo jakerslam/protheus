@@ -87,8 +87,8 @@ pub fn run(root: &Path, args: &[String]) -> i32 {
 
     if matches!(cmd.as_str(), "help" | "--help" | "-h") {
         println!("Usage:");
-        println!("  protheus-ops strategy-mode-governor status");
-        println!("  protheus-ops strategy-mode-governor evaluate [--mode=score_only|canary_execute|execute] [--ready=1|0] [--failed-checks=a,b] [--canary-preview-ready=1|0] [--canary-ready=1|0] [--quality-lock=1|0]");
+        println!("  infring-ops strategy-mode-governor status");
+        println!("  infring-ops strategy-mode-governor evaluate [--mode=score_only|canary_execute|execute] [--ready=1|0] [--failed-checks=a,b] [--canary-preview-ready=1|0] [--canary-ready=1|0] [--quality-lock=1|0]");
         return 0;
     }
 

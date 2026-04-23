@@ -1,7 +1,7 @@
 # REQ-26 — TCB Systems Rust Authority Cutover
 
 Status: in_progress  
-Owner: Protheus Kernel  
+Owner: Infring Kernel  
 Updated: 2026-03-06
 
 ## Objective
@@ -26,15 +26,15 @@ TS surface-only allowlist:
 ## Acceptance Criteria
 
 1. Kernel entrypoint launchers in the TCB paths dispatch to Rust binaries/crates.
-2. Rust `protheus-ops` exposes native domains for any newly cutover controllers.
+2. Rust `infring-ops` exposes native domains for any newly cutover controllers.
 3. Policy gates encode TCB-required prefixes and TS surface allowlist.
-4. `cargo test -p protheus-ops-core` and `cargo clippy -p protheus-ops-core --all-targets -- -D warnings` pass.
+4. `cargo test -p infring-ops-core` and `cargo clippy -p infring-ops-core --all-targets -- -D warnings` pass.
 5. `formal:invariants:run` remains green.
 
 ## Phase-1 Deliverables (this batch)
 
 - Restored Rust runtime dispatch shims for reverted launchers:
-  - `client/runtime/systems/ops/protheusctl.ts`
+  - `client/runtime/systems/ops/infringctl.ts`
   - `client/runtime/systems/ops/state_kernel.ts`
   - `client/runtime/systems/ops/autotest_controller.ts`
   - `client/runtime/systems/ops/autotest_doctor.ts`
@@ -67,7 +67,7 @@ TS surface-only allowlist:
 
 - Added Rust domains in `core/layer0/ops`:
   - `execution_yield_recovery`
-  - `protheus_control_plane`
+  - `infring_control_plane`
   - `rust50_migration_program`
   - `venom_containment_layer`
   - `dynamic_burn_budget_oracle`

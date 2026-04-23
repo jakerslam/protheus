@@ -9,8 +9,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     if matches!(command.as_str(), "help" | "--help" | "-h") {
         println!("Usage:");
-        println!("  protheus-ops backlog-queue-executor run [--all=1] [--ids=A,B] [--max=N] [--dry-run=1] [--with-tests=1]");
-        println!("  protheus-ops backlog-queue-executor status");
+        println!("  infring-ops backlog-queue-executor run [--all=1] [--ids=A,B] [--max=N] [--dry-run=1] [--with-tests=1]");
+        println!("  infring-ops backlog-queue-executor status");
         return 0;
     }
 

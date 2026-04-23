@@ -258,7 +258,7 @@ fn status_receipt(root: &Path) -> Value {
 fn usage() {
     println!("Usage:");
     println!(
-        "  protheus-ops rollout-rings status\n  protheus-ops rollout-rings evaluate --phase=<shadow|canary_5pct|...> --success-rate=<0..1> --error-rate=<0..1> --p95-regression-pct=<n> [--crash-count=<n>]"
+        "  infring-ops rollout-rings status\n  infring-ops rollout-rings evaluate --phase=<shadow|canary_5pct|...> --success-rate=<0..1> --error-rate=<0..1> --p95-regression-pct=<n> [--crash-count=<n>]"
     );
 }
 

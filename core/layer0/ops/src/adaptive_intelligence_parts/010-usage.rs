@@ -16,7 +16,7 @@ use std::process::Command;
 
 const STATE_ENV: &str = "ADAPTIVE_INTELLIGENCE_STATE_ROOT";
 const STATE_SCOPE: &str = "adaptive_intelligence";
-const LOCAL_AI_BIN_ENV: &str = "PROTHEUS_LOCAL_AI_BIN";
+const LOCAL_AI_BIN_ENV: &str = "INFRING_LOCAL_AI_BIN";
 const COMMAND_PATH: &str = "core://adaptive-intelligence";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -102,11 +102,11 @@ struct ContextBundle {
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops adaptive-intelligence status");
-    println!("  protheus-ops adaptive-intelligence propose --prompt=<text> [--persona=<id>] [--logical-bias=<text>] [--creative-bias=<text>] [--vram-gb=<n>] [--ram-gb=<n>] [--cpu-cores=<n>] [--strict=1|0]");
-    println!("  protheus-ops adaptive-intelligence shadow-train [--cycles=<n>] [--persona=<id>] [--strict=1|0]");
-    println!("  protheus-ops adaptive-intelligence prioritize [--vram-gb=<n>] [--ram-gb=<n>] [--cpu-cores=<n>] [--strict=1|0]");
-    println!("  protheus-ops adaptive-intelligence graduate --model=<logical|creative> --human-only=1 --approvers=<csv> [--strict=1|0]");
+    println!("  infring-ops adaptive-intelligence status");
+    println!("  infring-ops adaptive-intelligence propose --prompt=<text> [--persona=<id>] [--logical-bias=<text>] [--creative-bias=<text>] [--vram-gb=<n>] [--ram-gb=<n>] [--cpu-cores=<n>] [--strict=1|0]");
+    println!("  infring-ops adaptive-intelligence shadow-train [--cycles=<n>] [--persona=<id>] [--strict=1|0]");
+    println!("  infring-ops adaptive-intelligence prioritize [--vram-gb=<n>] [--ram-gb=<n>] [--cpu-cores=<n>] [--strict=1|0]");
+    println!("  infring-ops adaptive-intelligence graduate --model=<logical|creative> --human-only=1 --approvers=<csv> [--strict=1|0]");
 }
 
 fn policy_path(root: &Path) -> PathBuf {

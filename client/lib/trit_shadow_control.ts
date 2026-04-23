@@ -33,7 +33,7 @@ const CALIBRATION_HISTORY_PATH = process.env.AUTONOMY_TRIT_SHADOW_CALIBRATION_HI
   ? path.resolve(process.env.AUTONOMY_TRIT_SHADOW_CALIBRATION_HISTORY_PATH)
   : path.join(repoRoot(), 'local', 'state', 'autonomy', 'trit_shadow_calibration', 'history.jsonl');
 
-process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
+process.env.INFRING_OPS_USE_PREBUILT = process.env.INFRING_OPS_USE_PREBUILT || '0';
 const bridge = createOpsLaneBridge(__dirname, 'trit_shadow_control', 'trit-shadow-kernel');
 
 function encodeBase64(value) {

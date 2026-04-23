@@ -24,24 +24,24 @@ use persist_plane_cowork::run_cowork;
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops persist-plane status");
+    println!("  infring-ops persist-plane status");
     println!(
-        "  protheus-ops persist-plane schedule --op=<upsert|list|kickoff> [--job=<id>] [--cron=<expr>] [--workflow=<id>] [--owner=<id>] [--strict=1|0]"
+        "  infring-ops persist-plane schedule --op=<upsert|list|kickoff> [--job=<id>] [--cron=<expr>] [--workflow=<id>] [--owner=<id>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops persist-plane mobile-cockpit --op=<publish|status|intervene> [--session-id=<id>] [--device=<id>] [--action=<pause|resume|abort>] [--strict=1|0]"
+        "  infring-ops persist-plane mobile-cockpit --op=<publish|status|intervene> [--session-id=<id>] [--device=<id>] [--action=<pause|resume|abort>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops persist-plane continuity --op=<checkpoint|reconstruct|status|validate> [--session-id=<id>] [--context-json=<json>] [--strict=1|0]"
+        "  infring-ops persist-plane continuity --op=<checkpoint|reconstruct|status|validate> [--session-id=<id>] [--context-json=<json>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops persist-plane connector --op=<add|list|status|remove> [--provider=<slack|gmail|drive>] [--policy-template=<id>] [--strict=1|0]"
+        "  infring-ops persist-plane connector --op=<add|list|status|remove> [--provider=<slack|gmail|drive>] [--policy-template=<id>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops persist-plane cowork --op=<delegate|tick|status|list> [--task=<text>] [--parent=<id>] [--child=<id>] [--mode=<co-work|sub-agent>] [--budget-ms=<n>] [--strict=1|0]"
+        "  infring-ops persist-plane cowork --op=<delegate|tick|status|list> [--task=<text>] [--parent=<id>] [--child=<id>] [--mode=<co-work|sub-agent>] [--budget-ms=<n>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops persist-plane mobile-daemon --op=<enable|status|handoff> [--platform=<android|ios>] [--edge-backend=<bitnet>] [--sensor-lanes=<camera,mic,gps>] [--handoff=<edge|cloud>] [--strict=1|0]"
+        "  infring-ops persist-plane mobile-daemon --op=<enable|status|handoff> [--platform=<android|ios>] [--edge-backend=<bitnet>] [--sensor-lanes=<camera,mic,gps>] [--handoff=<edge|cloud>] [--strict=1|0]"
     );
 }
 

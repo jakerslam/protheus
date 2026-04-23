@@ -23,7 +23,7 @@ Primary deployment runbook:
 npm run -s ops:churn:commit-gate
 npm run -s test:security:truth-gate
 npm run -s ops:srs:full:regression
-cargo run -p protheus-ops-core --bin protheus-ops -- contract-check status --rust-contract-check-ids=rust_source_of_truth_contract
+cargo run -p infring-ops-core --bin infring-ops -- contract-check status --rust-contract-check-ids=rust_source_of_truth_contract
 ```
 
 ## Operational Notes

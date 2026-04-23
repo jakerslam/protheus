@@ -49,7 +49,7 @@ function run() {
     'expected swarm orchestration wrapper to expose shared run binder'
   );
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'swarm-runtime-test-'));
-  const fakeBin = path.join(tmpDir, 'protheus-ops');
+  const fakeBin = path.join(tmpDir, 'infring-ops');
   const testState = path.join(tmpDir, 'state.json');
 
   fs.writeFileSync(
@@ -60,7 +60,7 @@ function run() {
   fs.chmodSync(fakeBin, 0o755);
 
   const statusRun = runNode(['status', `--state-path=${testState}`], {
-    PROTHEUS_NPM_BINARY: fakeBin,
+    INFRING_NPM_BINARY: fakeBin,
   });
   const stdout = String(statusRun.stdout || '');
   const stderr = String(statusRun.stderr || '');
@@ -75,7 +75,7 @@ function run() {
   );
 
   const recursiveRun = runNode(['test', '--id=2', '--levels=3', `--state-path=${testState}`], {
-    PROTHEUS_NPM_BINARY: fakeBin,
+    INFRING_NPM_BINARY: fakeBin,
   });
   assert.strictEqual(
     recursiveRun.status,
@@ -86,7 +86,7 @@ function run() {
   const budgetedRun = runNode(
     ['run', '--objective=budget-check', '--team_size=1', '--token-budget=500', `--state-path=${testState}`],
     {
-      PROTHEUS_NPM_BINARY: fakeBin,
+      INFRING_NPM_BINARY: fakeBin,
     }
   );
   assert.notStrictEqual(

@@ -91,7 +91,7 @@ This supplement captures client/runtime functional requirements that are not com
 - `npm run -s ops:rust-core-file-size:gate`
 - `npm run -s ops:client-layer:boundary`
 - `npm run -s test:ci` (or focused lane tests for touched surfaces)
-- `cargo test -p protheus-ops-core <touched_kernel_module>`
+- `cargo test -p infring-ops-core <touched_kernel_module>`
 
 ## Migration notes
 - This file is authoritative for migration sequencing and regression prevention until clauses are merged into canonical `SRS.md` lanes.

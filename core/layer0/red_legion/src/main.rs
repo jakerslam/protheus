@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
-use protheus_red_legion_core_v1::{run_chaos_game, run_chaos_game_json, ChaosGameRequest};
+use infring_red_legion_core_v1::{run_chaos_game, run_chaos_game_json, ChaosGameRequest};
 use std::env;
 use std::fs;
 use std::path::{Component, Path};

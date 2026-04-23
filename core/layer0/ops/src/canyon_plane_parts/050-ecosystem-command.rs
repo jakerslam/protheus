@@ -52,7 +52,7 @@ fn ecosystem_command(
                 "type": "canyon_plane_ecosystem_init_help",
                 "lane": LANE_ID,
                 "ts": now_iso(),
-                "usage": "protheus init <template> [--pure] [--tiny-max=1|0] [--workspace-mode=infring|pure] [--target-dir=<path>] [--dry-run=1|0]",
+                "usage": "infring init <template> [--pure] [--tiny-max=1|0] [--workspace-mode=infring|pure] [--target-dir=<path>] [--dry-run=1|0]",
                 "flags": [
                     "--pure",
                     "--tiny-max=1|0",
@@ -138,7 +138,7 @@ fn ecosystem_command(
             files.push(target.join("src/main.rs").to_string_lossy().to_string());
             files.push(
                 target
-                    .join("protheus.init.json")
+                    .join("infring.init.json")
                     .to_string_lossy()
                     .to_string(),
             );
@@ -148,22 +148,22 @@ fn ecosystem_command(
                 fs::write(
                     target.join("README.md"),
                     format!(
-                        "# Protheus Pure Workspace\n\nTemplate: {template}\n\nMode: pure (Rust-only client + daemon)\nTiny-max: {tiny_max_requested}\n"
+                        "# Infring Pure Workspace\n\nTemplate: {template}\n\nMode: pure (Rust-only client + daemon)\nTiny-max: {tiny_max_requested}\n"
                     ),
                 )
                 .map_err(|err| format!("ecosystem_init_write_failed:{err}"))?;
                 fs::write(
                     target.join("Cargo.toml"),
-                    "[package]\nname = \"protheus_pure_workspace_app\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\n",
+                    "[package]\nname = \"infring_pure_workspace_app\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\n",
                 )
                 .map_err(|err| format!("ecosystem_init_manifest_failed:{err}"))?;
                 fs::write(
                     target.join("src/main.rs"),
-                    "fn main() {\n    println!(\"protheus pure workspace ready\");\n}\n",
+                    "fn main() {\n    println!(\"infring pure workspace ready\");\n}\n",
                 )
                 .map_err(|err| format!("ecosystem_init_write_failed:{err}"))?;
                 fs::write(
-                    target.join("protheus.init.json"),
+                    target.join("infring.init.json"),
                     serde_json::to_string_pretty(&json!({
                         "template": template,
                         "sdk": "rust",
@@ -180,7 +180,7 @@ fn ecosystem_command(
             files.push(target.join("README.md").to_string_lossy().to_string());
             files.push(
                 target
-                    .join("protheus.init.json")
+                    .join("infring.init.json")
                     .to_string_lossy()
                     .to_string(),
             );
@@ -189,11 +189,11 @@ fn ecosystem_command(
                     .map_err(|err| format!("ecosystem_init_dir_failed:{err}"))?;
                 fs::write(
                     target.join("README.md"),
-                    format!("# Protheus Init Project\n\nTemplate: {template}\n\nSDK: {sdk}\n"),
+                    format!("# Infring Init Project\n\nTemplate: {template}\n\nSDK: {sdk}\n"),
                 )
                 .map_err(|err| format!("ecosystem_init_write_failed:{err}"))?;
                 fs::write(
-                    target.join("protheus.init.json"),
+                    target.join("infring.init.json"),
                     serde_json::to_string_pretty(&json!({
                         "template": template,
                         "sdk": sdk,
@@ -323,7 +323,7 @@ fn ecosystem_command(
         fs::create_dir_all(&target)
             .map_err(|err| format!("marketplace_install_dir_failed:{err}"))?;
         fs::write(
-            target.join("PROTHEUS_HAND.json"),
+            target.join("INFRING_HAND.json"),
             serde_json::to_string_pretty(&entry).unwrap_or_else(|_| "{}".to_string()),
         )
         .map_err(|err| format!("marketplace_install_write_failed:{err}"))?;

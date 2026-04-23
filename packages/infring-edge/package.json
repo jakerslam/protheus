@@ -1,0 +1,13 @@
+{
+  "name": "@infring/edge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Workspace compatibility facade for the supported mobile/edge runtime subset",
+  "main": "index.ts",
+  "license": "MIT",
+  "scripts": {
+    "start:edge": "node ../../client/runtime/lib/ts_entrypoint.ts ./starter.ts --mode=edge",
+    "status": "node ../../client/runtime/lib/ts_entrypoint.ts ./starter.ts --mode=status",
+    "contract": "node ../../client/runtime/lib/ts_entrypoint.ts ./starter.ts --mode=contract"
+  }
+}

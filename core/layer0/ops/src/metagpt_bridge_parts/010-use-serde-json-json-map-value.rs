@@ -18,21 +18,21 @@ const DEFAULT_TRACE_REL: &str = "local/state/ops/metagpt_bridge/pipeline_trace.j
 
 fn usage() {
     println!("metagpt-bridge commands:");
-    println!("  protheus-ops metagpt-bridge status [--state-path=<path>]");
-    println!("  protheus-ops metagpt-bridge register-company [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops metagpt-bridge status [--state-path=<path>]");
+    println!("  infring-ops metagpt-bridge register-company [--payload-base64=<json>] [--state-path=<path>]");
     println!(
-        "  protheus-ops metagpt-bridge run-sop [--payload-base64=<json>] [--state-path=<path>]"
+        "  infring-ops metagpt-bridge run-sop [--payload-base64=<json>] [--state-path=<path>]"
     );
     println!(
-        "  protheus-ops metagpt-bridge simulate-pr [--payload-base64=<json>] [--state-path=<path>]"
+        "  infring-ops metagpt-bridge simulate-pr [--payload-base64=<json>] [--state-path=<path>]"
     );
     println!(
-        "  protheus-ops metagpt-bridge run-debate [--payload-base64=<json>] [--state-path=<path>]"
+        "  infring-ops metagpt-bridge run-debate [--payload-base64=<json>] [--state-path=<path>]"
     );
-    println!("  protheus-ops metagpt-bridge plan-requirements [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops metagpt-bridge record-oversight [--payload-base64=<json>] [--state-path=<path>] [--approval-queue-path=<path>]");
-    println!("  protheus-ops metagpt-bridge record-pipeline-trace [--payload-base64=<json>] [--state-path=<path>] [--trace-path=<path>]");
-    println!("  protheus-ops metagpt-bridge ingest-config [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops metagpt-bridge plan-requirements [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops metagpt-bridge record-oversight [--payload-base64=<json>] [--state-path=<path>] [--approval-queue-path=<path>]");
+    println!("  infring-ops metagpt-bridge record-pipeline-trace [--payload-base64=<json>] [--state-path=<path>] [--trace-path=<path>]");
+    println!("  infring-ops metagpt-bridge ingest-config [--payload-base64=<json>] [--state-path=<path>]");
 }
 
 fn payload_json(argv: &[String]) -> Result<Value, String> {

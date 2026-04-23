@@ -1,6 +1,6 @@
 {
   "id": "V3-020",
-  "upgrade": "Protheus Prime seed profile + bounded-core manifest",
+  "upgrade": "Infring Prime seed profile + bounded-core manifest",
   "section": "V3 (Lamp / Super-Intelligence Containment)",
   "impact": 7,
   "layer_map": "1/2/client/adapter",
@@ -27,8 +27,8 @@
     }
   ],
   "validation": {
-    "lane_command": "protheus-ops srs-contract-runtime run --id=V3-020",
-    "status_command": "protheus-ops srs-contract-runtime status --id=V3-020",
+    "lane_command": "infring-ops srs-contract-runtime run --id=V3-020",
+    "status_command": "infring-ops srs-contract-runtime status --id=V3-020",
     "fail_closed_on_missing_contract": true
   },
   "generated_from": {

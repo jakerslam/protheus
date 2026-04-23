@@ -14,18 +14,18 @@ const DEFAULT_SWARM_STATE_REL: &str = "local/state/ops/llamaindex_bridge/swarm_s
 
 fn usage() {
     println!("llamaindex-bridge commands:");
-    println!("  protheus-ops llamaindex-bridge status [--state-path=<path>]");
-    println!("  protheus-ops llamaindex-bridge register-index [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops llamaindex-bridge status [--state-path=<path>]");
+    println!("  infring-ops llamaindex-bridge register-index [--payload-base64=<json>] [--state-path=<path>]");
     println!(
-        "  protheus-ops llamaindex-bridge query [--payload-base64=<json>] [--state-path=<path>]"
+        "  infring-ops llamaindex-bridge query [--payload-base64=<json>] [--state-path=<path>]"
     );
-    println!("  protheus-ops llamaindex-bridge run-agent-workflow [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  protheus-ops llamaindex-bridge ingest-multimodal [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops llamaindex-bridge record-memory-eval [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops llamaindex-bridge run-conditional-workflow [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops llamaindex-bridge emit-trace [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops llamaindex-bridge register-connector [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops llamaindex-bridge connector-query [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops llamaindex-bridge run-agent-workflow [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  infring-ops llamaindex-bridge ingest-multimodal [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops llamaindex-bridge record-memory-eval [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops llamaindex-bridge run-conditional-workflow [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops llamaindex-bridge emit-trace [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops llamaindex-bridge register-connector [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops llamaindex-bridge connector-query [--payload-base64=<json>] [--state-path=<path>]");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {

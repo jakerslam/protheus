@@ -12,7 +12,7 @@ Use these templates for coordinated launch communication.
 ## X / Twitter Template
 
 ```text
-InfRing (by Protheus Labs) is now live.
+InfRing (by Infring Labs) is now live.
 
 - Rust-first kernel
 - typed conduit bridge
@@ -23,7 +23,7 @@ If you want sovereign autonomous infrastructure instead of black-box orchestrati
 https://github.com/protheuslabs/InfRing
 
 Quick install:
-curl -fsSL https://get.protheus.ai/install | sh
+curl -fsSL https://get.infring.ai/install | sh
 ```
 
 ## Hacker News Template
@@ -42,7 +42,7 @@ We built InfRing as a Rust-first autonomous runtime where kernel logic (policy, 
 TypeScript remains a thin surface layer connected through a typed conduit, so teams keep flexibility without moving trust boundaries out of Rust.
 
 Repo: https://github.com/protheuslabs/InfRing
-Quick install: curl -fsSL https://get.protheus.ai/install | sh
+Quick install: curl -fsSL https://get.infring.ai/install | sh
 
 Would love feedback from folks running regulated, local-first, or edge-heavy deployments.
 ```
@@ -52,7 +52,7 @@ Would love feedback from folks running regulated, local-first, or edge-heavy dep
 ```text
 Title: InfRing (Rust-first autonomous runtime) is open — looking for technical feedback
 
-We just shipped InfRing from Protheus Labs.
+We just shipped InfRing from Infring Labs.
 
 Highlights:
 - Rust kernel is the single source of truth

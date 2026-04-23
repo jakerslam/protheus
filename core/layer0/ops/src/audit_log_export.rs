@@ -21,8 +21,8 @@ struct Policy {
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops audit-log-export export --target=<splunk|elk|datadog> --input=<path> [--strict=1|0] [--policy=<path>]");
-    println!("  protheus-ops audit-log-export status [--policy=<path>]");
+    println!("  infring-ops audit-log-export export --target=<splunk|elk|datadog> --input=<path> [--strict=1|0] [--policy=<path>]");
+    println!("  infring-ops audit-log-export status [--policy=<path>]");
 }
 
 fn resolve_path(root: &Path, raw: Option<&str>, fallback: &str) -> PathBuf {
@@ -179,7 +179,7 @@ fn build_payload(target: &str, events: &[Value]) -> Result<Value, String> {
                 .map(|event| {
                     json!({
                         "time": now_iso(),
-                        "source": "protheus",
+                        "source": "infring",
                         "sourcetype": "json",
                         "event": event
                     })
@@ -206,7 +206,7 @@ fn build_payload(target: &str, events: &[Value]) -> Result<Value, String> {
                     let mut row = event.clone();
                     if let Some(obj) = row.as_object_mut() {
                         obj.entry("ddsource".to_string())
-                            .or_insert_with(|| Value::String("protheus".to_string()));
+                            .or_insert_with(|| Value::String("infring".to_string()));
                     }
                     row
                 })

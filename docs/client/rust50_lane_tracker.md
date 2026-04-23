@@ -52,7 +52,7 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] `d622ecfc` migrate rust-memory-transition-lane wrapper source to JavaScript
 - [x] `b296c600` migrate fluxlattice-program wrapper source to JavaScript
 - [x] `7a06cc8e` migrate perception-polish-program wrapper source to JavaScript
-- [x] `c3ea2e1a` migrate protheusctl wrapper source to JavaScript
+- [x] `c3ea2e1a` migrate infringctl wrapper source to JavaScript
 - [x] `88397540` migrate runtime-efficiency-floor wrapper source to JavaScript
 - [x] `8272d457` migrate scale-readiness-program wrapper source to JavaScript
 
@@ -244,14 +244,14 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 | 169 | `client/runtime/lib/duality_seed.ts` | `193c0730` |
 | 170 | `client/runtime/systems/ops/deployment_packaging.ts` | `51c4f215` |
 | 171 | `client/runtime/systems/ops/backup_integrity_check.ts` | `76785690` |
-| 172 | `client/runtime/systems/ops/protheus_setup_wizard.ts` | `d970c5ca` |
+| 172 | `client/runtime/systems/ops/infring_setup_wizard.ts` | `d970c5ca` |
 | 173 | `client/runtime/systems/autonomy/pipeline_spc_gate.ts` | `c2736098` |
 | 174 | `client/runtime/systems/security/critical_path_formal_verifier.ts` | `243e1d00` |
 | 175 | `client/runtime/systems/ops/type_derived_lane_docs_autogen.ts` | `6092ba70` |
 | 176 | `client/runtime/systems/autonomy/inversion_readiness_cert.ts` | `ca28a597` |
 | 177 | `client/runtime/systems/spine/spine_safe_launcher.ts` | `600b157d` |
 | 178 | `client/runtime/systems/ops/operational_maturity_closure.ts` | `c45d4550` |
-| 179 | `client/runtime/systems/ops/protheus_prime_seed.ts` | `63460ec7` |
+| 179 | `client/runtime/systems/ops/infring_prime_seed.ts` | `63460ec7` |
 | 180 | `client/runtime/systems/security/safety_resilience_guard.ts` | `80d64548` |
 | 181 | `client/runtime/systems/echo/heroic_echo_controller.ts` | `c9aefa17` |
 | 182 | `client/runtime/systems/autonomy/suggestion_lane.ts` | `3efeaf88` |
@@ -424,16 +424,16 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N75 | client/runtime/systems/primitives/iterative_repair_primitive.ts | LOC=373 | 2026-03-05T21:52:19Z
 - [x] N76 | client/runtime/systems/ops/autotest_recipe_verifier.ts | LOC=364 | 2026-03-05T21:52:22Z
 - [x] N77 | client/runtime/systems/assimilation/adaptive_ensemble_routing_primitive.ts | LOC=362 | 2026-03-05T21:52:24Z
-- [x] N78 | client/runtime/systems/economy/protheus_token_engine.ts | LOC=360 | 2026-03-05T21:52:26Z
+- [x] N78 | client/runtime/systems/economy/infring_token_engine.ts | LOC=360 | 2026-03-05T21:52:26Z
 - [x] N79 | client/runtime/systems/assimilation/self_teacher_distillation_primitive.ts | LOC=360 | 2026-03-05T21:52:28Z
 - [x] N80 | client/runtime/systems/sensory/hypothesis_lifecycle_ledger.ts | LOC=359 | 2026-03-05T21:52:31Z
 - [x] N81 | client/runtime/systems/ops/state_kernel_cutover.ts | LOC=359 | 2026-03-05T21:52:33Z
 - [x] N82 | client/runtime/systems/ops/org_code_format_guard.ts | LOC=359 | 2026-03-05T21:52:35Z
 - [x] N83 | client/runtime/systems/ops/enterprise_scm_cd_mirror_plane.ts | LOC=359 | 2026-03-05T21:52:37Z
 - [x] N84 | client/runtime/systems/ops/public_benchmark_pack.ts | LOC=358 | 2026-03-05T21:52:40Z
-- [x] N85 | client/runtime/systems/hybrid/mobile/protheus_mobile_adapter.ts | LOC=357 | 2026-03-05T21:52:43Z
+- [x] N85 | client/runtime/systems/hybrid/mobile/infring_mobile_adapter.ts | LOC=357 | 2026-03-05T21:52:43Z
 - [x] N86 | client/runtime/systems/sensory/detector_error_taxonomy_autotune.ts | LOC=356 | 2026-03-05T21:52:45Z
-- [x] N87 | client/runtime/systems/ops/protheus_debug_diagnostics.ts | LOC=356 | 2026-03-05T21:52:48Z
+- [x] N87 | client/runtime/systems/ops/infring_debug_diagnostics.ts | LOC=356 | 2026-03-05T21:52:48Z
 - [x] N88 | client/runtime/systems/security/startup_attestation.ts | LOC=355 | 2026-03-05T21:52:51Z
 - [x] N89 | client/runtime/systems/ops/backlog_lane_batch_delivery.ts | LOC=355 | 2026-03-05T21:52:54Z
 - [x] N90 | client/runtime/lib/approval_gate.ts | LOC=354 | 2026-03-05T21:52:57Z
@@ -496,7 +496,7 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N43 | client/runtime/systems/ops/dr_gameday.ts | LOC=322 | 2026-03-05T22:01:06Z
 - [x] N44 | client/runtime/systems/sensory/abstain_uncertainty_contract.ts | LOC=321 | 2026-03-05T22:01:08Z
 - [x] N45 | client/runtime/systems/sensory/causal_vs_correlation_signal_scorer.ts | LOC=320 | 2026-03-05T22:01:11Z
-- [x] N46 | client/runtime/systems/edge/protheus_edge_runtime.ts | LOC=320 | 2026-03-05T22:01:13Z
+- [x] N46 | client/runtime/systems/edge/infring_edge_runtime.ts | LOC=320 | 2026-03-05T22:01:13Z
 - [x] N47 | client/runtime/systems/ops/ngc_nvidia_enterprise_distribution_adapter.ts | LOC=319 | 2026-03-05T22:01:15Z
 - [x] N48 | client/runtime/systems/workflow/orchestron/adversarial_lane.ts | LOC=318 | 2026-03-05T22:01:18Z
 - [x] N49 | client/runtime/systems/security/autonomous_skill_necessity_audit.ts | LOC=318 | 2026-03-05T22:01:20Z
@@ -520,7 +520,7 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N67 | client/runtime/systems/ops/rust_hotpath_inventory.ts | LOC=307 | 2026-03-05T22:02:11Z
 - [x] N68 | client/runtime/systems/ops/ts_clone_drift_report.ts | LOC=306 | 2026-03-05T22:02:14Z
 - [x] N69 | client/runtime/systems/security/repo_hygiene_guard.ts | LOC=305 | 2026-03-05T22:02:17Z
-- [x] N70 | client/runtime/systems/ops/protheus_completion.ts | LOC=305 | 2026-03-05T22:02:19Z
+- [x] N70 | client/runtime/systems/ops/infring_completion.ts | LOC=305 | 2026-03-05T22:02:19Z
 - [x] N71 | client/runtime/systems/memory/cross_domain_mapper.ts | LOC=305 | 2026-03-05T22:02:22Z
 - [x] N72 | client/runtime/lib/redaction_classification.ts | LOC=305 | 2026-03-05T22:02:24Z
 - [x] N73 | client/runtime/systems/sensory/multimodal_signal_adapter_plane.ts | LOC=304 | 2026-03-05T22:02:27Z
@@ -984,7 +984,7 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - client/runtime/systems/actuation/claw_registry.ts
 - client/runtime/systems/adaptive/reflex/reflex_runtime_sync.ts
 - client/runtime/systems/autonomy/objective_optimization_floor.ts
-- client/runtime/systems/cli/protheus_suite_tooling.ts
+- client/runtime/systems/cli/infring_suite_tooling.ts
 - client/runtime/systems/distributed/deterministic_control_plane.ts
 - client/runtime/systems/economy/tithe_engine.ts
 - client/runtime/systems/habits/habit_cell_pool.ts
@@ -1000,8 +1000,8 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - client/runtime/systems/ops/personas_docs_validation.ts
 - client/runtime/systems/ops/pipeline_handoff_score.ts
 - client/runtime/systems/ops/polish_perception_program.ts
-- client/runtime/systems/ops/protheus_status_dashboard.ts
-- client/runtime/systems/ops/protheus_version_cli.ts
+- client/runtime/systems/ops/infring_status_dashboard.ts
+- client/runtime/systems/ops/infring_version_cli.ts
 - client/runtime/systems/ops/queue_log_compact.ts
 - client/runtime/systems/ops/repo_hygiene_generated_guard.ts
 - client/runtime/systems/ops/root_scaffolding_rationalization.ts
@@ -1069,7 +1069,7 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - client/runtime/systems/primitives/primitive_catalog.ts
 - client/runtime/systems/habits/habit_promotion_quality_gate.ts
 - client/runtime/systems/strategy/strategy_profile_layer_guard.ts
-- client/runtime/systems/ops/personal_protheus_installer.ts
+- client/runtime/systems/ops/personal_infring_installer.ts
 - client/runtime/systems/autonomy/alignment_oracle.ts
 - client/runtime/systems/security/architecture_guard.ts
 - client/runtime/systems/ops/simplicity_offset_backfill.ts
@@ -1084,7 +1084,7 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - client/runtime/systems/ops/empty_fort_integrity_guard.ts
 - client/runtime/systems/ops/compatibility_tail_retirement.ts
 - client/runtime/systems/autonomy/execution_worthiness_gate.ts
-- client/runtime/systems/ops/protheus_core_rust_binding_plane.ts
+- client/runtime/systems/ops/infring_core_rust_binding_plane.ts
 - client/runtime/systems/ops/dr_gameday_gate.ts
 - client/runtime/systems/security/request_ingress.ts
 - client/runtime/systems/actuation/eyes_create_adapter.ts
@@ -1115,7 +1115,7 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - client/runtime/systems/runtime/google_ecosystem_runtime_parity.ts
 - client/runtime/systems/edge/mobile_lifecycle_resilience.ts
 - client/runtime/systems/ops/hybrid_interface_stability_contract.ts
-- client/runtime/systems/ops/protheus_core_runtime_envelope.ts
+- client/runtime/systems/ops/infring_core_runtime_envelope.ts
 - client/runtime/systems/memory/memory_fallback_retirement_gate.ts
 - client/runtime/systems/ops/profile_compatibility_gate.ts
 - client/runtime/systems/autonomy/autophagy_baseline_guard.ts
@@ -1129,7 +1129,7 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - client/runtime/systems/security/policy_rootd.ts
 - client/runtime/systems/ops/benchmark_autonomy_gate.ts
 - client/runtime/systems/ops/requirement_conformance_gate.ts
-- client/runtime/systems/ops/protheus_command_list.ts
+- client/runtime/systems/ops/infring_command_list.ts
 - client/runtime/systems/ops/pinnacle_integration_contract_check.ts
 - client/runtime/systems/runtime/aws_linux_arm_runtime_parity.ts
 - client/runtime/systems/ops/entrypoint_runtime_contract.ts
@@ -1190,7 +1190,7 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - client/runtime/systems/security/integrity_reseal.ts
 - client/runtime/systems/ops/continuous_parity_maintainer.ts
 - client/runtime/systems/ops/docs_surface_contract.ts
-- client/runtime/systems/ops/protheus_repl.ts
+- client/runtime/systems/ops/infring_repl.ts
 - client/runtime/systems/ops/collective_intelligence_contract_check.ts
 - client/runtime/systems/primitives/policy_vm.ts
 - client/runtime/systems/ops/enterprise_onboarding_pack.ts
@@ -1232,19 +1232,19 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - client/runtime/systems/ops/package_manifest_contract.ts
 - client/runtime/systems/ops/ci_workflow_rationalization_contract.ts
 - client/runtime/systems/research/pinnacle_tech_integration_engine.ts
-- client/runtime/systems/ops/protheus_examples.ts
+- client/runtime/systems/ops/infring_examples.ts
 - client/runtime/systems/observability/legacy_observability.ts
 - client/runtime/systems/autonomy/model_catalog_rollback.ts
 - client/runtime/systems/reflex/reflex_worker.ts
 - client/runtime/systems/primitives/replay_verify.ts
 - client/runtime/systems/assimilation/research_probe.ts
-- client/runtime/systems/ops/protheus_demo.ts
+- client/runtime/systems/ops/infring_demo.ts
 - client/runtime/systems/soul/modality_registry.ts
 - client/runtime/systems/actuation/proposal_template.ts
 - client/runtime/systems/edge/mobile_ops_top.ts
 - client/runtime/systems/security/emergency_stop.ts
 - client/runtime/systems/economy/public_donation_api.ts
-- client/runtime/systems/ops/protheus_diagram.ts
+- client/runtime/systems/ops/infring_diagram.ts
 - client/runtime/systems/security/secret_broker.ts
 - client/runtime/systems/autonomy/strategy_doctor.ts
 - client/runtime/systems/ops/cli_ui.ts
@@ -1265,12 +1265,12 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - client/runtime/systems/autonomy/swarm_orchestration_runtime.ts
 - client/runtime/systems/autonomy/civic_duty_allocation_engine.ts
 - client/runtime/systems/redteam/wisdom_distiller.ts
-- client/runtime/systems/ops/protheus_unknown_guard.ts
+- client/runtime/systems/ops/infring_unknown_guard.ts
 - client/runtime/systems/security/capability_lease.ts
 - client/runtime/systems/helix/sentinel_network.ts
 - client/runtime/systems/security/integrity_kernel.ts
 - client/runtime/systems/security/egress_gateway.ts
-- client/runtime/systems/ops/protheusctl_skills_discover.ts
+- client/runtime/systems/ops/infringctl_skills_discover.ts
 - client/runtime/systems/ops/low_urgency_batch_execution_lane.ts
 - client/runtime/systems/fractal/mutator.ts
 - client/runtime/systems/security/wasm_capability_microkernel.ts

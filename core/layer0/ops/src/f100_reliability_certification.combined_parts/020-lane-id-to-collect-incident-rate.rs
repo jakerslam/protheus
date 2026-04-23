@@ -35,8 +35,8 @@ struct Policy {
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops f100-reliability-certification run [--strict=1|0] [--policy=<path>]");
-    println!("  protheus-ops f100-reliability-certification status [--policy=<path>]");
+    println!("  infring-ops f100-reliability-certification run [--strict=1|0] [--policy=<path>]");
+    println!("  infring-ops f100-reliability-certification status [--policy=<path>]");
 }
 
 fn print_json_line(value: &Value) {

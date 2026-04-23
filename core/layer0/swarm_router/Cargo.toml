@@ -1,12 +1,12 @@
 [package]
-name = "protheus-swarm-router"
+name = "infring-swarm-router"
 version = "0.1.0"
 edition = "2021"
 license = "SEE LICENSE IN LICENSE"
 description = "Deterministic swarm router primitives: envelopes, queue contracts, lifecycle, recovery, scaling, and upgrade receipts."
 
 [lib]
-name = "protheus_swarm_router"
+name = "infring_swarm_router"
 crate-type = ["rlib"]
 
 [[bin]]

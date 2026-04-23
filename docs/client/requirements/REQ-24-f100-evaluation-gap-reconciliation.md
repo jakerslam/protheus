@@ -25,13 +25,13 @@ Out of scope:
 1. `REQ-24-001` The repo must include a strict baseline gate that verifies core enterprise posture claims.
 - Acceptance:
   - `client/runtime/config/f100_enterprise_baseline_contract.json` defines baseline checks.
-  - Rust lane `protheus-ops f100-readiness-program run-all --strict=1 --apply=1` emits deterministic receipts.
+  - Rust lane `infring-ops f100-readiness-program run-all --strict=1 --apply=1` emits deterministic receipts.
   - strict mode fails when any check is missing.
 
 2. `REQ-24-002` Enterprise packaging artifacts must include Helm and Terraform deployment surfaces.
 - Acceptance:
-  - Helm chart exists under `client/runtime/deploy/helm/protheus/`.
-  - Terraform module exists under `client/runtime/deploy/terraform/protheus_helm/`.
+  - Helm chart exists under `client/runtime/deploy/helm/infring/`.
+  - Terraform module exists under `client/runtime/deploy/terraform/infring_helm/`.
 
 3. `REQ-24-003` Human-only requirements must be explicitly split from machine-executable backlog lanes.
 - Acceptance:

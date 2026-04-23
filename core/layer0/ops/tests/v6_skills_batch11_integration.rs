@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use protheus_ops_core::{health_status, skills_plane, v8_kernel::sha256_hex_str};
+use infring_ops_core::{health_status, skills_plane, v8_kernel::sha256_hex_str};
 use serde_json::{json, Map, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -283,7 +283,7 @@ fn v6_skills_batch11_core_lanes_execute_with_receipts() {
             .get("dashboard_metrics")
             .and_then(|v| v.get("skills_plane_health"))
             .is_some(),
-        "skills observability should surface in protheus-top dashboard metrics"
+        "skills observability should surface in infring-top dashboard metrics"
     );
 
     let react_exit = skills_plane::run(

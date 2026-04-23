@@ -46,12 +46,12 @@ struct Policy {
 fn usage() {
     println!("Usage:");
     println!(
-        "  protheus-ops supply-chain-provenance-v2 prepare [--strict=1|0] [--policy=<path>] [--bundle-path=<path>] [--vuln-summary-path=<path>] [--tag=<id>] [--last-known-good-tag=<id>]"
+        "  infring-ops supply-chain-provenance-v2 prepare [--strict=1|0] [--policy=<path>] [--bundle-path=<path>] [--vuln-summary-path=<path>] [--tag=<id>] [--last-known-good-tag=<id>]"
     );
     println!(
-        "  protheus-ops supply-chain-provenance-v2 run [--strict=1|0] [--policy=<path>] [--bundle-path=<path>] [--vuln-summary-path=<path>]"
+        "  infring-ops supply-chain-provenance-v2 run [--strict=1|0] [--policy=<path>] [--bundle-path=<path>] [--vuln-summary-path=<path>]"
     );
-    println!("  protheus-ops supply-chain-provenance-v2 status [--policy=<path>]");
+    println!("  infring-ops supply-chain-provenance-v2 status [--policy=<path>]");
     println!(
         "  provider-family contract targets: {}",
         PROVIDER_FAMILY_CONTRACT_TARGETS.join(",")
@@ -119,11 +119,11 @@ fn load_json(path: &Path) -> Value {
 fn default_required_artifacts(root: &Path) -> Vec<ArtifactRequirement> {
     vec![
         ArtifactRequirement {
-            id: "protheus-ops".to_string(),
-            artifact_path: root.join("target/release/protheus-ops"),
-            sbom_path: root.join("local/state/release/provenance/sbom/protheus-ops.cdx.json"),
+            id: "infring-ops".to_string(),
+            artifact_path: root.join("target/release/infring-ops"),
+            sbom_path: root.join("local/state/release/provenance/sbom/infring-ops.cdx.json"),
             signature_path: root
-                .join("local/state/release/provenance/signatures/protheus-ops.sig"),
+                .join("local/state/release/provenance/signatures/infring-ops.sig"),
         },
         ArtifactRequirement {
             id: "conduit-daemon".to_string(),
@@ -166,17 +166,17 @@ fn parse_required_artifacts(root: &Path, raw: &Value) -> Vec<ArtifactRequirement
         let artifact_path = resolve_path(
             root,
             obj.get("artifact_path").and_then(Value::as_str),
-            "target/release/protheus-ops",
+            "target/release/infring-ops",
         );
         let sbom_path = resolve_path(
             root,
             obj.get("sbom_path").and_then(Value::as_str),
-            "local/state/release/provenance/sbom/protheus-ops.cdx.json",
+            "local/state/release/provenance/sbom/infring-ops.cdx.json",
         );
         let signature_path = resolve_path(
             root,
             obj.get("signature_path").and_then(Value::as_str),
-            "local/state/release/provenance/signatures/protheus-ops.sig",
+            "local/state/release/provenance/signatures/infring-ops.sig",
         );
 
         out.push(ArtifactRequirement {

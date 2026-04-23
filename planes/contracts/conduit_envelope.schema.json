@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://protheus.dev/contracts/conduit-envelope.schema.json",
+  "$id": "https://infring.dev/contracts/conduit-envelope.schema.json",
   "title": "Conduit Envelope",
   "type": "object",
   "additionalProperties": false,

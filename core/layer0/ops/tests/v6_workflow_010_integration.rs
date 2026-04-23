@@ -3,7 +3,7 @@
 // V6-WORKFLOW-010.4, V6-WORKFLOW-010.5, V6-WORKFLOW-010.6, V6-WORKFLOW-010.7,
 // V6-WORKFLOW-010.8, V6-WORKFLOW-010.9
 
-use protheus_ops_core::google_adk_bridge;
+use infring_ops_core::google_adk_bridge;
 use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;

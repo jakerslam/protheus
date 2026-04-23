@@ -105,8 +105,8 @@ function classify(file: string, source: string): Omit<Row, 'kind'> | null {
   }
 
   if (
-    normalized.startsWith('packages/protheus-npm/bin/') ||
-    normalized.startsWith('packages/protheus-npm/scripts/')
+    normalized.startsWith('packages/infring-npm/bin/') ||
+    normalized.startsWith('packages/infring-npm/scripts/')
   ) {
     return {
       classification: 'acceptable_cli_entrypoint',
@@ -166,7 +166,7 @@ function classify(file: string, source: string): Omit<Row, 'kind'> | null {
         classification: 'wrapper_candidate',
         severity: 'warn',
         detail: 'pure wrapper shelling can likely be replaced with in-process delegate or resident bridge',
-        recommended_action: 'collapse to invokeTsModuleSync or invokeProtheusOpsViaBridge',
+        recommended_action: 'collapse to invokeTsModuleSync or invokeInfringOpsViaBridge',
       };
     }
   }

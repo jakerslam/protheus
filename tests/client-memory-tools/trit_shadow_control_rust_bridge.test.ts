@@ -40,7 +40,7 @@ function main() {
     AUTONOMY_TRIT_SHADOW_INFLUENCE_GUARD_PATH: process.env.AUTONOMY_TRIT_SHADOW_INFLUENCE_GUARD_PATH,
     AUTONOMY_TRIT_SHADOW_REPORT_HISTORY_PATH: process.env.AUTONOMY_TRIT_SHADOW_REPORT_HISTORY_PATH,
     AUTONOMY_TRIT_SHADOW_CALIBRATION_HISTORY_PATH: process.env.AUTONOMY_TRIT_SHADOW_CALIBRATION_HISTORY_PATH,
-    PROTHEUS_OPS_USE_PREBUILT: process.env.PROTHEUS_OPS_USE_PREBUILT
+    INFRING_OPS_USE_PREBUILT: process.env.INFRING_OPS_USE_PREBUILT
   };
 
   fs.writeFileSync(policyPath, JSON.stringify({
@@ -114,7 +114,7 @@ function main() {
   process.env.AUTONOMY_TRIT_SHADOW_INFLUENCE_GUARD_PATH = influenceGuardPath;
   process.env.AUTONOMY_TRIT_SHADOW_REPORT_HISTORY_PATH = reportHistoryPath;
   process.env.AUTONOMY_TRIT_SHADOW_CALIBRATION_HISTORY_PATH = calibrationHistoryPath;
-  process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
+  process.env.INFRING_OPS_USE_PREBUILT = '0';
 
   const mod = resetModule(path.join(ROOT, 'client/lib/trit_shadow_control.ts'));
 

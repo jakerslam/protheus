@@ -149,11 +149,11 @@ fn run_mcp_analyze(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Val
             },
             {
                 "id": "V6-BINVULN-001.6",
-                "claim": "developer_cli_aliases_route_to_core_binary_scan_lanes_and_surface_observability_in_protheus_top",
+                "claim": "developer_cli_aliases_route_to_core_binary_scan_lanes_and_surface_observability_in_infring_top",
                 "evidence": {
                     "dx_source": dx_source,
                     "transport": transport,
-                    "observability_surface": "protheus-top"
+                    "observability_surface": "infring-top"
                 }
             }
         ]

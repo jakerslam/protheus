@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SRS coverage: V6-WORKFLOW-007.1, V6-WORKFLOW-007.2, V6-WORKFLOW-007.3,
 // V6-WORKFLOW-007.4, V6-WORKFLOW-007.5, V6-WORKFLOW-007.7
-use protheus_ops_core::swarm_runtime;
+use infring_ops_core::swarm_runtime;
 use serde_json::Value;
 use std::fs;
 use std::path::Path;

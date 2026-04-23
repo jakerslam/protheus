@@ -10,8 +10,8 @@ const { issueSecretHandle, loadSecretById } = require('../../../../../../runtime
 const { makeCollectorError } = require('./collector_errors.ts');
 const { loadCollectorCache, saveCollectorCache } = require('./cache_store.ts');
 
-process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
-process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
+process.env.INFRING_OPS_USE_PREBUILT = '0';
+process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '120000';
 
 const moltbookHotBridge = createOpsLaneBridge(
   __dirname,

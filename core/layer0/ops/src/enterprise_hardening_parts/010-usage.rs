@@ -47,82 +47,82 @@ const ALLOWED_DELIVERY_CHANNELS: &[&str] = &[
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops enterprise-hardening run [--strict=1|0] [--policy=<path>]");
-    println!("  protheus-ops enterprise-hardening status [--policy=<path>]");
+    println!("  infring-ops enterprise-hardening run [--strict=1|0] [--policy=<path>]");
+    println!("  infring-ops enterprise-hardening status [--policy=<path>]");
     println!(
-        "  protheus-ops enterprise-hardening export-compliance [--profile=<internal|customer|auditor>] [--strict=1|0] [--policy=<path>]"
+        "  infring-ops enterprise-hardening export-compliance [--profile=<internal|customer|auditor>] [--strict=1|0] [--policy=<path>]"
     );
     println!(
-        "  protheus-ops enterprise-hardening identity-surface [--provider=<id>] [--token-issuer=<url>] [--scopes=a,b] [--roles=r1,r2] [--strict=1|0]"
+        "  infring-ops enterprise-hardening identity-surface [--provider=<id>] [--token-issuer=<url>] [--scopes=a,b] [--roles=r1,r2] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops enterprise-hardening regulated-readiness [--strict=1|0] [--multi-tenant-policy=<path>] [--access-policy=<path>] [--abac-policy=<path>] [--secret-kms-policy=<path>] [--signed-receipt-policy=<path>] [--retention-pack-policy=<path>] [--runtime-retention-policy=<path>] [--compliance-retention-policy=<path>] [--audit-export-policy=<path>] [--evidence-audit-policy=<path>] [--deployment-doc=<path>]"
+        "  infring-ops enterprise-hardening regulated-readiness [--strict=1|0] [--multi-tenant-policy=<path>] [--access-policy=<path>] [--abac-policy=<path>] [--secret-kms-policy=<path>] [--signed-receipt-policy=<path>] [--retention-pack-policy=<path>] [--runtime-retention-policy=<path>] [--compliance-retention-policy=<path>] [--audit-export-policy=<path>] [--evidence-audit-policy=<path>] [--deployment-doc=<path>]"
     );
     println!(
-        "  protheus-ops enterprise-hardening certify-scale [--target-nodes=<n>] [--samples=<n>] [--strict=1|0] [--scale-policy=<path>]"
+        "  infring-ops enterprise-hardening certify-scale [--target-nodes=<n>] [--samples=<n>] [--strict=1|0] [--scale-policy=<path>]"
     );
     println!(
-        "  protheus-ops enterprise-hardening enable-bedrock [--strict=1|0] [--region=<aws-region>] [--vpc=<id>] [--subnet=<id>] [--ssm-path=<path>] [--policy=<path>]"
+        "  infring-ops enterprise-hardening enable-bedrock [--strict=1|0] [--region=<aws-region>] [--vpc=<id>] [--subnet=<id>] [--ssm-path=<path>] [--policy=<path>]"
     );
     println!(
-        "  protheus-ops enterprise-hardening moat-license [--strict=1|0] [--primitives=a,b] [--license=<id>] [--reviewer=<id>]"
+        "  infring-ops enterprise-hardening moat-license [--strict=1|0] [--primitives=a,b] [--license=<id>] [--reviewer=<id>]"
     );
     println!(
-        "  protheus-ops enterprise-hardening moat-contrast [--strict=1|0] [--narrative=<short-text>]"
+        "  infring-ops enterprise-hardening moat-contrast [--strict=1|0] [--narrative=<short-text>]"
     );
     println!(
-        "  protheus-ops enterprise-hardening moat-launch-sim [--strict=1|0] [--contributors=<n>] [--events=<n>]"
+        "  infring-ops enterprise-hardening moat-launch-sim [--strict=1|0] [--contributors=<n>] [--events=<n>]"
     );
     println!(
-        "  protheus-ops enterprise-hardening genesis-truth-gate [--strict=1|0] [--regression-pass=1|0] [--dod-pass=1|0] [--verify-pass=1|0]"
+        "  infring-ops enterprise-hardening genesis-truth-gate [--strict=1|0] [--regression-pass=1|0] [--dod-pass=1|0] [--verify-pass=1|0]"
     );
     println!(
-        "  protheus-ops enterprise-hardening genesis-thin-wrapper-audit [--strict=1|0] [--scan-root=<rel-path>]"
+        "  infring-ops enterprise-hardening genesis-thin-wrapper-audit [--strict=1|0] [--scan-root=<rel-path>]"
     );
     println!(
-        "  protheus-ops enterprise-hardening genesis-doc-freeze [--strict=1|0] [--release-tag=<tag>]"
+        "  infring-ops enterprise-hardening genesis-doc-freeze [--strict=1|0] [--release-tag=<tag>]"
     );
     println!(
-        "  protheus-ops enterprise-hardening genesis-bootstrap [--strict=1|0] [--profile=<id>]"
+        "  infring-ops enterprise-hardening genesis-bootstrap [--strict=1|0] [--profile=<id>]"
     );
     println!(
-        "  protheus-ops enterprise-hardening genesis-installer-sim [--strict=1|0] [--profile=<standard|airgap|enterprise>]"
+        "  infring-ops enterprise-hardening genesis-installer-sim [--strict=1|0] [--profile=<standard|airgap|enterprise>]"
     );
     println!(
-        "  protheus-ops enterprise-hardening zero-trust-profile [--issuer=<url>] [--cmek-key=<kms://...>] [--private-link=<id>] [--egress=deny|restricted] [--strict=1|0]"
+        "  infring-ops enterprise-hardening zero-trust-profile [--issuer=<url>] [--cmek-key=<kms://...>] [--private-link=<id>] [--egress=deny|restricted] [--strict=1|0]"
     );
-    println!("  protheus-ops enterprise-hardening ops-bridge [--providers=a,b] [--strict=1|0]");
+    println!("  infring-ops enterprise-hardening ops-bridge [--providers=a,b] [--strict=1|0]");
     println!(
-        "  protheus-ops enterprise-hardening scale-ha-certify [--regions=<n>] [--airgap-agents=<n>] [--cold-start-ms=<n>] [--strict=1|0]"
-    );
-    println!(
-        "  protheus-ops enterprise-hardening deploy-modules [--profile=<enterprise|airgap>] [--strict=1|0]"
-    );
-    println!("  protheus-ops enterprise-hardening super-gate [--strict=1|0]");
-    println!(
-        "  protheus-ops enterprise-hardening adoption-bootstrap [--profile=<id>] [--strict=1|0]"
+        "  infring-ops enterprise-hardening scale-ha-certify [--regions=<n>] [--airgap-agents=<n>] [--cold-start-ms=<n>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops enterprise-hardening replay [--at=<rfc3339> | --receipt-hash=<hash>] [--strict=1|0]"
+        "  infring-ops enterprise-hardening deploy-modules [--profile=<enterprise|airgap>] [--strict=1|0]"
     );
-    println!("  protheus-ops enterprise-hardening explore [--strict=1|0]");
+    println!("  infring-ops enterprise-hardening super-gate [--strict=1|0]");
     println!(
-        "  protheus-ops enterprise-hardening ai [--model=<ollama/...>] [--prompt=<text>] [--local-only=1|0] [--strict=1|0]"
-    );
-    println!("  protheus-ops enterprise-hardening sync [--peer-roots=a,b] [--strict=1|0]");
-    println!(
-        "  protheus-ops enterprise-hardening energy-cert [--agents=<n>] [--idle-watts=<n>] [--task-watts=<n>] [--strict=1|0]"
+        "  infring-ops enterprise-hardening adoption-bootstrap [--profile=<id>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops enterprise-hardening migrate-ecosystem [--from=infring|openhands|agent-os] --payload-file=<path> [--strict=1|0]"
+        "  infring-ops enterprise-hardening replay [--at=<rfc3339> | --receipt-hash=<hash>] [--strict=1|0]"
+    );
+    println!("  infring-ops enterprise-hardening explore [--strict=1|0]");
+    println!(
+        "  infring-ops enterprise-hardening ai [--model=<ollama/...>] [--prompt=<text>] [--local-only=1|0] [--strict=1|0]"
+    );
+    println!("  infring-ops enterprise-hardening sync [--peer-roots=a,b] [--strict=1|0]");
+    println!(
+        "  infring-ops enterprise-hardening energy-cert [--agents=<n>] [--idle-watts=<n>] [--task-watts=<n>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops enterprise-hardening chaos-run [--agents=<n>] [--suite=general|isolate] [--attacks=a,b] [--strict=1|0]"
+        "  infring-ops enterprise-hardening migrate-ecosystem [--from=infring|openhands|agent-os] --payload-file=<path> [--strict=1|0]"
     );
     println!(
-        "  protheus-ops enterprise-hardening assistant-mode [--topic=<id>] [--hand=<id>] [--workspace=<path>] [--strict=1|0]"
+        "  infring-ops enterprise-hardening chaos-run [--agents=<n>] [--suite=general|isolate] [--attacks=a,b] [--strict=1|0]"
     );
-    println!("  protheus-ops enterprise-hardening dashboard");
+    println!(
+        "  infring-ops enterprise-hardening assistant-mode [--topic=<id>] [--hand=<id>] [--workspace=<path>] [--strict=1|0]"
+    );
+    println!("  infring-ops enterprise-hardening dashboard");
 }
 
 fn bool_flag(raw: Option<&str>, fallback: bool) -> bool {

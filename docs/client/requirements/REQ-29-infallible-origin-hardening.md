@@ -10,7 +10,7 @@ Make origin integrity an executable gate, not a narrative claim.
 ## Derived Requirements
 
 ### REQ-29-001 Root Invariant Enforcer (executable)
-- Add a Rust-authoritative `origin-integrity` lane under `protheus-ops`.
+- Add a Rust-authoritative `origin-integrity` lane under `infring-ops`.
 - The lane must emit deterministic receipts and fail closed in strict mode.
 - It must validate at least:
   - Conduit-only boundary enforcement via dependency boundary guard.
@@ -26,7 +26,7 @@ Make origin integrity an executable gate, not a narrative claim.
 - Receipt must include a deterministic binding hash over checks + safety hash.
 
 ### REQ-29-004 Self-audit daemon on start/reload
-- `protheusd` must run a startup origin-integrity check with a 30s default timeout.
+- `infringd` must run a startup origin-integrity check with a 30s default timeout.
 - If `require_pass_on_start=true`, startup must fail closed when check fails.
 - Daemon status/diagnostics must surface the latest origin-integrity result.
 
@@ -39,7 +39,7 @@ Make origin integrity an executable gate, not a narrative claim.
 - Formal Lean proof extraction integration remains a follow-up hardening lane. Current implementation is deterministic runtime enforcement with receipts.
 
 ## Acceptance
-- `protheus-ops origin-integrity run --strict=1` succeeds on healthy repo state.
-- `protheus-ops origin-integrity certificate --strict=1` emits certificate artifact.
-- `protheus-ops origin-integrity seed-bootstrap-verify --certificate=<path>` verifies local/remote match.
-- `protheusd start` refuses startup when origin-integrity fails (with strict policy enabled).
+- `infring-ops origin-integrity run --strict=1` succeeds on healthy repo state.
+- `infring-ops origin-integrity certificate --strict=1` emits certificate artifact.
+- `infring-ops origin-integrity seed-bootstrap-verify --certificate=<path>` verifies local/remote match.
+- `infringd start` refuses startup when origin-integrity fails (with strict policy enabled).

@@ -86,7 +86,7 @@ fn capability_switchboard_run_policy_root(
         });
     }
 
-    let node = std::env::var("PROTHEUS_NODE_BINARY")
+    let node = std::env::var("INFRING_NODE_BINARY")
         .ok()
         .filter(|v| !v.trim().is_empty())
         .unwrap_or_else(|| "node".to_string());
@@ -504,10 +504,10 @@ pub fn run_capability_switchboard(repo_root: &Path, argv: &[String]) -> (Value, 
                 "type": "capability_switchboard_error",
                 "reason": format!("unknown_command:{cmd}"),
                 "usage": [
-                    "protheus-ops security-plane capability-switchboard status",
-                    "protheus-ops security-plane capability-switchboard verify-chain",
-                    "protheus-ops security-plane capability-switchboard evaluate --switch=<id>",
-                    "protheus-ops security-plane capability-switchboard set --switch=<id> --state=on|off --approver-id=<id> --approval-note=... --second-approver-id=<id> --second-approval-note=..."
+                    "infring-ops security-plane capability-switchboard status",
+                    "infring-ops security-plane capability-switchboard verify-chain",
+                    "infring-ops security-plane capability-switchboard evaluate --switch=<id>",
+                    "infring-ops security-plane capability-switchboard set --switch=<id> --state=on|off --approver-id=<id> --approval-note=... --second-approver-id=<id> --second-approval-note=..."
                 ]
             }),
             2,

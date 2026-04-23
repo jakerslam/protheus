@@ -19,7 +19,7 @@
   "github": {
     "host": "github.com",
     "owner": "jakerslam",
-    "repo": "protheus",
+    "repo": "infring",
     "gh_bin": "gh",
     "auth_required": true,
     "issue_title_prefix": "[Backlog]",

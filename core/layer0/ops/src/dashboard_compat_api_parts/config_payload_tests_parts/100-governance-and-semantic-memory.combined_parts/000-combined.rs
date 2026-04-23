@@ -583,9 +583,7 @@ fn workflow_decision_tree_v2_classifies_file_edits_as_task_route() {
 
 #[test]
 fn workflow_decision_tree_explicit_file_tool_access_uses_task_tool_gate() {
-    let decision = workflow_turn_tool_decision_tree(
-        "access the file tooling and inspect the workspace for this request",
-    );
+    let decision = workflow_turn_tool_decision_tree("access the file tooling");
     assert_eq!(
         decision.get("workflow_route").and_then(Value::as_str),
         Some("task")
@@ -611,6 +609,10 @@ fn workflow_decision_tree_explicit_file_tool_access_uses_task_tool_gate() {
             .pointer("/gates/gate_1/required")
             .and_then(Value::as_bool),
         Some(true)
+    );
+    assert_eq!(
+        decision.get("reason_code").and_then(Value::as_str),
+        Some("local_lookup_required")
     );
 }
 
@@ -2863,7 +2865,7 @@ fn summarize_web_search_framework_payload_prefers_locator_domain_over_noisy_titl
 #[test]
 fn direct_batch_query_get_endpoint_emits_nexus_audit_and_tracking_metadata() {
     let _guard = WEB_ENDPOINT_ENV_MUTEX.lock().expect("lock");
-    std::env::remove_var("PROTHEUS_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE");
+    std::env::remove_var("INFRING_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE");
     let root = governance_temp_root();
     let snapshot = governance_ok_snapshot();
     let out = handle(
@@ -2893,7 +2895,7 @@ fn direct_batch_query_get_endpoint_emits_nexus_audit_and_tracking_metadata() {
 #[test]
 fn direct_batch_query_post_endpoint_emits_nexus_audit_and_tracking_metadata() {
     let _guard = WEB_ENDPOINT_ENV_MUTEX.lock().expect("lock");
-    std::env::remove_var("PROTHEUS_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE");
+    std::env::remove_var("INFRING_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE");
     let root = governance_temp_root();
     let snapshot = governance_ok_snapshot();
     let out = handle(

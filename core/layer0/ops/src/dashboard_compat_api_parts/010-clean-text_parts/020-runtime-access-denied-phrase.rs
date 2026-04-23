@@ -31,7 +31,7 @@ fn runtime_access_denied_phrase(text: &str) -> bool {
         || normalized.contains("without system monitoring")
         || normalized.contains("text-based ai assistant")
         || normalized.contains("cannot directly interface")
-        || normalized.contains("cannot execute the protheus-ops commands")
+        || normalized.contains("cannot execute the infring-ops commands")
         || normalized.contains("check your system monitoring tools")
         || normalized.contains("no access to")
         || workspace_only_capability_dump

@@ -252,7 +252,7 @@ fn enable_bedrock_produces_sigv4_private_profile() {
     "require_private_subnet": true
   },
   "secrets": {
-    "ssm_path": "/protheus/bedrock/proxy",
+    "ssm_path": "/infring/bedrock/proxy",
     "require_ssm": true
   }
 }"#,

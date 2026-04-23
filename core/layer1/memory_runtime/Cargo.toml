@@ -1,9 +1,9 @@
 [package]
-name = "protheus-layer1-memory-runtime"
+name = "infring-layer1-memory-runtime"
 version = "0.1.0"
 edition = "2021"
 license = "SEE LICENSE IN ../../../LICENSE"
 
 [lib]
-name = "protheus_layer1_memory_runtime"
+name = "infring_layer1_memory_runtime"
 path = "src/lib.rs"

@@ -15,9 +15,9 @@ const TRIT_OK: i64 = 1;
 
 fn usage() {
     println!("ternary-belief-kernel commands:");
-    println!("  protheus-ops ternary-belief-kernel evaluate --payload-base64=<json>");
-    println!("  protheus-ops ternary-belief-kernel merge --payload-base64=<json>");
-    println!("  protheus-ops ternary-belief-kernel serialize --payload-base64=<json>");
+    println!("  infring-ops ternary-belief-kernel evaluate --payload-base64=<json>");
+    println!("  infring-ops ternary-belief-kernel merge --payload-base64=<json>");
+    println!("  infring-ops ternary-belief-kernel serialize --payload-base64=<json>");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {

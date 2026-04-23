@@ -129,7 +129,7 @@ fn run_identity_surface(
         flags
             .get("scopes")
             .map(|v| v.as_str())
-            .unwrap_or("openid,profile,protheus.read"),
+            .unwrap_or("openid,profile,infring.read"),
     );
     let roles = split_csv(flags.get("roles").map(|v| v.as_str()).unwrap_or("operator"));
     let allowed_scopes = provider_obj

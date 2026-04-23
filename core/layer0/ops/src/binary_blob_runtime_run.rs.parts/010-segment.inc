@@ -213,18 +213,18 @@ pub(super) fn run(root: &Path, argv: &[String]) -> i32 {
 
     if matches!(command.as_str(), "help" | "--help" | "-h") {
         println!("Usage:");
-        println!("  protheus-ops binary-blob-runtime status");
-        println!("  protheus-ops binary-blob-runtime dashboard");
-        println!("  protheus-ops binary-blob-runtime migrate [--apply=1|0] [--mode=modular|monolithic] [--modules=<csv>]");
-        println!("  protheus-ops binary-blob-runtime settle [--module=<id>] [--module-path=<path>] [--mode=modular|monolithic] [--shadow-swap=1|0] [--apply=1|0]");
-        println!("  protheus-ops binary-blob-runtime load [--module=<id>]");
-        println!("  protheus-ops binary-blob-runtime mutate [--module=<id>] [--proposal=<text>] [--apply=1|0] [--canary-pass=1|0]");
-        println!("  protheus-ops binary-blob-runtime vault-status");
+        println!("  infring-ops binary-blob-runtime status");
+        println!("  infring-ops binary-blob-runtime dashboard");
+        println!("  infring-ops binary-blob-runtime migrate [--apply=1|0] [--mode=modular|monolithic] [--modules=<csv>]");
+        println!("  infring-ops binary-blob-runtime settle [--module=<id>] [--module-path=<path>] [--mode=modular|monolithic] [--shadow-swap=1|0] [--apply=1|0]");
+        println!("  infring-ops binary-blob-runtime load [--module=<id>]");
+        println!("  infring-ops binary-blob-runtime mutate [--module=<id>] [--proposal=<text>] [--apply=1|0] [--canary-pass=1|0]");
+        println!("  infring-ops binary-blob-runtime vault-status");
         println!(
-            "  protheus-ops binary-blob-runtime vault-repair [--apply=1|0] [--allow-unsigned=1|0]"
+            "  infring-ops binary-blob-runtime vault-repair [--apply=1|0] [--allow-unsigned=1|0]"
         );
-        println!("  protheus-ops binary-blob-runtime substrate-probe [--prefer=ternary|binary]");
-        println!("  protheus-ops binary-blob-runtime debug-access [--module=<id>] [--tamper=1|0] [--apply=1|0]");
+        println!("  infring-ops binary-blob-runtime substrate-probe [--prefer=ternary|binary]");
+        println!("  infring-ops binary-blob-runtime debug-access [--module=<id>] [--tamper=1|0] [--apply=1|0]");
         return 0;
     }
 
@@ -268,7 +268,7 @@ pub(super) fn run(root: &Path, argv: &[String]) -> i32 {
                 },
                 "verification": checks,
                 "dashboard": dashboard,
-                "commands": ["protheus blobs migrate", "protheus blobs status", "protheus blobs dashboard"],
+                "commands": ["infring blobs migrate", "infring blobs status", "infring blobs dashboard"],
                 "claim_evidence": [
                     {
                         "id": "V8-BINARY-BLOB-001.1",
@@ -431,7 +431,7 @@ pub(super) fn run(root: &Path, argv: &[String]) -> i32 {
                 "type": "binary_blob_runtime_migrate",
                 "lane": "core/layer0/ops",
                 "mode": clean(parsed.flags.get("mode").cloned().unwrap_or_else(|| "modular".to_string()), 24),
-                "commands": ["protheus blobs migrate", "protheus blobs status"],
+                "commands": ["infring blobs migrate", "infring blobs status"],
                 "vault_integrity_gate": vault_integrity_gate.clone().unwrap_or(Value::Null),
                 "settled": settled,
                 "failures": failures,

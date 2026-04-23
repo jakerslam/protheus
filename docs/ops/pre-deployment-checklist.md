@@ -3,11 +3,11 @@
 **Version:** 1.0  
 **Last Updated:** April 15, 2026  
 **Owner:** Infrastructure Team  
-**Applies To:** All Protheus infrastructure deployments
+**Applies To:** All Infring infrastructure deployments
 
 ## Overview
 
-This checklist ensures consistent and safe deployment practices across the Protheus trading infrastructure. Use this document before any deployment to production or staging environments.
+This checklist ensures consistent and safe deployment practices across the Infring trading infrastructure. Use this document before any deployment to production or staging environments.
 
 ## Deployment Preparation
 
@@ -44,7 +44,7 @@ This checklist ensures consistent and safe deployment practices across the Proth
 curl -s http://localhost:8080/health | jq .
 
 # Review recent logs for anomalies
-./scripts/utils/log-analyzer.sh --mode=errors -s "1 hour ago" /var/log/protheus/app.log
+./scripts/utils/log-analyzer.sh --mode=errors -s "1 hour ago" /var/log/infring/app.log
 ```
 
 ### Checklist Items

@@ -3,7 +3,7 @@
 // V6-WORKFLOW-012.4, V6-WORKFLOW-012.5, V6-WORKFLOW-012.6, V6-WORKFLOW-012.7,
 // V6-WORKFLOW-012.8
 
-use protheus_ops_core::haystack_bridge;
+use infring_ops_core::haystack_bridge;
 use serde_json::{json, Value};
 use std::collections::BTreeSet;
 use std::fs;

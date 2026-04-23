@@ -1,4 +1,4 @@
-use protheus_ops_core::{parse_args, run_runtime_efficiency_floor};
+use infring_ops_core::{parse_args, run_runtime_efficiency_floor};
 use serde_json::json;
 use std::fs;
 

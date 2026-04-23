@@ -5,7 +5,7 @@ use std::path::Path;
 
 const USAGE: &[&str] = &[
     "Usage:",
-    "  protheus-ops opendev-dual-agent run|status|handoff|discover|compact|remind [--policy=<path>] [--state-path=<path>] [--strict=1|0]",
+    "  infring-ops opendev-dual-agent run|status|handoff|discover|compact|remind [--policy=<path>] [--state-path=<path>] [--strict=1|0]",
 ];
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
@@ -15,7 +15,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         &standard_lane_spec(
             "opendev_dual_agent",
             "opendev_dual_agent",
-            "protheus-ops opendev-dual-agent",
+            "infring-ops opendev-dual-agent",
             USAGE,
         ),
     )

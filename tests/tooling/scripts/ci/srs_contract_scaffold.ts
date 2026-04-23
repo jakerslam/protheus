@@ -72,8 +72,8 @@ function contractForRow(row, generatedAt, sourceTag) {
       { type: 'execution_history', path: 'local/state/ops/srs_contract_runtime/history.jsonl' },
     ],
     validation: {
-      lane_command: `protheus-ops srs-contract-runtime run --id=${id}`,
-      status_command: `protheus-ops srs-contract-runtime status --id=${id}`,
+      lane_command: `infring-ops srs-contract-runtime run --id=${id}`,
+      status_command: `infring-ops srs-contract-runtime status --id=${id}`,
       fail_closed_on_missing_contract: true,
     },
     generated_from: {

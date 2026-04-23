@@ -135,13 +135,13 @@ mod tests {
     #[test]
     fn command_router_translates_diagnostic_surface() {
         let out = resolve_operator_command(
-            "protheus-ops diagnostic full-scan --priority=critical --output=telemetry-now",
+            "infring-ops diagnostic full-scan --priority=critical --output=telemetry-now",
         )
         .expect("translation");
         assert!(out.translated);
         assert_eq!(
             out.resolved_command,
-            "protheus-ops daemon-control diagnostics && protheus-ops status --dashboard"
+            "infring-ops daemon-control diagnostics && infring-ops status --dashboard"
         );
         assert_eq!(
             out.translation_reason,
@@ -152,13 +152,13 @@ mod tests {
     #[test]
     fn command_router_translates_queue_optimize_aggressive() {
         let out = resolve_operator_command(
-            "protheus-ops queue optimize --strategy=aggressive --clean-orphaned=true",
+            "infring-ops queue optimize --strategy=aggressive --clean-orphaned=true",
         )
         .expect("translation");
         assert!(out.translated);
         assert_eq!(
             out.resolved_command,
-            "protheus-ops attention-queue compact --retain=128 && protheus-ops attention-queue status"
+            "infring-ops attention-queue compact --retain=128 && infring-ops attention-queue status"
         );
     }
 
@@ -166,10 +166,10 @@ mod tests {
     fn command_router_translates_infring_alias_to_core_binary() {
         let out = resolve_operator_command("infring daemon ping").expect("translation");
         assert!(out.translated);
-        assert_eq!(out.resolved_command, "protheus-ops daemon ping");
+        assert_eq!(out.resolved_command, "infring-ops daemon ping");
         assert_eq!(
             out.translation_reason,
-            "translated_infring_cli_alias_to_protheus_ops"
+            "translated_infring_cli_alias_to_infring_ops"
         );
     }
 
@@ -179,7 +179,7 @@ mod tests {
         assert!(out.translated);
         assert_eq!(
             out.resolved_command,
-            "protheus-ops command-list-kernel --mode=help"
+            "infring-ops command-list-kernel --mode=help"
         );
         assert_eq!(
             out.translation_reason,

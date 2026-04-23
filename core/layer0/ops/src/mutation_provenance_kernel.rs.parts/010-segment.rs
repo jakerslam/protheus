@@ -13,10 +13,10 @@ use crate::now_iso;
 
 fn usage() {
     println!("mutation-provenance-kernel commands:");
-    println!("  protheus-ops mutation-provenance-kernel load-policy [--payload-base64=<json>]");
-    println!("  protheus-ops mutation-provenance-kernel normalize-meta --payload-base64=<json>");
-    println!("  protheus-ops mutation-provenance-kernel enforce --payload-base64=<json>");
-    println!("  protheus-ops mutation-provenance-kernel record-audit --payload-base64=<json>");
+    println!("  infring-ops mutation-provenance-kernel load-policy [--payload-base64=<json>]");
+    println!("  infring-ops mutation-provenance-kernel normalize-meta --payload-base64=<json>");
+    println!("  infring-ops mutation-provenance-kernel enforce --payload-base64=<json>");
+    println!("  infring-ops mutation-provenance-kernel record-audit --payload-base64=<json>");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
@@ -80,7 +80,7 @@ fn clean_text(value: Option<&Value>, max_len: usize) -> String {
 }
 
 fn workspace_root(root: &Path) -> PathBuf {
-    if let Ok(raw) = std::env::var("PROTHEUS_WORKSPACE_ROOT") {
+    if let Ok(raw) = std::env::var("INFRING_WORKSPACE_ROOT") {
         let trimmed = raw.trim();
         if !trimmed.is_empty() {
             return PathBuf::from(trimmed);

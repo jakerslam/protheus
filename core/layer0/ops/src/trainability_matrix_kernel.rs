@@ -8,12 +8,12 @@ use crate::contract_lane_utils as lane_utils;
 
 fn usage() {
     println!("trainability-matrix-kernel commands:");
-    println!("  protheus-ops trainability-matrix-kernel default-policy [--payload-base64=<json>]");
+    println!("  infring-ops trainability-matrix-kernel default-policy [--payload-base64=<json>]");
     println!(
-        "  protheus-ops trainability-matrix-kernel normalize-policy [--payload-base64=<json>]"
+        "  infring-ops trainability-matrix-kernel normalize-policy [--payload-base64=<json>]"
     );
-    println!("  protheus-ops trainability-matrix-kernel load-policy [--payload-base64=<json>]");
-    println!("  protheus-ops trainability-matrix-kernel evaluate [--payload-base64=<json>]");
+    println!("  infring-ops trainability-matrix-kernel load-policy [--payload-base64=<json>]");
+    println!("  infring-ops trainability-matrix-kernel evaluate [--payload-base64=<json>]");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
@@ -160,7 +160,7 @@ fn default_policy() -> Value {
         "provider_rules": {
             "internal": {
                 "allow": true,
-                "allowed_license_ids": ["internal_protheus"],
+                "allowed_license_ids": ["internal_infring"],
                 "allowed_consent_modes": ["operator_policy", "internal_system", "explicit_opt_in"],
                 "note": "Internal first-party data retained by local operator policy."
             }

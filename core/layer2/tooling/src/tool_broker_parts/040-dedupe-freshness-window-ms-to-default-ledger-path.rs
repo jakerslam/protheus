@@ -47,7 +47,7 @@ fn default_ledger_path() -> PathBuf {
     }
     if let Some(root) = std::env::var("INFRING_ROOT")
         .ok()
-        .or_else(|| std::env::var("PROTHEUS_ROOT").ok())
+        .or_else(|| std::env::var("INFRING_ROOT").ok())
         .map(|v| PathBuf::from(clean_text(&v, 400)))
         .filter(|v| !v.as_os_str().is_empty())
     {
