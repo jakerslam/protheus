@@ -1,6 +1,6 @@
 # TODO (SRS Execution Checklist)
 
-Updated: 2026-04-24T05:58:00.000Z
+Updated: 2026-04-24T06:12:00.000Z
 
 ## Frontloaded Actionable Queue (P0/P1/P2)
 
@@ -2371,7 +2371,7 @@ Index only (no status duplication): canonical checkbox status remains in the ID 
 - [ ] `V11-CLIENT-009` — in_progress — Client De-Authority Intake (2026-04-16, shell truth-leak policy expanded for workflow retry-loop boilerplate and automatic-tool-trigger admission regression detection + explicit unexpected-workflow-state / final-reply-not-rendered / canned-next-actions loop signatures + short-template workflow-loop + blocked-trace boilerplate detection increment)
 - [ ] `V11-DX-002` — in_progress — Production Closure Program Intake (2026-04-10)
 - [ ] `V11-DX-004` — in_progress — Workspace Operability Intake (2026-04-10)
-- [ ] `V11-GOV-INC-001` — in_progress — Incident Operations Governance Intake (2026-04-19, canonical runtime governance defaults materialized under client/runtime/config + ownership lane-key coverage + process-heading order checks + critical-role owner separation + default-path gate test coverage increment)
+- [ ] `V11-GOV-INC-001` — in_progress — Incident Operations Governance Intake (2026-04-19, canonical runtime governance defaults materialized under client/runtime/config + ownership lane-key coverage + process-heading order checks + critical-role owner separation + default-path gate test coverage increment + policy-contract required-token fail-closed checks + waiver-policy field-contract checks + waiver duplicate/status hygiene checks)
 - [ ] `V11-INSTALL-005` — in_progress — 10/10 Completion Intake (2026-04-03, repair bootstrap wrapper floor now recreates missing PowerShell wrapper shims in addition to cmd wrappers + rewrites broken wrapper artifacts + parser-safe PS1 health checks + cmd ASCII/ps1 UTF8 wrapper encoding hardening + post-wrapper-write floor enforcement + dedicated windows installer contract guard in CI/release)
 - [ ] `V11-INSTALL-008` — in_progress — 10/10 Completion Intake (2026-04-03, release-tag refresh fail-closed guard + `tag_state_missing` reason parity + refresh required/applied summary contract increment + mandatory release-tag write success contract increment)
 - 2026-04-22 increment notes:

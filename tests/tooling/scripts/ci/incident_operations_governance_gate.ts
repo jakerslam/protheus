@@ -421,6 +421,89 @@ function checkPolicyContracts(policy: GovernancePolicy): GateCheck {
   };
 }
 
+function checkPolicyContractRequiredTokens(policy: GovernancePolicy): GateCheck {
+  const templateRequired = [
+    'initial_alert',
+    'status_update',
+    'mitigation_started',
+    'rollback_notice',
+    'resolved',
+    'postmortem_ready',
+  ];
+  const checklistRequired = [
+    'scope_declared',
+    'risk_level_declared',
+    'rollback_plan_linked',
+    'owner_acknowledged',
+    'observer_assigned',
+  ];
+  const reportingRequired = [
+    'summary',
+    'severity_and_scope',
+    'timeline',
+    'actions_taken',
+    'residual_risk',
+    'followups',
+  ];
+  const scriptFieldRequired = [
+    'status',
+    'reason_code',
+    'artifact_path',
+    'next_action',
+    'owner',
+    'severity',
+  ];
+
+  const templates = uniqueNonEmpty(policy.policy_contract?.communication_templates?.required_templates);
+  const checklist = uniqueNonEmpty(policy.policy_contract?.deployment_checklist?.required_items);
+  const reporting = uniqueNonEmpty(policy.policy_contract?.reporting_format?.required_sections);
+  const scriptFields = uniqueNonEmpty(policy.policy_contract?.script_output_conventions?.required_fields);
+
+  const templateMissing = templateRequired.filter((id) => !templates.includes(id));
+  const checklistMissing = checklistRequired.filter((id) => !checklist.includes(id));
+  const reportingMissing = reportingRequired.filter((id) => !reporting.includes(id));
+  const scriptFieldMissing = scriptFieldRequired.filter((id) => !scriptFields.includes(id));
+
+  const placeholderTokens = [
+    ...templates.map((id) => ({ group: 'templates', id })),
+    ...checklist.map((id) => ({ group: 'checklist', id })),
+    ...reporting.map((id) => ({ group: 'reporting', id })),
+    ...scriptFields.map((id) => ({ group: 'script_fields', id })),
+  ]
+    .filter((row) => hasPlaceholderToken(row.id))
+    .map((row) => `${row.group}.${row.id}`);
+
+  const ok =
+    templateMissing.length === 0
+    && checklistMissing.length === 0
+    && reportingMissing.length === 0
+    && scriptFieldMissing.length === 0
+    && placeholderTokens.length === 0;
+  return {
+    id: 'policy_contract_required_tokens',
+    ok,
+    detail: ok
+      ? 'required_tokens=ok'
+      : `missing_templates=${templateMissing.join(',') || 'none'};missing_checklist=${checklistMissing.join(',') || 'none'};missing_reporting=${reportingMissing.join(',') || 'none'};missing_script_fields=${scriptFieldMissing.join(',') || 'none'};placeholder_tokens=${placeholderTokens.join(',') || 'none'}`,
+  };
+}
+
+function checkWaiverPolicyContract(policy: GovernancePolicy): GateCheck {
+  const required = uniqueNonEmpty(policy.hard_gates?.waiver_contract?.required_fields);
+  const expected = ['waiver_id', 'check_ids', 'reason', 'approver', 'expires_at', 'status'];
+  const missing = expected.filter((id) => !required.includes(id));
+  const unknown = required.filter((id) => !expected.includes(id));
+  const placeholder = required.filter((id) => hasPlaceholderToken(id));
+  const ok = missing.length === 0 && unknown.length === 0 && placeholder.length === 0;
+  return {
+    id: 'waiver_policy_contract',
+    ok,
+    detail: ok
+      ? `required_fields=${required.length}`
+      : `missing_fields=${missing.join(',') || 'none'};unknown_fields=${unknown.join(',') || 'none'};placeholder_fields=${placeholder.join(',') || 'none'}`,
+  };
+}
+
 function checkProcessDoc(policy: GovernancePolicy, processPath: string): GateCheck {
   const requiredHeadings = uniqueNonEmpty(policy.process_contract?.required_headings);
   try {
@@ -469,6 +552,9 @@ function checkWaiverContract(waiversPath: string): { check: GateCheck; activeWai
   const now = Date.now();
   const violations: string[] = [];
   const activeWaivers: ActiveWaiver[] = [];
+  const seenWaiverIds = new Set<string>();
+  const duplicateWaiverIds = new Set<string>();
+  const allowedStatuses = new Set(['active', 'expired', 'revoked']);
 
   for (const row of rows) {
     const waiverId = cleanText(row.waiver_id, 120);
@@ -478,8 +564,16 @@ function checkWaiverContract(waiversPath: string): { check: GateCheck; activeWai
     const checkIds = uniqueNonEmpty(row.check_ids);
     const status = cleanText(row.status || 'active', 40).toLowerCase();
 
+    if (waiverId) {
+      if (seenWaiverIds.has(waiverId)) duplicateWaiverIds.add(waiverId);
+      seenWaiverIds.add(waiverId);
+    }
     if (!waiverId || !reason || !approver || !expiresAt || checkIds.length === 0) {
       violations.push(`${waiverId || 'unknown_waiver'}:missing_required_fields`);
+      continue;
+    }
+    if (!allowedStatuses.has(status)) {
+      violations.push(`${waiverId}:invalid_status_${status || 'unknown'}`);
       continue;
     }
     if (hasPlaceholderToken(approver)) {
@@ -506,6 +600,9 @@ function checkWaiverContract(waiversPath: string): { check: GateCheck; activeWai
         expiresAt,
       });
     }
+  }
+  if (duplicateWaiverIds.size > 0) {
+    violations.push(`duplicate_waiver_ids:${Array.from(duplicateWaiverIds).join(',')}`);
   }
 
   return {
@@ -654,6 +751,8 @@ function run(argv: string[]): number {
   checks.push(checkRollbackCriteria(policy));
   checks.push(checkPostIncidentArtifactSchema(policy, artifactSchemaPath));
   checks.push(checkPolicyContracts(policy));
+  checks.push(checkPolicyContractRequiredTokens(policy));
+  checks.push(checkWaiverPolicyContract(policy));
   checks.push(checkProcessDoc(policy, processPath));
 
   const waiverEvaluation = checkWaiverContract(waiversPath);
