@@ -234,6 +234,14 @@ fn typed_probe_contract_diagnostics(
         }
     }
 
+    diagnostics.messages.sort();
+    diagnostics.messages.dedup();
+    if diagnostics.missing_count > 0 {
+        diagnostics.messages.push(format!(
+            "typed_probe_contract_missing_total:{}",
+            diagnostics.missing_count
+        ));
+    }
     if diagnostics.messages.is_empty() {
         diagnostics
             .messages
@@ -273,7 +281,7 @@ fn required_probe_contract_for_capability(
         Capability::WebFetch => Some(("web_fetch", &["tool_available", "transport_available"])),
         Capability::ToolRoute => Some(("tool_route", &["tool_available", "transport_available"])),
         Capability::ExecuteTool => {
-            Some(("execute_tool", &["tool_available", "transport_available"]))
+            Some(("tool_route", &["tool_available", "transport_available"]))
         }
     }
 }
@@ -295,7 +303,10 @@ fn probe_snapshot_for_contract_key<'a>(
         "verify_claim" => Capability::VerifyClaim,
         _ => return None,
     };
-    probes.iter().find(|row| row.capability == capability)
+    probes.iter().find(|row| {
+        row.capability == capability
+            || (capability == Capability::ToolRoute && row.capability == Capability::ExecuteTool)
+    })
 }
 
 fn probe_field_is_missing(snapshot: &CapabilityProbeSnapshot, field: &str) -> bool {

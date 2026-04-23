@@ -1,7 +1,8 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
-    CoreExecutionObservation, DegradationState, ExecutionCorrelation, ExecutionState,
-    OrchestrationPlan, PlanCandidate, PlanStatus, StepState, StepStatus, TypedOrchestrationRequest,
+    ControlPlaneDecisionTrace, CoreExecutionObservation, DegradationState, ExecutionCorrelation,
+    ExecutionState, OrchestrationPlan, PlanCandidate, PlanStatus, ReceiptDebugMetadata, StepState,
+    StepStatus, TypedOrchestrationRequest,
 };
 
 pub fn project_execution_state(
@@ -110,11 +111,28 @@ pub fn execution_state_for(
 pub fn build_progress_projection(plan: &OrchestrationPlan) -> String {
     let posture = format!("{:?}", plan.posture).to_lowercase();
     let status = format!("{:?}", plan.execution_state.plan_status).to_lowercase();
+    let blocked = plan.selected_plan.blocked_on.len();
+    let probe_gaps = plan
+        .classification
+        .reasons
+        .iter()
+        .filter(|reason| reason.starts_with("typed_probe_contract_missing"))
+        .count();
+    let heuristic_probe_count = plan
+        .selected_plan
+        .capability_probes
+        .iter()
+        .flat_map(|probe| probe.probe_sources.iter())
+        .filter(|source| source.starts_with("heuristic."))
+        .count();
     format!(
-        "orchestration posture={} status={} steps={} clarification={} confidence={:.2}",
+        "orchestration posture={} status={} steps={} blocked={} probe_gaps={} heuristic_probes={} clarification={} confidence={:.2}",
         posture,
         status,
         plan.selected_plan.steps.len(),
+        blocked,
+        probe_gaps,
+        heuristic_probe_count,
         plan.needs_clarification,
         plan.selected_plan.confidence
     )
@@ -230,5 +248,25 @@ fn correlation_for(
         observed_core_outcome_refs: execution_observation
             .map(|row| row.outcome_refs.clone())
             .unwrap_or_default(),
+        receipt_metadata: ReceiptDebugMetadata {
+            decision_trace: decision_trace_for_candidate(plan),
+        },
+    }
+}
+
+fn decision_trace_for_candidate(plan: &PlanCandidate) -> ControlPlaneDecisionTrace {
+    let rationale = if !plan.reasons.is_empty() {
+        plan.reasons.clone()
+    } else {
+        plan.steps
+            .iter()
+            .flat_map(|step| step.rationale.iter().cloned())
+            .collect::<Vec<_>>()
+    };
+    ControlPlaneDecisionTrace {
+        chosen: plan.plan_id.clone(),
+        alternatives_rejected: Vec::new(),
+        confidence: plan.confidence,
+        rationale,
     }
 }

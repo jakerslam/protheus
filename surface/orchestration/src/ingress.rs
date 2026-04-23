@@ -272,6 +272,9 @@ fn adapter_token_strings(surface: RequestSurface, obj: &Map<String, Value>) -> V
 fn parse_operation_kind(value: &str) -> Option<OperationKind> {
     match value.trim().to_ascii_lowercase().as_str() {
         "read"
+        | "/read"
+        | "/open"
+        | "/cat"
         | "status"
         | "inspect"
         | "list"
@@ -286,23 +289,34 @@ fn parse_operation_kind(value: &str) -> Option<OperationKind> {
         | "cat"
         | "head"
         | "tail" => Some(OperationKind::Read),
-        "search" | "query" | "lookup" | "grep" | "rg" | "glob" => Some(OperationKind::Search),
-        "fetch" | "download" | "retrieve" => Some(OperationKind::Fetch),
+        "search"
+        | "/search"
+        | "/find"
+        | "/grep"
+        | "/rg"
+        | "query"
+        | "lookup"
+        | "grep"
+        | "rg"
+        | "glob" => Some(OperationKind::Search),
+        "fetch" | "/fetch" | "/url" | "download" | "retrieve" => Some(OperationKind::Fetch),
         "compare" => Some(OperationKind::Compare),
-        "inspect_tooling" | "tool" | "tool_call" | "runtime_bridge" => {
+        "inspect_tooling" | "/tool" | "/tools" | "/gateway" | "tool" | "tool_call" | "runtime_bridge" => {
             Some(OperationKind::InspectTooling)
         }
-        "assimilate" | "ingest" => Some(OperationKind::Assimilate),
-        "plan" | "propose" => Some(OperationKind::Plan),
-        "mutate" | "update" | "write" | "edit" => Some(OperationKind::Mutate),
+        "assimilate" | "/assimilate" | "ingest" => Some(OperationKind::Assimilate),
+        "plan" | "/plan" | "propose" => Some(OperationKind::Plan),
+        "mutate" | "/mutate" | "update" | "write" | "edit" => Some(OperationKind::Mutate),
         _ => None,
     }
 }
 
 fn parse_resource_kind(value: &str) -> Option<ResourceKind> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "web" | "url" => Some(ResourceKind::Web),
+        "web" | "/web" | "url" => Some(ResourceKind::Web),
         "workspace"
+        | "/workspace"
+        | "/repo"
         | "file"
         | "repo"
         | "repository"
@@ -316,7 +330,7 @@ fn parse_resource_kind(value: &str) -> Option<ResourceKind> {
         | "local"
         | "cwd"
         | "pwd" => Some(ResourceKind::Workspace),
-        "tooling" | "tool" | "runtime" => Some(ResourceKind::Tooling),
+        "tooling" | "/tooling" | "/tools" | "tool" | "runtime" => Some(ResourceKind::Tooling),
         "task" | "task_graph" | "workflow" => Some(ResourceKind::TaskGraph),
         "memory" | "history" => Some(ResourceKind::Memory),
         "mixed" => Some(ResourceKind::Mixed),
@@ -343,10 +357,26 @@ fn parse_mutability(value: &str) -> Option<Mutability> {
     }
 }
 
+fn tool_hint_from_slash_command(value: &str) -> Option<&'static str> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "/search" | "/find" | "/web" => Some("web_search"),
+        "/fetch" | "/url" => Some("web_fetch"),
+        "/read" | "/open" | "/cat" => Some("workspace_read"),
+        "/grep" | "/rg" | "/search-files" | "/repo" | "/workspace" => Some("workspace_search"),
+        "/tool" | "/tools" | "/gateway" | "/route" => Some("tool_route"),
+        _ => None,
+    }
+}
+
 fn extract_tool_hints_from_object(obj: &Map<String, Value>) -> Vec<String> {
     let mut hints = Vec::new();
     for key in ["tool", "tool_name"] {
         if let Some(value) = read_string(obj, &[key]) {
+            hints.push(value.to_string());
+        }
+    }
+    for key in ["command", "subcommand", "verb", "action"] {
+        if let Some(value) = read_string(obj, &[key]).and_then(tool_hint_from_slash_command) {
             hints.push(value.to_string());
         }
     }
@@ -453,7 +483,7 @@ fn parse_capability_name(value: &str) -> Option<Capability> {
         "web_search" => Some(Capability::WebSearch),
         "web_fetch" => Some(Capability::WebFetch),
         "tool_route" => Some(Capability::ToolRoute),
-        "execute_tool" => Some(Capability::ExecuteTool),
+        "execute_tool" => Some(Capability::ToolRoute),
         "plan_assimilation" => Some(Capability::PlanAssimilation),
         "verify_claim" => Some(Capability::VerifyClaim),
         _ => None,
@@ -516,6 +546,30 @@ mod tests {
             .reasons
             .iter()
             .any(|row| row == "surface_adapter:sdk"));
+    }
+
+    #[test]
+    fn sdk_slash_command_normalizes_operation_and_tool_hint() {
+        let parsed = normalize_request(OrchestrationRequest {
+            session_id: "sdk-slash-route".to_string(),
+            intent: "route tooling command".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "command": "/tool",
+                    "resource_kind": "tooling",
+                    "request_kind": "direct"
+                }
+            }),
+        });
+        assert_eq!(
+            parsed.typed_request.operation_kind,
+            OperationKind::InspectTooling
+        );
+        assert!(parsed
+            .typed_request
+            .tool_hints
+            .contains(&"tool_route".to_string()));
     }
 
     #[test]
@@ -1010,7 +1064,7 @@ mod tests {
         )
         .expect("legacy probe compatibility path should remain available");
         assert_eq!(envelope.probes.len(), 1);
-        assert_eq!(envelope.probes[0].capability, Capability::ExecuteTool);
+        assert_eq!(envelope.probes[0].capability, Capability::ToolRoute);
         assert_eq!(envelope.probes[0].transport_available, Some(true));
     }
 }

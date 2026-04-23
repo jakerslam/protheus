@@ -11,7 +11,7 @@ pub fn coordinate_recovery_escalation(
 ) -> (OrchestrationPlan, bool) {
     if matches!(
         plan.execution_state.plan_status,
-        PlanStatus::Running | PlanStatus::Completed | PlanStatus::Failed
+        PlanStatus::Running | PlanStatus::Completed
     ) {
         return (plan, false);
     }
@@ -98,7 +98,18 @@ pub fn coordinate_recovery_escalation(
     if plan.selected_plan.steps.is_empty() {
         plan.posture = ExecutionPosture::Ask;
         plan.needs_clarification = true;
-        plan.clarification_prompt = Some("no executable plan steps were generated".to_string());
+        let typed_probe_gap = plan
+            .classification
+            .reasons
+            .iter()
+            .any(|reason| reason.starts_with("typed_probe_contract_missing"));
+        plan.clarification_prompt = Some(if typed_probe_gap {
+            "typed tool routing contract is incomplete; refresh probe envelope and retry with explicit route"
+                .to_string()
+        } else {
+            "no executable plan steps were generated; provide narrower scope or an explicit tool/workspace target"
+                .to_string()
+        });
         if !plan
             .classification
             .clarification_reasons
@@ -113,12 +124,42 @@ pub fn coordinate_recovery_escalation(
         plan.classification
             .reasons
             .push("planner:no_executable_steps".to_string());
-        plan.execution_state.plan_status = PlanStatus::Blocked;
+        plan.execution_state.plan_status = PlanStatus::ClarificationRequired;
         plan.execution_state.recovery = Some(RecoveryState {
-            decision: RecoveryDecision::Halt,
-            reason: Some(RecoveryReason::PlannerContradiction),
-            retryable: false,
-            note: "planner emitted no executable steps".to_string(),
+            decision: RecoveryDecision::Clarify,
+            reason: Some(if typed_probe_gap {
+                RecoveryReason::TransportFailure
+            } else {
+                RecoveryReason::PlannerContradiction
+            }),
+            retryable: true,
+            note: if typed_probe_gap {
+                "planner emitted no executable steps because typed probe contract is incomplete"
+                    .to_string()
+            } else {
+                "planner emitted no executable steps".to_string()
+            },
+        });
+        return (plan, true);
+    }
+
+    if matches!(plan.execution_state.plan_status, PlanStatus::Failed) {
+        plan.posture = ExecutionPosture::Ask;
+        plan.needs_clarification = true;
+        plan.clarification_prompt = Some(
+            "core execution failed; retry with a narrower route or provide direct workspace/web evidence"
+                .to_string(),
+        );
+        plan.classification.needs_clarification = true;
+        plan.classification
+            .reasons
+            .push("recovery:failed_execution_requires_clarification".to_string());
+        plan.execution_state.plan_status = PlanStatus::ClarificationRequired;
+        plan.execution_state.recovery = Some(RecoveryState {
+            decision: RecoveryDecision::Clarify,
+            reason: Some(RecoveryReason::TransportFailure),
+            retryable: true,
+            note: "core execution failed; converted to clarification-first recovery to prevent repetitive fallback loops".to_string(),
         });
         return (plan, true);
     }

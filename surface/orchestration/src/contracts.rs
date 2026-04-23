@@ -112,7 +112,7 @@ impl Capability {
             Capability::WebSearch => &["web_search"],
             Capability::WebFetch => &["web_fetch"],
             Capability::ToolRoute => &["tool_route"],
-            Capability::ExecuteTool => &["execute_tool"],
+            Capability::ExecuteTool => &["tool_route", "execute_tool"],
             Capability::PlanAssimilation => &["plan_assimilation"],
             Capability::VerifyClaim => &["verify_claim"],
         }
@@ -485,11 +485,25 @@ pub struct DegradationState {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ControlPlaneDecisionTrace {
+    pub chosen: String,
+    pub alternatives_rejected: Vec<String>,
+    pub confidence: f32,
+    pub rationale: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ReceiptDebugMetadata {
+    pub decision_trace: ControlPlaneDecisionTrace,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ExecutionCorrelation {
     pub orchestration_trace_id: String,
     pub expected_core_contract_ids: Vec<String>,
     pub observed_core_receipt_ids: Vec<String>,
     pub observed_core_outcome_refs: Vec<String>,
+    pub receipt_metadata: ReceiptDebugMetadata,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -546,6 +560,9 @@ pub struct RuntimeQualitySignals {
     pub all_candidates_degraded: bool,
     pub all_candidates_require_clarification: bool,
     pub surface_adapter_fallback: bool,
+    pub typed_probe_contract_gap_count: u32,
+    pub decision_rationale_count: u32,
+    pub fallback_action_count: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -637,6 +654,7 @@ pub struct OrchestrationResultPackage {
     pub selected_plan: PlanCandidate,
     pub alternative_plans: Vec<PlanCandidate>,
     pub runtime_quality: RuntimeQualitySignals,
+    pub decision_trace: ControlPlaneDecisionTrace,
     pub workflow_template: WorkflowTemplate,
     pub control_plane_lifecycle: ControlPlaneLifecycleState,
 }

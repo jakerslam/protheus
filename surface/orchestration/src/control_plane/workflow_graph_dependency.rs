@@ -26,6 +26,7 @@ pub fn boundary() -> SubdomainBoundary {
         message_boundaries: &[
             "graph_to_recovery_boundary",
             "graph_to_packaging_boundary",
+            "graph_to_synthesis_boundary",
             "graph_state_transient_only_boundary",
         ],
     }
