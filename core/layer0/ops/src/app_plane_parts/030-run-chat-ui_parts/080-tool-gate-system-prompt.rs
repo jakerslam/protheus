@@ -26,6 +26,10 @@ fn chat_ui_tool_gate_system_prompt(raw_input: &str) -> String {
         .get("should_call_tools")
         .and_then(Value::as_bool)
         .unwrap_or(false);
+    let needs_tool_access = gate
+        .get("needs_tool_access")
+        .and_then(Value::as_bool)
+        .unwrap_or(should_call_tools);
     let recommended_tool_family = clean(
         gate.get("recommended_tool_family")
             .and_then(Value::as_str)
@@ -62,9 +66,15 @@ fn chat_ui_tool_gate_system_prompt(raw_input: &str) -> String {
         .get("workflow_retry_limit")
         .and_then(Value::as_i64)
         .unwrap_or(1);
+    let selected_tool_family = clean(
+        gate.get("selected_tool_family")
+            .and_then(Value::as_str)
+            .unwrap_or(recommended_tool_family.as_str()),
+        80,
+    );
     clean(
         &format!(
-            "Deterministic tool gate for this turn: route={workflow_route}, reason_code={reason_code}, requires_file_mutation={requires_file_mutation}, has_sufficient_information={has_sufficient_information}, status_check_message={status_check_message}, explicit_web_intent={explicit_web_intent}, info_source={info_source}, should_call_tools={should_call_tools}, recommended_tool_family={recommended_tool_family}, tool_selection_authority={tool_selection_authority}, automatic_tool_calls_allowed={automatic_tool_calls_allowed}, llm_should_answer_directly={llm_should_answer_directly}, retry_limit={workflow_retry_limit}. Decision tree: (1) If file mutation is required, use file tools. (2) If enough information is already available, answer directly with no tool calls. (3) If information is missing, use local memory/workspace tools for local facts and web tools only for online/current facts. (4) Web tools are never default; call them only when explicit web intent is present. (5) Automatic tool triggers are prohibited; all tool calls must be intentional LLM selections. Meta/control or tooling status-check turns are direct-answer turns and should not trigger web tools.",
+            "Deterministic tool gate for this turn: route={workflow_route}, reason_code={reason_code}, requires_file_mutation={requires_file_mutation}, has_sufficient_information={has_sufficient_information}, status_check_message={status_check_message}, explicit_web_intent={explicit_web_intent}, info_source={info_source}, should_call_tools={should_call_tools}, needs_tool_access={needs_tool_access}, recommended_tool_family={recommended_tool_family}, selected_tool_family={selected_tool_family}, tool_selection_authority={tool_selection_authority}, automatic_tool_calls_allowed={automatic_tool_calls_allowed}, llm_should_answer_directly={llm_should_answer_directly}, retry_limit={workflow_retry_limit}. Gate contract: ask \"Need tool access for this query?\" first; if true choose numbered tool family, then numbered tool, then execute, then run post-tool decision (finish or another tool). Decision tree: (1) If file mutation is required, use file tools. (2) If enough information is already available, answer directly with no tool calls. (3) If information is missing, use local memory/workspace tools for local facts and web tools only for online/current facts. (4) Web tools are never default; call them only when explicit web intent is present. (5) Automatic tool triggers are prohibited; all tool calls must be intentional LLM selections. Meta/control or tooling status-check turns are direct-answer turns and should not trigger web tools.",
         ),
         4_000,
     )

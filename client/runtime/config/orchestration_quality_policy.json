@@ -1,6 +1,13 @@
 {
   "version": "2026-04-21",
   "adapter_fallback": {
+    "required_surface_fields": [
+      "total",
+      "fallback_rate",
+      "low_confidence_rate"
+    ],
+    "min_surface_rows_present": 3,
+    "consistency_epsilon": 0.000001,
     "min_surface_total": {
       "sdk": 1,
       "gateway": 1,
@@ -25,6 +32,20 @@
     }
   },
   "planner_quality": {
+    "required_metric_fields": [
+      "request_count",
+      "average_candidate_count",
+      "clarification_first_rate",
+      "degraded_rate",
+      "selected_plan_requires_clarification_rate",
+      "selected_plan_degraded_rate",
+      "heuristic_probe_rate",
+      "zero_executable_candidate_rate",
+      "all_candidates_require_clarification_rate",
+      "all_candidates_degraded_rate"
+    ],
+    "max_missing_metric_fields": 0,
+    "consistency_epsilon": 0.000001,
     "min_request_count": 12,
     "min_average_candidate_count": 2.0,
     "max_clarification_first_rate": 0.4,
@@ -44,6 +65,17 @@
     }
   },
   "runtime_quality": {
+    "required_metric_fields": [
+      "sample_size_non_legacy",
+      "fallback_rate_non_legacy",
+      "heuristic_probe_rate_non_legacy",
+      "clarification_rate_non_legacy",
+      "zero_executable_rate_non_legacy",
+      "all_candidates_degraded_rate_non_legacy",
+      "average_candidate_count"
+    ],
+    "max_missing_metric_fields": 0,
+    "consistency_epsilon": 0.000001,
     "min_sample_size": 4,
     "min_average_candidate_count": 1.5,
     "max_non_legacy_fallback_rate": 0.3,

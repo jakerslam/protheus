@@ -972,6 +972,7 @@
     "infring:verify:proof-pack": "npm run -s ops:release:proof-pack --",
     "infring:verify:public-benchmark": "npm run -s ops:benchmark:public-harness --",
     "ops:incident-governance:gate": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/incident_operations_governance_gate.ts --strict=1 --out-json=core/local/artifacts/incident_operations_governance_gate_current.json --out-markdown=local/workspace/reports/INCIDENT_OPERATIONS_GOVERNANCE_GATE_CURRENT.md",
+    "ops:windows-installer:contract:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/windows_installer_contract_guard.ts --strict=1 --out-json=core/local/artifacts/windows_installer_contract_guard_current.json --out-markdown=local/workspace/reports/WINDOWS_INSTALLER_CONTRACT_GUARD_CURRENT.md",
     "test:ops:incident-governance:gate": "node client/runtime/lib/ts_entrypoint.ts tests/client-memory-tools/incident_operations_governance_gate.test.ts",
     "ops:shell:truth-leak:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/shell_truth_leak_guard.ts --strict=1 --out-json=core/local/artifacts/shell_truth_leak_guard_current.json --out-markdown=local/workspace/reports/SHELL_TRUTH_LEAK_GUARD_CURRENT.md",
     "ops:release-reviewer-redundancy:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/release_lane_reviewer_redundancy_guard.ts --strict=1 --out=core/local/artifacts/release_lane_reviewer_redundancy_guard_current.json --out-markdown=local/workspace/reports/RELEASE_LANE_REVIEWER_REDUNDANCY_GUARD_CURRENT.md",

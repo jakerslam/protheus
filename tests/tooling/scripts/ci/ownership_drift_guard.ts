@@ -123,6 +123,39 @@ function matchesAny(input: string, patterns: string[]): boolean {
   return patterns.some((pattern) => matchesPattern(input, pattern));
 }
 
+function duplicateValues(values: string[]): string[] {
+  return values.filter((value, index, arr) => arr.indexOf(value) !== index);
+}
+
+function isCanonicalRelativePath(value: string): boolean {
+  const normalized = cleanText(value || '', 400);
+  if (!normalized) return false;
+  if (path.isAbsolute(normalized)) return false;
+  if (normalized.includes('\\')) return false;
+  if (normalized.includes('..')) return false;
+  if (normalized.includes('//')) return false;
+  if (normalized.endsWith('/')) return false;
+  if (normalized.includes(' ')) return false;
+  return true;
+}
+
+function patternsValid(patterns: string[]): boolean {
+  for (const raw of patterns) {
+    const value = cleanText(raw || '', 260);
+    if (!value) return false;
+    if (value !== value.trim()) return false;
+    if (value.startsWith('re:')) {
+      try {
+        // eslint-disable-next-line no-new
+        new RegExp(value.slice(3), 'm');
+      } catch {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 function runImportBoundaries(policy: Policy): DriftViolation[] {
   const violations: DriftViolation[] = [];
   for (const rule of policy.import_boundaries || []) {
@@ -230,7 +263,22 @@ function toMarkdown(payload: any): string {
   lines.push(`- Path drift violations: ${payload.summary.path_violation_count}`);
   lines.push(`- Import drift violations: ${payload.summary.import_violation_count}`);
   lines.push(`- Symbol drift violations: ${payload.summary.symbol_violation_count}`);
+  lines.push(`- Policy failures: ${payload.summary.policy_failure_count}`);
   lines.push(`- Total violations: ${payload.summary.total_violation_count}`);
+  lines.push(`- Total issues: ${payload.summary.total_issue_count}`);
+  lines.push('');
+  lines.push('## Policy Failures');
+  lines.push('');
+  lines.push('| ID | Detail |');
+  lines.push('| --- | --- |');
+  const policyFailures = Array.isArray(payload.policy_failures) ? payload.policy_failures : [];
+  if (policyFailures.length === 0) {
+    lines.push('| (none) | - |');
+  } else {
+    for (const row of policyFailures.slice(0, 120)) {
+      lines.push(`| ${String(row.id)} | ${String(row.detail).slice(0, 220)} |`);
+    }
+  }
   lines.push('');
   lines.push('## Violations');
   lines.push('');
@@ -256,14 +304,228 @@ function main(): number {
   const args = parseArgs(process.argv.slice(2));
   const policyPath = path.resolve(ROOT, args.policyPath);
   const policy = JSON.parse(fs.readFileSync(policyPath, 'utf8')) as Policy;
+  const policyFailures: Array<{ id: string; detail: string }> = [];
+
+  const version = cleanText(policy.version || '', 64);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(version)) {
+    policyFailures.push({
+      id: 'ownership_drift_policy_version_invalid',
+      detail: version || 'missing',
+    });
+  }
+
+  const importBoundaries = Array.isArray(policy.import_boundaries) ? policy.import_boundaries : [];
+  const symbolBoundaries = Array.isArray(policy.symbol_boundaries) ? policy.symbol_boundaries : [];
+  const pathBoundaries = Array.isArray(policy.path_boundaries) ? policy.path_boundaries : [];
+
+  if (importBoundaries.length === 0) {
+    policyFailures.push({
+      id: 'ownership_drift_policy_import_boundaries_missing',
+      detail: 'import_boundaries',
+    });
+  }
+  if (symbolBoundaries.length === 0) {
+    policyFailures.push({
+      id: 'ownership_drift_policy_symbol_boundaries_missing',
+      detail: 'symbol_boundaries',
+    });
+  }
+  if (pathBoundaries.length === 0) {
+    policyFailures.push({
+      id: 'ownership_drift_policy_path_boundaries_missing',
+      detail: 'path_boundaries',
+    });
+  }
+
+  const ruleIdPattern = /^[a-z0-9_]+$/;
+  const importIds = importBoundaries.map((rule) => cleanText(rule.id || '', 120)).filter(Boolean);
+  const symbolIds = symbolBoundaries.map((rule) => cleanText(rule.id || '', 120)).filter(Boolean);
+  const pathIds = pathBoundaries.map((rule) => cleanText(rule.id || '', 120)).filter(Boolean);
+  const importIdDuplicates = duplicateValues(importIds);
+  const symbolIdDuplicates = duplicateValues(symbolIds);
+  const pathIdDuplicates = duplicateValues(pathIds);
+
+  if (importIdDuplicates.length > 0) {
+    policyFailures.push({
+      id: 'ownership_drift_policy_import_boundary_ids_duplicate',
+      detail: Array.from(new Set(importIdDuplicates)).join(','),
+    });
+  }
+  if (symbolIdDuplicates.length > 0) {
+    policyFailures.push({
+      id: 'ownership_drift_policy_symbol_boundary_ids_duplicate',
+      detail: Array.from(new Set(symbolIdDuplicates)).join(','),
+    });
+  }
+  if (pathIdDuplicates.length > 0) {
+    policyFailures.push({
+      id: 'ownership_drift_policy_path_boundary_ids_duplicate',
+      detail: Array.from(new Set(pathIdDuplicates)).join(','),
+    });
+  }
+
+  const allIds = [...importIds, ...symbolIds, ...pathIds];
+  const crossGroupDuplicates = duplicateValues(allIds);
+  if (crossGroupDuplicates.length > 0) {
+    policyFailures.push({
+      id: 'ownership_drift_policy_boundary_ids_cross_group_duplicate',
+      detail: Array.from(new Set(crossGroupDuplicates)).join(','),
+    });
+  }
+
+  const importIdsNoncanonical = importIds.filter((value) => !ruleIdPattern.test(value));
+  const symbolIdsNoncanonical = symbolIds.filter((value) => !ruleIdPattern.test(value));
+  const pathIdsNoncanonical = pathIds.filter((value) => !ruleIdPattern.test(value));
+  if (importIdsNoncanonical.length > 0) {
+    policyFailures.push({
+      id: 'ownership_drift_policy_import_boundary_id_noncanonical',
+      detail: Array.from(new Set(importIdsNoncanonical)).join(','),
+    });
+  }
+  if (symbolIdsNoncanonical.length > 0) {
+    policyFailures.push({
+      id: 'ownership_drift_policy_symbol_boundary_id_noncanonical',
+      detail: Array.from(new Set(symbolIdsNoncanonical)).join(','),
+    });
+  }
+  if (pathIdsNoncanonical.length > 0) {
+    policyFailures.push({
+      id: 'ownership_drift_policy_path_boundary_id_noncanonical',
+      detail: Array.from(new Set(pathIdsNoncanonical)).join(','),
+    });
+  }
+
+  const importScanRootsInvalid = importBoundaries
+    .filter((rule) => {
+      const roots = Array.isArray(rule.scan_roots) ? rule.scan_roots : [];
+      return roots.length === 0 || roots.some((root) => !isCanonicalRelativePath(cleanText(root || '', 400)));
+    })
+    .map((rule) => cleanText(rule.id || 'import_boundary', 120));
+  const symbolScanRootsInvalid = symbolBoundaries
+    .filter((rule) => {
+      const roots = Array.isArray(rule.scan_roots) ? rule.scan_roots : [];
+      return roots.length === 0 || roots.some((root) => !isCanonicalRelativePath(cleanText(root || '', 400)));
+    })
+    .map((rule) => cleanText(rule.id || 'symbol_boundary', 120));
+  const pathScanRootsInvalid = pathBoundaries
+    .filter((rule) => {
+      const roots = Array.isArray(rule.scan_roots) ? rule.scan_roots : [];
+      return roots.length === 0 || roots.some((root) => !isCanonicalRelativePath(cleanText(root || '', 400)));
+    })
+    .map((rule) => cleanText(rule.id || 'path_boundary', 120));
+  if (importScanRootsInvalid.length > 0) {
+    policyFailures.push({
+      id: 'ownership_drift_policy_import_scan_roots_noncanonical_or_missing',
+      detail: Array.from(new Set(importScanRootsInvalid)).join(','),
+    });
+  }
+  if (symbolScanRootsInvalid.length > 0) {
+    policyFailures.push({
+      id: 'ownership_drift_policy_symbol_scan_roots_noncanonical_or_missing',
+      detail: Array.from(new Set(symbolScanRootsInvalid)).join(','),
+    });
+  }
+  if (pathScanRootsInvalid.length > 0) {
+    policyFailures.push({
+      id: 'ownership_drift_policy_path_scan_roots_noncanonical_or_missing',
+      detail: Array.from(new Set(pathScanRootsInvalid)).join(','),
+    });
+  }
+
+  const extensionPattern = /^\.[a-z0-9]+$/;
+  const extensionListValid = (extensions: string[]): boolean => {
+    if (extensions.length === 0) return false;
+    if (duplicateValues(extensions).length > 0) return false;
+    return extensions.every((value) => extensionPattern.test(value) && value === value.toLowerCase());
+  };
+  const importExtensionsInvalid = importBoundaries
+    .filter((rule) => !extensionListValid((Array.isArray(rule.extensions) ? rule.extensions : []).map((value) => cleanText(value || '', 32))))
+    .map((rule) => cleanText(rule.id || 'import_boundary', 120));
+  const symbolExtensionsInvalid = symbolBoundaries
+    .filter((rule) => !extensionListValid((Array.isArray(rule.extensions) ? rule.extensions : []).map((value) => cleanText(value || '', 32))))
+    .map((rule) => cleanText(rule.id || 'symbol_boundary', 120));
+  const pathExtensionsInvalid = pathBoundaries
+    .filter((rule) => !extensionListValid((Array.isArray(rule.extensions) ? rule.extensions : []).map((value) => cleanText(value || '', 32))))
+    .map((rule) => cleanText(rule.id || 'path_boundary', 120));
+  if (importExtensionsInvalid.length > 0) {
+    policyFailures.push({
+      id: 'ownership_drift_policy_import_extensions_noncanonical',
+      detail: Array.from(new Set(importExtensionsInvalid)).join(','),
+    });
+  }
+  if (symbolExtensionsInvalid.length > 0) {
+    policyFailures.push({
+      id: 'ownership_drift_policy_symbol_extensions_noncanonical',
+      detail: Array.from(new Set(symbolExtensionsInvalid)).join(','),
+    });
+  }
+  if (pathExtensionsInvalid.length > 0) {
+    policyFailures.push({
+      id: 'ownership_drift_policy_path_extensions_noncanonical',
+      detail: Array.from(new Set(pathExtensionsInvalid)).join(','),
+    });
+  }
+
+  const importPatternsInvalid = importBoundaries
+    .filter((rule) => {
+      const forbidden = (Array.isArray(rule.forbidden_import_patterns) ? rule.forbidden_import_patterns : [])
+        .map((value) => cleanText(value || '', 260));
+      const allow = (Array.isArray(rule.allow_import_patterns) ? rule.allow_import_patterns : [])
+        .map((value) => cleanText(value || '', 260));
+      const overlap = forbidden.some((value) => allow.includes(value));
+      return forbidden.length === 0 || !patternsValid(forbidden) || !patternsValid(allow) || overlap;
+    })
+    .map((rule) => cleanText(rule.id || 'import_boundary', 120));
+  const symbolPatternsInvalid = symbolBoundaries
+    .filter((rule) => {
+      const forbidden = (Array.isArray(rule.forbidden_symbol_patterns) ? rule.forbidden_symbol_patterns : [])
+        .map((value) => cleanText(value || '', 260));
+      return forbidden.length === 0 || !patternsValid(forbidden);
+    })
+    .map((rule) => cleanText(rule.id || 'symbol_boundary', 120));
+  const pathPatternsInvalid = pathBoundaries
+    .filter((rule) => {
+      const forbidden = (Array.isArray(rule.forbidden_path_patterns) ? rule.forbidden_path_patterns : [])
+        .map((value) => cleanText(value || '', 260));
+      const allow = (Array.isArray(rule.allow_path_patterns) ? rule.allow_path_patterns : [])
+        .map((value) => cleanText(value || '', 260));
+      return forbidden.length === 0 || !patternsValid(forbidden) || !patternsValid(allow);
+    })
+    .map((rule) => cleanText(rule.id || 'path_boundary', 120));
+  if (importPatternsInvalid.length > 0) {
+    policyFailures.push({
+      id: 'ownership_drift_policy_import_patterns_noncanonical_or_missing',
+      detail: Array.from(new Set(importPatternsInvalid)).join(','),
+    });
+  }
+  if (symbolPatternsInvalid.length > 0) {
+    policyFailures.push({
+      id: 'ownership_drift_policy_symbol_patterns_noncanonical_or_missing',
+      detail: Array.from(new Set(symbolPatternsInvalid)).join(','),
+    });
+  }
+  if (pathPatternsInvalid.length > 0) {
+    policyFailures.push({
+      id: 'ownership_drift_policy_path_patterns_noncanonical_or_missing',
+      detail: Array.from(new Set(pathPatternsInvalid)).join(','),
+    });
+  }
 
   const pathViolations = runPathBoundaries(policy);
   const importViolations = runImportBoundaries(policy);
   const symbolViolations = runSymbolBoundaries(policy);
   const violations = [...pathViolations, ...importViolations, ...symbolViolations];
+  const allFailures = [
+    ...policyFailures,
+    ...violations.map((row) => ({
+      id: `ownership_drift_${row.check_id}_violation`,
+      detail: `${row.boundary_id}:${row.file}:${row.detail}`,
+    })),
+  ];
+  const pass = violations.length === 0 && policyFailures.length === 0;
 
   const payload = {
-    ok: violations.length === 0,
+    ok: pass,
     type: 'ownership_drift_guard',
     generated_at: new Date().toISOString(),
     revision: currentRevision(ROOT),
@@ -274,17 +536,17 @@ function main(): number {
       out_markdown: args.outMarkdownPath,
     },
     summary: {
-      pass: violations.length === 0,
+      pass,
+      policy_failure_count: policyFailures.length,
       path_violation_count: pathViolations.length,
       import_violation_count: importViolations.length,
       symbol_violation_count: symbolViolations.length,
       total_violation_count: violations.length,
+      total_issue_count: violations.length + policyFailures.length,
     },
+    policy_failures: policyFailures,
     violations,
-    failures: violations.map((row) => ({
-      id: `ownership_drift_${row.check_id}_violation`,
-      detail: `${row.boundary_id}:${row.file}:${row.detail}`,
-    })),
+    failures: allFailures,
   };
 
   writeTextArtifact(path.resolve(ROOT, args.outMarkdownPath), toMarkdown(payload));
@@ -297,4 +559,3 @@ function main(): number {
 
 const exitCode = main();
 if (exitCode !== 0) process.exit(exitCode);
-

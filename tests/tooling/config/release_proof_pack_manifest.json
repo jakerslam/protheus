@@ -52,6 +52,7 @@
       "core/local/artifacts/runtime_closure_board_guard_current.json",
       "core/local/artifacts/runtime_closure_feature_alignment_guard_current.json",
       "core/local/artifacts/capability_proof_burden_guard_current.json",
+      "core/local/artifacts/windows_installer_contract_guard_current.json",
       "core/local/artifacts/srs_todo_section_guard_current.json"
     ],
     "workload_and_quality": [
@@ -122,6 +123,7 @@
     "core/local/artifacts/runtime_closure_board_guard_current.json",
     "core/local/artifacts/runtime_closure_feature_alignment_guard_current.json",
     "core/local/artifacts/capability_proof_burden_guard_current.json",
+    "core/local/artifacts/windows_installer_contract_guard_current.json",
     "core/local/artifacts/srs_todo_section_guard_current.json"
   ],
   "optional_artifacts": [
@@ -155,6 +157,7 @@
     "local/workspace/reports/RUNTIME_CLOSURE_BOARD_GUARD_CURRENT.md",
     "local/workspace/reports/RUNTIME_CLOSURE_FEATURE_ALIGNMENT_GUARD_CURRENT.md",
     "local/workspace/reports/CAPABILITY_PROOF_BURDEN_GUARD_CURRENT.md",
+    "local/workspace/reports/WINDOWS_INSTALLER_CONTRACT_GUARD_CURRENT.md",
     "local/workspace/reports/SRS_TODO_SECTION_GUARD_CURRENT.md",
     "local/workspace/reports/KERNEL_NEXUS_COUPLING_GUARD_CURRENT.md"
   ]

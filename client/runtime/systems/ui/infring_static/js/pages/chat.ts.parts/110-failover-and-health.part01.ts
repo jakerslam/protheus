@@ -281,6 +281,7 @@
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
       escaped = escaped.replace(/\t/g, '    ');
+      escaped = escaped.replace(/\n/g, '<br>');
       return escaped;
     },
 
@@ -306,13 +307,16 @@
       var segments = [];
       var segmentPattern = /\S+\s*/g;
       var segmentMatch;
-      while ((segmentMatch = segmentPattern.exec(targetText)) !== null) {
+      var typingRenderText = typeof normalizeChatMarkdownListBreaks === 'function'
+        ? normalizeChatMarkdownListBreaks(targetText)
+        : targetText;
+      while ((segmentMatch = segmentPattern.exec(typingRenderText)) !== null) {
         segments.push({
           text: String(segmentMatch[0] || ''),
           index: Number(segmentMatch.index || 0)
         });
       }
-      var leadingWhitespaceMatch = targetText.match(/^\s+/);
+      var leadingWhitespaceMatch = typingRenderText.match(/^\s+/);
       if (leadingWhitespaceMatch && segments.length) {
         var leadingWhitespace = String(leadingWhitespaceMatch[0] || '');
         segments[0].text = leadingWhitespace + String(segments[0].text || '');
@@ -416,7 +420,7 @@
           liveMessage.text = String(liveMessage.text || '') + token;
           var tokenEndIndex = Number(segment.index || 0) + Math.max(0, token.length - 1);
           var nextDelay = typeof self._resolveTypingDelayForToken === 'function'
-            ? self._resolveTypingDelayForToken(cadenceMs, token, targetText, tokenEndIndex)
+            ? self._resolveTypingDelayForToken(cadenceMs, token, typingRenderText, tokenEndIndex)
             : cadenceMs;
           if (!Number.isFinite(nextDelay) || nextDelay <= 0) nextDelay = cadenceMs;
           nextDelay = Math.max(1, Math.min(2000, nextDelay));

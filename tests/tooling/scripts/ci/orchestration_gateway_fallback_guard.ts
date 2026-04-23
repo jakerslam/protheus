@@ -38,6 +38,9 @@ type AdapterFallbackPolicy = {
   min_surface_total?: Record<string, number>;
   max_fallback_rate?: Record<string, number>;
   max_low_confidence_rate?: Record<string, number>;
+  required_surface_fields?: string[];
+  min_surface_rows_present?: number;
+  consistency_epsilon?: number;
   ratchet?: {
     max_regression_delta?: number;
   };
@@ -50,6 +53,8 @@ type AdapterFallbackPolicy = {
 type OrchestrationQualityPolicy = {
   adapter_fallback?: AdapterFallbackPolicy;
 };
+
+const DEFAULT_REQUIRED_SURFACE_FIELDS = ['total', 'fallback_rate', 'low_confidence_rate'];
 
 function resolveArgs(argv: string[]): ScriptArgs {
   return {
@@ -91,6 +96,23 @@ function thresholdRows(policy: AdapterFallbackPolicy) {
   return { minSurfaceTotal, maxFallbackRate, maxLowConfidenceRate };
 }
 
+function requiredSurfaceFieldsFromPolicy(policy: AdapterFallbackPolicy): string[] {
+  if (!Array.isArray(policy.required_surface_fields) || policy.required_surface_fields.length === 0) {
+    return [...DEFAULT_REQUIRED_SURFACE_FIELDS];
+  }
+  return policy.required_surface_fields
+    .map((field) => String(field || '').trim())
+    .filter((field) => field.length > 0);
+}
+
+function collectMissingSurfaceFields(
+  row: SurfaceMetricRow | null | undefined,
+  requiredFields: string[],
+): string[] {
+  const metricRow = row || {};
+  return requiredFields.filter((field) => numberOrNull((metricRow as Record<string, unknown>)[field]) == null);
+}
+
 function evaluateThresholds(
   metrics: SurfaceMetrics | null,
   policy: AdapterFallbackPolicy,
@@ -101,8 +123,23 @@ function evaluateThresholds(
     return failures;
   }
   const { minSurfaceTotal, maxFallbackRate, maxLowConfidenceRate } = thresholdRows(policy);
+  const requiredSurfaceFields = requiredSurfaceFieldsFromPolicy(policy);
+  const minSurfaceRowsPresent = numberOrNull(policy.min_surface_rows_present);
+  const surfaceRowsPresent = SURFACES.filter((surface) => {
+    const row = metrics[surface];
+    return row != null && typeof row === 'object';
+  }).length;
+  if (minSurfaceRowsPresent != null && surfaceRowsPresent < minSurfaceRowsPresent) {
+    failures.push(
+      `surface_metric_rows_below_min:actual=${surfaceRowsPresent.toFixed(4)}:min=${minSurfaceRowsPresent.toFixed(4)}`,
+    );
+  }
   for (const surface of SURFACES) {
     const row = metrics[surface] || {};
+    const missingFields = collectMissingSurfaceFields(row, requiredSurfaceFields);
+    for (const field of missingFields) {
+      failures.push(`missing_surface_metric_field:${surface}:${field}`);
+    }
     const total = numberOrNull(row.total);
     const fallbackRate = numberOrNull(row.fallback_rate);
     const lowConfidenceRate = numberOrNull(row.low_confidence_rate);
@@ -134,9 +171,13 @@ function evaluateThresholds(
   return failures;
 }
 
-function evaluateMetricConsistency(metrics: SurfaceMetrics | null): string[] {
+function evaluateMetricConsistency(
+  metrics: SurfaceMetrics | null,
+  policy: AdapterFallbackPolicy,
+): string[] {
   const failures: string[] = [];
   if (!metrics) return failures;
+  const epsilon = Math.max(0, Number(policy.consistency_epsilon ?? 0));
   for (const surface of SURFACES) {
     const row = metrics[surface] || {};
     const total = numberOrNull(row.total);
@@ -162,17 +203,23 @@ function evaluateMetricConsistency(metrics: SurfaceMetrics | null): string[] {
         `inconsistent_low_confidence_rate_out_of_domain:${surface}:value=${lowConfidenceRate.toFixed(4)}:expected=0..1`,
       );
     }
-    if (total === 0) {
-      if (fallbackRate != null && fallbackRate !== 0) {
+    if (Math.abs(total) <= epsilon) {
+      if (fallbackRate != null && Math.abs(fallbackRate) > epsilon) {
         failures.push(
           `inconsistent_nonzero_fallback_rate_with_zero_total:${surface}:value=${fallbackRate.toFixed(4)}`,
         );
       }
-      if (lowConfidenceRate != null && lowConfidenceRate !== 0) {
+      if (lowConfidenceRate != null && Math.abs(lowConfidenceRate) > epsilon) {
         failures.push(
           `inconsistent_nonzero_low_confidence_rate_with_zero_total:${surface}:value=${lowConfidenceRate.toFixed(4)}`,
         );
       }
+    }
+    if (total > epsilon && fallbackRate == null) {
+      failures.push(`inconsistent_missing_fallback_rate_with_positive_total:${surface}`);
+    }
+    if (total > epsilon && lowConfidenceRate == null) {
+      failures.push(`inconsistent_missing_low_confidence_rate_with_positive_total:${surface}`);
     }
   }
   return failures;
@@ -238,6 +285,17 @@ function toMarkdown(payload: any): string {
     lines.push(JSON.stringify(payload.surface_metrics, null, 2));
     lines.push('```');
   }
+  if (Array.isArray(payload.surface_field_completeness) && payload.surface_field_completeness.length > 0) {
+    lines.push('');
+    lines.push('## Surface Metric Completeness');
+    lines.push('| Surface | Required | Present | Missing |');
+    lines.push('| --- | --- | --- | --- |');
+    for (const row of payload.surface_field_completeness) {
+      lines.push(
+        `| ${row.surface} | ${row.required_count} | ${row.present_count} | ${row.missing_fields.join(',') || 'none'} |`,
+      );
+    }
+  }
   if (Array.isArray(payload.policy_failures) && payload.policy_failures.length > 0) {
     lines.push('');
     lines.push('## Policy Failures');
@@ -301,9 +359,30 @@ function run(argv: string[]): number {
   const previousLatest = adapterPolicy.paths?.latest
     ? readJsonMaybe<any>(adapterPolicy.paths.latest)
     : null;
+  const requiredSurfaceFields = requiredSurfaceFieldsFromPolicy(adapterPolicy);
+  const surfaceFieldCompleteness = SURFACES.map((surface) => {
+    const missingFields = collectMissingSurfaceFields(surfaceMetrics?.[surface], requiredSurfaceFields);
+    return {
+      surface,
+      required_count: requiredSurfaceFields.length,
+      present_count: requiredSurfaceFields.length - missingFields.length,
+      missing_fields: missingFields,
+    };
+  });
+  const missingSurfaceFieldCount = surfaceFieldCompleteness.reduce(
+    (sum, row) => sum + row.missing_fields.length,
+    0,
+  );
+  const surfaceRowsWithCompleteMetrics = surfaceFieldCompleteness.filter(
+    (row) => row.missing_fields.length === 0,
+  ).length;
   const policyFailures = evaluateThresholds(surfaceMetrics, adapterPolicy);
-  const consistencyFailures = evaluateMetricConsistency(surfaceMetrics);
+  const consistencyFailures = evaluateMetricConsistency(surfaceMetrics, adapterPolicy);
   const ratchetFailures = evaluateRatchet(surfaceMetrics, adapterPolicy, previousLatest);
+  const surfaceMetricRowsPresent = SURFACES.filter((surface) => {
+    const row = surfaceMetrics?.[surface];
+    return row != null && typeof row === 'object';
+  }).length;
   const ok = testsOk && policyFailures.length === 0 && consistencyFailures.length === 0 && ratchetFailures.length === 0;
 
   const payload = {
@@ -336,8 +415,13 @@ function run(argv: string[]): number {
       policy_failure_count: policyFailures.length,
       consistency_failure_count: consistencyFailures.length,
       ratchet_failure_count: ratchetFailures.length,
+      surface_metric_rows_present: surfaceMetricRowsPresent,
+      required_surface_field_count: requiredSurfaceFields.length,
+      missing_surface_field_count: missingSurfaceFieldCount,
+      surface_rows_with_complete_metrics: surfaceRowsWithCompleteMetrics,
     },
     output_excerpt: combinedOutput,
+    surface_field_completeness: surfaceFieldCompleteness,
   };
 
   if (ok && surfaceMetrics) {

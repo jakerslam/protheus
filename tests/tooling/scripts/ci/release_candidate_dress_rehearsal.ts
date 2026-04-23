@@ -30,6 +30,7 @@ const DEFAULT_SEQUENCE = [
   'state:kernel:replay',
   'ops:runtime-proof:verify',
   'release_policy_gate',
+  'ops:windows-installer:contract:guard',
   'ops:legacy-runner:release-guard',
   'ops:production-topology:gate',
   'audit:client-layer-boundary',
@@ -136,6 +137,9 @@ function buildReport(argv: string[] = process.argv.slice(2)) {
     const layer2ReplayStep = steps.find((row) => row.gate_id === 'ops:layer2:receipt:replay');
     const trustedCoreStep = steps.find((row) => row.gate_id === 'ops:trusted-core:report');
     const proofPackStep = steps.find((row) => row.gate_id === 'ops:release:proof-pack');
+    const windowsInstallerContractStep = steps.find(
+      (row) => row.gate_id === 'ops:windows-installer:contract:guard',
+    );
     const boundednessArtifacts = hasRequiredArtifacts(
       runtimeProofStep?.artifact_paths,
       REQUIRED_72H_BOUNDEDNESS_ARTIFACTS,
@@ -210,6 +214,11 @@ function buildReport(argv: string[] = process.argv.slice(2)) {
         ok: trustedCoreStep?.ok === true,
         payload_type: clean(trustedCoreStep?.payload_type || '', 120),
         artifact_paths: trustedCoreStep?.artifact_paths || [],
+      },
+      windows_installer_contract: {
+        ok: windowsInstallerContractStep?.ok === true,
+        payload_type: clean(windowsInstallerContractStep?.payload_type || '', 120),
+        artifact_paths: windowsInstallerContractStep?.artifact_paths || [],
       },
       proof_pack: {
         ok: proofPackStep?.ok === true,
