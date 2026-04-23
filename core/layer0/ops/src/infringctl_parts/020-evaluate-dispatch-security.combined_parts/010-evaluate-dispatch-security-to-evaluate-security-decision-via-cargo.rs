@@ -83,8 +83,8 @@ pub fn evaluate_dispatch_security(
     }
 }
 
-fn bool_env_with_infring_alias(infring: &str, infring: &str, fallback: bool) -> bool {
-    bool_env(infring, bool_env(infring, fallback))
+fn bool_env_with_infring_alias(primary: &str, alias: &str, fallback: bool) -> bool {
+    bool_env(primary, bool_env(alias, fallback))
 }
 
 fn dispatch_security_gate_exempt(script_rel: &str, _args: &[String]) -> bool {

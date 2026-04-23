@@ -134,4 +134,16 @@ mod tests {
         let resolved = resolve_dashboard_executable(&current);
         assert_eq!(resolved, current);
     }
+
+    #[test]
+    fn resolve_dashboard_executable_prefers_sibling_infring_ops_for_legacy_alias() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let dir = temp.path();
+        let current = dir.join("protheus-ops");
+        let sibling = dir.join("infring-ops");
+        std::fs::write(&current, b"#!/bin/sh\n").expect("write current");
+        std::fs::write(&sibling, b"#!/bin/sh\n").expect("write sibling");
+        let resolved = resolve_dashboard_executable(&current);
+        assert_eq!(resolved, sibling);
+    }
 }
