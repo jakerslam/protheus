@@ -13,6 +13,19 @@ fn start_dashboard_with_config(
             "url": url
         });
     }
+    if let Some(duplicate_runtime) = dashboard_runtime_duplicate_guard(root, cfg) {
+        return json!({
+            "enabled": true,
+            "running": false,
+            "launched": false,
+            "opened_browser": false,
+            "url": url,
+            "ready_timeout_ms": cfg.ready_timeout_ms,
+            "error": "dashboard_duplicate_runtime_detected",
+            "duplicate_runtime": duplicate_runtime,
+            "watchdog": dashboard_watchdog_status(root),
+        });
+    }
     if dashboard_health_ok_fast(cfg.host.as_str(), cfg.port) {
         return json!({
             "enabled": true,

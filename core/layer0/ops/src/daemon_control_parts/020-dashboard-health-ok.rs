@@ -346,7 +346,12 @@ fn kill_dashboard_process(root: &Path, cfg: &DashboardLaunchConfig) -> Value {
     })
 }
 
+include!("020-dashboard-health-ok_parts/010-duplicate-runtime-guard.rs");
+
 fn restart_dashboard_for_watchdog(root: &Path, cfg: &DashboardLaunchConfig) -> Value {
+    if let Some(payload) = dashboard_duplicate_restart_payload(root, cfg) {
+        return payload;
+    }
     let previous_pid = read_pid_file(&dashboard_pid_path(root));
     let previous_running = previous_pid.map(pid_running).unwrap_or(false);
     let listeners_before = dashboard_listener_pids(cfg.port);
@@ -401,44 +406,7 @@ fn restart_dashboard_for_watchdog(root: &Path, cfg: &DashboardLaunchConfig) -> V
     out
 }
 
-#[cfg(test)]
-mod health_tests {
-    use super::*;
-
-    #[test]
-    fn dashboard_health_response_ok_accepts_2xx_status_codes() {
-        assert!(dashboard_health_response_ok(
-            b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{}"
-        ));
-        assert!(dashboard_health_response_ok(
-            b"HTTP/1.1 204 No Content\r\nContent-Type: application/json\r\n\r\n"
-        ));
-    }
-
-    #[test]
-    fn dashboard_health_response_ok_rejects_non_2xx_status_codes() {
-        assert!(!dashboard_health_response_ok(
-            b"HTTP/1.1 503 Service Unavailable\r\nContent-Type: text/plain\r\n\r\noffline"
-        ));
-    }
-
-    #[test]
-    fn dashboard_web_tooling_response_ready_accepts_auth_signals() {
-        assert!(dashboard_web_tooling_response_ready(
-            b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"ok\":true,\"any_present\":true}"
-        ));
-        assert!(dashboard_web_tooling_response_ready(
-            b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"ok\":true,\"readiness\":\"ready\"}"
-        ));
-    }
-
-    #[test]
-    fn dashboard_web_tooling_response_ready_rejects_missing_auth_signals() {
-        assert!(!dashboard_web_tooling_response_ready(
-            b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"ok\":true,\"auth_sources\":[]}"
-        ));
-    }
-}
+include!("020-dashboard-health-ok_parts/020-health-tests.rs");
 
 fn spawn_dashboard(root: &Path, cfg: &DashboardLaunchConfig) -> Result<u32, String> {
     if !crate::contract_lane_utils::node_binary_usable(cfg.node_binary.as_str()) {
@@ -472,11 +440,11 @@ fn spawn_dashboard(root: &Path, cfg: &DashboardLaunchConfig) -> Result<u32, Stri
         .stdin(Stdio::null())
         .stdout(Stdio::from(log))
         .stderr(Stdio::from(log_err))
-        .env("PROTHEUS_OPS_ALLOW_STALE", "1")
-        .env("PROTHEUS_NPM_ALLOW_STALE", "1")
-        .env("PROTHEUS_NODE_BINARY", cfg.node_binary.as_str());
+        .env("INFRING_OPS_ALLOW_STALE", "1")
+        .env("INFRING_NPM_ALLOW_STALE", "1")
+        .env("INFRING_NODE_BINARY", cfg.node_binary.as_str());
     if let Some(bin_hint) = dashboard_backend_binary_hint() {
-        cmd.env("PROTHEUS_NPM_BINARY", bin_hint);
+        cmd.env("INFRING_NPM_BINARY", bin_hint);
     }
     let child = cmd
         .spawn()
@@ -518,6 +486,9 @@ fn stop_dashboard_watchdog(root: &Path) -> Value {
 fn spawn_dashboard_watchdog(root: &Path, cfg: &DashboardLaunchConfig) -> Result<u32, String> {
     fs::create_dir_all(dashboard_state_dir(root))
         .map_err(|err| format!("dashboard_state_dir_create_failed:{err}"))?;
+    if let Some(err) = dashboard_duplicate_spawn_error(root, cfg) {
+        return Err(err);
+    }
     let status = dashboard_watchdog_status(root);
     if status.get("running").and_then(Value::as_bool) == Some(true) {
         if let Some(pid) = status
