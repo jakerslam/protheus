@@ -46,3 +46,4 @@ include!("030-run-chat-ui_parts/440-code-engineer-templates-path.rs");
 include!("030-run-chat-ui_parts/450-slug-from-goal.rs");
 include!("030-run-chat-ui_parts/460-classify-builder-risk.rs");
 include!("030-run-chat-ui_parts/470-build-reasoning-receipt.rs");
+include!("030-run-chat-ui_parts/480-build-response-workflow-trace.rs");

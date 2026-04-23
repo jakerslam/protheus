@@ -49,6 +49,29 @@ function runFixture(name: string, expectOk: boolean): GatePayload {
   return payload;
 }
 
+function runDefaultConfig(expectOk: boolean): GatePayload {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'incident-governance-default-'));
+  const outJson = path.join(tempDir, 'gate.json');
+  const outMd = path.join(tempDir, 'gate.md');
+  const cmd = [
+    'client/runtime/lib/ts_entrypoint.ts',
+    'tests/tooling/scripts/ci/incident_operations_governance_gate.ts',
+    '--strict=1',
+    `--out-json=${outJson}`,
+    `--out-markdown=${outMd}`,
+  ];
+  const result = spawnSync('node', cmd, { cwd: ROOT, encoding: 'utf8' });
+  if (expectOk) {
+    assert.equal(result.status, 0, `default config should pass: ${result.stderr}`);
+  } else {
+    assert.notEqual(result.status, 0, 'default config should fail');
+  }
+  assert.ok(fs.existsSync(outJson), 'default config should emit out json');
+  const payload = JSON.parse(fs.readFileSync(outJson, 'utf8')) as GatePayload;
+  assert.equal(Boolean(payload.ok), expectOk, 'default payload.ok mismatch');
+  return payload;
+}
+
 async function run(): Promise<void> {
   const pass = runFixture('pass', true);
   assert.equal((pass.failures || []).length, 0, 'pass fixture must have zero failures');
@@ -70,6 +93,9 @@ async function run(): Promise<void> {
     (waived.waivers_applied || []).some((row) => row.check_id === 'process_doc_contract'),
     'waived fixture should apply waiver to process_doc_contract',
   );
+
+  const defaultRun = runDefaultConfig(true);
+  assert.equal((defaultRun.failures || []).length, 0, 'default config run should have zero failures');
 
   process.stdout.write(
     `${JSON.stringify({ ok: true, type: 'incident_operations_governance_gate_test' }, null, 2)}\n`,

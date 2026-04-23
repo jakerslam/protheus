@@ -197,14 +197,20 @@ fn workflow_retry_macro_signal_count(lowered: &str) -> usize {
     let macro_signals = [
         "workflow gate",
         "final workflow state was unexpected",
+        "workflow state was unexpected. please retry",
         "final reply did not render",
+        "completed the run, but the final reply did not render",
         "please retry",
         "rerun the chain",
+        "rerun the chain cleanly",
         "ask me to continue",
         "synthesize from the recorded workflow state",
         "next actions",
         "targeted tool call",
         "concise answer from current context",
+        "this is a policy gate, not a web-provider outage",
+        "client_ingress_domain_boundary",
+        "lease_denied:client_ingress_domain_boundary",
     ];
     macro_signals
         .iter()
@@ -269,6 +275,10 @@ fn message_requests_diagnostic_explanation(message: &str) -> bool {
         || lowered.contains("why is this happening")
         || lowered.contains("why do you think")
         || lowered.contains("is it too strict")
+        || lowered.contains("too strict or what")
+        || lowered.contains("policy gate")
+        || lowered.contains("lease denied")
+        || lowered.contains("domain boundary")
         || lowered.contains("hardlocked")
         || lowered.contains("hard-locked")
         || lowered.contains("hard coded")
@@ -314,17 +324,43 @@ fn message_requests_workspace_file_action(message: &str) -> bool {
         return false;
     }
     let mentions_workspace_surface = lowered.contains("file")
+        || lowered.contains("file list")
+        || lowered.contains("file_list")
+        || lowered.contains("file read")
+        || lowered.contains("file tooling")
+        || lowered.contains("local files")
         || lowered.contains("directory")
         || lowered.contains("local dir")
+        || lowered.contains("local directory")
+        || lowered.contains("current directory")
+        || lowered.contains("working directory")
+        || lowered.contains("repo root")
         || lowered.contains("workspace")
         || lowered.contains("path");
     let mentions_action = lowered.contains("look at")
         || lowered.contains("check")
+        || lowered.contains("access")
         || lowered.contains("read")
         || lowered.contains("list")
+        || lowered.contains("ls")
+        || lowered.contains("dir")
         || lowered.contains("show")
         || lowered.contains("open");
     mentions_workspace_surface && mentions_action
+}
+
+fn message_requests_file_tooling_validation(message: &str) -> bool {
+    let lowered = clean_text(message, 1_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    (lowered.contains("file tooling") || lowered.contains("workspace tooling"))
+        && (lowered.contains("can you")
+            || lowered.contains("are you able")
+            || lowered.contains("try")
+            || lowered.contains("check")
+            || lowered.contains("use")
+            || lowered.contains("working"))
 }
 
 fn message_requests_system_improvement_plan(message: &str) -> bool {
@@ -355,21 +391,40 @@ fn message_requests_patch_effectiveness_check(message: &str) -> bool {
 fn workflow_policy_block_summary(response_tools: &[Value]) -> String {
     for row in response_tools {
         let blocked = row.get("blocked").and_then(Value::as_bool).unwrap_or(false);
-        let status = clean_text(row.get("status").and_then(Value::as_str).unwrap_or(""), 120)
+        let status = clean_text(row.get("status").and_then(Value::as_str).unwrap_or(""), 240)
             .to_ascii_lowercase();
-        let result = clean_text(row.get("result").and_then(Value::as_str).unwrap_or(""), 240);
-        let error = clean_text(row.get("error").and_then(Value::as_str).unwrap_or(""), 240);
+        let result = clean_text(row.get("result").and_then(Value::as_str).unwrap_or(""), 480);
+        let error = clean_text(row.get("error").and_then(Value::as_str).unwrap_or(""), 480);
+        let result_lower = result.to_ascii_lowercase();
+        let error_lower = error.to_ascii_lowercase();
+        let domain_boundary_block = status.contains("client_ingress_domain_boundary")
+            || status.contains("domain_boundary")
+            || result_lower.contains("client_ingress_domain_boundary")
+            || result_lower.contains("domain_boundary")
+            || error_lower.contains("client_ingress_domain_boundary")
+            || error_lower.contains("domain_boundary");
+        let file_list_boundary_block = result_lower
+            .contains("file_list")
+            && (result_lower.contains("ingress delivery policy")
+                || result_lower.contains("domain_boundary")
+                || result_lower.contains("lease_denied"));
         let is_policy_like = blocked
             || status.contains("lease_denied")
             || status.contains("policy_denied")
-            || result.to_ascii_lowercase().contains("lease_denied")
-            || error.to_ascii_lowercase().contains("lease_denied");
+            || result_lower.contains("lease_denied")
+            || error_lower.contains("lease_denied")
+            || domain_boundary_block
+            || file_list_boundary_block;
         if !is_policy_like {
             continue;
         }
         let tool_name =
             normalize_tool_name(row.get("name").and_then(Value::as_str).unwrap_or("tool"));
-        let reason = if result.is_empty() {
+        let reason = if file_list_boundary_block {
+            "file_list blocked by ingress delivery policy boundary".to_string()
+        } else if domain_boundary_block {
+            "workspace/file tooling blocked by ingress domain-boundary policy".to_string()
+        } else if result.is_empty() {
             if error.is_empty() {
                 "policy gate denied tool execution".to_string()
             } else {
@@ -398,6 +453,60 @@ fn workflow_turn_has_policy_block(response_tools: &[Value]) -> bool {
                 .get("result")
                 .and_then(Value::as_str)
                 .map(|raw| raw.to_lowercase().contains("lease_denied"))
+                .unwrap_or(false)
+            || row
+                .get("error")
+                .and_then(Value::as_str)
+                .map(|raw| {
+                    let lowered = raw.to_ascii_lowercase();
+                    lowered.contains("lease_denied")
+                        || lowered.contains("domain_boundary")
+                        || lowered.contains("client_ingress_domain_boundary")
+                })
+                .unwrap_or(false)
+            || row
+                .get("result")
+                .and_then(Value::as_str)
+                .map(|raw| {
+                    let lowered = raw.to_ascii_lowercase();
+                    lowered.contains("domain_boundary")
+                        || lowered.contains("client_ingress_domain_boundary")
+                        || (lowered.contains("file_list")
+                            && lowered.contains("ingress delivery policy"))
+                })
+                .unwrap_or(false)
+    })
+}
+
+fn workflow_turn_has_domain_boundary_block(response_tools: &[Value]) -> bool {
+    response_tools.iter().any(|row| {
+        row.get("status")
+            .and_then(Value::as_str)
+            .map(|raw| {
+                let lowered = raw.to_ascii_lowercase();
+                lowered.contains("domain_boundary")
+                    || lowered.contains("client_ingress_domain_boundary")
+            })
+            .unwrap_or(false)
+            || row
+                .get("result")
+                .and_then(Value::as_str)
+                .map(|raw| {
+                    let lowered = raw.to_ascii_lowercase();
+                    lowered.contains("domain_boundary")
+                        || lowered.contains("client_ingress_domain_boundary")
+                        || (lowered.contains("file_list")
+                            && lowered.contains("ingress delivery policy"))
+                })
+                .unwrap_or(false)
+            || row
+                .get("error")
+                .and_then(Value::as_str)
+                .map(|raw| {
+                    let lowered = raw.to_ascii_lowercase();
+                    lowered.contains("domain_boundary")
+                        || lowered.contains("client_ingress_domain_boundary")
+                })
                 .unwrap_or(false)
     })
 }
@@ -459,7 +568,11 @@ fn response_repeats_latest_assistant_copy(response_text: &str, latest_assistant_
 
 fn workflow_repeat_safe_direct_reply(message: &str, response_tools: &[Value]) -> String {
     let policy_blocked = workflow_turn_has_policy_block(response_tools);
+    let domain_boundary_blocked = workflow_turn_has_domain_boundary_block(response_tools);
     if message_requests_diagnostic_explanation(message) {
+        if domain_boundary_blocked {
+            return "The last tool attempt was blocked by a runtime-lane domain-boundary policy on workspace/file access. I’m switching to a direct-answer path from current context and keeping tools off unless you explicitly request one.".to_string();
+        }
         if policy_blocked {
             return "The last tool attempt was blocked by a local policy gate, so I’m switching to a direct-answer path from current context and keeping tools off unless you explicitly request one.".to_string();
         }
@@ -584,6 +697,7 @@ fn workflow_unexpected_state_user_fallback(
         return "Hey — I’m here. I can continue directly from current context without extra tool calls; tell me what you want next.".to_string();
     }
     let policy_blocked = workflow_turn_has_policy_block(response_tools);
+    let domain_boundary_blocked = workflow_turn_has_domain_boundary_block(response_tools);
     let policy_summary = workflow_policy_block_summary(response_tools);
     let repeated_fallback = workflow_response_repetition_breaker_active(latest_assistant_text);
     if repeated_fallback {
@@ -642,6 +756,15 @@ fn workflow_unexpected_state_user_fallback(
             }
             return "Likely root cause: the previous workflow fallback text repeated after a finalization edge. I am switching to a stable direct-answer path now and will avoid extra tool calls unless you explicitly request one.".to_string();
         }
+        if message_requests_file_tooling_validation(message) {
+            if domain_boundary_blocked {
+                return "Yes, file tooling is currently blocked in this runtime lane by ingress domain-boundary policy. I can continue with a direct answer from current context, or run workspace tools once you switch to a workspace-enabled lane.".to_string();
+            }
+            if policy_blocked {
+                return "File tooling was blocked by a local policy gate on this turn. I can continue in direct-answer mode from current context unless you explicitly request another tool call.".to_string();
+            }
+            return "File tooling can be used when this lane has workspace-read permission; this fallback turn is now in direct-answer mode from current context unless you explicitly request a tool call.".to_string();
+        }
         if message_requests_plain_direct_reply(message) {
             if policy_blocked {
                 return "The prior tool step was blocked by a local policy gate. I can continue with a plain direct answer from current context right now without running another tool.".to_string();
@@ -650,6 +773,9 @@ fn workflow_unexpected_state_user_fallback(
         }
         if policy_blocked {
             if message_requests_workspace_file_action(message) {
+                if !policy_summary.is_empty() {
+                    return format!("I can’t execute that workspace/file tool call in this runtime lane because ingress policy denied the route ({policy_summary}). I can continue from current context here, or if you switch to a workspace-read-enabled lane I can run the directory/file check directly.");
+                }
                 return "I can’t execute that workspace/file tool call in this runtime lane because a local ingress policy gate denied the route. I can continue from current context here, or if you switch to a workspace-read-enabled lane I can run the directory/file check directly.".to_string();
             }
             return "I'm not hard-locked; the last turn was blocked by a local access policy gate. I can continue with a direct answer from current context right now, and I will avoid extra tool calls unless you explicitly request one.".to_string();
@@ -701,9 +827,21 @@ fn workflow_unexpected_state_user_fallback(
             return "Understood. I can answer directly from current context now. The prior tool step was blocked by a local policy gate, so I’m staying in direct-answer mode unless you explicitly request another tool call.".to_string();
         }
         if message_requests_workspace_file_action(message) {
+            if domain_boundary_blocked && !policy_summary.is_empty() {
+                return format!("That workspace/file action is blocked in this runtime lane by ingress domain-boundary policy ({policy_summary}). I can continue with a direct answer from current context, or you can retry from a lane that has workspace-read permission and I’ll run the check.");
+            }
             return "That workspace/file action is blocked in this runtime lane by an ingress policy gate. I can continue with a direct answer from current context, or you can retry from a lane that has workspace-read permission and I’ll run the check.".to_string();
         }
+        if message_requests_file_tooling_validation(message) {
+            if !policy_summary.is_empty() {
+                return format!("File/workspace tooling validation is currently blocked by runtime-lane policy ({policy_summary}). I can continue with direct answers now, and run local tooling once lane permissions allow it.");
+            }
+            return "File/workspace tooling validation is currently blocked by runtime-lane policy. I can continue with direct answers now, and run local tooling once lane permissions allow it.".to_string();
+        }
         return "The prior step was blocked by a local access policy gate. I can still answer directly from current context without another tool call.".to_string();
+    }
+    if message_requests_file_tooling_validation(message) {
+        return "File tooling should be LLM-selected and lane-authorized. In this turn I’m replying directly from current context; if you want a live workspace tool action, ask explicitly and I’ll run it in a workspace-enabled lane.".to_string();
     }
     if message_requests_plain_direct_reply(message) {
         return "Understood. I can continue with a plain direct answer from current context right now.".to_string();

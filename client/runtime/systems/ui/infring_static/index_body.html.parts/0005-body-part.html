@@ -170,9 +170,9 @@
                             <span class="thinking-orb-link-dot thinking-orb-link-dot-2"></span>
                             <span class="thinking-orb-link-dot thinking-orb-link-dot-3"></span>
                           </span>
-                          <div class="thinking-inline-text"><em class="thinking-shimmer-text" x-text="thinkingStatusText(msg) || 'Thinking'"></em></div>
-                          <div class="thinking-inline-subtext thinking-shimmer-text" x-show="thinkingPhaseText(msg)" x-text="thinkingPhaseText(msg)"></div>
-                          <div class="thinking-inline-subtext thinking-shimmer-text" x-show="thinkingTraceSummary(msg)" x-text="thinkingTraceSummary(msg)"></div>
+                          <div class="thinking-inline-text"><em class="thinking-shimmer-text" :data-shimmer-text="thinkingStatusText(msg) || 'Thinking'" x-text="thinkingStatusText(msg) || 'Thinking'"></em></div>
+                          <div class="thinking-inline-subtext thinking-shimmer-text" x-show="thinkingPhaseText(msg)" :data-shimmer-text="thinkingPhaseText(msg)" x-text="thinkingPhaseText(msg)"></div>
+                          <div class="thinking-inline-subtext thinking-shimmer-text" x-show="thinkingTraceSummary(msg)" :data-shimmer-text="thinkingTraceSummary(msg)" x-text="thinkingTraceSummary(msg)"></div>
                           <div class="typing-dots"><span></span><span></span><span></span></div>
                         </div>
                         <template x-if="msg.terminal && terminalMessageCollapsed(msg, idx, filteredMessages)">

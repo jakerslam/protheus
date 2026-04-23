@@ -18,6 +18,12 @@ These are release- and CI-enforced requirements:
 
 Authoritative config: [`client/runtime/config/incident_operations_governance_policy.json`](/Users/jay/.openclaw/workspace/client/runtime/config/incident_operations_governance_policy.json)
 
+Supporting governance defaults:
+
+- Owner roster: [`client/runtime/config/incident_owner_roster.json`](/Users/jay/.openclaw/workspace/client/runtime/config/incident_owner_roster.json)
+- Artifact schema: [`client/runtime/config/post_incident_artifact_schema.json`](/Users/jay/.openclaw/workspace/client/runtime/config/post_incident_artifact_schema.json)
+- Waiver register: [`client/runtime/config/incident_operations_governance_waivers.json`](/Users/jay/.openclaw/workspace/client/runtime/config/incident_operations_governance_waivers.json)
+
 ## Policy Layer (Required Practice)
 
 Required non-gating contracts:

@@ -1254,6 +1254,17 @@
         "local/workspace/reports/INCIDENT_OPERATIONS_GOVERNANCE_GATE_CURRENT.md"
       ]
     },
+    "ops:windows-installer:contract:guard": {
+      "owner": "ops",
+      "description": "Windows installer contract guard for wrapper encoding, repair-floor continuity, parser-safe wrapper health checks, and bootstrap recovery guarantees.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:windows-installer:contract:guard",
+      "artifact_paths": [
+        "core/local/artifacts/windows_installer_contract_guard_current.json",
+        "local/workspace/reports/WINDOWS_INSTALLER_CONTRACT_GUARD_CURRENT.md"
+      ]
+    },
     "ops:typed-probe:matrix:guard": {
       "owner": "ops",
       "description": "Typed probe capability matrix guard with distinct authoritative keys for workspace/web/tool-route families and capability-specific missing diagnostics.",

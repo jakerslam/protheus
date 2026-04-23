@@ -1,5 +1,6 @@
     use super::*;
     use std::fs;
+    use std::path::Path;
 
     fn write_chat_script(root: &Path, payload: &Value) {
         let path = root.join("client/runtime/local/state/ui/infring_dashboard/test_chat_script.json");

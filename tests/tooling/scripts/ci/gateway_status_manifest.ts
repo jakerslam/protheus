@@ -8,6 +8,11 @@ import { emitStructuredResult } from '../../lib/result.ts';
 
 type SupportLevel = 'experimental' | 'candidate' | 'graduated';
 type ChecklistStatus = 'pending' | 'in_progress' | 'complete';
+type ManifestSchema = {
+  version: number;
+  required_hooks: string[];
+  required_scenarios: string[];
+};
 
 const ALLOWED_SUPPORT_LEVELS = new Set<SupportLevel>([
   'experimental',
@@ -34,6 +39,30 @@ const REQUIRED_CHECKLIST_KEYS_WITH_FAIL_CLOSED = [
   'receipt_completeness',
   'recovery_bounds',
 ] as const;
+const EXPECTED_MANIFEST_VERSION = 3;
+const EXPECTED_REQUIRED_HOOKS = [
+  'health_check',
+  'startup_timeout_policy',
+  'request_timeout_policy',
+  'fail_closed_policy_hooks',
+  'receipt_schema_helpers',
+  'circuit_breaker_behavior',
+  'quarantine_hooks',
+];
+const EXPECTED_REQUIRED_SCENARIOS = [
+  'process_never_starts',
+  'starts_then_hangs',
+  'invalid_schema_response',
+  'response_too_large',
+  'repeated_flapping',
+];
+const EXPECTED_GATEWAY_TARGET_IDS = [
+  'ollama',
+  'llama_cpp',
+  'mcp_baseline',
+  'otlp_exporter',
+  'durable_memory_local',
+];
 
 function parseArgs(argv: string[]) {
   const common = parseStrictOutArgs(argv, {
@@ -138,6 +167,32 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       id: 'gateway_manifest_missing',
       detail: args.manifestPath,
     });
+  } else {
+    const manifestVersion = Number((manifest as ManifestSchema).version || 0);
+    if (manifestVersion !== EXPECTED_MANIFEST_VERSION) {
+      failures.push({
+        id: 'gateway_manifest_version_invalid',
+        detail: Number.isFinite(manifestVersion) ? String(manifestVersion) : 'missing',
+      });
+    }
+    const requiredHooks = Array.isArray((manifest as ManifestSchema).required_hooks)
+      ? (manifest as ManifestSchema).required_hooks.map((value) => cleanText(String(value || ''), 80))
+      : [];
+    const requiredScenarios = Array.isArray((manifest as ManifestSchema).required_scenarios)
+      ? (manifest as ManifestSchema).required_scenarios.map((value) => cleanText(String(value || ''), 80))
+      : [];
+    if (requiredHooks.join('|') !== EXPECTED_REQUIRED_HOOKS.join('|')) {
+      failures.push({
+        id: 'gateway_manifest_required_hooks_noncanonical',
+        detail: requiredHooks.join(',') || 'missing',
+      });
+    }
+    if (requiredScenarios.join('|') !== EXPECTED_REQUIRED_SCENARIOS.join('|')) {
+      failures.push({
+        id: 'gateway_manifest_required_scenarios_noncanonical',
+        detail: requiredScenarios.join(',') || 'missing',
+      });
+    }
   }
 
   const targetIds: string[] = Array.isArray(manifest?.production_gateway_targets)
@@ -145,6 +200,26 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         .map((value: unknown) => cleanText(String(value || ''), 80))
         .filter(Boolean)
     : [];
+  const duplicateTargetIds = targetIds.filter((id, index, arr) => arr.indexOf(id) !== index);
+  if (duplicateTargetIds.length > 0) {
+    failures.push({
+      id: 'gateway_manifest_target_ids_duplicate',
+      detail: Array.from(new Set(duplicateTargetIds)).join(','),
+    });
+  }
+  const invalidTargetIds = targetIds.filter((id) => !/^[a-z0-9_]+$/.test(id));
+  if (invalidTargetIds.length > 0) {
+    failures.push({
+      id: 'gateway_manifest_target_ids_noncanonical',
+      detail: invalidTargetIds.join(','),
+    });
+  }
+  if (targetIds.join('|') !== EXPECTED_GATEWAY_TARGET_IDS.join('|')) {
+    failures.push({
+      id: 'gateway_manifest_target_ids_noncanonical_order_or_set',
+      detail: targetIds.join(',') || 'missing',
+    });
+  }
   if (targetIds.length === 0) {
     failures.push({
       id: 'gateway_manifest_target_ids_missing',
@@ -159,12 +234,51 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     adaptersById.set(id, row);
   }
   const supportRowsById = new Map<string, any>();
-  for (const row of Array.isArray(supportLevelsPayload?.gateway_support_levels)
+  const supportRowsRaw = Array.isArray(supportLevelsPayload?.gateway_support_levels)
     ? supportLevelsPayload.gateway_support_levels
-    : []) {
+    : [];
+  if (!supportLevelsPayload) {
+    failures.push({
+      id: 'gateway_support_levels_payload_missing',
+      detail: args.supportLevelsPath,
+    });
+  } else {
+    const supportType = cleanText(supportLevelsPayload?.type || '', 80);
+    if (supportType !== 'gateway_support_levels') {
+      failures.push({
+        id: 'gateway_support_levels_payload_type_invalid',
+        detail: supportType || 'missing',
+      });
+    }
+  }
+  const duplicateSupportIds = supportRowsRaw
+    .map((row: any) => cleanText(row?.id || '', 80))
+    .filter(Boolean)
+    .filter((id, index, arr) => arr.indexOf(id) !== index);
+  if (duplicateSupportIds.length > 0) {
+    failures.push({
+      id: 'gateway_support_levels_duplicate_id',
+      detail: Array.from(new Set(duplicateSupportIds)).join(','),
+    });
+  }
+  for (const row of supportRowsRaw) {
     const id = cleanText(row?.id || '', 80);
     if (!id || supportRowsById.has(id)) continue;
     supportRowsById.set(id, row);
+  }
+  const extraSupportIds = Array.from(supportRowsById.keys()).filter((id) => !targetIds.includes(id));
+  if (extraSupportIds.length > 0) {
+    failures.push({
+      id: 'gateway_support_levels_unknown_target',
+      detail: extraSupportIds.join(','),
+    });
+  }
+  const missingSupportIds = targetIds.filter((id) => !supportRowsById.has(id));
+  if (missingSupportIds.length > 0) {
+    failures.push({
+      id: 'gateway_support_levels_target_missing',
+      detail: missingSupportIds.join(','),
+    });
   }
 
   const targets = targetIds.map((id) => {
@@ -179,10 +293,22 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     const supportLevel = normalizeStatus(
       supportRow.support_level || adapter.support_level,
     ) as SupportLevel;
+    const manifestSupportLevel = normalizeStatus(adapter.support_level || '') as SupportLevel;
+    const supportPayloadLevel = normalizeStatus(supportRow.support_level || '') as SupportLevel;
     if (!ALLOWED_SUPPORT_LEVELS.has(supportLevel)) {
       failures.push({
         id: 'gateway_support_level_invalid',
         detail: `${id}:${supportLevel || 'missing'}`,
+      });
+    }
+    if (
+      supportPayloadLevel
+      && manifestSupportLevel
+      && supportPayloadLevel !== manifestSupportLevel
+    ) {
+      failures.push({
+        id: 'gateway_support_level_mismatch_manifest_vs_support_payload',
+        detail: `${id}:${manifestSupportLevel}->${supportPayloadLevel}`,
       });
     }
 
@@ -201,7 +327,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       }
     }
 
-    const uniformChecklistContractOk = REQUIRED_CHECKLIST_KEYS.every((key) =>
+    const uniformChecklistContractOk = REQUIRED_CHECKLIST_KEYS_WITH_FAIL_CLOSED.every((key) =>
       ALLOWED_CHECKLIST_STATUS.has(normalizeStatus((checklistRaw as any)[key]) as ChecklistStatus),
     );
     if (!uniformChecklistContractOk) {

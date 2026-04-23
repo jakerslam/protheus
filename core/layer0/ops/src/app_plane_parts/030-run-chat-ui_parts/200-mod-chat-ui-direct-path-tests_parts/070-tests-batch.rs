@@ -56,6 +56,92 @@
     }
 
     #[test]
+    fn direct_run_chat_ui_emits_response_workflow_trace_streams_and_exports() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_chat_script(
+            root.path(),
+            &json!({
+                "queue": [
+                    {
+                        "response": "LangGraph and OpenAI Agents SDK are both widely used.",
+                        "tools": [
+                            {
+                                "name": "batch_query",
+                                "status": "ok",
+                                "ok": true,
+                                "query": "top agent frameworks",
+                                "result": "LangGraph, OpenAI Agents SDK, AutoGen"
+                            }
+                        ]
+                    }
+                ]
+            }),
+        );
+        let parsed = crate::parse_args(&[
+            "run".to_string(),
+            "--app=chat-ui".to_string(),
+            "--session-id=workflow-trace-streams".to_string(),
+            "--message=search for current top agent frameworks".to_string(),
+            "--strict=1".to_string(),
+        ]);
+        let payload = run_chat_ui(root.path(), &parsed, true, "run");
+        assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            payload
+                .pointer("/response_workflow/contract")
+                .and_then(Value::as_str),
+            Some("response_workflow_control_plane_trace_v1")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_workflow/gates/need_tool_access/required")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert!(payload
+            .pointer("/response_workflow/trace_streams/workflow_state")
+            .and_then(Value::as_array)
+            .is_some_and(|rows| !rows.is_empty()));
+        assert!(payload
+            .pointer("/response_workflow/trace_streams/ui_status")
+            .and_then(Value::as_array)
+            .is_some_and(|rows| rows.iter().any(|row| {
+                row.get("message")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_ascii_lowercase()
+                    .contains("searching")
+            })));
+        assert!(payload
+            .pointer("/response_workflow/trace_streams/decision_summary")
+            .and_then(Value::as_array)
+            .is_some_and(|rows| !rows.is_empty()));
+        assert!(payload
+            .pointer("/response_workflow/trace_streams/tool_execution")
+            .and_then(Value::as_array)
+            .is_some_and(|rows| !rows.is_empty()));
+
+        let jsonl_path = payload
+            .pointer("/response_workflow/export/jsonl_path")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let json_path = payload
+            .pointer("/response_workflow/export/json_path")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let timeline_path = payload
+            .pointer("/response_workflow/export/timeline_path")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        assert!(!jsonl_path.is_empty());
+        assert!(!json_path.is_empty());
+        assert!(!timeline_path.is_empty());
+        assert!(Path::new(jsonl_path).exists(), "{jsonl_path}");
+        assert!(Path::new(json_path).exists(), "{json_path}");
+        assert!(Path::new(timeline_path).exists(), "{timeline_path}");
+    }
+
+    #[test]
     fn direct_run_chat_ui_claim_evidence_guard_fail_closes_unverified_routing_claims() {
         let root = tempfile::tempdir().expect("tempdir");
         write_chat_script(

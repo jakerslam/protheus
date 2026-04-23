@@ -2703,15 +2703,54 @@ function Test-RepairArtifactBroken {
     return $true
   }
   if ($ArtifactName.ToLowerInvariant().EndsWith(".cmd")) {
-    $content = (Get-Content -LiteralPath $InstallPath -TotalCount 80 -ErrorAction SilentlyContinue) -join "`n"
-    return (-not ($content -match ":_dispatch"))
-  }
-  if ($ArtifactName.ToLowerInvariant().EndsWith(".ps1")) {
-    $content = (Get-Content -LiteralPath $InstallPath -TotalCount 80 -ErrorAction SilentlyContinue) -join "`n"
-    if (-not ($content -match 'Join-Path\s+\$PSScriptRoot')) {
+    $content = (Get-Content -LiteralPath $InstallPath -TotalCount 120 -ErrorAction SilentlyContinue) -join "`n"
+    if ([string]::IsNullOrWhiteSpace($content)) {
       return $true
     }
-    if (($content -match 'Missing command wrapper') -and ($content -match 'throw\s+"')) {
+    $contentLower = $content.ToLowerInvariant()
+    if ($content.Contains("<<<<<<<") -or $content.Contains("=======") -or $content.Contains(">>>>>>>")) {
+      return $true
+    }
+    if ($content.Contains("__PS1__") -or $content.Contains("__TARGET__")) {
+      return $true
+    }
+    $hasDispatchOrBootstrapEntry = $contentLower.Contains(":_dispatch") -or $contentLower.Contains("_bootstrap_action")
+    $hasPowerShellDispatch = $contentLower.Contains("powershell.exe -noprofile -executionpolicy bypass -file")
+    $hasBootstrapRecoveryCopy = $contentLower.Contains("[infring bootstrap] runtime binaries are not installed on this machine yet.")
+    $containsLegacyThrowOnlyTemplate = $contentLower.Contains("missing command wrapper:") -and (-not $hasBootstrapRecoveryCopy)
+    if ($containsLegacyThrowOnlyTemplate) {
+      return $true
+    }
+    return (-not (($hasDispatchOrBootstrapEntry -or $hasPowerShellDispatch) -and $hasBootstrapRecoveryCopy))
+  }
+  if ($ArtifactName.ToLowerInvariant().EndsWith(".ps1")) {
+    $content = (Get-Content -LiteralPath $InstallPath -TotalCount 120 -ErrorAction SilentlyContinue) -join "`n"
+    if ([string]::IsNullOrWhiteSpace($content)) {
+      return $true
+    }
+    $contentLower = $content.ToLowerInvariant()
+    if ($content.Contains("<<<<<<<") -or $content.Contains("=======") -or $content.Contains(">>>>>>>")) {
+      return $true
+    }
+    if ($content.Contains("__TARGET__") -or $content.Contains("__PS1__")) {
+      return $true
+    }
+    if ($content.Contains('Join-Path\\s+\\$PSScriptRoot') -or $content.Contains('Join-Path\\s+\\')) {
+      return $true
+    }
+    $hasJoinPathReference = $contentLower.Contains("join-path $psscriptroot") -or $contentLower.Contains("join-path ${psscriptroot}")
+    if (-not $hasJoinPathReference) {
+      return $true
+    }
+    $hasCommandArgsSignature = $contentLower.Contains("valuefromremainingarguments=$true") -and $contentLower.Contains("commandargs")
+    if (-not $hasCommandArgsSignature) {
+      return $true
+    }
+    if ($contentLower.Contains("missing command wrapper") -and $contentLower.Contains("throw ")) {
+      return $true
+    }
+    $hasBootstrapRecoveryCopy = $contentLower.Contains("[infring bootstrap] run: install.ps1 -repair -full") -or $contentLower.Contains("[infring shim] bootstrap wrapper missing")
+    if (-not $hasBootstrapRecoveryCopy) {
       return $true
     }
     return $false
@@ -2730,6 +2769,18 @@ setlocal
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0__PS1__" %*
 exit /b %ERRORLEVEL%
 '@
+  $psTemplate = @'
+param([Parameter(ValueFromRemainingArguments=$true)][string[]]$CommandArgs)
+$target = Join-Path $PSScriptRoot "__TARGET__"
+if (Test-Path $target) {
+  & $target @CommandArgs
+  exit $LASTEXITCODE
+}
+Write-Warning "[infring shim] bootstrap wrapper missing: $target"
+Write-Host "[infring bootstrap] runtime binaries are not installed on this machine yet."
+Write-Host "[infring bootstrap] run: install.ps1 -Repair -Full"
+exit 0
+'@
   $wrapperPairs = @(
     @{ cmd = "infring.cmd"; ps1 = "infring.ps1" },
     @{ cmd = "infringctl.cmd"; ps1 = "infringctl.ps1" },
@@ -2738,19 +2789,40 @@ exit /b %ERRORLEVEL%
 
   foreach ($pair in $wrapperPairs) {
     $cmdPath = Join-Path $InstallDir ([string]$pair.cmd)
-    if (Test-Path $cmdPath) {
-      continue
-    }
     $ps1Path = Join-Path $InstallDir ([string]$pair.ps1)
-    if (-not (Test-Path $ps1Path)) {
-      continue
+    $rewritePs1 = $false
+    if (Test-Path $ps1Path) {
+      $rewritePs1 = [bool](Test-RepairArtifactBroken -InstallPath $ps1Path -ArtifactName ([string]$pair.ps1))
     }
-    try {
-      $cmdContent = $cmdTemplate.Replace("__PS1__", [string]$pair.ps1)
-      Set-Content -Path $cmdPath -Value $cmdContent -Encoding ASCII
-      Write-Host "[infring install] repair bootstrapped command wrapper: $cmdPath"
-    } catch {
-      Write-Host "[infring install] repair warning: failed to bootstrap command wrapper: $cmdPath"
+    if ((-not (Test-Path $ps1Path)) -or $rewritePs1) {
+      try {
+        $psContent = $psTemplate.Replace("__TARGET__", [string]$pair.cmd)
+        Set-Content -LiteralPath $ps1Path -Value $psContent -Encoding UTF8 -Force
+        if ($rewritePs1) {
+          Write-Host "[infring install] repair rewrote broken PowerShell wrapper: $ps1Path"
+        } else {
+          Write-Host "[infring install] repair bootstrapped PowerShell wrapper: $ps1Path"
+        }
+      } catch {
+        Write-Host "[infring install] repair warning: failed to bootstrap PowerShell wrapper: $ps1Path"
+      }
+    }
+    $rewriteCmd = $false
+    if (Test-Path $cmdPath) {
+      $rewriteCmd = [bool](Test-RepairArtifactBroken -InstallPath $cmdPath -ArtifactName ([string]$pair.cmd))
+    }
+    if ((-not (Test-Path $cmdPath)) -or $rewriteCmd) {
+      try {
+        $cmdContent = $cmdTemplate.Replace("__PS1__", [string]$pair.ps1)
+        Set-Content -LiteralPath $cmdPath -Value $cmdContent -Encoding ASCII -Force
+        if ($rewriteCmd) {
+          Write-Host "[infring install] repair rewrote broken command wrapper: $cmdPath"
+        } else {
+          Write-Host "[infring install] repair bootstrapped command wrapper: $cmdPath"
+        }
+      } catch {
+        Write-Host "[infring install] repair warning: failed to bootstrap command wrapper: $cmdPath"
+      }
     }
   }
 }
@@ -3338,7 +3410,7 @@ function Write-CmdWrapper {
   }
 
   $content = $wrapperPrelude + "`r`n" + $dispatch + "`r`n"
-  Set-Content -Path $Path -Value $content
+  Set-Content -Path $Path -Value $content -Encoding ASCII
 }
 
 function Write-DaemonCmdWrapper {
@@ -3356,7 +3428,7 @@ function Write-DaemonCmdWrapper {
   }
 
   $content = $wrapperPrelude + "`r`n" + $dispatch + "`r`n"
-  Set-Content -Path $Path -Value $content
+  Set-Content -Path $Path -Value $content -Encoding ASCII
 }
 
 function Write-BootstrapGatewayCmdWrapper {
@@ -3365,7 +3437,7 @@ function Write-BootstrapGatewayCmdWrapper {
   )
 
   $content = $wrapperPrelude + "`r`n" + $bootstrapGatewayDispatchTemplate + "`r`n"
-  Set-Content -Path $Path -Value $content
+  Set-Content -Path $Path -Value $content -Encoding ASCII
 }
 
 function Resolve-WorkspaceRootForSmoke {
@@ -3801,7 +3873,7 @@ function Write-PowerShellShim {
     $deprecationLine = "Write-Warning `"$deprecationEscaped`""
   }
   $content = $content.Replace("__DEPRECATION__", $deprecationLine)
-  Set-Content -Path $Path -Value $content
+  Set-Content -Path $Path -Value $content -Encoding UTF8
 }
 
 $infringCmd = Join-Path $InstallDir "infring.cmd"
@@ -3840,6 +3912,7 @@ $infringdPs1 = Join-Path $InstallDir "infringd.ps1"
 Write-PowerShellShim -Path $infringPs1 -TargetCmd "infring.cmd"
 Write-PowerShellShim -Path $infringctlPs1 -TargetCmd "infringctl.cmd"
 Write-PowerShellShim -Path $infringdPs1 -TargetCmd "infringd.cmd"
+Ensure-RepairBootstrapWrapperFloor -InstallDir $InstallDir
 
 if ($InstallPure) {
   Write-Host "[infring install] pure mode: skipping Infring client bundle"

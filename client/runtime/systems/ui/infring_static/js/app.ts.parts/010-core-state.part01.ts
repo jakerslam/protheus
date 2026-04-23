@@ -24,11 +24,15 @@ function escapeHtml(text) {
 function normalizeChatMarkdownListBreaks(text) {
   var source = String(text || '');
   if (!source) return '';
-  var markerPattern = /(?:^|[ \t])((?:\d{1,3}[.)]|[*+-])\s+\*\*[^*]+\*\*)/g;
+  var markerPattern = /(?:^|[ \t])((?:(?:\d{1,3}[.)]|[*+-])\s+\*\*[^*]+\*\*)|(?:\*\*\d{1,3}[.)]\s+[^*]+\*\*))/g;
   var markers = [];
   var match;
   while ((match = markerPattern.exec(source)) !== null) {
-    markers.push({ index: match.index + match[0].indexOf(match[1]), marker: match[1] });
+    var marker = String(match[1] || '');
+    var rawMarkerLength = marker.length;
+    var numberedBold = marker.match(/^\*\*(\d{1,3}[.)])\s+([^*]+)\*\*$/);
+    if (numberedBold) marker = numberedBold[1] + ' **' + numberedBold[2] + '**';
+    markers.push({ index: match.index + match[0].indexOf(match[1]), marker: marker, rawLength: rawMarkerLength });
   }
   if (markers.length < 2) return source;
   var out = '';
@@ -38,7 +42,7 @@ function normalizeChatMarkdownListBreaks(text) {
     out += source.slice(cursor, item.index);
     if (item.index > 0 && source.charAt(item.index - 1) !== '\n') out += '\n';
     out += item.marker;
-    cursor = item.index + item.marker.length;
+    cursor = item.index + item.rawLength;
   }
   out += source.slice(cursor);
   return out;

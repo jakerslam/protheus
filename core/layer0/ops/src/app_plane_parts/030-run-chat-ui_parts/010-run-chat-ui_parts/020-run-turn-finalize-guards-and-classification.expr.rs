@@ -10,7 +10,7 @@
         let mut hard_guard = json!({
             "applied": false
         });
-        let inline_tool_schema = chat_ui_inline_tool_call_schema(&assistant);
+        let inline_tool_schema = chat_ui_inline_tool_call_schema(&assistant_raw);
         let inline_tool_call_detected = inline_tool_schema
             .get("detected")
             .and_then(Value::as_bool)
@@ -64,7 +64,8 @@
             }
         }
         let mut routing_claim_guard_applied = false;
-        if chat_ui_contains_unverified_routing_root_cause_claim(&assistant)
+        if (chat_ui_contains_unverified_routing_root_cause_claim(&assistant_raw)
+            || chat_ui_contains_unverified_routing_root_cause_claim(&assistant))
             && !chat_ui_has_structured_routing_claim_evidence(&tools)
         {
             assistant = crate::tool_output_match_filter::canonical_tooling_fallback_copy(
@@ -257,6 +258,7 @@
             || chat_ui_contains_competitive_programming_dump(&message, &assistant);
         let classification_findings_available = chat_ui_tools_have_valid_findings(&tools);
         let classification_should_fail_close = requires_live_web
+            && response_finalization_outcome != "tool_surface_error_fail_closed"
             && matches!(
                 web_classification.as_str(),
                 "workflow_gate_blocked"
@@ -274,11 +276,15 @@
             let fallback_status = chat_ui_fallback_status_for_classification(&web_classification);
             let fallback_error_code = chat_ui_error_code_for_classification(&web_classification);
             if !fallback_error_code.is_empty() {
-                assistant = crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                    fallback_status,
-                    fallback_error_code,
-                    None,
-                );
+                assistant = if web_classification == "tool_not_invoked" {
+                    "Web tooling execution failed before any search tool call was recorded (error_code: web_tool_not_invoked). Retry lane: run `batch_query` with a narrower query or one specific source URL.".to_string()
+                } else {
+                    crate::tool_output_match_filter::canonical_tooling_fallback_copy(
+                        fallback_status,
+                        fallback_error_code,
+                        None,
+                    )
+                };
                 hard_guard = json!({
                     "applied": true,
                     "status": fallback_status,
@@ -420,23 +426,21 @@
             )
             .to_string();
         }
-        if assistant.trim().is_empty()
+        if (assistant.trim().is_empty()
             || crate::tool_output_match_filter::matches_ack_placeholder(&assistant)
-            || crate::tool_output_match_filter::contains_forbidden_runtime_context_markers(&assistant)
-        {
-            assistant = "I could not produce a reliable final answer in this turn. Please retry once; if it still fails, I will return a structured fail-closed diagnosis.".to_string();
-            if !hard_guard
+            || crate::tool_output_match_filter::contains_forbidden_runtime_context_markers(&assistant))
+            && !hard_guard
                 .get("applied")
                 .and_then(Value::as_bool)
                 .unwrap_or(false)
-            {
-                hard_guard = json!({
-                    "applied": true,
-                    "status": "failed",
-                    "error_code": "assistant_output_not_reliable",
-                    "source": "final_output_guard"
-                });
-            }
+        {
+            assistant = "I could not produce a reliable final answer in this turn. Please retry once; if it still fails, I will return a structured fail-closed diagnosis.".to_string();
+            hard_guard = json!({
+                "applied": true,
+                "status": "failed",
+                "error_code": "assistant_output_not_reliable",
+                "source": "final_output_guard"
+            });
             if forced_web_error_code.is_empty() {
                 forced_web_error_code = "assistant_output_not_reliable".to_string();
             }

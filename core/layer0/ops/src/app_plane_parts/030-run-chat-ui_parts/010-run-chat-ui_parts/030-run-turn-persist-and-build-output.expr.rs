@@ -20,8 +20,9 @@
             120,
         );
         let workflow_should_call_tools = tool_gate
-            .get("should_call_tools")
+            .get("needs_tool_access")
             .and_then(Value::as_bool)
+            .or_else(|| tool_gate.get("should_call_tools").and_then(Value::as_bool))
             .unwrap_or(false);
         let workflow_retry_limit = tool_gate
             .get("workflow_retry_limit")
@@ -99,6 +100,25 @@
         } else {
             clean(&message, 200)
         };
+        let response_workflow = chat_ui_build_response_workflow_trace(
+            root,
+            &session_id,
+            &trace_id,
+            &message,
+            &assistant,
+            &tool_gate,
+            &tools,
+            &web_classification,
+            &final_outcome,
+            guard_retry_recommended,
+            guard_retry_strategy,
+            guard_retry_lane,
+            hard_guard_applied,
+        );
+        let workflow_trace_export = response_workflow
+            .get("export")
+            .cloned()
+            .unwrap_or_else(|| json!({}));
         let turn = json!({
             "turn_id": format!(
                 "turn_{}",
@@ -109,7 +129,8 @@
             "provider": selected_provider,
             "model": selected_model,
             "user": message,
-            "assistant": assistant,
+            "assistant": assistant.clone(),
+            "response_workflow": response_workflow.clone(),
             "tool_summary": receipt_summary,
             "transaction": {
                 "id": transaction_id,
@@ -162,6 +183,9 @@
             "action": "run",
             "session_id": session_id,
             "trace_id": trace_id,
+            "response": assistant.clone(),
+            "content": assistant.clone(),
+            "response_workflow": response_workflow.clone(),
             "turn": turn,
             "workflow_process_summary": workflow_process_summary.clone(),
             "workflow_recent_summaries": workflow_summaries.clone(),
@@ -201,6 +225,7 @@
                 "classification_guard": classification_guard,
                 "tool_diagnostics": tool_diagnostics,
                 "tool_gate": tool_gate,
+                "workflow_trace_export": workflow_trace_export,
                 "workflow_process_summary": workflow_process_summary,
                 "workflow_recent_summaries": workflow_summaries,
                 "capability_discovery": {

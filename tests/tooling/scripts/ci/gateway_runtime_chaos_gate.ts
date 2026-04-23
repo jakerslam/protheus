@@ -20,6 +20,7 @@ type GatewayChecklist = {
   chaos_scenarios: ChecklistStatus;
   receipt_completeness: ChecklistStatus;
   fallback_degradation_declaration: ChecklistStatus;
+  recovery_bounds: ChecklistStatus;
 };
 
 type AdapterLane = {
@@ -90,6 +91,23 @@ const DEFAULT_TARGET_GATEWAY_ADAPTER_IDS = [
   'otlp_exporter',
   'durable_memory_local',
 ] as const;
+const EXPECTED_MANIFEST_VERSION = 3;
+const EXPECTED_REQUIRED_HOOKS = [
+  'health_check',
+  'startup_timeout_policy',
+  'request_timeout_policy',
+  'fail_closed_policy_hooks',
+  'receipt_schema_helpers',
+  'circuit_breaker_behavior',
+  'quarantine_hooks',
+];
+const EXPECTED_REQUIRED_SCENARIOS = [
+  'process_never_starts',
+  'starts_then_hangs',
+  'invalid_schema_response',
+  'response_too_large',
+  'repeated_flapping',
+];
 const CHECKLIST_ALLOWED_STATUS = new Set<ChecklistStatus>(['pending', 'in_progress', 'complete']);
 const CHECKLIST_KEYS: Array<keyof GatewayChecklist> = [
   'health_checks',
@@ -97,6 +115,7 @@ const CHECKLIST_KEYS: Array<keyof GatewayChecklist> = [
   'chaos_scenarios',
   'receipt_completeness',
   'fallback_degradation_declaration',
+  'recovery_bounds',
 ];
 
 const CHAOS_CASES = [
@@ -353,6 +372,9 @@ function normalizeChecklist(row: GraduationManifest['adapters'][number]): Gatewa
     fallback_degradation_declaration: normalizeChecklistStatus(
       typeof raw.fallback_degradation_declaration === 'string' ? raw.fallback_degradation_declaration : undefined,
     ),
+    recovery_bounds: normalizeChecklistStatus(
+      typeof raw.recovery_bounds === 'string' ? raw.recovery_bounds : undefined,
+    ),
   };
 }
 
@@ -485,21 +507,47 @@ function manifestConformanceViolations(
   targetGatewayIds: readonly string[],
 ): string[] {
   const violations: string[] = [];
+  if (!Number.isInteger(manifest.version)) {
+    violations.push('manifest_version_missing_or_non_integer');
+  } else if (manifest.version !== EXPECTED_MANIFEST_VERSION) {
+    violations.push(`manifest_version_invalid:${manifest.version}`);
+  }
   const manifestRows = Array.isArray(manifest.adapters) ? manifest.adapters : [];
   const ids = manifestRows.map((row) => cleanText(row?.id || '', 80)).filter(Boolean);
   const duplicates = ids.filter((id, idx) => ids.indexOf(id) !== idx);
   duplicates.forEach((id) => violations.push(`manifest_duplicate_adapter_id:${id}`));
 
-  if (!Array.isArray(manifest.required_hooks) || manifest.required_hooks.length === 0) {
+  const requiredHooks = Array.isArray(manifest.required_hooks)
+    ? manifest.required_hooks.map((row) => cleanText(String(row || ''), 80)).filter(Boolean)
+    : [];
+  const duplicateRequiredHooks = requiredHooks.filter((id, index, arr) => arr.indexOf(id) !== index);
+  duplicateRequiredHooks.forEach((id) => violations.push(`manifest_required_hook_duplicate:${id}`));
+  if (requiredHooks.length === 0) {
     violations.push('manifest_required_hooks_missing_or_empty');
+  } else if (requiredHooks.join('|') !== EXPECTED_REQUIRED_HOOKS.join('|')) {
+    violations.push('manifest_required_hooks_noncanonical_order_or_set');
   }
-  if (!Array.isArray(manifest.required_scenarios) || manifest.required_scenarios.length === 0) {
+  const requiredScenarios = Array.isArray(manifest.required_scenarios)
+    ? manifest.required_scenarios.map((row) => cleanText(String(row || ''), 80)).filter(Boolean)
+    : [];
+  const duplicateRequiredScenarios = requiredScenarios.filter((id, index, arr) => arr.indexOf(id) !== index);
+  duplicateRequiredScenarios.forEach((id) => violations.push(`manifest_required_scenario_duplicate:${id}`));
+  if (requiredScenarios.length === 0) {
     violations.push('manifest_required_scenarios_missing_or_empty');
+  } else if (requiredScenarios.join('|') !== EXPECTED_REQUIRED_SCENARIOS.join('|')) {
+    violations.push('manifest_required_scenarios_noncanonical_order_or_set');
   }
 
   const byId = new Map(manifestRows.map((row) => [cleanText(row.id || '', 80), row]));
   const readinessTracks = new Set<string>();
   const requiredFlags = new Set<string>();
+  const duplicateTargetIds = targetGatewayIds.filter((id, index, arr) => arr.indexOf(id) !== index);
+  duplicateTargetIds.forEach((id) => violations.push(`manifest_gateway_target_duplicate:${id}`));
+  const invalidTargetIds = targetGatewayIds.filter((id) => !/^[a-z0-9_]+$/.test(id));
+  invalidTargetIds.forEach((id) => violations.push(`manifest_gateway_target_noncanonical:${id}`));
+  if (targetGatewayIds.join('|') !== DEFAULT_TARGET_GATEWAY_ADAPTER_IDS.join('|')) {
+    violations.push('manifest_gateway_target_noncanonical_order_or_set');
+  }
 
   if (targetGatewayIds.length === 0) {
     violations.push('manifest_gateway_targets_missing_or_empty');
@@ -520,6 +568,9 @@ function manifestConformanceViolations(
     if (typeof declared.required_for_graduation !== 'boolean') {
       violations.push(`manifest_gateway_required_for_graduation_missing:${gatewayId}`);
     }
+    if (declared.required_for_graduation !== false) {
+      violations.push(`manifest_gateway_target_must_not_require_graduation:${gatewayId}`);
+    }
     requiredFlags.add(String(declared.required_for_graduation !== false));
 
     const tier = cleanText(declared.tier || '', 40).toLowerCase();
@@ -530,6 +581,8 @@ function manifestConformanceViolations(
     const supportLevel = cleanText(declared.support_level || '', 40).toLowerCase();
     if (!(supportLevel === 'experimental' || supportLevel === 'candidate' || supportLevel === 'graduated')) {
       violations.push(`manifest_gateway_support_level_invalid:${gatewayId}`);
+    } else if (supportLevel === 'experimental') {
+      violations.push(`manifest_gateway_support_level_experimental_not_allowed:${gatewayId}`);
     }
 
     const owner = cleanText(declared.owner || '', 120);
@@ -537,6 +590,9 @@ function manifestConformanceViolations(
       violations.push(`manifest_gateway_owner_missing:${gatewayId}`);
     }
     const blocker = cleanText(declared.blocker || '', 200);
+    if (supportLevel === 'graduated' && blocker) {
+      violations.push(`manifest_gateway_blocker_must_be_empty_when_graduated:${gatewayId}`);
+    }
     if (supportLevel !== 'graduated' && !blocker) {
       violations.push(`manifest_gateway_blocker_missing:${gatewayId}`);
     }
@@ -600,8 +656,10 @@ export function run(argv: string[] = process.argv.slice(2)): number {
 
   const manifestAdapters = adaptersFromManifest(graduationManifest);
   const gatewayTargetIds = resolveGatewayTargetAdapterIds(graduationManifest);
-  const gatewayTargetAdapterSet = new Set<string>(gatewayTargetIds);
-  const gatewayTargetAdapters = manifestAdapters.filter((row) => gatewayTargetAdapterSet.has(row.id));
+  const manifestAdapterById = new Map(manifestAdapters.map((row) => [row.id, row] as const));
+  const gatewayTargetAdapters = gatewayTargetIds
+    .map((id) => manifestAdapterById.get(id))
+    .filter((row): row is AdapterLane => Boolean(row));
   const gatewaySupportLevels = gatewayTargetAdapters.map((row) => ({
     id: row.id,
     support_level: row.supportLevel,

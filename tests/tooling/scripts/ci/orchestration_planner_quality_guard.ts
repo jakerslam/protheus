@@ -44,6 +44,9 @@ type PlannerPolicy = {
   max_zero_executable_candidate_rate?: number;
   max_all_candidates_require_clarification_rate?: number;
   max_all_candidates_degraded_rate?: number;
+  required_metric_fields?: string[];
+  max_missing_metric_fields?: number;
+  consistency_epsilon?: number;
   ratchet?: {
     max_regression_delta?: number;
   };
@@ -56,6 +59,19 @@ type PlannerPolicy = {
 type OrchestrationQualityPolicy = {
   planner_quality?: PlannerPolicy;
 };
+
+const DEFAULT_REQUIRED_PLANNER_FIELDS: Array<keyof PlannerMetrics> = [
+  'request_count',
+  'average_candidate_count',
+  'clarification_first_rate',
+  'degraded_rate',
+  'selected_plan_requires_clarification_rate',
+  'selected_plan_degraded_rate',
+  'heuristic_probe_rate',
+  'zero_executable_candidate_rate',
+  'all_candidates_require_clarification_rate',
+  'all_candidates_degraded_rate',
+];
 
 function resolveArgs(argv: string[]): ScriptArgs {
   return {
@@ -88,6 +104,20 @@ function parsePlannerMetrics(output: string): PlannerMetrics | null {
 
 function numberOrNull(value: unknown): number | null {
   return Number.isFinite(Number(value)) ? Number(value) : null;
+}
+
+function requiredPlannerFieldsFromPolicy(policy: PlannerPolicy): string[] {
+  if (!Array.isArray(policy.required_metric_fields) || policy.required_metric_fields.length === 0) {
+    return [...DEFAULT_REQUIRED_PLANNER_FIELDS];
+  }
+  return policy.required_metric_fields
+    .map((field) => String(field || '').trim())
+    .filter((field) => field.length > 0);
+}
+
+function collectMissingPlannerFields(metrics: PlannerMetrics | null, requiredFields: string[]): string[] {
+  if (!metrics) return [...requiredFields];
+  return requiredFields.filter((field) => numberOrNull((metrics as Record<string, unknown>)[field]) == null);
 }
 
 function evaluateThresholds(metrics: PlannerMetrics | null, policy: PlannerPolicy): string[] {
@@ -125,6 +155,18 @@ function evaluateThresholds(metrics: PlannerMetrics | null, policy: PlannerPolic
   );
   const maxAllCandidatesDegradedRate = numberOrNull(policy.max_all_candidates_degraded_rate);
   const minRequestCount = numberOrNull(policy.min_request_count);
+  const requiredMetricFields = requiredPlannerFieldsFromPolicy(policy);
+  const missingMetricFields = collectMissingPlannerFields(metrics, requiredMetricFields);
+  const maxMissingMetricFields = Math.max(0, Number(policy.max_missing_metric_fields ?? 0));
+
+  if (missingMetricFields.length > maxMissingMetricFields) {
+    failures.push(
+      `missing_metric_fields_exceeded:actual=${missingMetricFields.length}:max=${maxMissingMetricFields}`,
+    );
+  }
+  for (const field of missingMetricFields) {
+    failures.push(`missing_metric_field:${field}`);
+  }
 
   if (requestCount == null) {
     failures.push('missing_request_count');
@@ -222,9 +264,10 @@ function evaluateThresholds(metrics: PlannerMetrics | null, policy: PlannerPolic
   return failures;
 }
 
-function evaluateMetricConsistency(metrics: PlannerMetrics | null): string[] {
+function evaluateMetricConsistency(metrics: PlannerMetrics | null, policy: PlannerPolicy): string[] {
   const failures: string[] = [];
   if (!metrics) return failures;
+  const epsilon = Math.max(0, Number(policy.consistency_epsilon ?? 0));
 
   const requestCount = numberOrNull(metrics.request_count);
   const averageCandidateCount = numberOrNull(metrics.average_candidate_count);
@@ -276,20 +319,30 @@ function evaluateMetricConsistency(metrics: PlannerMetrics | null): string[] {
   }
   if (
     requestCount != null
-    && requestCount === 0
-    && rateRows.some((row) => row.value != null && row.value !== 0)
+    && Math.abs(requestCount) <= epsilon
+    && rateRows.some((row) => row.value != null && Math.abs(row.value) > epsilon)
   ) {
     failures.push('inconsistent_rates_with_zero_request_count');
   }
   if (
     requestCount != null
-    && requestCount === 0
+    && Math.abs(requestCount) <= epsilon
     && averageCandidateCount != null
-    && averageCandidateCount > 0
+    && averageCandidateCount > epsilon
   ) {
     failures.push(
       `inconsistent_average_candidate_count_with_zero_request_count:value=${averageCandidateCount.toFixed(4)}`,
     );
+  }
+  if (requestCount != null && requestCount > epsilon) {
+    for (const row of rateRows) {
+      if (row.value == null) {
+        failures.push(`inconsistent_missing_${row.key}_with_positive_request_count`);
+      }
+    }
+    if (averageCandidateCount == null) {
+      failures.push('inconsistent_missing_average_candidate_count_with_positive_request_count');
+    }
   }
 
   if (
@@ -301,7 +354,6 @@ function evaluateMetricConsistency(metrics: PlannerMetrics | null): string[] {
       `inconsistent_all_candidates_require_clarification_rate:all_candidates_require_clarification_rate=${allCandidatesRequireClarificationRate.toFixed(4)}:selected_plan_requires_clarification_rate=${selectedPlanRequiresClarificationRate.toFixed(4)}`,
     );
   } else if (
-    // Compatibility fallback for metrics emitted before selected_plan_* fields existed.
     allCandidatesRequireClarificationRate != null
     && selectedPlanRequiresClarificationRate == null
     && clarificationFirstRate != null
@@ -342,7 +394,7 @@ function evaluateMetricConsistency(metrics: PlannerMetrics | null): string[] {
   if (
     selectedPlanRequiresClarificationRate != null
     && selectedPlanDegradedRate != null
-    && selectedPlanRequiresClarificationRate + selectedPlanDegradedRate > 1
+    && selectedPlanRequiresClarificationRate + selectedPlanDegradedRate > 1 + epsilon
   ) {
     failures.push(
       `inconsistent_selected_plan_rate_sum_over_1:sum=${(selectedPlanRequiresClarificationRate + selectedPlanDegradedRate).toFixed(4)}`,
@@ -351,15 +403,33 @@ function evaluateMetricConsistency(metrics: PlannerMetrics | null): string[] {
   if (
     allCandidatesRequireClarificationRate != null
     && allCandidatesDegradedRate != null
-    && allCandidatesRequireClarificationRate + allCandidatesDegradedRate > 1
+    && allCandidatesRequireClarificationRate + allCandidatesDegradedRate > 1 + epsilon
   ) {
     failures.push(
       `inconsistent_all_candidates_rate_sum_over_1:sum=${(allCandidatesRequireClarificationRate + allCandidatesDegradedRate).toFixed(4)}`,
     );
   }
   if (
+    selectedPlanRequiresClarificationRate != null
+    && clarificationFirstRate != null
+    && selectedPlanRequiresClarificationRate > clarificationFirstRate + epsilon
+  ) {
+    failures.push(
+      `inconsistent_selected_plan_requires_clarification_rate_vs_clarification_first_rate:selected_plan_requires_clarification_rate=${selectedPlanRequiresClarificationRate.toFixed(4)}:clarification_first_rate=${clarificationFirstRate.toFixed(4)}`,
+    );
+  }
+  if (
+    selectedPlanDegradedRate != null
+    && degradedRate != null
+    && selectedPlanDegradedRate > degradedRate + epsilon
+  ) {
+    failures.push(
+      `inconsistent_selected_plan_degraded_rate_vs_degraded_rate:selected_plan_degraded_rate=${selectedPlanDegradedRate.toFixed(4)}:degraded_rate=${degradedRate.toFixed(4)}`,
+    );
+  }
+  if (
     requestCount != null
-    && requestCount > 0
+    && requestCount > epsilon
     && averageCandidateCount != null
     && averageCandidateCount < 1
   ) {
@@ -443,6 +513,16 @@ function toMarkdown(payload: any): string {
     lines.push(JSON.stringify(payload.metrics, null, 2));
     lines.push('```');
   }
+  if (payload.metric_completeness) {
+    lines.push('');
+    lines.push('## Metric Completeness');
+    lines.push(`- required: ${payload.metric_completeness.required_metric_fields.length}`);
+    lines.push(`- present: ${payload.metric_completeness.present_metric_fields}`);
+    lines.push(`- missing: ${payload.metric_completeness.missing_metric_fields.length}`);
+    if (payload.metric_completeness.missing_metric_fields.length > 0) {
+      for (const row of payload.metric_completeness.missing_metric_fields) lines.push(`- missing_field: ${row}`);
+    }
+  }
   if (Array.isArray(payload.policy_failures) && payload.policy_failures.length > 0) {
     lines.push('');
     lines.push('## Policy Failures');
@@ -496,9 +576,14 @@ function run(argv: string[]): number {
   const previousLatest = plannerPolicy.paths?.latest
     ? readJsonMaybe<any>(plannerPolicy.paths.latest)
     : null;
+  const requiredMetricFields = requiredPlannerFieldsFromPolicy(plannerPolicy);
+  const missingMetricFields = collectMissingPlannerFields(metrics, requiredMetricFields);
   const policyFailures = evaluateThresholds(metrics, plannerPolicy);
-  const consistencyFailures = evaluateMetricConsistency(metrics);
+  const consistencyFailures = evaluateMetricConsistency(metrics, plannerPolicy);
   const ratchetFailures = evaluateRatchet(metrics, plannerPolicy, previousLatest);
+  const metricFieldsPresent = metrics
+    ? Object.values(metrics).filter((value) => numberOrNull(value) != null).length
+    : 0;
   const ok = testsOk && policyFailures.length === 0 && consistencyFailures.length === 0 && ratchetFailures.length === 0;
 
   const payload = {
@@ -523,8 +608,16 @@ function run(argv: string[]): number {
       policy_failure_count: policyFailures.length,
       consistency_failure_count: consistencyFailures.length,
       ratchet_failure_count: ratchetFailures.length,
+      metric_fields_present: metricFieldsPresent,
+      required_metric_field_count: requiredMetricFields.length,
+      missing_metric_field_count: missingMetricFields.length,
     },
     metrics,
+    metric_completeness: {
+      required_metric_fields: requiredMetricFields,
+      missing_metric_fields: missingMetricFields,
+      present_metric_fields: requiredMetricFields.length - missingMetricFields.length,
+    },
     policy_failures: policyFailures,
     consistency_failures: consistencyFailures,
     ratchet_failures: ratchetFailures,

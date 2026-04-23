@@ -29,6 +29,8 @@ type ShellTruthLeakPolicy = {
   scan_roots?: string[];
   scan_extensions?: string[];
   ignore_path_contains?: string[];
+  required_pattern_ids?: string[];
+  error_on_warning_pattern_ids?: string[];
   forbidden_patterns?: PatternPolicy[];
   allowed_pattern_paths?: Record<string, string[]>;
 };
@@ -109,9 +111,65 @@ function formatMarkdown(payload: any): string {
   lines.push(`- required_field_coverage_failures: ${payload.summary.required_field_coverage_failures}`);
   lines.push(`- enum_evidence_failures: ${payload.summary.enum_evidence_failures}`);
   lines.push(`- contract_file_failures: ${payload.summary.contract_file_failures}`);
+  lines.push(`- invalid_regex_patterns: ${payload.summary.invalid_regex_patterns}`);
+  lines.push(`- missing_scan_roots: ${payload.summary.missing_scan_roots}`);
+  lines.push(`- duplicate_forbidden_pattern_ids: ${payload.summary.duplicate_forbidden_pattern_ids}`);
+  lines.push(`- duplicate_required_pattern_ids: ${payload.summary.duplicate_required_pattern_ids}`);
+  lines.push(`- duplicate_error_on_warning_pattern_ids: ${payload.summary.duplicate_error_on_warning_pattern_ids}`);
+  lines.push(`- duplicate_scan_roots: ${payload.summary.duplicate_scan_roots}`);
+  lines.push(`- duplicate_scan_extensions: ${payload.summary.duplicate_scan_extensions}`);
+  lines.push(`- duplicate_ignore_path_needles: ${payload.summary.duplicate_ignore_path_needles}`);
+  lines.push(`- unknown_error_on_warning_pattern_ids: ${payload.summary.unknown_error_on_warning_pattern_ids}`);
+  lines.push(`- invalid_pattern_id_formats: ${payload.summary.invalid_pattern_id_formats}`);
+  lines.push(`- invalid_required_pattern_id_formats: ${payload.summary.invalid_required_pattern_id_formats}`);
+  lines.push(`- invalid_error_on_warning_pattern_id_formats: ${payload.summary.invalid_error_on_warning_pattern_id_formats}`);
+  lines.push(`- required_pattern_ids_without_error_enforcement: ${payload.summary.required_pattern_ids_without_error_enforcement}`);
+  lines.push(`- unknown_allowed_pattern_ids: ${payload.summary.unknown_allowed_pattern_ids}`);
+  lines.push(`- missing_allowed_pattern_path_files: ${payload.summary.missing_allowed_pattern_path_files}`);
+  lines.push(`- invalid_allowed_pattern_path_formats: ${payload.summary.invalid_allowed_pattern_path_formats}`);
+  lines.push(`- allowed_pattern_paths_outside_scan_roots: ${payload.summary.allowed_pattern_paths_outside_scan_roots}`);
+  lines.push(`- allowed_pattern_paths_under_ignored_needles: ${payload.summary.allowed_pattern_paths_under_ignored_needles}`);
+  lines.push(`- missing_required_pattern_ids: ${payload.summary.missing_required_pattern_ids}`);
   lines.push(`- error_violations: ${payload.summary.error_violations}`);
   lines.push(`- warning_violations: ${payload.summary.warning_violations}`);
   lines.push(`- pattern_hits: ${payload.summary.pattern_hits}`);
+  lines.push('');
+  lines.push('## Missing Scan Roots');
+  if (!(payload.missing_scan_roots || []).length) {
+    lines.push('- none');
+  } else {
+    for (const row of payload.missing_scan_roots) {
+      lines.push(`- ${row}`);
+    }
+  }
+  lines.push('');
+  lines.push('## Duplicate Pattern ID Buckets');
+  lines.push(`- forbidden: ${(payload.duplicate_forbidden_pattern_ids || []).join(', ') || 'none'}`);
+  lines.push(`- required: ${(payload.duplicate_required_pattern_ids || []).join(', ') || 'none'}`);
+  lines.push(`- error_on_warning: ${(payload.duplicate_error_on_warning_pattern_ids || []).join(', ') || 'none'}`);
+  lines.push(`- scan_roots: ${(payload.duplicate_scan_roots || []).join(', ') || 'none'}`);
+  lines.push(`- scan_extensions: ${(payload.duplicate_scan_extensions || []).join(', ') || 'none'}`);
+  lines.push(`- ignore_path_needles: ${(payload.duplicate_ignore_path_needles || []).join(', ') || 'none'}`);
+  lines.push('');
+  lines.push('## Pattern ID Governance');
+  lines.push(`- unknown_error_on_warning_pattern_ids: ${(payload.unknown_error_on_warning_pattern_ids || []).join(', ') || 'none'}`);
+  lines.push(`- invalid_pattern_id_formats: ${(payload.invalid_pattern_id_formats || []).join(', ') || 'none'}`);
+  lines.push(`- invalid_required_pattern_id_formats: ${(payload.invalid_required_pattern_id_formats || []).join(', ') || 'none'}`);
+  lines.push(`- invalid_error_on_warning_pattern_id_formats: ${(payload.invalid_error_on_warning_pattern_id_formats || []).join(', ') || 'none'}`);
+  lines.push(`- required_pattern_ids_without_error_enforcement: ${(payload.required_pattern_ids_without_error_enforcement || []).join(', ') || 'none'}`);
+  lines.push('');
+  lines.push('## Allowed Pattern Path Coverage');
+  lines.push(`- unknown_pattern_ids: ${(payload.unknown_allowed_pattern_ids || []).join(', ') || 'none'}`);
+  lines.push(`- invalid_path_formats: ${(payload.invalid_allowed_pattern_path_formats || []).join(', ') || 'none'}`);
+  lines.push(`- outside_scan_roots: ${(payload.allowed_pattern_paths_outside_scan_roots || []).join(', ') || 'none'}`);
+  lines.push(`- under_ignored_needles: ${(payload.allowed_pattern_paths_under_ignored_needles || []).join(', ') || 'none'}`);
+  if (!(payload.missing_allowed_pattern_path_files || []).length) {
+    lines.push('- missing_path_files: none');
+  } else {
+    for (const row of payload.missing_allowed_pattern_path_files) {
+      lines.push(`- missing_path_file: ${row.pattern_id} -> ${row.path}`);
+    }
+  }
   lines.push('');
   lines.push('## Required Field Coverage');
   lines.push('| field | category | hits | ok |');
@@ -139,6 +197,24 @@ function formatMarkdown(payload: any): string {
   } else {
     for (const row of payload.contract_file_failures) {
       lines.push(`- ${row.file}: ${row.reason}${row.missing_tokens?.length ? ` (${row.missing_tokens.join(', ')})` : ''}`);
+    }
+  }
+  lines.push('');
+  lines.push('## Invalid Regex Patterns');
+  if (!(payload.invalid_regex_patterns || []).length) {
+    lines.push('- none');
+  } else {
+    for (const row of payload.invalid_regex_patterns) {
+      lines.push(`- ${row.pattern_id}: ${row.regex}`);
+    }
+  }
+  lines.push('');
+  lines.push('## Missing Required Pattern IDs');
+  if (!(payload.missing_required_pattern_ids || []).length) {
+    lines.push('- none');
+  } else {
+    for (const row of payload.missing_required_pattern_ids) {
+      lines.push(`- ${row}`);
     }
   }
   lines.push('');
@@ -180,14 +256,52 @@ function main() {
 
   const scanRoots = (Array.isArray(policy.scan_roots) ? policy.scan_roots : [])
     .map((v) => String(v).replace(/\\/g, '/'));
-  const scanExtensions = new Set(
-    (Array.isArray(policy.scan_extensions) ? policy.scan_extensions : ['.ts', '.js'])
-      .map((v) => String(v).trim().toLowerCase()),
-  );
+  const duplicateScanRoots = Array.from(
+    scanRoots.reduce((acc, root) => {
+      const normalized = String(root || '').trim();
+      if (!normalized) return acc;
+      acc.set(normalized, (acc.get(normalized) || 0) + 1);
+      return acc;
+    }, new Map<string, number>()),
+  )
+    .filter(([, count]) => count > 1)
+    .map(([root, count]) => `${root}:${count}`);
+  const missingScanRoots = scanRoots
+    .filter((root) => root.trim().length > 0)
+    .filter((root) => !fs.existsSync(path.resolve(ROOT, root)));
+  const scanExtensionRows = (Array.isArray(policy.scan_extensions) ? policy.scan_extensions : ['.ts', '.js'])
+    .map((v) => String(v).trim().toLowerCase())
+    .filter((v) => v.length > 0);
+  const duplicateScanExtensions = Array.from(
+    scanExtensionRows.reduce((acc, extension) => {
+      acc.set(extension, (acc.get(extension) || 0) + 1);
+      return acc;
+    }, new Map<string, number>()),
+  )
+    .filter(([, count]) => count > 1)
+    .map(([extension, count]) => `${extension}:${count}`);
+  const scanExtensions = new Set(scanExtensionRows);
   const ignoredNeedles = (Array.isArray(policy.ignore_path_contains) ? policy.ignore_path_contains : [])
     .map((v) => String(v).trim())
     .filter(Boolean);
+  const duplicateIgnorePathNeedles = Array.from(
+    ignoredNeedles.reduce((acc, needle) => {
+      acc.set(needle, (acc.get(needle) || 0) + 1);
+      return acc;
+    }, new Map<string, number>()),
+  )
+    .filter(([, count]) => count > 1)
+    .map(([needle, count]) => `${needle}:${count}`);
   const patterns = (Array.isArray(policy.forbidden_patterns) ? policy.forbidden_patterns : []);
+  const requiredPatternIds = (Array.isArray(policy.required_pattern_ids) ? policy.required_pattern_ids : [])
+    .map((v) => String(v || '').trim())
+    .filter(Boolean);
+  const errorOnWarningPatternIdRows = (Array.isArray(policy.error_on_warning_pattern_ids)
+    ? policy.error_on_warning_pattern_ids
+    : [])
+    .map((v) => String(v || '').trim())
+    .filter(Boolean);
+  const errorOnWarningPatternIds = new Set(errorOnWarningPatternIdRows);
   const allowedPatternPaths = policy.allowed_pattern_paths || {};
 
   const tracked = trackedFiles(ROOT);
@@ -211,6 +325,7 @@ function main() {
 
   const errorViolations: Array<any> = [];
   const warningViolations: Array<any> = [];
+  const invalidRegexPatterns: Array<{ pattern_id: string; regex: string }> = [];
   const patternHitMap = new Map<string, {
     pattern_id: string;
     severity: 'error' | 'warn';
@@ -237,17 +352,28 @@ function main() {
 
     for (const pattern of patterns) {
       const regex = safeRegex(String(pattern.regex || ''));
-      if (!regex) continue;
+      if (!regex) {
+        invalidRegexPatterns.push({
+          pattern_id: String(pattern.id || 'unknown_pattern'),
+          regex: String(pattern.regex || ''),
+        });
+        continue;
+      }
       const allowPaths = (allowedPatternPaths[pattern.id] || []).map((v) => String(v).replace(/\\/g, '/'));
       if (allowPaths.includes(file)) continue;
       const matches = source.match(regex);
       if (!matches || !matches.length) continue;
+      const configuredSeverity = String(pattern.severity || 'warn') === 'error' ? 'error' : 'warn';
+      const effectiveSeverity = configuredSeverity === 'warn' && errorOnWarningPatternIds.has(String(pattern.id || ''))
+        ? 'error'
+        : configuredSeverity;
       const row = {
         pattern_id: String(pattern.id || 'unknown_pattern'),
-        severity: String(pattern.severity || 'warn') === 'error' ? 'error' : 'warn',
+        severity: effectiveSeverity,
         description: String(pattern.description || '').trim(),
         file,
         matches: matches.length,
+        configured_severity: configuredSeverity,
       };
       if (row.severity === 'error') errorViolations.push(row);
       else warningViolations.push(row);
@@ -341,6 +467,91 @@ function main() {
     }
   }
 
+  const configuredPatternIds = new Set(patterns.map((row) => String(row.id || '').trim()).filter(Boolean));
+  const unknownErrorOnWarningPatternIds = errorOnWarningPatternIdRows
+    .filter((patternId) => !configuredPatternIds.has(patternId));
+  const invalidPatternIdFormats = patterns
+    .map((row) => String(row.id || '').trim())
+    .filter((patternId) => patternId.length > 0)
+    .filter((patternId) => !/^[a-z0-9_]+$/.test(patternId));
+  const invalidRequiredPatternIdFormats = requiredPatternIds
+    .filter((patternId) => !/^[a-z0-9_]+$/.test(patternId));
+  const invalidErrorOnWarningPatternIdFormats = errorOnWarningPatternIdRows
+    .filter((patternId) => !/^[a-z0-9_]+$/.test(patternId));
+  const configuredPatternSeverity = new Map<string, 'error' | 'warn'>(
+    patterns
+      .map((row) => {
+        const patternId = String(row.id || '').trim();
+        const severity: 'error' | 'warn' =
+          String(row.severity || 'warn').trim() === 'error' ? 'error' : 'warn';
+        return [patternId, severity] as const;
+      })
+      .filter((row) => row[0].length > 0),
+  );
+  const duplicateForbiddenPatternIds = Array.from(
+    patterns.reduce((acc, row) => {
+      const patternId = String(row.id || '').trim();
+      if (!patternId) return acc;
+      acc.set(patternId, (acc.get(patternId) || 0) + 1);
+      return acc;
+    }, new Map<string, number>()),
+  )
+    .filter(([, count]) => count > 1)
+    .map(([patternId, count]) => `${patternId}:${count}`);
+  const duplicateRequiredPatternIds = Array.from(
+    requiredPatternIds.reduce((acc, patternId) => {
+      acc.set(patternId, (acc.get(patternId) || 0) + 1);
+      return acc;
+    }, new Map<string, number>()),
+  )
+    .filter(([, count]) => count > 1)
+    .map(([patternId, count]) => `${patternId}:${count}`);
+  const duplicateErrorOnWarningPatternIds = Array.from(
+    errorOnWarningPatternIdRows.reduce((acc, patternId) => {
+      acc.set(patternId, (acc.get(patternId) || 0) + 1);
+      return acc;
+    }, new Map<string, number>()),
+  )
+    .filter(([, count]) => count > 1)
+    .map(([patternId, count]) => `${patternId}:${count}`);
+  const requiredPatternIdsWithoutErrorEnforcement = requiredPatternIds
+    .filter((patternId) => configuredPatternIds.has(patternId))
+    .filter((patternId) => {
+      const severity = configuredPatternSeverity.get(patternId) || 'warn';
+      return severity !== 'error' && !errorOnWarningPatternIds.has(patternId);
+    });
+  const unknownAllowedPatternIds = Object.keys(allowedPatternPaths)
+    .map((v) => String(v || '').trim())
+    .filter((patternId) => patternId.length > 0 && !configuredPatternIds.has(patternId));
+  const allowedPatternPathRows = Object.entries(allowedPatternPaths)
+    .flatMap(([patternId, paths]) => {
+      const pathRows = Array.isArray(paths) ? paths : [];
+      return pathRows.map((relativePath) => ({
+        pattern_id: String(patternId || '').trim(),
+        path: String(relativePath || '').replace(/\\/g, '/').trim(),
+      }));
+    })
+    .filter((row) => row.pattern_id.length > 0 && row.path.length > 0);
+  const invalidAllowedPatternPathFormats = allowedPatternPathRows
+    .filter((row) => row.path.startsWith('/') || row.path.includes('..'))
+    .map((row) => `${row.pattern_id}:${row.path}`);
+  const allowedPatternPathsOutsideScanRoots = allowedPatternPathRows
+    .filter((row) => !fileMatchesScanRoots(row.path, scanRoots))
+    .map((row) => `${row.pattern_id}:${row.path}`);
+  const allowedPatternPathsUnderIgnoredNeedles = allowedPatternPathRows
+    .filter((row) => fileMatchesIgnoredPatterns(row.path, ignoredNeedles))
+    .map((row) => `${row.pattern_id}:${row.path}`);
+  const missingAllowedPatternPathFiles = Object.entries(allowedPatternPaths)
+    .flatMap(([patternId, paths]) => {
+      const pathRows = Array.isArray(paths) ? paths : [];
+      return pathRows.map((relativePath) => ({
+        pattern_id: String(patternId || '').trim(),
+        path: String(relativePath || '').replace(/\\/g, '/').trim(),
+      }));
+    })
+    .filter((row) => row.pattern_id.length > 0 && row.path.length > 0)
+    .filter((row) => !fs.existsSync(path.resolve(ROOT, row.path)));
+  const missingRequiredPatternIds = requiredPatternIds.filter((id) => !configuredPatternIds.has(id));
   const coverageFailures = requiredFieldCoverage.filter((row) => !row.ok);
   const enumFailures = enumEvidence.filter((row) => !row.ok);
   const patternHits = Array.from(patternHitMap.values())
@@ -366,18 +577,75 @@ function main() {
       required_field_coverage_failures: coverageFailures.length,
       enum_evidence_failures: enumFailures.length,
       contract_file_failures: contractFileFailures.length,
+      invalid_regex_patterns: invalidRegexPatterns.length,
+      missing_scan_roots: missingScanRoots.length,
+      duplicate_forbidden_pattern_ids: duplicateForbiddenPatternIds.length,
+      duplicate_required_pattern_ids: duplicateRequiredPatternIds.length,
+      duplicate_error_on_warning_pattern_ids: duplicateErrorOnWarningPatternIds.length,
+      duplicate_scan_roots: duplicateScanRoots.length,
+      duplicate_scan_extensions: duplicateScanExtensions.length,
+      duplicate_ignore_path_needles: duplicateIgnorePathNeedles.length,
+      unknown_error_on_warning_pattern_ids: unknownErrorOnWarningPatternIds.length,
+      invalid_pattern_id_formats: invalidPatternIdFormats.length,
+      invalid_required_pattern_id_formats: invalidRequiredPatternIdFormats.length,
+      invalid_error_on_warning_pattern_id_formats: invalidErrorOnWarningPatternIdFormats.length,
+      required_pattern_ids_without_error_enforcement: requiredPatternIdsWithoutErrorEnforcement.length,
+      unknown_allowed_pattern_ids: unknownAllowedPatternIds.length,
+      missing_allowed_pattern_path_files: missingAllowedPatternPathFiles.length,
+      invalid_allowed_pattern_path_formats: invalidAllowedPatternPathFormats.length,
+      allowed_pattern_paths_outside_scan_roots: allowedPatternPathsOutsideScanRoots.length,
+      allowed_pattern_paths_under_ignored_needles: allowedPatternPathsUnderIgnoredNeedles.length,
+      missing_required_pattern_ids: missingRequiredPatternIds.length,
       error_violations: errorViolations.length,
       warning_violations: warningViolations.length,
       pattern_hits: patternHits.length,
       pass: coverageFailures.length === 0
         && enumFailures.length === 0
         && contractFileFailures.length === 0
+        && invalidRegexPatterns.length === 0
+        && missingScanRoots.length === 0
+        && duplicateForbiddenPatternIds.length === 0
+        && duplicateRequiredPatternIds.length === 0
+        && duplicateErrorOnWarningPatternIds.length === 0
+        && duplicateScanRoots.length === 0
+        && duplicateScanExtensions.length === 0
+        && duplicateIgnorePathNeedles.length === 0
+        && unknownErrorOnWarningPatternIds.length === 0
+        && invalidPatternIdFormats.length === 0
+        && invalidRequiredPatternIdFormats.length === 0
+        && invalidErrorOnWarningPatternIdFormats.length === 0
+        && requiredPatternIdsWithoutErrorEnforcement.length === 0
+        && unknownAllowedPatternIds.length === 0
+        && missingAllowedPatternPathFiles.length === 0
+        && invalidAllowedPatternPathFormats.length === 0
+        && allowedPatternPathsOutsideScanRoots.length === 0
+        && allowedPatternPathsUnderIgnoredNeedles.length === 0
+        && missingRequiredPatternIds.length === 0
         && errorViolations.length === 0,
     },
     scanned_files: scannedFiles,
+    missing_scan_roots: missingScanRoots,
     required_field_coverage: requiredFieldCoverage,
     enum_evidence: enumEvidence,
     contract_file_failures: contractFileFailures,
+    invalid_regex_patterns: invalidRegexPatterns,
+    duplicate_forbidden_pattern_ids: duplicateForbiddenPatternIds,
+    duplicate_required_pattern_ids: duplicateRequiredPatternIds,
+    duplicate_error_on_warning_pattern_ids: duplicateErrorOnWarningPatternIds,
+    duplicate_scan_roots: duplicateScanRoots,
+    duplicate_scan_extensions: duplicateScanExtensions,
+    duplicate_ignore_path_needles: duplicateIgnorePathNeedles,
+    unknown_error_on_warning_pattern_ids: unknownErrorOnWarningPatternIds,
+    invalid_pattern_id_formats: invalidPatternIdFormats,
+    invalid_required_pattern_id_formats: invalidRequiredPatternIdFormats,
+    invalid_error_on_warning_pattern_id_formats: invalidErrorOnWarningPatternIdFormats,
+    required_pattern_ids_without_error_enforcement: requiredPatternIdsWithoutErrorEnforcement,
+    unknown_allowed_pattern_ids: unknownAllowedPatternIds,
+    missing_allowed_pattern_path_files: missingAllowedPatternPathFiles,
+    invalid_allowed_pattern_path_formats: invalidAllowedPatternPathFormats,
+    allowed_pattern_paths_outside_scan_roots: allowedPatternPathsOutsideScanRoots,
+    allowed_pattern_paths_under_ignored_needles: allowedPatternPathsUnderIgnoredNeedles,
+    missing_required_pattern_ids: missingRequiredPatternIds,
     error_violations: errorViolations,
     warning_violations: warningViolations,
     pattern_hits: patternHits,

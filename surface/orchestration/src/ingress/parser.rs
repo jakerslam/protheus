@@ -18,8 +18,42 @@ pub fn operation_candidates(tokens: &[String], payload: &Value) -> Vec<Operation
             .any(|needle| tokens.iter().any(|token| token == needle))
     };
     let payload_has = |key: &str| payload.get(key).is_some();
+    let has_workspace_signal = has_any(&[
+        "file",
+        "files",
+        "workspace",
+        "path",
+        "paths",
+        "repo",
+        "repository",
+        "directory",
+        "directories",
+        "folder",
+        "folders",
+        "filesystem",
+        "local",
+        "cwd",
+        "pwd",
+    ]) || payload_has("path")
+        || payload_has("paths")
+        || payload_has("file")
+        || payload_has("files")
+        || payload_has("workspace_path")
+        || payload_has("repo_path")
+        || payload_has("repository_path")
+        || payload_has("cwd_path")
+        || payload_has("directory")
+        || payload_has("directories")
+        || payload_has("folder")
+        || payload_has("folders");
 
     if has_any(&["search", "query", "lookup", "find"]) || payload_has("query") {
+        candidates.push(OperationKind::Search);
+    }
+    if has_workspace_signal
+        && has_any(&["rg", "grep", "glob", "pattern", "match", "matches"])
+        && !candidates.contains(&OperationKind::Search)
+    {
         candidates.push(OperationKind::Search);
     }
     if has_any(&["fetch", "download", "retrieve", "crawl"]) || payload_has("url") {
@@ -36,6 +70,30 @@ pub fn operation_candidates(tokens: &[String], payload: &Value) -> Vec<Operation
     }
     if has_any(&["task", "tasks", "plan", "backlog", "proposal"]) {
         candidates.push(OperationKind::Plan);
+    }
+    if has_workspace_signal
+        && has_any(&[
+            "list",
+            "ls",
+            "dir",
+            "tree",
+            "directory",
+            "directories",
+            "folder",
+            "folders",
+            "open",
+            "browse",
+            "view",
+            "look",
+            "looking",
+            "read",
+            "cat",
+            "head",
+            "tail",
+        ])
+        && !candidates.contains(&OperationKind::Read)
+    {
+        candidates.push(OperationKind::Read);
     }
     if has_any(&[
         "update",
@@ -72,8 +130,35 @@ pub fn resource_candidates(
     if has_any(&["web", "url", "http", "https", "site"]) || payload_has_any(&["url", "urls"]) {
         candidates.push(ResourceKind::Web);
     }
-    if has_any(&["file", "files", "workspace", "path", "paths", "repo"])
-        || payload_has_any(&["path", "paths"])
+    if has_any(&[
+        "file",
+        "files",
+        "workspace",
+        "path",
+        "paths",
+        "repo",
+        "directory",
+        "directories",
+        "folder",
+        "folders",
+        "filesystem",
+        "disk",
+        "project",
+        "local",
+        "cwd",
+        "pwd",
+    ]) || payload_has_any(&[
+        "path",
+        "paths",
+        "workspace_path",
+        "repo_path",
+        "repository_path",
+        "cwd_path",
+        "directory",
+        "directories",
+        "folder",
+        "folders",
+    ])
     {
         candidates.push(ResourceKind::Workspace);
     }
@@ -146,6 +231,12 @@ pub fn extract_tool_hints(
             hints.push("workspace_search".to_string());
         }
         (ResourceKind::Workspace, OperationKind::Read) => {
+            hints.push("workspace_read".to_string());
+        }
+        (ResourceKind::Workspace, OperationKind::Plan) => {
+            hints.push("workspace_search".to_string());
+        }
+        (ResourceKind::Workspace, OperationKind::Unknown) => {
             hints.push("workspace_read".to_string());
         }
         (ResourceKind::Tooling, _) | (_, OperationKind::InspectTooling) => {
@@ -235,8 +326,24 @@ fn extract_target_descriptors_from_object(obj: &Map<String, Value>) -> Vec<Targe
     let mut out = Vec::new();
     collect_string_targets(
         obj,
-        &["workspace_path", "path", "file"],
-        &["workspace_paths", "paths", "files"],
+        &[
+            "workspace_path",
+            "repo_path",
+            "repository_path",
+            "path",
+            "file",
+            "directory",
+            "folder",
+        ],
+        &[
+            "workspace_paths",
+            "repo_paths",
+            "repository_paths",
+            "paths",
+            "files",
+            "directories",
+            "folders",
+        ],
         |value| TargetDescriptor::WorkspacePath {
             value: value.to_string(),
         },
@@ -372,7 +479,7 @@ fn parse_structured_target(value: &Value) -> Option<TargetDescriptor> {
 }
 
 fn parse_generic_target(value: &str) -> TargetDescriptor {
-    let trimmed = value.trim();
+    let trimmed = value.trim().trim_matches('"').trim_matches('\'');
     if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
         return TargetDescriptor::Url {
             value: trimmed.to_string(),
@@ -413,7 +520,22 @@ fn parse_generic_target(value: &str) -> TargetDescriptor {
             value: trimmed.to_string(),
         };
     }
-    if trimmed.contains('/') || trimmed.contains('.') {
+    let looks_like_windows_drive_path = {
+        let bytes = trimmed.as_bytes();
+        bytes.len() > 2
+            && bytes[1] == b':'
+            && (bytes[2] == b'\\' || bytes[2] == b'/')
+    };
+    if trimmed.contains('/')
+        || trimmed.contains('\\')
+        || trimmed.contains('.')
+        || trimmed.starts_with("~/")
+        || trimmed.starts_with("./")
+        || trimmed.starts_with(".\\")
+        || trimmed.starts_with("../")
+        || trimmed.starts_with("..\\")
+        || looks_like_windows_drive_path
+    {
         return TargetDescriptor::WorkspacePath {
             value: trimmed.to_string(),
         };

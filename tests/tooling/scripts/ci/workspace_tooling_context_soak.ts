@@ -41,6 +41,15 @@ type ReplayScenario =
   | 'repo_path_targeting'
   | 'mixed_workspace_tool_routing';
 
+const EXPECTED_REQUIRED_REPLAY_SCENARIOS: ReplayScenario[] = [
+  'file_read',
+  'file_search',
+  'repo_path_targeting',
+  'mixed_workspace_tool_routing',
+];
+
+const EXPECTED_SOAK_LANES: SoakLane[] = ['routing', 'hints', 'synthesis', 'replay'];
+
 type SoakCase = {
   id: string;
   lane: SoakLane;
@@ -109,6 +118,22 @@ function readFixture(): { cases: SoakCase[]; requiredReplayScenarios: ReplayScen
       error: `fixture_unavailable:${cleanText(error instanceof Error ? error.message : String(error), 240)}`,
     };
   }
+  const schemaId = cleanText(raw?.schema_id || '', 120);
+  const schemaVersion = Number(raw?.schema_version || 0);
+  if (schemaId !== 'workspace_tooling_context_replay_matrix') {
+    return {
+      cases: [],
+      requiredReplayScenarios: [],
+      error: `fixture_schema_id_invalid:${schemaId || 'missing'}`,
+    };
+  }
+  if (schemaVersion !== 1) {
+    return {
+      cases: [],
+      requiredReplayScenarios: [],
+      error: `fixture_schema_version_invalid:${Number.isFinite(schemaVersion) ? schemaVersion : 'missing'}`,
+    };
+  }
   const rows = Array.isArray(raw?.cases) ? raw.cases : [];
   const cases: SoakCase[] = rows
     .map((row: any) => ({
@@ -127,11 +152,37 @@ function readFixture(): { cases: SoakCase[]; requiredReplayScenarios: ReplayScen
   ]);
   const laneErrors = cases.filter((row) => !laneSet.has(row.lane));
   const scenarioErrors = cases.filter((row) => !scenarioSet.has(row.scenario));
-  const requiredReplayScenarios = Array.isArray(raw?.required_replay_scenarios)
-    ? raw.required_replay_scenarios
-        .map((value: any) => cleanText(value || '', 80) as ReplayScenario)
-        .filter((value: ReplayScenario) => scenarioSet.has(value))
+  const requiredReplayRaw = Array.isArray(raw?.required_replay_scenarios)
+    ? raw.required_replay_scenarios.map((value: any) => cleanText(value || '', 80))
     : [];
+  const requiredReplayScenarios = requiredReplayRaw
+    .filter((value): value is ReplayScenario => scenarioSet.has(value as ReplayScenario))
+    .map((value) => value as ReplayScenario);
+  const requiredReplayInvalid = requiredReplayRaw.filter(
+    (value) => !scenarioSet.has(value as ReplayScenario),
+  );
+  const duplicateCaseIds = cases
+    .map((row) => row.id)
+    .filter((id, index, arr) => arr.indexOf(id) !== index);
+  const duplicateRequiredReplayScenarios = requiredReplayScenarios.filter(
+    (value, index, arr) => arr.indexOf(value) !== index,
+  );
+  const requiredReplayMissingExpected = EXPECTED_REQUIRED_REPLAY_SCENARIOS.filter(
+    (scenario) => !requiredReplayScenarios.includes(scenario),
+  );
+  const requiredReplayUnexpected = requiredReplayScenarios.filter(
+    (scenario) => !EXPECTED_REQUIRED_REPLAY_SCENARIOS.includes(scenario),
+  );
+  const missingLaneCoverage = EXPECTED_SOAK_LANES.filter(
+    (lane) => !cases.some((row) => row.lane === lane),
+  );
+  const replayRows = cases.filter((row) => row.lane === 'replay');
+  const replayRequiredMissing = requiredReplayScenarios.filter(
+    (scenario) => !replayRows.some((row) => row.scenario === scenario),
+  );
+  const replayScenarioUnexpected = replayRows
+    .map((row) => row.scenario)
+    .filter((scenario) => !requiredReplayScenarios.includes(scenario));
   if (cases.length === 0) {
     return {
       cases: [],
@@ -153,11 +204,67 @@ function readFixture(): { cases: SoakCase[]; requiredReplayScenarios: ReplayScen
       error: `fixture_scenario_invalid:${scenarioErrors.map((row) => row.id).join(',')}`,
     };
   }
+  if (duplicateCaseIds.length > 0) {
+    return {
+      cases: [],
+      requiredReplayScenarios: [],
+      error: `fixture_case_ids_duplicate:${Array.from(new Set(duplicateCaseIds)).join(',')}`,
+    };
+  }
+  if (requiredReplayInvalid.length > 0) {
+    return {
+      cases: [],
+      requiredReplayScenarios: [],
+      error: `fixture_required_replay_scenarios_invalid:${Array.from(new Set(requiredReplayInvalid)).join(',')}`,
+    };
+  }
+  if (duplicateRequiredReplayScenarios.length > 0) {
+    return {
+      cases: [],
+      requiredReplayScenarios: [],
+      error: `fixture_required_replay_scenarios_duplicate:${Array.from(new Set(duplicateRequiredReplayScenarios)).join(',')}`,
+    };
+  }
+  if (requiredReplayMissingExpected.length > 0 || requiredReplayUnexpected.length > 0) {
+    return {
+      cases: [],
+      requiredReplayScenarios: [],
+      error: `fixture_required_replay_scenarios_noncanonical:missing=${requiredReplayMissingExpected.join(',') || 'none'};unexpected=${requiredReplayUnexpected.join(',') || 'none'}`,
+    };
+  }
+  if (missingLaneCoverage.length > 0) {
+    return {
+      cases: [],
+      requiredReplayScenarios: [],
+      error: `fixture_lane_coverage_missing:${missingLaneCoverage.join(',')}`,
+    };
+  }
   if (requiredReplayScenarios.length === 0) {
     return {
       cases: [],
       requiredReplayScenarios: [],
       error: 'fixture_required_replay_scenarios_missing',
+    };
+  }
+  if (replayRows.length === 0) {
+    return {
+      cases: [],
+      requiredReplayScenarios: [],
+      error: 'fixture_replay_lane_missing',
+    };
+  }
+  if (replayRequiredMissing.length > 0) {
+    return {
+      cases: [],
+      requiredReplayScenarios: [],
+      error: `fixture_replay_lane_required_scenario_missing:${replayRequiredMissing.join(',')}`,
+    };
+  }
+  if (replayScenarioUnexpected.length > 0) {
+    return {
+      cases: [],
+      requiredReplayScenarios: [],
+      error: `fixture_replay_lane_scenario_unexpected:${Array.from(new Set(replayScenarioUnexpected)).join(',')}`,
     };
   }
   return {

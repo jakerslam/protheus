@@ -38,6 +38,9 @@ profiles:
       denied_actions_max: 0
       pause_reason_events_max: 24
       merkle_chain_continuity_failures_max: 0
+      workflow_unexpected_state_loop_max: 0
+      automatic_tool_trigger_events_max: 0
+      file_tool_route_misdirection_max: 0
   pure:
     proof_tracks:
       synthetic_required: 1
@@ -76,6 +79,9 @@ profiles:
       denied_actions_max: 0
       pause_reason_events_max: 24
       merkle_chain_continuity_failures_max: 0
+      workflow_unexpected_state_loop_max: 0
+      automatic_tool_trigger_events_max: 0
+      file_tool_route_misdirection_max: 0
   tiny-max:
     proof_tracks:
       synthetic_required: 1
@@ -114,3 +120,6 @@ profiles:
       denied_actions_max: 0
       pause_reason_events_max: 24
       merkle_chain_continuity_failures_max: 0
+      workflow_unexpected_state_loop_max: 0
+      automatic_tool_trigger_events_max: 0
+      file_tool_route_misdirection_max: 0

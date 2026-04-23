@@ -266,6 +266,7 @@ jobs:
         run: |
           npm run -s ops:node-critical-path:inventory
           npm run -s ops:shell:truth-leak:guard
+          npm run -s ops:windows-installer:contract:guard
           npm run -s ops:terminology:transition:inventory
           npm run -s ops:capability-proof-burden:guard
           npm run -s ops:srs:same-revision:guard

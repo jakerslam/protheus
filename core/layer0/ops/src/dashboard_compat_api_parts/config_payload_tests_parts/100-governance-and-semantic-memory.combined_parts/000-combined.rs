@@ -509,7 +509,7 @@ fn workflow_decision_tree_v2_defaults_simple_questions_to_info_without_tools() {
     let decision = workflow_turn_tool_decision_tree("what do you think about this idea?");
     assert_eq!(
         decision.get("contract").and_then(Value::as_str),
-        Some("tool_decision_tree_v2")
+        Some("tool_decision_tree_v3")
     );
     assert_eq!(
         decision.get("route_classification").and_then(Value::as_str),
@@ -534,7 +534,7 @@ fn workflow_decision_tree_v2_selects_minimal_web_tools_only_when_needed() {
     );
     assert_eq!(
         decision.get("route_classification").and_then(Value::as_str),
-        Some("info")
+        Some("task")
     );
     assert_eq!(
         decision
@@ -578,6 +578,39 @@ fn workflow_decision_tree_v2_classifies_file_edits_as_task_route() {
             .get("recommended_tool_family")
             .and_then(Value::as_str),
         Some("file_tools")
+    );
+}
+
+#[test]
+fn workflow_decision_tree_explicit_file_tool_access_uses_task_tool_gate() {
+    let decision = workflow_turn_tool_decision_tree(
+        "access the file tooling and inspect the workspace for this request",
+    );
+    assert_eq!(
+        decision.get("workflow_route").and_then(Value::as_str),
+        Some("task")
+    );
+    assert_eq!(
+        decision.get("should_call_tools").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        decision
+            .pointer("/gates/gate_1/name")
+            .and_then(Value::as_str),
+        Some("needs_tool_access")
+    );
+    assert_eq!(
+        decision
+            .pointer("/gates/gate_1/question")
+            .and_then(Value::as_str),
+        Some("Need tool access for this query?")
+    );
+    assert_eq!(
+        decision
+            .pointer("/gates/gate_1/required")
+            .and_then(Value::as_bool),
+        Some(true)
     );
 }
 
@@ -1801,7 +1834,7 @@ fn workflow_library_owns_direct_answer_final_response() {
             .payload
             .pointer("/response_workflow/selected_workflow/gate_contract")
             .and_then(Value::as_str),
-        Some("workflow_gate_v2")
+        Some("workflow_gate_v3")
     );
 }
 

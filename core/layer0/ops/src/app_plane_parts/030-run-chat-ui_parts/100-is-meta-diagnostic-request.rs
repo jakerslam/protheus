@@ -20,6 +20,9 @@ fn chat_ui_is_meta_diagnostic_request(lowered: &str) -> bool {
     if explicit_web_intent && !explicit_web_diagnostic_qualifier {
         return false;
     }
+    if explicit_web_diagnostic_qualifier {
+        return true;
+    }
     if [
         "that was just a test",
         "that was a test",

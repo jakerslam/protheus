@@ -84,6 +84,16 @@ The lifecycle projection is emitted by `control_plane::lifecycle::build_lifecycl
 - handoff chain ownership (`user_request_ingress -> decomposition_planning -> coordination_sequencing -> core_contract_execution -> verification_closure -> memory_packaging_projection`)
 - next actions
 - closure status vectors (`verification`, `receipt_correlation`, `memory_packaging`)
+- trace streams (`workflow_state`, `ui_status`, `decision_summary`, `tool_execution`)
+
+## UI Harness Visibility Contract
+
+Response workflow payloads may include a control-plane trace object with:
+
+- `gates.need_tool_access` (T/F gate result + numbered family/tool menus)
+- `process_position` (current stage, index, total, percent)
+- `trace_streams.*` (separate render channels)
+- `export` metadata for JSON/JSONL/timeline artifacts
 
 ## Feedback Loop Contract
 

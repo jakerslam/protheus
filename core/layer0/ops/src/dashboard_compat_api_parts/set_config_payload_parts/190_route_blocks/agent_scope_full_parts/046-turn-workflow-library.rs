@@ -10,8 +10,8 @@ struct WorkflowDefinition {
 }
 
 const COMPLEX_PROMPT_CHAIN_V1_STAGES: &[&str] = &[
-    "gate_1_route_classification",
-    "gate_2_info_or_task_analysis",
+    "gate_1_need_tool_access",
+    "gate_2_task_decomposition_or_info_check",
     "gate_3_minimal_tool_selection",
     "gate_4_execute_and_wait_if_needed",
     "gate_5_result_collection_and_synthesis",
@@ -20,7 +20,7 @@ const COMPLEX_PROMPT_CHAIN_V1_STAGES: &[&str] = &[
 ];
 
 const SIMPLE_CONVERSATION_V1_STAGES: &[&str] = &[
-    "gate_1_route_classification",
+    "gate_1_need_tool_access",
     "gate_2_info_analysis",
     "gate_7_final_output_or_grounded_failure",
 ];
@@ -35,7 +35,7 @@ const WORKFLOW_LIBRARY: &[WorkflowDefinition] = &[
         description: "Default workflow with deterministic gate checks: classify info vs task, decide whether tool calls are truly needed, execute only selected tools, synthesize evidence, and run coherence validation before final output.",
         stages: COMPLEX_PROMPT_CHAIN_V1_STAGES,
         final_response_policy: "llm_authored_when_online",
-        gate_contract: "workflow_gate_v2",
+        gate_contract: "workflow_gate_v3",
     },
     WorkflowDefinition {
         name: "simple_conversation_v1",
@@ -416,117 +416,6 @@ fn workflow_turn_is_meta_control_message(message: &str) -> bool {
     )
 }
 
-fn workflow_turn_requires_file_mutation(message: &str) -> bool {
-    let lowered = clean_text(message, 1_200).to_ascii_lowercase();
-    workflow_turn_contains_any(
-        &lowered,
-        &[
-            "edit file",
-            "modify file",
-            "update file",
-            "patch",
-            "write ",
-            "rewrite ",
-            "create file",
-            "add file",
-            "delete file",
-            "remove file",
-            "rename file",
-            "refactor",
-            "implement",
-        ],
-    )
-}
-
-fn workflow_turn_requires_local_lookup(message: &str) -> bool {
-    let lowered = clean_text(message, 1_200).to_ascii_lowercase();
-    workflow_turn_contains_any(
-        &lowered,
-        &[
-            "repo",
-            "repository",
-            "workspace",
-            "codebase",
-            "project files",
-            "memory file",
-            "local memory",
-            "logs",
-            "read file",
-            "check file",
-            "inspect file",
-            "status of",
-            "in this repo",
-            "in our system",
-        ],
-    )
-}
-
-fn workflow_turn_requires_live_web(message: &str) -> bool {
-    let lowered = clean_text(message, 1_200).to_ascii_lowercase();
-    if message_is_tooling_status_check(message) {
-        return false;
-    }
-    if workflow_turn_is_meta_control_message(message) {
-        return false;
-    }
-    workflow_turn_contains_any(
-        &lowered,
-        &[
-            "web search",
-            "search the web",
-            "search online",
-            "internet search",
-            "look it up",
-            "current",
-            "latest",
-            "today",
-            "recent",
-            "news",
-        ],
-    )
-}
-
-fn workflow_turn_route_classification(
-    message: &str,
-    requires_file_mutation: bool,
-    requires_local_lookup: bool,
-    requires_live_web: bool,
-) -> &'static str {
-    let lowered = clean_text(message, 1_200).to_ascii_lowercase();
-    if lowered.is_empty() {
-        return "info";
-    }
-    let explicit_task_language = workflow_turn_contains_any(
-        &lowered,
-        &[
-            "implement",
-            "patch",
-            "fix",
-            "build",
-            "create",
-            "add",
-            "delete",
-            "remove",
-            "update",
-            "refactor",
-            "execute",
-            "run",
-            "wire",
-            "integrate",
-        ],
-    ) || lowered.starts_with("tool::")
-        || lowered.starts_with("/file ")
-        || lowered.starts_with("/exec ")
-        || lowered.starts_with("/tool ");
-    if explicit_task_language || requires_file_mutation {
-        return "task";
-    }
-    if requires_local_lookup || requires_live_web {
-        return "info";
-    }
-    "info"
-}
-
 fn workflow_turn_task_decomposition(
     requires_file_mutation: bool,
     requires_local_lookup: bool,
@@ -557,106 +446,120 @@ fn workflow_turn_task_decomposition(
 }
 
 fn workflow_turn_tool_decision_tree(message: &str) -> Value {
-    let lowered = clean_text(message, 1_200).to_ascii_lowercase();
-    let meta_control = workflow_turn_is_meta_control_message(message);
-    let status_check = if meta_control {
-        false
-    } else {
-        message_is_tooling_status_check(message)
-    };
-    let meta_diagnostic_request = !meta_control
-        && !status_check
-        && workflow_turn_contains_any(
-            &lowered,
-            &[
-                "why did",
-                "what happened",
-                "automatic tool",
-                "auto tool",
-                "tool selection",
-                "tool routing",
-                "routing failure",
-                "workflow gate",
-                "web search kicking in",
-                "kicking in randomly",
-                "failing to synthesize",
-                "parroted my exact prompt",
-                "hallucination",
-                "off the rails",
-                "irrelevant results",
-                "did you use a tool",
-                "was this a tool call error",
-            ],
-        );
-    let requires_file_mutation = if meta_control || status_check {
-        false
-    } else {
-        workflow_turn_requires_file_mutation(message)
-    };
-    let requires_local_lookup = if meta_control || status_check {
-        false
-    } else {
-        workflow_turn_requires_local_lookup(message)
-    };
-    let explicit_web_intent = if meta_control || status_check || meta_diagnostic_request {
-        false
-    } else {
-        workflow_turn_requires_live_web(message)
-    };
-    let requires_live_web = explicit_web_intent;
-    let route_class = workflow_turn_route_classification(
-        message,
-        requires_file_mutation,
-        requires_local_lookup,
-        requires_live_web,
+    let canonical_gate = crate::app_plane::chat_ui_turn_tool_decision_tree(message);
+    let requires_file_mutation = canonical_gate
+        .get("requires_file_mutation")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let requires_local_lookup = canonical_gate
+        .get("requires_local_lookup")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let requires_live_web = canonical_gate
+        .get("requires_live_web")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let explicit_web_intent = canonical_gate
+        .get("explicit_web_intent")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let has_sufficient_information = canonical_gate
+        .get("has_sufficient_information")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let should_call_tools = canonical_gate
+        .get("should_call_tools")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let workflow_route = clean_text(
+        canonical_gate
+            .get("workflow_route")
+            .and_then(Value::as_str)
+            .unwrap_or(if should_call_tools { "task" } else { "info" }),
+        24,
     );
-    let has_sufficient_information = if meta_control || status_check {
-        true
-    } else if route_class == "task" {
-        !requires_file_mutation && !requires_local_lookup && !requires_live_web
-    } else {
-        !requires_local_lookup && !requires_live_web
-    };
-    let info_source = if requires_live_web {
-        "web"
-    } else if requires_local_lookup || requires_file_mutation {
-        "local"
-    } else {
-        "none"
-    };
-    let recommended_tool_family = if requires_file_mutation {
-        "file_tools"
-    } else if requires_live_web {
-        "web_tools"
-    } else if requires_local_lookup {
-        "memory_or_workspace_tools"
-    } else {
-        "none"
-    };
-    let workflow_route = if route_class == "task" { "task" } else { "info" };
-    let reason_code = if meta_control {
-        "meta_control_direct_answer"
-    } else if status_check {
-        "status_check_direct_answer"
-    } else if meta_diagnostic_request {
-        "meta_diagnostic_direct_answer"
-    } else if requires_file_mutation {
-        "task_requires_file_mutation"
-    } else if requires_live_web {
-        "info_requires_live_web"
-    } else if requires_local_lookup {
-        "info_requires_local_lookup"
-    } else if has_sufficient_information {
-        "direct_answer_sufficient_context"
-    } else {
-        "direct_answer_default"
-    };
-    let should_call_tools = !meta_control
-        && !status_check
-        && !meta_diagnostic_request
-        && !message_explicitly_disallows_tool_calls(message)
-        && !has_sufficient_information
-        && (requires_file_mutation || requires_live_web || requires_local_lookup);
+    let reason_code = clean_text(
+        canonical_gate
+            .get("reason_code")
+            .and_then(Value::as_str)
+            .unwrap_or("direct_answer_default"),
+        80,
+    );
+    let info_source = clean_text(
+        canonical_gate
+            .get("info_source")
+            .and_then(Value::as_str)
+            .unwrap_or("none"),
+        24,
+    );
+    let recommended_tool_family = clean_text(
+        canonical_gate
+            .get("recommended_tool_family")
+            .and_then(Value::as_str)
+            .unwrap_or("none"),
+        40,
+    );
+    let selected_tool_family = clean_text(
+        canonical_gate
+            .get("selected_tool_family")
+            .and_then(Value::as_str)
+            .unwrap_or(&recommended_tool_family),
+        40,
+    );
+    let meta_control = canonical_gate
+        .get("meta_control_message")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let status_check = canonical_gate
+        .get("status_check_message")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let meta_diagnostic_request = canonical_gate
+        .get("meta_diagnostic_request")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let llm_should_answer_directly = canonical_gate
+        .get("llm_should_answer_directly")
+        .and_then(Value::as_bool)
+        .unwrap_or(!should_call_tools);
+    let automatic_tool_calls_allowed = canonical_gate
+        .get("automatic_tool_calls_allowed")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let tool_selection_authority = clean_text(
+        canonical_gate
+            .get("tool_selection_authority")
+            .and_then(Value::as_str)
+            .unwrap_or("llm_selected"),
+        32,
+    );
+    let workflow_retry_limit = canonical_gate
+        .get("workflow_retry_limit")
+        .and_then(Value::as_i64)
+        .unwrap_or(1);
+    let needs_tool_access = canonical_gate
+        .get("needs_tool_access")
+        .and_then(Value::as_bool)
+        .unwrap_or(should_call_tools);
+    let gate_prompt = clean_text(
+        canonical_gate
+            .get("gate_prompt")
+            .and_then(Value::as_str)
+            .unwrap_or("Need tool access for this query?"),
+        120,
+    );
+    let tool_family_menu = canonical_gate
+        .get("tool_family_menu")
+        .cloned()
+        .unwrap_or_else(|| json!([]));
+    let tool_menu = canonical_gate
+        .get("tool_menu")
+        .cloned()
+        .unwrap_or_else(|| json!([]));
+    let manual_tool_selection = canonical_gate
+        .get("manual_tool_selection")
+        .and_then(Value::as_bool)
+        .unwrap_or(needs_tool_access);
     let decomposition_steps = workflow_turn_task_decomposition(
         requires_file_mutation,
         requires_local_lookup,
@@ -665,9 +568,7 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
     json!({
         "contract": "tool_decision_tree_v3",
         "workflow_gate_contract": "workflow_gate_v3",
-        "contract_compat": "tool_decision_tree_v2",
-        "workflow_gate_contract_compat": "workflow_gate_v2",
-        "route_classification": route_class,
+        "route_classification": workflow_route,
         "workflow_route": workflow_route,
         "reason_code": reason_code,
         "requires_file_mutation": requires_file_mutation,
@@ -675,19 +576,27 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
         "requires_live_web": requires_live_web,
         "explicit_web_intent": explicit_web_intent,
         "has_sufficient_information": has_sufficient_information,
-        "llm_should_answer_directly": !should_call_tools,
+        "llm_should_answer_directly": llm_should_answer_directly,
         "should_call_tools": should_call_tools,
+        "needs_tool_access": needs_tool_access,
+        "gate_prompt": gate_prompt,
         "info_source": info_source,
         "recommended_tool_family": recommended_tool_family,
+        "selected_tool_family": selected_tool_family,
+        "tool_family_menu": tool_family_menu,
+        "tool_menu": tool_menu,
+        "manual_tool_selection": manual_tool_selection,
         "meta_control_message": meta_control,
         "status_check_message": status_check,
         "meta_diagnostic_request": meta_diagnostic_request,
-        "automatic_tool_calls_allowed": false,
-        "tool_selection_authority": "llm_selected",
-        "workflow_retry_limit": 1,
+        "automatic_tool_calls_allowed": automatic_tool_calls_allowed,
+        "tool_selection_authority": tool_selection_authority,
+        "workflow_retry_limit": workflow_retry_limit,
         "gates": {
             "gate_1": {
-                "name": "task_or_info_route",
+                "name": "needs_tool_access",
+                "question": gate_prompt,
+                "required": needs_tool_access,
                 "route": workflow_route,
                 "reason_code": reason_code
             },
@@ -719,7 +628,7 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
             "gate_6": {
                 "name": "coherence_check",
                 "recent_messages_window": 2,
-                "retry_limit": 1,
+                "retry_limit": workflow_retry_limit,
                 "failure_mode": "retry_once_then_grounded_failure"
             },
             "gate_7": {

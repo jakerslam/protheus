@@ -45,8 +45,9 @@
         let base_system_prompt = clean(parsed.flags.get("system").cloned().unwrap_or_else(|| "You are an Infring dashboard runtime agent. You have host-integrated access to runtime telemetry, agent session memory, and approved protheus/infring command surfaces. Never claim you lack system access; if a value is missing, request a runtime sync or the exact command needed and continue.".to_string()), 12_000);
         let tool_gate = chat_ui_turn_tool_decision_tree(&message);
         let gate_should_call_tools = tool_gate
-            .get("should_call_tools")
+            .get("needs_tool_access")
             .and_then(Value::as_bool)
+            .or_else(|| tool_gate.get("should_call_tools").and_then(Value::as_bool))
             .unwrap_or(false);
         let gate_recommended_tool_family = clean(
             tool_gate
@@ -69,6 +70,10 @@
                 .unwrap_or("unknown"),
             120,
         );
+        let gate_auto_tools_allowed = tool_gate
+            .get("automatic_tool_calls_allowed")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
         let gate_llm_direct_answer = tool_gate
             .get("llm_should_answer_directly")
             .and_then(Value::as_bool)
@@ -180,7 +185,10 @@
                 "should_call_tools": gate_should_call_tools,
                 "recommended_tool_family": gate_recommended_tool_family
             });
-        } else if gate_allows_web_tooling && chat_ui_web_search_call_count(&tools) == 0 {
+        } else if gate_allows_web_tooling
+            && gate_auto_tools_allowed
+            && chat_ui_web_search_call_count(&tools) == 0
+        {
             let fallback_query = chat_ui_extract_web_query(&message);
             let fallback = {
                 #[cfg(test)]

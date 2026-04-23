@@ -8,18 +8,21 @@ Scope: request decomposition, coordination, sequencing, recovery, and result pac
 
 ```mermaid
 flowchart TD
-    A[User turn] --> B[Workflow gate classification]
+    A[User turn] --> B["Gate 1: Need tool access? (T/F)"]
     B --> C{Tools required?}
     C -->|No| D[Direct answer draft]
-    C -->|Yes| E[Minimal tool family selection]
-    E --> F[Execute tools]
-    F --> G[Collect receipts + events]
+    C -->|Yes| E[Numbered tool family menu]
+    E --> F[Numbered tool menu]
+    F --> G[Execute selected tool]
+    G --> H{"Post-tool gate: finish or another tool?"}
+    H -->|Another tool| E
+    H -->|Finish| I[Collect receipts + events]
     D --> G
-    G --> H[Final synthesis]
-    H --> I{Valid visible response?}
-    I -->|Yes| J[Return answer + receipts]
-    I -->|No| K[Recovery: repair or direct fallback]
-    K --> J
+    I --> J[Final synthesis]
+    J --> K{Valid visible response?}
+    K -->|Yes| L[Return answer + receipts]
+    K -->|No| M[Recovery: repair or direct fallback]
+    M --> L
 ```
 
 ## 2) Conversation Bypass Flow (`conversation_bypass_v1`)
@@ -57,3 +60,18 @@ flowchart TD
 - Shell: presentation and input only.
 
 See also: `docs/workspace/orchestration_ownership_policy.md`.
+
+## 5) Trace Streams + Exports
+
+The workflow now emits separate streams so the UI harness can render each channel differently:
+
+- `workflow_state` (machine-readable stage transitions)
+- `ui_status` (short user-facing status lines like "Searching the web")
+- `decision_summary` (concise rationale snapshots)
+- `tool_execution` (tool/audit timeline)
+
+Export formats (same turn, same trace id):
+
+- JSON object in `response_workflow` (live UI payload)
+- JSONL append history (`<state_root>/chat_ui/workflow_trace_history.jsonl`)
+- Timeline text snapshot (`<state_root>/chat_ui/workflow_trace_latest.timeline.txt`)

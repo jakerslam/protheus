@@ -122,6 +122,22 @@ function parseImportSpecs(source: string): string[] {
   return specs;
 }
 
+function duplicateValues(values: string[]): string[] {
+  return values.filter((value, index, arr) => arr.indexOf(value) !== index);
+}
+
+function isCanonicalRelativePath(value: string): boolean {
+  const normalized = cleanText(value || '', 400);
+  if (!normalized) return false;
+  if (path.isAbsolute(normalized)) return false;
+  if (normalized.includes('\\')) return false;
+  if (normalized.includes('..')) return false;
+  if (normalized.includes('//')) return false;
+  if (normalized.endsWith('/')) return false;
+  if (normalized.includes(' ')) return false;
+  return true;
+}
+
 function isRuleExpired(rule: AllowViolationRule): boolean {
   if (!rule.expires_at) return false;
   const ts = Date.parse(`${rule.expires_at}T00:00:00Z`);
@@ -168,6 +184,283 @@ function runRequiredDocCheck(policy: Policy): Violation[] {
       }
     }
   }
+  return violations;
+}
+
+function runPolicyContractCheck(policy: Policy): Violation[] {
+  const violations: Violation[] = [];
+  const extensionPattern = /^\.[a-z0-9]+$/;
+  const version = cleanText((policy as any).version || '', 64);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(version)) {
+    violations.push({
+      check_id: 'policy_contract',
+      file: '(policy)',
+      reason: 'policy_version_invalid',
+      detail: version || 'missing',
+    });
+  }
+
+  const requiredDocs = Array.isArray(policy.required_docs) ? policy.required_docs : [];
+  if (requiredDocs.length === 0) {
+    violations.push({
+      check_id: 'policy_contract',
+      file: '(policy)',
+      reason: 'required_docs_missing',
+      detail: 'required_docs',
+    });
+  }
+
+  const requiredDocPathsRaw = requiredDocs.map((item) => cleanText(item.path || '', 400));
+  const requiredDocPaths = requiredDocPathsRaw.filter(Boolean);
+  const requiredDocPathNoncanonical = requiredDocPaths.filter((value) => !isCanonicalRelativePath(value));
+  if (requiredDocPaths.length !== requiredDocs.length || requiredDocPathNoncanonical.length > 0) {
+    violations.push({
+      check_id: 'policy_contract',
+      file: '(policy)',
+      reason: 'required_doc_path_missing_or_noncanonical',
+      detail:
+        requiredDocPathNoncanonical.length > 0
+          ? Array.from(new Set(requiredDocPathNoncanonical)).join(',')
+          : 'missing_path_entry',
+    });
+  }
+
+  const requiredDocPathDuplicates = duplicateValues(requiredDocPaths);
+  if (requiredDocPathDuplicates.length > 0) {
+    violations.push({
+      check_id: 'policy_contract',
+      file: '(policy)',
+      reason: 'required_doc_paths_duplicate',
+      detail: Array.from(new Set(requiredDocPathDuplicates)).join(','),
+    });
+  }
+
+  const requiredDocPhraseMissing = requiredDocs
+    .filter((item) => !Array.isArray(item.required_phrases) || item.required_phrases.length === 0)
+    .map((item) => cleanText(item.path || '(missing_path)', 400));
+  if (requiredDocPhraseMissing.length > 0) {
+    violations.push({
+      check_id: 'policy_contract',
+      file: '(policy)',
+      reason: 'required_doc_phrases_missing',
+      detail: Array.from(new Set(requiredDocPhraseMissing)).join(','),
+    });
+  }
+
+  const requiredDocPhraseInvalid = requiredDocs
+    .filter((item) => {
+      const phrases = Array.isArray(item.required_phrases) ? item.required_phrases : [];
+      const cleaned = phrases.map((value) => cleanText(value || '', 300)).filter(Boolean);
+      return cleaned.length !== phrases.length || duplicateValues(cleaned).length > 0;
+    })
+    .map((item) => cleanText(item.path || '(missing_path)', 400));
+  if (requiredDocPhraseInvalid.length > 0) {
+    violations.push({
+      check_id: 'policy_contract',
+      file: '(policy)',
+      reason: 'required_doc_phrase_tokens_invalid',
+      detail: Array.from(new Set(requiredDocPhraseInvalid)).join(','),
+    });
+  }
+
+  const clientContract = policy.client_wrapper_contract || {};
+  const includePaths = Array.isArray(clientContract.include_paths)
+    ? clientContract.include_paths.map((value) => cleanText(value || '', 400)).filter(Boolean)
+    : [];
+  if (includePaths.length === 0) {
+    violations.push({
+      check_id: 'policy_contract',
+      file: '(policy)',
+      reason: 'client_wrapper_include_paths_missing',
+      detail: 'client_wrapper_contract.include_paths',
+    });
+  }
+
+  const includePathDuplicates = duplicateValues(includePaths);
+  if (includePathDuplicates.length > 0) {
+    violations.push({
+      check_id: 'policy_contract',
+      file: '(policy)',
+      reason: 'client_wrapper_include_paths_duplicate',
+      detail: Array.from(new Set(includePathDuplicates)).join(','),
+    });
+  }
+
+  const includePathNoncanonical = includePaths.filter((value) => !isCanonicalRelativePath(value));
+  if (includePathNoncanonical.length > 0) {
+    violations.push({
+      check_id: 'policy_contract',
+      file: '(policy)',
+      reason: 'client_wrapper_include_paths_noncanonical',
+      detail: Array.from(new Set(includePathNoncanonical)).join(','),
+    });
+  }
+
+  const includePathNonTs = includePaths.filter((value) => path.extname(value).toLowerCase() !== '.ts');
+  if (includePathNonTs.length > 0) {
+    violations.push({
+      check_id: 'policy_contract',
+      file: '(policy)',
+      reason: 'client_wrapper_include_paths_non_ts',
+      detail: Array.from(new Set(includePathNonTs)).join(','),
+    });
+  }
+
+  const requiredMarkers = Array.isArray(clientContract.required_markers)
+    ? clientContract.required_markers.map((value) => cleanText(value || '', 300)).filter(Boolean)
+    : [];
+  if (requiredMarkers.length === 0 || duplicateValues(requiredMarkers).length > 0) {
+    violations.push({
+      check_id: 'policy_contract',
+      file: '(policy)',
+      reason: 'client_wrapper_required_markers_invalid',
+      detail: `count=${requiredMarkers.length};duplicates=${duplicateValues(requiredMarkers).length}`,
+    });
+  }
+
+  const delegateMarkers = Array.isArray(clientContract.required_delegate_markers_any)
+    ? clientContract.required_delegate_markers_any.map((value) => cleanText(value || '', 300)).filter(Boolean)
+    : [];
+  if (delegateMarkers.length === 0 || duplicateValues(delegateMarkers).length > 0) {
+    violations.push({
+      check_id: 'policy_contract',
+      file: '(policy)',
+      reason: 'client_wrapper_delegate_markers_invalid',
+      detail: `count=${delegateMarkers.length};duplicates=${duplicateValues(delegateMarkers).length}`,
+    });
+  }
+
+  const forbiddenMarkers = Array.isArray(clientContract.forbidden_markers)
+    ? clientContract.forbidden_markers.map((value) => cleanText(value || '', 300)).filter(Boolean)
+    : [];
+  if (forbiddenMarkers.length === 0 || duplicateValues(forbiddenMarkers).length > 0) {
+    violations.push({
+      check_id: 'policy_contract',
+      file: '(policy)',
+      reason: 'client_wrapper_forbidden_markers_invalid',
+      detail: `count=${forbiddenMarkers.length};duplicates=${duplicateValues(forbiddenMarkers).length}`,
+    });
+  }
+
+  const maxNoncommentLines = Number(clientContract.max_noncomment_lines);
+  if (!Number.isInteger(maxNoncommentLines) || maxNoncommentLines <= 0 || maxNoncommentLines > 30) {
+    violations.push({
+      check_id: 'policy_contract',
+      file: '(policy)',
+      reason: 'client_wrapper_max_noncomment_lines_invalid',
+      detail: String(clientContract.max_noncomment_lines),
+    });
+  }
+
+  if (clientContract.require_self_filename_delegate_marker !== true) {
+    violations.push({
+      check_id: 'policy_contract',
+      file: '(policy)',
+      reason: 'client_wrapper_self_filename_delegate_marker_disabled',
+      detail: String(clientContract.require_self_filename_delegate_marker),
+    });
+  }
+
+  const parity = policy.cognition_surface_parity_contract || {};
+  const clientRoot = cleanText(parity.client_root || '', 400);
+  const surfaceRoot = cleanText(parity.surface_root || '', 400);
+  if (!isCanonicalRelativePath(clientRoot) || !isCanonicalRelativePath(surfaceRoot) || clientRoot === surfaceRoot) {
+    violations.push({
+      check_id: 'policy_contract',
+      file: '(policy)',
+      reason: 'cognition_surface_roots_invalid_or_equal',
+      detail: `client_root=${clientRoot || 'missing'};surface_root=${surfaceRoot || 'missing'}`,
+    });
+  }
+
+  const parityExtensions = Array.isArray(parity.extensions)
+    ? parity.extensions.map((value) => cleanText(value || '', 32).toLowerCase()).filter(Boolean)
+    : [];
+  if (
+    parityExtensions.length === 0 ||
+    duplicateValues(parityExtensions).length > 0 ||
+    parityExtensions.some((value) => !extensionPattern.test(value)) ||
+    !parityExtensions.includes('.ts') ||
+    !parityExtensions.includes('.json')
+  ) {
+    violations.push({
+      check_id: 'policy_contract',
+      file: '(policy)',
+      reason: 'cognition_surface_extensions_invalid_or_missing_baseline',
+      detail: parityExtensions.join(',') || 'none',
+    });
+  }
+
+  const exactMatchExtensions = Array.isArray(parity.exact_match_extensions)
+    ? parity.exact_match_extensions.map((value) => cleanText(value || '', 32).toLowerCase()).filter(Boolean)
+    : [];
+  if (
+    exactMatchExtensions.length > 0 &&
+    (duplicateValues(exactMatchExtensions).length > 0 ||
+      exactMatchExtensions.some((value) => !parityExtensions.includes(value)))
+  ) {
+    violations.push({
+      check_id: 'policy_contract',
+      file: '(policy)',
+      reason: 'cognition_exact_match_extensions_invalid_subset',
+      detail: exactMatchExtensions.join(','),
+    });
+  }
+
+  const importBoundary = policy.surface_script_import_boundary || {};
+  const importScanRoot = cleanText(importBoundary.scan_root || '', 400);
+  const importExtensions = Array.isArray(importBoundary.extensions)
+    ? importBoundary.extensions.map((value) => cleanText(value || '', 32).toLowerCase()).filter(Boolean)
+    : [];
+  if (
+    !isCanonicalRelativePath(importScanRoot) ||
+    importExtensions.length === 0 ||
+    duplicateValues(importExtensions).length > 0 ||
+    importExtensions.some((value) => !extensionPattern.test(value)) ||
+    !importExtensions.includes('.ts')
+  ) {
+    violations.push({
+      check_id: 'policy_contract',
+      file: '(policy)',
+      reason: 'surface_import_scan_root_or_extensions_invalid',
+      detail: `scan_root=${importScanRoot || 'missing'};extensions=${importExtensions.join(',') || 'none'}`,
+    });
+  }
+
+  const forbiddenPrefixes = Array.isArray(importBoundary.forbidden_import_prefixes)
+    ? importBoundary.forbidden_import_prefixes.map((value) => cleanText(value || '', 160)).filter(Boolean)
+    : [];
+  const allowViolations = Array.isArray(importBoundary.allow_violations)
+    ? importBoundary.allow_violations
+    : [];
+  const allowRuleSignatures = allowViolations.map((rule) =>
+    `${cleanText(rule.file || '', 400)}|${cleanText(rule.detail_contains || '', 200)}`);
+  const allowRuleDuplicates = duplicateValues(allowRuleSignatures).filter((value) => value !== '|');
+  const hasMalformedAllowRule = allowViolations.some((rule) =>
+    !isCanonicalRelativePath(cleanText(rule.file || '', 400)) ||
+    !cleanText(rule.detail_contains || '', 200) ||
+    !cleanText(rule.owner || '', 120) ||
+    !cleanText(rule.ticket || '', 120) ||
+    !cleanText(rule.expires_at || '', 40),
+  );
+  const missingClientAnchor = !forbiddenPrefixes.some((value) => value.includes('client'));
+  const missingCoreAnchor = !forbiddenPrefixes.some((value) => value.includes('core/layer'));
+  if (
+    forbiddenPrefixes.length === 0 ||
+    duplicateValues(forbiddenPrefixes).length > 0 ||
+    missingClientAnchor ||
+    missingCoreAnchor ||
+    hasMalformedAllowRule ||
+    allowRuleDuplicates.length > 0
+  ) {
+    violations.push({
+      check_id: 'policy_contract',
+      file: '(policy)',
+      reason: 'surface_import_forbidden_prefixes_or_allowlist_metadata_invalid',
+      detail: `forbidden_count=${forbiddenPrefixes.length};duplicates=${duplicateValues(forbiddenPrefixes).length};missing_client_anchor=${missingClientAnchor};missing_core_anchor=${missingCoreAnchor};malformed_allow_rule=${hasMalformedAllowRule};duplicate_allow_rules=${allowRuleDuplicates.length}`,
+    });
+  }
+
   return violations;
 }
 
@@ -543,6 +836,7 @@ function toMarkdown(payload: any): string {
   lines.push('');
   lines.push('## Summary');
   lines.push('');
+  lines.push(`- Policy contract violations: ${payload.summary.policy_contract_violation_count}`);
   lines.push(`- Required doc violations: ${payload.summary.required_doc_violation_count}`);
   lines.push(`- Client cognition wrapper violations: ${payload.summary.client_cognition_wrapper_violation_count}`);
   lines.push(`- Cognition surface parity violations: ${payload.summary.cognition_surface_parity_violation_count}`);
@@ -575,6 +869,7 @@ function main(): number {
   const policyPath = path.resolve(ROOT, args.policy);
   const policy = JSON.parse(fs.readFileSync(policyPath, 'utf8')) as Policy;
 
+  const policyContractViolations = runPolicyContractCheck(policy);
   const requiredDocViolations = runRequiredDocCheck(policy);
   const clientCognitionWrapperViolations = runClientCognitionWrapperCheck(policy);
   const cognitionSurfaceParityViolations = runCognitionSurfaceParityCheck(policy);
@@ -582,6 +877,7 @@ function main(): number {
   const surfaceImport = runSurfaceScriptImportBoundaryCheck(policy);
 
   const hardViolations = [
+    ...policyContractViolations,
     ...requiredDocViolations,
     ...clientCognitionWrapperViolations,
     ...cognitionSurfaceParityViolations,
@@ -602,6 +898,7 @@ function main(): number {
     },
     summary: {
       pass: hardViolations.length === 0,
+      policy_contract_violation_count: policyContractViolations.length,
       required_doc_violation_count: requiredDocViolations.length,
       client_cognition_wrapper_violation_count: clientCognitionWrapperViolations.length,
       cognition_surface_parity_violation_count: cognitionSurfaceParityViolations.length,

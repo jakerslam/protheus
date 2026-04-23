@@ -31,19 +31,31 @@ fn chat_ui_semantic_receipt_summary(
         .get("silent_failure_calls")
         .and_then(Value::as_i64)
         .unwrap_or(0);
-    let surface_unavailable_calls = diagnostics
-        .get("surface_unavailable_calls")
-        .and_then(Value::as_i64)
-        .unwrap_or(0);
-    let surface_degraded_calls = diagnostics
-        .get("surface_degraded_calls")
-        .and_then(Value::as_i64)
-        .unwrap_or(0);
     let error_codes = diagnostics
         .get("error_codes")
         .and_then(Value::as_object)
         .cloned()
         .unwrap_or_default();
+    let surface_unavailable_calls = diagnostics
+        .get("surface_unavailable_calls")
+        .and_then(Value::as_i64)
+        .unwrap_or(0)
+        .max(
+            error_codes
+                .get("web_tool_surface_unavailable")
+                .and_then(Value::as_i64)
+                .unwrap_or(0),
+        );
+    let surface_degraded_calls = diagnostics
+        .get("surface_degraded_calls")
+        .and_then(Value::as_i64)
+        .unwrap_or(0)
+        .max(
+            error_codes
+                .get("web_tool_surface_degraded")
+                .and_then(Value::as_i64)
+                .unwrap_or(0),
+        );
     let has_surface_unavailable =
         surface_unavailable_calls > 0 || error_codes.contains_key("web_tool_surface_unavailable");
     let has_surface_degraded =
