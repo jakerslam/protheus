@@ -52,6 +52,22 @@ fn handle_agent_scope_message_route(
         let workspace_hints_value = json!(workspace_hints);
         let latent_tool_candidates_value = json!(latent_tool_candidates);
         let explicit_operator_command = message.trim_start().starts_with('/');
+        let local_workspace_tooling_probe_turn = {
+            let lowered = message.to_ascii_lowercase();
+            let local_tokens = [
+                "local",
+                "workspace",
+                "directory",
+                "folder",
+                "file tooling",
+                "file tool",
+                "repo",
+                "path",
+            ];
+            let web_tokens = ["http://", "https://", "web", "internet", "online", "browser"];
+            local_tokens.iter().any(|token| lowered.contains(token))
+                && !web_tokens.iter().any(|token| lowered.contains(token))
+        };
         let mut resolved_tool_intent = direct_tool_intent_from_user_message(&message);
         let mut replayed_pending_confirmation = false;
         if let Some((pending_tool_name, mut pending_tool_input)) =
@@ -75,6 +91,13 @@ fn handle_agent_scope_message_route(
                     replayed_pending_confirmation = true;
                 }
             }
+        }
+        if local_workspace_tooling_probe_turn
+            && replayed_pending_confirmation
+            && !explicit_operator_command
+        {
+            resolved_tool_intent = None;
+            replayed_pending_confirmation = false;
         }
         if resolved_tool_intent.is_some() && !explicit_operator_command && !replayed_pending_confirmation {
             resolved_tool_intent = None;
@@ -346,6 +369,7 @@ fn handle_agent_scope_message_route(
                 "tool_completion": tool_completion,
                 "tool_synthesis_retry_used": false,
                 "pending_confirmation_replayed": replayed_pending_confirmation,
+                "local_workspace_tooling_probe_turn": local_workspace_tooling_probe_turn,
                 "tooling_fallback_used": tooling_fallback_used,
                 "comparative_fallback_used": comparative_fallback_used,
                 "workflow_system_fallback_used": workflow_system_fallback_used,

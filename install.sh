@@ -83,6 +83,14 @@ INSTALL_SMOKE_SUMMARY_JSON_FILE="${INFRING_INSTALL_SMOKE_SUMMARY_JSON_FILE:-$INF
 INSTALL_RUNTIME_CONTRACT_MODE="unknown"
 INSTALL_RUNTIME_CONTRACT_OK=0
 INSTALL_CLIENT_RUNTIME_MODE="not_installed"
+WORKSPACE_REFRESH_REQUIRED=0
+WORKSPACE_REFRESH_APPLIED=0
+WORKSPACE_REFRESH_REASON=""
+WORKSPACE_REFRESH_TAG_STATE_MISSING=0
+WORKSPACE_RELEASE_TAG_PREVIOUS=""
+WORKSPACE_RELEASE_TAG_CURRENT=""
+WORKSPACE_RELEASE_TAG_WRITTEN=0
+WORKSPACE_RELEASE_TAG_WRITE_VERIFIED=0
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -987,6 +995,22 @@ verify_install_summary_success_contract() {
     echo "[infring install] summary contract failed: completed_at missing" >&2
     return 1
   fi
+  if ! grep -q '^workspace_runtime_refresh_required:' "$summary_file" 2>/dev/null; then
+    echo "[infring install] summary contract failed: workspace_runtime_refresh_required missing" >&2
+    return 1
+  fi
+  if ! grep -q '^workspace_runtime_refresh_applied:' "$summary_file" 2>/dev/null; then
+    echo "[infring install] summary contract failed: workspace_runtime_refresh_applied missing" >&2
+    return 1
+  fi
+  if ! grep -q '^workspace_release_tag_written:' "$summary_file" 2>/dev/null; then
+    echo "[infring install] summary contract failed: workspace_release_tag_written missing" >&2
+    return 1
+  fi
+  if ! grep -q '^workspace_release_tag_write_verified:' "$summary_file" 2>/dev/null; then
+    echo "[infring install] summary contract failed: workspace_release_tag_write_verified missing" >&2
+    return 1
+  fi
   echo "[infring install] summary contract: ok"
   return 0
 }
@@ -1056,13 +1080,21 @@ emit_install_success_summary() {
   fi
   runtime_contract_mode="${INSTALL_RUNTIME_CONTRACT_MODE:-unknown}"
   client_runtime_mode="${INSTALL_CLIENT_RUNTIME_MODE:-not_installed}"
+  workspace_refresh_required_value="${WORKSPACE_REFRESH_REQUIRED:-0}"
+  workspace_refresh_applied_value="${WORKSPACE_REFRESH_APPLIED:-0}"
+  workspace_refresh_reason_value="${WORKSPACE_REFRESH_REASON:-}"
+  workspace_refresh_tag_missing_value="${WORKSPACE_REFRESH_TAG_STATE_MISSING:-0}"
+  workspace_release_tag_previous_value="${WORKSPACE_RELEASE_TAG_PREVIOUS:-}"
+  workspace_release_tag_current_value="${WORKSPACE_RELEASE_TAG_CURRENT:-}"
+  workspace_release_tag_written_value="${WORKSPACE_RELEASE_TAG_WRITTEN:-0}"
+  workspace_release_tag_verified_value="${WORKSPACE_RELEASE_TAG_WRITE_VERIFIED:-0}"
   echo "[infring install] success summary: binaries=${wrappers_status} runtime=${runtime_contract_mode} launcher=infring gateway restart=infring gateway restart verification_confidence=${verification_confidence}"
   echo "[infring install] success summary: gateway_smoke=${gateway_smoke_status} dashboard_smoke=${dashboard_smoke_status} recovery=infring recover"
 
   summary_json_path="$INSTALL_SUMMARY_JSON_FILE"
   mkdir -p "$(dirname "$summary_json_path")" >/dev/null 2>&1 || true
   payload="$(cat <<EOF
-{"ok":true,"type":"infring_install_success_summary","version":"$(install_json_escape "$version_tag")","triple":"$(install_json_escape "$triple_id")","install_mode":{"full":$( [ "$INSTALL_FULL" = "1" ] && printf 'true' || printf 'false' ),"pure":$( [ "$INSTALL_PURE" = "1" ] && printf 'true' || printf 'false' ),"tiny_max":$( [ "$INSTALL_TINY_MAX" = "1" ] && printf 'true' || printf 'false' ),"repair":$( [ "$INSTALL_REPAIR" = "1" ] && printf 'true' || printf 'false' ),"offline":$( [ "$INSTALL_OFFLINE" = "1" ] && printf 'true' || printf 'false' )},"verification":{"confidence":"$(install_json_escape "$verification_confidence")","runtime_contract_ok":$( [ "$INSTALL_RUNTIME_CONTRACT_OK" = "1" ] && printf 'true' || printf 'false' ),"runtime_contract_mode":"$(install_json_escape "$runtime_contract_mode")","client_runtime_mode":"$(install_json_escape "$client_runtime_mode")","gateway_smoke":"$(install_json_escape "$gateway_smoke_status")","dashboard_smoke":"$(install_json_escape "$dashboard_smoke_status")","node_runtime_detected":$( [ "$node_detected" = "1" ] && printf 'true' || printf 'false' )},"commands":{"launcher":"$(install_json_escape "$launcher_command")","restart":"$(install_json_escape "$restart_command")","recovery":"$(install_json_escape "$recovery_command")"},"summary_files":{"text":"$(install_json_escape "$INSTALL_SUMMARY_FILE")","json":"$(install_json_escape "$summary_json_path")"}}
+{"ok":true,"type":"infring_install_success_summary","version":"$(install_json_escape "$version_tag")","triple":"$(install_json_escape "$triple_id")","install_mode":{"full":$( [ "$INSTALL_FULL" = "1" ] && printf 'true' || printf 'false' ),"pure":$( [ "$INSTALL_PURE" = "1" ] && printf 'true' || printf 'false' ),"tiny_max":$( [ "$INSTALL_TINY_MAX" = "1" ] && printf 'true' || printf 'false' ),"repair":$( [ "$INSTALL_REPAIR" = "1" ] && printf 'true' || printf 'false' ),"offline":$( [ "$INSTALL_OFFLINE" = "1" ] && printf 'true' || printf 'false' )},"verification":{"confidence":"$(install_json_escape "$verification_confidence")","runtime_contract_ok":$( [ "$INSTALL_RUNTIME_CONTRACT_OK" = "1" ] && printf 'true' || printf 'false' ),"runtime_contract_mode":"$(install_json_escape "$runtime_contract_mode")","client_runtime_mode":"$(install_json_escape "$client_runtime_mode")","gateway_smoke":"$(install_json_escape "$gateway_smoke_status")","dashboard_smoke":"$(install_json_escape "$dashboard_smoke_status")","node_runtime_detected":$( [ "$node_detected" = "1" ] && printf 'true' || printf 'false' )},"workspace_runtime_refresh":{"required":$( [ "$workspace_refresh_required_value" = "1" ] && printf 'true' || printf 'false' ),"applied":$( [ "$workspace_refresh_applied_value" = "1" ] && printf 'true' || printf 'false' ),"reason":"$(install_json_escape "$workspace_refresh_reason_value")","tag_state_missing":$( [ "$workspace_refresh_tag_missing_value" = "1" ] && printf 'true' || printf 'false' ),"previous_release_tag":"$(install_json_escape "$workspace_release_tag_previous_value")","current_release_tag":"$(install_json_escape "$workspace_release_tag_current_value")","release_tag_write_applied":$( [ "$workspace_release_tag_written_value" = "1" ] && printf 'true' || printf 'false' ),"release_tag_write_verified":$( [ "$workspace_release_tag_verified_value" = "1" ] && printf 'true' || printf 'false' )},"commands":{"launcher":"$(install_json_escape "$launcher_command")","restart":"$(install_json_escape "$restart_command")","recovery":"$(install_json_escape "$recovery_command")"},"summary_files":{"text":"$(install_json_escape "$INSTALL_SUMMARY_FILE")","json":"$(install_json_escape "$summary_json_path")"}}
 EOF
 )"
   printf '%s\n' "$payload" > "$summary_json_path" 2>/dev/null || true
@@ -2544,6 +2576,8 @@ write_workspace_release_tag() {
   "installed_at": "$installed_at"
 }
 EOF
+  verified_tag="$(read_workspace_release_tag "$workspace" 2>/dev/null || true)"
+  [ "$verified_tag" = "$release_tag" ] || return 1
   return 0
 }
 
@@ -4561,8 +4595,10 @@ ${ops_domain_dispatch}"
   workspace_refresh_required=0
   workspace_refresh_applied=0
   workspace_refresh_reason=""
+  workspace_refresh_tag_state_missing=0
   previous_workspace_release_tag=""
   workspace_release_tag_written=0
+  workspace_release_tag_write_verified=0
   export INFRING_WORKSPACE_ROOT="$WORKSPACE_DIR"
   if is_truthy "$INSTALL_PURE"; then
     echo "[infring install] pure mode: skipping workspace runtime bootstrap"
@@ -4577,6 +4613,7 @@ ${ops_domain_dispatch}"
       workspace_refresh_reason="runtime_missing"
     elif [ -z "$previous_workspace_release_tag" ]; then
       workspace_refresh_reason="tag_state_missing"
+      workspace_refresh_tag_state_missing=1
     elif [ "$previous_workspace_release_tag" != "$version" ]; then
       workspace_refresh_reason="release_tag_changed"
     fi
@@ -4622,6 +4659,12 @@ ${ops_domain_dispatch}"
     INSTALL_CLIENT_RUNTIME_MODE="source_workspace"
     write_workspace_release_tag "$WORKSPACE_DIR" "$version" || exit 1
     workspace_release_tag_written=1
+    if workspace_release_tag_matches "$WORKSPACE_DIR" "$version"; then
+      workspace_release_tag_write_verified=1
+    else
+      echo "[infring install] workspace release-tag state write verification failed for $WORKSPACE_DIR" >&2
+      exit 1
+    fi
     force_workspace_runtime_mode_source "$WORKSPACE_DIR" || exit 1
     ensure_node_runtime_notice || true
     if ! ensure_ollama_runtime_notice; then
@@ -4633,9 +4676,11 @@ ${ops_domain_dispatch}"
     install_summary_note "workspace_runtime_refresh_required: ${workspace_refresh_required}"
     install_summary_note "workspace_runtime_refresh_applied: ${workspace_refresh_applied}"
     install_summary_note "workspace_runtime_refresh_reason: ${workspace_refresh_reason:-none}"
+    install_summary_note "workspace_runtime_tag_state_missing: ${workspace_refresh_tag_state_missing}"
     install_summary_note "workspace_release_tag_previous: ${previous_workspace_release_tag:-}"
     install_summary_note "workspace_release_tag_current: ${version}"
     install_summary_note "workspace_release_tag_written: ${workspace_release_tag_written}"
+    install_summary_note "workspace_release_tag_write_verified: ${workspace_release_tag_write_verified}"
     install_summary_note "ollama_install_confirmed: ${OLLAMA_INSTALL_CONFIRMED}"
     install_summary_note "ollama_last_model_count: ${OLLAMA_LAST_MODEL_COUNT}"
     ensure_runtime_node_module_closure "$WORKSPACE_DIR" || exit 1
@@ -4644,6 +4689,23 @@ ${ops_domain_dispatch}"
     write_path_activate_script
     run_post_install_smoke_tests "$INSTALL_DIR" "$WORKSPACE_DIR" || exit 1
   fi
+
+  WORKSPACE_REFRESH_REQUIRED="${workspace_refresh_required}"
+  WORKSPACE_REFRESH_APPLIED="${workspace_refresh_applied}"
+  WORKSPACE_REFRESH_REASON="${workspace_refresh_reason}"
+  WORKSPACE_REFRESH_TAG_STATE_MISSING="${workspace_refresh_tag_state_missing}"
+  WORKSPACE_RELEASE_TAG_PREVIOUS="${previous_workspace_release_tag}"
+  WORKSPACE_RELEASE_TAG_CURRENT="${version}"
+  WORKSPACE_RELEASE_TAG_WRITTEN="${workspace_release_tag_written}"
+  WORKSPACE_RELEASE_TAG_WRITE_VERIFIED="${workspace_release_tag_write_verified}"
+  install_summary_note "workspace_runtime_refresh_required: ${WORKSPACE_REFRESH_REQUIRED}"
+  install_summary_note "workspace_runtime_refresh_applied: ${WORKSPACE_REFRESH_APPLIED}"
+  install_summary_note "workspace_runtime_refresh_reason: ${WORKSPACE_REFRESH_REASON:-none}"
+  install_summary_note "workspace_runtime_tag_state_missing: ${WORKSPACE_REFRESH_TAG_STATE_MISSING}"
+  install_summary_note "workspace_release_tag_previous: ${WORKSPACE_RELEASE_TAG_PREVIOUS:-}"
+  install_summary_note "workspace_release_tag_current: ${WORKSPACE_RELEASE_TAG_CURRENT:-}"
+  install_summary_note "workspace_release_tag_written: ${WORKSPACE_RELEASE_TAG_WRITTEN}"
+  install_summary_note "workspace_release_tag_write_verified: ${WORKSPACE_RELEASE_TAG_WRITE_VERIFIED}"
 
   echo "[infring install] installed: infring, infringctl, infringd"
   if [ -x "$INSTALL_DIR/infring" ] && [ -x "$INSTALL_DIR/infringctl" ] && [ -x "$INSTALL_DIR/infringd" ]; then

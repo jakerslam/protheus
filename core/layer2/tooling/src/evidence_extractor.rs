@@ -12,19 +12,30 @@ impl EvidenceExtractor {
             return Vec::new();
         }
         let mut cards = Vec::<EvidenceCard>::new();
-        if let Some(rows) = raw_payload.get("results").and_then(Value::as_array) {
-            for (idx, row) in rows.iter().enumerate() {
-                if let Some(card) = self.build_card(result, row, Some(idx)) {
-                    cards.push(card);
-                }
+        let mut array_payload_seen = collect_array_cards(self, result, raw_payload, &mut cards);
+        if let Some(nested) = raw_payload.get("data").or_else(|| raw_payload.get("payload")) {
+            if collect_array_cards(self, result, nested, &mut cards) {
+                array_payload_seen = true;
             }
-        } else if let Some(card) = self.build_card(result, raw_payload, None) {
-            cards.push(card);
+        }
+        if !array_payload_seen {
+            if let Some(card) = self.build_card(result, raw_payload, None) {
+                cards.push(card);
+            }
+        }
+        if cards.is_empty() && raw_payload.get("message").is_some() {
+            if let Some(card) = self.build_card(result, raw_payload, None) {
+                cards.push(card);
+            }
         }
         let mut seen = HashSet::<String>::new();
         cards
             .into_iter()
-            .filter(|card| seen.insert(card.dedupe_hash.clone()))
+            .filter(|card| {
+                !card.excerpt.is_empty()
+                    && !card.summary.is_empty()
+                    && seen.insert(card.dedupe_hash.clone())
+            })
             .collect::<Vec<_>>()
     }
 
@@ -38,6 +49,9 @@ impl EvidenceExtractor {
         let source_location = pick_source_location(source, idx);
         let excerpt = pick_excerpt(source);
         let summary = pick_summary(source, &excerpt);
+        if looks_like_interface_chrome(&excerpt) && looks_like_interface_chrome(&summary) {
+            return None;
+        }
         if excerpt.is_empty() && summary.is_empty() {
             return None;
         }
@@ -84,14 +98,83 @@ impl EvidenceExtractor {
     }
 }
 
+fn collect_array_cards(
+    extractor: &EvidenceExtractor,
+    result: &NormalizedToolResult,
+    payload: &Value,
+    cards: &mut Vec<EvidenceCard>,
+) -> bool {
+    let mut seen = false;
+    for key in [
+        "results",
+        "items",
+        "matches",
+        "files",
+        "search_results",
+        "hits",
+        "documents",
+    ] {
+        if let Some(rows) = payload.get(key).and_then(Value::as_array) {
+            seen = true;
+            for (idx, row) in rows.iter().enumerate() {
+                if let Some(card) = extractor.build_card(result, row, Some(idx)) {
+                    cards.push(card);
+                }
+            }
+        }
+    }
+    seen
+}
+
 fn clean_text(raw: &str, max_len: usize) -> String {
-    raw.split_whitespace()
+    strip_markup_noise(raw)
+        .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")
         .trim()
         .chars()
         .take(max_len)
         .collect::<String>()
+}
+
+fn strip_markup_noise(raw: &str) -> String {
+    let mut out = String::with_capacity(raw.len());
+    let mut in_tag = false;
+    for ch in raw.chars() {
+        match ch {
+            '<' => in_tag = true,
+            '>' => {
+                in_tag = false;
+                out.push(' ');
+            }
+            _ if !in_tag => out.push(ch),
+            _ => {}
+        }
+    }
+    out
+}
+
+fn looks_like_interface_chrome(text: &str) -> bool {
+    let normalized = text.trim().to_ascii_lowercase();
+    let provider_metadata_dump = normalized.contains("provider:") && normalized.contains("images:");
+    let iframe_embed_dump = normalized.contains("iframe") && normalized.contains("allowfullscreen");
+    let tool_trace_scaffold = normalized.contains("tool trace complete")
+        || normalized.starts_with("<function=")
+        || normalized.contains("input {");
+    let ingress_policy_failure_dump = normalized.contains("file_list")
+        && normalized.contains("ingress delivery policy");
+    let workflow_gate_loop = normalized.contains("workflow gate")
+        && normalized.contains("final workflow state was unexpected");
+    let retry_loop_scaffold = normalized.contains("please retry so i can rerun the chain cleanly");
+    let render_failure_scaffold = normalized.contains("final reply did not render")
+        || normalized.contains("ask me to continue and i will synthesize");
+    provider_metadata_dump
+        || iframe_embed_dump
+        || ingress_policy_failure_dump
+        || workflow_gate_loop
+        || retry_loop_scaffold
+        || render_failure_scaffold
+        || tool_trace_scaffold
 }
 
 fn first_string<'a>(source: &'a Value, keys: &[&str]) -> Option<&'a str> {
@@ -105,7 +188,26 @@ fn first_string<'a>(source: &'a Value, keys: &[&str]) -> Option<&'a str> {
 
 fn pick_source_ref(source: &Value, result: &NormalizedToolResult) -> String {
     clean_text(
-        first_string(source, &["source_ref", "url", "path"]).unwrap_or(result.raw_ref.as_str()),
+        first_string(
+            source,
+            &[
+                "source_ref",
+                "original_url",
+                "originalUrl",
+                "repository_url",
+                "repo_url",
+                "url",
+                "source",
+                "repository",
+                "file_path",
+                "workspace_path",
+                "repo_path",
+                "repo",
+                "file",
+                "path",
+            ],
+        )
+        .unwrap_or(result.raw_ref.as_str()),
         2000,
     )
 }
@@ -124,7 +226,19 @@ fn pick_source_location(source: &Value, idx: Option<usize>) -> String {
 }
 
 fn pick_excerpt(source: &Value) -> String {
-    if let Some(text) = first_string(source, &["excerpt", "snippet", "content", "text"]) {
+    if let Some(text) = first_string(
+        source,
+        &[
+            "excerpt",
+            "snippet",
+            "content",
+            "text",
+            "description",
+            "message",
+            "body",
+            "title",
+        ],
+    ) {
         return clean_text(text, 1200);
     }
     if let Some(text) = source.as_str() {
@@ -139,11 +253,67 @@ fn pick_summary(source: &Value, excerpt: &str) -> String {
         .and_then(Value::as_str)
         .map(|v| clean_text(v, 600))
         .unwrap_or_default();
-    if summary.is_empty() {
-        clean_text(excerpt, 300)
-    } else {
-        summary
+    if !summary.is_empty() {
+        return summary;
     }
+    let title = source
+        .get("title")
+        .and_then(Value::as_str)
+        .map(|v| clean_text(v, 180))
+        .unwrap_or_default();
+    if !title.is_empty() && !excerpt.is_empty() {
+        return clean_text(&format!("{title}: {excerpt}"), 300);
+    }
+    if title.is_empty() {
+        let message = source
+            .get("message")
+            .and_then(Value::as_str)
+            .map(|v| clean_text(v, 240))
+            .unwrap_or_default();
+        if !message.is_empty() && !excerpt.is_empty() {
+            return clean_text(&format!("{message}: {excerpt}"), 300);
+        }
+        if !message.is_empty() {
+            return message;
+        }
+    }
+    let provider = source
+        .get("provider")
+        .and_then(|value| {
+            value
+                .get("name")
+                .and_then(Value::as_str)
+                .or_else(|| value.as_str())
+        })
+        .map(|v| clean_text(v, 120))
+        .unwrap_or_default();
+    let language = source
+        .get("language")
+        .and_then(Value::as_str)
+        .map(|v| clean_text(v, 80))
+        .unwrap_or_default();
+    let platform = source
+        .get("platform")
+        .and_then(Value::as_str)
+        .map(|v| clean_text(v, 80))
+        .unwrap_or_default();
+    if !provider.is_empty() || !language.is_empty() || !platform.is_empty() {
+        let mut facets = Vec::<String>::new();
+        if !provider.is_empty() {
+            facets.push(format!("provider={provider}"));
+        }
+        if !language.is_empty() {
+            facets.push(format!("language={language}"));
+        }
+        if !platform.is_empty() {
+            facets.push(format!("platform={platform}"));
+        }
+        if !excerpt.is_empty() {
+            return clean_text(&format!("{}: {excerpt}", facets.join(", ")), 300);
+        }
+        return clean_text(&facets.join(", "), 300);
+    }
+    clean_text(excerpt, 300)
 }
 
 fn pick_confidence(source: &Value) -> ConfidenceVector {
@@ -212,5 +382,106 @@ mod tests {
         assert_eq!(cards[0].derived_from_result_id, "r1");
         assert_eq!(cards[0].trace_id, "t1");
         assert_eq!(cards[0].task_id, "task");
+    }
+
+    #[test]
+    fn extractor_prefers_original_url_and_strips_markup_from_excerpt() {
+        let extractor = EvidenceExtractor;
+        let raw = serde_json::json!({
+            "results": [{
+                "originalUrl":"https://example.com/video",
+                "excerpt":"<div>hello <b>world</b></div>",
+                "summary":"<p>summary text</p>"
+            }]
+        });
+        let cards = extractor.extract(&sample_result(), &raw);
+        assert_eq!(cards.len(), 1);
+        assert_eq!(cards[0].source_ref, "https://example.com/video");
+        assert_eq!(cards[0].excerpt, "hello world");
+        assert_eq!(cards[0].summary, "summary text");
+    }
+
+    #[test]
+    fn extractor_ignores_tool_trace_scaffold_noise() {
+        let extractor = EvidenceExtractor;
+        let raw = serde_json::json!({
+            "message":"Tool trace complete1 done · 1 blocked"
+        });
+        let cards = extractor.extract(&sample_result(), &raw);
+        assert!(cards.is_empty());
+    }
+
+    #[test]
+    fn extractor_reads_workspace_items_array() {
+        let extractor = EvidenceExtractor;
+        let raw = serde_json::json!({
+            "items": [
+                {"workspace_path":"core/layer2/tooling/src/request_validation.rs", "excerpt":"query synthesis logic"}
+            ]
+        });
+        let cards = extractor.extract(&sample_result(), &raw);
+        assert_eq!(cards.len(), 1);
+        assert_eq!(
+            cards[0].source_ref,
+            "core/layer2/tooling/src/request_validation.rs"
+        );
+    }
+
+    #[test]
+    fn extractor_reads_nested_data_search_results_array() {
+        let extractor = EvidenceExtractor;
+        let raw = serde_json::json!({
+            "data": {
+                "search_results": [
+                    {"source_ref":"workspace://notes", "excerpt":"synthesis candidate"}
+                ]
+            }
+        });
+        let cards = extractor.extract(&sample_result(), &raw);
+        assert_eq!(cards.len(), 1);
+        assert_eq!(cards[0].source_ref, "workspace://notes");
+    }
+
+    #[test]
+    fn extractor_does_not_drop_normal_result_summary_text() {
+        let extractor = EvidenceExtractor;
+        let raw = serde_json::json!({
+            "results": [{"summary":"result throughput improved by 20%","source_ref":"https://example.com"}]
+        });
+        let cards = extractor.extract(&sample_result(), &raw);
+        assert_eq!(cards.len(), 1);
+    }
+
+    #[test]
+    fn extractor_reads_hits_array_payloads() {
+        let extractor = EvidenceExtractor;
+        let raw = serde_json::json!({
+            "hits": [
+                {"repository":"https://example.com/repo.git", "message":"hit", "excerpt":"tool route evidence"}
+            ]
+        });
+        let cards = extractor.extract(&sample_result(), &raw);
+        assert_eq!(cards.len(), 1);
+        assert_eq!(cards[0].source_ref, "https://example.com/repo.git");
+    }
+
+    #[test]
+    fn extractor_builds_summary_from_provider_language_and_platform_facets() {
+        let extractor = EvidenceExtractor;
+        let raw = serde_json::json!({
+            "results":[
+                {
+                    "provider":{"name":"openai"},
+                    "language":"rust",
+                    "platform":"windows",
+                    "excerpt":"route fallback was blocked"
+                }
+            ]
+        });
+        let cards = extractor.extract(&sample_result(), &raw);
+        assert_eq!(cards.len(), 1);
+        assert!(cards[0].summary.contains("provider=openai"));
+        assert!(cards[0].summary.contains("language=rust"));
+        assert!(cards[0].summary.contains("platform=windows"));
     }
 }

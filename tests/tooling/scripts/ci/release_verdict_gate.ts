@@ -215,7 +215,7 @@ export function buildReport(rawArgs = parseArgs(process.argv.slice(2))) {
   const releaseProfileGateIds = Array.isArray(verifyProfilesParsed?.profiles?.release?.gate_ids)
     ? verifyProfilesParsed.profiles.release.gate_ids.map((gateId: any) => cleanText(gateId || '', 180)).filter(Boolean)
     : [];
-  const runtimeProofProfileGateIds = Array.isArray(verifyProfilesParsed?.profiles?.runtime-proof?.gate_ids)
+  const runtimeProofProfileGateIds = Array.isArray(verifyProfilesParsed?.profiles?.['runtime-proof']?.gate_ids)
     ? verifyProfilesParsed.profiles['runtime-proof'].gate_ids
         .map((gateId: any) => cleanText(gateId || '', 180))
         .filter(Boolean)

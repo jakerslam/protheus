@@ -48,6 +48,17 @@ type ShellBackendStateContract = {
   required_contract_files?: RequiredContractFile[];
 };
 
+const AUTHORITY_AUDIT_CATEGORIES: Record<string, string[]> = {
+  retry_logic: ['client_retry_policy_branching'],
+  health_inference: [
+    'sidebar_status_state_fallback',
+    'sidebar_status_label_fallback',
+    'client_runtime_state_policy_branching',
+  ],
+  lane_selection: ['client_lane_selection_heuristic'],
+  policy_branching: ['client_runtime_state_policy_branching'],
+};
+
 type Args = {
   policyPath: string;
   contractPath: string;
@@ -133,6 +144,20 @@ function formatMarkdown(payload: any): string {
   lines.push(`- error_violations: ${payload.summary.error_violations}`);
   lines.push(`- warning_violations: ${payload.summary.warning_violations}`);
   lines.push(`- pattern_hits: ${payload.summary.pattern_hits}`);
+  lines.push(`- authority_retry_logic_violations: ${payload.summary.authority_retry_logic_violations}`);
+  lines.push(`- authority_health_inference_violations: ${payload.summary.authority_health_inference_violations}`);
+  lines.push(`- authority_lane_selection_violations: ${payload.summary.authority_lane_selection_violations}`);
+  lines.push(`- authority_policy_branching_violations: ${payload.summary.authority_policy_branching_violations}`);
+  lines.push('');
+  lines.push('## Authority Audit (RTG-019)');
+  lines.push('| category | violations | matches | files |');
+  lines.push('| --- | ---: | ---: | ---: |');
+  for (const row of payload.authority_audit || []) {
+    lines.push(`| ${row.category} | ${row.violations} | ${row.matches} | ${row.files} |`);
+  }
+  if (!(payload.authority_audit || []).length) {
+    lines.push('| (none) | 0 | 0 | 0 |');
+  }
   lines.push('');
   lines.push('## Missing Scan Roots');
   if (!(payload.missing_scan_roots || []).length) {
@@ -563,6 +588,22 @@ function main() {
       matches: row.matches,
     }))
     .sort((a, b) => a.pattern_id.localeCompare(b.pattern_id, 'en'));
+  const authorityAudit = Object.entries(AUTHORITY_AUDIT_CATEGORIES).map(([category, ids]) => {
+    const idSet = new Set(ids.map((id) => String(id || '').trim()).filter(Boolean));
+    const matchedRows = [...errorViolations, ...warningViolations].filter((row) =>
+      idSet.has(String(row.pattern_id || '')),
+    );
+    const fileSet = new Set(matchedRows.map((row) => String(row.file || '')).filter(Boolean));
+    const matches = matchedRows.reduce((sum, row) => sum + Number(row.matches || 0), 0);
+    return {
+      category,
+      violations: matchedRows.length,
+      matches,
+      files: fileSet.size,
+      pattern_ids: Array.from(idSet),
+    };
+  });
+  const authorityAuditMap = new Map(authorityAudit.map((row) => [row.category, row]));
 
   const report = {
     type: 'shell_truth_leak_guard',
@@ -599,6 +640,14 @@ function main() {
       error_violations: errorViolations.length,
       warning_violations: warningViolations.length,
       pattern_hits: patternHits.length,
+      authority_retry_logic_violations:
+        Number(authorityAuditMap.get('retry_logic')?.violations || 0),
+      authority_health_inference_violations:
+        Number(authorityAuditMap.get('health_inference')?.violations || 0),
+      authority_lane_selection_violations:
+        Number(authorityAuditMap.get('lane_selection')?.violations || 0),
+      authority_policy_branching_violations:
+        Number(authorityAuditMap.get('policy_branching')?.violations || 0),
       pass: coverageFailures.length === 0
         && enumFailures.length === 0
         && contractFileFailures.length === 0
@@ -649,6 +698,7 @@ function main() {
     error_violations: errorViolations,
     warning_violations: warningViolations,
     pattern_hits: patternHits,
+    authority_audit: authorityAudit,
   };
 
   const markdown = formatMarkdown({

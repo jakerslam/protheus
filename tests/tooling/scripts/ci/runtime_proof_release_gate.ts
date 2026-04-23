@@ -90,6 +90,25 @@ const EMPIRICAL_REQUIRED_METRIC_KEYS_BY_PROFILE: Record<ProfileId, string[]> = {
   'tiny-max': ['peak_rss_mb', 'receipt_throughput_per_min', 'receipt_p95_latency_ms', 'conduit_recovery_ms'],
 };
 
+const EMPIRICAL_MIN_SAMPLE_POINTS_BY_PROFILE: Record<ProfileId, number> = {
+  rich: 12,
+  pure: 10,
+  'tiny-max': 8,
+};
+
+const REQUIRED_PROOF_METRIC_KEYS = [
+  'peak_rss_mb',
+  'queue_depth_max',
+  'queue_depth_p95',
+  'receipt_throughput_per_min',
+  'receipt_p95_latency_ms',
+  'conduit_recovery_ms',
+  'adapter_restart_count',
+  'adapter_recovery_ms',
+  'recovery_time_ms',
+  'stale_surface_incidents',
+] as const;
+
 type QualityRefreshTarget = {
   id: string;
   script: string;
@@ -232,11 +251,13 @@ function parsePolicyYaml(raw: string): ParsedPolicy {
       currentProfile = cleanText(profileMatch[1], 60);
       currentSection = '';
       if (!policy.profiles[currentProfile]) {
+        const profileFallbackMin =
+          EMPIRICAL_MIN_SAMPLE_POINTS_BY_PROFILE[currentProfile as ProfileId] ?? 0;
         policy.profiles[currentProfile] = {
           proof_tracks: {
             synthetic_required: 1,
-            empirical_required: 0,
-            empirical_min_sample_points: 0,
+            empirical_required: profileFallbackMin > 0 ? 1 : 0,
+            empirical_min_sample_points: profileFallbackMin,
           },
           memory: { peak_rss_mb_max: 0 },
           queue: { depth_max: 0, depth_p95_max: 0 },
@@ -684,7 +705,13 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     };
   });
   const runtimeLaneStateRaw = readJsonBestEffort(path.resolve(root, args.runtimeLaneStatePath));
-  const metrics = harness?.metrics || {};
+  const metrics = harness?.effective_metrics?.metrics || harness?.metrics || {};
+  const syntheticMetricsSection = harness?.synthetic_metrics || {};
+  const syntheticMetrics = syntheticMetricsSection?.metrics || harness?.proof_tracks?.synthetic?.metrics || {};
+  const empiricalMetricsSection = harness?.empirical_metrics || {};
+  const empiricalMetrics = empiricalMetricsSection?.metrics || harness?.proof_tracks?.empirical?.metrics || {};
+  const effectiveMetricsSection = harness?.effective_metrics || {};
+  const effectiveMetricSources = effectiveMetricsSection?.metric_sources || {};
   const gatewayChaosMetrics = gatewayChaos?.metrics || {};
   if (gatewayChaos?.ok === false) {
     const payload = {
@@ -747,8 +774,25 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     });
   }
   const proofTracks = harness?.proof_tracks || {};
+  const selectedTrack = cleanText(proofTracks?.selected || args.proofTrack, 24);
   const empiricalTrack = proofTracks?.empirical || {};
   const empiricalRequired = profilePolicy.proof_tracks.empirical_required > 0;
+  const empiricalProfileMinimumConfigured = Number(profilePolicy.proof_tracks.empirical_min_sample_points || 0) > 0;
+  const empiricalMinFromHarness = Number(
+    empiricalMetricsSection?.min_sample_points_required ||
+      empiricalTrack?.min_sample_points_required ||
+      harness?.summary?.empirical_min_sample_points_required ||
+      0,
+  );
+  const syntheticMetricsSectionPresent = syntheticMetrics && Object.keys(syntheticMetrics).length > 0;
+  const empiricalMetricsSectionPresent = empiricalMetrics && Object.keys(empiricalMetrics).length > 0;
+  const effectiveMetricSourcesCompleteDual =
+    selectedTrack === 'dual'
+      ? REQUIRED_PROOF_METRIC_KEYS.every((key) => {
+          const source = cleanText(String(effectiveMetricSources?.[key] || ''), 24);
+          return source === 'synthetic' || source === 'empirical';
+        })
+      : true;
   const empiricalProvidedKeys = new Set(
     (Array.isArray(empiricalTrack?.provided_keys) ? empiricalTrack.provided_keys : [])
       .map((key: unknown) => cleanText(String(key || ''), 80))
@@ -773,7 +817,6 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const nonPositiveEmpiricalMetricKeys = requiredEmpiricalPositiveMetricKeys.filter(
     (key) => Number(empiricalTrack?.metrics?.[key] || 0) <= 0,
   );
-  const selectedTrack = cleanText(proofTracks?.selected || args.proofTrack, 24);
   const syntheticSamplePoints = Number(proofTracks?.synthetic?.sample_points || 0);
   const empiricalSamplePoints = Number(empiricalTrack?.sample_points || 0);
   const empiricalAvailable = empiricalTrack?.available === true || empiricalSamplePoints > 0;
@@ -866,9 +909,40 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       empiricalRequired ? 1 : 0,
     ),
     buildCheckGe(
+      'proof_track_synthetic_metrics_section_present',
+      syntheticMetricsSectionPresent ? 1 : 0,
+      1,
+    ),
+    buildCheckGe(
+      'proof_track_empirical_metrics_section_present',
+      empiricalMetricsSectionPresent ? 1 : 0,
+      1,
+    ),
+    buildCheckGe(
+      'proof_track_dual_effective_metric_sources_complete',
+      effectiveMetricSourcesCompleteDual ? 1 : 0,
+      selectedTrack === 'dual' ? 1 : 0,
+    ),
+    buildCheckGe(
+      'proof_track_empirical_profile_minimum_configured',
+      empiricalProfileMinimumConfigured ? 1 : 0,
+      empiricalRequired ? 1 : 0,
+    ),
+    buildCheckGe(
       'proof_track_empirical_sample_points_min',
       empiricalSamplePoints,
       empiricalRequired ? profilePolicy.proof_tracks.empirical_min_sample_points : 0,
+    ),
+    buildCheckGe(
+      'proof_track_empirical_minimum_contract_matches_policy',
+      empiricalRequired &&
+        empiricalProfileMinimumConfigured &&
+        empiricalMinFromHarness === Number(profilePolicy.proof_tracks.empirical_min_sample_points || 0)
+        ? 1
+        : empiricalRequired
+          ? 0
+          : 1,
+      1,
     ),
     buildRequiredCompletenessCheck(
       'proof_track_empirical_required_sources_loaded',
@@ -1005,6 +1079,13 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     empirical_min_sample_points: Number(
       profilePolicy.proof_tracks.empirical_min_sample_points || 0,
     ),
+    proof_tracks: {
+      synthetic_required: Number(profilePolicy.proof_tracks.synthetic_required || 0),
+      empirical_required: Number(profilePolicy.proof_tracks.empirical_required || 0),
+      empirical_min_sample_points: Number(
+        profilePolicy.proof_tracks.empirical_min_sample_points || 0,
+      ),
+    },
   };
 
   const metricsPayload = {
@@ -1024,6 +1105,12 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       proof_track_selected: selectedTrack,
       proof_track_synthetic_sample_points: syntheticSamplePoints,
       proof_track_empirical_sample_points: empiricalSamplePoints,
+      proof_track_empirical_profile_minimum_configured: empiricalProfileMinimumConfigured,
+      proof_track_empirical_minimum_required_harness: empiricalMinFromHarness,
+      proof_track_empirical_minimum_required_policy: Number(
+        profilePolicy.proof_tracks.empirical_min_sample_points || 0,
+      ),
+      proof_track_dual_effective_metric_sources_complete: effectiveMetricSourcesCompleteDual,
       proof_track_empirical_required_sources_missing: missingEmpiricalSourceIds,
       proof_track_empirical_required_metrics_missing: missingEmpiricalProvidedKeys,
       proof_track_empirical_required_positive_metrics_missing: nonPositiveEmpiricalMetricKeys,
@@ -1041,6 +1128,24 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       runtime_lane_state_path: args.runtimeLaneStatePath,
     },
     profile_requirements: profileRequirements,
+    synthetic_metrics: {
+      sample_points: syntheticSamplePoints,
+      metrics: syntheticMetrics,
+    },
+    empirical_metrics: {
+      sample_points: empiricalSamplePoints,
+      metrics: empiricalMetrics,
+      provided_keys: empiricalTrack?.provided_keys || [],
+      sources: empiricalSources,
+      min_sample_points_required: Number(
+        profilePolicy.proof_tracks.empirical_min_sample_points || 0,
+      ),
+    },
+    effective_metrics: {
+      track: selectedTrack,
+      metrics,
+      metric_sources: effectiveMetricSources,
+    },
   };
   writeJsonArtifact(args.metricsOutPath, metricsPayload);
   writeTextArtifact(args.tableOutPath, toMarkdownTable(args.profile, checks, args.metricsOutPath));
@@ -1076,6 +1181,24 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     },
     profile_requirements: profileRequirements,
     effective_policy: profileRequirements,
+    synthetic_metrics: {
+      sample_points: syntheticSamplePoints,
+      metrics: syntheticMetrics,
+    },
+    empirical_metrics: {
+      sample_points: empiricalSamplePoints,
+      metrics: empiricalMetrics,
+      provided_keys: empiricalTrack?.provided_keys || [],
+      sources: empiricalSources,
+      min_sample_points_required: Number(
+        profilePolicy.proof_tracks.empirical_min_sample_points || 0,
+      ),
+    },
+    effective_metrics: {
+      track: selectedTrack,
+      metrics,
+      metric_sources: effectiveMetricSources,
+    },
     checks,
     failures,
     artifact_paths: [args.metricsOutPath, args.tableOutPath],
