@@ -19,11 +19,13 @@ function parseArgs(argv: string[]) {
     changelogPath: 'client/runtime/local/state/release/CHANGELOG.auto.md',
     closurePolicyPath: 'client/runtime/config/production_readiness_closure_policy.json',
     supportBundlePath: 'core/local/artifacts/support_bundle_latest.json',
+    nodeCriticalPath: 'core/local/artifacts/node_critical_path_inventory_current.json',
     topologyPath: 'core/local/artifacts/production_topology_diagnostic_current.json',
     stateCompatPath: 'core/local/artifacts/stateful_upgrade_rollback_gate_current.json',
     blockersPath: 'core/local/artifacts/release_blocker_rubric_current.json',
     closurePath: 'core/local/artifacts/production_readiness_closure_gate_current.json',
     hardeningPath: 'core/local/artifacts/release_hardening_window_guard_current.json',
+    boundednessReleaseGatePath: 'core/local/artifacts/runtime_boundedness_release_gate_current.json',
     ipcSoakPath: 'local/state/ops/ops_ipc_bridge_stability_soak/latest.json',
     drPath: 'local/state/ops/dr_gameday/latest.json',
     benchmarkPath: 'docs/client/reports/benchmark_matrix_run_latest.json',
@@ -52,11 +54,13 @@ function parseArgs(argv: string[]) {
     else if (token.startsWith('--changelog=')) out.changelogPath = cleanText(token.slice(12), 400);
     else if (token.startsWith('--closure-policy=')) out.closurePolicyPath = cleanText(token.slice(17), 400);
     else if (token.startsWith('--support-bundle=')) out.supportBundlePath = cleanText(token.slice(17), 400);
+    else if (token.startsWith('--node-critical-path=')) out.nodeCriticalPath = cleanText(token.slice(21), 400);
     else if (token.startsWith('--topology=')) out.topologyPath = cleanText(token.slice(11), 400);
     else if (token.startsWith('--state-compat=')) out.stateCompatPath = cleanText(token.slice(15), 400);
     else if (token.startsWith('--blockers=')) out.blockersPath = cleanText(token.slice(11), 400);
     else if (token.startsWith('--closure=')) out.closurePath = cleanText(token.slice(10), 400);
     else if (token.startsWith('--hardening=')) out.hardeningPath = cleanText(token.slice(12), 400);
+    else if (token.startsWith('--boundedness-release-gate=')) out.boundednessReleaseGatePath = cleanText(token.slice(27), 400);
     else if (token.startsWith('--ipc-soak=')) out.ipcSoakPath = cleanText(token.slice(11), 400);
     else if (token.startsWith('--dr=')) out.drPath = cleanText(token.slice(5), 400);
     else if (token.startsWith('--benchmark=')) out.benchmarkPath = cleanText(token.slice(12), 400);
@@ -199,11 +203,13 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
   const changelogPath = resolveMaybe(root, normalizedArgs.changelogPath);
   const closurePolicyPath = resolveMaybe(root, normalizedArgs.closurePolicyPath);
   const supportBundlePath = resolveMaybe(root, normalizedArgs.supportBundlePath);
+  const nodeCriticalPath = resolveMaybe(root, normalizedArgs.nodeCriticalPath);
   const topologyPath = resolveMaybe(root, normalizedArgs.topologyPath);
   const stateCompatPath = resolveMaybe(root, normalizedArgs.stateCompatPath);
   const blockersPath = resolveMaybe(root, normalizedArgs.blockersPath);
   const closurePath = resolveMaybe(root, normalizedArgs.closurePath);
   const hardeningPath = resolveMaybe(root, normalizedArgs.hardeningPath);
+  const boundednessReleaseGatePath = resolveMaybe(root, normalizedArgs.boundednessReleaseGatePath);
   const ipcSoakPath = resolveMaybe(root, normalizedArgs.ipcSoakPath);
   const drPath = resolveMaybe(root, normalizedArgs.drPath);
   const benchmarkPath = resolveMaybe(root, normalizedArgs.benchmarkPath);
@@ -219,11 +225,13 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
   const canary = readJsonMaybe(canaryPath) ?? {};
   const closurePolicy = readJsonMaybe(closurePolicyPath) ?? {};
   const supportBundle = readJsonMaybe(supportBundlePath) ?? {};
+  const nodeCriticalPathInventory = readJsonMaybe(nodeCriticalPath) ?? {};
   const topology = readJsonMaybe(topologyPath) ?? {};
   const stateCompat = readJsonMaybe(stateCompatPath) ?? {};
   const blockers = readJsonMaybe(blockersPath) ?? {};
   const closure = readJsonMaybe(closurePath) ?? {};
   const hardening = readJsonMaybe(hardeningPath) ?? {};
+  const boundednessReleaseGate = readJsonMaybe(boundednessReleaseGatePath) ?? {};
   const ipcSoak = readJsonFirst([ipcSoakPath, ipcSoakFallbackPath]) ?? {};
   const dr = readJsonMaybe(drPath) ?? {};
   const benchmark = readJsonMaybe(benchmarkPath) ?? {};
@@ -254,6 +262,19 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
   );
   const observedRtoMinutes = safeNumber(dr?.observed_rto_minutes, Number.POSITIVE_INFINITY);
   const observedRpoHours = safeNumber(dr?.observed_rpo_hours, Number.POSITIVE_INFINITY);
+  const nodeCriticalInventoryOk = nodeCriticalPathInventory?.ok === true;
+  const nodeCriticalPriorityOneMissingRustCount = safeNumber(
+    nodeCriticalPathInventory?.summary?.operator_critical_priority_one_missing_rust_count,
+    Number.POSITIVE_INFINITY,
+  );
+  const nodeCriticalMigrationOverdueCount = safeNumber(
+    nodeCriticalPathInventory?.summary?.migration_overdue_count,
+    Number.POSITIVE_INFINITY,
+  );
+  const nodeCriticalTsConfinementViolationCount = safeNumber(
+    nodeCriticalPathInventory?.summary?.ts_confinement_violation_count,
+    Number.POSITIVE_INFINITY,
+  );
   const baselineAvailable = Boolean(baselineScorecard && typeof baselineScorecard === 'object');
   const baselineThresholds = baselineAvailable ? baselineScorecard?.thresholds ?? {} : {};
   const baselineTag = cleanText(normalizedArgs.baselineTag || baselineScorecard?.tag || 'none', 120);
@@ -486,6 +507,31 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
       `value=${observedRpoHours};max=${safeNumber(thresholds.recovery_rpo_hours_max, 24)}`
     ),
     gateRow(
+      'boundedness_release_gate',
+      boundednessReleaseGate?.ok === true,
+      `failed=${safeNumber(boundednessReleaseGate?.summary?.failed_count, Number.NaN)};warnings=${safeNumber(boundednessReleaseGate?.summary?.warning_count, Number.NaN)}`
+    ),
+    gateRow(
+      'node_critical_path_inventory_gate',
+      nodeCriticalInventoryOk,
+      `path=${path.relative(root, nodeCriticalPath)};ok=${nodeCriticalInventoryOk}`,
+    ),
+    gateRow(
+      'node_critical_priority_one_rust_target_coverage',
+      nodeCriticalPriorityOneMissingRustCount === 0,
+      `value=${nodeCriticalPriorityOneMissingRustCount};expected=0`,
+    ),
+    gateRow(
+      'node_critical_migration_overdue_zero',
+      nodeCriticalMigrationOverdueCount === 0,
+      `value=${nodeCriticalMigrationOverdueCount};expected=0`,
+    ),
+    gateRow(
+      'node_critical_ts_confinement_violations_zero',
+      nodeCriticalTsConfinementViolationCount === 0,
+      `value=${nodeCriticalTsConfinementViolationCount};expected=0`,
+    ),
+    gateRow(
       'benchmark_class_microkernel_shared_present',
       Number.isFinite(microkernelSharedOps) && microkernelSharedOps > 0,
       `value=${Number.isFinite(microkernelSharedOps) ? microkernelSharedOps : 'missing'}`
@@ -554,6 +600,10 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
       supported_command_latency_ms_max: safeNumber(thresholds.supported_command_latency_ms_max, 2500),
       recovery_rto_minutes_max: safeNumber(thresholds.recovery_rto_minutes_max, 30),
       recovery_rpo_hours_max: safeNumber(thresholds.recovery_rpo_hours_max, 24),
+      boundedness_regression_tolerance_pct: safeNumber(
+        boundednessReleaseGate?.boundedness_budgets?.regression_tolerance_pct,
+        Number.NaN,
+      ),
     },
     thresholds: {
       ipc_success_rate: Number(ipcSuccessRate.toFixed(4)),
@@ -562,6 +612,21 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
       closure_command_latency_ms: closureCommandLatencyMs,
       observed_rto_minutes: observedRtoMinutes,
       observed_rpo_hours: observedRpoHours,
+      node_critical_priority_one_missing_rust_count: nodeCriticalPriorityOneMissingRustCount,
+      node_critical_migration_overdue_count: nodeCriticalMigrationOverdueCount,
+      node_critical_ts_confinement_violation_count: nodeCriticalTsConfinementViolationCount,
+      boundedness_failed_count: safeNumber(boundednessReleaseGate?.summary?.failed_count, Number.NaN),
+      boundedness_warning_count: safeNumber(boundednessReleaseGate?.summary?.warning_count, Number.NaN),
+    },
+    boundedness_budgets: boundednessReleaseGate?.boundedness_budgets ?? {},
+    boundedness_soak_projection: boundednessReleaseGate?.soak_projection ?? {},
+    node_critical_path: {
+      path: path.relative(root, nodeCriticalPath),
+      ok: nodeCriticalInventoryOk,
+      summary: nodeCriticalPathInventory?.summary ?? {},
+      failed_ids: Array.isArray(nodeCriticalPathInventory?.failures)
+        ? nodeCriticalPathInventory.failures.map((row: any) => cleanText(row?.id || '', 120))
+        : [],
     },
     benchmark_classes: benchmarkClasses,
     benchmark_trends: {

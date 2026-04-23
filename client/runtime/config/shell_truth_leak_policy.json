@@ -1,5 +1,5 @@
 {
-  "version": "2026-04-20",
+  "version": "2026-04-23",
   "scan_roots": [
     "client/runtime/systems/ui",
     "client/runtime/systems/ui/infring_static/js",
@@ -16,7 +16,8 @@
     "__tests__",
     "/dist/",
     "/build/",
-    "node_modules"
+    "node_modules",
+    "/infring_static/js/svelte/"
   ],
   "required_pattern_ids": [
     "workflow_unexpected_state_retry_loop",
@@ -37,7 +38,10 @@
     "file_list_policy_gate_trace_blocked_template",
     "file_tooling_validation_drift_template",
     "file_list_policy_gate_template",
-    "file_list_raw_lease_denied_echo"
+    "file_list_raw_lease_denied_echo",
+    "client_retry_policy_branching",
+    "client_lane_selection_heuristic",
+    "client_runtime_state_policy_branching"
   ],
   "forbidden_patterns": [
     {
@@ -86,13 +90,19 @@
       "id": "client_retry_policy_branching",
       "severity": "warn",
       "description": "Shell retry/backoff policy branching should stay non-authoritative and observable only.",
-      "regex": "\\b(retry|backoff|quarantine|defer)\\w*\\s*\\("
+      "regex": "\\b(if|switch)\\s*\\([^\\n]{0,220}\\b(retry|backoff|quarantine|defer)\\b"
     },
     {
       "id": "client_lane_selection_heuristic",
       "severity": "warn",
       "description": "Shell lane-selection heuristics indicate shell truth leakage risk.",
-      "regex": "\\b(select|choose|resolve)\\w*Lane\\s*\\("
+      "regex": "\\b(if|switch)\\s*\\([^\\n]{0,220}\\b(lane|lane_id|selectedLane|resolveLane|chooseLane)\\b"
+    },
+    {
+      "id": "client_runtime_state_policy_branching",
+      "severity": "warn",
+      "description": "Shell must not branch local authority policy from runtime status fields; consume backend-authoritative state/freshness directly.",
+      "regex": "\\b(if|switch)\\s*\\([^\\n]{0,260}\\b(sidebar_status_state|sidebar_status_label|sidebar_status_freshness)\\b"
     },
     {
       "id": "workflow_unexpected_state_retry_loop",
@@ -199,7 +209,13 @@
   ],
   "allowed_pattern_paths": {
     "client_retry_policy_branching": [
-      "client/runtime/systems/ui/infring_static/js/app.ts.parts/040-events-and-actions.part01.ts"
+      "client/runtime/systems/ui/infring_static/js/app.ts.parts/020-nav-and-layout.part02.ts",
+      "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/200-send-pipeline.part02.ts",
+      "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/215-rendering-and-metadata-upgrades.ts"
+    ],
+    "client_lane_selection_heuristic": [
+      "client/runtime/systems/ui/infring_static/js/app.ts.parts/040-events-and-actions.part02.ts",
+      "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/070-init-sequences-and-pointer.part01.ts"
     ]
   }
 }

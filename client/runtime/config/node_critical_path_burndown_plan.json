@@ -23,6 +23,20 @@
     "client/runtime/systems/extensions/",
     "client/runtime/systems/marketplace/"
   ],
+  "ordered_migration_queue": [
+    "ops:production-topology:status",
+    "ops:release:proof-pack",
+    "ops:production-topology:gate",
+    "ops:release:scorecard:gate",
+    "dr:gameday:gate",
+    "ops:release:verdict",
+    "ops:stateful-upgrade-rollback:gate",
+    "ops:support-bundle:export",
+    "ops:trusted-core:report",
+    "ops:layer2:parity:guard",
+    "ops:runtime-proof:verify",
+    "ops:node-critical-path:inventory"
+  ],
   "lanes": [
     {
       "id": "ops:release:proof-pack",

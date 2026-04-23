@@ -8,10 +8,26 @@ import { emitStructuredResult } from '../../lib/result.ts';
 
 type SupportLevel = 'experimental' | 'candidate' | 'graduated';
 type ChecklistStatus = 'pending' | 'in_progress' | 'complete';
+type ChecklistKey =
+  | 'health_checks'
+  | 'fail_closed_behavior'
+  | 'chaos_scenarios'
+  | 'fallback_degradation_declaration'
+  | 'receipt_completeness'
+  | 'recovery_bounds';
+type SupportLevelContractRow = {
+  required_checklist_keys: ChecklistKey[];
+  allowed_checklist_statuses: ChecklistStatus[];
+};
+type SupportLevelContract = Record<SupportLevel, SupportLevelContractRow>;
 type ManifestSchema = {
   version: number;
   required_hooks: string[];
   required_scenarios: string[];
+  support_level_contract?: Partial<Record<SupportLevel, {
+    required_checklist_keys?: string[];
+    allowed_checklist_statuses?: string[];
+  }>>;
 };
 
 const ALLOWED_SUPPORT_LEVELS = new Set<SupportLevel>([
@@ -39,6 +55,25 @@ const REQUIRED_CHECKLIST_KEYS_WITH_FAIL_CLOSED = [
   'receipt_completeness',
   'recovery_bounds',
 ] as const;
+const SUPPORT_LEVEL_ORDER: SupportLevel[] = [
+  'experimental',
+  'candidate',
+  'graduated',
+];
+const EXPECTED_SUPPORT_LEVEL_CONTRACT: SupportLevelContract = {
+  experimental: {
+    required_checklist_keys: [...REQUIRED_CHECKLIST_KEYS],
+    allowed_checklist_statuses: ['pending', 'in_progress', 'complete'],
+  },
+  candidate: {
+    required_checklist_keys: [...REQUIRED_CHECKLIST_KEYS],
+    allowed_checklist_statuses: ['in_progress', 'complete'],
+  },
+  graduated: {
+    required_checklist_keys: [...REQUIRED_CHECKLIST_KEYS_WITH_FAIL_CLOSED],
+    allowed_checklist_statuses: ['complete'],
+  },
+};
 const EXPECTED_MANIFEST_VERSION = 3;
 const EXPECTED_REQUIRED_HOOKS = [
   'health_check',
@@ -64,6 +99,29 @@ const EXPECTED_GATEWAY_TARGET_IDS = [
   'durable_memory_local',
 ];
 
+function normalizeStringArray(raw: unknown, maxLen = 80): string[] {
+  return Array.isArray(raw)
+    ? raw.map((value) => cleanText(String(value || ''), maxLen)).filter(Boolean)
+    : [];
+}
+
+function cloneSupportLevelContract(contract: SupportLevelContract): SupportLevelContract {
+  return {
+    experimental: {
+      required_checklist_keys: [...contract.experimental.required_checklist_keys],
+      allowed_checklist_statuses: [...contract.experimental.allowed_checklist_statuses],
+    },
+    candidate: {
+      required_checklist_keys: [...contract.candidate.required_checklist_keys],
+      allowed_checklist_statuses: [...contract.candidate.allowed_checklist_statuses],
+    },
+    graduated: {
+      required_checklist_keys: [...contract.graduated.required_checklist_keys],
+      allowed_checklist_statuses: [...contract.graduated.allowed_checklist_statuses],
+    },
+  };
+}
+
 function parseArgs(argv: string[]) {
   const common = parseStrictOutArgs(argv, {
     out: 'core/local/artifacts/gateway_status_manifest_current.json',
@@ -82,6 +140,16 @@ function parseArgs(argv: string[]) {
     supportLevelsPath: cleanText(
       readFlag(argv, 'support-levels') ||
         'core/local/artifacts/gateway_support_levels_current.json',
+      400,
+    ),
+    snapshotPath: cleanText(
+      readFlag(argv, 'out-snapshot') ||
+        'core/local/artifacts/gateway_graduation_status_snapshot_current.json',
+      400,
+    ),
+    snapshotMarkdownPath: cleanText(
+      readFlag(argv, 'out-snapshot-markdown') ||
+        'local/workspace/reports/GATEWAY_GRADUATION_STATUS_SNAPSHOT_CURRENT.md',
       400,
     ),
   };
@@ -155,12 +223,65 @@ function writeMarkdown(filePath: string, body: string): void {
   fs.writeFileSync(filePath, body, 'utf8');
 }
 
+function writeJson(filePath: string, payload: unknown): void {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
+}
+
+function renderSnapshotMarkdown(payload: any): string {
+  const lines: string[] = [];
+  lines.push('# Gateway Graduation Status Snapshot (Current)');
+  lines.push('');
+  lines.push(`- generated_at: ${cleanText(payload?.generated_at || '', 80)}`);
+  lines.push(`- revision: ${cleanText(payload?.revision || '', 120)}`);
+  lines.push(`- pass: ${payload?.ok === true ? 'true' : 'false'}`);
+  lines.push('');
+  lines.push('## Summary');
+  lines.push(`- target_gateway_count: ${Number(payload?.summary?.target_gateway_count || 0)}`);
+  lines.push(`- graduated_ready_count: ${Number(payload?.summary?.graduated_ready_count || 0)}`);
+  lines.push(`- candidate_ready_count: ${Number(payload?.summary?.candidate_ready_count || 0)}`);
+  lines.push(`- experimental_ready_count: ${Number(payload?.summary?.experimental_ready_count || 0)}`);
+  lines.push(`- failure_count: ${Number(payload?.summary?.failure_count || 0)}`);
+  lines.push('');
+  lines.push('## Support Level Counts');
+  const counts = payload?.summary?.support_level_counts || {};
+  lines.push(`- graduated: ${Number(counts.graduated || 0)}`);
+  lines.push(`- candidate: ${Number(counts.candidate || 0)}`);
+  lines.push(`- experimental: ${Number(counts.experimental || 0)}`);
+  lines.push('');
+  lines.push('## Gateways');
+  const rows = Array.isArray(payload?.gateways) ? payload.gateways : [];
+  if (rows.length === 0) {
+    lines.push('- none');
+  } else {
+    lines.push('| id | support_level | readiness_ok | owner | blocker |');
+    lines.push('| --- | --- | --- | --- | --- |');
+    for (const row of rows) {
+      lines.push(
+        `| ${cleanText(row?.id || '', 80)} | ${cleanText(
+          row?.support_level || '',
+          40,
+        )} | ${row?.support_level_readiness_ok === true ? 'true' : 'false'} | ${cleanText(
+          row?.owner || '',
+          120,
+        )} | ${cleanText(row?.blocker || '', 160)} |`,
+      );
+    }
+  }
+  lines.push('');
+  return `${lines.join('\n')}\n`;
+}
+
 export function run(argv: string[] = process.argv.slice(2)): number {
   const root = process.cwd();
   const args = parseArgs(argv);
   const manifest = readJsonBestEffort(path.resolve(root, args.manifestPath));
   const supportLevelsPayload = readJsonBestEffort(path.resolve(root, args.supportLevelsPath));
   const failures: Array<{ id: string; detail: string }> = [];
+
+  const supportLevelContract: SupportLevelContract = cloneSupportLevelContract(
+    EXPECTED_SUPPORT_LEVEL_CONTRACT,
+  );
 
   if (!manifest) {
     failures.push({
@@ -192,6 +313,87 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         id: 'gateway_manifest_required_scenarios_noncanonical',
         detail: requiredScenarios.join(',') || 'missing',
       });
+    }
+
+    const rawSupportLevelContract = (manifest as ManifestSchema).support_level_contract;
+    if (!rawSupportLevelContract || typeof rawSupportLevelContract !== 'object') {
+      failures.push({
+        id: 'gateway_manifest_support_level_contract_missing',
+        detail: 'support_level_contract',
+      });
+    } else {
+      const declaredLevels = Object.keys(rawSupportLevelContract)
+        .map((value) => cleanText(String(value || ''), 40).toLowerCase())
+        .filter(Boolean);
+      if (declaredLevels.join('|') !== SUPPORT_LEVEL_ORDER.join('|')) {
+        failures.push({
+          id: 'gateway_manifest_support_level_contract_levels_noncanonical',
+          detail: declaredLevels.join(',') || 'missing',
+        });
+      }
+
+      for (const level of SUPPORT_LEVEL_ORDER) {
+        const contractRow = rawSupportLevelContract[level];
+        if (!contractRow || typeof contractRow !== 'object') {
+          failures.push({
+            id: 'gateway_manifest_support_level_contract_row_missing',
+            detail: level,
+          });
+          continue;
+        }
+
+        const requiredChecklistKeys = normalizeStringArray(
+          contractRow.required_checklist_keys,
+          80,
+        );
+        const allowedChecklistStatuses = normalizeStringArray(
+          contractRow.allowed_checklist_statuses,
+          40,
+        );
+
+        const expectedRequired = EXPECTED_SUPPORT_LEVEL_CONTRACT[level].required_checklist_keys;
+        if (requiredChecklistKeys.join('|') !== expectedRequired.join('|')) {
+          failures.push({
+            id: 'gateway_manifest_support_level_contract_required_keys_noncanonical',
+            detail: `${level}:${requiredChecklistKeys.join(',') || 'missing'}`,
+          });
+        }
+
+        const expectedAllowed = EXPECTED_SUPPORT_LEVEL_CONTRACT[level].allowed_checklist_statuses;
+        if (allowedChecklistStatuses.join('|') !== expectedAllowed.join('|')) {
+          failures.push({
+            id: 'gateway_manifest_support_level_contract_allowed_statuses_noncanonical',
+            detail: `${level}:${allowedChecklistStatuses.join(',') || 'missing'}`,
+          });
+        }
+
+        const invalidRequiredKeys = requiredChecklistKeys.filter((key) =>
+          !REQUIRED_CHECKLIST_KEYS_WITH_FAIL_CLOSED.includes(key as ChecklistKey),
+        );
+        if (invalidRequiredKeys.length > 0) {
+          failures.push({
+            id: 'gateway_manifest_support_level_contract_required_keys_invalid',
+            detail: `${level}:${invalidRequiredKeys.join(',')}`,
+          });
+        }
+
+        const invalidAllowedStatuses = allowedChecklistStatuses.filter((status) =>
+          !ALLOWED_CHECKLIST_STATUS.has(status as ChecklistStatus),
+        );
+        if (invalidAllowedStatuses.length > 0) {
+          failures.push({
+            id: 'gateway_manifest_support_level_contract_allowed_statuses_invalid',
+            detail: `${level}:${invalidAllowedStatuses.join(',')}`,
+          });
+        }
+
+        if (invalidRequiredKeys.length === 0 && invalidAllowedStatuses.length === 0) {
+          supportLevelContract[level] = {
+            required_checklist_keys: requiredChecklistKeys as ChecklistKey[],
+            allowed_checklist_statuses: allowedChecklistStatuses as ChecklistStatus[],
+          };
+        }
+      }
     }
   }
 
@@ -337,18 +539,17 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       });
     }
 
-    const statusByKey = new Map<string, string>(
+    const statusByKey = new Map<string, ChecklistStatus>(
       checklistStatuses.map((row) => [row.key, row.status]),
     );
-    const requiredForReadiness =
-      supportLevel === 'graduated'
-        ? REQUIRED_CHECKLIST_KEYS_WITH_FAIL_CLOSED
-        : REQUIRED_CHECKLIST_KEYS;
+    const readinessContract = supportLevelContract[supportLevel];
+    const requiredForReadiness = readinessContract.required_checklist_keys;
+    const allowedStatusesForReadiness = new Set<ChecklistStatus>(
+      readinessContract.allowed_checklist_statuses,
+    );
     const supportLevelReadinessOk = requiredForReadiness.every((key) => {
-      const status = statusByKey.get(key) || '';
-      if (supportLevel === 'graduated') return status === 'complete';
-      if (supportLevel === 'candidate') return status === 'complete' || status === 'in_progress';
-      return status === 'complete' || status === 'in_progress' || status === 'pending';
+      const status = statusByKey.get(key) || 'pending';
+      return allowedStatusesForReadiness.has(status);
     });
 
     if (!supportLevelReadinessOk) {
@@ -396,6 +597,48 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     failures,
   };
 
+  const supportLevelCounts = targets.reduce(
+    (acc, row) => {
+      if (row.support_level === 'graduated') acc.graduated += 1;
+      else if (row.support_level === 'candidate') acc.candidate += 1;
+      else acc.experimental += 1;
+      return acc;
+    },
+    {
+      graduated: 0,
+      candidate: 0,
+      experimental: 0,
+    },
+  );
+  const snapshot = {
+    ok: payload.ok,
+    type: 'gateway_graduation_status_snapshot',
+    generated_at: payload.generated_at,
+    revision: payload.revision,
+    manifest_path: payload.manifest_path,
+    support_levels_path: payload.support_levels_path,
+    source_artifact: args.outPath,
+    summary: {
+      pass: payload.ok,
+      target_gateway_count: targets.length,
+      graduated_ready_count: targets.filter(
+        (row) => row.support_level === 'graduated' && row.support_level_readiness_ok,
+      ).length,
+      candidate_ready_count: targets.filter(
+        (row) => row.support_level === 'candidate' && row.support_level_readiness_ok,
+      ).length,
+      experimental_ready_count: targets.filter(
+        (row) => row.support_level === 'experimental' && row.support_level_readiness_ok,
+      ).length,
+      support_level_counts: supportLevelCounts,
+      failure_count: failures.length,
+    },
+    gateways: targets,
+    failures,
+  };
+
+  writeJson(path.resolve(root, args.snapshotPath), snapshot);
+  writeMarkdown(path.resolve(root, args.snapshotMarkdownPath), renderSnapshotMarkdown(snapshot));
   writeMarkdown(path.resolve(root, args.markdownPath), renderMarkdown(payload));
   return emitStructuredResult(payload, {
     outPath: args.outPath,

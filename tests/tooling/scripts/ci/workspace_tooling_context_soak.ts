@@ -7,12 +7,24 @@ const ROOT = process.cwd();
 const ARTIFACT_DIR = path.join(ROOT, 'artifacts');
 const STATE_DIR = path.join(ROOT, 'local', 'state', 'ops', 'workspace_tooling_context_soak');
 const STATE_LATEST_PATH = path.join(STATE_DIR, 'latest.json');
+const ARTIFACT_CONTEXT_LATEST_PATH = path.join(
+  ARTIFACT_DIR,
+  'workspace_tooling_context_soak_report_latest.json',
+);
+const ARTIFACT_ALIAS_LATEST_PATH = path.join(ARTIFACT_DIR, 'workspace_tooling_soak_report_latest.json');
 const CORE_ARTIFACT_PATH = path.join(
   ROOT,
   'core',
   'local',
   'artifacts',
   'workspace_tooling_context_soak_current.json',
+);
+const CORE_ARTIFACT_ALIAS_PATH = path.join(
+  ROOT,
+  'core',
+  'local',
+  'artifacts',
+  'workspace_tooling_soak_current.json',
 );
 const MARKDOWN_PATH = path.join(
   ROOT,
@@ -47,6 +59,24 @@ const EXPECTED_REQUIRED_REPLAY_SCENARIOS: ReplayScenario[] = [
   'repo_path_targeting',
   'mixed_workspace_tool_routing',
 ];
+const EXPECTED_REPLAY_CASES: Record<ReplayScenario, { id: string; test: string }> = {
+  file_read: {
+    id: 'replay_file_read_contract',
+    test: 'workflow_decision_tree_v2_classifies_file_edits_as_task_route',
+  },
+  file_search: {
+    id: 'replay_file_search_contract',
+    test: 'compare_workflow_hint_clusters_workspace_and_web_tools',
+  },
+  repo_path_targeting: {
+    id: 'replay_repo_path_targeting_contract',
+    test: 'natural_web_intent_does_not_force_plain_workspace_peer_compare_into_web',
+  },
+  mixed_workspace_tool_routing: {
+    id: 'replay_mixed_workspace_tool_routing_contract',
+    test: 'compare_workflow_harness_decomposes_local_and_web_evidence_before_final_synthesis',
+  },
+};
 
 const EXPECTED_SOAK_LANES: SoakLane[] = ['routing', 'hints', 'synthesis', 'replay'];
 
@@ -183,6 +213,12 @@ function readFixture(): { cases: SoakCase[]; requiredReplayScenarios: ReplayScen
   const replayScenarioUnexpected = replayRows
     .map((row) => row.scenario)
     .filter((scenario) => !requiredReplayScenarios.includes(scenario));
+  const replayScenarioOrder = replayRows.map((row) => row.scenario);
+  const replayExpectedScenarioOrder = [...EXPECTED_REQUIRED_REPLAY_SCENARIOS];
+  const replayCaseOrder = replayRows.map((row) => row.id);
+  const replayExpectedCaseOrder = replayExpectedScenarioOrder.map(
+    (scenario) => EXPECTED_REPLAY_CASES[scenario].id,
+  );
   if (cases.length === 0) {
     return {
       cases: [],
@@ -266,6 +302,46 @@ function readFixture(): { cases: SoakCase[]; requiredReplayScenarios: ReplayScen
       requiredReplayScenarios: [],
       error: `fixture_replay_lane_scenario_unexpected:${Array.from(new Set(replayScenarioUnexpected)).join(',')}`,
     };
+  }
+  if (replayScenarioOrder.join('|') !== replayExpectedScenarioOrder.join('|')) {
+    return {
+      cases: [],
+      requiredReplayScenarios: [],
+      error: `fixture_replay_lane_scenario_order_noncanonical:expected=${replayExpectedScenarioOrder.join(',')};actual=${replayScenarioOrder.join(',')}`,
+    };
+  }
+  if (replayCaseOrder.join('|') !== replayExpectedCaseOrder.join('|')) {
+    return {
+      cases: [],
+      requiredReplayScenarios: [],
+      error: `fixture_replay_lane_case_order_noncanonical:expected=${replayExpectedCaseOrder.join(',')};actual=${replayCaseOrder.join(',')}`,
+    };
+  }
+  for (const scenario of replayExpectedScenarioOrder) {
+    const scenarioRows = replayRows.filter((row) => row.scenario === scenario);
+    if (scenarioRows.length !== 1) {
+      return {
+        cases: [],
+        requiredReplayScenarios: [],
+        error: `fixture_replay_lane_case_cardinality_invalid:${scenario}:${scenarioRows.length}`,
+      };
+    }
+    const expected = EXPECTED_REPLAY_CASES[scenario];
+    const row = scenarioRows[0];
+    if (row.id !== expected.id) {
+      return {
+        cases: [],
+        requiredReplayScenarios: [],
+        error: `fixture_replay_lane_case_id_noncanonical:${scenario}:expected=${expected.id};actual=${row.id}`,
+      };
+    }
+    if (row.test !== expected.test) {
+      return {
+        cases: [],
+        requiredReplayScenarios: [],
+        error: `fixture_replay_lane_case_test_noncanonical:${scenario}:expected=${expected.test};actual=${row.test}`,
+      };
+    }
   }
   return {
     cases,
@@ -399,8 +475,10 @@ if (fixture.error) {
     stderr_tail: fixture.error,
   };
   writeJson(CORE_ARTIFACT_PATH, report);
+  writeJson(CORE_ARTIFACT_ALIAS_PATH, report);
   writeJson(STATE_LATEST_PATH, report);
-  writeJson(path.join(ARTIFACT_DIR, 'workspace_tooling_context_soak_report_latest.json'), report);
+  writeJson(ARTIFACT_CONTEXT_LATEST_PATH, report);
+  writeJson(ARTIFACT_ALIAS_LATEST_PATH, report);
   fs.mkdirSync(path.dirname(MARKDOWN_PATH), { recursive: true });
   fs.writeFileSync(MARKDOWN_PATH, renderMarkdown(report), 'utf8');
   process.stdout.write(`${JSON.stringify(report)}\n`);
@@ -507,11 +585,12 @@ const report: SoakReport = {
 fs.mkdirSync(ARTIFACT_DIR, { recursive: true });
 const stamp = tsSlug(report.finished_at);
 const stampedPath = path.join(ARTIFACT_DIR, `workspace_tooling_context_soak_report_${stamp}.json`);
-const latestPath = path.join(ARTIFACT_DIR, 'workspace_tooling_context_soak_report_latest.json');
 writeJson(stampedPath, report);
-writeJson(latestPath, report);
+writeJson(ARTIFACT_CONTEXT_LATEST_PATH, report);
+writeJson(ARTIFACT_ALIAS_LATEST_PATH, report);
 writeJson(STATE_LATEST_PATH, report);
 writeJson(CORE_ARTIFACT_PATH, report);
+writeJson(CORE_ARTIFACT_ALIAS_PATH, report);
 fs.mkdirSync(path.dirname(MARKDOWN_PATH), { recursive: true });
 fs.writeFileSync(MARKDOWN_PATH, renderMarkdown(report), 'utf8');
 

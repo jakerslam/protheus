@@ -223,12 +223,47 @@ pub const TOOL_CAPABILITY_PROBE_FIELDS: &[&str] = &[
     "resident_ipc_authoritative",
 ];
 
+pub fn published_tool_alias_contract_v1() -> Vec<Value> {
+    vec![
+        json!({"requested_tool_name": "workspace_read", "canonical_tool_name": "file_read"}),
+        json!({"requested_tool_name": "workspace_read_many", "canonical_tool_name": "file_read_many"}),
+        json!({"requested_tool_name": "read_many_files", "canonical_tool_name": "file_read_many"}),
+        json!({"requested_tool_name": "workspace_search", "canonical_tool_name": "workspace_analyze"}),
+        json!({"requested_tool_name": "file_search", "canonical_tool_name": "workspace_analyze"}),
+        json!({"requested_tool_name": "file_list", "canonical_tool_name": "workspace_analyze"}),
+        json!({"requested_tool_name": "context_search", "canonical_tool_name": "workspace_analyze"}),
+        json!({"requested_tool_name": "context_resolve", "canonical_tool_name": "workspace_analyze"}),
+        json!({"requested_tool_name": "workspace_context", "canonical_tool_name": "workspace_analyze"}),
+        json!({"requested_tool_name": "local_context", "canonical_tool_name": "workspace_analyze"}),
+        json!({"requested_tool_name": "context_mentions", "canonical_tool_name": "workspace_analyze"}),
+        json!({"requested_tool_name": "slash_command_route", "canonical_tool_name": "workspace_analyze"}),
+        json!({"requested_tool_name": "provider_status", "canonical_tool_name": "workspace_analyze"}),
+        json!({"requested_tool_name": "model_provider_status", "canonical_tool_name": "workspace_analyze"}),
+        json!({"requested_tool_name": "platform_info", "canonical_tool_name": "workspace_analyze"}),
+        json!({"requested_tool_name": "language_from_path", "canonical_tool_name": "workspace_analyze"}),
+        json!({"requested_tool_name": "tab_filter", "canonical_tool_name": "workspace_analyze"}),
+        json!({"requested_tool_name": "worktree_include", "canonical_tool_name": "workspace_analyze"}),
+        json!({"requested_tool_name": "mcp_status", "canonical_tool_name": "workspace_analyze"}),
+        json!({"requested_tool_name": "tool_route", "canonical_tool_name": "workspace_analyze"}),
+        json!({"requested_tool_name": "route_tool_call", "canonical_tool_name": "workspace_analyze"}),
+        json!({"requested_tool_name": "execute_tool", "canonical_tool_name": "workspace_analyze"}),
+        json!({"requested_tool_name": "git_status", "canonical_tool_name": "workspace_analyze"}),
+        json!({"requested_tool_name": "worktree_inspect", "canonical_tool_name": "workspace_analyze"}),
+        json!({"requested_tool_name": "shell_exec", "canonical_tool_name": "terminal_exec"}),
+        json!({"requested_tool_name": "mcp_list", "canonical_tool_name": "workspace_analyze"}),
+        json!({"requested_tool_name": "mcp_servers", "canonical_tool_name": "workspace_analyze"}),
+        json!({"requested_tool_name": "web_lookup", "canonical_tool_name": "web_search"}),
+        json!({"requested_tool_name": "browse_web", "canonical_tool_name": "web_search"}),
+    ]
+}
+
 pub fn published_schema_contract_v1() -> Value {
     json!({
         "version": "tooling_schema_v4",
         "normalized_tool_result": NORMALIZED_TOOL_RESULT_FIELDS,
         "tool_attempt_receipt": TOOL_ATTEMPT_RECEIPT_FIELDS,
         "tool_capability_probe": TOOL_CAPABILITY_PROBE_FIELDS,
+        "tool_alias_contract": published_tool_alias_contract_v1(),
         "evidence_card": EVIDENCE_CARD_FIELDS,
         "worker_output": WORKER_OUTPUT_FIELDS,
         "claim": CLAIM_FIELDS,
@@ -364,6 +399,76 @@ mod tests {
         assert!(keys.contains(&"required_args".to_string()));
         assert!(keys.contains(&"backend_class".to_string()));
         assert_eq!(keys.len(), TOOL_CAPABILITY_PROBE_FIELDS.len());
+    }
+
+    #[test]
+    fn schema_contract_publishes_tool_alias_contract_rows() {
+        let contract = published_schema_contract_v1();
+        let rows = contract
+            .get("tool_alias_contract")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(
+            rows.iter().any(|row| {
+                row.get("requested_tool_name").and_then(Value::as_str) == Some("workspace_read")
+                    && row.get("canonical_tool_name").and_then(Value::as_str)
+                        == Some("file_read")
+            }),
+            "schema contract must publish workspace_read alias mapping"
+        );
+        assert!(
+            rows.iter().any(|row| {
+                row.get("requested_tool_name").and_then(Value::as_str) == Some("tool_route")
+                    && row.get("canonical_tool_name").and_then(Value::as_str)
+                        == Some("workspace_analyze")
+            }),
+            "schema contract must publish tool_route alias mapping"
+        );
+        assert!(
+            rows.iter().any(|row| {
+                row.get("requested_tool_name").and_then(Value::as_str)
+                    == Some("workspace_read_many")
+                    && row.get("canonical_tool_name").and_then(Value::as_str)
+                        == Some("file_read_many")
+            }),
+            "schema contract must publish workspace_read_many alias mapping"
+        );
+        assert!(
+            rows.iter().any(|row| {
+                row.get("requested_tool_name").and_then(Value::as_str)
+                    == Some("route_tool_call")
+                    && row.get("canonical_tool_name").and_then(Value::as_str)
+                        == Some("workspace_analyze")
+            }),
+            "schema contract must publish route_tool_call alias mapping"
+        );
+        assert!(
+            rows.iter().any(|row| {
+                row.get("requested_tool_name").and_then(Value::as_str) == Some("local_context")
+                    && row.get("canonical_tool_name").and_then(Value::as_str)
+                        == Some("workspace_analyze")
+            }),
+            "schema contract must publish local_context alias mapping"
+        );
+        assert!(
+            rows.iter().any(|row| {
+                row.get("requested_tool_name").and_then(Value::as_str)
+                    == Some("shell_exec")
+                    && row.get("canonical_tool_name").and_then(Value::as_str)
+                        == Some("terminal_exec")
+            }),
+            "schema contract must publish shell_exec alias mapping"
+        );
+        assert!(
+            rows.iter().any(|row| {
+                row.get("requested_tool_name").and_then(Value::as_str)
+                    == Some("mcp_status")
+                    && row.get("canonical_tool_name").and_then(Value::as_str)
+                        == Some("workspace_analyze")
+            }),
+            "schema contract must publish mcp_status alias mapping"
+        );
     }
 
     #[test]

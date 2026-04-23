@@ -80,6 +80,17 @@
       "timeout_sec": 60,
       "script": "ops:dependency-boundary:check"
     },
+    "ops:cross-layer-import:guard": {
+      "owner": "ops",
+      "description": "Cross-layer import authority boundary guard.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:cross-layer-import:guard",
+      "artifact_paths": [
+        "core/local/artifacts/cross_layer_import_guard_current.json",
+        "local/workspace/reports/CROSS_LAYER_IMPORT_GUARD_CURRENT.md"
+      ]
+    },
     "ops:formal-spec:check": {
       "owner": "ops",
       "description": "Formal spec guard.",
@@ -858,7 +869,9 @@
       "script": "ops:workspace-tooling:context:soak",
       "artifact_paths": [
         "artifacts/workspace_tooling_context_soak_report_latest.json",
+        "artifacts/workspace_tooling_soak_report_latest.json",
         "core/local/artifacts/workspace_tooling_context_soak_current.json",
+        "core/local/artifacts/workspace_tooling_soak_current.json",
         "local/state/ops/workspace_tooling_context_soak/latest.json",
         "local/workspace/reports/WORKSPACE_TOOLING_CONTEXT_SOAK_CURRENT.md"
       ]
@@ -894,6 +907,8 @@
       "script": "ops:gateway-status:manifest",
       "artifact_paths": [
         "core/local/artifacts/gateway_status_manifest_current.json",
+        "core/local/artifacts/gateway_graduation_status_snapshot_current.json",
+        "local/workspace/reports/GATEWAY_GRADUATION_STATUS_SNAPSHOT_CURRENT.md",
         "local/workspace/reports/GATEWAY_STATUS_MANIFEST_CURRENT.md"
       ]
     },
@@ -1166,6 +1181,7 @@
       "script": "ops:layer2:receipt:replay",
       "artifact_paths": [
         "core/local/artifacts/layer2_receipt_replay_current.json",
+        "core/local/artifacts/layer2_replay_diff_current.json",
         "local/workspace/reports/LAYER2_RECEIPT_REPLAY_CURRENT.md"
       ]
     },
@@ -1188,7 +1204,17 @@
       "script": "ops:boundedness:inspect",
       "artifact_paths": [
         "core/local/artifacts/runtime_boundedness_inspect_current.json",
-        "local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_CURRENT.md"
+        "core/local/artifacts/runtime_boundedness_inspect_rich_current.json",
+        "core/local/artifacts/runtime_boundedness_inspect_pure_current.json",
+        "core/local/artifacts/runtime_boundedness_inspect_tiny-max_current.json",
+        "core/local/artifacts/runtime_boundedness_profiles_current.json",
+        "local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_CURRENT.md",
+        "local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_RICH_CURRENT.md",
+        "local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_PURE_CURRENT.md",
+        "local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_TINY-MAX_CURRENT.md",
+        "core/local/artifacts/runtime_boundedness_report_rich_current.json",
+        "core/local/artifacts/runtime_boundedness_report_pure_current.json",
+        "core/local/artifacts/runtime_boundedness_report_tiny-max_current.json"
       ]
     },
     "ops:queue-backpressure:policy:gate": {
@@ -1208,7 +1234,8 @@
       "timeout_sec": 60,
       "script": "ops:boundedness:release-gate",
       "artifact_paths": [
-        "core/local/artifacts/runtime_boundedness_release_gate_current.json"
+        "core/local/artifacts/runtime_boundedness_release_gate_current.json",
+        "core/local/artifacts/runtime_boundedness_soak_projection_current.json"
       ]
     },
     "ops:trusted-core:report": {
@@ -1285,6 +1312,17 @@
       "artifact_paths": [
         "core/local/artifacts/shell_truth_leak_guard_current.json",
         "local/workspace/reports/SHELL_TRUTH_LEAK_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:shell-transition:tracker": {
+      "owner": "ops",
+      "description": "Shell/Client compatibility-bridge tracker with explicit removal deadline enforcement.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:shell-transition:tracker",
+      "artifact_paths": [
+        "core/local/artifacts/shell_transition_tracker_current.json",
+        "local/workspace/reports/SHELL_TRANSITION_TRACKER_CURRENT.md"
       ]
     },
     "ops:terminology:transition:inventory": {

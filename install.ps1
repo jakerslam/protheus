@@ -191,10 +191,18 @@ function Test-InstallSummarySuccessContract {
 
   $hasCompletedAt = $false
   $hasStatus = $false
+  $hasWorkspaceRefreshRequired = $false
+  $hasWorkspaceRefreshApplied = $false
+  $hasWorkspaceReleaseTagWritten = $false
+  $hasWorkspaceReleaseTagWriteVerified = $false
   foreach ($row in $rows) {
     $trimmed = ([string]$row).Trim()
     if ($trimmed.StartsWith("completed_at:")) { $hasCompletedAt = $true }
     if ($trimmed.StartsWith("status:")) { $hasStatus = $true }
+    if ($trimmed.StartsWith("workspace_runtime_refresh_required:")) { $hasWorkspaceRefreshRequired = $true }
+    if ($trimmed.StartsWith("workspace_runtime_refresh_applied:")) { $hasWorkspaceRefreshApplied = $true }
+    if ($trimmed.StartsWith("workspace_release_tag_written:")) { $hasWorkspaceReleaseTagWritten = $true }
+    if ($trimmed.StartsWith("workspace_release_tag_write_verified:")) { $hasWorkspaceReleaseTagWriteVerified = $true }
   }
 
   if (-not $hasCompletedAt) {
@@ -203,6 +211,22 @@ function Test-InstallSummarySuccessContract {
   }
   if (-not $hasStatus) {
     Write-Host "[infring install] summary contract failed: status missing"
+    return $false
+  }
+  if (-not $hasWorkspaceRefreshRequired) {
+    Write-Host "[infring install] summary contract failed: workspace_runtime_refresh_required missing"
+    return $false
+  }
+  if (-not $hasWorkspaceRefreshApplied) {
+    Write-Host "[infring install] summary contract failed: workspace_runtime_refresh_applied missing"
+    return $false
+  }
+  if (-not $hasWorkspaceReleaseTagWritten) {
+    Write-Host "[infring install] summary contract failed: workspace_release_tag_written missing"
+    return $false
+  }
+  if (-not $hasWorkspaceReleaseTagWriteVerified) {
+    Write-Host "[infring install] summary contract failed: workspace_release_tag_write_verified missing"
     return $false
   }
 
@@ -439,9 +463,11 @@ $script:RepairPreservedCount = 0
 $script:WorkspaceRuntimeRefreshReason = ""
 $script:WorkspaceRuntimeRefreshRequired = $false
 $script:WorkspaceRuntimeRefreshApplied = $false
+$script:WorkspaceRuntimeTagStateMissing = $false
 $script:WorkspaceReleaseTagPrevious = ""
 $script:WorkspaceReleaseTagCurrent = ""
 $script:WorkspaceReleaseTagWriteApplied = $false
+$script:WorkspaceReleaseTagWriteVerified = $false
 
 function Installer-TruthyFlag([string]$RawValue, [bool]$DefaultValue = $false) {
   if ([string]::IsNullOrWhiteSpace($RawValue)) {
@@ -2495,10 +2521,18 @@ function Set-WorkspaceInstallReleaseTag {
     return $false
   }
   $stateDir = Join-Path $WorkspaceRoot "local/state/ops"
-  New-Item -ItemType Directory -Force -Path $stateDir | Out-Null
-  $statePath = Join-Path $stateDir "install_release_tag.txt"
-  Set-Content -Path $statePath -Value $VersionTag -Encoding UTF8
-  return $true
+  try {
+    New-Item -ItemType Directory -Force -Path $stateDir | Out-Null
+    $statePath = Join-Path $stateDir "install_release_tag.txt"
+    Set-Content -Path $statePath -Value $VersionTag -Encoding UTF8
+    $writtenTag = Get-WorkspaceInstallReleaseTag -WorkspaceRoot $WorkspaceRoot
+    if ([string]::IsNullOrWhiteSpace($writtenTag) -or ($writtenTag -ne $VersionTag)) {
+      return $false
+    }
+    return $true
+  } catch {
+    return $false
+  }
 }
 
 function Resolve-WorkspaceRuntimeRefreshTarget {
@@ -2829,17 +2863,17 @@ exit 0
 
 function Invoke-RepairInstallDir {
   $legacyWrapperTargets = @(
-    "infring.cmd", "infringctl.cmd", "infringd.cmd"
+    "protheus.cmd", "protheusctl.cmd", "protheusd.cmd"
   )
   $targets = @(
     "infring.cmd", "infringctl.cmd", "infringd.cmd",
     "infring.ps1", "infringctl.ps1", "infringd.ps1",
     # Legacy compatibility wrappers/artifacts (removed during repair migration).
-    "infring.cmd", "infringctl.cmd", "infringd.cmd",
+    "protheus.cmd", "protheusctl.cmd", "protheusd.cmd",
     "infring-ops.exe", "infring-pure-workspace.exe",
     "infringd.exe", "conduit_daemon.exe", "infring-client",
-    "infring-ops.exe", "infring-pure-workspace.exe",
-    "infringd.exe", "infring-client"
+    "protheus-ops.exe", "protheus-pure-workspace.exe",
+    "protheusd.exe", "protheus-client"
   )
   $repairArchiveRoot = Join-Path $InstallDir "_repair_archive"
   $repairArchiveRun = Join-Path $repairArchiveRoot (Get-Date -Format "yyyyMMddTHHmmss")
@@ -2873,6 +2907,23 @@ function Invoke-RepairInstallDir {
     }
   }
   Ensure-RepairBootstrapWrapperFloor -InstallDir $InstallDir
+  $requiredWrappers = @(
+    "infring.cmd", "infringctl.cmd", "infringd.cmd",
+    "infring.ps1", "infringctl.ps1", "infringd.ps1"
+  )
+  $missingWrappers = @($requiredWrappers | Where-Object {
+      -not (Test-Path (Join-Path $InstallDir $_))
+    })
+  if ($missingWrappers.Count -gt 0) {
+    Write-Host "[infring install] repair warning: bootstrap wrapper floor incomplete; retrying wrapper regeneration"
+    Ensure-RepairBootstrapWrapperFloor -InstallDir $InstallDir
+    $missingWrappers = @($requiredWrappers | Where-Object {
+        -not (Test-Path (Join-Path $InstallDir $_))
+      })
+  }
+  if ($missingWrappers.Count -gt 0) {
+    throw "repair wrapper floor failed; missing wrappers: $($missingWrappers -join ', ')"
+  }
   $script:RepairArchiveRun = [string]$repairArchiveRun
   $script:RepairRemovedCount = [int]$repairRemoved
   $script:RepairPreservedCount = [int]$repairPreserved
@@ -3946,9 +3997,12 @@ $workspaceRootForState = Resolve-WorkspaceRootForRepair
 $workspaceRefreshDecision = Resolve-WorkspaceRuntimeRefreshDecision -WorkspaceRoot $workspaceRootForState -VersionTag $version -Repair ([bool]$InstallRepair)
 $script:WorkspaceRuntimeRefreshRequired = [bool]$workspaceRefreshDecision.refresh_required
 $script:WorkspaceRuntimeRefreshReason = [string]$workspaceRefreshDecision.reason
+$script:WorkspaceRuntimeTagStateMissing = [bool]$workspaceRefreshDecision.tag_state_missing
 $script:WorkspaceReleaseTagPrevious = [string]$workspaceRefreshDecision.previous_tag
 $script:WorkspaceReleaseTagCurrent = [string]$version
 $script:WorkspaceRuntimeRefreshApplied = $false
+$script:WorkspaceReleaseTagWriteApplied = $false
+$script:WorkspaceReleaseTagWriteVerified = $false
 if ([bool]$script:WorkspaceRuntimeRefreshRequired) {
   Write-Host "[infring install] workspace runtime refresh required: $($workspaceRefreshDecision.reason)"
   $script:WorkspaceRuntimeRefreshApplied = [bool](Invoke-WorkspaceRuntimeRefresh -WorkspaceRoot $workspaceRootForState -InstallDir $InstallDir -SourceFallbackDir $script:SourceFallbackDir -Reason ([string]$workspaceRefreshDecision.reason))
@@ -3964,6 +4018,10 @@ if ((-not $InstallPure) -and (-not [string]::IsNullOrWhiteSpace($workspaceRootFo
 if (-not [string]::IsNullOrWhiteSpace($workspaceRootForState)) {
   $script:WorkspaceReleaseTagWriteApplied = [bool](Set-WorkspaceInstallReleaseTag -WorkspaceRoot $workspaceRootForState -VersionTag ([string]$version))
   if ([bool]$script:WorkspaceReleaseTagWriteApplied) {
+    $script:WorkspaceReleaseTagWriteVerified = (([string](Get-WorkspaceInstallReleaseTag -WorkspaceRoot $workspaceRootForState)) -eq ([string]$version))
+    if (-not [bool]$script:WorkspaceReleaseTagWriteVerified) {
+      throw "Workspace release tag state verification failed for $workspaceRootForState."
+    }
     Write-Host "[infring install] workspace release tag state updated: $version"
   } else {
     throw "Workspace release tag state update failed for $workspaceRootForState."
@@ -4150,8 +4208,10 @@ $summaryPayload = @{
     workspace_runtime_refresh = @{
       required = [bool]$script:WorkspaceRuntimeRefreshRequired
       reason = [string]$script:WorkspaceRuntimeRefreshReason
+      tag_state_missing = [bool]$script:WorkspaceRuntimeTagStateMissing
       applied = [bool]$script:WorkspaceRuntimeRefreshApplied
       release_tag_write_applied = [bool]$script:WorkspaceReleaseTagWriteApplied
+      release_tag_write_verified = [bool]$script:WorkspaceReleaseTagWriteVerified
       previous_release_tag = [string]$script:WorkspaceReleaseTagPrevious
       current_release_tag = [string]$script:WorkspaceReleaseTagCurrent
     }
@@ -4186,7 +4246,12 @@ $summaryTextRows = @(
   "runtime_mode: $runtimeContractMode",
   "workspace_runtime_refresh_required: $([string][bool]$script:WorkspaceRuntimeRefreshRequired).ToLower()",
   "workspace_runtime_refresh_applied: $([string][bool]$script:WorkspaceRuntimeRefreshApplied).ToLower()",
+  "workspace_runtime_tag_state_missing: $([string][bool]$script:WorkspaceRuntimeTagStateMissing).ToLower()",
+  "workspace_runtime_refresh_reason: $([string]$script:WorkspaceRuntimeRefreshReason)",
+  "workspace_release_tag_previous: $([string]$script:WorkspaceReleaseTagPrevious)",
+  "workspace_release_tag_current: $([string]$script:WorkspaceReleaseTagCurrent)",
   "workspace_release_tag_written: $([string][bool]$script:WorkspaceReleaseTagWriteApplied).ToLower()",
+  "workspace_release_tag_write_verified: $([string][bool]$script:WorkspaceReleaseTagWriteVerified).ToLower()",
   "verification_confidence: $verificationConfidence",
   "gateway_smoke: $gatewaySmokeStatus",
   "dashboard_smoke: $dashboardSmokeStatus",

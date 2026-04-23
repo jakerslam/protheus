@@ -13,6 +13,18 @@ type ProfileId = 'rich' | 'pure' | 'tiny-max';
 type SupportLevel = 'experimental' | 'candidate' | 'graduated';
 
 type ChecklistStatus = 'pending' | 'in_progress' | 'complete';
+type ChecklistKey =
+  | 'health_checks'
+  | 'fail_closed_behavior'
+  | 'chaos_scenarios'
+  | 'receipt_completeness'
+  | 'fallback_degradation_declaration'
+  | 'recovery_bounds';
+type SupportLevelContractRow = {
+  required_checklist_keys: ChecklistKey[];
+  allowed_checklist_statuses: ChecklistStatus[];
+};
+type SupportLevelContract = Record<SupportLevel, SupportLevelContractRow>;
 
 type GatewayChecklist = {
   health_checks: ChecklistStatus;
@@ -42,12 +54,20 @@ type ScenarioRow = {
   expected_error: string;
   ok: boolean;
   detail: string;
+  runtime_circuit_state?: string;
+  runtime_quarantine_active?: boolean;
+  transition_enforced?: boolean;
+  transition_ok?: boolean;
 };
 
 type GraduationManifest = {
   version: number;
   required_hooks: string[];
   required_scenarios: string[];
+  support_level_contract?: Partial<Record<SupportLevel, {
+    required_checklist_keys?: string[];
+    allowed_checklist_statuses?: string[];
+  }>>;
   production_gateway_targets?: string[];
   adapters: Array<{
     id: string;
@@ -117,6 +137,40 @@ const CHECKLIST_KEYS: Array<keyof GatewayChecklist> = [
   'fallback_degradation_declaration',
   'recovery_bounds',
 ];
+const SUPPORT_LEVEL_ORDER: SupportLevel[] = ['experimental', 'candidate', 'graduated'];
+const EXPECTED_SUPPORT_LEVEL_CONTRACT: SupportLevelContract = {
+  experimental: {
+    required_checklist_keys: [
+      'health_checks',
+      'chaos_scenarios',
+      'fallback_degradation_declaration',
+      'receipt_completeness',
+      'recovery_bounds',
+    ],
+    allowed_checklist_statuses: ['pending', 'in_progress', 'complete'],
+  },
+  candidate: {
+    required_checklist_keys: [
+      'health_checks',
+      'chaos_scenarios',
+      'fallback_degradation_declaration',
+      'receipt_completeness',
+      'recovery_bounds',
+    ],
+    allowed_checklist_statuses: ['in_progress', 'complete'],
+  },
+  graduated: {
+    required_checklist_keys: [
+      'health_checks',
+      'fail_closed_behavior',
+      'chaos_scenarios',
+      'fallback_degradation_declaration',
+      'receipt_completeness',
+      'recovery_bounds',
+    ],
+    allowed_checklist_statuses: ['complete'],
+  },
+};
 
 const CHAOS_CASES = [
   { id: 'process_never_starts', expected_error: 'adapter_startup_timeout' },
@@ -358,6 +412,34 @@ function normalizeChecklistStatus(raw: string | undefined): ChecklistStatus {
   return 'pending';
 }
 
+function normalizeStringArray(raw: unknown, maxLen = 80): string[] {
+  return Array.isArray(raw)
+    ? raw.map((value) => cleanText(String(value || ''), maxLen)).filter(Boolean)
+    : [];
+}
+
+function parseErrorToken(rawError: string, key: string): string {
+  const safeKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = rawError.match(new RegExp(`${safeKey}=([a-zA-Z0-9_-]+)`));
+  return cleanText(match?.[1] || '', 40).toLowerCase();
+}
+
+function readRuntimeCircuitState(payload: any, chaosError: string): string {
+  const fromPayload = cleanText(payload?.runtime_contract?.circuit_breaker?.state || '', 40).toLowerCase();
+  if (fromPayload) {
+    return fromPayload;
+  }
+  return parseErrorToken(chaosError, 'runtime_circuit_state');
+}
+
+function readRuntimeQuarantineActive(payload: any, chaosError: string): boolean {
+  if (payload?.runtime_contract?.quarantine?.active === true) {
+    return true;
+  }
+  const token = parseErrorToken(chaosError, 'runtime_quarantine_active');
+  return token === 'true';
+}
+
 function normalizeChecklist(row: GraduationManifest['adapters'][number]): GatewayChecklist {
   const raw = (row?.checklist || {}) as Record<string, unknown>;
   return {
@@ -538,6 +620,70 @@ function manifestConformanceViolations(
     violations.push('manifest_required_scenarios_noncanonical_order_or_set');
   }
 
+  const supportLevelContract: SupportLevelContract = {
+    experimental: {
+      required_checklist_keys: [...EXPECTED_SUPPORT_LEVEL_CONTRACT.experimental.required_checklist_keys],
+      allowed_checklist_statuses: [...EXPECTED_SUPPORT_LEVEL_CONTRACT.experimental.allowed_checklist_statuses],
+    },
+    candidate: {
+      required_checklist_keys: [...EXPECTED_SUPPORT_LEVEL_CONTRACT.candidate.required_checklist_keys],
+      allowed_checklist_statuses: [...EXPECTED_SUPPORT_LEVEL_CONTRACT.candidate.allowed_checklist_statuses],
+    },
+    graduated: {
+      required_checklist_keys: [...EXPECTED_SUPPORT_LEVEL_CONTRACT.graduated.required_checklist_keys],
+      allowed_checklist_statuses: [...EXPECTED_SUPPORT_LEVEL_CONTRACT.graduated.allowed_checklist_statuses],
+    },
+  };
+  const rawSupportLevelContract = manifest.support_level_contract;
+  if (!rawSupportLevelContract || typeof rawSupportLevelContract !== 'object') {
+    violations.push('manifest_support_level_contract_missing');
+  } else {
+    const declaredLevels = Object.keys(rawSupportLevelContract)
+      .map((value) => cleanText(String(value || ''), 40).toLowerCase())
+      .filter(Boolean);
+    if (declaredLevels.join('|') !== SUPPORT_LEVEL_ORDER.join('|')) {
+      violations.push('manifest_support_level_contract_levels_noncanonical');
+    }
+    for (const level of SUPPORT_LEVEL_ORDER) {
+      const row = rawSupportLevelContract[level];
+      if (!row || typeof row !== 'object') {
+        violations.push(`manifest_support_level_contract_row_missing:${level}`);
+        continue;
+      }
+      const requiredKeys = normalizeStringArray(row.required_checklist_keys, 80);
+      const allowedStatuses = normalizeStringArray(row.allowed_checklist_statuses, 40);
+      const expectedRequired = EXPECTED_SUPPORT_LEVEL_CONTRACT[level].required_checklist_keys;
+      const expectedAllowed = EXPECTED_SUPPORT_LEVEL_CONTRACT[level].allowed_checklist_statuses;
+
+      if (requiredKeys.join('|') !== expectedRequired.join('|')) {
+        violations.push(`manifest_support_level_contract_required_keys_noncanonical:${level}`);
+      }
+      if (allowedStatuses.join('|') !== expectedAllowed.join('|')) {
+        violations.push(`manifest_support_level_contract_allowed_statuses_noncanonical:${level}`);
+      }
+
+      const invalidRequiredKeys = requiredKeys.filter(
+        (key) => !CHECKLIST_KEYS.includes(key as ChecklistKey),
+      );
+      if (invalidRequiredKeys.length > 0) {
+        violations.push(`manifest_support_level_contract_required_keys_invalid:${level}`);
+      }
+      const invalidAllowedStatuses = allowedStatuses.filter(
+        (status) => !CHECKLIST_ALLOWED_STATUS.has(status as ChecklistStatus),
+      );
+      if (invalidAllowedStatuses.length > 0) {
+        violations.push(`manifest_support_level_contract_allowed_statuses_invalid:${level}`);
+      }
+
+      if (invalidRequiredKeys.length === 0 && invalidAllowedStatuses.length === 0) {
+        supportLevelContract[level] = {
+          required_checklist_keys: requiredKeys as ChecklistKey[],
+          allowed_checklist_statuses: allowedStatuses as ChecklistStatus[],
+        };
+      }
+    }
+  }
+
   const byId = new Map(manifestRows.map((row) => [cleanText(row.id || '', 80), row]));
   const readinessTracks = new Set<string>();
   const requiredFlags = new Set<string>();
@@ -602,6 +748,25 @@ function manifestConformanceViolations(
       const status = cleanText(String(checklistRaw[checklistKey] || ''), 40).toLowerCase();
       if (!CHECKLIST_ALLOWED_STATUS.has(status as ChecklistStatus)) {
         violations.push(`manifest_gateway_checklist_status_invalid:${gatewayId}:${checklistKey}`);
+      }
+    }
+    const statusByChecklistKey = new Map<ChecklistKey, ChecklistStatus>();
+    for (const checklistKey of CHECKLIST_KEYS) {
+      const status = cleanText(String(checklistRaw[checklistKey] || ''), 40).toLowerCase() as ChecklistStatus;
+      statusByChecklistKey.set(checklistKey, status);
+    }
+    const readinessContract = supportLevelContract[supportLevel];
+    if (!readinessContract) {
+      violations.push(`manifest_gateway_support_level_contract_missing:${gatewayId}:${supportLevel}`);
+    } else {
+      const allowedStatuses = new Set<ChecklistStatus>(readinessContract.allowed_checklist_statuses);
+      for (const checklistKey of readinessContract.required_checklist_keys) {
+        const status = statusByChecklistKey.get(checklistKey) || 'pending';
+        if (!allowedStatuses.has(status)) {
+          violations.push(
+            `manifest_gateway_checklist_readiness_mismatch:${gatewayId}:${supportLevel}:${checklistKey}:${status}`,
+          );
+        }
       }
     }
   }
@@ -738,26 +903,65 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         scenarioStatePath(runtimeStateRoot, adapter.id, chaosCase.id),
       );
       const chaosError = cleanText(chaosRun.payload?.error || '', 120);
+      const runtimeCircuitState = readRuntimeCircuitState(chaosRun.payload, chaosError);
+      const runtimeQuarantineActive = readRuntimeQuarantineActive(chaosRun.payload, chaosError);
+      const transitionEnforced = chaosCase.id === 'repeated_flapping';
+      const transitionOk = !transitionEnforced || (
+        runtimeCircuitState === 'open' && runtimeQuarantineActive === true
+      );
       const chaosOk =
         chaosRun.exitCode !== 0 &&
         chaosRun.payload?.ok === false &&
-        chaosError.includes(chaosCase.expected_error);
+        chaosError.includes(chaosCase.expected_error) &&
+        transitionOk;
       chaosRows.push({
         adapter: adapter.id,
         scenario: chaosCase.id,
         expected_error: chaosCase.expected_error,
         ok: chaosOk,
         detail: chaosOk
-          ? `fail_closed:${chaosError}`
+          ? transitionEnforced
+            ? `fail_closed:${chaosError};circuit=${runtimeCircuitState || 'missing'};quarantine=${String(runtimeQuarantineActive)}`
+            : `fail_closed:${chaosError}`
           : cleanText(
               `${chaosError || 'missing_error'};exit=${chaosRun.exitCode};stderr=${chaosRun.stderr};spawn_error=${
                 chaosRun.spawnError || 'none'
-              }`,
+              };circuit=${runtimeCircuitState || 'missing'};quarantine=${String(runtimeQuarantineActive)}`,
               280,
             ),
+        runtime_circuit_state: runtimeCircuitState || 'missing',
+        runtime_quarantine_active: runtimeQuarantineActive,
+        transition_enforced: transitionEnforced,
+        transition_ok: transitionOk,
       });
     }
   }
+
+  const requiredScenarioIds = normalizeStringArray(graduationManifest.required_scenarios, 80);
+  const configuredChaosCaseIds = CHAOS_CASES.map((row) => cleanText(row.id, 80));
+  const missingConfiguredChaosCases = requiredScenarioIds.filter(
+    (scenarioId) => !configuredChaosCaseIds.includes(scenarioId),
+  );
+  const extraConfiguredChaosCases = configuredChaosCaseIds.filter(
+    (scenarioId) => !requiredScenarioIds.includes(scenarioId),
+  );
+  const chaosCaseSetOk =
+    missingConfiguredChaosCases.length === 0 &&
+    extraConfiguredChaosCases.length === 0 &&
+    configuredChaosCaseIds.join('|') === requiredScenarioIds.join('|');
+  const missingScenarioRows: string[] = [];
+  for (const adapter of graduationAdapters) {
+    for (const scenarioId of requiredScenarioIds) {
+      const hasRow = chaosRows.some((row) => row.adapter === adapter.id && row.scenario === scenarioId);
+      if (!hasRow) {
+        missingScenarioRows.push(`${adapter.id}:${scenarioId}`);
+      }
+    }
+  }
+  const transitionRows = chaosRows.filter((row) => row.transition_enforced === true);
+  const transitionPassed = transitionRows.filter((row) => row.transition_ok === true).length;
+  const transitionTotal = transitionRows.length;
+  const transitionRatio = transitionTotal === 0 ? 0 : transitionPassed / transitionTotal;
 
   const baselinePassed = baselineRows.filter((row) => row.ok).length;
   const chaosPassed = chaosRows.filter((row) => row.ok).length;
@@ -814,12 +1018,31 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         detail,
       })),
     );
+  if (!chaosCaseSetOk) {
+    failures.push({
+      id: 'gateway_chaos_case_set_mismatch',
+      detail: `required=${requiredScenarioIds.join(',') || 'missing'};configured=${configuredChaosCaseIds.join(',') || 'missing'};missing=${missingConfiguredChaosCases.join(',') || 'none'};extra=${extraConfiguredChaosCases.join(',') || 'none'}`,
+    });
+  }
+  for (const missingRow of missingScenarioRows) {
+    failures.push({
+      id: 'gateway_chaos_scenario_result_missing',
+      detail: missingRow,
+    });
+  }
+  for (const row of transitionRows.filter((item) => item.transition_ok !== true)) {
+    failures.push({
+      id: 'gateway_chaos_transition_contract_violation',
+      detail: `${row.adapter}:${row.scenario}:circuit=${row.runtime_circuit_state || 'missing'};quarantine=${String(row.runtime_quarantine_active === true)}`,
+    });
+  }
 
   const metrics = {
     gateway_baseline_pass_ratio: Number(baselinePassRatio.toFixed(4)),
     gateway_chaos_fail_closed_ratio: Number(chaosFailClosedRatio.toFixed(4)),
     gateway_chaos_scenarios_total: chaosTotal,
     gateway_graduation_ratio: Number(graduationRatio.toFixed(4)),
+    gateway_chaos_transition_ratio: Number(transitionRatio.toFixed(4)),
   };
 
   const report = {
@@ -839,8 +1062,14 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       baseline_total: baselineTotal,
       baseline_passed: baselinePassed,
       chaos_total: chaosTotal,
+      chaos_required_scenarios_declared: requiredScenarioIds.length,
+      chaos_case_ids_configured: configuredChaosCaseIds.length,
+      chaos_case_set_ok: chaosCaseSetOk,
       chaos_fail_closed_passed: chaosPassed,
       chaos_fail_closed_ratio: Number(chaosFailClosedRatio.toFixed(4)),
+      chaos_transition_total: transitionTotal,
+      chaos_transition_passed: transitionPassed,
+      chaos_transition_ratio: Number(transitionRatio.toFixed(4)),
       graduation_passed: graduationPassed,
       graduation_ratio: Number(graduationRatio.toFixed(4)),
       manifest_violations: manifestViolations.length,
@@ -862,12 +1091,22 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     pending_roadmap_adapters: pendingRoadmapAdapters,
     baseline_results: baselineRows,
     chaos_results: chaosRows,
+    chaos_transition_results: transitionRows.map((row) => ({
+      adapter: row.adapter,
+      scenario: row.scenario,
+      transition_ok: row.transition_ok === true,
+      runtime_circuit_state: row.runtime_circuit_state || 'missing',
+      runtime_quarantine_active: row.runtime_quarantine_active === true,
+      detail: row.detail,
+    })),
     graduation_results: graduationResults,
     graduation_policy: {
       version: graduationManifest.version,
       production_gateway_targets: gatewayTargetIds,
       required_hooks: graduationManifest.required_hooks || [],
       required_scenarios: graduationManifest.required_scenarios || [],
+      configured_chaos_case_ids: configuredChaosCaseIds,
+      chaos_case_set_ok: chaosCaseSetOk,
       manifest_violations: manifestViolations,
     },
     failures,

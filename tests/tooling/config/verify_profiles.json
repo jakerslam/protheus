@@ -9,7 +9,9 @@
         "ops:layer0-ops:authority:audit",
         "ops:orchestration:ts-boundary:guard",
         "ops:orchestration:workflow-contract:guard",
+        "ops:cross-layer-import:guard",
         "ops:shell-naming:guard",
+        "ops:shell-transition:tracker",
         "ops:orchestration-naming:guard",
         "ops:kernel-naming:guard",
         "ops:dashboard:segment-ghost:guard",
@@ -19,6 +21,7 @@
         "ops:layer3:contract:guard",
         "ops:incident-governance:gate",
         "ops:shell:truth-leak:guard",
+        "ops:shell-transition:tracker",
         "ops:terminology:transition:inventory",
         "ops:srs:same-revision:guard",
         "ops:capability-proof-burden:guard",
@@ -33,6 +36,7 @@
         "ops:arch:conformance",
         "ops:orchestration:ts-boundary:guard",
         "ops:orchestration:workflow-contract:guard",
+        "ops:cross-layer-import:guard",
         "ops:arch:governance",
         "ops:root-surface:audit",
         "ops:repo-surface:audit",
@@ -95,11 +99,13 @@
         "ops:orchestration:runtime-quality:guard",
         "ops:orchestration:ts-boundary:guard",
         "ops:orchestration:workflow-contract:guard",
+        "ops:cross-layer-import:guard",
         "ops:debt:expiry:guard",
         "ops:system:fitness:gate",
         "audit:module-cohesion",
         "ops:legacy-alias:guard",
         "ops:shell-naming:guard",
+        "ops:shell-transition:tracker",
         "ops:orchestration-naming:guard",
         "ops:kernel-naming:guard",
         "ops:terminology:transition:inventory",
@@ -173,7 +179,9 @@
         "ops:node-critical-path:inventory",
         "ops:agent-surface:status:guard",
         "ops:release:proof-pack",
-        "ops:shell:truth-leak:guard"
+        "ops:shell:truth-leak:guard",
+        "ops:shell-transition:tracker",
+        "ops:cross-layer-import:guard"
       ]
     }
   }

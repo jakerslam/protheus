@@ -31,11 +31,23 @@ type AliasManifest = {
   retirement_target_version: string;
   retirement_target_date: string;
   required_alias_map_path?: string;
+  required_compatibility_bridges_path?: string;
   required_docs_paths: string[];
   required_notes_markers: string[];
   required_command_alias_pairs: AliasPair[];
   required_config_alias_pairs?: AliasPair[];
   required_artifact_alias_pairs?: AliasPair[];
+};
+
+type CompatibilityBridge = {
+  id?: string;
+  category?: 'config' | 'artifact' | 'command';
+  canonical?: string;
+  compatibility?: string;
+  owner?: string;
+  status?: 'active' | 'retired';
+  removal_deadline?: string;
+  notes?: string;
 };
 
 function parseArgs(argv: string[]) {
@@ -90,6 +102,9 @@ function markdown(payload: any): string {
   lines.push(`- command_pairs_checked: ${payload.summary.command_pairs_checked}`);
   lines.push(`- config_pairs_checked: ${payload.summary.config_pairs_checked}`);
   lines.push(`- artifact_pairs_checked: ${payload.summary.artifact_pairs_checked}`);
+  lines.push(`- compatibility_bridges_checked: ${payload.summary.compatibility_bridges_checked}`);
+  lines.push(`- compatibility_bridges_active: ${payload.summary.compatibility_bridges_active}`);
+  lines.push(`- compatibility_bridges_expired: ${payload.summary.compatibility_bridges_expired}`);
   lines.push(`- failures: ${payload.summary.failures}`);
   lines.push('');
   lines.push('## Failures');
@@ -107,10 +122,7 @@ function markdown(payload: any): string {
 function pairMatches(row: ShellAliasMapPair | null | undefined, canonical: string, compatibility: string): boolean {
   if (!row) return false;
   const rowCanonical = cleanText(String(row.canonical || ''), 260);
-  const rowCompatibility = cleanText(
-    String(typeof row.compatibility === 'string' ? row.compatibility : (row.alias || '')),
-    260,
-  );
+  const rowCompatibility = cleanText(String(row.compatibility || ''), 260);
   return rowCanonical === canonical && rowCompatibility === compatibility;
 }
 
@@ -150,6 +162,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const scripts = packageJson.payload.scripts || {};
   const failures: Array<{ id: string; detail: string }> = [];
   let aliasMap: ShellAliasMap = {};
+  let compatibilityBridges: CompatibilityBridge[] = [];
 
   const notesAbs = path.resolve(root, args.notesPath);
   const notesExists = fs.existsSync(notesAbs);
@@ -268,6 +281,134 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     }
   }
 
+  const compatibilityBridgesPath = cleanText(String(manifest.required_compatibility_bridges_path || ''), 500);
+  if (!compatibilityBridgesPath) {
+    failures.push({
+      id: 'shell_transition_compatibility_bridges_path_missing',
+      detail: 'required_compatibility_bridges_path',
+    });
+  } else {
+    const bridgesAbs = path.resolve(root, compatibilityBridgesPath);
+    if (!fs.existsSync(bridgesAbs)) {
+      failures.push({
+        id: 'shell_transition_compatibility_bridges_missing',
+        detail: compatibilityBridgesPath,
+      });
+    } else {
+      try {
+        const parsed = JSON.parse(fs.readFileSync(bridgesAbs, 'utf8')) as { bridges?: CompatibilityBridge[] };
+        compatibilityBridges = Array.isArray(parsed.bridges) ? parsed.bridges : [];
+      } catch (error) {
+        failures.push({
+          id: 'shell_transition_compatibility_bridges_invalid_json',
+          detail: cleanText((error as Error)?.message || 'invalid_json', 220),
+        });
+      }
+    }
+  }
+
+  const bridgeRows = compatibilityBridges.map((row) => ({
+    id: cleanText(row?.id || '', 160),
+    category: cleanText(String(row?.category || ''), 40),
+    canonical: cleanText(row?.canonical || '', 260),
+    compatibility: cleanText(row?.compatibility || '', 260),
+    owner: cleanText(row?.owner || '', 160),
+    status: cleanText(String(row?.status || 'active'), 40).toLowerCase(),
+    removal_deadline: cleanText(row?.removal_deadline || '', 40),
+  }));
+  const nowEpoch = Date.now();
+  const manifestRetirementEpoch = Number.isFinite(Date.parse(cleanText(manifest.retirement_target_date || '', 40)))
+    ? Date.parse(cleanText(manifest.retirement_target_date || '', 40))
+    : Number.NaN;
+  const bridgeIds = new Set<string>();
+  let expiredBridgeCount = 0;
+  for (const bridge of bridgeRows) {
+    if (!bridge.id) {
+      failures.push({ id: 'shell_transition_compatibility_bridge_missing_id', detail: bridge.canonical || 'unknown' });
+      continue;
+    }
+    if (bridgeIds.has(bridge.id)) {
+      failures.push({ id: 'shell_transition_compatibility_bridge_duplicate_id', detail: bridge.id });
+    } else {
+      bridgeIds.add(bridge.id);
+    }
+    if (!['config', 'artifact', 'command'].includes(bridge.category)) {
+      failures.push({
+        id: 'shell_transition_compatibility_bridge_invalid_category',
+        detail: `${bridge.id}:${bridge.category || 'missing'}`,
+      });
+    }
+    if (!bridge.canonical || !bridge.compatibility || !bridge.owner) {
+      failures.push({
+        id: 'shell_transition_compatibility_bridge_missing_fields',
+        detail: bridge.id,
+      });
+    }
+    if (!['active', 'retired'].includes(bridge.status)) {
+      failures.push({
+        id: 'shell_transition_compatibility_bridge_invalid_status',
+        detail: `${bridge.id}:${bridge.status || 'missing'}`,
+      });
+    }
+    const removalEpoch = Number.isFinite(Date.parse(bridge.removal_deadline))
+      ? Date.parse(bridge.removal_deadline)
+      : Number.NaN;
+    if (!Number.isFinite(removalEpoch)) {
+      failures.push({
+        id: 'shell_transition_compatibility_bridge_invalid_deadline',
+        detail: `${bridge.id}:${bridge.removal_deadline || 'missing'}`,
+      });
+      continue;
+    }
+    if (bridge.status === 'active' && nowEpoch > removalEpoch) {
+      expiredBridgeCount += 1;
+      failures.push({
+        id: 'shell_transition_compatibility_bridge_deadline_expired',
+        detail: `${bridge.id}:${bridge.removal_deadline}`,
+      });
+    }
+    if (
+      bridge.status === 'active' &&
+      Number.isFinite(manifestRetirementEpoch) &&
+      removalEpoch > manifestRetirementEpoch
+    ) {
+      failures.push({
+        id: 'shell_transition_compatibility_bridge_deadline_exceeds_manifest_retirement',
+        detail: `${bridge.id}:${bridge.removal_deadline}>${manifest.retirement_target_date}`,
+      });
+    }
+  }
+
+  const hasBridgePair = (category: 'config' | 'artifact', canonical: string, compatibility: string): boolean =>
+    bridgeRows.some(
+      (row) =>
+        row.category === category &&
+        row.canonical === canonical &&
+        row.compatibility === compatibility,
+    );
+  for (const pair of requiredConfigPairs) {
+    const canonical = cleanText(pair?.canonical || '', 260);
+    const compatibility = cleanText(pair?.compatibility || '', 260);
+    if (!canonical || !compatibility) continue;
+    if (!hasBridgePair('config', canonical, compatibility)) {
+      failures.push({
+        id: 'shell_transition_config_bridge_pair_missing',
+        detail: `${canonical} -> ${compatibility}`,
+      });
+    }
+  }
+  for (const pair of requiredArtifactPairs) {
+    const canonical = cleanText(pair?.canonical || '', 260);
+    const compatibility = cleanText(pair?.compatibility || '', 260);
+    if (!canonical || !compatibility) continue;
+    if (!hasBridgePair('artifact', canonical, compatibility)) {
+      failures.push({
+        id: 'shell_transition_artifact_bridge_pair_missing',
+        detail: `${canonical} -> ${compatibility}`,
+      });
+    }
+  }
+
   if (!cleanText(manifest.canonical_term || '', 80).toLowerCase().includes('shell')) {
     failures.push({ id: 'shell_transition_manifest_canonical_term_invalid', detail: manifest.canonical_term || '' });
   }
@@ -299,6 +440,9 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       command_pairs_checked: aliasPairs.length,
       config_pairs_checked: requiredConfigPairs.length,
       artifact_pairs_checked: requiredArtifactPairs.length,
+      compatibility_bridges_checked: bridgeRows.length,
+      compatibility_bridges_active: bridgeRows.filter((row) => row.status === 'active').length,
+      compatibility_bridges_expired: expiredBridgeCount,
       failures: failures.length,
     },
     failures,

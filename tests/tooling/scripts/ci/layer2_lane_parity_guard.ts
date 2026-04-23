@@ -7,23 +7,33 @@ import { currentRevision } from '../../lib/git.ts';
 import { emitStructuredResult, writeTextArtifact } from '../../lib/result.ts';
 
 type LaneRow = {
+  lane_id?: string;
   id: string;
   owner?: string;
   status?: string;
   requested_action: string;
   expected_receipt_type: string;
   receipt_requirements?: string[];
+  receipt_guarantees?: string[];
+  timeout_model?: string;
   timeout_semantics?: string;
+  retry_model?: string;
   retry_semantics?: string;
   runtime_path: string;
   fallback_path: string;
   fallback_conduit_only: boolean;
   replay_fixture_path?: string;
+  replay_artifact_path?: string;
   parity_test_path?: string;
   deterministic_receipt_test_path?: string;
   proof_artifact_path?: string;
   day_one_replay_coverage?: boolean;
   day_one_deterministic_receipt_test?: boolean;
+  experimental_exemption?: {
+    ticket?: string;
+    reason?: string;
+    expires_at?: string;
+  };
   provisional_exemption?: {
     ticket?: string;
     reason?: string;
@@ -53,7 +63,7 @@ function parseArgs(argv: string[]) {
     strict: common.strict,
     outPath: cleanText(readFlag(argv, 'out') || common.out || '', 400),
     manifestPath: cleanText(
-      readFlag(argv, 'manifest') || 'tests/tooling/config/layer2_lane_parity_manifest.json',
+      readFlag(argv, 'manifest') || 'tests/tooling/config/layer2_parity_matrix.json',
       400,
     ),
     markdownOutPath: cleanText(
@@ -77,6 +87,38 @@ function hasConduitOnlyPath(input: string): boolean {
 function parseIsoTimestamp(raw: string): number {
   const time = Date.parse(raw);
   return Number.isFinite(time) ? time : NaN;
+}
+
+function normalizeLaneRow(raw: LaneRow): LaneRow {
+  const laneId = cleanText(raw.lane_id || raw.id || '', 120);
+  const timeoutSemantics = cleanText(raw.timeout_model || raw.timeout_semantics || '', 200);
+  const retrySemantics = cleanText(raw.retry_model || raw.retry_semantics || '', 200);
+  const receiptRequirements =
+    Array.isArray(raw.receipt_requirements) && raw.receipt_requirements.length > 0
+      ? raw.receipt_requirements
+      : Array.isArray(raw.receipt_guarantees)
+        ? raw.receipt_guarantees
+        : [];
+  const replayArtifactPath = cleanText(raw.replay_artifact_path || raw.proof_artifact_path || '', 300);
+  const receiptGuarantees =
+    Array.isArray(raw.receipt_guarantees) && raw.receipt_guarantees.length > 0
+      ? raw.receipt_guarantees
+      : Array.isArray(raw.receipt_requirements)
+        ? raw.receipt_requirements
+        : [];
+  return {
+    ...raw,
+    id: laneId,
+    lane_id: laneId,
+    timeout_semantics: timeoutSemantics,
+    retry_semantics: retrySemantics,
+    timeout_model: cleanText(raw.timeout_model || raw.timeout_semantics || '', 200),
+    retry_model: cleanText(raw.retry_model || raw.retry_semantics || '', 200),
+    receipt_requirements: receiptRequirements,
+    receipt_guarantees: receiptGuarantees,
+    proof_artifact_path: replayArtifactPath,
+    replay_artifact_path: replayArtifactPath,
+  };
 }
 
 function toMarkdown(rows: LaneRow[], violations: string[]): string {
@@ -133,30 +175,53 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const tests = new Set<string>();
   const nowEpoch = Date.now();
   let completeCount = 0;
+  let experimentalCount = 0;
+  let blockedCount = 0;
   let provisionalCount = 0;
   let provisionalWithExemptionCount = 0;
-  const ALLOWED_STATUSES = new Set(['complete', 'experimental', 'provisional']);
-  for (const row of manifest.lanes || []) {
+  const ALLOWED_STATUSES = new Set(['complete', 'experimental', 'provisional', 'blocked']);
+  const lanes = (manifest.lanes || []).map((row) => normalizeLaneRow(row));
+  for (const row of lanes) {
+    if (!cleanText(row.lane_id || '', 120)) violations.push(`lane_missing_lane_id:${row.id || 'unknown'}`);
+    if (row.lane_id && row.id && row.lane_id !== row.id) {
+      violations.push(`lane_id_mismatch:${row.id}:${row.lane_id}`);
+    }
     if (!row.id) violations.push('lane_missing_id');
     const status = cleanText(row.status || '', 20).toLowerCase();
     if (!status) violations.push(`lane_missing_status:${row.id || 'unknown'}`);
     if (status && !ALLOWED_STATUSES.has(status)) {
       violations.push(`lane_status_not_allowed:${row.id || 'unknown'}:${status}`);
     }
+    if (status === 'experimental') experimentalCount += 1;
+    if (status === 'blocked') blockedCount += 1;
     if (status === 'provisional') {
       provisionalCount += 1;
-      const exemption = row.provisional_exemption || {};
+    }
+    if (status === 'experimental' || status === 'provisional') {
+      const exemption = row.experimental_exemption || row.provisional_exemption || {};
       const ticket = cleanText(exemption.ticket || '', 120);
       const reason = cleanText(exemption.reason || '', 200);
       const expiresAt = cleanText(exemption.expires_at || '', 80);
       if (!ticket || !reason || !expiresAt) {
-        violations.push(`lane_provisional_without_explicit_exemption:${row.id || 'unknown'}`);
+        if (status === 'experimental') {
+          violations.push(`lane_experimental_without_explicit_exemption:${row.id || 'unknown'}`);
+        } else {
+          violations.push(`lane_provisional_without_explicit_exemption:${row.id || 'unknown'}`);
+        }
       } else {
         const expiresEpoch = parseIsoTimestamp(expiresAt);
         if (!Number.isFinite(expiresEpoch)) {
-          violations.push(`lane_provisional_exemption_expiry_invalid:${row.id || 'unknown'}:${expiresAt}`);
+          if (status === 'experimental') {
+            violations.push(`lane_experimental_exemption_expiry_invalid:${row.id || 'unknown'}:${expiresAt}`);
+          } else {
+            violations.push(`lane_provisional_exemption_expiry_invalid:${row.id || 'unknown'}:${expiresAt}`);
+          }
         } else if (expiresEpoch <= nowEpoch) {
-          violations.push(`lane_provisional_exemption_expired:${row.id || 'unknown'}:${expiresAt}`);
+          if (status === 'experimental') {
+            violations.push(`lane_experimental_exemption_expired:${row.id || 'unknown'}:${expiresAt}`);
+          } else {
+            violations.push(`lane_provisional_exemption_expired:${row.id || 'unknown'}:${expiresAt}`);
+          }
         } else {
           provisionalWithExemptionCount += 1;
         }
@@ -175,8 +240,14 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     if (!cleanText(row.timeout_semantics || '', 120)) {
       violations.push(`lane_missing_timeout_semantics:${row.id || 'unknown'}`);
     }
+    if (!cleanText(row.timeout_model || '', 120)) {
+      violations.push(`lane_missing_timeout_model:${row.id || 'unknown'}`);
+    }
     if (!cleanText(row.retry_semantics || '', 120)) {
       violations.push(`lane_missing_retry_semantics:${row.id || 'unknown'}`);
+    }
+    if (!cleanText(row.retry_model || '', 120)) {
+      violations.push(`lane_missing_retry_model:${row.id || 'unknown'}`);
     }
     if (!row.runtime_path) violations.push(`lane_missing_runtime_path:${row.id || 'unknown'}`);
     if (!row.fallback_path) violations.push(`lane_missing_fallback_path:${row.id || 'unknown'}`);
@@ -197,8 +268,8 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         `lane_deterministic_receipt_test_path_missing:${row.id || 'unknown'}:${cleanText(row.deterministic_receipt_test_path || '', 300)}`,
       );
     }
-    if (!cleanText(row.proof_artifact_path || '', 300)) {
-      violations.push(`lane_missing_proof_artifact_path:${row.id || 'unknown'}`);
+    if (!cleanText(row.replay_artifact_path || row.proof_artifact_path || '', 300)) {
+      violations.push(`lane_missing_replay_artifact_path:${row.id || 'unknown'}`);
     }
     if (row.day_one_replay_coverage !== true) {
       violations.push(`lane_day_one_replay_coverage_not_true:${row.id || 'unknown'}`);
@@ -222,6 +293,12 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     }
 
     const invariants = Array.isArray(row.invariants) ? row.invariants : [];
+    const receiptGuarantees = Array.isArray(row.receipt_guarantees) ? row.receipt_guarantees : [];
+    if (receiptGuarantees.length === 0) {
+      violations.push(`lane_missing_receipt_guarantees:${row.id || 'unknown'}`);
+    } else if (!receiptGuarantees.includes(row.expected_receipt_type)) {
+      violations.push(`lane_receipt_guarantees_missing_expected_receipt:${row.id || 'unknown'}`);
+    }
     for (const invariant of REQUIRED_INVARIANTS) {
       if (!invariants.includes(invariant)) {
         violations.push(`lane_missing_invariant:${row.id}:${invariant}`);
@@ -239,18 +316,20 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     summary: {
       lane_count: (manifest.lanes || []).length,
       complete_lane_count: completeCount,
+      experimental_lane_count: experimentalCount,
+      blocked_lane_count: blockedCount,
       provisional_lane_count: provisionalCount,
       provisional_lane_with_exemption_count: provisionalWithExemptionCount,
       violation_count: violations.length,
       pass: violations.length === 0,
     },
-    lanes: manifest.lanes || [],
+    lanes,
     contract_test_ids: Array.from(tests),
     failures: violations.map((detail) => ({ id: 'layer2_lane_parity_violation', detail })),
     artifact_paths: [args.markdownOutPath],
   };
 
-  writeTextArtifact(args.markdownOutPath, toMarkdown(manifest.lanes || [], violations));
+  writeTextArtifact(args.markdownOutPath, toMarkdown(lanes, violations));
 
   return emitStructuredResult(report, {
     outPath: args.outPath,

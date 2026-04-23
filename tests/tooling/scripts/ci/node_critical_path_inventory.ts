@@ -27,6 +27,7 @@ type BurnPlan = {
   operator_critical_target_classification?: ScriptClass;
   operator_critical_priority_cutoff_date?: string;
   allowed_node_typescript_prefixes: string[];
+  ordered_migration_queue?: string[];
   lanes: BurnLane[];
 };
 
@@ -108,6 +109,10 @@ function markdown(payload: any): string {
     `- operator_critical_priority_one_missing_rust: ${payload.summary.operator_critical_priority_one_missing_rust_count}`,
     `- operator_critical_target_classification_violations: ${payload.summary.operator_critical_target_classification_violation_count}`,
     `- operator_critical_cutoff_violations: ${payload.summary.operator_critical_cutoff_violation_count}`,
+    `- ordered_migration_queue_count: ${payload.summary.ordered_migration_queue_count}`,
+    `- ordered_migration_queue_duplicate_id_count: ${payload.summary.ordered_migration_queue_duplicate_id_count}`,
+    `- ordered_migration_queue_unknown_id_count: ${payload.summary.ordered_migration_queue_unknown_id_count}`,
+    `- ordered_migration_queue_missing_operator_priority_one_count: ${payload.summary.ordered_migration_queue_missing_operator_priority_one_count}`,
     `- ts_confinement_violations: ${payload.summary.ts_confinement_violation_count}`,
     '',
     '| script | domain | owner | priority | class | target_class | target_date | status | ts_target |',
@@ -273,6 +278,37 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       ? burnPlan.allowed_node_typescript_prefixes.map((value) => cleanText(String(value || ''), 300)).filter(Boolean)
       : ['tests/tooling/scripts/', 'client/runtime/systems/ui/', 'client/runtime/systems/extensions/'];
 
+  const orderedMigrationQueue =
+    Array.isArray(burnPlan.ordered_migration_queue) && burnPlan.ordered_migration_queue.length > 0
+      ? burnPlan.ordered_migration_queue.map((value) => cleanText(String(value || ''), 200)).filter(Boolean)
+      : [];
+  if (orderedMigrationQueue.length === 0) {
+    laneFailures.push({
+      id: 'node_burndown_ordered_migration_queue_missing',
+      detail: 'ordered_migration_queue',
+    });
+  }
+  const orderedQueueSeen = new Set<string>();
+  const orderedQueueDuplicateIds: string[] = [];
+  const orderedQueueUnknownIds: string[] = [];
+  for (const laneId of orderedMigrationQueue) {
+    if (orderedQueueSeen.has(laneId)) {
+      orderedQueueDuplicateIds.push(laneId);
+      continue;
+    }
+    orderedQueueSeen.add(laneId);
+    if (!laneMap.has(laneId)) {
+      orderedQueueUnknownIds.push(laneId);
+    }
+  }
+  const operatorCriticalPriorityOneLaneIds = lanes
+    .filter((lane) => operatorCriticalDomains.includes(lane.domain) && lane.priority === 1)
+    .map((lane) => lane.id)
+    .filter(Boolean);
+  const orderedQueueMissingOperatorCriticalPriorityOne = operatorCriticalPriorityOneLaneIds.filter(
+    (laneId) => !orderedQueueSeen.has(laneId),
+  );
+
   const criticalScriptIds = Array.from(laneMap.keys());
   const nowEpoch = Date.now();
 
@@ -360,6 +396,24 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       })),
     )
     .concat(
+      orderedQueueDuplicateIds.map((laneId) => ({
+        id: 'node_burndown_ordered_migration_queue_duplicate_id',
+        detail: laneId,
+      })),
+    )
+    .concat(
+      orderedQueueUnknownIds.map((laneId) => ({
+        id: 'node_burndown_ordered_migration_queue_unknown_id',
+        detail: laneId,
+      })),
+    )
+    .concat(
+      orderedQueueMissingOperatorCriticalPriorityOne.map((laneId) => ({
+        id: 'node_burndown_ordered_migration_queue_missing_operator_priority_one_lane',
+        detail: laneId,
+      })),
+    )
+    .concat(
       missing.map((row) => ({
         id: 'critical_script_missing',
         detail: row.id,
@@ -414,6 +468,10 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       operator_critical_priority_one_missing_rust_count: operatorCriticalPriorityOneMissingRust.length,
       operator_critical_target_classification_violation_count: operatorCriticalTargetClassificationViolations.length,
       operator_critical_cutoff_violation_count: operatorCriticalCutoffViolations.length,
+      ordered_migration_queue_count: orderedMigrationQueue.length,
+      ordered_migration_queue_duplicate_id_count: orderedQueueDuplicateIds.length,
+      ordered_migration_queue_unknown_id_count: orderedQueueUnknownIds.length,
+      ordered_migration_queue_missing_operator_priority_one_count: orderedQueueMissingOperatorCriticalPriorityOne.length,
       ts_confinement_violation_count: rows.filter(
         (row) => row.classification === 'node_typescript' && !row.ts_confinement_allowed,
       ).length,
@@ -426,11 +484,12 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       schema_version: cleanText((burnPlan.schema_version as string) || '', 40),
       plan_path: args.burnPlanPath,
       lane_count: lanes.length,
-      required_domains,
+      required_domains: requiredDomains,
       operator_critical_domains: operatorCriticalDomains,
       operator_critical_target_classification: operatorCriticalTargetClassification,
       operator_critical_priority_cutoff_date: operatorCriticalPriorityCutoffDate,
       allowed_node_typescript_prefixes: allowedNodeTypescriptPrefixes,
+      ordered_migration_queue: orderedMigrationQueue,
     },
     rows,
     failures,

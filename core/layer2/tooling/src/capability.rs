@@ -280,15 +280,39 @@ pub fn capability_domain_description(domain: ToolCapabilityDomain) -> &'static s
     }
 }
 
+fn canonical_tool_name(raw: &str) -> String {
+    let normalized = raw.trim().to_ascii_lowercase();
+    match normalized.as_str() {
+        "workspace_read" | "read_file" => "file_read".to_string(),
+        "workspace_read_many" | "read_many_files" => "file_read_many".to_string(),
+        "workspace_search"
+        | "file_search"
+        | "file_list"
+        | "context_search"
+        | "context_resolve"
+        | "workspace_context"
+        | "local_context"
+        | "route_tool_call"
+        | "tool_route"
+        | "execute_tool"
+        | "git_status"
+        | "worktree_inspect" => "workspace_analyze".to_string(),
+        "web_lookup" | "browse_web" => "web_search".to_string(),
+        "shell_exec" => "terminal_exec".to_string(),
+        _ => normalized,
+    }
+}
+
 pub fn capability_probe_for(
     allowed_tools: &std::collections::HashMap<BrokerCaller, std::collections::HashSet<String>>,
     caller: BrokerCaller,
     tool_name: &str,
 ) -> ToolCapabilityProbe {
-    let normalized = tool_name.trim().to_ascii_lowercase();
-    let Some(spec) = capability_matrix().get(&normalized).cloned() else {
+    let requested = tool_name.trim().to_ascii_lowercase();
+    let canonical = canonical_tool_name(requested.as_str());
+    let Some(spec) = capability_matrix().get(&canonical).cloned() else {
         return ToolCapabilityProbe {
-            tool_name: normalized,
+            tool_name: requested,
             caller,
             available: false,
             discoverable: false,
@@ -310,9 +334,9 @@ pub fn capability_probe_for(
     let backend_health = live_backend_status_for(spec.backend.as_str());
     let allowed = allowed_tools
         .get(&caller)
-        .map(|set| set.contains(&normalized))
+        .map(|set| set.contains(&canonical) || set.contains(&requested))
         .unwrap_or(false);
-    let (available, status, reason_code, reason) = if !allowed {
+    let (available, status, reason_code, mut reason) = if !allowed {
         (
             false,
             ToolCapabilityStatus::Blocked,
@@ -358,8 +382,11 @@ pub fn capability_probe_for(
             ),
         }
     };
+    if matches!(reason_code, ToolReasonCode::Ok) && requested != canonical {
+        reason = format!("ok_alias:{requested}->{canonical}");
+    }
     ToolCapabilityProbe {
-        tool_name: normalized,
+        tool_name: canonical,
         caller,
         available,
         discoverable: spec.discoverable,
@@ -481,5 +508,25 @@ mod tests {
                     .iter()
                     .any(|tool| tool.tool_name == "terminal_exec")
         }));
+    }
+
+    #[test]
+    fn capability_probe_normalizes_extended_tool_aliases() {
+        let mut allowed = HashMap::<BrokerCaller, HashSet<String>>::new();
+        allowed.insert(
+            BrokerCaller::Client,
+            ["workspace_analyze", "terminal_exec", "file_read_many"]
+                .iter()
+                .map(|row| row.to_string())
+                .collect::<HashSet<_>>(),
+        );
+        let local_context_probe =
+            capability_probe_for(&allowed, BrokerCaller::Client, "local_context");
+        let shell_exec_probe = capability_probe_for(&allowed, BrokerCaller::Client, "shell_exec");
+        let read_many_probe =
+            capability_probe_for(&allowed, BrokerCaller::Client, "workspace_read_many");
+        assert_eq!(local_context_probe.tool_name, "workspace_analyze");
+        assert_eq!(shell_exec_probe.tool_name, "terminal_exec");
+        assert_eq!(read_many_probe.tool_name, "file_read_many");
     }
 }

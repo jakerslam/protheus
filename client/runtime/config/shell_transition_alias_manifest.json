@@ -1,12 +1,13 @@
 {
   "schema_id": "shell_transition_alias_manifest",
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "canonical_term": "Shell",
   "compatibility_alias": "Client",
-  "retirement_target_version": "retired-2026-04-22",
-  "retirement_target_date": "2026-04-22",
-  "alias_state": "retired",
+  "retirement_target_version": "v0.5.0",
+  "retirement_target_date": "2026-07-15",
+  "alias_state": "compatibility_bridge_active",
   "required_alias_map_path": "client/runtime/config/shell_transition_alias_map.json",
+  "required_compatibility_bridges_path": "client/runtime/config/shell_transition_compatibility_bridges.json",
   "required_docs_paths": [
     "docs/workspace/shell_transition_notes.md",
     "docs/workspace/client_naming_policy.md",
@@ -17,6 +18,24 @@
     "Goal"
   ],
   "required_command_alias_pairs": [],
-  "required_config_alias_pairs": [],
-  "required_artifact_alias_pairs": []
+  "required_config_alias_pairs": [
+    {
+      "canonical": "client/runtime/config/shell_naming_policy.json",
+      "compatibility": "client/runtime/config/client_naming_policy.json"
+    },
+    {
+      "canonical": "client/runtime/config/shell_transition_alias_map.json",
+      "compatibility": "client/runtime/config/client_transition_alias_map.json"
+    }
+  ],
+  "required_artifact_alias_pairs": [
+    {
+      "canonical": "core/local/artifacts/shell_transition_tracker_current.json",
+      "compatibility": "core/local/artifacts/client_transition_tracker_current.json"
+    },
+    {
+      "canonical": "local/workspace/reports/SHELL_TRANSITION_TRACKER_CURRENT.md",
+      "compatibility": "local/workspace/reports/CLIENT_TRANSITION_TRACKER_CURRENT.md"
+    }
+  ]
 }

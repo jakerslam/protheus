@@ -1403,6 +1403,7 @@ fn handle_agent_scope_file_read_routes(
         let mut unclassified = Vec::<Value>::new();
         let mut grouped_text = Vec::<String>::new();
         let mut grouped_binary = Vec::<String>::new();
+        let mut grouped_binary_opt_in_blocked = Vec::<String>::new();
         let mut grouped_failed = Vec::<String>::new();
         let mut truncated_count: usize = 0;
         let mut binary_opt_in_blocked_count: usize = 0;
@@ -1435,17 +1436,19 @@ fn handle_agent_scope_file_read_routes(
             let binary = bytes_look_binary(&bytes);
             let content_type = guess_mime_type_for_file(&target_path, &bytes);
             if binary && !allow_binary {
+                let rendered_path = target_path.to_string_lossy().to_string();
                 binary_opt_in_blocked_count += 1;
                 failed.push(json!({
-                    "path": target_path.to_string_lossy().to_string(),
+                    "path": rendered_path,
                     "error": "binary_file_requires_opt_in",
                     "status": 415,
                     "binary": true,
                     "bytes": bytes.len(),
                     "content_type": content_type
                 }));
-                grouped_failed.push(target_path.to_string_lossy().to_string());
-                grouped_binary.push(target_path.to_string_lossy().to_string());
+                grouped_failed.push(rendered_path.clone());
+                grouped_binary.push(rendered_path.clone());
+                grouped_binary_opt_in_blocked.push(rendered_path);
                 continue;
             }
             let (content, truncated) = if binary {
@@ -1702,6 +1705,7 @@ fn handle_agent_scope_file_read_routes(
             "groups": {
                 "text": grouped_text,
                 "binary": grouped_binary,
+                "binary_opt_in_blocked": grouped_binary_opt_in_blocked,
                 "failed": grouped_failed,
                 "unclassified": grouped_unclassified
             },
@@ -1712,6 +1716,7 @@ fn handle_agent_scope_file_read_routes(
                 "unclassified": unclassified.len(),
                 "text": grouped_text.len(),
                 "binary": grouped_binary.len(),
+                "group_binary_opt_in_blocked": grouped_binary_opt_in_blocked.len(),
                 "group_failed": grouped_failed.len(),
                 "group_unclassified": grouped_unclassified.len(),
                 "truncated": truncated_count,

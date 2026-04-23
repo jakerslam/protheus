@@ -137,7 +137,10 @@
 
     agentStatusState(agent) {
       if (!agent) return 'offline';
-      var serverState = String(agent.sidebar_status_state || '').trim().toLowerCase();
+      var rawServerState = (typeof agent.sidebar_status_state === 'string')
+        ? agent.sidebar_status_state
+        : '';
+      var serverState = String(rawServerState).trim().toLowerCase();
       if (serverState === 'active' || serverState === 'idle' || serverState === 'offline') return serverState;
       var freshness = this.agentStatusFreshness(agent);
       if (freshness.stale) return 'offline';
@@ -145,9 +148,15 @@
     },
 
     agentStatusLabel(agent) {
-      var serverLabel = String(agent && agent.sidebar_status_label ? agent.sidebar_status_label : '').trim().toLowerCase();
+      var rawServerLabel = (agent && typeof agent.sidebar_status_label === 'string')
+        ? agent.sidebar_status_label
+        : '';
+      var serverLabel = String(rawServerLabel).trim().toLowerCase();
       if (serverLabel === 'active' || serverLabel === 'idle' || serverLabel === 'offline') return serverLabel;
-      var serverState = String(agent && agent.sidebar_status_state ? agent.sidebar_status_state : '').trim().toLowerCase();
+      var rawServerState = (agent && typeof agent.sidebar_status_state === 'string')
+        ? agent.sidebar_status_state
+        : '';
+      var serverState = String(rawServerState).trim().toLowerCase();
       if (serverState === 'active' || serverState === 'idle' || serverState === 'offline') return serverState;
       var freshness = this.agentStatusFreshness(agent);
       if (freshness.stale) return 'offline';

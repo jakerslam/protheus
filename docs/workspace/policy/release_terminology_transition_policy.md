@@ -12,9 +12,13 @@ Define release-governed canonical terminology rules after alias retirement.
 
 ## Alias Retirement State
 
-- Compatibility aliases listed in the transition alias maps are retired effective:
+- Kernel/Core and Gateways/Adapters aliases are retired effective:
   - version: `retired-2026-04-22`
   - date: `2026-04-22`
+- Shell/Client compatibility bridges remain temporarily active until:
+  - version: `v0.5.0`
+  - date: `2026-07-15`
+  - guard source: `client/runtime/config/shell_transition_compatibility_bridges.json`
 - Legacy repository paths (`core/**`, `adapters/**`, `client/**`) remain implementation paths only.
 
 ## Release Checklist Requirements

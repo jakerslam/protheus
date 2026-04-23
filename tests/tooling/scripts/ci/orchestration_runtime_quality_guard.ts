@@ -46,6 +46,8 @@ type RuntimeQualityPolicy = {
   consistency_epsilon?: number;
   ratchet?: {
     max_regression_delta?: number;
+    improvement_window?: number;
+    min_improvement_delta?: number;
   };
   paths?: {
     latest?: string;
@@ -81,6 +83,26 @@ function readJsonMaybe<T>(filePath: string): T | null {
     return JSON.parse(fs.readFileSync(path.resolve(ROOT, filePath), 'utf8')) as T;
   } catch {
     return null;
+  }
+}
+
+function readJsonLinesMaybe(filePath: string): any[] {
+  try {
+    const raw = fs.readFileSync(path.resolve(ROOT, filePath), 'utf8');
+    return raw
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .map((line) => {
+        try {
+          return JSON.parse(line);
+        } catch {
+          return null;
+        }
+      })
+      .filter((row) => row && typeof row === 'object');
+  } catch {
+    return [];
   }
 }
 
@@ -384,6 +406,7 @@ function evaluateRatchet(
   metrics: RuntimeQualityMetrics | null,
   policy: RuntimeQualityPolicy,
   previous: any,
+  historyRows: any[],
 ): string[] {
   const failures: string[] = [];
   if (!metrics) return failures;
@@ -420,6 +443,51 @@ function evaluateRatchet(
     if (current != null && prior != null && current > prior + delta) {
       failures.push(
         `ratchet_${field}_regression:current=${current.toFixed(4)}:previous=${prior.toFixed(4)}:delta=${delta.toFixed(4)}`,
+      );
+    }
+  }
+
+  const improvementWindow = Math.max(2, Number(policy.ratchet?.improvement_window || 0));
+  const minImprovementDelta = Math.max(0, Number(policy.ratchet?.min_improvement_delta || 0));
+  const historyMetrics = historyRows
+    .map((row) => row?.metrics)
+    .filter((row) => row && typeof row === 'object') as RuntimeQualityMetrics[];
+  const trendSeries = [...historyMetrics, metrics];
+  if (trendSeries.length >= improvementWindow) {
+    const recent = trendSeries.slice(-improvementWindow);
+    const lowerIsBetter: Array<keyof RuntimeQualityMetrics> = [
+      'fallback_rate_non_legacy',
+      'heuristic_probe_rate_non_legacy',
+      'clarification_rate_non_legacy',
+      'zero_executable_rate_non_legacy',
+      'all_candidates_degraded_rate_non_legacy',
+    ];
+    const higherIsBetter: Array<keyof RuntimeQualityMetrics> = [
+      'sample_size_non_legacy',
+      'average_candidate_count',
+    ];
+    let improvementEvents = 0;
+    for (let i = 1; i < recent.length; i += 1) {
+      const prev = recent[i - 1] || {};
+      const curr = recent[i] || {};
+      for (const field of lowerIsBetter) {
+        const previousValue = numberOrNull(prev[field]);
+        const currentValue = numberOrNull(curr[field]);
+        if (previousValue != null && currentValue != null && currentValue < previousValue - minImprovementDelta) {
+          improvementEvents += 1;
+        }
+      }
+      for (const field of higherIsBetter) {
+        const previousValue = numberOrNull(prev[field]);
+        const currentValue = numberOrNull(curr[field]);
+        if (previousValue != null && currentValue != null && currentValue > previousValue + minImprovementDelta) {
+          improvementEvents += 1;
+        }
+      }
+    }
+    if (improvementEvents === 0) {
+      failures.push(
+        `ratchet_no_improvement_window_exceeded:window=${improvementWindow}:min_improvement_delta=${minImprovementDelta.toFixed(4)}`,
       );
     }
   }
@@ -515,11 +583,14 @@ function run(argv: string[]): number {
   const previousLatest = runtimePolicy.paths?.latest
     ? readJsonMaybe<any>(runtimePolicy.paths.latest)
     : null;
+  const historyRows = runtimePolicy.paths?.history
+    ? readJsonLinesMaybe(runtimePolicy.paths.history)
+    : [];
   const requiredMetricFields = requiredMetricFieldsFromPolicy(runtimePolicy);
   const missingMetricFields = collectMissingMetricFields(metrics, requiredMetricFields);
   const policyFailures = evaluateThresholds(metrics, runtimePolicy);
   const consistencyFailures = evaluateMetricConsistency(metrics, runtimePolicy);
-  const ratchetFailures = evaluateRatchet(metrics, runtimePolicy, previousLatest);
+  const ratchetFailures = evaluateRatchet(metrics, runtimePolicy, previousLatest, historyRows);
   const metricFieldsPresent = metrics
     ? Object.values(metrics).filter((value) => numberOrNull(value) != null).length
     : 0;

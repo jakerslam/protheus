@@ -8,7 +8,7 @@ impl ToolBroker {
         self.allowed_tools
             .entry(caller)
             .or_default()
-            .insert(clean_text(tool_name, 120).to_ascii_lowercase());
+            .insert(canonical_requested_tool_name(tool_name));
     }
 
     pub fn capability_catalog(&self) -> Vec<ToolCapability> {
@@ -24,10 +24,11 @@ impl ToolBroker {
     }
 
     pub fn capability_probe(&self, caller: BrokerCaller, tool_name: &str) -> ToolCapabilityProbe {
+        let canonical_name = canonical_requested_tool_name(tool_name);
         capability_probe_for(
             &self.allowed_tools,
             caller,
-            clean_text(tool_name, 120).as_str(),
+            canonical_name.as_str(),
         )
     }
 
@@ -63,7 +64,8 @@ impl ToolBroker {
     where
         F: FnOnce(&Value) -> Result<Value, String>,
     {
-        let tool_name = clean_text(&request.tool_name, 120).to_ascii_lowercase();
+        let requested_tool_name = clean_text(&request.tool_name, 120).to_ascii_lowercase();
+        let tool_name = canonical_requested_tool_name(&request.tool_name);
         let event_ts = now_ms();
         let probe = self.capability_probe(request.caller, &tool_name);
         if !probe.available {
@@ -116,13 +118,66 @@ impl ToolBroker {
                 return Err(err);
             }
         };
+        let route_hint = normalized_args
+            .get("route_hint")
+            .and_then(Value::as_str)
+            .map(|v| clean_text(v, 120))
+            .unwrap_or_default();
+        let synthesis_profile = normalized_args
+            .get("synthesis_profile")
+            .and_then(Value::as_str)
+            .map(|v| clean_text(v, 120))
+            .or_else(|| {
+                let language = normalized_args
+                    .get("language")
+                    .and_then(Value::as_str)
+                    .map(|v| clean_text(v, 60))
+                    .unwrap_or_default();
+                let provider = normalized_args
+                    .get("provider")
+                    .and_then(Value::as_str)
+                    .map(|v| clean_text(v, 80))
+                    .unwrap_or_default();
+                let profile = match (language.is_empty(), provider.is_empty()) {
+                    (false, false) => format!("provider={provider},language={language}"),
+                    (false, true) => format!("language={language}"),
+                    (true, false) => format!("provider={provider}"),
+                    (true, true) => String::new(),
+                };
+                if profile.is_empty() {
+                    None
+                } else {
+                    Some(profile)
+                }
+            })
+            .unwrap_or_default();
+        let context_mentions_count = normalized_args
+            .get("context_mentions")
+            .and_then(Value::as_array)
+            .map(|rows| rows.len())
+            .unwrap_or(0);
+        let provider_surface_hint = normalized_args
+            .get("provider")
+            .or_else(|| normalized_args.get("provider_name"))
+            .or_else(|| normalized_args.get("provider_family"))
+            .and_then(Value::as_str)
+            .map(|v| clean_text(v, 80))
+            .unwrap_or_default();
+        let model_surface_hint = normalized_args
+            .get("model")
+            .or_else(|| normalized_args.get("model_id"))
+            .and_then(Value::as_str)
+            .map(|v| clean_text(v, 120))
+            .unwrap_or_default();
         let policy_revision = clean_text(
             request.policy_revision.as_deref().unwrap_or("policy_v1"),
             120,
         );
         let tool_version = clean_text(request.tool_version.as_deref().unwrap_or("tool_v1"), 120);
-        let freshness_window_ms =
-            dedupe_freshness_window_ms(&tool_name, request.freshness_window_ms);
+        let freshness_window_ms = dedupe_freshness_window_ms(
+            &tool_name,
+            requested_freshness_window_ms(request.freshness_window_ms, &request.args),
+        );
         let freshness_bucket = if freshness_window_ms == 0 {
             0
         } else {
@@ -230,6 +285,25 @@ impl ToolBroker {
             lineage.push(format!("freshness_window_ms:{freshness_window_ms}"));
             lineage.push(format!("freshness_bucket:{freshness_bucket}"));
         }
+        if requested_tool_name != tool_name {
+            lineage.push(format!("requested_tool_alias:{requested_tool_name}"));
+            lineage.push(format!("canonical_tool:{tool_name}"));
+        }
+        if !route_hint.is_empty() {
+            lineage.push(format!("route_hint:{route_hint}"));
+        }
+        if !synthesis_profile.is_empty() {
+            lineage.push(format!("synthesis_profile:{synthesis_profile}"));
+        }
+        if context_mentions_count > 0 {
+            lineage.push(format!("context_mentions_count:{context_mentions_count}"));
+        }
+        if !provider_surface_hint.is_empty() {
+            lineage.push(format!("provider_surface:{provider_surface_hint}"));
+        }
+        if !model_surface_hint.is_empty() {
+            lineage.push(format!("model_surface:{model_surface_hint}"));
+        }
         lineage.push(format!("broker_event:{event_id}"));
         let normalized_result = NormalizedToolResult {
             result_id,
@@ -311,7 +385,7 @@ impl ToolBroker {
                         trace_id: clean_text(&request.trace_id, 160),
                         task_id: clean_text(&request.task_id, 160),
                         caller: request.caller,
-                        tool_name: clean_text(&request.tool_name, 120),
+                        tool_name: canonical_requested_tool_name(&request.tool_name),
                         status: ToolAttemptStatus::ExecutionError,
                         outcome: "error".to_string(),
                         reason_code: ToolReasonCode::ExecutionError,

@@ -66,6 +66,12 @@ function normalizeRel(root, abs) {
   return path.relative(root, abs).replace(/\\/g, '/');
 }
 
+function isVirtualRelativeSpec(spec) {
+  if (!spec) return false;
+  if (spec === './$types' || spec === '../$types' || spec === '$types') return true;
+  return spec.endsWith('/$types');
+}
+
 const cwd = process.cwd();
 const strict = process.argv.includes('--strict=1') || process.argv.includes('--strict');
 const outArg = process.argv.find((arg) => arg.startsWith('--out='));
@@ -84,6 +90,7 @@ for (const abs of files) {
   while ((match = re.exec(source)) !== null) {
     const spec = match[2] || match[4] || match[6];
     if (!spec || !(spec.startsWith('./') || spec.startsWith('../') || spec.startsWith('/'))) continue;
+    if (isVirtualRelativeSpec(spec)) continue;
     const exists = resolveCandidates(path.dirname(abs), spec).some((candidate) => {
       if (!fs.existsSync(candidate)) return false;
       try {

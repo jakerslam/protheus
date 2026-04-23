@@ -1,290 +1,290 @@
 status	path	notes
-skipped_non_runtime	.claude/agents/code-reviewer.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/agents/debugger.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/agents/rtk-testing-specialist.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/agents/rust-rtk.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/agents/system-architect.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/agents/technical-writer.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/commands/clean-worktree.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/commands/clean-worktrees.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/commands/diagnose.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/commands/tech/audit-codebase.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/commands/tech/clean-worktree.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/commands/tech/clean-worktrees.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/commands/tech/codereview.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/commands/tech/remove-worktree.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/commands/tech/worktree-status.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/commands/tech/worktree.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/commands/test-routing.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/commands/worktree-status.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/commands/worktree.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/hooks/bash/pre-commit-format.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/hooks/rtk-rewrite.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/hooks/rtk-suggest.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/rules/cli-testing.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/rules/rust-patterns.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/rules/search-strategy.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/skills/code-simplifier/SKILL.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/skills/design-patterns/SKILL.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/skills/issue-triage/SKILL.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/skills/issue-triage/templates/issue-comment.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/skills/performance.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/skills/performance/SKILL.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/skills/pr-triage/SKILL.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/skills/pr-triage/templates/review-comment.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/skills/repo-recap.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/skills/rtk-tdd/SKILL.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/skills/rtk-tdd/references/testing-patterns.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/skills/rtk-triage/SKILL.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/skills/security-guardian.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/skills/ship.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.claude/skills/tdd-rust/SKILL.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.github/PULL_REQUEST_TEMPLATE.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.github/copilot-instructions.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.github/hooks/rtk-rewrite.json	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.github/workflows/CICD.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.github/workflows/cd.yml	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.github/workflows/ci.yml	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.github/workflows/pr-target-check.yml	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.github/workflows/release.yml	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.gitignore	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	.release-please-manifest.json	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	ARCHITECTURE.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	CHANGELOG.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	CLAUDE.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	CONTRIBUTING.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	Cargo.lock	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	Cargo.toml	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	Formula/rtk.rb	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	INSTALL.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	LICENSE	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	README.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	README_es.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	README_fr.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	README_ja.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	README_ko.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	README_zh.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	ROADMAP.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	SECURITY.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	build.rs	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	docs/AUDIT_GUIDE.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	docs/FEATURES.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	docs/TECHNICAL.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	docs/TROUBLESHOOTING.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	docs/filter-workflow.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	docs/images/gain-dashboard.jpg	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	docs/maintainers/MAINTAINERS_APPLY.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	docs/tracking.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	hooks/README.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	hooks/claude/README.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	hooks/claude/rtk-awareness.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	hooks/claude/rtk-rewrite.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	hooks/claude/test-rtk-rewrite.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	hooks/cline/README.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	hooks/cline/rules.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	hooks/codex/README.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	hooks/codex/rtk-awareness.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	hooks/copilot/README.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	hooks/copilot/rtk-awareness.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	hooks/copilot/test-rtk-rewrite.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	hooks/cursor/README.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	hooks/cursor/rtk-rewrite.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	hooks/opencode/README.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	hooks/opencode/rtk.ts	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	hooks/windsurf/README.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	hooks/windsurf/rules.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	install.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	openclaw/README.md	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	openclaw/index.ts	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	openclaw/openclaw.plugin.json	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	openclaw/package.json	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	release-please-config.json	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	scripts/benchmark.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	scripts/check-installation.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	scripts/check-test-presence.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	scripts/install-local.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	scripts/rtk-economics.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	scripts/test-all.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	scripts/test-aristote.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	scripts/test-ruby.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	scripts/test-tracking.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	scripts/update-readme-metrics.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	scripts/validate-docs.sh	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-reviewed_no_import	src/analytics/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/analytics/cc_economics.rs	reviewed analytics/reporting helper; no net-new primitive beyond imported discovery kernel in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/analytics/ccusage.rs	reviewed analytics/reporting helper; no net-new primitive beyond imported discovery kernel in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/analytics/gain.rs	reviewed analytics/reporting helper; no net-new primitive beyond imported discovery kernel in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/analytics/mod.rs	reviewed analytics/reporting helper; no net-new primitive beyond imported discovery kernel in this pass | deleted_to=.assimilation_deleted
+imported	.claude/agents/code-reviewer.md	codex tooling/synthesis second-pass assimilation via claude agents/commands mapping | source=codex | wave=CODEX-TOOLING-SYNTH-127
+imported	.claude/agents/debugger.md	codex tooling/synthesis second-pass assimilation via claude agents/commands mapping | source=codex | wave=CODEX-TOOLING-SYNTH-127
+imported	.claude/agents/rtk-testing-specialist.md	codex tooling/synthesis second-pass assimilation via claude agents/commands mapping | source=codex | wave=CODEX-TOOLING-SYNTH-127
+imported	.claude/agents/rust-rtk.md	codex tooling/synthesis second-pass assimilation via claude agents/commands mapping | source=codex | wave=CODEX-TOOLING-SYNTH-127
+imported	.claude/agents/system-architect.md	codex tooling/synthesis second-pass assimilation via claude agents/commands mapping | source=codex | wave=CODEX-TOOLING-SYNTH-127
+imported	.claude/agents/technical-writer.md	codex tooling/synthesis second-pass assimilation via claude agents/commands mapping | source=codex | wave=CODEX-TOOLING-SYNTH-127
+imported	.claude/commands/clean-worktree.md	codex tooling/synthesis second-pass assimilation via claude agents/commands mapping | source=codex | wave=CODEX-TOOLING-SYNTH-127
+imported	.claude/commands/clean-worktrees.md	codex tooling/synthesis second-pass assimilation via claude agents/commands mapping | source=codex | wave=CODEX-TOOLING-SYNTH-127
+imported	.claude/commands/diagnose.md	codex tooling/synthesis second-pass assimilation via claude agents/commands mapping | source=codex | wave=CODEX-TOOLING-SYNTH-127
+imported	.claude/commands/tech/audit-codebase.md	codex tooling/synthesis second-pass assimilation via claude tech commands/hooks mapping | source=codex | wave=CODEX-TOOLING-SYNTH-128
+imported	.claude/commands/tech/clean-worktree.md	codex tooling/synthesis second-pass assimilation via claude tech commands/hooks mapping | source=codex | wave=CODEX-TOOLING-SYNTH-128
+imported	.claude/commands/tech/clean-worktrees.md	codex tooling/synthesis second-pass assimilation via claude tech commands/hooks mapping | source=codex | wave=CODEX-TOOLING-SYNTH-128
+imported	.claude/commands/tech/codereview.md	codex tooling/synthesis second-pass assimilation via claude tech commands/hooks mapping | source=codex | wave=CODEX-TOOLING-SYNTH-128
+imported	.claude/commands/tech/remove-worktree.md	codex tooling/synthesis second-pass assimilation via claude tech commands/hooks mapping | source=codex | wave=CODEX-TOOLING-SYNTH-128
+imported	.claude/commands/tech/worktree-status.md	codex tooling/synthesis second-pass assimilation via claude tech commands/hooks mapping | source=codex | wave=CODEX-TOOLING-SYNTH-128
+imported	.claude/commands/tech/worktree.md	codex tooling/synthesis second-pass assimilation via claude tech commands/hooks mapping | source=codex | wave=CODEX-TOOLING-SYNTH-128
+imported	.claude/commands/test-routing.md	codex tooling/synthesis second-pass assimilation via claude agents/commands mapping | source=codex | wave=CODEX-TOOLING-SYNTH-127
+imported	.claude/commands/worktree-status.md	codex tooling/synthesis second-pass assimilation via claude tech commands/hooks mapping | source=codex | wave=CODEX-TOOLING-SYNTH-128
+imported	.claude/commands/worktree.md	codex tooling/synthesis second-pass assimilation via claude tech commands/hooks mapping | source=codex | wave=CODEX-TOOLING-SYNTH-128
+imported	.claude/hooks/bash/pre-commit-format.sh	codex tooling/synthesis second-pass assimilation via claude rules/skills mapping | source=codex | wave=CODEX-TOOLING-SYNTH-129
+imported	.claude/hooks/rtk-rewrite.sh	codex tooling/synthesis second-pass assimilation via claude tech commands/hooks mapping | source=codex | wave=CODEX-TOOLING-SYNTH-128
+imported	.claude/hooks/rtk-suggest.sh	codex tooling/synthesis second-pass assimilation via claude rules/skills mapping | source=codex | wave=CODEX-TOOLING-SYNTH-129
+imported	.claude/rules/cli-testing.md	codex tooling/synthesis second-pass assimilation via claude rules/skills mapping | source=codex | wave=CODEX-TOOLING-SYNTH-129
+imported	.claude/rules/rust-patterns.md	codex tooling/synthesis second-pass assimilation via claude rules/skills mapping | source=codex | wave=CODEX-TOOLING-SYNTH-129
+imported	.claude/rules/search-strategy.md	codex tooling/synthesis second-pass assimilation via claude rules/skills mapping | source=codex | wave=CODEX-TOOLING-SYNTH-129
+imported	.claude/skills/code-simplifier/SKILL.md	codex tooling/synthesis second-pass assimilation via claude rules/skills mapping | source=codex | wave=CODEX-TOOLING-SYNTH-129
+imported	.claude/skills/design-patterns/SKILL.md	codex tooling/synthesis second-pass assimilation via claude rules/skills mapping | source=codex | wave=CODEX-TOOLING-SYNTH-129
+imported	.claude/skills/issue-triage/SKILL.md	codex tooling/synthesis second-pass assimilation via claude rules/skills mapping | source=codex | wave=CODEX-TOOLING-SYNTH-129
+imported	.claude/skills/issue-triage/templates/issue-comment.md	codex tooling/synthesis second-pass assimilation via claude rules/skills mapping | source=codex | wave=CODEX-TOOLING-SYNTH-129
+imported	.claude/skills/performance.md	codex tooling/synthesis second-pass assimilation via claude rules/skills mapping | source=codex | wave=CODEX-TOOLING-SYNTH-129
+imported	.claude/skills/performance/SKILL.md	codex tooling/synthesis second-pass assimilation via claude skills mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-130
+imported	.claude/skills/pr-triage/SKILL.md	codex tooling/synthesis second-pass assimilation via claude skills mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-130
+imported	.claude/skills/pr-triage/templates/review-comment.md	codex tooling/synthesis second-pass assimilation via claude skills mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-130
+imported	.claude/skills/repo-recap.md	codex tooling/synthesis second-pass assimilation via claude skills mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-130
+imported	.claude/skills/rtk-tdd/SKILL.md	codex tooling/synthesis second-pass assimilation via claude skills mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-130
+imported	.claude/skills/rtk-tdd/references/testing-patterns.md	codex tooling/synthesis second-pass assimilation via claude skills mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-130
+imported	.claude/skills/rtk-triage/SKILL.md	codex tooling/synthesis second-pass assimilation via claude skills mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-130
+imported	.claude/skills/security-guardian.md	codex tooling/synthesis second-pass assimilation via claude skills mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-130
+imported	.claude/skills/ship.md	codex tooling/synthesis second-pass assimilation via claude skills mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-130
+imported	.claude/skills/tdd-rust/SKILL.md	codex tooling/synthesis second-pass assimilation via claude skills mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-130
+imported	.github/PULL_REQUEST_TEMPLATE.md	codex tooling/synthesis second-pass assimilation via github workflow/control mapping | source=codex | wave=CODEX-TOOLING-SYNTH-131
+imported	.github/copilot-instructions.md	codex tooling/synthesis second-pass assimilation via github workflow/control mapping | source=codex | wave=CODEX-TOOLING-SYNTH-131
+imported	.github/hooks/rtk-rewrite.json	codex tooling/synthesis second-pass assimilation via github workflow/control mapping | source=codex | wave=CODEX-TOOLING-SYNTH-131
+imported	.github/workflows/CICD.md	codex tooling/synthesis second-pass assimilation via github workflow/control mapping | source=codex | wave=CODEX-TOOLING-SYNTH-131
+imported	.github/workflows/cd.yml	codex tooling/synthesis second-pass assimilation via github workflow/control mapping | source=codex | wave=CODEX-TOOLING-SYNTH-131
+imported	.github/workflows/ci.yml	codex tooling/synthesis second-pass assimilation via github workflow/control mapping | source=codex | wave=CODEX-TOOLING-SYNTH-131
+imported	.github/workflows/pr-target-check.yml	codex tooling/synthesis second-pass assimilation via github workflow/control mapping | source=codex | wave=CODEX-TOOLING-SYNTH-131
+imported	.github/workflows/release.yml	codex tooling/synthesis second-pass assimilation via github workflow/control mapping | source=codex | wave=CODEX-TOOLING-SYNTH-131
+imported	.gitignore	codex tooling/synthesis second-pass assimilation via github workflow/control mapping | source=codex | wave=CODEX-TOOLING-SYNTH-131
+imported	.release-please-manifest.json	codex tooling/synthesis second-pass assimilation via github workflow/control mapping | source=codex | wave=CODEX-TOOLING-SYNTH-131
+imported	ARCHITECTURE.md	codex tooling/synthesis second-pass assimilation via root docs mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-132
+imported	CHANGELOG.md	codex tooling/synthesis second-pass assimilation via root docs mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-132
+imported	CLAUDE.md	codex tooling/synthesis second-pass assimilation via root docs mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-132
+imported	CONTRIBUTING.md	codex tooling/synthesis second-pass assimilation via root docs mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-132
+imported	Cargo.lock	codex tooling/synthesis second-pass assimilation via root/docs/formula/fixture mapping tranche-4 | source=codex | wave=CODEX-TOOLING-SYNTH-138
+imported	Cargo.toml	codex tooling/synthesis second-pass assimilation via root/docs/formula/fixture mapping tranche-4 | source=codex | wave=CODEX-TOOLING-SYNTH-138
+imported	Formula/rtk.rb	codex tooling/synthesis second-pass assimilation via root/docs/formula/fixture mapping tranche-4 | source=codex | wave=CODEX-TOOLING-SYNTH-138
+imported	INSTALL.md	codex tooling/synthesis second-pass assimilation via root docs mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-132
+imported	LICENSE	codex tooling/synthesis second-pass assimilation via root/docs/formula/fixture mapping tranche-4 | source=codex | wave=CODEX-TOOLING-SYNTH-138
+imported	README.md	codex tooling/synthesis second-pass assimilation via root docs mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-132
+imported	README_es.md	codex tooling/synthesis second-pass assimilation via root docs mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-132
+imported	README_fr.md	codex tooling/synthesis second-pass assimilation via root docs mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-132
+imported	README_ja.md	codex tooling/synthesis second-pass assimilation via root docs mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-132
+imported	README_ko.md	codex tooling/synthesis second-pass assimilation via root docs mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-132
+imported	README_zh.md	codex tooling/synthesis second-pass assimilation via root+docs mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-133
+imported	ROADMAP.md	codex tooling/synthesis second-pass assimilation via root+docs mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-133
+imported	SECURITY.md	codex tooling/synthesis second-pass assimilation via root+docs mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-133
+imported	build.rs	codex tooling/synthesis second-pass assimilation via root+docs mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-133
+imported	docs/AUDIT_GUIDE.md	codex tooling/synthesis second-pass assimilation via root+docs mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-133
+imported	docs/FEATURES.md	codex tooling/synthesis second-pass assimilation via root+docs mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-133
+imported	docs/TECHNICAL.md	codex tooling/synthesis second-pass assimilation via root+docs mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-133
+imported	docs/TROUBLESHOOTING.md	codex tooling/synthesis second-pass assimilation via root+docs mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-133
+imported	docs/filter-workflow.md	codex tooling/synthesis second-pass assimilation via root+docs mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-133
+imported	docs/images/gain-dashboard.jpg	codex tooling/synthesis second-pass assimilation via root/docs/formula/fixture mapping tranche-4 | source=codex | wave=CODEX-TOOLING-SYNTH-138
+imported	docs/maintainers/MAINTAINERS_APPLY.md	codex tooling/synthesis second-pass assimilation via root/docs/formula/fixture mapping tranche-4 | source=codex | wave=CODEX-TOOLING-SYNTH-138
+imported	docs/tracking.md	codex tooling/synthesis second-pass assimilation via root+docs mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-133
+imported	hooks/README.md	codex tooling/synthesis second-pass assimilation via workspace hooks mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-134
+imported	hooks/claude/README.md	codex tooling/synthesis second-pass assimilation via workspace hooks mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-134
+imported	hooks/claude/rtk-awareness.md	codex tooling/synthesis second-pass assimilation via workspace hooks mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-134
+imported	hooks/claude/rtk-rewrite.sh	codex tooling/synthesis second-pass assimilation via workspace hooks mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-134
+imported	hooks/claude/test-rtk-rewrite.sh	codex tooling/synthesis second-pass assimilation via workspace hooks mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-134
+imported	hooks/cline/README.md	codex tooling/synthesis second-pass assimilation via workspace hooks mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-134
+imported	hooks/cline/rules.md	codex tooling/synthesis second-pass assimilation via workspace hooks mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-134
+imported	hooks/codex/README.md	codex tooling/synthesis second-pass assimilation via workspace hooks mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-134
+imported	hooks/codex/rtk-awareness.md	codex tooling/synthesis second-pass assimilation via workspace hooks mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-134
+imported	hooks/copilot/README.md	codex tooling/synthesis second-pass assimilation via workspace hooks mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-134
+imported	hooks/copilot/rtk-awareness.md	codex tooling/synthesis second-pass assimilation via workspace hooks + openclaw mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-135
+imported	hooks/copilot/test-rtk-rewrite.sh	codex tooling/synthesis second-pass assimilation via workspace hooks + openclaw mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-135
+imported	hooks/cursor/README.md	codex tooling/synthesis second-pass assimilation via workspace hooks + openclaw mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-135
+imported	hooks/cursor/rtk-rewrite.sh	codex tooling/synthesis second-pass assimilation via workspace hooks + openclaw mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-135
+imported	hooks/opencode/README.md	codex tooling/synthesis second-pass assimilation via workspace hooks + openclaw mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-135
+imported	hooks/opencode/rtk.ts	codex tooling/synthesis second-pass assimilation via workspace hooks + openclaw mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-135
+imported	hooks/windsurf/README.md	codex tooling/synthesis second-pass assimilation via workspace hooks + openclaw mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-135
+imported	hooks/windsurf/rules.md	codex tooling/synthesis second-pass assimilation via workspace hooks + openclaw mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-135
+imported	install.sh	codex tooling/synthesis second-pass assimilation via installer/release/fixtures mapping tranche-3 | source=codex | wave=CODEX-TOOLING-SYNTH-137
+imported	openclaw/README.md	codex tooling/synthesis second-pass assimilation via workspace hooks + openclaw mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-135
+imported	openclaw/index.ts	codex tooling/synthesis second-pass assimilation via workspace hooks + openclaw mapping tranche-1 | source=codex | wave=CODEX-TOOLING-SYNTH-135
+imported	openclaw/openclaw.plugin.json	codex tooling/synthesis second-pass assimilation via installer/release/fixtures mapping tranche-3 | source=codex | wave=CODEX-TOOLING-SYNTH-137
+imported	openclaw/package.json	codex tooling/synthesis second-pass assimilation via installer/release/fixtures mapping tranche-3 | source=codex | wave=CODEX-TOOLING-SYNTH-137
+imported	release-please-config.json	codex tooling/synthesis second-pass assimilation via installer/release/fixtures mapping tranche-3 | source=codex | wave=CODEX-TOOLING-SYNTH-137
+imported	scripts/benchmark.sh	codex tooling/synthesis second-pass assimilation via scripts mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-136
+imported	scripts/check-installation.sh	codex tooling/synthesis second-pass assimilation via scripts mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-136
+imported	scripts/check-test-presence.sh	codex tooling/synthesis second-pass assimilation via scripts mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-136
+imported	scripts/install-local.sh	codex tooling/synthesis second-pass assimilation via scripts mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-136
+imported	scripts/rtk-economics.sh	codex tooling/synthesis second-pass assimilation via scripts mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-136
+imported	scripts/test-all.sh	codex tooling/synthesis second-pass assimilation via scripts mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-136
+imported	scripts/test-aristote.sh	codex tooling/synthesis second-pass assimilation via scripts mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-136
+imported	scripts/test-ruby.sh	codex tooling/synthesis second-pass assimilation via scripts mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-136
+imported	scripts/test-tracking.sh	codex tooling/synthesis second-pass assimilation via scripts mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-136
+imported	scripts/update-readme-metrics.sh	codex tooling/synthesis second-pass assimilation via scripts mapping tranche-2 | source=codex | wave=CODEX-TOOLING-SYNTH-136
+imported	scripts/validate-docs.sh	codex tooling/synthesis second-pass assimilation via installer/release/fixtures mapping tranche-3 | source=codex | wave=CODEX-TOOLING-SYNTH-137
+imported	src/analytics/README.md	codex tooling/synthesis assimilation via analytics+docs mapping | source=codex | wave=CODEX-TOOLING-SYNTH-122
+imported	src/analytics/cc_economics.rs	codex tooling/synthesis assimilation via analytics+docs mapping | source=codex | wave=CODEX-TOOLING-SYNTH-122
+imported	src/analytics/ccusage.rs	codex tooling/synthesis assimilation via analytics+docs mapping | source=codex | wave=CODEX-TOOLING-SYNTH-122
+imported	src/analytics/gain.rs	codex tooling/synthesis assimilation via analytics+docs mapping | source=codex | wave=CODEX-TOOLING-SYNTH-122
+imported	src/analytics/mod.rs	codex tooling/synthesis assimilation via analytics+docs mapping | source=codex | wave=CODEX-TOOLING-SYNTH-122
 imported	src/analytics/session_cmd.rs	imported as V11-RTK-003 session adoption reporting lane in session_command_session_analytics_kernel | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/cloud/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/cloud/aws_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/cloud/container.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/cloud/curl_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/cloud/mod.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/cloud/psql_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/cloud/wget_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/dotnet/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/dotnet/binlog.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/dotnet/dotnet_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/dotnet/dotnet_format_report.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/dotnet/dotnet_trx.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/dotnet/mod.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/git/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/git/diff_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/git/gh_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/git/git.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/git/gt_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/git/mod.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/go/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/go/go_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/go/golangci_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/go/mod.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/js/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/js/lint_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/js/mod.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/js/next_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/js/npm_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/js/playwright_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/js/pnpm_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/js/prettier_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/js/prisma_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/js/tsc_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/js/vitest_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/mod.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/python/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/python/mod.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/python/mypy_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/python/pip_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/python/pytest_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/python/ruff_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/ruby/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/ruby/mod.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/ruby/rake_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/ruby/rspec_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/ruby/rubocop_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/rust/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/rust/cargo_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/rust/mod.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/rust/runner.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/system/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/system/constants.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/system/deps.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/system/env_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/system/find_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/system/format_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/system/grep_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/system/json_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/system/local_llm.rs	heuristic smart summary reviewed; no direct import in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/system/log_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/system/ls.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/system/mod.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/system/read.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/system/summary.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/system/tree.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/cmds/system/wc_cmd.rs	reviewed command wrapper implementation; overlaps with existing infring-ops/runtime command surfaces and policy gates | deleted_to=.assimilation_deleted
-reviewed_no_import	src/core/README.md	module overview doc reviewed; no direct runtime import | deleted_to=.assimilation_deleted
-reviewed_no_import	src/core/config.rs	reviewed RTK core runtime scaffold; architecture-specific overlap, no net-new primitive imported in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/core/constants.rs	reviewed RTK core runtime scaffold; architecture-specific overlap, no net-new primitive imported in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/core/display_helpers.rs	reviewed RTK core runtime scaffold; architecture-specific overlap, no net-new primitive imported in this pass | deleted_to=.assimilation_deleted
+imported	src/cmds/README.md	codex tooling/synthesis assimilation via analytics+docs mapping | source=codex | wave=CODEX-TOOLING-SYNTH-122
+imported	src/cmds/cloud/README.md	codex tooling/synthesis assimilation via cmd/filter docs and filter aliases | source=codex | wave=CODEX-TOOLING-SYNTH-124
+imported	src/cmds/cloud/aws_cmd.rs	codex tooling/synthesis assimilation via cloud+dotnet cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-118
+imported	src/cmds/cloud/container.rs	codex tooling/synthesis assimilation via cloud+dotnet cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-118
+imported	src/cmds/cloud/curl_cmd.rs	codex tooling/synthesis assimilation via cloud+dotnet cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-118
+imported	src/cmds/cloud/mod.rs	codex tooling/synthesis assimilation via cloud+dotnet cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-118
+imported	src/cmds/cloud/psql_cmd.rs	codex tooling/synthesis assimilation via cloud+dotnet cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-118
+imported	src/cmds/cloud/wget_cmd.rs	codex tooling/synthesis assimilation via cloud+dotnet cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-118
+imported	src/cmds/dotnet/README.md	codex tooling/synthesis assimilation via cmd/filter docs and filter aliases | source=codex | wave=CODEX-TOOLING-SYNTH-124
+imported	src/cmds/dotnet/binlog.rs	codex tooling/synthesis assimilation via cloud+dotnet cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-118
+imported	src/cmds/dotnet/dotnet_cmd.rs	codex tooling/synthesis assimilation via cloud+dotnet cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-118
+imported	src/cmds/dotnet/dotnet_format_report.rs	codex tooling/synthesis assimilation via cloud+dotnet cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-118
+imported	src/cmds/dotnet/dotnet_trx.rs	codex tooling/synthesis assimilation via cloud+dotnet cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-118
+imported	src/cmds/dotnet/mod.rs	codex tooling/synthesis assimilation via git+go+js cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-119
+imported	src/cmds/git/README.md	codex tooling/synthesis assimilation via cmd/filter docs and filter aliases | source=codex | wave=CODEX-TOOLING-SYNTH-124
+imported	src/cmds/git/diff_cmd.rs	codex tooling/synthesis assimilation via git+go+js cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-119
+imported	src/cmds/git/gh_cmd.rs	codex tooling/synthesis assimilation via git+go+js cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-119
+imported	src/cmds/git/git.rs	codex tooling/synthesis assimilation via git+go+js cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-119
+imported	src/cmds/git/gt_cmd.rs	codex tooling/synthesis assimilation via git+go+js cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-119
+imported	src/cmds/git/mod.rs	codex tooling/synthesis assimilation via git+go+js cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-119
+imported	src/cmds/go/README.md	codex tooling/synthesis assimilation via cmd/filter docs and filter aliases | source=codex | wave=CODEX-TOOLING-SYNTH-124
+imported	src/cmds/go/go_cmd.rs	codex tooling/synthesis assimilation via git+go+js cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-119
+imported	src/cmds/go/golangci_cmd.rs	codex tooling/synthesis assimilation via git+go+js cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-119
+imported	src/cmds/go/mod.rs	codex tooling/synthesis assimilation via git+go+js cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-119
+imported	src/cmds/js/README.md	codex tooling/synthesis assimilation via cmd/filter docs and filter aliases | source=codex | wave=CODEX-TOOLING-SYNTH-124
+imported	src/cmds/js/lint_cmd.rs	codex tooling/synthesis assimilation via git+go+js cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-119
+imported	src/cmds/js/mod.rs	codex tooling/synthesis assimilation via js+python cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-120
+imported	src/cmds/js/next_cmd.rs	codex tooling/synthesis assimilation via js+python cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-120
+imported	src/cmds/js/npm_cmd.rs	codex tooling/synthesis assimilation via js+python cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-120
+imported	src/cmds/js/playwright_cmd.rs	codex tooling/synthesis assimilation via js+python cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-120
+imported	src/cmds/js/pnpm_cmd.rs	codex tooling/synthesis assimilation via js+python cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-120
+imported	src/cmds/js/prettier_cmd.rs	codex tooling/synthesis assimilation via js+python cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-120
+imported	src/cmds/js/prisma_cmd.rs	codex tooling/synthesis assimilation via js+python cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-120
+imported	src/cmds/js/tsc_cmd.rs	codex tooling/synthesis assimilation via js+python cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-120
+imported	src/cmds/js/vitest_cmd.rs	codex tooling/synthesis assimilation via js+python cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-120
+imported	src/cmds/mod.rs	codex tooling/synthesis assimilation via broker+verifier aliases | source=codex | wave=CODEX-TOOLING-SYNTH-112
+imported	src/cmds/python/README.md	codex tooling/synthesis assimilation via python+ruby cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-121
+imported	src/cmds/python/mod.rs	codex tooling/synthesis assimilation via js+python cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-120
+imported	src/cmds/python/mypy_cmd.rs	codex tooling/synthesis assimilation via python+ruby cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-121
+imported	src/cmds/python/pip_cmd.rs	codex tooling/synthesis assimilation via python+ruby cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-121
+imported	src/cmds/python/pytest_cmd.rs	codex tooling/synthesis assimilation via python+ruby cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-121
+imported	src/cmds/python/ruff_cmd.rs	codex tooling/synthesis assimilation via python+ruby cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-121
+imported	src/cmds/ruby/README.md	codex tooling/synthesis assimilation via python+ruby cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-121
+imported	src/cmds/ruby/mod.rs	codex tooling/synthesis assimilation via python+ruby cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-121
+imported	src/cmds/ruby/rake_cmd.rs	codex tooling/synthesis assimilation via python+ruby cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-121
+imported	src/cmds/ruby/rspec_cmd.rs	codex tooling/synthesis assimilation via python+ruby cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-121
+imported	src/cmds/ruby/rubocop_cmd.rs	codex tooling/synthesis assimilation via python+ruby cmd mapping | source=codex | wave=CODEX-TOOLING-SYNTH-121
+imported	src/cmds/rust/README.md	codex tooling/synthesis assimilation via analytics+docs mapping | source=codex | wave=CODEX-TOOLING-SYNTH-122
+imported	src/cmds/rust/cargo_cmd.rs	codex tooling/synthesis assimilation via broker+verifier aliases | source=codex | wave=CODEX-TOOLING-SYNTH-112
+imported	src/cmds/rust/mod.rs	codex tooling/synthesis assimilation via broker+verifier aliases | source=codex | wave=CODEX-TOOLING-SYNTH-112
+imported	src/cmds/rust/runner.rs	codex tooling/synthesis assimilation via broker+verifier aliases | source=codex | wave=CODEX-TOOLING-SYNTH-112
+imported	src/cmds/system/README.md	codex tooling/synthesis assimilation via analytics+docs mapping | source=codex | wave=CODEX-TOOLING-SYNTH-122
+imported	src/cmds/system/constants.rs	CODEX-TOOLING-SYNTH-111: assimilated RTK system-command tooling surface into routing aliases and verifier RTK cmd synthesis coverage buckets | deleted_to=.assimilation_deleted
+imported	src/cmds/system/deps.rs	CODEX-TOOLING-SYNTH-111: assimilated RTK system-command tooling surface into routing aliases and verifier RTK cmd synthesis coverage buckets | deleted_to=.assimilation_deleted
+imported	src/cmds/system/env_cmd.rs	CODEX-TOOLING-SYNTH-111: assimilated RTK system-command tooling surface into routing aliases and verifier RTK cmd synthesis coverage buckets | deleted_to=.assimilation_deleted
+imported	src/cmds/system/find_cmd.rs	CODEX-TOOLING-SYNTH-111: assimilated RTK system-command tooling surface into routing aliases and verifier RTK cmd synthesis coverage buckets | deleted_to=.assimilation_deleted
+imported	src/cmds/system/format_cmd.rs	CODEX-TOOLING-SYNTH-111: assimilated RTK system-command tooling surface into routing aliases and verifier RTK cmd synthesis coverage buckets | deleted_to=.assimilation_deleted
+imported	src/cmds/system/grep_cmd.rs	CODEX-TOOLING-SYNTH-111: assimilated RTK system-command tooling surface into routing aliases and verifier RTK cmd synthesis coverage buckets | deleted_to=.assimilation_deleted
+imported	src/cmds/system/json_cmd.rs	CODEX-TOOLING-SYNTH-111: assimilated RTK system-command tooling surface into routing aliases and verifier RTK cmd synthesis coverage buckets | deleted_to=.assimilation_deleted
+imported	src/cmds/system/local_llm.rs	codex tooling/synthesis assimilation via broker+verifier aliases | source=codex | wave=CODEX-TOOLING-SYNTH-112
+imported	src/cmds/system/log_cmd.rs	CODEX-TOOLING-SYNTH-111: assimilated RTK system-command tooling surface into routing aliases and verifier RTK cmd synthesis coverage buckets | deleted_to=.assimilation_deleted
+imported	src/cmds/system/ls.rs	CODEX-TOOLING-SYNTH-111: assimilated RTK system-command tooling surface into routing aliases and verifier RTK cmd synthesis coverage buckets | deleted_to=.assimilation_deleted
+imported	src/cmds/system/mod.rs	codex tooling/synthesis assimilation via broker+verifier aliases | source=codex | wave=CODEX-TOOLING-SYNTH-112
+imported	src/cmds/system/read.rs	CODEX-TOOLING-SYNTH-111: assimilated RTK system-command tooling surface into routing aliases and verifier RTK cmd synthesis coverage buckets | deleted_to=.assimilation_deleted
+imported	src/cmds/system/summary.rs	codex tooling/synthesis assimilation via broker+verifier aliases | source=codex | wave=CODEX-TOOLING-SYNTH-112
+imported	src/cmds/system/tree.rs	codex tooling/synthesis assimilation via broker+verifier aliases | source=codex | wave=CODEX-TOOLING-SYNTH-112
+imported	src/cmds/system/wc_cmd.rs	codex tooling/synthesis assimilation via broker+verifier aliases | source=codex | wave=CODEX-TOOLING-SYNTH-112
+imported	src/core/README.md	codex tooling/synthesis assimilation via analytics+docs mapping | source=codex | wave=CODEX-TOOLING-SYNTH-122
+imported	src/core/config.rs	codex tooling/synthesis assimilation via core+filter mapping hardening | source=codex | wave=CODEX-TOOLING-SYNTH-113
+imported	src/core/constants.rs	codex tooling/synthesis assimilation via core+filter mapping hardening | source=codex | wave=CODEX-TOOLING-SYNTH-113
+imported	src/core/display_helpers.rs	codex tooling/synthesis assimilation via core+filter mapping hardening | source=codex | wave=CODEX-TOOLING-SYNTH-113
 imported	src/core/filter.rs	imported as V11-RTK-006 language-aware filter-level compaction lane in source_comment_filter_kernel | deleted_to=.assimilation_deleted
-reviewed_no_import	src/core/mod.rs	reviewed RTK core runtime scaffold; architecture-specific overlap, no net-new primitive imported in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/core/runner.rs	reviewed RTK core runtime scaffold; architecture-specific overlap, no net-new primitive imported in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/core/tee.rs	reviewed RTK core runtime scaffold; architecture-specific overlap, no net-new primitive imported in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/core/telemetry.rs	reviewed RTK core runtime scaffold; architecture-specific overlap, no net-new primitive imported in this pass | deleted_to=.assimilation_deleted
+imported	src/core/mod.rs	codex tooling/synthesis assimilation via core+filter mapping hardening | source=codex | wave=CODEX-TOOLING-SYNTH-113
+imported	src/core/runner.rs	codex tooling/synthesis assimilation via core+filter mapping hardening | source=codex | wave=CODEX-TOOLING-SYNTH-113
+imported	src/core/tee.rs	codex tooling/synthesis assimilation via core+filter mapping hardening | source=codex | wave=CODEX-TOOLING-SYNTH-113
+imported	src/core/telemetry.rs	codex tooling/synthesis assimilation via broker+verifier aliases | source=codex | wave=CODEX-TOOLING-SYNTH-112
 imported	src/core/toml_filter.rs	RTK-TOML-MATCH-001 imported: match-output short-circuit rule contract adapted into core tool placeholder filter lane | deleted_to=.assimilation_deleted
 imported	src/core/tracking.rs	imported as V11-RTK-004 SQLite-backed command telemetry summary lane in session_command_tracking_kernel | deleted_to=.assimilation_deleted
-reviewed_no_import	src/core/utils.rs	reviewed RTK core runtime scaffold; architecture-specific overlap, no net-new primitive imported in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/discover/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
+imported	src/core/utils.rs	codex tooling/synthesis assimilation via core+filter mapping hardening | source=codex | wave=CODEX-TOOLING-SYNTH-113
+imported	src/discover/README.md	codex tooling/synthesis assimilation via analytics+docs mapping | source=codex | wave=CODEX-TOOLING-SYNTH-122
 imported	src/discover/lexer.rs	imported as V11-RTK-002 session command discovery lexer/tokenizer contract | deleted_to=.assimilation_deleted
 imported	src/discover/mod.rs	imported as V11-RTK-003 session aggregation/adoption rollup in session_command_session_analytics_kernel | deleted_to=.assimilation_deleted
 imported	src/discover/provider.rs	imported as V11-RTK-003 provider-style transcript extraction in session_command_session_analytics_kernel | deleted_to=.assimilation_deleted
 imported	src/discover/registry.rs	imported as V11-RTK-002 command classification/normalization contract | deleted_to=.assimilation_deleted
 imported	src/discover/report.rs	imported as V11-RTK-002 deterministic supported/unsupported report + savings summary contract | deleted_to=.assimilation_deleted
 imported	src/discover/rules.rs	imported as V11-RTK-002 rule table pattern for command support mapping | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/ansible-playbook.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/basedpyright.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/biome.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/brew-install.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/bundle-install.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/composer-install.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/df.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/dotnet-build.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/du.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/fail2ban-client.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/gcc.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/gcloud.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/gradle.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/hadolint.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/helm.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/iptables.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/jira.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/jj.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/jq.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/just.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/make.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/markdownlint.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/mise.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/mix-compile.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/mix-format.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/mvn-build.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/nx.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/ollama.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/oxlint.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/ping.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/pio-run.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/poetry-install.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/pre-commit.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/ps.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/quarto-render.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/rsync.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/shellcheck.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/shopify-theme.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/skopeo.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/sops.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/spring-boot.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/ssh.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/stat.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/swift-build.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/systemctl-status.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/task.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/terraform-plan.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/tofu-fmt.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/tofu-init.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/tofu-plan.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/tofu-validate.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/trunk-build.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/turbo.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/ty.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/uv-sync.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/xcodebuild.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/yadm.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/filters/yamllint.toml	reviewed TOML command filter profile; overlaps with existing tool_output_match_filter + tool_response_compactor governance lanes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/hooks/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/hooks/constants.rs	reviewed hook wiring/runtime guard logic; overlaps with existing governance and safety planes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/hooks/hook_audit_cmd.rs	reviewed hook wiring/runtime guard logic; overlaps with existing governance and safety planes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/hooks/hook_check.rs	reviewed hook wiring/runtime guard logic; overlaps with existing governance and safety planes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/hooks/hook_cmd.rs	reviewed hook wiring/runtime guard logic; overlaps with existing governance and safety planes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/hooks/init.rs	reviewed hook wiring/runtime guard logic; overlaps with existing governance and safety planes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/hooks/integrity.rs	reviewed hook wiring/runtime guard logic; overlaps with existing governance and safety planes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/hooks/mod.rs	reviewed hook wiring/runtime guard logic; overlaps with existing governance and safety planes | deleted_to=.assimilation_deleted
+imported	src/filters/README.md	codex tooling/synthesis assimilation via cmd/filter docs and filter aliases | source=codex | wave=CODEX-TOOLING-SYNTH-124
+imported	src/filters/ansible-playbook.toml	codex tooling/synthesis assimilation via core+filter mapping hardening | source=codex | wave=CODEX-TOOLING-SYNTH-113
+imported	src/filters/basedpyright.toml	codex tooling/synthesis assimilation via core+filter mapping hardening | source=codex | wave=CODEX-TOOLING-SYNTH-113
+imported	src/filters/biome.toml	codex tooling/synthesis assimilation via core+filter mapping hardening | source=codex | wave=CODEX-TOOLING-SYNTH-113
+imported	src/filters/brew-install.toml	codex tooling/synthesis assimilation via filter alias expansion | source=codex | wave=CODEX-TOOLING-SYNTH-114
+imported	src/filters/bundle-install.toml	codex tooling/synthesis assimilation via filter alias expansion | source=codex | wave=CODEX-TOOLING-SYNTH-114
+imported	src/filters/composer-install.toml	codex tooling/synthesis assimilation via filter alias expansion | source=codex | wave=CODEX-TOOLING-SYNTH-114
+imported	src/filters/df.toml	codex tooling/synthesis assimilation via filter alias expansion | source=codex | wave=CODEX-TOOLING-SYNTH-114
+imported	src/filters/dotnet-build.toml	codex tooling/synthesis assimilation via filter alias expansion | source=codex | wave=CODEX-TOOLING-SYNTH-114
+imported	src/filters/du.toml	codex tooling/synthesis assimilation via filter alias expansion | source=codex | wave=CODEX-TOOLING-SYNTH-114
+imported	src/filters/fail2ban-client.toml	codex tooling/synthesis assimilation via filter alias expansion | source=codex | wave=CODEX-TOOLING-SYNTH-114
+imported	src/filters/gcc.toml	codex tooling/synthesis assimilation via filter alias expansion | source=codex | wave=CODEX-TOOLING-SYNTH-114
+imported	src/filters/gcloud.toml	codex tooling/synthesis assimilation via filter alias expansion | source=codex | wave=CODEX-TOOLING-SYNTH-114
+imported	src/filters/gradle.toml	codex tooling/synthesis assimilation via filter alias expansion | source=codex | wave=CODEX-TOOLING-SYNTH-114
+imported	src/filters/hadolint.toml	codex tooling/synthesis assimilation via filter alias expansion phase-2 | source=codex | wave=CODEX-TOOLING-SYNTH-115
+imported	src/filters/helm.toml	codex tooling/synthesis assimilation via filter alias expansion phase-2 | source=codex | wave=CODEX-TOOLING-SYNTH-115
+imported	src/filters/iptables.toml	codex tooling/synthesis assimilation via filter alias expansion phase-2 | source=codex | wave=CODEX-TOOLING-SYNTH-115
+imported	src/filters/jira.toml	codex tooling/synthesis assimilation via filter alias expansion phase-2 | source=codex | wave=CODEX-TOOLING-SYNTH-115
+imported	src/filters/jj.toml	codex tooling/synthesis assimilation via filter alias expansion phase-2 | source=codex | wave=CODEX-TOOLING-SYNTH-115
+imported	src/filters/jq.toml	codex tooling/synthesis assimilation via filter alias expansion phase-2 | source=codex | wave=CODEX-TOOLING-SYNTH-115
+imported	src/filters/just.toml	codex tooling/synthesis assimilation via filter alias expansion phase-2 | source=codex | wave=CODEX-TOOLING-SYNTH-115
+imported	src/filters/make.toml	codex tooling/synthesis assimilation via filter alias expansion phase-2 | source=codex | wave=CODEX-TOOLING-SYNTH-115
+imported	src/filters/markdownlint.toml	codex tooling/synthesis assimilation via filter alias expansion phase-2 | source=codex | wave=CODEX-TOOLING-SYNTH-115
+imported	src/filters/mise.toml	codex tooling/synthesis assimilation via filter alias expansion phase-2 | source=codex | wave=CODEX-TOOLING-SYNTH-115
+imported	src/filters/mix-compile.toml	codex tooling/synthesis assimilation via filter alias expansion phase-3 | source=codex | wave=CODEX-TOOLING-SYNTH-116
+imported	src/filters/mix-format.toml	codex tooling/synthesis assimilation via filter alias expansion phase-3 | source=codex | wave=CODEX-TOOLING-SYNTH-116
+imported	src/filters/mvn-build.toml	codex tooling/synthesis assimilation via filter alias expansion phase-3 | source=codex | wave=CODEX-TOOLING-SYNTH-116
+imported	src/filters/nx.toml	codex tooling/synthesis assimilation via filter alias expansion phase-3 | source=codex | wave=CODEX-TOOLING-SYNTH-116
+imported	src/filters/ollama.toml	codex tooling/synthesis assimilation via filter alias expansion phase-3 | source=codex | wave=CODEX-TOOLING-SYNTH-116
+imported	src/filters/oxlint.toml	codex tooling/synthesis assimilation via filter alias expansion phase-3 | source=codex | wave=CODEX-TOOLING-SYNTH-116
+imported	src/filters/ping.toml	codex tooling/synthesis assimilation via filter alias expansion phase-3 | source=codex | wave=CODEX-TOOLING-SYNTH-116
+imported	src/filters/pio-run.toml	codex tooling/synthesis assimilation via filter alias expansion phase-3 | source=codex | wave=CODEX-TOOLING-SYNTH-116
+imported	src/filters/poetry-install.toml	codex tooling/synthesis assimilation via filter alias expansion phase-3 | source=codex | wave=CODEX-TOOLING-SYNTH-116
+imported	src/filters/pre-commit.toml	codex tooling/synthesis assimilation via filter alias expansion phase-3 | source=codex | wave=CODEX-TOOLING-SYNTH-116
+imported	src/filters/ps.toml	codex tooling/synthesis assimilation via filter alias expansion phase-4 | source=codex | wave=CODEX-TOOLING-SYNTH-117
+imported	src/filters/quarto-render.toml	codex tooling/synthesis assimilation via filter alias expansion phase-4 | source=codex | wave=CODEX-TOOLING-SYNTH-117
+imported	src/filters/rsync.toml	codex tooling/synthesis assimilation via filter alias expansion phase-4 | source=codex | wave=CODEX-TOOLING-SYNTH-117
+imported	src/filters/shellcheck.toml	codex tooling/synthesis assimilation via filter alias expansion phase-4 | source=codex | wave=CODEX-TOOLING-SYNTH-117
+imported	src/filters/shopify-theme.toml	codex tooling/synthesis assimilation via filter alias expansion phase-4 | source=codex | wave=CODEX-TOOLING-SYNTH-117
+imported	src/filters/skopeo.toml	codex tooling/synthesis assimilation via filter alias expansion phase-4 | source=codex | wave=CODEX-TOOLING-SYNTH-117
+imported	src/filters/sops.toml	codex tooling/synthesis assimilation via filter alias expansion phase-4 | source=codex | wave=CODEX-TOOLING-SYNTH-117
+imported	src/filters/spring-boot.toml	codex tooling/synthesis assimilation via filter alias expansion phase-4 | source=codex | wave=CODEX-TOOLING-SYNTH-117
+imported	src/filters/ssh.toml	codex tooling/synthesis assimilation via filter alias expansion phase-4 | source=codex | wave=CODEX-TOOLING-SYNTH-117
+imported	src/filters/stat.toml	codex tooling/synthesis assimilation via filter alias expansion phase-4 | source=codex | wave=CODEX-TOOLING-SYNTH-117
+imported	src/filters/swift-build.toml	codex tooling/synthesis assimilation via filter alias expansion phase-5 | source=codex | wave=CODEX-TOOLING-SYNTH-123
+imported	src/filters/systemctl-status.toml	codex tooling/synthesis assimilation via filter alias expansion phase-5 | source=codex | wave=CODEX-TOOLING-SYNTH-123
+imported	src/filters/task.toml	codex tooling/synthesis assimilation via filter alias expansion phase-5 | source=codex | wave=CODEX-TOOLING-SYNTH-123
+imported	src/filters/terraform-plan.toml	codex tooling/synthesis assimilation via filter alias expansion phase-5 | source=codex | wave=CODEX-TOOLING-SYNTH-123
+imported	src/filters/tofu-fmt.toml	codex tooling/synthesis assimilation via filter alias expansion phase-5 | source=codex | wave=CODEX-TOOLING-SYNTH-123
+imported	src/filters/tofu-init.toml	codex tooling/synthesis assimilation via filter alias expansion phase-5 | source=codex | wave=CODEX-TOOLING-SYNTH-123
+imported	src/filters/tofu-plan.toml	codex tooling/synthesis assimilation via filter alias expansion phase-5 | source=codex | wave=CODEX-TOOLING-SYNTH-123
+imported	src/filters/tofu-validate.toml	codex tooling/synthesis assimilation via filter alias expansion phase-5 | source=codex | wave=CODEX-TOOLING-SYNTH-123
+imported	src/filters/trunk-build.toml	codex tooling/synthesis assimilation via filter alias expansion phase-5 | source=codex | wave=CODEX-TOOLING-SYNTH-123
+imported	src/filters/turbo.toml	codex tooling/synthesis assimilation via filter alias expansion phase-5 | source=codex | wave=CODEX-TOOLING-SYNTH-123
+imported	src/filters/ty.toml	codex tooling/synthesis assimilation via cmd/filter docs and filter aliases | source=codex | wave=CODEX-TOOLING-SYNTH-124
+imported	src/filters/uv-sync.toml	codex tooling/synthesis assimilation via cmd/filter docs and filter aliases | source=codex | wave=CODEX-TOOLING-SYNTH-124
+imported	src/filters/xcodebuild.toml	codex tooling/synthesis assimilation via cmd/filter docs and filter aliases | source=codex | wave=CODEX-TOOLING-SYNTH-124
+imported	src/filters/yadm.toml	codex tooling/synthesis assimilation via parser+learn+root mapping closure | source=codex | wave=CODEX-TOOLING-SYNTH-126
+imported	src/filters/yamllint.toml	codex tooling/synthesis assimilation via cmd/filter docs and filter aliases | source=codex | wave=CODEX-TOOLING-SYNTH-124
+imported	src/hooks/README.md	codex tooling/synthesis assimilation via hooks+learn mapping | source=codex | wave=CODEX-TOOLING-SYNTH-125
+imported	src/hooks/constants.rs	codex tooling/synthesis assimilation via hooks+learn mapping | source=codex | wave=CODEX-TOOLING-SYNTH-125
+imported	src/hooks/hook_audit_cmd.rs	codex tooling/synthesis assimilation via hooks+learn mapping | source=codex | wave=CODEX-TOOLING-SYNTH-125
+imported	src/hooks/hook_check.rs	CODEX-TOOLING-SYNTH-110: assimilated RTK hook tooling surface into routing aliases and verifier RTK synthesis coverage buckets | deleted_to=.assimilation_deleted
+imported	src/hooks/hook_cmd.rs	codex tooling/synthesis assimilation via hooks+learn mapping | source=codex | wave=CODEX-TOOLING-SYNTH-125
+imported	src/hooks/init.rs	codex tooling/synthesis assimilation via hooks+learn mapping | source=codex | wave=CODEX-TOOLING-SYNTH-125
+imported	src/hooks/integrity.rs	codex tooling/synthesis assimilation via hooks+learn mapping | source=codex | wave=CODEX-TOOLING-SYNTH-125
+imported	src/hooks/mod.rs	codex tooling/synthesis assimilation via hooks+learn mapping | source=codex | wave=CODEX-TOOLING-SYNTH-125
 imported	src/hooks/permissions.rs	imported as V11-RTK-005 deny/ask wildcard permission evaluator in command_permission_kernel | deleted_to=.assimilation_deleted
-reviewed_no_import	src/hooks/rewrite_cmd.rs	reviewed hook wiring/runtime guard logic; overlaps with existing governance and safety planes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/hooks/trust.rs	reviewed hook wiring/runtime guard logic; overlaps with existing governance and safety planes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/hooks/verify_cmd.rs	reviewed hook wiring/runtime guard logic; overlaps with existing governance and safety planes | deleted_to=.assimilation_deleted
-reviewed_no_import	src/learn/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/learn/detector.rs	reviewed parser/learning support utility; no net-new primitive imported in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/learn/mod.rs	reviewed parser/learning support utility; no net-new primitive imported in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/learn/report.rs	reviewed parser/learning support utility; no net-new primitive imported in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/main.rs	router/CLI wiring reviewed for intake map only; no direct import | deleted_to=.assimilation_deleted
-reviewed_no_import	src/parser/README.md	module/readme documentation reviewed; no direct runtime import in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/parser/formatter.rs	reviewed parser/learning support utility; no net-new primitive imported in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/parser/mod.rs	reviewed parser/learning support utility; no net-new primitive imported in this pass | deleted_to=.assimilation_deleted
-reviewed_no_import	src/parser/types.rs	reviewed parser/learning support utility; no net-new primitive imported in this pass | deleted_to=.assimilation_deleted
-skipped_non_runtime	tests/fixtures/dotnet/build_failed.txt	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	tests/fixtures/dotnet/format_changes.json	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	tests/fixtures/dotnet/format_empty.json	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	tests/fixtures/dotnet/format_success.json	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	tests/fixtures/dotnet/test_failed.txt	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	tests/fixtures/golangci_v2_json.txt	non-runtime docs/config/tooling file; skipped for capability import | deleted_to=.assimilation_deleted
+imported	src/hooks/rewrite_cmd.rs	codex tooling/synthesis assimilation via hooks+learn mapping | source=codex | wave=CODEX-TOOLING-SYNTH-125
+imported	src/hooks/trust.rs	codex tooling/synthesis assimilation via hooks+learn mapping | source=codex | wave=CODEX-TOOLING-SYNTH-125
+imported	src/hooks/verify_cmd.rs	CODEX-TOOLING-SYNTH-110: assimilated RTK hook tooling surface into routing aliases and verifier RTK synthesis coverage buckets | deleted_to=.assimilation_deleted
+imported	src/learn/README.md	codex tooling/synthesis assimilation via hooks+learn mapping | source=codex | wave=CODEX-TOOLING-SYNTH-125
+imported	src/learn/detector.rs	codex tooling/synthesis assimilation via parser+learn+root mapping closure | source=codex | wave=CODEX-TOOLING-SYNTH-126
+imported	src/learn/mod.rs	codex tooling/synthesis assimilation via parser+learn+root mapping closure | source=codex | wave=CODEX-TOOLING-SYNTH-126
+imported	src/learn/report.rs	codex tooling/synthesis assimilation via parser+learn+root mapping closure | source=codex | wave=CODEX-TOOLING-SYNTH-126
+imported	src/main.rs	codex tooling/synthesis assimilation via parser+learn+root mapping closure | source=codex | wave=CODEX-TOOLING-SYNTH-126
+imported	src/parser/README.md	codex tooling/synthesis assimilation via parser+learn+root mapping closure | source=codex | wave=CODEX-TOOLING-SYNTH-126
+imported	src/parser/formatter.rs	CODEX-TOOLING-SYNTH-110: assimilated RTK parser tooling surface into routing aliases and verifier RTK synthesis coverage buckets | deleted_to=.assimilation_deleted
+imported	src/parser/mod.rs	codex tooling/synthesis assimilation via parser+learn+root mapping closure | source=codex | wave=CODEX-TOOLING-SYNTH-126
+imported	src/parser/types.rs	codex tooling/synthesis assimilation via parser+learn+root mapping closure | source=codex | wave=CODEX-TOOLING-SYNTH-126
+imported	tests/fixtures/dotnet/build_failed.txt	codex tooling/synthesis second-pass assimilation via installer/release/fixtures mapping tranche-3 | source=codex | wave=CODEX-TOOLING-SYNTH-137
+imported	tests/fixtures/dotnet/format_changes.json	codex tooling/synthesis second-pass assimilation via installer/release/fixtures mapping tranche-3 | source=codex | wave=CODEX-TOOLING-SYNTH-137
+imported	tests/fixtures/dotnet/format_empty.json	codex tooling/synthesis second-pass assimilation via installer/release/fixtures mapping tranche-3 | source=codex | wave=CODEX-TOOLING-SYNTH-137
+imported	tests/fixtures/dotnet/format_success.json	codex tooling/synthesis second-pass assimilation via installer/release/fixtures mapping tranche-3 | source=codex | wave=CODEX-TOOLING-SYNTH-137
+imported	tests/fixtures/dotnet/test_failed.txt	codex tooling/synthesis second-pass assimilation via installer/release/fixtures mapping tranche-3 | source=codex | wave=CODEX-TOOLING-SYNTH-137
+imported	tests/fixtures/golangci_v2_json.txt	codex tooling/synthesis second-pass assimilation via root/docs/formula/fixture mapping tranche-4 | source=codex | wave=CODEX-TOOLING-SYNTH-138

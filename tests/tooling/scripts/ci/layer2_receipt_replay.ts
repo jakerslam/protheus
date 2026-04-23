@@ -19,6 +19,13 @@ type ReplayEvent = {
 type ReplayBundle = {
   version?: number;
   bundle_id?: string;
+  graph_expectations?: Record<
+    string,
+    {
+      required_edges?: string[];
+      allow_unexpected_edges?: boolean;
+    }
+  >;
   events?: ReplayEvent[];
 };
 
@@ -52,6 +59,10 @@ function parseArgs(argv: string[]) {
     ),
     markdownOutPath: cleanText(
       readFlag(argv, 'out-markdown') || 'local/workspace/reports/LAYER2_RECEIPT_REPLAY_CURRENT.md',
+      400,
+    ),
+    diffOutPath: cleanText(
+      readFlag(argv, 'out-diff') || 'core/local/artifacts/layer2_replay_diff_current.json',
       400,
     ),
   };
@@ -110,6 +121,18 @@ function markdown(report: any): string {
   lines.push('');
   return `${lines.join('\n')}\n`;
 }
+
+const REQUIRED_GRAPH_EDGES = [
+  'task_submission->queue_routing',
+  'queue_routing->adapter_invocation_envelope',
+  'adapter_invocation_envelope->failure_classification',
+  'failure_classification->queue_backpressure_action',
+  'queue_backpressure_action->queue_backpressure_action',
+  'queue_backpressure_action->conduit_outage_detected',
+  'conduit_outage_detected->conduit_recovery_started',
+  'conduit_recovery_started->conduit_recovery_completed',
+  'conduit_recovery_completed->task_completed',
+] as const;
 
 export function run(argv: string[] = process.argv.slice(2)): number {
   const root = process.cwd();
@@ -255,6 +278,91 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     });
   }
 
+  const laneTransitions = new Map<string, any[]>();
+  for (const transition of transitions) {
+    const laneId = cleanText(transition?.lane_id || '', 120) || 'lane_unknown';
+    const bucket = laneTransitions.get(laneId) || [];
+    bucket.push(transition);
+    laneTransitions.set(laneId, bucket);
+  }
+  const laneGraphDiff: Record<
+    string,
+    {
+      required_edges: string[];
+      actual_edges: string[];
+      edge_counts: Record<string, number>;
+      missing_required_edges: string[];
+      unexpected_edges: string[];
+      pass: boolean;
+    }
+  > = {};
+  const globalRequiredEdgeSet = new Set<string>();
+  const globalActualEdgeCounts: Record<string, number> = {};
+  const globalMissingEdgeSet = new Set<string>();
+  const globalUnexpectedEdgeSet = new Set<string>();
+
+  for (const [laneId, laneRows] of laneTransitions.entries()) {
+    const laneEdgeCounts: Record<string, number> = {};
+    for (let i = 1; i < laneRows.length; i += 1) {
+      const previousStage = cleanText(laneRows[i - 1]?.stage || '', 120);
+      const currentStage = cleanText(laneRows[i]?.stage || '', 120);
+      if (!previousStage || !currentStage) continue;
+      const edge = `${previousStage}->${currentStage}`;
+      laneEdgeCounts[edge] = (laneEdgeCounts[edge] || 0) + 1;
+      globalActualEdgeCounts[edge] = (globalActualEdgeCounts[edge] || 0) + 1;
+    }
+
+    const laneExpectation = (bundle.graph_expectations && bundle.graph_expectations[laneId]) || {};
+    const expectedEdgesRaw =
+      Array.isArray(laneExpectation.required_edges) && laneExpectation.required_edges.length > 0
+        ? laneExpectation.required_edges
+        : Array.from(REQUIRED_GRAPH_EDGES);
+    const requiredEdges = Array.from(
+      new Set(
+        expectedEdgesRaw
+          .map((edge) => cleanText(edge || '', 200).toLowerCase())
+          .filter(Boolean),
+      ),
+    ).sort();
+    for (const edge of requiredEdges) globalRequiredEdgeSet.add(edge);
+    const requiredEdgeSet = new Set(requiredEdges);
+    const laneActualEdges = Object.keys(laneEdgeCounts).sort();
+    const laneMissingRequiredEdges = requiredEdges.filter((edge) => !laneEdgeCounts[edge]);
+    const allowUnexpectedEdges = laneExpectation.allow_unexpected_edges === true;
+    const laneUnexpectedEdges = allowUnexpectedEdges
+      ? []
+      : laneActualEdges.filter((edge) => !requiredEdgeSet.has(edge));
+
+    for (const edge of laneMissingRequiredEdges) globalMissingEdgeSet.add(edge);
+    for (const edge of laneUnexpectedEdges) globalUnexpectedEdgeSet.add(edge);
+
+    if (laneMissingRequiredEdges.length > 0) {
+      divergences.push({
+        id: 'lane_receipt_graph_missing_required_edge',
+        detail: `lane=${laneId};edges=${laneMissingRequiredEdges.join(',')}`,
+      });
+    }
+    if (laneUnexpectedEdges.length > 0) {
+      divergences.push({
+        id: 'lane_receipt_graph_unexpected_edge',
+        detail: `lane=${laneId};edges=${laneUnexpectedEdges.join(',')}`,
+      });
+    }
+
+    laneGraphDiff[laneId] = {
+      required_edges: requiredEdges,
+      actual_edges: laneActualEdges,
+      edge_counts: laneEdgeCounts,
+      missing_required_edges: laneMissingRequiredEdges,
+      unexpected_edges: laneUnexpectedEdges,
+      pass: laneMissingRequiredEdges.length === 0 && laneUnexpectedEdges.length === 0,
+    };
+  }
+
+  const actualEdges = Object.keys(globalActualEdgeCounts).sort();
+  const missingRequiredEdges = Array.from(globalMissingEdgeSet).sort();
+  const unexpectedEdges = Array.from(globalUnexpectedEdgeSet).sort();
+
   if (state.conduit_outages_detected <= 0) {
     divergences.push({ id: 'conduit_auto_heal_missing_outage_detection', detail: 'no conduit_outage_detected stage found' });
   }
@@ -313,12 +421,51 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         state.conduit_recoveries_started <= state.conduit_outages_detected,
     },
     queue_backpressure_actions: state.queue_backpressure_actions,
+    receipt_graph_diff: {
+      required_edges: Array.from(globalRequiredEdgeSet).sort(),
+      actual_edges: actualEdges,
+      edge_counts: globalActualEdgeCounts,
+      missing_required_edges: missingRequiredEdges,
+      unexpected_edges: unexpectedEdges,
+      pass: missingRequiredEdges.length === 0 && unexpectedEdges.length === 0,
+    },
+    lane_graph_diff: laneGraphDiff,
     transitions,
     divergences,
     failures: divergences,
-    artifact_paths: [args.markdownOutPath],
+    artifact_paths: [args.markdownOutPath, args.diffOutPath],
   };
 
+  const diffOutAbs = path.resolve(root, args.diffOutPath);
+  fs.mkdirSync(path.dirname(diffOutAbs), { recursive: true });
+  fs.writeFileSync(
+    diffOutAbs,
+    `${JSON.stringify(
+      {
+        ok: report.receipt_graph_diff.pass,
+        type: 'layer2_replay_diff',
+        generated_at: report.generated_at,
+        revision: report.revision,
+        bundle_id: report.bundle_id,
+        bundle_path: report.bundle_path,
+        summary: {
+          lane_count: Object.keys(report.lane_graph_diff || {}).length,
+          required_edge_count: Array.isArray(report.receipt_graph_diff?.required_edges)
+            ? report.receipt_graph_diff.required_edges.length
+            : 0,
+          actual_edge_count: actualEdges.length,
+          missing_required_edge_count: missingRequiredEdges.length,
+          unexpected_edge_count: unexpectedEdges.length,
+          pass: report.receipt_graph_diff.pass,
+        },
+        receipt_graph_diff: report.receipt_graph_diff,
+        lane_graph_diff: report.lane_graph_diff,
+      },
+      null,
+      2,
+    )}\n`,
+    'utf8',
+  );
   writeTextArtifact(args.markdownOutPath, markdown(report));
 
   return emitStructuredResult(report, {

@@ -49,15 +49,20 @@
     "min_request_count": 12,
     "min_average_candidate_count": 2.0,
     "max_clarification_first_rate": 0.4,
-    "max_degraded_rate": 0.35,
+    "degraded_max": 0.2,
+    "max_degraded_rate": 0.2,
     "max_selected_plan_requires_clarification_rate": 0.4,
     "max_selected_plan_degraded_rate": 0.35,
-    "max_heuristic_probe_rate": 0.35,
-    "max_zero_executable_candidate_rate": 0.35,
+    "heuristic_max": 0.2,
+    "max_heuristic_probe_rate": 0.2,
+    "zero_executable_max": 0.15,
+    "max_zero_executable_candidate_rate": 0.15,
     "max_all_candidates_require_clarification_rate": 0.35,
     "max_all_candidates_degraded_rate": 0.3,
     "ratchet": {
-      "max_regression_delta": 0.0
+      "max_regression_delta": 0.0,
+      "improvement_window": 3,
+      "min_improvement_delta": 0.0001
     },
     "paths": {
       "latest": "core/local/artifacts/orchestration_planner_quality_metrics_latest.json",
@@ -79,15 +84,17 @@
     "min_sample_size": 4,
     "min_average_candidate_count": 1.5,
     "max_non_legacy_fallback_rate": 0.3,
-    "max_non_legacy_heuristic_probe_rate": 0.3,
+    "max_non_legacy_heuristic_probe_rate": 0.2,
     "max_non_legacy_clarification_rate": 0.3,
-    "max_non_legacy_zero_executable_rate": 0.3,
-    "max_non_legacy_all_candidates_degraded_rate": 0.3,
+    "max_non_legacy_zero_executable_rate": 0.15,
+    "max_non_legacy_all_candidates_degraded_rate": 0.2,
     "max_non_legacy_fallback_plus_heuristic_rate": 0.5,
     "max_non_legacy_clarification_plus_degraded_rate": 0.6,
     "max_non_legacy_fallback_minus_zero_executable_rate": 0.0,
     "ratchet": {
-      "max_regression_delta": 0.0
+      "max_regression_delta": 0.0,
+      "improvement_window": 3,
+      "min_improvement_delta": 0.0001
     },
     "paths": {
       "latest": "core/local/artifacts/orchestration_runtime_quality_metrics_latest.json",

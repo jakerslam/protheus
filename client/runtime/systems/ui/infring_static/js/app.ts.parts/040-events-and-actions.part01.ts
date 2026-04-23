@@ -252,6 +252,12 @@
       var archived = typeof this.isSidebarArchivedAgent === 'function' && this.isSidebarArchivedAgent(agent);
       if (store && archived) {
         var pendingState = '';
+        var rawSidebarStatusState = (typeof agent.sidebar_status_state === 'string')
+          ? agent.sidebar_status_state
+          : '';
+        var rawSidebarStatusLabel = (typeof agent.sidebar_status_label === 'string')
+          ? agent.sidebar_status_label
+          : '';
         if (typeof this.agentStatusLabel === 'function') {
           pendingState = String(this.agentStatusLabel(agent) || '').trim().toLowerCase();
         }
@@ -262,8 +268,8 @@
           state: pendingState,
           archived: true,
           avatar_url: String(agent.avatar_url || '').trim(),
-          sidebar_status_state: String(agent.sidebar_status_state || '').trim().toLowerCase(),
-          sidebar_status_label: String(agent.sidebar_status_label || '').trim().toLowerCase(),
+          sidebar_status_state: String(rawSidebarStatusState).trim().toLowerCase(),
+          sidebar_status_label: String(rawSidebarStatusLabel).trim().toLowerCase(),
           sidebar_status_source: String(agent.sidebar_status_source || ''),
           sidebar_status_source_sequence: String(agent.sidebar_status_source_sequence || ''),
           sidebar_status_age_seconds: Number(agent.sidebar_status_age_seconds || 0),

@@ -1,0 +1,47 @@
+{
+  "schema_id": "shell_transition_compatibility_bridges",
+  "schema_version": "1.0.0",
+  "owner": "ops-shell-boundary",
+  "bridges": [
+    {
+      "id": "shell-config-client-naming-policy",
+      "category": "config",
+      "canonical": "client/runtime/config/shell_naming_policy.json",
+      "compatibility": "client/runtime/config/client_naming_policy.json",
+      "owner": "ops-shell-boundary",
+      "status": "active",
+      "removal_deadline": "2026-07-15",
+      "notes": "Temporary compatibility bridge while canonical shell naming policy references are finalized."
+    },
+    {
+      "id": "shell-config-client-transition-alias-map",
+      "category": "config",
+      "canonical": "client/runtime/config/shell_transition_alias_map.json",
+      "compatibility": "client/runtime/config/client_transition_alias_map.json",
+      "owner": "ops-shell-boundary",
+      "status": "active",
+      "removal_deadline": "2026-07-15",
+      "notes": "Temporary compatibility bridge for transition-map consumers."
+    },
+    {
+      "id": "shell-artifact-client-transition-tracker-json",
+      "category": "artifact",
+      "canonical": "core/local/artifacts/shell_transition_tracker_current.json",
+      "compatibility": "core/local/artifacts/client_transition_tracker_current.json",
+      "owner": "ops-shell-boundary",
+      "status": "active",
+      "removal_deadline": "2026-07-15",
+      "notes": "Temporary compatibility bridge for legacy artifact readers."
+    },
+    {
+      "id": "shell-artifact-client-transition-tracker-markdown",
+      "category": "artifact",
+      "canonical": "local/workspace/reports/SHELL_TRANSITION_TRACKER_CURRENT.md",
+      "compatibility": "local/workspace/reports/CLIENT_TRANSITION_TRACKER_CURRENT.md",
+      "owner": "ops-shell-boundary",
+      "status": "active",
+      "removal_deadline": "2026-07-15",
+      "notes": "Temporary compatibility bridge for legacy report readers."
+    }
+  ]
+}

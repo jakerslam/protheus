@@ -1,45 +1,10 @@
 {
-  "include_prefixes": [
-    "client/runtime/lib",
-    "client/runtime/systems",
-    "client/cognition/orchestration",
-    "client/cognition/shared",
-    "client/cognition/habits/scripts"
-  ],
-  "allowed_uppercase_filenames": [
-    "README.md",
-    "QUICKREF.md",
-    "GOVERNANCE.md"
-  ],
-  "allowed_uppercase_paths": [],
-  "allowed_special_stems": [
-    "+layout",
-    "+page",
-    "+server",
-    "+error",
-    "+layout.server",
-    "+page.server"
-  ],
-  "allowed_directory_segments": [
-    "__tests__"
-  ],
-  "segment_regex": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$",
-  "stem_regex": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$",
-  "banned_generic_code_stems": [
-    "util",
-    "utils",
-    "helper",
-    "helpers",
-    "misc",
-    "temp",
-    "tmp",
-    "newfile"
-  ],
-  "code_extensions": [
-    "ts",
-    "tsx",
-    "js",
-    "jsx",
-    "svelte"
-  ]
+  "schema_id": "shell_compatibility_alias_config",
+  "schema_version": "1.0.0",
+  "canonical_path": "client/runtime/config/shell_naming_policy.json",
+  "compatibility_path": "client/runtime/config/client_naming_policy.json",
+  "status": "active",
+  "removal_deadline": "2026-07-15",
+  "owner": "ops-shell-boundary",
+  "notes": "Temporary compatibility alias for Shell naming policy canonicalization."
 }

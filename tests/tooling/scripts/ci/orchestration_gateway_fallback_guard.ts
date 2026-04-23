@@ -43,6 +43,8 @@ type AdapterFallbackPolicy = {
   consistency_epsilon?: number;
   ratchet?: {
     max_regression_delta?: number;
+    improvement_window?: number;
+    min_improvement_delta?: number;
   };
   paths?: {
     latest?: string;
@@ -70,6 +72,26 @@ function readJsonMaybe<T>(filePath: string): T | null {
     return JSON.parse(fs.readFileSync(path.resolve(ROOT, filePath), 'utf8')) as T;
   } catch {
     return null;
+  }
+}
+
+function readJsonLinesMaybe(filePath: string): any[] {
+  try {
+    const raw = fs.readFileSync(path.resolve(ROOT, filePath), 'utf8');
+    return raw
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .map((line) => {
+        try {
+          return JSON.parse(line);
+        } catch {
+          return null;
+        }
+      })
+      .filter((row) => row && typeof row === 'object');
+  } catch {
+    return [];
   }
 }
 
@@ -229,6 +251,7 @@ function evaluateRatchet(
   metrics: SurfaceMetrics | null,
   policy: AdapterFallbackPolicy,
   previous: any,
+  historyRows: any[],
 ): string[] {
   const failures: string[] = [];
   if (!metrics) return failures;
@@ -252,6 +275,47 @@ function evaluateRatchet(
     ) {
       failures.push(
         `ratchet_low_confidence_regression:${surface}:current=${currentLowConfidence.toFixed(4)}:previous=${previousLowConfidence.toFixed(4)}:delta=${delta.toFixed(4)}`,
+      );
+    }
+  }
+
+  const improvementWindow = Math.max(2, Number(policy.ratchet?.improvement_window || 0));
+  const minImprovementDelta = Math.max(0, Number(policy.ratchet?.min_improvement_delta || 0));
+  const historyMetrics = historyRows
+    .map((row) => row?.surface_metrics)
+    .filter((row) => row && typeof row === 'object') as SurfaceMetrics[];
+  const trendSeries = [...historyMetrics, metrics];
+  if (trendSeries.length >= improvementWindow) {
+    const recent = trendSeries.slice(-improvementWindow);
+    let improvementEvents = 0;
+    for (let i = 1; i < recent.length; i += 1) {
+      const prev = recent[i - 1] || {};
+      const curr = recent[i] || {};
+      for (const surface of SURFACES) {
+        const previousFallback = numberOrNull(prev[surface]?.fallback_rate);
+        const currentFallback = numberOrNull(curr[surface]?.fallback_rate);
+        const previousLowConfidence = numberOrNull(prev[surface]?.low_confidence_rate);
+        const currentLowConfidence = numberOrNull(curr[surface]?.low_confidence_rate);
+        const previousTotal = numberOrNull(prev[surface]?.total);
+        const currentTotal = numberOrNull(curr[surface]?.total);
+        if (previousFallback != null && currentFallback != null && currentFallback < previousFallback - minImprovementDelta) {
+          improvementEvents += 1;
+        }
+        if (
+          previousLowConfidence != null
+          && currentLowConfidence != null
+          && currentLowConfidence < previousLowConfidence - minImprovementDelta
+        ) {
+          improvementEvents += 1;
+        }
+        if (previousTotal != null && currentTotal != null && currentTotal > previousTotal + minImprovementDelta) {
+          improvementEvents += 1;
+        }
+      }
+    }
+    if (improvementEvents === 0) {
+      failures.push(
+        `ratchet_no_improvement_window_exceeded:window=${improvementWindow}:min_improvement_delta=${minImprovementDelta.toFixed(4)}`,
       );
     }
   }
@@ -359,6 +423,9 @@ function run(argv: string[]): number {
   const previousLatest = adapterPolicy.paths?.latest
     ? readJsonMaybe<any>(adapterPolicy.paths.latest)
     : null;
+  const historyRows = adapterPolicy.paths?.history
+    ? readJsonLinesMaybe(adapterPolicy.paths.history)
+    : [];
   const requiredSurfaceFields = requiredSurfaceFieldsFromPolicy(adapterPolicy);
   const surfaceFieldCompleteness = SURFACES.map((surface) => {
     const missingFields = collectMissingSurfaceFields(surfaceMetrics?.[surface], requiredSurfaceFields);
@@ -378,7 +445,7 @@ function run(argv: string[]): number {
   ).length;
   const policyFailures = evaluateThresholds(surfaceMetrics, adapterPolicy);
   const consistencyFailures = evaluateMetricConsistency(surfaceMetrics, adapterPolicy);
-  const ratchetFailures = evaluateRatchet(surfaceMetrics, adapterPolicy, previousLatest);
+  const ratchetFailures = evaluateRatchet(surfaceMetrics, adapterPolicy, previousLatest, historyRows);
   const surfaceMetricRowsPresent = SURFACES.filter((surface) => {
     const row = surfaceMetrics?.[surface];
     return row != null && typeof row === 'object';

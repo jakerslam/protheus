@@ -61,6 +61,11 @@ type EmpiricalTrack = {
   provided_keys: MetricKey[];
   sources: EmpiricalSourceRow[];
 };
+type EffectiveMetricSource = 'synthetic' | 'empirical';
+type EffectiveMetrics = {
+  metrics: MetricRecord;
+  metric_sources: Record<MetricKey, EffectiveMetricSource>;
+};
 
 const METRIC_KEYS: MetricKey[] = [
   'peak_rss_mb',
@@ -127,6 +132,12 @@ const QUEUE_POLICY_TARGETS: Record<ProfileId, QueuePolicyTarget> = {
     hard_ceiling: 700,
     emergency_drain: 34,
   },
+};
+
+const EMPIRICAL_MIN_SAMPLE_POINTS_BY_PROFILE: Record<ProfileId, number> = {
+  rich: 12,
+  pure: 10,
+  'tiny-max': 8,
 };
 
 const EMPIRICAL_ARTIFACT_PATHS = {
@@ -612,14 +623,41 @@ function extractEmpiricalTrack(root: string, profile: ProfileId): EmpiricalTrack
   };
 }
 
-function mergeDualTrackMetrics(synthetic: MetricRecord, empirical: EmpiricalTrack): MetricRecord {
-  const out = emptyMetrics();
+function resolveEffectiveMetrics(
+  proofTrack: ProofTrackId,
+  synthetic: MetricRecord,
+  empirical: EmpiricalTrack,
+): EffectiveMetrics {
+  const metrics = emptyMetrics();
+  const metric_sources = {} as Record<MetricKey, EffectiveMetricSource>;
   const provided = new Set<MetricKey>(empirical.provided_keys);
   for (const key of METRIC_KEYS) {
-    out[key] = provided.has(key) ? empirical.metrics[key] : synthetic[key];
+    if (proofTrack === 'synthetic') {
+      metrics[key] = synthetic[key];
+      metric_sources[key] = 'synthetic';
+      continue;
+    }
+    if (proofTrack === 'empirical') {
+      metrics[key] = empirical.metrics[key];
+      metric_sources[key] = 'empirical';
+      continue;
+    }
+    const useEmpirical = provided.has(key);
+    metrics[key] = useEmpirical ? empirical.metrics[key] : synthetic[key];
+    metric_sources[key] = useEmpirical ? 'empirical' : 'synthetic';
   }
-  out.recovery_time_ms = round(Math.max(out.conduit_recovery_ms, out.adapter_recovery_ms));
-  return out;
+  metrics.recovery_time_ms = round(Math.max(metrics.conduit_recovery_ms, metrics.adapter_recovery_ms));
+  if (proofTrack === 'dual') {
+    const recoverySource =
+      metric_sources.conduit_recovery_ms === 'empirical' ||
+      metric_sources.adapter_recovery_ms === 'empirical'
+        ? 'empirical'
+        : 'synthetic';
+    metric_sources.recovery_time_ms = recoverySource;
+  } else {
+    metric_sources.recovery_time_ms = proofTrack;
+  }
+  return { metrics, metric_sources };
 }
 
 function deterministicChecksum(payload: unknown): string {
@@ -647,12 +685,9 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const scenarios = buildScenarios(args.profile, args.seed);
   const syntheticMetrics = summarizeMetrics(scenarios);
   const empiricalTrack = extractEmpiricalTrack(root, args.profile);
-  const effectiveMetrics =
-    args.proofTrack === 'synthetic'
-      ? syntheticMetrics
-      : args.proofTrack === 'empirical'
-        ? empiricalTrack.metrics
-        : mergeDualTrackMetrics(syntheticMetrics, empiricalTrack);
+  const effective = resolveEffectiveMetrics(args.proofTrack, syntheticMetrics, empiricalTrack);
+  const effectiveMetrics = effective.metrics;
+  const empiricalMinSamplePoints = EMPIRICAL_MIN_SAMPLE_POINTS_BY_PROFILE[args.profile];
 
   const failures = scenarios.filter((row) => !row.ok).map((row) => ({
     id: row.id,
@@ -664,6 +699,15 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       detail: 'proof_track=empirical requires live empirical evidence sample points',
     });
   }
+  if (
+    (args.proofTrack === 'empirical' || args.proofTrack === 'dual') &&
+    empiricalTrack.sample_points < empiricalMinSamplePoints
+  ) {
+    failures.push({
+      id: 'empirical_profile_minimum_not_met',
+      detail: `profile=${args.profile};required=${empiricalMinSamplePoints};actual=${empiricalTrack.sample_points}`,
+    });
+  }
 
   const deterministicPayload = {
     profile: args.profile,
@@ -673,6 +717,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     synthetic_metrics: syntheticMetrics,
     empirical_metrics: empiricalTrack.metrics,
     effective_metrics: effectiveMetrics,
+    effective_metric_sources: effective.metric_sources,
     empirical_sources: empiricalTrack.sources,
   };
   const metricsPayload = {
@@ -681,6 +726,22 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     profile: args.profile,
     proof_track: args.proofTrack,
     metrics: effectiveMetrics,
+    synthetic_metrics: {
+      sample_points: scenarios.length,
+      metrics: syntheticMetrics,
+    },
+    empirical_metrics: {
+      sample_points: empiricalTrack.sample_points,
+      metrics: empiricalTrack.metrics,
+      provided_keys: empiricalTrack.provided_keys,
+      sources: empiricalTrack.sources,
+      min_sample_points_required: empiricalMinSamplePoints,
+    },
+    effective_metrics: {
+      track: args.proofTrack,
+      metrics: effectiveMetrics,
+      metric_sources: effective.metric_sources,
+    },
     proof_tracks: {
       selected: args.proofTrack,
       synthetic: {
@@ -691,6 +752,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         sample_points: empiricalTrack.sample_points,
         metrics: empiricalTrack.metrics,
         provided_keys: empiricalTrack.provided_keys,
+        min_sample_points_required: empiricalMinSamplePoints,
       },
     },
   };
@@ -713,8 +775,25 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       pass: failures.length === 0,
       proof_track: args.proofTrack,
       empirical_sample_points: empiricalTrack.sample_points,
+      empirical_min_sample_points_required: empiricalMinSamplePoints,
     },
     metrics: effectiveMetrics,
+    synthetic_metrics: {
+      sample_points: scenarios.length,
+      metrics: syntheticMetrics,
+    },
+    empirical_metrics: {
+      sample_points: empiricalTrack.sample_points,
+      metrics: empiricalTrack.metrics,
+      provided_keys: empiricalTrack.provided_keys,
+      sources: empiricalTrack.sources,
+      min_sample_points_required: empiricalMinSamplePoints,
+    },
+    effective_metrics: {
+      track: args.proofTrack,
+      metrics: effectiveMetrics,
+      metric_sources: effective.metric_sources,
+    },
     proof_tracks: {
       selected: args.proofTrack,
       synthetic: {
@@ -728,6 +807,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         metrics: empiricalTrack.metrics,
         provided_keys: empiricalTrack.provided_keys,
         sources: empiricalTrack.sources,
+        min_sample_points_required: empiricalMinSamplePoints,
       },
     },
     scenarios,

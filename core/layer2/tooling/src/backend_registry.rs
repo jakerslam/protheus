@@ -48,8 +48,13 @@ struct ProviderRegistry {
 struct ProviderStatus {
     auth_status: Option<String>,
     reachable: Option<bool>,
+    transport_available: Option<bool>,
+    auth_healthy: Option<bool>,
     needs_key: Option<bool>,
     is_local: Option<bool>,
+    configured: Option<bool>,
+    status: Option<String>,
+    credential_state: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -60,6 +65,52 @@ struct TerminalBrokerState {
 #[derive(Debug, Default, Deserialize)]
 struct TerminalHistoryRow {
     ok: Option<bool>,
+}
+
+fn provider_auth_ready(provider: &ProviderStatus) -> bool {
+    if let Some(value) = provider.auth_healthy {
+        return value;
+    }
+    let auth_status = provider
+        .auth_status
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    let credential_state = provider
+        .credential_state
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    matches!(
+        auth_status.as_str(),
+        "configured" | "ok" | "ready" | "healthy" | "authenticated"
+    ) || matches!(
+        credential_state.as_str(),
+        "configured" | "ok" | "ready" | "healthy" | "authenticated"
+    ) || provider.configured == Some(true)
+        || provider.needs_key == Some(false)
+        || provider.is_local == Some(true)
+}
+
+fn provider_transport_ready(provider: &ProviderStatus) -> bool {
+    if let Some(value) = provider.transport_available {
+        return value;
+    }
+    if let Some(value) = provider.reachable {
+        return value;
+    }
+    let status = provider
+        .status
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    matches!(
+        status.as_str(),
+        "connected" | "reachable" | "ok" | "ready" | "healthy"
+    )
 }
 
 fn env_true(keys: &[&str]) -> bool {
@@ -212,25 +263,13 @@ fn retrieval_plane_health(state_root: &Path) -> ToolBackendHealth {
             resident_ipc_authoritative: resident_ipc_authoritative(),
         };
     }
-    let auth_ready = providers.iter().any(|provider| {
-        let auth_status = provider.auth_status.as_deref().unwrap_or("").trim();
-        auth_status.eq_ignore_ascii_case("configured")
-            || provider.needs_key == Some(false)
-            || provider.is_local == Some(true)
-    });
+    let auth_ready = providers.iter().any(|provider| provider_auth_ready(provider));
     let reachable = providers
         .iter()
-        .any(|provider| provider.reachable == Some(true));
-    let fully_healthy = providers.iter().all(|provider| {
-        provider.reachable == Some(true)
-            && (provider
-                .auth_status
-                .as_deref()
-                .unwrap_or("")
-                .eq_ignore_ascii_case("configured")
-                || provider.needs_key == Some(false)
-                || provider.is_local == Some(true))
-    });
+        .any(|provider| provider_transport_ready(provider));
+    let fully_healthy = providers
+        .iter()
+        .all(|provider| provider_transport_ready(provider) && provider_auth_ready(provider));
     let (status, reason_code, reason) = if !auth_ready {
         (
             ToolCapabilityStatus::Blocked,
