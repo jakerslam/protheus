@@ -57,7 +57,7 @@ pub fn spec_for(capability: &Capability) -> CapabilitySpec {
         Capability::WebFetch => tool_spec(Capability::WebFetch, "web_fetch", "route_web_fetch"),
         Capability::ToolRoute => tool_spec(Capability::ToolRoute, "tool_route", "route_tool_call"),
         Capability::ExecuteTool => {
-            tool_spec(Capability::ExecuteTool, "execute_tool", "route_tool_call")
+            tool_spec(Capability::ExecuteTool, "tool_route", "route_tool_call")
         }
         Capability::PlanAssimilation => CapabilitySpec {
             requires: vec![Precondition::TargetExists, Precondition::PolicyAllows],

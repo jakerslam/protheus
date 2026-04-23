@@ -33,8 +33,13 @@ pub fn select_workflow_template(
         return WorkflowTemplate::DiagnoseRetryEscalate;
     }
     if classification.request_class == RequestClass::ToolCall
-        && (request.request_kind == RequestKind::Comparative
-            || request.resource_kind == ResourceKind::Mixed)
+        && (matches!(
+            request.request_kind,
+            RequestKind::Comparative | RequestKind::Workflow
+        ) || matches!(
+            request.resource_kind,
+            ResourceKind::Mixed | ResourceKind::Workspace | ResourceKind::Tooling
+        ))
     {
         return WorkflowTemplate::ResearchSynthesizeVerify;
     }
@@ -322,6 +327,220 @@ fn lifecycle_next_actions(
             actions.push("escalate_to_kernel_authority".to_string());
         }
     }
+    if matches!(
+        plan.request_classification.request_class,
+        RequestClass::ToolCall
+    ) {
+        actions.push("emit_tool_route_recommendation_envelope".to_string());
+    }
+    if matches!(
+        plan.request_classification.resource_kind,
+        ResourceKind::Workspace | ResourceKind::Tooling | ResourceKind::Mixed
+    ) {
+        actions.push("prefer_workspace_first_probe_contract_for_tool_routing".to_string());
+    }
+    if matches!(
+        plan.request_classification.resource_kind,
+        ResourceKind::Tooling
+    ) {
+        actions.push("prefer_tree_sitter_query_route_for_code_workspace_intent".to_string());
+    }
+    if matches!(
+        plan.request_classification.request_kind,
+        RequestKind::Comparative | RequestKind::Workflow
+    ) {
+        actions.push("emit_synthesis_profile_and_context_mentions_projection".to_string());
+    }
+    if matches!(
+        plan.request_classification.request_kind,
+        RequestKind::Comparative
+    ) && matches!(
+        plan.request_classification.resource_kind,
+        ResourceKind::Tooling | ResourceKind::Mixed
+    ) {
+        actions.push("require_multi_language_tooling_synthesis_evidence".to_string());
+        actions.push("require_multi_provider_tooling_synthesis_evidence".to_string());
+        actions.push("require_provider_compatibility_surface_crosscheck".to_string());
+        actions.push("require_multi_provider_family_synthesis_evidence".to_string());
+        actions.push("require_context_surface_alignment_for_tooling_synthesis".to_string());
+        actions.push("require_shared_contract_schema_crosscheck".to_string());
+        actions.push("require_shared_cline_schema_crosscheck".to_string());
+        actions.push("require_shared_message_schema_crosscheck".to_string());
+        actions.push("require_shared_service_schema_crosscheck".to_string());
+        actions.push("require_chat_hook_schema_crosscheck".to_string());
+        actions.push("require_chat_util_schema_crosscheck".to_string());
+        actions.push("require_chat_message_schema_crosscheck".to_string());
+        actions.push("require_chat_shared_schema_crosscheck".to_string());
+        actions.push("require_chat_type_schema_crosscheck".to_string());
+        actions.push("require_chat_view_schema_crosscheck".to_string());
+        actions.push("require_chat_layout_schema_crosscheck".to_string());
+        actions.push("require_chat_root_schema_crosscheck".to_string());
+        actions.push("require_chat_output_schema_crosscheck".to_string());
+        actions.push("require_chat_error_schema_crosscheck".to_string());
+        actions.push("require_chat_preview_schema_crosscheck".to_string());
+        actions.push("require_chat_interaction_schema_crosscheck".to_string());
+        actions.push("require_chat_component_schema_crosscheck".to_string());
+        actions.push("require_chat_task_header_schema_crosscheck".to_string());
+        actions.push("require_chat_task_header_button_schema_crosscheck".to_string());
+        actions.push("require_chat_auto_approve_schema_crosscheck".to_string());
+        actions.push("require_cline_rules_schema_crosscheck".to_string());
+        actions.push("require_common_component_schema_crosscheck".to_string());
+        actions.push("require_common_content_schema_crosscheck".to_string());
+        actions.push("require_common_ui_schema_crosscheck".to_string());
+        actions.push("require_history_schema_crosscheck".to_string());
+        actions.push("require_menu_schema_crosscheck".to_string());
+        actions.push("require_onboarding_schema_crosscheck".to_string());
+        actions.push("require_browser_schema_crosscheck".to_string());
+        actions.push("require_settings_utils_schema_crosscheck".to_string());
+        actions.push("require_hooks_schema_crosscheck".to_string());
+        actions.push("require_root_provider_schema_crosscheck".to_string());
+        actions.push("require_shell_config_schema_crosscheck".to_string());
+        actions.push("require_shell_hook_schema_crosscheck".to_string());
+        actions.push("require_shell_service_schema_crosscheck".to_string());
+        actions.push("require_service_temp_schema_crosscheck".to_string());
+        actions.push("require_service_test_schema_crosscheck".to_string());
+        actions.push("require_service_uri_schema_crosscheck".to_string());
+        actions.push("require_shell_lib_schema_crosscheck".to_string());
+        actions.push("require_shell_util_schema_crosscheck".to_string());
+        actions.push("require_settings_component_schema_crosscheck".to_string());
+        actions.push("require_settings_section_schema_crosscheck".to_string());
+        actions.push("require_settings_model_picker_schema_crosscheck".to_string());
+        actions.push("require_settings_common_schema_crosscheck".to_string());
+        actions.push("require_settings_test_schema_crosscheck".to_string());
+        actions.push("require_settings_control_surface_crosscheck".to_string());
+    }
+    if matches!(
+        plan.request_classification.request_class,
+        RequestClass::ReadOnly
+    ) {
+        actions.push("prefer_workspace_context_synthesis_projection".to_string());
+        actions.push("emit_shell_context_projection".to_string());
+        actions.push("emit_chat_hook_projection".to_string());
+        actions.push("emit_chat_util_projection".to_string());
+        actions.push("emit_chat_message_projection".to_string());
+        actions.push("emit_chat_shared_projection".to_string());
+        actions.push("emit_chat_type_projection".to_string());
+        actions.push("emit_chat_view_projection".to_string());
+        actions.push("emit_chat_layout_projection".to_string());
+        actions.push("emit_chat_root_projection".to_string());
+        actions.push("emit_chat_output_projection".to_string());
+        actions.push("emit_chat_error_projection".to_string());
+        actions.push("emit_chat_preview_projection".to_string());
+        actions.push("emit_chat_interaction_projection".to_string());
+        actions.push("emit_chat_component_projection".to_string());
+        actions.push("emit_shell_config_projection".to_string());
+        actions.push("emit_shell_hook_projection".to_string());
+        actions.push("emit_shell_service_projection".to_string());
+        actions.push("emit_service_temp_projection".to_string());
+        actions.push("emit_service_test_projection".to_string());
+        actions.push("emit_service_uri_projection".to_string());
+        actions.push("emit_shell_lib_projection".to_string());
+        actions.push("emit_shell_util_projection".to_string());
+        actions.push("emit_chat_task_header_projection".to_string());
+        actions.push("emit_chat_task_header_button_projection".to_string());
+        actions.push("emit_chat_auto_approve_projection".to_string());
+        actions.push("emit_cline_rules_projection".to_string());
+        actions.push("emit_common_component_projection".to_string());
+        actions.push("emit_common_content_projection".to_string());
+        actions.push("emit_common_ui_projection".to_string());
+        actions.push("emit_history_projection".to_string());
+        actions.push("emit_menu_projection".to_string());
+        actions.push("emit_onboarding_projection".to_string());
+        actions.push("emit_browser_projection".to_string());
+        actions.push("emit_settings_utils_projection".to_string());
+        actions.push("emit_hooks_projection".to_string());
+        actions.push("emit_root_provider_projection".to_string());
+        actions.push("emit_settings_section_projection".to_string());
+        actions.push("emit_settings_test_projection".to_string());
+    }
+    if matches!(
+        plan.request_classification.resource_kind,
+        ResourceKind::Tooling
+    ) && matches!(
+        plan.request_classification.request_class,
+        RequestClass::ReadOnly | RequestClass::ToolCall
+    ) {
+        actions.push("emit_mcp_render_surface_projection".to_string());
+    }
+    if matches!(
+        plan.request_classification.resource_kind,
+        ResourceKind::Tooling
+    ) && matches!(
+        plan.request_classification.request_class,
+        RequestClass::Mutation | RequestClass::TaskProposal
+    ) {
+        actions.push("emit_mcp_configuration_delta_projection".to_string());
+    }
+    if matches!(
+        plan.request_classification.resource_kind,
+        ResourceKind::Tooling
+    ) && matches!(
+        plan.request_classification.request_class,
+        RequestClass::ToolCall | RequestClass::ReadOnly
+    ) {
+        actions.push("prefer_mcp_marketplace_surface_synthesis".to_string());
+        actions.push("emit_provider_catalog_synthesis_projection".to_string());
+        actions.push("emit_provider_selection_matrix_projection".to_string());
+        actions.push("emit_provider_model_picker_projection".to_string());
+        actions.push("emit_provider_family_projection".to_string());
+        actions.push("emit_provider_utils_projection".to_string());
+        actions.push("emit_shared_contract_projection".to_string());
+        actions.push("emit_shared_cline_projection".to_string());
+        actions.push("emit_shared_messages_projection".to_string());
+        actions.push("emit_shared_internal_projection".to_string());
+        actions.push("emit_shared_services_projection".to_string());
+        actions.push("emit_shared_multi_root_projection".to_string());
+        actions.push("emit_chat_message_projection".to_string());
+        actions.push("emit_chat_shared_projection".to_string());
+        actions.push("emit_chat_type_projection".to_string());
+        actions.push("emit_chat_view_projection".to_string());
+        actions.push("emit_chat_layout_projection".to_string());
+        actions.push("emit_chat_root_projection".to_string());
+        actions.push("emit_chat_output_projection".to_string());
+        actions.push("emit_chat_error_projection".to_string());
+        actions.push("emit_chat_preview_projection".to_string());
+        actions.push("emit_chat_interaction_projection".to_string());
+        actions.push("emit_chat_component_projection".to_string());
+        actions.push("emit_chat_task_header_projection".to_string());
+        actions.push("emit_chat_task_header_button_projection".to_string());
+        actions.push("emit_chat_auto_approve_projection".to_string());
+        actions.push("emit_cline_rules_projection".to_string());
+        actions.push("emit_common_component_projection".to_string());
+        actions.push("emit_common_content_projection".to_string());
+        actions.push("emit_common_ui_projection".to_string());
+        actions.push("emit_history_projection".to_string());
+        actions.push("emit_menu_projection".to_string());
+        actions.push("emit_onboarding_projection".to_string());
+        actions.push("emit_browser_projection".to_string());
+        actions.push("emit_settings_utils_projection".to_string());
+        actions.push("emit_hooks_projection".to_string());
+        actions.push("emit_root_provider_projection".to_string());
+        actions.push("emit_settings_component_projection".to_string());
+        actions.push("emit_settings_section_projection".to_string());
+        actions.push("emit_settings_model_picker_projection".to_string());
+        actions.push("emit_settings_common_projection".to_string());
+        actions.push("emit_settings_control_projection".to_string());
+    }
+    if matches!(
+        plan.request_classification.resource_kind,
+        ResourceKind::Tooling
+    ) && matches!(
+        plan.request_classification.request_class,
+        RequestClass::Mutation | RequestClass::TaskProposal
+    ) {
+        actions.push("require_mcp_server_row_delta_validation_before_emit".to_string());
+        actions.push("require_provider_config_delta_validation_before_emit".to_string());
+        actions.push("require_provider_credentials_shape_validation_before_emit".to_string());
+    }
+    if matches!(
+        plan.request_classification.resource_kind,
+        ResourceKind::Tooling | ResourceKind::Mixed
+    ) && matches!(
+        plan.request_classification.request_kind,
+        RequestKind::Direct
+    ) {
+        actions.push("prefer_proto_conversion_consistency_for_tooling_payloads".to_string());
+    }
     if closure.receipt_correlation != ClosureState::Complete
         && !plan
             .execution_state
@@ -334,6 +553,27 @@ fn lifecycle_next_actions(
     if closure.verification == ClosureState::Ready && !plan.needs_clarification {
         actions.push("run_verification_pass_before_final_emit".to_string());
     }
+    if matches!(
+        plan.execution_state.plan_status,
+        PlanStatus::Ready | PlanStatus::Planned
+    ) && plan.selected_plan.steps.is_empty()
+        && !plan.needs_clarification
+    {
+        actions.push("emit_tool_route_recommendation_envelope".to_string());
+        actions.push("refresh_workspace_tooling_probe_and_rebuild_plan".to_string());
+    }
+    if matches!(plan.execution_state.plan_status, PlanStatus::Degraded)
+        && fallback_actions.is_empty()
+    {
+        actions.push("emit_synthesis_gap_summary_for_shell".to_string());
+    }
+    if matches!(
+        plan.execution_state.plan_status,
+        PlanStatus::Blocked | PlanStatus::Failed
+    ) && !plan.needs_clarification
+    {
+        actions.push("emit_workflow_gate_diagnostic_with_single_retry_path".to_string());
+    }
     if closure.memory_packaging != ClosureState::Complete
         && plan
             .selected_plan
@@ -343,6 +583,8 @@ fn lifecycle_next_actions(
     {
         actions.push("complete_memory_packaging_handoff".to_string());
     }
+    actions.sort();
+    actions.dedup();
     if actions.is_empty() {
         actions.push("no_additional_control_plane_action".to_string());
     }

@@ -206,6 +206,50 @@ pub fn extract_target_refs(target_descriptors: &[TargetDescriptor]) -> Vec<Strin
     refs
 }
 
+fn normalize_tool_hint_alias(raw: &str) -> String {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "file_read" | "read_file" => "workspace_read".to_string(),
+        "file_search" | "file_list" | "workspace_analyze" => "workspace_search".to_string(),
+        "web_lookup" => "web_search".to_string(),
+        other => other.to_string(),
+    }
+}
+
+fn payload_local_workspace_intent(payload: &Value) -> bool {
+    let contains_local_tokens = |raw: &str| {
+        let lowered = raw.to_ascii_lowercase();
+        lowered.contains("workspace")
+            || lowered.contains("local")
+            || lowered.contains("directory")
+            || lowered.contains("folder")
+            || lowered.contains("file")
+            || lowered.contains("path")
+            || lowered.contains("repo")
+    };
+    let fields = ["message", "intent", "query", "target", "path", "tool", "tool_name"];
+    fields
+        .iter()
+        .filter_map(|key| payload.get(*key).and_then(Value::as_str))
+        .any(contains_local_tokens)
+}
+
+fn payload_web_intent(payload: &Value) -> bool {
+    let contains_web_tokens = |raw: &str| {
+        let lowered = raw.to_ascii_lowercase();
+        lowered.contains("http://")
+            || lowered.contains("https://")
+            || lowered.contains("web")
+            || lowered.contains("internet")
+            || lowered.contains("online")
+            || lowered.contains("browser")
+    };
+    let fields = ["message", "intent", "query", "target", "url", "tool", "tool_name"];
+    fields
+        .iter()
+        .filter_map(|key| payload.get(*key).and_then(Value::as_str))
+        .any(contains_web_tokens)
+}
+
 pub fn extract_tool_hints(
     payload: &Value,
     operation_kind: &OperationKind,
@@ -216,7 +260,7 @@ pub fn extract_tool_hints(
         if let Some(value) = payload.get(key).and_then(Value::as_str) {
             let trimmed = value.trim();
             if !trimmed.is_empty() {
-                hints.push(trimmed.to_string());
+                hints.push(normalize_tool_hint_alias(trimmed));
             }
         }
     }
@@ -243,6 +287,13 @@ pub fn extract_tool_hints(
             hints.push("tooling_route".to_string());
         }
         _ => {}
+    }
+    let workspace_local_intent = payload_local_workspace_intent(payload);
+    let web_intent = payload_web_intent(payload);
+    if workspace_local_intent && !web_intent {
+        hints.retain(|hint| hint != "web_search" && hint != "web_fetch");
+    } else if web_intent && !workspace_local_intent {
+        hints.retain(|hint| hint != "workspace_read" && hint != "workspace_search");
     }
     hints.sort();
     hints.dedup();
@@ -322,6 +373,41 @@ fn read_string<'a>(obj: &'a Map<String, Value>, keys: &[&str]) -> Option<&'a str
         .filter(|value| !value.is_empty())
 }
 
+fn extract_nested_target_scalar(value: &Value) -> Option<String> {
+    if let Some(inner) = value.as_str() {
+        let trimmed = inner.trim();
+        if !trimmed.is_empty() {
+            return Some(trimmed.to_string());
+        }
+    }
+    let obj = value.as_object()?;
+    read_string(
+        obj,
+        &[
+            "value",
+            "path",
+            "workspace_path",
+            "repo_path",
+            "repository_path",
+            "directory",
+            "folder",
+            "cwd",
+            "pwd",
+            "url",
+            "link",
+            "tool",
+            "tool_name",
+            "task_id",
+            "task",
+            "scope",
+            "memory_ref",
+            "name",
+            "id",
+        ],
+    )
+    .map(|trimmed| trimmed.to_string())
+}
+
 fn extract_target_descriptors_from_object(obj: &Map<String, Value>) -> Vec<TargetDescriptor> {
     let mut out = Vec::new();
     collect_string_targets(
@@ -330,15 +416,35 @@ fn extract_target_descriptors_from_object(obj: &Map<String, Value>) -> Vec<Targe
             "workspace_path",
             "repo_path",
             "repository_path",
+            "workspace_root",
+            "repo_root",
+            "root_path",
+            "cwd_path",
+            "pwd_path",
+            "working_directory",
+            "current_directory",
+            "directory_path",
+            "folder_path",
             "path",
             "file",
             "directory",
             "folder",
+            "cwd",
+            "pwd",
         ],
         &[
             "workspace_paths",
             "repo_paths",
             "repository_paths",
+            "workspace_roots",
+            "repo_roots",
+            "root_paths",
+            "cwd_paths",
+            "pwd_paths",
+            "working_directories",
+            "current_directories",
+            "directory_paths",
+            "folder_paths",
             "paths",
             "files",
             "directories",
@@ -401,14 +507,17 @@ fn collect_string_targets<F>(
     for key in singular_keys {
         if let Some(value) = read_string(obj, &[*key]) {
             out.push(map(value));
+            continue;
+        }
+        if let Some(value) = obj.get(*key).and_then(extract_nested_target_scalar) {
+            out.push(map(value.as_str()));
         }
     }
     for key in plural_keys {
         if let Some(values) = obj.get(*key).and_then(Value::as_array) {
-            for value in values.iter().filter_map(Value::as_str) {
-                let trimmed = value.trim();
-                if !trimmed.is_empty() {
-                    out.push(map(trimmed));
+            for value in values {
+                if let Some(trimmed) = extract_nested_target_scalar(value) {
+                    out.push(map(trimmed.as_str()));
                 }
             }
         }
@@ -448,11 +557,23 @@ fn parse_structured_target(value: &Value) -> Option<TargetDescriptor> {
     let obj = value.as_object()?;
     let kind = read_string(obj, &["kind", "type"])?;
     match kind.to_ascii_lowercase().as_str() {
-        "workspace_path" | "path" => {
-            read_string(obj, &["value", "path"]).map(|value| TargetDescriptor::WorkspacePath {
-                value: value.to_string(),
-            })
-        }
+        "workspace_path" | "path" | "directory" | "folder" | "cwd" | "pwd" => read_string(
+            obj,
+            &[
+                "value",
+                "path",
+                "workspace_path",
+                "repo_path",
+                "repository_path",
+                "directory",
+                "folder",
+                "cwd",
+                "pwd",
+            ],
+        )
+        .map(|value| TargetDescriptor::WorkspacePath {
+            value: value.to_string(),
+        }),
         "url" => read_string(obj, &["value", "url"]).map(|value| TargetDescriptor::Url {
             value: value.to_string(),
         }),

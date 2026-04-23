@@ -12,6 +12,7 @@ pub fn classify_request(parsed: &ParseResult) -> RequestClassification {
         &request.mutability,
         &request.resource_kind,
     ) {
+        (_, _, ResourceKind::Tooling) => RequestClass::ToolCall,
         (OperationKind::Search | OperationKind::Fetch | OperationKind::InspectTooling, _, _) => {
             RequestClass::ToolCall
         }
@@ -346,5 +347,38 @@ mod tests {
         assert!(!classification
             .clarification_reasons
             .contains(&ClarificationReason::AmbiguousOperation));
+    }
+
+    #[test]
+    fn tooling_resource_read_is_classified_as_tool_call() {
+        let request = ParseResult {
+            typed_request: crate::contracts::TypedOrchestrationRequest {
+                session_id: "tooling-read".to_string(),
+                surface: RequestSurface::Sdk,
+                legacy_intent: "inspect tooling".to_string(),
+                adapted: true,
+                payload: json!({}),
+                request_kind: RequestKind::Direct,
+                operation_kind: OperationKind::Read,
+                resource_kind: ResourceKind::Tooling,
+                mutability: Mutability::ReadOnly,
+                target_descriptors: Vec::new(),
+                target_refs: Vec::new(),
+                tool_hints: vec!["tool_route".to_string()],
+                policy_scope: crate::contracts::PolicyScope::Default,
+                user_constraints: Vec::new(),
+                core_probe_envelope: None,
+            },
+            confidence: 0.78,
+            ambiguity: Vec::new(),
+            reasons: vec!["typed_tooling_read".to_string()],
+            surface_adapter_used: true,
+            surface_adapter_fallback: false,
+        };
+        let classification = classify_request(&request);
+        assert_eq!(classification.request_class, RequestClass::ToolCall);
+        assert!(classification
+            .required_capabilities
+            .contains(&Capability::ToolRoute));
     }
 }

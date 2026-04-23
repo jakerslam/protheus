@@ -1,8 +1,8 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
-    ControlPlaneLifecycleState, OrchestrationFallbackAction, OrchestrationPlan,
-    OrchestrationResultPackage, PlanStatus, PlanVariant, RequestClass, RuntimeQualitySignals,
-    WorkflowTemplate,
+    ControlPlaneDecisionTrace, ControlPlaneLifecycleState, OrchestrationFallbackAction,
+    OrchestrationPlan, OrchestrationResultPackage, PlanStatus, PlanVariant, RequestClass,
+    RuntimeQualitySignals, WorkflowTemplate,
 };
 
 pub fn package_result(
@@ -36,12 +36,15 @@ pub fn shape_result_package(
         RequestClass::Mutation | RequestClass::TaskProposal | RequestClass::Assimilation
     );
     let summary = summary_for_plan(plan);
-    let runtime_quality = runtime_quality_signals(plan);
+    let runtime_quality = runtime_quality_signals(plan, fallback_actions.len() as u32);
+    let decision_trace = decision_trace(plan);
+    let mut execution_state = plan.execution_state.clone();
+    execution_state.correlation.receipt_metadata.decision_trace = decision_trace.clone();
 
     OrchestrationResultPackage {
         summary,
         progress_message,
-        execution_state: plan.execution_state.clone(),
+        execution_state,
         recovery_applied,
         fallback_actions,
         core_contract_calls: plan
@@ -55,6 +58,7 @@ pub fn shape_result_package(
         selected_plan: plan.selected_plan.clone(),
         alternative_plans: plan.alternative_plans.clone(),
         runtime_quality,
+        decision_trace,
         workflow_template,
         control_plane_lifecycle,
     }
@@ -77,7 +81,10 @@ fn summary_for_plan(plan: &OrchestrationPlan) -> String {
     }
 }
 
-fn runtime_quality_signals(plan: &OrchestrationPlan) -> RuntimeQualitySignals {
+fn runtime_quality_signals(
+    plan: &OrchestrationPlan,
+    fallback_action_count: u32,
+) -> RuntimeQualitySignals {
     let candidates = std::iter::once(&plan.selected_plan)
         .chain(plan.alternative_plans.iter())
         .collect::<Vec<_>>();
@@ -121,6 +128,21 @@ fn runtime_quality_signals(plan: &OrchestrationPlan) -> RuntimeQualitySignals {
         candidate_count > 0 && degraded_candidate_count == candidate_count;
     let all_candidates_require_clarification =
         candidate_count > 0 && clarification_candidate_count == candidate_count;
+    let typed_probe_contract_gap_count = plan
+        .classification
+        .reasons
+        .iter()
+        .filter(|reason| reason.starts_with("typed_probe_contract_missing"))
+        .count() as u32;
+    let decision_rationale_count = if !plan.selected_plan.reasons.is_empty() {
+        plan.selected_plan.reasons.len() as u32
+    } else {
+        plan.selected_plan
+            .steps
+            .iter()
+            .flat_map(|step| step.rationale.iter())
+            .count() as u32
+    };
 
     RuntimeQualitySignals {
         candidate_count,
@@ -137,5 +159,30 @@ fn runtime_quality_signals(plan: &OrchestrationPlan) -> RuntimeQualitySignals {
         all_candidates_degraded,
         all_candidates_require_clarification,
         surface_adapter_fallback: plan.classification.surface_adapter_fallback,
+        typed_probe_contract_gap_count,
+        decision_rationale_count,
+        fallback_action_count,
+    }
+}
+
+fn decision_trace(plan: &OrchestrationPlan) -> ControlPlaneDecisionTrace {
+    let rationale = if !plan.selected_plan.reasons.is_empty() {
+        plan.selected_plan.reasons.clone()
+    } else {
+        plan.selected_plan
+            .steps
+            .iter()
+            .flat_map(|step| step.rationale.iter().cloned())
+            .collect::<Vec<_>>()
+    };
+    ControlPlaneDecisionTrace {
+        chosen: plan.selected_plan.plan_id.clone(),
+        alternatives_rejected: plan
+            .alternative_plans
+            .iter()
+            .map(|candidate| candidate.plan_id.clone())
+            .collect(),
+        confidence: plan.selected_plan.confidence,
+        rationale,
     }
 }

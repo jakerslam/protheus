@@ -73,11 +73,13 @@ pub fn control_plane_api_contract() -> ControlPlaneApiContract {
             "execution_observation_snapshot",
             "capability_probe_snapshot",
             "policy_scope_snapshot",
+            "workspace_tooling_probe_snapshot",
         ],
         allowed_kernel_outputs: &[
             "core_contract_call_envelope",
             "task_fabric_proposal_envelope",
             "tool_broker_request_envelope",
+            "tool_route_recommendation_envelope",
             "recovery_recommendation_envelope",
             "clarification_request_envelope",
             "result_package_projection",

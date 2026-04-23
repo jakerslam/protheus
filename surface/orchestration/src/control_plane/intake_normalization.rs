@@ -17,6 +17,7 @@ pub fn boundary() -> SubdomainBoundary {
             "typed_request_snapshot",
             "policy_scope_snapshot",
             "core_probe_envelope",
+            "workspace_tooling_probe_snapshot",
         ],
         allowed_kernel_outputs: &[
             "normalized_request_projection",
@@ -25,6 +26,7 @@ pub fn boundary() -> SubdomainBoundary {
         ],
         message_boundaries: &[
             "ingress_to_planning_boundary",
+            "ingress_to_tool_route_boundary",
             "surface_to_kernel_snapshot_boundary",
         ],
     }

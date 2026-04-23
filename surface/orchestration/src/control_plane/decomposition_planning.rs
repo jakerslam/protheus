@@ -22,15 +22,18 @@ pub fn boundary() -> SubdomainBoundary {
             "typed_request_snapshot",
             "capability_probe_snapshot",
             "execution_observation_snapshot",
+            "workspace_tooling_probe_snapshot",
         ],
         allowed_kernel_outputs: &[
             "plan_candidate_set",
             "selected_plan_recommendation",
             "core_contract_call_envelope",
+            "tool_route_recommendation_envelope",
         ],
         message_boundaries: &[
             "planning_to_graph_boundary",
             "planning_to_recovery_boundary",
+            "planning_to_tool_route_boundary",
             "planning_to_kernel_recommendation_boundary",
         ],
     }
