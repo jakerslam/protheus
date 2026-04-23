@@ -19309,6 +19309,18 @@ Source summary:
   - required process headings must appear in-order (not only present).
 - Added default-path strict regression coverage in [`tests/client-memory-tools/incident_operations_governance_gate.test.ts`](/Users/jay/.openclaw/workspace/tests/client-memory-tools/incident_operations_governance_gate.test.ts).
 
+### 2026-04-24 V11-GOV-INC-001 Increment: Policy Token Contracts + Waiver Hygiene Hardening
+
+- Hardened incident governance gate in [`tests/tooling/scripts/ci/incident_operations_governance_gate.ts`](/Users/jay/.openclaw/workspace/tests/tooling/scripts/ci/incident_operations_governance_gate.ts) with fail-closed policy token contracts:
+  - `policy_contract_required_tokens` now requires canonical token presence for communication templates, deployment checklist items, reporting sections, and script output fields.
+  - Placeholder token detection now fails policy contract rows that attempt to pass with draft/placeholder labels.
+- Added explicit waiver-policy contract validation:
+  - `waiver_policy_contract` now requires exact canonical waiver field keys (`waiver_id`, `check_ids`, `reason`, `approver`, `expires_at`, `status`) and rejects unknown/placeholder entries.
+- Strengthened waiver runtime hygiene in `waiver_contract` validation:
+  - duplicate waiver IDs now fail closed,
+  - unknown waiver statuses now fail closed (`active|expired|revoked` allowlist),
+  - existing required-field/approver/date checks remain in force.
+
 ### 2026-04-22 V11-INSTALL-005 Increment: Repair Wrapper Bootstrap Floor for Missing PowerShell Shims
 
 - `install.ps1` repair bootstrap floor now recreates missing `.ps1` wrappers (not only `.cmd` wrappers) in [`Ensure-RepairBootstrapWrapperFloor`](/Users/jay/.openclaw/workspace/install.ps1), preventing post-repair dead-ends where a missing `infring.cmd` left only stale/broken shim behavior.
