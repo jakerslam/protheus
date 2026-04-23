@@ -34,7 +34,6 @@ const PERSONA_VALID_LENSES_ENV: &str = "INFRING_CTL_PERSONA_VALID_LENSES";
 const PERSONA_VALID_LENSES_DEFAULT: &str = "operator,guardian,analyst";
 const PERSONA_BLOCKED_PATHS_ENV: &str = "INFRING_CTL_PERSONA_BLOCKED_PATHS";
 const INFRING_WORKSPACE_ROOT_ENV: &str = "INFRING_WORKSPACE_ROOT";
-const INFRING_WORKSPACE_ROOT_ENV: &str = "INFRING_WORKSPACE_ROOT";
 const INSTALL_RUNTIME_MANIFEST_REL: &str = "client/runtime/config/install_runtime_manifest_v1.txt";
 const INSTALL_RUNTIME_FALLBACK_ENTRYPOINTS: &[&str] = &[
     "client/runtime/systems/ops/infringd.ts",
@@ -93,7 +92,7 @@ fn parse_workspace_root_candidate(raw: &str) -> Option<PathBuf> {
 }
 
 fn workspace_root_from_env() -> Option<PathBuf> {
-    [INFRING_WORKSPACE_ROOT_ENV, INFRING_WORKSPACE_ROOT_ENV]
+    [INFRING_WORKSPACE_ROOT_ENV]
         .iter()
         .filter_map(|name| env_nonempty(name))
         .find_map(|raw| parse_workspace_root_candidate(&raw))

@@ -39,16 +39,8 @@ name = "infring-ops"
 path = "src/bin/infring-ops.rs"
 
 [[bin]]
-name = "infring-ops"
-path = "src/bin/infring-ops.rs"
-
-[[bin]]
 name = "personas_core"
 path = "src/personas_core.rs"
-
-[[bin]]
-name = "infringd"
-path = "src/bin/infringd.rs"
 
 [[bin]]
 name = "infringd"

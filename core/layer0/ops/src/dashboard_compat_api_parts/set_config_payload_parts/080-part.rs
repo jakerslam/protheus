@@ -35,7 +35,17 @@ fn passive_attention_context_for_message(
         if internal_context_metadata_phrase(&summary)
             || persistent_memory_denied_phrase(&summary)
             || runtime_access_denied_phrase(&summary)
+            || contains_deprecated_workflow_ghost_phrase(&summary)
         {
+            continue;
+        }
+        let assistant_text = clean_text(
+            row.pointer("/raw_event/assistant_text")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            1_200,
+        );
+        if contains_deprecated_workflow_ghost_phrase(&assistant_text) {
             continue;
         }
         let terms = row
