@@ -457,7 +457,7 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
     }
     QueryResult {
         ok: true,
-        backend: "protheus_memory_core".to_string(),
+        backend: "infring_memory_core".to_string(),
         score_mode: if vector_enabled {
             "hybrid".to_string()
         } else {

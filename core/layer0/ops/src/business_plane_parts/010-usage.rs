@@ -13,33 +13,33 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const LANE_ID: &str = "business_plane";
-const ENV_KEY: &str = "PROTHEUS_BUSINESS_PLANE_STATE_ROOT";
+const ENV_KEY: &str = "INFRING_BUSINESS_PLANE_STATE_ROOT";
 
 fn usage() {
     println!("Usage:");
     println!(
-        "  protheus-ops business-plane taxonomy --business-context=<id> --topic=<text> [--tier=node1|tag2|jot3] [--interaction-count=<n>] [--promote-threshold=<n>] [--strict=1|0]"
+        "  infring-ops business-plane taxonomy --business-context=<id> --topic=<text> [--tier=node1|tag2|jot3] [--interaction-count=<n>] [--promote-threshold=<n>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops business-plane persona --op=<issue|renew|revoke|status> --persona=<id> [--business-context=<id>] [--lease-hours=<n>] [--strict=1|0]"
+        "  infring-ops business-plane persona --op=<issue|renew|revoke|status> --persona=<id> [--business-context=<id>] [--lease-hours=<n>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops business-plane continuity --op=<checkpoint|resume|handoff|status> [--business-context=<id>] [--name=<id>] [--state-json=<json>] [--to=<stakeholder>] [--task=<text>] [--strict=1|0]"
+        "  infring-ops business-plane continuity --op=<checkpoint|resume|handoff|status> [--business-context=<id>] [--name=<id>] [--state-json=<json>] [--to=<stakeholder>] [--task=<text>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops business-plane alerts --op=<emit|ack|status> [--alert-type=<id>] [--channel=<dashboard|slack|email|sms|pagerduty>] [--business-context=<id>] [--strict=1|0]"
+        "  infring-ops business-plane alerts --op=<emit|ack|status> [--alert-type=<id>] [--channel=<dashboard|slack|email|sms|pagerduty>] [--business-context=<id>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops business-plane switchboard --op=<create|write|read|status> --business-context=<id> [--target-business=<id>] [--entry-json=<json>] [--strict=1|0]"
+        "  infring-ops business-plane switchboard --op=<create|write|read|status> --business-context=<id> [--target-business=<id>] [--entry-json=<json>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops business-plane external-sync --system=<notion|confluence|crm|calendar|email|slack> --direction=<push|pull|bidirectional> [--business-context=<id>] [--external-id=<id>] [--content-json=<json>] [--strict=1|0]"
+        "  infring-ops business-plane external-sync --system=<notion|confluence|crm|calendar|email|slack> --direction=<push|pull|bidirectional> [--business-context=<id>] [--external-id=<id>] [--content-json=<json>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops business-plane continuity-audit [--days=<n>] [--business-context=<id|ALL>] [--strict=1|0]"
+        "  infring-ops business-plane continuity-audit [--days=<n>] [--business-context=<id|ALL>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops business-plane archive --op=<record|query|export|status> [--business-context=<id|ALL>] [--date-range=<start:end>] [--entry-json=<json>] [--strict=1|0]"
+        "  infring-ops business-plane archive --op=<record|query|export|status> [--business-context=<id|ALL>] [--date-range=<start:end>] [--entry-json=<json>] [--strict=1|0]"
     );
 }
 

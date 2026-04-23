@@ -61,20 +61,20 @@ fn build_tool_summary(
 
 fn memory_context_verify_command() -> String {
     [
-        "protheus-ops runtime-systems verify --system-id=V6-MEMORY-CONTEXT-001.1",
-        "protheus-ops runtime-systems verify --system-id=V6-MEMORY-CONTEXT-001.2",
-        "protheus-ops runtime-systems verify --system-id=V6-MEMORY-CONTEXT-001.3",
-        "protheus-ops runtime-systems verify --system-id=V6-MEMORY-CONTEXT-001.4",
-        "protheus-ops runtime-systems verify --system-id=V6-MEMORY-CONTEXT-001.5",
+        "infring-ops runtime-systems verify --system-id=V6-MEMORY-CONTEXT-001.1",
+        "infring-ops runtime-systems verify --system-id=V6-MEMORY-CONTEXT-001.2",
+        "infring-ops runtime-systems verify --system-id=V6-MEMORY-CONTEXT-001.3",
+        "infring-ops runtime-systems verify --system-id=V6-MEMORY-CONTEXT-001.4",
+        "infring-ops runtime-systems verify --system-id=V6-MEMORY-CONTEXT-001.5",
     ]
     .join(" && ")
 }
 
 fn default_router_suggestions() -> Vec<String> {
     vec![
-        "protheus-ops daemon-control diagnostics".to_string(),
-        "protheus-ops status --dashboard".to_string(),
-        "protheus-ops attention-queue compact --retain=256".to_string(),
+        "infring-ops daemon-control diagnostics".to_string(),
+        "infring-ops status --dashboard".to_string(),
+        "infring-ops attention-queue compact --retain=256".to_string(),
         memory_context_verify_command(),
     ]
 }
@@ -86,10 +86,10 @@ pub fn resolve_operator_command(command: &str) -> Result<CommandResolution, Valu
     }
     let lowered = requested.to_ascii_lowercase();
 
-    if lowered.starts_with("protheus-ops diagnostic full-scan")
-        || lowered.starts_with("protheus-ops diagnostic")
+    if lowered.starts_with("infring-ops diagnostic full-scan")
+        || lowered.starts_with("infring-ops diagnostic")
     {
-        let resolved = "protheus-ops daemon-control diagnostics && protheus-ops status --dashboard"
+        let resolved = "infring-ops daemon-control diagnostics && infring-ops status --dashboard"
             .to_string();
         return Ok(CommandResolution {
             requested_command: requested,
@@ -101,14 +101,14 @@ pub fn resolve_operator_command(command: &str) -> Result<CommandResolution, Valu
         });
     }
 
-    if lowered.starts_with("protheus-ops queue optimize") {
+    if lowered.starts_with("infring-ops queue optimize") {
         let retain = if lowered.contains("--strategy=aggressive") {
             128
         } else {
             256
         };
         let resolved =
-            format!("protheus-ops attention-queue compact --retain={retain} && protheus-ops attention-queue status");
+            format!("infring-ops attention-queue compact --retain={retain} && infring-ops attention-queue status");
         return Ok(CommandResolution {
             requested_command: requested,
             resolved_command: resolved.clone(),
@@ -121,7 +121,7 @@ pub fn resolve_operator_command(command: &str) -> Result<CommandResolution, Valu
     }
 
     if lowered.starts_with("infring memory-context validate")
-        || lowered.starts_with("protheus-ops memory-context validate")
+        || lowered.starts_with("infring-ops memory-context validate")
     {
         let resolved = memory_context_verify_command();
         return Ok(CommandResolution {
@@ -140,7 +140,7 @@ pub fn resolve_operator_command(command: &str) -> Result<CommandResolution, Valu
         || lowered == "infring --help"
         || lowered == "infring -h"
     {
-        let resolved = "protheus-ops command-list-kernel --mode=help".to_string();
+        let resolved = "infring-ops command-list-kernel --mode=help".to_string();
         return Ok(CommandResolution {
             requested_command: requested,
             resolved_command: resolved.clone(),
@@ -150,16 +150,16 @@ pub fn resolve_operator_command(command: &str) -> Result<CommandResolution, Valu
         });
     }
 
-    if lowered == "protheus-ops help"
-        || lowered == "protheus-ops --help"
-        || lowered == "protheus-ops -h"
+    if lowered == "infring-ops help"
+        || lowered == "infring-ops --help"
+        || lowered == "infring-ops -h"
     {
-        let resolved = "protheus-ops command-list-kernel --mode=help".to_string();
+        let resolved = "infring-ops command-list-kernel --mode=help".to_string();
         return Ok(CommandResolution {
             requested_command: requested,
             resolved_command: resolved.clone(),
             translated: true,
-            translation_reason: "translated_protheus_help_surface_to_command_list_help".to_string(),
+            translation_reason: "translated_infring_help_surface_to_command_list_help".to_string(),
             suggestions: vec![resolved],
         });
     }
@@ -178,20 +178,20 @@ pub fn resolve_operator_command(command: &str) -> Result<CommandResolution, Valu
                 "suggestions": default_router_suggestions()
             }));
         }
-        let translated = format!("protheus-ops {suffix}");
+        let translated = format!("infring-ops {suffix}");
         return Ok(CommandResolution {
             requested_command: requested,
             resolved_command: translated.clone(),
             translated: true,
-            translation_reason: "translated_infring_cli_alias_to_protheus_ops".to_string(),
+            translation_reason: "translated_infring_cli_alias_to_infring_ops".to_string(),
             suggestions: vec![translated],
         });
     }
 
-    if lowered.starts_with("protheus-ops ") && lowered.contains("full-scan") {
+    if lowered.starts_with("infring-ops ") && lowered.contains("full-scan") {
         return Err(json!({
             "ok": false,
-            "error": "unsupported_protheus_ops_command_variant",
+            "error": "unsupported_infring_ops_command_variant",
             "requested_command": requested,
             "suggestions": default_router_suggestions()
         }));

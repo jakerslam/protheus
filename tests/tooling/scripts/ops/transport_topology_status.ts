@@ -14,7 +14,7 @@ function envTrue(value: unknown, fallback = false): boolean {
 }
 
 function releaseChannel(env: NodeJS.ProcessEnv = process.env): string {
-  const raw = clean(env.INFRING_RELEASE_CHANNEL || env.PROTHEUS_RELEASE_CHANNEL || '', 48).toLowerCase();
+  const raw = clean(env.INFRING_RELEASE_CHANNEL || env.INFRING_RELEASE_CHANNEL || '', 48).toLowerCase();
   return raw || 'stable';
 }
 
@@ -50,20 +50,20 @@ function collectTopologyStatus(env: NodeJS.ProcessEnv = process.env) {
   const channel = releaseChannel(env);
   const production = isProductionReleaseChannel(channel);
   const ipcDaemonEnabled = envTrue(
-    env.INFRING_OPS_IPC_DAEMON || env.PROTHEUS_OPS_IPC_DAEMON,
+    env.INFRING_OPS_IPC_DAEMON || env.INFRING_OPS_IPC_DAEMON,
     true,
   );
   const ipcStrictEnabled = envTrue(
-    env.INFRING_OPS_IPC_STRICT || env.PROTHEUS_OPS_IPC_STRICT,
+    env.INFRING_OPS_IPC_STRICT || env.INFRING_OPS_IPC_STRICT,
     true,
   );
   const processFallbackRequested = envTrue(
-    env.INFRING_OPS_ALLOW_PROCESS_FALLBACK || env.PROTHEUS_OPS_ALLOW_PROCESS_FALLBACK,
+    env.INFRING_OPS_ALLOW_PROCESS_FALLBACK || env.INFRING_OPS_ALLOW_PROCESS_FALLBACK,
     false,
   );
   const sdkProcessTransportRequested = envTrue(env.INFRING_SDK_ALLOW_PROCESS_TRANSPORT, false);
   const legacyRunnerRequested = envTrue(
-    env.INFRING_OPS_FORCE_LEGACY_PROCESS_RUNNER || env.PROTHEUS_OPS_FORCE_LEGACY_PROCESS_RUNNER,
+    env.INFRING_OPS_FORCE_LEGACY_PROCESS_RUNNER || env.INFRING_OPS_FORCE_LEGACY_PROCESS_RUNNER,
     false,
   );
 
@@ -75,13 +75,13 @@ function collectTopologyStatus(env: NodeJS.ProcessEnv = process.env) {
   if (!ipcDaemonEnabled) {
     violations.push({
       id: 'resident_ipc_disabled',
-      detail: 'INFRING_OPS_IPC_DAEMON/PROTHEUS_OPS_IPC_DAEMON must remain enabled',
+      detail: 'INFRING_OPS_IPC_DAEMON/INFRING_OPS_IPC_DAEMON must remain enabled',
     });
   }
   if (!ipcStrictEnabled) {
     violations.push({
       id: 'ipc_strict_disabled',
-      detail: 'INFRING_OPS_IPC_STRICT/PROTHEUS_OPS_IPC_STRICT must remain enabled',
+      detail: 'INFRING_OPS_IPC_STRICT/INFRING_OPS_IPC_STRICT must remain enabled',
     });
   }
   if (processFallbackEffective) {

@@ -4,7 +4,7 @@ info:
   version: 0.2.0
   description: >-
     Authoritative API contract for the Rust-core `dashboard` runtime lane
-    (`protheus-ops dashboard start`). This replaces the prior placeholder stub.
+    (`infring-ops dashboard start`). This replaces the prior placeholder stub.
 servers:
   - url: http://127.0.0.1:41111
     description: Default local dashboard host (port is configurable at runtime)

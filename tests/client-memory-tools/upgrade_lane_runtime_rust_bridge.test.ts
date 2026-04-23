@@ -72,14 +72,14 @@ function main() {
   }, null, 2));
 
   process.env.INFRING_WORKSPACE = workspace;
-  process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
-  process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = '120000';
+  process.env.INFRING_OPS_USE_PREBUILT = '0';
+  process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = '120000';
 
   const mod = resetModule(path.join(ROOT, 'client', 'runtime', 'lib', 'upgrade_lane_runtime.ts'));
 
   const opts = {
     lane_id: 'V3-RACE-169',
-    script_rel: 'packages/protheus-core/core_profile_contract.js',
+    script_rel: 'packages/infring-core/core_profile_contract.js',
     policy_path: policyPath,
     stream: 'core.profiles',
     paths: {

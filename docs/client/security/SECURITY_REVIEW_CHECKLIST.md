@@ -3,7 +3,7 @@
 ## Review Inputs
 
 - Current threat model (`docs/client/security/THREAT_MODEL.md`)
-- Latest hardening receipt (`protheus-ops enterprise-hardening run --strict=1`)
+- Latest hardening receipt (`infring-ops enterprise-hardening run --strict=1`)
 - Conduit policy and source-of-truth contracts
 
 ## Required Checks

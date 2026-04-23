@@ -130,7 +130,7 @@ function main() {
           {
             name: 'backlog_queue_executor:run_all_with_tests',
             command:
-              'cargo run -q -p protheus-ops-core --bin protheus-ops -- backlog-queue-executor run --all=1 --with-tests=1',
+              'cargo run -q -p infring-ops-core --bin infring-ops -- backlog-queue-executor run --all=1 --with-tests=1',
           },
           {
             name: 'srs_full_regression',
@@ -161,9 +161,9 @@ function main() {
         'run',
         '-q',
         '-p',
-        'protheus-ops-core',
+        'infring-ops-core',
         '--bin',
-        'protheus-ops',
+        'infring-ops',
         '--',
         'backlog-queue-executor',
         'run',

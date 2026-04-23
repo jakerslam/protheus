@@ -26,21 +26,21 @@ const ACP_PROVENANCE_CONTRACT_PATH: &str =
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops observability-plane status");
+    println!("  infring-ops observability-plane status");
     println!(
-        "  protheus-ops observability-plane monitor [--source=<id>] [--alert-class=<slo|security|runtime|cost>] [--severity=<low|medium|high|critical>] [--message=<text>] [--strict=1|0]"
+        "  infring-ops observability-plane monitor [--source=<id>] [--alert-class=<slo|security|runtime|cost>] [--severity=<low|medium|high|critical>] [--message=<text>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops observability-plane workflow --op=<upsert|list|run> [--workflow-id=<id>] [--trigger=<cron|event>] [--schedule=<expr>] [--steps-json=<json>] [--strict=1|0]"
+        "  infring-ops observability-plane workflow --op=<upsert|list|run> [--workflow-id=<id>] [--trigger=<cron|event>] [--schedule=<expr>] [--steps-json=<json>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops observability-plane incident --op=<trigger|status|resolve> [--incident-id=<id>] [--runbook=<id>] [--action=<text>] [--dispatch-external=0|1] [--dispatch-providers=<pagerduty+datadog>] [--external-dispatch-mode=<live|dry-run|off>] [--require-external-dispatch=0|1] [--strict=1|0]"
+        "  infring-ops observability-plane incident --op=<trigger|status|resolve> [--incident-id=<id>] [--runbook=<id>] [--action=<text>] [--dispatch-external=0|1] [--dispatch-providers=<pagerduty+datadog>] [--external-dispatch-mode=<live|dry-run|off>] [--require-external-dispatch=0|1] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops observability-plane selfhost --op=<deploy|status> [--profile=<docker-local|k8s-local>] [--telemetry-opt-in=0|1] [--strict=1|0]"
+        "  infring-ops observability-plane selfhost --op=<deploy|status> [--profile=<docker-local|k8s-local>] [--telemetry-opt-in=0|1] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops observability-plane acp-provenance --op=<enable|status|trace|debug> [--source-agent=<id>] [--target-agent=<id>] [--intent=<text>] [--message=<text>] [--trace-id=<id>] [--visibility-mode=<off|meta|meta+receipt>] [--strict=1|0]"
+        "  infring-ops observability-plane acp-provenance --op=<enable|status|trace|debug> [--source-agent=<id>] [--target-agent=<id>] [--intent=<text>] [--message=<text>] [--trace-id=<id>] [--visibility-mode=<off|meta|meta+receipt>] [--strict=1|0]"
     );
 }
 

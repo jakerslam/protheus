@@ -33,7 +33,7 @@
   },
   "rollback": {
     "fallback_profile": "single_node_safe",
-    "command": "protheus-ops scale-readiness run --strict=1 --profile=single_node_safe",
+    "command": "infring-ops scale-readiness run --strict=1 --profile=single_node_safe",
     "verification_required": true
   }
 }

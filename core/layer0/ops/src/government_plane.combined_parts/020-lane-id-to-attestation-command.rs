@@ -1,32 +1,32 @@
 
 const LANE_ID: &str = "government_plane";
-const ENV_KEY: &str = "PROTHEUS_GOVERNMENT_PLANE_STATE_ROOT";
+const ENV_KEY: &str = "INFRING_GOVERNMENT_PLANE_STATE_ROOT";
 
 fn usage() {
     println!("Usage:");
     println!(
-        "  protheus-ops government-plane attestation --op=<attest|verify|status> [--device-id=<id>] [--nonce=<v>] [--strict=1|0]"
+        "  infring-ops government-plane attestation --op=<attest|verify|status> [--device-id=<id>] [--nonce=<v>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops government-plane classification --op=<set-clearance|write|read|transfer|status> [--principal=<id>] [--clearance=<level>] [--level=<level>] [--id=<object>] [--payload-json=<json>] [--from=<level>] [--to=<level>] [--via-cds=1|0] [--strict=1|0]"
+        "  infring-ops government-plane classification --op=<set-clearance|write|read|transfer|status> [--principal=<id>] [--clearance=<level>] [--level=<level>] [--id=<object>] [--payload-json=<json>] [--from=<level>] [--to=<level>] [--via-cds=1|0] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops government-plane nonrepudiation --principal=<subject> --action=<id> --auth-signature=<sig> --timestamp-authority=<authority> [--legal-hold=1|0] [--strict=1|0]"
+        "  infring-ops government-plane nonrepudiation --principal=<subject> --action=<id> --auth-signature=<sig> --timestamp-authority=<authority> [--legal-hold=1|0] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops government-plane diode --from=<level> --to=<level> [--sanitize=1|0] [--payload-json=<json>] [--strict=1|0]"
+        "  infring-ops government-plane diode --from=<level> --to=<level> [--sanitize=1|0] [--payload-json=<json>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops government-plane soc --op=<connect|emit|status> [--endpoint=<url>] [--event-json=<json>] [--strict=1|0]"
+        "  infring-ops government-plane soc --op=<connect|emit|status> [--endpoint=<url>] [--event-json=<json>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops government-plane coop --op=<register-site|replicate|failover|status> [--site=<id>] [--state=<ACTIVE|STANDBY|COLD|FAILED>] [--target-site=<id>] [--strict=1|0]"
+        "  infring-ops government-plane coop --op=<register-site|replicate|failover|status> [--site=<id>] [--state=<ACTIVE|STANDBY|COLD|FAILED>] [--target-site=<id>] [--strict=1|0]"
     );
-    println!("  protheus-ops government-plane proofs --op=<verify|status> [--strict=1|0]");
+    println!("  infring-ops government-plane proofs --op=<verify|status> [--strict=1|0]");
     println!(
-        "  protheus-ops government-plane interoperability --op=<validate|status> [--profile-json=<json>] [--strict=1|0]"
+        "  infring-ops government-plane interoperability --op=<validate|status> [--profile-json=<json>] [--strict=1|0]"
     );
-    println!("  protheus-ops government-plane ato-pack --op=<generate|status> [--strict=1|0]");
+    println!("  infring-ops government-plane ato-pack --op=<generate|status> [--strict=1|0]");
 }
 
 fn lane_root(root: &Path) -> PathBuf {
@@ -115,7 +115,7 @@ fn attestation_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value,
         .flags
         .get("device-id")
         .cloned()
-        .or_else(|| std::env::var("PROTHEUS_TPM_DEVICE_ID").ok())
+        .or_else(|| std::env::var("INFRING_TPM_DEVICE_ID").ok())
         .unwrap_or_else(|| "tpm-sim".to_string());
     let device_id = clean(device_input, 120);
     let nonce = clean(
@@ -126,7 +126,7 @@ fn attestation_command(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value,
             .unwrap_or("attest"),
         120,
     );
-    let hardware_secret = std::env::var("PROTHEUS_HSM_RECEIPT_KEY")
+    let hardware_secret = std::env::var("INFRING_HSM_RECEIPT_KEY")
         .ok()
         .filter(|s| !s.trim().is_empty())
         .unwrap_or_else(|| "local-dev-hsm".to_string());

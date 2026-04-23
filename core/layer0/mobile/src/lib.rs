@@ -3,16 +3,16 @@ mod blob;
 mod bridges;
 
 use crate::bridges::execution_core_bridge::run_workflow;
-use crate::bridges::protheus_graph_core_v1_bridge::run_workflow as run_graph_workflow;
-use crate::bridges::protheus_pinnacle_core_v1_bridge::merge_delta;
-use crate::bridges::protheus_red_legion_core_v1_bridge::{run_chaos_game, ChaosGameRequest};
-use crate::bridges::protheus_swarm_core_v1_bridge::{
+use crate::bridges::infring_graph_core_v1_bridge::run_workflow as run_graph_workflow;
+use crate::bridges::infring_pinnacle_core_v1_bridge::merge_delta;
+use crate::bridges::infring_red_legion_core_v1_bridge::{run_chaos_game, ChaosGameRequest};
+use crate::bridges::infring_swarm_core_v1_bridge::{
     orchestrate_swarm, SwarmAgent, SwarmRequest, SwarmTask,
 };
-use crate::bridges::protheus_vault_core_v1_bridge::{
+use crate::bridges::infring_vault_core_v1_bridge::{
     evaluate_vault_policy, load_embedded_vault_policy, VaultOperationRequest,
 };
-use protheus_nexus_core_v1::{run_chaos_resilience, ChaosScenarioRequest, TraceEvent};
+use infring_nexus_core_v1::{run_chaos_resilience, ChaosScenarioRequest, TraceEvent};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 

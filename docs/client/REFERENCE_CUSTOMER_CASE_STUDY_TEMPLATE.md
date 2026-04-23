@@ -17,7 +17,7 @@ Use this template to produce procurement-grade proof for Fortune-100 evaluators.
 
 ## 3) Implemented Scope
 
-- Protheus capabilities enabled:
+- Infring capabilities enabled:
 - Governance controls enabled:
 - Integration boundaries (conduit-only, SIEM, identity, etc.):
 

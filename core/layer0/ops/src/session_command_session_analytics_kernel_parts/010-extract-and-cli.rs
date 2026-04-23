@@ -1,7 +1,7 @@
 fn usage() {
     println!("session-command-session-analytics-kernel commands:");
     println!(
-        "  protheus-ops session-command-session-analytics-kernel <extract-jsonl|classify-jsonl|adoption-report> [--payload=<json>|--payload-base64=<base64_json>]"
+        "  infring-ops session-command-session-analytics-kernel <extract-jsonl|classify-jsonl|adoption-report> [--payload=<json>|--payload-base64=<base64_json>]"
     );
 }
 

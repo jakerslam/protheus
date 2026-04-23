@@ -69,12 +69,12 @@ pub fn load_policy(root: &Path, policy_path: &Path) -> Policy {
         observability_panel_path: resolve_path(
             root,
             paths.get("observability_panel_path"),
-            "local/state/ops/protheus_top/observability_panel.json",
+            "local/state/ops/infring_top/observability_panel.json",
         ),
         reasoning_footer_path: resolve_path(
             root,
             paths.get("reasoning_footer_path"),
-            "local/state/ops/protheus_top/reasoning_mirror_footer.txt",
+            "local/state/ops/infring_top/reasoning_mirror_footer.txt",
         ),
         tone_policy_path: resolve_path(
             root,

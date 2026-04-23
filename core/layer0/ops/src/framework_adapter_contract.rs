@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: core/layer0/ops (authoritative)
 
-use crate::protheus_memory_core_v1_bridge::{
+use crate::infring_memory_core_v1_bridge::{
     CapabilityAction, CapabilityToken, Classification, DefaultVerityMemoryPolicy, MemoryObject,
     MemoryScope, NexusRouteContext, TrustState, UnifiedMemoryHeap,
 };
-use crate::protheus_tooling_core_v1_bridge::{
+use crate::infring_tooling_core_v1_bridge::{
     BrokerCaller, EvidenceExtractor, EvidenceStore, StructuredVerifier, ToolBroker,
     ToolCallRequest, WorkerBudgetUsed, WorkerOutput, WorkerTaskStatus,
 };
@@ -173,7 +173,7 @@ pub fn execute_governed_workflow(
             "framework": framework_id,
             "trace_id": trace_id,
             "task_id": task_id,
-            "schema_contract": crate::protheus_tooling_core_v1_bridge::published_schema_contract_v1(),
+            "schema_contract": crate::infring_tooling_core_v1_bridge::published_schema_contract_v1(),
             "normalized_result": execution.normalized_result,
             "raw_payload": execution.raw_payload,
             "evidence_cards": cards,
@@ -193,9 +193,9 @@ fn persist_to_unified_memory(
     framework_id: &str,
     task_id: &str,
     trace_id: &str,
-    normalized_result: &crate::protheus_tooling_core_v1_bridge::NormalizedToolResult,
+    normalized_result: &crate::infring_tooling_core_v1_bridge::NormalizedToolResult,
     evidence_ids: &[String],
-    bundle: &crate::protheus_tooling_core_v1_bridge::ClaimBundle,
+    bundle: &crate::infring_tooling_core_v1_bridge::ClaimBundle,
 ) -> Result<Value, String> {
     let mut heap = UnifiedMemoryHeap::new(DefaultVerityMemoryPolicy);
     let principal_id = format!("core:framework_adapter:{framework_id}");
@@ -235,7 +235,7 @@ fn persist_to_unified_memory(
     let object = MemoryObject {
         object_id: object_id.clone(),
         scope: MemoryScope::Core,
-        kind: crate::protheus_memory_core_v1_bridge::MemoryKind::Episodic,
+        kind: crate::infring_memory_core_v1_bridge::MemoryKind::Episodic,
         classification: Classification::Internal,
         namespace: "framework.adapter.workflow".to_string(),
         key: clean_token(task_id, 160),

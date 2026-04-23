@@ -15,21 +15,21 @@ const DEFAULT_SWARM_STATE_REL: &str = "local/state/ops/haystack_bridge/swarm_sta
 
 fn usage() {
     println!("haystack-bridge commands:");
-    println!("  protheus-ops haystack-bridge status [--state-path=<path>]");
-    println!("  protheus-ops haystack-bridge register-pipeline [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops haystack-bridge run-pipeline [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  protheus-ops haystack-bridge run-agent-toolset [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  protheus-ops haystack-bridge register-template [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops haystack-bridge render-template [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops haystack-bridge register-document-store [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops haystack-bridge retrieve-documents [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops haystack-bridge route-and-rank [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops haystack-bridge record-multimodal-eval [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops haystack-bridge status [--state-path=<path>]");
+    println!("  infring-ops haystack-bridge register-pipeline [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops haystack-bridge run-pipeline [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  infring-ops haystack-bridge run-agent-toolset [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  infring-ops haystack-bridge register-template [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops haystack-bridge render-template [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops haystack-bridge register-document-store [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops haystack-bridge retrieve-documents [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops haystack-bridge route-and-rank [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops haystack-bridge record-multimodal-eval [--payload-base64=<json>] [--state-path=<path>]");
     println!(
-        "  protheus-ops haystack-bridge trace-run [--payload-base64=<json>] [--state-path=<path>]"
+        "  infring-ops haystack-bridge trace-run [--payload-base64=<json>] [--state-path=<path>]"
     );
-    println!("  protheus-ops haystack-bridge import-connector [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops haystack-bridge assimilate-intake [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops haystack-bridge import-connector [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops haystack-bridge assimilate-intake [--payload-base64=<json>] [--state-path=<path>]");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {

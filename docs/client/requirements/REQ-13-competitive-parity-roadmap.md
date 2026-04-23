@@ -5,7 +5,7 @@ Date: 2026-03-06
 
 ## Objective
 
-Close remaining execution-gap surfaces against top agent-OS competitors while preserving Protheus differentiators: Rust-authoritative governance, claim-evidence receipts, and auditable control plane behavior.
+Close remaining execution-gap surfaces against top agent-OS competitors while preserving Infring differentiators: Rust-authoritative governance, claim-evidence receipts, and auditable control plane behavior.
 
 ## Scope
 
@@ -33,9 +33,9 @@ Out of scope:
   - Include cold start, idle memory, install size, and evidence-verification latency metrics.
   - Publish result snapshots with timestamped receipts; no unverifiable claims.
 
-3. `REQ-13-003` Migration importer (`protheus migrate --from infring`)
+3. `REQ-13-003` Migration importer (`infring migrate --from infring`)
 - Acceptance:
-  - Add importer command path to ingest competitor config artifacts into Protheus governance format.
+  - Add importer command path to ingest competitor config artifacts into Infring governance format.
   - Import path is fail-closed with schema validation and explicit conversion receipts.
   - Migration docs include rollback/retry steps.
 

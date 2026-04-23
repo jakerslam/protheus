@@ -12,19 +12,19 @@ use crate::contract_lane_utils as lane_utils;
 
 fn usage() {
     println!("moltstack-discover-collector-kernel commands:");
-    println!("  protheus-ops moltstack-discover-collector-kernel run --payload-base64=<json>");
+    println!("  infring-ops moltstack-discover-collector-kernel run --payload-base64=<json>");
     println!(
-        "  protheus-ops moltstack-discover-collector-kernel preflight --payload-base64=<json>"
+        "  infring-ops moltstack-discover-collector-kernel preflight --payload-base64=<json>"
     );
-    println!("  protheus-ops moltstack-discover-collector-kernel build-fetch-plan --payload-base64=<json>");
-    println!("  protheus-ops moltstack-discover-collector-kernel classify-fetch-error --payload-base64=<json>");
+    println!("  infring-ops moltstack-discover-collector-kernel build-fetch-plan --payload-base64=<json>");
+    println!("  infring-ops moltstack-discover-collector-kernel classify-fetch-error --payload-base64=<json>");
     println!(
-        "  protheus-ops moltstack-discover-collector-kernel finalize-run --payload-base64=<json>"
+        "  infring-ops moltstack-discover-collector-kernel finalize-run --payload-base64=<json>"
     );
     println!(
-        "  protheus-ops moltstack-discover-collector-kernel map-posts --payload-base64=<json>"
+        "  infring-ops moltstack-discover-collector-kernel map-posts --payload-base64=<json>"
     );
-    println!("  protheus-ops moltstack-discover-collector-kernel collect --payload-base64=<json>");
+    println!("  infring-ops moltstack-discover-collector-kernel collect --payload-base64=<json>");
 }
 
 fn clean_text(raw: Option<&str>, max_len: usize) -> String {
@@ -201,7 +201,7 @@ fn curl_fetch_with_status(
         .arg("-H")
         .arg(format!("Accept: {accept}"))
         .arg("-w")
-        .arg("\n__PROTHEUS_STATUS__:%{http_code}\n")
+        .arg("\n__INFRING_STATUS__:%{http_code}\n")
         .arg(url)
         .output()
         .map_err(|err| format!("collector_fetch_spawn_failed:{err}"))?;
@@ -213,7 +213,7 @@ fn curl_fetch_with_status(
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    let marker = "\n__PROTHEUS_STATUS__:";
+    let marker = "\n__INFRING_STATUS__:";
     let marker_pos = stdout
         .rfind(marker)
         .ok_or_else(|| "collector_fetch_missing_status_marker".to_string())?;

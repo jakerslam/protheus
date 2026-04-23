@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: protheus
+  name: infring
   labels:
-    app.kubernetes.io/name: protheus
+    app.kubernetes.io/name: infring
     app.kubernetes.io/part-of: infring

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: client/pure-workspace (thin Rust client surface)
 
-use protheus_pure_workspace::{profile, tiny_max_profile};
+use infring_pure_workspace::{profile, tiny_max_profile};
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -12,27 +12,27 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 fn usage() {
     println!("Usage:");
     println!(
-        "  protheus-pure-workspace init [--pure=1|0] [--tiny-max=1|0] [--target-dir=<path>] [--template=<name>] [--dry-run=1|0]"
+        "  infring-pure-workspace init [--pure=1|0] [--tiny-max=1|0] [--target-dir=<path>] [--template=<name>] [--dry-run=1|0]"
     );
-    println!("  protheus-pure-workspace status [--json=1|0] [--tiny-max=1|0]");
+    println!("  infring-pure-workspace status [--json=1|0] [--tiny-max=1|0]");
     println!(
-        "  protheus-pure-workspace conduit [status|start|stop|restart|attach|subscribe|tick|diagnostics]"
+        "  infring-pure-workspace conduit [status|start|stop|restart|attach|subscribe|tick|diagnostics]"
     );
     println!(
-        "  protheus-pure-workspace think --prompt=<text> [--session-id=<id>] [--memory-limit=<n>]"
+        "  infring-pure-workspace think --prompt=<text> [--session-id=<id>] [--memory-limit=<n>]"
     );
-    println!("  protheus-pure-workspace research [status|fetch|diagnostics] [flags]");
-    println!("  protheus-pure-workspace memory [status|write|query] [flags]");
-    println!("  protheus-pure-workspace orchestration <invoke|help> [flags]");
-    println!("  protheus-pure-workspace swarm-runtime <status|spawn|sessions|results|tick|metrics|test> [flags]");
-    println!("  protheus-pure-workspace capability-profile [--hardware-class=<mcu|legacy|standard|high>] [--memory-mb=<n>] [--cpu-cores=<n>] [--tiny-max=1|0]");
-    println!("  protheus-pure-workspace probe [--sleep-ms=<n>] [--tiny-max=1|0]");
-    println!("  protheus-pure-workspace benchmark-ping [--tiny-max=1|0]");
+    println!("  infring-pure-workspace research [status|fetch|diagnostics] [flags]");
+    println!("  infring-pure-workspace memory [status|write|query] [flags]");
+    println!("  infring-pure-workspace orchestration <invoke|help> [flags]");
+    println!("  infring-pure-workspace swarm-runtime <status|spawn|sessions|results|tick|metrics|test> [flags]");
+    println!("  infring-pure-workspace capability-profile [--hardware-class=<mcu|legacy|standard|high>] [--memory-mb=<n>] [--cpu-cores=<n>] [--tiny-max=1|0]");
+    println!("  infring-pure-workspace probe [--sleep-ms=<n>] [--tiny-max=1|0]");
+    println!("  infring-pure-workspace benchmark-ping [--tiny-max=1|0]");
 }
 
 fn init_usage() {
     println!(
-        "protheus-pure-workspace init [--pure=1|0] [--tiny-max=1|0] [--target-dir=<path>] [--template=<name>] [--dry-run=1|0]"
+        "infring-pure-workspace init [--pure=1|0] [--tiny-max=1|0] [--target-dir=<path>] [--template=<name>] [--dry-run=1|0]"
     );
 }
 
@@ -133,11 +133,11 @@ fn run_init(args: &[String]) -> Result<(), String> {
     let readme_path = target.join("README.md");
     let cargo_path = target.join("Cargo.toml");
     let source_path = target.join("src").join("main.rs");
-    let manifest_path = target.join("protheus.init.json");
+    let manifest_path = target.join("infring.init.json");
 
     if !dry_run {
         let readme = format!(
-            "# Protheus Pure Workspace\n\nMode: pure (Rust-only)\nTiny-max: {tiny_max}\nTemplate: {template}\n\nThis workspace intentionally excludes Node/TypeScript surfaces.\n"
+            "# Infring Pure Workspace\n\nMode: pure (Rust-only)\nTiny-max: {tiny_max}\nTemplate: {template}\n\nThis workspace intentionally excludes Node/TypeScript surfaces.\n"
         );
         let cargo = format!(
             "[package]\nname = \"{crate_name}\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\n"
@@ -230,12 +230,12 @@ fn run_daemon(command: &str, args: &[String]) -> i32 {
     let mut candidates = Vec::new();
     if let Ok(exe) = env::current_exe() {
         if let Some(dir) = exe.parent() {
-            candidates.push(dir.join("protheusd"));
+            candidates.push(dir.join("infringd"));
             candidates.push(dir.join("infringd"));
         }
     }
     // PATH fallbacks for installed wrappers.
-    candidates.push(PathBuf::from("protheusd"));
+    candidates.push(PathBuf::from("infringd"));
     candidates.push(PathBuf::from("infringd"));
 
     let mut last_err = String::new();

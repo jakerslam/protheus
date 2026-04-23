@@ -17,10 +17,10 @@ const DEFAULT_LINEAGE_REL: &str = "local/state/ops/instinct_bridge/lineage.jsonl
 
 fn usage() {
     println!("instinct-bridge commands:");
-    println!("  protheus-ops instinct-bridge status [--state-path=<path>]");
-    println!("  protheus-ops instinct-bridge cold-start-model [--payload-base64=<json>] [--state-path=<path>] [--history-path=<path>]");
-    println!("  protheus-ops instinct-bridge activate [--payload-base64=<json>] [--state-path=<path>] [--history-path=<path>]");
-    println!("  protheus-ops instinct-bridge refine [--payload-base64=<json>] [--state-path=<path>] [--history-path=<path>] [--lineage-path=<path>]");
+    println!("  infring-ops instinct-bridge status [--state-path=<path>]");
+    println!("  infring-ops instinct-bridge cold-start-model [--payload-base64=<json>] [--state-path=<path>] [--history-path=<path>]");
+    println!("  infring-ops instinct-bridge activate [--payload-base64=<json>] [--state-path=<path>] [--history-path=<path>]");
+    println!("  infring-ops instinct-bridge refine [--payload-base64=<json>] [--state-path=<path>] [--history-path=<path>] [--lineage-path=<path>]");
 }
 
 fn payload_json(argv: &[String]) -> Result<Value, String> {

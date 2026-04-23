@@ -9,7 +9,7 @@
 
 ## Overview
 
-This runbook defines standard operating procedures for handling production incidents within the Protheus platform. All responders should familiarize themselves with these procedures before an incident occurs.
+This runbook defines standard operating procedures for handling production incidents within the Infring platform. All responders should familiarize themselves with these procedures before an incident occurs.
 
 ## Incident Classification
 
@@ -105,16 +105,16 @@ See MEETING-NOTES-2026-03-20 for recent procedure updates.
 
 ```bash
 # Quick system status check
-protheusctl status --all
+infringctl status --all
 
 # View recent logs
-protheusctl logs --tail 100 --system core
+infringctl logs --tail 100 --system core
 
 # Check active alerts
-protheusctl alerts list --active
+infringctl alerts list --active
 
 # Emergency restart (requires authorization)
-protheusctl emergency restart --system [name]
+infringctl emergency restart --system [name]
 ```
 
 ## InfRing precheck to action mapping (runtime/gateway)
@@ -125,7 +125,7 @@ Use this deterministic map before ad-hoc debugging:
 |---|---|---|
 | Dashboard health endpoint down (`/healthz` unreachable) | `infring recover --dashboard-host=127.0.0.1 --dashboard-port=4173` | `infring gateway status --dashboard-host=127.0.0.1 --dashboard-port=4173` then collect daemon logs |
 | Required runtime assets missing (`infringctl verify-install --json`) | `infring update --repair --full` | rerun `infringctl verify-install --json` and open incident with output artifact |
-| Stale workspace-root env reference detected | `unset INFRING_WORKSPACE_ROOT PROTHEUS_WORKSPACE_ROOT` then `infring recover` | if mismatch persists, pin the correct root and re-run verify-install |
+| Stale workspace-root env reference detected | `unset INFRING_WORKSPACE_ROOT INFRING_WORKSPACE_ROOT` then `infring recover` | if mismatch persists, pin the correct root and re-run verify-install |
 | Gateway route drift (`gateway status` route mismatch) | `infring update --repair --full` | run `infringctl doctor --json` and attach route mismatch rows |
 
 Recovery evidence to capture for incident artifacts:

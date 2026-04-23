@@ -19,7 +19,7 @@ function runLocalOpsDomainProcessFallback(options) {
   const parseJsonPayload = options.parseJsonPayload;
 
   const commandArgs = resolved.args.concat(passArgs);
-  const timeoutMs = parseTimeoutMs('PROTHEUS_OPS_LOCAL_TIMEOUT_MS', 45000);
+  const timeoutMs = parseTimeoutMs('INFRING_OPS_LOCAL_TIMEOUT_MS', 45000);
   const run = spawnSync(resolved.command, commandArgs, {
     cwd: root,
     encoding: 'utf8',

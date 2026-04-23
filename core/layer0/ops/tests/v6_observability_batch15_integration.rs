@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use protheus_ops_core::{health_status, observability_plane};
+use infring_ops_core::{health_status, observability_plane};
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -134,7 +134,7 @@ fn v6_observability_batch15_monitor_workflow_incident_and_selfhost_are_receipted
         &[
             "monitor".to_string(),
             "--strict=1".to_string(),
-            "--source=protheusd".to_string(),
+            "--source=infringd".to_string(),
             "--alert-class=slo".to_string(),
             "--severity=high".to_string(),
             "--message=latency_threshold_breach".to_string(),

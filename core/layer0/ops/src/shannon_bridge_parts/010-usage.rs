@@ -19,20 +19,20 @@ const DEFAULT_DESKTOP_HISTORY_REL: &str = "client/runtime/local/state/shannon_de
 
 fn usage() {
     println!("shannon-bridge commands:");
-    println!("  protheus-ops shannon-bridge status [--state-path=<path>]");
-    println!("  protheus-ops shannon-bridge register-pattern [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops shannon-bridge guard-budget [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops shannon-bridge memory-bridge [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops shannon-bridge replay-run [--payload-base64=<json>] [--state-path=<path>] [--replay-dir=<path>]");
-    println!("  protheus-ops shannon-bridge approval-checkpoint [--payload-base64=<json>] [--state-path=<path>] [--approval-queue-path=<path>]");
-    println!("  protheus-ops shannon-bridge sandbox-execute [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops shannon-bridge record-observability [--payload-base64=<json>] [--state-path=<path>] [--observability-trace-path=<path>] [--observability-metrics-path=<path>]");
-    println!("  protheus-ops shannon-bridge gateway-route [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops shannon-bridge register-tooling [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops shannon-bridge schedule-run [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops shannon-bridge desktop-shell [--payload-base64=<json>] [--state-path=<path>] [--desktop-history-path=<path>]");
-    println!("  protheus-ops shannon-bridge p2p-reliability [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops shannon-bridge assimilate-intake [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops shannon-bridge status [--state-path=<path>]");
+    println!("  infring-ops shannon-bridge register-pattern [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops shannon-bridge guard-budget [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops shannon-bridge memory-bridge [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops shannon-bridge replay-run [--payload-base64=<json>] [--state-path=<path>] [--replay-dir=<path>]");
+    println!("  infring-ops shannon-bridge approval-checkpoint [--payload-base64=<json>] [--state-path=<path>] [--approval-queue-path=<path>]");
+    println!("  infring-ops shannon-bridge sandbox-execute [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops shannon-bridge record-observability [--payload-base64=<json>] [--state-path=<path>] [--observability-trace-path=<path>] [--observability-metrics-path=<path>]");
+    println!("  infring-ops shannon-bridge gateway-route [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops shannon-bridge register-tooling [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops shannon-bridge schedule-run [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops shannon-bridge desktop-shell [--payload-base64=<json>] [--state-path=<path>] [--desktop-history-path=<path>]");
+    println!("  infring-ops shannon-bridge p2p-reliability [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops shannon-bridge assimilate-intake [--payload-base64=<json>] [--state-path=<path>]");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {

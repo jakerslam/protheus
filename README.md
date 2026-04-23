@@ -312,9 +312,9 @@ Node module closure manifest: `client/runtime/config/install_runtime_node_module
 
 Required runtime entries:
 
-- `client/runtime/systems/ops/protheusd.ts`
-- `client/runtime/systems/ops/protheus_status_dashboard.ts`
-- `client/runtime/systems/ops/protheus_unknown_guard.ts`
+- `client/runtime/systems/ops/infringd.ts`
+- `client/runtime/systems/ops/infring_status_dashboard.ts`
+- `client/runtime/systems/ops/infring_unknown_guard.ts`
 
 Required runtime node modules:
 
@@ -326,7 +326,7 @@ Mode matrix:
 - `--full`: required manifest surfaces + full command surface (Node-assisted paths available)
 - `--pure` / `--tiny-max`: Rust-only constrained surfaces with optional rich command lanes disabled
 
-If a command is unavailable in your installed mode, the unknown-command guard (`protheus_unknown_guard`) returns deterministic wrapper-first recovery guidance (`infring` first).
+If a command is unavailable in your installed mode, the unknown-command guard (`infring_unknown_guard`) returns deterministic wrapper-first recovery guidance (`infring` first).
 
 Examples:
 

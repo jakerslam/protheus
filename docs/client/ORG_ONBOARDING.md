@@ -18,13 +18,13 @@ Windows equivalent (PowerShell) follows the same install -> setup -> gateway seq
 ## Wrapper Contract
 
 - Canonical wrappers: `infring`, `infringctl`, `infringd`
-- Legacy aliases (`protheus`, `protheusctl`, `protheusd`) are deprecated compatibility shims only.
+- Legacy aliases (`infring`, `infringctl`, `infringd`) are deprecated compatibility shims only.
 
 ## Role Handoff
 
 1. Validate branch protection and provenance policies.
 2. Run onboarding bootstrap by role:
-   - `./tests/tooling/scripts/onboarding/protheus_onboarding_bootstrap.sh --role=<operator|backend|infra|security> --install=1 --setup=1 --install-mode=full`
+   - `./tests/tooling/scripts/onboarding/infring_onboarding_bootstrap.sh --role=<operator|backend|infra|security> --install=1 --setup=1 --install-mode=full`
 3. Verify onboarding receipts:
    - `local/state/ops/onboarding_portal/bootstrap_<role>.json`
    - `local/state/ops/onboarding_portal/bootstrap_<role>.txt`

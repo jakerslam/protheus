@@ -3,7 +3,7 @@
 // V6-WORKFLOW-006.4, V6-WORKFLOW-006.5, V6-WORKFLOW-006.6,
 // V6-WORKFLOW-006.7, V6-WORKFLOW-006.8
 
-use protheus_ops_core::metagpt_bridge;
+use infring_ops_core::metagpt_bridge;
 use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;

@@ -92,9 +92,9 @@ mod tests {
         let root = temp_case_root("missing-rg");
         reset_dir(&root);
         fs::write(root.join("file.txt"), "fixture").expect("fixture");
-        let previous_rg = std::env::var("PROTHEUS_RG_BINARY").ok();
+        let previous_rg = std::env::var("INFRING_RG_BINARY").ok();
         std::env::set_var(
-            "PROTHEUS_RG_BINARY",
+            "INFRING_RG_BINARY",
             "__missing_rg_binary_for_workspace_file_search__",
         );
         let payload = run_search(&root, &search_args_for(&root, "file"), "");
@@ -110,9 +110,9 @@ mod tests {
             "expected rg_not_found warning with install hint"
         );
         if let Some(prev) = previous_rg {
-            std::env::set_var("PROTHEUS_RG_BINARY", prev);
+            std::env::set_var("INFRING_RG_BINARY", prev);
         } else {
-            std::env::remove_var("PROTHEUS_RG_BINARY");
+            std::env::remove_var("INFRING_RG_BINARY");
         }
         let _ = fs::remove_dir_all(&root);
     }

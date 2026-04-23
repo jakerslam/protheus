@@ -203,7 +203,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "status": session.status,
                     "attach_count": session.attach_count,
                     "attached_epoch_ms": session.last_attach_epoch_ms,
-                    "steering_contract": format!("protheus session send {} --message=\"...\"", session_id),
+                    "steering_contract": format!("infring session send {} --message=\"...\"", session_id),
                     "lineage_receipt_key": format!("{}::{}", session.lineage_id, session.session_id)
                 })
             };

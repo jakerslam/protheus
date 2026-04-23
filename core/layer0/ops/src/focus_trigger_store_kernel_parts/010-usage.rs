@@ -19,12 +19,12 @@ const POINTER_INDEX_REL: &str = "client/runtime/local/state/memory/adaptive_poin
 
 fn usage() {
     println!("focus-trigger-store-kernel commands:");
-    println!("  protheus-ops focus-trigger-store-kernel paths [--payload-base64=<json>]");
-    println!("  protheus-ops focus-trigger-store-kernel default-state");
-    println!("  protheus-ops focus-trigger-store-kernel normalize-state [--payload-base64=<json>]");
-    println!("  protheus-ops focus-trigger-store-kernel read-state [--payload-base64=<json>]");
-    println!("  protheus-ops focus-trigger-store-kernel ensure-state [--payload-base64=<json>]");
-    println!("  protheus-ops focus-trigger-store-kernel set-state --payload-base64=<json>");
+    println!("  infring-ops focus-trigger-store-kernel paths [--payload-base64=<json>]");
+    println!("  infring-ops focus-trigger-store-kernel default-state");
+    println!("  infring-ops focus-trigger-store-kernel normalize-state [--payload-base64=<json>]");
+    println!("  infring-ops focus-trigger-store-kernel read-state [--payload-base64=<json>]");
+    println!("  infring-ops focus-trigger-store-kernel ensure-state [--payload-base64=<json>]");
+    println!("  infring-ops focus-trigger-store-kernel set-state --payload-base64=<json>");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
@@ -183,7 +183,7 @@ fn random_uid(prefix: &str, length: usize) -> String {
 }
 
 fn workspace_root(root: &Path) -> PathBuf {
-    if let Ok(raw) = std::env::var("PROTHEUS_WORKSPACE_ROOT") {
+    if let Ok(raw) = std::env::var("INFRING_WORKSPACE_ROOT") {
         let raw = raw.trim();
         if !raw.is_empty() {
             return PathBuf::from(raw);
@@ -193,7 +193,7 @@ fn workspace_root(root: &Path) -> PathBuf {
 }
 
 fn runtime_root(root: &Path) -> PathBuf {
-    if let Ok(raw) = std::env::var("PROTHEUS_RUNTIME_ROOT") {
+    if let Ok(raw) = std::env::var("INFRING_RUNTIME_ROOT") {
         let raw = raw.trim();
         if !raw.is_empty() {
             return PathBuf::from(raw);

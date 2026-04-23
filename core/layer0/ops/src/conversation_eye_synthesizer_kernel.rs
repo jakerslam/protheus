@@ -9,7 +9,7 @@ use crate::now_iso;
 
 fn usage() {
     println!("conversation-eye-synthesizer-kernel commands:");
-    println!("  protheus-ops conversation-eye-synthesizer-kernel synthesize-envelope --payload-base64=<json>");
+    println!("  infring-ops conversation-eye-synthesizer-kernel synthesize-envelope --payload-base64=<json>");
 }
 
 fn as_text(value: Option<&Value>) -> String {

@@ -7,7 +7,7 @@
     { "id": "V4-SETTLE-002", "title": "Signed Snapshot Vault + Revert/Edit-Core Round Trip" },
     { "id": "V4-SETTLE-003", "title": "Target Abstraction for Binary + Ternary/Exotic Compile Flags" },
     { "id": "V4-SETTLE-004", "title": "Promotion-Coupled Re-Settlement Policy" },
-    { "id": "V4-SETTLE-005", "title": "Settled-State Operator Surface in protheus-top" },
+    { "id": "V4-SETTLE-005", "title": "Settled-State Operator Surface in infring-top" },
     { "id": "V4-SETTLE-006", "title": "Modular System-Wide Settling + Rust BlobLoader" },
     { "id": "V4-SETTLE-007", "title": "Per-Module Edit + Re-Settle Workflow" },
     { "id": "V4-SETTLE-008", "title": "Multi-Module Settle Status Dashboard" },
@@ -33,6 +33,6 @@
     "image_dir": "local/state/ops/settlement_program/images",
     "module_dir": "local/state/ops/settlement_program/modules",
     "vault_dir": "local/state/ops/settlement_program/vault",
-    "top_panel_path": "local/state/ops/protheus_top/settled_panel.json"
+    "top_panel_path": "local/state/ops/infring_top/settled_panel.json"
   }
 }

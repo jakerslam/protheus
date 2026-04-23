@@ -25,21 +25,21 @@ pub(super) fn run(root: &Path, argv: &[String]) -> i32 {
 
     if matches!(command.as_str(), "help" | "--help" | "-h") {
         println!("Usage:");
-        println!("  protheus-ops network-protocol status");
-        println!("  protheus-ops network-protocol dashboard");
-        println!("  protheus-ops network-protocol web-tooling-status [--provider=<id>] [--fetch-provider=<id>] [--mode=runtime|setup] [--cache=warm|cold] [--activate=1|0] [--strict=1|0]");
-        println!("  protheus-ops network-protocol ignite-bitcoin [--seed=<text>] [--apply=1|0]");
-        println!("  protheus-ops network-protocol stake [--action=stake|reward|slash] [--agent=<id>] [--amount=<n>] [--reason=<text>]");
-        println!("  protheus-ops network-protocol oracle-query [--provider=polymarket] [--event=<text>] [--strict=1|0]");
-        println!("  protheus-ops network-protocol truth-weight [--market=<id>] [--strict=1|0]");
-        println!("  protheus-ops network-protocol contribution [--agent=<id>] [--contribution-type=<compute|memory|rl|breakthrough>] [--score=<0..1>] [--stake=<n>] [--reward=<n>] [--slash=<n>] [--strict=1|0]");
-        println!("  protheus-ops network-protocol consensus [--op=<append|verify|status>] [--receipt-hash=<hex>] [--causality-hash=<hex>] [--strict=1|0]");
-        println!("  protheus-ops network-protocol rsi-boundary [--stage=<sandbox|growth|expansion|mature>] [--action=<simulate|promote|merge>] [--oversight-approval=1|0] [--strict=1|0]");
-        println!("  protheus-ops network-protocol join-hyperspace [--node=<id>] [--admission-token=<token>] [--stake=<n>] [--strict=1|0]");
-        println!("  protheus-ops network-protocol governance-vote [--proposal=<id>] [--voter=<id>] [--vote=<approve|reject>] [--strict=1|0]");
-        println!("  protheus-ops network-protocol merkle-root [--account=<id>] [--proof=1|0]");
-        println!("  protheus-ops network-protocol emission [--height=<n>] [--halving-interval=<n>] [--initial-issuance=<n>]");
-        println!("  protheus-ops network-protocol zk-claim [--claim-id=<id>] [--commitment=<hex>] [--challenge=<hex>] [--public-input=<text>] [--strict=1|0]");
+        println!("  infring-ops network-protocol status");
+        println!("  infring-ops network-protocol dashboard");
+        println!("  infring-ops network-protocol web-tooling-status [--provider=<id>] [--fetch-provider=<id>] [--mode=runtime|setup] [--cache=warm|cold] [--activate=1|0] [--strict=1|0]");
+        println!("  infring-ops network-protocol ignite-bitcoin [--seed=<text>] [--apply=1|0]");
+        println!("  infring-ops network-protocol stake [--action=stake|reward|slash] [--agent=<id>] [--amount=<n>] [--reason=<text>]");
+        println!("  infring-ops network-protocol oracle-query [--provider=polymarket] [--event=<text>] [--strict=1|0]");
+        println!("  infring-ops network-protocol truth-weight [--market=<id>] [--strict=1|0]");
+        println!("  infring-ops network-protocol contribution [--agent=<id>] [--contribution-type=<compute|memory|rl|breakthrough>] [--score=<0..1>] [--stake=<n>] [--reward=<n>] [--slash=<n>] [--strict=1|0]");
+        println!("  infring-ops network-protocol consensus [--op=<append|verify|status>] [--receipt-hash=<hex>] [--causality-hash=<hex>] [--strict=1|0]");
+        println!("  infring-ops network-protocol rsi-boundary [--stage=<sandbox|growth|expansion|mature>] [--action=<simulate|promote|merge>] [--oversight-approval=1|0] [--strict=1|0]");
+        println!("  infring-ops network-protocol join-hyperspace [--node=<id>] [--admission-token=<token>] [--stake=<n>] [--strict=1|0]");
+        println!("  infring-ops network-protocol governance-vote [--proposal=<id>] [--voter=<id>] [--vote=<approve|reject>] [--strict=1|0]");
+        println!("  infring-ops network-protocol merkle-root [--account=<id>] [--proof=1|0]");
+        println!("  infring-ops network-protocol emission [--height=<n>] [--halving-interval=<n>] [--initial-issuance=<n>]");
+        println!("  infring-ops network-protocol zk-claim [--claim-id=<id>] [--commitment=<hex>] [--challenge=<hex>] [--public-input=<text>] [--strict=1|0]");
         return 0;
     }
 

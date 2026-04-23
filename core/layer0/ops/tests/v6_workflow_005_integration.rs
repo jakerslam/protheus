@@ -2,7 +2,7 @@
 // SRS coverage: V6-WORKFLOW-005.1, V6-WORKFLOW-005.2, V6-WORKFLOW-005.3,
 // V6-WORKFLOW-005.4, V6-WORKFLOW-005.5, V6-WORKFLOW-005.6, V6-WORKFLOW-005.7
 
-use protheus_ops_core::dify_bridge;
+use infring_ops_core::dify_bridge;
 use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;

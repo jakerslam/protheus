@@ -1,8 +1,8 @@
-# Protheus Positioning and Architecture Pack
+# Infring Positioning and Architecture Pack
 
 ## 1. Positioning
 
-Protheus is a governed autonomy runtime designed for high-trust execution:
+Infring is a governed autonomy runtime designed for high-trust execution:
 
 - It is **not** an unconstrained autonomous agent.
 - It is a **policy-first execution organism** with explicit safety, rollback, and attestation lanes.
@@ -76,7 +76,7 @@ Governance is implemented as runtime policy, not informal convention.
 
 ## 6. External Narrative (Short Form)
 
-Protheus is a governed autonomous execution system for organizations that need:
+Infring is a governed autonomous execution system for organizations that need:
 
 - Reliability and traceability, not black-box automation
 - Adaptive improvement without uncontrolled self-modification

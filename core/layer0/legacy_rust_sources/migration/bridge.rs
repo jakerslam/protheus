@@ -126,11 +126,11 @@ pub fn workspace_name_from_target(raw: &str) -> String {
         .remote_url
         .split('/')
         .last()
-        .unwrap_or("protheus-workspace")
+        .unwrap_or("infring-workspace")
         .trim_end_matches(".git")
         .trim();
     if fallback.is_empty() {
-        "protheus-workspace".to_string()
+        "infring-workspace".to_string()
     } else {
         fallback.to_string()
     }
@@ -180,9 +180,9 @@ mod tests {
 
     #[test]
     fn normalizes_slug_to_https_remote() {
-        let n = normalize_repo_target("protheus-labs/core");
-        assert_eq!(n.slug, Some("protheus-labs/core".to_string()));
-        assert_eq!(n.remote_url, "https://github.com/protheus-labs/core.git");
+        let n = normalize_repo_target("infring-labs/core");
+        assert_eq!(n.slug, Some("infring-labs/core".to_string()));
+        assert_eq!(n.remote_url, "https://github.com/infring-labs/core.git");
     }
 
     #[test]

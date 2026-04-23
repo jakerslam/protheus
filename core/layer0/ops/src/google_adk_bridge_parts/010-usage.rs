@@ -16,20 +16,20 @@ const DEFAULT_APPROVAL_QUEUE_REL: &str = "client/runtime/local/state/google_adk_
 
 fn usage() {
     println!("google-adk-bridge commands:");
-    println!("  protheus-ops google-adk-bridge status [--state-path=<path>]");
-    println!("  protheus-ops google-adk-bridge register-a2a-agent [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops google-adk-bridge send-a2a-message [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  protheus-ops google-adk-bridge run-llm-agent [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  protheus-ops google-adk-bridge register-tool-manifest [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops google-adk-bridge invoke-tool-manifest [--payload-base64=<json>] [--state-path=<path>] [--approval-queue-path=<path>]");
-    println!("  protheus-ops google-adk-bridge coordinate-hierarchy [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  protheus-ops google-adk-bridge approval-checkpoint [--payload-base64=<json>] [--state-path=<path>] [--approval-queue-path=<path>]");
-    println!("  protheus-ops google-adk-bridge rewind-session [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  protheus-ops google-adk-bridge record-evaluation [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops google-adk-bridge sandbox-execute [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops google-adk-bridge deploy-shell [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops google-adk-bridge register-runtime-bridge [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops google-adk-bridge route-model [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops google-adk-bridge status [--state-path=<path>]");
+    println!("  infring-ops google-adk-bridge register-a2a-agent [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops google-adk-bridge send-a2a-message [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  infring-ops google-adk-bridge run-llm-agent [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  infring-ops google-adk-bridge register-tool-manifest [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops google-adk-bridge invoke-tool-manifest [--payload-base64=<json>] [--state-path=<path>] [--approval-queue-path=<path>]");
+    println!("  infring-ops google-adk-bridge coordinate-hierarchy [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  infring-ops google-adk-bridge approval-checkpoint [--payload-base64=<json>] [--state-path=<path>] [--approval-queue-path=<path>]");
+    println!("  infring-ops google-adk-bridge rewind-session [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  infring-ops google-adk-bridge record-evaluation [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops google-adk-bridge sandbox-execute [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops google-adk-bridge deploy-shell [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops google-adk-bridge register-runtime-bridge [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops google-adk-bridge route-model [--payload-base64=<json>] [--state-path=<path>]");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {

@@ -29,18 +29,18 @@ const RISK_HIGH: &str = "high";
 
 fn usage() {
     println!("action-envelope-kernel commands:");
-    println!("  protheus-ops action-envelope-kernel create [--payload-base64=<base64_json>]");
-    println!("  protheus-ops action-envelope-kernel classify [--payload-base64=<base64_json>]");
+    println!("  infring-ops action-envelope-kernel create [--payload-base64=<base64_json>]");
+    println!("  infring-ops action-envelope-kernel classify [--payload-base64=<base64_json>]");
     println!(
-        "  protheus-ops action-envelope-kernel auto-classify [--payload-base64=<base64_json>]"
+        "  infring-ops action-envelope-kernel auto-classify [--payload-base64=<base64_json>]"
     );
     println!(
-        "  protheus-ops action-envelope-kernel requires-approval [--payload-base64=<base64_json>]"
+        "  infring-ops action-envelope-kernel requires-approval [--payload-base64=<base64_json>]"
     );
-    println!("  protheus-ops action-envelope-kernel detect-irreversible [--payload-base64=<base64_json>]");
-    println!("  protheus-ops action-envelope-kernel web-query-shape [--payload-base64=<base64_json>]");
-    println!("  protheus-ops action-envelope-kernel web-auth-presence");
-    println!("  protheus-ops action-envelope-kernel generate-id");
+    println!("  infring-ops action-envelope-kernel detect-irreversible [--payload-base64=<base64_json>]");
+    println!("  infring-ops action-envelope-kernel web-query-shape [--payload-base64=<base64_json>]");
+    println!("  infring-ops action-envelope-kernel web-auth-presence");
+    println!("  infring-ops action-envelope-kernel generate-id");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {

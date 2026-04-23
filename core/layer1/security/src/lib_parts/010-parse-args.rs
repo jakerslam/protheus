@@ -115,7 +115,7 @@ fn runtime_root(repo_root: &Path) -> PathBuf {
 }
 
 fn state_root(repo_root: &Path) -> PathBuf {
-    if let Ok(v) = std::env::var("PROTHEUS_SECURITY_STATE_ROOT") {
+    if let Ok(v) = std::env::var("INFRING_SECURITY_STATE_ROOT") {
         let t = v.trim();
         if !t.is_empty() {
             return PathBuf::from(t);

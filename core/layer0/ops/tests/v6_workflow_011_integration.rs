@@ -3,7 +3,7 @@
 // V6-WORKFLOW-011.4, V6-WORKFLOW-011.5, V6-WORKFLOW-011.6, V6-WORKFLOW-011.7,
 // V6-WORKFLOW-011.8, V6-WORKFLOW-011.9
 
-use protheus_ops_core::mastra_bridge;
+use infring_ops_core::mastra_bridge;
 use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;

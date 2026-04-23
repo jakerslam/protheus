@@ -1,38 +1,38 @@
 
 const LANE_ID: &str = "healthcare_plane";
-const ENV_KEY: &str = "PROTHEUS_HEALTHCARE_PLANE_STATE_ROOT";
+const ENV_KEY: &str = "INFRING_HEALTHCARE_PLANE_STATE_ROOT";
 
 fn usage() {
     println!("Usage:");
     println!(
-        "  protheus-ops healthcare-plane patient --op=<register|status> --patient-id=<id> [--mrn=<id>] [--consent-json=<json>] [--strict=1|0]"
+        "  infring-ops healthcare-plane patient --op=<register|status> --patient-id=<id> [--mrn=<id>] [--consent-json=<json>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops healthcare-plane phi-audit --op=<access|status> [--user=<id>] [--npi=<id>] [--patient-id=<id>] [--reason=<treatment|payment|operations|research>] [--break-glass=1|0] [--strict=1|0]"
+        "  infring-ops healthcare-plane phi-audit --op=<access|status> [--user=<id>] [--npi=<id>] [--patient-id=<id>] [--reason=<treatment|payment|operations|research>] [--break-glass=1|0] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops healthcare-plane cds --op=<evaluate|status> [--patient-id=<id>] [--meds=a,b] [--allergies=a,b] [--dose-mg=<n>] [--strict=1|0]"
+        "  infring-ops healthcare-plane cds --op=<evaluate|status> [--patient-id=<id>] [--meds=a,b] [--allergies=a,b] [--dose-mg=<n>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops healthcare-plane devices --op=<ingest|status> [--protocol=<hl7|fhir|dicom|ieee11073>] [--device-id=<id>] [--payload-json=<json>] [--strict=1|0]"
+        "  infring-ops healthcare-plane devices --op=<ingest|status> [--protocol=<hl7|fhir|dicom|ieee11073>] [--device-id=<id>] [--payload-json=<json>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops healthcare-plane documentation --op=<draft|status> [--soap-json=<json>] [--codes-json=<json>] [--strict=1|0]"
+        "  infring-ops healthcare-plane documentation --op=<draft|status> [--soap-json=<json>] [--codes-json=<json>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops healthcare-plane alerts --op=<emit|ack|status> [--tier=<info|low|medium|high|critical>] [--key=<id>] [--strict=1|0]"
+        "  infring-ops healthcare-plane alerts --op=<emit|ack|status> [--tier=<info|low|medium|high|critical>] [--key=<id>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops healthcare-plane coordination --op=<handoff|reconcile|status> [--sbar-json=<json>] [--meds-json=<json>] [--strict=1|0]"
+        "  infring-ops healthcare-plane coordination --op=<handoff|reconcile|status> [--sbar-json=<json>] [--meds-json=<json>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops healthcare-plane trials --op=<screen|consent|report-sae|status> [--patient-id=<id>] [--trial=<id>] [--strict=1|0]"
+        "  infring-ops healthcare-plane trials --op=<screen|consent|report-sae|status> [--patient-id=<id>] [--trial=<id>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops healthcare-plane imaging --op=<ingest|critical-route|status> [--study-id=<id>] [--finding=<text>] [--strict=1|0]"
+        "  infring-ops healthcare-plane imaging --op=<ingest|critical-route|status> [--study-id=<id>] [--finding=<text>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops healthcare-plane emergency --op=<break-glass|status> [--user=<id>] [--patient-id=<id>] [--justification=<text>] [--ttl-minutes=<n>] [--strict=1|0]"
+        "  infring-ops healthcare-plane emergency --op=<break-glass|status> [--user=<id>] [--patient-id=<id>] [--justification=<text>] [--ttl-minutes=<n>] [--strict=1|0]"
     );
 }
 

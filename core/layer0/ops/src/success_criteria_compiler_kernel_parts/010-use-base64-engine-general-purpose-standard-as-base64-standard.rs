@@ -13,12 +13,12 @@ use crate::{deterministic_receipt_hash, now_iso};
 fn usage() {
     println!("success-criteria-compiler-kernel commands:");
     println!(
-        "  protheus-ops success-criteria-compiler-kernel compile-rows --payload-base64=<json>"
+        "  infring-ops success-criteria-compiler-kernel compile-rows --payload-base64=<json>"
     );
     println!(
-        "  protheus-ops success-criteria-compiler-kernel compile-proposal --payload-base64=<json>"
+        "  infring-ops success-criteria-compiler-kernel compile-proposal --payload-base64=<json>"
     );
-    println!("  protheus-ops success-criteria-compiler-kernel to-action-spec-rows --payload-base64=<json>");
+    println!("  infring-ops success-criteria-compiler-kernel to-action-spec-rows --payload-base64=<json>");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {

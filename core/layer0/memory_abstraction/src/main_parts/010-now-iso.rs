@@ -211,7 +211,7 @@ fn run_command_json(bin: &str, args: &[String], cwd: &Path) -> Option<CommandRun
 }
 
 fn run_memory_core(root: &Path, args: &[String]) -> CommandRun {
-    let explicit = env::var("PROTHEUS_MEMORY_CORE_BIN").unwrap_or_default();
+    let explicit = env::var("INFRING_MEMORY_CORE_BIN").unwrap_or_default();
     let candidates = vec![
         explicit,
         root.join("target/release/memory-cli")
@@ -263,7 +263,7 @@ fn run_memory_core(root: &Path, args: &[String]) -> CommandRun {
 fn run_security_check(root: &Path, request: &Value) -> CommandRun {
     let request_json = serde_json::to_string(request).unwrap_or_else(|_| "{}".to_string());
     let arg = format!("--request-json={request_json}");
-    let explicit = env::var("PROTHEUS_SECURITY_CORE_BIN").unwrap_or_default();
+    let explicit = env::var("INFRING_SECURITY_CORE_BIN").unwrap_or_default();
     let candidates = vec![
         explicit,
         root.join("target/release/security_core")

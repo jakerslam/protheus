@@ -19,16 +19,16 @@ const DEFAULT_DASHBOARD_REL: &str = "client/runtime/local/state/dify_dashboard_s
 
 fn usage() {
     println!("dify-bridge commands:");
-    println!("  protheus-ops dify-bridge status [--state-path=<path>]");
-    println!("  protheus-ops dify-bridge register-canvas [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops dify-bridge sync-knowledge-base [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops dify-bridge register-agent-app [--payload-base64=<json>] [--state-path=<path>]");
-    println!("  protheus-ops dify-bridge publish-dashboard [--payload-base64=<json>] [--state-path=<path>] [--dashboard-dir=<path>]");
+    println!("  infring-ops dify-bridge status [--state-path=<path>]");
+    println!("  infring-ops dify-bridge register-canvas [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops dify-bridge sync-knowledge-base [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops dify-bridge register-agent-app [--payload-base64=<json>] [--state-path=<path>]");
+    println!("  infring-ops dify-bridge publish-dashboard [--payload-base64=<json>] [--state-path=<path>] [--dashboard-dir=<path>]");
     println!(
-        "  protheus-ops dify-bridge route-provider [--payload-base64=<json>] [--state-path=<path>]"
+        "  infring-ops dify-bridge route-provider [--payload-base64=<json>] [--state-path=<path>]"
     );
-    println!("  protheus-ops dify-bridge run-conditional-flow [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
-    println!("  protheus-ops dify-bridge record-audit-trace [--payload-base64=<json>] [--state-path=<path>] [--trace-path=<path>]");
+    println!("  infring-ops dify-bridge run-conditional-flow [--payload-base64=<json>] [--state-path=<path>] [--swarm-state-path=<path>]");
+    println!("  infring-ops dify-bridge record-audit-trace [--payload-base64=<json>] [--state-path=<path>] [--trace-path=<path>]");
 }
 
 fn payload_json(argv: &[String]) -> Result<Value, String> {

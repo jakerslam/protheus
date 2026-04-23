@@ -36,11 +36,11 @@ function main() {
   const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'queued-backlog-rust-'));
   fs.mkdirSync(path.join(workspace, 'client', 'runtime', 'config'), { recursive: true });
   const prevWorkspace = process.env.INFRING_WORKSPACE;
-  const prevPrebuilt = process.env.PROTHEUS_OPS_USE_PREBUILT;
-  const prevTimeout = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS;
+  const prevPrebuilt = process.env.INFRING_OPS_USE_PREBUILT;
+  const prevTimeout = process.env.INFRING_OPS_LOCAL_TIMEOUT_MS;
   process.env.INFRING_WORKSPACE = workspace;
-  process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
-  process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = '120000';
+  process.env.INFRING_OPS_USE_PREBUILT = '0';
+  process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = '120000';
   try {
     const mod = resetModule(path.join(ROOT, 'client', 'runtime', 'lib', 'queued_backlog_runtime.ts'));
     const latestPath = mod.resolvePath('local/state/demo/latest.json', 'local/state/demo/latest.json');
@@ -74,10 +74,10 @@ function main() {
   } finally {
     if (prevWorkspace == null) delete process.env.INFRING_WORKSPACE;
     else process.env.INFRING_WORKSPACE = prevWorkspace;
-    if (prevPrebuilt == null) delete process.env.PROTHEUS_OPS_USE_PREBUILT;
-    else process.env.PROTHEUS_OPS_USE_PREBUILT = prevPrebuilt;
-    if (prevTimeout == null) delete process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS;
-    else process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = prevTimeout;
+    if (prevPrebuilt == null) delete process.env.INFRING_OPS_USE_PREBUILT;
+    else process.env.INFRING_OPS_USE_PREBUILT = prevPrebuilt;
+    if (prevTimeout == null) delete process.env.INFRING_OPS_LOCAL_TIMEOUT_MS;
+    else process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = prevTimeout;
     fs.rmSync(workspace, { recursive: true, force: true });
   }
 }

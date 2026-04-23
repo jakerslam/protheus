@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "enabled": true,
-  "onboarding_disable_env": "PROTHEUS_ONBOARDING_DISABLE",
+  "onboarding_disable_env": "INFRING_ONBOARDING_DISABLE",
   "first_win_timeout_ms": 90000,
   "profile_detection": {
     "low_memory_gb": 8,
@@ -34,8 +34,8 @@
     "prediction": "First-run scientific receipt is generated within SLA"
   },
   "rollback": {
-    "fallback_entrypoint": "client/runtime/systems/ops/protheus_control_plane.ts doctor-init",
-    "disable_hint": "set PROTHEUS_ONBOARDING_DISABLE=1"
+    "fallback_entrypoint": "client/runtime/systems/ops/infring_control_plane.ts doctor-init",
+    "disable_hint": "set INFRING_ONBOARDING_DISABLE=1"
   },
   "paths": {
     "latest_path": "local/state/ops/first_run_onboarding_wizard/latest.json",

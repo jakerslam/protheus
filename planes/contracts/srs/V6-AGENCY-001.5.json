@@ -27,8 +27,8 @@
     }
   ],
   "validation": {
-    "lane_command": "protheus-ops srs-contract-runtime run --id=V6-AGENCY-001.5",
-    "status_command": "protheus-ops srs-contract-runtime status --id=V6-AGENCY-001.5",
+    "lane_command": "infring-ops srs-contract-runtime run --id=V6-AGENCY-001.5",
+    "status_command": "infring-ops srs-contract-runtime status --id=V6-AGENCY-001.5",
     "fail_closed_on_missing_contract": true
   },
   "generated_from": {

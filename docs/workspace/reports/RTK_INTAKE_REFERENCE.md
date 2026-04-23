@@ -52,25 +52,25 @@
   - New kernel module:
     - `core/layer0/ops/src/session_command_session_analytics_kernel.rs`
   - Command surface:
-    - `protheus-ops session-command-session-analytics-kernel <extract-jsonl|classify-jsonl|adoption-report>`
+    - `infring-ops session-command-session-analytics-kernel <extract-jsonl|classify-jsonl|adoption-report>`
 - `RTK-TRACKING-001` (from `src/core/tracking.rs`):
   - Imported SQLite-backed command telemetry persistence and aggregate summary surfaces.
   - New kernel module:
     - `core/layer0/ops/src/session_command_tracking_kernel.rs`
   - Command surface:
-    - `protheus-ops session-command-tracking-kernel <record|summary|status>`
+    - `infring-ops session-command-tracking-kernel <record|summary|status>`
 - `RTK-PERMISSIONS-001` (from `src/hooks/permissions.rs`):
   - Imported deny/ask wildcard permission profile evaluator with compound-command support.
   - New kernel module:
     - `core/layer0/ops/src/command_permission_kernel.rs`
   - Command surface:
-    - `protheus-ops command-permission-kernel <evaluate|match-pattern|extract-pattern>`
+    - `infring-ops command-permission-kernel <evaluate|match-pattern|extract-pattern>`
 - `RTK-FILTER-001` (from `src/core/filter.rs`):
   - Imported language-aware filter-level compaction primitive for source text.
   - New kernel module:
     - `core/layer0/ops/src/source_comment_filter_kernel.rs`
   - Command surface:
-    - `protheus-ops source-comment-filter-kernel <filter|detect-language>`
+    - `infring-ops source-comment-filter-kernel <filter|detect-language>`
 
 ## Captured Candidates (Not Yet Imported)
 - None (all `reviewed_candidate` RTK rows were assimilated in this pass).

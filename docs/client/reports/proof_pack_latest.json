@@ -28,7 +28,7 @@
       "report_path": "client/runtime/local/state/autonomy/simulations/2026-03-07.json",
       "path": "client/runtime/local/state/autonomy/simulations/2026-03-07.json"
     },
-    "protheus_vs_infring": {
+    "infring_vs_infring": {
       "ok": false,
       "parity_pass": false,
       "weighted_score_avg": 0.8616,

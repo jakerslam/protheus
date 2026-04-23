@@ -3,8 +3,8 @@
 const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge.ts');
 
 process.env.INFRING_OPS_ALLOW_PROCESS_FALLBACK = process.env.INFRING_OPS_ALLOW_PROCESS_FALLBACK || '0';
-process.env.PROTHEUS_OPS_ALLOW_PROCESS_FALLBACK =
-  process.env.PROTHEUS_OPS_ALLOW_PROCESS_FALLBACK || '0';
+process.env.INFRING_OPS_ALLOW_PROCESS_FALLBACK =
+  process.env.INFRING_OPS_ALLOW_PROCESS_FALLBACK || '0';
 
 const SYSTEM_ID = 'SYSTEMS-TOOLS-CLI_SUGGESTION_ENGINE';
 const bridge = createOpsLaneBridge(__dirname, 'cli_suggestion_engine', 'runtime-systems', {

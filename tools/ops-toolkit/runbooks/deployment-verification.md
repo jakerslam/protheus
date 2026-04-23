@@ -9,7 +9,7 @@
 
 ## Purpose
 
-This runbook provides a standardized checklist for verifying deployments across all Protheus services. Following this procedure ensures consistent validation and reduces the risk of undetected deployment issues.
+This runbook provides a standardized checklist for verifying deployments across all Infring services. Following this procedure ensures consistent validation and reduces the risk of undetected deployment issues.
 
 ## Scope
 
@@ -108,7 +108,7 @@ Review the following in Grafana:
 
 - [Incident Response Playbook](./incident-response.md)
 - [Auto-Rollback Script](../incident-response/auto-rollback.sh)
-- [Service Level Objectives](https://wiki.internal/protheus/slos)
+- [Service Level Objectives](https://wiki.internal/infring/slos)
 
 ## Change Log
 

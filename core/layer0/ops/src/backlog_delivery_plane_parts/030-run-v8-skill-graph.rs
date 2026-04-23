@@ -297,7 +297,7 @@ fn run_v9_merge(root: &Path, id: &str, parsed: &crate::ParsedArgs) -> Value {
             json!({"interface": {"input": topic, "echo": "mirrored", "future_ingress": ["openbci", "muse", "neuralink_stub"]}})
         }
         "6" => {
-            json!({"containment": {"cognition_only": true, "separate_command": "protheus merge separate", "emergency_restore": true}})
+            json!({"containment": {"cognition_only": true, "separate_command": "infring merge separate", "emergency_restore": true}})
         }
         _ => json!({"error": "unknown_v9_merge_step"}),
     };

@@ -80,7 +80,7 @@ fn default_policy() -> Value {
     json!({
         "version": "1.0",
         "schema": {
-            "id": "protheus_outcome_fitness_policy",
+            "id": "infring_outcome_fitness_policy",
             "version": "1.0.0"
         },
         "strategy_policy": {

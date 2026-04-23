@@ -102,7 +102,7 @@ pub fn parse_date_or_today(raw: Option<&str>) -> String {
 }
 
 pub fn runtime_root(root: &Path) -> PathBuf {
-    if let Ok(raw) = std::env::var("PROTHEUS_CLIENT_RUNTIME_ROOT") {
+    if let Ok(raw) = std::env::var("INFRING_CLIENT_RUNTIME_ROOT") {
         let cleaned = raw.trim();
         if !cleaned.is_empty() {
             return PathBuf::from(cleaned);

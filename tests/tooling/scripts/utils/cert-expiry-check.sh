@@ -25,9 +25,9 @@ VERBOSE=0
 
 # Default endpoints to check (can be overridden via config file)
 ENDPOINTS=(
-  "api.protheus.io:443"
-  "grafana.protheus.io:443"
-  "logs.protheus.io:443"
+  "api.infring.io:443"
+  "grafana.infring.io:443"
+  "logs.infring.io:443"
 )
 
 # Load custom endpoints from config if available

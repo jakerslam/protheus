@@ -1,6 +1,6 @@
 {
   "id": "V3-USE-002",
-  "upgrade": "[hardening / V3] Redacted Diagnostics Bundle (`protheus doctor --bundle`)",
+  "upgrade": "[hardening / V3] Redacted Diagnostics Bundle (`infring doctor --bundle`)",
   "section": "Infring Parity+ Deployment/Usability/Runtime Pack (Queued, 2026-02-28)",
   "impact": 9,
   "layer_map": "0/1/2/adapter/client",
@@ -27,8 +27,8 @@
     }
   ],
   "validation": {
-    "lane_command": "protheus-ops srs-contract-runtime run --id=V3-USE-002",
-    "status_command": "protheus-ops srs-contract-runtime status --id=V3-USE-002",
+    "lane_command": "infring-ops srs-contract-runtime run --id=V3-USE-002",
+    "status_command": "infring-ops srs-contract-runtime status --id=V3-USE-002",
     "fail_closed_on_missing_contract": true
   },
   "generated_from": {

@@ -14,15 +14,15 @@ use std::path::{Path, PathBuf};
 
 const USAGE: &[&str] = &[
     "Usage:",
-    "  protheus-ops nexus-internal-comms status [--limit=<n>] [--modules=a,b,c] [--task='<text>'] [--role=<id>]",
-    "  protheus-ops nexus-internal-comms validate --message='[FROM>TO|MOD] CMD k=v' [--modules=a,b,c] [--task='<text>'] [--role=<id>]",
-    "  protheus-ops nexus-internal-comms compress --from=<id> --to=<id> --cmd=<key> [--module=<name>] --text='<natural text>'",
-    "  protheus-ops nexus-internal-comms decompress --message='<nexus_line>' [--modules=a,b,c] [--task='<text>'] [--role=<id>]",
-    "  protheus-ops nexus-internal-comms send --message='<nexus_line>' [--raw-text='<natural text>'] [--modules=a,b,c] [--task='<text>'] [--role=<id>]",
-    "  protheus-ops nexus-internal-comms log [--limit=<n>] [--decompressed=1|0]",
-    "  protheus-ops nexus-internal-comms agent-prompt --agent=<id> [--modules=a,b,c] [--task='<text>'] [--role=<id>]",
-    "  protheus-ops nexus-internal-comms resolve-modules [--modules=a,b,c] [--module=<name>] [--task='<text>'] [--role=<id>] [--text='<context>']",
-    "  protheus-ops nexus-internal-comms export-lexicon [--modules=a,b,c] [--task='<text>'] [--role=<id>] [--with-catalog=1|0]",
+    "  infring-ops nexus-internal-comms status [--limit=<n>] [--modules=a,b,c] [--task='<text>'] [--role=<id>]",
+    "  infring-ops nexus-internal-comms validate --message='[FROM>TO|MOD] CMD k=v' [--modules=a,b,c] [--task='<text>'] [--role=<id>]",
+    "  infring-ops nexus-internal-comms compress --from=<id> --to=<id> --cmd=<key> [--module=<name>] --text='<natural text>'",
+    "  infring-ops nexus-internal-comms decompress --message='<nexus_line>' [--modules=a,b,c] [--task='<text>'] [--role=<id>]",
+    "  infring-ops nexus-internal-comms send --message='<nexus_line>' [--raw-text='<natural text>'] [--modules=a,b,c] [--task='<text>'] [--role=<id>]",
+    "  infring-ops nexus-internal-comms log [--limit=<n>] [--decompressed=1|0]",
+    "  infring-ops nexus-internal-comms agent-prompt --agent=<id> [--modules=a,b,c] [--task='<text>'] [--role=<id>]",
+    "  infring-ops nexus-internal-comms resolve-modules [--modules=a,b,c] [--module=<name>] [--task='<text>'] [--role=<id>] [--text='<context>']",
+    "  infring-ops nexus-internal-comms export-lexicon [--modules=a,b,c] [--task='<text>'] [--role=<id>] [--with-catalog=1|0]",
 ];
 
 const MAX_MODULES_PER_AGENT: usize = 3;

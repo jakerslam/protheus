@@ -78,7 +78,7 @@ fn cleanup_stale_launchd_labels() -> Value {
 fn resolved_infring_home(root: &Path) -> String {
     std::env::var("INFRING_HOME")
         .ok()
-        .or_else(|| std::env::var("PROTHEUS_HOME").ok())
+        .or_else(|| std::env::var("INFRING_HOME").ok())
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
         .unwrap_or_else(|| root.to_string_lossy().to_string())

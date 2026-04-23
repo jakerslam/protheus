@@ -1,6 +1,6 @@
 {
   "id": "V6-ORIGIN-004",
-  "upgrade": "`protheusd` startup self-audit gate (30s fail-closed)",
+  "upgrade": "`infringd` startup self-audit gate (30s fail-closed)",
   "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
   "impact": 10,
   "layer_map": "0/1/2/client",
@@ -27,8 +27,8 @@
     }
   ],
   "validation": {
-    "lane_command": "protheus-ops srs-contract-runtime run --id=V6-ORIGIN-004",
-    "status_command": "protheus-ops srs-contract-runtime status --id=V6-ORIGIN-004",
+    "lane_command": "infring-ops srs-contract-runtime run --id=V6-ORIGIN-004",
+    "status_command": "infring-ops srs-contract-runtime status --id=V6-ORIGIN-004",
     "fail_closed_on_missing_contract": true
   },
   "generated_from": {

@@ -25,17 +25,17 @@ function mirrorEnvAlias(primaryKey, legacyKey, fallback = '') {
 }
 
 function normalizeMechSuitEnvAliases() {
-  mirrorEnvAlias('INFRING_WORKSPACE', 'PROTHEUS_WORKSPACE');
-  mirrorEnvAlias('INFRING_OPS_USE_PREBUILT', 'PROTHEUS_OPS_USE_PREBUILT', '0');
-  mirrorEnvAlias('INFRING_OPS_LOCAL_TIMEOUT_MS', 'PROTHEUS_OPS_LOCAL_TIMEOUT_MS', '120000');
-  mirrorEnvAlias('MECH_SUIT_MODE_POLICY_PATH', 'PROTHEUS_MECH_SUIT_MODE_POLICY_PATH');
+  mirrorEnvAlias('INFRING_WORKSPACE', 'INFRING_WORKSPACE');
+  mirrorEnvAlias('INFRING_OPS_USE_PREBUILT', 'INFRING_OPS_USE_PREBUILT', '0');
+  mirrorEnvAlias('INFRING_OPS_LOCAL_TIMEOUT_MS', 'INFRING_OPS_LOCAL_TIMEOUT_MS', '120000');
+  mirrorEnvAlias('MECH_SUIT_MODE_POLICY_PATH', 'INFRING_MECH_SUIT_MODE_POLICY_PATH');
 }
 
 normalizeMechSuitEnvAliases();
 
 function repoRoot(rootOverride = null) {
   if (rootOverride) return path.resolve(String(rootOverride));
-  const envRoot = text(process.env.INFRING_WORKSPACE || process.env.PROTHEUS_WORKSPACE || '', 400);
+  const envRoot = text(process.env.INFRING_WORKSPACE || process.env.INFRING_WORKSPACE || '', 400);
   if (envRoot) return path.resolve(envRoot);
   return path.resolve(__dirname, '..', '..', '..');
 }
@@ -52,7 +52,7 @@ function normalizeRelPath(value, fallback) {
 function resolvePolicyPath(rootOverride = null) {
   const root = repoRoot(rootOverride);
   const explicit = text(
-    process.env.MECH_SUIT_MODE_POLICY_PATH || process.env.PROTHEUS_MECH_SUIT_MODE_POLICY_PATH || '',
+    process.env.MECH_SUIT_MODE_POLICY_PATH || process.env.INFRING_MECH_SUIT_MODE_POLICY_PATH || '',
     400
   );
   if (!explicit) return path.join(root, DEFAULT_POLICY_REL);
@@ -75,11 +75,11 @@ function resolveStatePath(policy, relPath) {
 }
 
 process.env.INFRING_OPS_USE_PREBUILT = process.env.INFRING_OPS_USE_PREBUILT || '0';
-process.env.PROTHEUS_OPS_USE_PREBUILT =
-  process.env.PROTHEUS_OPS_USE_PREBUILT || process.env.INFRING_OPS_USE_PREBUILT || '0';
+process.env.INFRING_OPS_USE_PREBUILT =
+  process.env.INFRING_OPS_USE_PREBUILT || process.env.INFRING_OPS_USE_PREBUILT || '0';
 process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '120000';
-process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS =
-  process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '120000';
+process.env.INFRING_OPS_LOCAL_TIMEOUT_MS =
+  process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '120000';
 const bridge = createOpsLaneBridge(__dirname, 'mech_suit_mode', 'mech-suit-mode-kernel');
 
 function encodeBase64(value) {

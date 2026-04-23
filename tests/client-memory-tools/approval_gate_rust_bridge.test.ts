@@ -32,7 +32,7 @@ const queueDir = fs.mkdtempSync(path.join(os.tmpdir(), 'approval-gate-'));
 const queuePath = path.join(queueDir, 'approvals_queue.yaml');
 
 process.env.APPROVAL_GATE_QUEUE_PATH = queuePath;
-process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
+process.env.INFRING_OPS_USE_PREBUILT = '0';
 
 const approvalGate = require(path.join(ROOT, 'client', 'runtime', 'lib', 'approval_gate.ts'));
 

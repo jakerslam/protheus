@@ -28,22 +28,22 @@ This directory stores internal operator lenses used for planning, audits, and de
 ## Operating Rules
 
 - Use personas as analysis lenses, not as authority replacement.
-- Use `protheus lens <persona> --lens=decision|strategic|full "<query>"` for targeted mode selection.
-- Use `protheus lens <persona1> <persona2> "<query>" [--expected="<baseline>"]` for deterministic multi-persona conflict + arbitration output.
-- Use `protheus arbitrate --between=vikram,priya --issue="<query>"` for dedicated disagreement resolution output.
-- Use `protheus lens <persona> --gap=<seconds> [--active=1] [--intercept="<override>"] "<query>"` for control-mode simulation (`e`=edit, `a`=approve early during gap).
+- Use `infring lens <persona> --lens=decision|strategic|full "<query>"` for targeted mode selection.
+- Use `infring lens <persona1> <persona2> "<query>" [--expected="<baseline>"]` for deterministic multi-persona conflict + arbitration output.
+- Use `infring arbitrate --between=vikram,priya --issue="<query>"` for dedicated disagreement resolution output.
+- Use `infring lens <persona> --gap=<seconds> [--active=1] [--intercept="<override>"] "<query>"` for control-mode simulation (`e`=edit, `a`=approve early during gap).
 - Use `--emotion=on|off` and `--values=on|off` to include or suppress emotion/values signals (defaults `on`).
 - Use `--include-feed=1` to include hash-verified `## System Passed` feed payloads in response reasoning.
 - Use `--surprise=on` to enable a deterministic 20% anti-puppet deviation die for challenge-style responses.
 - Use `--schema=json` to emit structured response payloads for easier aggregation.
 - Use `--max-context-tokens=<n>` (default `2000`) and `--context-budget-mode=trim|reject` to enforce bootstrap-vs-dynamic context budgeting before every lens call.
-- Use `protheus lens update-stream <persona>` to simulate stream sync and append correspondence updates.
-- Use `protheus lens feed <persona> "<snippet>"` (or `protheus persona feed ...`) to push master-feed insights to a persona.
-- Use `protheus lens checkin --persona=jay_haslam --heartbeat=local/workspace/assistant/HEARTBEAT.md` for daily drift/alignment logging.
-- Use `protheus lens feedback --surprising=0|1 --changed-decision=0|1 --useful=<persona>` after sessions to tune persona utility.
-- Use `protheus lens feedback-summary [--window=<n>]` to monitor usefulness and decision-impact rates.
-- Use `protheus lens trigger <pre-sprint|drift-alert|weekly-checkin> ...` to run codified trigger workflows.
-- Use `protheus lens dashboard [--window=<n>]` for recent telemetry + checkin/intercept activity.
+- Use `infring lens update-stream <persona>` to simulate stream sync and append correspondence updates.
+- Use `infring lens feed <persona> "<snippet>"` (or `infring persona feed ...`) to push master-feed insights to a persona.
+- Use `infring lens checkin --persona=jay_haslam --heartbeat=local/workspace/assistant/HEARTBEAT.md` for daily drift/alignment logging.
+- Use `infring lens feedback --surprising=0|1 --changed-decision=0|1 --useful=<persona>` after sessions to tune persona utility.
+- Use `infring lens feedback-summary [--window=<n>]` to monitor usefulness and decision-impact rates.
+- Use `infring lens trigger <pre-sprint|drift-alert|weekly-checkin> ...` to run codified trigger workflows.
+- Use `infring lens dashboard [--window=<n>]` for recent telemetry + checkin/intercept activity.
 - Record significant decisions in correspondence logs.
 - Keep language concise, technical, and auditable.
 - Do not put secrets in this directory.
@@ -51,21 +51,21 @@ This directory stores internal operator lenses used for planning, audits, and de
 ## Internal Usage Guide
 
 - Daily check-in:
-  - Run `protheus lens checkin --persona=jay_haslam --heartbeat=local/workspace/assistant/HEARTBEAT.md`.
+  - Run `infring lens checkin --persona=jay_haslam --heartbeat=local/workspace/assistant/HEARTBEAT.md`.
   - Review recommendation + signals.
   - Confirm correspondence log updated.
 - Red-team a decision:
-  - Run `protheus lens all "<decision or plan>"`.
+  - Run `infring lens all "<decision or plan>"`.
   - Compare hard constraints across personas before implementation.
 - Suppress emotional cues for strict technical review:
-  - Run `protheus lens <persona> --emotion=off "<query>"`.
+  - Run `infring lens <persona> --emotion=off "<query>"`.
 - Suppress philosophy/value framing when you need purely tactical output:
-  - Run `protheus lens <persona> --values=off "<query>"`.
+  - Run `infring lens <persona> --values=off "<query>"`.
 - Use intercept controls when stakes are high:
   - Run with `--gap`, then `e` to override or `a` to approve early.
 - Keep persona memory fresh without external integrations:
-  - Push internal insights via `protheus lens feed <persona> "<snippet>" --tags=...`.
-  - Use `protheus lens checkin` to append tagged memory nodes automatically.
+  - Push internal insights via `infring lens feed <persona> "<snippet>" --tags=...`.
+  - Use `infring lens checkin` to append tagged memory nodes automatically.
 
 ## Context Budget Guard
 
@@ -82,15 +82,15 @@ This directory stores internal operator lenses used for planning, audits, and de
 ## Orchestration Guide
 
 - Run control-plane status:
-  - `protheus orchestrate status`
+  - `infring orchestrate status`
 - Inspect orchestration telemetry:
-  - `protheus orchestrate telemetry --window=20`
+  - `infring orchestrate telemetry --window=20`
 - Run a meeting (deterministic attendee selection + arbitration + hash-chained artifact):
-  - `protheus orchestrate meeting "Prioritize memory or security first?" --approval-note="operator-reviewed" --monarch-token=<token_id>`
+  - `infring orchestrate meeting "Prioritize memory or security first?" --approval-note="operator-reviewed" --monarch-token=<token_id>`
 - Create a project (state machine starts at `proposed`):
-  - `protheus orchestrate project "foundation-lock" "Finish memory + security parity" --approval-note="operator-reviewed" --monarch-token=<token_id>`
+  - `infring orchestrate project "foundation-lock" "Finish memory + security parity" --approval-note="operator-reviewed" --monarch-token=<token_id>`
 - Transition a project:
-  - `protheus orchestrate project --id=<project_id> --transition=active --approval-note="operator-reviewed" --monarch-token=<token_id>`
+  - `infring orchestrate project --id=<project_id> --transition=active --approval-note="operator-reviewed" --monarch-token=<token_id>`
   - For `resumed` / `rolled_back`, pass `--drift-rate=<0..1>`; values above `0.02` auto-escalate to Core 5 review.
 - Optional emotion enrichment:
   - `--emotion=on` appends tone notes to artifacts (context only; never used in arbitration).
@@ -98,8 +98,8 @@ This directory stores internal operator lenses used for planning, audits, and de
   - Add `--override-reason=... --override-actor=... --override-expiry=<ISO8601>`
   - Monarch token is required for high-risk and override paths by `soul_token_policy.json`.
 - Audit and retention:
-  - `protheus orchestrate audit "<artifact_id>"` reruns hash-chain/schema/policy checks.
-  - `protheus orchestrate prune [--ttl-days=90]` prunes artifacts with a hard max TTL of 90 days.
+  - `infring orchestrate audit "<artifact_id>"` reruns hash-chain/schema/policy checks.
+  - `infring orchestrate prune [--ttl-days=90]` prunes artifacts with a hard max TTL of 90 days.
 
 Artifacts are append-only and hash-chained:
 - Meetings: `personas/organization/meetings/ledger.jsonl`
@@ -113,7 +113,7 @@ Soul-token authorization requirements are defined in `personas/organization/soul
 ## Current Personas
 
 - Persona roster is intentionally broad and evolves over time.
-- Run `protheus lens --list` to get the canonical current set from disk.
+- Run `infring lens --list` to get the canonical current set from disk.
 - Core governance personas remain: `jay_haslam`, `vikram_menon`, `priya_venkatesh`, `rohan_kapoor`, `li_wei`, `aarav_singh`.
 
 ## Internal Cognitive Tools Guide

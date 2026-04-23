@@ -24,10 +24,10 @@ struct DopamineAmbientPolicy {
 fn usage() {
     eprintln!("Usage:");
     eprintln!(
-        "  protheus-ops dopamine-ambient closeout [--date=YYYY-MM-DD] [--run-context=<value>]"
+        "  infring-ops dopamine-ambient closeout [--date=YYYY-MM-DD] [--run-context=<value>]"
     );
-    eprintln!("  protheus-ops dopamine-ambient status [--date=YYYY-MM-DD] [--run-context=<value>]");
-    eprintln!("  protheus-ops dopamine-ambient evaluate --summary-json=<json>|--summary-json-base64=<base64> [--date=YYYY-MM-DD] [--run-context=<value>]");
+    eprintln!("  infring-ops dopamine-ambient status [--date=YYYY-MM-DD] [--run-context=<value>]");
+    eprintln!("  infring-ops dopamine-ambient evaluate --summary-json=<json>|--summary-json-base64=<base64> [--date=YYYY-MM-DD] [--run-context=<value>]");
 }
 
 fn read_json(path: &Path) -> Option<Value> {

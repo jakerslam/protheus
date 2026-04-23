@@ -22,7 +22,7 @@
     {
       "id": "V3-RACE-130",
       "system_files": [
-        "client/runtime/systems/economy/protheus_token_engine.ts",
+        "client/runtime/systems/economy/infring_token_engine.ts",
         "client/runtime/systems/economy/global_directive_fund.ts"
       ],
       "user_paths": [

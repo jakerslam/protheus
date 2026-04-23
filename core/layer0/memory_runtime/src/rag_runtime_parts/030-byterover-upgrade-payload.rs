@@ -12,7 +12,7 @@ pub fn byterover_upgrade_payload(args: &HashMap<String, String>) -> Value {
         let out = receipt(json!({
             "ok": false,
             "type": "memory_upgrade_byterover",
-            "backend": "protheus_memory_core",
+            "backend": "infring_memory_core",
             "error": format!("context_tree_create_failed:{err}"),
             "context_tree_path": normalize_rel_path(&root, &ctx)
         }));
@@ -67,7 +67,7 @@ pub fn byterover_upgrade_payload(args: &HashMap<String, String>) -> Value {
         let out = receipt(json!({
             "ok": false,
             "type": "memory_upgrade_byterover",
-            "backend": "protheus_memory_core",
+            "backend": "infring_memory_core",
             "error": "filesystem_write_failed",
             "root": normalize_rel_path(&root, &brv),
             "context_tree_path": normalize_rel_path(&root, &ctx),
@@ -82,7 +82,7 @@ pub fn byterover_upgrade_payload(args: &HashMap<String, String>) -> Value {
     let out = receipt(json!({
         "ok": true,
         "type": "memory_upgrade_byterover",
-        "backend": "protheus_memory_core",
+        "backend": "infring_memory_core",
         "schema_version": "1.0",
         "profile": "byterover",
         "root": normalize_rel_path(&root, &brv),
@@ -120,7 +120,7 @@ pub fn memory_metacognitive_enable_payload(args: &HashMap<String, String>) -> Va
             let out = receipt(json!({
                 "ok": false,
                 "type": "memory_metacognitive_enable",
-                "backend": "protheus_memory_core",
+                "backend": "infring_memory_core",
                 "error": format!("config_parent_create_failed:{err}"),
                 "config_path": normalize_rel_path(&root, &cfg_path)
             }));
@@ -138,7 +138,7 @@ pub fn memory_metacognitive_enable_payload(args: &HashMap<String, String>) -> Va
         let out = receipt(json!({
             "ok": false,
             "type": "memory_metacognitive_enable",
-            "backend": "protheus_memory_core",
+            "backend": "infring_memory_core",
             "error": format!("config_write_failed:{err}"),
             "config_path": normalize_rel_path(&root, &cfg_path)
         }));
@@ -148,7 +148,7 @@ pub fn memory_metacognitive_enable_payload(args: &HashMap<String, String>) -> Va
     let out = receipt(json!({
         "ok": true,
         "type": "memory_metacognitive_enable",
-        "backend": "protheus_memory_core",
+        "backend": "infring_memory_core",
         "enabled": enabled,
         "config_path": normalize_rel_path(&root, &cfg_path),
         "config_digest": config_digest
@@ -230,7 +230,7 @@ pub fn memory_taxonomy_payload(args: &HashMap<String, String>) -> Value {
             let out = receipt(json!({
                 "ok": false,
                 "type": "memory_taxonomy_4w",
-                "backend": "protheus_memory_core",
+                "backend": "infring_memory_core",
                 "error": format!("taxonomy_parent_create_failed:{err}"),
                 "taxonomy_path": normalize_rel_path(&root, &out_path)
             }));
@@ -248,7 +248,7 @@ pub fn memory_taxonomy_payload(args: &HashMap<String, String>) -> Value {
         let out = receipt(json!({
             "ok": false,
             "type": "memory_taxonomy_4w",
-            "backend": "protheus_memory_core",
+            "backend": "infring_memory_core",
             "error": format!("taxonomy_write_failed:{err}"),
             "taxonomy_path": normalize_rel_path(&root, &out_path)
         }));
@@ -258,7 +258,7 @@ pub fn memory_taxonomy_payload(args: &HashMap<String, String>) -> Value {
     let out = receipt(json!({
         "ok": true,
         "type": "memory_taxonomy_4w",
-        "backend": "protheus_memory_core",
+        "backend": "infring_memory_core",
         "index_path": normalize_rel_path(&root, &idx_path),
         "taxonomy_path": normalize_rel_path(&root, &out_path),
         "taxonomy_digest": taxonomy_digest,
@@ -368,7 +368,7 @@ pub fn memory_causality_enable_payload(args: &HashMap<String, String>) -> Value 
     let out = receipt(json!({
         "ok": true,
         "type": "memory_causality_enable",
-        "backend": "protheus_memory_core",
+        "backend": "infring_memory_core",
         "graph_path": normalize_rel_path(&root, &out_path),
         "history_path": normalize_rel_path(&root, &hist),
         "node_count": graph.node_count,
@@ -500,7 +500,7 @@ pub fn memory_benchmark_ama_payload(args: &HashMap<String, String>) -> Value {
     let out = receipt(json!({
         "ok": true,
         "type": "memory_benchmark_ama",
-        "backend": "protheus_memory_core",
+        "backend": "infring_memory_core",
         "benchmark_path": normalize_rel_path(&root, &out_path),
         "graph_path": normalize_rel_path(&root, &graph_path),
         "ama_score": benchmark.get("metrics").and_then(|m| m.get("ama_score")).cloned().unwrap_or(Value::Null),

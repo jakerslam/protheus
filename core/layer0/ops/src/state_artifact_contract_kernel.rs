@@ -10,13 +10,13 @@ use crate::now_iso;
 
 fn usage() {
     println!("state-artifact-contract-kernel commands:");
-    println!("  protheus-ops state-artifact-contract-kernel now-iso");
-    println!("  protheus-ops state-artifact-contract-kernel decorate-artifact-row [--payload-base64=<json>]");
+    println!("  infring-ops state-artifact-contract-kernel now-iso");
+    println!("  infring-ops state-artifact-contract-kernel decorate-artifact-row [--payload-base64=<json>]");
     println!(
-        "  protheus-ops state-artifact-contract-kernel trim-jsonl-rows [--payload-base64=<json>]"
+        "  infring-ops state-artifact-contract-kernel trim-jsonl-rows [--payload-base64=<json>]"
     );
-    println!("  protheus-ops state-artifact-contract-kernel write-artifact-set [--payload-base64=<json>]");
-    println!("  protheus-ops state-artifact-contract-kernel append-artifact-history [--payload-base64=<json>]");
+    println!("  infring-ops state-artifact-contract-kernel write-artifact-set [--payload-base64=<json>]");
+    println!("  infring-ops state-artifact-contract-kernel append-artifact-history [--payload-base64=<json>]");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {

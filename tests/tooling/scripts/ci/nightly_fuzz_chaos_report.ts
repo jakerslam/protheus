@@ -85,7 +85,7 @@ report.checks.push(
     '--manifest-path',
     'core/layer0/ops/Cargo.toml',
     '--bin',
-    'protheus-ops',
+    'infring-ops',
     '--',
     'enterprise-hardening',
     'run',

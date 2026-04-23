@@ -144,7 +144,7 @@
       "proofRefs": [
         "install.sh",
         "install.ps1",
-        "core/layer0/ops/src/protheusd_parts/{010-print-json,030-embedded-minimal-core-status}.rs"
+        "core/layer0/ops/src/infringd_parts/{010-print-json,030-embedded-minimal-core-status}.rs"
       ]
     },
     {

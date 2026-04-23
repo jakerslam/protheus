@@ -88,7 +88,7 @@ fn lane_009_onboarding(root: &Path, policy: &Policy) -> Value {
     let bootstrap_script = resolve_path(
         root,
         lane_policy.get("bootstrap_script").and_then(Value::as_str),
-        "tests/tooling/scripts/onboarding/protheus_onboarding_bootstrap.sh",
+        "tests/tooling/scripts/onboarding/infring_onboarding_bootstrap.sh",
     );
     let metrics_path = resolve_path(
         root,
@@ -224,7 +224,7 @@ fn lane_011_surface_consistency(root: &Path, policy: &Policy) -> Value {
     );
 
     let snap = read_json(&snapshot_path).unwrap_or_else(|| json!({}));
-    let surfaces_ok = ["protheus", "protheusctl", "protheus_top"]
+    let surfaces_ok = ["infring", "infringctl", "infring_top"]
         .iter()
         .all(|k| snap.get("surfaces").and_then(|v| v.get(k)).is_some());
     let taxonomy_ok = snap

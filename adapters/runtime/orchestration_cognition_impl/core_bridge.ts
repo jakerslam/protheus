@@ -2,7 +2,7 @@
 'use strict';
 
 const { parseArgs, parseJson } = require('./cli_shared.ts');
-const { ROOT, invokeProtheusOpsViaBridge } = require('../run_protheus_ops.ts');
+const { ROOT, invokeInfringOpsViaBridge } = require('../run_infring_ops.ts');
 
 function parseJsonOutput(stdout) {
   const text = String(stdout || '').trim();
@@ -33,7 +33,7 @@ function normalizeBridgePayload(out) {
   return normalized;
 }
 
-function invokeOrchestrationWithBridge(op, payload = {}, options = {}, invokeBridge = invokeProtheusOpsViaBridge) {
+function invokeOrchestrationWithBridge(op, payload = {}, options = {}, invokeBridge = invokeInfringOpsViaBridge) {
   const safePayload = payload && typeof payload === 'object' ? payload : {};
   const args = [
     'orchestration',
@@ -44,7 +44,7 @@ function invokeOrchestrationWithBridge(op, payload = {}, options = {}, invokeBri
 
   const proc = invokeBridge(args, {
     unknownDomainFallback: false,
-    env: { PROTHEUS_ROOT: ROOT, ...(options.env || {}) },
+    env: { INFRING_ROOT: ROOT, ...(options.env || {}) },
   });
   if (!proc) {
     return {
@@ -74,7 +74,7 @@ function invokeOrchestrationWithBridge(op, payload = {}, options = {}, invokeBri
 }
 
 function invokeOrchestration(op, payload = {}, options = {}) {
-  return invokeOrchestrationWithBridge(op, payload, options, invokeProtheusOpsViaBridge);
+  return invokeOrchestrationWithBridge(op, payload, options, invokeInfringOpsViaBridge);
 }
 
 module.exports = {

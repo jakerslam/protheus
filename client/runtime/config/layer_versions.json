@@ -1,5 +1,5 @@
 {
-  "system": "Protheus Layer Versions",
+  "system": "Infring Layer Versions",
   "last_updated": "2026-02-17T01:58:00-07:00",
   "layers": [
     {
@@ -7,7 +7,7 @@
       "current_version": "v1.0.2",
       "path": "client/cognition/habits/scripts/aie_logger.ts",
       "changelog": {
-        "v1.0": "Agent Improvement Engine - Event capture + quality scoring for Protheus outputs. NO autonomy. Sensing/evaluation only.",
+        "v1.0": "Agent Improvement Engine - Event capture + quality scoring for Infring outputs. NO autonomy. Sensing/evaluation only.",
         "v1.0.1": "Evidence-gated tests_passed scoring (+10 requires test log hash). Auto-hash computation. Warnings for unverified claims.",
         "v1.0.2": "Auto-capture test runs via aie_run.js wrapper; reduces cherry-picking. test_run events score +6/-6 based on exit_code."
       },
@@ -35,7 +35,7 @@
         "v1.1": "Artifact-first scoring with anti-gaming validation (1.5x requires proof)",
         "v1.1.1": "Structured core/local/artifacts/revenue arrays, capped bonuses (+6 artifact, +6 revenue), 10 achievements, Auto-Capture Proof, Git Hook",
         "v1.1.2": "Global git hook capture: works across ALL repos, enriched payload (repo_name, branch, remote), anti-noise guards, recursion protection",
-        "v1.2.0": "AGENT MODE: Synthetic dopamine system for Protheus. agentLog(), agentTaskStart/Complete, agentCelebrate(), immediate positive feedback. Removed git hooks - now agent-self-tracking only."
+        "v1.2.0": "AGENT MODE: Synthetic dopamine system for Infring. agentLog(), agentTaskStart/Complete, agentCelebrate(), immediate positive feedback. Removed git hooks - now agent-self-tracking only."
       },
       "features": [
         "Artifact-conditional high-leverage: 1.5x with proof, 1.0x without",

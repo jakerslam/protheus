@@ -13,13 +13,13 @@ function mirrorLegacyEnvFlag(targetName, legacyName) {
 }
 
 function normalizeLegacyBridgeEnv() {
-  mirrorLegacyEnvFlag('INFRING_OPS_USE_PREBUILT', 'PROTHEUS_OPS_USE_PREBUILT');
-  mirrorLegacyEnvFlag('INFRING_OPS_PREFER_CARGO', 'PROTHEUS_OPS_PREFER_CARGO');
+  mirrorLegacyEnvFlag('INFRING_OPS_USE_PREBUILT', 'INFRING_OPS_USE_PREBUILT');
+  mirrorLegacyEnvFlag('INFRING_OPS_PREFER_CARGO', 'INFRING_OPS_PREFER_CARGO');
   mirrorLegacyEnvFlag(
     'INFRING_OPS_ALLOW_PROCESS_FALLBACK',
-    'PROTHEUS_OPS_ALLOW_PROCESS_FALLBACK'
+    'INFRING_OPS_ALLOW_PROCESS_FALLBACK'
   );
-  mirrorLegacyEnvFlag('INFRING_OPS_LOCAL_TIMEOUT_MS', 'PROTHEUS_OPS_LOCAL_TIMEOUT_MS');
+  mirrorLegacyEnvFlag('INFRING_OPS_LOCAL_TIMEOUT_MS', 'INFRING_OPS_LOCAL_TIMEOUT_MS');
 }
 
 function createOpsLaneBridge(scriptDir, lane, domain, opts = {}) {

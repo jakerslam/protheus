@@ -29,18 +29,18 @@ const TEMPLATE_MANIFEST_PATH: &str = "planes/contracts/flow/template_pack_manife
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops flow-plane status");
-    println!("  protheus-ops flow-plane compile [--canvas-json=<json>|--canvas-path=<path>] [--strict=1|0]");
+    println!("  infring-ops flow-plane status");
+    println!("  infring-ops flow-plane compile [--canvas-json=<json>|--canvas-path=<path>] [--strict=1|0]");
     println!(
-        "  protheus-ops flow-plane run [--run-id=<id>] [--strict=1|0]   # alias of playground --op=play"
+        "  infring-ops flow-plane run [--run-id=<id>] [--strict=1|0]   # alias of playground --op=play"
     );
-    println!("  protheus-ops flow-plane playground --op=<play|pause|step|resume|inspect> [--run-id=<id>] [--strict=1|0]");
-    println!("  protheus-ops flow-plane component-marketplace [--manifest=<path>] [--components-root=<path>] [--component-id=<id>] [--custom-source-path=<path>] [--strict=1|0]");
-    println!("  protheus-ops flow-plane export [--format=json|api|mcp] [--from-path=<path>] [--package-version=<v>] [--strict=1|0]");
+    println!("  infring-ops flow-plane playground --op=<play|pause|step|resume|inspect> [--run-id=<id>] [--strict=1|0]");
+    println!("  infring-ops flow-plane component-marketplace [--manifest=<path>] [--components-root=<path>] [--component-id=<id>] [--custom-source-path=<path>] [--strict=1|0]");
+    println!("  infring-ops flow-plane export [--format=json|api|mcp] [--from-path=<path>] [--package-version=<v>] [--strict=1|0]");
     println!(
-        "  protheus-ops flow-plane install [--manifest=<path>] [--templates-root=<path>] [--strict=1|0]   # alias of template-governance"
+        "  infring-ops flow-plane install [--manifest=<path>] [--templates-root=<path>] [--strict=1|0]   # alias of template-governance"
     );
-    println!("  protheus-ops flow-plane template-governance [--manifest=<path>] [--templates-root=<path>] [--strict=1|0]");
+    println!("  infring-ops flow-plane template-governance [--manifest=<path>] [--templates-root=<path>] [--strict=1|0]");
 }
 
 fn state_root(root: &Path) -> PathBuf {

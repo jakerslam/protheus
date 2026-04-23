@@ -9,30 +9,30 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     if matches!(command.as_str(), "help" | "--help" | "-h") {
         println!("Usage:");
-        println!("  protheus-ops directive-kernel status");
-        println!("  protheus-ops directive-kernel dashboard");
-        println!("  protheus-ops directive-kernel prime-sign [--directive=<text>] [--signer=<id>] [--allow-unsigned=1|0]");
-        println!("  protheus-ops directive-kernel derive [--parent=<id|text>] [--directive=<text>] [--signer=<id>] [--allow-unsigned=1|0]");
-        println!("  protheus-ops directive-kernel supersede [--target=<id|text>] [--directive=<text>] [--signer=<id>] [--allow-unsigned=1|0]");
-        println!("  protheus-ops directive-kernel compliance-check [--action=<text>]");
-        println!("  protheus-ops directive-kernel bridge-rsi [--proposal=<text>] [--apply=1|0]");
+        println!("  infring-ops directive-kernel status");
+        println!("  infring-ops directive-kernel dashboard");
+        println!("  infring-ops directive-kernel prime-sign [--directive=<text>] [--signer=<id>] [--allow-unsigned=1|0]");
+        println!("  infring-ops directive-kernel derive [--parent=<id|text>] [--directive=<text>] [--signer=<id>] [--allow-unsigned=1|0]");
+        println!("  infring-ops directive-kernel supersede [--target=<id|text>] [--directive=<text>] [--signer=<id>] [--allow-unsigned=1|0]");
+        println!("  infring-ops directive-kernel compliance-check [--action=<text>]");
+        println!("  infring-ops directive-kernel bridge-rsi [--proposal=<text>] [--apply=1|0]");
         println!(
-            "  protheus-ops directive-kernel migrate [--apply=1|0] [--allow-unsigned=1|0] [--repair-signatures=1|0]"
+            "  infring-ops directive-kernel migrate [--apply=1|0] [--allow-unsigned=1|0] [--repair-signatures=1|0]"
         );
-        println!("  protheus-ops directive-kernel parse-yaml [--text-base64=<base64>]");
+        println!("  infring-ops directive-kernel parse-yaml [--text-base64=<base64>]");
         println!(
-            "  protheus-ops directive-kernel validate-tier1-quality [--directive-id=<id>] [--text-base64=<base64>]"
-        );
-        println!(
-            "  protheus-ops directive-kernel active-directives [--allow-missing=1|0] [--allow-weak-tier1=1|0]"
+            "  infring-ops directive-kernel validate-tier1-quality [--directive-id=<id>] [--text-base64=<base64>]"
         );
         println!(
-            "  protheus-ops directive-kernel merge-constraints [--payload-base64=<base64_json>]"
+            "  infring-ops directive-kernel active-directives [--allow-missing=1|0] [--allow-weak-tier1=1|0]"
         );
         println!(
-            "  protheus-ops directive-kernel validate-action-envelope [--payload-base64=<base64_json>]"
+            "  infring-ops directive-kernel merge-constraints [--payload-base64=<base64_json>]"
         );
-        println!("  protheus-ops directive-kernel tier-conflict [--payload-base64=<base64_json>]");
+        println!(
+            "  infring-ops directive-kernel validate-action-envelope [--payload-base64=<base64_json>]"
+        );
+        println!("  infring-ops directive-kernel tier-conflict [--payload-base64=<base64_json>]");
         return 0;
     }
 
@@ -133,7 +133,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     }
                 },
                 "policy_hash": directive_vault_hash(root),
-                "commands": ["protheus directives migrate", "protheus directives status", "protheus directives dashboard"],
+                "commands": ["infring directives migrate", "infring directives status", "infring directives dashboard"],
                 "layer_map": ["0","1","2","client","app"],
                 "claim_evidence": [
                     {

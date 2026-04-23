@@ -162,13 +162,13 @@ pub(crate) fn test_env_guard() -> std::sync::MutexGuard<'static, ()> {
 }
 
 pub fn client_state_root(root: &Path) -> PathBuf {
-    if let Ok(v) = std::env::var("PROTHEUS_SECURITY_STATE_ROOT") {
+    if let Ok(v) = std::env::var("INFRING_SECURITY_STATE_ROOT") {
         let s = v.trim();
         if !s.is_empty() {
             return PathBuf::from(s);
         }
     }
-    if let Ok(v) = std::env::var("PROTHEUS_CLIENT_STATE_ROOT") {
+    if let Ok(v) = std::env::var("INFRING_CLIENT_STATE_ROOT") {
         let s = v.trim();
         if !s.is_empty() {
             return PathBuf::from(s);
@@ -178,7 +178,7 @@ pub fn client_state_root(root: &Path) -> PathBuf {
 }
 
 pub fn core_state_root(root: &Path) -> PathBuf {
-    if let Ok(v) = std::env::var("PROTHEUS_CORE_STATE_ROOT") {
+    if let Ok(v) = std::env::var("INFRING_CORE_STATE_ROOT") {
         let s = v.trim();
         if !s.is_empty() {
             return PathBuf::from(s);
@@ -226,7 +226,7 @@ fn stable_json_string(value: &Value) -> String {
 }
 
 pub fn deterministic_receipt_hash(value: &Value) -> String {
-    protheus_ops_core_v1_bridge::hot_path_allocators::deterministic_hash(value)
+    infring_ops_core_v1_bridge::hot_path_allocators::deterministic_hash(value)
 }
 
 fn to_bool(v: Option<&str>, fallback: bool) -> bool {
@@ -688,7 +688,7 @@ fn run_core_lazy_process_cold_start_with_breakdown(
         .unwrap_or_default()
         .to_ascii_lowercase();
     let executable_supports_domains =
-        exe_name.starts_with("protheus-ops") || exe_name.starts_with("protheusd");
+        exe_name.starts_with("infring-ops") || exe_name.starts_with("infringd");
 
     if !executable_supports_domains {
         let started = Instant::now();
@@ -817,10 +817,10 @@ fn full_install_probe_paths(root: &Path) -> Vec<String> {
         paths.push("dist".to_string());
     }
 
-    for bin in ["protheusd", "protheus-ops", "conduit_daemon"] {
+    for bin in ["infringd", "infring-ops", "conduit_daemon"] {
         if let Some(rel) = find_runtime_binary_rel(root, bin) {
             paths.push(rel);
-            if bin == "protheusd" {
+            if bin == "infringd" {
                 break;
             }
         }

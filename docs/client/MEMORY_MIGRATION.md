@@ -13,7 +13,7 @@ This document tracks the staged Rust memory migration for `V3-RACE-023`.
 
 ## Stage 1 Scope (Completed)
 
-- Rust crate moved to `client/runtime/systems/memory/rust` and renamed to `protheus-memory-core`.
+- Rust crate moved to `client/runtime/systems/memory/rust` and renamed to `infring-memory-core`.
 - SQLite is now the authoritative runtime index store for Rust memory commands.
 - SQLite schema includes:
   - `embeddings`

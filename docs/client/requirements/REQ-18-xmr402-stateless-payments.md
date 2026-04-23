@@ -5,7 +5,7 @@ Date: 2026-03-06
 
 ## Objective
 
-Add privacy-preserving, stateless HTTP 402 payment gating for agent-accessed resources using XMR402-style challenge/proof flow, while preserving Protheus covenant and receipt governance.
+Add privacy-preserving, stateless HTTP 402 payment gating for agent-accessed resources using XMR402-style challenge/proof flow, while preserving Infring covenant and receipt governance.
 
 ## Scope
 

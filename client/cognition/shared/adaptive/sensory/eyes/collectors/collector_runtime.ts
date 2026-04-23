@@ -27,7 +27,7 @@ process.env.EGRESS_GATEWAY_POLICY_PATH = path.join(
 
 function installTsHook() {
   const existing = require.extensions['.ts'];
-  if (existing && existing.__protheusTsHook === true) return;
+  if (existing && existing.__infringTsHook === true) return;
   require.extensions['.ts'] = function transpileTs(module, filename) {
     const src = fs.readFileSync(filename, 'utf8');
     const out = ts.transpileModule(src, {
@@ -43,7 +43,7 @@ function installTsHook() {
     }).outputText;
     module._compile(out, filename);
   };
-  require.extensions['.ts'].__protheusTsHook = true;
+  require.extensions['.ts'].__infringTsHook = true;
 }
 
 installTsHook();
@@ -56,8 +56,8 @@ const EYES_STATE_DIR = process.env.EYES_STATE_DIR
   : path.join(ROOT, 'local', 'state', 'sensory', 'eyes');
 const RATE_STATE_PATH = path.join(EYES_STATE_DIR, 'collector_rate_state.json');
 
-process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
-process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
+process.env.INFRING_OPS_USE_PREBUILT = '0';
+process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '120000';
 const collectorRuntimeBridge = createOpsLaneBridge(
   __dirname,
   'collector_runtime',

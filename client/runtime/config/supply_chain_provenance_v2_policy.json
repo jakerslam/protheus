@@ -4,10 +4,10 @@
   "strict_default": true,
   "required_artifacts": [
     {
-      "id": "protheus-ops",
-      "artifact_path": "target/release/protheus-ops",
-      "sbom_path": "local/state/release/provenance/sbom/protheus-ops.cdx.json",
-      "signature_path": "local/state/release/provenance/signatures/protheus-ops.sig"
+      "id": "infring-ops",
+      "artifact_path": "target/release/infring-ops",
+      "sbom_path": "local/state/release/provenance/sbom/infring-ops.cdx.json",
+      "signature_path": "local/state/release/provenance/signatures/infring-ops.sig"
     },
     {
       "id": "conduit-daemon",

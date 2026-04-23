@@ -161,7 +161,7 @@ main() {
     else
         # Default endpoints to check
         log "Config file not found, checking default endpoints"
-        local default_endpoints=("api.protheus.io" "ws.protheus.io" "status.protheus.io")
+        local default_endpoints=("api.infring.io" "ws.infring.io" "status.infring.io")
         for endpoint in "${default_endpoints[@]}"; do
             if ! check_certificate "$endpoint"; then
                 ((expiring_count++)) || true

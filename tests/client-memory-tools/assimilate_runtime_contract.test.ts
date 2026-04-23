@@ -28,7 +28,7 @@ const { spawnSync } = require('child_process');
 
 const root = path.resolve(__dirname, '..', '..');
 const script = path.join(root, 'client', 'runtime', 'systems', 'tools', 'assimilation_cli_bridge.ts');
-const runOpsScript = path.join(root, 'client', 'runtime', 'systems', 'ops', 'run_protheus_ops.ts');
+const runOpsScript = path.join(root, 'client', 'runtime', 'systems', 'ops', 'run_infring_ops.ts');
 
 // Claim evidence coverage for assimilation hardening SRS rows:
 // V10-ASSIM-001.1 Unified progress UX across known/generic targets
@@ -58,8 +58,8 @@ function parseJson(stdout) {
   return JSON.parse(String(stdout || '').trim());
 }
 
-function runProtheusAssimilate(args) {
-  return spawnSync(process.execPath, [runOpsScript, 'protheusctl', 'assimilate', ...args], {
+function runInfringAssimilate(args) {
+  return spawnSync(process.execPath, [runOpsScript, 'infringctl', 'assimilate', ...args], {
     cwd: root,
     encoding: 'utf8',
     maxBuffer: 1024 * 1024 * 8,
@@ -87,7 +87,7 @@ assert.ok(typeof simulationJson.metrics.p50_ms === 'number');
 assert.ok(typeof simulationJson.metrics.p95_ms === 'number');
 
 // 3) runtime bridge path emits route + receipt + metrics
-const runtime = runProtheusAssimilate([
+const runtime = runInfringAssimilate([
   'dspy',
   '--payload-base64=e30=',
   '--strict=1',

@@ -1,14 +1,14 @@
-use protheus_ops_core::canyon_plane;
+use infring_ops_core::canyon_plane;
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
-const ENV_KEY: &str = "PROTHEUS_CANYON_PLANE_STATE_ROOT";
+const ENV_KEY: &str = "INFRING_CANYON_PLANE_STATE_ROOT";
 
 fn temp_root(prefix: &str) -> tempfile::TempDir {
     tempfile::Builder::new()
-        .prefix(&format!("protheus_{prefix}_"))
+        .prefix(&format!("infring_{prefix}_"))
         .tempdir()
         .expect("tempdir")
 }
@@ -59,7 +59,7 @@ fn assert_claim(payload: &Value, id: &str) {
 }
 
 fn install_stub_binary(root: &Path) -> PathBuf {
-    let bin = root.join("bin").join("protheus-ops");
+    let bin = root.join("bin").join("infring-ops");
     if let Some(parent) = bin.parent() {
         fs::create_dir_all(parent).expect("mkdir bin dir");
     }
@@ -78,16 +78,16 @@ fn install_stub_binary(root: &Path) -> PathBuf {
     bin
 }
 
-fn install_static_protheusd_fixture(root: &Path, size_mb: usize) -> PathBuf {
+fn install_static_infringd_fixture(root: &Path, size_mb: usize) -> PathBuf {
     let bin = root
         .join("target")
         .join("x86_64-unknown-linux-musl")
         .join("release")
-        .join("protheusd");
+        .join("infringd");
     if let Some(parent) = bin.parent() {
-        fs::create_dir_all(parent).expect("mkdir protheusd dir");
+        fs::create_dir_all(parent).expect("mkdir infringd dir");
     }
-    fs::write(&bin, vec![0_u8; size_mb * 1024 * 1024]).expect("write protheusd fixture");
+    fs::write(&bin, vec![0_u8; size_mb * 1024 * 1024]).expect("write infringd fixture");
     bin
 }
 

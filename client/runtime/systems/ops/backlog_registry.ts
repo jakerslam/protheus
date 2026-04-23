@@ -4,9 +4,9 @@
 // TypeScript compatibility shim only.
 // Layer ownership: core/layer0/ops::backlog-registry (authoritative domain route).
 
-const mod = require('../../../../adapters/runtime/protheus_cli_modules.ts').backlogRegistry;
-process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '1';
-process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '600000';
+const mod = require('../../../../adapters/runtime/infring_cli_modules.ts').backlogRegistry;
+process.env.INFRING_OPS_USE_PREBUILT = process.env.INFRING_OPS_USE_PREBUILT || '1';
+process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '600000';
 
 function normalizeArgs(argv = process.argv.slice(2)) {
   return Array.isArray(argv) ? argv.map((token) => String(token || '').trim()).filter(Boolean) : [];

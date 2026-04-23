@@ -66,8 +66,8 @@ const CONVERSATION_EYE_MAX_ITEMS_CAP = Math.max(1, Math.min(32, Number(process.e
 const CONVERSATION_EYE_MAX_ROWS_CAP = Math.max(4, Math.min(256, Number(process.env.CONVERSATION_EYE_MAX_ROWS || 24) || 24));
 const CONVERSATION_EYE_MAX_WORK_MS = Math.max(1000, Math.min(30000, Number(process.env.CONVERSATION_EYE_MAX_WORK_MS || 7000) || 7000));
 
-process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
-process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
+process.env.INFRING_OPS_USE_PREBUILT = '0';
+process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '120000';
 
 const conversationEyeBridge = createOpsLaneBridge(
   __dirname,

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use protheus_ops_core::model_router;
-use protheus_nexus_core_v1::ops_core::p2p_gossip_seed;
+use infring_ops_core::model_router;
+use infring_nexus_core_v1::ops_core::p2p_gossip_seed;
 use serde_json::Value;
 use std::fs;
 use std::path::Path;
@@ -471,7 +471,7 @@ fn v6_batch20_bitnet_backend_routing_and_telemetry_are_receipted() {
             root.path(),
             &[
                 "bitnet-use".to_string(),
-                "--source-model=hf://protheus/edge".to_string(),
+                "--source-model=hf://infring/edge".to_string(),
                 "--target-model=bitnet/local-edge".to_string(),
             ],
         ),

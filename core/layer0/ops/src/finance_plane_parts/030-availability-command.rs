@@ -239,7 +239,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         strict,
         &command,
         "finance_plane_conduit_enforcement",
-        "client/protheusctl -> core/finance-plane",
+        "client/infringctl -> core/finance-plane",
         bypass,
         vec![json!({
             "id": "V7-BANK-001.8",

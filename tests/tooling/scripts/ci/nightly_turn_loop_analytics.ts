@@ -78,7 +78,7 @@ function runOpsKernel(command: string, payload: any) {
       '--manifest-path',
       'core/layer0/ops/Cargo.toml',
       '--bin',
-      'protheus-ops',
+      'infring-ops',
       '--',
       ...command.split(' '),
       payloadArg,
@@ -125,7 +125,7 @@ function isCommandLike(line: string): boolean {
     'kubectl',
     'infring',
     'infringctl',
-    'protheus-ops',
+    'infring-ops',
   ].includes(first);
 }
 

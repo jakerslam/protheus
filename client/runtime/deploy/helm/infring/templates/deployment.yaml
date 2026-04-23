@@ -2,16 +2,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "protheus.fullname" . }}-daemon
+  name: {{ include "infring.fullname" . }}-daemon
   labels:
-    app.kubernetes.io/name: {{ include "protheus.name" . }}
+    app.kubernetes.io/name: {{ include "infring.name" . }}
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/component: daemon
 spec:
   replicas: {{ .Values.daemon.replicas }}
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ include "protheus.name" . }}
+      app.kubernetes.io/name: {{ include "infring.name" . }}
       app.kubernetes.io/instance: {{ .Release.Name }}
       app.kubernetes.io/component: daemon
   strategy:
@@ -19,11 +19,11 @@ spec:
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: {{ include "protheus.name" . }}
+        app.kubernetes.io/name: {{ include "infring.name" . }}
         app.kubernetes.io/instance: {{ .Release.Name }}
         app.kubernetes.io/component: daemon
     spec:
-      serviceAccountName: {{ include "protheus.serviceAccountName" . }}
+      serviceAccountName: {{ include "infring.serviceAccountName" . }}
 {{- if .Values.image.pullSecrets }}
       imagePullSecrets:
 {{ toYaml .Values.image.pullSecrets | indent 8 }}
@@ -49,7 +49,7 @@ spec:
 {{ toYaml . | indent 8 }}
 {{- end }}
       containers:
-        - name: protheusd
+        - name: infringd
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command:
@@ -64,16 +64,16 @@ spec:
 {{- end }}
           envFrom:
             - configMapRef:
-                name: {{ include "protheus.fullname" . }}-runtime
+                name: {{ include "infring.fullname" . }}-runtime
 {{- if or .Values.secrets.create .Values.secrets.existingSecretName }}
             - secretRef:
-                name: {{ include "protheus.secretName" . }}
+                name: {{ include "infring.secretName" . }}
                 optional: {{ .Values.secrets.optional }}
 {{- end }}
           env:
-            - name: PROTHEUS_SSO_CLIENT_ID
+            - name: INFRING_SSO_CLIENT_ID
               value: {{ .Values.sso.clientId | quote }}
-            - name: PROTHEUS_SSO_CLIENT_SECRET_REF
+            - name: INFRING_SSO_CLIENT_SECRET_REF
               value: {{ .Values.sso.clientSecretRef | quote }}
           securityContext:
             allowPrivilegeEscalation: false

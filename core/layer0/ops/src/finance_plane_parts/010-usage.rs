@@ -12,39 +12,39 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 const LANE_ID: &str = "finance_plane";
-const ENV_KEY: &str = "PROTHEUS_FINANCE_PLANE_STATE_ROOT";
+const ENV_KEY: &str = "INFRING_FINANCE_PLANE_STATE_ROOT";
 
 fn usage() {
     println!("Usage:");
     println!(
-        "  protheus-ops finance-plane transaction --op=<post|status> [--tx-id=<id>] [--amount=<n>] [--currency=<code>] [--debit=<acct>] [--credit=<acct>] [--rail=<swift|ach|rtp|fedwire>] [--simulate-fail=1|0] [--strict=1|0]"
+        "  infring-ops finance-plane transaction --op=<post|status> [--tx-id=<id>] [--amount=<n>] [--currency=<code>] [--debit=<acct>] [--credit=<acct>] [--rail=<swift|ach|rtp|fedwire>] [--simulate-fail=1|0] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops finance-plane model-governance --op=<register|validate|backtest|promote|status> --model-id=<id> [--version=<v>] [--evidence-json=<json>] [--strict=1|0]"
+        "  infring-ops finance-plane model-governance --op=<register|validate|backtest|promote|status> --model-id=<id> [--version=<v>] [--evidence-json=<json>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops finance-plane aml --op=<monitor|case|status> [--customer=<id>] [--amount=<n>] [--jurisdiction=<id>] [--strict=1|0]"
+        "  infring-ops finance-plane aml --op=<monitor|case|status> [--customer=<id>] [--amount=<n>] [--jurisdiction=<id>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops finance-plane kyc --op=<onboard|refresh|status> --customer=<id> [--pii-json=<json>] [--risk=<low|medium|high>] [--strict=1|0]"
+        "  infring-ops finance-plane kyc --op=<onboard|refresh|status> --customer=<id> [--pii-json=<json>] [--risk=<low|medium|high>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops finance-plane finance-eye --op=<ingest|status> [--symbol=<id>] [--price=<n>] [--position=<n>] [--strict=1|0]"
+        "  infring-ops finance-plane finance-eye --op=<ingest|status> [--symbol=<id>] [--price=<n>] [--position=<n>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops finance-plane risk-warehouse --op=<aggregate|stress|status> [--scenario=<id>] [--loss=<n>] [--strict=1|0]"
+        "  infring-ops finance-plane risk-warehouse --op=<aggregate|stress|status> [--scenario=<id>] [--loss=<n>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops finance-plane custody --op=<create-wallet|move|attest|status> [--wallet=<id>] [--amount=<n>] [--asset=<id>] [--to-wallet=<id>] [--strict=1|0]"
+        "  infring-ops finance-plane custody --op=<create-wallet|move|attest|status> [--wallet=<id>] [--amount=<n>] [--asset=<id>] [--to-wallet=<id>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops finance-plane zero-trust --op=<issue-grant|verify|status> [--principal=<id>] [--service=<id>] [--mtls-fingerprint=<hash>] [--strict=1|0]"
+        "  infring-ops finance-plane zero-trust --op=<issue-grant|verify|status> [--principal=<id>] [--service=<id>] [--mtls-fingerprint=<hash>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops finance-plane availability --op=<register-zone|failover|chaos-test|status> [--zone=<id>] [--state=<ACTIVE|STANDBY|FAILED>] [--target-zone=<id>] [--strict=1|0]"
+        "  infring-ops finance-plane availability --op=<register-zone|failover|chaos-test|status> [--zone=<id>] [--state=<ACTIVE|STANDBY|FAILED>] [--target-zone=<id>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops finance-plane regulatory-report --op=<generate|status> [--report=<FRY14|FFIEC031|SAR|CTR|BASEL_LCR>] [--strict=1|0]"
+        "  infring-ops finance-plane regulatory-report --op=<generate|status> [--report=<FRY14|FFIEC031|SAR|CTR|BASEL_LCR>] [--strict=1|0]"
     );
 }
 

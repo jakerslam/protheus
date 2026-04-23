@@ -5,7 +5,7 @@ use std::path::Path;
 
 const USAGE: &[&str] = &[
     "Usage:",
-    "  protheus-ops context-doctor run|status|scan|export-json|export-png [--policy=<path>] [--state-path=<path>] [--strict=1|0]",
+    "  infring-ops context-doctor run|status|scan|export-json|export-png [--policy=<path>] [--state-path=<path>] [--strict=1|0]",
 ];
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
@@ -15,7 +15,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         &standard_lane_spec(
             "context_doctor",
             "context_doctor",
-            "protheus-ops context-doctor",
+            "infring-ops context-doctor",
             USAGE,
         ),
     )

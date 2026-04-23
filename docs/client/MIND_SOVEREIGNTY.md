@@ -1,6 +1,6 @@
 # Mind Sovereignty
 
-Mind sovereignty is the non-negotiable top rule for Protheus.
+Mind sovereignty is the non-negotiable top rule for Infring.
 
 ## Kernel Guarantees
 

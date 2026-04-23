@@ -22,10 +22,10 @@ Role bootstrap one-command contract:
 
 | Role | Bootstrap command | Expected outcomes |
 | --- | --- | --- |
-| `operator` | `./tests/tooling/scripts/onboarding/protheus_onboarding_bootstrap.sh --role=operator --install=1 --setup=1 --install-mode=full --gateway=1` | `binary_outcome=ready`, `setup_outcome=completed`, `setup_status_check=completed`, `gateway_outcome=started`, `status=success` |
-| `backend` | `./tests/tooling/scripts/onboarding/protheus_onboarding_bootstrap.sh --role=backend --install=1 --setup=1 --install-mode=full` | `binary_outcome=ready`, `setup_outcome=completed`, `setup_status_check=completed`, `gateway_outcome=not_requested`, `status=success` |
-| `infra` | `./tests/tooling/scripts/onboarding/protheus_onboarding_bootstrap.sh --role=infra --install=1 --setup=1 --install-mode=full` | `binary_outcome=ready`, `setup_outcome=completed`, `setup_status_check=completed`, `gateway_outcome=not_requested`, `status=success` |
-| `security` | `./tests/tooling/scripts/onboarding/protheus_onboarding_bootstrap.sh --role=security --install=1 --setup=1 --install-mode=full` | `binary_outcome=ready`, `setup_outcome=completed`, `setup_status_check=completed`, `gateway_outcome=not_requested`, `status=success` |
+| `operator` | `./tests/tooling/scripts/onboarding/infring_onboarding_bootstrap.sh --role=operator --install=1 --setup=1 --install-mode=full --gateway=1` | `binary_outcome=ready`, `setup_outcome=completed`, `setup_status_check=completed`, `gateway_outcome=started`, `status=success` |
+| `backend` | `./tests/tooling/scripts/onboarding/infring_onboarding_bootstrap.sh --role=backend --install=1 --setup=1 --install-mode=full` | `binary_outcome=ready`, `setup_outcome=completed`, `setup_status_check=completed`, `gateway_outcome=not_requested`, `status=success` |
+| `infra` | `./tests/tooling/scripts/onboarding/infring_onboarding_bootstrap.sh --role=infra --install=1 --setup=1 --install-mode=full` | `binary_outcome=ready`, `setup_outcome=completed`, `setup_status_check=completed`, `gateway_outcome=not_requested`, `status=success` |
+| `security` | `./tests/tooling/scripts/onboarding/infring_onboarding_bootstrap.sh --role=security --install=1 --setup=1 --install-mode=full` | `binary_outcome=ready`, `setup_outcome=completed`, `setup_status_check=completed`, `gateway_outcome=not_requested`, `status=success` |
 
 ## Release-Mode Runtime Surface Contract
 
@@ -44,7 +44,7 @@ Required vs optional command surfaces:
 Wrapper contract:
 
 - Canonical wrappers: `infring`, `infringctl`, `infringd`
-- Legacy aliases (`protheus`, `protheusctl`, `protheusd`) are deprecated compatibility shims.
+- Legacy aliases (`infring`, `infringctl`, `infringd`) are deprecated compatibility shims.
 
 ## Shared Prerequisites
 
@@ -66,7 +66,7 @@ Wrapper contract:
 ### Day 0
 
 - Run one-command bootstrap from repo root (installs if missing + starts dashboard):
-  - `./tests/tooling/scripts/onboarding/protheus_onboarding_bootstrap.sh --role=operator --install=1 --setup=1 --install-mode=full --gateway=1`
+  - `./tests/tooling/scripts/onboarding/infring_onboarding_bootstrap.sh --role=operator --install=1 --setup=1 --install-mode=full --gateway=1`
 - Verify control plane:
   - `infring gateway status`
 - Verify setup state:
@@ -104,7 +104,7 @@ Wrapper contract:
 ### Day 0
 
 - Bootstrap first so CLI/runtime are ready:
-  - `./tests/tooling/scripts/onboarding/protheus_onboarding_bootstrap.sh --role=backend --install=1 --setup=1 --install-mode=full`
+  - `./tests/tooling/scripts/onboarding/infring_onboarding_bootstrap.sh --role=backend --install=1 --setup=1 --install-mode=full`
 - Run full local baseline:
   - `npm ci`
   - `npm run lint`

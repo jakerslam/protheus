@@ -57,7 +57,7 @@
     "client/runtime/systems/helix/confirmed_malice_quarantine.ts",
     "client/runtime/systems/helix/helix_admission_gate.ts",
     "client/runtime/systems/helix/helix_controller.ts",
-    "client/runtime/systems/hybrid/mobile/protheus_mobile_adapter.ts",
+    "client/runtime/systems/hybrid/mobile/infring_mobile_adapter.ts",
     "client/runtime/systems/memory/dynamic_memory_embedding_adapter.ts",
     "client/runtime/systems/memory/memory_layer_guard.ts",
     "client/runtime/systems/migration/post_migration_verification_report.ts",

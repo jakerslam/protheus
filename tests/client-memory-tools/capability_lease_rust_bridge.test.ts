@@ -22,8 +22,8 @@ function main() {
   process.env.CAPABILITY_LEASE_KEY = 'test-capability-lease-key';
   process.env.CAPABILITY_LEASE_STATE_PATH = statePath;
   process.env.CAPABILITY_LEASE_AUDIT_PATH = auditPath;
-  process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
-  process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = '120000';
+  process.env.INFRING_OPS_USE_PREBUILT = '0';
+  process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = '120000';
 
   const mod = resetModule(path.join(ROOT, 'client/lib/capability_lease.ts'));
   const issued = mod.issueLease({

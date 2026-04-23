@@ -31,7 +31,7 @@ impl PermissionVerdict {
 fn usage() {
     println!("command-permission-kernel commands:");
     println!(
-        "  protheus-ops command-permission-kernel <evaluate|match-pattern|extract-pattern> [--payload=<json>|--payload-base64=<base64_json>]"
+        "  infring-ops command-permission-kernel <evaluate|match-pattern|extract-pattern> [--payload=<json>|--payload-base64=<base64_json>]"
     );
 }
 

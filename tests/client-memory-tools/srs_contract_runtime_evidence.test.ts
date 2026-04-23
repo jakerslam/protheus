@@ -33,7 +33,7 @@ function readDoneIdsFromSrs() {
 function readRuntimeManifestIds() {
   const out = execFileSync(
     'cargo',
-    ['run', '-q', '-p', 'protheus-ops-core', '--bin', 'protheus-ops', '--', 'runtime-systems', 'manifest', '--json=1'],
+    ['run', '-q', '-p', 'infring-ops-core', '--bin', 'infring-ops', '--', 'runtime-systems', 'manifest', '--json=1'],
     {
       cwd: ROOT,
       encoding: 'utf8',

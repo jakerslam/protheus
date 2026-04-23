@@ -8,7 +8,7 @@ This wave executes the highest-overage splitable Rust backend files by ordered i
 2. DONE | over=1526 | parts=4 | core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot.rs
 3. DONE | over=1459 | parts=4 | core/layer0/ops/src/batch_query_primitive_parts/010-core.rs
 4. DONE | over=1342 | parts=4 | core/layer0/ops/src/dashboard_compat_api_parts/020-usage-from-state.rs
-5. DONE | over=1229 | parts=3 | core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security.rs
+5. DONE | over=1229 | parts=3 | core/layer0/ops/src/infringctl_parts/020-evaluate-dispatch-security.rs
 6. DONE | over=1129 | parts=3 | core/layer0/ops/src/duality_seed_parts/040-op-dispatch.rs
 7. DONE | over=1122 | parts=4 | core/layer0/ops/src/dashboard_provider_runtime_parts/030-model-discovery-and-mutations.rs
 8. DONE | over=1102 | parts=3 | core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/020-agent-create-without-name-returns-non-generic-id.rs

@@ -20,12 +20,12 @@ fn assert_no_runtime_context_leak(raw: &str) {
     }
 }
 
-fn run_protheusd(root: &Path, args: &[&str]) -> Value {
-    let output = Command::new(env!("CARGO_BIN_EXE_protheusd"))
+fn run_infringd(root: &Path, args: &[&str]) -> Value {
+    let output = Command::new(env!("CARGO_BIN_EXE_infringd"))
         .current_dir(root)
         .args(args)
         .output()
-        .expect("run protheusd");
+        .expect("run infringd");
     assert!(
         output.status.success(),
         "stderr: {}",
@@ -42,7 +42,7 @@ fn v9_pure_intel_001_1_think_emits_structured_receipt_and_memory_hits() {
     let temp = tempfile::tempdir().expect("tempdir");
     let root = temp.path();
 
-    let write = run_protheusd(
+    let write = run_infringd(
         root,
         &[
             "memory",
@@ -56,7 +56,7 @@ fn v9_pure_intel_001_1_think_emits_structured_receipt_and_memory_hits() {
         Some("pure_memory_write")
     );
 
-    let think = run_protheusd(
+    let think = run_infringd(
         root,
         &[
             "think",
@@ -99,21 +99,21 @@ fn v9_pure_intel_001_2_research_status_fetch_and_diagnostics_run_in_rust_core() 
     .expect("write fixture");
     let url = format!("file://{}", fixture.display());
 
-    let status = run_protheusd(root, &["research", "status"]);
+    let status = run_infringd(root, &["research", "status"]);
     assert_eq!(status.get("ok").and_then(Value::as_bool), Some(true));
     assert_eq!(
         status.get("type").and_then(Value::as_str),
         Some("research_plane_status")
     );
 
-    let diagnostics = run_protheusd(root, &["research", "diagnostics"]);
+    let diagnostics = run_infringd(root, &["research", "diagnostics"]);
     assert_eq!(diagnostics.get("ok").and_then(Value::as_bool), Some(true));
     assert_eq!(
         diagnostics.get("type").and_then(Value::as_str),
         Some("research_plane_diagnostics")
     );
 
-    let fetch = run_protheusd(root, &["research", "fetch", &format!("--url={url}")]);
+    let fetch = run_infringd(root, &["research", "fetch", &format!("--url={url}")]);
     assert_eq!(fetch.get("ok").and_then(Value::as_bool), Some(true));
     assert_eq!(
         fetch.get("type").and_then(Value::as_str),
@@ -138,14 +138,14 @@ fn v9_pure_intel_001_3_memory_status_write_and_query_round_trip_through_core_sta
     let temp = tempfile::tempdir().expect("tempdir");
     let root = temp.path();
 
-    let status = run_protheusd(root, &["memory", "status"]);
+    let status = run_infringd(root, &["memory", "status"]);
     assert_eq!(status.get("ok").and_then(Value::as_bool), Some(true));
     assert_eq!(
         status.get("type").and_then(Value::as_str),
         Some("pure_memory_status")
     );
 
-    let write = run_protheusd(
+    let write = run_infringd(
         root,
         &[
             "memory",
@@ -166,7 +166,7 @@ fn v9_pure_intel_001_3_memory_status_write_and_query_round_trip_through_core_sta
         .map(|value| value.ends_with("memory/pure_workspace_memory_v1.jsonl"))
         .unwrap_or(false));
 
-    let query = run_protheusd(
+    let query = run_infringd(
         root,
         &[
             "memory",

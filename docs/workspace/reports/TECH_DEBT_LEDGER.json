@@ -62,8 +62,8 @@
       "planned_batch_date": "2026-04-23",
       "paths": [
         "core/layer0/ops/src/assimilate_kernel_support.rs",
-        "core/layer0/ops/src/protheusctl_routes_parts/010-command-routing.rs",
-        "core/layer0/ops/src/protheusctl_parts/015-cli-domains.rs"
+        "core/layer0/ops/src/infringctl_routes_parts/010-command-routing.rs",
+        "core/layer0/ops/src/infringctl_parts/015-cli-domains.rs"
       ]
     },
     {

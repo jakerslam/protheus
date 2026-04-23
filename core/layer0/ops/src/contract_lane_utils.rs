@@ -202,7 +202,7 @@ pub fn infer_infring_home_from_exe() -> Option<PathBuf> {
 pub fn resolve_preferred_node_binary() -> String {
     let mut candidates = Vec::<String>::new();
 
-    for key in ["PROTHEUS_NODE_BINARY", "INFRING_NODE_BINARY"] {
+    for key in ["INFRING_NODE_BINARY", "INFRING_NODE_BINARY"] {
         if let Ok(value) = env::var(key) {
             let trimmed = value.trim();
             if !trimmed.is_empty() {
@@ -211,7 +211,7 @@ pub fn resolve_preferred_node_binary() -> String {
         }
     }
 
-    for key in ["INFRING_HOME", "PROTHEUS_HOME"] {
+    for key in ["INFRING_HOME", "INFRING_HOME"] {
         if let Ok(value) = env::var(key) {
             let trimmed = value.trim();
             if !trimmed.is_empty() {
@@ -237,8 +237,8 @@ pub fn resolve_preferred_node_binary() -> String {
     }
     String::new()
 }
-pub fn resolve_protheus_ops_command(root: &Path, domain: &str) -> (String, Vec<String>) {
-    let explicit = env::var("PROTHEUS_OPS_BIN").ok();
+pub fn resolve_infring_ops_command(root: &Path, domain: &str) -> (String, Vec<String>) {
+    let explicit = env::var("INFRING_OPS_BIN").ok();
     if let Some(bin) = explicit {
         let trimmed = bin.trim();
         if !trimmed.is_empty() {
@@ -246,14 +246,14 @@ pub fn resolve_protheus_ops_command(root: &Path, domain: &str) -> (String, Vec<S
         }
     }
 
-    let release = root.join("target").join("release").join("protheus-ops");
+    let release = root.join("target").join("release").join("infring-ops");
     if release.exists() {
         return (
             release.to_string_lossy().to_string(),
             vec![domain.to_string()],
         );
     }
-    let debug = root.join("target").join("debug").join("protheus-ops");
+    let debug = root.join("target").join("debug").join("infring-ops");
     if debug.exists() {
         return (
             debug.to_string_lossy().to_string(),
@@ -269,7 +269,7 @@ pub fn resolve_protheus_ops_command(root: &Path, domain: &str) -> (String, Vec<S
             "--manifest-path".to_string(),
             "core/layer0/ops/Cargo.toml".to_string(),
             "--bin".to_string(),
-            "protheus-ops".to_string(),
+            "infring-ops".to_string(),
             "--".to_string(),
             domain.to_string(),
         ],

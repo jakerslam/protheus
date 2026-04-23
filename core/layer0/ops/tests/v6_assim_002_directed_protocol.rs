@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SRS coverage: V6-ASSIM-002.1 ... V6-ASSIM-002.8
 
-use protheus_ops_core::directed_assimilation_protocol::{
+use infring_ops_core::directed_assimilation_protocol::{
     run_directed_assimilation, AdmissionVerdict, DirectedAssimilationInput, TransferClass,
 };
 

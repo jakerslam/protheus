@@ -4,6 +4,6 @@ Thin multi-provider chat UI reference surface over Rust core `app-plane`.
 
 ## Commands
 
-- `protheus app run chat-ui "summarize this"`
-- `protheus app switch-provider chat-ui --provider=frontier_provider --model=claude-sonnet`
-- `protheus app history chat-ui --session-id=<id>`
+- `infring app run chat-ui "summarize this"`
+- `infring app switch-provider chat-ui --provider=frontier_provider --model=claude-sonnet`
+- `infring app history chat-ui --session-id=<id>`

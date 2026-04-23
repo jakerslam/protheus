@@ -6,9 +6,9 @@
 
 - Manual:
   - `node client/runtime/systems/self_audit/illusion_integrity_lane.ts run --trigger=manual`
-  - `protheusctl audit illusion`
+  - `infringctl audit illusion`
 - Startup hook:
-  - Triggered by `protheus start` / `protheus restart` in `protheus_control_plane`
+  - Triggered by `infring start` / `infring restart` in `infring_control_plane`
 - Promotion hook:
   - Triggered during release/environment promotion flows
 

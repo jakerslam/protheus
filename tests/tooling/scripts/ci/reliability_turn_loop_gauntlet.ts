@@ -158,7 +158,7 @@ function writeJson(pathname: string, payload: unknown): void {
 function runCargoTestWithTimeoutKill(testName: string) {
   const out = spawnSync(
     'cargo',
-    ['test', '-p', 'protheus-ops-core', '--lib', testName, '--quiet', '--', '--nocapture'],
+    ['test', '-p', 'infring-ops-core', '--lib', testName, '--quiet', '--', '--nocapture'],
     {
       cwd: ROOT,
       encoding: 'utf8',
@@ -171,7 +171,7 @@ function runCargoTestWithTimeoutKill(testName: string) {
   const timedOut =
     !!out.error && (timeoutMessage.includes('timed out') || timeoutMessage.includes('etimedout'));
   if (timedOut) {
-    const pattern = `cargo test -p protheus-ops-core --lib ${testName}`;
+    const pattern = `cargo test -p infring-ops-core --lib ${testName}`;
     spawnSync('pkill', ['-TERM', '-f', pattern], { cwd: ROOT, stdio: 'ignore' });
     spawnSync('pkill', ['-KILL', '-f', pattern], { cwd: ROOT, stdio: 'ignore' });
   }
@@ -278,7 +278,7 @@ const report = {
   checks: results,
   failures,
   recovery_hints: recoveryHints(results),
-  command: 'cargo test -p protheus-ops-core --lib <test-name> -- --nocapture',
+  command: 'cargo test -p infring-ops-core --lib <test-name> -- --nocapture',
 };
 
 fs.mkdirSync(ARTIFACT_DIR, { recursive: true });

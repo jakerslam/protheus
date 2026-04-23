@@ -42,8 +42,8 @@ function main() {
   }, null, 2));
 
   process.env.INFRING_WORKSPACE = workspace;
-  process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
-  process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = '120000';
+  process.env.INFRING_OPS_USE_PREBUILT = '0';
+  process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = '120000';
 
   const mod = resetModule(path.join(ROOT, 'client/runtime/systems/ops/readiness_bridge_pack.ts'));
   const run = captureMain(mod.main, ['run', `--policy=${policyPath}`, '--strict=0']);

@@ -285,7 +285,7 @@ pub fn run(cli_root: &Path, argv: &[String]) -> i32 {
         "status" => Ok(cmd_status(&root, argv)),
         "help" | "--help" | "-h" => {
             println!("Usage:");
-            println!("  protheus-ops adaptive-contract-version-governance run|status [--policy=<path>] [--strict=1|0]");
+            println!("  infring-ops adaptive-contract-version-governance run|status [--policy=<path>] [--strict=1|0]");
             return 0;
         }
         _ => Ok(json!({"ok":false,"error":format!("unknown_command:{cmd}")})),

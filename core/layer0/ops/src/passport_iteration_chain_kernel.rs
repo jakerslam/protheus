@@ -17,8 +17,8 @@ const MAX_PAYLOAD_BYTES: usize = 128 * 1024;
 
 fn usage() {
     println!("passport-iteration-chain-kernel commands:");
-    println!("  protheus-ops passport-iteration-chain-kernel record --payload-base64=<json>");
-    println!("  protheus-ops passport-iteration-chain-kernel status [--payload-base64=<json>]");
+    println!("  infring-ops passport-iteration-chain-kernel record --payload-base64=<json>");
+    println!("  infring-ops passport-iteration-chain-kernel status [--payload-base64=<json>]");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {
@@ -128,7 +128,7 @@ fn normalize_token(raw: &str, max_len: usize) -> String {
 }
 
 fn workspace_root(root: &Path) -> PathBuf {
-    if let Ok(raw) = std::env::var("PROTHEUS_WORKSPACE_ROOT") {
+    if let Ok(raw) = std::env::var("INFRING_WORKSPACE_ROOT") {
         let trimmed = raw.trim();
         if !trimmed.is_empty() {
             return PathBuf::from(trimmed);
@@ -142,7 +142,7 @@ fn runtime_root(root: &Path, payload: &Map<String, Value>) -> PathBuf {
     if !explicit.is_empty() {
         return PathBuf::from(explicit);
     }
-    if let Ok(raw) = std::env::var("PROTHEUS_RUNTIME_ROOT") {
+    if let Ok(raw) = std::env::var("INFRING_RUNTIME_ROOT") {
         let trimmed = raw.trim();
         if !trimmed.is_empty() {
             return PathBuf::from(trimmed);

@@ -35,12 +35,12 @@
     }
   ],
   "cli": {
-    "run": "protheus-ops runtime-systems run --system-id=V9-AUDIT-026.2 --strict=1 --apply=1",
-    "verify": "protheus-ops runtime-systems verify --system-id=V9-AUDIT-026.2"
+    "run": "infring-ops runtime-systems run --system-id=V9-AUDIT-026.2 --strict=1 --apply=1",
+    "verify": "infring-ops runtime-systems verify --system-id=V9-AUDIT-026.2"
   },
   "validation": {
-    "lane_command": "protheus-ops srs-contract-runtime run --id=V9-AUDIT-026.2",
-    "status_command": "protheus-ops srs-contract-runtime status --id=V9-AUDIT-026.2",
+    "lane_command": "infring-ops srs-contract-runtime run --id=V9-AUDIT-026.2",
+    "status_command": "infring-ops srs-contract-runtime status --id=V9-AUDIT-026.2",
     "fail_closed_on_missing_contract": true
   }
 }

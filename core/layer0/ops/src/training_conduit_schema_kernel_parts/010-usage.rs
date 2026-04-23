@@ -14,17 +14,17 @@ use crate::{now_iso, parse_args};
 fn usage() {
     println!("training-conduit-schema-kernel commands:");
     println!(
-        "  protheus-ops training-conduit-schema-kernel default-policy --payload-base64=<json>"
+        "  infring-ops training-conduit-schema-kernel default-policy --payload-base64=<json>"
     );
     println!(
-        "  protheus-ops training-conduit-schema-kernel normalize-policy --payload-base64=<json>"
+        "  infring-ops training-conduit-schema-kernel normalize-policy --payload-base64=<json>"
     );
-    println!("  protheus-ops training-conduit-schema-kernel load-policy --payload-base64=<json>");
+    println!("  infring-ops training-conduit-schema-kernel load-policy --payload-base64=<json>");
     println!(
-        "  protheus-ops training-conduit-schema-kernel build-metadata --payload-base64=<json>"
+        "  infring-ops training-conduit-schema-kernel build-metadata --payload-base64=<json>"
     );
     println!(
-        "  protheus-ops training-conduit-schema-kernel validate-metadata --payload-base64=<json>"
+        "  infring-ops training-conduit-schema-kernel validate-metadata --payload-base64=<json>"
     );
 }
 
@@ -191,13 +191,13 @@ fn default_policy(root_dir: &Path) -> Value {
     json!({
         "version": "1.0",
         "schema": {
-            "id": "protheus_training_conduit_datum",
+            "id": "infring_training_conduit_datum",
             "version": "1.0.0"
         },
         "defaults": {
             "owner_id": "local_operator",
             "owner_type": "human_operator",
-            "license_id": "internal_protheus",
+            "license_id": "internal_infring",
             "consent_status": "granted",
             "consent_mode": "operator_policy",
             "consent_evidence_ref": rel_path(root_dir, "config/training_conduit_policy.json").unwrap_or_else(|| "config/training_conduit_policy.json".to_string()),

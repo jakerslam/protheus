@@ -23,22 +23,22 @@ function mirrorEnvAlias(primaryKey, legacyKey, fallback = '') {
 
 function normalizeSecurityIntegrityEnvAliases() {
   normalizeOpsBridgeEnvAliases();
-  mirrorEnvAlias('INFRING_RUNTIME_ROOT', 'PROTHEUS_RUNTIME_ROOT');
-  mirrorEnvAlias('INFRING_WORKSPACE_ROOT', 'PROTHEUS_WORKSPACE_ROOT');
-  mirrorEnvAlias('INFRING_SECURITY_INTEGRITY_POLICY_PATH', 'PROTHEUS_SECURITY_INTEGRITY_POLICY_PATH');
-  mirrorEnvAlias('INFRING_SECURITY_INTEGRITY_LOG_PATH', 'PROTHEUS_SECURITY_INTEGRITY_LOG_PATH');
+  mirrorEnvAlias('INFRING_RUNTIME_ROOT', 'INFRING_RUNTIME_ROOT');
+  mirrorEnvAlias('INFRING_WORKSPACE_ROOT', 'INFRING_WORKSPACE_ROOT');
+  mirrorEnvAlias('INFRING_SECURITY_INTEGRITY_POLICY_PATH', 'INFRING_SECURITY_INTEGRITY_POLICY_PATH');
+  mirrorEnvAlias('INFRING_SECURITY_INTEGRITY_LOG_PATH', 'INFRING_SECURITY_INTEGRITY_LOG_PATH');
 }
 
 normalizeSecurityIntegrityEnvAliases();
 
 function runtimeRoot(rootOverride = null) {
   if (rootOverride) return path.resolve(String(rootOverride));
-  if (process.env.INFRING_RUNTIME_ROOT || process.env.PROTHEUS_RUNTIME_ROOT) {
-    return path.resolve(process.env.INFRING_RUNTIME_ROOT || process.env.PROTHEUS_RUNTIME_ROOT);
+  if (process.env.INFRING_RUNTIME_ROOT || process.env.INFRING_RUNTIME_ROOT) {
+    return path.resolve(process.env.INFRING_RUNTIME_ROOT || process.env.INFRING_RUNTIME_ROOT);
   }
-  if (process.env.INFRING_WORKSPACE_ROOT || process.env.PROTHEUS_WORKSPACE_ROOT) {
+  if (process.env.INFRING_WORKSPACE_ROOT || process.env.INFRING_WORKSPACE_ROOT) {
     return path.join(
-      path.resolve(process.env.INFRING_WORKSPACE_ROOT || process.env.PROTHEUS_WORKSPACE_ROOT),
+      path.resolve(process.env.INFRING_WORKSPACE_ROOT || process.env.INFRING_WORKSPACE_ROOT),
       'client',
       'runtime'
     );
@@ -49,7 +49,7 @@ function runtimeRoot(rootOverride = null) {
 function defaultPolicyPath(rootOverride = null) {
   const explicit = String(
     process.env.INFRING_SECURITY_INTEGRITY_POLICY_PATH
-      || process.env.PROTHEUS_SECURITY_INTEGRITY_POLICY_PATH
+      || process.env.INFRING_SECURITY_INTEGRITY_POLICY_PATH
       || ''
   ).trim();
   if (explicit) return path.resolve(explicit);
@@ -59,7 +59,7 @@ function defaultPolicyPath(rootOverride = null) {
 function defaultLogPath(rootOverride = null) {
   const explicit = String(
     process.env.INFRING_SECURITY_INTEGRITY_LOG_PATH
-      || process.env.PROTHEUS_SECURITY_INTEGRITY_LOG_PATH
+      || process.env.INFRING_SECURITY_INTEGRITY_LOG_PATH
       || ''
   ).trim();
   if (explicit) return path.resolve(explicit);
@@ -70,11 +70,11 @@ const DEFAULT_POLICY_PATH = defaultPolicyPath();
 const DEFAULT_LOG_PATH = defaultLogPath();
 
 process.env.INFRING_OPS_USE_PREBUILT = process.env.INFRING_OPS_USE_PREBUILT || '0';
-process.env.PROTHEUS_OPS_USE_PREBUILT =
-  process.env.PROTHEUS_OPS_USE_PREBUILT || process.env.INFRING_OPS_USE_PREBUILT || '0';
+process.env.INFRING_OPS_USE_PREBUILT =
+  process.env.INFRING_OPS_USE_PREBUILT || process.env.INFRING_OPS_USE_PREBUILT || '0';
 process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '120000';
-process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS =
-  process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '120000';
+process.env.INFRING_OPS_LOCAL_TIMEOUT_MS =
+  process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '120000';
 const bridge = createOpsLaneBridge(__dirname, 'security_integrity', 'security-integrity-kernel');
 
 function encodeBase64(value) {

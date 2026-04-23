@@ -1,7 +1,7 @@
 {
   "version": "v1",
   "kind": "eval_loop_contract",
-  "entrypoint": "protheus eval run",
+  "entrypoint": "infring eval run",
   "allowed_actions": [
     "status",
     "enable-neuralavb",

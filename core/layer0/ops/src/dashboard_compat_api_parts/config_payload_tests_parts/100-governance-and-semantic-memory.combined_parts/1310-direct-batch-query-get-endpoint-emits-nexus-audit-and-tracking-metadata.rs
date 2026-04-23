@@ -1,6 +1,6 @@
 fn direct_batch_query_get_endpoint_emits_nexus_audit_and_tracking_metadata() {
     let _guard = WEB_ENDPOINT_ENV_MUTEX.lock().expect("lock");
-    std::env::remove_var("PROTHEUS_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE");
+    std::env::remove_var("INFRING_HIERARCHICAL_NEXUS_BLOCK_CLIENT_INGRESS_ROUTE");
     let root = governance_temp_root();
     let snapshot = governance_ok_snapshot();
     let out = handle(

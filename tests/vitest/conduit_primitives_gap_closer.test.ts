@@ -79,10 +79,10 @@ describe('conduit primitive wrapper contract', () => {
   test('install.sh exists and references hosted installer endpoint', () => {
     const source = fs.readFileSync(path.join(ROOT, 'install.sh'), 'utf8');
     expect(source.includes('api.github.com/repos')).toBe(true);
-    expect(source.includes('protheus-ops')).toBe(true);
+    expect(source.includes('infring-ops')).toBe(true);
     expect(source.includes('infringd')).toBe(true);
     expect(source.includes('--repair')).toBe(true);
-    expect(source.includes("'protheusd' is deprecated")).toBe(true);
+    expect(source.includes("'infringd' is deprecated")).toBe(true);
     expect(source.includes('persist_path_for_shell')).toBe(true);
     expect(source.includes('PATH persisted in')).toBe(true);
     expect(source.includes('activate now: .')).toBe(true);
@@ -201,7 +201,7 @@ describe('conduit primitive wrapper contract', () => {
 
   test('onboarding bootstrap script emits setup outcome and canonical sequence fields', () => {
     const source = fs.readFileSync(
-      path.join(ROOT, 'tests/tooling/scripts/onboarding/protheus_onboarding_bootstrap.sh'),
+      path.join(ROOT, 'tests/tooling/scripts/onboarding/infring_onboarding_bootstrap.sh'),
       'utf8',
     );
     expect(source.includes('"setup_outcome"')).toBe(true);
@@ -224,7 +224,7 @@ describe('conduit primitive wrapper contract', () => {
   });
 
   test('setup wizard receipts include deterministic onboarding handoff contract', () => {
-    const source = fs.readFileSync(path.join(ROOT, 'adapters/runtime/protheus_setup_wizard.ts'), 'utf8');
+    const source = fs.readFileSync(path.join(ROOT, 'adapters/runtime/infring_setup_wizard.ts'), 'utf8');
     expect(source.includes('incomplete_state_setup_handoff_v1')).toBe(true);
     expect(source.includes('first_run_onboarding_wizard_policy.json')).toBe(true);
     expect(source.includes('loadFirstRunOnboardingPolicy')).toBe(true);
@@ -251,7 +251,7 @@ describe('conduit primitive wrapper contract', () => {
   });
 
   test('unknown command guard emits deterministic recovery commands and expectations', () => {
-    const source = fs.readFileSync(path.join(ROOT, 'adapters/runtime/protheus_cli_modules.ts'), 'utf8');
+    const source = fs.readFileSync(path.join(ROOT, 'adapters/runtime/infring_cli_modules.ts'), 'utf8');
     expect(source.includes('path_reload_command')).toBe(true);
     expect(source.includes('noninteractive_opt_in_required')).toBe(true);
     expect(source.includes('noninteractive_opt_in_command')).toBe(true);
@@ -327,7 +327,7 @@ describe('conduit primitive wrapper contract', () => {
 
   test('node-runtime-missing fallback includes deterministic setup/gateway/doctor commands', () => {
     const boolEnvParts = collectFilesUnder(
-      'core/layer0/ops/src/protheusctl_parts/010-bool-env.rs.parts',
+      'core/layer0/ops/src/infringctl_parts/010-bool-env.rs.parts',
       '.rs',
     );
     const source = boolEnvParts
@@ -345,7 +345,7 @@ describe('conduit primitive wrapper contract', () => {
     const source = fs.readFileSync(
       path.join(
         ROOT,
-        'core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security_parts/000-part.rs',
+        'core/layer0/ops/src/infringctl_parts/020-evaluate-dispatch-security_parts/000-part.rs',
       ),
       'utf8',
     );
@@ -366,7 +366,7 @@ describe('conduit primitive wrapper contract', () => {
     const source = fs.readFileSync(
       path.join(
         ROOT,
-        'core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security_parts/002-part.rs',
+        'core/layer0/ops/src/infringctl_parts/020-evaluate-dispatch-security_parts/002-part.rs',
       ),
       'utf8',
     );
@@ -384,9 +384,9 @@ describe('conduit primitive wrapper contract', () => {
 
   test('install doctor recovery hints include setup and gateway status follow-ups', () => {
     const doctorParts = [
-      'core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security.combined.rs',
+      'core/layer0/ops/src/infringctl_parts/020-evaluate-dispatch-security.combined.rs',
       ...collectFilesUnder(
-        'core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security.combined_parts',
+        'core/layer0/ops/src/infringctl_parts/020-evaluate-dispatch-security.combined_parts',
         '.rs',
       ),
     ];
@@ -403,7 +403,7 @@ describe('conduit primitive wrapper contract', () => {
     const policyPath = path.join(ROOT, 'client/runtime/config/first_run_onboarding_wizard_policy.json');
     const policySource = fs.existsSync(policyPath) ? fs.readFileSync(policyPath, 'utf8') : '';
     const setupWizardSource = fs.readFileSync(
-      path.join(ROOT, 'adapters/runtime/protheus_setup_wizard.ts'),
+      path.join(ROOT, 'adapters/runtime/infring_setup_wizard.ts'),
       'utf8',
     );
     const source = `${policySource}\n${setupWizardSource}`;
@@ -447,8 +447,8 @@ describe('conduit primitive wrapper contract', () => {
     expect(source.includes('runLocalOpsDomainViaIpc')).toBe(true);
   });
 
-  test('run_protheus_ops is bridge-first with explicit legacy process override', () => {
-    const source = fs.readFileSync(path.join(ROOT, 'adapters/runtime/run_protheus_ops.ts'), 'utf8');
+  test('run_infring_ops is bridge-first with explicit legacy process override', () => {
+    const source = fs.readFileSync(path.join(ROOT, 'adapters/runtime/run_infring_ops.ts'), 'utf8');
     expect(source.includes('createOpsLaneBridge')).toBe(true);
     expect(source.includes('preferLocalCore: true')).toBe(true);
     expect(source.includes('INFRING_OPS_FORCE_LEGACY_PROCESS_RUNNER')).toBe(true);
@@ -525,9 +525,9 @@ describe('conduit primitive wrapper contract', () => {
 
   test('install.ps1 exists and provisions Windows wrappers', () => {
     const source = fs.readFileSync(path.join(ROOT, 'install.ps1'), 'utf8');
-    expect(source.includes('protheus-ops.exe')).toBe(true);
+    expect(source.includes('infring-ops.exe')).toBe(true);
     expect(source.includes('infringd.cmd')).toBe(true);
-    expect(source.includes('protheusd.cmd') || source.includes('infringd.ps1')).toBe(true);
+    expect(source.includes('infringd.cmd') || source.includes('infringd.ps1')).toBe(true);
     expect(source.includes('$InstallRepair') || source.includes('$Repair')).toBe(true);
     expect(source.includes('conduit_daemon')).toBe(true);
     expect(source.includes('Get-HostTripleCandidates') || source.includes('Resolve-HostOsFlags')).toBe(
@@ -800,7 +800,7 @@ describe('conduit primitive wrapper contract', () => {
   test('getting started doc includes curl and powershell install paths', () => {
     const source = fs.readFileSync(path.join(ROOT, 'docs/client/GETTING_STARTED.md'), 'utf8');
     expect(
-      source.includes('curl -fsSL https://get.protheus.ai/install | sh') ||
+      source.includes('curl -fsSL https://get.infring.ai/install | sh') ||
         source.includes(
           'curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh',
         ),
@@ -811,7 +811,7 @@ describe('conduit primitive wrapper contract', () => {
 
   test('unknown guard json mode emits a single machine-readable payload', () => {
     const entrypoint = path.join(ROOT, 'client/runtime/lib/ts_entrypoint.ts');
-    const guard = path.join(ROOT, 'client/runtime/systems/ops/protheus_unknown_guard.ts');
+    const guard = path.join(ROOT, 'client/runtime/systems/ops/infring_unknown_guard.ts');
     const proc = spawnSync(process.execPath, [entrypoint, guard, '--json', 'bogus-cmd'], {
       cwd: ROOT,
       encoding: 'utf8',
@@ -825,34 +825,34 @@ describe('conduit primitive wrapper contract', () => {
     expect(lines.length).toBe(1);
     const payload = JSON.parse(lines[0]);
     expect(payload.ok).toBe(false);
-    expect(payload.type).toBe('protheus_unknown_guard');
+    expect(payload.type).toBe('infring_unknown_guard');
     expect(payload.command).toBe('bogus-cmd');
     expect(String(proc.stderr || '').trim()).toBe('');
   });
 
   test('non-UI client compatibility surfaces delegate to adapter-owned modules', () => {
     const wrapperTargets: Array<[string, string, string?]> = [
-      ['client/runtime/lib/protheus_kernel_bridge.ts', 'adapters/runtime/protheus_kernel_bridge.ts'],
+      ['client/runtime/lib/infring_kernel_bridge.ts', 'adapters/runtime/infring_kernel_bridge.ts'],
       ['client/runtime/lib/shannon_bridge.ts', 'adapters/runtime/shannon_bridge.ts'],
       ['client/runtime/systems/autonomy/swarm_repl_demo.ts', 'adapters/runtime/swarm_repl_demo.ts'],
       ['client/runtime/systems/ui/dashboard_agent_ws_bridge.ts', 'adapters/runtime/agent_ws_bridge.ts'],
       ['client/runtime/systems/ui/dashboard_static_asset_router.ts', 'adapters/runtime/dashboard_asset_router.ts'],
       ['client/runtime/systems/ui/infring_dashboard.ts', 'adapters/runtime/infring_dashboard.ts'],
-      ['client/runtime/systems/ops/backlog_github_sync.ts', 'adapters/runtime/protheus_cli_modules.ts'],
-      ['client/runtime/systems/ops/backlog_registry.ts', 'adapters/runtime/protheus_cli_modules.ts'],
-      ['client/runtime/systems/ops/protheus_control_plane.ts', 'adapters/runtime/protheus_cli_modules.ts'],
-      ['client/runtime/systems/ops/protheus_repl.ts', 'adapters/runtime/protheus_cli_modules.ts'],
-      ['client/runtime/systems/ops/protheus_setup_wizard.ts', 'adapters/runtime/protheus_setup_wizard.ts'],
-      ['client/runtime/systems/ops/protheus_status_dashboard.ts', 'adapters/runtime/protheus_cli_modules.ts'],
-      ['client/runtime/systems/ops/protheus_unknown_guard.ts', 'adapters/runtime/protheus_cli_modules.ts'],
-      ['client/runtime/systems/ops/run_infring_ops.ts', 'adapters/runtime/run_protheus_ops.ts'],
-      ['client/runtime/systems/ops/run_protheus_ops.ts', 'adapters/runtime/run_protheus_ops.ts'],
-      ['client/runtime/systems/ops/rust50_migration_program.ts', 'adapters/runtime/protheus_cli_modules.ts'],
-      ['client/runtime/systems/ops/rust_enterprise_productivity_program.ts', 'adapters/runtime/protheus_cli_modules.ts'],
-      ['client/runtime/systems/security/venom_containment_layer.ts', 'adapters/runtime/protheus_cli_modules.ts'],
+      ['client/runtime/systems/ops/backlog_github_sync.ts', 'adapters/runtime/infring_cli_modules.ts'],
+      ['client/runtime/systems/ops/backlog_registry.ts', 'adapters/runtime/infring_cli_modules.ts'],
+      ['client/runtime/systems/ops/infring_control_plane.ts', 'adapters/runtime/infring_cli_modules.ts'],
+      ['client/runtime/systems/ops/infring_repl.ts', 'adapters/runtime/infring_cli_modules.ts'],
+      ['client/runtime/systems/ops/infring_setup_wizard.ts', 'adapters/runtime/infring_setup_wizard.ts'],
+      ['client/runtime/systems/ops/infring_status_dashboard.ts', 'adapters/runtime/infring_cli_modules.ts'],
+      ['client/runtime/systems/ops/infring_unknown_guard.ts', 'adapters/runtime/infring_cli_modules.ts'],
+      ['client/runtime/systems/ops/run_infring_ops.ts', 'adapters/runtime/run_infring_ops.ts'],
+      ['client/runtime/systems/ops/run_infring_ops.ts', 'adapters/runtime/run_infring_ops.ts'],
+      ['client/runtime/systems/ops/rust50_migration_program.ts', 'adapters/runtime/infring_cli_modules.ts'],
+      ['client/runtime/systems/ops/rust_enterprise_productivity_program.ts', 'adapters/runtime/infring_cli_modules.ts'],
+      ['client/runtime/systems/security/venom_containment_layer.ts', 'adapters/runtime/infring_cli_modules.ts'],
       [
         'client/runtime/systems/spine/contract_check_bridge.ts',
-        'adapters/runtime/protheus_cli_modules.ts',
+        'adapters/runtime/infring_cli_modules.ts',
         './contract_check.ts',
       ],
       ['client/runtime/systems/workflow/shannon_desktop_shell.ts', 'adapters/runtime/shannon_desktop_shell.ts'],
@@ -867,13 +867,13 @@ describe('conduit primitive wrapper contract', () => {
 
   test('setup wizard and install doctor expose deterministic non-interactive and recovery contracts', () => {
     const setupSource = fs.readFileSync(
-      path.join(ROOT, 'adapters/runtime/protheus_setup_wizard.ts'),
+      path.join(ROOT, 'adapters/runtime/infring_setup_wizard.ts'),
       'utf8',
     );
     const doctorSource = [
-      'core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security.combined.rs',
+      'core/layer0/ops/src/infringctl_parts/020-evaluate-dispatch-security.combined.rs',
       ...collectFilesUnder(
-        'core/layer0/ops/src/protheusctl_parts/020-evaluate-dispatch-security.combined_parts',
+        'core/layer0/ops/src/infringctl_parts/020-evaluate-dispatch-security.combined_parts',
         '.rs',
       ),
     ]
@@ -881,7 +881,7 @@ describe('conduit primitive wrapper contract', () => {
       .map((rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8'))
       .join('\n');
     const boolEnvSource = collectFilesUnder(
-      'core/layer0/ops/src/protheusctl_parts/010-bool-env.rs.parts',
+      'core/layer0/ops/src/infringctl_parts/010-bool-env.rs.parts',
       '.rs',
     )
       .map((rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8'))
@@ -1110,7 +1110,7 @@ describe('conduit primitive wrapper contract', () => {
     const shellSource = fs.readFileSync(path.join(ROOT, 'install.sh'), 'utf8');
     const powershellSource = fs.readFileSync(path.join(ROOT, 'install.ps1'), 'utf8');
     const daemonHelp = fs.readFileSync(
-      path.join(ROOT, 'core/layer0/ops/src/protheusd_parts/010-print-json.rs'),
+      path.join(ROOT, 'core/layer0/ops/src/infringd_parts/010-print-json.rs'),
       'utf8',
     );
 
@@ -1118,7 +1118,7 @@ describe('conduit primitive wrapper contract', () => {
     expect(shellSource.includes('daemon-control|dashboard-ui')).toBe(true);
     expect(shellSource.includes('INFRING_DAEMON_FALLBACK_OPS_BIN')).toBe(true);
     expect(shellSource.includes('ops_domain="infringctl"')).toBe(true);
-    expect(shellSource.includes('ops_domain="protheusctl"')).toBe(true);
+    expect(shellSource.includes('ops_domain="infringctl"')).toBe(true);
 
     expect(powershellSource.includes('$daemonCompatDispatchTemplate')).toBe(true);
     expect(powershellSource.includes('Write-DaemonCmdWrapper')).toBe(true);
@@ -1143,20 +1143,20 @@ describe('conduit primitive wrapper contract', () => {
     expect(source.includes('command_registry_integrity')).toBe(true);
   });
 
-  test('protheusctl route map targets are resolvable or explicitly optional-not-shipped', () => {
+  test('infringctl route map targets are resolvable or explicitly optional-not-shipped', () => {
     const routeSources = [
-      'core/layer0/ops/src/protheusctl.rs',
-      'core/layer0/ops/src/protheusctl_routes.rs',
-      'core/layer0/ops/src/protheusctl_plane_shortcuts.rs',
-      ...collectFilesUnder('core/layer0/ops/src/protheusctl_parts', '.rs'),
-      ...collectFilesUnder('core/layer0/ops/src/protheusctl_routes_parts', '.rs'),
+      'core/layer0/ops/src/infringctl.rs',
+      'core/layer0/ops/src/infringctl_routes.rs',
+      'core/layer0/ops/src/infringctl_plane_shortcuts.rs',
+      ...collectFilesUnder('core/layer0/ops/src/infringctl_parts', '.rs'),
+      ...collectFilesUnder('core/layer0/ops/src/infringctl_routes_parts', '.rs'),
     ];
     const optionalNotShipped = new Set<string>([
       'client/cognition/adaptive/rsi/rsi_bootstrap.js',
       'client/runtime/systems/economy/donor_mining_dashboard.js',
       'client/runtime/systems/edge/mobile_lifecycle_resilience.ts',
       'client/runtime/systems/edge/mobile_ops_top.ts',
-      'client/runtime/systems/edge/protheus_edge_runtime.ts',
+      'client/runtime/systems/edge/infring_edge_runtime.ts',
       'client/runtime/systems/migration/kernel_migration_bridge.js',
       'client/runtime/systems/migration/universal_importers.js',
       'client/runtime/systems/ops/fluxlattice_program.js',
@@ -1165,10 +1165,10 @@ describe('conduit primitive wrapper contract', () => {
       'client/runtime/systems/ops/perception_polish_program.js',
       'client/runtime/systems/ops/platform_socket_runtime.ts',
       'client/runtime/systems/ops/productized_suite_program.js',
-      'client/runtime/systems/ops/protheus_demo.js',
-      'client/runtime/systems/ops/protheus_diagram.js',
-      'client/runtime/systems/ops/protheus_examples.js',
-      'client/runtime/systems/ops/protheusctl_skills_discover.js',
+      'client/runtime/systems/ops/infring_demo.js',
+      'client/runtime/systems/ops/infring_diagram.js',
+      'client/runtime/systems/ops/infring_examples.js',
+      'client/runtime/systems/ops/infringctl_skills_discover.js',
       'client/runtime/systems/ops/rust_hybrid_migration_program.js',
       'client/runtime/systems/ops/scale_readiness_program.js',
       'client/runtime/systems/ops/settlement_program.js',
@@ -1222,11 +1222,11 @@ describe('conduit primitive wrapper contract', () => {
 
   test('runtime manifest entrypoints are wired from CLI route surfaces', () => {
     const routeSources = [
-      'core/layer0/ops/src/protheusctl.rs',
-      'core/layer0/ops/src/protheusctl_routes.rs',
-      'core/layer0/ops/src/protheusctl_plane_shortcuts.rs',
-      ...collectFilesUnder('core/layer0/ops/src/protheusctl_parts', '.rs'),
-      ...collectFilesUnder('core/layer0/ops/src/protheusctl_routes_parts', '.rs'),
+      'core/layer0/ops/src/infringctl.rs',
+      'core/layer0/ops/src/infringctl_routes.rs',
+      'core/layer0/ops/src/infringctl_plane_shortcuts.rs',
+      ...collectFilesUnder('core/layer0/ops/src/infringctl_parts', '.rs'),
+      ...collectFilesUnder('core/layer0/ops/src/infringctl_routes_parts', '.rs'),
     ];
     const routeTargets = new Set<string>();
     for (const rel of routeSources) {
@@ -1246,10 +1246,10 @@ describe('conduit primitive wrapper contract', () => {
       .filter((line) => line && !line.startsWith('#'));
     expect(manifestEntries.length).toBeGreaterThan(0);
     const bootstrapOnlyEntrypoints = new Set<string>([
-      'client/runtime/systems/ops/protheusd.ts',
-      'client/runtime/systems/ops/protheus_unknown_guard.ts',
+      'client/runtime/systems/ops/infringd.ts',
+      'client/runtime/systems/ops/infring_unknown_guard.ts',
       // Retained as a compatibility runtime surface; canonical dashboard routing is core-native.
-      'client/runtime/systems/ops/protheus_status_dashboard.ts',
+      'client/runtime/systems/ops/infring_status_dashboard.ts',
     ]);
 
     for (const entry of manifestEntries) {
@@ -1267,8 +1267,8 @@ describe('conduit primitive wrapper contract', () => {
 
   test('unknown command fallback is core-native and not JS-asset dependent', () => {
     const source = [
-      fs.readFileSync(path.join(ROOT, 'core/layer0/ops/src/protheusctl_parts/030-usage.rs'), 'utf8'),
-      ...collectFilesUnder('core/layer0/ops/src/protheusctl_parts/030-usage_parts', '.rs').map((rel) =>
+      fs.readFileSync(path.join(ROOT, 'core/layer0/ops/src/infringctl_parts/030-usage.rs'), 'utf8'),
+      ...collectFilesUnder('core/layer0/ops/src/infringctl_parts/030-usage_parts', '.rs').map((rel) =>
         fs.readFileSync(path.join(ROOT, rel), 'utf8'),
       ),
     ].join('\n');
@@ -1391,8 +1391,8 @@ process.stdin.on('data', (chunk) => {
 
   test('overUnixSocket path works for single roundtrip', async () => {
     if (process.platform === 'win32') return;
-    const previousFallback = process.env.PROTHEUS_CONDUIT_TS_FALLBACK;
-    process.env.PROTHEUS_CONDUIT_TS_FALLBACK = '1';
+    const previousFallback = process.env.INFRING_CONDUIT_TS_FALLBACK;
+    process.env.INFRING_CONDUIT_TS_FALLBACK = '1';
     const sockets = new Set<net.Socket>();
     let socketPath = '';
     let server: net.Server | null = null;
@@ -1486,9 +1486,9 @@ process.stdin.on('data', (chunk) => {
         fs.unlinkSync(socketPath);
       }
       if (typeof previousFallback === 'string') {
-        process.env.PROTHEUS_CONDUIT_TS_FALLBACK = previousFallback;
+        process.env.INFRING_CONDUIT_TS_FALLBACK = previousFallback;
       } else {
-        delete process.env.PROTHEUS_CONDUIT_TS_FALLBACK;
+        delete process.env.INFRING_CONDUIT_TS_FALLBACK;
       }
     }
   }, 90_000);
@@ -1510,21 +1510,21 @@ describe('direct conduit lane bridge coverage paths', () => {
   });
 
   test('runLaneViaConduit fails closed when daemon exits before responding', async () => {
-    const previousCommand = process.env.PROTHEUS_CONDUIT_DAEMON_COMMAND;
-    const previousArgs = process.env.PROTHEUS_CONDUIT_DAEMON_ARGS;
-    process.env.PROTHEUS_CONDUIT_DAEMON_COMMAND = process.execPath;
-    process.env.PROTHEUS_CONDUIT_DAEMON_ARGS = '-e process.exit(0)';
+    const previousCommand = process.env.INFRING_CONDUIT_DAEMON_COMMAND;
+    const previousArgs = process.env.INFRING_CONDUIT_DAEMON_ARGS;
+    process.env.INFRING_CONDUIT_DAEMON_COMMAND = process.execPath;
+    process.env.INFRING_CONDUIT_DAEMON_ARGS = '-e process.exit(0)';
     const bridge = await import(pathToFileURL(path.join(ROOT, 'client/runtime/lib/direct_conduit_lane_bridge.ts')).href);
     const receipt = await bridge.runLaneViaConduit('SYSTEMS-PRIMITIVES-POLICY-VM', ROOT);
     if (previousCommand == null) {
-      delete process.env.PROTHEUS_CONDUIT_DAEMON_COMMAND;
+      delete process.env.INFRING_CONDUIT_DAEMON_COMMAND;
     } else {
-      process.env.PROTHEUS_CONDUIT_DAEMON_COMMAND = previousCommand;
+      process.env.INFRING_CONDUIT_DAEMON_COMMAND = previousCommand;
     }
     if (previousArgs == null) {
-      delete process.env.PROTHEUS_CONDUIT_DAEMON_ARGS;
+      delete process.env.INFRING_CONDUIT_DAEMON_ARGS;
     } else {
-      process.env.PROTHEUS_CONDUIT_DAEMON_ARGS = previousArgs;
+      process.env.INFRING_CONDUIT_DAEMON_ARGS = previousArgs;
     }
     expect(receipt.ok).toBe(false);
     expect(String(receipt.error || '')).not.toHaveLength(0);
@@ -1627,10 +1627,10 @@ describe('direct conduit lane bridge coverage paths', () => {
   });
 
   test('createConduitLaneModule verify reflects normalized lane id and daemon args env', async () => {
-    const prevCommand = process.env.PROTHEUS_CONDUIT_DAEMON_COMMAND;
-    const prevArgs = process.env.PROTHEUS_CONDUIT_DAEMON_ARGS;
-    process.env.PROTHEUS_CONDUIT_DAEMON_COMMAND = '/tmp/mock-daemon';
-    process.env.PROTHEUS_CONDUIT_DAEMON_ARGS = '--a 1 --b 2';
+    const prevCommand = process.env.INFRING_CONDUIT_DAEMON_COMMAND;
+    const prevArgs = process.env.INFRING_CONDUIT_DAEMON_ARGS;
+    process.env.INFRING_CONDUIT_DAEMON_COMMAND = '/tmp/mock-daemon';
+    process.env.INFRING_CONDUIT_DAEMON_ARGS = '--a 1 --b 2';
 
     const bridge = await import(pathToFileURL(path.join(ROOT, 'client/runtime/lib/direct_conduit_lane_bridge.ts')).href);
     const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'infring-bridge-verify-'));
@@ -1668,10 +1668,10 @@ module.exports = {
     expect(seen.command).toBe('/tmp/mock-daemon');
     expect(seen.args).toEqual(['--a', '1', '--b', '2']);
 
-    if (prevCommand == null) delete process.env.PROTHEUS_CONDUIT_DAEMON_COMMAND;
-    else process.env.PROTHEUS_CONDUIT_DAEMON_COMMAND = prevCommand;
-    if (prevArgs == null) delete process.env.PROTHEUS_CONDUIT_DAEMON_ARGS;
-    else process.env.PROTHEUS_CONDUIT_DAEMON_ARGS = prevArgs;
+    if (prevCommand == null) delete process.env.INFRING_CONDUIT_DAEMON_COMMAND;
+    else process.env.INFRING_CONDUIT_DAEMON_COMMAND = prevCommand;
+    if (prevArgs == null) delete process.env.INFRING_CONDUIT_DAEMON_ARGS;
+    else process.env.INFRING_CONDUIT_DAEMON_ARGS = prevArgs;
   });
 });
 

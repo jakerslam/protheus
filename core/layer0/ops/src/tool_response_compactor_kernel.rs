@@ -48,10 +48,10 @@ fn query_secret_re() -> &'static Regex {
 }
 fn usage() {
     println!("tool-response-compactor-kernel commands:");
-    println!("  protheus-ops tool-response-compactor-kernel compact --payload-base64=<json>");
-    println!("  protheus-ops tool-response-compactor-kernel redact --payload-base64=<json>");
+    println!("  infring-ops tool-response-compactor-kernel compact --payload-base64=<json>");
+    println!("  infring-ops tool-response-compactor-kernel redact --payload-base64=<json>");
     println!(
-        "  protheus-ops tool-response-compactor-kernel extract-summary --payload-base64=<json>"
+        "  infring-ops tool-response-compactor-kernel extract-summary --payload-base64=<json>"
     );
 }
 fn cli_receipt(kind: &str, payload: Value) -> Value {

@@ -65,8 +65,8 @@ All `client/runtime/systems/primitives/*.ts` files remain non-wrapper logic in t
 - `cargo test -p task`
 - `cargo test -p resource`
 - `cargo test -p isolation`
-- `cargo test -p protheus-observability-core-v1`
-- `./target/debug/protheus-ops contract-check --rust-contract-check-ids=primitive_ts_wrapper_contract`
+- `cargo test -p infring-observability-core-v1`
+- `./target/debug/infring-ops contract-check --rust-contract-check-ids=primitive_ts_wrapper_contract`
 
 ## Notes
 

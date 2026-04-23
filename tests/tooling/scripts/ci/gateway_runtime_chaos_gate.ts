@@ -78,7 +78,7 @@ type AdapterGraduationResult = {
   hooks: Array<{ id: string; ok: boolean; detail: string }>;
 };
 
-const OPS_CARGO_BUILD_ARGS = ['build', '-q', '-p', 'protheus-ops-core', '--bin', 'protheus-ops'];
+const OPS_CARGO_BUILD_ARGS = ['build', '-q', '-p', 'infring-ops-core', '--bin', 'infring-ops'];
 const BRIDGE_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
 const DEFAULT_OUT_JSON = 'core/local/artifacts/gateway_runtime_chaos_gate_current.json';
 const DEFAULT_SUPPORT_LEVELS_OUT_JSON = 'core/local/artifacts/gateway_support_levels_current.json';
@@ -243,7 +243,7 @@ function resolveOpsBinary(root: string): OpsBinary {
   if (explicit && fs.existsSync(path.resolve(root, explicit))) {
     return { command: path.resolve(root, explicit), argsPrefix: [] };
   }
-  const defaultBin = path.resolve(root, 'target/debug/protheus-ops');
+  const defaultBin = path.resolve(root, 'target/debug/infring-ops');
   const skipBuild = cleanText(process.env.INFRING_ADAPTER_CHAOS_SKIP_BUILD || '', 8) === '1';
   if (!skipBuild) {
     const build = spawnSync('cargo', OPS_CARGO_BUILD_ARGS, {

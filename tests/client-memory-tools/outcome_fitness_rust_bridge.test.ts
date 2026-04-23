@@ -91,8 +91,8 @@ function main() {
     }
   }, null, 2));
 
-  process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
-  process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = '120000';
+  process.env.INFRING_OPS_USE_PREBUILT = '0';
+  process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = '120000';
 
   const mod = resetModule(path.join(ROOT, 'client/lib/outcome_fitness.ts'));
   const policy = mod.loadOutcomeFitnessPolicy(clientRoot);

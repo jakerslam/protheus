@@ -254,9 +254,9 @@ fn web_setup_contract(root: &Path, policy: &Value) -> Value {
         "supports_inline_api_key": true,
         "supports_api_key_env": true,
         "commands": [
-            "protheus-ops web-conduit setup",
-            "protheus-ops web-conduit setup --provider=serperdev --api-key-env=SERPER_API_KEY --apply=1",
-            "protheus-ops web-conduit setup --provider=duckduckgo --apply=1"
+            "infring-ops web-conduit setup",
+            "infring-ops web-conduit setup --provider=serperdev --api-key-env=SERPER_API_KEY --apply=1",
+            "infring-ops web-conduit setup --provider=duckduckgo --apply=1"
         ],
         "provider_options": options
     })

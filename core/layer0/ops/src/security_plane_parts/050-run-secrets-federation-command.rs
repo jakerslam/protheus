@@ -48,7 +48,7 @@ fn run_secrets_federation_command(root: &Path, argv: &[String], strict: bool) ->
             let env_name = secret_env_var_name(&provider, &secret_path);
             let secret_value = std::env::var(&env_name)
                 .ok()
-                .or_else(|| std::env::var("PROTHEUS_SECRET_VALUE").ok());
+                .or_else(|| std::env::var("INFRING_SECRET_VALUE").ok());
             let Some(secret_value) = secret_value else {
                 out["ok"] = Value::Bool(false);
                 out["error"] = Value::String("secret_not_found".to_string());

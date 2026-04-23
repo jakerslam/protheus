@@ -5,14 +5,14 @@ const CONTRACT_PATH: &str = "planes/contracts/eval/eval_loop_contract_v1.json";
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops eval-plane status");
-    println!("  protheus-ops eval-plane enable-neuralavb [--enabled=1|0] [--strict=1|0]");
-    println!("  protheus-ops eval-plane experiment-loop [--iterations=<n>] [--baseline-cost-usd=<n>] [--run-cost-usd=<n>] [--baseline-accuracy=<0..1>] [--run-accuracy=<0..1>] [--fixture-json=<json>] [--strict=1|0]");
-    println!("  protheus-ops eval-plane benchmark [--strict=1|0]");
-    println!("  protheus-ops eval-plane dashboard [--strict=1|0]");
-    println!("  protheus-ops eval-plane run [--iterations=<n>] [--baseline-cost-usd=<n>] [--run-cost-usd=<n>] [--baseline-accuracy=<0..1>] [--run-accuracy=<0..1>] [--strict=1|0]");
-    println!("  protheus-ops eval-plane rl-upgrade [--profile=infring-v2] [--iterations=<n>] [--runtime-classes=terminal,gui,swe,tool-call] [--persona=<id>] [--strict=1|0]");
-    println!("  protheus-ops eval-plane rl-status [--strict=1|0]");
+    println!("  infring-ops eval-plane status");
+    println!("  infring-ops eval-plane enable-neuralavb [--enabled=1|0] [--strict=1|0]");
+    println!("  infring-ops eval-plane experiment-loop [--iterations=<n>] [--baseline-cost-usd=<n>] [--run-cost-usd=<n>] [--baseline-accuracy=<0..1>] [--run-accuracy=<0..1>] [--fixture-json=<json>] [--strict=1|0]");
+    println!("  infring-ops eval-plane benchmark [--strict=1|0]");
+    println!("  infring-ops eval-plane dashboard [--strict=1|0]");
+    println!("  infring-ops eval-plane run [--iterations=<n>] [--baseline-cost-usd=<n>] [--run-cost-usd=<n>] [--baseline-accuracy=<0..1>] [--run-accuracy=<0..1>] [--strict=1|0]");
+    println!("  infring-ops eval-plane rl-upgrade [--profile=infring-v2] [--iterations=<n>] [--runtime-classes=terminal,gui,swe,tool-call] [--persona=<id>] [--strict=1|0]");
+    println!("  infring-ops eval-plane rl-status [--strict=1|0]");
 }
 
 fn state_root(root: &Path) -> PathBuf {

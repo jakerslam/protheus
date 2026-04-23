@@ -129,7 +129,7 @@ version = "0.1.0"
 dependencies = [
  "infring-layer1-memory",
  "infring-task-fabric-core-v1",
- "protheus-tooling-core-v1",
+ "infring-tooling-core-v1",
  "serde",
  "serde_json",
  "sha2",
@@ -172,7 +172,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "protheus-tooling-core-v1"
+name = "infring-tooling-core-v1"
 version = "0.1.0"
 dependencies = [
  "serde",

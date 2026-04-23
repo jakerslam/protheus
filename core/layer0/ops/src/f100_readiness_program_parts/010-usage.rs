@@ -41,10 +41,10 @@ struct Policy {
 fn usage() {
     println!("Usage:");
     println!(
-        "  protheus-ops f100-readiness-program run --lane=<V6-F100-XXX|V7-F100-XXX> [--strict=1|0] [--apply=1|0] [--policy=<path>]"
+        "  infring-ops f100-readiness-program run --lane=<V6-F100-XXX|V7-F100-XXX> [--strict=1|0] [--apply=1|0] [--policy=<path>]"
     );
-    println!("  protheus-ops f100-readiness-program run-all [--strict=1|0] [--apply=1|0] [--policy=<path>]");
-    println!("  protheus-ops f100-readiness-program status --lane=<V6-F100-XXX> [--policy=<path>]");
+    println!("  infring-ops f100-readiness-program run-all [--strict=1|0] [--apply=1|0] [--policy=<path>]");
+    println!("  infring-ops f100-readiness-program status --lane=<V6-F100-XXX> [--policy=<path>]");
 }
 
 fn resolve_path(root: &Path, raw: Option<&str>, fallback: &str) -> PathBuf {

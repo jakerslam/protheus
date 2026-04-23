@@ -2,6 +2,6 @@
   "id": "ad-factory",
   "srs": "V6-COCKPIT-016",
   "layer": "app",
-  "entrypoint": "protheus app run ad-factory",
+  "entrypoint": "infring app run ad-factory",
   "authority": "core"
 }

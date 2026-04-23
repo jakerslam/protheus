@@ -83,8 +83,8 @@ const CATEGORIES: [Category; 7] = [
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops benchmark-matrix run [--snapshot=<path>] [--refresh-runtime=1|0] [--bar-width=44] [--throughput-uncached=1|0] [--benchmark-preflight=1|0] [--preflight-max-load-per-core=0.90] [--preflight-max-noise-cv-pct=12.5] [--preflight-noise-sample-ms=250] [--preflight-noise-rounds=3]");
-    println!("  protheus-ops benchmark-matrix status [--snapshot=<path>] [--refresh-runtime=1|0] [--bar-width=44] [--throughput-uncached=1|0] [--benchmark-preflight=1|0] [--preflight-max-load-per-core=0.90] [--preflight-max-noise-cv-pct=12.5] [--preflight-noise-sample-ms=250] [--preflight-noise-rounds=3]");
+    println!("  infring-ops benchmark-matrix run [--snapshot=<path>] [--refresh-runtime=1|0] [--bar-width=44] [--throughput-uncached=1|0] [--benchmark-preflight=1|0] [--preflight-max-load-per-core=0.90] [--preflight-max-noise-cv-pct=12.5] [--preflight-noise-sample-ms=250] [--preflight-noise-rounds=3]");
+    println!("  infring-ops benchmark-matrix status [--snapshot=<path>] [--refresh-runtime=1|0] [--bar-width=44] [--throughput-uncached=1|0] [--benchmark-preflight=1|0] [--preflight-max-load-per-core=0.90] [--preflight-max-noise-cv-pct=12.5] [--preflight-noise-sample-ms=250] [--preflight-noise-rounds=3]");
 }
 
 fn parse_bool_flag(raw: Option<&str>, fallback: bool) -> bool {
@@ -364,9 +364,9 @@ fn local_full_install_probe_mb(root: &Path) -> Option<f64> {
         "target/x86_64-unknown-linux-musl/release/infringd",
         "target/release/infringd",
         "target/debug/infringd",
-        "target/x86_64-unknown-linux-musl/release/protheusd",
-        "target/release/protheusd",
-        "target/debug/protheusd",
+        "target/x86_64-unknown-linux-musl/release/infringd",
+        "target/release/infringd",
+        "target/debug/infringd",
     ] {
         if root.join(rel).exists() {
             paths.push(rel.to_string());

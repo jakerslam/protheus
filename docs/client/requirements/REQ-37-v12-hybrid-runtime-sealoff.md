@@ -20,7 +20,7 @@ Close the final runtime gap between "hybrid works" and "hybrid feels native" by 
 
 ### REQ-37-001 WebSocket-Native Push Transport
 
-`protheusd subscribe` MUST support a WebSocket-native stream transport with typed lifecycle events (`open`, `message`, `ack`, `reconnect`, `close`) and deterministic cursor-resume semantics.
+`infringd subscribe` MUST support a WebSocket-native stream transport with typed lifecycle events (`open`, `message`, `ack`, `reconnect`, `close`) and deterministic cursor-resume semantics.
 
 Backlog mapping: `V6-COCKPIT-007`
 

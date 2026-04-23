@@ -11,14 +11,14 @@ use std::path::{Path, PathBuf};
 const DEFAULT_STATE_PATH: &str = "local/state/ops/command_center/session_registry.json";
 const USAGE: &[&str] = &[
     "Usage:",
-    "  protheus-ops command-center-session status [--session-id=<id>] [--state-path=<path>]",
-    "  protheus-ops command-center-session list [--state-path=<path>]",
-    "  protheus-ops command-center-session register --session-id=<id> [--lineage-id=<id>] [--status=<running|paused|terminated>] [--task=<text>] [--state-path=<path>]",
-    "  protheus-ops command-center-session resume <id> [--state-path=<path>]",
-    "  protheus-ops command-center-session send <id> --message=<text> [--state-path=<path>]",
-    "  protheus-ops command-center-session kill <id> [--state-path=<path>]",
-    "  protheus-ops command-center-session tail <id> [--lines=<n>] [--state-path=<path>]",
-    "  protheus-ops command-center-session inspect <id> [--state-path=<path>]",
+    "  infring-ops command-center-session status [--session-id=<id>] [--state-path=<path>]",
+    "  infring-ops command-center-session list [--state-path=<path>]",
+    "  infring-ops command-center-session register --session-id=<id> [--lineage-id=<id>] [--status=<running|paused|terminated>] [--task=<text>] [--state-path=<path>]",
+    "  infring-ops command-center-session resume <id> [--state-path=<path>]",
+    "  infring-ops command-center-session send <id> --message=<text> [--state-path=<path>]",
+    "  infring-ops command-center-session kill <id> [--state-path=<path>]",
+    "  infring-ops command-center-session tail <id> [--lines=<n>] [--state-path=<path>]",
+    "  infring-ops command-center-session inspect <id> [--state-path=<path>]",
 ];
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -434,7 +434,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "status": session.status,
                     "attach_count": session.attach_count,
                     "attached_epoch_ms": session.last_attach_epoch_ms,
-                    "steering_contract": format!("protheus session send {} --message=\"...\"", session_id),
+                    "steering_contract": format!("infring session send {} --message=\"...\"", session_id),
                     "lineage_receipt_key": format!("{}::{}", session.lineage_id, session.session_id)
                 })
             };

@@ -59,7 +59,7 @@ function binaryFreshEnough(root, binPath) {
 
 function allowStaleBinary(env = process.env) {
   const raw = String(
-    (env && (env.PROTHEUS_OPS_ALLOW_STALE || env.PROTHEUS_NPM_ALLOW_STALE)) || ''
+    (env && (env.INFRING_OPS_ALLOW_STALE || env.INFRING_NPM_ALLOW_STALE)) || ''
   )
     .trim()
     .toLowerCase();
@@ -69,20 +69,20 @@ function allowStaleBinary(env = process.env) {
 function resolveBinary(root, options = {}) {
   const env = options && options.env ? options.env : process.env;
   const allowStale = allowStaleBinary(env);
-  const explicit = String((env && env.PROTHEUS_NPM_BINARY) || process.env.PROTHEUS_NPM_BINARY || '').trim();
+  const explicit = String((env && env.INFRING_NPM_BINARY) || process.env.INFRING_NPM_BINARY || '').trim();
   const explicitExists = explicit && isFile(explicit);
   const explicitResolved = explicitExists ? path.resolve(explicit) : '';
   const release = path.join(
     root,
     'target',
     'release',
-    process.platform === 'win32' ? 'protheus-ops.exe' : 'protheus-ops'
+    process.platform === 'win32' ? 'infring-ops.exe' : 'infring-ops'
   );
   const target = path.join(
     root,
     'target',
     'debug',
-    process.platform === 'win32' ? 'protheus-ops.exe' : 'protheus-ops'
+    process.platform === 'win32' ? 'infring-ops.exe' : 'infring-ops'
   );
   const vendor = path.join(
     root,
@@ -90,7 +90,7 @@ function resolveBinary(root, options = {}) {
     'cli',
     'npm',
     'vendor',
-    process.platform === 'win32' ? 'protheus-ops.exe' : 'protheus-ops'
+    process.platform === 'win32' ? 'infring-ops.exe' : 'infring-ops'
   );
   const candidates = [release, target, vendor]
     .filter((binPath) => isFile(binPath))
@@ -158,13 +158,13 @@ function runViaCargo(root, args, env) {
   return spawnInvocation(
     root,
     'cargo',
-    ['run', '--quiet', '-p', 'protheus-ops-core', '--bin', 'protheus-ops', '--'].concat(args),
+    ['run', '--quiet', '-p', 'infring-ops-core', '--bin', 'infring-ops', '--'].concat(args),
     env
   );
 }
 
 function runLegacyProcessRunner(root, args, options = {}) {
-  const env = { ...process.env, PROTHEUS_ROOT: root, ...(options.env || {}) };
+  const env = { ...process.env, INFRING_ROOT: root, ...(options.env || {}) };
   const bin = resolveBinary(root, { env });
   if (bin) {
     const proc = spawnInvocation(root, bin, args, env);

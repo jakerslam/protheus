@@ -12,7 +12,7 @@ const DEFAULT_POLICY_PATH = process.env.SYMBIOSIS_COHERENCE_POLICY_PATH
   ? path.resolve(process.env.SYMBIOSIS_COHERENCE_POLICY_PATH)
   : path.join(CLIENT_ROOT, 'runtime', 'config', 'symbiosis_coherence_policy.json');
 
-process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
+process.env.INFRING_OPS_USE_PREBUILT = process.env.INFRING_OPS_USE_PREBUILT || '0';
 const bridge = createOpsLaneBridge(__dirname, 'symbiosis_coherence_signal', 'symbiosis-coherence-kernel');
 
 function encodeBase64(value) {

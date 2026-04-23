@@ -24,7 +24,7 @@ Bring memory operations into ambient mode with Rust-authoritative policy and con
 
 ## Functional Requirements
 
-1. `protheus-ops memory-ambient` supports:
+1. `infring-ops memory-ambient` supports:
 - `run` for executing allowed memory core commands.
 - `status` for cached ambient status without direct polling work.
 

@@ -78,7 +78,7 @@ fn github_issue_http_error_code(status: u16) -> &'static str {
 }
 
 fn parse_curl_http_status_and_body(stdout: &str) -> Option<(u16, String)> {
-    let marker = "__PROTHEUS_STATUS__:";
+    let marker = "__INFRING_STATUS__:";
     let idx = stdout.rfind(marker)?;
     let body_raw = stdout[..idx].trim().to_string();
     let status_raw = stdout[idx + marker.len()..].lines().next()?.trim();
@@ -131,7 +131,7 @@ fn execute_dashboard_github_issue_create_request(
         .arg("-H")
         .arg(format!("Authorization: Bearer {token}"))
         .arg("-w")
-        .arg("\n__PROTHEUS_STATUS__:%{http_code}\n")
+        .arg("\n__INFRING_STATUS__:%{http_code}\n")
         .arg("-d")
         .arg(request_body)
         .arg(url);

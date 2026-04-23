@@ -12,4 +12,4 @@ Core integration contract:
 - Emit deterministic receipts for discovery, outreach, and follow-up flows.
 
 CLI target:
-- `protheus app run creator-outreach`
+- `infring app run creator-outreach`

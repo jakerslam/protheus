@@ -16,5 +16,5 @@ Because this app is restored outside its original root layout, the legacy global
 security gate in `lib/ts_bootstrap.js` may require bypass for standalone runs:
 
 ```bash
-PROTHEUS_SECURITY_GLOBAL_GATE=0 node apps/photo-grit/memory/tools/tests/multimodal_signal_adapter_plane.test.ts
+INFRING_SECURITY_GLOBAL_GATE=0 node apps/photo-grit/memory/tools/tests/multimodal_signal_adapter_plane.test.ts
 ```

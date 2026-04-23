@@ -378,7 +378,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "protheus-memory-core"
+name = "infring-memory-core"
 version = "0.1.0"
 dependencies = [
  "aes-gcm",

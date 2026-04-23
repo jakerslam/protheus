@@ -44,7 +44,7 @@ fn invoke_dotnet_bridge(state: &mut Value, payload: &Map<String, Value>) -> Resu
         let run = Command::new(command)
             .args(command_args)
             .arg(operation)
-            .env("PROTHEUS_SK_DOTNET_ARGS", args_json)
+            .env("INFRING_SK_DOTNET_ARGS", args_json)
             .output()
             .map_err(|err| format!("semantic_kernel_dotnet_exec_failed:{err}"))?;
         if !run.status.success() {

@@ -20,8 +20,8 @@ const STATE_SCOPE: &str = "backlog_delivery_plane";
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops backlog-delivery-plane status");
-    println!("  protheus-ops backlog-delivery-plane run --id=<Vx-...> [--strict=1|0] [--user=<id>] [--project=<id>] [--query=<text>] [--text=<text>] [--topic=<text>] [--level=<10|30|70|100>] [--mode=<id>] [--operator=<id>] [--node=<id>] [--target=<id>]");
+    println!("  infring-ops backlog-delivery-plane status");
+    println!("  infring-ops backlog-delivery-plane run --id=<Vx-...> [--strict=1|0] [--user=<id>] [--project=<id>] [--query=<text>] [--text=<text>] [--topic=<text>] [--level=<10|30|70|100>] [--mode=<id>] [--operator=<id>] [--node=<id>] [--target=<id>]");
 }
 
 fn state_root(root: &Path) -> PathBuf {
@@ -242,7 +242,7 @@ fn run_v7_lane(root: &Path, id: &str, strict: bool) -> Value {
             vec![
                 "release-pipeline".to_string(),
                 "--op=run".to_string(),
-                "--binary=protheusd".to_string(),
+                "--binary=infringd".to_string(),
                 strict_arg.clone(),
             ],
         ),

@@ -8,7 +8,7 @@ import { spawnSync } from 'node:child_process';
 const ROOT = process.cwd();
 const FIXTURE_DIR = path.join(ROOT, 'tests/fixtures/release_state_compat');
 const DEFAULT_OUT = path.join(ROOT, 'core/local/artifacts/stateful_upgrade_rollback_gate_current.json');
-const RUN_OPS_SCRIPT = path.join(ROOT, 'adapters/runtime/run_protheus_ops.ts');
+const RUN_OPS_SCRIPT = path.join(ROOT, 'adapters/runtime/run_infring_ops.ts');
 const PERSONA_ORCHESTRATION_SCRIPT = path.join(ROOT, 'client/runtime/systems/personas/orchestration.ts');
 const ASSIMILATION_GUARD_SCRIPT = path.join(ROOT, 'tests/tooling/scripts/ci/assimilation_v1_support_guard.ts');
 const TS_ENTRYPOINT = path.join(ROOT, 'client/runtime/lib/ts_entrypoint.ts');

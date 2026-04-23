@@ -5,7 +5,7 @@ use std::path::Path;
 
 const USAGE: &[&str] = &[
     "Usage:",
-    "  protheus-ops gui-drift-manager run|status|doctor|backup|watchdog [--policy=<path>] [--state-path=<path>] [--strict=1|0]",
+    "  infring-ops gui-drift-manager run|status|doctor|backup|watchdog [--policy=<path>] [--state-path=<path>] [--strict=1|0]",
 ];
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
@@ -15,7 +15,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         &standard_lane_spec(
             "gui_drift_manager",
             "gui_drift_manager",
-            "protheus-ops gui-drift-manager",
+            "infring-ops gui-drift-manager",
             USAGE,
         ),
     )

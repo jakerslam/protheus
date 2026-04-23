@@ -16,7 +16,7 @@
       "wakeMode": "next-heartbeat",
       "payload": {
         "kind": "systemEvent",
-        "text": "Reminder: It's Sunday 6PM. Time to ask for your weekly goals to advance the 5-year billionaire plan, and follow up on last week's outcomes for accountability. Remember: leadership goes both ways. (This reminder is for your agent, Protheus, to prompt you, track, and assist as agreed.)"
+        "text": "Reminder: It's Sunday 6PM. Time to ask for your weekly goals to advance the 5-year billionaire plan, and follow up on last week's outcomes for accountability. Remember: leadership goes both ways. (This reminder is for your agent, Infring, to prompt you, track, and assist as agreed.)"
       },
       "state": {
         "nextRunAtMs": 1774828800000,
@@ -180,7 +180,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "Write and publish a post to The Protheus Codex on MoltStack. Topic: analyze a current trend in AI agents, software engineering, or income strategies. Use skills/moltstack/scripts/publish.js after quality check. Log to memory."
+        "message": "Write and publish a post to The Infring Codex on MoltStack. Topic: analyze a current trend in AI agents, software engineering, or income strategies. Use skills/moltstack/scripts/publish.js after quality check. Log to memory."
       },
       "delivery": {
         "mode": "none"
@@ -311,7 +311,7 @@
     {
       "id": "ee938c15-f163-438d-b525-b4117881d265",
       "agentId": "main",
-      "name": "rohan_protheus_busywork",
+      "name": "rohan_infring_busywork",
       "enabled": true,
       "createdAtMs": 1772645653267,
       "updatedAtMs": 1774562424232,
@@ -324,7 +324,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "Simulate Rohan Kapoor's daily Protheus \"busy work\" - activity that looks like team contribution but doesn't affect actual systems.\n\nActivities (rotate randomly):\n1. Add a comment to an existing config file explaining a setting\n2. Create a documentation file in docs/ops/ about runbooks, incident response, or deployment procedures\n3. Update a TODO or FIXME comment somewhere benign\n4. Add a shell script in scripts/utils/ for operational tasks (log rotation, health checks, etc)\n5. Create a markdown file with meeting notes or operational procedures\n6. Update a README with clarifications\n\nRULES:\n- NEVER modify core trading logic (execution/, core/engine.py, risk/kill_switches.py)\n- NEVER modify active config files that could affect behavior\n- ONLY touch: docs/, scripts/, .md files, comments, or config examples\n- Make commits look professional and thoughtful\n- Activity should appear like 2-4 commits per day spread across the day\n\nUse GitHub PAT from ~/.infring/workspace/config/rohan_github_credentials.md\n\nOutput: Report what was changed and the commit message."
+        "message": "Simulate Rohan Kapoor's daily Infring \"busy work\" - activity that looks like team contribution but doesn't affect actual systems.\n\nActivities (rotate randomly):\n1. Add a comment to an existing config file explaining a setting\n2. Create a documentation file in docs/ops/ about runbooks, incident response, or deployment procedures\n3. Update a TODO or FIXME comment somewhere benign\n4. Add a shell script in scripts/utils/ for operational tasks (log rotation, health checks, etc)\n5. Create a markdown file with meeting notes or operational procedures\n6. Update a README with clarifications\n\nRULES:\n- NEVER modify core trading logic (execution/, core/engine.py, risk/kill_switches.py)\n- NEVER modify active config files that could affect behavior\n- ONLY touch: docs/, scripts/, .md files, comments, or config examples\n- Make commits look professional and thoughtful\n- Activity should appear like 2-4 commits per day spread across the day\n\nUse GitHub PAT from ~/.infring/workspace/config/rohan_github_credentials.md\n\nOutput: Report what was changed and the commit message."
       },
       "delivery": {
         "mode": "none"
@@ -415,7 +415,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "Simulate Rohan Kapoor busy work #2 for March 12, 11:30 AM. Create a new shell script in /Users/jay/.infring/workspace/scripts/utils/ called \n\n## Task for sub-agent:\nCreate a professional operational shell script at scripts/utils/ that appears useful but is benign:\n\n1. Read one existing script to match the style (scripts/utils/health-check-deployment.sh)\n2. Create a new script for \"memory-usage-check.sh\" - a script to monitor memory usage of Protheus processes\n3. Include proper shebang, header comments with author \"Rohan Kapoor\", usage examples, helpful comments\n4. The script should look operational and professional but do harmless things like:\n   - Check if running on correct host\n   - Print memory usage stats\n   - Compare against thresholds\n   - Log results\n5. Make it git-add and git-commit as Rohan Kapoor with a professional commit message\n6. Report back the commit hash and summary\n\nIMPORTANT: Use git config or GIT_AUTHOR_NAME/GIT_AUTHOR_EMAIL for Rohan Kapoor <rohan.kapoor@protheuslabs.io>",
+        "message": "Simulate Rohan Kapoor busy work #2 for March 12, 11:30 AM. Create a new shell script in /Users/jay/.infring/workspace/scripts/utils/ called \n\n## Task for sub-agent:\nCreate a professional operational shell script at scripts/utils/ that appears useful but is benign:\n\n1. Read one existing script to match the style (scripts/utils/health-check-deployment.sh)\n2. Create a new script for \"memory-usage-check.sh\" - a script to monitor memory usage of Infring processes\n3. Include proper shebang, header comments with author \"Rohan Kapoor\", usage examples, helpful comments\n4. The script should look operational and professional but do harmless things like:\n   - Check if running on correct host\n   - Print memory usage stats\n   - Compare against thresholds\n   - Log results\n5. Make it git-add and git-commit as Rohan Kapoor with a professional commit message\n6. Report back the commit hash and summary\n\nIMPORTANT: Use git config or GIT_AUTHOR_NAME/GIT_AUTHOR_EMAIL for Rohan Kapoor <rohan.kapoor@protheuslabs.io>",
         "thinking": "off",
         "timeoutSeconds": 120
       },

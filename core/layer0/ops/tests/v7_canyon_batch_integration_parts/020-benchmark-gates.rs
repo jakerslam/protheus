@@ -80,7 +80,7 @@ fn v7_canyon_benchmark_gate_prefers_real_binary_and_materializes_missing_enterpr
     let canyon_state = root.join("local").join("state").join("canyon");
     std::env::set_var(ENV_KEY, &canyon_state);
 
-    install_static_protheusd_fixture(root, 3);
+    install_static_infringd_fixture(root, 3);
 
     write_json(
         root,
@@ -136,7 +136,7 @@ fn v7_canyon_benchmark_gate_prefers_real_binary_and_materializes_missing_enterpr
         evidence
             .get("binary_size_source")
             .and_then(Value::as_str)
-            .map(|v| v.contains("target/x86_64-unknown-linux-musl/release/protheusd")),
+            .map(|v| v.contains("target/x86_64-unknown-linux-musl/release/infringd")),
         Some(true)
     );
     assert_eq!(

@@ -2,7 +2,7 @@
 mod index_stats;
 
 use index_stats::build_index_stats;
-use protheus_memory_core_v6::{
+use infring_memory_core_v6::{
     clear_cache, compress_store, crdt_exchange_json, ebbinghaus_curve, get_json, ingest_memory,
     load_embedded_execution_replay, load_embedded_heartbeat, load_embedded_observability_profile,
     load_embedded_vault_policy, pack_embedded_blob_assets, recall_json, set_hot_state,
@@ -157,20 +157,20 @@ fn run_daemon(host: &str, port: u16) {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn verify_envelope_report() -> serde_json::Value {
-    let default_path = std::env::var("PROTHEUS_CORE_STATE_ROOT")
+    let default_path = std::env::var("INFRING_CORE_STATE_ROOT")
         .ok()
         .map(|v| v.trim().to_string())
         .filter(|v| !v.is_empty())
         .map(|v| format!("{v}/memory/runtime_memory.sqlite"))
         .or_else(|| {
-            std::env::var("PROTHEUS_CLIENT_STATE_ROOT")
+            std::env::var("INFRING_CLIENT_STATE_ROOT")
                 .ok()
                 .map(|v| v.trim().to_string())
                 .filter(|v| !v.is_empty())
                 .map(|v| format!("{v}/memory/runtime_memory.sqlite"))
         })
         .unwrap_or_else(|| "core/local/state/memory/runtime_memory.sqlite".to_string());
-    let db_path = env::var("PROTHEUS_MEMORY_DB_PATH").unwrap_or(default_path);
+    let db_path = env::var("INFRING_MEMORY_DB_PATH").unwrap_or(default_path);
     let _ = recall_json("", 1);
     match Connection::open(&db_path) {
         Ok(conn) => {
@@ -285,7 +285,7 @@ fn main() {
             if let Some(db_path) = flags.get("db-path").cloned() {
                 if !db_path.trim().is_empty() {
                     // Required for backward compatibility with psycheforge hot-state sink.
-                    std::env::set_var("PROTHEUS_MEMORY_DB_PATH", db_path);
+                    std::env::set_var("INFRING_MEMORY_DB_PATH", db_path);
                 }
             }
             match set_hot_state(&key, &value_json) {
@@ -317,7 +317,7 @@ fn main() {
         "verify-envelope" => {
             if let Some(db_path) = flags.get("db-path").cloned() {
                 if !db_path.trim().is_empty() {
-                    std::env::set_var("PROTHEUS_MEMORY_DB_PATH", db_path);
+                    std::env::set_var("INFRING_MEMORY_DB_PATH", db_path);
                 }
             }
             print_json(verify_envelope_report());

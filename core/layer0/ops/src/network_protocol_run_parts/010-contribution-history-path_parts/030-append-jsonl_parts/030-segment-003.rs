@@ -9,7 +9,7 @@
                 "profile": "bitcoin",
                 "seed": seed,
                 "activation": {
-                    "command": "protheus network ignite bitcoin",
+                    "command": "infring network ignite bitcoin",
                     "surface": "core://network-protocol"
                 },
                 "network_state_root": ledger.get("root_head").cloned().unwrap_or(Value::String("genesis".to_string())),

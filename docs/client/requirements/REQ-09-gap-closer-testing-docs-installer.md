@@ -16,7 +16,7 @@ Close the highest-visibility completeness gaps with a focused implementation wav
 1. `REQ-09-001` Installer parity
 - Acceptance:
   - Root [install.sh](../../install.sh) exists and provisions canonical wrappers `infring`, `infringctl`, and `infringd`.
-  - Legacy aliases (`protheus`, `protheusctl`, `protheusd`) remain compatibility-only.
+  - Legacy aliases (`infring`, `infringctl`, `infringd`) remain compatibility-only.
   - Root [install.ps1](../../install.ps1) exists with equivalent Windows behavior.
   - [docs/client/GETTING_STARTED.md](../GETTING_STARTED.md) includes one-line install commands.
 
@@ -66,7 +66,7 @@ When first-run fails, diagnose in this order:
 
 4. Stale root/path drift:
    - `infringctl doctor --json`
-   - Verify `INFRING_WORKSPACE_ROOT` / `PROTHEUS_WORKSPACE_ROOT` consistency with active workspace
+   - Verify `INFRING_WORKSPACE_ROOT` / `INFRING_WORKSPACE_ROOT` consistency with active workspace
 
 5. Full-surface Node dependency missing:
    - Reinstall with Node bootstrap: `curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.sh | sh -s -- --full --install-node`
@@ -79,5 +79,5 @@ When first-run fails, diagnose in this order:
 | `command_not_found` | `infring --help` (after env reload) | Help output or explicit missing-wrapper failure | Run direct wrapper (`$HOME/.infring/bin/infring --help`) and rerun install if still missing |
 | `setup_incomplete` | `infring setup status --json` | `onboarding_receipt.status` is `incomplete` with mode/workspace metadata | `infring setup --yes --defaults`, then re-check status |
 | `gateway_unhealthy` | `infring gateway status` + `/healthz` | Deterministic gateway state and health endpoint response | `infring gateway restart`, then verify `/healthz` and doctor output |
-| `stale_workspace_root` | `infringctl doctor --json` | Stale path/root findings with explicit fields | Align `INFRING_WORKSPACE_ROOT`/`PROTHEUS_WORKSPACE_ROOT`, re-run doctor |
+| `stale_workspace_root` | `infringctl doctor --json` | Stale path/root findings with explicit fields | Align `INFRING_WORKSPACE_ROOT`/`INFRING_WORKSPACE_ROOT`, re-run doctor |
 | `full_surface_dependency_missing` | Full install command with `--install-node` | Runtime wrappers + full-surface dependencies installed | Retry first-run flow or switch to `--pure` / `--tiny-max` |

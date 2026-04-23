@@ -8,7 +8,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         return 0;
     }
     let mode = parse_mode(argv)
-        .or_else(|| std::env::var("PROTHEUSD_DEFAULT_COMMAND").ok())
+        .or_else(|| std::env::var("INFRINGD_DEFAULT_COMMAND").ok())
         .filter(|value| !value.trim().is_empty());
     if command == "watchdog" {
         return run_dashboard_watchdog(root, argv);

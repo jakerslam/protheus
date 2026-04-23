@@ -4,7 +4,7 @@
 // Layer ownership: core/layer0/ops (authoritative)
 // Thin TypeScript wrapper only.
 
-const { invokeKernelPayload } = require('../../lib/protheus_kernel_bridge.ts');
+const { invokeKernelPayload } = require('../../lib/infring_kernel_bridge.ts');
 
 const SESSION_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$/;
 const DEFAULT_STATE_PATH = 'client/runtime/local/state/memory/session_isolation.json';

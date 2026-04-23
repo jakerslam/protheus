@@ -299,7 +299,7 @@ fn is_dashboard_daemon_executable(exe: &Path) -> bool {
         .and_then(|value| value.to_str())
         .unwrap_or_default()
         .to_ascii_lowercase();
-    name.contains("infringd") || name.contains("protheusd")
+    name.contains("infringd") || name.contains("infringd")
 }
 
 fn dashboard_system_action_args_for_exe(exe: &Path, action: &str) -> Result<Vec<String>, String> {
@@ -338,7 +338,7 @@ fn dashboard_system_action_executables() -> Vec<PathBuf> {
         candidates.push(current);
     }
     candidates.push(PathBuf::from("infring-ops"));
-    candidates.push(PathBuf::from("protheus-ops"));
+    candidates.push(PathBuf::from("infring-ops"));
     candidates
 }
 

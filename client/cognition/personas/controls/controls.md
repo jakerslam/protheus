@@ -6,7 +6,7 @@ This document defines operator controls for persona responses.
 
 - Definition: Configurable delay before final persona output so the operator can review stream-of-thought.
 - Default: `0` seconds (no delay).
-- CLI: `protheus lens <persona> --gap=<seconds> "<query>"`
+- CLI: `infring lens <persona> --gap=<seconds> "<query>"`
 - Constraint: Delay is clamped to `0..60` seconds.
 - Runtime behavior:
   - Emits reasoning in 3-5 live stream chunks.

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://protheus.ai/schemas/epistemic_memory.schema.json",
+  "$id": "https://infring.ai/schemas/epistemic_memory.schema.json",
   "title": "EpistemicMemoryObject",
   "type": "object",
   "required": [

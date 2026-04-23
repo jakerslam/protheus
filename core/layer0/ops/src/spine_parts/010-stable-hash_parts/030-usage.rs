@@ -107,8 +107,8 @@ fn run_ops_domain_json(
     cmd.args(command_args)
         .current_dir(root)
         .env(
-            "PROTHEUS_NODE_BINARY",
-            std::env::var("PROTHEUS_NODE_BINARY").unwrap_or_else(|_| "node".to_string()),
+            "INFRING_NODE_BINARY",
+            std::env::var("INFRING_NODE_BINARY").unwrap_or_else(|_| "node".to_string()),
         )
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
@@ -161,7 +161,7 @@ fn resolve_profile_binary(root: &Path, profile: &str, stem: &str) -> Option<Path
 fn resolve_infring_ops_command(root: &Path, domain: &str) -> (String, Vec<String>) {
     if let Some(bin) = std::env::var("INFRING_OPS_BIN")
         .ok()
-        .or_else(|| std::env::var("PROTHEUS_OPS_BIN").ok())
+        .or_else(|| std::env::var("INFRING_OPS_BIN").ok())
     {
         let trimmed = bin.trim();
         if !trimmed.is_empty() {
@@ -175,7 +175,7 @@ fn resolve_infring_ops_command(root: &Path, domain: &str) -> (String, Vec<String
             vec![domain.to_string()],
         );
     }
-    if let Some(release_legacy) = resolve_profile_binary(root, "release", "protheus-ops") {
+    if let Some(release_legacy) = resolve_profile_binary(root, "release", "infring-ops") {
         return (
             release_legacy.to_string_lossy().to_string(),
             vec![domain.to_string()],
@@ -187,7 +187,7 @@ fn resolve_infring_ops_command(root: &Path, domain: &str) -> (String, Vec<String
             vec![domain.to_string()],
         );
     }
-    if let Some(debug_legacy) = resolve_profile_binary(root, "debug", "protheus-ops") {
+    if let Some(debug_legacy) = resolve_profile_binary(root, "debug", "infring-ops") {
         return (
             debug_legacy.to_string_lossy().to_string(),
             vec![domain.to_string()],
@@ -231,8 +231,8 @@ fn enqueue_spine_attention(root: &Path, source_type: &str, severity: &str, summa
         .args(args)
         .current_dir(root)
         .env(
-            "PROTHEUS_NODE_BINARY",
-            std::env::var("PROTHEUS_NODE_BINARY").unwrap_or_else(|_| "node".to_string()),
+            "INFRING_NODE_BINARY",
+            std::env::var("INFRING_NODE_BINARY").unwrap_or_else(|_| "node".to_string()),
         )
         .stdout(Stdio::null())
         .stderr(Stdio::null())

@@ -29,13 +29,13 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     if matches!(command.as_str(), "help" | "--help" | "-h") {
         println!("Usage:");
-        println!("  protheus-ops rsi-ignition status");
-        println!("  protheus-ops rsi-ignition ignite [--proposal=<text>] [--module=<id>] [--apply=1|0] [--canary-pass=1|0] [--sim-regression=<0..1>]");
-        println!("  protheus-ops rsi-ignition reflect [--drift=<0..1>] [--exploration=<0..1>]");
+        println!("  infring-ops rsi-ignition status");
+        println!("  infring-ops rsi-ignition ignite [--proposal=<text>] [--module=<id>] [--apply=1|0] [--canary-pass=1|0] [--sim-regression=<0..1>]");
+        println!("  infring-ops rsi-ignition reflect [--drift=<0..1>] [--exploration=<0..1>]");
         println!(
-            "  protheus-ops rsi-ignition swarm [--nodes=<n>] [--share-rate=<0..1>] [--apply=1|0]"
+            "  infring-ops rsi-ignition swarm [--nodes=<n>] [--share-rate=<0..1>] [--apply=1|0]"
         );
-        println!("  protheus-ops rsi-ignition evolve [--insight=<text>] [--module=<id>] [--apply=1|0] [--ignite-apply=1|0] [--night-cycle=1|0]");
+        println!("  infring-ops rsi-ignition evolve [--insight=<text>] [--module=<id>] [--apply=1|0] [--ignite-apply=1|0] [--night-cycle=1|0]");
         return 0;
     }
 

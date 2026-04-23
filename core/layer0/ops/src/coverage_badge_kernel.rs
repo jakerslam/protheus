@@ -23,7 +23,7 @@ struct Config {
 fn usage() {
     println!("coverage-badge-kernel commands:");
     println!(
-        "  protheus-ops coverage-badge-kernel [run] [--ts=<path>] [--rust=<path>] [--contracts=<path>] [--out-json=<path>] [--out-badge=<path>]"
+        "  infring-ops coverage-badge-kernel [run] [--ts=<path>] [--rust=<path>] [--contracts=<path>] [--out-json=<path>] [--out-badge=<path>]"
     );
 }
 

@@ -26,8 +26,8 @@ if (!require.extensions['.ts']) {
 }
 
 const runtimeRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'catalog-store-runtime-'));
-process.env.PROTHEUS_RUNTIME_ROOT = runtimeRoot;
-process.env.PROTHEUS_WORKSPACE_ROOT = path.dirname(runtimeRoot);
+process.env.INFRING_RUNTIME_ROOT = runtimeRoot;
+process.env.INFRING_WORKSPACE_ROOT = path.dirname(runtimeRoot);
 const ROOT = path.resolve(__dirname, '../..');
 const mod = require(path.join(ROOT, 'core/layer1/memory_runtime/adaptive/catalog_store.ts'));
 const state = mod.ensureCatalog();

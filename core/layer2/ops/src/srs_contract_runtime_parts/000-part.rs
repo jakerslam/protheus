@@ -378,7 +378,7 @@ fn execute_contract_with_options(
     } else {
         Vec::new()
     };
-    let dispatch_bin = std::env::var("PROTHEUS_SRS_DISPATCH_BIN")
+    let dispatch_bin = std::env::var("INFRING_SRS_DISPATCH_BIN")
         .ok()
         .filter(|row| !row.trim().is_empty())
         .or_else(|| {
@@ -386,7 +386,7 @@ fn execute_contract_with_options(
                 .ok()
                 .and_then(|path| path.to_str().map(|v| v.to_string()))
         })
-        .unwrap_or_else(|| "protheus-ops".to_string());
+        .unwrap_or_else(|| "infring-ops".to_string());
     let mut dispatch_results = Vec::<Value>::new();
     let mut dispatch_failed = 0usize;
     for target in &dispatch_targets {

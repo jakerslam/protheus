@@ -6,7 +6,7 @@ This document defines the executable contract for `V6-RUST50-001..007`.
 
 - Program: `client/runtime/systems/ops/rust50_migration_program.ts`
 - Policy: `client/runtime/config/rust50_migration_program_policy.json`
-- Mobile adapter: `client/runtime/systems/hybrid/mobile/protheus_mobile_adapter.ts`
+- Mobile adapter: `client/runtime/systems/hybrid/mobile/infring_mobile_adapter.ts`
 - Rust core: `client/runtime/systems/hybrid/rust/src/*.rs`
 
 ## Commands

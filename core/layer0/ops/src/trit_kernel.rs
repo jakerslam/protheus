@@ -14,17 +14,17 @@ const TRIT_OK: i64 = 1;
 
 fn usage() {
     println!("trit-kernel commands:");
-    println!("  protheus-ops trit-kernel normalize --payload-base64=<json>");
-    println!("  protheus-ops trit-kernel label --payload-base64=<json>");
-    println!("  protheus-ops trit-kernel from-label --payload-base64=<json>");
-    println!("  protheus-ops trit-kernel invert --payload-base64=<json>");
-    println!("  protheus-ops trit-kernel majority --payload-base64=<json>");
-    println!("  protheus-ops trit-kernel consensus --payload-base64=<json>");
-    println!("  protheus-ops trit-kernel propagate --payload-base64=<json>");
-    println!("  protheus-ops trit-kernel serialize --payload-base64=<json>");
-    println!("  protheus-ops trit-kernel parse-serialized --payload-base64=<json>");
-    println!("  protheus-ops trit-kernel serialize-vector --payload-base64=<json>");
-    println!("  protheus-ops trit-kernel parse-vector --payload-base64=<json>");
+    println!("  infring-ops trit-kernel normalize --payload-base64=<json>");
+    println!("  infring-ops trit-kernel label --payload-base64=<json>");
+    println!("  infring-ops trit-kernel from-label --payload-base64=<json>");
+    println!("  infring-ops trit-kernel invert --payload-base64=<json>");
+    println!("  infring-ops trit-kernel majority --payload-base64=<json>");
+    println!("  infring-ops trit-kernel consensus --payload-base64=<json>");
+    println!("  infring-ops trit-kernel propagate --payload-base64=<json>");
+    println!("  infring-ops trit-kernel serialize --payload-base64=<json>");
+    println!("  infring-ops trit-kernel parse-serialized --payload-base64=<json>");
+    println!("  infring-ops trit-kernel serialize-vector --payload-base64=<json>");
+    println!("  infring-ops trit-kernel parse-vector --payload-base64=<json>");
 }
 
 fn cli_receipt(kind: &str, payload: Value) -> Value {

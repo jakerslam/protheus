@@ -10,7 +10,7 @@ struct SqliteCfg {
 fn usage() {
     println!("queue-sqlite-kernel commands:");
     println!(
-        "  protheus-ops queue-sqlite-kernel <open|ensure-schema|migrate-history|upsert-item|append-event|insert-receipt|queue-stats|backpressure-policy> [--payload-base64=<base64_json>]"
+        "  infring-ops queue-sqlite-kernel <open|ensure-schema|migrate-history|upsert-item|append-event|insert-receipt|queue-stats|backpressure-policy> [--payload-base64=<base64_json>]"
     );
 }
 

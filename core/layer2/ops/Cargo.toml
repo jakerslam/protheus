@@ -1,12 +1,12 @@
 [package]
-name = "protheus-ops-core-v1"
+name = "infring-ops-core-v1"
 version = "0.1.0"
 edition = "2021"
 license = "SEE LICENSE IN LICENSE"
 description = "Layer 2 daemon/ops control contracts for InfRing."
 
 [lib]
-name = "protheus_ops_core_v1"
+name = "infring_ops_core_v1"
 path = "src/lib.rs"
 
 [dependencies]

@@ -22,7 +22,7 @@
   ],
   "mobile_status_cmd": [
     "node",
-    "client/runtime/systems/hybrid/mobile/protheus_mobile_adapter.ts",
+    "client/runtime/systems/hybrid/mobile/infring_mobile_adapter.ts",
     "status",
     "--strict=0",
     "--apply=0"

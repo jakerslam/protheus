@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use protheus_ops_core::{asm_plane, research_plane, security_plane};
+use infring_ops_core::{asm_plane, research_plane, security_plane};
 use serde_json::{json, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -92,7 +92,7 @@ fn v7_asm_004_to_010_strict_lanes_execute_with_receipts() {
             .join("latest.json"),
         &json!({
             "schema_id": "release_provenance_bundle",
-            "artifacts": ["protheus-ops", "protheusd"]
+            "artifacts": ["infring-ops", "infringd"]
         }),
     );
     write_json(
@@ -111,8 +111,8 @@ fn v7_asm_004_to_010_strict_lanes_execute_with_receipts() {
         .join("provenance")
         .join("signatures");
     fs::create_dir_all(&signatures_dir).expect("mkdir signatures");
-    fs::write(signatures_dir.join("protheus-ops.sig"), "sig:ops").expect("write sig 1");
-    fs::write(signatures_dir.join("protheusd.sig"), "sig:daemon").expect("write sig 2");
+    fs::write(signatures_dir.join("infring-ops.sig"), "sig:ops").expect("write sig 1");
+    fs::write(signatures_dir.join("infringd.sig"), "sig:daemon").expect("write sig 2");
     fs::write(signatures_dir.join("conduit_daemon.sig"), "sig:conduit").expect("write sig 3");
 
     let lanes: Vec<(&str, Vec<String>, &str)> = vec![

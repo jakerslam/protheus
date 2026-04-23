@@ -13,7 +13,7 @@ function resetModule(modulePath) {
 }
 
 function main() {
-  process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
+  process.env.INFRING_OPS_USE_PREBUILT = '0';
   const mod = resetModule(path.join(ROOT, 'client/runtime/lib/ternary_belief_engine.ts'));
 
   const evaluated = mod.evaluateTernaryBelief([

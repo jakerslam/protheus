@@ -1,12 +1,12 @@
 [package]
-name = "protheus-autonomy-core-v1"
+name = "infring-autonomy-core-v1"
 version = "0.1.0"
 edition = "2021"
 license = "SEE LICENSE IN LICENSE"
 description = "Layer 2 autonomy authority contracts for InfRing."
 
 [lib]
-name = "protheus_autonomy_core_v1"
+name = "infring_autonomy_core_v1"
 path = "src/lib.rs"
 
 [dependencies]

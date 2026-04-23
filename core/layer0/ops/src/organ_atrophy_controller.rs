@@ -44,9 +44,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     if matches!(command.as_str(), "help" | "--help" | "-h") {
         println!("Usage:");
-        println!("  protheus-ops organ-atrophy-controller scan [YYYY-MM-DD] [--window-days=N] [--max-candidates=N] [--persist=1|0]");
-        println!("  protheus-ops organ-atrophy-controller status [latest|YYYY-MM-DD]");
-        println!("  protheus-ops organ-atrophy-controller revive --organ-id=<id> [--reason=<txt>] [--persist=1|0]");
+        println!("  infring-ops organ-atrophy-controller scan [YYYY-MM-DD] [--window-days=N] [--max-candidates=N] [--persist=1|0]");
+        println!("  infring-ops organ-atrophy-controller status [latest|YYYY-MM-DD]");
+        println!("  infring-ops organ-atrophy-controller revive --organ-id=<id> [--reason=<txt>] [--persist=1|0]");
         return 0;
     }
 

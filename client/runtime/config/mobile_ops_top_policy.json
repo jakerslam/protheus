@@ -2,8 +2,8 @@
   "version": "1.0",
   "enabled": true,
   "paths": {
-    "edge_latest_path": "local/state/edge/protheus_edge/latest.json",
-    "edge_state_path": "local/state/edge/protheus_edge/session_state.json",
+    "edge_latest_path": "local/state/edge/infring_edge/latest.json",
+    "edge_state_path": "local/state/edge/infring_edge/session_state.json",
     "lifecycle_latest_path": "local/state/edge/mobile_lifecycle/latest.json",
     "lifecycle_state_path": "local/state/edge/mobile_lifecycle/state.json",
     "swarm_latest_path": "local/state/spawn/mobile_edge_swarm_bridge/latest.json"

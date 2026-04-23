@@ -103,7 +103,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         strict,
         &command,
         "nexus_plane_conduit_enforcement",
-        "client/protheusctl -> core/nexus-plane",
+        "client/infringctl -> core/nexus-plane",
         bypass,
         vec![json!({
             "id": "V7-NEXUS-001.2",

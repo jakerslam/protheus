@@ -1,6 +1,6 @@
 {
   "id": "V3-RACE-189",
-  "upgrade": "[extension / V3] `protheus-edge` Lightweight Runtime Package (Reflex + MemFS Cache + Remote Spine Sync)",
+  "upgrade": "[extension / V3] `infring-edge` Lightweight Runtime Package (Reflex + MemFS Cache + Remote Spine Sync)",
   "section": "External Requirements Intake (Google Doc `1lt6tGOofp1joh3JUQakKPvtise-3SW1pZ_qO6YOzbgE`, 2026-03-02)",
   "impact": 9,
   "layer_map": "0/1/2/adapter/client",
@@ -27,8 +27,8 @@
     }
   ],
   "validation": {
-    "lane_command": "protheus-ops srs-contract-runtime run --id=V3-RACE-189",
-    "status_command": "protheus-ops srs-contract-runtime status --id=V3-RACE-189",
+    "lane_command": "infring-ops srs-contract-runtime run --id=V3-RACE-189",
+    "status_command": "infring-ops srs-contract-runtime status --id=V3-RACE-189",
     "fail_closed_on_missing_contract": true
   },
   "generated_from": {

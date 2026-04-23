@@ -279,8 +279,8 @@ fn run_bio_enable(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
                 .unwrap_or_else(|| "operator".to_string()),
             120
         ),
-        "dashboard_hint": "protheus-top substrate biological",
-        "command_alias": "protheus substrate enable biological",
+        "dashboard_hint": "infring-top substrate biological",
+        "command_alias": "infring substrate enable biological",
         "ethics_policy_ok": ethics_ok,
         "ts": crate::now_iso()
     });
@@ -308,7 +308,7 @@ fn run_bio_enable(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
                 "id": "V6-SUBSTRATE-002.5",
                 "claim": "biological_substrate_activation_is_visible_in_cli_persona_and_dashboard_surfaces",
                 "evidence": {
-                    "command_alias": "protheus substrate enable biological"
+                    "command_alias": "infring substrate enable biological"
                 }
             }
         ]

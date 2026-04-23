@@ -210,7 +210,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         strict,
         &command,
         "business_plane_conduit_enforcement",
-        "client/protheusctl -> core/business-plane",
+        "client/infringctl -> core/business-plane",
         bypass,
         vec![json!({
             "id": "V7-BUSINESS-001.5",

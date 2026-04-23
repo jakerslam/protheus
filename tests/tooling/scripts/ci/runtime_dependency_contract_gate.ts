@@ -129,12 +129,12 @@ function buildReport(strict = false): GatePayload {
     }
   }
 
-  const routesPath = `${ROOT}/core/layer0/ops/src/protheusctl_routes_parts/010-command-routing.rs`;
+  const routesPath = `${ROOT}/core/layer0/ops/src/infringctl_routes_parts/010-command-routing.rs`;
   if (!fs.existsSync(routesPath)) {
     failures.push('command_routing_source_missing');
   } else {
     const daemonRoutesPath =
-      `${ROOT}/core/layer0/ops/src/protheusctl_routes_parts/010-command-routing_parts/001-resolve_core_shortcuts_family_daemon.rs`;
+      `${ROOT}/core/layer0/ops/src/infringctl_routes_parts/010-command-routing_parts/001-resolve_core_shortcuts_family_daemon.rs`;
     const source = [
       fs.readFileSync(routesPath, 'utf8'),
       fs.existsSync(daemonRoutesPath) ? fs.readFileSync(daemonRoutesPath, 'utf8') : '',

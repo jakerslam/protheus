@@ -59,8 +59,8 @@
       {
         input: [
           'Run exactly these commands to create a swarm of subagents:',
-          `protheus-ops collab-plane launch-role --team=ops --role=coordinator --shadow=${coordinatorShadow}`,
-          `protheus-ops collab-plane launch-role --team=ops --role=researcher --shadow=${researcherShadow}`,
+          `infring-ops collab-plane launch-role --team=ops --role=coordinator --shadow=${coordinatorShadow}`,
+          `infring-ops collab-plane launch-role --team=ops --role=researcher --shadow=${researcherShadow}`,
         ].join('\n'),
       }
     );
@@ -336,7 +336,7 @@
     );
     summary.checks.runtime_swarm_no_invalid_conduit_command = !(
       Array.isArray(runtimeSwarmLane.policies)
-      && runtimeSwarmLane.policies.some((row) => String((row && row.command) || '').includes('protheus-ops conduit auto-balance'))
+      && runtimeSwarmLane.policies.some((row) => String((row && row.command) || '').includes('infring-ops conduit auto-balance'))
     );
     assert.strictEqual(
       summary.checks.runtime_swarm_no_invalid_conduit_command,

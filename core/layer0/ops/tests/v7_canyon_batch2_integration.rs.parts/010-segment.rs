@@ -1,14 +1,14 @@
-use protheus_ops_core::canyon_plane;
+use infring_ops_core::canyon_plane;
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
-const ENV_KEY: &str = "PROTHEUS_CANYON_PLANE_STATE_ROOT";
+const ENV_KEY: &str = "INFRING_CANYON_PLANE_STATE_ROOT";
 
 fn temp_root(prefix: &str) -> tempfile::TempDir {
     tempfile::Builder::new()
-        .prefix(&format!("protheus_{prefix}_"))
+        .prefix(&format!("infring_{prefix}_"))
         .tempdir()
         .expect("tempdir")
 }
@@ -36,7 +36,7 @@ fn write_text(root: &Path, rel: &str, body: &str) {
 }
 
 fn install_stub_binary(root: &Path) -> PathBuf {
-    let bin = root.join("bin").join("protheus-ops");
+    let bin = root.join("bin").join("infring-ops");
     if let Some(parent) = bin.parent() {
         fs::create_dir_all(parent).expect("mkdir bin dir");
     }
@@ -61,7 +61,7 @@ fn install_tool_stubs(root: &Path) -> PathBuf {
 set -eu
 TARGET=""
 PROFILE="release-minimal"
-BIN="protheusd"
+BIN="infringd"
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --target) TARGET="$2"; shift 2 ;;
@@ -153,12 +153,12 @@ fn write_size_trust_workflows(root: &Path) {
     write_text(
         root,
         ".github/workflows/size-gate.yml",
-        "name: Size Gate\njobs:\n  gate:\n    steps:\n      - run: echo Build static protheusd\n      - run: echo Enforce full install size gate\n      - run: echo Enforce throughput gate\n",
+        "name: Size Gate\njobs:\n  gate:\n    steps:\n      - run: echo Build static infringd\n      - run: echo Enforce full install size gate\n      - run: echo Enforce throughput gate\n",
     );
     write_text(
         root,
-        ".github/workflows/protheusd-static-size-gate.yml",
-        "name: Static Size Gate\njobs:\n  gate:\n    steps:\n      - run: echo Build static protheusd\n      - run: echo Enforce static size gate\n      - run: echo Verify reproducible static rebuild\n",
+        ".github/workflows/infringd-static-size-gate.yml",
+        "name: Static Size Gate\njobs:\n  gate:\n    steps:\n      - run: echo Build static infringd\n      - run: echo Enforce static size gate\n      - run: echo Verify reproducible static rebuild\n",
     );
     write_text(
         root,

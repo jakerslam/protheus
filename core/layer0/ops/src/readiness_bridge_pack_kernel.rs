@@ -30,8 +30,8 @@ struct CheckRun {
 
 fn usage() {
     println!("readiness-bridge-pack-kernel commands:");
-    println!("  protheus-ops readiness-bridge-pack-kernel run [--strict=1|0] [--policy=<path>]");
-    println!("  protheus-ops readiness-bridge-pack-kernel status [--policy=<path>]");
+    println!("  infring-ops readiness-bridge-pack-kernel run [--strict=1|0] [--policy=<path>]");
+    println!("  infring-ops readiness-bridge-pack-kernel status [--policy=<path>]");
 }
 
 fn with_receipt_hash(mut payload: Value) -> Value {
@@ -158,12 +158,12 @@ fn load_policy(root: &Path, argv: &[String]) -> ReadinessPolicy {
 }
 
 fn run_ops_capture(domain: &str, args: &[&str]) -> CheckRun {
-    let command = std::env::var("PROTHEUS_OPS_BIN")
+    let command = std::env::var("INFRING_OPS_BIN")
         .ok()
         .filter(|value| !value.trim().is_empty())
         .map(PathBuf::from)
         .unwrap_or_else(|| {
-            std::env::current_exe().unwrap_or_else(|_| PathBuf::from("protheus-ops"))
+            std::env::current_exe().unwrap_or_else(|_| PathBuf::from("infring-ops"))
         });
     let output = Command::new(command).arg(domain).args(args).output();
     let Ok(output) = output else {
@@ -219,7 +219,7 @@ where
         ),
         (
             "control_plane_status",
-            "protheus-control-plane",
+            "infring-control-plane",
             vec!["status", if strict { "--strict=1" } else { "--strict=0" }],
         ),
     ]

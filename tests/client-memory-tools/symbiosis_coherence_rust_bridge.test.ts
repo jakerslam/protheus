@@ -79,7 +79,7 @@ function main() {
   });
 
   process.env.SYMBIOSIS_COHERENCE_POLICY_PATH = policyPath;
-  process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
+  process.env.INFRING_OPS_USE_PREBUILT = '0';
 
   const mod = resetModule(path.join(ROOT, 'client/lib/symbiosis_coherence_signal.ts'));
 

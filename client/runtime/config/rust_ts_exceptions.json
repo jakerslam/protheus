@@ -4,13 +4,13 @@
   "generated_at": "2026-03-26T08:37:50.421Z",
   "generated_from": "authority_exception_baseline_2026-03-26",
   "wrapper_tokens": [
-    "runProtheusOps",
-    "run_protheus_ops.ts",
+    "runInfringOps",
+    "run_infring_ops.ts",
     "createOpsLaneBridge",
     "createManifestLaneBridge",
     "createConduitLaneModule",
     "core://",
-    "protheus-ops",
+    "infring-ops",
     "bindLegacyRetiredModule",
     "legacy_retired_wrapper",
     "bindNativeRustModule"
@@ -145,15 +145,15 @@
       "reason": "Legacy operator diagnostics/tooling lane retained as temporary TS exception pending Rust parity port."
     },
     {
-      "path": "client/runtime/systems/ops/protheus_command_list.ts",
+      "path": "client/runtime/systems/ops/infring_command_list.ts",
       "reason": "Legacy operator diagnostics/tooling lane retained as temporary TS exception pending Rust parity port."
     },
     {
-      "path": "client/runtime/systems/ops/protheus_debug_diagnostics.ts",
+      "path": "client/runtime/systems/ops/infring_debug_diagnostics.ts",
       "reason": "Legacy operator diagnostics/tooling lane retained as temporary TS exception pending Rust parity port."
     },
     {
-      "path": "client/runtime/systems/ops/protheus_setup_wizard.ts",
+      "path": "client/runtime/systems/ops/infring_setup_wizard.ts",
       "reason": "Setup UX interaction flow (prompts/console rendering) remains TS host-side while authority/state mutation runs in Rust state-kernel lanes."
     },
     {

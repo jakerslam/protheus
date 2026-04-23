@@ -329,72 +329,72 @@ struct ResultFilters {
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops swarm-runtime status [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime scale <status|plan|set> [flags] [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime spawn [--task=<text>] [--session-id=<parent>] [--recursive=1|0] [--levels=<n>] [--max-depth=<n>] [--verify=1|0] [--timeout-sec=<seconds>] [--metrics=<none|detailed>] [--byzantine=1|0] [--corruption-type=<id>] [--token-budget=<n>|--max-tokens=<n>] [--token-warning-at=<0..1>] [--on-budget-exhausted=<fail|warn|compact>] [--adaptive-complexity=1|0] [--execution-mode=<task|persistent|background>] [--role=<name>] [--capabilities=<csv>] [--lifespan-sec=<n>] [--check-in-interval-sec=<n>] [--report-mode=<always|anomalies|final>] [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime tick [--advance-ms=<n>] [--max-check-ins=<n>] [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime status [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime scale <status|plan|set> [flags] [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime spawn [--task=<text>] [--session-id=<parent>] [--recursive=1|0] [--levels=<n>] [--max-depth=<n>] [--verify=1|0] [--timeout-sec=<seconds>] [--metrics=<none|detailed>] [--byzantine=1|0] [--corruption-type=<id>] [--token-budget=<n>|--max-tokens=<n>] [--token-warning-at=<0..1>] [--on-budget-exhausted=<fail|warn|compact>] [--adaptive-complexity=1|0] [--execution-mode=<task|persistent|background>] [--role=<name>] [--capabilities=<csv>] [--lifespan-sec=<n>] [--check-in-interval-sec=<n>] [--report-mode=<always|anomalies|final>] [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime tick [--advance-ms=<n>] [--max-check-ins=<n>] [--state-path=<path>]");
     println!(
-        "  protheus-ops swarm-runtime byzantine-test <enable|disable|status> [--state-path=<path>]"
+        "  infring-ops swarm-runtime byzantine-test <enable|disable|status> [--state-path=<path>]"
     );
-    println!("  protheus-ops swarm-runtime consensus-check [--task-id=<id>] [--threshold=<0..1>] [--fields=<csv>] [--reports-json=<json>] [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime test recursive [--levels=<n>] [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime test byzantine [--agents=<n>] [--corrupt=<n>] [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime test concurrency [--agents=<n>] [--metrics=detailed] [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime test hierarchy [--agents=<n>] [--fanout=<n>] [--max-depth=<n>] [--metrics=detailed] [--task-prefix=<text>] [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime test budget [--budget=<n>] [--warning-at=<0..1>] [--on-budget-exhausted=<fail|warn|compact>] [--assert-hard-enforcement=1|0] [--expect-fail=1|0] [--task=<text>] [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime test persistent [--lifespan-sec=<n>] [--check-in-interval-sec=<n>] [--advance-ms=<n>] [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime thorn <status|quarantine|release> [flags]");
-    println!("  protheus-ops swarm-runtime budget-report --session-id=<id> [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime sessions budget-report --session-id=<id> [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime sessions wake --session-id=<id> [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime sessions terminate --session-id=<id> [--graceful=1|0] [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime sessions metrics --session-id=<id> [--timeline=1|0] [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime sessions state --session-id=<id> [--timeline=1|0] [--tool-history-limit=<n>] [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime consensus-check [--task-id=<id>] [--threshold=<0..1>] [--fields=<csv>] [--reports-json=<json>] [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime test recursive [--levels=<n>] [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime test byzantine [--agents=<n>] [--corrupt=<n>] [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime test concurrency [--agents=<n>] [--metrics=detailed] [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime test hierarchy [--agents=<n>] [--fanout=<n>] [--max-depth=<n>] [--metrics=detailed] [--task-prefix=<text>] [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime test budget [--budget=<n>] [--warning-at=<0..1>] [--on-budget-exhausted=<fail|warn|compact>] [--assert-hard-enforcement=1|0] [--expect-fail=1|0] [--task=<text>] [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime test persistent [--lifespan-sec=<n>] [--check-in-interval-sec=<n>] [--advance-ms=<n>] [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime thorn <status|quarantine|release> [flags]");
+    println!("  infring-ops swarm-runtime budget-report --session-id=<id> [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime sessions budget-report --session-id=<id> [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime sessions wake --session-id=<id> [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime sessions terminate --session-id=<id> [--graceful=1|0] [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime sessions metrics --session-id=<id> [--timeline=1|0] [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime sessions state --session-id=<id> [--timeline=1|0] [--tool-history-limit=<n>] [--state-path=<path>]");
     println!(
-        "  protheus-ops swarm-runtime sessions bootstrap --session-id=<id> [--state-path=<path>]"
+        "  infring-ops swarm-runtime sessions bootstrap --session-id=<id> [--state-path=<path>]"
     );
-    println!("  protheus-ops swarm-runtime sessions handoff --session-id=<sender> --target-session-id=<recipient> --reason=<text> [--importance=<0..1>] [--context-json=<json>] [--network-id=<id>] [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime sessions context-put --session-id=<id> --context-json=<json> [--merge=1|0] [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime sessions handoff --session-id=<sender> --target-session-id=<recipient> --reason=<text> [--importance=<0..1>] [--context-json=<json>] [--network-id=<id>] [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime sessions context-put --session-id=<id> --context-json=<json> [--merge=1|0] [--state-path=<path>]");
     println!(
-        "  protheus-ops swarm-runtime sessions context-get --session-id=<id> [--state-path=<path>]"
+        "  infring-ops swarm-runtime sessions context-get --session-id=<id> [--state-path=<path>]"
     );
     println!(
-        "  protheus-ops swarm-runtime sessions anomalies --session-id=<id> [--state-path=<path>]"
+        "  infring-ops swarm-runtime sessions anomalies --session-id=<id> [--state-path=<path>]"
     );
-    println!("  protheus-ops swarm-runtime sessions send --sender-id=<session|coordinator> --session-id=<recipient> --message=<text> [--delivery=<at_most_once|at_least_once|exactly_once>] [--ttl-ms=<n>] [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime sessions receive --session-id=<id> [--limit=<n>] [--mark-read=1|0] [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime sessions ack --session-id=<id> --message-id=<id> [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime sessions send --sender-id=<session|coordinator> --session-id=<recipient> --message=<text> [--delivery=<at_most_once|at_least_once|exactly_once>] [--ttl-ms=<n>] [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime sessions receive --session-id=<id> [--limit=<n>] [--mark-read=1|0] [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime sessions ack --session-id=<id> --message-id=<id> [--state-path=<path>]");
     println!(
-        "  protheus-ops swarm-runtime sessions resume --session-id=<id> [--state-path=<path>]"
+        "  infring-ops swarm-runtime sessions resume --session-id=<id> [--state-path=<path>]"
     );
-    println!("  protheus-ops swarm-runtime sessions dead-letter [--session-id=<id>] [--retryable=1|0] [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime sessions retry-dead-letter --message-id=<id> [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime sessions discover --role=<name> [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime sessions send-role --sender-id=<session|coordinator> --role=<name> --message=<text> [--delivery=<at_most_once|at_least_once|exactly_once>] [--ttl-ms=<n>] [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime background <start|status|stop> [flags]");
-    println!("  protheus-ops swarm-runtime scheduled <add|status|run-due> [flags]");
-    println!("  protheus-ops swarm-runtime channels <create|publish|poll|monitor> [flags]");
-    println!("  protheus-ops swarm-runtime plans <start|status|advance|checkpoint|branch-gate|speaker-select> [flags]");
+    println!("  infring-ops swarm-runtime sessions dead-letter [--session-id=<id>] [--retryable=1|0] [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime sessions retry-dead-letter --message-id=<id> [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime sessions discover --role=<name> [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime sessions send-role --sender-id=<session|coordinator> --role=<name> --message=<text> [--delivery=<at_most_once|at_least_once|exactly_once>] [--ttl-ms=<n>] [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime background <start|status|stop> [flags]");
+    println!("  infring-ops swarm-runtime scheduled <add|status|run-due> [flags]");
+    println!("  infring-ops swarm-runtime channels <create|publish|poll|monitor> [flags]");
+    println!("  infring-ops swarm-runtime plans <start|status|advance|checkpoint|branch-gate|speaker-select> [flags]");
     println!("    start flags: --goal=<text> [--session-id=<supervisor>] [--plan-max-depth=<n>]");
     println!("    advance flags: --plan-id=<id> [--max-steps=<n>] [--allow-replan=1|0] [--simulate-blocked=1|0]");
     println!("    checkpoint flags: --plan-id=<id> --node-id=<id> [--state-json=<json>] | --plan-id=<id> --checkpoint-id=<id>");
     println!("    branch-gate flags: --plan-id=<id> --node-id=<id> [--wait-user=1|0] [--decision=<approve|deny|auto>] [--timeout-ms=<n>]");
     println!("    speaker-select flags: --plan-id=<id> --message=<text> [--candidate-session-ids=<csv>]");
     println!(
-        "  protheus-ops swarm-runtime results <publish|query|wait|show|consensus|outliers> [flags]"
+        "  infring-ops swarm-runtime results <publish|query|wait|show|consensus|outliers> [flags]"
     );
-    println!("  protheus-ops swarm-runtime tools register-json-schema --session-id=<id> --tool-name=<name> --schema-json=<json> --bridge-path=<path> --entrypoint=<name> [--description=<text>] [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime tools invoke --session-id=<id> --tool-name=<name> [--args-json=<json>] [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime stream emit --session-id=<id> [--turn-id=<id>] [--agent-label=<label>] --chunks-json=<json> [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime stream render --session-id=<id> [--turn-id=<id>] [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime turns run --session-id=<id> --turns-json=<json> [--label=<text>] [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime turns show --session-id=<id> --run-id=<id> [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime networks create [--session-id=<owner>] --spec-json=<json> [--state-path=<path>]");
-    println!("  protheus-ops swarm-runtime networks status --network-id=<id> [--session-id=<owner>] [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime tools register-json-schema --session-id=<id> --tool-name=<name> --schema-json=<json> --bridge-path=<path> --entrypoint=<name> [--description=<text>] [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime tools invoke --session-id=<id> --tool-name=<name> [--args-json=<json>] [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime stream emit --session-id=<id> [--turn-id=<id>] [--agent-label=<label>] --chunks-json=<json> [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime stream render --session-id=<id> [--turn-id=<id>] [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime turns run --session-id=<id> --turns-json=<json> [--label=<text>] [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime turns show --session-id=<id> --run-id=<id> [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime networks create [--session-id=<owner>] --spec-json=<json> [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime networks status --network-id=<id> [--session-id=<owner>] [--state-path=<path>]");
     println!(
-        "  protheus-ops swarm-runtime metrics queue [--format=<json|prometheus>] [--state-path=<path>]"
+        "  infring-ops swarm-runtime metrics queue [--format=<json|prometheus>] [--state-path=<path>]"
     );
-    println!("  protheus-ops swarm-runtime test heterogeneous [--label-pattern=<glob>] [--min-count=<n>] [--timeout-sec=<n>] [--state-path=<path>]");
+    println!("  infring-ops swarm-runtime test heterogeneous [--label-pattern=<glob>] [--min-count=<n>] [--timeout-sec=<n>] [--state-path=<path>]");
 }
 
 fn parse_flag(argv: &[String], key: &str) -> Option<String> {

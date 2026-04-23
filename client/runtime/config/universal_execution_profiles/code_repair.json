@@ -5,7 +5,7 @@
   "source": {
     "capability_id": "code_repair",
     "source_type": "workflow",
-    "provider": "protheus"
+    "provider": "infring"
   },
   "execution": {
     "adapter_kind": "shell_task",

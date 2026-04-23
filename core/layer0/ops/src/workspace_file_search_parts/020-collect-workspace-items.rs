@@ -3,7 +3,7 @@ fn collect_workspace_items(
     workspace: &WorkspaceSpec,
     fetch_limit: usize,
 ) -> Result<Vec<SearchItem>, String> {
-    let rg_binary = std::env::var("PROTHEUS_RG_BINARY")
+    let rg_binary = std::env::var("INFRING_RG_BINARY")
         .ok()
         .map(|row| row.trim().to_string())
         .filter(|row| !row.is_empty())

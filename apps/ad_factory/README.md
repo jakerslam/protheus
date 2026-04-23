@@ -12,4 +12,4 @@ Core integration contract:
 - Emit deterministic receipts for every script/video artifact.
 
 CLI target:
-- `protheus app run ad-factory`
+- `infring app run ad-factory`

@@ -1,4 +1,4 @@
-use protheus_memory_core_v1::{
+use infring_memory_core_v1::{
     self, CapabilityAction, CapabilityToken, Classification, DefaultVerityMemoryPolicy, MemoryKind,
     MemoryObject, MemoryRecallHit, MemoryRecallQuery, MemoryScope, OwnerScopeSettings, TrustState,
     UnifiedMemoryHeap, UnifiedMemoryHeapConfig,

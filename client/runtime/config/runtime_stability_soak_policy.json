@@ -22,7 +22,7 @@
     "simulation_days": 180
   },
   "attribution": {
-    "creator_id": "protheus_seed_instance",
+    "creator_id": "infring_seed_instance",
     "objective_id": "t1_build_sovereign_capital_v1",
     "base_value_usd": 100,
     "value_step_usd": 10

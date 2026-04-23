@@ -2,7 +2,7 @@
 // SRS coverage: V10-PHONE-001.1, V10-PHONE-001.2, V10-PHONE-001.3,
 // V10-PHONE-001.4, V10-PHONE-001.5
 
-use protheus_ops_core::phone_runtime_bridge;
+use infring_ops_core::phone_runtime_bridge;
 use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;

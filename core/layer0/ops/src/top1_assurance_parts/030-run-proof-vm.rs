@@ -367,7 +367,7 @@ fn render_matrix_markdown(
     source_snapshot: &str,
 ) -> String {
     let mut lines = Vec::<String>::new();
-    lines.push("# Protheus vs X (CI Generated)".to_string());
+    lines.push("# Infring vs X (CI Generated)".to_string());
     lines.push(String::new());
     lines.push(format!("Generated at: `{generated_at}`"));
     lines.push(format!("Source benchmark: `{source_benchmark}`"));

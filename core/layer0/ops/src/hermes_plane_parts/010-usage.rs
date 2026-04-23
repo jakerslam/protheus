@@ -27,19 +27,19 @@ const DELEGATION_CONTRACT_PATH: &str =
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops hermes-plane status");
-    println!("  protheus-ops hermes-plane discover [--shadow=<id>] [--strict=1|0]");
+    println!("  infring-ops hermes-plane status");
+    println!("  infring-ops hermes-plane discover [--shadow=<id>] [--strict=1|0]");
     println!(
-        "  protheus-ops hermes-plane continuity --op=<checkpoint|reconstruct|status> [--session-id=<id>] [--context-json=<json>] [--strict=1|0]"
+        "  infring-ops hermes-plane continuity --op=<checkpoint|reconstruct|status> [--session-id=<id>] [--context-json=<json>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops hermes-plane delegate --task=<text> [--parent=<id>] [--roles=researcher,executor] [--tool-pack=<id>] [--strict=1|0]"
+        "  infring-ops hermes-plane delegate --task=<text> [--parent=<id>] [--roles=researcher,executor] [--tool-pack=<id>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops hermes-plane cockpit [--max-blocks=<n>] [--stale-threshold-ms=<n>] [--conduit-signal-window-ms=<n>] [--strict=1|0]"
+        "  infring-ops hermes-plane cockpit [--max-blocks=<n>] [--stale-threshold-ms=<n>] [--conduit-signal-window-ms=<n>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops hermes-plane reclaim-stale [--stale-threshold-ms=<n>] [--max-reclaims=<n>] [--dry-run=1|0] [--strict=1|0]"
+        "  infring-ops hermes-plane reclaim-stale [--stale-threshold-ms=<n>] [--max-reclaims=<n>] [--dry-run=1|0] [--strict=1|0]"
     );
 }
 
@@ -229,11 +229,11 @@ fn run_discover(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
         "default-shadow",
     );
     let model = clean(
-        std::env::var("PROTHEUS_MODEL_ID").unwrap_or_else(|_| "unknown-model".to_string()),
+        std::env::var("INFRING_MODEL_ID").unwrap_or_else(|_| "unknown-model".to_string()),
         120,
     );
     let runtime_mode = clean(
-        std::env::var("PROTHEUS_RUNTIME_MODE").unwrap_or_else(|_| "source".to_string()),
+        std::env::var("INFRING_RUNTIME_MODE").unwrap_or_else(|_| "source".to_string()),
         80,
     );
     let provider_contract_snapshot = provider_contract_identity_snapshot(root);
@@ -255,7 +255,7 @@ fn run_discover(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
         },
         "model": {
             "active": model,
-            "router": clean(std::env::var("PROTHEUS_MODEL_ROUTER").unwrap_or_else(|_| "default".to_string()), 80)
+            "router": clean(std::env::var("INFRING_MODEL_ROUTER").unwrap_or_else(|_| "default".to_string()), 80)
         },
         "capabilities": {
             "can_research": true,

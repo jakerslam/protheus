@@ -17,7 +17,7 @@ fn cli_error_receipt_is_deterministic() {
     assert_non_silent_cli_outcome(&out);
     assert_eq!(
         out.get("type").and_then(Value::as_str),
-        Some("protheus_ops_cli_error")
+        Some("infring_ops_cli_error")
     );
     assert!(out.get("claim_evidence").is_some());
     assert!(out.get("persona_lenses").is_some());

@@ -94,11 +94,11 @@ impl Default for OriginIntegrityPaths {
 
 fn usage() {
     println!("Usage:");
-    println!("  protheus-ops origin-integrity run [--strict=1|0] [--policy=<path>]");
-    println!("  protheus-ops origin-integrity status [--policy=<path>]");
-    println!("  protheus-ops origin-integrity certificate [--strict=1|0] [--policy=<path>]");
+    println!("  infring-ops origin-integrity run [--strict=1|0] [--policy=<path>]");
+    println!("  infring-ops origin-integrity status [--policy=<path>]");
+    println!("  infring-ops origin-integrity certificate [--strict=1|0] [--policy=<path>]");
     println!(
-        "  protheus-ops origin-integrity seed-bootstrap-verify --certificate=<path> [--policy=<path>]"
+        "  infring-ops origin-integrity seed-bootstrap-verify --certificate=<path> [--policy=<path>]"
     );
 }
 

@@ -113,7 +113,7 @@ function run(cmd: string, args: string[]) {
     cwd: ROOT,
     encoding: 'utf8',
     stdio: 'pipe',
-    env: { ...process.env, INFRING_ROOT: ROOT, PROTHEUS_ROOT: ROOT }
+    env: { ...process.env, INFRING_ROOT: ROOT, INFRING_ROOT: ROOT }
   });
 }
 
@@ -152,11 +152,11 @@ function measureRichEndToEndCommandPathOpsPerSec(): E2EThroughputMeasurement {
   const env = {
     ...process.env,
     INFRING_ROOT: ROOT,
-    PROTHEUS_ROOT: ROOT,
+    INFRING_ROOT: ROOT,
     INFRING_OPS_IPC_DAEMON: '1',
     INFRING_OPS_IPC_STRICT: '1',
     INFRING_OPS_USE_PREBUILT: '1',
-    PROTHEUS_OPS_USE_PREBUILT: '1',
+    INFRING_OPS_USE_PREBUILT: '1',
     INFRING_OPS_LOCAL_TIMEOUT_MS: '60000',
   };
   const warm = spawnSync(command, args, {
@@ -286,9 +286,9 @@ function main(): void {
     buildArgs('core/layer0/ops/Cargo.toml', 'infring-ops', options.cargoProfile)
   );
   assertRunOk(
-    `build_protheus_ops_compat_${options.cargoProfile}`,
+    `build_infring_ops_compat_${options.cargoProfile}`,
     'cargo',
-    buildArgs('core/layer0/ops/Cargo.toml', 'protheus-ops', options.cargoProfile)
+    buildArgs('core/layer0/ops/Cargo.toml', 'infring-ops', options.cargoProfile)
   );
   assertRunOk(
     `build_infringd_${options.cargoProfile}`,
@@ -296,9 +296,9 @@ function main(): void {
     buildArgs('core/layer0/ops/Cargo.toml', 'infringd', options.cargoProfile)
   );
   assertRunOk(
-    `build_protheusd_compat_${options.cargoProfile}`,
+    `build_infringd_compat_${options.cargoProfile}`,
     'cargo',
-    buildArgs('core/layer0/ops/Cargo.toml', 'protheusd', options.cargoProfile)
+    buildArgs('core/layer0/ops/Cargo.toml', 'infringd', options.cargoProfile)
   );
   assertRunOk(
     `build_pure_workspace_${options.cargoProfile}`,
@@ -306,11 +306,11 @@ function main(): void {
     buildArgs('client/pure-workspace/Cargo.toml', 'infring-pure-workspace', options.cargoProfile)
   );
   assertRunOk(
-    `build_protheus_pure_workspace_compat_${options.cargoProfile}`,
+    `build_infring_pure_workspace_compat_${options.cargoProfile}`,
     'cargo',
     buildArgs(
       'client/pure-workspace/Cargo.toml',
-      'protheus-pure-workspace',
+      'infring-pure-workspace',
       options.cargoProfile
     )
   );

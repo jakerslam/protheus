@@ -7,11 +7,11 @@ const DEFAULT_REGRETS_PATH: &str = "local/state/autonomy/autophagy_auto_approval
 
 const USAGE: &[&str] = &[
     "Usage:",
-    "  protheus-ops autophagy-auto-approval evaluate --proposal-json=<json>|--proposal-file=<path> [--apply=1|0] [--policy=<path>] [--state-path=<path>] [--latest-path=<path>] [--receipts-path=<path>] [--regrets-path=<path>]",
-    "  protheus-ops autophagy-auto-approval monitor --proposal-id=<id> [--drift=<float>] [--yield-drop=<float>] [--apply=1|0] [--policy=<path>] [--state-path=<path>] [--latest-path=<path>] [--receipts-path=<path>] [--regrets-path=<path>]",
-    "  protheus-ops autophagy-auto-approval commit --proposal-id=<id> [--reason=<text>] [--policy=<path>] [--state-path=<path>] [--latest-path=<path>] [--receipts-path=<path>] [--regrets-path=<path>]",
-    "  protheus-ops autophagy-auto-approval rollback --proposal-id=<id> [--reason=<text>] [--policy=<path>] [--state-path=<path>] [--latest-path=<path>] [--receipts-path=<path>] [--regrets-path=<path>]",
-    "  protheus-ops autophagy-auto-approval status [--policy=<path>] [--state-path=<path>]",
+    "  infring-ops autophagy-auto-approval evaluate --proposal-json=<json>|--proposal-file=<path> [--apply=1|0] [--policy=<path>] [--state-path=<path>] [--latest-path=<path>] [--receipts-path=<path>] [--regrets-path=<path>]",
+    "  infring-ops autophagy-auto-approval monitor --proposal-id=<id> [--drift=<float>] [--yield-drop=<float>] [--apply=1|0] [--policy=<path>] [--state-path=<path>] [--latest-path=<path>] [--receipts-path=<path>] [--regrets-path=<path>]",
+    "  infring-ops autophagy-auto-approval commit --proposal-id=<id> [--reason=<text>] [--policy=<path>] [--state-path=<path>] [--latest-path=<path>] [--receipts-path=<path>] [--regrets-path=<path>]",
+    "  infring-ops autophagy-auto-approval rollback --proposal-id=<id> [--reason=<text>] [--policy=<path>] [--state-path=<path>] [--latest-path=<path>] [--receipts-path=<path>] [--regrets-path=<path>]",
+    "  infring-ops autophagy-auto-approval status [--policy=<path>] [--state-path=<path>]",
 ];
 
 #[derive(Clone, Debug)]

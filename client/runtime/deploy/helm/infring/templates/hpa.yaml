@@ -2,15 +2,15 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ include "protheus.fullname" . }}-daemon
+  name: {{ include "infring.fullname" . }}-daemon
   labels:
-    app.kubernetes.io/name: {{ include "protheus.name" . }}
+    app.kubernetes.io/name: {{ include "infring.name" . }}
     app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ include "protheus.fullname" . }}-daemon
+    name: {{ include "infring.fullname" . }}-daemon
   minReplicas: {{ .Values.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}
   metrics:

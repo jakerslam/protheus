@@ -13,8 +13,8 @@ const DEFAULT_BURN_ORACLE_LATEST_PATH = process.env.DYNAMIC_BURN_BUDGET_ORACLE_L
   ? path.resolve(process.env.DYNAMIC_BURN_BUDGET_ORACLE_LATEST_PATH)
   : path.join(REPO_ROOT, 'local', 'state', 'ops', 'dynamic_burn_budget_oracle', 'latest.json');
 
-process.env.PROTHEUS_OPS_USE_PREBUILT = process.env.PROTHEUS_OPS_USE_PREBUILT || '0';
-process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '120000';
+process.env.INFRING_OPS_USE_PREBUILT = process.env.INFRING_OPS_USE_PREBUILT || '0';
+process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '120000';
 const bridge = createOpsLaneBridge(__dirname, 'dynamic_burn_budget_signal', 'dynamic-burn-budget-signal-kernel');
 
 function encodeBase64(value) {

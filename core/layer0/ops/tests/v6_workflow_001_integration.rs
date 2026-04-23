@@ -4,7 +4,7 @@
 // V6-WORKFLOW-001.7, V6-WORKFLOW-001.8, V6-WORKFLOW-001.9,
 // V6-WORKFLOW-001.10, V6-WORKFLOW-001.11, V6-WORKFLOW-001.12
 
-use protheus_ops_core::shannon_bridge;
+use infring_ops_core::shannon_bridge;
 use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;

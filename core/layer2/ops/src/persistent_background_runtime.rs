@@ -5,7 +5,7 @@ use std::path::Path;
 
 const USAGE: &[&str] = &[
     "Usage:",
-    "  protheus-ops persistent-background-runtime run|status|schedule|connector|subagent [--policy=<path>] [--state-path=<path>] [--strict=1|0]",
+    "  infring-ops persistent-background-runtime run|status|schedule|connector|subagent [--policy=<path>] [--state-path=<path>] [--strict=1|0]",
 ];
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
@@ -15,7 +15,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         &standard_lane_spec(
             "persistent_background_runtime",
             "persistent_background_runtime",
-            "protheus-ops persistent-background-runtime",
+            "infring-ops persistent-background-runtime",
             USAGE,
         ),
     )

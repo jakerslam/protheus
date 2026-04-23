@@ -15,8 +15,8 @@ function resetModule(modulePath) {
 }
 
 function main() {
-  process.env.PROTHEUS_OPS_USE_PREBUILT = '0';
-  process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS = '120000';
+  process.env.INFRING_OPS_USE_PREBUILT = '0';
+  process.env.INFRING_OPS_LOCAL_TIMEOUT_MS = '120000';
 
   const mod = resetModule(path.join(ROOT, 'client/runtime/systems/memory/session_isolation.ts'));
   const statePath = path.join(os.tmpdir(), `session-isolation-rust-${Date.now()}.json`);

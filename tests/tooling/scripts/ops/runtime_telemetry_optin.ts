@@ -76,7 +76,7 @@ function loadPolicy() {
       aggregate_path: 'client/runtime/local/state/observability/runtime_telemetry_latest.json',
     },
     privacy: {
-      salt_env_var: 'PROTHEUS_TELEMETRY_SALT',
+      salt_env_var: 'INFRING_TELEMETRY_SALT',
       allow_raw_identifiers: false,
     },
   });

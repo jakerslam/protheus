@@ -5,7 +5,7 @@ fn v6_sec_016_secrets_federation_issues_scoped_handles_and_revokes_them() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let root = tmp.path();
     std::env::set_var(
-        "PROTHEUS_SECRET_VAULT_APP_DB_PASSWORD",
+        "INFRING_SECRET_VAULT_APP_DB_PASSWORD",
         "super-secret-password",
     );
 
@@ -72,7 +72,7 @@ fn v6_sec_016_secrets_federation_issues_scoped_handles_and_revokes_them() {
         Some(0)
     );
 
-    std::env::remove_var("PROTHEUS_SECRET_VAULT_APP_DB_PASSWORD");
+    std::env::remove_var("INFRING_SECRET_VAULT_APP_DB_PASSWORD");
 }
 
 #[test]
@@ -379,7 +379,7 @@ fn v6_sec_stub_contracts_are_now_authoritative_security_lanes() {
             "request-ingress",
             &[
                 "--policy-version=2026-03",
-                "--contact=security@protheus.ai",
+                "--contact=security@infring.ai",
                 "--strict=1",
             ],
             "V6-SEC-006",

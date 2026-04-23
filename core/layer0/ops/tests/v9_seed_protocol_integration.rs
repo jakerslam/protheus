@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use protheus_ops_core::{directive_kernel, network_protocol, seed_protocol};
+use infring_ops_core::{directive_kernel, network_protocol, seed_protocol};
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -11,7 +11,7 @@ fn temp_root(name: &str) -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .expect("clock")
         .as_nanos();
-    let root = std::env::temp_dir().join(format!("protheus_v9_seed_{name}_{nonce}"));
+    let root = std::env::temp_dir().join(format!("infring_v9_seed_{name}_{nonce}"));
     fs::create_dir_all(&root).expect("mkdir");
     root
 }
