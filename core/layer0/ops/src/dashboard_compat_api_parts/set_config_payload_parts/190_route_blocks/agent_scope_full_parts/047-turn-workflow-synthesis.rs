@@ -144,13 +144,46 @@ fn workflow_final_response_allows_system_fallback(workflow: &Value) -> bool {
     )
 }
 
+fn response_contains_route_classification_retry_template(lowered: &str) -> bool {
+    if lowered.is_empty() {
+        return false;
+    }
+    let mentions_first_gate = lowered.contains("the first gate");
+    let mentions_route_name =
+        lowered.contains("workflow_route") || lowered.contains("task_or_info_route");
+    let mentions_info_vs_task =
+        lowered.contains("still classifying this as an \"info\" route rather than a \"task\" route")
+            || lowered.contains("still classifying this as an 'info' route rather than a 'task' route");
+    let mentions_binary_classifier = lowered.contains("binary classification")
+        || lowered.contains("automated classification based on semantic analysis")
+        || lowered.contains("not a true/false decision i control")
+        || lowered.contains("defaults to info")
+        || lowered.contains("[source:workflow_gate]")
+        || lowered.contains("source:workflow_gate");
+    let mentions_trigger_copy = lowered.contains("explicit tool-related phrasing")
+        || lowered.contains("task classification path")
+        || lowered.contains("conversational exchange rather than a tool operation request")
+        || lowered.contains("tool operation request");
+    (mentions_first_gate
+        && mentions_route_name
+        && (mentions_info_vs_task || mentions_binary_classifier || mentions_trigger_copy))
+        || (mentions_route_name && mentions_info_vs_task)
+        || (mentions_route_name && mentions_binary_classifier)
+}
+
 fn workflow_response_repetition_breaker_active(latest_assistant_text: &str) -> bool {
     let lowered = latest_assistant_text.to_ascii_lowercase();
     let macro_signals = workflow_retry_macro_signal_count(&lowered);
+    let route_classification_template =
+        response_contains_route_classification_retry_template(&lowered);
     lowered.contains("i completed the workflow gate, but the final workflow state was unexpected")
         || lowered.contains("i completed the run, but the final reply did not render")
+        || lowered.contains("i can access runtime telemetry, persistent memory, workspace files, channels, and approved command surfaces in this session")
+        || lowered.contains("this is a policy gate, not a web-provider outage")
+        || lowered.contains("file list step was blocked before i could finish the answer")
         || lowered.contains("please retry so i can rerun the chain cleanly")
         || lowered.contains("ask me to continue and i will synthesize")
+        || route_classification_template
         || (lowered.contains("next actions:")
             && lowered.contains("run one targeted tool call")
             && lowered.contains("return a concise answer from current context"))
@@ -196,6 +229,20 @@ fn recent_assistant_retry_loop_detected(active_messages: &[Value]) -> bool {
 fn workflow_retry_macro_signal_count(lowered: &str) -> usize {
     let macro_signals = [
         "workflow gate",
+        "the first gate",
+        "workflow_route",
+        "task_or_info_route",
+        "still classifying this as an \"info\" route rather than a \"task\" route",
+        "still classifying this as an 'info' route rather than a 'task' route",
+        "binary classification",
+        "automated classification based on semantic analysis",
+        "not a true/false decision i control",
+        "defaults to info",
+        "[source:workflow_gate]",
+        "source:workflow_gate",
+        "explicit tool-related phrasing",
+        "task classification path",
+        "tool operation request",
         "final workflow state was unexpected",
         "workflow state was unexpected. please retry",
         "final reply did not render",
@@ -224,6 +271,8 @@ fn response_contains_unexpected_state_retry_boilerplate(response_text: &str) -> 
         return false;
     }
     let macro_signals = workflow_retry_macro_signal_count(&lowered);
+    let route_classification_template =
+        response_contains_route_classification_retry_template(&lowered);
     let workflow_gate_template = lowered.contains("workflow gate")
         && lowered.contains("unexpected")
         && (lowered.contains("retry") || lowered.contains("rerun"));
@@ -233,8 +282,12 @@ fn response_contains_unexpected_state_retry_boilerplate(response_text: &str) -> 
         && lowered.contains("return a concise answer from current context");
     lowered.contains("final workflow state was unexpected")
         || lowered.contains("final reply did not render")
+        || lowered.contains("i can access runtime telemetry, persistent memory, workspace files, channels, and approved command surfaces in this session")
+        || lowered.contains("this is a policy gate, not a web-provider outage")
+        || lowered.contains("file list step was blocked before i could finish the answer")
         || lowered.contains("please retry so i can rerun the chain cleanly")
         || lowered.contains("ask me to continue and i will synthesize")
+        || route_classification_template
         || workflow_gate_template
         || next_actions_template
         || (macro_signals >= 3
@@ -2319,6 +2372,41 @@ mod workflow_fallback_tests {
         let normal_text = "I can retry the query if you want, or I can answer directly from current context.";
         assert!(!response_contains_unexpected_state_retry_boilerplate(
             normal_text
+        ));
+    }
+
+    #[test]
+    fn workflow_unexpected_state_retry_boilerplate_detector_catches_policy_gate_outage_template() {
+        let retry_boilerplate = "The File List step was blocked before I could finish the answer: This is a policy gate, not a web-provider outage.";
+        assert!(response_contains_unexpected_state_retry_boilerplate(
+            retry_boilerplate
+        ));
+        assert!(workflow_response_repetition_breaker_active(
+            retry_boilerplate
+        ));
+    }
+
+    #[test]
+    fn workflow_unexpected_state_retry_boilerplate_detector_catches_runtime_capability_surface_template()
+    {
+        let retry_boilerplate = "I can access runtime telemetry, persistent memory, workspace files, channels, and approved command surfaces in this session.";
+        assert!(response_contains_unexpected_state_retry_boilerplate(
+            retry_boilerplate
+        ));
+        assert!(workflow_response_repetition_breaker_active(
+            retry_boilerplate
+        ));
+    }
+
+    #[test]
+    fn workflow_unexpected_state_retry_boilerplate_detector_catches_route_classification_template()
+    {
+        let retry_boilerplate = "The first gate (\"workflow_route\") is still classifying this as an \"info\" route rather than a \"task\" route, which means it's still seeing this as a conversational exchange rather than a tool operation request. The system needs explicit tool-related phrasing to trigger the task classification path.";
+        assert!(response_contains_unexpected_state_retry_boilerplate(
+            retry_boilerplate
+        ));
+        assert!(workflow_response_repetition_breaker_active(
+            retry_boilerplate
         ));
     }
 

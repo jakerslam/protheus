@@ -29,16 +29,24 @@
     "automatic_tool_trigger_backend_automation_admission",
     "automatic_tool_trigger_still_active_admission",
     "backend_automation_overrides_semantic_intent_admission",
-    "file_list_raw_lease_denied_echo"
+    "workflow_route_info_task_classification_boilerplate",
+    "workflow_route_task_classification_path_boilerplate",
+    "file_list_raw_lease_denied_echo",
+    "file_list_raw_lease_denied_echo_unquoted",
+    "workflow_retry_loop_next_actions_unordered_boilerplate",
+    "file_list_policy_gate_trace_blocked_template_generic"
   ],
   "error_on_warning_pattern_ids": [
     "workflow_final_reply_not_rendered_short_boilerplate",
     "workflow_retry_loop_next_actions_boilerplate",
     "workspace_file_policy_gate_template_loop",
     "file_list_policy_gate_trace_blocked_template",
+    "file_list_policy_gate_trace_blocked_template_generic",
     "file_tooling_validation_drift_template",
     "file_list_policy_gate_template",
     "file_list_raw_lease_denied_echo",
+    "file_list_raw_lease_denied_echo_unquoted",
+    "workflow_retry_loop_next_actions_unordered_boilerplate",
     "client_retry_policy_branching",
     "client_lane_selection_heuristic",
     "client_runtime_state_policy_branching"
@@ -138,7 +146,7 @@
       "id": "workflow_final_reply_not_rendered_retry_boilerplate",
       "severity": "error",
       "description": "Shell must not emit repeated final-reply-not-rendered boilerplate loops.",
-      "regex": "I completed the run, but the final reply did not render\\. Ask me to continue and I will synthesize from the recorded workflow state\\."
+      "regex": "I completed the run, but the final reply did not render\\. Ask me to continue and I will synthesize from (?:the\\s+)?recorded workflow state\\."
     },
     {
       "id": "workflow_final_reply_not_rendered_short_boilerplate",
@@ -151,6 +159,36 @@
       "severity": "warn",
       "description": "Shell should avoid repeating canned next-actions boilerplate when direct user answers are available.",
       "regex": "Next actions:\\s*1\\) clarify the exact outcome you want\\s*2\\) run one targeted tool call\\s*3\\) return a concise answer from current context"
+    },
+    {
+      "id": "workflow_retry_loop_next_actions_unordered_boilerplate",
+      "severity": "warn",
+      "description": "Shell should avoid unnumbered next-actions retry boilerplate and provide direct synthesized guidance instead.",
+      "regex": "final workflow state was unexpected\\.\\s*Next actions:\\s*run one targeted tool call,\\s*then return a concise answer from current context\\."
+    },
+    {
+      "id": "workflow_route_info_task_classification_boilerplate",
+      "severity": "error",
+      "description": "Shell must not emit internal route-classification boilerplate instead of a direct user answer.",
+      "regex": "The first gate \\(\"(?:workflow_route|task_or_info_route)\"\\) is still classifying this as an \"info\" route rather than a \"task\" route\\."
+    },
+    {
+      "id": "workflow_route_task_classification_path_boilerplate",
+      "severity": "error",
+      "description": "Shell must not emit task-classification-path diagnostic boilerplate instead of direct guidance.",
+      "regex": "(?:needs explicit tool-related phrasing to trigger the task classification path|still seeing this as a conversational exchange rather than a tool operation request)"
+    },
+    {
+      "id": "workflow_route_binary_classifier_boilerplate",
+      "severity": "error",
+      "description": "Shell must not emit automated binary route-classifier internals in user-facing output.",
+      "regex": "(?:workflow_route|task_or_info_route).{0,220}(?:binary classification|automated classification based on semantic analysis|defaults to info)"
+    },
+    {
+      "id": "workflow_gate_source_tag_leak",
+      "severity": "error",
+      "description": "Shell must not leak internal workflow gate source tags in user-facing output.",
+      "regex": "\\[source:workflow_gate\\]"
     },
     {
       "id": "automatic_tool_trigger_backend_automation_admission",
@@ -169,6 +207,12 @@
       "severity": "warn",
       "description": "Shell should not surface raw tool trace blocked templates instead of synthesized operator guidance.",
       "regex": "Tool trace complete1 done\\s*·\\s*1 blocked"
+    },
+    {
+      "id": "file_list_policy_gate_trace_blocked_template_generic",
+      "severity": "warn",
+      "description": "Shell should not surface generic blocked tool-trace templates instead of synthesized operator guidance.",
+      "regex": "Tool trace complete\\d*\\s*done\\s*[·•]\\s*\\d+\\s*blocked"
     },
     {
       "id": "file_tooling_validation_drift_template",
@@ -193,6 +237,12 @@
       "severity": "warn",
       "description": "Shell should not echo raw lease_denied tool errors; it should synthesize direct policy-aware guidance.",
       "regex": "`file_list` was blocked by ingress delivery policy in this runtime lane \\(lease_denied:client_ingress_domain_boundary\\)"
+    },
+    {
+      "id": "file_list_raw_lease_denied_echo_unquoted",
+      "severity": "warn",
+      "description": "Shell should not echo raw ingress lease_denied policy strings even when backticks are omitted.",
+      "regex": "file_list\\s+was blocked by ingress delivery policy in this runtime lane \\(lease_denied:client_ingress_domain_boundary\\)"
     },
     {
       "id": "automatic_tool_trigger_still_active_admission",
