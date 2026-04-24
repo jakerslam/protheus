@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "enabled": true,
+  "mode": "observe_and_queue_only",
+  "chat_injection_allowed": false,
+  "override_path": "local/state/ops/eval_live_monitor/config.json",
+  "env_override": "INFRING_LIVE_EVAL_MONITOR"
+}

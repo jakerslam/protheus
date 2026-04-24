@@ -328,7 +328,8 @@ function run(argv: string[]): number {
   checks.push({
     id: 'windows_install_script_release_tag_write_readback_fail_closed_ps1',
     ok:
-      source.includes('if ($script:WorkspaceRuntimeRefreshRequired -and -not $script:WorkspaceRuntimeRefreshApplied)')
+      (source.includes('if ($script:WorkspaceRuntimeRefreshRequired -and -not $script:WorkspaceRuntimeRefreshApplied)')
+        || source.includes('if ([bool]$script:WorkspaceRuntimeRefreshRequired -and (-not [bool]$script:WorkspaceRuntimeRefreshApplied))'))
       && source.includes('Workspace runtime refresh required but not applied')
       && source.includes('Write-WorkspaceRuntimeReleaseTagState')
       && source.includes('Assert-WorkspaceRuntimeReleaseTagState')

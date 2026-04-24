@@ -623,7 +623,6 @@ fn response_looks_like_tool_ack_without_findings(text: &str) -> bool {
     if response_looks_like_off_topic_web_results(&cleaned) {
         return true;
     }
-    let token_count = lowered.split_whitespace().count();
     let has_rich_findings = response_has_rich_findings_markers(&lowered);
     let mentions_tooling = lowered.contains("search")
         || lowered.contains("web")
@@ -664,7 +663,7 @@ fn response_looks_like_tool_ack_without_findings(text: &str) -> bool {
     if !mentions_tooling {
         return false;
     }
-    mentions_tooling && !has_rich_findings && (token_count <= 80 || mainly_ack_language)
+    mentions_tooling && !has_rich_findings && mainly_ack_language
 }
 
 fn no_findings_user_facing_response() -> String {

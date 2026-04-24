@@ -1,0 +1,34 @@
+{
+  "version": "agent-permission-contract-v1",
+  "owner": "kernel/security",
+  "enforcement_mode": "fail_closed",
+  "manifests": [
+    {
+      "manifest_id": "agent-permission-parent-clamp-fixture",
+      "agent_id": "child_agent_001",
+      "parent_agent_id": "parent_agent_001",
+      "parent_permission_root": "agent.permissions.parent_agent_001",
+      "allowed_patch_prefixes": [
+        "agent.permissions.parent_agent_001.workspace",
+        "agent.permissions.parent_agent_001.tools"
+      ],
+      "requested_patch_keys": [
+        "agent.permissions.parent_agent_001.workspace.read",
+        "agent.permissions.parent_agent_001.tools.web_search",
+        "agent.permissions.parent_agent_001.runtime.mutate_state",
+        "agent.permissions.other_agent.tools.web_fetch"
+      ],
+      "required_telemetry_fields": [
+        "permissions_parent_clamp_applied",
+        "permissions_enforcement_mode",
+        "permissions_requested_receipt",
+        "permissions_manifest_receipt",
+        "permissions_parent_manifest_receipt",
+        "permissions_widening_blocked_count",
+        "permissions_widening_blocked_permissions",
+        "permissions_parent_agent_id",
+        "permissions_blocked_key_lineage"
+      ]
+    }
+  ]
+}

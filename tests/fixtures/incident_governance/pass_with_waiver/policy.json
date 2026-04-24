@@ -1,7 +1,12 @@
 {
   "hard_gates": {
     "severity_taxonomy": {
-      "required_levels": ["P0", "P1", "P2", "P3"],
+      "required_levels": [
+        "P0",
+        "P1",
+        "P2",
+        "P3"
+      ],
       "definitions": {
         "P0": "critical",
         "P1": "high",
@@ -27,10 +32,26 @@
       }
     },
     "escalation_sla_minutes": {
-      "P0": { "ack": 5, "escalate": 10, "update_cadence": 15 },
-      "P1": { "ack": 10, "escalate": 20, "update_cadence": 30 },
-      "P2": { "ack": 30, "escalate": 60, "update_cadence": 120 },
-      "P3": { "ack": 120, "escalate": 240, "update_cadence": 480 }
+      "P0": {
+        "ack": 5,
+        "escalate": 10,
+        "update_cadence": 15
+      },
+      "P1": {
+        "ack": 10,
+        "escalate": 20,
+        "update_cadence": 30
+      },
+      "P2": {
+        "ack": 30,
+        "escalate": 60,
+        "update_cadence": 120
+      },
+      "P3": {
+        "ack": 120,
+        "escalate": 240,
+        "update_cadence": 480
+      }
     },
     "rollback_criteria": {
       "must_define": [
@@ -49,6 +70,18 @@
         "corrective_actions",
         "evidence_bundle",
         "owner_signoff"
+      ],
+      "schema_path": "tests/fixtures/incident_governance/pass_with_waiver/artifact_schema.json"
+    },
+    "waiver_contract": {
+      "waivers_path": "tests/fixtures/incident_governance/pass_with_waiver/waivers.json",
+      "required_fields": [
+        "waiver_id",
+        "check_ids",
+        "reason",
+        "approver",
+        "expires_at",
+        "status"
       ]
     }
   },

@@ -151,6 +151,24 @@
         "local/workspace/reports/KERNEL_NEXUS_COUPLING_GUARD_CURRENT.md"
       ]
     },
+    "ops:architecture:nexus-required-artifact:guard": {
+      "owner": "ops",
+      "description": "Architecture conformance guard that requires Kernel nexus coupling evidence in gate registry and release proof-pack manifests.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/architecture_nexus_required_artifact_guard.ts",
+        "--strict=1",
+        "--out-json=core/local/artifacts/architecture_nexus_required_artifact_guard_current.json",
+        "--out-markdown=local/workspace/reports/ARCHITECTURE_NEXUS_REQUIRED_ARTIFACT_GUARD_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/architecture_nexus_required_artifact_guard_current.json",
+        "local/workspace/reports/ARCHITECTURE_NEXUS_REQUIRED_ARTIFACT_GUARD_CURRENT.md"
+      ]
+    },
     "ops:repo-health:check": {
       "owner": "ops",
       "description": "Repo health gate for package-script budget, file-size exception debt, shared tooling adoption, and root-surface drift.",
@@ -854,6 +872,24 @@
         "core/local/artifacts/release_proof_checksums_current.json"
       ]
     },
+    "ops:production-release-gate:closure-audit": {
+      "owner": "ops",
+      "description": "Production closure audit for release-gate profile/proof-track/quality telemetry, gateway chaos, and Windows installer proof-pack continuity.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/production_release_gate_closure_audit.ts",
+        "--strict=1",
+        "--out-json=core/local/artifacts/production_release_gate_closure_audit_current.json",
+        "--out-markdown=local/workspace/reports/PRODUCTION_RELEASE_GATE_CLOSURE_AUDIT_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/production_release_gate_closure_audit_current.json",
+        "local/workspace/reports/PRODUCTION_RELEASE_GATE_CLOSURE_AUDIT_CURRENT.md"
+      ]
+    },
     "ops:runtime-closure:board:guard": {
       "owner": "ops",
       "description": "Runtime-closure board contract guard enforcing required closure buckets and gate/evidence linkage.",
@@ -936,12 +972,18 @@
       "description": "Workflow finalization failure-recovery guard enforcing repetitive-fallback loop blocking, bounded retries, and forced degraded synthesis terminal contracts.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 90,
-      "script": "ops:workflow-failure-recovery:guard",
       "artifact_paths": [
         "core/local/artifacts/workflow_failure_recovery_current.json",
         "artifacts/workflow_failure_recovery_latest.json",
         "local/state/ops/workflow_failure_recovery/latest.json",
         "local/workspace/reports/WORKFLOW_FAILURE_RECOVERY_CURRENT.md"
+      ],
+      "command": [
+        "npx",
+        "-y",
+        "tsx",
+        "tests/tooling/scripts/ci/workflow_failure_recovery_guard.ts",
+        "--strict=1"
       ]
     },
     "ops:tool-route:misdirection:guard": {
@@ -949,10 +991,18 @@
       "description": "Deterministic local-intent tool-route misdirection guard with per-request route/rejected-route/reason-code artifact output.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 90,
-      "script": "ops:tool-route:misdirection:guard",
       "artifact_paths": [
         "core/local/artifacts/tool_route_decision_current.json",
         "local/workspace/reports/TOOL_ROUTE_MISDIRECTION_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "npx",
+        "-y",
+        "tsx",
+        "tests/tooling/scripts/ci/tool_route_misdirection_guard.ts",
+        "--strict=1",
+        "--out=core/local/artifacts/tool_route_decision_current.json",
+        "--out-markdown=local/workspace/reports/TOOL_ROUTE_MISDIRECTION_GUARD_CURRENT.md"
       ]
     },
     "ops:gateway-runtime-chaos:gate": {
@@ -1684,6 +1734,204 @@
       "artifact_paths": [
         "core/local/artifacts/eval_runtime_authority_guard_current.json",
         "local/workspace/reports/EVAL_RUNTIME_AUTHORITY_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:orchestration:quality-closure:guard": {
+      "owner": "ops",
+      "description": "Closure guard proving orchestration planner/runtime/gateway/workflow quality evidence is passing and release-proof-pack required.",
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/orchestration_quality_closure_guard.ts",
+        "--strict=1",
+        "--out-json=core/local/artifacts/orchestration_quality_closure_guard_current.json",
+        "--out-markdown=local/workspace/reports/ORCHESTRATION_QUALITY_CLOSURE_GUARD_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/orchestration_quality_closure_guard_current.json",
+        "local/workspace/reports/ORCHESTRATION_QUALITY_CLOSURE_GUARD_CURRENT.md"
+      ],
+      "timeout_sec": 60
+    },
+    "ops:tooling-task-fabric:closure:guard": {
+      "owner": "ops",
+      "description": "Closure guard proving typed probe, tool routing, transport fail-closed, workspace/web tooling, and Task Fabric proof-ref evidence is release-ready.",
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/tooling_task_fabric_closure_guard.ts",
+        "--strict=1",
+        "--out-json=core/local/artifacts/tooling_task_fabric_closure_guard_current.json",
+        "--out-markdown=local/workspace/reports/TOOLING_TASK_FABRIC_CLOSURE_GUARD_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/tooling_task_fabric_closure_guard_current.json",
+        "local/workspace/reports/TOOLING_TASK_FABRIC_CLOSURE_GUARD_CURRENT.md"
+      ],
+      "timeout_sec": 60
+    },
+    "ops:chat-rendering:experience:guard": {
+      "owner": "ops",
+      "description": "Chat rendering experience guard for source chips, tool traces, workspace panel, metadata actions, thinking status, and markdown code/table ergonomics.",
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/chat_rendering_experience_guard.ts",
+        "--strict=1",
+        "--out-json=core/local/artifacts/chat_rendering_experience_guard_current.json",
+        "--out-markdown=local/workspace/reports/CHAT_RENDERING_EXPERIENCE_GUARD_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/chat_rendering_experience_guard_current.json",
+        "local/workspace/reports/CHAT_RENDERING_EXPERIENCE_GUARD_CURRENT.md"
+      ],
+      "timeout_sec": 60
+    },
+    "ops:client-deauthority:closure:guard": {
+      "owner": "ops",
+      "description": "Client de-authority closure guard for shell truth-leak policy, workflow-loop recovery coverage, and release proof-pack evidence wiring.",
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/client_deauthority_closure_guard.ts",
+        "--strict=1",
+        "--out-json=core/local/artifacts/client_deauthority_closure_guard_current.json",
+        "--out-markdown=local/workspace/reports/CLIENT_DEAUTHORITY_CLOSURE_GUARD_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/client_deauthority_closure_guard_current.json",
+        "local/workspace/reports/CLIENT_DEAUTHORITY_CLOSURE_GUARD_CURRENT.md"
+      ],
+      "timeout_sec": 60
+    },
+    "ops:dx-public-facade:closure:guard": {
+      "owner": "ops",
+      "description": "DX public facade closure guard for @infring/core, @infring/edge, public facade tests, and release-contract gate evidence wiring.",
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/dx_public_facade_closure_guard.ts",
+        "--strict=1",
+        "--out-json=core/local/artifacts/dx_public_facade_closure_guard_current.json",
+        "--out-markdown=local/workspace/reports/DX_PUBLIC_FACADE_CLOSURE_GUARD_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/dx_public_facade_closure_guard_current.json",
+        "local/workspace/reports/DX_PUBLIC_FACADE_CLOSURE_GUARD_CURRENT.md"
+      ],
+      "timeout_sec": 60
+    },
+    "ops:effective-loc:metric": {
+      "owner": "ops",
+      "description": "Canonical effective production LoC metric generator for tracked Rust/TypeScript production source counts.",
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/effective_loc_metric.ts",
+        "--strict=1",
+        "--out=core/local/artifacts/effective_loc_metric_current.json",
+        "--out-markdown=local/workspace/reports/EFFECTIVE_LOC_METRIC_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/effective_loc_metric_current.json",
+        "local/workspace/reports/EFFECTIVE_LOC_METRIC_CURRENT.md"
+      ],
+      "timeout_sec": 240
+    },
+    "ops:effective-loc:contract:guard": {
+      "owner": "ops",
+      "description": "Fail-closed guard proving canonical effective LoC metric definition, npm entrypoints, proof-pack evidence, and release profile wiring stay aligned.",
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/effective_loc_metric_contract_guard.ts",
+        "--strict=1",
+        "--out-json=core/local/artifacts/effective_loc_metric_contract_guard_current.json",
+        "--out-markdown=local/workspace/reports/EFFECTIVE_LOC_METRIC_CONTRACT_GUARD_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/effective_loc_metric_contract_guard_current.json",
+        "local/workspace/reports/EFFECTIVE_LOC_METRIC_CONTRACT_GUARD_CURRENT.md"
+      ],
+      "timeout_sec": 60
+    },
+    "ops:incident-governance:closure:guard": {
+      "owner": "ops",
+      "description": "Incident governance closure guard proving policy/runbook/gate/test/CI/profile/proof-pack evidence are wired together.",
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/incident_governance_closure_guard.ts",
+        "--strict=1",
+        "--out-json=core/local/artifacts/incident_governance_closure_guard_current.json",
+        "--out-markdown=local/workspace/reports/INCIDENT_GOVERNANCE_CLOSURE_GUARD_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/incident_governance_closure_guard_current.json",
+        "local/workspace/reports/INCIDENT_GOVERNANCE_CLOSURE_GUARD_CURRENT.md"
+      ],
+      "timeout_sec": 60
+    },
+    "ops:installer-reliability:closure:guard": {
+      "owner": "ops",
+      "description": "Installer reliability closure guard proving offline/cache, wrapper repair-floor, release-tag readback, profile, and proof-pack evidence alignment.",
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/installer_reliability_closure_guard.ts",
+        "--strict=1",
+        "--out-json=core/local/artifacts/installer_reliability_closure_guard_current.json",
+        "--out-markdown=local/workspace/reports/INSTALLER_RELIABILITY_CLOSURE_GUARD_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/installer_reliability_closure_guard_current.json",
+        "local/workspace/reports/INSTALLER_RELIABILITY_CLOSURE_GUARD_CURRENT.md"
+      ],
+      "timeout_sec": 60
+    },
+    "ops:memory-continuity:closure:guard": {
+      "description": "Release evidence guard for active-context recent-floor continuity, full-history recall backfill, and dream-bound sleep cleanup.",
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/memory_continuity_closure_guard.ts",
+        "--strict=1",
+        "--out-json=core/local/artifacts/memory_continuity_closure_guard_current.json",
+        "--out-markdown=local/workspace/reports/MEMORY_CONTINUITY_CLOSURE_GUARD_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/memory_continuity_closure_guard_current.json",
+        "local/workspace/reports/MEMORY_CONTINUITY_CLOSURE_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:knowledge-graph-query-acceleration:closure:guard": {
+      "description": "Release evidence guard for Layer 2 knowledge-graph query acceleration: multi-index lookups, traversal algorithms, planner/cache joins, materialized/approximate lanes, and federated planning.",
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/knowledge_graph_query_acceleration_closure_guard.ts",
+        "--strict=1",
+        "--out-json=core/local/artifacts/knowledge_graph_query_acceleration_closure_guard_current.json",
+        "--out-markdown=local/workspace/reports/KNOWLEDGE_GRAPH_QUERY_ACCELERATION_CLOSURE_GUARD_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/knowledge_graph_query_acceleration_closure_guard_current.json",
+        "local/workspace/reports/KNOWLEDGE_GRAPH_QUERY_ACCELERATION_CLOSURE_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:web-conduit:openclaw-media:closure:guard": {
+      "description": "Release evidence guard for OpenClaw web-conduit provider, fetch, media, hosting, outbound attachment, audio, and media-store slices.",
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/web_conduit_openclaw_media_closure_guard.ts",
+        "--strict=1",
+        "--out-json=core/local/artifacts/web_conduit_openclaw_media_closure_guard_current.json",
+        "--out-markdown=local/workspace/reports/WEB_CONDUIT_OPENCLAW_MEDIA_CLOSURE_GUARD_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/web_conduit_openclaw_media_closure_guard_current.json",
+        "local/workspace/reports/WEB_CONDUIT_OPENCLAW_MEDIA_CLOSURE_GUARD_CURRENT.md"
       ]
     }
   }

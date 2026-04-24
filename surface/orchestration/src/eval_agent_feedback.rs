@@ -2,6 +2,7 @@ use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
+#[path = "eval_agent_feedback_utils.rs"]
 mod eval_agent_feedback_utils;
 use eval_agent_feedback_utils::*;
 
@@ -10,6 +11,8 @@ const DEFAULT_CONTRACTS_PATH: &str =
 const DEFAULT_ISSUES_PATH: &str = "core/local/artifacts/eval_issue_drafts_current.json";
 const DEFAULT_LEARNING_ISSUES_PATH: &str =
     "core/local/artifacts/eval_learning_loop_issue_candidates_current.json";
+const DEFAULT_CHAT_MONITOR_ISSUES_PATH: &str =
+    "local/state/ops/eval_agent_chat_monitor/issue_drafts_latest.json";
 const DEFAULT_OUT_PATH: &str = "core/local/artifacts/eval_agent_feedback_scope_current.json";
 const DEFAULT_LATEST_PATH: &str = "artifacts/eval_agent_feedback_scope_latest.json";
 const DEFAULT_AGENT_QUEUE_DIR: &str = "local/state/ops/eval_agent_feedback";
@@ -49,20 +52,29 @@ pub fn run_eval_agent_feedback(args: &[String]) -> i32 {
     let issues_path = parse_flag(args, "issues").unwrap_or_else(|| DEFAULT_ISSUES_PATH.to_string());
     let learning_path =
         parse_flag(args, "learning").unwrap_or_else(|| DEFAULT_LEARNING_ISSUES_PATH.to_string());
+    let chat_monitor_path = parse_flag(args, "chat-monitor-issues")
+        .unwrap_or_else(|| DEFAULT_CHAT_MONITOR_ISSUES_PATH.to_string());
     let out_path = parse_flag(args, "out").unwrap_or_else(|| DEFAULT_OUT_PATH.to_string());
     let latest_path = parse_flag(args, "latest").unwrap_or_else(|| DEFAULT_LATEST_PATH.to_string());
     let queue_dir =
         parse_flag(args, "queue-dir").unwrap_or_else(|| DEFAULT_AGENT_QUEUE_DIR.to_string());
 
     let parent_map = load_parent_map(&contracts_path);
-    let issues = load_eval_issues(&issues_path, &learning_path);
+    let issues = load_eval_issues(&issues_path, &learning_path, &chat_monitor_path);
     let views = if agent_id.is_empty() || parse_bool_flag(args, "all", false) {
         build_all_views(&parent_map, &issues)
     } else {
         vec![build_scoped_view(&agent_id, &parent_map, &issues)]
     };
-    let report = report_for_views(&contracts_path, &issues_path, &learning_path, &views);
-    let mut write_ok = write_json(&out_path, &report).is_ok() && write_json(&latest_path, &report).is_ok();
+    let report = report_for_views(
+        &contracts_path,
+        &issues_path,
+        &learning_path,
+        &chat_monitor_path,
+        &views,
+    );
+    let mut write_ok =
+        write_json(&out_path, &report).is_ok() && write_json(&latest_path, &report).is_ok();
     for view in &views {
         if view.agent_id.is_empty() {
             continue;
@@ -71,7 +83,9 @@ pub fn run_eval_agent_feedback(args: &[String]) -> i32 {
         let state_path = Path::new(&queue_dir).join(format!("{}.json", view.agent_id));
         let events = attention_events_for_view(view);
         let state = scoped_state_for_view(view, &events);
-        write_ok = write_ok && write_json(&state_path, &state).is_ok() && write_jsonl(&queue_path, &events).is_ok();
+        write_ok = write_ok
+            && write_json(&state_path, &state).is_ok()
+            && write_jsonl(&queue_path, &events).is_ok();
     }
     if !write_ok {
         eprintln!("eval_agent_feedback: failed to write one or more outputs");
@@ -88,14 +102,19 @@ fn report_for_views(
     contracts_path: &str,
     issues_path: &str,
     learning_path: &str,
+    chat_monitor_path: &str,
     views: &[ScopedView],
 ) -> Value {
-    let total_visible = views.iter().map(|view| view.visible_issues.len()).sum::<usize>();
+    let total_visible = views
+        .iter()
+        .map(|view| view.visible_issues.len())
+        .sum::<usize>();
     let leaked = views
         .iter()
         .flat_map(|view| view.visible_issues.iter().map(move |issue| (view, issue)))
         .filter(|(view, issue)| {
-            !issue.related_agent_id.is_empty() && !view.scope_agent_ids.contains(&issue.related_agent_id)
+            !issue.related_agent_id.is_empty()
+                && !view.scope_agent_ids.contains(&issue.related_agent_id)
         })
         .count();
     let checks = vec![
@@ -129,7 +148,8 @@ fn report_for_views(
         "sources": {
             "contracts": contracts_path,
             "issue_drafts": issues_path,
-            "learning_issues": learning_path
+            "learning_issues": learning_path,
+            "chat_monitor_issues": chat_monitor_path
         }
     })
 }
@@ -268,7 +288,11 @@ fn attention_event_is_scoped(row: &Value) -> bool {
         && !related_agent_id.is_empty()
 }
 
-fn load_eval_issues(issue_path: &str, learning_path: &str) -> Vec<EvalIssue> {
+fn load_eval_issues(
+    issue_path: &str,
+    learning_path: &str,
+    chat_monitor_path: &str,
+) -> Vec<EvalIssue> {
     let mut out = Vec::new();
     let issues = read_json(issue_path);
     for row in array_at(&issues, &["issue_drafts"]) {
@@ -277,6 +301,10 @@ fn load_eval_issues(issue_path: &str, learning_path: &str) -> Vec<EvalIssue> {
     let learning = read_json(learning_path);
     for row in array_at(&learning, &["candidates"]) {
         out.push(issue_from_learning_candidate(&row));
+    }
+    let chat_monitor = read_json(chat_monitor_path);
+    for row in array_at(&chat_monitor, &["issue_drafts"]) {
+        out.push(issue_from_chat_monitor_draft(&row));
     }
     out.sort_by(|a, b| a.id.cmp(&b.id));
     out
@@ -293,6 +321,27 @@ fn issue_from_eval_draft(row: &Value) -> EvalIssue {
         related_agent_id: related_agent_id(row),
         expected_fix: required_str(row, &["expected_fix"], ""),
         suggested_test: required_str(row, &["suggested_test"], ""),
+        replay_command: required_str(row, &["replay_command"], ""),
+        evidence_summary: evidence_summary(row),
+        acceptance_criteria: string_array_at(row, &["acceptance_criteria"]),
+    }
+}
+
+fn issue_from_chat_monitor_draft(row: &Value) -> EvalIssue {
+    let issue_id = required_str(row, &["id"], "eval_chat_monitor_issue");
+    EvalIssue {
+        id: issue_id.clone(),
+        source_kind: "eval_agent_chat_monitor_issue".to_string(),
+        title: required_str(row, &["title"], "Live eval chat-monitor issue"),
+        severity: normalized_severity(str_at(row, &["severity"]).unwrap_or("warn")),
+        owner_component: required_str(row, &["owner_component"], "control_plane.eval_chat_monitor"),
+        issue_class: issue_id
+            .strip_suffix("_detected")
+            .unwrap_or(&issue_id)
+            .to_string(),
+        related_agent_id: related_agent_id(row),
+        expected_fix: chat_monitor_next_action(row),
+        suggested_test: chat_monitor_suggested_test(row),
         replay_command: required_str(row, &["replay_command"], ""),
         evidence_summary: evidence_summary(row),
         acceptance_criteria: string_array_at(row, &["acceptance_criteria"]),
@@ -334,36 +383,22 @@ fn related_agent_id(row: &Value) -> String {
     for path in [
         ["exact_evidence", "source_event_id"].as_slice(),
         ["evidence", "source_event_id"].as_slice(),
+        ["turn_id"].as_slice(),
         ["source_event_id"].as_slice(),
     ] {
         if let Some(agent) = agent_id_from_source_event(str_at(row, path).unwrap_or("")) {
             return agent;
         }
     }
-    String::new()
-}
-
-fn agent_id_from_source_event(raw: &str) -> Option<String> {
-    let marker = "agent:";
-    let idx = raw.find(marker)?;
-    let tail = &raw[idx + marker.len()..];
-    let token = tail
-        .split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '-' || ch == '_'))
-        .next()
-        .unwrap_or("");
-    let agent = normalize_agent_id(token);
-    if agent.is_empty() { None } else { Some(agent) }
-}
-
-fn evidence_summary(row: &Value) -> String {
-    for path in [
-        ["exact_evidence", "prompt"].as_slice(),
-        ["evidence", "sanitized_user_text"].as_slice(),
-        ["actual_behavior"].as_slice(),
-    ] {
-        let raw = required_str(row, path, "");
-        if !raw.is_empty() {
-            return clean_text(&raw, 240);
+    for evidence in array_at(row, &["evidence"]) {
+        for path in [
+            ["agent_id"].as_slice(),
+            ["turn_id"].as_slice(),
+            ["source_event_id"].as_slice(),
+        ] {
+            if let Some(agent) = agent_id_from_source_event(str_at(&evidence, path).unwrap_or("")) {
+                return agent;
+            }
         }
     }
     String::new()
@@ -372,7 +407,11 @@ fn evidence_summary(row: &Value) -> String {
 fn feedback_terms(issue: &EvalIssue) -> Vec<String> {
     let text = format!(
         "{} {} {} {} {}",
-        issue.title, issue.issue_class, issue.owner_component, issue.expected_fix, issue.suggested_test
+        issue.title,
+        issue.issue_class,
+        issue.owner_component,
+        issue.expected_fix,
+        issue.suggested_test
     )
     .to_ascii_lowercase();
     let mut out = BTreeSet::new();
@@ -400,7 +439,11 @@ fn load_parent_map(path: &str) -> BTreeMap<String, String> {
                 .and_then(Value::as_str)
                 .unwrap_or(id.as_str()),
         );
-        let parent = normalize_agent_id(row.get("parent_agent_id").and_then(Value::as_str).unwrap_or(""));
+        let parent = normalize_agent_id(
+            row.get("parent_agent_id")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+        );
         if !agent_id.is_empty() {
             out.entry(agent_id.clone()).or_default();
             if !parent.is_empty() && parent != agent_id {

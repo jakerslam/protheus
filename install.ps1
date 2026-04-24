@@ -2535,6 +2535,28 @@ function Set-WorkspaceInstallReleaseTag {
   }
 }
 
+function Write-WorkspaceRuntimeReleaseTagState {
+  param(
+    [string]$WorkspaceRoot,
+    [string]$VersionTag
+  )
+
+  return [bool](Set-WorkspaceInstallReleaseTag -WorkspaceRoot $WorkspaceRoot -VersionTag $VersionTag)
+}
+
+function Assert-WorkspaceRuntimeReleaseTagState {
+  param(
+    [string]$WorkspaceRoot,
+    [string]$VersionTag
+  )
+
+  if ([string]::IsNullOrWhiteSpace($WorkspaceRoot) -or [string]::IsNullOrWhiteSpace($VersionTag)) {
+    return $false
+  }
+  $writtenTag = [string](Get-WorkspaceInstallReleaseTag -WorkspaceRoot $WorkspaceRoot)
+  return ((-not [string]::IsNullOrWhiteSpace($writtenTag)) -and ($writtenTag -eq $VersionTag))
+}
+
 function Resolve-WorkspaceRuntimeRefreshTarget {
   param(
     [string]$WorkspaceRoot
@@ -4057,9 +4079,9 @@ if ((-not $InstallPure) -and (-not [string]::IsNullOrWhiteSpace($workspaceRootFo
   }
 }
 if (-not [string]::IsNullOrWhiteSpace($workspaceRootForState)) {
-  $script:WorkspaceReleaseTagWriteApplied = [bool](Set-WorkspaceInstallReleaseTag -WorkspaceRoot $workspaceRootForState -VersionTag ([string]$version))
+  $script:WorkspaceReleaseTagWriteApplied = [bool](Write-WorkspaceRuntimeReleaseTagState -WorkspaceRoot $workspaceRootForState -VersionTag ([string]$version))
   if ([bool]$script:WorkspaceReleaseTagWriteApplied) {
-    $script:WorkspaceReleaseTagWriteVerified = (([string](Get-WorkspaceInstallReleaseTag -WorkspaceRoot $workspaceRootForState)) -eq ([string]$version))
+    $script:WorkspaceReleaseTagWriteVerified = [bool](Assert-WorkspaceRuntimeReleaseTagState -WorkspaceRoot $workspaceRootForState -VersionTag ([string]$version))
     if (-not [bool]$script:WorkspaceReleaseTagWriteVerified) {
       throw "Workspace release tag state verification failed for $workspaceRootForState."
     }
@@ -4246,7 +4268,7 @@ $summaryPayload = @{
       removed = [int]$script:RepairRemovedCount
       preserved = [int]$script:RepairPreservedCount
     }
-    workspace_runtime_refresh = @{
+    "workspace_runtime_refresh" = [ordered]@{
       required = [bool]$script:WorkspaceRuntimeRefreshRequired
       reason = [string]$script:WorkspaceRuntimeRefreshReason
       tag_state_missing = [bool]$script:WorkspaceRuntimeTagStateMissing

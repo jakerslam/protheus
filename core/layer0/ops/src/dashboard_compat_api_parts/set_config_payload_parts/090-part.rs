@@ -604,7 +604,6 @@ fn tool_terminal_transcript(response_tools: &[Value]) -> Vec<Value> {
     }
     rows
 }
-
 fn append_turn_receipt_with_metadata(
     root: &Path,
     agent_id: &str,
@@ -617,6 +616,7 @@ fn append_turn_receipt_with_metadata(
     turn_transaction: &Value,
     terminal_transcript: &[Value],
 ) -> Value {
+    let previous_assistant = latest_assistant_message_text(&session_messages(&load_session_state(root, agent_id)));
     let mut turn_receipt = append_turn_message(root, agent_id, message, finalized_response);
     turn_receipt["assistant_turn_patch"] = persist_last_assistant_turn_metadata(
         root,
@@ -633,9 +633,9 @@ fn append_turn_receipt_with_metadata(
     );
     turn_receipt["process_summary"] = process_summary.clone();
     turn_receipt["response_finalization"] = response_finalization.clone();
+    turn_receipt["live_eval_monitor"] = live_eval_monitor_turn(root, agent_id, message, finalized_response, &previous_assistant, response_finalization);
     turn_receipt
 }
-
 fn enrich_tool_completion_receipt(tool_completion: Value, response_tools: &[Value]) -> Value {
     let mut enriched = if tool_completion.is_object() {
         tool_completion

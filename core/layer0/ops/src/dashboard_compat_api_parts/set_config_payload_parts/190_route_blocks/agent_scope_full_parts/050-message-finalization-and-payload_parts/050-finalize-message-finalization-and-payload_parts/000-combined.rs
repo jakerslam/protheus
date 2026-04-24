@@ -196,7 +196,7 @@ fn finalize_message_finalization_and_payload(
     }
     let mut tooling_fallback_used = false;
     let mut comparative_fallback_used = false;
-    let mut workflow_system_fallback_used = false;
+    let workflow_system_fallback_used = false;
     let mut visible_response_repaired = false;
     let mut final_fallback_used = false;
     if workflow_used {
@@ -463,10 +463,8 @@ fn finalize_message_finalization_and_payload(
     payload["context_used_tokens"] = json!(context_active_tokens.max(0));
     payload["context_ratio"] = json!(context_ratio);
     payload["context_pressure"] = json!(context_pressure.clone());
-    payload["attention_queue"] = turn_receipt
-        .get("attention_queue")
-        .cloned()
-        .unwrap_or_else(|| json!({}));
+    payload["attention_queue"] = turn_receipt.get("attention_queue").cloned().unwrap_or_else(|| json!({}));
+    payload["live_eval_monitor"] = turn_receipt.get("live_eval_monitor").cloned().unwrap_or_else(|| json!({}));
     payload["memory_capture"] = turn_receipt
         .get("memory_capture")
         .cloned()

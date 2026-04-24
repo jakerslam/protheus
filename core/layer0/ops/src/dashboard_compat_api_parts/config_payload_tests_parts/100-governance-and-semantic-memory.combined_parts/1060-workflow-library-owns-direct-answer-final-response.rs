@@ -1,3 +1,4 @@
+// SRS: V12-WORKFLOW-DIRECT-ANSWER-ACK-001
 fn workflow_library_allows_direct_answer_without_second_synthesis() {
     let root = governance_temp_root();
     let snapshot = governance_ok_snapshot();
@@ -23,7 +24,7 @@ fn workflow_library_allows_direct_answer_without_second_synthesis() {
         &json!({
             "queue": [
                 {
-                    "response": "Hello, the direct path is working."
+                    "response": "The workflow and tool menu are working, and I can answer directly."
                 }
             ],
             "calls": []
@@ -40,7 +41,7 @@ fn workflow_library_allows_direct_answer_without_second_synthesis() {
     assert_eq!(response.status, 200);
     assert_eq!(
         response.payload.get("response").and_then(Value::as_str),
-        Some("Hello, the direct path is working.")
+        Some("The workflow and tool menu are working, and I can answer directly.")
     );
     assert_eq!(
         response

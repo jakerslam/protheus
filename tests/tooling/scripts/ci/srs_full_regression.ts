@@ -377,10 +377,12 @@ function buildRegressionPayload() {
   const v8RuntimeProofPath = resolve('core/layer0/ops/tests/v8_runtime_proof.rs');
   const v8RuntimeProofSource = existsSync(v8RuntimeProofPath) ? readFileSync(v8RuntimeProofPath, 'utf8') : '';
 
+  // SRS: V12-SRS-SURFACE-EVIDENCE-001
   const evidencePaths = [
     'docs/workspace/SRS.md',
     'docs/workspace/TODO.md',
     'core',
+    'surface',
     'client',
     'apps',
     'adapters',
@@ -394,7 +396,7 @@ function buildRegressionPayload() {
 
   const nonBacklogEvidenceCounts = countHitsById(
     uniqueIds,
-    ['core', 'client', 'apps', 'adapters', 'scripts', 'tests', '.github', 'docs'],
+    ['core', 'surface', 'client', 'apps', 'adapters', 'scripts', 'tests', '.github', 'docs'],
     [
       '!docs/workspace/SRS.md',
       '!docs/workspace/TODO.md',
@@ -406,7 +408,7 @@ function buildRegressionPayload() {
 
   const codeLikeEvidenceCounts = countHitsById(
     uniqueIds,
-    ['core', 'client', 'apps', 'adapters', 'scripts', 'tests', '.github'],
+    ['core', 'surface', 'client', 'apps', 'adapters', 'scripts', 'tests', '.github'],
     ['!docs/workspace/SRS_*REGRESSION*.md', '!core/local/artifacts/srs_*regression*.json'],
   );
 
