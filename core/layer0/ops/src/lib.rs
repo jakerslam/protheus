@@ -15,9 +15,9 @@ macro_rules! include_parts {
 
 include!("lib.rs.inc");
 
-pub(crate) use infring_nexus_core_v1::execution_core_v1 as execution_lane_bridge;
 pub(crate) use infring_nexus_core_v1::autonomy_core as infring_autonomy_core_v1_bridge;
 pub(crate) use infring_nexus_core_v1::burn_oracle_budget_gate as burn_oracle_budget_gate_bridge;
+pub(crate) use infring_nexus_core_v1::execution_core_v1 as execution_lane_bridge;
 pub(crate) use infring_nexus_core_v1::foundation_hook_enforcer as foundation_hook_enforcer_bridge;
 pub(crate) use infring_nexus_core_v1::layer1_security as infring_layer1_security_bridge;
 pub(crate) use infring_nexus_core_v1::llm_runtime as llm_runtime_bridge;

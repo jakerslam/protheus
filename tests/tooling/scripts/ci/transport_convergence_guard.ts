@@ -216,11 +216,11 @@ function run(args: Args): number {
         detail: 'expected INFRING_OPS_ALLOW_PROCESS_FALLBACK forced to 0 in production bridge path',
       });
     }
-    if (!source.includes("envOverrides.INFRING_OPS_ALLOW_PROCESS_FALLBACK = '0'")) {
+    if (!source.includes("envOverrides.INFRING_SDK_ALLOW_PROCESS_TRANSPORT = '0'")) {
       violations.push({
         file: rel(runInfringOpsPath),
-        reason: 'run_infring_ops_bridge_infring_process_fallback_zero_missing',
-        detail: 'expected INFRING_OPS_ALLOW_PROCESS_FALLBACK forced to 0 in production bridge path',
+        reason: 'run_infring_ops_bridge_sdk_process_transport_zero_missing',
+        detail: 'expected INFRING_SDK_ALLOW_PROCESS_TRANSPORT forced to 0 in production bridge path',
       });
     }
     if (source.includes('spawnSync(')) {

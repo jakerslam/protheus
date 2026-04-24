@@ -224,14 +224,14 @@
         </div>
       </div>
     </template>
-    <template x-if="page === 'runtime'">
+    <template x-if="$store.app.page === 'runtime'">
       <div x-data="runtimePage">
         <div class="page-header page-header-subtabs-center">
           <div>
             <div class="tabs mt-3" role="tablist">
-              <div class="tab" role="tab" :class="{ active: page === 'runtime' }" @click="navigate('runtime')">Runtime</div>
-              <div class="tab" role="tab" :class="{ active: page === 'analytics' }" @click="navigate('analytics')">Analytics</div>
-              <div class="tab" role="tab" :class="{ active: page === 'logs' }" @click="navigate('logs')">Logs</div>
+              <div class="tab" role="tab" :class="{ active: $store.app.page === 'runtime' }" @click="navigate('runtime')">Runtime</div>
+              <div class="tab" role="tab" :class="{ active: $store.app.page === 'analytics' }" @click="navigate('analytics')">Analytics</div>
+              <div class="tab" role="tab" :class="{ active: $store.app.page === 'logs' }" @click="navigate('logs')">Logs</div>
             </div>
           </div>
         </div>

@@ -378,6 +378,9 @@ fn workflow_012_pipeline_agent_template_rag_route_eval_trace_and_connector_intak
         "V6-WORKFLOW-012.7",
         "V6-WORKFLOW-012.8",
     ] {
-        assert!(claim_ids.contains(claim), "missing workflow claim id={claim}");
+        assert!(
+            claim_ids.contains(claim),
+            "missing workflow claim id={claim}"
+        );
     }
 }

@@ -138,75 +138,13 @@ fn build_turn_process_summary(
     })
 }
 
-fn response_message_is_actionable_for_next_steps(message: &str) -> bool {
-    let lowered = clean_text(message, 1_000).to_ascii_lowercase();
-    if lowered.is_empty() {
-        return false;
-    }
-    lowered.contains("next step")
-        || lowered.contains("what next")
-        || lowered.contains("what should")
-        || lowered.contains("how should")
-        || lowered.contains("how can we")
-        || lowered.contains("plan")
-        || lowered.contains("improve")
-        || lowered.contains("fix")
-        || lowered.contains("implement")
-        || lowered.contains("harden")
-}
-
-fn next_action_options_for_message(message: &str, response_tools: &[Value]) -> Vec<String> {
-    let lowered = clean_text(message, 1_000).to_ascii_lowercase();
-    if lowered.contains("web")
-        || response_tools.iter().any(|row| {
-            let name = clean_text(row.get("name").and_then(Value::as_str).unwrap_or(""), 80);
-            web_tool_name_for_invariant(&name)
-        })
-    {
-        return vec![
-            "retry with a narrower web query".to_string(),
-            "target one trusted source URL".to_string(),
-            "switch to local/workspace evidence only".to_string(),
-        ];
-    }
-    if lowered.contains("implement") || lowered.contains("patch") || lowered.contains("fix") {
-        return vec![
-            "confirm exact acceptance criteria".to_string(),
-            "apply the minimal code patch".to_string(),
-            "run a targeted regression check".to_string(),
-        ];
-    }
-    vec![
-        "clarify the exact outcome you want".to_string(),
-        "run one targeted tool call".to_string(),
-        "return a concise answer from current context".to_string(),
-    ]
-}
-
 fn append_next_actions_line_if_actionable(
     message: &str,
     response_text: &str,
     response_tools: &[Value],
 ) -> String {
-    let cleaned = clean_chat_text(response_text, 32_000);
-    if cleaned.is_empty() || !response_message_is_actionable_for_next_steps(message) {
-        return cleaned;
-    }
-    if cleaned.to_ascii_lowercase().contains("next actions:") {
-        return cleaned;
-    }
-    let options = next_action_options_for_message(message, response_tools);
-    if options.is_empty() {
-        return cleaned;
-    }
-    trim_text(
-        &format!(
-            "{}\n\nNext actions: 1) {} 2) {} 3) {}",
-            cleaned,
-            options.first().cloned().unwrap_or_default(),
-            options.get(1).cloned().unwrap_or_default(),
-            options.get(2).cloned().unwrap_or_default()
-        ),
-        32_000,
-    )
+    let _ = (message, response_tools);
+    // Policy: next-step suggestions belong in telemetry/UI affordances, not
+    // synthesized chat text. Preserve the LLM-authored response verbatim.
+    clean_chat_text(response_text, 32_000)
 }

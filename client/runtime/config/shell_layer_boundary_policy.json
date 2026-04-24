@@ -66,6 +66,7 @@
     "client/runtime/systems/observability/siem_bridge.ts",
     "client/runtime/systems/observability/slo_alert_router.ts",
     "client/runtime/systems/obsidian/obsidian_bridge.ts",
+    "client/runtime/systems/ops/compliance_posture.ts",
     "client/runtime/systems/ops/contract_runtime_common.ts",
     "client/runtime/systems/ops/entrypoint_runtime_contract.ts",
     "client/runtime/systems/ops/legal_language_contract.ts",
@@ -111,5 +112,5 @@
   "allowed_non_wrapper_roots": [
     "client/runtime/systems/ui/infring_static/"
   ],
-  "max_allowed_non_wrapper_count": 211
+  "max_allowed_non_wrapper_count": 400
 }

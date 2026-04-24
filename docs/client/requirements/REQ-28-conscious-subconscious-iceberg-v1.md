@@ -8,7 +8,7 @@ Source contract: `docs/SYSTEM-ARCHITECTURE-SPECS.md`
 
 ## Objective
 
-Make the iceberg architecture executable: strict ownership for `core/layer0..3`, upward-only flow, conduit-only client/core boundary, and deterministic Layer2 initiative/priority primitives.
+Make the iceberg architecture executable: strict ownership for `core/layer0..3`, upward-only flow, conduit-only shell/core boundary, and deterministic Layer2 initiative/priority primitives.
 
 ## Functional Requirements
 
@@ -18,8 +18,8 @@ Make the iceberg architecture executable: strict ownership for `core/layer0..3`,
 
 2. `REQ-28-002` Layered ownership guardrails
 - Subconscious authority remains in `core/` only.
-- Client code must not implement initiative, priority scoring internals, or queue-front authority.
-- CI must fail closed when forbidden subconscious patterns appear under client surfaces.
+- Shell code must not implement initiative, priority scoring internals, or queue-front authority.
+- CI must fail closed when forbidden subconscious patterns appear under shell surfaces.
 
 3. `REQ-28-003` Layer2 initiative score primitive
 - Provide deterministic non-LLM scoring primitive in Layer2 using:
@@ -41,8 +41,8 @@ Make the iceberg architecture executable: strict ownership for `core/layer0..3`,
 ## Safety Requirements
 
 1. Deterministic fail-closed behavior on malformed JSON payloads.
-2. No direct client authority for subconscious logic.
-3. Preserve conduit-only client/core communication boundary.
+2. No direct shell authority for subconscious logic.
+3. Preserve conduit-only shell/core communication boundary.
 
 ## Acceptance Criteria
 
@@ -50,7 +50,7 @@ Make the iceberg architecture executable: strict ownership for `core/layer0..3`,
 2. `execution_core initiative-score` command returns deterministic score/priority/band/initiative metadata.
 3. `execution_core initiative-action` command returns deterministic action mapping for a supplied score.
 4. `execution_core attention-priority` command returns priority-ordered events with front-jump metadata.
-5. `npm run -s ops:subconscious-boundary:check` remains pass/fail authoritative for client-side regressions.
+5. `npm run -s ops:subconscious-boundary:check` remains pass/fail authoritative for shell-side regressions.
 
 ## Implementation Notes
 

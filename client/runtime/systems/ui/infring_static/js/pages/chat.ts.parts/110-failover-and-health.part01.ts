@@ -64,14 +64,7 @@
         // Transport timeout: do not fabricate assistant content.
         self._clearStreamingTypewriters();
         typeof self.clearTransientThinkingRows === 'function' ? self.clearTransientThinkingRows({ force: true }) : (self.messages = self.messages.filter(function(m) { return !m.thinking && !m.streaming; }));
-        self.pushSystemMessage({
-          text: 'Response timed out before delivery. Please retry.',
-          meta: '',
-          tools: [],
-          system_origin: 'transport:timeout',
-          ts: Date.now(),
-          dedupe_window_ms: 60000
-        });
+        // Do not inject transport-authored text into the chat transcript.
         self.sending = false;
         self._responseStartedAt = 0;
         self.tokenCount = 0;
@@ -696,6 +689,21 @@
       this._pendingWsRecovering = false;
     },
 
+    _setPendingWsStatusText: function(agentId, statusText) {
+      if (!this._pendingWsRequest) return;
+      var pendingAgentId = String(this._pendingWsRequest.agent_id || '').trim();
+      var targetAgentId = String(agentId || '').trim();
+      if (targetAgentId && pendingAgentId && pendingAgentId !== targetAgentId) return;
+      var nextStatus = String(statusText || '').trim();
+      if (!nextStatus) return;
+      if (typeof this.normalizeThinkingStatusCandidate === 'function') {
+        var normalized = this.normalizeThinkingStatusCandidate(nextStatus);
+        if (normalized) nextStatus = normalized;
+      }
+      if (!nextStatus) return;
+      this._pendingWsRequest.status_text = nextStatus;
+    },
+
     _clearPendingWsRequest: function(agentId) {
       if (!this._pendingWsRequest) return;
       if (!agentId) {
@@ -876,16 +884,7 @@
       }
       if (!resolved && stillActiveAgent) {
         typeof this.clearTransientThinkingRows === 'function' ? this.clearTransientThinkingRows({ force: true }) : (this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; }));
-        this.pushSystemMessage({
-          text: 'Connection dropped before the agent reply was delivered. Please retry.',
-          meta: '',
-          tools: [],
-          system_origin: 'transport:recovery',
-          ts: Date.now(),
-          dedupe_window_ms: 60000,
-          dedupe_scope: 40,
-          auto_scroll: true
-        });
+        // Do not inject transport-authored text into the chat transcript.
       }
       if (!resolved && !stillActiveAgent) {
         this._pendingWsRecovering = false;

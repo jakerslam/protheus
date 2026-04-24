@@ -100,27 +100,25 @@ function invokeInfringOpsViaBridge(args, options = {}) {
   const envOverrides = {};
   if (options.unknownDomainFallback === false) {
     envOverrides.INFRING_OPS_ALLOW_CARGO_FALLBACK = '0';
-    envOverrides.INFRING_OPS_ALLOW_CARGO_FALLBACK = '0';
   }
   const productionRelease = isProductionReleaseChannel(releaseChannel(process.env));
   if (productionRelease) {
     envOverrides.INFRING_OPS_ALLOW_PROCESS_FALLBACK = '0';
-    envOverrides.INFRING_OPS_ALLOW_PROCESS_FALLBACK = '0';
-    envOverrides.INFRING_OPS_PROCESS_FALLBACK_POLICY_REASON = PROCESS_FALLBACK_FORBIDDEN_IN_PRODUCTION;
+    envOverrides.INFRING_SDK_ALLOW_PROCESS_TRANSPORT = '0';
     envOverrides.INFRING_OPS_PROCESS_FALLBACK_POLICY_REASON = PROCESS_FALLBACK_FORBIDDEN_IN_PRODUCTION;
   } else if (options.allowProcessFallback === true) {
     envOverrides.INFRING_OPS_ALLOW_PROCESS_FALLBACK = '1';
-    envOverrides.INFRING_OPS_ALLOW_PROCESS_FALLBACK = '1';
+    envOverrides.INFRING_SDK_ALLOW_PROCESS_TRANSPORT = '1';
   } else if (options.allowProcessFallback === false) {
     envOverrides.INFRING_OPS_ALLOW_PROCESS_FALLBACK = '0';
-    envOverrides.INFRING_OPS_ALLOW_PROCESS_FALLBACK = '0';
+    envOverrides.INFRING_SDK_ALLOW_PROCESS_TRANSPORT = '0';
   } else if (
     !Object.prototype.hasOwnProperty.call(process.env, 'INFRING_OPS_ALLOW_PROCESS_FALLBACK') &&
-    !Object.prototype.hasOwnProperty.call(process.env, 'INFRING_OPS_ALLOW_PROCESS_FALLBACK')
+    !Object.prototype.hasOwnProperty.call(process.env, 'INFRING_SDK_ALLOW_PROCESS_TRANSPORT')
   ) {
     // Bridge-first default: keep process fallback disabled unless explicitly requested.
     envOverrides.INFRING_OPS_ALLOW_PROCESS_FALLBACK = '0';
-    envOverrides.INFRING_OPS_ALLOW_PROCESS_FALLBACK = '0';
+    envOverrides.INFRING_SDK_ALLOW_PROCESS_TRANSPORT = '0';
   }
 
   const optionEnv =
@@ -159,7 +157,7 @@ function runInfringOpsLegacy(args, options = {}) {
 
 function runInfringOps(args, options = {}) {
   if (!legacyProcessRunnerForced(options && options.env ? options.env : process.env)) {
-  const viaBridge = runInfringOpsViaBridge(args, options);
+    const viaBridge = runInfringOpsViaBridge(args, options);
     if (Number.isFinite(Number(viaBridge))) {
       return Number(viaBridge);
     }

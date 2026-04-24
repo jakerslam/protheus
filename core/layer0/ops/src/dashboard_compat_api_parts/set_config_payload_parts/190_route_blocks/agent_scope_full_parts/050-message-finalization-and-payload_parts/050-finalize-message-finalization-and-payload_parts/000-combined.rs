@@ -1,4 +1,3 @@
-
 fn finalize_message_finalization_and_payload(
     root: &Path,
     agent_id: &str,
@@ -45,6 +44,11 @@ fn finalize_message_finalization_and_payload(
         || response_is_no_findings_placeholder(&initial_draft_response);
     let web_intent = natural_web_intent_from_user_message(message);
     let finalization_tool_gate = workflow_turn_tool_decision_tree(message);
+    let gate_is_advisory = finalization_tool_gate
+        .get("gate_is_advisory")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let automatic_web_fallback_enabled = !gate_is_advisory;
     let finalization_meta_control = finalization_tool_gate
         .get("meta_control_message")
         .and_then(Value::as_bool)
@@ -61,7 +65,8 @@ fn finalize_message_finalization_and_payload(
         .get("should_call_tools")
         .and_then(Value::as_bool)
         .unwrap_or(false);
-    let draft_retry_web_signal = draft_response_implies_retryable_web_failure(&initial_draft_response)
+    let draft_retry_web_signal = automatic_web_fallback_enabled
+        && draft_response_implies_retryable_web_failure(&initial_draft_response)
         && finalization_requires_live_web
         && finalization_should_call_tools
         && !finalization_meta_control
@@ -87,7 +92,10 @@ fn finalize_message_finalization_and_payload(
         0.0
     };
     let mut web_forced_fallback_attempted = false;
-    if web_intent_detected && !response_tools_include_web_attempt(&response_tools) {
+    if automatic_web_fallback_enabled
+        && web_intent_detected
+        && !response_tools_include_web_attempt(&response_tools)
+    {
         let fallback_query = web_intent
             .as_ref()
             .and_then(|(_, payload)| {
@@ -198,88 +206,25 @@ fn finalize_message_finalization_and_payload(
             "workflow_authored",
         );
     } else if workflow_fallback_allowed {
-        let mut fallback_response = maybe_tooling_failure_fallback(
-            message,
-            &initial_draft_response,
-            &latest_assistant_text,
-        )
-        .unwrap_or_default();
-        tooling_fallback_used = !fallback_response.is_empty();
-        if fallback_response.is_empty()
-            && !response_requires_visible_repair(&initial_draft_response)
-        {
-            fallback_response = initial_draft_response.clone();
-        }
-        if fallback_response.is_empty()
-            && message_requests_comparative_answer(message)
-            && (response_is_no_findings_placeholder(&initial_draft_response)
-                || response_tools_failure_reason_for_user(&response_tools, 4).is_empty())
-        {
-            comparative_fallback_used = true;
-            fallback_response = comparative_no_findings_fallback(message);
-        }
-        if fallback_response.is_empty() && memory_recall_requested(message) {
-            fallback_response = build_memory_recall_response(&state, &messages, message);
-        }
-        if fallback_response.is_empty() && !response_tools.is_empty() {
-            fallback_response = ensure_tool_turn_response_text(&initial_draft_response, &response_tools);
-        }
-        if fallback_response.is_empty() && response_tools.is_empty() && !inline_tools_allowed {
-            fallback_response =
-                "I can answer directly without tool calls. Ask your question naturally and I’ll respond conversationally unless you explicitly request a tool run.".to_string();
-        }
-        if fallback_response.is_empty() {
-            fallback_response = workflow_unexpected_state_user_fallback(
-                message,
-                &latest_assistant_text,
-                &response_tools,
-            );
-        }
-        fallback_response = ensure_no_retry_boilerplate_copy(
-            message,
-            &latest_assistant_text,
-            &response_tools,
-            &fallback_response,
-        );
-        workflow_system_fallback_used = true;
-        final_fallback_used = true;
-        finalization_outcome = merge_response_outcomes(
-            &finalization_outcome,
-            "workflow_system_fallback",
-            200,
-        );
+        // Policy: never inject system-authored fallback text into chat.
+        let llm_only_candidate = initial_draft_response.clone();
         let (contract_finalized, contract_report, contract_outcome) =
-            enforce_user_facing_finalization_contract(message, fallback_response, &response_tools);
+            enforce_user_facing_finalization_contract(message, llm_only_candidate, &response_tools);
         finalized_response = contract_finalized;
         tool_completion = contract_report;
         finalization_outcome =
+            merge_response_outcomes(&finalization_outcome, "workflow_no_system_fallback", 200);
+        finalization_outcome =
             merge_response_outcomes(&finalization_outcome, &contract_outcome, 200);
     } else {
-        workflow_system_fallback_used = true;
-        final_fallback_used = true;
-        finalization_outcome = merge_response_outcomes(
-            &finalization_outcome,
-            "workflow_unexpected_state",
-            200,
-        );
-        let fallback_response = ensure_no_retry_boilerplate_copy(
-            message,
-            &latest_assistant_text,
-            &response_tools,
-            &workflow_unexpected_state_user_fallback(
-                message,
-                &latest_assistant_text,
-                &response_tools,
-            ),
-        );
+        // Keep chat output LLM-authored only, even when workflow final synthesis is unavailable.
+        let llm_only_candidate = initial_draft_response.clone();
         let (contract_finalized, contract_report, contract_outcome) =
-            enforce_user_facing_finalization_contract(
-                message,
-                fallback_response,
-                &response_tools,
-            );
+            enforce_user_facing_finalization_contract(message, llm_only_candidate, &response_tools);
         finalized_response = contract_finalized;
         tool_completion = contract_report;
+        finalization_outcome =
+            merge_response_outcomes(&finalization_outcome, "workflow_no_system_fallback", 200);
         finalization_outcome =
             merge_response_outcomes(&finalization_outcome, &contract_outcome, 200);
     }
@@ -341,12 +286,7 @@ fn finalize_message_finalization_and_payload(
     let mut tooling_invariant_repair_used = false;
     let mut web_invariant_repair_used = false;
     if web_intent_detected && !web_tool_attempted {
-        response_text = format!(
-            "I detected a live web request, but no web tool lane executed in this turn. web_status: parse_failed. error_code: {}. Retry with `tool::web_search:::<query>` or `tool::web_tooling_health_probe`.",
-            web_failure_code
-        );
         web_invariant_repair_used = true;
-        final_fallback_used = true;
         finalization_outcome = merge_response_outcomes(
             &finalization_outcome,
             "web_invariant_missing_tool_attempt",
@@ -355,62 +295,29 @@ fn finalize_message_finalization_and_payload(
     } else if web_tool_attempted
         && (web_tool_blocked || web_tool_low_signal || !web_failure_code.is_empty())
     {
-        let (next_response, repaired) = append_failure_status_line_if_missing(
-            response_text,
-            &web_turn_classification,
-            &web_failure_code,
-            "web_status",
-        );
-        response_text = next_response;
-        if repaired {
-            web_invariant_repair_used = true;
-            final_fallback_used = true;
-            finalization_outcome = merge_response_outcomes(
-                &finalization_outcome,
-                "web_failure_code_appended",
-                200,
-            );
-        }
+        web_invariant_repair_used = true;
+        finalization_outcome =
+            merge_response_outcomes(&finalization_outcome, "web_failure_code_appended", 200);
     }
     if tooling_attempted {
-        let (next_response, repaired) = append_failure_status_line_if_missing(
-            response_text,
-            &tooling_turn_classification,
-            &tooling_failure_code,
-            "tool_status",
+        tooling_invariant_repair_used = true;
+        finalization_outcome = merge_response_outcomes(
+            &finalization_outcome,
+            "tooling_failure_code_appended",
+            200,
         );
-        response_text = next_response;
-        if repaired {
-            tooling_invariant_repair_used = true;
-            final_fallback_used = true;
-            finalization_outcome = merge_response_outcomes(
-                &finalization_outcome,
-                "tooling_failure_code_appended",
-                200,
-            );
-        }
     }
     let final_contract_violation = response_fails_base_final_answer_contract(&response_text)
         || workflow_response_requests_more_tooling(&response_text);
     if final_contract_violation {
-        response_text = build_deterministic_final_fallback_response(
-            &response_tools,
-            web_intent_detected,
-            &web_turn_classification,
-            &web_failure_code,
-            tooling_attempted,
-            &tooling_turn_classification,
-            &tooling_failure_code,
-            inline_tools_allowed,
-        );
-        final_fallback_used = true;
+        // Do not synthesize deterministic system fallback text in chat.
+        response_text.clear();
         finalization_outcome = merge_response_outcomes(
             &finalization_outcome,
-            "deterministic_final_fallback_enforced",
+            "deterministic_final_fallback_suppressed",
             200,
         );
     }
-    response_text = append_next_actions_line_if_actionable(message, &response_text, &response_tools);
     let tool_gate_should_call_tools = response_workflow
         .pointer("/tool_gate/should_call_tools")
         .and_then(Value::as_bool)
@@ -425,7 +332,8 @@ fn finalize_message_finalization_and_payload(
     } else {
         0.0
     };
-    response_workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(final_fallback_used);
+    response_workflow["quality_telemetry"]["final_fallback_used"] =
+        Value::Bool(final_fallback_used);
     let final_ack_only = response_looks_like_tool_ack_without_findings(&response_text);
     let response_quality_telemetry = build_response_quality_telemetry_payload(
         &response_workflow,
@@ -472,10 +380,15 @@ fn finalize_message_finalization_and_payload(
         &web_invariant,
     );
     response_finalization["workflow_control"] = json!({
-        "conversation_bypass": workflow_conversation_bypass_control_from_workflow(&response_workflow)
+        "mode": "tool_menu_interface_v1",
+        "direct_response_path": "gate_1_false"
     });
-    let process_summary =
-        build_turn_process_summary(message, &response_tools, &response_workflow, &response_finalization);
+    let process_summary = build_turn_process_summary(
+        message,
+        &response_tools,
+        &response_workflow,
+        &response_finalization,
+    );
     let turn_transaction = crate::dashboard_tool_turn_loop::turn_transaction_payload(
         "complete",
         if response_tools.is_empty() {

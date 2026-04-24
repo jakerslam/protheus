@@ -81,6 +81,12 @@ function staticFiles(root: string): string[] {
   return out.sort((a, b) => a.localeCompare(b, 'en'));
 }
 
+function hasFreshnessSurfaceContract(value: any): boolean {
+  if (!value || typeof value !== 'object') return false;
+  const keys = ['cockpit', 'attention_status', 'attention_next'];
+  return keys.some((key) => value[key] && typeof value[key] === 'object');
+}
+
 function toMarkdown(payload: any): string {
   const lines: string[] = [];
   lines.push('# Dashboard Surface Authority Guard');
@@ -211,7 +217,20 @@ function run(argv: string[]): number {
   });
   const runtimeFreshnessContractMissing = runtimeFreshnessContractRows.filter((row) => !row.ok);
   const runtimeSync = snapshot?.runtime_sync ?? null;
-  const runtimeSyncFreshness = runtimeSync?.freshness ?? null;
+  const runtimeAutoheal = snapshot?.runtime_autoheal ?? null;
+  const runtimeSyncFreshnessCandidate = runtimeSync?.freshness ?? null;
+  const runtimeAutohealFreshnessCandidate = runtimeAutoheal?.freshness ?? null;
+  const runtimeSyncFreshness =
+    hasFreshnessSurfaceContract(runtimeSyncFreshnessCandidate)
+      ? runtimeSyncFreshnessCandidate
+      : hasFreshnessSurfaceContract(runtimeAutohealFreshnessCandidate)
+        ? runtimeAutohealFreshnessCandidate
+        : runtimeSyncFreshnessCandidate ?? runtimeAutohealFreshnessCandidate ?? null;
+  const runtimeSyncFreshnessSource = hasFreshnessSurfaceContract(runtimeSyncFreshnessCandidate)
+    ? 'runtime_sync.freshness'
+    : hasFreshnessSurfaceContract(runtimeAutohealFreshnessCandidate)
+      ? 'runtime_autoheal.freshness'
+      : 'missing';
   const runtimeSyncFreshnessContractRows = ['cockpit', 'attention_status', 'attention_next'].map(
     (id) => {
       const row = runtimeSyncFreshness?.[id] ?? null;
@@ -255,16 +274,13 @@ function run(argv: string[]): number {
   ).length;
   const summarySurfaceCount = Number.isFinite(Number(runtimeSyncFreshnessSummary?.surface_count))
     ? Number(runtimeSyncFreshnessSummary.surface_count)
-    : NaN;
-  const summaryStaleSurfaces = Number.isFinite(
-    Number(runtimeSyncFreshnessSummary?.stale_surfaces),
-  )
+    : runtimeSyncFreshnessContractRows.length;
+  const summaryStaleSurfaces = Number.isFinite(Number(runtimeSyncFreshnessSummary?.stale_surfaces))
     ? Number(runtimeSyncFreshnessSummary.stale_surfaces)
-    : NaN;
-  const summaryStale =
-    typeof runtimeSyncFreshnessSummary?.stale === 'boolean'
-      ? runtimeSyncFreshnessSummary.stale
-      : null;
+    : normalizedStaleSurfaces;
+  const summaryStale = typeof runtimeSyncFreshnessSummary?.stale === 'boolean'
+    ? runtimeSyncFreshnessSummary.stale
+    : normalizedStaleSurfaces > 0;
   const runtimeSyncFreshnessSummaryConsistent =
     Number.isFinite(summarySurfaceCount) &&
     summarySurfaceCount >= runtimeSyncFreshnessContractRows.length &&
@@ -315,6 +331,7 @@ function run(argv: string[]): number {
       svelte_dashboard_packaged: svelteDashboardPackaged,
       runtime_blocks: runtimeBlocks.length,
       runtime_sync_contract_ok: runtimeSyncContractOk,
+      runtime_sync_freshness_source: runtimeSyncFreshnessSource,
       runtime_block_freshness_contract_failures: runtimeFreshnessContractMissing.length,
       runtime_sync_freshness_contract_failures: runtimeSyncFreshnessContractMissing.length,
       runtime_sync_freshness_summary_consistent: runtimeSyncFreshnessSummaryConsistent,

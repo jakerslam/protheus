@@ -380,6 +380,9 @@ fn workflow_004_crewai_bridge_emits_receipted_crew_process_flow_memory_config_de
         "V6-WORKFLOW-004.9",
         "V6-WORKFLOW-004.10",
     ] {
-        assert!(claim_ids.contains(claim), "missing workflow claim id={claim}");
+        assert!(
+            claim_ids.contains(claim),
+            "missing workflow claim id={claim}"
+        );
     }
 }

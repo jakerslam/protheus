@@ -1,8 +1,8 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
     ControlPlaneDecisionTrace, CoreExecutionObservation, DegradationState, ExecutionCorrelation,
-    ExecutionState, OrchestrationPlan, PlanCandidate, PlanStatus, ReceiptDebugMetadata, StepState,
-    StepStatus, TypedOrchestrationRequest,
+    ExecutionState, OrchestrationPlan, PlanCandidate, PlanStatus, ReceiptDebugMetadata,
+    RecoveryReason, StepState, StepStatus, TypedOrchestrationRequest,
 };
 
 pub fn project_execution_state(
@@ -112,6 +112,12 @@ pub fn build_progress_projection(plan: &OrchestrationPlan) -> String {
     let posture = format!("{:?}", plan.posture).to_lowercase();
     let status = format!("{:?}", plan.execution_state.plan_status).to_lowercase();
     let blocked = plan.selected_plan.blocked_on.len();
+    let failed_steps = plan
+        .execution_state
+        .steps
+        .iter()
+        .filter(|row| row.status == StepStatus::Failed)
+        .count();
     let probe_gaps = plan
         .classification
         .reasons
@@ -125,14 +131,23 @@ pub fn build_progress_projection(plan: &OrchestrationPlan) -> String {
         .flat_map(|probe| probe.probe_sources.iter())
         .filter(|source| source.starts_with("heuristic."))
         .count();
+    let tool_failure_budget_exceeded = plan
+        .execution_state
+        .recovery
+        .as_ref()
+        .and_then(|row| row.reason.as_ref())
+        .map(|reason| reason == &RecoveryReason::ToolFailureBudgetExceeded)
+        .unwrap_or(false);
     format!(
-        "orchestration posture={} status={} steps={} blocked={} probe_gaps={} heuristic_probes={} clarification={} confidence={:.2}",
+        "orchestration posture={} status={} steps={} blocked={} failed_steps={} probe_gaps={} heuristic_probes={} tool_failure_budget_exceeded={} clarification={} confidence={:.2}",
         posture,
         status,
         plan.selected_plan.steps.len(),
         blocked,
+        failed_steps,
         probe_gaps,
         heuristic_probe_count,
+        tool_failure_budget_exceeded,
         plan.needs_clarification,
         plan.selected_plan.confidence
     )

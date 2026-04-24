@@ -189,27 +189,19 @@ fn run_action_family_app_arm_002(root: &Path, normalized: &str, payload: &Value)
                             retry_terminal_reason =
                                 "tool_call_schema_invalid_pre_execution".to_string();
                             (
-                                crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                                    "parse_failed",
-                                    "tool_call_schema_invalid",
-                                    Some("pre_execution_schema_guard"),
-                                ),
+                                String::new(),
                                 "tool_call_schema_invalid",
                             )
                         } else if mismatch_only {
                             retry_terminal_reason = "response_compatibility_mismatch".to_string();
                             (
-                                crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                                    "provider_low_signal",
-                                    "web_tool_low_signal",
-                                    Some("query_result_mismatch"),
-                                ),
+                                String::new(),
                                 "web_tool_low_signal",
                             )
                         } else {
                             retry_terminal_reason = "routing_web_tool_not_invoked".to_string();
                             (
-                                "Web tooling execution failed before any search tool call was recorded (error_code: web_tool_not_invoked). Retry lane: run `batch_query` with a narrower query or one specific source URL.".to_string(),
+                                String::new(),
                                 "web_tool_not_invoked",
                             )
                         };
@@ -598,7 +590,7 @@ fn run_action_family_app_arm_002(root: &Path, normalized: &str, payload: &Value)
                 .unwrap_or("")
                 .to_string();
             if terminal_response.trim().is_empty() {
-                let error_code = canonical_web_tooling_error_code(
+                let _error_code = canonical_web_tooling_error_code(
                     lane_payload
                         .get("error")
                         .and_then(Value::as_str)
@@ -609,11 +601,7 @@ fn run_action_family_app_arm_002(root: &Path, normalized: &str, payload: &Value)
                         })
                         .unwrap_or("web_tool_error"),
                 );
-                terminal_response = crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                    "failed",
-                    &error_code,
-                    None,
-                );
+                terminal_response.clear();
                 lane_payload["response"] = Value::String(terminal_response.clone());
                 lane_payload["output"] = Value::String(terminal_response.clone());
             }
@@ -634,11 +622,7 @@ fn run_action_family_app_arm_002(root: &Path, normalized: &str, payload: &Value)
                 let web_called_during_local_intent =
                     local_tooling_intent && web_search_calls > 0;
                 if requires_live_web && web_search_calls == 0 {
-                    let forced = crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                        "tool_not_invoked",
-                        "web_tool_not_invoked",
-                        None,
-                    );
+                    let forced = String::new();
                     lane_payload["response"] = json!(forced.clone());
                     lane_payload["output"] = json!(forced.clone());
                     if let Some(turn) = lane_payload.get_mut("turn").and_then(Value::as_object_mut)
@@ -809,11 +793,7 @@ fn run_action_family_app_arm_002(root: &Path, normalized: &str, payload: &Value)
                 } else {
                     "web_tool_invalid_response"
                 };
-                let fallback = crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                    guard_status,
-                    guard_error_code,
-                    None,
-                );
+                let fallback = String::new();
                 lane_payload["response"] = json!(fallback.clone());
                 lane_payload["output"] = json!(fallback.clone());
                 if let Some(turn) = lane_payload.get_mut("turn").and_then(Value::as_object_mut) {

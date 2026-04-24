@@ -9,6 +9,17 @@
         "research_synthesize_verify",
         "plan_execute_review",
         "diagnose_retry_escalate",
+        "codex_tooling_synthesis",
+        "Template definitions are cataloged by `control_plane::templates::workflow_template_definition(...)`",
+        "codex_wave_preflight",
+        "codex_disjoint_wave_execution",
+        "codex_tool_route_misdirection",
+        "codex_multi_provider_synthesis_recovery",
+        "codex_route_probe_dry_run",
+        "codex_environment_diagnose_parallel",
+        "codex_worktree_isolated_setup",
+        "codex_worktree_cleanup_safety_modes",
+        "codex_review_fix_loop",
         "Lifecycle Loop (Required Stages)",
         "verification_closure",
         "Feedback Loop Contract",
@@ -25,6 +36,7 @@
         "pub fn build_lifecycle_state(",
         "surface_orchestration_control_plane",
         "WorkflowTemplate::DiagnoseRetryEscalate",
+        "WorkflowTemplate::CodexToolingSynthesis",
         "handoff_user_request_to_decomposition",
         "handoff_verification_to_memory_packaging"
       ]
@@ -49,6 +61,24 @@
         "pub handoff_chain: Vec<ControlPlaneHandoff>",
         "pub workflow_template: WorkflowTemplate",
         "pub control_plane_lifecycle: ControlPlaneLifecycleState"
+      ]
+    },
+    {
+      "path": "surface/orchestration/src/control_plane/templates.rs",
+      "required_phrases": [
+        "pub struct WorkflowSubtemplate",
+        "pub struct WorkflowTemplateDefinition",
+        "pub fn workflow_template_definition(",
+        "WorkflowTemplate::CodexToolingSynthesis",
+        "codex_wave_preflight",
+        "codex_tool_route_misdirection",
+        "codex_multi_provider_synthesis_recovery",
+        "codex_route_probe_dry_run",
+        "codex_environment_diagnose_parallel",
+        "codex_worktree_isolated_setup",
+        "codex_worktree_cleanup_safety_modes",
+        "codex_review_fix_loop",
+        "source_refs"
       ]
     }
   ]

@@ -197,18 +197,14 @@ fn typed_probe_contract_diagnostics(
     }
 
     let Some(envelope) = typed_request.core_probe_envelope.as_ref() else {
+        let mut messages = vec!["typed_probe_contract_missing:core_probe_envelope".to_string()];
+        messages.extend(
+            requirements
+                .iter()
+                .map(|row| format!("typed_probe_contract_expected:{}", row.0)),
+        );
         return TypedProbeContractDiagnostics {
-            messages: vec![
-                "typed_probe_contract_missing:core_probe_envelope".to_string(),
-                format!(
-                    "typed_probe_contract_expected:{}",
-                    requirements
-                        .iter()
-                        .map(|row| row.0)
-                        .collect::<Vec<_>>()
-                        .join(",")
-                ),
-            ],
+            messages,
             missing_count: 1,
         };
     };
@@ -275,14 +271,17 @@ fn required_probe_contract_for_capability(
             ],
         )),
         Capability::VerifyClaim => Some(("verify_claim", &["transport_available"])),
-        Capability::WorkspaceRead => Some(("workspace_read", &["tool_available", "transport_available"])),
-        Capability::WorkspaceSearch => Some(("workspace_search", &["tool_available", "transport_available"])),
+        Capability::WorkspaceRead => {
+            Some(("workspace_read", &["tool_available", "transport_available"]))
+        }
+        Capability::WorkspaceSearch => Some((
+            "workspace_search",
+            &["tool_available", "transport_available"],
+        )),
         Capability::WebSearch => Some(("web_search", &["tool_available", "transport_available"])),
         Capability::WebFetch => Some(("web_fetch", &["tool_available", "transport_available"])),
         Capability::ToolRoute => Some(("tool_route", &["tool_available", "transport_available"])),
-        Capability::ExecuteTool => {
-            Some(("tool_route", &["tool_available", "transport_available"]))
-        }
+        Capability::ExecuteTool => None,
     }
 }
 
@@ -298,15 +297,11 @@ fn probe_snapshot_for_contract_key<'a>(
         "web_search" => Capability::WebSearch,
         "web_fetch" => Capability::WebFetch,
         "tool_route" => Capability::ToolRoute,
-        "execute_tool" => Capability::ExecuteTool,
         "plan_assimilation" => Capability::PlanAssimilation,
         "verify_claim" => Capability::VerifyClaim,
         _ => return None,
     };
-    probes.iter().find(|row| {
-        row.capability == capability
-            || (capability == Capability::ToolRoute && row.capability == Capability::ExecuteTool)
-    })
+    probes.iter().find(|row| row.capability == capability)
 }
 
 fn probe_field_is_missing(snapshot: &CapabilityProbeSnapshot, field: &str) -> bool {

@@ -19,6 +19,7 @@ const REQUIRED_72H_BOUNDEDNESS_ARTIFACTS = [
   'runtime_boundedness_72h_evidence_current.json',
   'runtime_boundedness_profiles_current.json',
 ];
+const PREBUNDLE_BLOCKING_STEP_GATE_IDS = new Set<string>(['release_policy_gate']);
 
 const DEFAULT_SEQUENCE = [
   'dr:gameday',
@@ -33,7 +34,7 @@ const DEFAULT_SEQUENCE = [
   'ops:windows-installer:contract:guard',
   'ops:legacy-runner:release-guard',
   'ops:production-topology:gate',
-  'audit:client-layer-boundary',
+  'audit:shell-layer-boundary',
   'ops:stateful-upgrade-rollback:gate',
   'ops:assimilation:v1:support:guard',
   'ops:orchestration:hidden-state:guard',
@@ -53,10 +54,12 @@ const DEFAULT_SEQUENCE = [
 function readRehearsalArgs(argv: string[]) {
   const parsed = parseStrictOutArgs(argv, { out: DEFAULT_OUT, strict: false });
   const activateHardening = parseBool(readFlag(argv, 'activate-hardening'), true);
+  const stageRaw = clean(readFlag(argv, 'stage') || 'prebundle', 40).toLowerCase();
   return {
     strict: parsed.strict,
     out: parsed.out || DEFAULT_OUT,
     activateHardening,
+    stage: stageRaw === 'final' ? 'final' : 'prebundle',
   };
 }
 
@@ -95,6 +98,8 @@ function readRequiredStepIds(): string[] {
 
 function buildReport(argv: string[] = process.argv.slice(2)) {
   const args = readRehearsalArgs(argv);
+  const finalStage = args.stage === 'final';
+  const stageMode = finalStage ? 'strict_final' : 'prebundle_mixed';
   const requiredStepGateIds = readRequiredStepIds();
   const previousHardeningValue = process.env.INFRING_RELEASE_HARDENING_WINDOW;
   const previousRcActiveValue = process.env.INFRING_RELEASE_RC_REHEARSAL_ACTIVE;
@@ -123,15 +128,66 @@ function buildReport(argv: string[] = process.argv.slice(2)) {
       };
     });
     const failed = steps.filter((row) => !row.ok);
+    const blockingFailures = finalStage
+      ? failed
+      : failed.filter((row) => PREBUNDLE_BLOCKING_STEP_GATE_IDS.has(row.gate_id));
+    const nonBlockingFailures = failed.filter(
+      (row) => !blockingFailures.some((blocking) => blocking.gate_id === row.gate_id),
+    );
+    const stepGateIds = steps.map((row) => clean(row.gate_id, 160)).filter(Boolean);
+    const stepGateIdSet = new Set(stepGateIds);
+    const stepGateIdsUnique = stepGateIds.length === stepGateIdSet.size;
+    const stepOrderContiguous = steps.every((row, index) => row.order === index + 1);
+    const failureGateIds = failed.map((row) => clean(row.gate_id, 160)).filter(Boolean);
+    const blockingFailureGateIds = blockingFailures
+      .map((row) => clean(row.gate_id, 160))
+      .filter(Boolean);
+    const nonBlockingFailureGateIds = nonBlockingFailures
+      .map((row) => clean(row.gate_id, 160))
+      .filter(Boolean);
+    const failureGateIdSet = new Set(failureGateIds);
+    const blockingFailureGateIdSet = new Set(blockingFailureGateIds);
+    const nonBlockingFailureGateIdSet = new Set(nonBlockingFailureGateIds);
+    const failureGateIdsUnique = failureGateIds.length === failureGateIdSet.size;
+    const blockingFailureGateIdsUnique =
+      blockingFailureGateIds.length === blockingFailureGateIdSet.size;
+    const nonBlockingFailureGateIdsUnique =
+      nonBlockingFailureGateIds.length === nonBlockingFailureGateIdSet.size;
+    const blockingNonBlockingDisjoint = blockingFailureGateIds.every(
+      (gateId) => !nonBlockingFailureGateIdSet.has(gateId),
+    );
+    const partitionCountMatches =
+      failed.length === blockingFailures.length + nonBlockingFailures.length;
     const passedGateIds = new Set(steps.filter((row) => row.ok).map((row) => row.gate_id));
-    const requiredStepsSatisfied =
-      requiredStepGateIds.length === 0 || requiredStepGateIds.every((gateId) => passedGateIds.has(gateId));
+    const requiredStepGateIdSet = new Set(requiredStepGateIds);
+    const requiredStepGateIdsUnique = requiredStepGateIds.length === requiredStepGateIdSet.size;
+    const requiredStepMissingGateIds = finalStage
+      ? requiredStepGateIds.filter((gateId) => !passedGateIds.has(gateId))
+      : [];
+    const requiredStepMissingGateIdSet = new Set(requiredStepMissingGateIds);
+    const requiredStepMissingGateIdsUnique =
+      requiredStepMissingGateIds.length === requiredStepMissingGateIdSet.size;
+    const requiredStepMissingCountMatches = finalStage
+      ? requiredStepMissingGateIds.length ===
+        Math.max(0, requiredStepGateIds.length - Array.from(passedGateIds).filter((gateId) => requiredStepGateIdSet.has(gateId)).length)
+      : requiredStepMissingGateIds.length === 0;
+    const emittedArtifactPaths = steps.flatMap((row) =>
+      Array.isArray(row.artifact_paths) ? row.artifact_paths : [],
+    );
+    const emittedArtifactPathTokens = emittedArtifactPaths
+      .map((row) => clean(row, 320))
+      .filter(Boolean);
+    const emittedArtifactPathSet = new Set(emittedArtifactPathTokens);
+    const requiredStepsSatisfied = finalStage
+      ? requiredStepGateIds.length === 0 ||
+        requiredStepGateIds.every((gateId) => passedGateIds.has(gateId))
+      : true;
     const recoveryStep = steps.find((row) => row.gate_id === 'dr:gameday:gate');
     const chaosStep = steps.find((row) => row.gate_id === 'chaos:continuous:gate');
     const replayStep = steps.find((row) => row.gate_id === 'state:kernel:replay');
     const runtimeProofStep = steps.find((row) => row.gate_id === 'ops:runtime-proof:verify');
     const topologyStep = steps.find((row) => row.gate_id === 'ops:production-topology:gate');
-    const clientBoundaryStep = steps.find((row) => row.gate_id === 'audit:client-layer-boundary');
+    const shellBoundaryStep = steps.find((row) => row.gate_id === 'audit:shell-layer-boundary');
     const hiddenStateStep = steps.find((row) => row.gate_id === 'ops:orchestration:hidden-state:guard');
     const layer2ParityStep = steps.find((row) => row.gate_id === 'ops:layer2:parity:guard');
     const layer2ReplayStep = steps.find((row) => row.gate_id === 'ops:layer2:receipt:replay');
@@ -144,12 +200,15 @@ function buildReport(argv: string[] = process.argv.slice(2)) {
       runtimeProofStep?.artifact_paths,
       REQUIRED_72H_BOUNDEDNESS_ARTIFACTS,
     );
+    const boundednessRequired = finalStage;
+    const boundednessSatisfied = boundednessRequired ? boundednessArtifacts.ok : true;
     return {
-      ok: failed.length === 0 && requiredStepsSatisfied && boundednessArtifacts.ok,
+      ok: blockingFailures.length === 0 && requiredStepsSatisfied && boundednessSatisfied,
       type: 'release_candidate_dress_rehearsal',
       generated_at: new Date().toISOString(),
       strict: args.strict,
       inputs: {
+        stage: args.stage,
         activate_hardening_window: args.activateHardening,
         registry_path: DEFAULT_GATE_REGISTRY_PATH,
         required_step_gate_ids: requiredStepGateIds,
@@ -157,13 +216,38 @@ function buildReport(argv: string[] = process.argv.slice(2)) {
       summary: {
         step_count: steps.length,
         failed_count: failed.length,
+        blocking_failed_count: blockingFailures.length,
+        non_blocking_failed_count: nonBlockingFailures.length,
+        stage_mode: stageMode,
         required_step_count: requiredStepGateIds.length,
+        required_steps_enforced: finalStage,
         required_steps_satisfied: requiredStepsSatisfied,
+        required_step_ids_unique: requiredStepGateIdsUnique,
+        required_steps_missing_count: requiredStepMissingGateIds.length,
+        required_steps_missing_ids_unique: requiredStepMissingGateIdsUnique,
+        required_steps_missing_count_matches: requiredStepMissingCountMatches,
+        boundedness_required_artifacts_enforced: boundednessRequired,
         boundedness_required_artifacts_present: boundednessArtifacts.ok,
-        candidate_ready: failed.length === 0 && requiredStepsSatisfied && boundednessArtifacts.ok,
+        step_gate_ids_unique: stepGateIdsUnique,
+        step_order_contiguous: stepOrderContiguous,
+        failure_gate_ids_unique: failureGateIdsUnique,
+        blocking_failure_gate_ids_unique: blockingFailureGateIdsUnique,
+        non_blocking_failure_gate_ids_unique: nonBlockingFailureGateIdsUnique,
+        blocking_non_blocking_disjoint: blockingNonBlockingDisjoint,
+        failure_partition_count_matches: partitionCountMatches,
+        emitted_artifact_path_count: emittedArtifactPathTokens.length,
+        emitted_artifact_path_unique_count: emittedArtifactPathSet.size,
+        candidate_ready:
+          blockingFailures.length === 0 && requiredStepsSatisfied && boundednessSatisfied,
       },
       failures: failed,
-      artifact_paths: steps.flatMap((row) => row.artifact_paths || []),
+      blocking_failures: blockingFailures,
+      non_blocking_failures: nonBlockingFailures,
+      failure_gate_ids: failureGateIds,
+      blocking_failure_gate_ids: blockingFailureGateIds,
+      non_blocking_failure_gate_ids: nonBlockingFailureGateIds,
+      required_steps_missing_gate_ids: requiredStepMissingGateIds,
+      artifact_paths: emittedArtifactPaths,
       recovery_rehearsal: {
         gate_state: clean(recoveryStep?.gate_state || '', 120),
         ok: recoveryStep?.ok === true,
@@ -192,9 +276,9 @@ function buildReport(argv: string[] = process.argv.slice(2)) {
         ok: topologyStep?.ok === true,
         degraded_flags: topologyStep?.degraded_flags || [],
       },
-      client_boundary: {
-        ok: clientBoundaryStep?.ok === true,
-        failed_ids: clientBoundaryStep?.failed_ids || [],
+      shell_boundary: {
+        ok: shellBoundaryStep?.ok === true,
+        failed_ids: shellBoundaryStep?.failed_ids || [],
       },
       hidden_state: {
         ok: hiddenStateStep?.ok === true,

@@ -5,7 +5,7 @@ This directory is the canonical API reference surface for InfRing/Infring runtim
 ## Scope
 
 - CLI command surfaces (`infring-ops`, `infringd`)
-- Runtime bridge contracts (client runtime lane wrappers)
+- Runtime bridge contracts (shell runtime lane wrappers)
 - State/receipt artifact interfaces
 - Compatibility and versioning notes
 

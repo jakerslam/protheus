@@ -50,6 +50,9 @@
                   ? this.toolThinkingActionLabel(leakTool || { name: toolMatch[1], input: '' })
                   : String(toolMatch[1] || 'tool');
                 if (leakLabel && last.thinking_status !== leakLabel) last.thinking_status = leakLabel;
+                if (leakLabel && typeof this._setPendingWsStatusText === 'function') {
+                  this._setPendingWsStatusText(last.agent_id || (this.currentAgent && this.currentAgent.id), leakLabel);
+                }
               }
             }
             this.tokenCount = Math.round(String(last._cleanText || '').length / 4);
@@ -97,6 +100,7 @@
           if (!Number.isFinite(Number(lastMsg._stream_started_at))) lastMsg._stream_started_at = Date.now(); var receiptStartLabel = String(data && data.tool_status ? data.tool_status : '').trim();
           if (receiptStartLabel && typeof this.normalizeThinkingStatusCandidate === 'function') receiptStartLabel = this.normalizeThinkingStatusCandidate(receiptStartLabel); var startLabel = receiptStartLabel || (typeof this.toolThinkingActionLabel === 'function' ? this.toolThinkingActionLabel({ name: data.tool, input: data.input || '' }) : String(data.tool || 'tool'));
           if (startLabel && lastMsg.thinking_status !== startLabel) lastMsg.thinking_status = startLabel;
+          if (startLabel && typeof this._setPendingWsStatusText === 'function') this._setPendingWsStatusText(toolStartAgentId, startLabel);
           this._resetTypingTimeout();
           this.scrollToBottom();
           break;
@@ -111,6 +115,9 @@
               lastMsg2.thinking_status = activeToolLabel;
             } else if (!activeToolLabel) {
               lastMsg2.thinking_status = 'Thinking';
+            }
+            if (typeof this._setPendingWsStatusText === 'function') {
+              this._setPendingWsStatusText(toolEndAgentId, lastMsg2.thinking_status || activeToolLabel || 'Thinking');
             }
             lastMsg2._stream_updated_at = Date.now();
             if (!Number.isFinite(Number(lastMsg2._stream_started_at))) lastMsg2._stream_started_at = Date.now();
@@ -150,6 +157,9 @@
               lastMsg3.thinking_status = nextActiveToolLabel;
             } else if (!nextActiveToolLabel) {
               lastMsg3.thinking_status = 'Thinking';
+            }
+            if (typeof this._setPendingWsStatusText === 'function') {
+              this._setPendingWsStatusText(toolResultAgentId, lastMsg3.thinking_status || nextActiveToolLabel || 'Thinking');
             }
           }
           this._resetTypingTimeout();
@@ -248,19 +258,8 @@
             usedFallback = true;
           }
           if (!finalText.trim()) {
-            if (toolFailureSummary) {
-              finalText = toolFailureSummary;
-              usedFallback = true;
-            } else if (toolOnlySummary) {
-              finalText = toolOnlySummary;
-              usedFallback = true;
-            } else if (workflowFallbackSummary) {
-              finalText = workflowFallbackSummary;
-              usedFallback = true;
-            } else {
-              finalText = this.defaultAssistantFallback(collapsedThought, streamedTools);
-              usedFallback = true;
-            }
+            // Policy: do not inject system-authored fallback text into chat.
+            usedFallback = false;
           }
           var finalMessage = Object.assign({
             id: ++msgId,
@@ -363,31 +362,13 @@
           if (silentThought) {
             silentTools.unshift(this.makeThoughtToolCard(silentThought, Number(data && data.duration_ms ? data.duration_ms : 0)));
           }
-          var silentToolSummary = typeof this.completedToolOnlySummary === 'function'
-            ? String(this.completedToolOnlySummary(silentTools) || '').trim()
-            : '';
           typeof this.clearTransientThinkingRows === 'function' ? this.clearTransientThinkingRows({ force: true }) : (this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; }));
-          this.messages.push({
-            id: ++msgId,
-            role: 'agent',
-            text: silentToolSummary || this.defaultAssistantFallback(silentThought, silentTools),
-            meta: '',
-            tools: silentTools,
-            ts: Date.now(),
-            _auto_fallback: !silentToolSummary,
-            agent_id: data && data.agent_id ? String(data.agent_id) : (this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : ''),
-            agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
-          });
-          this.markAgentMessageComplete(this.messages[this.messages.length - 1]);
-          if (typeof this._queueFinalWordTypingRender === 'function') {
-            this._queueFinalWordTypingRender(this.messages[this.messages.length - 1], String(this.messages[this.messages.length - 1].text || ''), 10);
-          }
           this.sending = false;
           this._responseStartedAt = 0;
           this.tokenCount = 0;
           var selfSilent = this;
           this.$nextTick(function() { selfSilent._processQueue(); });
-          this.refreshPromptSuggestions(true, 'post-silent');
+          this.refreshPromptSuggestions(true, 'post-silent-no-reply');
           break;
         case 'error':
           this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');

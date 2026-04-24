@@ -7,7 +7,7 @@ import { currentRevision } from '../../lib/git.ts';
 import { emitStructuredResult } from '../../lib/result.ts';
 
 const ROOT = process.cwd();
-const SCRIPT_PATH = 'tests/tooling/scripts/ci/client_scope_inventory.ts';
+const SCRIPT_PATH = 'tests/tooling/scripts/ci/shell_scope_inventory.ts';
 const SKIP_DIRS = new Set(['.git', 'node_modules', 'dist', 'coverage', 'state']);
 
 function parseArgs(argv) {
@@ -81,7 +81,7 @@ function buildReport(root = ROOT) {
   }));
 
   return {
-    type: 'client_scope_inventory',
+    type: 'shell_scope_inventory',
     generated_at: new Date().toISOString(),
     revision,
     summary: {

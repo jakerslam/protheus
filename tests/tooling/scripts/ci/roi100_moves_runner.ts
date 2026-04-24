@@ -428,7 +428,7 @@ function buildMoves(options = {}) {
       'core/layer0/ops/tests/v9_swarm_runtime_integration.rs',
       'docs/workspace/codex_enforcer.md',
       'docs/workspace/DEFINITION_OF_DONE.md',
-      'client/runtime/config/client_layer_boundary_policy.json',
+      'client/runtime/config/shell_layer_boundary_policy.json',
     ]) {
       push({
         title: `File exists: ${relPath}`,

@@ -182,39 +182,61 @@
         });
         var createdId = String((res && (res.id || res.agent_id)) || '').trim();
         if (!createdId) throw new Error('spawn_failed');
-        var createdStatusState = String((res && res.sidebar_status_state) || '').trim().toLowerCase();
+        var store = this.getAppStore();
+        if (!store || typeof store.refreshAgents !== 'function') throw new Error('app_store_unavailable');
+        await store.refreshAgents({ force: true });
+        var authoritative = null;
+        if (Array.isArray(store.agents)) {
+          for (var ai = 0; ai < store.agents.length; ai++) {
+            var row = store.agents[ai];
+            if (row && String((row && row.id) || '') === createdId) {
+              authoritative = row;
+              break;
+            }
+          }
+        }
+        if (!authoritative) {
+          try {
+            authoritative = await InfringAPI.get('/api/agents/' + encodeURIComponent(createdId));
+          } catch(_) {}
+        }
+        var createdSource = authoritative && typeof authoritative === 'object'
+          ? Object.assign({}, res || {}, authoritative)
+          : (res && typeof res === 'object' ? Object.assign({}, res) : {});
+        var createdStatusState = String((createdSource && createdSource.sidebar_status_state) || '').trim().toLowerCase();
         if (createdStatusState !== 'active' && createdStatusState !== 'idle' && createdStatusState !== 'offline') {
           createdStatusState = '';
         }
-        var createdStatusLabel = String((res && res.sidebar_status_label) || '').trim().toLowerCase();
+        var createdStatusLabel = String((createdSource && createdSource.sidebar_status_label) || '').trim().toLowerCase();
         if (createdStatusLabel !== 'active' && createdStatusLabel !== 'idle' && createdStatusLabel !== 'offline') {
           createdStatusLabel = createdStatusState;
         }
         var createdFreshness = {
-          source: String((res && res.sidebar_status_source) || ''),
-          source_sequence: String((res && res.sidebar_status_source_sequence) || ''),
-          age_seconds: Number((res && res.sidebar_status_age_seconds) || 0),
-          stale: !!(res && res.sidebar_status_stale === true)
+          source: String((createdSource && createdSource.sidebar_status_source) || ''),
+          source_sequence: String((createdSource && createdSource.sidebar_status_source_sequence) || ''),
+          age_seconds: Number((createdSource && createdSource.sidebar_status_age_seconds) || 0),
+          stale: !!(createdSource && createdSource.sidebar_status_stale === true)
         };
-        var created = {
+        var created = Object.assign({}, createdSource, {
           id: createdId,
-          name: String((res && res.name) || createdId),
-          identity: (res && res.identity && typeof res.identity === 'object') ? res.identity : {},
-          state: createdStatusLabel || createdStatusState || 'offline',
-          sidebar_status_state: createdStatusState || 'offline',
-          sidebar_status_label: createdStatusLabel || createdStatusState || 'offline',
+          agent_id: createdId,
+          name: String((createdSource && createdSource.name) || createdId),
+          role: String((createdSource && createdSource.role) || 'analyst'),
+          identity: (createdSource && createdSource.identity && typeof createdSource.identity === 'object') ? createdSource.identity : {},
+          avatar_url: String((createdSource && createdSource.avatar_url) || ''),
+          state: String((createdSource && createdSource.state) || createdStatusLabel || createdStatusState || 'Running'),
+          sidebar_status_state: createdStatusState || 'active',
+          sidebar_status_label: createdStatusLabel || createdStatusState || 'active',
           sidebar_status_source: createdFreshness.source,
           sidebar_status_source_sequence: createdFreshness.source_sequence,
           sidebar_status_age_seconds: createdFreshness.age_seconds,
           sidebar_status_stale: createdFreshness.stale,
           sidebar_status_freshness: createdFreshness,
-          model_name: String((res && (res.model_name || res.runtime_model || '')) || ''),
-          model_provider: String((res && res.model_provider) || ''),
-          runtime_model: String((res && res.runtime_model) || ''),
-          created_at: String((res && res.created_at) || new Date().toISOString())
-        };
-        var store = this.getAppStore();
-        if (!store || typeof store.refreshAgents !== 'function') throw new Error('app_store_unavailable');
+          model_name: String((createdSource && (createdSource.model_name || createdSource.runtime_model || '')) || ''),
+          model_provider: String((createdSource && createdSource.model_provider) || ''),
+          runtime_model: String((createdSource && createdSource.runtime_model) || ''),
+          created_at: String((createdSource && createdSource.created_at) || new Date().toISOString())
+        });
         this.syncChatSidebarTopologyOrderFromAgents();
         store.pendingAgent = created;
         store.pendingFreshAgentId = created.id;

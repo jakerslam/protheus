@@ -157,23 +157,65 @@ fn strip_markup_noise(raw: &str) -> String {
 fn looks_like_interface_chrome(text: &str) -> bool {
     let normalized = text.trim().to_ascii_lowercase();
     let provider_metadata_dump = normalized.contains("provider:") && normalized.contains("images:");
+    let metadata_card_keyset_dump = (normalized.contains("title:")
+        || normalized.contains("excerpt:")
+        || normalized.contains("originalurl:")
+        || normalized.contains("original_url:"))
+        && (normalized.contains("provider:") || normalized.contains("featuredcontent:"));
     let iframe_embed_dump = normalized.contains("iframe") && normalized.contains("allowfullscreen");
     let tool_trace_scaffold = normalized.contains("tool trace complete")
         || normalized.starts_with("<function=")
-        || normalized.contains("input {");
+        || normalized.contains("<function=")
+        || normalized.contains("</function>")
+        || normalized.contains("input {")
+        || normalized.contains("done · 1 blocked")
+        || (normalized.contains("file list") && normalized.contains("blocked"));
     let ingress_policy_failure_dump = normalized.contains("file_list")
         && normalized.contains("ingress delivery policy");
+    let policy_gate_outage_scaffold = normalized.contains("this is a policy gate")
+        && normalized.contains("web-provider outage");
     let workflow_gate_loop = normalized.contains("workflow gate")
         && normalized.contains("final workflow state was unexpected");
     let retry_loop_scaffold = normalized.contains("please retry so i can rerun the chain cleanly");
     let render_failure_scaffold = normalized.contains("final reply did not render")
         || normalized.contains("ask me to continue and i will synthesize");
+    let benchmark_instruction_scaffold = normalized.contains("ops:benchmark:refresh")
+        || normalized.contains("ops:benchmark:sanity")
+        || normalized.contains("ops:benchmark:public-audit")
+        || normalized.contains("ops:benchmark:repro")
+        || normalized.contains("npm run -s ops:benchmark:");
+    let fallback_next_actions_scaffold = normalized.contains("next actions:")
+        && normalized.contains("targeted tool call")
+        && normalized.contains("concise answer from current context");
+    let capability_surface_boilerplate = normalized.contains("i can access runtime telemetry")
+        && normalized.contains("persistent memory")
+        && normalized.contains("approved command surfaces in this session");
+    let route_classification_diagnostic_scaffold = normalized.contains("the first gate")
+        && (normalized.contains("workflow_route") || normalized.contains("task_or_info_route"))
+        && normalized.contains("classifying this as")
+        && normalized.contains("info")
+        && normalized.contains("task")
+        && (normalized.contains("task classification path")
+            || normalized.contains("tool operation request"));
+    let tool_routing_diagnostic_scaffold =
+        normalized.contains("fundamental misclassification error")
+            || normalized.contains("tool routing mechanism is clearly malfunctioning")
+            || normalized.contains(
+                "requires recalibration to properly distinguish between internal system operations and external data retrieval requests",
+            );
     provider_metadata_dump
+        || metadata_card_keyset_dump
         || iframe_embed_dump
         || ingress_policy_failure_dump
+        || policy_gate_outage_scaffold
         || workflow_gate_loop
         || retry_loop_scaffold
         || render_failure_scaffold
+        || benchmark_instruction_scaffold
+        || fallback_next_actions_scaffold
+        || capability_surface_boilerplate
+        || route_classification_diagnostic_scaffold
+        || tool_routing_diagnostic_scaffold
         || tool_trace_scaffold
 }
 

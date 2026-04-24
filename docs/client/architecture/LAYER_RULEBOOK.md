@@ -112,14 +112,14 @@ Tests are a separate verification surface, with one exception:
 The extension boundary for apps and adapters is:
 
 - Conduit / lane-based runtime contract
-- Client SDK/CLI/UI surfaces derived from that contract
+- Shell SDK/CLI/UI surfaces derived from that contract
 - Explicit manifests and schemas
 
 Apps and gateways should build against the contract, not against private implementation files.
 
 ### 4. Boundary Rules (Enforced)
-- Primary path is Client -> Orchestration Surface -> Kernel for user-driven execution flows.
-- Client <-> core communication is conduit + scrambler only when explicitly approved ingress requires it.
+- Primary path is Shell -> Orchestration Surface -> Kernel for user-driven execution flows.
+- Shell <-> core communication is conduit + scrambler only when explicitly approved ingress requires it.
 - Orchestration Surface <-> core communication is conduit + scrambler + lease/policy validation.
 - Packages <-> core communication flows through public client/package contracts, never private authority backdoors.
 - No direct client-side policy authority over core decisions.
@@ -129,7 +129,7 @@ Apps and gateways should build against the contract, not against private impleme
   `Layer -1 -> Layer 0 -> Layer 1 -> Layer 2 -> Layer 3 -> Cognition`.
 
 ### 5. Runtime Data Placement
-- Client runtime/user/device/instance data: `client/runtime/local/`.
+- Shell runtime/user/device/instance data: `client/runtime/local/`.
 - Kernel runtime/user/device/instance data: `core/local/`.
 - Source trees remain stable and reviewable; runtime churn never defines architecture authority.
 
@@ -137,16 +137,16 @@ Apps and gateways should build against the contract, not against private impleme
 - No layer ownership changes without explicit user approval and audit note.
 - CI/guards must fail on boundary violations.
 - Architecture docs (`ARCHITECTURE.md`, `docs/SYSTEM-ARCHITECTURE-SPECS.md`, this rulebook) must remain synchronized.
-- Client boundary audit:
-  - `npm run -s ops:client-layer:boundary`
-  - policy: `client/runtime/config/client_layer_boundary_policy.json`
+- Shell boundary audit:
+  - `npm run -s ops:shell-layer:boundary`
+  - policy: `client/runtime/config/shell_layer_boundary_policy.json`
 - Repo surface audit:
   - `npm run -s ops:repo-surface:audit`
   - policy: `client/runtime/config/repo_surface_policy.json`
 - Public platform contract audit:
   - `npm run -s ops:public-platform:contract`
   - policy: `client/runtime/config/public_platform_contract_policy.json`
-- Client legacy debt inventory:
+- Shell legacy debt inventory:
   - `npm run -s ops:client-legacy-debt:report`
   - emits a path-classified migration ledger for non-TS client debt
 - Default verification path:
@@ -157,7 +157,7 @@ This rulebook is a live constitution artifact and must be kept aligned with the 
 ### 7. Module Cohesion and Split Policy (Enforced)
 - The canonical policy is `docs/client/MODULE_COHESION_POLICY.md`.
 - Kernel authority modules should split by domain boundary when they exceed safe reviewability.
-- Client surfaces must remain thin adapters and intentionally small/explicit.
+- Shell surfaces must remain thin adapters and intentionally small/explicit.
 - Size policy is guidance backed by CI:
   - hard cap envelope: ~400-600 lines (client thin cap: 400),
   - warning attention threshold: >800 lines,

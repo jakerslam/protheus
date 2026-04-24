@@ -4,7 +4,8 @@ fn actionable_response_gets_next_actions_line() {
         "The latest run showed low-signal results from web retrieval.",
         &[],
     );
-    assert!(out.contains("Next actions:"), "{out}");
+    assert!(!out.contains("Next actions:"), "{out}");
+    assert_eq!(out, "The latest run showed low-signal results from web retrieval.");
     let non_actionable = append_next_actions_line_if_actionable(
         "thanks",
         "Glad to help.",

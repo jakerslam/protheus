@@ -1,0 +1,20 @@
+{
+  "name": "clarify_then_coordinate",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "default": false,
+  "description": "Clarification-first control-plane template used when request intent is ambiguous or clarification is mandatory before execution.",
+  "stages": [
+    "intake_normalization",
+    "decomposition_planning",
+    "coordination_sequencing",
+    "recovery_escalation",
+    "result_packaging",
+    "verification_closure"
+  ],
+  "final_response_policy": "control_plane_packaged_response",
+  "gate_contract": "control_plane_lifecycle_v1",
+  "default_for_request_classes": [
+    "read_only",
+    "tool_call"
+  ]
+}

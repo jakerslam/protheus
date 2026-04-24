@@ -39,9 +39,20 @@ pub fn operation_candidates(tokens: &[String], payload: &Value) -> Vec<Operation
         || payload_has("file")
         || payload_has("files")
         || payload_has("workspace_path")
+        || payload_has("workspace_root")
         || payload_has("repo_path")
+        || payload_has("repo_root")
         || payload_has("repository_path")
+        || payload_has("repository_root")
         || payload_has("cwd_path")
+        || payload_has("pwd_path")
+        || payload_has("workspace_dir")
+        || payload_has("repo_dir")
+        || payload_has("repository_dir")
+        || payload_has("working_dir")
+        || payload_has("current_dir")
+        || payload_has("current_working_directory")
+        || payload_has("present_working_directory")
         || payload_has("directory")
         || payload_has("directories")
         || payload_has("folder")
@@ -137,6 +148,7 @@ pub fn resource_candidates(
         "path",
         "paths",
         "repo",
+        "repository",
         "directory",
         "directories",
         "folder",
@@ -151,15 +163,25 @@ pub fn resource_candidates(
         "path",
         "paths",
         "workspace_path",
+        "workspace_root",
         "repo_path",
+        "repo_root",
         "repository_path",
+        "repository_root",
         "cwd_path",
+        "pwd_path",
+        "workspace_dir",
+        "repo_dir",
+        "repository_dir",
+        "working_dir",
+        "current_dir",
+        "current_working_directory",
+        "present_working_directory",
         "directory",
         "directories",
         "folder",
         "folders",
-    ])
-    {
+    ]) {
         candidates.push(ResourceKind::Workspace);
     }
     if has_any(&["tool", "tools", "runtime", "bridge", "command"])
@@ -223,14 +245,77 @@ fn payload_local_workspace_intent(payload: &Value) -> bool {
             || lowered.contains("directory")
             || lowered.contains("folder")
             || lowered.contains("file")
+            || lowered.contains("file tooling")
+            || lowered.contains("workspace tooling")
+            || lowered.contains("local file tooling")
             || lowered.contains("path")
             || lowered.contains("repo")
+            || lowered.contains("repository")
+            || lowered.contains("working tree")
+            || lowered.contains("source tree")
+            || lowered.contains("cwd")
+            || lowered.contains("pwd")
+            || lowered.contains("current working directory")
+            || lowered.contains("present working directory")
     };
-    let fields = ["message", "intent", "query", "target", "path", "tool", "tool_name"];
-    fields
+    let fields = [
+        "message",
+        "intent",
+        "query",
+        "target",
+        "path",
+        "tool",
+        "tool_name",
+        "text",
+        "content",
+        "prompt",
+    ];
+    let field_intent = fields
         .iter()
         .filter_map(|key| payload.get(*key).and_then(Value::as_str))
-        .any(contains_local_tokens)
+        .any(contains_local_tokens);
+    if field_intent {
+        return true;
+    }
+    payload
+        .as_object()
+        .map(|obj| {
+            obj.contains_key("workspace_path")
+                || obj.contains_key("workspace_paths")
+                || obj.contains_key("workspace_root")
+                || obj.contains_key("workspace_roots")
+                || obj.contains_key("repo_path")
+                || obj.contains_key("repo_paths")
+                || obj.contains_key("repo_root")
+                || obj.contains_key("repo_roots")
+                || obj.contains_key("repository_path")
+                || obj.contains_key("repository_paths")
+                || obj.contains_key("repository_root")
+                || obj.contains_key("repository_roots")
+                || obj.contains_key("directory_path")
+                || obj.contains_key("directory_paths")
+                || obj.contains_key("folder_path")
+                || obj.contains_key("folder_paths")
+                || obj.contains_key("cwd")
+                || obj.contains_key("pwd")
+                || obj.contains_key("cwd_path")
+                || obj.contains_key("pwd_path")
+                || obj.contains_key("workspace_dir")
+                || obj.contains_key("repo_dir")
+                || obj.contains_key("repository_dir")
+                || obj.contains_key("working_dir")
+                || obj.contains_key("current_dir")
+                || obj.contains_key("current_working_directory")
+                || obj.contains_key("present_working_directory")
+                || obj.contains_key("workspace_dirs")
+                || obj.contains_key("repo_dirs")
+                || obj.contains_key("repository_dirs")
+                || obj.contains_key("working_dirs")
+                || obj.contains_key("current_dirs")
+                || obj.contains_key("current_working_directories")
+                || obj.contains_key("present_working_directories")
+        })
+        .unwrap_or(false)
 }
 
 fn payload_web_intent(payload: &Value) -> bool {
@@ -243,7 +328,15 @@ fn payload_web_intent(payload: &Value) -> bool {
             || lowered.contains("online")
             || lowered.contains("browser")
     };
-    let fields = ["message", "intent", "query", "target", "url", "tool", "tool_name"];
+    let fields = [
+        "message",
+        "intent",
+        "query",
+        "target",
+        "url",
+        "tool",
+        "tool_name",
+    ];
     fields
         .iter()
         .filter_map(|key| payload.get(*key).and_then(Value::as_str))
@@ -389,10 +482,20 @@ fn extract_nested_target_scalar(value: &Value) -> Option<String> {
             "workspace_path",
             "repo_path",
             "repository_path",
+            "repository_root",
             "directory",
             "folder",
             "cwd",
             "pwd",
+            "workspace_dir",
+            "repo_dir",
+            "repository_dir",
+            "working_dir",
+            "current_dir",
+            "working_directory",
+            "current_directory",
+            "current_working_directory",
+            "present_working_directory",
             "url",
             "link",
             "tool",
@@ -418,11 +521,19 @@ fn extract_target_descriptors_from_object(obj: &Map<String, Value>) -> Vec<Targe
             "repository_path",
             "workspace_root",
             "repo_root",
+            "repository_root",
             "root_path",
             "cwd_path",
             "pwd_path",
+            "workspace_dir",
+            "repo_dir",
+            "repository_dir",
+            "working_dir",
+            "current_dir",
             "working_directory",
             "current_directory",
+            "current_working_directory",
+            "present_working_directory",
             "directory_path",
             "folder_path",
             "path",
@@ -438,11 +549,19 @@ fn extract_target_descriptors_from_object(obj: &Map<String, Value>) -> Vec<Targe
             "repository_paths",
             "workspace_roots",
             "repo_roots",
+            "repository_roots",
             "root_paths",
             "cwd_paths",
             "pwd_paths",
+            "workspace_dirs",
+            "repo_dirs",
+            "repository_dirs",
+            "working_dirs",
+            "current_dirs",
             "working_directories",
             "current_directories",
+            "current_working_directories",
+            "present_working_directories",
             "directory_paths",
             "folder_paths",
             "paths",
@@ -557,7 +676,46 @@ fn parse_structured_target(value: &Value) -> Option<TargetDescriptor> {
     let obj = value.as_object()?;
     let kind = read_string(obj, &["kind", "type"])?;
     match kind.to_ascii_lowercase().as_str() {
-        "workspace_path" | "path" | "directory" | "folder" | "cwd" | "pwd" => read_string(
+        "workspace_path"
+        | "path"
+        | "directory"
+        | "folder"
+        | "cwd"
+        | "pwd"
+        | "workspace_dir"
+        | "repo_dir"
+        | "repository_dir"
+        | "working_dir"
+        | "current_dir"
+        | "repo_path"
+        | "repository_path"
+        | "workspace_paths"
+        | "repo_paths"
+        | "repository_paths"
+        | "repository_root"
+        | "workspace_root"
+        | "workspace_roots"
+        | "repo_roots"
+        | "repository_roots"
+        | "root_path"
+        | "root_paths"
+        | "working_directory"
+        | "current_directory"
+        | "current_working_directory"
+        | "present_working_directory"
+        | "working_directories"
+        | "current_directories"
+        | "current_working_directories"
+        | "present_working_directories"
+        | "directory_path"
+        | "folder_path"
+        | "directory_paths"
+        | "folder_paths"
+        | "workspace_dirs"
+        | "repo_dirs"
+        | "repository_dirs"
+        | "working_dirs"
+        | "current_dirs" => read_string(
             obj,
             &[
                 "value",
@@ -565,10 +723,22 @@ fn parse_structured_target(value: &Value) -> Option<TargetDescriptor> {
                 "workspace_path",
                 "repo_path",
                 "repository_path",
+                "repository_root",
+                "workspace_root",
+                "repo_root",
                 "directory",
                 "folder",
                 "cwd",
                 "pwd",
+                "workspace_dir",
+                "repo_dir",
+                "repository_dir",
+                "working_dir",
+                "current_dir",
+                "working_directory",
+                "current_directory",
+                "current_working_directory",
+                "present_working_directory",
             ],
         )
         .map(|value| TargetDescriptor::WorkspacePath {
@@ -643,9 +813,7 @@ fn parse_generic_target(value: &str) -> TargetDescriptor {
     }
     let looks_like_windows_drive_path = {
         let bytes = trimmed.as_bytes();
-        bytes.len() > 2
-            && bytes[1] == b':'
-            && (bytes[2] == b'\\' || bytes[2] == b'/')
+        bytes.len() > 2 && bytes[1] == b':' && (bytes[2] == b'\\' || bytes[2] == b'/')
     };
     if trimmed.contains('/')
         || trimmed.contains('\\')

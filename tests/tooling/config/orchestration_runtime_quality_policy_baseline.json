@@ -1,0 +1,27 @@
+{
+  "runtime_quality": {
+    "required_metric_fields": [
+      "sample_size_non_legacy",
+      "fallback_rate_non_legacy",
+      "heuristic_probe_rate_non_legacy",
+      "clarification_rate_non_legacy",
+      "zero_executable_rate_non_legacy",
+      "all_candidates_degraded_rate_non_legacy",
+      "average_candidate_count"
+    ],
+    "max_missing_metric_fields": 0,
+    "consistency_epsilon": 0.000001,
+    "min_sample_size": 4,
+    "min_average_candidate_count": 1.5,
+    "max_non_legacy_fallback_rate": 0.2,
+    "max_non_legacy_heuristic_probe_rate": 0.2,
+    "max_non_legacy_clarification_rate": 0.2,
+    "max_non_legacy_zero_executable_rate": 0.15,
+    "max_non_legacy_all_candidates_degraded_rate": 0.2,
+    "max_non_legacy_fallback_plus_heuristic_rate": 0.4,
+    "max_non_legacy_clarification_plus_degraded_rate": 0.4,
+    "max_non_legacy_fallback_minus_zero_executable_rate": 0.0,
+    "max_non_legacy_fallback_rate_trend_ceiling": 0.2,
+    "max_non_legacy_clarification_rate_trend_ceiling": 0.2
+  }
+}

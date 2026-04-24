@@ -424,6 +424,15 @@ function parseErrorToken(rawError: string, key: string): string {
   return cleanText(match?.[1] || '', 40).toLowerCase();
 }
 
+function isCanonicalToken(raw: string, maxLen = 120): boolean {
+  const token = cleanText(String(raw || ''), maxLen);
+  return /^[a-z0-9][a-z0-9._:-]*$/i.test(token);
+}
+
+function isRatioInRange(raw: number): boolean {
+  return Number.isFinite(raw) && raw >= 0 && raw <= 1;
+}
+
 function readRuntimeCircuitState(payload: any, chaosError: string): string {
   const fromPayload = cleanText(payload?.runtime_contract?.circuit_breaker?.state || '', 40).toLowerCase();
   if (fromPayload) {
@@ -1034,6 +1043,180 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     failures.push({
       id: 'gateway_chaos_transition_contract_violation',
       detail: `${row.adapter}:${row.scenario}:circuit=${row.runtime_circuit_state || 'missing'};quarantine=${String(row.runtime_quarantine_active === true)}`,
+    });
+  }
+  if (gatewayTargetAdapters.length !== gatewayTargetIds.length) {
+    failures.push({
+      id: 'gateway_chaos_summary_gateway_targets_parity_contract_v2',
+      detail: `targets_declared=${gatewayTargetIds.length};targets_resolved=${gatewayTargetAdapters.length}`,
+    });
+  }
+  if (gatewaySupportLevels.length !== gatewayTargetAdapters.length) {
+    failures.push({
+      id: 'gateway_chaos_summary_support_levels_parity_contract_v2',
+      detail: `support_levels=${gatewaySupportLevels.length};targets_resolved=${gatewayTargetAdapters.length}`,
+    });
+  }
+  if (graduationAdapters.length + pendingRoadmapAdapters.length !== manifestAdapters.length) {
+    failures.push({
+      id: 'gateway_chaos_summary_adapter_partition_parity_contract_v2',
+      detail: `graduation=${graduationAdapters.length};pending=${pendingRoadmapAdapters.length};adapters=${manifestAdapters.length}`,
+    });
+  }
+  if (baselineTotal !== graduationAdapters.length) {
+    failures.push({
+      id: 'gateway_chaos_baseline_total_parity_contract_v2',
+      detail: `baseline_total=${baselineTotal};graduation_adapters=${graduationAdapters.length}`,
+    });
+  }
+  const expectedChaosTotal = graduationAdapters.length * requiredScenarioIds.length;
+  if (chaosTotal !== expectedChaosTotal) {
+    failures.push({
+      id: 'gateway_chaos_total_expected_contract_v2',
+      detail: `chaos_total=${chaosTotal};expected=${expectedChaosTotal}`,
+    });
+  }
+  if (allRows.length !== baselineTotal + chaosTotal) {
+    failures.push({
+      id: 'gateway_chaos_all_rows_count_parity_contract_v2',
+      detail: `all_rows=${allRows.length};baseline_plus_chaos=${baselineTotal + chaosTotal}`,
+    });
+  }
+  if (transitionTotal !== graduationAdapters.length) {
+    failures.push({
+      id: 'gateway_chaos_transition_total_parity_contract_v2',
+      detail: `transition_total=${transitionTotal};graduation_adapters=${graduationAdapters.length}`,
+    });
+  }
+  const nonRepeatedTransitionRows = transitionRows.filter((row) => row.scenario !== 'repeated_flapping');
+  if (nonRepeatedTransitionRows.length > 0) {
+    failures.push({
+      id: 'gateway_chaos_transition_scenario_token_contract_v2',
+      detail: nonRepeatedTransitionRows
+        .map((row) => `${row.adapter}:${row.scenario}`)
+        .join(','),
+    });
+  }
+  if (!isRatioInRange(baselinePassRatio)) {
+    failures.push({
+      id: 'gateway_chaos_ratio_baseline_range_contract_v2',
+      detail: `baseline_ratio=${baselinePassRatio}`,
+    });
+  }
+  if (!isRatioInRange(chaosFailClosedRatio)) {
+    failures.push({
+      id: 'gateway_chaos_ratio_fail_closed_range_contract_v2',
+      detail: `chaos_fail_closed_ratio=${chaosFailClosedRatio}`,
+    });
+  }
+  if (!isRatioInRange(graduationRatio)) {
+    failures.push({
+      id: 'gateway_chaos_ratio_graduation_range_contract_v2',
+      detail: `graduation_ratio=${graduationRatio}`,
+    });
+  }
+  if (!isRatioInRange(transitionRatio)) {
+    failures.push({
+      id: 'gateway_chaos_ratio_transition_range_contract_v2',
+      detail: `transition_ratio=${transitionRatio}`,
+    });
+  }
+  const supportLevelIds = gatewaySupportLevels
+    .map((row) => cleanText(String(row?.id || ''), 80))
+    .filter(Boolean);
+  if (new Set(supportLevelIds).size !== supportLevelIds.length) {
+    failures.push({
+      id: 'gateway_chaos_support_levels_id_unique_contract_v2',
+      detail: supportLevelIds.join(','),
+    });
+  }
+  const invalidSupportLevelRows = gatewaySupportLevels.filter((row) => {
+    const id = cleanText(String(row?.id || ''), 80);
+    const supportLevel = cleanText(String(row?.support_level || ''), 40).toLowerCase();
+    return !isCanonicalToken(id, 80) || !SUPPORT_LEVEL_ORDER.includes(supportLevel as SupportLevel);
+  });
+  if (invalidSupportLevelRows.length > 0) {
+    failures.push({
+      id: 'gateway_chaos_support_levels_token_contract_v2',
+      detail: invalidSupportLevelRows
+        .map((row) => `${cleanText(String(row?.id || ''), 80)}:${cleanText(String(row?.support_level || ''), 40)}`)
+        .join(','),
+    });
+  }
+  const supportLevelsRequiredForGraduationRows = gatewaySupportLevels.filter(
+    (row) => row.required_for_graduation !== false,
+  );
+  if (supportLevelsRequiredForGraduationRows.length > 0) {
+    failures.push({
+      id: 'gateway_chaos_support_levels_required_for_graduation_false_contract_v2',
+      detail: supportLevelsRequiredForGraduationRows
+        .map((row) => cleanText(String(row?.id || ''), 80))
+        .join(','),
+    });
+  }
+  const invalidChecklistStatusRows: string[] = [];
+  for (const row of gatewaySupportLevels) {
+    const checklist = (row?.checklist || {}) as Record<string, unknown>;
+    for (const key of CHECKLIST_KEYS) {
+      const value = cleanText(String(checklist[key] || ''), 40).toLowerCase();
+      if (!CHECKLIST_ALLOWED_STATUS.has(value as ChecklistStatus)) {
+        invalidChecklistStatusRows.push(`${cleanText(String(row?.id || ''), 80)}:${key}:${value || 'missing'}`);
+      }
+    }
+  }
+  if (invalidChecklistStatusRows.length > 0) {
+    failures.push({
+      id: 'gateway_chaos_support_levels_checklist_status_token_contract_v2',
+      detail: invalidChecklistStatusRows.join(','),
+    });
+  }
+  const invalidFailureIdRows = failures.filter((row) => !isCanonicalToken(cleanText(String(row?.id || ''), 120), 120));
+  if (invalidFailureIdRows.length > 0) {
+    failures.push({
+      id: 'gateway_chaos_failures_id_token_contract_v2',
+      detail: invalidFailureIdRows
+        .map((row) => cleanText(String(row?.id || ''), 120))
+        .join(','),
+    });
+  }
+  const emptyFailureDetailRows = failures.filter(
+    (row) => cleanText(String(row?.detail || ''), 400).length === 0,
+  );
+  if (emptyFailureDetailRows.length > 0) {
+    failures.push({
+      id: 'gateway_chaos_failures_detail_nonempty_contract_v2',
+      detail: emptyFailureDetailRows
+        .map((row) => cleanText(String(row?.id || ''), 120))
+        .join(','),
+    });
+  }
+  const expectedScenarioError = new Map(
+    CHAOS_CASES.map((row) => [cleanText(row.id, 80), cleanText(row.expected_error, 80)]),
+  );
+  const scenarioErrorMismatches = chaosRows.filter((row) => {
+    const expected = expectedScenarioError.get(cleanText(row.scenario, 80)) || '';
+    return cleanText(row.expected_error, 80) !== expected;
+  });
+  if (scenarioErrorMismatches.length > 0) {
+    failures.push({
+      id: 'gateway_chaos_results_expected_error_parity_contract_v2',
+      detail: scenarioErrorMismatches
+        .map((row) => `${row.adapter}:${row.scenario}:${row.expected_error}`)
+        .join(','),
+    });
+  }
+  const adapterCoverageMissing = graduationAdapters.filter((adapter) => {
+    const scenarioSet = new Set(
+      chaosRows
+        .filter((row) => row.adapter === adapter.id)
+        .map((row) => cleanText(row.scenario, 80)),
+    );
+    return requiredScenarioIds.some((scenarioId) => !scenarioSet.has(scenarioId));
+  });
+  if (adapterCoverageMissing.length > 0) {
+    failures.push({
+      id: 'gateway_chaos_adapter_scenario_coverage_contract_v2',
+      detail: adapterCoverageMissing.map((row) => row.id).join(','),
     });
   }
 

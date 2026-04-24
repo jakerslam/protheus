@@ -5,6 +5,55 @@ use serde_json::Value;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+pub enum EvalQualitySignalMode {
+    Scored,
+    InsufficientSignal,
+    Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct EvalQualitySignalSnapshot {
+    pub quality_ok: bool,
+    pub monitor_ok: bool,
+    pub evaluation_mode: EvalQualitySignalMode,
+    pub predicted_non_info_samples: u64,
+    pub minimum_eval_samples: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct EvalCalibrationSnapshot {
+    pub calibration_ready: bool,
+    pub status: String,
+    pub agreement_rate: f64,
+    pub agreement_min: f64,
+    pub comparable_samples: u64,
+    pub minimum_samples: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EvalQualityGatePolicy {
+    pub required_consecutive_passes: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EvalQualityGateHistory {
+    pub consecutive_passes: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct EvalQualityGateState {
+    pub quality_signal_sufficient: bool,
+    pub calibration_ready: bool,
+    pub current_pass: bool,
+    pub soft_blocked: bool,
+    pub consecutive_passes: u64,
+    pub required_consecutive_passes: u64,
+    pub autonomous_escalation_allowed: bool,
+    pub remaining_to_unlock: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum RequestClass {
     ReadOnly,
     ToolCall,
@@ -456,6 +505,7 @@ pub enum RecoveryReason {
     TargetInvalid,
     TargetNotFound,
     ToolUnavailable,
+    ToolFailureBudgetExceeded,
     AuthorizationFailure,
     PolicyDenied,
     PlannerContradiction,
@@ -563,6 +613,29 @@ pub struct RuntimeQualitySignals {
     pub typed_probe_contract_gap_count: u32,
     pub decision_rationale_count: u32,
     pub fallback_action_count: u32,
+    pub mcp_alias_route_required: bool,
+    pub retry_backoff_contract_required: bool,
+    pub mcp_transport_fallback_required: bool,
+    pub semantic_discovery_route_required: bool,
+    pub exact_pattern_search_required: bool,
+    pub known_path_direct_read_required: bool,
+    pub parallel_independent_tool_calls_required: bool,
+    pub grounded_verification_required: bool,
+    pub step_checkpointing_required: bool,
+    pub completion_hygiene_required: bool,
+    pub specialized_tool_usage_required: bool,
+    pub shell_terminal_only_usage_required: bool,
+    pub simple_lookup_locality_hygiene_required: bool,
+    pub subagent_brief_contract_required: bool,
+    pub subagent_output_contract_required: bool,
+    pub subagent_result_synthesis_required: bool,
+    pub mcp_retry_reason_count: u32,
+    pub mcp_transport_fallback_action_count: u32,
+    pub mcp_retry_recovery_active: bool,
+    pub mcp_diagnostic_summary: String,
+    pub tool_failure_budget_failed_step_count: u32,
+    pub tool_failure_budget_limit: u32,
+    pub tool_failure_budget_exceeded: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -572,6 +645,9 @@ pub enum WorkflowTemplate {
     ResearchSynthesizeVerify,
     PlanExecuteReview,
     DiagnoseRetryEscalate,
+    CodexToolingSynthesis,
+    ForgeCodeAgentComposition,
+    ForgeCodeRawCapabilityAssimilation,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

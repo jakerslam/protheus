@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 fn scripted_batch_query_harness_response(root: &Path, query: &str) -> Option<Value> {
     let path = root.join("client/runtime/local/state/ui/infring_dashboard/test_chat_script.json");
     let mut script = read_json(&path).unwrap_or_else(|| json!({}));

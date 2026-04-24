@@ -332,11 +332,7 @@ fn surface_adapter_fallback_requires_clarification() {
             session_id: "dashboard-fallback".to_string(),
             intent: "".to_string(),
             surface: RequestSurface::Dashboard,
-            payload: json!({
-                "dashboard": {
-                    "selection_mode": "panel"
-                }
-            }),
+            payload: json!({ "dashboard": {} }),
         },
         4_300,
     );
@@ -351,6 +347,36 @@ fn surface_adapter_fallback_requires_clarification() {
 }
 
 #[test]
+fn dashboard_selection_mode_defaults_to_read_memory_without_fallback() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "dashboard-selection-mode-default".to_string(),
+            intent: "".to_string(),
+            surface: RequestSurface::Dashboard,
+            payload: json!({
+                "dashboard": {
+                    "selection_mode": "panel"
+                }
+            }),
+        },
+        4_302,
+    );
+    assert!(!package.classification.needs_clarification);
+    assert!(package.classification.surface_adapter_used);
+    assert!(!package.classification.surface_adapter_fallback);
+    assert_eq!(
+        package.classification.request_class,
+        infring_orchestration_surface_v1::contracts::RequestClass::ReadOnly
+    );
+    assert!(package
+        .classification
+        .reasons
+        .iter()
+        .any(|row| row == "surface_adapter_dashboard_default:read_memory"));
+}
+
+#[test]
 fn non_legacy_surface_adapter_fallback_uses_heuristics_and_stays_clarification_first() {
     let mut runtime = OrchestrationSurfaceRuntime::new();
     let package = runtime.orchestrate(
@@ -358,11 +384,7 @@ fn non_legacy_surface_adapter_fallback_uses_heuristics_and_stays_clarification_f
             session_id: "dashboard-fallback-strict-probe".to_string(),
             intent: "search web for release notes".to_string(),
             surface: RequestSurface::Dashboard,
-            payload: json!({
-                "dashboard": {
-                    "selection_mode": "panel"
-                }
-            }),
+            payload: json!({ "dashboard": {} }),
         },
         4_305,
     );

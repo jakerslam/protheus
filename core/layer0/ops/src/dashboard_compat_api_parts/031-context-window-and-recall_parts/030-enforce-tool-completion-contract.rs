@@ -41,26 +41,26 @@ fn enforce_tool_completion_contract(
     if tools_present == 0 {
         let finalized_cleaned = clean_text(&finalized, 32_000);
         if response_is_no_findings_placeholder(&finalized_cleaned)
-            && finalized_cleaned != no_findings_user_facing_response()
+            && !finalized_cleaned.is_empty()
         {
-            finalized = no_findings_user_facing_response();
+            finalized.clear();
             outcome =
-                append_tool_completion_outcome(&outcome, "no_tools_normalized_no_findings_copy");
+                append_tool_completion_outcome(&outcome, "no_tools_withheld_no_findings_copy");
             applied = true;
         } else if response_looks_like_tool_ack_without_findings(&finalized_cleaned) {
-            finalized = no_findings_user_facing_response();
+            finalized.clear();
             outcome = append_tool_completion_outcome(
                 &outcome,
-                "no_tools_rewrote_unverified_tool_execution_claim",
+                "no_tools_withheld_unverified_tool_execution_claim",
             );
             applied = true;
         } else if response_is_deferred_execution_preamble(&finalized_cleaned)
             || response_is_deferred_retry_prompt(&finalized_cleaned)
         {
-            finalized = no_findings_user_facing_response();
+            finalized.clear();
             outcome = append_tool_completion_outcome(
                 &outcome,
-                "no_tools_rewrote_deferred_execution_claim",
+                "no_tools_withheld_deferred_execution_claim",
             );
             applied = true;
         }
@@ -73,10 +73,7 @@ fn enforce_tool_completion_contract(
         if actionable_reason && !findings_available {
             finalized = clean_text(&finalized_cleaned, 32_000);
             if response_is_no_findings_placeholder(&finalized) {
-                finalized = clean_text(
-                    "I need your confirmation before running this command. Reply `yes` to continue.",
-                    32_000,
-                );
+                finalized.clear();
             }
             outcome = append_tool_completion_outcome(&outcome, "tool_completion_preserved_reason");
             applied = true;
@@ -86,11 +83,9 @@ fn enforce_tool_completion_contract(
                 || response_looks_like_tool_ack_without_findings(&finalized_cleaned)
                 || response_is_no_findings_placeholder(&finalized_cleaned))
         {
-            finalized = findings
-                .clone()
-                .unwrap_or_else(no_findings_user_facing_response);
+            finalized.clear();
             outcome =
-                append_tool_completion_outcome(&outcome, "tool_completion_replaced_with_findings");
+                append_tool_completion_outcome(&outcome, "tool_completion_withheld_missing_llm_text");
             applied = true;
         } else if !findings_available
             && !actionable_reason
@@ -98,40 +93,30 @@ fn enforce_tool_completion_contract(
                 || response_looks_like_tool_ack_without_findings(&finalized_cleaned)
                 || response_is_no_findings_placeholder(&finalized_cleaned))
         {
-            finalized = no_findings_user_facing_response();
+            finalized.clear();
             outcome = append_tool_completion_outcome(
                 &outcome,
-                "tool_completion_replaced_with_no_findings",
+                "tool_completion_withheld_no_findings",
             );
             applied = true;
         }
         if response_looks_like_tool_ack_without_findings(&finalized)
             && !has_actionable_tool_reason(&finalized)
         {
-            finalized = no_findings_user_facing_response();
+            finalized.clear();
             outcome =
-                append_tool_completion_outcome(&outcome, "tool_completion_forced_no_findings");
+                append_tool_completion_outcome(&outcome, "tool_completion_withheld_ack_only");
             applied = true;
         }
         let deferred_execution = response_is_deferred_execution_preamble(&finalized)
             || response_is_deferred_retry_prompt(&finalized)
             || workflow_response_requests_more_tooling(&finalized);
         if deferred_execution && !has_actionable_tool_reason(&finalized) {
-            if findings_available {
-                finalized = findings
-                    .clone()
-                    .unwrap_or_else(no_findings_user_facing_response);
-                outcome = append_tool_completion_outcome(
-                    &outcome,
-                    "tool_completion_replaced_deferred_with_findings",
-                );
-            } else {
-                finalized = no_findings_user_facing_response();
-                outcome = append_tool_completion_outcome(
-                    &outcome,
-                    "tool_completion_replaced_deferred_with_no_findings",
-                );
-            }
+            finalized.clear();
+            outcome = append_tool_completion_outcome(
+                &outcome,
+                "tool_completion_withheld_deferred_execution",
+            );
             applied = true;
         }
     }

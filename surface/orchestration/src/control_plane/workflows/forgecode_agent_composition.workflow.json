@@ -1,0 +1,2396 @@
+{
+  "name": "forgecode_agent_composition",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "default": false,
+  "description": "ForgeCode assimilation template that composes three specialized agent lanes (research, planning, implementation) into one single-agent master workflow.",
+  "stages": [
+    "intake_normalization",
+    "decomposition_planning",
+    "coordination_sequencing",
+    "recovery_escalation",
+    "result_packaging",
+    "verification_closure"
+  ],
+  "final_response_policy": "control_plane_packaged_response",
+  "gate_contract": "control_plane_lifecycle_v1",
+  "default_for_request_classes": [
+    "assimilation"
+  ],
+  "subtemplates": [
+    {
+      "id": "forgecode_structured_tool_call_runtime_projection",
+      "description": "Structured ForgeCode lane that projects raw tool-call runtime mechanics (argument normalization, parser resilience, ordering) into staged research/plan/implement flow.",
+      "required_signals": [
+        "tool_call_arguments_stringified_json_repair_and_rawvalue_passthrough",
+        "tool_call_argument_type_coercion_bool_int_float_fallback_string",
+        "tool_call_context_metrics_lock_and_todo_delta_apply",
+        "tool_call_xml_parser_forge_tag_scan_and_multi_call_extraction",
+        "tool_call_part_assembly_glm_fragment_continuation_with_call_id_repair",
+        "tool_usage_prompt_required_field_projection_from_input_schema",
+        "tool_order_weighted_exact_and_glob_sorting_with_alphabetical_fallback"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/call/args.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/call/context.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/call/parser.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/call/tool_call.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/definition/usage.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tool_order.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_tool_service_execution_hygiene",
+      "description": "Structured ForgeCode lane that projects tool-service execution mechanics (fetch safety, followup gating, patch strictness, read/search bounds, shell hygiene) into staged orchestration flow.",
+      "required_signals": [
+        "net_fetch_robots_and_binary_content_fail_closed_guidance",
+        "followup_prompt_mode_single_multi_choice_semantics",
+        "fs_patch_exact_match_and_multiple_match_guard_behavior",
+        "fs_read_absolute_path_size_and_visual_content_handling",
+        "fs_search_regex_glob_filetype_and_binary_skip_behavior",
+        "shell_command_validation_and_ansi_strip_output_hygiene"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/tool_services/fetch.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/tool_services/followup.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/tool_services/fs_patch.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/tool_services/fs_read.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/tool_services/fs_search.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/tool_services/shell.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_tool_service_mutation_recovery_and_skill_fetch",
+      "description": "Structured ForgeCode lane that projects mutation/recovery and operator-planning mechanics (remove/undo/write/image-read/plan-create/skill-fetch) into staged orchestration flow.",
+      "required_signals": [
+        "fs_remove_snapshot_before_delete_and_return_removed_content",
+        "fs_undo_before_after_projection_with_snapshot_revert",
+        "fs_write_overwrite_guard_parent_dir_create_and_line_ending_normalization",
+        "image_read_extension_validation_and_max_image_size_guard",
+        "plan_create_date_version_naming_and_no_overwrite_policy",
+        "skill_fetch_cached_lookup_and_not_found_fail_closed_message"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/tool_services/fs_remove.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/tool_services/fs_undo.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/tool_services/fs_write.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/tool_services/image_read.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/tool_services/plan_create.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/tool_services/skill.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_mcp_capability_management_and_route_validation",
+      "description": "Structured ForgeCode lane that projects MCP capability management mechanics (scope merge, cached re-init, tool alias routing, failure diagnostics, and module validation) into staged orchestration flow.",
+      "required_signals": [
+        "mcp_scope_merge_precedence_global_workflow_request",
+        "mcp_config_hash_change_triggers_cached_client_reinit",
+        "mcp_per_server_failure_diagnostics_recorded_and_exposed",
+        "mcp_tool_name_generation_with_legacy_alias_lookup_fallback",
+        "mcp_reload_clears_cached_clients_hash_tools_and_failures",
+        "tool_services_module_export_registry_alignment",
+        "tool_services_syn_validate_contract_exposed"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/mcp/manager.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/mcp/service.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/mcp/tool.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/mcp/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/tool_services/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/tool_services/syn/mod.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_context_compaction_and_response_event_contracts",
+      "description": "Structured ForgeCode lane that projects domain-level context compaction and response event mechanics (threshold validation, safe eviction boundaries, and event emptiness/interrupt semantics) into staged orchestration flow.",
+      "required_signals": [
+        "compact_percentage_fields_deserialize_with_0_to_1_validation",
+        "compact_should_trigger_on_tokens_turns_messages_or_user_turn_end",
+        "compaction_strategy_min_max_and_tool_boundary_preserving_eviction_range",
+        "context_message_token_estimation_includes_tool_calls_and_reasoning_details",
+        "context_tool_output_filters_base64_images_before_serialized_projection",
+        "chat_response_empty_detection_and_interrupt_limit_reason_projection",
+        "title_format_category_and_timestamp_status_projection"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/compact/compact_config.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/compact/result.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/compact/strategy.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/compact/summary.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/context.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/chat_response.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_request_command_and_attachment_projection_contracts",
+      "description": "Structured ForgeCode lane that projects request/command/event/attachment domain mechanics (conversation identity binding, dispatch metadata, and file-tag parsing constraints) into staged orchestration flow.",
+      "required_signals": [
+        "chat_request_binds_event_payload_to_conversation_identity",
+        "command_frontmatter_name_description_and_optional_prompt_projection",
+        "conversation_id_uuid_generate_parse_and_related_conversation_cost_projection",
+        "event_dispatch_uuid_timestamp_and_task_feedback_context_mode_projection",
+        "file_operation_tracks_line_deltas_content_hash_and_tool_origin",
+        "attachment_file_tag_parser_supports_windows_paths_ranges_symbols_and_dedup"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/chat_request.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/command.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/conversation.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/event.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/file_operation.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/attachment.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_auth_flow_and_credential_projection_contracts",
+      "description": "Structured ForgeCode lane that projects auth flow and credential domain mechanics (method selection, OAuth config/token envelopes, and credential refresh semantics) into staged orchestration flow.",
+      "required_signals": [
+        "auth_method_supports_api_key_oauth_device_oauth_code_google_adc_and_codex_device",
+        "auth_method_oauth_config_accessor_returns_only_for_oauth_variants",
+        "oauth_config_projects_urls_client_id_scopes_pkce_refresh_headers_and_extra_params",
+        "auth_context_request_response_pairing_for_api_key_code_and_device_flows",
+        "auth_context_response_constructors_normalize_api_key_and_url_param_maps",
+        "auth_code_params_include_auth_url_state_and_optional_code_verifier",
+        "oauth_token_response_aliases_token_and_refresh_in_with_default_bearer_type",
+        "auth_credential_supports_api_key_oauth_oauth_with_api_key_and_google_adc_variants",
+        "oauth_tokens_refresh_and_expiry_checks_use_buffer_aware_semantics"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/auth/auth_context.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/auth/auth_method.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/auth/auth_params.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/auth/auth_token_response.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/auth/credentials.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/auth/oauth_config.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_permission_policy_evaluation_contracts",
+      "description": "Structured ForgeCode lane that projects permission policy evaluation mechanics (policy sets, rule matching, and default/short-circuit decisions) into staged orchestration flow.",
+      "required_signals": [
+        "policy_config_collects_policies_and_evaluates_permissions_and_matching_rules",
+        "policy_engine_returns_deny_or_confirm_immediately_and_defaults_confirm_without_policies",
+        "permission_operation_models_read_write_execute_fetch_with_path_cwd_and_messages",
+        "policy_combinators_support_simple_all_any_not_evaluation_and_matching_rule_collection",
+        "rule_matching_uses_glob_patterns_with_optional_working_directory_constraints",
+        "policy_module_exports_config_engine_operation_policy_rule_and_types_surfaces"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/policies/config.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/policies/engine.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/policies/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/policies/operation.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/policies/policy.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/policies/rule.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_provider_model_and_transport_configuration_contracts",
+      "description": "Structured ForgeCode lane that projects provider/model/transport configuration mechanics (typed auth keys, provider identity/model source, and HTTP/TLS defaults) into staged orchestration flow.",
+      "required_signals": [
+        "auth_module_reexports_auth_context_method_params_token_credentials_new_types_and_oauth_config",
+        "auth_new_types_define_strong_token_param_wrappers_with_safe_api_key_display_truncation",
+        "provider_id_built_in_registry_display_mapping_and_custom_provider_passthrough",
+        "provider_model_source_supports_url_templates_or_hardcoded_model_lists",
+        "model_input_modalities_default_text_and_modelid_wrapper_conversions",
+        "model_config_pairs_provider_and_model_identifiers_for_operation_payloads",
+        "http_config_tls_version_parsing_backend_selection_and_http2_keepalive_defaults"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/auth/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/auth/new_types.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/provider.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/model.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/model_config.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/http_config.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_transformer_normalization_and_reasoning_projection_contracts",
+      "description": "Structured ForgeCode lane that projects context transformer mechanics (tool-argument normalization, image attachment rewrite, reasoning stripping, and model projection) into staged orchestration flow.",
+      "required_signals": [
+        "transformer_module_exposes_ordered_pipe_composition_for_context_stage_chaining",
+        "normalize_tool_call_arguments_repairs_unparsed_json_to_parsed_values_before_provider_dto_conversion",
+        "image_handling_rewrites_tool_image_values_to_text_placeholders_and_appends_user_attachment_messages",
+        "reasoning_normalizer_preserves_same_model_tail_reasoning_and_strips_prior_mismatch_context",
+        "drop_reasoning_details_clears_text_reasoning_details_and_context_reasoning_config",
+        "set_model_assigns_missing_text_message_model_without_overwriting_existing_model_binding"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/transformer/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/transformer/normalize_tool_args.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/transformer/image_handling.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/transformer/reasoning_normalizer.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/transformer/drop_reasoning_details.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/transformer/set_model.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_tool_definition_and_transform_projection_contracts",
+      "description": "Structured ForgeCode lane that projects tool-catalog/definition mechanics and transform-to-non-tool context conversion behavior into staged orchestration flow.",
+      "required_signals": [
+        "transform_tool_calls_rewrites_assistant_tool_calls_and_converts_tool_outputs_to_user_visible_messages",
+        "sort_tools_applies_weighted_tool_order_with_default_alphabetical_fallback",
+        "tool_catalog_enforces_typed_tool_input_envelopes_and_task_agent_delegation_shape",
+        "tool_result_failure_envelope_includes_causal_chain_and_reflection_prompt_context",
+        "tool_output_combines_text_ai_image_values_with_error_propagation",
+        "tool_definition_schema_requires_name_description_and_input_schema_contract",
+        "tool_choice_supports_none_auto_required_and_explicit_tool_call_modes"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/transformer/transform_tool_calls.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/transformer/sort_tools.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/catalog.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/result.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/definition/tool_definition.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/definition/choice.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_tool_namespace_and_mcp_surface_contracts",
+      "description": "Structured ForgeCode lane that projects tool namespace exports, tool-name hygiene, and MCP server config/cache mechanics into staged orchestration flow.",
+      "required_signals": [
+        "tools_module_reexports_call_definition_catalog_and_result_surfaces_for_runtime_contract_access",
+        "tool_definition_module_exports_choice_name_tool_definition_and_usage_surfaces",
+        "tool_name_sanitization_enforces_lower_snake_and_legacy_mcp_alias_conversion",
+        "tool_call_module_reexports_args_context_parser_and_tool_call_components",
+        "mcp_server_config_supports_stdio_http_disable_flags_and_oauth_auto_or_configured_modes",
+        "mcp_oauth_setting_supports_bool_or_object_deserialization_with_disabled_false_serialization",
+        "mcp_servers_cache_tracks_successful_server_toolsets_and_per_server_failures"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/definition/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/definition/name.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/call/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/mcp.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/mcp_servers.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_message_reasoning_and_context_synthesis_contracts",
+      "description": "Structured ForgeCode lane that projects message accounting, reasoning aggregation, suggestion/context envelopes, and template-driven synthesis mechanics into staged orchestration flow.",
+      "required_signals": [
+        "message_usage_accumulate_sums_costs_and_promotes_token_precision_to_approx_when_inputs_are_mixed",
+        "message_usage_merge_treats_stream_deltas_as_cumulative_max_for_token_fields_while_preserving_cost_additivity",
+        "message_pattern_builder_supports_user_assistant_system_tool_call_and_tool_result_sequence_symbols",
+        "reasoning_from_parts_groups_by_reasoning_type_and_merges_text_with_first_non_empty_signature",
+        "suggestion_surface_projects_followup_candidate_actions_for_operator_orchestrated_next_step_selection",
+        "system_context_surface_projects_runtime_environment_and_execution_hints_for_prompt_shaping",
+        "template_surface_provides_deterministic_placeholder_driven_render_contract_for_synthesis_output"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/message.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/message_pattern.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/reasoning.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/suggestion.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/system_context.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/template.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_agent_hook_and_workspace_runtime_contracts",
+      "description": "Structured ForgeCode lane that projects agent/runtime config, lifecycle hooks, session metrics, terminal/workspace context, and validation contracts into staged orchestration flow.",
+      "required_signals": [
+        "agent_surface_requires_provider_model_and_compaction_threshold_safety_with_context_window_caps",
+        "agent_reasoning_config_supports_effort_tokens_exclude_enabled_with_provider_compatibility_constraints",
+        "hook_surface_models_lifecycle_events_start_end_request_response_and_toolcall_handlers_with_composable_and_chained_execution",
+        "session_metrics_surface_tracks_requests_tools_tokens_cost_and_timing_for_runtime_quality_projection",
+        "terminal_context_surface_carries_command_execution_context_and_shell_state_for_operator_visible_diagnostics",
+        "workspace_surface_tracks_repo_and_path_scoping_for_runtime_tooling_context_alignment",
+        "validation_surface_exposes_fail_closed_input_and_contract_validation_pathways_for_runtime_requests"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/agent.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/hook.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/session_metrics.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/terminal_context.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/workspace.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/validation.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_file_search_and_merge_utility_contracts",
+      "description": "Structured ForgeCode lane that projects file metadata/sync surfaces, fuzzy match ranges, line-number rendering, merge helpers, and streaming aggregation utilities into staged orchestration flow.",
+      "required_signals": [
+        "file_surface_projects_fileinfo_partial_read_detection_hash_tracking_and_sync_status_envelopes",
+        "fuzzy_search_surface_projects_start_end_line_match_ranges_for_targeted_content_retrieval",
+        "group_by_key_utility_groups_values_by_key_with_deterministic_sorted_output_order",
+        "line_numbers_utility_renders_width_aligned_line_prefixes_with_custom_start_offsets",
+        "merge_utility_supports_overwrite_option_hashmap_merge_and_keyed_vector_unification",
+        "result_stream_extension_aggregates_streamed_message_deltas_usage_reasoning_and_tool_calls_into_full_response",
+        "result_stream_extension_supports_optional_sender_streaming_projection_for_incremental_output_delivery"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/file.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/fuzzy_search.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/group_by_key.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/line_numbers.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/merge.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/result_stream_ext.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_repository_console_and_xml_rendering_contracts",
+      "description": "Structured ForgeCode lane that projects repository interface contracts, shell/console output invariants, skill envelopes, XML tag hygiene, and conversation HTML rendering surfaces into staged orchestration flow.",
+      "required_signals": [
+        "snapshot_repository_contract_captures_insert_and_undo_snapshot_recovery_paths",
+        "conversation_repository_contract_covers_upsert_get_list_last_and_delete_lifecycle",
+        "workspace_index_repository_contract_covers_auth_workspace_file_upload_search_list_and_delete_paths",
+        "provider_repository_contract_covers_provider_templates_credentials_and_env_migration",
+        "validation_repository_contract_returns_syntax_errors_or_transport_failure_for_remote_validation",
+        "fuzzy_search_repository_contract_supports_first_or_all_match_projection_modes",
+        "command_output_success_is_true_for_missing_or_non_negative_exit_codes",
+        "skill_surface_contains_name_optional_path_command_description_and_resource_catalog",
+        "console_writer_contract_separates_stdout_and_stderr_write_flush_channels_with_send_sync_guarantees",
+        "xml_extract_tag_content_uses_first_open_last_close_and_trimmed_slice_projection",
+        "xml_remove_tag_with_prefix_discovers_unique_prefixed_tag_names_and_removes_full_tag_blocks",
+        "conversation_html_renderer_projects_metadata_usage_context_tools_and_related_conversation_anchor_navigation"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/repo.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/shell.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/skill.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/xml.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/conversation_html.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/console.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_environment_error_and_sampling_parameter_contracts",
+      "description": "Structured ForgeCode lane that projects environment/config mutation paths, domain error envelopes, image payload handling, and bounded sampling parameter contracts into staged orchestration flow.",
+      "required_signals": [
+        "config_operation_enum_supports_session_commit_suggest_and_reasoning_effort_mutations",
+        "environment_paths_project_logs_history_snapshot_mcp_agents_permissions_cache_skills_commands_and_config_files",
+        "environment_workspace_hash_derived_from_cwd_default_hasher_stability",
+        "domain_error_surface_models_tool_call_parsing_provider_workspace_sync_and_default_session_failures",
+        "tool_call_argument_error_formats_multi_error_bulleted_context",
+        "error_into_retryable_wraps_domain_error_into_retryable_anyhow_channel",
+        "image_surface_encodes_bytes_as_data_url_base64_and_extracts_raw_payload_without_prefix",
+        "max_tokens_newtype_enforces_1_to_100000_range_with_serde_validation",
+        "temperature_newtype_enforces_0_to_2_range_with_fixed_precision_serialization",
+        "top_p_newtype_enforces_0_to_1_range_with_fixed_precision_serialization"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/env.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/error.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/image.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/max_tokens.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/temperature.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/top_p.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_state_snapshot_and_indexing_lifecycle_contracts",
+      "description": "Structured ForgeCode lane that projects data generation parameters, migration results, indexing/sync lifecycle envelopes, point/snapshot models, and update cadence contracts into staged orchestration flow.",
+      "required_signals": [
+        "data_generation_parameters_surface_requires_input_schema_optional_system_user_prompts_and_concurrency_limits",
+        "migration_result_surface_projects_credentials_path_and_migrated_provider_set",
+        "sync_progress_surface_models_workspace_indexing_lifecycle_with_weighted_sync_progress_projection",
+        "workspace_auth_and_codebase_wrappers_project_user_workspace_scoped_indexing_payload_contracts",
+        "point_surface_projects_embedding_vector_records_with_stable_id_and_timestamped_lifecycle",
+        "snapshot_surface_enforces_absolute_or_canonical_paths_and_hash_time_scoped_snapshot_location_projection",
+        "update_frequency_surface_maps_daily_weekly_always_to_duration_contracts"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/data_gen.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/migration.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/node.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/point.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/snapshot.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/update.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_compact_probe_policy_and_topk_contracts",
+      "description": "Structured ForgeCode lane that projects compact module exports, canonical tool-call fixture envelopes, policy type semantics, and top-k bound contracts into staged orchestration flow.",
+      "required_signals": [
+        "compact_module_reexports_compaction_contract_surfaces_via_named_module_boundary",
+        "tool_call_fixture_xml_envelope_projects_tool_name_and_json_args_contract",
+        "domain_lib_module_graph_reexports_core_surfaces_and_keeps_fuzzy_search_public",
+        "permission_policy_type_enum_supports_allow_deny_confirm_decisions",
+        "permission_policy_type_display_maps_to_lowercase_allow_deny_confirm_strings",
+        "top_k_newtype_enforces_1_to_1000_bounds_with_serde_validation",
+        "top_k_default_projects_stable_value_for_tool_routing_limits"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/compact/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/fixtures/tool_call_01.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/lib.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/policies/types.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/top_k.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_config_precision_and_reader_contracts",
+      "description": "Structured ForgeCode lane that projects config precision, bounded percentage/compact semantics, reader path resolution, and reasoning/http envelopes into staged orchestration flow.",
+      "required_signals": [
+        "auto_dump_format_enum_supports_json_and_html_snake_case_variants",
+        "compact_update_frequency_maps_daily_weekly_always_to_duration_contracts",
+        "compact_defaults_set_eviction_window_point_two_and_optional_threshold_fields_unset",
+        "decimal_newtype_serializes_to_two_decimal_places_for_stable_toml_output",
+        "http_config_models_tls_backend_versions_keepalive_and_root_cert_path_surfaces",
+        "forge_config_lib_reexports_config_surfaces_with_result_alias_over_error_type",
+        "percentage_newtype_enforces_zero_to_one_bounds_at_constructor_and_deserialize_time",
+        "config_reader_base_path_prefers_env_then_legacy_home_forge_then_dotforge_default",
+        "config_reader_loads_env_files_from_cwd_to_root_with_nearest_directory_priority",
+        "reasoning_config_supports_effort_max_tokens_exclude_enabled_and_xhigh_max_effort_variants"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_config/src/auto_dump.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_config/src/compact.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_config/src/decimal.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_config/src/http.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_config/src/lib.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_config/src/percentage.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_config/src/reader.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_config/src/reasoning.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_config_legacy_retry_writer_contracts",
+      "description": "Structured ForgeCode lane that projects legacy config migration, retry envelopes, error channels, model pairing, and schema-prefixed config writer semantics into staged orchestration flow.",
+      "required_signals": [
+        "forge_config_error_enum_surfaces_config_serialization_io_and_json_channels",
+        "legacy_config_reader_converts_json_provider_model_pairs_into_optional_forge_config_fields",
+        "legacy_config_conversion_maps_session_and_commit_suggest_model_refs_without_overwriting_unset_fields",
+        "model_config_pairs_provider_and_model_ids_with_constructor_helper",
+        "retry_config_models_backoff_min_delay_attempt_caps_status_code_triggers_and_error_suppression",
+        "config_writer_creates_parent_dirs_and_writes_schema_prefixed_toml_payload"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_config/src/error.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_config/src/legacy.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_config/src/model.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_config/src/retry.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_config/src/writer.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_ci_jobs_execution_and_release_contracts",
+      "description": "Structured ForgeCode lane that projects CI job execution sequencing, release update delegation, permissions, and lint command generation into staged orchestration flow.",
+      "required_signals": [
+        "ci_bounty_job_requires_checkout_then_npm_install_then_sync_script_execution_sequence",
+        "ci_bounty_sync_jobs_scope_issue_and_pull_request_write_permissions_by_trigger_path",
+        "ci_release_build_job_delegates_to_release_build_job_factory_with_publish_flag",
+        "ci_draft_release_update_runs_autolabeler_then_release_drafter_with_tokenized_env",
+        "ci_label_sync_job_requires_checkout_and_github_label_sync_execution_with_issue_write_permission",
+        "ci_lint_job_builds_fmt_and_clippy_commands_with_string_safety_lint_mode_support",
+        "ci_jobs_module_reexports_job_surfaces_for_deterministic_workflow_composition"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_ci/src/jobs/bounty_job.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_ci/src/jobs/build.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_ci/src/jobs/draft_release_update_job.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_ci/src/jobs/label_sync_job.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_ci/src/jobs/lint.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_ci/src/jobs/mod.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_ci_release_distribution_contracts",
+      "description": "Structured ForgeCode lane that projects release build/distribution job mechanics across matrix builds, release drafting, and downstream package/formula publishing into staged orchestration flow.",
+      "required_signals": [
+        "ci_release_build_job_applies_matrix_target_build_cross_setup_and_optional_release_asset_upload_sequence",
+        "ci_release_draft_job_requires_main_push_condition_and_exports_release_name_and_id_outputs",
+        "ci_release_draft_pr_job_requires_ci_build_all_targets_label_and_sets_pr_scoped_release_identifiers",
+        "ci_release_homebrew_job_updates_external_formula_repository_for_tagged_release",
+        "ci_release_npm_job_uses_repository_matrix_and_tagged_package_update_with_ci_tokens",
+        "ci_release_matrix_default_declares_cross_platform_targets_binary_paths_and_cross_toggle_values",
+        "ci_release_matrix_serialization_projects_entries_under_include_key_for_matrix_jobs",
+        "ci_setup_protoc_step_uses_arduino_setup_protoc_action_with_github_token_binding",
+        "ci_steps_module_reexports_setup_protoc_for_shared_release_workflow_composition",
+        "ci_workflows_module_reexports_release_publish_and_peer_generators_for_registry_stability",
+        "ci_release_publish_workflow_triggers_on_release_published_with_write_permissions",
+        "ci_release_publish_workflow_sequences_build_then_npm_and_homebrew_jobs_via_needs_edges",
+        "ci_release_publish_generation_emits_release_yml_from_constructed_workflow_graph",
+        "ci_lib_module_exposes_jobs_release_matrix_steps_and_workflows_for_crate_level_composition"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_ci/src/jobs/release_build_job.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_ci/src/jobs/release_draft.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_ci/src/jobs/release_draft_pr.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_ci/src/jobs/release_homebrew.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_ci/src/jobs/release_npm.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_ci/src/lib.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_ci/src/release_matrix.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_ci/src/steps/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_ci/src/steps/setup_protoc.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_ci/src/workflows/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_ci/src/workflows/release_publish.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_infra_auth_http_strategy_contracts",
+      "description": "Structured ForgeCode lane that projects infra authentication strategy/error/http-provider mechanics into staged orchestration flow with explicit provider-quirk handling and credential enrichment behavior.",
+      "required_signals": [
+        "infra_auth_error_enum_exposes_initiation_timeout_expired_denied_poll_completion_refresh_and_context_failures",
+        "infra_auth_module_exports_strategy_surface_while_scoping_credentials_and_token_storage_internally",
+        "infra_standard_oauth_provider_builds_auth_url_with_scopes_optional_pkce_extra_params_and_csrf_state",
+        "infra_standard_oauth_exchange_posts_form_urlencoded_token_payload_and_preserves_provider_specific_token_fields",
+        "infra_anthropic_oauth_provider_sets_state_equal_to_pkce_verifier_and_supports_hash_split_code_state_exchange",
+        "infra_github_oauth_provider_delegates_standard_flow_with_http200_error_quirk_handled_by_compliant_http_client",
+        "infra_api_key_strategy_requires_api_key_context_and_preserves_optional_url_param_overlays",
+        "infra_codex_oauth_credential_enrichment_extracts_chatgpt_account_id_from_id_or_access_token_claims"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/auth/error.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/auth/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/auth/strategy.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/auth/http/anthropic.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/auth/http/github.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/auth/http/standard.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_infra_auth_storage_and_token_lifecycle_contracts",
+      "description": "Structured ForgeCode lane that projects infra auth utility, MCP credential store, and rmcp token-storage lifecycle mechanics into staged orchestration flow with fail-closed token parsing and durable credential persistence behavior.",
+      "required_signals": [
+        "infra_auth_http_module_reexports_anthropic_github_and_standard_http_providers_for_strategy_dispatch",
+        "infra_auth_util_calculates_token_expiry_using_expires_in_or_fallback_duration_defaults",
+        "infra_auth_util_build_http_client_disables_redirects_and_validates_custom_header_name_value_pairs",
+        "infra_auth_util_refresh_access_token_uses_github_compliant_http_request_to_handle_non_rfc_provider_errors",
+        "infra_auth_util_handle_oauth_error_maps_pending_slow_down_expired_denied_and_unknown_error_channels",
+        "infra_auth_util_parse_token_response_preserves_id_token_and_fails_closed_on_missing_access_token",
+        "infra_mcp_credential_store_loads_from_base_path_defaults_empty_when_file_missing_and_keys_by_server_url",
+        "infra_mcp_credential_store_save_ensures_parent_creation_and_unix_0600_permissions_for_credential_file",
+        "infra_mcp_token_storage_caches_store_and_maps_rmcp_credentials_preserving_refresh_and_expiry_semantics",
+        "infra_mcp_token_storage_preserves_client_registration_secret_metadata_and_supports_clear_remove_and_tokens_only_flows"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/auth/http/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/auth/util.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/auth/mcp_credentials.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/auth/mcp_token_storage.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_infra_environment_and_command_execution_contracts",
+      "description": "Structured ForgeCode lane that projects infra environment/config mutation, synchronized console output, and shell command execution/streaming mechanics into staged orchestration flow.",
+      "required_signals": [
+        "infra_console_writer_uses_arc_mutex_wrapped_stdout_stderr_to_prevent_interleaved_parallel_writes",
+        "infra_console_writer_exposes_separate_stdout_stderr_write_and_flush_channels_with_poison_recovery",
+        "infra_environment_projection_derives_os_cwd_home_shell_and_base_path_with_cross_platform_shell_fallbacks",
+        "infra_config_operation_mapping_applies_session_commit_suggest_model_updates_and_reasoning_effort_translation",
+        "infra_environment_config_cache_reuses_loaded_config_and_rehydrates_from_defaults_global_env_sources_when_empty",
+        "infra_environment_update_roundtrip_writes_global_config_then_invalidates_cache_for_next_read_consistency",
+        "infra_command_executor_serializes_execution_with_ready_mutex_and_preserves_requested_working_directory",
+        "infra_command_executor_streams_stdout_and_stderr_concurrently_with_optional_silent_sink_mode",
+        "infra_command_executor_preserves_terminal_alignment_by_emitting_newline_after_non_terminated_stdout_streams",
+        "infra_stream_utf8_handler_carries_incomplete_codepoints_across_chunks_and_replaces_invalid_bytes_fail_closed",
+        "infra_error_channel_exposes_unsupported_mcp_response_classification"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/console.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/env.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/error.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/executor.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_infra_filesystem_read_and_metadata_contracts",
+      "description": "Structured ForgeCode lane that projects infra filesystem directory creation, metadata probing, bounded directory reads, and batched file-read mechanics into staged orchestration flow.",
+      "required_signals": [
+        "infra_create_dirs_service_delegates_recursive_directory_creation_to_forge_fs",
+        "infra_file_meta_service_exposes_is_file_is_binary_exists_and_file_size_probes_via_forge_fs",
+        "infra_file_read_service_exposes_read_utf8_binary_read_and_range_read_utf8_through_forge_fs",
+        "infra_file_read_batch_splits_paths_by_batch_size_and_joins_per_batch_read_futures",
+        "infra_directory_reader_list_entries_uses_walker_max_depth_one_with_hidden_and_binary_skip_controls",
+        "infra_directory_reader_resolves_relative_walker_paths_to_absolute_directory_scoped_paths",
+        "infra_directory_reader_optional_glob_filter_matches_file_names_before_read",
+        "infra_directory_reader_parallel_file_reads_use_buffer_unordered_with_configured_concurrency_cap",
+        "infra_directory_reader_skips_unreadable_files_in_batch_collection_without_hard_failing_whole_listing"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/fs_create_dirs.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/fs_meta.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/fs_read.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/fs_read_dir.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_infra_filesystem_mutation_and_walk_contracts",
+      "description": "Structured ForgeCode lane that projects infra filesystem mutation and bounded workspace-walk mechanics into staged orchestration flow.",
+      "required_signals": [
+        "infra_file_remove_service_delegates_direct_file_deletion_to_forge_fs_without_snapshot_coordination",
+        "infra_file_write_service_creates_parent_directories_before_write_append_or_tempfile_commit",
+        "infra_file_write_service_supports_write_append_and_disable_cleanup_tempfile_generation",
+        "infra_walker_service_selects_agent_facing_hidden_enabled_max_profile_when_no_bounds_are_provided",
+        "infra_walker_service_selects_min_profile_when_any_bounds_are_declared_and_applies_cwd_depth_breadth_size_caps",
+        "infra_walker_service_propagates_skip_binary_flag_and_maps_walker_results_into_domain_walkedfile_shape",
+        "infra_module_graph_exports_fs_remove_fs_write_and_walker_surfaces_for_runtime_composition"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/fs_remove.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/fs_write.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/walker.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/lib.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_infra_transport_and_user_interaction_contracts",
+      "description": "Structured ForgeCode lane that projects infra composition, gRPC/HTTP transport behavior, and interactive user prompt mechanics into staged orchestration flow.",
+      "required_signals": [
+        "infra_composition_root_constructs_config_env_http_grpc_command_and_walk_services_with_shared_runtime_wiring",
+        "infra_composition_root_uses_cached_config_with_parallel_file_read_fallback_for_directory_reader_initialization",
+        "infra_composition_root_delegates_environment_file_command_user_mcp_walk_http_and_grpc_traits_to_service_boundaries",
+        "infra_grpc_client_lazily_initializes_channel_with_mutex_cache_and_reuses_cloned_channels",
+        "infra_grpc_client_enables_tls_with_webpki_roots_for_https_endpoints_and_applies_concurrency_limit",
+        "infra_grpc_client_hydrate_resets_cached_channel_to_force_fresh_lazy_reconnect",
+        "infra_http_client_builder_applies_timeout_pool_redirect_dns_h2_tls_and_root_cert_config_from_runtime_http_policy",
+        "infra_http_request_execution_enforces_success_status_with_error_body_context_and_method_url_traceability",
+        "infra_http_headers_set_user_agent_title_version_referer_and_keep_alive_and_redact_sensitive_headers_in_logs",
+        "infra_http_debug_request_path_appends_request_bodies_asynchronously_when_debug_capture_is_enabled",
+        "infra_inquire_service_wraps_blocking_widget_prompts_in_spawn_blocking_for_async_runtime_safety",
+        "infra_inquire_service_short_circuits_select_one_and_select_many_to_none_when_option_lists_are_empty"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/forge_infra.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/grpc.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/http.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/inquire.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_infra_cache_mcp_server_and_fs_io_contracts",
+      "description": "Structured ForgeCode lane that projects infra cache durability, MCP server client-binding, and ForgeFS read/write primitives into staged orchestration flow.",
+      "required_signals": [
+        "infra_kv_storage_hashes_cache_keys_with_default_hasher_for_deterministic_indexing",
+        "infra_kv_storage_wraps_values_with_epoch_timestamp_for_optional_ttl_expiration_checks",
+        "infra_kv_storage_ttl_expiration_returns_cache_miss_instead_of_hard_failure",
+        "infra_kv_storage_deserialization_mismatch_clears_stale_entry_and_fails_closed_to_none",
+        "infra_kv_storage_not_found_reads_map_to_cache_miss_while_non_not_found_errors_surface_with_context",
+        "infra_kv_storage_cache_set_serializes_cached_entry_json_and_persists_via_cacache_write",
+        "infra_kv_storage_cache_clear_delegates_directory_scope_clear_through_cacache",
+        "infra_mcp_server_connect_constructs_forge_mcp_client_from_config_env_vars_and_cloned_environment",
+        "infra_fs_read_surfaces_utf8_binary_and_string_read_paths_with_file_scoped_error_context",
+        "infra_fs_write_surfaces_create_dir_write_append_and_remove_file_paths_with_async_append_openoptions",
+        "infra_fs_append_uses_create_plus_append_open_mode_and_write_all_for_atomic_tail_writes"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/kv_storage.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/mcp_server.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_fs/src/read.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_fs/src/write.rs"
+      ]
+    },
+    {
+      "id": "forgecode_sage_research_lane",
+      "description": "Read-only deep research lane adapted from ForgeCode `sage` to map architecture/data flow and emit structured findings before planning or implementation.",
+      "required_signals": [
+        "research_scope_declared",
+        "read_only_investigation_enforced",
+        "cross_file_trace_complete",
+        "structured_findings_emitted"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/agents/sage.md"
+      ]
+    },
+    {
+      "id": "forgecode_muse_planning_lane",
+      "description": "Strategic planning lane adapted from ForgeCode `muse` that emits a checklist-first implementation plan with verification criteria and explicit risk/mitigation notes.",
+      "required_signals": [
+        "planning_objective_declared",
+        "checklist_plan_emitted",
+        "verification_criteria_defined",
+        "risk_mitigation_notes_emitted",
+        "issue_template_discovered_before_issue_synthesis",
+        "release_notes_structure_and_length_policy_validated",
+        "plan_filename_convention_validated_before_acceptance",
+        "plan_task_density_and_specificity_validated",
+        "plan_contains_no_code_snippets",
+        "plan_example_contract_alignment_checked",
+        "bug_issue_template_requires_repro_expected_actual_fields",
+        "feature_request_template_requires_need_limitations_outcomes_triplet",
+        "performance_issue_template_requires_measurements_and_frequency",
+        "provider_request_template_requires_api_compatibility_and_model_catalog",
+        "issue_label_selection_constrained_to_repo_taxonomy_aliases",
+        "release_drafter_category_and_version_resolver_alignment_checked",
+        "documentation_issue_template_requires_location_type_and_audience_fields",
+        "issue_template_config_disables_blank_issues_and_routes_to_contact_links",
+        "contribution_guidance_checked_for_scope_and_submission_expectations",
+        "dependency_update_policy_grouping_and_chore_label_alignment_checked",
+        "label_sync_workflow_contract_checked_for_taxonomy_freshness",
+        "release_workflow_channel_matrix_checked_for_publishability",
+        "generated_workflow_edit_policy_enforced_via_source_generator",
+        "bounty_lifecycle_state_transition_rules_checked",
+        "bounty_value_label_set_constrained_to_allowed_tiers",
+        "bounty_parse_plan_execute_pipeline_enforced_in_process",
+        "bounty_plan_reuses_event_known_labels_before_fetch",
+        "release_drafter_workflow_runs_autolabel_then_draft_update",
+        "ci_release_draft_requires_main_push_or_pr_build_label",
+        "cross_target_release_build_matrix_and_asset_upload_alignment_checked",
+        "autofix_workflow_runs_fmt_and_clippy_fix_with_string_safety",
+        "stale_workflow_inactivity_sla_and_state_inactive_label_policy_checked",
+        "bounty_api_surface_scoped_to_issue_pr_label_comment_operations",
+        "bounty_rules_engine_pure_diff_computation_enforced",
+        "bounty_linked_issue_parser_uses_closing_keyword_contract",
+        "bounty_sync_all_issues_supports_plan_only_vs_execute_modes",
+        "bounty_token_resolution_prefers_flag_env_then_gh_auth",
+        "bounty_patch_types_labelop_and_patch_contract_enforced",
+        "bounty_rules_test_matrix_covers_issue_and_pr_state_transitions",
+        "bounty_test_fixtures_require_typed_issue_pr_state_envelopes",
+        "bounty_sync_all_issues_tests_cover_plan_vs_execute_mode_contract",
+        "bounty_issue_sync_tests_cover_generic_and_claimed_invariant_enforcement",
+        "plan_validation_script_enforces_filename_pattern_and_task_quality",
+        "plan_validation_script_requires_sections_and_checkbox_impl_format",
+        "plan_validation_script_rejects_code_blocks_and_numbered_impl_lists",
+        "plan_validation_bulk_runner_reports_pass_fail_summary_across_plans_directory",
+        "release_data_fetch_script_extracts_pr_numbers_from_release_body",
+        "release_data_fetch_script_emits_release_metadata_and_pr_details"
+      ],
+      "required_gates": [
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/agents/muse.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/create-github-issue/SKILL.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/write-release-notes/SKILL.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/create-plan/README.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/create-plan/references/example-plan.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/ISSUE_TEMPLATE/bug_report.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/ISSUE_TEMPLATE/feature_request.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/ISSUE_TEMPLATE/performance_issue.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/ISSUE_TEMPLATE/provider_integration.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/labels.json",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/release-drafter.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/ISSUE_TEMPLATE/documentation.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/ISSUE_TEMPLATE/config.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/contribution.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/dependabot.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/workflows/labels.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/workflows/release.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/scripts/bounty/README.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/workflows/autofix.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/workflows/bounty.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/workflows/ci.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/workflows/release-drafter.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/workflows/stale.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/scripts/bounty/src/api.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/scripts/bounty/src/rules.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/scripts/bounty/src/sync-all-issues.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/scripts/bounty/src/sync-issue.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/scripts/bounty/src/sync-pr.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/scripts/bounty/src/types.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/scripts/bounty/tests/rules.test.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/scripts/bounty/tests/sync-all-issues.test.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/scripts/bounty/tests/sync-issue.test.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/scripts/bounty/tests/sync-pr.test.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/create-plan/validate-all-plans.sh",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/create-plan/validate-plan.sh",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/write-release-notes/scripts/fetch-release-data.sh"
+      ]
+    },
+    {
+      "id": "forgecode_forge_implementation_lane",
+      "description": "Hands-on implementation lane adapted from ForgeCode `forge` that executes concrete mutations with bounded validation and concise handoff synthesis.",
+      "required_signals": [
+        "implementation_scope_selected",
+        "concrete_patch_applied",
+        "targeted_validation_selected",
+        "implementation_handoff_emitted",
+        "tool_name_alias_normalized_before_route_probe",
+        "retryable_error_backoff_strategy_declared",
+        "mcp_transport_fallback_http_then_sse_declared"
+      ],
+      "required_gates": [
+        "ops:churn:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/agents/forge.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/tool_executor.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/tool_resolver.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/retry.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/mcp_executor.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_infra/src/mcp_client.rs"
+      ]
+    },
+    {
+      "id": "forgecode_task_dispatch_orchestration",
+      "description": "Task-dispatch orchestration lane adapted from ForgeCode task tooling guidance to enforce role-specific dispatch, safe parallelization, and deterministic integration before final emit.",
+      "required_signals": [
+        "task_role_selected_before_dispatch",
+        "independent_subtasks_parallelized",
+        "disjoint_write_ownership_declared",
+        "subagent_results_integrated_before_emit",
+        "agent_definition_written_to_project_agent_registry",
+        "command_definition_written_to_project_command_registry",
+        "command_automation_tags_declared_for_lint_and_test",
+        "agent_frontmatter_with_id_and_system_prompt_parses_successfully",
+        "agent_missing_id_falls_back_to_filename_derived_identifier",
+        "agent_fixture_without_valid_frontmatter_rejected",
+        "command_frontmatter_requires_valid_yaml_name_and_description",
+        "command_fixture_with_invalid_frontmatter_rejected",
+        "command_prompt_body_preserves_multiline_instruction_content",
+        "skill_fixture_without_frontmatter_falls_back_to_derived_identity",
+        "skill_fixture_with_description_only_derives_name_and_preserves_description",
+        "skill_fixture_with_name_only_preserves_name_field",
+        "skill_fixture_with_name_and_description_preserves_both_fields",
+        "skill_with_resources_minimal_frontmatter_parses_without_resource_block",
+        "skill_with_resources_test_frontmatter_and_markdown_body_parse_together",
+        "advanced_agent_fixture_parses_extended_model_tool_and_sampling_fields",
+        "advanced_agent_fixture_parses_nested_reasoning_configuration_fields",
+        "skill_resource_fixture_preserves_nested_resource_tree_paths",
+        "skill_resource_fixture_preserves_root_and_nested_resource_file_content"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/descriptions/task.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/create-agent/SKILL.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/create-command/SKILL.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/fixtures/agents/basic.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/fixtures/agents/invalid.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/fixtures/agents/no_id.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/fixtures/commands/basic.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/fixtures/commands/invalid.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/fixtures/commands/multiline.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/fixtures/skills/no_front_matter.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/fixtures/skills/with_description_only.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/fixtures/skills/with_name_only.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/fixtures/skills/with_name_and_description.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/fixtures/skills_with_resources/minimal-skill/SKILL.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/fixtures/skills_with_resources/test-skill/SKILL.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/fixtures/agents/advanced.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/fixtures/skills_with_resources/test-skill/file_1.txt",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/fixtures/skills_with_resources/test-skill/foo/file_2.txt",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/fixtures/skills_with_resources/test-skill/foo/bar/file_3.txt"
+      ]
+    },
+    {
+      "id": "forgecode_tool_selection_hierarchy",
+      "description": "Tool-selection hierarchy lane adapted from ForgeCode guidance to enforce semantic-first discovery, precise pattern search for exact symbols, known-path direct reads, and parallelized independent tool calls.",
+      "required_signals": [
+        "semantic_discovery_selected_before_exact_search",
+        "exact_pattern_search_selected_for_symbol_match",
+        "known_path_direct_read_selected",
+        "independent_tool_calls_parallelized",
+        "semantic_search_default_for_behavioral_codebase_discovery",
+        "fs_search_preferred_for_exact_pattern_queries",
+        "fs_search_preferred_over_shell_grep_or_rg_for_content_search",
+        "fs_search_multiline_enabled_for_cross_line_pattern_queries",
+        "fs_read_uses_absolute_paths_for_targeted_file_access",
+        "net_fetch_reserved_for_external_text_retrieval",
+        "net_fetch_binary_downloads_routed_to_shell_curl_when_required",
+        "skill_fetch_only_targets_listed_skills_and_avoids_reinvoking_active_skills",
+        "file_read_requests_route_to_read_tools_and_never_shell_cat",
+        "file_search_requests_route_to_search_tools_and_never_shell_find",
+        "multi_file_refactors_prefer_patch_tools_over_full_overwrite_write_calls",
+        "independent_tool_calls_should_batch_in_parallel_when_safe",
+        "multi_step_tasks_invoke_todo_write_for_explicit_progress_tracking",
+        "semantic_search_queries_emit_distinct_embedding_and_reranking_intent_forms",
+        "semantic_search_judge_requires_structured_query_and_result_scoring_schema",
+        "semantic_search_eval_enforces_pass_threshold_and_critical_issue_fail_closure",
+        "semantic_search_eval_requires_sem_search_usage_before_quality_judging",
+        "semantic_search_eval_supports_auth_aware_judge_execution_with_clear_skip_diagnostics",
+        "semantic_search_quality_tests_cover_pass_fail_and_missing_tool_guard_cases",
+        "semantic_search_manual_query_tester_emits_actionable_embedding_vs_rerank_feedback",
+        "commit_preview_output_emits_conventional_message_without_markdown_wrappers",
+        "echo_workflows_return_direct_output_without_unnecessary_tooling_indirection",
+        "multi_file_mutations_prefer_patch_tool_and_avoid_shell_git_apply_routes",
+        "patch_workflows_fail_closed_on_exact_match_conflicts_instead_of_silent_overwrite",
+        "shell_invocations_avoid_redundant_cd_chains_when_cwd_is_available",
+        "suggest_workflows_emit_optioned_guidance_without_mutating_runtime_state",
+        "benchmark_cli_executes_setup_then_run_phases_with_debug_artifact_capture",
+        "benchmark_cli_expands_cross_source_contexts_and_honors_parallel_limits",
+        "benchmark_command_generator_applies_strict_template_interpolation_over_context_matrix",
+        "benchmark_parse_supports_eval_directory_or_direct_task_file_entrypoints",
+        "benchmark_task_executor_enforces_timeout_and_early_exit_validation_paths",
+        "benchmark_verification_runs_regex_and_shell_gates_with_context_aware_templates",
+        "benchmark_task_model_requires_explicit_status_outcomes_for_pass_fail_timeout_validation",
+        "benchmark_tsconfig_enforces_strict_typechecked_nodenext_execution_settings",
+        "multi_file_patch_csv_corpus_requires_repeated_patch_routing_across_disjoint_targets",
+        "parallel_tool_calls_csv_corpus_requires_multi_read_batching_expectations",
+        "semantic_search_quality_context_fixture_supports_offline_regression_replay_of_sem_search_calls",
+        "benchmark_readme_documents_eval_authoring_runbook_debug_artifacts_and_validation_contracts",
+        "forge_api_trait_exposes_discovery_chat_commit_and_workspace_management_contracts",
+        "forge_api_trait_distinguishes_buffered_shell_execution_from_raw_stdio_execution",
+        "forge_api_impl_resolves_active_agent_with_default_fallback_for_chat_and_compaction_paths",
+        "forge_api_impl_invalidates_agent_cache_when_session_config_mutations_require_reload",
+        "forge_api_crate_reexports_app_dto_config_and_domain_types_for_api_consumer_boundaries",
+        "benchmark_eval_debug_gitignore_contract_excludes_debug_artifacts_in_eval_workspaces"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:web-tooling:reliability:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/descriptions/task.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/agents/forge.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/descriptions/semantic_search.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/descriptions/fs_search.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/descriptions/fs_read.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/descriptions/net_fetch.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/descriptions/skill_fetch.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/evals/read_over_cat/task.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/evals/search_over_find/task.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/evals/refactoring_uses_patch/task.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/evals/parallel_tool_calls/task.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/evals/todo_write_usage/task.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/evals/semantic_search_quality/README.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/evals/semantic_search_quality/llm_judge.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/evals/semantic_search_quality/run_eval.sh",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/evals/semantic_search_quality/run_tests.sh",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/evals/semantic_search_quality/task.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/evals/semantic_search_quality/test_queries.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/evals/semantic_search_quality/test_validation.sh",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/evals/commit_no_markdown/task.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/evals/echo/task.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/evals/multi_file_patch/task.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/evals/patch_exact_match/task.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/evals/redundant_cd_with_cwd/task.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/evals/suggest/task.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/cli.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/command-generator.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/parse.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/task-executor.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/utils.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/verification.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/model.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/tsconfig.json",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/evals/multi_file_patch/multi_file_patch_tasks.csv",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/evals/parallel_tool_calls/parallel_tool_calls_tasks.csv",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/evals/semantic_search_quality/test_context.json",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/README.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_api/Cargo.toml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_api/src/lib.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_api/src/api.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_api/src/forge_api.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/evals/create_skill/.gitignore",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/benchmarks/evals/parallel_tool_calls/.gitignore"
+      ]
+    },
+    {
+      "id": "forgecode_grounded_response_hygiene",
+      "description": "Grounded-response and progress-hygiene lane adapted from ForgeCode guidance to require tool-grounded verification before final synthesis, explicit step checkpoints, and completion claims only after execution plus validation.",
+      "required_signals": [
+        "tool_grounded_verification_before_response",
+        "step_checkpoint_state_updated",
+        "completion_claim_after_execution",
+        "completion_claim_after_validation",
+        "lint_and_test_checks_before_ready_claim",
+        "fixme_inventory_review_before_completion_claim",
+        "release_notes_validated_against_character_budget",
+        "fixme_comment_groups_fully_implemented_before_removal",
+        "fixme_discovery_recheck_reports_zero_remaining",
+        "review_comment_todo_created_for_each_comment",
+        "review_feedback_applied_with_contextual_reasoning",
+        "issue_body_includes_all_required_template_fields",
+        "issue_labels_resolve_via_repository_label_registry",
+        "release_summary_maps_changes_into_release_drafter_categories",
+        "documentation_issue_body_includes_location_problem_and_improvement_fields",
+        "dependabot_grouping_reflected_in_chore_release_summary",
+        "release_channel_publish_steps_reflected_in_release_reporting",
+        "bounty_linked_issue_keywords_parsed_before_label_propagation",
+        "bounty_rewarded_transition_removes_claimed_from_linked_issues",
+        "batched_label_additions_and_noop_filtering_reported",
+        "stale_issue_pr_messages_reflect_inactivity_sla_windows",
+        "release_drafter_autolabel_and_draft_outputs_reflected_in_release_reporting",
+        "autofix_fmt_clippy_and_string_safety_passes_reflected_in_quality_reporting",
+        "bounty_issue_patch_applies_generic_and_claimed_rules_simultaneously",
+        "bounty_pr_patch_propagates_value_labels_from_linked_issues_pre_merge",
+        "bounty_pr_merge_flow_adds_rewarded_and_clears_claimed_on_linked_issues",
+        "bounty_sync_pr_skips_unfetchable_linked_issues_with_warning",
+        "bounty_apply_patch_batches_adds_and_sequential_removals_per_target",
+        "bounty_plan_output_reports_noop_when_already_in_sync",
+        "bounty_tests_verify_noop_behavior_when_targets_already_in_sync",
+        "bounty_tests_verify_single_batched_addlabels_call_for_multi_add",
+        "bounty_tests_verify_parallel_linked_issue_label_merge_behavior",
+        "bounty_tests_verify_missing_linked_issue_fetch_is_non_fatal",
+        "bounty_tests_verify_rewarded_transition_and_claimed_removal_on_merge",
+        "bounty_tests_verify_comment_emission_only_on_new_label_propagation",
+        "debug_cli_smoke_script_runs_help_prompt_and_subcommand_checks",
+        "debug_cli_smoke_script_requires_conversation_clone_before_debugging",
+        "release_notes_validator_enforces_under_2000_char_budget",
+        "pr_review_thread_query_filters_resolved_and_outdated_threads",
+        "pr_review_thread_output_includes_diff_hunk_context",
+        "pr_review_thread_number_resolves_from_current_branch_when_unspecified",
+        "fixme_scan_excludes_git_target_node_modules_and_vendor_directories",
+        "fixme_scan_reports_context_window_around_each_match",
+        "fixme_scan_supports_rg_and_grep_fallback_parsers",
+        "shell_route_explanations_avoid_file_op_commands_when_specialized_tools_exist",
+        "shell_commands_use_cwd_parameter_and_avoid_cd_chains",
+        "fs_write_does_not_create_docs_or_readmes_without_explicit_operator_request",
+        "followup_tool_used_judiciously_when_ambiguity_blocks_execution",
+        "pr_description_generation_classifies_change_type_before_emit",
+        "pr_description_includes_summary_context_changes_and_testing_sections"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/descriptions/task.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/agents/forge.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/commands/check.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/commands/fixme.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/write-release-notes/SKILL.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/resolve-fixme/SKILL.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/github-pr-comments/SKILL.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/ISSUE_TEMPLATE/bug_report.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/labels.json",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/release-drafter.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/ISSUE_TEMPLATE/documentation.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/dependabot.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/workflows/release.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/scripts/bounty/README.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/workflows/autofix.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/workflows/bounty.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/workflows/ci.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/workflows/release-drafter.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/workflows/stale.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/scripts/bounty/src/api.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/scripts/bounty/src/rules.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/scripts/bounty/src/sync-all-issues.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/scripts/bounty/src/sync-issue.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/scripts/bounty/src/sync-pr.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/scripts/bounty/src/types.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/scripts/bounty/tests/rules.test.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/scripts/bounty/tests/sync-all-issues.test.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/scripts/bounty/tests/sync-issue.test.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.github/scripts/bounty/tests/sync-pr.test.ts",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/debug-cli/scripts/test_cli.sh",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/write-release-notes/scripts/validate-release-notes.sh",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/github-pr-comments/scripts/pr-comments.sh",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/resolve-fixme/scripts/find-fixme.sh",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/descriptions/shell.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/descriptions/fs_write.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/descriptions/followup.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/skills/github-pr-description/SKILL.md"
+      ]
+    },
+    {
+      "id": "forgecode_specialized_tool_usage_hygiene",
+      "description": "Specialized-tool-usage lane adapted from ForgeCode guidance to prefer dedicated read/search/edit tooling over shell fallbacks, reserve shell for true terminal operations, and keep simple lookups local instead of dispatching subagents.",
+      "required_signals": [
+        "specialized_tool_selected_over_shell_for_file_ops",
+        "shell_usage_reserved_for_terminal_operations",
+        "shell_not_used_for_read_search_edit_write_or_find_when_specialized_tools_exist",
+        "simple_lookup_not_dispatched_to_subagent",
+        "direct_read_or_search_before_subagent_launch",
+        "fs_patch_requires_prior_file_read_before_edit",
+        "fs_patch_prefers_editing_existing_files_over_unsolicited_file_creation",
+        "fs_read_not_used_for_directory_listing_requests",
+        "fs_write_requires_prior_read_and_explicit_overwrite_for_existing_files",
+        "fs_multi_patch_preferred_for_multiple_edits_in_single_file",
+        "fs_multi_patch_applies_edits_atomically_all_or_nothing",
+        "file_remove_routes_declare_undo_recovery_path",
+        "undo_route_reverts_recent_file_create_modify_delete_operations"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:web-tooling:reliability:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/descriptions/task.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/agents/forge.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/descriptions/fs_patch.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/descriptions/fs_write.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/descriptions/fs_multi_patch.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/descriptions/fs_remove.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/descriptions/fs_undo.md"
+      ]
+    },
+    {
+      "id": "forgecode_subagent_brief_hygiene",
+      "description": "Subagent-brief hygiene lane adapted from ForgeCode guidance to require explicit task mode (implement vs research), output contract, and deterministic result synthesis before operator emit.",
+      "required_signals": [
+        "subagent_brief_declares_work_mode",
+        "subagent_brief_declares_output_contract",
+        "subagent_brief_declares_context_scope",
+        "subagent_result_synthesis_emitted"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/descriptions/task.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/agents/forge.md"
+      ]
+    },
+    {
+      "id": "forgecode_plan_artifact_discipline",
+      "description": "Plan artifact discipline lane adapted from ForgeCode planning guidance to require plan-first workflow with checkbox tasks, measurable verification criteria, risk/alternative sections, and explicit plan validation.",
+      "required_signals": [
+        "plan_file_emitted_in_plans_directory",
+        "plan_tasks_checkbox_format_required",
+        "plan_includes_verification_criteria",
+        "plan_includes_risk_and_alternative_sections",
+        "plan_validation_script_executed",
+        "plan_create_tool_used_for_structured_plan_generation",
+        "todo_write_tracks_pending_in_progress_completed_and_cancelled_states",
+        "todo_read_invoked_before_todo_write_to_avoid_duplicate_task_entries",
+        "execute_plan_advances_task_state_pending_to_in_progress_to_done",
+        "execute_plan_rechecks_plan_until_all_tasks_done_before_completion_claim",
+        "create_skill_frontmatter_requires_name_and_description_fields",
+        "create_skill_discourages_auxiliary_docs_and_prefers_progressive_disclosure_resources"
+      ],
+      "required_gates": [
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/create-plan/SKILL.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/create-plan/references/plan-template.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/descriptions/plan_create.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/descriptions/todo_write.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/descriptions/todo_read.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/skills/execute-plan/SKILL.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/skills/create-skill/SKILL.md"
+      ]
+    },
+    {
+      "id": "forgecode_reasoning_provider_matrix",
+      "description": "Reasoning-provider matrix lane adapted from ForgeCode reasoning tests to require provider-specific reasoning field mapping checks, payload capture, and invalid-effort rejection guards before claims of reasoning compatibility.",
+      "required_signals": [
+        "reasoning_provider_matrix_validated",
+        "reasoning_field_mapping_verified_per_provider",
+        "invalid_reasoning_effort_rejected_preflight",
+        "request_payload_capture_for_reasoning_validation",
+        "reasoning_script_runs_effort_matrix_across_supported_providers",
+        "reasoning_script_allows_provider_not_configured_skips_without_false_fail"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/test-reasoning/SKILL.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/test-reasoning/scripts/test-reasoning.sh"
+      ]
+    },
+    {
+      "id": "forgecode_cli_debug_regression_loop",
+      "description": "CLI debug regression loop lane adapted from ForgeCode debug-cli guidance to require help-surface refresh, prompt-mode reproduction, and conversation dump/clone hygiene before and after fixes.",
+      "required_signals": [
+        "cli_help_checked_before_execution",
+        "prompt_mode_regression_repro_selected",
+        "conversation_dump_captured_before_fix",
+        "source_conversation_cloned_before_repro",
+        "debug_cli_smoke_script_build_and_help_steps_passed_before_feature_debug",
+        "debug_cli_smoke_script_covers_conversation_list_path",
+        "debug_cli_scripts_readme_requires_test_cli_smoke_usage_before_debugging"
+      ],
+      "required_gates": [
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/debug-cli/SKILL.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/debug-cli/scripts/test_cli.sh",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/debug-cli/scripts/README.md"
+      ]
+    },
+    {
+      "id": "forgecode_conflict_resolution_plan_first",
+      "description": "Conflict-resolution plan-first lane adapted from ForgeCode merge guidance to require approved resolution plans, generated-file regeneration, deleted/modified backups, and explicit operator options for ambiguous conflicts.",
+      "required_signals": [
+        "conflict_resolution_plan_approved_before_execution",
+        "generated_artifacts_regenerated_from_source",
+        "deleted_modified_files_backed_up_before_resolution",
+        "ambiguous_conflicts_prompt_operator_with_options",
+        "deleted_modified_conflicts_use_timestamped_backup_directory",
+        "deleted_modified_conflicts_emit_relocation_candidate_paths",
+        "deleted_modified_conflicts_emit_per_file_analysis_and_summary_reports",
+        "conflict_validation_checks_unmerged_paths_marker_residue_and_merge_head_state",
+        "merge_resolution_plan_categorizes_conflict_types_with_risk_levels",
+        "merge_resolution_plan_declares_phased_execution_order",
+        "high_risk_conflicts_require_explicit_operator_decision"
+      ],
+      "required_gates": [
+        "ops:churn:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/resolve-conflicts/SKILL.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/resolve-conflicts/references/patterns.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/resolve-conflicts/scripts/handle-deleted-modified.sh",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/resolve-conflicts/scripts/validate-conflicts.sh",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/resolve-conflicts/references/sample-plan.md"
+      ]
+    },
+    {
+      "id": "forgecode_anthropic_transform_safety",
+      "description": "Anthropic request-transform safety lane adapted from ForgeCode provider transforms to enforce auth preamble insertion, tool-name normalization, schema strictness, and tool-call payload/id sanitization.",
+      "required_signals": [
+        "auth_system_message_prepended_when_oauth_enabled",
+        "auth_system_message_preserves_existing_system_message_order_after_preamble",
+        "anthropic_tool_names_capitalized_for_read_write_task_aliases",
+        "mcp_tool_names_converted_to_double_underscore_provider_format",
+        "non_object_tool_use_inputs_wrapped_into_json_object_payloads",
+        "output_json_schema_objects_enforce_additional_properties_false",
+        "tool_use_and_tool_result_ids_sanitized_to_provider_safe_pattern",
+        "provider_transform_chain_preserves_non_tool_content"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/anthropic/transforms/auth_system_message.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/anthropic/transforms/capitalize_tool_names.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/anthropic/transforms/drop_invalid_toolcalls.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/anthropic/transforms/enforce_schema.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/anthropic/transforms/mcp_tool_names.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/anthropic/transforms/sanitize_tool_ids.rs"
+      ]
+    },
+    {
+      "id": "forgecode_anthropic_dto_contracts",
+      "description": "Anthropic DTO contract lane adapted from ForgeCode request/response and transform-registry surfaces to enforce reasoning-safe request shaping and deterministic usage/finish-model projection semantics.",
+      "required_signals": [
+        "anthropic_error_surface_maps_provider_overload_variant",
+        "anthropic_dto_module_exports_request_response_transform_boundaries",
+        "request_builder_filters_system_messages_from_conversation_body",
+        "request_builder_reasoning_gate_clears_topk_topp_on_reasoning_enabled",
+        "request_builder_maps_reasoning_effort_and_output_schema_consistently",
+        "response_usage_projection_accounts_for_cache_read_and_creation_tokens",
+        "response_finish_reason_mapping_preserves_tool_and_stop_semantics",
+        "response_model_projection_sets_modalities_and_context_window_by_model_id",
+        "transform_registry_exports_reasoning_and_provider_safety_transforms",
+        "reasoning_transform_keeps_sampling_params_when_reasoning_not_supported"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/anthropic/error.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/anthropic/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/anthropic/request.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/anthropic/response.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/anthropic/transforms/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/anthropic/transforms/reasoning_transform.rs"
+      ]
+    },
+    {
+      "id": "forgecode_provider_cache_and_google_dto_contracts",
+      "description": "Provider cache/output compatibility lane adapted from ForgeCode Anthropic cache/output transforms and Google DTO request/response surfaces.",
+      "required_signals": [
+        "anthropic_vertex_compat_removes_output_format_when_required",
+        "anthropic_cache_strategy_marks_system_prefix_and_rolling_last_message",
+        "anthropic_auth_prompt_baseline_preserves_claude_code_identity_contract",
+        "google_dto_module_exports_request_response_boundaries",
+        "google_request_shape_supports_system_instruction_generation_tools_and_safety_fields",
+        "google_response_event_parser_handles_response_error_ping_and_unknown_variants",
+        "google_usage_projection_tracks_cached_and_reasoning_token_channels",
+        "google_model_projection_derives_context_length_and_parallel_tool_capability"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/anthropic/transforms/claude_code.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/anthropic/transforms/remove_output_format.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/anthropic/transforms/set_cache.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/google/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/google/request.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/google/response.rs"
+      ]
+    },
+    {
+      "id": "forgecode_openai_dto_contracts",
+      "description": "OpenAI DTO contract lane adapted from ForgeCode openai error/model/request/response surfaces to enforce provider-safe request shaping and response projection reliability.",
+      "required_signals": [
+        "openai_error_surface_supports_nested_code_resolution_for_string_or_numeric_codes",
+        "openai_dto_module_exports_error_model_reasoning_request_response_boundaries",
+        "openai_model_projection_handles_string_numeric_and_mixed_pricing_shapes",
+        "openai_model_projection_derives_tools_parallel_reasoning_support_from_supported_parameters",
+        "openai_request_shape_supports_reasoning_tool_calls_cache_and_response_format_controls",
+        "openai_request_tool_schema_objects_include_properties_for_provider_compatibility",
+        "openai_response_surface_supports_success_cost_only_and_failure_variants",
+        "openai_response_projection_handles_reasoning_details_tool_calls_and_usage_cost_channels",
+        "openai_response_projection_handles_provider_specific_extra_content_thought_signatures",
+        "openai_reasoning_detail_shape_preserves_text_signature_data_and_index_metadata"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/error.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/model.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/reasoning.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/request.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/response.rs"
+      ]
+    },
+    {
+      "id": "forgecode_openai_transform_pipeline_contracts",
+      "description": "OpenAI transform-pipeline lane adapted from ForgeCode tool-choice and transformer pipeline surfaces to enforce provider/model-gated transformation ordering and compatibility normalizations.",
+      "required_signals": [
+        "openai_tool_choice_supports_none_auto_required_and_function_call_shapes",
+        "openai_transform_registry_exports_provider_pipeline_surface",
+        "provider_pipeline_orders_provider_and_model_specific_transforms_deterministically",
+        "provider_pipeline_applies_openrouter_parameter_gating_for_cache_and_tool_choice",
+        "openai_tool_and_response_schema_normalization_enforces_strict_nullable_enum_compatibility",
+        "openai_reasoning_effort_transform_maps_reasoning_config_and_clears_raw_reasoning_field",
+        "openai_tool_call_ids_trimmed_to_40_chars_for_tool_and_assistant_message_paths"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/tool_choice.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/transformers/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/transformers/pipeline.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/transformers/normalize_tool_schema.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/transformers/set_reasoning_effort.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/transformers/trim_tool_call_ids.rs"
+      ]
+    },
+    {
+      "id": "forgecode_openai_provider_compat_transforms",
+      "description": "OpenAI provider-compatibility transform lane adapted from ForgeCode provider-specific transform surfaces for mistral/copilot/kimi/cerebras/openai/xai compatibility.",
+      "required_signals": [
+        "mistral_transform_drops_tool_messages_and_resets_tools_when_not_supported",
+        "github_copilot_transform_projects_reasoning_details_to_reasoning_text_and_reasoning_opaque",
+        "kimi_transform_projects_reasoning_details_to_reasoning_content_flat_field",
+        "cerebras_transform_drops_parallel_tool_calls_field",
+        "openai_compat_transform_removes_non_openai_fields_and_maps_max_tokens_to_max_completion_tokens",
+        "xai_compat_transform_removes_unsupported_stream_reasoning_prediction_and_parallel_fields",
+        "provider_specific_reasoning_projection_clears_reasoning_details_after_flattening"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/transformers/drop_tool_call.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/transformers/github_copilot_reasoning.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/transformers/kimi_k2_reasoning.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/transformers/make_cerebras_compat.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/transformers/make_openai_compat.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/transformers/make_xai_compat.rs"
+      ]
+    },
+    {
+      "id": "forgecode_openai_provider_tuning_transforms",
+      "description": "OpenAI provider tuning/selection transform lane adapted from ForgeCode provider-specific cache/reasoning/tool-choice and model-matcher transform surfaces.",
+      "required_signals": [
+        "minimax_transform_applies_model_specific_temperature_top_p_top_k_tuning",
+        "openai_cache_transform_applies_first_and_last_message_cache_markers",
+        "thought_signature_strip_removes_google_extra_content_for_non_gemini3_models",
+        "tool_choice_transform_sets_choice_only_when_tools_are_present",
+        "when_model_predicate_applies_regex_gated_transform_conditions_with_fail_closed_invalid_pattern_behavior",
+        "zai_transform_maps_reasoning_enabled_state_to_thinking_enabled_disabled_shape",
+        "provider_specific_reasoning_and_cache_transforms_preserve_non_target_request_fields"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/transformers/minimax.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/transformers/set_cache.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/transformers/strip_thought_signature.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/transformers/tool_choice.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/transformers/when_model.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/transformers/zai_reasoning.rs"
+      ]
+    },
+    {
+      "id": "forgecode_openai_fixture_projection_contracts",
+      "description": "OpenAI fixture corpus lane adapted from ForgeCode fixture surfaces to enforce pricing-shape tolerance, fail-closed invalid pricing handling, and streaming reasoning projection invariants.",
+      "required_signals": [
+        "openai_model_pricing_parser_accepts_numeric_and_numeric_string_values",
+        "openai_model_pricing_parser_rejects_non_numeric_price_strings_fail_closed",
+        "openai_model_projection_handles_missing_pricing_without_faulting",
+        "openai_model_capability_projection_reads_supported_parameters_for_tools_and_parallel_calls",
+        "openai_stream_chunk_projection_preserves_reasoning_and_reasoning_content_delta_fields",
+        "openai_stream_usage_projection_supports_reasoning_tokens_and_provider_verification_metadata"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/fixtures/chutes_api_response.json",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/fixtures/chutes_completion_response.json",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/fixtures/model_invalid_pricing.json",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/fixtures/model_mixed_pricing.json",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/fixtures/model_no_pricing.json",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/fixtures/model_numeric_pricing.json"
+      ]
+    },
+    {
+      "id": "forgecode_openai_fixture_error_edge_contracts",
+      "description": "OpenAI fixture error-edge lane adapted from ForgeCode fixture and snapshot surfaces to enforce multi-provider error envelope normalization, scientific-notation pricing parse tolerance, and assistant tool-call projection invariants.",
+      "required_signals": [
+        "openai_error_projection_normalizes_flat_nested_and_provider_wrapped_error_shapes",
+        "openai_error_projection_surfaces_retryable_signals_for_timeout_connection_reset_and_rate_limit_paths",
+        "openai_error_projection_preserves_provider_metadata_for_google_openrouter_chutes_bedrock_and_litellm_variants",
+        "openai_model_pricing_parser_accepts_scientific_notation_string_values",
+        "openai_delta_projection_preserves_reasoning_content_in_zai_streaming_delta_shape",
+        "openai_assistant_tool_call_projection_preserves_function_id_name_and_arguments_json_string"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/responses.jsonl",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/fixtures/zai_api_delta_response.json",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/fixtures/model_scientific_notation.json",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/fixtures/zai_api_response.json",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/fixtures/model_string_pricing.json",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/snapshots/forge_app__dto__openai__request__tests__assistant_message_with_tool_call_conversion.snap"
+      ]
+    },
+    {
+      "id": "forgecode_openai_request_snapshot_projection_contracts",
+      "description": "OpenAI request-snapshot lane adapted from ForgeCode request conversion snapshots to enforce role/content projection stability across special characters, embedded markup, and tool payload envelopes.",
+      "required_signals": [
+        "openai_request_projection_preserves_user_message_role_and_content",
+        "openai_request_projection_preserves_special_character_and_xml_like_user_content_without_escape_loss",
+        "openai_request_projection_preserves_tool_message_name_and_tool_call_id_fields",
+        "openai_request_projection_preserves_tool_payload_json_string_envelopes_for_nested_object_content",
+        "openai_request_projection_preserves_embedded_markup_and_code_like_literals_in_tool_content"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/snapshots/forge_app__dto__openai__request__tests__message_with_special_chars.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/snapshots/forge_app__dto__openai__request__tests__user_message_conversion.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/snapshots/forge_app__dto__openai__request__tests__tool_message_with_special_chars.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/snapshots/forge_app__dto__openai__request__tests__tool_message_typescript_code.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/snapshots/forge_app__dto__openai__request__tests__tool_message_conversion.snap"
+      ]
+    },
+    {
+      "id": "forgecode_openai_request_snapshot_content_escape_contracts",
+      "description": "OpenAI request-snapshot content/escape lane adapted from ForgeCode request conversion snapshots to enforce special-character, markup, and escaped-code literal preservation across user/tool message projection surfaces.",
+      "required_signals": [
+        "openai_request_projection_preserves_user_message_newlines_and_xml_like_tags_verbatim",
+        "openai_request_projection_preserves_tool_payload_markup_literals_without_sanitization_loss",
+        "openai_request_projection_preserves_entity_escaped_code_fragments_in_tool_content",
+        "openai_request_projection_preserves_tool_envelope_identity_fields_name_and_tool_call_id",
+        "openai_request_projection_preserves_structured_json_string_payload_shape_for_tool_messages"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/snapshots/forge_app__dto__openai__request__tests__message_with_special_chars.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/snapshots/forge_app__dto__openai__request__tests__user_message_conversion.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/snapshots/forge_app__dto__openai__request__tests__tool_message_with_special_chars.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/snapshots/forge_app__dto__openai__request__tests__tool_message_typescript_code.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/openai/snapshots/forge_app__dto__openai__request__tests__tool_message_conversion.snap"
+      ]
+    },
+    {
+      "id": "forgecode_prompt_context_generation_contracts",
+      "description": "Prompt/context generation lane adapted from ForgeCode app surfaces to enforce deterministic tool-catalog projection, template-helper stability, and user/system prompt context-shaping contracts.",
+      "required_signals": [
+        "dto_module_exports_namespace_provider_families_and_tools_overview_surface",
+        "tools_overview_flattens_system_agent_and_mcp_server_tools_into_unified_projection",
+        "template_engine_registers_strict_no_escape_helpers_inc_json_contains_and_embedded_templates",
+        "command_generator_uses_terminal_command_trace_and_json_schema_response_contract_for_shell_generation",
+        "system_prompt_projects_tool_names_filtered_to_agent_access_with_extension_statistics_projection",
+        "user_prompt_generator_handles_resume_todos_droppable_context_and_attachment_content_hash_metrics_tracking"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/dto/tools_overview.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/template_engine.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/command_generator.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/system_prompt.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/user_prompt.rs"
+      ]
+    },
+    {
+      "id": "forgecode_compaction_and_operation_output_contracts",
+      "description": "Compaction/operation-output lane adapted from ForgeCode app runtime surfaces to enforce context-compaction reasoning preservation, tool-operation output projection fidelity, bounded walker defaults, and schema-driven data generation contracts.",
+      "required_signals": [
+        "compactor_applies_summary_transformer_pipeline_with_eviction_retention_window_strategy",
+        "compactor_preserves_latest_reasoning_chain_and_accumulates_usage_when_replacing_compacted_sequences",
+        "tool_operation_projects_structured_shell_and_fs_outputs_with_stream_truncation_metadata",
+        "data_generation_pipeline_loads_schema_prompts_and_input_concurrently_then_emits_tool_output_json_pairs",
+        "walker_defaults_enforce_conservative_depth_breadth_size_and_binary_skip_limits_with_unlimited_override_path",
+        "operation_shell_output_projection_preserves_command_shell_description_exit_code_and_stream_line_contract"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/compact.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/operation.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/data_gen.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/walker.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__compact__tests__template_engine_renders_todo_write.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__shell_with_description.snap"
+      ]
+    },
+    {
+      "id": "forgecode_hook_lifecycle_contracts",
+      "description": "Hook lifecycle lane adapted from ForgeCode app hook surfaces to enforce deterministic hook sequencing, doom-loop guardrails, todo-state projection, bounded title synthesis, and tracing visibility contracts.",
+      "required_signals": [
+        "hook_pipeline_runs_in_deterministic_order_for_compaction_doom_loop_pending_todos_title_and_tracing",
+        "compaction_hook_applies_budget_aware_context_reduction_before_emit",
+        "doom_loop_hook_detects_repeated_failure_cycles_and_forces_escalation_or_plan_reset",
+        "pending_todos_hook_projects_open_and_completed_todo_state_before_finalize",
+        "title_generation_hook_emits_bounded_contextual_title_without_overwriting_explicit_operator_title",
+        "tracing_hook_emits_stage_latency_and_route_markers_for_workflow_and_tool_steps"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/hooks/compaction.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/hooks/doom_loop.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/hooks/pending_todos.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/hooks/title_generation.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/hooks/tracing.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/hooks/mod.rs"
+      ]
+    },
+    {
+      "id": "forgecode_agent_runtime_orchestration_contracts",
+      "description": "Agent runtime lane adapted from ForgeCode app orchestration surfaces to enforce lane-aware agent execution, provider resolution discipline, tunable parameter bounds, and actionable runtime error projection.",
+      "required_signals": [
+        "agent_runtime_builds_lane_aware_execution_context_with_explicit_model_and_tool_constraints",
+        "agent_executor_enforces_turn_step_limits_and_halts_on_budget_or_policy_boundaries",
+        "agent_provider_resolver_maps_provider_aliases_and_fails_closed_on_unknown_resolution",
+        "app_bootstrap_wires_conversation_state_metrics_and_hook_pipeline_before_first_turn",
+        "tunable_parameter_application_validates_ranges_and_applies_only_declared_runtime_overrides",
+        "error_surface_normalizes_provider_tool_and_runtime_failures_into_actionable_recovery_classes"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/agent.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/agent_executor.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/agent_provider_resolver.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/app.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/apply_tunable_parameters.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/error.rs"
+      ]
+    },
+    {
+      "id": "forgecode_orchestration_spec_contracts",
+      "description": "Orchestration spec lane adapted from ForgeCode orchestration-spec surfaces to enforce deterministic orchestrator setup/run sequencing, system-spec handshake integrity, and bounded workflow runner behavior.",
+      "required_signals": [
+        "orchestration_entrypoint_routes_through_spec_registry_before_runtime_execution",
+        "orchestration_setup_initializes_required_runtime_components_before_runner_start",
+        "orchestration_runner_executes_spec_steps_in_declared_order_with_failure_short_circuit",
+        "orchestration_spec_projection_preserves_stage_metadata_and_execution_intent",
+        "orchestration_system_spec_contract_binds_runner_inputs_to_runtime_capability_surface",
+        "orchestration_mod_exports_keep_spec_and_runner_boundaries_explicit_and_non_authoritative"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/orch.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/orch_spec/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/orch_spec/orch_runner.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/orch_spec/orch_setup.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/orch_spec/orch_spec.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/orch_spec/orch_system_spec.rs"
+      ]
+    },
+    {
+      "id": "forgecode_context_transformer_contracts",
+      "description": "Context transformer lane adapted from ForgeCode transformer surfaces to enforce deterministic context normalization, role deduplication, reasoning-only pruning, and model-specific reasoning projection boundaries.",
+      "required_signals": [
+        "transformer_compaction_applies_context_reduction_without_losing_required_execution_state",
+        "transformer_role_dedup_preserves_latest_authoritative_role_turns_under_repetition",
+        "transformer_drops_reasoning_only_messages_when_no_user_visible_payload_exists",
+        "transformer_drop_role_filters_disallowed_roles_without_mutating_allowed_message_order",
+        "transformer_model_specific_reasoning_projects_provider_reasoning_fields_to_model_compatible_shape",
+        "transformer_context_summary_trim_enforces_bounded_summary_size_while_preserving_actionable_facts"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/transformers/compaction.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/transformers/dedupe_role.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/transformers/drop_reasoning_only_messages.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/transformers/drop_role.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/transformers/model_specific_reasoning.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/transformers/trim_context_summary.rs"
+      ]
+    },
+    {
+      "id": "forgecode_truncation_and_context_hygiene_contracts",
+      "description": "Truncation/context-hygiene lane adapted from ForgeCode truncation and transformer surfaces to enforce bounded output envelopes, modality-aware truncation behavior, and working-directory context hygiene.",
+      "required_signals": [
+        "truncation_registry_routes_fetch_search_and_shell_outputs_through_modality_specific_truncators",
+        "fetch_output_truncation_preserves_actionable_headers_and_summary_tail_under_budget_limits",
+        "search_output_truncation_preserves_match_context_and_path_identity_under_budget_limits",
+        "shell_output_truncation_preserves_exit_semantics_and_recent_error_context_under_budget_limits",
+        "working_directory_context_is_stripped_or_normalized_before_externalized_projection",
+        "transformer_module_registry_exports_only_declared_hygiene_transforms_used_by_runtime_pipeline"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/truncation/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/truncation/truncate_fetch.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/truncation/truncate_search.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/truncation/truncate_shell.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/transformers/strip_working_dir.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/transformers/mod.rs"
+      ]
+    },
+    {
+      "id": "forgecode_formatting_and_todo_render_contracts",
+      "description": "Formatting/todo-render lane adapted from ForgeCode fmt surfaces to enforce deterministic input/output render normalization, content-shape consistency, and todo presentation fidelity.",
+      "required_signals": [
+        "formatting_content_layer_preserves_structured_fields_and_human_readable_text_projection",
+        "formatting_input_projection_normalizes_request_payloads_before_render_path_execution",
+        "formatting_output_projection_preserves_status_sections_and_actionable_diagnostics",
+        "formatting_module_registry_exports_only_supported_renderers_used_by_runtime_paths",
+        "todo_rendering_preserves_task_state_ordering_and_completion_marker_consistency"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/fmt/content.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/fmt/fmt_input.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/fmt/fmt_output.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/fmt/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/fmt/todo_fmt.rs"
+      ]
+    },
+    {
+      "id": "forgecode_workspace_state_tracking_contracts",
+      "description": "Workspace-state tracking lane adapted from ForgeCode app state surfaces to enforce deterministic file-change accounting, conversation identity continuity, terminal context shaping, and workspace-status projection fidelity.",
+      "required_signals": [
+        "changed_files_projection_tracks_mutated_paths_with_stable_deduplicated_identity",
+        "file_tracking_state_persists_workspace_file_observations_across_turn_boundaries",
+        "search_dedup_state_prevents_duplicate_workspace_result_projection_for_identical_hits",
+        "workspace_status_projection_reports_reliable_repo_or_workspace_health_and_availability_state",
+        "terminal_context_projection_preserves_actionable_recent_terminal_state_for_followup_steps",
+        "conversation_id_assignment_is_stable_and_explicitly_bound_before_runtime_emit"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/changed_files.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/file_tracking.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/search_dedup.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/workspace_status.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/terminal_context.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/set_conversation_id.rs"
+      ]
+    },
+    {
+      "id": "forgecode_app_infra_service_bootstrap_contracts",
+      "description": "App/infra/service bootstrap lane adapted from ForgeCode runtime surfaces to enforce deterministic app wiring, service graph stability, metrics initialization, and utility boundary hygiene.",
+      "required_signals": [
+        "app_infra_bootstrap_initializes_required_runtime_facilities_before_request_processing",
+        "service_graph_registration_is_explicit_and_stable_for_runtime_lane_dependencies",
+        "conversation_metrics_initialization_runs_before_observability_orchestration_emission",
+        "lib_module_exports_preserve_runtime_boundary_visibility_without_hidden_authority_paths",
+        "git_integration_surface_projects_repo_state_through_non_authoritative_gateway_contracts",
+        "utility_layer_functions_remain_side_effect_constrained_and_reusable_across_runtime_paths"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/git_app.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/infra.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/init_conversation_metrics.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/lib.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/services.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/utils.rs"
+      ]
+    },
+    {
+      "id": "forgecode_user_and_fixture_projection_contracts",
+      "description": "User/fixture projection lane adapted from ForgeCode user and fixture corpus surfaces to enforce deterministic user-context shaping, title generation bounds, and fixture-backed workspace projection fidelity.",
+      "required_signals": [
+        "user_projection_preserves_operator_preferences_and_runtime_user_context_without_authority_leakage",
+        "title_generation_emits_bounded_contextual_titles_and_preserves_existing_explicit_titles_when_present",
+        "conversation_fixture_projection_preserves_message_order_role_identity_and_content_integrity",
+        "workspace_fixture_projection_preserves_extension_diversity_and_mixed_path_shape_for_search_context",
+        "fixture_corpus_contracts_anchor_non_live_replay_paths_for_deterministic_synthesis_regressions"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/user.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/title_generator.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/fixtures/conversation.json",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/fixtures/git_ls_files_many_extensions.txt",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/fixtures/git_ls_files_mixed.txt"
+      ]
+    },
+    {
+      "id": "forgecode_ci_workflow_engine_contracts",
+      "description": "CI workflow engine lane adapted from ForgeCode Rust workflow surfaces to enforce deterministic workflow synthesis, policy-safe automation defaults, and release-governance pipeline integrity.",
+      "required_signals": [
+        "autofix_workflow_generation_preserves_safe_fix_scope_and_non_destructive_defaults",
+        "bounty_workflow_generation_preserves_state_machine_transitions_and_idempotent_sync_behaviors",
+        "ci_workflow_generation_preserves_required_build_lint_and_test_stage_ordering",
+        "label_workflow_generation_preserves_label_registry_sync_and_policy_alignment",
+        "release_drafter_workflow_generation_preserves_category_routing_and_version_projection_rules",
+        "stale_workflow_generation_preserves_inactivity_policy_windows_and_exemption_guards"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_ci/src/workflows/autofix.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_ci/src/workflows/bounty.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_ci/src/workflows/ci.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_ci/src/workflows/labels.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_ci/src/workflows/release_drafter.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_ci/src/workflows/stale.rs"
+      ]
+    },
+    {
+      "id": "forgecode_master_single_agent_workflow",
+      "description": "Single-agent composed workflow that sequences Sage-style research, Muse-style planning, and Forge-style implementation behind one interface.",
+      "required_signals": [
+        "research_plan_implement_sequence",
+        "lane_handoff_annotations_present",
+        "lane_failure_recovery_declared",
+        "final_composed_synthesis_emitted",
+        "feature_post_copy_constrained_to_style_guide",
+        "feature_post_benefit_first_and_hashtag_policy_enforced"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_domain/src/tools/descriptions/task.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/README.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/post-forge-feature/SKILL.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.forge/skills/post-forge-feature/references/style-guide.md"
+      ]
+    },
+    {
+      "id": "forgecode_structured_fs_core_hash_binary_and_error_contracts",
+      "description": "Structured ForgeCode lane that projects ForgeFS core hashing, binary detection, file-size probing, and typed error channels into staged orchestration flow.",
+      "required_signals": [
+        "forge_fs_module_surface_exports_binary_detection_error_file_size_metadata_read_range_and_write_helpers",
+        "forge_fs_compute_hash_uses_sha256_digest_plus_hex_encoding_for_deterministic_content_fingerprints",
+        "forge_fs_file_size_reads_metadata_length_without_loading_full_file_content",
+        "forge_fs_is_binary_reads_up_to_8192_bytes_for_mime_inference_and_text_doc_detection",
+        "forge_fs_is_binary_treats_empty_files_as_text_safe_default_to_avoid_false_binary_blocks",
+        "forge_fs_is_binary_returns_detected_mime_description_with_text_fallback_when_inference_unknown",
+        "forge_fs_error_surface_includes_binary_not_supported_utf8_validation_range_index_and_io_channels",
+        "forge_fs_error_surface_rejects_zero_based_or_inverted_ranges_with_typed_start_end_payloads"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_fs/src/lib.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_fs/src/error.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_fs/src/file_size.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_fs/src/is_binary.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_json_repair_parser_and_schema_coercion_contracts",
+      "description": "Structured ForgeCode lane that projects JSON repair parsing and schema-aware coercion mechanics into staged orchestration flow.",
+      "required_signals": [
+        "json_repair_module_exports_error_parser_and_schema_coercion_surfaces_with_stable_public_entrypoints",
+        "json_repair_parser_strips_markdown_fences_and_function_wrappers_before_value_parse",
+        "json_repair_parser_repairs_missing_commas_colons_and_closing_brackets_for_object_array_recovery",
+        "json_repair_parser_supports_comment_skip_ellipsis_skip_and_newline_delimited_json_repair_paths",
+        "json_repair_parser_reports_positioned_invalid_unexpected_and_unexpected_end_failures_fail_closed",
+        "json_repair_schema_coercion_resolves_ref_anyof_oneof_allof_and_items_prefixitems_recursively",
+        "json_repair_schema_coercion_handles_nullable_empty_string_and_string_to_number_boolean_null_object_array_coercions",
+        "json_repair_schema_coercion_preserves_uncoercible_values_without_panicking_or_silent_shape_corruption"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_json_repair/src/lib.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_json_repair/src/error.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_json_repair/src/parser.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_json_repair/src/schema_coercion.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_display_code_diff_grep_markdown_contracts",
+      "description": "Structured ForgeCode lane that projects display/render formatting mechanics (syntax-highlighted code blocks, diff output, grep formatting, markdown rendering) into staged orchestration flow.",
+      "required_signals": [
+        "display_code_highlighter_selects_theme_from_terminal_dark_light_probe_with_cached_detection_timeout_guard",
+        "display_code_parser_extracts_indented_or_standard_fenced_code_blocks_and_restores_placeholders_with_highlighted_output",
+        "display_diff_formatter_groups_line_changes_computes_dynamic_line_number_width_and_reports_added_removed_counts",
+        "display_grep_formatter_parses_path_line_content_triples_groups_by_file_and_applies_optional_regex_highlighting",
+        "display_markdown_renderer_uses_term_skin_with_inline_code_styles_collapses_excessive_newlines_and_restores_highlighted_code_blocks",
+        "display_markdown_renderer_uses_once_lock_highlighter_for_reuse_without_reinitialization_per_render",
+        "display_formatters_fail_closed_to_non_panicking_empty_or_plain_outputs_when_inputs_are_invalid_or_unmatched"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_display/src/code.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_display/src/diff.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_display/src/grep.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_display/src/markdown.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_main_cli_input_stream_and_tools_display_contracts",
+      "description": "Structured ForgeCode lane that projects main CLI/input/render mechanics (command surface, prompt-loop parsing, tool availability projection, and streaming spinner-safe output) into staged orchestration flow.",
+      "required_signals": [
+        "main_cli_supports_prompt_piped_input_conversation_directory_sandbox_agent_event_and_interactive_mode_gating",
+        "main_cli_top_level_commands_include_agent_zsh_list_info_config_conversation_commit_mcp_suggest_provider_cmd_workspace_data_vscode_update_setup_doctor",
+        "main_console_prompt_loop_handles_continue_empty_exit_and_success_parse_paths_with_prompt_tracking",
+        "main_console_buffer_injection_sets_next_prompt_editor_buffer_without_recreating_editor_state",
+        "main_tools_display_groups_system_agent_and_mcp_tools_with_availability_checkboxes_and_failed_server_projection",
+        "main_tools_display_truncates_failure_messages_to_utf8_safe_80_char_limit",
+        "main_streaming_writer_switches_renderer_on_style_changes_and_manages_spinner_pause_resume_around_output_writes",
+        "main_stream_writer_returns_input_buffer_len_even_when_styled_output_expands_bytes_and_flushes_on_drop"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/cli.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/input.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/tools_display.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/stream_renderer.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_main_command_prompt_state_and_tracker_contracts",
+      "description": "Structured ForgeCode lane that projects main command manager, prompt composition, UI state envelope, and tracker dispatch mechanics into staged orchestration flow.",
+      "required_signals": [
+        "main_command_manager_register_all_replaces_prior_workflow_prefixed_entries_extends_new_commands_and_sorts_for_stable_completion",
+        "main_command_manager_agent_registration_sanitizes_agent_ids_skips_reserved_conflicts_and_reports_registered_vs_skipped_counts",
+        "main_command_catalog_default_build_uses_non_internal_app_commands_with_name_usage_projection_into_runtime_command_rows",
+        "main_prompt_rendering_formats_left_directory_and_optional_branch_and_right_agent_token_cost_model_state_with_active_vs_dimmed_modes",
+        "main_prompt_refresh_updates_git_branch_snapshot_and_history_indicator_handles_empty_or_failing_search_terms",
+        "main_ui_state_new_projects_environment_cwd_into_state_and_tracks_optional_conversation_identity",
+        "main_tracker_routes_error_prompt_tool_call_model_and_login_events_through_async_dispatch_with_blocking_fallback_path"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/model.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/prompt.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/state.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/tracker.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_main_completer_command_input_and_search_contracts",
+      "description": "Structured ForgeCode lane that projects main completer mechanics (command completion, input completion, search-term extraction, and module export boundaries) into staged orchestration flow.",
+      "required_signals": [
+        "main_completer_module_exports_command_and_input_completer_surfaces_with_internal_search_term_routing",
+        "main_command_completer_selects_sentinel_by_input_prefix_builds_display_rows_and_filters_by_prefix_match",
+        "main_command_completer_preserves_bang_commands_without_sentinel_prefix_and_uses_widget_initial_query_from_stripped_prefix",
+        "main_command_completer_returns_full_span_replacement_suggestion_on_selection_and_empty_when_no_match_or_cancel",
+        "main_input_completer_delegates_slash_or_colon_inputs_to_command_completer_before_file_search_fallback",
+        "main_input_completer_uses_walker_max_all_cwd_skip_binary_and_widget_preview_with_bat_or_cat_fallback",
+        "main_input_completer_wraps_selected_path_in_brackets_and_applies_query_span_replacement",
+        "main_search_term_extraction_finds_last_at_marker_uses_utf8_safe_cursor_boundary_and_returns_term_span_or_none"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/completer/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/completer/command.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/completer/input_completer.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/completer/search_term.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_main_editor_highlighter_constants_and_utils_contracts",
+      "description": "Structured ForgeCode lane that projects main editor/highlighter/display-constants/utils mechanics into staged orchestration flow.",
+      "required_signals": [
+        "main_editor_initializes_custom_keybindings_for_tab_completion_ctrl_k_clear_ctrl_r_history_and_alt_enter_multiline_insert",
+        "main_editor_constructs_reedline_with_input_completer_file_backed_history_highlighter_hinter_completion_menu_and_bracketed_paste_enabled",
+        "main_editor_custom_edit_mode_wraps_bracketed_paste_text_before_buffer_insert_and_delegates_other_events_to_inner_emacs_mode",
+        "main_editor_signal_projection_maps_success_or_external_break_to_trimmed_text_ctrl_c_to_continue_and_ctrl_d_to_exit",
+        "main_highlighter_applies_command_shell_and_file_mention_styles_and_handles_unterminated_mentions_without_highlight",
+        "main_display_constants_centralize_status_headers_markers_and_command_type_discriminator_with_string_projection",
+        "main_utils_humanize_time_and_humanize_number_provide_relative_duration_and_suffix_based_numeric_formatting"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/editor.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/highlighter.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/display_constants.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/utils.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_main_banner_info_title_and_sync_display_contracts",
+      "description": "Structured ForgeCode lane that projects main banner/info/title/sync display mechanics into staged orchestration flow.",
+      "required_signals": [
+        "main_banner_display_builds_mode_aware_tip_set_aligned_labels_and_optional_zsh_encouragement_box",
+        "main_banner_display_box_measures_visible_text_width_and_renders_padded_border_lines_without_ansi_width_drift",
+        "main_info_builder_supports_titled_sections_key_value_and_value_items_with_marker_backfill_for_missing_values",
+        "main_info_builder_normalizes_keys_and_formats_environment_and_config_views_through_consistent_section_pipeline",
+        "main_title_display_formats_category_colored_or_plain_messages_with_timestamp_and_optional_subtitle_projection",
+        "main_sync_progress_display_maps_domain_sync_events_to_user_facing_messages_and_hides_internal_only_events",
+        "main_sync_progress_display_uses_pluralization_and_change_summary_breakdown_for_completed_or_diff_states"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/banner.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/info.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/title_display.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/sync_display.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_zsh_plugin_paste_and_style_contracts",
+      "description": "Structured ForgeCode lane that projects zsh integration mechanics (plugin/theme generation, setup/doctor flows, pasted-path wrapping, and zsh-native prompt style rendering) into staged orchestration flow.",
+      "required_signals": [
+        "zsh_module_exports_plugin_generation_setup_doctor_keyboard_and_rprompt_surfaces_with_crlf_normalization_guard",
+        "zsh_plugin_generation_merges_embedded_lib_scripts_strips_comments_and_appends_clap_completions_with_loaded_markers",
+        "zsh_plugin_execution_supports_windows_temp_script_path_and_unix_dash_c_paths_with_streamed_stdout_stderr_and_exit_code_fail_closed_behavior",
+        "zsh_setup_flow_detects_valid_or_invalid_markers_updates_or_inserts_block_and_preserves_backup_context",
+        "zsh_paste_wrapper_normalizes_crlf_wraps_existing_absolute_paths_and_preserves_unresolved_or_already_wrapped_tokens",
+        "zsh_paste_wrapper_handles_quoted_and_backslash_escaped_paths_with_utf8_safe_token_scanning",
+        "zsh_style_renderer_emits_zsh_prompt_escape_sequences_for_bold_foreground_and_reset_order_without_ansi_leakage"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/zsh/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/zsh/paste.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/zsh/plugin.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/zsh/style.rs"
+      ]
+    }
+  ],
+  "workflow_templates": [
+    {
+      "id": "forgecode_structured_main_entrypoint_error_and_update_contracts",
+      "description": "Structured ForgeCode lane that projects main entrypoint/runtime-bootstrap, UI error channels, and update-check/apply behavior into staged orchestration flow.",
+      "required_signals": [
+        "main_lib_module_surface_exports_cli_completer_error_input_prompt_state_tracker_ui_update_vscode_and_zsh_submodules",
+        "main_lib_public_reexports_expose_cli_sandbox_ui_and_title_display_extensions_with_top_level_command_groups",
+        "main_lib_tracker_lazylock_initializes_single_default_tracker_instance_for_process_lifetime",
+        "main_entrypoint_windows_path_enables_stdout_vt_processing_to_avoid_raw_ansi_artifacts_in_console_output",
+        "main_run_installs_fail_closed_panic_hook_that_formats_error_tracks_event_and_exits_nonzero",
+        "main_run_reads_and_validates_forge_config_at_startup_with_contextual_failure_reporting",
+        "main_run_detects_non_terminal_stdin_and_maps_nonempty_piped_content_into_cli_piped_input",
+        "main_update_flow_skips_dev_versions_checks_release_interval_and_runs_confirm_or_auto_update_path",
+        "main_update_executor_prompts_for_process_exit_after_success_and_emits_failure_event_on_command_or_exit_code_errors",
+        "main_ui_error_surface_contains_no_auth_methods_auth_method_not_found_and_missing_header_line_variants"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/lib.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/main.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/error.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/update.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_main_conversation_oauth_porcelain_sandbox_contracts",
+      "description": "Structured ForgeCode lane that projects conversation selection, localhost OAuth callback handling, porcelain tabular transforms, and git-sandbox worktree creation contracts into staged orchestration flow.",
+      "required_signals": [
+        "main_conversation_selector_returns_none_on_empty_lists_and_filters_to_conversations_with_title_and_context_before_selection",
+        "main_conversation_selector_builds_info_rows_with_title_and_updated_duration_then_projects_porcelain_drop_uuid_truncate_title_and_uppercase_headers",
+        "main_conversation_selector_uses_header_lines_one_and_starting_cursor_from_current_conversation_id_with_spawn_blocking_prompt_flow",
+        "main_oauth_callback_server_starts_only_for_http_localhost_or_loopback_redirects_with_explicit_port_and_loopback_bind_addr_validation",
+        "main_oauth_callback_classifier_enforces_loopback_remote_get_method_expected_path_state_and_code_with_typed_continue_fail_complete_dispositions",
+        "main_oauth_callback_wait_loop_applies_timeout_polling_shutdown_unblock_and_html_success_error_response_headers",
+        "main_porcelain_surface_supports_column_drop_map_truncate_swap_sort_case_transform_header_replacement_and_wide_to_long_projection_paths",
+        "main_sandbox_worktree_flow_requires_git_repo_reuses_existing_valid_worktree_and_creates_or_attaches_branch_named_after_requested_sandbox"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/conversation_selector.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/oauth_callback.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/porcelain.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/sandbox.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_main_vscode_and_zsh_rprompt_contracts",
+      "description": "Structured ForgeCode lane that projects VS Code terminal/extension onboarding detection and zsh right-prompt rendering contracts into staged orchestration flow.",
+      "required_signals": [
+        "main_vscode_detection_checks_term_program_equals_vscode_and_multiple_vscode_environment_markers_for_integrated_terminal_detection",
+        "main_vscode_extension_detection_queries_code_list_extensions_and_matches_forgecode_forge_vscode_exactly_fail_closed_on_command_or_decode_failure",
+        "main_vscode_extension_install_executes_code_install_extension_force_and_returns_result_bool_or_io_error",
+        "main_vscode_install_gate_requires_running_in_vscode_terminal_and_missing_extension_before_install_attempt",
+        "main_zsh_rprompt_model_includes_agent_model_token_cost_reasoning_effort_terminal_width_and_currency_conversion_fields",
+        "main_zsh_rprompt_active_state_switches_color_scheme_based_on_token_count_and_suppresses_cost_when_inactive",
+        "main_zsh_rprompt_reasoning_effort_hides_none_and_compacts_label_to_three_chars_on_narrow_terminals",
+        "main_zsh_rprompt_supports_nerd_font_glyph_toggle_and_config_derived_currency_symbol_and_conversion_rate_defaults"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/vscode.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/zsh/rprompt.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_markdown_stream_renderer_inline_and_code_contracts",
+      "description": "Structured ForgeCode lane that projects streaming markdown parser/renderer, inline formatting, and syntax-highlighted code wrapping contracts into staged orchestration flow.",
+      "required_signals": [
+        "markdown_stream_core_exports_renderer_repair_parser_theme_and_style_surfaces_with_line_buffered_streaming_entrypoints",
+        "markdown_stream_push_buffers_tokens_until_newline_repairs_lines_with_parser_state_and_renders_events_incrementally",
+        "markdown_stream_finish_flushes_remaining_buffer_and_parser_finalize_events_for_complete_output_closure",
+        "markdown_renderer_tracks_code_table_blockquote_and_list_state_and_flushes_tables_only_on_table_end",
+        "markdown_renderer_resets_pending_list_state_when_non_list_context_events_arrive",
+        "markdown_renderer_applies_heading_list_table_blockquote_think_block_and_horizontal_rule_projections_with_margin_width_awareness",
+        "markdown_inline_renderer_maps_parsed_inline_elements_through_theme_styler_text_bold_italic_code_link_image_underline_and_footnote_channels",
+        "markdown_code_highlighter_uses_syntect_theme_mode_selection_line_highlighting_and_code_wrap_with_continuation_indent_and_reset_sequences"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_markdown_stream/src/lib.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_markdown_stream/src/renderer.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_markdown_stream/src/inline.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_markdown_stream/src/code.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_markdown_stream_heading_list_table_theme_contracts",
+      "description": "Structured ForgeCode lane that projects heading/list/table rendering and terminal-theme styling contracts from markdown stream primitives into staged orchestration flow.",
+      "required_signals": [
+        "markdown_heading_renderer_applies_level_prefixes_h1_uppercase_behavior_inline_rendering_and_margin_aware_wrapping",
+        "markdown_heading_renderer_uses_level_specific_styling_with_dimmed_prefixes_and_falls_back_to_h6_style_for_levels_above_six",
+        "markdown_list_state_tracks_indent_stack_ordered_numbering_and_pending_reset_resume_behavior_for_nested_list_continuity",
+        "markdown_list_renderer_detects_task_checkboxes_cycles_bullet_glyphs_by_depth_and_wraps_content_with_visible_width_aware_prefix_budgeting",
+        "markdown_table_renderer_first_renders_inline_content_then_computes_column_widths_with_max_width_shrink_and_min_column_clamps",
+        "markdown_table_renderer_wraps_cells_preserving_ansi_sequences_and_emits_box_drawing_borders_with_header_styling",
+        "markdown_theme_surface_exposes_style_struct_with_fg_bg_bold_italic_underline_strike_dimmed_flags_and_apply_pipeline",
+        "markdown_theme_detect_path_selects_dark_or_light_profiles_and_implements_inline_heading_list_and_table_styler_traits_consistently"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_markdown_stream/src/heading.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_markdown_stream/src/list.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_markdown_stream/src/table.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_markdown_stream/src/theme.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_markdown_stream_repair_style_utils_and_display_lib_contracts",
+      "description": "Structured ForgeCode lane that projects markdown repair/style contracts plus theme-detection caching and display-lib export surface into staged orchestration flow.",
+      "required_signals": [
+        "markdown_repair_line_only_splits_embedded_closing_fences_when_parser_state_is_inside_code_block",
+        "markdown_repair_split_logic_recognizes_backtick_and_tilde_suffix_fences_and_preserves_nonempty_prefix_content_as_separate_line",
+        "markdown_repair_leaves_valid_standalone_fence_lines_and_outside_code_embedded_fences_unchanged",
+        "markdown_style_contract_defines_inline_heading_list_and_table_styler_traits_as_renderer_agnostic_interface_boundary",
+        "markdown_inline_styler_contract_covers_text_emphasis_code_link_image_footnote_and_dimmed_channels",
+        "markdown_utils_theme_detection_uses_once_lock_process_cache_and_terminal_query_timeout_budget",
+        "markdown_utils_theme_detection_maps_query_errors_to_dark_mode_fail_closed_default",
+        "display_lib_surface_exports_code_diff_grep_markdown_modules_and_reexports_syntax_diff_grep_markdown_format_types"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_markdown_stream/src/repair.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_markdown_stream/src/style.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_markdown_stream/src/utils.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_display/src/lib.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_fs_lib_error_size_and_binary_contracts",
+      "description": "Structured ForgeCode lane that projects ForgeFS module/export boundaries, typed file-error channels, metadata size probing, and binary-detection behavior into staged orchestration flow.",
+      "required_signals": [
+        "forge_fs_lib_surface_exports_binary_detection_error_meta_read_range_and_write_modules_with_public_error_and_is_binary_reexports",
+        "forge_fs_compute_hash_uses_sha256_digest_and_hex_encoding_for_deterministic_content_identity",
+        "forge_fs_error_enum_includes_binary_not_supported_start_end_index_utf8_validation_and_io_failure_channels",
+        "forge_fs_file_size_path_queries_tokio_metadata_and_returns_metadata_len_with_contextual_error_message",
+        "forge_fs_binary_probe_reads_8192_byte_sample_from_open_file_handle_and_truncates_to_bytes_read",
+        "forge_fs_binary_probe_treats_empty_files_as_text_like_result_with_empty_file_description",
+        "forge_fs_binary_probe_uses_infer_matcher_text_or_doc_as_text_classification_and_defaults_unknown_samples_to_text",
+        "forge_fs_binary_probe_returns_mime_description_or_text_fallback_when_specific_format_is_not_detected"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_fs/src/lib.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_fs/src/error.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_fs/src/file_size.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_fs/src/is_binary.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_fs_binary_meta_readrange_and_embed_lib_contracts",
+      "description": "Structured ForgeCode lane that projects ForgeFS binary/meta/range-read semantics and embedded-template filesystem registration contracts into staged orchestration flow.",
+      "required_signals": [
+        "forge_fs_binary_detection_samples_up_to_512_bytes_and_uses_bom_plus_zero_byte_endian_heuristics_to_classify_binary_content",
+        "forge_fs_binary_detection_treats_utf16_bom_patterns_as_nonbinary_and_limits_zero_byte_scan_window_to_512_bytes",
+        "forge_fs_meta_surface_exposes_exists_is_file_is_binary_file_and_async_read_dir_with_contextual_error_reporting",
+        "forge_fs_read_range_validates_one_based_indices_and_start_end_order_before_file_read_operations",
+        "forge_fs_read_range_rejects_binary_files_via_is_binary_check_and_returns_typed_binary_not_supported_error",
+        "forge_fs_read_range_computes_full_content_hash_for_fileinfo_and_caps_end_line_to_total_lines_when_requested_end_exceeds_bounds",
+        "forge_embed_files_iterator_walks_embedded_directory_entries_recursively_and_yields_all_embedded_files",
+        "forge_embed_template_registration_registers_each_embedded_file_path_as_handlebars_template_and_panics_on_non_utf8_or_parse_failure"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_fs/src/binary_detection.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_fs/src/meta.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_fs/src/read_range.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_embed/src/lib.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_repo_container_snapshot_and_fuzzy_contracts",
+      "description": "Structured ForgeCode lane that projects forge_repo container assembly, snapshot delegation, and gRPC fuzzy-search repository contracts into staged orchestration flow.",
+      "required_signals": [
+        "forge_repo_lib_surface_declares_repo_submodules_and_reexports_container_entrypoints_from_forge_repo_module_only",
+        "forge_repo_container_builds_arc_backed_repository_stack_for_snapshot_conversation_provider_chat_context_agent_skill_validation_and_fuzzy_search_surfaces",
+        "forge_repo_container_initializes_database_pool_from_environment_database_path_and_workspace_hash_bound_conversation_repository",
+        "forge_repo_container_initializes_mcp_cache_storage_with_cache_dir_mcp_cache_path_and_default_ttl_of_3600_seconds",
+        "forge_repo_container_implements_snapshot_repository_via_file_snapshot_service_delegation_and_conversation_repository_forwarding_methods",
+        "forge_repo_container_delegates_environment_http_file_reader_file_writer_and_other_infra_traits_through_underlying_infra_reference",
+        "forge_snapshot_service_wraps_forge_snaps_snapshot_service_and_maps_insert_undo_calls_to_create_snapshot_and_undo_snapshot",
+        "forge_fuzzy_search_repository_builds_tonic_request_invokes_fuzzy_search_grpc_and_maps_proto_matches_into_domain_searchmatch_rows"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/lib.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/forge_repo.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/fs_snap.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/fuzzy_search.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_repo_agent_definition_skill_validation_contracts",
+      "description": "Structured ForgeCode lane that projects forge_repo agent-definition loading, skill source precedence, and gRPC validation mapping contracts into staged orchestration flow.",
+      "required_signals": [
+        "forge_agent_repository_loads_builtin_global_and_project_agent_sources_and_resolves_duplicate_ids_with_cwd_over_global_over_builtin_precedence",
+        "forge_agent_repository_parses_agent_frontmatter_into_agent_definition_templates_and_applies_subagent_tool_gating_for_forge_agent_id",
+        "forge_agent_repository_filters_sage_agent_visibility_by_research_subagent_feature_flag_and_maps_definitions_to_domain_agent_infos",
+        "agent_definition_surface_deserializes_optional_provider_model_prompt_sampling_and_reasoning_fields_with_typed_range_validation_contracts",
+        "agent_definition_into_agent_applies_default_provider_model_and_compact_values_when_definition_fields_are_absent",
+        "forge_skill_repository_loads_builtin_global_agents_and_local_skills_with_conflict_precedence_local_over_agents_over_global_over_builtin",
+        "forge_skill_repository_scans_skill_directories_reads_skill_markdown_in_parallel_collects_non_skill_resources_and_renders_environment_path_placeholders",
+        "forge_validation_repository_invokes_validate_files_grpc_and_maps_proto_validation_statuses_into_domain_syntax_errors_with_unsupported_language_fail_open_behavior"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/agent.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/agent_definition.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/skill.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/validation.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_repo_context_engine_and_conversation_persistence_contracts",
+      "description": "Structured ForgeCode lane that projects forge_repo workspace-index context-engine and conversation persistence contracts into staged orchestration flow.",
+      "required_signals": [
+        "forge_context_engine_repository_attaches_bearer_auth_metadata_to_grpc_requests_and_maps_create_api_key_create_workspace_and_upload_files_responses_into_workspace_domain_types",
+        "forge_context_engine_repository_projects_workspace_search_results_from_proto_nodes_into_domain_node_variants_with_optional_relevance_distance_scores",
+        "forge_context_engine_repository_supports_workspace_lifecycle_and_file_index_operations_list_get_list_files_delete_files_delete_workspace_with_workspace_scoping",
+        "forge_conversation_module_exports_repository_entrypoints_while_scoping_record_conversion_types_to_storage_layer_only",
+        "conversation_record_surface_converts_domain_messages_tools_usage_metrics_and_context_into_storage_records_and_back_with_legacy_schema_compatibility",
+        "conversation_record_surface_handles_legacy_tool_output_variants_pair_markdown_and_filediff_via_safe_text_fallback_projection",
+        "conversation_repo_persists_and_queries_conversations_in_workspace_scoped_storage_with_upsert_delete_rename_and_recent_listing_semantics",
+        "conversation_repo_metrics_deserialization_accepts_old_array_and_current_file_operation_formats_while_normalizing_to_single_runtime_metrics_view"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/context_engine.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/conversation/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/conversation/conversation_record.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/conversation/conversation_repo.rs"
+      ]
+    }
+  ]
+}

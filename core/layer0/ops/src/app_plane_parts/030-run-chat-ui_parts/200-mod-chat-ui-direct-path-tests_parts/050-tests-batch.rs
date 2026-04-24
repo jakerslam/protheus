@@ -366,10 +366,8 @@
                 }
             }),
         );
-        assert_eq!(outcome, "placeholder_replaced_auth");
-        let lowered = rewritten.to_ascii_lowercase();
-        assert!(lowered.contains("web_status: auth_missing"), "{rewritten}");
-        assert!(lowered.contains("error_code: web_tool_auth_missing"), "{rewritten}");
+        assert_eq!(outcome, "placeholder_withheld_auth");
+        assert!(rewritten.is_empty(), "{rewritten}");
     }
 
     #[test]
@@ -384,11 +382,33 @@
                 }
             }),
         );
-        assert_eq!(outcome, "placeholder_replaced_surface_unavailable");
-        assert!(
-            rewritten
-                .to_ascii_lowercase()
-                .contains("web tool surface is unavailable"),
-            "{rewritten}"
+        assert_eq!(outcome, "placeholder_withheld_surface_unavailable");
+        assert!(rewritten.is_empty(), "{rewritten}");
+    }
+
+    #[test]
+    fn chat_ui_route_classifier_ghost_copy_rewrite_replaces_legacy_text() {
+        let (rewritten, outcome) = rewrite_chat_ui_legacy_route_classifier_copy(
+            "The first gate (\"workflow_route\") is a binary classification that determines whether the system routes the request through a workflow (task route) or handles it as a direct conversational response (info route). It's not a true/false decision I control - it's an automated classification based on semantic analysis of the user's input. [source:tool_decision_tree_v3]",
         );
+        assert_eq!(outcome, "legacy_route_classifier_copy_withheld");
+        assert!(rewritten.trim().is_empty(), "{rewritten}");
+    }
+
+    #[test]
+    fn chat_ui_route_classifier_ghost_copy_rewrite_strips_extended_source_tags_and_bypass_copy() {
+        let (rewritten, outcome) = rewrite_chat_ui_legacy_route_classifier_copy(
+            "The first gate (\"workflow_route\") is still classifying this as an \"info\" route rather than a \"task\" route. [source:workflow_route_classification] [source:gate_enforcement_mode] [source:tool_decision_policy] I do have web search capabilities, but the system is currently in conversation bypass mode which restricts tool usage.",
+        );
+        assert_eq!(outcome, "legacy_route_classifier_copy_withheld");
+        assert!(rewritten.trim().is_empty(), "{rewritten}");
+    }
+
+    #[test]
+    fn chat_ui_route_classifier_ghost_copy_rewrite_keeps_normal_text() {
+        let (rewritten, outcome) = rewrite_chat_ui_legacy_route_classifier_copy(
+            "Need tool access for this query? T/F",
+        );
+        assert_eq!(outcome, "unchanged");
+        assert_eq!(rewritten, "Need tool access for this query? T/F");
     }

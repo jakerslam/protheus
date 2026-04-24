@@ -73,6 +73,23 @@ function testScorecardTrendRegression() {
   writeJson(path.join(root, 'blockers.json'), { ok: true, open_release_blockers: [], release_blocker_budget_remaining: 0 });
   writeJson(path.join(root, 'closure.json'), { ok: true, summary: { pass: true }, failed_ids: [] });
   writeJson(path.join(root, 'hardening.json'), { ok: true, active: false, violations: [] });
+  writeJson(path.join(root, 'boundedness.json'), { ok: true, summary: { failed_count: 0, warning_count: 0 } });
+  writeJson(path.join(root, 'node_critical.json'), {
+    ok: true,
+    summary: {
+      operator_critical_priority_one_missing_rust_count: 0,
+      migration_overdue_count: 0,
+      ts_confinement_violation_count: 0,
+    },
+  });
+  writeJson(path.join(root, 'benchmark.json'), {
+    projects: {
+      Infring: {
+        kernel_shared_workload_ops_per_sec: 1000,
+        rich_end_to_end_command_path_ops_per_sec: 100,
+      },
+    },
+  });
   writeJson(path.join(root, 'ipc.json'), { rows: [{ ok: true }, { ok: true }, { ok: true }] });
   writeJson(path.join(root, 'dr.json'), { observed_rto_minutes: 8, observed_rpo_hours: 2 });
   writeJson(path.join(root, 'baseline.json'), {
@@ -100,13 +117,16 @@ function testScorecardTrendRegression() {
     changelogPath: 'client/runtime/local/state/release/CHANGELOG.auto.md',
     closurePolicyPath: 'closure_policy.json',
     supportBundlePath: 'support_bundle.json',
+    nodeCriticalPath: 'node_critical.json',
     topologyPath: 'topology.json',
     stateCompatPath: 'state.json',
     blockersPath: 'blockers.json',
     closurePath: 'closure.json',
     hardeningPath: 'hardening.json',
+    boundednessReleaseGatePath: 'boundedness.json',
     ipcSoakPath: 'ipc.json',
     drPath: 'dr.json',
+    benchmarkPath: 'benchmark.json',
     baselinePath: 'baseline.json',
     baselineTag: 'v0.3.10-alpha',
     requireBaseline: true,
@@ -159,6 +179,24 @@ function testScorecardPrebundleSkipsFinalSealDependencies() {
   writeJson(path.join(root, 'blockers.json'), { ok: true, open_release_blockers: [], release_blocker_budget_remaining: 0 });
   writeJson(path.join(root, 'closure.json'), { ok: false, summary: { pass: false }, failed_ids: ['support_bundle_incident_truth_package'] });
   writeJson(path.join(root, 'hardening.json'), { ok: true, active: false, violations: [] });
+  writeJson(path.join(root, 'boundedness.json'), { ok: true, summary: { failed_count: 0, warning_count: 0 } });
+  writeJson(path.join(root, 'node_critical.json'), {
+    ok: true,
+    summary: {
+      operator_critical_priority_one_missing_rust_count: 0,
+      migration_overdue_count: 0,
+      ts_confinement_violation_count: 0,
+    },
+  });
+  writeJson(path.join(root, 'benchmark.json'), {
+    projects: {
+      Infring: {
+        kernel_shared_workload_ops_per_sec: 1000,
+        rich_end_to_end_command_path_ops_per_sec: 100,
+        median_user_workload_latency_ms: 100,
+      },
+    },
+  });
   writeJson(path.join(root, 'ipc.json'), { rows: [{ ok: true }, { ok: true }, { ok: true }] });
   writeJson(path.join(root, 'dr.json'), { observed_rto_minutes: 8, observed_rpo_hours: 2 });
 
@@ -179,8 +217,11 @@ function testScorecardPrebundleSkipsFinalSealDependencies() {
     blockersPath: 'blockers.json',
     closurePath: 'closure.json',
     hardeningPath: 'hardening.json',
+    boundednessReleaseGatePath: 'boundedness.json',
+    nodeCriticalPath: 'node_critical.json',
     ipcSoakPath: 'ipc.json',
     drPath: 'dr.json',
+    benchmarkPath: 'benchmark.json',
     baselinePath: '',
     baselineTag: '',
     requireBaseline: false,
@@ -215,12 +256,60 @@ function testClosurePrebundleSkipsFinalSealDependencies() {
       recovery_rpo_hours_max: 24,
     },
     release_candidate_rehearsal: {
-      required_step_gate_ids: ['audit:client-layer-boundary'],
+      required_step_gate_ids: ['audit:shell-layer-boundary'],
+    },
+    release_verdict: {
+      required_gate_artifacts: {
+        'ops:layer2:parity:guard': 'core/local/artifacts/layer2_lane_parity_guard_current.json',
+        'ops:layer2:receipt:replay': 'core/local/artifacts/layer2_receipt_replay_current.json',
+        'ops:trusted-core:report': 'core/local/artifacts/runtime_trusted_core_report_current.json',
+        'ops:release:proof-pack': 'core/local/artifacts/release_proof_pack_current.json',
+      },
     },
     standing_regression_guards: {
-      client_authority_gate_id: 'audit:client-layer-boundary',
+      shell_authority_gate_id: 'audit:shell-layer-boundary',
     },
   });
+  fs.mkdirSync(path.join(root, 'tests/tooling/config'), { recursive: true });
+  fs.writeFileSync(
+    path.join(root, 'tests/tooling/config/release_gates.yaml'),
+    [
+      'version: 1',
+      '  rich:',
+      '      synthetic_required: 1',
+      '      empirical_required: 1',
+      '      empirical_min_sample_points: 1',
+      '      baseline_pass_ratio_min: 1',
+      '      fail_closed_ratio_min: 1',
+      '      graduation_ratio_min: 1',
+      '      workflow_unexpected_state_loop_max: 0',
+      '      automatic_tool_trigger_events_max: 0',
+      '      file_tool_route_misdirection_max: 0',
+      '  pure:',
+      '      synthetic_required: 1',
+      '      empirical_required: 1',
+      '      empirical_min_sample_points: 1',
+      '      baseline_pass_ratio_min: 1',
+      '      fail_closed_ratio_min: 1',
+      '      graduation_ratio_min: 1',
+      '      workflow_unexpected_state_loop_max: 0',
+      '      automatic_tool_trigger_events_max: 0',
+      '      file_tool_route_misdirection_max: 0',
+      '  tiny-max:',
+      '      synthetic_required: 1',
+      '      empirical_required: 1',
+      '      empirical_min_sample_points: 1',
+      '      baseline_pass_ratio_min: 1',
+      '      fail_closed_ratio_min: 1',
+      '      graduation_ratio_min: 1',
+      '      workflow_unexpected_state_loop_max: 0',
+      '      automatic_tool_trigger_events_max: 0',
+      '      file_tool_route_misdirection_max: 0',
+      '  sentinel:',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
   writeJson(path.join(root, 'scorecard.json'), {
     ok: true,
     thresholds: {
@@ -257,7 +346,7 @@ function testClosurePrebundleSkipsFinalSealDependencies() {
       live_assimilation_contract_verified: true,
     },
   });
-  writeJson(path.join(root, 'client_boundary.json'), {
+  writeJson(path.join(root, 'shell_boundary.json'), {
     ok: true,
     summary: { pass: true, violation_count: 0 },
   });
@@ -283,13 +372,13 @@ function testClosurePrebundleSkipsFinalSealDependencies() {
       topologyPath: path.join(root, 'topology.json'),
       stateCompatPath: path.join(root, 'state.json'),
       rcRehearsalPath: path.join(root, 'rc.json'),
-      clientBoundaryPath: path.join(root, 'client_boundary.json'),
+      shellBoundaryPath: path.join(root, 'shell_boundary.json'),
     });
     assert.equal(report.summary.pass, true);
     assert.equal(report.stage, 'prebundle');
     const rcGate = report.checks.find((row) => row.id === 'release_candidate_rehearsal_completed');
     const bundleGate = report.checks.find((row) => row.id === 'support_bundle_incident_truth_package');
-    const boundaryGate = report.checks.find((row) => row.id === 'client_authority_regression_guard');
+    const boundaryGate = report.checks.find((row) => row.id === 'shell_authority_regression_guard');
     assert.equal(rcGate.ok, true);
     assert.match(String(rcGate.detail), /stage=prebundle/);
     assert.equal(bundleGate.ok, true);

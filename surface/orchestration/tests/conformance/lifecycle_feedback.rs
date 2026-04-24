@@ -293,3 +293,123 @@ fn degraded_or_fallback_paths_emit_self_maintenance_recommendations() {
         .iter()
         .any(|row| row.starts_with("self_maintenance_")));
 }
+
+#[test]
+fn forgecode_assimilation_request_selects_forgecode_workflow_template_and_lane_actions() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "forgecode-template-selection".to_string(),
+            intent: "assimilate forgecode workflow lanes and routing mechanics".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "assimilate",
+                    "resource_kind": "tooling",
+                    "request_kind": "workflow",
+                    "targets": [
+                        { "kind": "url", "value": "https://github.com/antinomyhq/forgecode" },
+                        { "kind": "workspace_path", "value": "local/workspace/assimilations/ForgeCode-Assimilation" }
+                    ]
+                },
+                "core_probe_envelope": {
+                    "plan_assimilation": {
+                        "transport_available": true
+                    },
+                    "tool_route": {
+                        "tool_available": true,
+                        "transport_available": true
+                    }
+                }
+            }),
+            },
+        4_979,
+    );
+
+    assert_eq!(
+        package.workflow_template,
+        infring_orchestration_surface_v1::contracts::WorkflowTemplate::ForgeCodeAgentComposition
+    );
+    assert!(package
+        .control_plane_lifecycle
+        .next_actions
+        .iter()
+        .any(|row| row == "require_tool_name_alias_normalization_before_route_probe"));
+    assert!(package
+        .control_plane_lifecycle
+        .next_actions
+        .iter()
+        .any(|row| row == "require_retryable_error_backoff_contract_for_tool_calls"));
+    assert!(package
+        .control_plane_lifecycle
+        .next_actions
+        .iter()
+        .any(|row| row == "require_mcp_transport_fallback_http_then_sse"));
+}
+
+#[test]
+fn tool_failure_budget_recovery_projects_budget_quality_and_retry_guard_action() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    runtime.record_execution_observation(
+        "forgecode-budget-quality",
+        infring_orchestration_surface_v1::contracts::CoreExecutionObservation {
+            plan_status: Some(infring_orchestration_surface_v1::contracts::PlanStatus::Failed),
+            receipt_ids: vec!["receipt-budget-1".to_string()],
+            outcome_refs: vec!["outcome-budget-1".to_string()],
+            step_statuses: vec![
+                infring_orchestration_surface_v1::contracts::CoreExecutionStepObservation {
+                    step_id: "step_tool_broker_request".to_string(),
+                    status: infring_orchestration_surface_v1::contracts::StepStatus::Failed,
+                },
+            ],
+        },
+    );
+
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "forgecode-budget-quality".to_string(),
+            intent: "assimilate forgecode retry policy and enforce budget".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "max_tool_failure_per_turn": 1,
+                "sdk": {
+                    "operation_kind": "search",
+                    "resource_kind": "web",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "url", "value": "https://github.com/antinomyhq/forgecode" }]
+                },
+                "core_probe_envelope": {
+                    "web_search": {
+                        "tool_available": true,
+                        "transport_available": true
+                    }
+                }
+            }),
+        },
+        4_980,
+    );
+
+    assert_eq!(
+        package
+            .execution_state
+            .recovery
+            .as_ref()
+            .and_then(|row| row.reason.clone()),
+        Some(
+            infring_orchestration_surface_v1::contracts::RecoveryReason::ToolFailureBudgetExceeded
+        )
+    );
+    assert!(package.runtime_quality.tool_failure_budget_exceeded);
+    assert_eq!(package.runtime_quality.tool_failure_budget_limit, 1);
+    assert!(
+        package
+            .runtime_quality
+            .tool_failure_budget_failed_step_count
+            >= 1
+    );
+    assert!(package
+        .control_plane_lifecycle
+        .next_actions
+        .iter()
+        .any(|row| row == "require_scope_narrowing_or_budget_override_before_retry"));
+}

@@ -1,6 +1,6 @@
 # Red Legion
 
-Client-side namespace marker only. Red Legion command authority is core-owned.
+Shell-side namespace marker only. Red Legion command authority is core-owned.
 
 ## Commands
 

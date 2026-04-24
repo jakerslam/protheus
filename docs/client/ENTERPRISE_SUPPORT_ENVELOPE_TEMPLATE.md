@@ -6,7 +6,7 @@ This document defines the support surface that can be published once legal and e
 
 ## Scope
 
-- Product: Infring core + client runtime
+- Product: Infring core + shell runtime
 - Environment: self-hosted Kubernetes and managed container deployments
 - Support channel owner: enterprise support desk
 

@@ -6,7 +6,13 @@ use serde_json::json;
 
 #[test]
 fn adapter_contract_fail_closed_chaos_matrix_is_enforced_for_all_production_frameworks() {
-    let frameworks = ["langgraph", "crewai", "openai_agents", "mastra", "semantic_kernel"];
+    let frameworks = [
+        "langgraph",
+        "crewai",
+        "openai_agents",
+        "mastra",
+        "semantic_kernel",
+    ];
     let scenarios = [
         ("process_never_starts", "adapter_startup_timeout"),
         ("starts_then_hangs", "adapter_request_timeout"),
@@ -38,7 +44,13 @@ fn adapter_contract_fail_closed_chaos_matrix_is_enforced_for_all_production_fram
 
 #[test]
 fn adapter_contract_emits_contract_kit_metadata_for_all_production_frameworks() {
-    let frameworks = ["langgraph", "crewai", "openai_agents", "mastra", "semantic_kernel"];
+    let frameworks = [
+        "langgraph",
+        "crewai",
+        "openai_agents",
+        "mastra",
+        "semantic_kernel",
+    ];
     for framework in frameworks {
         let payload = json!({
             "task_id": format!("baseline_task_{framework}"),
@@ -59,7 +71,10 @@ fn adapter_contract_emits_contract_kit_metadata_for_all_production_frameworks() 
         });
         let out = execute_governed_workflow(framework, payload.as_object().expect("obj"))
             .expect("baseline governed execution should succeed");
-        assert_eq!(out.payload.get("ok").and_then(|row| row.as_bool()), Some(true));
+        assert_eq!(
+            out.payload.get("ok").and_then(|row| row.as_bool()),
+            Some(true)
+        );
         assert_eq!(
             out.payload
                 .pointer("/adapter_contract_kit/contract_version")

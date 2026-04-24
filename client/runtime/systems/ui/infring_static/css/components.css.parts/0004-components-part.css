@@ -382,6 +382,43 @@ body[data-theme='dark'] .chat-event-divider .chat-event-info-icon {
   position: relative;
 }
 
+.message-placeholder-shell {
+  width: 100%;
+}
+
+.message-placeholder-shell-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  min-height: calc(var(--message-placeholder-line-count, 1) * var(--message-placeholder-line-height, 24px));
+}
+
+.message-placeholder-bubble {
+  width: var(--message-placeholder-width, var(--message-bubble-readable-width));
+  max-width: var(--message-bubble-readable-width);
+  min-height: var(--message-placeholder-bubble-height, 48px);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+.message-placeholder-line {
+  display: block;
+  width: 100%;
+  height: var(--message-placeholder-line-height, 24px);
+  min-height: var(--message-placeholder-line-height, 24px);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+}
+
+.message-placeholder-line-short {
+  width: 68%;
+}
+
 .message-agent-name {
   display: block;
   font-size: 10px;

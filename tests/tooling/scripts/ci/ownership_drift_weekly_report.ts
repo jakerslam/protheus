@@ -48,6 +48,10 @@ type Args = {
   outJsonPath: string;
   outMarkdownPath: string;
   highSeverityThreshold: number;
+  severityBudgetLow: number;
+  severityBudgetMedium: number;
+  severityBudgetHigh: number;
+  unresolvedHighThreshold: number;
 };
 
 const ROOT = process.cwd();
@@ -66,6 +70,14 @@ function parseArgs(argv: string[]): Args {
   });
   const thresholdRaw = cleanText(readFlag(argv, 'high-severity-threshold') || '0', 20);
   const thresholdParsed = Number.parseInt(thresholdRaw, 10);
+  const lowBudgetRaw = cleanText(readFlag(argv, 'severity-budget-low') || '999999', 20);
+  const mediumBudgetRaw = cleanText(readFlag(argv, 'severity-budget-medium') || '999999', 20);
+  const highBudgetRaw = cleanText(readFlag(argv, 'severity-budget-high') || thresholdRaw || '0', 20);
+  const unresolvedHighRaw = cleanText(readFlag(argv, 'unresolved-high-threshold') || thresholdRaw || '0', 20);
+  const lowBudgetParsed = Number.parseInt(lowBudgetRaw, 10);
+  const mediumBudgetParsed = Number.parseInt(mediumBudgetRaw, 10);
+  const highBudgetParsed = Number.parseInt(highBudgetRaw, 10);
+  const unresolvedHighParsed = Number.parseInt(unresolvedHighRaw, 10);
   return {
     strict: common.strict,
     sourcePath: cleanText(readFlag(argv, 'source') || DEFAULT_SOURCE_PATH, 400),
@@ -73,6 +85,14 @@ function parseArgs(argv: string[]): Args {
     outMarkdownPath: cleanText(readFlag(argv, 'out-markdown') || DEFAULT_OUT_MARKDOWN, 400),
     highSeverityThreshold:
       Number.isFinite(thresholdParsed) && thresholdParsed >= 0 ? thresholdParsed : 0,
+    severityBudgetLow:
+      Number.isFinite(lowBudgetParsed) && lowBudgetParsed >= 0 ? lowBudgetParsed : 999999,
+    severityBudgetMedium:
+      Number.isFinite(mediumBudgetParsed) && mediumBudgetParsed >= 0 ? mediumBudgetParsed : 999999,
+    severityBudgetHigh:
+      Number.isFinite(highBudgetParsed) && highBudgetParsed >= 0 ? highBudgetParsed : 0,
+    unresolvedHighThreshold:
+      Number.isFinite(unresolvedHighParsed) && unresolvedHighParsed >= 0 ? unresolvedHighParsed : 0,
   };
 }
 
@@ -199,6 +219,15 @@ function toMarkdown(payload: any): string {
   lines.push(
     `- High-severity threshold: ${payload.summary.high_severity_threshold} (pass when count <= threshold)`,
   );
+  lines.push(
+    `- Severity budgets (low/medium/high): ${payload.summary.severity_budget_low}/${payload.summary.severity_budget_medium}/${payload.summary.severity_budget_high}`,
+  );
+  lines.push(
+    `- Severity counts (low/medium/high): ${payload.summary.severity_count_low}/${payload.summary.severity_count_medium}/${payload.summary.severity_count_high}`,
+  );
+  lines.push(
+    `- Unresolved high-severity threshold: ${payload.summary.unresolved_high_threshold} (actual=${payload.summary.unresolved_high_count})`,
+  );
   lines.push('');
   lines.push('## High-Severity Findings');
   lines.push('');
@@ -291,11 +320,32 @@ function main(): number {
   const duplicateLogicCandidates = computeDuplicateLogicCandidates(violations);
   const multiResponsibilityCandidates = computeMultiResponsibilityCandidates(violations);
 
-  const highSeverityFindings: Array<{ id: string; detail: string }> = [];
+  const highSeverityFindings: Array<{ id: string; detail: string; severity: 'high' }> = [];
+  const severityFindings: Array<{ id: string; detail: string; severity: 'low' | 'medium' | 'high' }> = [];
   for (const row of policyFailures) {
+    severityFindings.push({
+      id: `policy:${row.id}`,
+      detail: row.detail,
+      severity: 'high',
+    });
     highSeverityFindings.push({
       id: `policy:${row.id}`,
       detail: row.detail,
+      severity: 'high',
+    });
+  }
+  for (const row of duplicateLogicCandidates) {
+    severityFindings.push({
+      id: `duplicate_logic:${row.signature}`,
+      detail: `${row.signature};files=${row.files.length};count=${row.occurrence_count}`,
+      severity: row.severity,
+    });
+  }
+  for (const row of multiResponsibilityCandidates) {
+    severityFindings.push({
+      id: `multi_responsibility:${row.file}`,
+      detail: `${row.file};checks=${row.check_ids.join(',')};violations=${row.violation_count}`,
+      severity: row.severity,
     });
   }
   for (const row of duplicateLogicCandidates) {
@@ -303,6 +353,7 @@ function main(): number {
     highSeverityFindings.push({
       id: 'duplicate_logic_high',
       detail: `${row.signature};files=${row.files.length};count=${row.occurrence_count}`,
+      severity: 'high',
     });
   }
   for (const row of multiResponsibilityCandidates) {
@@ -310,13 +361,59 @@ function main(): number {
     highSeverityFindings.push({
       id: 'multi_responsibility_high',
       detail: `${row.file};checks=${row.check_ids.join(',')};violations=${row.violation_count}`,
+      severity: 'high',
     });
   }
 
   const highSeverityCount = highSeverityFindings.length;
   const thresholdPass = highSeverityCount <= args.highSeverityThreshold;
+  const severityCountLow = severityFindings.filter((row) => row.severity === 'low').length;
+  const severityCountMedium = severityFindings.filter((row) => row.severity === 'medium').length;
+  const severityCountHigh = severityFindings.filter((row) => row.severity === 'high').length;
+  const unresolvedHighCount = severityCountHigh;
+  const severityBudgetPass =
+    severityCountLow <= args.severityBudgetLow
+    && severityCountMedium <= args.severityBudgetMedium
+    && severityCountHigh <= args.severityBudgetHigh;
+  const unresolvedHighPass = unresolvedHighCount <= args.unresolvedHighThreshold;
+  const overallPass = thresholdPass && severityBudgetPass && unresolvedHighPass;
+
+  const failures: Array<{ id: string; detail: string }> = [];
+  if (!thresholdPass) {
+    for (const row of highSeverityFindings) {
+      failures.push({
+        id: 'ownership_drift_high_severity_threshold_exceeded',
+        detail: `${row.id}:${row.detail}`,
+      });
+    }
+  }
+  if (severityCountLow > args.severityBudgetLow) {
+    failures.push({
+      id: 'ownership_drift_severity_budget_low_exceeded',
+      detail: `actual=${severityCountLow};budget=${args.severityBudgetLow}`,
+    });
+  }
+  if (severityCountMedium > args.severityBudgetMedium) {
+    failures.push({
+      id: 'ownership_drift_severity_budget_medium_exceeded',
+      detail: `actual=${severityCountMedium};budget=${args.severityBudgetMedium}`,
+    });
+  }
+  if (severityCountHigh > args.severityBudgetHigh) {
+    failures.push({
+      id: 'ownership_drift_severity_budget_high_exceeded',
+      detail: `actual=${severityCountHigh};budget=${args.severityBudgetHigh}`,
+    });
+  }
+  if (!unresolvedHighPass) {
+    failures.push({
+      id: 'ownership_drift_unresolved_high_threshold_exceeded',
+      detail: `actual=${unresolvedHighCount};threshold=${args.unresolvedHighThreshold}`,
+    });
+  }
+
   const payload = {
-    ok: thresholdPass,
+    ok: overallPass,
     type: 'ownership_drift_weekly_report',
     generated_at: new Date().toISOString(),
     revision: currentRevision(ROOT),
@@ -326,6 +423,10 @@ function main(): number {
       out_json: args.outJsonPath,
       out_markdown: args.outMarkdownPath,
       high_severity_threshold: args.highSeverityThreshold,
+      severity_budget_low: args.severityBudgetLow,
+      severity_budget_medium: args.severityBudgetMedium,
+      severity_budget_high: args.severityBudgetHigh,
+      unresolved_high_threshold: args.unresolvedHighThreshold,
       source_guard_ok: Boolean(source.ok),
     },
     summary: {
@@ -335,17 +436,23 @@ function main(): number {
       multi_responsibility_candidate_count: multiResponsibilityCandidates.length,
       high_severity_count: highSeverityCount,
       high_severity_threshold: args.highSeverityThreshold,
+      severity_count_low: severityCountLow,
+      severity_count_medium: severityCountMedium,
+      severity_count_high: severityCountHigh,
+      severity_budget_low: args.severityBudgetLow,
+      severity_budget_medium: args.severityBudgetMedium,
+      severity_budget_high: args.severityBudgetHigh,
+      unresolved_high_count: unresolvedHighCount,
+      unresolved_high_threshold: args.unresolvedHighThreshold,
       threshold_pass: thresholdPass,
+      severity_budget_pass: severityBudgetPass,
+      unresolved_high_pass: unresolvedHighPass,
     },
     duplicate_logic_candidates: duplicateLogicCandidates,
     multi_responsibility_candidates: multiResponsibilityCandidates,
+    severity_findings: severityFindings,
     high_severity_findings: highSeverityFindings,
-    failures: thresholdPass
-      ? []
-      : highSeverityFindings.map((row) => ({
-          id: 'ownership_drift_high_severity_threshold_exceeded',
-          detail: `${row.id}:${row.detail}`,
-        })),
+    failures,
   };
 
   writeTextArtifact(path.resolve(ROOT, args.outMarkdownPath), toMarkdown(payload));

@@ -1,6 +1,6 @@
 # Module Cohesion and Split Policy
 
-Purpose: keep authority code reviewable, testable, and safe while preserving the core architecture contract (Rust truth, thin client).
+Purpose: keep authority code reviewable, testable, and safe while preserving the core architecture contract (Rust truth, thin shell).
 
 ## Decision Rule
 
@@ -21,7 +21,7 @@ Split by domain boundary, not by arbitrary size.
 For this repository:
 
 1. Rust core modules stay cohesive and split by domain boundary when they grow (for example conduit policy, receipts, execution graph, model routing state, scheduling).
-2. Client files stay thin adapters and intentionally explicit.
+2. Shell files stay thin adapters and intentionally explicit.
 3. Avoid micro-fragmentation. Split to reduce coupling and improve safety review, not aesthetics.
 
 ## Practical Size Caps
@@ -29,7 +29,7 @@ For this repository:
 Caps are enforcement hints, not architecture substitutes:
 
 - Hard cap (general code): around 400-600 lines.
-- Client thin-surface cap: 400 lines.
+- Shell thin-surface cap: 400 lines.
 - Review-attention warning: over 800 lines.
 - Exception class: generated output and simple/stable adapter glue.
 

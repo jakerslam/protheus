@@ -6,7 +6,7 @@ Owner: InfRing Kernel Security
 
 ## Scope
 
-This document describes the current security architecture for InfRing with Rust as the kernel source of truth and TypeScript constrained to client/dev-facing surfaces via conduit boundaries.
+This document describes the current security architecture for InfRing with Rust as the kernel source of truth and TypeScript constrained to shell/dev-facing surfaces via conduit boundaries.
 
 ## Threat Model
 
@@ -28,7 +28,7 @@ Defensive posture:
 
 ```mermaid
 flowchart TD
-  TS["TS Surface (UI/Marketplace/Dev)"] --> C["Conduit Client"]
+  TS["TS Surface (UI/Marketplace/Dev)"] --> C["Conduit Shell"]
   C --> R["Rust Kernel (TCB)"]
   R --> P["Constitution + Policy Gates"]
   P --> G["Guard Registry Checks"]

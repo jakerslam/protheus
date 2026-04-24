@@ -4,6 +4,7 @@ pub mod intake_normalization;
 pub mod lifecycle;
 pub mod recovery_escalation;
 pub mod result_shaping_packaging;
+pub mod templates;
 pub mod workflow_graph_dependency;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

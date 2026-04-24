@@ -26,20 +26,16 @@ fn latest_receipt(state_path: &Path) -> Value {
 
 fn assert_receipt_contract_shape(receipt: &Value) {
     assert!(receipt.get("ok").and_then(Value::as_bool).is_some());
-    assert!(
-        receipt
-            .get("type")
-            .and_then(Value::as_str)
-            .map(|value| !value.trim().is_empty())
-            .unwrap_or(false)
-    );
-    assert!(
-        receipt
-            .get("receipt_hash")
-            .and_then(Value::as_str)
-            .map(|value| value.len() >= 16)
-            .unwrap_or(false)
-    );
+    assert!(receipt
+        .get("type")
+        .and_then(Value::as_str)
+        .map(|value| !value.trim().is_empty())
+        .unwrap_or(false));
+    assert!(receipt
+        .get("receipt_hash")
+        .and_then(Value::as_str)
+        .map(|value| value.len() >= 16)
+        .unwrap_or(false));
 }
 
 #[test]

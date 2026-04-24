@@ -102,7 +102,7 @@ This intake must obey repository placement policy.
 **Acceptance:**
 - Execution can continue across tool turns until completion under governed orchestration
 - Errors emit deterministic receipts and fail-closed policy outcomes
-- No client-side bypass path is introduced for recovery
+- No shell-side bypass path is introduced for recovery
 
 ---
 
