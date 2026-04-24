@@ -23,6 +23,15 @@ fn clean_text(raw: &str, max_len: usize) -> String {
         .collect()
 }
 
+fn clean_message_text(raw: &str, max_len: usize) -> String {
+    raw.replace("\r\n", "\n")
+        .replace('\r', "\n")
+        .trim()
+        .chars()
+        .take(max_len)
+        .collect()
+}
+
 fn clean_agent_id(raw: &str) -> String {
     clean_text(raw, 160)
         .chars()
@@ -150,7 +159,7 @@ fn normalized_context_row(row: &Value, index: usize) -> Option<Value> {
     if should_skip_message(row) {
         return None;
     }
-    let text = clean_text(row.get("text").and_then(Value::as_str).unwrap_or(""), 1_200);
+    let text = clean_message_text(row.get("text").and_then(Value::as_str).unwrap_or(""), 1_200);
     let tools = row
         .get("tools")
         .and_then(Value::as_array)
@@ -325,7 +334,7 @@ pub fn stage_dashboard_chat_eval_issue_report(
     }
     let (reported, context_messages) = collect_report_context(root, &agent, request);
     let reported = reported.unwrap_or_else(|| json!({}));
-    let reported_text = clean_text(
+    let reported_text = clean_message_text(
         reported.get("text").and_then(Value::as_str).unwrap_or(""),
         1_200,
     );
