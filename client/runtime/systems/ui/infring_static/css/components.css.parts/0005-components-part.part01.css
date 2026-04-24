@@ -133,11 +133,15 @@
   box-sizing: border-box;
   z-index: 1;
 }
+.message-bubble.message-bubble-thinking {
+  --thinking-bubble-cadence: 4s;
+}
+
 .message.system {
   max-width: 100%;
 }
 .message.thinking .message-bubble.message-bubble-thinking {
-  animation: thinking-bubble-scale-pulse 1.6s ease-in-out infinite;
+  animation: thinking-bubble-scale-pulse var(--thinking-bubble-cadence) ease-in-out infinite;
   transform-origin: left center;
   will-change: transform, opacity;
 }
@@ -298,7 +302,7 @@
   background-clip: text;
   -webkit-text-fill-color: transparent;
   text-fill-color: transparent;
-  animation: thinking-status-shimmer 4s linear infinite;
+  animation: thinking-status-shimmer var(--thinking-bubble-cadence) linear infinite;
   will-change: background-position;
 }
 

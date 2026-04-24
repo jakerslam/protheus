@@ -366,6 +366,8 @@
       var value = String(input || '').replace(/<[^>]*>/g, ' ').replace(/\*+/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
       if (!value) return true;
       if (/^(thinking|processing|working|preparing response|reasoning through context)(\.\.\.|…)?$/.test(value)) return true;
+      if (/^waiting for (workflow completion|runtime response)(\.\.\.|…)?$/.test(value)) return true;
+      if (/^reconnected\. syncing response(\.\.\.|…)?$/.test(value)) return true;
       if (/^(using|calling)\b.+(\.\.\.|…)?$/.test(value)) return true;
       var stripped = value.replace(/[.,!?;:…-]+/g, ' ').replace(/\s+/g, ' ').trim();
       if (stripped) {
@@ -378,7 +380,13 @@
           response: true,
           reasoning: true,
           through: true,
-          context: true
+          context: true,
+          waiting: true,
+          workflow: true,
+          completion: true,
+          runtime: true,
+          reconnected: true,
+          syncing: true
         };
         if (words.length > 0 && words.length <= 24) {
           var allPlaceholder = words.every(function(word) {

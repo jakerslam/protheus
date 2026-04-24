@@ -245,10 +245,10 @@
   --bottom-dock-preview-z-index: 2147483500;
   /* Glass template catalog:
      - fogged-glass: composite style (inherits simple-glass surface traits + blur/specular layers)
-     - magnified-glass: composite style (inherits fogged-glass + lens distortion pass)
+     - warped-glass: composite style (inherits fogged-glass + lens distortion pass)
      - simple-glass: reduced-cost glass without backdrop blur
      - liquid-glass: intentionally dormant placeholder for future experiments
-     Toggle via: document.documentElement.dataset.overlayGlassTemplate = 'fogged-glass' | 'magnified-glass' | 'simple-glass' | 'liquid-glass'
+     Toggle via: document.documentElement.dataset.overlayGlassTemplate = 'fogged-glass' | 'warped-glass' | 'simple-glass' | 'liquid-glass'
   */
   --overlay-template-glass-base-border: color-mix(in srgb, #fff 24%, transparent);
   --overlay-template-glass-base-background: transparent;
@@ -323,7 +323,7 @@
   --overlay-template-fogged-glass-caustic: var(--overlay-template-glass-base-caustic);
   --overlay-template-fogged-glass-caustic-opacity: var(--overlay-template-glass-base-caustic-opacity);
 
-  /* Magnified glass composes fogged-glass and swaps in a dedicated magnification distortion pass. */
+  /* Warped glass composes fogged-glass and swaps in a dedicated lens distortion pass. */
   --overlay-template-magnified-glass-border: var(--overlay-template-fogged-glass-border);
   --overlay-template-magnified-glass-background: var(--overlay-template-fogged-glass-background);
   --overlay-template-magnified-glass-radius: var(--overlay-template-fogged-glass-radius);
@@ -347,6 +347,29 @@
   --overlay-template-magnified-glass-lens-saturate-boost: 0.18;
   --overlay-template-magnified-glass-lens-contrast-boost: 0.22;
   --overlay-template-magnified-glass-lens-brightness-boost: 0.06;
+  --overlay-template-warped-glass-border: var(--overlay-template-magnified-glass-border);
+  --overlay-template-warped-glass-background: var(--overlay-template-magnified-glass-background);
+  --overlay-template-warped-glass-radius: var(--overlay-template-magnified-glass-radius);
+  --overlay-template-warped-glass-shadow: var(--overlay-template-magnified-glass-shadow);
+  --overlay-template-warped-glass-blur: var(--overlay-template-magnified-glass-blur);
+  --overlay-template-warped-glass-saturate: var(--overlay-template-magnified-glass-saturate);
+  --overlay-template-warped-glass-brightness: var(--overlay-template-magnified-glass-brightness);
+  --overlay-template-warped-glass-contrast: var(--overlay-template-magnified-glass-contrast);
+  --overlay-template-warped-glass-distortion: var(--overlay-template-magnified-glass-distortion);
+  --overlay-template-warped-glass-bottom-rim-color: var(--overlay-template-magnified-glass-bottom-rim-color);
+  --overlay-template-warped-glass-bottom-rim-glow: var(--overlay-template-magnified-glass-bottom-rim-glow);
+  --overlay-template-warped-glass-bottom-rim-width: var(--overlay-template-magnified-glass-bottom-rim-width);
+  --overlay-template-warped-glass-bottom-rim-blur: var(--overlay-template-magnified-glass-bottom-rim-blur);
+  --overlay-template-warped-glass-specular: var(--overlay-template-magnified-glass-specular);
+  --overlay-template-warped-glass-specular-opacity: var(--overlay-template-magnified-glass-specular-opacity);
+  --overlay-template-warped-glass-caustic: var(--overlay-template-magnified-glass-caustic);
+  --overlay-template-warped-glass-caustic-opacity: var(--overlay-template-magnified-glass-caustic-opacity);
+  --overlay-template-warped-glass-lens-size: var(--overlay-template-magnified-glass-lens-size);
+  --overlay-template-warped-glass-lens-scale: var(--overlay-template-magnified-glass-lens-scale);
+  --overlay-template-warped-glass-lens-opacity: var(--overlay-template-magnified-glass-lens-opacity);
+  --overlay-template-warped-glass-lens-saturate-boost: var(--overlay-template-magnified-glass-lens-saturate-boost);
+  --overlay-template-warped-glass-lens-contrast-boost: var(--overlay-template-magnified-glass-lens-contrast-boost);
+  --overlay-template-warped-glass-lens-brightness-boost: var(--overlay-template-magnified-glass-lens-brightness-boost);
 
   /* Liquid glass placeholder (dormant): intentionally aliases fogged baseline for now. */
   --overlay-template-liquid-glass-border: var(--overlay-template-fogged-glass-border);
@@ -416,6 +439,33 @@
     inset 0 calc(-1 * var(--overlay-magnified-surface-bottom-rim-width)) 0 var(--overlay-magnified-surface-bottom-rim-color),
     inset 0 calc(-1 * var(--overlay-magnified-surface-bottom-rim-width)) var(--overlay-magnified-surface-bottom-rim-blur) calc(-1 * var(--overlay-magnified-surface-bottom-rim-blur)) var(--overlay-magnified-surface-bottom-rim-glow);
   --overlay-magnified-surface-shell-shadow: var(--overlay-magnified-surface-shadow), var(--overlay-magnified-surface-rim-shadow);
+  --overlay-warped-surface-border: var(--overlay-template-warped-glass-border);
+  --overlay-warped-surface-background: var(--overlay-template-warped-glass-background);
+  --overlay-warped-surface-radius: var(--overlay-template-warped-glass-radius);
+  --overlay-warped-surface-shadow: var(--overlay-template-warped-glass-shadow);
+  --overlay-warped-surface-blur: var(--overlay-template-warped-glass-blur);
+  --overlay-warped-surface-saturate: var(--overlay-template-warped-glass-saturate);
+  --overlay-warped-surface-brightness: var(--overlay-template-warped-glass-brightness);
+  --overlay-warped-surface-contrast: var(--overlay-template-warped-glass-contrast);
+  --overlay-warped-surface-distortion: var(--overlay-template-warped-glass-distortion);
+  --overlay-warped-surface-bottom-rim-color: var(--overlay-template-warped-glass-bottom-rim-color);
+  --overlay-warped-surface-bottom-rim-glow: var(--overlay-template-warped-glass-bottom-rim-glow);
+  --overlay-warped-surface-bottom-rim-width: var(--overlay-template-warped-glass-bottom-rim-width);
+  --overlay-warped-surface-bottom-rim-blur: var(--overlay-template-warped-glass-bottom-rim-blur);
+  --overlay-warped-surface-specular: var(--overlay-template-warped-glass-specular);
+  --overlay-warped-surface-specular-opacity: var(--overlay-template-warped-glass-specular-opacity);
+  --overlay-warped-surface-caustic: var(--overlay-template-warped-glass-caustic);
+  --overlay-warped-surface-caustic-opacity: var(--overlay-template-warped-glass-caustic-opacity);
+  --overlay-warped-surface-lens-size: var(--overlay-template-warped-glass-lens-size);
+  --overlay-warped-surface-lens-scale: var(--overlay-template-warped-glass-lens-scale);
+  --overlay-warped-surface-lens-opacity: var(--overlay-template-warped-glass-lens-opacity);
+  --overlay-warped-surface-lens-saturate-boost: var(--overlay-template-warped-glass-lens-saturate-boost);
+  --overlay-warped-surface-lens-contrast-boost: var(--overlay-template-warped-glass-lens-contrast-boost);
+  --overlay-warped-surface-lens-brightness-boost: var(--overlay-template-warped-glass-lens-brightness-boost);
+  --overlay-warped-surface-rim-shadow:
+    inset 0 calc(-1 * var(--overlay-warped-surface-bottom-rim-width)) 0 var(--overlay-warped-surface-bottom-rim-color),
+    inset 0 calc(-1 * var(--overlay-warped-surface-bottom-rim-width)) var(--overlay-warped-surface-bottom-rim-blur) calc(-1 * var(--overlay-warped-surface-bottom-rim-blur)) var(--overlay-warped-surface-bottom-rim-glow);
+  --overlay-warped-surface-shell-shadow: var(--overlay-warped-surface-shadow), var(--overlay-warped-surface-rim-shadow);
 
   --overlay-glass-active-border: var(--overlay-template-simple-glass-border);
   --overlay-glass-active-background: var(--overlay-template-simple-glass-background);
@@ -544,23 +594,43 @@
 }
 
 :root[data-overlay-glass-template='magnified-glass'] {
-  --overlay-glass-active-border: var(--overlay-template-magnified-glass-border);
-  --overlay-glass-active-background: var(--overlay-template-magnified-glass-background);
-  --overlay-glass-active-radius: var(--overlay-template-magnified-glass-radius);
-  --overlay-glass-active-shadow: var(--overlay-template-magnified-glass-shadow);
-  --overlay-glass-active-blur: var(--overlay-template-magnified-glass-blur);
-  --overlay-glass-active-saturate: var(--overlay-template-magnified-glass-saturate);
-  --overlay-glass-active-brightness: var(--overlay-template-magnified-glass-brightness);
-  --overlay-glass-active-contrast: var(--overlay-template-magnified-glass-contrast);
-  --overlay-glass-active-distortion: var(--overlay-template-magnified-glass-distortion);
-  --overlay-glass-active-bottom-rim-color: var(--overlay-template-magnified-glass-bottom-rim-color);
-  --overlay-glass-active-bottom-rim-glow: var(--overlay-template-magnified-glass-bottom-rim-glow);
-  --overlay-glass-active-bottom-rim-width: var(--overlay-template-magnified-glass-bottom-rim-width);
-  --overlay-glass-active-bottom-rim-blur: var(--overlay-template-magnified-glass-bottom-rim-blur);
-  --overlay-glass-active-specular: var(--overlay-template-magnified-glass-specular);
-  --overlay-glass-active-specular-opacity: var(--overlay-template-magnified-glass-specular-opacity);
-  --overlay-glass-active-caustic: var(--overlay-template-magnified-glass-caustic);
-  --overlay-glass-active-caustic-opacity: var(--overlay-template-magnified-glass-caustic-opacity);
+  --overlay-glass-active-border: var(--overlay-template-warped-glass-border);
+  --overlay-glass-active-background: var(--overlay-template-warped-glass-background);
+  --overlay-glass-active-radius: var(--overlay-template-warped-glass-radius);
+  --overlay-glass-active-shadow: var(--overlay-template-warped-glass-shadow);
+  --overlay-glass-active-blur: var(--overlay-template-warped-glass-blur);
+  --overlay-glass-active-saturate: var(--overlay-template-warped-glass-saturate);
+  --overlay-glass-active-brightness: var(--overlay-template-warped-glass-brightness);
+  --overlay-glass-active-contrast: var(--overlay-template-warped-glass-contrast);
+  --overlay-glass-active-distortion: var(--overlay-template-warped-glass-distortion);
+  --overlay-glass-active-bottom-rim-color: var(--overlay-template-warped-glass-bottom-rim-color);
+  --overlay-glass-active-bottom-rim-glow: var(--overlay-template-warped-glass-bottom-rim-glow);
+  --overlay-glass-active-bottom-rim-width: var(--overlay-template-warped-glass-bottom-rim-width);
+  --overlay-glass-active-bottom-rim-blur: var(--overlay-template-warped-glass-bottom-rim-blur);
+  --overlay-glass-active-specular: var(--overlay-template-warped-glass-specular);
+  --overlay-glass-active-specular-opacity: var(--overlay-template-warped-glass-specular-opacity);
+  --overlay-glass-active-caustic: var(--overlay-template-warped-glass-caustic);
+  --overlay-glass-active-caustic-opacity: var(--overlay-template-warped-glass-caustic-opacity);
+}
+
+:root[data-overlay-glass-template='warped-glass'] {
+  --overlay-glass-active-border: var(--overlay-template-warped-glass-border);
+  --overlay-glass-active-background: var(--overlay-template-warped-glass-background);
+  --overlay-glass-active-radius: var(--overlay-template-warped-glass-radius);
+  --overlay-glass-active-shadow: var(--overlay-template-warped-glass-shadow);
+  --overlay-glass-active-blur: var(--overlay-template-warped-glass-blur);
+  --overlay-glass-active-saturate: var(--overlay-template-warped-glass-saturate);
+  --overlay-glass-active-brightness: var(--overlay-template-warped-glass-brightness);
+  --overlay-glass-active-contrast: var(--overlay-template-warped-glass-contrast);
+  --overlay-glass-active-distortion: var(--overlay-template-warped-glass-distortion);
+  --overlay-glass-active-bottom-rim-color: var(--overlay-template-warped-glass-bottom-rim-color);
+  --overlay-glass-active-bottom-rim-glow: var(--overlay-template-warped-glass-bottom-rim-glow);
+  --overlay-glass-active-bottom-rim-width: var(--overlay-template-warped-glass-bottom-rim-width);
+  --overlay-glass-active-bottom-rim-blur: var(--overlay-template-warped-glass-bottom-rim-blur);
+  --overlay-glass-active-specular: var(--overlay-template-warped-glass-specular);
+  --overlay-glass-active-specular-opacity: var(--overlay-template-warped-glass-specular-opacity);
+  --overlay-glass-active-caustic: var(--overlay-template-warped-glass-caustic);
+  --overlay-glass-active-caustic-opacity: var(--overlay-template-warped-glass-caustic-opacity);
 }
 
 :root[data-overlay-glass-template='liquid-glass'] {

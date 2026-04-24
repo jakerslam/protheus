@@ -124,6 +124,45 @@
   position: var(--dashboard-dropdown-position, relative);
   color: var(--dashboard-preview-surface-color);
   overflow: hidden;
+  --dashboard-preview-surface-border: var(--overlay-fogged-surface-border);
+  --dashboard-preview-surface-background: var(--overlay-fogged-surface-background);
+  --dashboard-preview-surface-radius: var(--overlay-fogged-surface-radius);
+  --dashboard-preview-surface-shadow: var(--overlay-fogged-surface-shadow);
+  --dashboard-preview-surface-bottom-rim-color: var(--overlay-fogged-surface-bottom-rim-color);
+  --dashboard-preview-surface-bottom-rim-glow: var(--overlay-fogged-surface-bottom-rim-glow);
+  --dashboard-preview-surface-bottom-rim-width: var(--overlay-fogged-surface-bottom-rim-width);
+  --dashboard-preview-surface-bottom-rim-blur: var(--overlay-fogged-surface-bottom-rim-blur);
+  --dashboard-preview-surface-blur: var(--overlay-fogged-surface-blur);
+  --dashboard-preview-surface-saturate: var(--overlay-fogged-surface-saturate);
+  --dashboard-preview-surface-brightness: var(--overlay-fogged-surface-brightness);
+  --dashboard-preview-surface-contrast: var(--overlay-fogged-surface-contrast);
+  --dashboard-preview-surface-distortion: var(--overlay-fogged-surface-distortion);
+  --dashboard-preview-surface-specular: var(--overlay-fogged-surface-specular);
+  --dashboard-preview-surface-specular-opacity: var(--overlay-fogged-surface-specular-opacity);
+  --dashboard-preview-surface-caustic: var(--overlay-fogged-surface-caustic);
+  --dashboard-preview-surface-caustic-opacity: var(--overlay-fogged-surface-caustic-opacity);
+}
+
+.overlay-shared-surface,
+.dashboard-preview-surface,
+.taskbar-search-popup {
+  --dashboard-preview-surface-border: var(--overlay-fogged-surface-border);
+  --dashboard-preview-surface-background: var(--overlay-fogged-surface-background);
+  --dashboard-preview-surface-radius: var(--overlay-fogged-surface-radius);
+  --dashboard-preview-surface-shadow: var(--overlay-fogged-surface-shadow);
+  --dashboard-preview-surface-bottom-rim-color: var(--overlay-fogged-surface-bottom-rim-color);
+  --dashboard-preview-surface-bottom-rim-glow: var(--overlay-fogged-surface-bottom-rim-glow);
+  --dashboard-preview-surface-bottom-rim-width: var(--overlay-fogged-surface-bottom-rim-width);
+  --dashboard-preview-surface-bottom-rim-blur: var(--overlay-fogged-surface-bottom-rim-blur);
+  --dashboard-preview-surface-blur: var(--overlay-fogged-surface-blur);
+  --dashboard-preview-surface-saturate: var(--overlay-fogged-surface-saturate);
+  --dashboard-preview-surface-brightness: var(--overlay-fogged-surface-brightness);
+  --dashboard-preview-surface-contrast: var(--overlay-fogged-surface-contrast);
+  --dashboard-preview-surface-distortion: var(--overlay-fogged-surface-distortion);
+  --dashboard-preview-surface-specular: var(--overlay-fogged-surface-specular);
+  --dashboard-preview-surface-specular-opacity: var(--overlay-fogged-surface-specular-opacity);
+  --dashboard-preview-surface-caustic: var(--overlay-fogged-surface-caustic);
+  --dashboard-preview-surface-caustic-opacity: var(--overlay-fogged-surface-caustic-opacity);
 }
 
 .dashboard-dropdown-header {
@@ -200,6 +239,23 @@
   align-items: flex-start;
   --dashboard-preview-text-align: left;
   --dashboard-preview-white-space: normal;
+  --dashboard-preview-surface-border: var(--overlay-fogged-surface-border);
+  --dashboard-preview-surface-background: var(--overlay-fogged-surface-background);
+  --dashboard-preview-surface-radius: var(--overlay-fogged-surface-radius);
+  --dashboard-preview-surface-shadow: var(--overlay-fogged-surface-shadow);
+  --dashboard-preview-surface-bottom-rim-color: var(--overlay-fogged-surface-bottom-rim-color);
+  --dashboard-preview-surface-bottom-rim-glow: var(--overlay-fogged-surface-bottom-rim-glow);
+  --dashboard-preview-surface-bottom-rim-width: var(--overlay-fogged-surface-bottom-rim-width);
+  --dashboard-preview-surface-bottom-rim-blur: var(--overlay-fogged-surface-bottom-rim-blur);
+  --dashboard-preview-surface-blur: var(--overlay-fogged-surface-blur);
+  --dashboard-preview-surface-saturate: var(--overlay-fogged-surface-saturate);
+  --dashboard-preview-surface-brightness: var(--overlay-fogged-surface-brightness);
+  --dashboard-preview-surface-contrast: var(--overlay-fogged-surface-contrast);
+  --dashboard-preview-surface-distortion: var(--overlay-fogged-surface-distortion);
+  --dashboard-preview-surface-specular: var(--overlay-fogged-surface-specular);
+  --dashboard-preview-surface-specular-opacity: var(--overlay-fogged-surface-specular-opacity);
+  --dashboard-preview-surface-caustic: var(--overlay-fogged-surface-caustic);
+  --dashboard-preview-surface-caustic-opacity: var(--overlay-fogged-surface-caustic-opacity);
 }
 
 .dashboard-popup-overlay {

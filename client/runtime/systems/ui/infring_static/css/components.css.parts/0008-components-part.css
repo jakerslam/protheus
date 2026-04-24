@@ -886,27 +886,23 @@
   overflow: visible;
 }
 
-/* Composer dropdown surfaces should resolve directly from shared overlay tokens,
+/* Composer dropdown surfaces should resolve directly from fogged-glass tokens,
    even when mounted inside input/composer wrappers. */
 .composer-plus-menu.dashboard-dropdown-surface,
 .composer-plus-menu .chat-branch-menu.dashboard-dropdown-surface,
 .composer-plus-menu .model-switcher-dropdown.dashboard-dropdown-surface {
-  --dashboard-preview-surface-border: var(--overlay-shared-surface-border, var(--overlay-surface-border, color-mix(in srgb, #fff 24%, transparent)));
-  --dashboard-preview-surface-background: color-mix(
-    in srgb,
-    var(--overlay-shared-surface-background, var(--overlay-surface-background, transparent)) 68%,
-    var(--surface) 32%
-  );
-  --dashboard-preview-surface-shadow: var(--overlay-shared-surface-shadow, var(--overlay-surface-shadow, -6px 0 12px -14px rgba(0, 0, 0, 0.32), 6px 0 12px -14px rgba(0, 0, 0, 0.32), 0 10px 18px -18px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.2)));
-  --dashboard-preview-surface-blur: var(--overlay-shared-surface-blur, var(--overlay-surface-blur, 6px));
-  --dashboard-preview-surface-saturate: var(--overlay-shared-surface-saturate, var(--overlay-surface-saturate, 1.05));
-  --dashboard-preview-surface-brightness: var(--overlay-shared-surface-brightness, var(--overlay-surface-brightness, 1));
-  --dashboard-preview-surface-contrast: var(--overlay-shared-surface-contrast, var(--overlay-surface-contrast, 1));
-  --dashboard-preview-surface-distortion: var(--overlay-shared-surface-distortion, var(--overlay-surface-distortion, url(#infring-overlay-glass-pass)));
-  --dashboard-preview-surface-specular: var(--overlay-shared-surface-specular, var(--overlay-surface-specular, none));
-  --dashboard-preview-surface-specular-opacity: var(--overlay-shared-surface-specular-opacity, var(--overlay-surface-specular-opacity, 0));
-  --dashboard-preview-surface-caustic: var(--overlay-shared-surface-caustic, var(--overlay-surface-caustic, none));
-  --dashboard-preview-surface-caustic-opacity: var(--overlay-shared-surface-caustic-opacity, var(--overlay-surface-caustic-opacity, 0));
+  --dashboard-preview-surface-border: var(--overlay-fogged-surface-border);
+  --dashboard-preview-surface-background: var(--overlay-fogged-surface-background);
+  --dashboard-preview-surface-shadow: var(--overlay-fogged-surface-shadow);
+  --dashboard-preview-surface-blur: var(--overlay-fogged-surface-blur);
+  --dashboard-preview-surface-saturate: var(--overlay-fogged-surface-saturate);
+  --dashboard-preview-surface-brightness: var(--overlay-fogged-surface-brightness);
+  --dashboard-preview-surface-contrast: var(--overlay-fogged-surface-contrast);
+  --dashboard-preview-surface-distortion: var(--overlay-fogged-surface-distortion);
+  --dashboard-preview-surface-specular: var(--overlay-fogged-surface-specular);
+  --dashboard-preview-surface-specular-opacity: var(--overlay-fogged-surface-specular-opacity);
+  --dashboard-preview-surface-caustic: var(--overlay-fogged-surface-caustic);
+  --dashboard-preview-surface-caustic-opacity: var(--overlay-fogged-surface-caustic-opacity);
 }
 
 .composer-plus-menu-item {
