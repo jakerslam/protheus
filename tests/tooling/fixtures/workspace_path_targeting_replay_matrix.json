@@ -1,0 +1,79 @@
+{
+  "schema_id": "workspace_path_targeting_replay_matrix",
+  "schema_version": 1,
+  "required_operations": [
+    "file_read",
+    "file_search",
+    "repo_path_targeting"
+  ],
+  "required_path_kinds": [
+    "relative",
+    "absolute",
+    "windows_style"
+  ],
+  "cases": [
+    {
+      "id": "file_read_relative_path_contract",
+      "operation": "file_read",
+      "path_kind": "relative",
+      "workspace_path": "core/layer0/ops/src/lib.rs",
+      "test": "workflow_decision_tree_v2_classifies_file_edits_as_task_route"
+    },
+    {
+      "id": "file_read_absolute_path_contract",
+      "operation": "file_read",
+      "path_kind": "absolute",
+      "workspace_path": "/Users/jay/.openclaw/workspace/core/layer0/ops/src/lib.rs",
+      "test": "workflow_decision_tree_v2_classifies_file_edits_as_task_route"
+    },
+    {
+      "id": "file_read_windows_style_path_contract",
+      "operation": "file_read",
+      "path_kind": "windows_style",
+      "workspace_path": "C:\\Users\\Owner\\.openclaw\\workspace\\core\\layer0\\ops\\src\\lib.rs",
+      "test": "workflow_decision_tree_v2_classifies_file_edits_as_task_route"
+    },
+    {
+      "id": "file_search_relative_path_contract",
+      "operation": "file_search",
+      "path_kind": "relative",
+      "workspace_path": "core/layer0/ops/src",
+      "test": "compare_workflow_hint_clusters_workspace_and_web_tools"
+    },
+    {
+      "id": "file_search_absolute_path_contract",
+      "operation": "file_search",
+      "path_kind": "absolute",
+      "workspace_path": "/Users/jay/.openclaw/workspace/core/layer0/ops/src",
+      "test": "compare_workflow_hint_clusters_workspace_and_web_tools"
+    },
+    {
+      "id": "file_search_windows_style_path_contract",
+      "operation": "file_search",
+      "path_kind": "windows_style",
+      "workspace_path": "C:\\Users\\Owner\\.openclaw\\workspace\\core\\layer0\\ops\\src",
+      "test": "compare_workflow_hint_clusters_workspace_and_web_tools"
+    },
+    {
+      "id": "repo_path_targeting_relative_path_contract",
+      "operation": "repo_path_targeting",
+      "path_kind": "relative",
+      "workspace_path": "core/layer0/ops",
+      "test": "natural_web_intent_does_not_force_plain_workspace_peer_compare_into_web"
+    },
+    {
+      "id": "repo_path_targeting_absolute_path_contract",
+      "operation": "repo_path_targeting",
+      "path_kind": "absolute",
+      "workspace_path": "/Users/jay/.openclaw/workspace/core/layer0/ops",
+      "test": "natural_web_intent_does_not_force_plain_workspace_peer_compare_into_web"
+    },
+    {
+      "id": "repo_path_targeting_windows_style_path_contract",
+      "operation": "repo_path_targeting",
+      "path_kind": "windows_style",
+      "workspace_path": "C:\\Users\\Owner\\.openclaw\\workspace\\core\\layer0\\ops",
+      "test": "natural_web_intent_does_not_force_plain_workspace_peer_compare_into_web"
+    }
+  ]
+}

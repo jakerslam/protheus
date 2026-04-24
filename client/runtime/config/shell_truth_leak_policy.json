@@ -31,6 +31,8 @@
     "backend_automation_overrides_semantic_intent_admission",
     "workflow_route_info_task_classification_boilerplate",
     "workflow_route_task_classification_path_boilerplate",
+    "workflow_internal_source_tag_leak_extended",
+    "conversation_bypass_tool_restriction_boilerplate",
     "file_list_raw_lease_denied_echo",
     "file_list_raw_lease_denied_echo_unquoted",
     "workflow_retry_loop_next_actions_unordered_boilerplate",
@@ -185,10 +187,34 @@
       "regex": "(?:workflow_route|task_or_info_route).{0,220}(?:binary classification|automated classification based on semantic analysis|defaults to info)"
     },
     {
+      "id": "workflow_decision_tree_autoclassifier_boilerplate",
+      "severity": "error",
+      "description": "Shell must not claim the decision tree auto-classifies requests into info/task routes.",
+      "regex": "decision tree.{0,140}automatically classifies requests as either \"info\".{0,80}\"task\".{0,180}semantic analysis"
+    },
+    {
       "id": "workflow_gate_source_tag_leak",
       "severity": "error",
       "description": "Shell must not leak internal workflow gate source tags in user-facing output.",
       "regex": "\\[source:workflow_gate\\]"
+    },
+    {
+      "id": "workflow_decision_tree_source_tag_leak",
+      "severity": "error",
+      "description": "Shell must not leak internal tool decision-tree source tags in user-facing output.",
+      "regex": "\\[source:tool_decision_tree_v3\\]"
+    },
+    {
+      "id": "workflow_internal_source_tag_leak_extended",
+      "severity": "error",
+      "description": "Shell must not leak extended internal workflow source tags in user-facing output.",
+      "regex": "\\[source:(?:workflow_route_classification|gate_enforcement_mode|tool_decision_policy|conversation_bypass_control|agent_framework_analysis|tool_gate)\\]"
+    },
+    {
+      "id": "conversation_bypass_tool_restriction_boilerplate",
+      "severity": "error",
+      "description": "Shell must not claim conversation-bypass internals are restricting normal tool use in user-facing output.",
+      "regex": "(?:conversation bypass mode is currently active|restricted from running web searches|can'?t autonomously decide to use web tools|requires manual step-by-step authorization for tool usage)"
     },
     {
       "id": "automatic_tool_trigger_backend_automation_admission",

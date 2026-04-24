@@ -110,20 +110,20 @@
         "--strict=1"
       ]
     },
-    "audit:client-layer-boundary": {
+    "audit:shell-layer-boundary": {
       "owner": "ops",
-      "description": "Client layer boundary audit with explicit artifact output.",
+      "description": "Shell layer boundary audit with explicit artifact output.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "command": [
         "node",
         "client/runtime/lib/ts_entrypoint.ts",
-        "tests/tooling/scripts/ci/client_layer_boundary_audit.ts",
+        "tests/tooling/scripts/ci/shell_layer_boundary_audit.ts",
         "--strict=1",
-        "--out=core/local/artifacts/client_layer_boundary_audit_current.json"
+        "--out=core/local/artifacts/shell_layer_boundary_audit_current.json"
       ],
       "artifact_paths": [
-        "core/local/artifacts/client_layer_boundary_audit_current.json"
+        "core/local/artifacts/shell_layer_boundary_audit_current.json"
       ]
     },
     "ops:arch:conformance": {
@@ -734,53 +734,53 @@
         "core/local/artifacts/client_import_integrity_audit_current.json"
       ]
     },
-    "audit:client-scope-inventory": {
+    "audit:shell-scope-inventory": {
       "owner": "ops",
-      "description": "Client scope inventory.",
+      "description": "Shell scope inventory.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "command": [
         "node",
         "client/runtime/lib/ts_entrypoint.ts",
-        "tests/tooling/scripts/ci/client_scope_inventory.ts",
-        "--out=core/local/artifacts/client_scope_inventory_current.json"
+        "tests/tooling/scripts/ci/shell_scope_inventory.ts",
+        "--out=core/local/artifacts/shell_scope_inventory_current.json"
       ],
       "artifact_paths": [
-        "core/local/artifacts/client_scope_inventory_current.json"
+        "core/local/artifacts/shell_scope_inventory_current.json"
       ]
     },
-    "audit:client-surface-disposition": {
+    "audit:shell-surface-disposition": {
       "owner": "ops",
-      "description": "Client surface disposition inventory.",
+      "description": "Shell surface disposition inventory.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "command": [
         "node",
         "client/runtime/lib/ts_entrypoint.ts",
-        "tests/tooling/scripts/ci/client_surface_disposition.ts",
-        "--out=core/local/artifacts/client_surface_disposition_current.json"
+        "tests/tooling/scripts/ci/shell_surface_disposition.ts",
+        "--out=core/local/artifacts/shell_surface_disposition_current.json"
       ],
       "artifact_paths": [
-        "core/local/artifacts/client_surface_disposition_current.json"
+        "core/local/artifacts/shell_surface_disposition_current.json"
       ]
     },
-    "audit:client-target-contract": {
+    "audit:shell-target-contract": {
       "owner": "ops",
-      "description": "Client target contract audit.",
+      "description": "Shell target contract audit.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "command": [
         "node",
         "client/runtime/lib/ts_entrypoint.ts",
-        "tests/tooling/scripts/ci/client_target_contract_audit.ts",
+        "tests/tooling/scripts/ci/shell_target_contract_audit.ts",
         "--strict=1",
-        "--scope=core/local/artifacts/client_scope_inventory_current.json",
-        "--boundary=core/local/artifacts/client_layer_boundary_audit_current.json",
-        "--disposition=core/local/artifacts/client_surface_disposition_current.json",
-        "--out=core/local/artifacts/client_target_contract_audit_current.json"
+        "--scope=core/local/artifacts/shell_scope_inventory_current.json",
+        "--boundary=core/local/artifacts/shell_layer_boundary_audit_current.json",
+        "--disposition=core/local/artifacts/shell_surface_disposition_current.json",
+        "--out=core/local/artifacts/shell_target_contract_audit_current.json"
       ],
       "artifact_paths": [
-        "core/local/artifacts/client_target_contract_audit_current.json"
+        "core/local/artifacts/shell_target_contract_audit_current.json"
       ]
     },
     "ops:runtime-proof:verify": {
@@ -870,9 +870,12 @@
       "artifact_paths": [
         "artifacts/workspace_tooling_context_soak_report_latest.json",
         "artifacts/workspace_tooling_soak_report_latest.json",
+        "artifacts/workspace_tooling_reliability_latest.json",
         "core/local/artifacts/workspace_tooling_context_soak_current.json",
         "core/local/artifacts/workspace_tooling_soak_current.json",
+        "core/local/artifacts/workspace_tooling_reliability_current.json",
         "local/state/ops/workspace_tooling_context_soak/latest.json",
+        "local/state/ops/workspace_tooling_context_soak/reliability_latest.json",
         "local/workspace/reports/WORKSPACE_TOOLING_CONTEXT_SOAK_CURRENT.md"
       ]
     },
@@ -885,6 +888,56 @@
       "artifact_paths": [
         "core/local/artifacts/workspace_tooling_release_proof_current.json",
         "local/workspace/reports/WORKSPACE_TOOLING_RELEASE_PROOF_CURRENT.md"
+      ]
+    },
+    "ops:web-tooling:reliability:guard": {
+      "owner": "ops",
+      "description": "Web extraction reliability guard for clean-body synthesis input selection, parse-drift detection, and source-attribution integrity.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:web-tooling:reliability:guard",
+      "artifact_paths": [
+        "core/local/artifacts/web_tooling_reliability_current.json",
+        "artifacts/web_tooling_reliability_latest.json",
+        "local/state/ops/web_tooling_reliability/latest.json",
+        "local/workspace/reports/WEB_TOOLING_RELIABILITY_CURRENT.md"
+      ]
+    },
+    "ops:synthesis:mixed-evidence:guard": {
+      "owner": "ops",
+      "description": "Synthesis mixed-evidence quality guard with deterministic answer-shape contracts and contradiction clarification/recovery fail-close checks.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:synthesis:mixed-evidence:guard",
+      "artifact_paths": [
+        "core/local/artifacts/synthesis_mixed_evidence_quality_current.json",
+        "artifacts/synthesis_mixed_evidence_quality_latest.json",
+        "local/state/ops/synthesis_mixed_evidence/latest.json",
+        "local/workspace/reports/SYNTHESIS_MIXED_EVIDENCE_QUALITY_CURRENT.md"
+      ]
+    },
+    "ops:workflow-failure-recovery:guard": {
+      "owner": "ops",
+      "description": "Workflow finalization failure-recovery guard enforcing repetitive-fallback loop blocking, bounded retries, and forced degraded synthesis terminal contracts.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:workflow-failure-recovery:guard",
+      "artifact_paths": [
+        "core/local/artifacts/workflow_failure_recovery_current.json",
+        "artifacts/workflow_failure_recovery_latest.json",
+        "local/state/ops/workflow_failure_recovery/latest.json",
+        "local/workspace/reports/WORKFLOW_FAILURE_RECOVERY_CURRENT.md"
+      ]
+    },
+    "ops:tool-route:misdirection:guard": {
+      "owner": "ops",
+      "description": "Deterministic local-intent tool-route misdirection guard with per-request route/rejected-route/reason-code artifact output.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:tool-route:misdirection:guard",
+      "artifact_paths": [
+        "core/local/artifacts/tool_route_decision_current.json",
+        "local/workspace/reports/TOOL_ROUTE_MISDIRECTION_GUARD_CURRENT.md"
       ]
     },
     "ops:gateway-runtime-chaos:gate": {
@@ -1289,6 +1342,8 @@
       "script": "ops:windows-installer:contract:guard",
       "artifact_paths": [
         "core/local/artifacts/windows_installer_contract_guard_current.json",
+        "core/local/artifacts/windows_install_reliability_current.json",
+        "local/workspace/reports/WINDOWS_INSTALL_RELIABILITY_CURRENT.md",
         "local/workspace/reports/WINDOWS_INSTALLER_CONTRACT_GUARD_CURRENT.md"
       ]
     },
@@ -1338,13 +1393,248 @@
     },
     "ops:capability-proof-burden:guard": {
       "owner": "ops",
-      "description": "Capability proof-burden contract guard for PR templates and policy markers (invariant/failure/receipt/recovery/proof).",
+      "description": "Capability proof-burden contract guard for PR templates, policy markers, and PR metadata mapping for net-new capability ownership + proof/gate coverage.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "ops:capability-proof-burden:guard",
       "artifact_paths": [
         "core/local/artifacts/capability_proof_burden_guard_current.json",
         "local/workspace/reports/CAPABILITY_PROOF_BURDEN_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:ownership:drift:weekly": {
+      "owner": "ops",
+      "description": "Weekly ownership drift severity-budget report with unresolved high-severity fail-close thresholds.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:ownership:drift:weekly",
+      "artifact_paths": [
+        "core/local/artifacts/ownership_drift_weekly_current.json",
+        "local/workspace/reports/OWNERSHIP_DRIFT_WEEKLY_CURRENT.md"
+      ]
+    },
+    "ops:parity:e2e:replay": {
+      "owner": "ops",
+      "description": "End-to-end parity replay suite across typed probe routing, workspace/web tooling, synthesis, and recovery traces.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:parity:e2e:replay",
+      "artifact_paths": [
+        "core/local/artifacts/parity_end_to_end_replay_current.json",
+        "artifacts/parity_end_to_end_replay_latest.json",
+        "local/workspace/reports/PARITY_END_TO_END_REPLAY_CURRENT.md"
+      ]
+    },
+    "ops:parity:trend:report": {
+      "owner": "ops",
+      "description": "Empirical parity trend report with per-gap score deltas and confidence bands.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:parity:trend:report",
+      "artifact_paths": [
+        "core/local/artifacts/parity_trend_current.json",
+        "artifacts/parity_trend_latest.json",
+        "local/state/ops/parity/parity_trend_history.jsonl",
+        "local/workspace/reports/PARITY_TREND_CURRENT.md"
+      ]
+    },
+    "ops:parity:release:gate": {
+      "owner": "ops",
+      "description": "Release parity gate requiring parity artifacts and minimum score thresholds before release verdict pass.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:parity:release:gate",
+      "artifact_paths": [
+        "core/local/artifacts/parity_release_gate_current.json",
+        "artifacts/parity_release_gate_latest.json",
+        "local/workspace/reports/PARITY_RELEASE_GATE_CURRENT.md"
+      ]
+    },
+    "ops:gem:provider:live-smoke": {
+      "owner": "ops",
+      "description": "GEM live-provider smoke lane for typed web_search/web_fetch production provider routing with deterministic skip diagnostics when credentials are absent.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 120,
+      "script": "ops:gem:provider:live-smoke",
+      "artifact_paths": [
+        "core/local/artifacts/gem_live_provider_smoke_current.json",
+        "artifacts/gem_live_provider_smoke_latest.json",
+        "local/state/ops/gem_live_provider_smoke/latest.json",
+        "local/workspace/reports/GEM_LIVE_PROVIDER_SMOKE_CURRENT.md"
+      ]
+    },
+    "ops:gem:memory:durability": {
+      "owner": "ops",
+      "description": "GEM persistent-memory durability lane verifying durable writes, bounded readback, and receipt-lineage replay contracts.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:gem:memory:durability",
+      "artifact_paths": [
+        "core/local/artifacts/gem_memory_durability_current.json",
+        "artifacts/gem_memory_durability_latest.json",
+        "local/state/ops/gem_memory_durability/latest.json",
+        "local/workspace/reports/GEM_MEMORY_DURABILITY_CURRENT.md"
+      ]
+    },
+    "ops:gem:subagent-route:guard": {
+      "owner": "ops",
+      "description": "GEM subagent runtime route contract guard enforcing kernel-bound scheduling, deterministic receipts, and fail-closed fallback semantics.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:gem:subagent-route:guard",
+      "artifact_paths": [
+        "core/local/artifacts/gem_subagent_route_contract_current.json",
+        "artifacts/gem_subagent_route_contract_latest.json",
+        "local/state/ops/gem_subagent_route_contract/latest.json",
+        "local/workspace/reports/GEM_SUBAGENT_ROUTE_CONTRACT_CURRENT.md"
+      ]
+    },
+    "ops:gem:closure:guard": {
+      "owner": "ops",
+      "description": "GEM closure guard validating actionable operator diagnostics, canonical failure reasons, cache/rate-limit/circuit-breaker contracts, and aggregate GEM-001..012 coverage.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:gem:closure:guard",
+      "artifact_paths": [
+        "core/local/artifacts/gem_feedback_closure_guard_current.json",
+        "artifacts/gem_feedback_closure_guard_latest.json",
+        "local/state/ops/gem_feedback_closure_guard/latest.json",
+        "local/workspace/reports/GEM_FEEDBACK_CLOSURE_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:eval-agent:chat-monitor:guard": {
+      "owner": "ops",
+      "description": "Live passive-memory chat monitor guard for eval-agent freshness and actionable troubleshooting feedback emission.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:eval-agent:chat-monitor:guard",
+      "artifact_paths": [
+        "core/local/artifacts/eval_agent_chat_monitor_guard_current.json",
+        "artifacts/eval_agent_chat_monitor_guard_latest.json",
+        "local/state/ops/eval_agent_chat_monitor/latest.json",
+        "local/workspace/reports/EVAL_AGENT_CHAT_MONITOR_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:eval:quality:metrics:guard": {
+      "owner": "ops",
+      "description": "Eval quality metrics guard enforcing precision/recall/FPR/actionability/calibration thresholds and regression contracts from labeled gold dataset + monitor feedback.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:eval:quality:metrics:guard",
+      "artifact_paths": [
+        "core/local/artifacts/eval_quality_metrics_current.json",
+        "artifacts/eval_quality_metrics_latest.json",
+        "local/workspace/reports/EVAL_QUALITY_METRICS_CURRENT.md"
+      ]
+    },
+    "ops:eval:monitor:slo:guard": {
+      "owner": "ops",
+      "description": "Eval monitor freshness/uptime SLO guard with alert threshold contracts.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:eval:monitor:slo:guard",
+      "artifact_paths": [
+        "core/local/artifacts/eval_monitor_slo_current.json",
+        "artifacts/eval_monitor_slo_latest.json",
+        "local/workspace/reports/EVAL_MONITOR_SLO_CURRENT.md"
+      ]
+    },
+    "ops:eval:reviewer:weekly:ingest": {
+      "owner": "ops",
+      "description": "Weekly reviewer feedback ingestion and calibration-delta report for eval quality.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:eval:reviewer:weekly:ingest",
+      "artifact_paths": [
+        "core/local/artifacts/eval_reviewer_feedback_weekly_current.json",
+        "artifacts/eval_reviewer_feedback_weekly_latest.json",
+        "local/workspace/reports/EVAL_REVIEWER_FEEDBACK_WEEKLY_CURRENT.md"
+      ]
+    },
+    "ops:eval:adversarial:guard": {
+      "owner": "ops",
+      "description": "Adversarial eval suite guard covering quoted spoofing, tool-route spoofing, and template spam escapes.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:eval:adversarial:guard",
+      "artifact_paths": [
+        "core/local/artifacts/eval_adversarial_guard_current.json",
+        "artifacts/eval_adversarial_guard_latest.json",
+        "local/workspace/reports/EVAL_ADVERSARIAL_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:eval:issue:filing:guard": {
+      "owner": "ops",
+      "description": "Eval issue drafting + safe filing policy guard with human-approval gating.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:eval:issue:filing:guard",
+      "artifact_paths": [
+        "core/local/artifacts/eval_issue_filing_guard_current.json",
+        "artifacts/eval_issue_filing_guard_latest.json",
+        "local/state/ops/eval_agent_chat_monitor/issue_drafts_latest.json",
+        "local/workspace/reports/EVAL_ISSUE_FILING_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:eval:issue:resolution:guard": {
+      "owner": "ops",
+      "description": "Eval issue patch-link closure tracking, fix-failed signaling, and dashboard panel payload.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:eval:issue:resolution:guard",
+      "artifact_paths": [
+        "core/local/artifacts/eval_issue_resolution_current.json",
+        "artifacts/eval_issue_resolution_latest.json",
+        "client/runtime/local/state/ui/infring_dashboard/troubleshooting/eval_issue_resolution_panel.json",
+        "local/workspace/reports/EVAL_ISSUE_RESOLUTION_CURRENT.md"
+      ]
+    },
+    "ops:eval:quality:gate:v1": {
+      "owner": "ops",
+      "description": "RC-quality eval gate requiring threshold pass continuity before autonomous escalation enablement.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:eval:quality:gate:v1",
+      "artifact_paths": [
+        "core/local/artifacts/eval_quality_gate_v1_current.json",
+        "artifacts/eval_quality_gate_v1_latest.json",
+        "local/state/ops/eval_quality_gate_v1/history.json",
+        "local/workspace/reports/EVAL_QUALITY_GATE_V1_CURRENT.md"
+      ]
+    },
+    "ops:eval:autopilot:guard": {
+      "owner": "ops",
+      "description": "Eval autopilot orchestration guard synthesizing quality/SLO/adversarial/issue-state signals into prioritized actionable operations.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:eval:autopilot:guard",
+      "artifact_paths": [
+        "core/local/artifacts/eval_autopilot_guard_current.json",
+        "artifacts/eval_autopilot_guard_latest.json",
+        "local/state/ops/eval_autopilot/latest.json",
+        "local/workspace/reports/EVAL_AUTOPILOT_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:eval:judge-human:agreement:guard": {
+      "owner": "ops",
+      "description": "Judge-vs-human agreement calibration guard for eval issue synthesis quality.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:eval:judge-human:agreement:guard",
+      "artifact_paths": [
+        "core/local/artifacts/eval_judge_human_agreement_current.json",
+        "local/workspace/reports/EVAL_JUDGE_HUMAN_AGREEMENT_CURRENT.md"
+      ]
+    },
+    "ops:eval:runtime:authority:guard": {
+      "owner": "ops",
+      "description": "Fail-closed guard ensuring eval authority lives in orchestration runtime and tests remain wrappers.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:eval:runtime:authority:guard",
+      "artifact_paths": [
+        "core/local/artifacts/eval_runtime_authority_guard_current.json",
+        "local/workspace/reports/EVAL_RUNTIME_AUTHORITY_GUARD_CURRENT.md"
       ]
     }
   }

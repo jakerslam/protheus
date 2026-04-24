@@ -7,12 +7,12 @@ import { currentRevision } from '../../lib/git.ts';
 import { emitStructuredResult } from '../../lib/result.ts';
 
 const ROOT = process.cwd();
-const SCRIPT_PATH = 'tests/tooling/scripts/ci/client_surface_disposition.ts';
+const SCRIPT_PATH = 'tests/tooling/scripts/ci/shell_surface_disposition.ts';
 
 function parseArgs(argv) {
   const out = {
-    policy: 'client/runtime/config/client_target_contract_policy.json',
-    out: 'core/local/artifacts/client_surface_disposition_current.json',
+    policy: 'client/runtime/config/shell_target_contract_policy.json',
+    out: 'core/local/artifacts/shell_surface_disposition_current.json',
   };
   out.policy = cleanText(readFlag(argv, 'policy') || out.policy, 400);
   out.out = cleanText(readFlag(argv, 'out') || out.out, 400);
@@ -139,7 +139,7 @@ function buildReport(policyRelPath, root = ROOT) {
   });
 
   return {
-    type: 'client_surface_disposition',
+    type: 'shell_surface_disposition',
     generated_at: new Date().toISOString(),
     revision,
     policy_path: path.relative(root, policyPath).replace(/\\/g, '/'),

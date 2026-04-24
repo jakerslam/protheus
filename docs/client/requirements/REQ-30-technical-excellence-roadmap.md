@@ -22,7 +22,7 @@ Convert roadmap claims into executable requirements with hard separation between
 - Bind this schema into documentation and quality gates.
 
 ### REQ-30-003 Conduit-only boundary hard gate
-- Runtime policy check must fail strict mode when client surfaces bypass conduit boundaries.
+- Runtime policy check must fail strict mode when shell surfaces bypass conduit boundaries.
 - Guard must run in CI and local verify flow.
 - Existing dependency-boundary guard is the enforcement lane.
 

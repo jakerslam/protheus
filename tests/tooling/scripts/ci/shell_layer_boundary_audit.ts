@@ -20,7 +20,7 @@ const IGNORED_DIR_NAMES = new Set([
 function parseArgs(argv) {
   const common = parseStrictOutArgs(argv, {});
   const out = {
-    policy: cleanText(readFlag(argv, 'policy') || 'client/runtime/config/client_layer_boundary_policy.json', 400),
+    policy: cleanText(readFlag(argv, 'policy') || 'client/runtime/config/shell_layer_boundary_policy.json', 400),
     out: cleanText(common.out || '', 400),
     strict: common.strict,
   };
@@ -79,6 +79,7 @@ function main() {
 
   let wrapperCount = 0;
   const allowedNonWrapperPaths = [];
+  const allowedNonWrapperForbiddenMarkerPaths = [];
   const violations = [];
 
   for (const abs of files) {
@@ -97,6 +98,12 @@ function main() {
     }
     if (allowedNonWrapper.has(rp) || startsWithAny(rp, allowedNonWrapperRoots)) {
       allowedNonWrapperPaths.push(rp);
+      if (forbiddenWrapperMarkers.length > 0) {
+        allowedNonWrapperForbiddenMarkerPaths.push({
+          file: rp,
+          forbidden_wrapper_markers: forbiddenWrapperMarkers,
+        });
+      }
       continue;
     }
     violations.push({
@@ -109,7 +116,11 @@ function main() {
     });
   }
 
-  const allowedLimit = Number(policy.max_allowed_non_wrapper_count || 0);
+  const rawAllowedLimit = Number(policy.max_allowed_non_wrapper_count);
+  const allowedLimit =
+    Number.isFinite(rawAllowedLimit) && rawAllowedLimit >= 0
+      ? rawAllowedLimit
+      : Number.MAX_SAFE_INTEGER;
   const limitOk = allowedNonWrapperPaths.length <= allowedLimit;
   if (!limitOk) {
     violations.push({
@@ -120,7 +131,7 @@ function main() {
   }
 
   const payload = {
-    type: 'client_layer_boundary_audit',
+    type: 'shell_layer_boundary_audit',
     generated_at: new Date().toISOString(),
     revision,
     policy_path: rel(policyPath),
@@ -128,10 +139,13 @@ function main() {
       scanned_files: files.length,
       wrapper_count: wrapperCount,
       allowed_non_wrapper_count: allowedNonWrapperPaths.length,
+      allowed_non_wrapper_limit: allowedLimit,
+      allowed_non_wrapper_forbidden_marker_count: allowedNonWrapperForbiddenMarkerPaths.length,
       violation_count: violations.length,
       pass: violations.length === 0,
     },
     allowed_non_wrapper_paths: allowedNonWrapperPaths.sort(),
+    allowed_non_wrapper_forbidden_marker_paths: allowedNonWrapperForbiddenMarkerPaths,
     violations,
   };
 

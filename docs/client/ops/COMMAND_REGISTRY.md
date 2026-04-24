@@ -163,11 +163,11 @@ Generated: 2026-04-11T13:40:08.514Z
 | `ops:ci-quality:check` | ops | operations | 2 | package |
 | `ops:ci-workflow:check` | ops | operations | 2 | package |
 | `ops:client-import-integrity:audit` | ops | operations | 2 | package |
-| `ops:client-layer:boundary` | ops | operations | 2 | package |
+| `ops:shell-layer:boundary` | ops | operations | 2 | package |
 | `ops:client-legacy-debt:report` | ops | operations | 2 | package |
-| `ops:client-scope:inventory` | ops | operations | 2 | package |
-| `ops:client-surface:disposition` | ops | operations | 2 | package |
-| `ops:client-target:audit` | ops | operations | 2 | package |
+| `ops:shell-scope:inventory` | ops | operations | 2 | package |
+| `ops:shell-surface:disposition` | ops | operations | 2 | package |
+| `ops:shell-target:audit` | ops | operations | 2 | package |
 | `ops:client:wrapper-compaction-candidates` | ops | operations | 2 | package |
 | `ops:cockpit:inside` | ops | operations | 2 | package |
 | `ops:codex:wave:preflight` | ops | operations | 2 | package |

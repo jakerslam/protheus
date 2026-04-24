@@ -89,6 +89,10 @@ function normalizeCrateName(value: string): string {
   return value.trim().replace(/-/g, '_');
 }
 
+function isProcMacroDeriveCrate(value: string): boolean {
+  return normalizeCrateName(value).endsWith('_derive');
+}
+
 function todayIsoDate(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -396,6 +400,7 @@ function main() {
     const srcManifest = nearestManifest(file, manifests);
     if (!srcManifest) continue;
     const srcCrate = srcManifest.crate_name;
+    const fileInPolicyScope = isUnderAnyRoot(file, rustRoots);
     let source = '';
     try {
       source = fs.readFileSync(path.resolve(ROOT, file), 'utf8');
@@ -449,7 +454,9 @@ function main() {
         continue;
       }
       if (nexusCrates.has(srcCrate) || nexusCrates.has(toCrate)) continue;
+      if (!fileInPolicyScope) continue;
       if (allowedFoundationCrates.has(toCrate)) continue;
+      if (isProcMacroDeriveCrate(toCrate)) continue;
 
       const edge = importEdgeKey(srcCrate, toCrate);
       if (importExemptions.has(edge)) {
@@ -487,6 +494,7 @@ function main() {
     const srcManifest = manifests.find((m) => m.manifest === manifestPath);
     if (!srcManifest) continue;
     const srcCrate = srcManifest.crate_name;
+    const manifestInPolicyScope = isUnderAnyRoot(manifestPath, cargoRoots);
     let source = '';
     try {
       source = fs.readFileSync(path.resolve(ROOT, manifestPath), 'utf8');
@@ -550,7 +558,9 @@ function main() {
         continue;
       }
       if (nexusCrates.has(srcCrate) || nexusCrates.has(targetCrate)) continue;
+      if (!manifestInPolicyScope) continue;
       if (allowedFoundationCrates.has(targetCrate)) continue;
+      if (isProcMacroDeriveCrate(targetCrate)) continue;
 
       const edge = cargoPathEdgeKey(manifestPath, rawPath);
       if (cargoPathExemptions.has(edge)) {

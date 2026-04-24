@@ -1,0 +1,13 @@
+{
+  "type": "eval_issue_filing_policy",
+  "version": "v1",
+  "updated_at": "2026-04-23T22:34:00.000Z",
+  "min_severity": "high",
+  "min_confidence": 0.8,
+  "require_persistence_threshold_met": true,
+  "require_human_approval": true,
+  "allow_severities": [
+    "high",
+    "critical"
+  ]
+}

@@ -367,6 +367,145 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     auto_heal_backpressure: 'runtime-recovery',
   };
   const expectedOwnerKeys = Object.keys(expectedOwnerByBucket);
+  const boardBuckets = Array.isArray(board?.buckets) ? board.buckets : [];
+  const boardBucketIdList = boardBuckets
+    .map((row: any) => cleanText(row?.id || '', 80))
+    .filter(Boolean);
+  const boardBucketIdsUnique = new Set(boardBucketIdList).size === boardBucketIdList.length;
+  const boardBucketIdsCanonical = boardBucketIdList.every((bucketId) => isCanonicalBucketToken(bucketId));
+  const shareableGateAllowlist = Array.from(shareableCrossBucketGateAllowlist.values());
+  const shareableGateAllowlistUnique = new Set(shareableGateAllowlist).size === shareableGateAllowlist.length;
+  const shareableGateAllowlistCanonical = shareableGateAllowlist.every((gateId) => isCanonicalGateToken(gateId));
+  const templateLower = cleanText(template, 120_000).toLowerCase();
+  const requiredTemplateSections = ['## major features', '## capability features'];
+  const missingTemplateSections = requiredTemplateSections.filter(
+    (token) => !templateLower.includes(token),
+  );
+
+  if (outPathToken !== 'core/local/artifacts/runtime_closure_feature_alignment_guard_current.json') {
+    failures.push({
+      id: 'runtime_closure_feature_alignment_dp_out_path_exact_contract',
+      detail: outPathToken || 'missing',
+    });
+  }
+  if (
+    markdownPathToken
+    !== 'local/workspace/reports/RUNTIME_CLOSURE_FEATURE_ALIGNMENT_GUARD_CURRENT.md'
+  ) {
+    failures.push({
+      id: 'runtime_closure_feature_alignment_dp_markdown_path_exact_contract',
+      detail: markdownPathToken || 'missing',
+    });
+  }
+  if (templatePathToken !== '.github/pull_request_template.md') {
+    failures.push({
+      id: 'runtime_closure_feature_alignment_dp_template_path_exact_contract',
+      detail: templatePathToken || 'missing',
+    });
+  }
+  if (gateRegistryPathToken !== 'tests/tooling/config/tooling_gate_registry.json') {
+    failures.push({
+      id: 'runtime_closure_feature_alignment_dp_gate_registry_path_exact_contract',
+      detail: gateRegistryPathToken || 'missing',
+    });
+  }
+  if (placeholderToken(outPathToken)) {
+    failures.push({
+      id: 'runtime_closure_feature_alignment_dp_out_path_not_placeholder_contract',
+      detail: outPathToken || 'missing',
+    });
+  }
+  if (placeholderToken(markdownPathToken)) {
+    failures.push({
+      id: 'runtime_closure_feature_alignment_dp_markdown_path_not_placeholder_contract',
+      detail: markdownPathToken || 'missing',
+    });
+  }
+  if (placeholderToken(templatePathToken)) {
+    failures.push({
+      id: 'runtime_closure_feature_alignment_dp_template_path_not_placeholder_contract',
+      detail: templatePathToken || 'missing',
+    });
+  }
+  if (placeholderToken(boardPathToken)) {
+    failures.push({
+      id: 'runtime_closure_feature_alignment_dp_board_path_not_placeholder_contract',
+      detail: boardPathToken || 'missing',
+    });
+  }
+  if (placeholderToken(gateRegistryPathToken)) {
+    failures.push({
+      id: 'runtime_closure_feature_alignment_dp_gate_registry_path_not_placeholder_contract',
+      detail: gateRegistryPathToken || 'missing',
+    });
+  }
+  if (!fs.existsSync(templatePath)) {
+    failures.push({
+      id: 'runtime_closure_feature_alignment_dp_template_file_exists_contract',
+      detail: templatePathToken || 'missing',
+    });
+  }
+  if (!fs.existsSync(boardPath)) {
+    failures.push({
+      id: 'runtime_closure_feature_alignment_dp_board_file_exists_contract',
+      detail: boardPathToken || 'missing',
+    });
+  }
+  if (!fs.existsSync(gateRegistryPath)) {
+    failures.push({
+      id: 'runtime_closure_feature_alignment_dp_gate_registry_file_exists_contract',
+      detail: gateRegistryPathToken || 'missing',
+    });
+  }
+  if (cleanText(template, 120_000).length < 400) {
+    failures.push({
+      id: 'runtime_closure_feature_alignment_dp_template_minimum_length_contract',
+      detail: `${cleanText(template, 120_000).length}`,
+    });
+  }
+  if (missingTemplateSections.length > 0) {
+    failures.push({
+      id: 'runtime_closure_feature_alignment_dp_template_required_sections_contract',
+      detail: missingTemplateSections.join(','),
+    });
+  }
+  if (shareableGateAllowlist.length === 0) {
+    failures.push({
+      id: 'runtime_closure_feature_alignment_dp_shareable_gate_allowlist_nonempty_contract',
+      detail: 'empty',
+    });
+  }
+  if (!shareableGateAllowlistCanonical) {
+    failures.push({
+      id: 'runtime_closure_feature_alignment_dp_shareable_gate_allowlist_token_contract',
+      detail: shareableGateAllowlist.join(','),
+    });
+  }
+  if (!shareableGateAllowlistUnique) {
+    failures.push({
+      id: 'runtime_closure_feature_alignment_dp_shareable_gate_allowlist_unique_contract',
+      detail: shareableGateAllowlist.join(','),
+    });
+  }
+  if (expectedBucketSet.size !== expectedBucketOrder.length) {
+    failures.push({
+      id: 'runtime_closure_feature_alignment_dp_expected_bucket_set_size_contract',
+      detail: `${expectedBucketSet.size}|${expectedBucketOrder.length}`,
+    });
+  }
+  if (!boardBucketIdsUnique) {
+    failures.push({
+      id: 'runtime_closure_feature_alignment_dp_board_bucket_ids_unique_contract',
+      detail: boardBucketIdList.join(','),
+    });
+  }
+  if (!boardBucketIdsCanonical) {
+    failures.push({
+      id: 'runtime_closure_feature_alignment_dp_board_bucket_ids_canonical_contract',
+      detail: boardBucketIdList.join(','),
+    });
+  }
+
   if (!isCanonicalRepoRelativePathToken(outPathToken, 'core/local/artifacts/', '_current.json')) {
     failures.push({
       id: 'runtime_closure_feature_alignment_out_path_noncanonical',

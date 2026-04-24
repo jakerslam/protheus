@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://infring.local/schemas/eval_gold_dataset.schema.json",
+  "title": "EvalGoldDatasetRow",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "source_event_id",
+    "ts",
+    "prompt",
+    "assistant_text",
+    "labels"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 3
+    },
+    "source_event_id": {
+      "type": "string",
+      "minLength": 3
+    },
+    "ts": {
+      "type": "string",
+      "minLength": 20
+    },
+    "prompt": {
+      "type": "string",
+      "minLength": 1
+    },
+    "assistant_text": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tool_trace": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "labels": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "issue_class",
+        "severity",
+        "is_failure",
+        "expected_fix"
+      ],
+      "properties": {
+        "issue_class": {
+          "type": "string",
+          "minLength": 2
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "info",
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ]
+        },
+        "is_failure": {
+          "type": "boolean"
+        },
+        "expected_fix": {
+          "type": "string",
+          "minLength": 5
+        }
+      }
+    }
+  }
+}

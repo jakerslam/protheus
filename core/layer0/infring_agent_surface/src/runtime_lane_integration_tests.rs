@@ -33,6 +33,10 @@ fn runtime_lane_pack_permission_ask_fail_closes() {
         response.error.as_deref(),
         Some("runtime_lane_pack_permission_denied")
     );
+    let contract = response.contract.to_string();
+    assert!(contract.contains("\"enforcement_mode\":\"strict_fail_closed\""));
+    assert!(contract.contains("\"blocked_permission_key_lineage\""));
+    assert!(contract.contains("\"permissions_parent_snapshot\""));
 }
 
 #[test]

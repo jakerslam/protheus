@@ -6,14 +6,92 @@ use crate::contracts::{
 };
 
 pub fn coordinate_recovery_escalation(
-    _request: &TypedOrchestrationRequest,
+    request: &TypedOrchestrationRequest,
     mut plan: OrchestrationPlan,
 ) -> (OrchestrationPlan, bool) {
+    const DEFAULT_MAX_TOOL_FAILURE_PER_TURN: usize = 3;
+
+    fn read_tool_failure_budget_limit(request: &TypedOrchestrationRequest) -> usize {
+        fn parse_limit(value: Option<&serde_json::Value>) -> Option<usize> {
+            value
+                .and_then(|row| row.as_u64())
+                .and_then(|row| usize::try_from(row).ok())
+                .filter(|row| *row > 0)
+        }
+        parse_limit(request.payload.get("max_tool_failure_per_turn"))
+            .or_else(|| {
+                request
+                    .payload
+                    .get("runtime")
+                    .and_then(|row| row.get("max_tool_failure_per_turn"))
+                    .and_then(|row| row.as_u64())
+                    .and_then(|row| usize::try_from(row).ok())
+                    .filter(|row| *row > 0)
+            })
+            .or_else(|| {
+                request
+                    .payload
+                    .get("orchestration")
+                    .and_then(|row| row.get("max_tool_failure_per_turn"))
+                    .and_then(|row| row.as_u64())
+                    .and_then(|row| usize::try_from(row).ok())
+                    .filter(|row| *row > 0)
+            })
+            .unwrap_or(DEFAULT_MAX_TOOL_FAILURE_PER_TURN)
+    }
+
+    fn failed_step_count(plan: &OrchestrationPlan) -> usize {
+        plan.execution_state
+            .steps
+            .iter()
+            .filter(|row| row.status == StepStatus::Failed)
+            .count()
+    }
+
+    fn apply_tool_failure_budget_recovery(
+        request: &TypedOrchestrationRequest,
+        plan: &mut OrchestrationPlan,
+    ) -> bool {
+        let failed_steps = failed_step_count(plan);
+        if failed_steps == 0 {
+            return false;
+        }
+        let limit = read_tool_failure_budget_limit(request);
+        if failed_steps < limit {
+            return false;
+        }
+        let reason_marker = format!("recovery:tool_failure_budget_exceeded:{failed_steps}:{limit}");
+        if !plan.classification.reasons.contains(&reason_marker) {
+            plan.classification.reasons.push(reason_marker);
+        }
+        plan.posture = ExecutionPosture::Ask;
+        plan.needs_clarification = true;
+        plan.classification.needs_clarification = true;
+        plan.clarification_prompt = Some(
+            "tool failure budget was exceeded for this turn; narrow scope or adjust route before retry"
+                .to_string(),
+        );
+        plan.execution_state.plan_status = PlanStatus::ClarificationRequired;
+        plan.execution_state.recovery = Some(RecoveryState {
+            decision: RecoveryDecision::Clarify,
+            reason: Some(RecoveryReason::ToolFailureBudgetExceeded),
+            retryable: true,
+            note: format!(
+                "tool failure budget reached ({failed_steps}/{limit}); switched to clarification-first recovery"
+            ),
+        });
+        true
+    }
+
     if matches!(
         plan.execution_state.plan_status,
         PlanStatus::Running | PlanStatus::Completed
     ) {
         return (plan, false);
+    }
+
+    if apply_tool_failure_budget_recovery(request, &mut plan) {
+        return (plan, true);
     }
 
     if apply_blocked_precondition_recovery(

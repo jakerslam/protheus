@@ -381,4 +381,80 @@ mod tests {
             .required_capabilities
             .contains(&Capability::ToolRoute));
     }
+
+    #[test]
+    fn workspace_read_request_classification_excludes_web_capabilities() {
+        let request = ParseResult {
+            typed_request: crate::contracts::TypedOrchestrationRequest {
+                session_id: "workspace-read-only".to_string(),
+                surface: RequestSurface::Legacy,
+                legacy_intent: "read local file".to_string(),
+                adapted: false,
+                payload: json!({}),
+                request_kind: RequestKind::Direct,
+                operation_kind: OperationKind::Read,
+                resource_kind: ResourceKind::Workspace,
+                mutability: Mutability::ReadOnly,
+                target_descriptors: Vec::new(),
+                target_refs: vec!["README.md".to_string()],
+                tool_hints: vec!["workspace_read".to_string()],
+                policy_scope: crate::contracts::PolicyScope::WorkspaceOnly,
+                user_constraints: Vec::new(),
+                core_probe_envelope: None,
+            },
+            confidence: 0.82,
+            ambiguity: Vec::new(),
+            reasons: vec!["workspace_local_intent".to_string()],
+            surface_adapter_used: false,
+            surface_adapter_fallback: false,
+        };
+        let classification = classify_request(&request);
+        assert!(classification
+            .required_capabilities
+            .contains(&Capability::WorkspaceRead));
+        assert!(!classification
+            .required_capabilities
+            .contains(&Capability::WebSearch));
+        assert!(!classification
+            .required_capabilities
+            .contains(&Capability::WebFetch));
+    }
+
+    #[test]
+    fn tooling_route_classification_excludes_web_capabilities_for_local_tooling_intent() {
+        let request = ParseResult {
+            typed_request: crate::contracts::TypedOrchestrationRequest {
+                session_id: "local-tool-route".to_string(),
+                surface: RequestSurface::Legacy,
+                legacy_intent: "route local tooling request".to_string(),
+                adapted: false,
+                payload: json!({}),
+                request_kind: RequestKind::Direct,
+                operation_kind: OperationKind::InspectTooling,
+                resource_kind: ResourceKind::Tooling,
+                mutability: Mutability::ReadOnly,
+                target_descriptors: Vec::new(),
+                target_refs: vec!["tool_route".to_string()],
+                tool_hints: vec!["tool_route".to_string()],
+                policy_scope: crate::contracts::PolicyScope::Default,
+                user_constraints: Vec::new(),
+                core_probe_envelope: None,
+            },
+            confidence: 0.81,
+            ambiguity: Vec::new(),
+            reasons: vec!["local_tool_intent".to_string()],
+            surface_adapter_used: false,
+            surface_adapter_fallback: false,
+        };
+        let classification = classify_request(&request);
+        assert!(classification
+            .required_capabilities
+            .contains(&Capability::ToolRoute));
+        assert!(!classification
+            .required_capabilities
+            .contains(&Capability::WebSearch));
+        assert!(!classification
+            .required_capabilities
+            .contains(&Capability::WebFetch));
+    }
 }

@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "providers": {
+    "web_search": {
+      "provider_id": "infring_web_search_primary",
+      "typed_capability": "web_search",
+      "required_probe_key": "web_search",
+      "mode": "search",
+      "endpoint_env": "INFRING_WEB_SEARCH_ENDPOINT",
+      "api_key_envs": [
+        "INFRING_WEB_SEARCH_API_KEY",
+        "INFRING_SEARCH_API_KEY"
+      ],
+      "query_param": "q",
+      "sample_query": "infring runtime reliability"
+    },
+    "web_fetch": {
+      "provider_id": "infring_web_fetch_primary",
+      "typed_capability": "web_fetch",
+      "required_probe_key": "web_fetch",
+      "mode": "fetch",
+      "endpoint_env": "INFRING_WEB_FETCH_ENDPOINT",
+      "api_key_envs": [
+        "INFRING_WEB_FETCH_API_KEY",
+        "INFRING_FETCH_API_KEY"
+      ],
+      "url_param": "url",
+      "sample_url": "https://example.com/"
+    }
+  },
+  "bootstrap_contract": {
+    "required_env": [
+      "INFRING_WEB_SEARCH_ENDPOINT",
+      "INFRING_WEB_FETCH_ENDPOINT"
+    ],
+    "allow_skip_without_credentials": true,
+    "required_skip_reasons": [
+      "provider_endpoint_missing",
+      "provider_credentials_missing",
+      "provider_invalid_configuration"
+    ]
+  },
+  "rate_limit_contract": {
+    "per_provider_burst_max": 20,
+    "sustained_rps_max": 5,
+    "on_budget_exhausted": "fail_closed"
+  },
+  "circuit_breaker_contract": {
+    "states": [
+      "closed",
+      "half_open",
+      "open"
+    ],
+    "quarantine_transition_required": true,
+    "cooldown_seconds_min": 30
+  },
+  "cache_contract": {
+    "skip_reason_required_when_skipped": true,
+    "stale_age_seconds_field_required": true,
+    "write_block_on_provider_failure": true
+  },
+  "diagnostics_contract": {
+    "required_fields": [
+      "route_failure_reason",
+      "probe_failure_reason",
+      "provider_failure_reason",
+      "next_fix_hint"
+    ],
+    "boilerplate_denied_phrases": [
+      "I completed the workflow gate, but the final workflow state was unexpected.",
+      "Please retry so I can rerun the chain cleanly.",
+      "I completed the run, but the final reply did not render.",
+      "Ask me to continue and I will synthesize from the recorded workflow state.",
+      "Workflow gate completed but the final workflow state was unexpected. Next actions: run one targeted tool call, then return a concise answer from current context.",
+      "`file_list` was blocked by ingress delivery policy in this runtime lane (lease_denied:client_ingress_domain_boundary).",
+      "Tool trace complete1 done · 1 blocked."
+    ]
+  },
+  "provider_failure_reason_codes": [
+    "provider_registry_missing",
+    "provider_auth_missing",
+    "provider_invalid_configuration",
+    "provider_unreachable",
+    "provider_timeout",
+    "provider_rate_limited"
+  ],
+  "memory_contract": {
+    "store_path": "local/state/ops/gem_memory_backend/store.json",
+    "max_read_rows": 256,
+    "required_route_file": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/170-part.rs"
+  },
+  "subagent_contract": {
+    "route_id": "spawn_subagents",
+    "scheduling_authority": "kernel",
+    "fallback_mode": "fail_closed",
+    "required_runtime_file": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/131-part.rs"
+  }
+}

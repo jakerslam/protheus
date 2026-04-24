@@ -19,7 +19,7 @@
       "ops:test-priority:audit",
       "ops:legacy-memory-wrapper:audit",
       "ops:client-import-integrity:audit",
-      "ops:client-layer:boundary"
+      "ops:shell-layer:boundary"
     ]
   }
 }

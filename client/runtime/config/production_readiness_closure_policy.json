@@ -65,7 +65,7 @@
       "chaos:continuous:gate",
       "state:kernel:replay",
       "ops:production-topology:gate",
-      "audit:client-layer-boundary",
+      "audit:shell-layer-boundary",
       "ops:stateful-upgrade-rollback:gate",
       "ops:assimilation:v1:support:guard",
       "ops:orchestration:hidden-state:guard",
@@ -124,8 +124,8 @@
     ]
   },
   "standing_regression_guards": {
-    "client_authority_gate_id": "audit:client-layer-boundary",
-    "client_authority_package_script": "ops:client-layer:boundary"
+    "shell_authority_gate_id": "audit:shell-layer-boundary",
+    "shell_authority_package_script": "ops:shell-layer:boundary"
   },
   "numeric_thresholds": {
     "ipc_success_rate_min": 0.95,
@@ -185,7 +185,7 @@
     "dr:gameday:gate",
     "chaos:continuous:gate",
     "ops:runtime-telemetry:status",
-    "ops:client-layer:boundary",
+    "ops:shell-layer:boundary",
     "ops:support-bundle:export",
     "ops:production-closure:gate",
     "tooling:list",
@@ -223,7 +223,7 @@
         "chaos:continuous:gate",
         "state:kernel:replay",
         "ops:production-topology:gate",
-        "audit:client-layer-boundary",
+        "audit:shell-layer-boundary",
         "ops:orchestration:hidden-state:guard",
         "ops:release-hardening-window:guard",
         "ops:runtime-proof:verify",
@@ -256,7 +256,7 @@
     "Release-candidate dress rehearsal: `npm run -s ops:release:rc-rehearsal`.",
     "Release-candidate recovery rehearsal is required every cycle through `npm run -s ops:release:rc-rehearsal`.",
     "Release-candidate rehearsal also requires chaos, replay, and orchestration hidden-state proofs.",
-    "Shell authority regression guard: `npm run -s ops:client-layer:boundary`.",
+    "Shell authority regression guard: `npm run -s ops:shell-layer:boundary`.",
     "Support bundle is the single incident truth package for release closure.",
     "`npm run -s ops:support-bundle:export`"
   ],
@@ -265,7 +265,7 @@
     "ops:transport:topology:gate",
     "ops:transport:spawn-audit",
     "ops:production-topology:gate",
-    "audit:client-layer-boundary",
+    "audit:shell-layer-boundary",
     "ops:stateful-upgrade-rollback:gate",
     "ops:assimilation:v1:support:guard",
     "ops:release-blockers:gate",

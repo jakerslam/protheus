@@ -1,18 +1,45 @@
 struct PreparedMessageRouteContext {
-    provider: String, model: String, auto_route: Option<Value>,
-    requested_provider: String, requested_model: String, virtual_key_id: String, virtual_key_gate: Value,
-    state: Value, messages: Vec<Value>, active_messages: Vec<Value>,
-    context_pool_limit_tokens: i64, context_pool_tokens: i64, pooled_messages_len: usize, sessions_total: usize,
-    fallback_window: i64, memory_kv_entries: usize, active_context_target_tokens: i64, active_context_min_recent: usize,
-    include_all_sessions_context: bool, context_active_tokens: i64, context_ratio: f64, context_pressure: String,
-    pre_generation_pruned: bool, recent_floor_enforced: bool, recent_floor_injected: usize,
-    recent_floor_target: usize, recent_floor_missing_before: usize, recent_floor_satisfied: bool,
-    recent_floor_coverage_before: f64, recent_floor_coverage_after: f64,
-    recent_floor_active_missing: usize, recent_floor_active_satisfied: bool, recent_floor_active_coverage: f64,
-    recent_floor_continuity_status: String, recent_floor_continuity_action: String,
+    provider: String,
+    model: String,
+    auto_route: Option<Value>,
+    requested_provider: String,
+    requested_model: String,
+    virtual_key_id: String,
+    virtual_key_gate: Value,
+    state: Value,
+    messages: Vec<Value>,
+    active_messages: Vec<Value>,
+    context_pool_limit_tokens: i64,
+    context_pool_tokens: i64,
+    pooled_messages_len: usize,
+    sessions_total: usize,
+    fallback_window: i64,
+    memory_kv_entries: usize,
+    active_context_target_tokens: i64,
+    active_context_min_recent: usize,
+    include_all_sessions_context: bool,
+    context_active_tokens: i64,
+    context_ratio: f64,
+    context_pressure: String,
+    pre_generation_pruned: bool,
+    recent_floor_enforced: bool,
+    recent_floor_injected: usize,
+    recent_floor_target: usize,
+    recent_floor_missing_before: usize,
+    recent_floor_satisfied: bool,
+    recent_floor_coverage_before: f64,
+    recent_floor_coverage_after: f64,
+    recent_floor_active_missing: usize,
+    recent_floor_active_satisfied: bool,
+    recent_floor_active_coverage: f64,
+    recent_floor_continuity_status: String,
+    recent_floor_continuity_action: String,
     recent_floor_continuity_message: String,
     history_trim_confirmed: bool,
-    emergency_compact: Value, workspace_hints: Value, latent_tool_candidates: Value, inline_tools_allowed: bool,
+    emergency_compact: Value,
+    workspace_hints: Value,
+    latent_tool_candidates: Value,
+    inline_tools_allowed: bool,
     system_prompt: String,
 }
 fn latest_assistant_process_summary(active_messages: &[Value]) -> Option<Value> {
@@ -32,8 +59,10 @@ fn process_summary_prompt_context(active_messages: &[Value]) -> String {
     let Some(summary) = latest_assistant_process_summary(active_messages) else {
         return String::new();
     };
-    let compact_summary =
-        clean_text(&serde_json::to_string(&summary).unwrap_or_else(|_| "{}".to_string()), 1_600);
+    let compact_summary = clean_text(
+        &serde_json::to_string(&summary).unwrap_or_else(|_| "{}".to_string()),
+        1_600,
+    );
     if compact_summary.is_empty() || compact_summary == "{}" {
         return String::new();
     }
@@ -53,13 +82,18 @@ fn reply_scope_messages_from_request(request: &Value) -> Vec<Value> {
     {
         return Vec::new();
     }
-    let Some(rows) = request.get("reply_scope_messages").and_then(Value::as_array) else {
+    let Some(rows) = request
+        .get("reply_scope_messages")
+        .and_then(Value::as_array)
+    else {
         return Vec::new();
     };
     let mut out = Vec::<Value>::new();
     for row in rows.iter().take(32) {
         let mut role = clean_text(
-            row.get("role").and_then(Value::as_str).unwrap_or("assistant"),
+            row.get("role")
+                .and_then(Value::as_str)
+                .unwrap_or("assistant"),
             24,
         )
         .to_ascii_lowercase();
@@ -69,7 +103,10 @@ fn reply_scope_messages_from_request(request: &Value) -> Vec<Value> {
         if role != "assistant" && role != "user" && role != "system" {
             role = "assistant".to_string();
         }
-        let text = clean_chat_text(row.get("text").and_then(Value::as_str).unwrap_or(""), 64_000);
+        let text = clean_chat_text(
+            row.get("text").and_then(Value::as_str).unwrap_or(""),
+            64_000,
+        );
         if text.is_empty() {
             continue;
         }
@@ -84,24 +121,55 @@ fn message_timestamp_millis_for_retry(row: &Value) -> i64 {
     }
     if let Some(raw) = row.get("ts").and_then(Value::as_str) {
         let cleaned = clean_text(raw, 120);
-        if let Ok(ms) = cleaned.parse::<i64>() { return ms; }
-        if let Some(parsed) = parse_rfc3339_utc(&cleaned) { return parsed.timestamp_millis(); }
+        if let Ok(ms) = cleaned.parse::<i64>() {
+            return ms;
+        }
+        if let Some(parsed) = parse_rfc3339_utc(&cleaned) {
+            return parsed.timestamp_millis();
+        }
     }
     0
 }
 
 fn remove_retry_drop_message_from_state(state: &mut Value, request: &Value) -> Option<Value> {
-    let target_id = clean_text(request.get("retry_drop_message_id").and_then(Value::as_str).unwrap_or(""), 180);
-    let target_ts = request.get("retry_drop_message_ts").and_then(Value::as_i64).unwrap_or(0);
-    let target_text = clean_chat_text(request.get("retry_drop_message_text").and_then(Value::as_str).unwrap_or(""), 64_000);
+    let target_id = clean_text(
+        request
+            .get("retry_drop_message_id")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        180,
+    );
+    let target_ts = request
+        .get("retry_drop_message_ts")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let target_text = clean_chat_text(
+        request
+            .get("retry_drop_message_text")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        64_000,
+    );
     if target_id.is_empty() && target_ts <= 0 && target_text.is_empty() {
         return None;
     }
-    let active_id = clean_text(state.get("active_session_id").and_then(Value::as_str).unwrap_or("default"), 120);
+    let active_id = clean_text(
+        state
+            .get("active_session_id")
+            .and_then(Value::as_str)
+            .unwrap_or("default"),
+        120,
+    );
     let mut removed: Option<Value> = None;
     if let Some(sessions) = state.get_mut("sessions").and_then(Value::as_array_mut) {
         for session in sessions.iter_mut() {
-            let sid = clean_text(session.get("session_id").and_then(Value::as_str).unwrap_or(""), 120);
+            let sid = clean_text(
+                session
+                    .get("session_id")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                120,
+            );
             if sid != active_id {
                 continue;
             }
@@ -116,12 +184,16 @@ fn remove_retry_drop_message_from_state(state: &mut Value, request: &Value) -> O
                 if role != "assistant" && role != "agent" {
                     continue;
                 }
-                let probe_id = clean_text(probe.get("id").and_then(Value::as_str).unwrap_or(""), 180);
+                let probe_id =
+                    clean_text(probe.get("id").and_then(Value::as_str).unwrap_or(""), 180);
                 let probe_ts = message_timestamp_millis_for_retry(probe);
                 let probe_text = message_text(probe);
-                let id_match = !target_id.is_empty() && !probe_id.is_empty() && probe_id == target_id;
-                let ts_match = target_ts > 0 && probe_ts > 0 && (probe_ts - target_ts).unsigned_abs() <= 2_500;
-                let text_match = !target_text.is_empty() && !probe_text.is_empty() && probe_text == target_text;
+                let id_match =
+                    !target_id.is_empty() && !probe_id.is_empty() && probe_id == target_id;
+                let ts_match =
+                    target_ts > 0 && probe_ts > 0 && (probe_ts - target_ts).unsigned_abs() <= 2_500;
+                let text_match =
+                    !target_text.is_empty() && !probe_text.is_empty() && probe_text == target_text;
                 if id_match || ts_match || text_match {
                     remove_idx = Some(idx);
                     break;
@@ -129,7 +201,14 @@ fn remove_retry_drop_message_from_state(state: &mut Value, request: &Value) -> O
             }
             if remove_idx.is_none() {
                 remove_idx = (0..messages.len()).rev().find(|idx| {
-                    let role = clean_text(messages[*idx].get("role").and_then(Value::as_str).unwrap_or(""), 24).to_ascii_lowercase();
+                    let role = clean_text(
+                        messages[*idx]
+                            .get("role")
+                            .and_then(Value::as_str)
+                            .unwrap_or(""),
+                        24,
+                    )
+                    .to_ascii_lowercase();
                     role == "assistant" || role == "agent"
                 });
             }
@@ -303,7 +382,8 @@ fn prepare_message_route_context(
         messages = context_source_messages(&state, include_all_sessions_context);
         pooled_messages = trim_context_pool(&messages, context_pool_limit_tokens);
     }
-    let recent_floor_target = recent_context_floor_target_count(&messages, active_context_min_recent);
+    let recent_floor_target =
+        recent_context_floor_target_count(&messages, active_context_min_recent);
     let recent_floor_missing_before =
         recent_context_floor_missing_count(&messages, &pooled_messages, active_context_min_recent);
     let recent_floor_coverage_before =
@@ -413,26 +493,29 @@ fn prepare_message_route_context(
     let recent_floor_active_satisfied = recent_floor_active_missing == 0;
     let recent_floor_active_coverage =
         recent_context_floor_coverage_ratio(&messages, &active_messages, active_context_min_recent);
-    let (recent_floor_continuity_status, recent_floor_continuity_action, recent_floor_continuity_message) =
-        if recent_floor_active_satisfied {
-            (
-                "ready".to_string(),
-                "none".to_string(),
-                "Active context satisfies the recent-floor continuity contract.".to_string(),
-            )
-        } else if reply_scope_used {
-            (
+    let (
+        recent_floor_continuity_status,
+        recent_floor_continuity_action,
+        recent_floor_continuity_message,
+    ) = if recent_floor_active_satisfied {
+        (
+            "ready".to_string(),
+            "none".to_string(),
+            "Active context satisfies the recent-floor continuity contract.".to_string(),
+        )
+    } else if reply_scope_used {
+        (
                 "degraded".to_string(),
                 "expand_reply_scope_recent_tail".to_string(),
                 "Reply-scope override omitted part of the recent conversation tail; include more recent messages.".to_string(),
             )
-        } else {
-            (
+    } else {
+        (
                 "degraded".to_string(),
                 "raise_active_context_floor_or_target".to_string(),
                 "Active context dropped below the recent-floor contract; increase min recent messages or target context tokens.".to_string(),
             )
-        };
+    };
     let memory_kv_entries = memory_kv_pairs_from_state(&state).len();
     let memory_prompt_context = memory_kv_prompt_context(&state, 24);
     let instinct_prompt_context = agent_instinct_prompt_context(root, 6_000);
@@ -451,13 +534,7 @@ fn prepare_message_route_context(
             .unwrap_or(""),
         12_000,
     );
-    let tool_gate = workflow_turn_tool_decision_tree(message);
-    let gate_should_call_tools = tool_gate
-        .get("should_call_tools")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let inline_tools_allowed =
-        inline_tool_calls_allowed_for_user_message(message) && gate_should_call_tools;
+    let inline_tools_allowed = inline_tool_calls_allowed_for_user_message(message);
     let mut prompt_parts = Vec::<String>::new();
     if !identity_hydration_prompt.is_empty() {
         prompt_parts.push(identity_hydration_prompt);

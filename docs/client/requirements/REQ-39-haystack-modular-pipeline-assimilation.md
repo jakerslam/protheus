@@ -77,13 +77,13 @@ This intake must obey repository placement policy.
 
 ### REQ-39-003: Template and Prompt Bridge
 
-**Requirement:** Ingest Haystack-style dynamic prompt templates as first-class, receipted artifacts without moving prompt authority into the client.
+**Requirement:** Ingest Haystack-style dynamic prompt templates as first-class, receipted artifacts without moving prompt authority into the shell.
 
 **Acceptance:**
 - Template artifacts are versioned and provenance-linked
 - Rendered prompt outputs emit receipts with source-template references
 - `infring assimilate haystack` can ingest template assets into governed storage
-- Client wrappers remain display/launch surfaces only
+- Shell wrappers remain display/launch surfaces only
 
 ---
 

@@ -4,11 +4,21 @@
 
 Scale Codex assimilation throughput without losing ledger trust.
 
+## Related Docs
+
+- Manual assimilation system template: `docs/workspace/ASSIMILATION_MANUAL_TEMPLATE.md`
+  - Use this when planning a new target assimilation (map, ledger, active queue).
+  - This runbook is the wave-execution protocol once the active queue is prepared.
+
 ## Wave Contract
 
 - Wave size: **4-8** rows.
 - Rows must be **disjoint file paths**.
 - One integration checkpoint per wave.
+- Source file burn-down is mandatory per wave:
+  - every assimilated source file must be recorded in `[Target-Name]-Assimilation/source-burn-down.tsv`
+  - status must be advanced to `burned_down` in the same wave that assimilates it
+  - if a physical archive move is used, record `deleted_to=target-repo/.assimilation_deleted/<path>`
 
 ## Strict Preflight (Required)
 
@@ -30,6 +40,8 @@ Scale Codex assimilation throughput without losing ledger trust.
 2. Keep edits disjoint to avoid merge churn.
 3. Run targeted tests for touched files/surfaces.
 4. Run one integration checkpoint across the wave surface.
+5. Update source burn-down tracking for each assimilated source file in:
+   - `[Target-Name]-Assimilation/source-burn-down.tsv`
 
 ## Completion
 
@@ -37,8 +49,11 @@ Scale Codex assimilation throughput without losing ledger trust.
    - `local/workspace/reports/CODEX_FILE_LEDGER_2026-04-08.full.json`
    - `local/workspace/reports/CODEX_FILE_LEDGER_2026-04-08.full.tsv`
    - summary progress in `local/workspace/reports/CODEX_FILE_LEDGER_2026-04-08.md`
-2. Commit wave code and ledger updates together.
-3. Push.
-4. Confirm clean post-wave hygiene:
+2. Confirm source-file burn-down closure for the wave:
+   - each assimilated source file appears in `source-burn-down.tsv` with `status=burned_down`
+   - archive move path is recorded when using physical burn-down
+3. Commit wave code + ledger + burn-down updates together.
+4. Push.
+5. Confirm clean post-wave hygiene:
    - `git status --short`
    - `npm run -s ops:churn:guard`

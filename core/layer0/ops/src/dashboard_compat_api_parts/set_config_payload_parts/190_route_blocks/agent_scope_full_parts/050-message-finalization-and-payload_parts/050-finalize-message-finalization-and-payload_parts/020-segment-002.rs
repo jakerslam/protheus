@@ -18,69 +18,30 @@
             "workflow_authored",
         );
     } else if workflow_fallback_allowed {
-        let mut fallback_response = maybe_tooling_failure_fallback(
-            message,
-            &initial_draft_response,
-            &latest_assistant_text,
-        )
-        .unwrap_or_default();
-        tooling_fallback_used = !fallback_response.is_empty();
-        if fallback_response.is_empty()
-            && !response_requires_visible_repair(&initial_draft_response)
-        {
-            fallback_response = initial_draft_response.clone();
-        }
-        if fallback_response.is_empty()
-            && message_requests_comparative_answer(message)
-            && (response_is_no_findings_placeholder(&initial_draft_response)
-                || response_tools_failure_reason_for_user(&response_tools, 4).is_empty())
-        {
-            comparative_fallback_used = true;
-            fallback_response = comparative_no_findings_fallback(message);
-        }
-        if fallback_response.is_empty() && memory_recall_requested(message) {
-            fallback_response = build_memory_recall_response(&state, &messages, message);
-        }
-        if fallback_response.is_empty() && !response_tools.is_empty() {
-            fallback_response = ensure_tool_turn_response_text(&initial_draft_response, &response_tools);
-        }
-        if fallback_response.is_empty() && response_tools.is_empty() && !inline_tools_allowed {
-            fallback_response =
-                "I can answer directly without tool calls. Ask your question naturally and I’ll respond conversationally unless you explicitly request a tool run.".to_string();
-        }
-        if fallback_response.is_empty() {
-            fallback_response =
-                "I hit a response-synthesis failure after collecting this turn. Please retry and I’ll explain what worked or failed directly.".to_string();
-        }
-        workflow_system_fallback_used = true;
-        final_fallback_used = true;
-        finalization_outcome = merge_response_outcomes(
-            &finalization_outcome,
-            "workflow_system_fallback",
-            200,
-        );
+        // Policy: never inject system-authored fallback text into chat.
         let (contract_finalized, contract_report, contract_outcome) =
-            enforce_user_facing_finalization_contract(message, fallback_response, &response_tools);
+            enforce_user_facing_finalization_contract(
+                message,
+                initial_draft_response.clone(),
+                &response_tools,
+            );
         finalized_response = contract_finalized;
         tool_completion = contract_report;
         finalization_outcome =
+            merge_response_outcomes(&finalization_outcome, "workflow_no_system_fallback", 200);
+        finalization_outcome =
             merge_response_outcomes(&finalization_outcome, &contract_outcome, 200);
     } else {
-        workflow_system_fallback_used = true;
-        final_fallback_used = true;
+        // Keep chat output LLM-authored only, even when workflow final synthesis is unavailable.
         finalization_outcome = merge_response_outcomes(
             &finalization_outcome,
-            "workflow_unexpected_state",
+            "workflow_no_system_fallback",
             200,
         );
         let (contract_finalized, contract_report, contract_outcome) =
             enforce_user_facing_finalization_contract(
                 message,
-                workflow_unexpected_state_user_fallback(
-                    message,
-                    &latest_assistant_text,
-                    &response_tools,
-                ),
+                initial_draft_response.clone(),
                 &response_tools,
             );
         finalized_response = contract_finalized;

@@ -83,6 +83,17 @@ function reEscape(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function isCanonicalRelativePath(value: string): boolean {
+  if (!value) return false;
+  if (value.startsWith('/') || value.startsWith('\\')) return false;
+  if (value.includes('..') || value.includes('//') || value.includes('\\')) return false;
+  return /^[A-Za-z0-9._/\-]+$/.test(value);
+}
+
+function hasCaseInsensitiveSuffix(value: string, suffix: string): boolean {
+  return value.toLowerCase().endsWith(suffix.toLowerCase());
+}
+
 function run(): number {
   const args = parseArgs(process.argv);
   const classifierPath = resolve('surface/orchestration/src/ingress/classifier.rs');
@@ -91,6 +102,9 @@ function run(): number {
   const ingressPath = resolve('surface/orchestration/src/ingress.rs');
   const parserPath = resolve('surface/orchestration/src/ingress/parser.rs');
   const probeMatrixPath = resolve('surface/orchestration/tests/conformance/probe_matrix.rs');
+  const adapterProbePath = resolve(
+    'surface/orchestration/tests/conformance/adapter_contracts_probe_enforcement.rs',
+  );
 
   const classifierSource = readFileSync(classifierPath, 'utf8');
   const preconditionsSource = readFileSync(preconditionsPath, 'utf8');
@@ -98,6 +112,7 @@ function run(): number {
   const ingressSource = readFileSync(ingressPath, 'utf8');
   const parserSource = readFileSync(parserPath, 'utf8');
   const probeMatrixSource = readFileSync(probeMatrixPath, 'utf8');
+  const adapterProbeSource = readFileSync(adapterProbePath, 'utf8');
 
   const checks: Check[] = [];
   const capabilityKeys = MATRIX_CAPABILITIES.map((row) => row.key);
@@ -121,6 +136,204 @@ function run(): number {
     /^[A-Z][A-Za-z0-9]*$/.test(enumName)).length;
   const matrixPairOrderAligned = MATRIX_CAPABILITIES.every((row, index) =>
     row.key === EXPECTED_TYPED_KEY_ORDER[index] && row.enumName === EXPECTED_TYPED_ENUM_ORDER[index]);
+  const matrixPairTokens = MATRIX_CAPABILITIES.map((row) => `${row.enumName}:${row.key}`);
+  const expectedMatrixPairTokens = EXPECTED_TYPED_ENUM_ORDER.map(
+    (enumName, index) => `${enumName}:${EXPECTED_TYPED_KEY_ORDER[index] || ''}`,
+  );
+  const uniqueMatrixPairTokenCount = new Set(matrixPairTokens).size;
+  const uniqueExpectedMatrixPairTokenCount = new Set(expectedMatrixPairTokens).size;
+  const matrixPairsSubsetExpected = matrixPairTokens.every((token) =>
+    expectedMatrixPairTokens.includes(token));
+  const expectedPairsSubsetMatrix = expectedMatrixPairTokens.every((token) =>
+    matrixPairTokens.includes(token));
+  const trimmedNonEmptyCapabilityKeyCount = capabilityKeys.filter(
+    (key) => key.trim().length > 0 && key.trim() === key,
+  ).length;
+  const trimmedNonEmptyCapabilityEnumCount = capabilityEnums.filter(
+    (enumName) => enumName.trim().length > 0 && enumName.trim() === enumName,
+  ).length;
+  const whitespaceFreeCapabilityKeyCount = capabilityKeys.filter((key) => !/\s/.test(key)).length;
+  const whitespaceFreeCapabilityEnumCount = capabilityEnums.filter(
+    (enumName) => !/\s/.test(enumName),
+  ).length;
+  const trimmedNonEmptyExpectedKeyCount = EXPECTED_TYPED_KEY_ORDER.filter(
+    (key) => key.trim().length > 0 && key.trim() === key,
+  ).length;
+  const trimmedNonEmptyExpectedEnumCount = EXPECTED_TYPED_ENUM_ORDER.filter(
+    (enumName) => enumName.trim().length > 0 && enumName.trim() === enumName,
+  ).length;
+  const whitespaceFreeExpectedKeyCount = EXPECTED_TYPED_KEY_ORDER.filter((key) =>
+    !/\s/.test(key)).length;
+  const whitespaceFreeExpectedEnumCount = EXPECTED_TYPED_ENUM_ORDER.filter((enumName) =>
+    !/\s/.test(enumName)).length;
+  const capabilityKeyUnderscoreCount = capabilityKeys.filter((key) => key.includes('_')).length;
+  const capabilityEnumNoUnderscoreCount = capabilityEnums.filter((enumName) =>
+    !enumName.includes('_')).length;
+  const capabilityKeyWorkspaceFamilyCount = capabilityKeys.filter((key) =>
+    key.startsWith('workspace_')).length;
+  const capabilityKeyWebFamilyCount = capabilityKeys.filter((key) => key.startsWith('web_')).length;
+  const capabilityKeyToolFamilyCount = capabilityKeys.filter((key) => key.startsWith('tool_')).length;
+  const capabilityEnumWorkspaceFamilyCount = capabilityEnums.filter((enumName) =>
+    enumName.startsWith('Workspace')).length;
+  const capabilityEnumWebFamilyCount = capabilityEnums.filter((enumName) =>
+    enumName.startsWith('Web')).length;
+  const capabilityEnumToolFamilyCount = capabilityEnums.filter((enumName) =>
+    enumName.startsWith('Tool')).length;
+  const sourcePaths = [
+    classifierPath,
+    preconditionsPath,
+    contractsPath,
+    ingressPath,
+    parserPath,
+    probeMatrixPath,
+    adapterProbePath,
+  ];
+  const sourcePathRel = sourcePaths.map((absPath) => absPath.replace(/\\/g, '/').replace(`${process.cwd().replace(/\\/g, '/')}/`, ''));
+  const uniqueSourcePathCount = new Set(sourcePathRel).size;
+  const sourcePathsCanonical = sourcePathRel.every((entry) => isCanonicalRelativePath(entry));
+  const sourcePathsExist = sourcePaths.every((entry) => {
+    try {
+      readFileSync(entry, 'utf8');
+      return true;
+    } catch {
+      return false;
+    }
+  });
+  const sourcePathsUnderOrchestration = sourcePathRel.every((entry) =>
+    entry.startsWith('surface/orchestration/'),
+  );
+  const sourcePathsRustExtension = sourcePathRel.every((entry) => entry.endsWith('.rs'));
+  const sourcePathsNoWhitespace = sourcePathRel.every((entry) => !/\s/.test(entry));
+  const sourcePathsSourceKindSplit =
+    sourcePathRel.filter((entry) => entry.includes('/src/')).length === 5 &&
+    sourcePathRel.filter((entry) => entry.includes('/tests/')).length === 2;
+  const outJsonCanonical = isCanonicalRelativePath(args.outJson);
+  const outMarkdownCanonical = isCanonicalRelativePath(args.outMarkdown);
+  const outJsonCurrentSuffix = hasCaseInsensitiveSuffix(args.outJson, '_current.json');
+  const outMarkdownCurrentSuffix = hasCaseInsensitiveSuffix(args.outMarkdown, '_current.md');
+  const outputPathsDistinct = args.outJson !== args.outMarkdown;
+  const outJsonArtifactPrefix = args.outJson.startsWith('core/local/artifacts/');
+  const outMarkdownReportsPrefix = args.outMarkdown.startsWith('local/workspace/reports/');
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_classifier_path_canonical_contract',
+    ok: isCanonicalRelativePath(sourcePathRel[0] || ''),
+    detail: sourcePathRel[0] || '',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_preconditions_path_canonical_contract',
+    ok: isCanonicalRelativePath(sourcePathRel[1] || ''),
+    detail: sourcePathRel[1] || '',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_contracts_path_canonical_contract',
+    ok: isCanonicalRelativePath(sourcePathRel[2] || ''),
+    detail: sourcePathRel[2] || '',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_ingress_path_canonical_contract',
+    ok: isCanonicalRelativePath(sourcePathRel[3] || ''),
+    detail: sourcePathRel[3] || '',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_parser_path_canonical_contract',
+    ok: isCanonicalRelativePath(sourcePathRel[4] || ''),
+    detail: sourcePathRel[4] || '',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_probe_matrix_path_canonical_contract',
+    ok: isCanonicalRelativePath(sourcePathRel[5] || ''),
+    detail: sourcePathRel[5] || '',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_adapter_probe_path_canonical_contract',
+    ok: isCanonicalRelativePath(sourcePathRel[6] || ''),
+    detail: sourcePathRel[6] || '',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_source_paths_unique_contract',
+    ok: uniqueSourcePathCount === sourcePathRel.length,
+    detail: `count=${sourcePathRel.length};unique=${uniqueSourcePathCount}`,
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_source_paths_exist_contract',
+    ok: sourcePathsExist,
+    detail: sourcePathRel.join(','),
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_source_paths_under_orchestration_contract',
+    ok: sourcePathsUnderOrchestration,
+    detail: sourcePathRel.join(','),
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_source_paths_rust_extension_contract',
+    ok: sourcePathsRustExtension,
+    detail: sourcePathRel.join(','),
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_source_paths_no_whitespace_contract',
+    ok: sourcePathsNoWhitespace,
+    detail: sourcePathRel.join(','),
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_source_paths_src_tests_split_contract',
+    ok: sourcePathsSourceKindSplit,
+    detail: sourcePathRel.join(','),
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_out_json_path_canonical_contract',
+    ok: outJsonCanonical,
+    detail: args.outJson,
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_out_markdown_path_canonical_contract',
+    ok: outMarkdownCanonical,
+    detail: args.outMarkdown,
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_out_json_current_suffix_contract',
+    ok: outJsonCurrentSuffix,
+    detail: args.outJson,
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_out_markdown_current_suffix_contract',
+    ok: outMarkdownCurrentSuffix,
+    detail: args.outMarkdown,
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_output_paths_distinct_contract',
+    ok: outputPathsDistinct,
+    detail: `${args.outJson}|${args.outMarkdown}`,
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_out_json_artifacts_prefix_contract',
+    ok: outJsonArtifactPrefix,
+    detail: args.outJson,
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_out_markdown_reports_prefix_contract',
+    ok: outMarkdownReportsPrefix,
+    detail: args.outMarkdown,
+  });
 
   checks.push({
     id: 'typed_probe_contract_matrix_capability_count_exactly_five',
@@ -218,6 +431,126 @@ function run(): number {
     detail: 'typed capability key+enum pair ordering must align index-for-index with canonical lists',
   });
 
+  checks.push({
+    id: 'typed_probe_contract_matrix_pair_tokens_unique',
+    ok: uniqueMatrixPairTokenCount === matrixPairTokens.length,
+    detail: 'typed capability matrix enum:key pair tokens must be unique',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_expected_pair_tokens_unique',
+    ok: uniqueExpectedMatrixPairTokenCount === expectedMatrixPairTokens.length,
+    detail: 'expected typed capability enum:key pair tokens must be unique',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_pairs_subset_expected',
+    ok: matrixPairsSubsetExpected,
+    detail: 'typed capability matrix enum:key pairs must stay within canonical expected pairs',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_expected_pairs_subset_matrix',
+    ok: expectedPairsSubsetMatrix,
+    detail: 'canonical expected enum:key pairs must all be represented in matrix pairs',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_capability_keys_trimmed_non_empty',
+    ok: trimmedNonEmptyCapabilityKeyCount === capabilityKeys.length,
+    detail: 'typed capability keys must be trimmed and non-empty tokens',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_capability_enums_trimmed_non_empty',
+    ok: trimmedNonEmptyCapabilityEnumCount === capabilityEnums.length,
+    detail: 'typed capability enum names must be trimmed and non-empty tokens',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_capability_keys_whitespace_free',
+    ok: whitespaceFreeCapabilityKeyCount === capabilityKeys.length,
+    detail: 'typed capability keys must be whitespace-free tokens',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_capability_enums_whitespace_free',
+    ok: whitespaceFreeCapabilityEnumCount === capabilityEnums.length,
+    detail: 'typed capability enum names must be whitespace-free tokens',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_expected_keys_trimmed_non_empty',
+    ok: trimmedNonEmptyExpectedKeyCount === EXPECTED_TYPED_KEY_ORDER.length,
+    detail: 'expected typed key order tokens must be trimmed and non-empty',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_expected_enums_trimmed_non_empty',
+    ok: trimmedNonEmptyExpectedEnumCount === EXPECTED_TYPED_ENUM_ORDER.length,
+    detail: 'expected typed enum order tokens must be trimmed and non-empty',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_expected_keys_whitespace_free',
+    ok: whitespaceFreeExpectedKeyCount === EXPECTED_TYPED_KEY_ORDER.length,
+    detail: 'expected typed key order tokens must be whitespace-free',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_expected_enums_whitespace_free',
+    ok: whitespaceFreeExpectedEnumCount === EXPECTED_TYPED_ENUM_ORDER.length,
+    detail: 'expected typed enum order tokens must be whitespace-free',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_capability_keys_include_underscore',
+    ok: capabilityKeyUnderscoreCount === capabilityKeys.length,
+    detail: 'typed capability keys must carry underscore-delimited family tokens',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_capability_enums_no_underscore',
+    ok: capabilityEnumNoUnderscoreCount === capabilityEnums.length,
+    detail: 'typed capability enum names must not include underscores',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_key_workspace_family_count_two',
+    ok: capabilityKeyWorkspaceFamilyCount === 2,
+    detail: 'typed capability key matrix must include exactly two workspace_* families',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_key_web_family_count_two',
+    ok: capabilityKeyWebFamilyCount === 2,
+    detail: 'typed capability key matrix must include exactly two web_* families',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_key_tool_family_count_one',
+    ok: capabilityKeyToolFamilyCount === 1,
+    detail: 'typed capability key matrix must include exactly one tool_* family',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_enum_workspace_family_count_two',
+    ok: capabilityEnumWorkspaceFamilyCount === 2,
+    detail: 'typed capability enum matrix must include exactly two Workspace* families',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_enum_web_family_count_two',
+    ok: capabilityEnumWebFamilyCount === 2,
+    detail: 'typed capability enum matrix must include exactly two Web* families',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_enum_tool_family_count_one',
+    ok: capabilityEnumToolFamilyCount === 1,
+    detail: 'typed capability enum matrix must include exactly one Tool* family',
+  });
+
   for (const row of MATRIX_CAPABILITIES) {
     const contractRegex = new RegExp(
       `Capability::${reEscape(
@@ -255,6 +588,22 @@ function run(): number {
       id: `typed_probe_contract_matrix_ingress_expected_probe_key_${row.key}`,
       ok: ingressSource.includes(`typed_probe_contract_expected:${row.key}`),
       detail: `ingress regression includes explicit expected-probe-key diagnostic for ${row.key}`,
+    });
+  }
+
+  for (const row of MATRIX_CAPABILITIES) {
+    checks.push({
+      id: `typed_probe_contract_matrix_ingress_missing_tool_field_reason_${row.key}`,
+      ok: ingressSource.includes(`typed_probe_contract_missing:field.${row.key}.tool_available`),
+      detail: `ingress regression includes explicit missing tool_available field diagnostic for ${row.key}`,
+    });
+  }
+
+  for (const row of MATRIX_CAPABILITIES) {
+    checks.push({
+      id: `typed_probe_contract_matrix_ingress_missing_transport_field_reason_${row.key}`,
+      ok: ingressSource.includes(`typed_probe_contract_missing:field.${row.key}.transport_available`),
+      detail: `ingress regression includes explicit missing transport_available field diagnostic for ${row.key}`,
     });
   }
 
@@ -381,13 +730,13 @@ function run(): number {
   });
   checks.push({
     id: 'typed_probe_contract_matrix_ingress_tool_field_reason_coverage_complete',
-    ok: toolFieldReasonCoverageCount >= 4,
-    detail: `ingress regression coverage should include typed missing tool_available field diagnostics across web/workspace/tool-route capability families (covered=${toolFieldReasonCoverageCount};required>=4)`,
+    ok: toolFieldReasonCoverageCount >= MATRIX_CAPABILITIES.length,
+    detail: `ingress regression coverage should include typed missing tool_available field diagnostics across every typed capability family (covered=${toolFieldReasonCoverageCount}/${MATRIX_CAPABILITIES.length})`,
   });
   checks.push({
     id: 'typed_probe_contract_matrix_ingress_transport_field_reason_coverage_present',
-    ok: transportFieldReasonCoverageCount >= 3,
-    detail: `ingress regression coverage should include typed missing transport_available field diagnostics across multiple capability families (covered=${transportFieldReasonCoverageCount};required>=3)`,
+    ok: transportFieldReasonCoverageCount >= MATRIX_CAPABILITIES.length,
+    detail: `ingress regression coverage should include typed missing transport_available field diagnostics across every typed capability family (covered=${transportFieldReasonCoverageCount}/${MATRIX_CAPABILITIES.length})`,
   });
   checks.push({
     id: 'typed_probe_contract_matrix_ingress_expected_probe_key_coverage_complete',
@@ -411,6 +760,42 @@ function run(): number {
     id: 'typed_probe_contract_matrix_no_execute_tool_collapse_in_classifier',
     ok: !classifierSource.includes('typed_probe_contract_expected:execute_tool'),
     detail: 'classifier does not emit execute_tool fallback diagnostics for typed probe routing',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_non_legacy_capability_denial_fixture_present',
+    ok: adapterProbeSource.includes(
+      'non_legacy_tool_family_missing_capability_denials_are_exact',
+    ),
+    detail:
+      'non-legacy conformance fixture must assert exact per-capability denial reasons across tool-family capabilities',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_non_legacy_partial_field_denial_fixture_present',
+    ok: adapterProbeSource.includes(
+      'non_legacy_tool_family_partial_probe_fields_emit_exact_field_denials',
+    ),
+    detail:
+      'non-legacy conformance fixture must assert exact partial-probe field denial reasons across tool-family capabilities',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_non_legacy_execute_tool_alias_rejected',
+    ok: adapterProbeSource.includes(
+      'non_legacy_typed_surface_rejects_execute_tool_alias_in_core_probe_envelope',
+    ),
+    detail:
+      'non-legacy typed surfaces must reject execute_tool alias fallback inside core_probe_envelope',
+  });
+
+  const adapterCapabilityCoverageCount = MATRIX_CAPABILITIES.filter((row) =>
+    adapterProbeSource.includes(`"${row.key}"`)).length;
+  checks.push({
+    id: 'typed_probe_contract_matrix_non_legacy_capability_coverage_complete',
+    ok: adapterCapabilityCoverageCount >= MATRIX_CAPABILITIES.length,
+    detail:
+      `non-legacy capability denial fixtures should cover all typed capability keys (covered=${adapterCapabilityCoverageCount}/${MATRIX_CAPABILITIES.length})`,
   });
 
   const strictProbeFields = ['tool_available', 'transport_available'] as const;
@@ -516,18 +901,32 @@ function run(): number {
       parserSource.includes('"workspace_path"')
       && parserSource.includes('"repo_path"')
       && parserSource.includes('"repository_path"')
+      && parserSource.includes('"repository_root"')
       && parserSource.includes('"workspace_root"')
       && parserSource.includes('"repo_root"')
       && parserSource.includes('"root_path"')
       && parserSource.includes('"working_directory"')
       && parserSource.includes('"current_directory"')
+      && parserSource.includes('"workspace_dir"')
+      && parserSource.includes('"repo_dir"')
+      && parserSource.includes('"repository_dir"')
+      && parserSource.includes('"working_dir"')
+      && parserSource.includes('"current_dir"')
+      && parserSource.includes('"current_working_directory"')
+      && parserSource.includes('"present_working_directory"')
       && parserSource.includes('"directory_path"')
       && parserSource.includes('"folder_path"')
       && parserSource.includes('"workspace_paths"')
       && parserSource.includes('"repo_paths"')
       && parserSource.includes('"repository_paths"')
+      && parserSource.includes('"repository_roots"')
       && parserSource.includes('"directories"')
-      && parserSource.includes('"folders"'),
+      && parserSource.includes('"folders"')
+      && parserSource.includes('"workspace_dirs"')
+      && parserSource.includes('"repo_dirs"')
+      && parserSource.includes('"repository_dirs"')
+      && parserSource.includes('"working_dirs"')
+      && parserSource.includes('"current_dirs"'),
     detail: 'parser target extraction must accept directory/folder singular+plural keys as workspace targets',
   });
 
@@ -535,6 +934,47 @@ function run(): number {
     id: 'typed_probe_contract_matrix_parser_workspace_target_keys_cwd',
     ok: parserSource.includes('"cwd_path"') && parserSource.includes('"pwd_path"'),
     detail: 'parser workspace signal detection must include cwd_path payload keys for local file intents',
+  });
+
+  checks.push({
+    id: 'typed_probe_contract_matrix_parser_structured_target_kind_aliases',
+    ok:
+      parserSource.includes('"repo_path"')
+      && parserSource.includes('"repository_path"')
+      && parserSource.includes('"workspace_paths"')
+      && parserSource.includes('"repo_paths"')
+      && parserSource.includes('"repository_paths"')
+      && parserSource.includes('"repository_root"')
+      && parserSource.includes('"workspace_root"')
+      && parserSource.includes('"workspace_roots"')
+      && parserSource.includes('"repo_roots"')
+      && parserSource.includes('"repository_roots"')
+      && parserSource.includes('"root_path"')
+      && parserSource.includes('"root_paths"')
+      && parserSource.includes('"working_directory"')
+      && parserSource.includes('"current_directory"')
+      && parserSource.includes('"workspace_dir"')
+      && parserSource.includes('"repo_dir"')
+      && parserSource.includes('"repository_dir"')
+      && parserSource.includes('"working_dir"')
+      && parserSource.includes('"current_dir"')
+      && parserSource.includes('"current_working_directory"')
+      && parserSource.includes('"present_working_directory"')
+      && parserSource.includes('"working_directories"')
+      && parserSource.includes('"current_directories"')
+      && parserSource.includes('"workspace_dirs"')
+      && parserSource.includes('"repo_dirs"')
+      && parserSource.includes('"repository_dirs"')
+      && parserSource.includes('"working_dirs"')
+      && parserSource.includes('"current_dirs"')
+      && parserSource.includes('"current_working_directories"')
+      && parserSource.includes('"present_working_directories"')
+      && parserSource.includes('"directory_path"')
+      && parserSource.includes('"folder_path"')
+      && parserSource.includes('"directory_paths"')
+      && parserSource.includes('"folder_paths"'),
+    detail:
+      'parser structured-target kind aliases must include singular+plural repository/workspace root and directory variants to prevent file-route capability misclassification',
   });
 
   checks.push({

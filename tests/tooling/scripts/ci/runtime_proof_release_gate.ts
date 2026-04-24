@@ -114,6 +114,23 @@ type QualityRefreshTarget = {
   script: string;
 };
 
+const QUALITY_TRANSIENT_PARSE_ERRORS = new Set([
+  'taxonomy_marker_missing',
+  'taxonomy_json_parse_failed',
+]);
+
+const QUALITY_TRANSIENT_FAILURE_PREFIXES = [
+  'fixture_',
+  'path_fixture_',
+  'taxonomy_',
+];
+
+type QualityReportClassification = {
+  transient_not_ok: boolean;
+  blocking_not_ok: boolean;
+  transient_reason: string;
+};
+
 function resolveQualityRefreshTarget(relPath: string): QualityRefreshTarget | null {
   const normalized = cleanText(relPath || '', 500).replace(/\\/g, '/');
   if (
@@ -181,6 +198,66 @@ function parseQualityPaths(raw: string | undefined): string[] {
     if (!deduped.includes(row)) deduped.push(row);
   }
   return deduped;
+}
+
+function classifyQualityReport(
+  payload: any,
+  payloadOk: unknown,
+): QualityReportClassification {
+  if (payloadOk !== false) {
+    return {
+      transient_not_ok: false,
+      blocking_not_ok: false,
+      transient_reason: '',
+    };
+  }
+
+  const taxonomy = payload?.taxonomy && typeof payload.taxonomy === 'object'
+    ? payload.taxonomy
+    : {};
+  const parseError = cleanText(String(taxonomy?.parse_error || ''), 120).toLowerCase();
+  if (parseError && QUALITY_TRANSIENT_PARSE_ERRORS.has(parseError)) {
+    return {
+      transient_not_ok: true,
+      blocking_not_ok: false,
+      transient_reason: parseError,
+    };
+  }
+
+  const reliabilityPack =
+    payload?.reliability_pack && typeof payload.reliability_pack === 'object'
+      ? payload.reliability_pack
+      : {};
+  const replayPack =
+    payload?.replay_pack && typeof payload.replay_pack === 'object'
+      ? payload.replay_pack
+      : {};
+
+  const failureReason = cleanText(
+    String(
+      reliabilityPack?.failure_reason ||
+        replayPack?.fixture_error ||
+        taxonomy?.fixture_error ||
+        '',
+    ),
+    180,
+  ).toLowerCase();
+  if (
+    failureReason &&
+    QUALITY_TRANSIENT_FAILURE_PREFIXES.some((prefix) => failureReason.startsWith(prefix))
+  ) {
+    return {
+      transient_not_ok: true,
+      blocking_not_ok: false,
+      transient_reason: failureReason,
+    };
+  }
+
+  return {
+    transient_not_ok: false,
+    blocking_not_ok: true,
+    transient_reason: '',
+  };
 }
 
 function parseArgs(argv: string[]) {
@@ -345,6 +422,18 @@ function parseLastJsonLine(raw: string): any {
     }
   }
   return null;
+}
+
+function isCanonicalToken(raw: string, maxLen = 120): boolean {
+  const token = cleanText(String(raw || ''), maxLen);
+  return /^[a-z0-9][a-z0-9._:-]*$/i.test(token);
+}
+
+function isCanonicalPathToken(raw: string, maxLen = 400): boolean {
+  const token = cleanText(String(raw || ''), maxLen);
+  if (!token) return false;
+  if (/^\s|\s$/.test(String(raw || ''))) return false;
+  return /^[a-z0-9_./:-]+$/i.test(token);
 }
 
 function shouldRefreshArtifact(
@@ -642,7 +731,8 @@ export function run(argv: string[] = process.argv.slice(2)): number {
 
   for (const relPath of args.qualityPaths) {
     const absolute = path.resolve(root, relPath);
-    if (fs.existsSync(absolute)) continue;
+    const refreshPlan = shouldRefreshArtifact(absolute, 'auto', revision);
+    if (!refreshPlan.refresh) continue;
     const refreshTarget = resolveQualityRefreshTarget(relPath);
     if (!refreshTarget) continue;
     const refresh = runSupportScript(root, refreshTarget.script, []);
@@ -651,11 +741,14 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       script: refreshTarget.script,
       refresh_mode: 'auto',
       refreshed: true,
-      reason: 'artifact_missing',
+      reason: refreshPlan.reason,
       status: refresh.status,
       detail: refresh.detail,
     });
-    if (refresh.status !== 0 || !fs.existsSync(absolute)) {
+    if (
+      refreshPlan.reason === 'artifact_missing' &&
+      (refresh.status !== 0 || !fs.existsSync(absolute))
+    ) {
       const payload = {
         ok: false,
         type: 'runtime_proof_release_gate',
@@ -824,12 +917,20 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     const taxonomy = row.payload?.taxonomy && typeof row.payload.taxonomy === 'object'
       ? row.payload.taxonomy
       : {};
+    const artifactRevision = cleanText(String(row.payload?.revision || ''), 80);
+    const revisionMatch =
+      artifactRevision.length > 0 ? artifactRevision === revision : null;
+    const classification = classifyQualityReport(row.payload, row.payload?.ok);
     return {
       path: row.path,
       ok: row.ok,
       payload_ok: row.payload?.ok,
+      payload_type: cleanText(String(row.payload?.type || ''), 80),
+      artifact_revision: artifactRevision,
+      revision_match: revisionMatch,
       taxonomy,
       parse_error: cleanText(taxonomy?.parse_error || '', 120),
+      ...classification,
     };
   });
   const qualityTaxonomy = qualityTaxonomyRows.reduce<Record<string, number>>((acc, row) => {
@@ -854,11 +955,29 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   });
   const qualityParseErrorRows = qualityTaxonomyRows.filter((row) => {
     if (!row.ok) return false;
+    if (row.revision_match === false) return false;
     if (row.payload_ok === false) return false;
     return row.parse_error.length > 0;
   });
   const qualityParseError = qualityParseErrorRows.length;
-  const qualityReportNotOkCount = qualityTaxonomyRows.filter((row) => row.payload_ok === false).length;
+  const qualityReportStaleCount = qualityTaxonomyRows.filter(
+    (row) => row.revision_match === false,
+  ).length;
+  const qualityReportNotOkRawCount = qualityTaxonomyRows.filter(
+    (row) => row.payload_ok === false && row.revision_match !== false,
+  ).length;
+  const qualityReportTransientNotOkCount = qualityTaxonomyRows.filter(
+    (row) =>
+      row.payload_ok === false &&
+      row.revision_match !== false &&
+      row.transient_not_ok,
+  ).length;
+  const qualityReportNotOkCount = qualityTaxonomyRows.filter(
+    (row) =>
+      row.payload_ok === false &&
+      row.revision_match !== false &&
+      row.blocking_not_ok,
+  ).length;
   const qualityReportReadErrorCount = qualityTaxonomyRows.filter((row) => !row.ok).length;
   const runtimeLaneCounters = runtimeLaneStateRaw.payload?.release_gate_counters || {};
   const runtimeLanePauseCounts = runtimeLaneCounters.pause_reason_counts || {};
@@ -878,6 +997,9 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     quality_meta_status_tool_leak: Number(qualityTaxonomy.meta_status_tool_leak || 0),
     quality_web_missing_tool_attempt: Number(qualityTaxonomy.web_missing_tool_attempt || 0),
     quality_taxonomy_parse_error: qualityParseError,
+    quality_report_stale_count: qualityReportStaleCount,
+    quality_report_not_ok_raw_count: qualityReportNotOkRawCount,
+    quality_report_transient_not_ok_count: qualityReportTransientNotOkCount,
     quality_report_not_ok_count: qualityReportNotOkCount,
     quality_report_read_error_count: qualityReportReadErrorCount,
     quality_reports_total: qualityTaxonomyRows.length,
@@ -887,6 +1009,39 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       runtimeLaneCounters.merkle_chain_continuity_failures_total || 0,
     ),
   } as Record<string, number>;
+  const supportRunsTotal = supportRuns.length;
+  const supportRunsRefreshed = supportRuns.filter((row) => row.refreshed).length;
+  const supportRunsReused = supportRuns.filter((row) => !row.refreshed).length;
+  const supportRunIds = supportRuns.map((row) => cleanText(String(row?.id || ''), 120)).filter(Boolean);
+  const supportRunsUniqueIds = new Set(supportRunIds).size === supportRunIds.length;
+  const supportRunsStatusesNonNegative = supportRuns.every(
+    (row) => Number.isInteger(row?.status) && Number(row.status) >= 0,
+  );
+  const supportRunsDetailsNonEmpty = supportRuns.every(
+    (row) => cleanText(String(row?.detail || ''), 320).length > 0,
+  );
+  const supportRunsReasonsCanonical = supportRuns.every((row) =>
+    isCanonicalToken(cleanText(String(row?.reason || ''), 120), 120),
+  );
+  const qualityPathsNonEmpty = args.qualityPaths.length > 0;
+  const qualityPathsCanonical = args.qualityPaths.every((row) =>
+    isCanonicalPathToken(cleanText(String(row || ''), 400), 400),
+  );
+  const qualityStatusCountMatchesPaths = qualityTaxonomyRows.length === args.qualityPaths.length;
+  const qualityNotOkPartitionConsistent =
+    qualityReportNotOkCount + qualityReportTransientNotOkCount === qualityReportNotOkRawCount;
+  const missingEmpiricalSourceIdsUnique =
+    new Set(missingEmpiricalSourceIds).size === missingEmpiricalSourceIds.length;
+  const missingEmpiricalProvidedKeysUnique =
+    new Set(missingEmpiricalProvidedKeys).size === missingEmpiricalProvidedKeys.length;
+  const nonPositiveEmpiricalMetricKeysUnique =
+    new Set(nonPositiveEmpiricalMetricKeys).size === nonPositiveEmpiricalMetricKeys.length;
+  const requiredEmpiricalSourceIdsCanonical = requiredEmpiricalSourceIds.every((id) =>
+    isCanonicalToken(id, 80),
+  );
+  const requiredEmpiricalMetricKeysCanonical = requiredEmpiricalProvidedKeys.every((key) =>
+    isCanonicalToken(key, 80),
+  );
   const checks: GateCheck[] = [
     buildCheckGe(
       'proof_track_selected_known',
@@ -1067,6 +1222,106 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       Number(qualityMetrics.quality_merkle_chain_continuity_failures || 0),
       profilePolicy.quality_telemetry.merkle_chain_continuity_failures_max,
     ),
+    buildCheckGe(
+      'runtime_support_runs_total_expected_min',
+      supportRunsTotal,
+      2,
+    ),
+    buildCheckGe(
+      'runtime_support_runs_refreshed_or_reused_partition',
+      supportRunsRefreshed + supportRunsReused === supportRunsTotal ? 1 : 0,
+      1,
+    ),
+    buildCheckGe(
+      'runtime_support_runs_id_unique',
+      supportRunsUniqueIds ? 1 : 0,
+      1,
+    ),
+    buildCheckGe(
+      'runtime_support_runs_status_non_negative',
+      supportRunsStatusesNonNegative ? 1 : 0,
+      1,
+    ),
+    buildCheckGe(
+      'runtime_support_runs_detail_non_empty',
+      supportRunsDetailsNonEmpty ? 1 : 0,
+      1,
+    ),
+    buildCheckGe(
+      'runtime_support_runs_reason_token_valid',
+      supportRunsReasonsCanonical ? 1 : 0,
+      1,
+    ),
+    buildCheckGe(
+      'quality_paths_non_empty',
+      qualityPathsNonEmpty ? 1 : 0,
+      1,
+    ),
+    buildCheckGe(
+      'quality_paths_token_valid',
+      qualityPathsCanonical ? 1 : 0,
+      1,
+    ),
+    buildCheckGe(
+      'quality_report_status_count_matches_paths',
+      qualityStatusCountMatchesPaths ? 1 : 0,
+      1,
+    ),
+    buildCheckGe(
+      'quality_report_not_ok_partition_consistent',
+      qualityNotOkPartitionConsistent ? 1 : 0,
+      1,
+    ),
+    buildCheckLe(
+      'quality_report_blocking_not_ok_le_raw',
+      Number(qualityReportNotOkCount || 0),
+      Number(qualityReportNotOkRawCount || 0),
+    ),
+    buildCheckLe(
+      'quality_report_transient_not_ok_le_raw',
+      Number(qualityReportTransientNotOkCount || 0),
+      Number(qualityReportNotOkRawCount || 0),
+    ),
+    buildCheckLe(
+      'quality_report_stale_le_total',
+      Number(qualityReportStaleCount || 0),
+      Number(qualityMetrics.quality_reports_total || 0),
+    ),
+    buildCheckLe(
+      'quality_report_read_error_le_total',
+      Number(qualityReportReadErrorCount || 0),
+      Number(qualityMetrics.quality_reports_total || 0),
+    ),
+    buildCheckLe(
+      'quality_taxonomy_parse_error_le_total',
+      Number(qualityParseError || 0),
+      Number(qualityMetrics.quality_reports_total || 0),
+    ),
+    buildCheckGe(
+      'proof_track_missing_required_sources_unique',
+      missingEmpiricalSourceIdsUnique ? 1 : 0,
+      1,
+    ),
+    buildCheckGe(
+      'proof_track_missing_required_metrics_unique',
+      missingEmpiricalProvidedKeysUnique ? 1 : 0,
+      1,
+    ),
+    buildCheckGe(
+      'proof_track_missing_positive_metrics_unique',
+      nonPositiveEmpiricalMetricKeysUnique ? 1 : 0,
+      1,
+    ),
+    buildCheckGe(
+      'proof_track_required_source_ids_token_valid',
+      requiredEmpiricalSourceIdsCanonical ? 1 : 0,
+      1,
+    ),
+    buildCheckGe(
+      'proof_track_required_metric_keys_token_valid',
+      requiredEmpiricalMetricKeysCanonical ? 1 : 0,
+      1,
+    ),
   ];
 
   const failures = checks.filter((row) => !row.ok).map((row) => ({
@@ -1119,7 +1374,14 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         path: row.path,
         read_ok: row.ok,
         payload_ok: row.payload_ok === true ? true : row.payload_ok === false ? false : null,
+        payload_type: row.payload_type || '',
+        revision_match:
+          row.revision_match === true ? true : row.revision_match === false ? false : null,
+        artifact_revision: row.artifact_revision || '',
         parse_error: row.parse_error,
+        transient_not_ok: row.transient_not_ok === true,
+        blocking_not_ok: row.blocking_not_ok === true,
+        transient_reason: row.transient_reason || '',
       })),
       quality_taxonomy_parse_error_rows: qualityParseErrorRows.map((row) => ({
         path: row.path,

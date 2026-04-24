@@ -211,6 +211,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     ],
   ]);
   const globallyShareableValidationGates = new Set<string>(['ops:runtime-proof:verify']);
+  const gateIdPattern = /^ops:[a-z0-9:-]+$/;
   const requiredBucketIds = new Set([
     'layer2_parity',
     'production_gateways',
@@ -264,17 +265,26 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const boardPayload = readJsonBestEffort(path.resolve(root, args.boardPath));
   const gateRegistry = readJsonBestEffort(path.resolve(root, args.gateRegistryPath));
   const verifyProfiles = readJsonBestEffort(path.resolve(root, args.verifyProfilesPath));
-  const knownGateIds = new Set<string>(Object.keys(gateRegistry?.gates || {}));
-  const releaseProfileGateIds = new Set<string>(
-    Array.isArray(verifyProfiles?.profiles?.release?.gate_ids)
-      ? verifyProfiles.profiles.release.gate_ids.map((value: unknown) => cleanText(value, 160))
-      : [],
-  );
-  const runtimeProofProfileGateIds = new Set<string>(
-    Array.isArray(verifyProfiles?.profiles?.['runtime-proof']?.gate_ids)
-      ? verifyProfiles.profiles['runtime-proof'].gate_ids.map((value: unknown) => cleanText(value, 160))
-      : [],
-  );
+  const knownGateIdsList = Object.keys(gateRegistry?.gates || {})
+    .map((value) => cleanText(value, 160))
+    .filter(Boolean);
+  const knownGateIds = new Set<string>(knownGateIdsList);
+  const releaseProfileGateIdsList = Array.isArray(verifyProfiles?.profiles?.release?.gate_ids)
+    ? verifyProfiles.profiles.release.gate_ids.map((value: unknown) => cleanText(value, 160)).filter(Boolean)
+    : [];
+  const releaseProfileGateIds = new Set<string>(releaseProfileGateIdsList);
+  const runtimeProofProfileGateIdsList = Array.isArray(verifyProfiles?.profiles?.['runtime-proof']?.gate_ids)
+    ? verifyProfiles.profiles['runtime-proof'].gate_ids
+        .map((value: unknown) => cleanText(value, 160))
+        .filter(Boolean)
+    : [];
+  const runtimeProofProfileGateIds = new Set<string>(runtimeProofProfileGateIdsList);
+  const expectedClosureGateIds = Array.from(
+    new Set(expectedBucketOrder.flatMap((bucketId) => expectedBucketValidationGates.get(bucketId) || [])),
+  ).sort();
+  const expectedRuntimeCriticalGateIds = Array.from(
+    new Set(Array.from(runtimeCriticalBucketIds).flatMap((bucketId) => expectedBucketValidationGates.get(bucketId) || [])),
+  ).sort();
   const failures: Array<{ id: string; detail: string }> = [];
 
   if (!outPathCanonical) {
@@ -352,6 +362,164 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         detail: args.verifyProfilesPath,
       });
     }
+  }
+
+  if (releaseProfileGateIdsList.length === 0) {
+    failures.push({
+      id: 'runtime_closure_guard_release_profile_gate_ids_empty',
+      detail: args.verifyProfilesPath,
+    });
+  }
+  const duplicateReleaseProfileGateIds = duplicateTokens(releaseProfileGateIdsList);
+  if (duplicateReleaseProfileGateIds.length > 0) {
+    failures.push({
+      id: 'runtime_closure_guard_release_profile_gate_ids_duplicate',
+      detail: duplicateReleaseProfileGateIds.join(','),
+    });
+  }
+  const noncanonicalReleaseProfileGateIds = releaseProfileGateIdsList.filter(
+    (gateId) => !gateIdPattern.test(gateId),
+  );
+  if (noncanonicalReleaseProfileGateIds.length > 0) {
+    failures.push({
+      id: 'runtime_closure_guard_release_profile_gate_ids_noncanonical',
+      detail: noncanonicalReleaseProfileGateIds.join(','),
+    });
+  }
+  if (releaseProfileGateIdsList.join('|') !== [...releaseProfileGateIdsList].sort().join('|')) {
+    failures.push({
+      id: 'runtime_closure_guard_release_profile_gate_ids_unsorted',
+      detail: releaseProfileGateIdsList.join(','),
+    });
+  }
+
+  if (runtimeProofProfileGateIdsList.length === 0) {
+    failures.push({
+      id: 'runtime_closure_guard_runtime_proof_profile_gate_ids_empty',
+      detail: args.verifyProfilesPath,
+    });
+  }
+  const duplicateRuntimeProofProfileGateIds = duplicateTokens(runtimeProofProfileGateIdsList);
+  if (duplicateRuntimeProofProfileGateIds.length > 0) {
+    failures.push({
+      id: 'runtime_closure_guard_runtime_proof_profile_gate_ids_duplicate',
+      detail: duplicateRuntimeProofProfileGateIds.join(','),
+    });
+  }
+  const noncanonicalRuntimeProofProfileGateIds = runtimeProofProfileGateIdsList.filter(
+    (gateId) => !gateIdPattern.test(gateId),
+  );
+  if (noncanonicalRuntimeProofProfileGateIds.length > 0) {
+    failures.push({
+      id: 'runtime_closure_guard_runtime_proof_profile_gate_ids_noncanonical',
+      detail: noncanonicalRuntimeProofProfileGateIds.join(','),
+    });
+  }
+  if (
+    runtimeProofProfileGateIdsList.join('|') !== [...runtimeProofProfileGateIdsList].sort().join('|')
+  ) {
+    failures.push({
+      id: 'runtime_closure_guard_runtime_proof_profile_gate_ids_unsorted',
+      detail: runtimeProofProfileGateIdsList.join(','),
+    });
+  }
+
+  const unknownReleaseProfileGateIds = releaseProfileGateIdsList.filter(
+    (gateId) => !knownGateIds.has(gateId),
+  );
+  if (unknownReleaseProfileGateIds.length > 0) {
+    failures.push({
+      id: 'runtime_closure_guard_release_profile_gate_ids_unknown_to_registry',
+      detail: unknownReleaseProfileGateIds.join(','),
+    });
+  }
+  const unknownRuntimeProofProfileGateIds = runtimeProofProfileGateIdsList.filter(
+    (gateId) => !knownGateIds.has(gateId),
+  );
+  if (unknownRuntimeProofProfileGateIds.length > 0) {
+    failures.push({
+      id: 'runtime_closure_guard_runtime_proof_profile_gate_ids_unknown_to_registry',
+      detail: unknownRuntimeProofProfileGateIds.join(','),
+    });
+  }
+
+  const noncanonicalKnownGateIds = knownGateIdsList.filter((gateId) => !gateIdPattern.test(gateId));
+  if (noncanonicalKnownGateIds.length > 0) {
+    failures.push({
+      id: 'runtime_closure_guard_gate_registry_gate_ids_noncanonical',
+      detail: noncanonicalKnownGateIds.join(','),
+    });
+  }
+  if (knownGateIdsList.join('|') !== [...knownGateIdsList].sort().join('|')) {
+    failures.push({
+      id: 'runtime_closure_guard_gate_registry_gate_ids_unsorted',
+      detail: knownGateIdsList.join(','),
+    });
+  }
+
+  const expectedClosureGateIdsMissingInRegistry = expectedClosureGateIds.filter(
+    (gateId) => !knownGateIds.has(gateId),
+  );
+  if (expectedClosureGateIdsMissingInRegistry.length > 0) {
+    failures.push({
+      id: 'runtime_closure_guard_expected_closure_gates_missing_in_registry',
+      detail: expectedClosureGateIdsMissingInRegistry.join(','),
+    });
+  }
+  const expectedClosureGateIdsMissingInReleaseProfile = expectedClosureGateIds.filter(
+    (gateId) => !releaseProfileGateIds.has(gateId),
+  );
+  if (expectedClosureGateIdsMissingInReleaseProfile.length > 0) {
+    failures.push({
+      id: 'runtime_closure_guard_expected_closure_gates_missing_in_release_profile',
+      detail: expectedClosureGateIdsMissingInReleaseProfile.join(','),
+    });
+  }
+  const expectedRuntimeCriticalGateIdsMissingInRuntimeProofProfile = expectedRuntimeCriticalGateIds.filter(
+    (gateId) => !runtimeProofProfileGateIds.has(gateId),
+  );
+  if (expectedRuntimeCriticalGateIdsMissingInRuntimeProofProfile.length > 0) {
+    failures.push({
+      id: 'runtime_closure_guard_expected_runtime_critical_gates_missing_in_runtime_proof_profile',
+      detail: expectedRuntimeCriticalGateIdsMissingInRuntimeProofProfile.join(','),
+    });
+  }
+
+  const releaseRuntimeProofOverlapCount = releaseProfileGateIdsList.filter((gateId) =>
+    runtimeProofProfileGateIds.has(gateId),
+  ).length;
+  if (releaseRuntimeProofOverlapCount === 0) {
+    failures.push({
+      id: 'runtime_closure_guard_release_runtime_proof_overlap_missing',
+      detail: 'release/runtime-proof gate overlap=0',
+    });
+  }
+  const runtimeProofGateIdsOutsideRelease = runtimeProofProfileGateIdsList.filter(
+    (gateId) => !releaseProfileGateIds.has(gateId),
+  );
+  if (runtimeProofGateIdsOutsideRelease.length > 0) {
+    failures.push({
+      id: 'runtime_closure_guard_runtime_proof_profile_not_subset_of_release_profile',
+      detail: runtimeProofGateIdsOutsideRelease.join(','),
+    });
+  }
+  if (!releaseProfileGateIds.has('ops:runtime-proof:verify')) {
+    failures.push({
+      id: 'runtime_closure_guard_release_profile_runtime_proof_verify_missing',
+      detail: 'ops:runtime-proof:verify',
+    });
+  }
+  if (!runtimeProofProfileGateIds.has('ops:runtime-proof:verify')) {
+    failures.push({
+      id: 'runtime_closure_guard_runtime_proof_profile_runtime_proof_verify_missing',
+      detail: 'ops:runtime-proof:verify',
+    });
+  }
+  if (expectedClosureGateIds.length === 0) {
+    failures.push({
+      id: 'runtime_closure_guard_expected_closure_gate_set_empty',
+      detail: 'expected closure gate set is empty',
+    });
   }
 
   if (!boardPayload) {

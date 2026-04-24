@@ -1201,6 +1201,34 @@ fn source_surface_key(source_ref: &str) -> Option<String> {
     if cleaned.ends_with("cli/src/utils/task-history.test.ts") {
         return Some("tooling/rtk/cline_utils_task_history_test".to_string());
     }
+    if cleaned.ends_with("docs/provider-config/openai-codex.mdx") {
+        return Some("tooling/rtk/docs_provider_openai_codex".to_string());
+    }
+    if cleaned.ends_with(
+        "src/core/prompts/system-prompt/__tests__/__snapshots__/openai_gpt_5_codex-basic.snap",
+    ) {
+        return Some("tooling/rtk/prompts_openai_gpt_5_codex_basic_snap".to_string());
+    }
+    if cleaned.ends_with(
+        "src/core/prompts/system-prompt/__tests__/__snapshots__/openai_gpt_5_codex-no-browser.snap",
+    ) {
+        return Some("tooling/rtk/prompts_openai_gpt_5_codex_no_browser_snap".to_string());
+    }
+    if cleaned.ends_with(
+        "src/core/prompts/system-prompt/__tests__/__snapshots__/openai_gpt_5_codex-no-focus-chain.snap",
+    ) {
+        return Some("tooling/rtk/prompts_openai_gpt_5_codex_no_focus_chain_snap".to_string());
+    }
+    if cleaned.ends_with(
+        "src/core/prompts/system-prompt/__tests__/__snapshots__/openai_gpt_5_codex-no-mcp.snap",
+    ) {
+        return Some("tooling/rtk/prompts_openai_gpt_5_codex_no_mcp_snap".to_string());
+    }
+    if cleaned == ".codex/environments/environment.toml"
+        || cleaned.ends_with(".codex/environments/environment.toml")
+    {
+        return Some("tooling/rtk/codex_environment_toml".to_string());
+    }
     let workspace_hooks_marker = "hooks/";
     if let Some(idx) = cleaned.find(workspace_hooks_marker) {
         let tail = &cleaned[(idx + workspace_hooks_marker.len())..];

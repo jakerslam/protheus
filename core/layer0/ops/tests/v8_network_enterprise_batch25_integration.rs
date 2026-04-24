@@ -59,13 +59,11 @@ fn assert_receipt_contract_shape(payload: &Value) {
         "receipt hash should be non-empty hex"
     );
     assert!(payload.get("ok").and_then(Value::as_bool).is_some());
-    assert!(
-        payload
-            .get("type")
-            .and_then(Value::as_str)
-            .map(|value| !value.trim().is_empty())
-            .unwrap_or(false)
-    );
+    assert!(payload
+        .get("type")
+        .and_then(Value::as_str)
+        .map(|value| !value.trim().is_empty())
+        .unwrap_or(false));
 }
 
 fn allow(root: &Path, directive: &str) {

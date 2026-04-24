@@ -134,14 +134,8 @@ fn workflow_final_response_used(workflow: &Value) -> bool {
 }
 
 fn workflow_final_response_allows_system_fallback(workflow: &Value) -> bool {
-    matches!(
-        workflow_final_response_status(workflow).as_str(),
-        "invoke_failed"
-            | "synthesis_failed"
-            | "skipped_missing_model"
-            | "skipped_test"
-            | "skipped_not_required"
-    )
+    let _status = workflow_final_response_status(workflow);
+    false
 }
 
 fn response_contains_route_classification_retry_template(lowered: &str) -> bool {
@@ -158,17 +152,29 @@ fn response_contains_route_classification_retry_template(lowered: &str) -> bool 
         || lowered.contains("automated classification based on semantic analysis")
         || lowered.contains("not a true/false decision i control")
         || lowered.contains("defaults to info")
-        || lowered.contains("[source:workflow_gate]")
-        || lowered.contains("source:workflow_gate");
+        || contains_deprecated_workflow_source_marker(lowered);
+    let mentions_decision_tree_autoclassifier = lowered.contains("decision tree")
+        && lowered.contains("automatically classifies")
+        && lowered.contains("\"info\"")
+        && lowered.contains("\"task\"")
+        && lowered.contains("semantic analysis");
     let mentions_trigger_copy = lowered.contains("explicit tool-related phrasing")
         || lowered.contains("task classification path")
         || lowered.contains("conversational exchange rather than a tool operation request")
-        || lowered.contains("tool operation request");
+        || lowered.contains("tool operation request")
+        || lowered.contains("conversation bypass mode is currently active")
+        || lowered.contains("restricted from running web searches")
+        || lowered.contains("can't autonomously decide to use web tools")
+        || lowered.contains("requires manual step-by-step authorization for tool usage");
     (mentions_first_gate
         && mentions_route_name
-        && (mentions_info_vs_task || mentions_binary_classifier || mentions_trigger_copy))
+        && (mentions_info_vs_task
+            || mentions_binary_classifier
+            || mentions_decision_tree_autoclassifier
+            || mentions_trigger_copy))
         || (mentions_route_name && mentions_info_vs_task)
         || (mentions_route_name && mentions_binary_classifier)
+        || mentions_decision_tree_autoclassifier
 }
 
 fn workflow_response_repetition_breaker_active(latest_assistant_text: &str) -> bool {
@@ -235,14 +241,32 @@ fn workflow_retry_macro_signal_count(lowered: &str) -> usize {
         "still classifying this as an \"info\" route rather than a \"task\" route",
         "still classifying this as an 'info' route rather than a 'task' route",
         "binary classification",
+        "decision tree",
+        "automatically classifies",
         "automated classification based on semantic analysis",
         "not a true/false decision i control",
         "defaults to info",
         "[source:workflow_gate]",
         "source:workflow_gate",
+        "[source:tool_gate]",
+        "source:tool_gate",
+        "[source:workflow_route_classification]",
+        "source:workflow_route_classification",
+        "[source:gate_enforcement_mode]",
+        "source:gate_enforcement_mode",
+        "[source:tool_decision_policy]",
+        "source:tool_decision_policy",
+        "[source:conversation_bypass_control]",
+        "source:conversation_bypass_control",
+        "[source:agent_framework_analysis]",
+        "source:agent_framework_analysis",
         "explicit tool-related phrasing",
         "task classification path",
         "tool operation request",
+        "conversation bypass mode is currently active",
+        "restricted from running web searches",
+        "can't autonomously decide to use web tools",
+        "requires manual step-by-step authorization for tool usage",
         "final workflow state was unexpected",
         "workflow state was unexpected. please retry",
         "final reply did not render",
@@ -599,12 +623,18 @@ fn response_repeats_latest_assistant_copy(response_text: &str, latest_assistant_
     );
     let normalized_response = normalized_response_similarity_key(&cleaned_response);
     let normalized_latest = normalized_response_similarity_key(&cleaned_latest);
+    let compact_response = normalized_response.replace(' ', "");
+    let compact_latest = normalized_latest.replace(' ', "");
     let response_first_sentence = first_sentence(&cleaned_response, 200);
     let latest_first_sentence = first_sentence(&cleaned_latest, 200);
     let normalized_contains = normalized_response.len() >= 48
         && normalized_latest.len() >= 48
         && (normalized_response.contains(&normalized_latest)
             || normalized_latest.contains(&normalized_response));
+    let compact_contains = compact_response.len() >= 48
+        && compact_latest.len() >= 48
+        && (compact_response.contains(&compact_latest)
+            || compact_latest.contains(&compact_response));
     let first_sentence_match = response_first_sentence.len() >= 40
         && latest_first_sentence.len() >= 40
         && response_first_sentence.eq_ignore_ascii_case(&latest_first_sentence);
@@ -616,28 +646,12 @@ fn response_repeats_latest_assistant_copy(response_text: &str, latest_assistant_
         && (cleaned_response.eq_ignore_ascii_case(&cleaned_latest)
             || normalized_response == normalized_latest
             || normalized_contains
+            || compact_response == compact_latest
+            || compact_contains
             || first_sentence_match)
 }
 
-fn workflow_repeat_safe_direct_reply(message: &str, response_tools: &[Value]) -> String {
-    let policy_blocked = workflow_turn_has_policy_block(response_tools);
-    let domain_boundary_blocked = workflow_turn_has_domain_boundary_block(response_tools);
-    if message_requests_diagnostic_explanation(message) {
-        if domain_boundary_blocked {
-            return "The last tool attempt was blocked by a runtime-lane domain-boundary policy on workspace/file access. I’m switching to a direct-answer path from current context and keeping tools off unless you explicitly request one.".to_string();
-        }
-        if policy_blocked {
-            return "The last tool attempt was blocked by a local policy gate, so I’m switching to a direct-answer path from current context and keeping tools off unless you explicitly request one.".to_string();
-        }
-        return "The previous fallback text repeated, so I’m switching to a direct-answer path from current context and keeping tools off unless you explicitly request one.".to_string();
-    }
-    if policy_blocked {
-        return "Answering directly from current context now. The last tool attempt was policy-blocked, and I’ll keep tools off unless you explicitly request one.".to_string();
-    }
-    "Answering directly from current context now, with tools off unless you explicitly request one."
-        .to_string()
-}
-
+#[cfg(test)]
 fn fallback_reply_variant_seed(message: &str, latest_assistant_text: &str) -> usize {
     let mut acc: usize = 0;
     for byte in clean_text(message, 2_000).bytes() {
@@ -649,6 +663,7 @@ fn fallback_reply_variant_seed(message: &str, latest_assistant_text: &str) -> us
     acc
 }
 
+#[cfg(test)]
 fn pick_non_repeating_reply_variant(
     candidates: &[&str],
     message: &str,
@@ -669,6 +684,7 @@ fn pick_non_repeating_reply_variant(
     candidates[start].to_string()
 }
 
+#[cfg(test)]
 fn workflow_non_repeating_last_resort_reply(
     message: &str,
     latest_assistant_text: &str,
@@ -725,202 +741,15 @@ fn workflow_non_repeating_last_resort_reply(
     )
 }
 
-fn enforce_non_repeating_fallback_text(
-    message: &str,
-    latest_assistant_text: &str,
-    response_tools: &[Value],
-    candidate: &str,
-) -> String {
-    if !response_repeats_latest_assistant_copy(candidate, latest_assistant_text) {
-        return candidate.to_string();
-    }
-    let alternate = workflow_repeat_safe_direct_reply(message, response_tools);
-    if !response_repeats_latest_assistant_copy(&alternate, latest_assistant_text) {
-        return alternate;
-    }
-    workflow_non_repeating_last_resort_reply(message, latest_assistant_text, response_tools)
-}
-
 fn workflow_unexpected_state_user_fallback(
     message: &str,
     latest_assistant_text: &str,
     response_tools: &[Value],
 ) -> String {
-    if message_is_minimal_conversational_ping(message) {
-        return "Hey — I’m here. I can continue directly from current context without extra tool calls; tell me what you want next.".to_string();
-    }
-    let policy_blocked = workflow_turn_has_policy_block(response_tools);
-    let domain_boundary_blocked = workflow_turn_has_domain_boundary_block(response_tools);
-    let policy_summary = workflow_policy_block_summary(response_tools);
-    let repeated_fallback = workflow_response_repetition_breaker_active(latest_assistant_text);
-    if repeated_fallback {
-        if message_requests_diagnostic_explanation(message) {
-            if message_requests_patch_effectiveness_check(message) {
-                if policy_blocked {
-                    if !policy_summary.is_empty() {
-                        return format!(
-                            "Partial improvement is active: the fallback guard prevented another repeated workflow template, but this turn still hit a policy gate ({policy_summary}) on tool execution. I can continue in direct-answer mode from current context."
-                        );
-                    }
-                    return "Partial improvement is active: the fallback guard prevented another repeated workflow template, but this turn still hit a policy gate on tool execution. I can continue in direct-answer mode from current context.".to_string();
-                }
-                return "Yes—improvement is active here: the fallback guard caught the repeated workflow template and switched to stable direct-answer mode from current context.".to_string();
-            }
-            if message_requests_system_improvement_plan(message) {
-                if policy_blocked {
-                    if !policy_summary.is_empty() {
-                        return format!(
-                            "Top improvements: 1) keep tool routing LLM-controlled, 2) keep policy-denied turns fail-closed with explicit reason ({policy_summary}), and 3) continue direct-answer mode from current context when tool execution is blocked."
-                        );
-                    }
-                    return "Top improvements: 1) keep tool routing LLM-controlled, 2) keep policy-denied turns fail-closed with explicit reason, and 3) continue direct-answer mode from current context when tool execution is blocked.".to_string();
-                }
-                return "Top improvements: 1) keep tool routing LLM-controlled, 2) aggressively suppress repeated workflow fallback boilerplate, and 3) keep direct-answer mode stable from current context unless a tool call is explicitly requested.".to_string();
-            }
-            if message_checks_hardcoded_response(message) {
-                if policy_blocked {
-                    if !policy_summary.is_empty() {
-                        return format!(
-                            "This is not a hard-coded response lock. The fallback guard activated because a local ingress policy gate denied the requested tool route ({policy_summary}), and I can continue with a normal direct answer from current context."
-                        );
-                    }
-                    return "This is not a hard-coded response lock. The fallback guard activated because a local ingress policy gate denied the requested tool route, and I can continue with a normal direct answer from current context.".to_string();
-                }
-                return "This is not a hard-coded response lock. The workflow fallback guard triggered after repeated unexpected-state boilerplate, and I can continue with a normal direct answer from current context.".to_string();
-            }
-            if message_mentions_tool_routing_authority(message) {
-                if policy_blocked {
-                    if !policy_summary.is_empty() {
-                        return format!(
-                            "Tool selection should remain LLM-controlled, and this turn did not auto-fire a tool successfully: a local ingress policy gate denied the requested route ({policy_summary}). I can continue in direct-answer mode from current context unless you explicitly request another tool call."
-                        );
-                    }
-                    return "Tool selection should remain LLM-controlled, and this turn did not auto-fire a tool successfully: a local ingress policy gate denied the requested route. I can continue in direct-answer mode from current context unless you explicitly request another tool call.".to_string();
-                }
-                return "Tool selection should remain LLM-controlled. This turn hit a workflow finalization fallback edge, so I am staying in stable direct-answer mode from current context unless you explicitly request a tool call.".to_string();
-            }
-            if policy_blocked {
-                if !policy_summary.is_empty() {
-                    return format!(
-                        "Likely root cause: a local ingress policy gate denied the requested tool call ({policy_summary}). I can continue with a direct answer from current context without running another tool unless you explicitly request one."
-                    );
-                }
-                return "Likely root cause: a local ingress policy gate denied the requested tool call. I can continue with a direct answer from current context without running another tool unless you explicitly request one.".to_string();
-            }
-            return "Likely root cause: the previous workflow fallback text repeated after a finalization edge. I am switching to a stable direct-answer path now and will avoid extra tool calls unless you explicitly request one.".to_string();
-        }
-        if message_requests_file_tooling_validation(message) {
-            if domain_boundary_blocked {
-                return "Yes, file tooling is currently blocked in this runtime lane by ingress domain-boundary policy. I can continue with a direct answer from current context, or run workspace tools once you switch to a workspace-enabled lane.".to_string();
-            }
-            if policy_blocked {
-                return "File tooling was blocked by a local policy gate on this turn. I can continue in direct-answer mode from current context unless you explicitly request another tool call.".to_string();
-            }
-            return "File tooling can be used when this lane has workspace-read permission; this fallback turn is now in direct-answer mode from current context unless you explicitly request a tool call.".to_string();
-        }
-        if message_requests_plain_direct_reply(message) {
-            if policy_blocked {
-                return "The prior tool step was blocked by a local policy gate. I can continue with a plain direct answer from current context right now without running another tool.".to_string();
-            }
-            return "Understood. I can continue with a plain direct answer from current context right now and avoid extra tool calls unless you explicitly request one.".to_string();
-        }
-        if policy_blocked {
-            if message_requests_workspace_file_action(message) {
-                if !policy_summary.is_empty() {
-                    return format!("I can’t execute that workspace/file tool call in this runtime lane because ingress policy denied the route ({policy_summary}). I can continue from current context here, or if you switch to a workspace-read-enabled lane I can run the directory/file check directly.");
-                }
-                return "I can’t execute that workspace/file tool call in this runtime lane because a local ingress policy gate denied the route. I can continue from current context here, or if you switch to a workspace-read-enabled lane I can run the directory/file check directly.".to_string();
-            }
-            return "I'm not hard-locked; the last turn was blocked by a local access policy gate. I can continue with a direct answer from current context right now, and I will avoid extra tool calls unless you explicitly request one.".to_string();
-        }
-        return "I'm not hard-locked. The previous fallback repeated, so I'm switching to a plain direct response path and avoiding extra tool calls unless you explicitly request one.".to_string();
-    }
-    if policy_blocked {
-        if message_requests_diagnostic_explanation(message) {
-            if message_requests_patch_effectiveness_check(message) {
-                if !policy_summary.is_empty() {
-                    return format!(
-                        "Partial improvement is active, but this tool turn remains blocked by runtime-lane policy ({policy_summary}). The fallback path stayed fail-closed and I can continue with a direct answer from current context."
-                    );
-                }
-                return "Partial improvement is active, but this tool turn remains blocked by runtime-lane policy. The fallback path stayed fail-closed and I can continue with a direct answer from current context.".to_string();
-            }
-            if message_requests_system_improvement_plan(message) {
-                if !policy_summary.is_empty() {
-                    return format!(
-                        "Top improvements: 1) keep tool routing LLM-controlled, 2) keep policy-denied turns explicit and fail-closed ({policy_summary}), and 3) continue direct-answer mode from current context when runtime-lane permissions block tool execution."
-                    );
-                }
-                return "Top improvements: 1) keep tool routing LLM-controlled, 2) keep policy-denied turns explicit and fail-closed, and 3) continue direct-answer mode from current context when runtime-lane permissions block tool execution.".to_string();
-            }
-            if message_checks_hardcoded_response(message) {
-                if !policy_summary.is_empty() {
-                    return format!(
-                        "This is not a hard-coded system response. A local ingress policy gate denied the requested tool route ({policy_summary}), and I can continue with a direct answer from current context."
-                    );
-                }
-                return "This is not a hard-coded system response. A local ingress policy gate denied the requested tool route, and I can continue with a direct answer from current context.".to_string();
-            }
-            if message_mentions_tool_routing_authority(message) {
-                if !policy_summary.is_empty() {
-                    return format!(
-                        "Tool selection should remain LLM-controlled. This turn did not auto-fire a successful tool call because a local ingress policy gate denied the requested route ({policy_summary}). I can still answer directly from current context."
-                    );
-                }
-                return "Tool selection should remain LLM-controlled. This turn did not auto-fire a successful tool call because a local ingress policy gate denied the requested route. I can still answer directly from current context.".to_string();
-            }
-            if !policy_summary.is_empty() {
-                return format!(
-                    "Likely root cause: a local ingress policy gate denied the requested tool call ({policy_summary}). I can still answer directly from current context without another tool call."
-                );
-            }
-            return "Likely root cause: a local ingress policy gate denied the requested tool call. I can still answer directly from current context without another tool call.".to_string();
-        }
-        if message_requests_plain_direct_reply(message) {
-            return "Understood. I can answer directly from current context now. The prior tool step was blocked by a local policy gate, so I’m staying in direct-answer mode unless you explicitly request another tool call.".to_string();
-        }
-        if message_requests_workspace_file_action(message) {
-            if domain_boundary_blocked && !policy_summary.is_empty() {
-                return format!("That workspace/file action is blocked in this runtime lane by ingress domain-boundary policy ({policy_summary}). I can continue with a direct answer from current context, or you can retry from a lane that has workspace-read permission and I’ll run the check.");
-            }
-            return "That workspace/file action is blocked in this runtime lane by an ingress policy gate. I can continue with a direct answer from current context, or you can retry from a lane that has workspace-read permission and I’ll run the check.".to_string();
-        }
-        if message_requests_file_tooling_validation(message) {
-            if !policy_summary.is_empty() {
-                return format!("File/workspace tooling validation is currently blocked by runtime-lane policy ({policy_summary}). I can continue with direct answers now, and run local tooling once lane permissions allow it.");
-            }
-            return "File/workspace tooling validation is currently blocked by runtime-lane policy. I can continue with direct answers now, and run local tooling once lane permissions allow it.".to_string();
-        }
-        return "The prior step was blocked by a local access policy gate. I can still answer directly from current context without another tool call.".to_string();
-    }
-    if message_requests_file_tooling_validation(message) {
-        return "File tooling should be LLM-selected and lane-authorized. In this turn I’m replying directly from current context; if you want a live workspace tool action, ask explicitly and I’ll run it in a workspace-enabled lane.".to_string();
-    }
-    if message_requests_plain_direct_reply(message) {
-        return "Understood. I can continue with a plain direct answer from current context right now.".to_string();
-    }
-    if message_requests_workspace_file_action(message) {
-        return "I can run that workspace/file check directly from current context. If you want me to execute it now, give me the exact path or tell me to use the current workspace root.".to_string();
-    }
-    if message_requests_diagnostic_explanation(message) {
-        if message_requests_system_improvement_plan(message) {
-            return "Top improvements: 1) keep tool routing LLM-controlled, 2) keep repeated workflow fallback suppression active, and 3) stay in direct-answer mode from current context unless a tool call is explicitly requested.".to_string();
-        }
-        if message_checks_hardcoded_response(message) {
-            return "This is not a hard-coded system response. This turn hit a workflow finalization edge without a policy denial, and I can continue with a direct answer from current context.".to_string();
-        }
-        if message_mentions_tool_routing_authority(message) {
-            return "Tool routing remains LLM-controlled. This turn hit a workflow finalization edge without a policy-denied tool route, and I can continue in direct-answer mode from current context unless you explicitly request a tool call.".to_string();
-        }
-        return "Likely root cause: a workflow finalization edge occurred on this turn without a policy denial. I can continue with a direct answer from current context and avoid extra tool calls unless you explicitly request one.".to_string();
-    }
-    if message_requests_patch_effectiveness_check(message) {
-        return "Yes—fallback hardening is active on this lane. I can continue in direct-answer mode from current context, and tool calls remain explicit opt-in unless you request one.".to_string();
-    }
-    if message.trim().is_empty() {
-        return "I hit a workflow finalization edge, but I can continue with a direct response from current context.".to_string();
-    }
-    "I hit a workflow finalization edge on this turn. I can still answer directly from current context, and I'll avoid extra tool calls unless you explicitly request one.".to_string()
+    let _ = (message, latest_assistant_text, response_tools);
+    // Policy: workflow telemetry may record failure state, but chat output must remain
+    // LLM-authored. Do not synthesize operator-facing fallback prose here.
+    String::new()
 }
 
 fn should_force_direct_workflow_fallback(
@@ -967,29 +796,34 @@ fn sanitize_skipped_final_response_fallback_response(
     };
     let mut sanitized_retry_loop = false;
     if response_contains_unexpected_state_retry_boilerplate(&fallback_response) {
-        fallback_response =
-            workflow_unexpected_state_user_fallback(message, latest_assistant_text, response_tools);
+        fallback_response.clear();
         sanitized_retry_loop = true;
-        fallback_source = "generated";
+        fallback_source = "withheld_non_llm_fallback_response";
     }
     if clean_text(&fallback_response, 2_000).is_empty() {
-        fallback_response =
-            workflow_unexpected_state_user_fallback(message, latest_assistant_text, response_tools);
-        sanitized_retry_loop = true;
-        fallback_source = "generated";
+        fallback_response.clear();
+        if !matches!(fallback_source, "withheld_non_llm_fallback_response") {
+            fallback_source = "empty";
+        }
     }
-    let guarded_response = ensure_no_retry_boilerplate_copy(
-        message,
-        latest_assistant_text,
-        response_tools,
-        &fallback_response,
-    );
-    if guarded_response != fallback_response {
-        sanitized_retry_loop = true;
-        fallback_response = guarded_response;
-        fallback_source = "generated";
+    if !fallback_response.is_empty() {
+        let guarded_response = ensure_no_retry_boilerplate_copy(
+            message,
+            latest_assistant_text,
+            response_tools,
+            &fallback_response,
+        );
+        if guarded_response != fallback_response {
+            sanitized_retry_loop = true;
+            fallback_response = guarded_response;
+            fallback_source = if fallback_response.is_empty() {
+                "withheld_non_llm_fallback_response"
+            } else {
+                "guarded_existing"
+            };
+        }
     }
-    if fallback_response.is_empty() {
+    if fallback_response.is_empty() && matches!(fallback_source, "draft" | "latest") {
         fallback_source = "empty";
     }
     (fallback_response, sanitized_retry_loop, fallback_source)
@@ -1198,54 +1032,24 @@ fn workflow_fallback_guard_summary_classification(
 }
 
 fn ensure_no_retry_boilerplate_copy(
-    message: &str,
+    _message: &str,
     latest_assistant_text: &str,
-    response_tools: &[Value],
+    _response_tools: &[Value],
     response_text: &str,
 ) -> String {
     let cleaned = sanitize_workflow_final_response_candidate(
         &strip_internal_cache_control_markup(&strip_internal_context_metadata_prefix(response_text)),
     );
+    if cleaned.is_empty() {
+        return String::new();
+    }
     if response_repeats_latest_assistant_copy(&cleaned, latest_assistant_text) {
-        return enforce_non_repeating_fallback_text(
-            message,
-            latest_assistant_text,
-            response_tools,
-            &cleaned,
-        );
+        return String::new();
     }
-    if !response_contains_unexpected_state_retry_boilerplate(&cleaned) {
-        return cleaned;
+    if response_contains_unexpected_state_retry_boilerplate(&cleaned) {
+        return String::new();
     }
-    let fallback = clean_text(
-        &workflow_unexpected_state_user_fallback(message, latest_assistant_text, response_tools),
-        2_000,
-    );
-    if response_repeats_latest_assistant_copy(&fallback, latest_assistant_text) {
-        return enforce_non_repeating_fallback_text(
-            message,
-            latest_assistant_text,
-            response_tools,
-            &fallback,
-        );
-    }
-    if fallback.is_empty() || response_contains_unexpected_state_retry_boilerplate(&fallback) {
-        if workflow_turn_has_policy_block(response_tools) {
-            return enforce_non_repeating_fallback_text(
-                message,
-                latest_assistant_text,
-                response_tools,
-                "The prior tool step was blocked by a local policy gate. I can continue with a direct answer from current context without another tool call.",
-            );
-        }
-        return enforce_non_repeating_fallback_text(
-            message,
-            latest_assistant_text,
-            response_tools,
-            "I can continue with a direct answer from current context and avoid extra tool calls unless you explicitly request one.",
-        );
-    }
-    enforce_non_repeating_fallback_text(message, latest_assistant_text, response_tools, &fallback)
+    cleaned
 }
 
 fn apply_final_retry_boilerplate_guard(
@@ -1268,27 +1072,48 @@ fn apply_final_retry_boilerplate_guard(
         response_tools,
         &response_text,
     );
-    if guarded.is_empty() {
+    if !guarded.is_empty() && guarded != response_text {
+        workflow["response"] = Value::String(guarded.clone());
+        workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(false);
+        bump_workflow_quality_counter(workflow, "legacy_retry_template_detected");
+        workflow["final_llm_response"]["fallback_sanitized_retry_loop"] = Value::Bool(true);
+        workflow["final_llm_response"]["fallback_source"] =
+            Value::String("guarded_existing".to_string());
+        workflow["final_llm_response"]["fallback_from_existing_draft"] = Value::Bool(true);
+        workflow["final_llm_response"]["used"] = Value::Bool(true);
+        workflow["final_llm_response"]["status"] = Value::String("synthesized".to_string());
+        workflow["final_llm_response"]["fallback_response"] = Value::Null;
+        workflow["final_llm_response"]["error"] = Value::Null;
+        workflow["final_llm_response"]["last_reject_reason"] = Value::Null;
+        mark_workflow_fallback_guard_reason(
+            workflow,
+            "retry_boilerplate_guard",
+            "final_retry_guard",
+        );
+        set_turn_workflow_final_stage_status(workflow, "synthesized");
         return;
     }
-    workflow["response"] = Value::String(guarded.clone());
-    workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(true);
+    workflow["response"] = Value::String(String::new());
+    workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(false);
     bump_workflow_quality_counter(workflow, "legacy_retry_template_detected");
     workflow["final_llm_response"]["fallback_sanitized_retry_loop"] = Value::Bool(true);
-    workflow["final_llm_response"]["fallback_source"] = Value::String("generated_guard".to_string());
+    workflow["final_llm_response"]["fallback_source"] =
+        Value::String("suppressed_retry_boilerplate".to_string());
     workflow["final_llm_response"]["fallback_from_existing_draft"] = Value::Bool(false);
-    workflow["final_llm_response"]["used"] = Value::Bool(true);
-    workflow["final_llm_response"]["status"] = Value::String("fallback_direct_answer".to_string());
-    workflow["final_llm_response"]["fallback_response"] = Value::String(guarded);
-    workflow["final_llm_response"]["error"] = Value::Null;
+    workflow["final_llm_response"]["used"] = Value::Bool(false);
+    workflow["final_llm_response"]["status"] =
+        Value::String("withheld_non_llm_fallback_response".to_string());
+    workflow["final_llm_response"]["fallback_response"] = Value::Null;
+    workflow["final_llm_response"]["error"] =
+        Value::String("retry_boilerplate_withheld".to_string());
     workflow["final_llm_response"]["last_reject_reason"] =
-        Value::String("fallback_applied_guard".to_string());
+        Value::String("fallback_suppressed_guard".to_string());
     mark_workflow_fallback_guard_reason(
         workflow,
         "retry_boilerplate_guard",
         "final_retry_guard",
     );
-    set_turn_workflow_final_stage_status(workflow, "fallback_direct_answer");
+    set_turn_workflow_final_stage_status(workflow, "withheld_non_llm_fallback_response");
 }
 
 fn apply_final_response_presence_guard(
@@ -1304,37 +1129,24 @@ fn apply_final_response_presence_guard(
     if !response_text.is_empty() {
         return;
     }
-    let candidate = workflow_unexpected_state_user_fallback(
-        message,
-        latest_assistant_text,
-        response_tools,
-    );
-    let guarded = ensure_no_retry_boilerplate_copy(
-        message,
-        latest_assistant_text,
-        response_tools,
-        &candidate,
-    );
-    if guarded.is_empty() {
-        return;
-    }
-    workflow["response"] = Value::String(guarded.clone());
-    workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(true);
-    workflow["final_llm_response"]["used"] = Value::Bool(true);
-    workflow["final_llm_response"]["status"] = Value::String("fallback_direct_answer".to_string());
-    workflow["final_llm_response"]["fallback_response"] = Value::String(guarded);
+    let _ = (message, latest_assistant_text, response_tools);
+    workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(false);
+    workflow["final_llm_response"]["used"] = Value::Bool(false);
+    workflow["final_llm_response"]["status"] =
+        Value::String("withheld_non_llm_fallback_response".to_string());
+    workflow["final_llm_response"]["fallback_response"] = Value::Null;
     workflow["final_llm_response"]["fallback_source"] =
-        Value::String("generated_presence_guard".to_string());
+        Value::String("empty_response_presence_guard".to_string());
     workflow["final_llm_response"]["fallback_from_existing_draft"] = Value::Bool(false);
-    workflow["final_llm_response"]["error"] = Value::Null;
+    workflow["final_llm_response"]["error"] = Value::String("empty_response_withheld".to_string());
     workflow["final_llm_response"]["last_reject_reason"] =
-        Value::String("fallback_applied_presence_guard".to_string());
+        Value::String("fallback_suppressed_presence_guard".to_string());
     mark_workflow_fallback_guard_reason(
         workflow,
         "empty_response_presence_guard",
         "final_presence_guard",
     );
-    set_turn_workflow_final_stage_status(workflow, "fallback_direct_answer");
+    set_turn_workflow_final_stage_status(workflow, "withheld_non_llm_fallback_response");
 }
 
 fn tool_completion_report_for_response(
@@ -1677,7 +1489,7 @@ fn run_turn_workflow_final_response(
     };
     let system_prompt = clean_text(
         &format!(
-            "{}\n\nHardcoded agent workflow: you are writing the final assistant response after the system collected tool outcomes and workflow events. Use the recorded evidence. If a tool failed, timed out, was blocked, or returned low-signal output, say that plainly in your own words. Never emit raw telemetry, placeholder copy, inline `<function=...>` markup, or pretend a failed tool succeeded.\n\nFinal-answer contract (final_answer_contract_v1): (1) answer the user's request in the first 1-2 sentences, (2) do not echo/restate the user prompt as your response, (3) do not include placeholder copy, (4) include source tags for key claims using `[source:local_context]` or `[source:tool_receipt:<id>]`.\n\nResponse template class: {}. {} Style: {} by default unless user requested a deep dive.",
+            "{}\n\nHardcoded agent workflow: you are writing the final assistant response after the system collected tool outcomes and workflow events. Use the recorded evidence. If a tool failed, timed out, was blocked, or returned low-signal output, say that plainly in your own words. Never emit raw telemetry, placeholder copy, inline `<function=...>` markup, or pretend a failed tool succeeded.\n\nFinal-answer contract (final_answer_contract_v1): (1) answer the user's request in the first 1-2 sentences, (2) do not echo/restate the user prompt as your response, (3) do not include placeholder copy, (4) do not mention internal gate/classifier identifiers, and (5) do not emit bracketed internal source tags.\n\nResponse template class: {}. {} Style: {} by default unless user requested a deep dive.",
             AGENT_RUNTIME_SYSTEM_PROMPT, template_label, template_instruction, detail_style
         ),
         12_000,
@@ -1941,34 +1753,27 @@ fn run_turn_workflow_final_response(
         response_tools,
         recent_retry_loop_detected,
     ) {
-        let fallback_response =
-            workflow_unexpected_state_user_fallback(message, latest_assistant_text, response_tools);
-        if !fallback_response.is_empty() {
-            let guarded_fallback = ensure_no_retry_boilerplate_copy(
-                message,
-                latest_assistant_text,
-                response_tools,
-                &fallback_response,
-            );
-            workflow["response"] = Value::String(guarded_fallback.clone());
-            workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(true);
-            workflow["final_llm_response"]["used"] = Value::Bool(true);
-            workflow["final_llm_response"]["status"] =
-                Value::String("fallback_direct_answer".to_string());
-            workflow["final_llm_response"]["fallback_response"] = Value::String(guarded_fallback);
-            workflow["final_llm_response"]["fallback_source"] =
-                Value::String("generated".to_string());
-            workflow["final_llm_response"]["fallback_from_existing_draft"] = Value::Bool(false);
-            workflow["final_llm_response"]["error"] = Value::Null;
-            workflow["final_llm_response"]["last_reject_reason"] =
-                Value::String("fallback_applied".to_string());
-            mark_workflow_fallback_guard_reason(
-                &mut workflow,
-                "forced_fallback_after_synthesis_failure",
-                "forced_synthesis_failure_fallback",
-            );
-            set_turn_workflow_final_stage_status(&mut workflow, "fallback_direct_answer");
-        }
+        let _ = (message, latest_assistant_text, response_tools);
+        workflow["response"] = Value::String(String::new());
+        workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(false);
+        workflow["final_llm_response"]["used"] = Value::Bool(false);
+        workflow["final_llm_response"]["status"] =
+            Value::String("withheld_non_llm_fallback_response".to_string());
+        workflow["final_llm_response"]["fallback_response"] = Value::Null;
+        workflow["final_llm_response"]["fallback_source"] =
+            Value::String("suppressed_forced_fallback".to_string());
+        workflow["final_llm_response"]["fallback_from_existing_draft"] = Value::Bool(false);
+        workflow["final_llm_response"]["last_reject_reason"] =
+            Value::String("forced_fallback_suppressed".to_string());
+        mark_workflow_fallback_guard_reason(
+            &mut workflow,
+            "forced_fallback_after_synthesis_failure_suppressed",
+            "forced_synthesis_failure_fallback",
+        );
+        set_turn_workflow_final_stage_status(
+            &mut workflow,
+            "withheld_non_llm_fallback_response",
+        );
     }
     apply_final_retry_boilerplate_guard(
         &mut workflow,
@@ -1990,357 +1795,28 @@ mod workflow_fallback_tests {
     use super::*;
 
     #[test]
-    fn workflow_fallback_allowlist_includes_skipped_not_required() {
+    fn workflow_fallback_allowlist_disables_system_fallback_text() {
         let workflow = json!({
             "final_llm_response": {
                 "status": "skipped_not_required"
             }
         });
-        assert!(workflow_final_response_allows_system_fallback(&workflow));
+        assert!(!workflow_final_response_allows_system_fallback(&workflow));
     }
 
     #[test]
-    fn workflow_unexpected_state_fallback_mentions_policy_gate_for_blocked_tools() {
+    fn workflow_unexpected_state_fallback_never_injects_visible_chat_text() {
         let tools = vec![json!({
             "name": "file_list",
             "blocked": true,
             "result": "lease_denied:client_ingress_domain_boundary"
-        })];
-        let message = "So is it too strict or what?";
-        let response = workflow_unexpected_state_user_fallback(message, "", &tools);
-        assert!(response.to_lowercase().contains("policy"));
-        assert!(response.to_lowercase().contains("direct"));
-    }
-
-    #[test]
-    fn workflow_unexpected_state_fallback_explains_tool_routing_authority_for_policy_blocked_turns() {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": true,
-            "result": "lease_denied:client_ingress_domain_boundary"
-        })];
-        let latest = "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.";
-        let response = workflow_unexpected_state_user_fallback(
-            "but the system shouldnt be doing automatic tool calls at all right?",
-            latest,
-            &tools,
-        );
-        let lowered = response.to_ascii_lowercase();
-        assert!(lowered.contains("llm-controlled"));
-        assert!(lowered.contains("policy gate"));
-        assert!(lowered.contains("direct-answer"));
-    }
-
-    #[test]
-    fn workflow_unexpected_state_fallback_explains_tool_routing_authority_without_policy_block() {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": false
-        })];
-        let latest = "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.";
-        let response = workflow_unexpected_state_user_fallback(
-            "the llm should choose tool routing, right?",
-            latest,
-            &tools,
-        );
-        let lowered = response.to_ascii_lowercase();
-        assert!(lowered.contains("llm-controlled"));
-        assert!(lowered.contains("direct-answer mode"));
-    }
-
-    #[test]
-    fn workflow_unexpected_state_fallback_policy_blocked_workspace_action_is_actionable() {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": true,
-            "result": "lease_denied:client_ingress_domain_boundary"
-        })];
-        let latest = "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.";
-        let response = workflow_unexpected_state_user_fallback(
-            "try looking at the local directory",
-            latest,
-            &tools,
-        );
-        let lowered = response.to_ascii_lowercase();
-        assert!(lowered.contains("workspace/file tool call"));
-        assert!(lowered.contains("workspace-read-enabled lane"));
-        assert!(!lowered.contains("please retry so i can rerun the chain cleanly"));
-    }
-
-    #[test]
-    fn workflow_unexpected_state_fallback_non_repeated_workspace_action_is_actionable() {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": true,
-            "result": "lease_denied:client_ingress_domain_boundary"
-        })];
-        let response = workflow_unexpected_state_user_fallback(
-            "can you list files in the workspace path",
-            "",
-            &tools,
-        );
-        let lowered = response.to_ascii_lowercase();
-        assert!(lowered.contains("workspace/file action"));
-        assert!(lowered.contains("workspace-read permission"));
-        assert!(!lowered.contains("please retry so i can rerun the chain cleanly"));
-    }
-
-    #[test]
-    fn workflow_unexpected_state_fallback_hardcoded_check_is_explicit_for_policy_blocked_turns() {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": true,
-            "result": "lease_denied:client_ingress_domain_boundary"
-        })];
-        let latest = "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.";
-        let response = workflow_unexpected_state_user_fallback(
-            "are you hardlocked to this kind of response? or is this a hard coded system response?",
-            latest,
-            &tools,
-        );
-        let lowered = response.to_ascii_lowercase();
-        assert!(lowered.contains("not a hard-coded response lock"));
-        assert!(lowered.contains("policy gate"));
-        assert!(lowered.contains("direct answer"));
-    }
-
-    #[test]
-    fn workflow_unexpected_state_fallback_hardcoded_check_is_explicit_without_policy_block() {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": false
-        })];
-        let latest = "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.";
-        let response = workflow_unexpected_state_user_fallback(
-            "is this a hard coded system response?",
-            latest,
-            &tools,
-        );
-        let lowered = response.to_ascii_lowercase();
-        assert!(lowered.contains("not a hard-coded response lock"));
-        assert!(lowered.contains("workflow fallback guard"));
-    }
-
-    #[test]
-    fn workflow_unexpected_state_fallback_improvement_plan_is_actionable_when_policy_blocked() {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": true,
-            "result": "lease_denied:client_ingress_domain_boundary"
-        })];
-        let latest = "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.";
-        let response = workflow_unexpected_state_user_fallback(
-            "what do we need to do to improve the system?",
-            latest,
-            &tools,
-        );
-        let lowered = response.to_ascii_lowercase();
-        assert!(lowered.contains("top improvements"));
-        assert!(lowered.contains("llm-controlled"));
-        assert!(lowered.contains("policy-denied"));
-        assert!(!lowered.contains("please retry so i can rerun the chain cleanly"));
-    }
-
-    #[test]
-    fn workflow_unexpected_state_fallback_improvement_plan_is_actionable_without_policy_block() {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": false
-        })];
-        let latest = "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.";
-        let response = workflow_unexpected_state_user_fallback(
-            "what would make the system better?",
-            latest,
-            &tools,
-        );
-        let lowered = response.to_ascii_lowercase();
-        assert!(lowered.contains("top improvements"));
-        assert!(lowered.contains("llm-controlled"));
-        assert!(lowered.contains("boilerplate"));
-        assert!(!lowered.contains("please retry so i can rerun the chain cleanly"));
-    }
-
-    #[test]
-    fn workflow_unexpected_state_fallback_patch_effectiveness_is_actionable_when_policy_blocked() {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": true,
-            "result": "lease_denied:client_ingress_domain_boundary"
-        })];
-        let latest = "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.";
-        let response = workflow_unexpected_state_user_fallback(
-            "are the patches working?",
-            latest,
-            &tools,
-        );
-        let lowered = response.to_ascii_lowercase();
-        assert!(lowered.contains("partial improvement"));
-        assert!(lowered.contains("policy gate"));
-        assert!(lowered.contains("direct-answer mode"));
-        assert!(!lowered.contains("please retry so i can rerun the chain cleanly"));
-    }
-
-    #[test]
-    fn workflow_unexpected_state_fallback_patch_effectiveness_is_actionable_without_policy_block() {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": false
-        })];
-        let latest = "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.";
-        let response = workflow_unexpected_state_user_fallback(
-            "are you able to notice any improvements on your end?",
-            latest,
-            &tools,
-        );
-        let lowered = response.to_ascii_lowercase();
-        assert!(lowered.contains("improvement is active"));
-        assert!(lowered.contains("fallback guard"));
-        assert!(lowered.contains("direct-answer mode"));
-        assert!(!lowered.contains("please retry so i can rerun the chain cleanly"));
-    }
-
-    #[test]
-    fn workflow_unexpected_state_fallback_non_repeated_policy_block_plain_direct_reply_is_explicit() {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": true,
-            "result": "lease_denied:client_ingress_domain_boundary"
-        })];
-        let response = workflow_unexpected_state_user_fallback(
-            "just answer the question",
-            "",
-            &tools,
-        );
-        let lowered = response.to_ascii_lowercase();
-        assert!(lowered.contains("answer directly from current context"));
-        assert!(lowered.contains("policy gate"));
-        assert!(lowered.contains("direct-answer mode"));
-    }
-
-    #[test]
-    fn workflow_unexpected_state_fallback_non_repeated_plain_direct_reply_without_policy_is_explicit()
-     {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": false
-        })];
-        let response =
-            workflow_unexpected_state_user_fallback("just answer the question", "", &tools);
-        let lowered = response.to_ascii_lowercase();
-        assert!(lowered.contains("plain direct answer"));
-        assert!(lowered.contains("current context"));
-        assert!(!lowered.contains("workflow finalization edge"));
-    }
-
-    #[test]
-    fn workflow_unexpected_state_fallback_non_repeated_workspace_action_without_policy_is_actionable()
-     {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": false
-        })];
-        let response = workflow_unexpected_state_user_fallback(
-            "try looking at the local directory",
-            "",
-            &tools,
-        );
-        let lowered = response.to_ascii_lowercase();
-        assert!(lowered.contains("workspace/file check"));
-        assert!(lowered.contains("exact path"));
-        assert!(lowered.contains("workspace root"));
-    }
-
-    #[test]
-    fn workflow_unexpected_state_fallback_non_repeated_patch_effectiveness_is_explicit_without_policy_block() {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": false
-        })];
-        let response = workflow_unexpected_state_user_fallback(
-            "is it working now on your end?",
-            "",
-            &tools,
-        );
-        let lowered = response.to_ascii_lowercase();
-        assert!(lowered.contains("fallback hardening is active"));
-        assert!(lowered.contains("direct-answer mode"));
-        assert!(lowered.contains("explicit opt-in"));
-    }
-
-    #[test]
-    fn workflow_unexpected_state_fallback_non_repeated_diagnostic_without_policy_is_explicit() {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": false
-        })];
-        let response =
-            workflow_unexpected_state_user_fallback("what do you think is happening?", "", &tools);
-        let lowered = response.to_ascii_lowercase();
-        assert!(lowered.contains("workflow finalization edge"));
-        assert!(lowered.contains("without a policy denial"));
-        assert!(lowered.contains("direct answer"));
-    }
-
-    #[test]
-    fn workflow_unexpected_state_fallback_non_repeated_tool_routing_diagnostic_without_policy_is_explicit()
-     {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": false
-        })];
-        let response = workflow_unexpected_state_user_fallback(
-            "the llm should choose tool routing right?",
-            "",
-            &tools,
-        );
-        let lowered = response.to_ascii_lowercase();
-        assert!(lowered.contains("llm-controlled"));
-        assert!(lowered.contains("without a policy-denied tool route"));
-        assert!(lowered.contains("direct-answer mode"));
-    }
-
-    #[test]
-    fn workflow_unexpected_state_fallback_non_repeated_hardcoded_probe_without_policy_is_explicit() {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": false
         })];
         let response = workflow_unexpected_state_user_fallback(
             "is this a hard coded system response?",
-            "",
+            "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.",
             &tools,
         );
-        let lowered = response.to_ascii_lowercase();
-        assert!(lowered.contains("not a hard-coded system response"));
-        assert!(lowered.contains("without a policy denial"));
-        assert!(lowered.contains("direct answer"));
-    }
-
-    #[test]
-    fn workflow_unexpected_state_fallback_breaks_repeated_legacy_copy() {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": true,
-            "result": "lease_denied:client_ingress_domain_boundary"
-        })];
-        let message = "are you hardlocked to this kind of response?";
-        let latest = "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.";
-        let response = workflow_unexpected_state_user_fallback(message, latest, &tools);
-        assert!(!response.contains("Please retry so I can rerun the chain cleanly."));
-        assert!(response.to_lowercase().contains("not hard-locked"));
-    }
-
-    #[test]
-    fn workflow_unexpected_state_fallback_prefers_human_ping_reply_for_greeting_only_messages() {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": true,
-            "result": "lease_denied:client_ingress_domain_boundary"
-        })];
-        let response = workflow_unexpected_state_user_fallback("hello", "", &tools);
-        let lowered = response.to_ascii_lowercase();
-        assert!(lowered.contains("tell me what you want next"));
-        assert!(!lowered.contains("policy gate"));
+        assert!(response.trim().is_empty(), "{response}");
     }
 
     #[test]
@@ -2411,7 +1887,7 @@ mod workflow_fallback_tests {
     }
 
     #[test]
-    fn workflow_unexpected_state_fallback_prefers_plain_reply_when_user_requests_direct_answer() {
+    fn workflow_unexpected_state_fallback_withholds_plain_reply_when_user_requests_direct_answer() {
         let tools = vec![json!({
             "name": "file_list",
             "blocked": true,
@@ -2422,8 +1898,7 @@ mod workflow_fallback_tests {
             "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.",
             &tools,
         );
-        assert!(response.to_lowercase().contains("plain direct answer"));
-        assert!(!response.to_lowercase().contains("retry so i can rerun"));
+        assert!(response.trim().is_empty(), "{response}");
     }
 
     #[test]
@@ -2518,7 +1993,7 @@ mod workflow_fallback_tests {
     }
 
     #[test]
-    fn workflow_policy_block_fallback_returns_diagnostic_copy_when_requested() {
+    fn workflow_policy_block_fallback_withholds_diagnostic_copy_when_requested() {
         let tools = vec![json!({
             "name": "file_list",
             "blocked": true,
@@ -2529,10 +2004,7 @@ mod workflow_fallback_tests {
             "",
             &tools,
         );
-        let lowered = response.to_ascii_lowercase();
-        assert!(lowered.contains("likely root cause"));
-        assert!(lowered.contains("policy gate"));
-        assert!(lowered.contains("file_list"));
+        assert!(response.trim().is_empty(), "{response}");
     }
 
     #[test]
@@ -2549,10 +2021,8 @@ mod workflow_fallback_tests {
             &tools,
         );
         assert!(sanitized);
-        assert_eq!(source, "generated");
-        let lowered = response.to_ascii_lowercase();
-        assert!(!lowered.contains("please retry so i can rerun the chain cleanly"));
-        assert!(lowered.contains("direct answer"));
+        assert_eq!(source, "withheld_non_llm_fallback_response");
+        assert!(response.trim().is_empty());
     }
 
     #[test]
@@ -2584,10 +2054,9 @@ mod workflow_fallback_tests {
             "",
             &tools,
         );
-        assert!(sanitized);
-        assert_eq!(source, "generated");
-        let lowered = response.to_ascii_lowercase();
-        assert!(lowered.contains("direct answer") || lowered.contains("direct response"));
+        assert!(!sanitized);
+        assert_eq!(source, "empty");
+        assert!(response.trim().is_empty());
     }
 
     #[test]
@@ -2603,10 +2072,7 @@ mod workflow_fallback_tests {
             &tools,
             "I completed the run, but the final reply did not render. Ask me to continue and I will synthesize from the recorded workflow state.",
         );
-        let lowered = response.to_ascii_lowercase();
-        assert!(!lowered.contains("please retry so i can rerun the chain cleanly"));
-        assert!(!lowered.contains("ask me to continue and i will synthesize"));
-        assert!(lowered.contains("direct answer") || lowered.contains("direct response"));
+        assert!(response.trim().is_empty());
     }
 
     #[test]
@@ -2618,8 +2084,7 @@ mod workflow_fallback_tests {
         })];
         let latest = "The prior tool step was blocked by a local policy gate. I can still answer directly from current context without another tool call.";
         let response = ensure_no_retry_boilerplate_copy("status?", latest, &tools, latest);
-        assert!(!response.eq_ignore_ascii_case(latest));
-        assert!(response.to_ascii_lowercase().contains("answering directly"));
+        assert!(response.trim().is_empty());
     }
 
     #[test]
@@ -2638,8 +2103,7 @@ mod workflow_fallback_tests {
         let latest = "The previous fallback repeated, so I'm switching to a stable direct-answer path now and keeping tools off unless you explicitly request one.";
         let candidate = "The previous fallback repeated so Im switching to a stable direct answer path now and keeping tools off unless you explicitly request one";
         let response = ensure_no_retry_boilerplate_copy("status?", latest, &tools, candidate);
-        assert!(!response.eq_ignore_ascii_case(candidate));
-        assert!(response.to_ascii_lowercase().contains("answering directly"));
+        assert!(response.trim().is_empty());
     }
 
     #[test]
@@ -2651,12 +2115,7 @@ mod workflow_fallback_tests {
         })];
         let latest = "Answering directly from current context now. The last tool attempt was policy-blocked, and I'll keep tools off unless you explicitly request one.";
         let response = ensure_no_retry_boilerplate_copy("status?", latest, &tools, latest);
-        assert!(!response.eq_ignore_ascii_case(latest));
-        let lowered = response.to_ascii_lowercase();
-        assert!(
-            lowered.contains("direct answer mode is active")
-                || lowered.contains("direct-answer path is active")
-        );
+        assert!(response.trim().is_empty());
     }
 
     #[test]
@@ -2870,18 +2329,18 @@ mod workflow_fallback_tests {
             .and_then(Value::as_str)
             .unwrap_or("")
             .to_ascii_lowercase();
-        assert!(!response.contains("please retry so i can rerun the chain cleanly"));
+        assert!(response.trim().is_empty());
         assert_eq!(
             workflow
                 .pointer("/final_llm_response/status")
                 .and_then(Value::as_str),
-            Some("fallback_direct_answer")
+            Some("withheld_non_llm_fallback_response")
         );
         assert_eq!(
             workflow
                 .pointer("/final_llm_response/fallback_source")
                 .and_then(Value::as_str),
-            Some("generated_guard")
+            Some("suppressed_retry_boilerplate")
         );
         assert_eq!(
             workflow
@@ -2988,18 +2447,18 @@ mod workflow_fallback_tests {
             .get("response")
             .and_then(Value::as_str)
             .unwrap_or("");
-        assert!(!response.trim().is_empty());
+        assert!(response.trim().is_empty());
         assert_eq!(
             workflow
                 .pointer("/final_llm_response/status")
                 .and_then(Value::as_str),
-            Some("fallback_direct_answer")
+            Some("withheld_non_llm_fallback_response")
         );
         assert_eq!(
             workflow
                 .pointer("/final_llm_response/fallback_source")
                 .and_then(Value::as_str),
-            Some("generated_presence_guard")
+            Some("empty_response_presence_guard")
         );
         assert_eq!(
             workflow

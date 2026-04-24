@@ -247,3 +247,8 @@
     },
     markAgentMessageComplete(msg) {
       if (!msg || msg.role !== 'agent') return;
+      msg._finish_bounce = true;
+      setTimeout(function() {
+        try { msg._finish_bounce = false; } catch(_) {}
+      }, 300);
+    },

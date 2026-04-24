@@ -1737,6 +1737,21 @@ fn agents_routes_terminal_and_artifact_endpoints_round_trip() {
     assert_eq!(
         file_read_many
             .payload
+            .pointer("/counts/group_binary_opt_in_blocked")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        file_read_many
+            .payload
+            .pointer("/groups/binary_opt_in_blocked")
+            .and_then(Value::as_array)
+            .map(|rows| rows.len()),
+        Some(1)
+    );
+    assert_eq!(
+        file_read_many
+            .payload
             .pointer("/routing/reason")
             .and_then(Value::as_str),
         Some("binary_entries_pending_opt_in")

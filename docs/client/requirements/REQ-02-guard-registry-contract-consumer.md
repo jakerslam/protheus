@@ -6,19 +6,19 @@ Owner: Infring Kernel / Runtime Security
 
 ## Objective
 
-Ensure all runtime guard decisions consumed by client/runtime surfaces are loaded from a deterministic registry contract, never hard-coded ad hoc. This keeps Rust-core authority intact while preserving thin-client behavior.
+Ensure all runtime guard decisions consumed by shell/runtime surfaces are loaded from a deterministic registry contract, never hard-coded ad hoc. This keeps Rust-core authority intact while preserving thin-shell behavior.
 
 ## Scope
 
 In scope:
-- Canonical guard registry loading for runtime/client guard consumers
+- Canonical guard registry loading for runtime/shell guard consumers
 - Fail-closed behavior when a required guard contract is missing or malformed
 - Deterministic receipt emission for guard resolution decisions
 - Contract parity checks between configured guards and runtime consumers
 
 Out of scope:
 - Defining new guard semantics in this requirement (handled by guard-producing requirements)
-- Replacing Layer-0 safety authority with client-side policy logic
+- Replacing Layer-0 safety authority with shell-side policy logic
 
 ## Requirements
 
@@ -57,4 +57,4 @@ Out of scope:
 
 ## Notes
 
-- Rust core remains authority for guard enforcement; client/runtime remains a strict consumer boundary.
+- Rust core remains authority for guard enforcement; shell/runtime remains a strict consumer boundary.

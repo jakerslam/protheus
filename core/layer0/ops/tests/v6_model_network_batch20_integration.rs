@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use infring_ops_core::model_router;
 use infring_nexus_core_v1::ops_core::p2p_gossip_seed;
+use infring_ops_core::model_router;
 use serde_json::Value;
 use std::fs;
 use std::path::Path;
@@ -44,7 +44,10 @@ fn has_infring_receipt(receipt: &Value) -> bool {
 }
 
 fn assert_infring_receipt_contract(receipt: &Value) {
-    assert!(has_infring_receipt(receipt), "missing standard receipt fields");
+    assert!(
+        has_infring_receipt(receipt),
+        "missing standard receipt fields"
+    );
     let hash = receipt
         .get("receipt_hash")
         .and_then(Value::as_str)

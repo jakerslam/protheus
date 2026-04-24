@@ -29,7 +29,7 @@ Out of scope:
 
 2. `REQ-18-002` XMR402 authorization proof path
 - Acceptance:
-  - Client authorization header path supports tx/proof payload submission.
+  - Shell authorization header path supports tx/proof payload submission.
   - Server verifies proof against nonce-bound challenge and payment criteria.
   - Verification outcomes are receipt logged with fail-closed deny behavior.
 

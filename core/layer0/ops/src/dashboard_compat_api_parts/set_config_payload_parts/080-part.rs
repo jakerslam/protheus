@@ -768,19 +768,42 @@ fn finalize_user_facing_response_with_outcome(
     output: String,
     findings: Option<String>,
 ) -> (String, String, bool) {
+    let _findings_cleaned = sanitize_findings_for_final_response(findings);
     let mut cleaned = clean_text(output.trim(), 32_000);
     let mut payload_normalized = false;
     if let Some(unwrapped) = normalize_raw_response_payload_dump(&cleaned) {
         cleaned = clean_text(unwrapped.trim(), 32_000);
         payload_normalized = true;
     }
-    if let Some((rewritten, rule_id)) =
-        crate::tool_output_match_filter::rewrite_failure_placeholder(&cleaned)
+    cleaned = strip_disallowed_source_tags(&cleaned);
+    if contains_deprecated_workflow_ghost_phrase(&cleaned) {
+        let rewritten = scrub_deprecated_workflow_ghost_text(&cleaned);
+        let stabilized = strip_disallowed_source_tags(&rewritten);
+        if stabilized.is_empty() || contains_deprecated_workflow_ghost_phrase(&stabilized) {
+            return (
+                String::new(),
+                with_payload_normalization_outcome(
+                    "withheld_deprecated_workflow_ghost_text",
+                    payload_normalized,
+                ),
+                true,
+            );
+        }
+        return (
+            stabilized,
+            with_payload_normalization_outcome(
+                "scrubbed_deprecated_workflow_ghost_text",
+                payload_normalized,
+            ),
+            true,
+        );
+    }
+    if let Some((_, rule_id)) = crate::tool_output_match_filter::rewrite_failure_placeholder(&cleaned)
     {
         return (
-            rewritten,
+            String::new(),
             with_payload_normalization_outcome(
-                &format!("rewrote_failure_placeholder:{rule_id}"),
+                &format!("withheld_failure_placeholder:{rule_id}"),
                 payload_normalized,
             ),
             false,
@@ -788,16 +811,19 @@ fn finalize_user_facing_response_with_outcome(
     }
     if response_looks_like_raw_web_artifact_dump(&cleaned) {
         return (
-            "I only have raw web output (placeholder or page/search chrome), not synthesized findings yet. I can rerun with `batch_query` or a narrower query and return a concise answer with sources.".to_string(),
-            with_payload_normalization_outcome("rewrote_raw_web_artifact_dump", payload_normalized),
+            String::new(),
+            with_payload_normalization_outcome(
+                "withheld_raw_web_artifact_dump",
+                payload_normalized,
+            ),
             false,
         );
     }
     if response_looks_like_unsynthesized_web_snippet_dump(&cleaned) {
         return (
-            "I only have low-signal web snippets in this turn, not synthesized findings yet. I can rerun with `batch_query` and return a concise, source-backed summary.".to_string(),
+            String::new(),
             with_payload_normalization_outcome(
-                "rewrote_unsynthesized_web_snippet_dump",
+                "withheld_unsynthesized_web_snippet_dump",
                 payload_normalized,
             ),
             false,
@@ -805,9 +831,9 @@ fn finalize_user_facing_response_with_outcome(
     }
     if response_looks_like_off_topic_web_results(&cleaned) {
         return (
-            "Web search returned off-topic or irrelevant results for this request, so I’m not treating them as valid findings. Retry with a narrower technical query or one trusted source URL. error_code: web_tool_off_topic_results".to_string(),
+            String::new(),
             with_payload_normalization_outcome(
-                "replaced_off_topic_web_results",
+                "withheld_off_topic_web_results",
                 payload_normalized,
             ),
             true,
@@ -817,86 +843,66 @@ fn finalize_user_facing_response_with_outcome(
     let deferred_execution_copy = response_is_deferred_execution_preamble(&cleaned)
         || response_is_deferred_retry_prompt(&cleaned);
     let input_ack_only = response_looks_like_tool_ack_without_findings(&cleaned);
-    let findings_cleaned = sanitize_findings_for_final_response(findings);
     if speculative_blocker_copy {
-        if let Some(text) = findings_cleaned.clone() {
-            return (
-                text,
-                with_payload_normalization_outcome(
-                    "replaced_speculative_blocker_with_findings",
-                    payload_normalized,
-                ),
-                true,
-            );
-        }
         return (
-            no_findings_user_facing_response(),
+            String::new(),
             with_payload_normalization_outcome(
-                "replaced_speculative_blocker_with_no_findings",
+                "withheld_speculative_web_blocker_copy",
                 payload_normalized,
             ),
             true,
         );
     }
     if deferred_execution_copy {
-        if let Some(text) = findings_cleaned.clone() {
-            return (
-                text,
-                with_payload_normalization_outcome(
-                    "replaced_deferred_execution_with_findings",
-                    payload_normalized,
-                ),
-                true,
-            );
-        }
         return (
-            no_findings_user_facing_response(),
+            String::new(),
             with_payload_normalization_outcome(
-                "replaced_deferred_execution_with_no_findings",
+                "withheld_deferred_execution_copy",
                 payload_normalized,
             ),
             true,
         );
     }
     if cleaned.is_empty() {
-        if let Some(text) = findings_cleaned {
-            return (
-                text,
-                with_payload_normalization_outcome(
-                    "replaced_empty_with_findings",
-                    payload_normalized,
-                ),
-                false,
-            );
-        }
         return (
-            no_findings_user_facing_response(),
+            String::new(),
             with_payload_normalization_outcome(
-                "replaced_empty_with_no_findings",
+                "withheld_empty_final_response",
                 payload_normalized,
             ),
             false,
         );
     }
     if input_ack_only {
-        if let Some(text) = findings_cleaned {
-            return (
-                text,
-                with_payload_normalization_outcome(
-                    "replaced_ack_with_findings",
-                    payload_normalized,
-                ),
-                true,
-            );
-        }
         return (
-            no_findings_user_facing_response(),
-            with_payload_normalization_outcome("replaced_ack_with_no_findings", payload_normalized),
+            String::new(),
+            with_payload_normalization_outcome("withheld_ack_only_response", payload_normalized),
+            true,
+        );
+    }
+    let cleaned_without_legacy_gate = scrub_deprecated_workflow_ghost_text(&cleaned);
+    if cleaned_without_legacy_gate.is_empty() {
+        return (
+            String::new(),
+            with_payload_normalization_outcome(
+                "withheld_deprecated_workflow_gate_token",
+                payload_normalized,
+            ),
+            true,
+        );
+    }
+    if cleaned_without_legacy_gate != cleaned {
+        return (
+            strip_disallowed_source_tags(&cleaned_without_legacy_gate),
+            with_payload_normalization_outcome(
+                "scrubbed_deprecated_workflow_gate_token",
+                payload_normalized,
+            ),
             true,
         );
     }
     (
-        cleaned,
+        strip_disallowed_source_tags(&cleaned),
         with_payload_normalization_outcome("unchanged", payload_normalized),
         false,
     )

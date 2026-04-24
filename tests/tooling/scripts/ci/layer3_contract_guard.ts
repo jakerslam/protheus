@@ -114,6 +114,21 @@ function isNonEmptyString(value: unknown): boolean {
   return typeof value === 'string' && cleanText(value, 200).length > 0;
 }
 
+function isCanonicalRelativePath(value: string): boolean {
+  if (!value) return false;
+  if (value.startsWith('/') || value.startsWith('\\')) return false;
+  if (value.includes('..') || value.includes('\\') || value.includes('//')) return false;
+  return /^[A-Za-z0-9._/\-]+$/.test(value);
+}
+
+function hasCaseInsensitiveSuffix(value: string, suffix: string): boolean {
+  return value.toLowerCase().endsWith(suffix.toLowerCase());
+}
+
+function isCanonicalToken(value: string): boolean {
+  return /^[a-z0-9][a-z0-9_-]*$/.test(value);
+}
+
 function toMarkdown(report: any): string {
   const lines = [
     '# Layer3 Contract Guard',
@@ -202,6 +217,52 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       : ['adapters/', 'surface/orchestration/', 'client/'];
   const failures: Array<{ id: string; detail: string }> = [];
 
+  if (!isCanonicalRelativePath(args.policyPath)) {
+    failures.push({ id: 'layer3_policy_path_canonical_contract', detail: args.policyPath });
+  }
+  if (!isCanonicalRelativePath(args.outPath)) {
+    failures.push({ id: 'layer3_out_json_path_canonical_contract', detail: args.outPath });
+  }
+  if (!isCanonicalRelativePath(args.markdownOutPath)) {
+    failures.push({ id: 'layer3_out_markdown_path_canonical_contract', detail: args.markdownOutPath });
+  }
+  if (!hasCaseInsensitiveSuffix(args.outPath, '_current.json')) {
+    failures.push({ id: 'layer3_out_json_suffix_current_contract', detail: args.outPath });
+  }
+  if (!hasCaseInsensitiveSuffix(args.markdownOutPath, '_current.md')) {
+    failures.push({ id: 'layer3_out_markdown_suffix_current_contract', detail: args.markdownOutPath });
+  }
+  if (args.outPath === args.markdownOutPath) {
+    failures.push({ id: 'layer3_output_paths_distinct_contract', detail: `${args.outPath}|${args.markdownOutPath}` });
+  }
+  if (sourceExtensions.length === 0) {
+    failures.push({ id: 'layer3_source_extensions_nonempty_contract', detail: 'source_extensions' });
+  }
+  if (sourceExtensions.some((ext) => !/^\.[a-z0-9]+$/.test(ext))) {
+    failures.push({ id: 'layer3_source_extensions_token_contract', detail: sourceExtensions.join(',') });
+  }
+  if (allowedCategories.size === 0) {
+    failures.push({ id: 'layer3_allowed_categories_nonempty_contract', detail: 'allowed_categories' });
+  }
+  if (Array.from(allowedCategories.values()).some((value) => !isCanonicalToken(value))) {
+    failures.push({
+      id: 'layer3_allowed_categories_token_contract',
+      detail: Array.from(allowedCategories.values()).join(','),
+    });
+  }
+  if (allowedStatuses.size === 0) {
+    failures.push({ id: 'layer3_allowed_statuses_nonempty_contract', detail: 'allowed_statuses' });
+  }
+  if (Array.from(allowedStatuses.values()).some((value) => !isCanonicalToken(value))) {
+    failures.push({
+      id: 'layer3_allowed_statuses_token_contract',
+      detail: Array.from(allowedStatuses.values()).join(','),
+    });
+  }
+  if (modules.length === 0) {
+    failures.push({ id: 'layer3_modules_nonempty_contract', detail: 'modules' });
+  }
+
   const placementLayer2Owns = Array.isArray(placementBoundaries.layer2?.owns)
     ? placementBoundaries.layer2?.owns || []
     : [];
@@ -233,6 +294,16 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const sourceFiles = walkFiles(layer3RootAbs)
     .map((abs) => rel(root, abs))
     .filter((relativePath) => sourceExtensions.some((ext) => relativePath.endsWith(ext)));
+  const sourceFilesUnique = new Set(sourceFiles).size === sourceFiles.length;
+  const sourceFilesSorted = sourceFiles.every(
+    (filePath, index) => index === 0 || filePath.localeCompare(sourceFiles[index - 1]) >= 0,
+  );
+  if (!sourceFilesUnique || !sourceFilesSorted) {
+    failures.push({
+      id: 'layer3_source_files_sorted_unique_contract',
+      detail: `count=${sourceFiles.length};unique=${new Set(sourceFiles).size}`,
+    });
+  }
 
   const moduleRows = modules.map((moduleRow) => {
     const id = cleanText(moduleRow.id || '', 120);
@@ -243,7 +314,13 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     const matchedSources = sourceFiles.filter((filePath) => fileMatchesModule(filePath, prefix));
 
     if (!id) failures.push({ id: 'layer3_module_id_missing', detail: prefix || 'unknown_prefix' });
+    if (id && !isCanonicalToken(id)) {
+      failures.push({ id: 'layer3_module_id_token_contract', detail: `${id}` });
+    }
     if (!prefix) failures.push({ id: 'layer3_module_path_prefix_missing', detail: id || 'unknown_module' });
+    if (prefix && !isCanonicalRelativePath(prefix)) {
+      failures.push({ id: 'layer3_module_path_prefix_canonical_contract', detail: `${id}:${prefix}` });
+    }
     if (!allowedCategories.has(category)) {
       failures.push({ id: 'layer3_module_category_invalid', detail: `${id}:${category}` });
     }
@@ -262,8 +339,31 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     if (!Array.isArray(moduleRow.receipt_requirements) || moduleRow.receipt_requirements.length === 0) {
       failures.push({ id: 'layer3_module_receipt_requirements_missing', detail: id });
     }
+    if (Array.isArray(moduleRow.receipt_requirements)) {
+      const receiptRequirements = moduleRow.receipt_requirements
+        .map((value) => cleanText(String(value || ''), 200))
+        .filter(Boolean);
+      if (
+        receiptRequirements.length !== moduleRow.receipt_requirements.length ||
+        new Set(receiptRequirements).size !== receiptRequirements.length
+      ) {
+        failures.push({
+          id: 'layer3_module_receipt_requirements_unique_nonempty_contract',
+          detail: id,
+        });
+      }
+    }
     if (!isNonEmptyString(moduleRow.parity_test_path)) {
       failures.push({ id: 'layer3_module_parity_test_path_missing', detail: id });
+    }
+    if (
+      isNonEmptyString(moduleRow.parity_test_path) &&
+      !isCanonicalRelativePath(cleanText(String(moduleRow.parity_test_path), 300))
+    ) {
+      failures.push({
+        id: 'layer3_module_parity_test_path_canonical_contract',
+        detail: `${id}:${cleanText(String(moduleRow.parity_test_path), 220)}`,
+      });
     }
     if (matchedSources.length === 0) {
       failures.push({ id: 'layer3_module_no_source_match', detail: id });
@@ -311,10 +411,45 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     if (!executionUnitOk) {
       failures.push({ id: 'layer3_module_execution_unit_invalid', detail: id });
     }
+    if (Array.isArray(executionUnit.lifecycle)) {
+      const lifecycleRows = executionUnit.lifecycle
+        .map((value) => cleanText(String(value || ''), 120))
+        .filter(Boolean);
+      if (
+        lifecycleRows.length !== executionUnit.lifecycle.length ||
+        new Set(lifecycleRows).size !== lifecycleRows.length
+      ) {
+        failures.push({
+          id: 'layer3_module_execution_unit_lifecycle_unique_nonempty_contract',
+          detail: id,
+        });
+      }
+    }
 
     const dependencyRows = Array.isArray(executionUnit.dependencies)
       ? executionUnit.dependencies.map((value) => cleanText(String(value || ''), 300)).filter(Boolean)
       : [];
+    if (
+      Array.isArray(executionUnit.dependencies) &&
+      new Set(dependencyRows).size !== dependencyRows.length
+    ) {
+      failures.push({
+        id: 'layer3_module_execution_unit_dependencies_unique_contract',
+        detail: id,
+      });
+    }
+    const receiptRows = Array.isArray(executionUnit.receipts)
+      ? executionUnit.receipts.map((value) => cleanText(String(value || ''), 300)).filter(Boolean)
+      : [];
+    if (
+      Array.isArray(executionUnit.receipts) &&
+      new Set(receiptRows).size !== receiptRows.length
+    ) {
+      failures.push({
+        id: 'layer3_module_execution_unit_receipts_unique_contract',
+        detail: id,
+      });
+    }
     const dependencyBoundaryViolations = dependencyRows.filter((dep) => {
       const normalized = dep.replace(/\\/g, '/');
       if (forbiddenDependencyPrefixes.some((prefix) => normalized.startsWith(prefix))) return true;
@@ -344,9 +479,24 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const modulePrefixes = modules
     .map((moduleRow) => cleanText(moduleRow.path_prefix || '', 300))
     .filter(Boolean);
+  const moduleIds = modules
+    .map((moduleRow) => cleanText(moduleRow.id || '', 120))
+    .filter(Boolean);
+  if (new Set(moduleIds).size !== moduleIds.length) {
+    failures.push({ id: 'layer3_module_ids_unique_contract', detail: moduleIds.join(',') });
+  }
+  if (new Set(modulePrefixes).size !== modulePrefixes.length) {
+    failures.push({ id: 'layer3_module_prefixes_unique_contract', detail: modulePrefixes.join(',') });
+  }
   const unmappedSourceFiles = sourceFiles.filter(
     (filePath) => !modulePrefixes.some((prefix) => fileMatchesModule(filePath, prefix)),
   );
+  if (new Set(unmappedSourceFiles).size !== unmappedSourceFiles.length) {
+    failures.push({
+      id: 'layer3_unmapped_source_files_unique_contract',
+      detail: `count=${unmappedSourceFiles.length};unique=${new Set(unmappedSourceFiles).size}`,
+    });
+  }
   if ((policy.fail_on_unmapped_source_file ?? true) && unmappedSourceFiles.length > 0) {
     for (const filePath of unmappedSourceFiles) {
       failures.push({ id: 'layer3_unmapped_source_file', detail: filePath });

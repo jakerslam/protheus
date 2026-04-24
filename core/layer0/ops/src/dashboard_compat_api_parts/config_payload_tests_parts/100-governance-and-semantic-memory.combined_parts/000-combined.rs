@@ -512,12 +512,18 @@ fn workflow_decision_tree_v2_defaults_simple_questions_to_info_without_tools() {
         Some("tool_decision_tree_v3")
     );
     assert_eq!(
-        decision.get("route_classification").and_then(Value::as_str),
-        Some("info")
+        decision.get("gate_decision_mode").and_then(Value::as_str),
+        Some("manual_need_tool_access")
     );
     assert_eq!(
         decision.get("should_call_tools").and_then(Value::as_bool),
         Some(false)
+    );
+    assert_eq!(
+        decision
+            .get("auto_decisions_disabled")
+            .and_then(Value::as_bool),
+        Some(true)
     );
     assert_eq!(
         decision
@@ -533,24 +539,18 @@ fn workflow_decision_tree_v2_selects_minimal_web_tools_only_when_needed() {
         "try to web search \"top ai agentic frameworks\" and return the results",
     );
     assert_eq!(
-        decision.get("route_classification").and_then(Value::as_str),
-        Some("task")
+        decision.get("gate_decision_mode").and_then(Value::as_str),
+        Some("manual_need_tool_access")
     );
     assert_eq!(
         decision
             .get("requires_live_web")
             .and_then(Value::as_bool),
-        Some(true)
+        Some(false)
     );
     assert_eq!(
         decision.get("should_call_tools").and_then(Value::as_bool),
-        Some(true)
-    );
-    assert_eq!(
-        decision
-            .get("recommended_tool_family")
-            .and_then(Value::as_str),
-        Some("web_tools")
+        Some(false)
     );
 }
 
@@ -560,24 +560,18 @@ fn workflow_decision_tree_v2_classifies_file_edits_as_task_route() {
         "patch core/layer0/ops/src/main.rs to fix the gate",
     );
     assert_eq!(
-        decision.get("route_classification").and_then(Value::as_str),
-        Some("task")
+        decision.get("gate_decision_mode").and_then(Value::as_str),
+        Some("manual_need_tool_access")
     );
     assert_eq!(
         decision
             .get("requires_file_mutation")
             .and_then(Value::as_bool),
-        Some(true)
+        Some(false)
     );
     assert_eq!(
         decision.get("should_call_tools").and_then(Value::as_bool),
-        Some(true)
-    );
-    assert_eq!(
-        decision
-            .get("recommended_tool_family")
-            .and_then(Value::as_str),
-        Some("file_tools")
+        Some(false)
     );
 }
 
@@ -585,12 +579,12 @@ fn workflow_decision_tree_v2_classifies_file_edits_as_task_route() {
 fn workflow_decision_tree_explicit_file_tool_access_uses_task_tool_gate() {
     let decision = workflow_turn_tool_decision_tree("access the file tooling");
     assert_eq!(
-        decision.get("workflow_route").and_then(Value::as_str),
-        Some("task")
+        decision.get("gate_decision_mode").and_then(Value::as_str),
+        Some("manual_need_tool_access")
     );
     assert_eq!(
         decision.get("should_call_tools").and_then(Value::as_bool),
-        Some(true)
+        Some(false)
     );
     assert_eq!(
         decision
@@ -602,17 +596,17 @@ fn workflow_decision_tree_explicit_file_tool_access_uses_task_tool_gate() {
         decision
             .pointer("/gates/gate_1/question")
             .and_then(Value::as_str),
-        Some("Need tool access for this query?")
+        Some("Need tool access for this query? T/F")
     );
     assert_eq!(
         decision
             .pointer("/gates/gate_1/required")
             .and_then(Value::as_bool),
-        Some(true)
+        Some(false)
     );
     assert_eq!(
         decision.get("reason_code").and_then(Value::as_str),
-        Some("explicit_tool_operation_request")
+        Some("manual_menu_presented")
     );
 }
 
@@ -971,7 +965,8 @@ fn actionable_response_gets_next_actions_line() {
         "The latest run showed low-signal results from web retrieval.",
         &[],
     );
-    assert!(out.contains("Next actions:"), "{out}");
+    assert!(!out.contains("Next actions:"), "{out}");
+    assert_eq!(out, "The latest run showed low-signal results from web retrieval.");
     let non_actionable = append_next_actions_line_if_actionable(
         "thanks",
         "Glad to help.",
@@ -1221,10 +1216,7 @@ fn finalize_user_facing_response_rewrites_deprecated_workflow_ghost_copy() {
         "The first gate (\"task_or_info_route\") is still classifying this as an \"info\" route rather than a \"task\" route. The system needs explicit tool-related phrasing to trigger the task classification path.".to_string(),
         None,
     );
-    let lowered = finalized.to_ascii_lowercase();
-    assert!(!lowered.contains("task_or_info_route"));
-    assert!(lowered.contains("need_tool_access"));
-    assert!(lowered.contains("tool-operation requests"));
+    assert!(finalized.trim().is_empty(), "{finalized}");
 }
 
 #[test]
@@ -1233,10 +1225,7 @@ fn finalize_user_facing_response_rewrites_workflow_route_classification_ghost_co
         "The first gate (\"workflow_route\") is still classifying this as an \"info\" route rather than a \"task\" route. The system needs explicit tool-related phrasing to trigger the task classification path.".to_string(),
         None,
     );
-    let lowered = finalized.to_ascii_lowercase();
-    assert!(!lowered.contains("workflow_route"));
-    assert!(lowered.contains("need_tool_access"));
-    assert!(lowered.contains("tool-operation requests"));
+    assert!(finalized.trim().is_empty(), "{finalized}");
 }
 
 #[test]
@@ -1245,11 +1234,27 @@ fn finalize_user_facing_response_rewrites_binary_classifier_ghost_copy() {
         "The first gate (\"workflow_route\") is a binary classification that determines whether the system routes the request through a workflow (task route) or handles it as a direct conversational response (info route). It's not a true/false decision I control - it's an automated classification based on semantic analysis of the user's input. When it detects tool-related intent (like explicit web search requests or file operations), it routes to task; otherwise, it defaults to info. [source:workflow_gate]".to_string(),
         None,
     );
-    let lowered = finalized.to_ascii_lowercase();
-    assert!(!lowered.contains("workflow_route"));
-    assert!(!lowered.contains("binary classification"));
-    assert!(!lowered.contains("[source:workflow_gate]"));
-    assert!(lowered.contains("need_tool_access"));
+    assert!(finalized.trim().is_empty(), "{finalized}");
+}
+
+#[test]
+fn finalize_user_facing_response_strips_extended_internal_source_tags() {
+    let finalized = finalize_user_facing_response(
+        "The first gate (\"workflow_route\") is still classifying this as an \"info\" route rather than a \"task\" route. [source:workflow_route_classification] [source:gate_enforcement_mode] [source:tool_decision_policy] [source:conversation_bypass_control]"
+            .to_string(),
+        None,
+    );
+    assert!(finalized.trim().is_empty(), "{finalized}");
+}
+
+#[test]
+fn finalize_user_facing_response_rewrites_conversation_bypass_tool_restriction_copy() {
+    let finalized = finalize_user_facing_response(
+        "I do have web search capabilities, but the system is currently in conversation bypass mode which restricts tool usage. That's correct. I can't autonomously decide to use web tools - the system's gate structure requires manual step-by-step authorization for tool usage. [source:conversation_bypass_control]"
+            .to_string(),
+        None,
+    );
+    assert!(finalized.trim().is_empty(), "{finalized}");
 }
 
 #[test]
@@ -1873,7 +1878,7 @@ fn workflow_library_owns_direct_answer_final_response() {
             .payload
             .pointer("/response_workflow/selected_workflow/gate_contract")
             .and_then(Value::as_str),
-        Some("workflow_gate_v3")
+        Some("tool_menu_interface_v1")
     );
 }
 

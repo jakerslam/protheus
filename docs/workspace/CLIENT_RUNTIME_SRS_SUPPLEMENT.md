@@ -89,7 +89,7 @@ This supplement captures client/runtime functional requirements that are not com
 - `npm run -s ops:churn:guard`
 - `npm run -s ops:file-size:gate`
 - `npm run -s ops:rust-core-file-size:gate`
-- `npm run -s ops:client-layer:boundary`
+- `npm run -s ops:shell-layer:boundary`
 - `npm run -s test:ci` (or focused lane tests for touched surfaces)
 - `cargo test -p infring-ops-core <touched_kernel_module>`
 

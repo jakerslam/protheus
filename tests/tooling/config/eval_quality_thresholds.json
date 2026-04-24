@@ -1,0 +1,54 @@
+{
+  "type": "eval_quality_thresholds",
+  "version": "v1",
+  "updated_at": "2026-04-23T21:17:28.041Z",
+  "global": {
+    "minimum_eval_samples": 5,
+    "precision_min": 0.6,
+    "recall_min": 0.6,
+    "fpr_max": 0.4,
+    "actionability_min": 0.9,
+    "calibration_error_max": 0.35,
+    "judge_human_min_samples": 5,
+    "judge_human_agreement_min": 0.7
+  },
+  "per_class": {
+    "hallucination": {
+      "precision_min": 0.5,
+      "recall_min": 0.5,
+      "fpr_max": 0.5
+    },
+    "wrong_tool_selection": {
+      "precision_min": 0.5,
+      "recall_min": 0.5,
+      "fpr_max": 0.5
+    },
+    "no_response": {
+      "precision_min": 0.5,
+      "recall_min": 0.5,
+      "fpr_max": 0.5
+    },
+    "response_loop": {
+      "precision_min": 0.5,
+      "recall_min": 0.5,
+      "fpr_max": 0.5
+    },
+    "tool_output_misdirection": {
+      "precision_min": 0.5,
+      "recall_min": 0.5,
+      "fpr_max": 0.5
+    },
+    "policy_block_misframing": {
+      "precision_min": 0.5,
+      "recall_min": 0.5,
+      "fpr_max": 0.5
+    }
+  },
+  "regression_guard": {
+    "enabled": true,
+    "max_precision_drop": 0.05,
+    "max_recall_drop": 0.05,
+    "max_actionability_drop": 0.05,
+    "max_fpr_increase": 0.05
+  }
+}
