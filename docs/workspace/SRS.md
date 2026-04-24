@@ -19809,6 +19809,226 @@ Source summary:
   - `cargo test --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime`
   - Artifacts: `core/local/artifacts/eval_phase_trace_persist_current.json`, `core/local/artifacts/eval_adversarial_routing_current.json`, `core/local/artifacts/eval_workflow_selection_current.json`, `core/local/artifacts/eval_runtime_ownership_current.json`
 
+### 2026-04-24 Eval Statistical Calibration Increment
+
+- SRS ID: `V11-EVAL-STAT-CAL-001`
+- Status: `done`
+- Owner: `surface/orchestration`
+- Requirement:
+  - Judge-human agreement reports must expose sensitivity and specificity so LLM-as-judge bias can be distinguished from raw agreement.
+  - Judge-derived precision, recall, accuracy, agreement, sensitivity, and specificity must include Wilson 95% confidence intervals.
+  - Eval promotion must be independently blocked when calibration rows are statistically insufficient, even if the runtime command itself can emit a valid report.
+- Implementation:
+  - Added [`surface/orchestration/src/eval_calibration_stats.rs`](/Users/jay/.openclaw/workspace/surface/orchestration/src/eval_calibration_stats.rs) for confusion-matrix rates, Wilson intervals, and adaptive sample policy.
+  - Wired `eval_runtime judge-human-agreement` to emit `calibration_statistics`, `calibration_promotion_ready`, and `statistical_promotion_blocked`.
+  - Added calibration thresholds to [`surface/orchestration/fixtures/eval/eval_quality_thresholds.json`](/Users/jay/.openclaw/workspace/surface/orchestration/fixtures/eval/eval_quality_thresholds.json).
+- Acceptance Criteria:
+  - `judge_human_sensitivity_specificity_contract` emits true/false positive/negative-derived calibration rates.
+  - `judge_human_confidence_interval_contract` emits Wilson 95% intervals and widest half-width for judge-derived metrics.
+  - `judge_human_adaptive_sample_policy_contract` emits `promotion_ready` and `promotion_blocked` so RSI/eval promotion can fail closed on weak calibration evidence.
+- Regression Evidence:
+  - `cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- judge-human-agreement --feedback=surface/orchestration/fixtures/eval/eval_reviewer_feedback_sample.jsonl --strict=1`
+  - `cargo test --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime`
+  - Artifact: `core/local/artifacts/eval_judge_human_agreement_current.json`
+
+### 2026-04-24 Eval Grader-Hacking Guard Increment
+
+- SRS ID: `V11-EVAL-GRADER-HACKING-001`
+- Status: `done`
+- Owner: `surface/orchestration`
+- Requirement:
+  - Eval must compare model-judge pass rate against human/expert pass rate so reward-hacking and grader drift cannot silently promote weak issues.
+  - Eval must include adversarial grader-hacking fixtures where shallow issue drafts, unsupported evidence, and keyword-stuffed fixes are expected to score low.
+  - Eval must generate evaluator-trust issues when judge-human divergence exceeds policy or high-risk severity labels flip.
+- Implementation:
+  - Added [`surface/orchestration/src/eval_grader_hacking.rs`](/Users/jay/.openclaw/workspace/surface/orchestration/src/eval_grader_hacking.rs) and the `eval_runtime grader-hacking-guard` command.
+  - Added [`surface/orchestration/fixtures/eval/eval_grader_hacking_cases.json`](/Users/jay/.openclaw/workspace/surface/orchestration/fixtures/eval/eval_grader_hacking_cases.json) with grounded, shallow, unsupported-evidence, keyword-stuffing, and high-risk fixtures.
+  - The guard emits `pass_rate_divergence`, adversarial high-score failures, high-risk severity flips, and `trust_issues`.
+- Acceptance Criteria:
+  - `judge_human_pass_rate_divergence_contract` compares judge and human pass rates against the configured divergence budget.
+  - `adversarial_grader_hacking_fixture_contract` fails if shallow, unsupported, or keyword-stuffed cases receive a high judge score.
+  - `evaluator_trust_issue_generation_contract` emits issue-ready trust findings when divergence or high-risk severity flips are present.
+- Regression Evidence:
+  - `cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- grader-hacking-guard --strict=1`
+  - `cargo test --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime`
+  - Artifact: `core/local/artifacts/eval_grader_hacking_guard_current.json`
+
+### 2026-04-24 Eval Trace Localization Guard Increment
+
+- SRS ID: `V11-EVAL-TRACE-LOCALIZATION-001`
+- Status: `done`
+- Owner: `surface/orchestration`
+- Requirement:
+  - Eval findings must localize the first bad phase, first bad tool call, affected receipt, failure-origin confidence, and failure span instead of only reporting generic issue classes.
+  - Trace-localization gold fixtures must be grounded in real workflow-failure families and carry annotated failure spans plus root-cause phase labels.
+  - Trace-localization scoring must distinguish exact span match, near-span match, wrong-phase, and unsupported-cause outcomes.
+- Implementation:
+  - Added [`surface/orchestration/src/eval_trace_localization.rs`](/Users/jay/.openclaw/workspace/surface/orchestration/src/eval_trace_localization.rs) and the `eval_runtime trace-localization-guard` command.
+  - Added [`surface/orchestration/fixtures/eval/eval_trace_localization_cases.json`](/Users/jay/.openclaw/workspace/surface/orchestration/fixtures/eval/eval_trace_localization_cases.json) with file-tool misroute, repeated workflow response, policy-block confusion, and no-response failure cases.
+  - The guard emits schema failures, exact matches, near matches, wrong-phase rows, unsupported-cause rows, and aggregate pass/fail checks.
+- Acceptance Criteria:
+  - `trace_localization_schema_fields_contract` verifies first-bad phase/tool/receipt/confidence/span fields on expected and predicted annotations.
+  - `trace_localization_gold_fixture_contract` verifies real-workflow failure provenance and minimum fixture count.
+  - `trace_localization_scoring_contract` enforces exact-or-near span rate plus fail-closed wrong-phase and unsupported-cause budgets.
+- Regression Evidence:
+  - `cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- trace-localization-guard --strict=1`
+  - `cargo test --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime`
+  - Artifact: `core/local/artifacts/eval_trace_localization_guard_current.json`
+
+### 2026-04-24 Eval Trajectory Scoring Guard Increment
+
+- SRS ID: `V11-EVAL-TRAJECTORY-SCORING-001`
+- Status: `done`
+- Owner: `surface/orchestration`
+- Requirement:
+  - Eval must score trajectories beyond final answers by separately grading tool choice, tool order, parameter correctness, and stop/continue decisions.
+  - Eval must report redundant-tool-call and repeated-call-loop metrics with per-turn and per-workflow thresholds.
+  - Final answers and issue drafts must cite the intermediate tool receipts they depend on.
+- Implementation:
+  - Added [`surface/orchestration/src/eval_trajectory_scoring.rs`](/Users/jay/.openclaw/workspace/surface/orchestration/src/eval_trajectory_scoring.rs) and the `eval_runtime trajectory-scoring-guard` command.
+  - Added [`surface/orchestration/fixtures/eval/eval_trajectory_scoring_cases.json`](/Users/jay/.openclaw/workspace/surface/orchestration/fixtures/eval/eval_trajectory_scoring_cases.json) covering local-file, issue-synthesis, and policy-denial trajectories.
+  - The guard emits tool-choice/order/parameter/stop rates, redundant-loop failures, and ungrounded output rows.
+- Acceptance Criteria:
+  - `trajectory_tool_scoring_contract` verifies tool choice, order, parameter correctness, and stop/continue decisions.
+  - `trajectory_redundant_tool_loop_contract` enforces redundant-call and repeated-loop budgets.
+  - `trajectory_intermediate_output_grounding_contract` fails if final answers or issue drafts omit required receipt citations.
+- Regression Evidence:
+  - `cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- trajectory-scoring-guard --strict=1`
+  - `cargo test --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime`
+  - Artifact: `core/local/artifacts/eval_trajectory_scoring_guard_current.json`
+
+### 2026-04-24 Eval Multi-Turn Simulation Guard Increment
+
+- SRS ID: `V11-EVAL-MULTITURN-SIM-001`
+- Status: `done`
+- Owner: `surface/orchestration`
+- Requirement:
+  - Eval must include stateful multi-turn user simulation with mutable user goals, partial information, clarification turns, and frustration/recovery turns.
+  - Multi-turn evals must run inside policy-constrained simulated tool environments where success requires both correct tool use and policy adherence.
+  - Multi-turn reports must emit dialogue-level success, turn-level success, policy violations, clarification quality, and recovery quality.
+- Implementation:
+  - Added [`surface/orchestration/src/eval_multiturn_simulation.rs`](/Users/jay/.openclaw/workspace/surface/orchestration/src/eval_multiturn_simulation.rs) and the `eval_runtime multiturn-simulation-guard` command.
+  - Added [`surface/orchestration/fixtures/eval/eval_multiturn_simulation_cases.json`](/Users/jay/.openclaw/workspace/surface/orchestration/fixtures/eval/eval_multiturn_simulation_cases.json) covering local-file routing, policy-denied file access, and installer-repair follow-up workflows.
+  - The guard emits stateful coverage, policy-constrained tool-environment checks, and multi-turn quality metrics.
+- Acceptance Criteria:
+  - `stateful_multiturn_user_simulation_contract` verifies mutable goals, partial information, clarification, and frustration coverage.
+  - `policy_constrained_tool_environment_contract` verifies simulated tool policies are present and no policy violations occur.
+  - `multiturn_eval_metrics_contract` enforces dialogue success, turn success, clarification quality, and recovery quality thresholds.
+- Regression Evidence:
+  - `cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- multiturn-simulation-guard --strict=1`
+  - `cargo test --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime`
+  - Artifact: `core/local/artifacts/eval_multiturn_simulation_guard_current.json`
+
+### 2026-04-24 Eval Contamination + Rotation Guard Increment
+
+- SRS ID: `V11-EVAL-CONTAMINATION-001`
+- Status: `done`
+- Owner: `surface/orchestration`
+- Requirement:
+  - Eval fixtures must carry contamination metadata: source date, public exposure risk, training-contamination risk, duplicate-source hash, status, and retirement date.
+  - Stale or overexposed eval cases must be retired or quarantined, and promotion must require fresh holdout fixtures.
+  - Eval promotion must block when fixtures duplicate public benchmark prompts, prior gold patches, checked-in answer keys, or duplicate-source hashes.
+- Implementation:
+  - Added [`surface/orchestration/src/eval_contamination_guard.rs`](/Users/jay/.openclaw/workspace/surface/orchestration/src/eval_contamination_guard.rs) and the `eval_runtime contamination-guard` command.
+  - Added [`surface/orchestration/fixtures/eval/eval_contamination_cases.json`](/Users/jay/.openclaw/workspace/surface/orchestration/fixtures/eval/eval_contamination_cases.json) with active, holdout, retired, and quarantined cases.
+  - The guard emits metadata failures, rotation status, fresh holdout count, leak matches, duplicate-source hashes, and `promotion_blocked`.
+- Acceptance Criteria:
+  - `eval_contamination_metadata_contract` verifies every fixture has source date, exposure risks, duplicate-source hash, status, and retirement date.
+  - `stale_eval_rotation_policy_contract` verifies stale/overexposed cases are retired or quarantined and fresh holdouts exist.
+  - `eval_leak_duplicate_guard_contract` blocks promotion when public benchmark, prior patch, checked-in answer-key, or duplicate-source fingerprints are present.
+- Regression Evidence:
+  - `cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- contamination-guard --strict=1`
+  - `cargo test --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime`
+  - Artifact: `core/local/artifacts/eval_contamination_guard_current.json`
+
+### 2026-04-24 Eval Action Economy Guard Increment
+
+- SRS ID: `V11-EVAL-ACTION-ECONOMY-001`
+- Status: `done`
+- Owner: `surface/orchestration`
+- Requirement:
+  - Eval reports must score action economy: unnecessary steps, redundant planning/reflection, tool-call count, and phase latency.
+  - Eval reports must expose cost-per-success and budget-overrun metrics so RSI escalation can account for efficiency, not only correctness.
+  - Eval must compare agent trajectories against human/minimal reference trajectories for step-efficiency scoring.
+- Implementation:
+  - Added [`surface/orchestration/src/eval_action_economy_guard.rs`](/Users/jay/.openclaw/workspace/surface/orchestration/src/eval_action_economy_guard.rs) and the `eval_runtime action-economy-guard` command.
+  - Added [`surface/orchestration/fixtures/eval/eval_action_economy_cases.json`](/Users/jay/.openclaw/workspace/surface/orchestration/fixtures/eval/eval_action_economy_cases.json) with local-file, issue-synthesis, and policy-denial minimal reference trajectories.
+  - The guard emits action-economy failures, cost-per-success, budget overruns, reference-efficiency rate, tool-call totals, and latency failures.
+- Acceptance Criteria:
+  - `action_economy_scoring_contract` verifies unnecessary-step, redundant-planning/reflection, tool-call, and phase-latency budgets.
+  - `cost_per_success_budget_contract` enforces cost-per-success and budget-overrun thresholds.
+  - `reference_trajectory_comparison_contract` compares actual trajectories against minimal reference trajectories.
+- Regression Evidence:
+  - `cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- action-economy-guard --strict=1`
+  - `cargo test --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime`
+  - Artifact: `core/local/artifacts/eval_action_economy_guard_current.json`
+
+### 2026-04-24 Eval Production Workflow Reliability Increment
+
+- SRS ID: `V11-EVAL-PRODUCTION-WORKFLOW-001`
+- Status: `done`
+- Owner: `surface/orchestration`
+- Requirement:
+  - Eval must mine production chat/workflow telemetry for candidate gold evals without emitting private raw user content.
+  - Eval must publish workflow-specific replay packs for installer repair, local file tooling, workflow selection, issue synthesis, and eval escalation.
+  - Eval reporting must separate InfRing production workflow reliability from generic benchmark performance.
+- Implementation:
+  - Added [`surface/orchestration/src/eval_production_workflow_guard.rs`](/Users/jay/.openclaw/workspace/surface/orchestration/src/eval_production_workflow_guard.rs) and the `eval_runtime production-workflow-guard` command.
+  - Added [`surface/orchestration/fixtures/eval/eval_production_workflow_telemetry.json`](/Users/jay/.openclaw/workspace/surface/orchestration/fixtures/eval/eval_production_workflow_telemetry.json) with sanitized telemetry for the five operator workflow families.
+  - The guard emits proposed gold candidates, a workflow-specific replay pack, and a production workflow reliability report with generic benchmark rows isolated.
+- Acceptance Criteria:
+  - `production_telemetry_miner_contract` verifies enough candidate-generating telemetry exists and candidate output does not expose raw private content.
+  - `workflow_specific_replay_pack_contract` verifies replay coverage for all required operator workflow families.
+  - `workflow_specific_reliability_report_contract` verifies production workflow reliability rows remain separate from generic benchmark rows.
+- Regression Evidence:
+  - `cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- production-workflow-guard --strict=1`
+  - `cargo test --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime`
+  - Artifacts: `core/local/artifacts/eval_production_workflow_guard_current.json`, `local/state/ops/eval_replay_fixtures/workflow_specific_replay_pack_latest.json`, `core/local/artifacts/eval_workflow_reliability_current.json`
+
+### 2026-04-24 Eval Metamorphic Routing Guard Increment
+
+- SRS ID: `V11-EVAL-METAMORPHIC-ROUTING-001`
+- Status: `done`
+- Owner: `surface/orchestration`
+- Requirement:
+  - Eval must generate metamorphic prompt perturbations for equivalent local-file, web, policy-denied, empty-result, and frustrated-follow-up cases.
+  - Eval must score metamorphic consistency across route, workflow, tool family, and final-answer class.
+  - Eval must detect brittle assumptions around tool-list ordering, path style, prompt ordering, and missing capability surfaces.
+- Implementation:
+  - Added [`surface/orchestration/src/eval_metamorphic_guard.rs`](/Users/jay/.openclaw/workspace/surface/orchestration/src/eval_metamorphic_guard.rs) and the `eval_runtime metamorphic-guard` command.
+  - Added [`surface/orchestration/fixtures/eval/eval_metamorphic_cases.json`](/Users/jay/.openclaw/workspace/surface/orchestration/fixtures/eval/eval_metamorphic_cases.json) with local-file, web, policy-denied, empty-result, and frustrated-follow-up perturbation groups.
+  - The guard emits generated prompt variants, missing perturbation-family coverage, consistency failures, and brittle assumption failures.
+- Acceptance Criteria:
+  - `metamorphic_prompt_perturbation_generator_contract` verifies variant generation and required perturbation-family coverage.
+  - `metamorphic_consistency_scoring_contract` verifies route/workflow/tool/final-answer consistency across equivalent prompts.
+  - `metamorphic_brittle_assumption_guard_contract` fails on tool-list order sensitivity, path-style sensitivity, schema errors, or unhandled missing capabilities.
+- Regression Evidence:
+  - `cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- metamorphic-guard --strict=1`
+  - `cargo test --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime`
+  - Artifact: `core/local/artifacts/eval_metamorphic_guard_current.json`
+
+### 2026-04-24 Eval RSI Promotion Ladder + Holdout Red-Team Increment
+
+- SRS ID: `V11-EVAL-RSI-PROMOTION-LADDER-001`
+- Status: `done`
+- Owner: `surface/orchestration`
+- Requirement:
+  - Eval must expose a consolidated RSI promotion ladder covering calibrated judge confidence, human agreement, trace localization, replay proof, production workflow reliability, and unresolved issue thresholds.
+  - Eval runtime must fail-close RSI/self-improvement promotion unless every required proof is present, passing, and unblocked.
+  - Eval must include a holdout red-team suite for hallucinated issues, wrong-tool claims, unsupported root causes, and non-actionable recommendations.
+- Implementation:
+  - Added [`surface/orchestration/src/eval_rsi_promotion_guard.rs`](/Users/jay/.openclaw/workspace/surface/orchestration/src/eval_rsi_promotion_guard.rs) and the `eval_runtime rsi-promotion-ladder` command.
+  - Added [`surface/orchestration/fixtures/eval/eval_rsi_promotion_ladder.json`](/Users/jay/.openclaw/workspace/surface/orchestration/fixtures/eval/eval_rsi_promotion_ladder.json) for required proof artifacts and fail-closed block pointers.
+  - Added [`surface/orchestration/fixtures/eval/eval_holdout_red_team_cases.json`](/Users/jay/.openclaw/workspace/surface/orchestration/fixtures/eval/eval_holdout_red_team_cases.json) for eval-system red-team cases.
+- Acceptance Criteria:
+  - `rsi_eval_promotion_ladder_policy_contract` verifies the ladder policy and required proof inventory exist.
+  - `rsi_eval_runtime_promotion_block_contract` verifies promotion is blocked whenever any required proof is missing, failing, or explicitly blocked.
+  - `eval_holdout_redteam_suite_contract` verifies the holdout suite rejects hallucinated, wrong-tool, unsupported-root-cause, and non-actionable issue drafts.
+- Regression Evidence:
+  - `cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- rsi-promotion-ladder --strict=1`
+  - `cargo test --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime`
+  - Artifact: `core/local/artifacts/eval_rsi_promotion_ladder_current.json`
+
 ### 2026-04-22 Next-20 Wave H Increment: Scorecard-Gate Alignment + Audited-Key Set Closure + Shell Pattern Governance
 
 - Intent:

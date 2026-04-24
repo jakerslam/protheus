@@ -14,12 +14,32 @@ use std::path::Path;
 use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[path = "../eval_action_economy_guard.rs"]
+mod eval_action_economy_guard;
+#[path = "../eval_calibration_stats.rs"]
+mod eval_calibration_stats;
+#[path = "../eval_contamination_guard.rs"]
+mod eval_contamination_guard;
+#[path = "../eval_final_runtime.rs"]
+mod eval_final_runtime;
+#[path = "../eval_grader_hacking.rs"]
+mod eval_grader_hacking;
 #[path = "../eval_issue_runtime.rs"]
 mod eval_issue_runtime;
 #[path = "../eval_lifecycle_runtime.rs"]
 mod eval_lifecycle_runtime;
-#[path = "../eval_final_runtime.rs"]
-mod eval_final_runtime;
+#[path = "../eval_metamorphic_guard.rs"]
+mod eval_metamorphic_guard;
+#[path = "../eval_multiturn_simulation.rs"]
+mod eval_multiturn_simulation;
+#[path = "../eval_production_workflow_guard.rs"]
+mod eval_production_workflow_guard;
+#[path = "../eval_rsi_promotion_guard.rs"]
+mod eval_rsi_promotion_guard;
+#[path = "../eval_trace_localization.rs"]
+mod eval_trace_localization;
+#[path = "../eval_trajectory_scoring.rs"]
+mod eval_trajectory_scoring;
 
 const DEFAULT_QUALITY_PATH: &str = "artifacts/eval_quality_metrics_latest.json";
 const DEFAULT_MONITOR_PATH: &str = "local/state/ops/eval_agent_chat_monitor/latest.json";
@@ -32,7 +52,8 @@ const DEFAULT_QUALITY_MARKDOWN_PATH: &str =
 
 const DEFAULT_FEEDBACK_PATH: &str =
     "local/state/ops/eval_agent_chat_monitor/reviewer_feedback.jsonl";
-const DEFAULT_THRESHOLDS_PATH: &str = "surface/orchestration/fixtures/eval/eval_quality_thresholds.json";
+const DEFAULT_THRESHOLDS_PATH: &str =
+    "surface/orchestration/fixtures/eval/eval_quality_thresholds.json";
 const DEFAULT_JUDGE_OUT_PATH: &str = "core/local/artifacts/eval_judge_human_agreement_current.json";
 const DEFAULT_JUDGE_OUT_LATEST_PATH: &str = "artifacts/eval_judge_human_agreement_latest.json";
 const DEFAULT_JUDGE_MARKDOWN_PATH: &str =
@@ -217,9 +238,7 @@ fn feedback_category_from_row(row: &Value) -> String {
             .trim()
             .to_ascii_lowercase();
         let category = match raw.as_str() {
-            "accepted" | "accept" | "approved" | "correct" | "true_positive" | "tp" => {
-                "accepted"
-            }
+            "accepted" | "accept" | "approved" | "correct" | "true_positive" | "tp" => "accepted",
             "rejected" | "reject" | "incorrect" | "false_positive" | "fp" => "rejected",
             "partial" | "partially_accepted" | "partially_correct" | "mixed" => "partial",
             "missed" | "false_negative" | "fn" => "missed",
@@ -279,7 +298,8 @@ fn run_reviewer_feedback(args: &[String]) -> i32 {
             "missed" => missed = missed.saturating_add(1),
             _ => unknown = unknown.saturating_add(1),
         }
-        let judge_severity = string_field(row, &["severity", "judge_severity", "predicted_severity"]);
+        let judge_severity =
+            string_field(row, &["severity", "judge_severity", "predicted_severity"]);
         let reviewer_severity = string_field(row, &["reviewer_severity", "human_severity"]);
         let severity_match = if judge_severity.is_empty() || reviewer_severity.is_empty() {
             None
@@ -321,8 +341,11 @@ fn run_reviewer_feedback(args: &[String]) -> i32 {
     } else {
         severity_matches as f64 / severity_checked as f64
     };
-    let previous_precision =
-        parse_f64_from_path(&previous, &["summary", "calibration", "precision"], precision);
+    let previous_precision = parse_f64_from_path(
+        &previous,
+        &["summary", "calibration", "precision"],
+        precision,
+    );
     let previous_recall =
         parse_f64_from_path(&previous, &["summary", "calibration", "recall"], recall);
     let previous_severity = parse_f64_from_path(
@@ -676,6 +699,15 @@ fn run_judge_human_agreement(args: &[String]) -> i32 {
         parse_u64_from_path(&thresholds, &["global", "judge_human_min_samples"], 5);
     let agreement_min =
         parse_f64_from_path(&thresholds, &["global", "judge_human_agreement_min"], 0.7);
+    let calibration_ci_max_half_width = parse_f64_from_path(
+        &thresholds,
+        &["global", "judge_human_ci_max_half_width"],
+        0.45,
+    );
+    let calibration_sensitivity_min =
+        parse_f64_from_path(&thresholds, &["global", "judge_human_sensitivity_min"], 0.6);
+    let calibration_specificity_min =
+        parse_f64_from_path(&thresholds, &["global", "judge_human_specificity_min"], 0.6);
     let policy = EvalJudgeHumanAgreementPolicy {
         minimum_samples,
         agreement_min,
@@ -733,6 +765,30 @@ fn run_judge_human_agreement(args: &[String]) -> i32 {
     }
 
     let result = evaluate_judge_human_agreement(&comparable_rows, &policy);
+    let calibration_stats = eval_calibration_stats::judge_calibration_stats(
+        &comparable_rows,
+        eval_calibration_stats::EvalCalibrationStatsPolicy {
+            minimum_samples,
+            max_ci_half_width: calibration_ci_max_half_width,
+            sensitivity_min: calibration_sensitivity_min,
+            specificity_min: calibration_specificity_min,
+        },
+    );
+    let calibration_promotion_ready = parse_bool_from_path(
+        &calibration_stats,
+        &["adaptive_sample_policy", "promotion_ready"],
+        false,
+    );
+    let calibration_promotion_blocked = parse_bool_from_path(
+        &calibration_stats,
+        &["adaptive_sample_policy", "promotion_blocked"],
+        true,
+    );
+    let widest_ci_half_width = parse_f64_from_path(
+        &calibration_stats,
+        &["confidence_intervals", "widest_wilson_95_half_width"],
+        1.0,
+    );
     let checks = vec![
         json!({
             "id": "feedback_rows_present",
@@ -761,6 +817,33 @@ fn run_judge_human_agreement(args: &[String]) -> i32 {
             ),
         }),
         json!({
+            "id": "judge_human_sensitivity_specificity_contract",
+            "ok": calibration_stats.get("confusion").is_some(),
+            "detail": format!(
+                "sensitivity={:.3};sensitivity_min={:.3};specificity={:.3};specificity_min={:.3}",
+                parse_f64_from_path(&calibration_stats, &["rates", "sensitivity"], 0.0),
+                calibration_sensitivity_min,
+                parse_f64_from_path(&calibration_stats, &["rates", "specificity"], 0.0),
+                calibration_specificity_min
+            ),
+        }),
+        json!({
+            "id": "judge_human_confidence_interval_contract",
+            "ok": calibration_stats.get("confidence_intervals").is_some(),
+            "detail": format!(
+                "widest_wilson_95_half_width={:.3};max_ci_half_width={:.3}",
+                widest_ci_half_width, calibration_ci_max_half_width
+            ),
+        }),
+        json!({
+            "id": "judge_human_adaptive_sample_policy_contract",
+            "ok": calibration_stats.get("adaptive_sample_policy").is_some(),
+            "detail": format!(
+                "promotion_ready={};promotion_blocked={}",
+                calibration_promotion_ready, calibration_promotion_blocked
+            ),
+        }),
+        json!({
             "id": "feedback_shape_contract",
             "ok": malformed_rows == 0,
             "detail": format!("rows={};malformed={}", rows.len(), malformed_rows),
@@ -772,7 +855,7 @@ fn run_judge_human_agreement(args: &[String]) -> i32 {
 
     let report = json!({
         "type": "eval_judge_human_agreement_guard",
-        "schema_version": 1,
+        "schema_version": 2,
         "generated_at": now_iso,
         "ok": ok,
         "checks": checks,
@@ -785,9 +868,13 @@ fn run_judge_human_agreement(args: &[String]) -> i32 {
             "agreement_rate": result.summary.agreement_rate,
             "agreement_min": result.summary.agreement_min,
             "calibration_ready": result.summary.calibration_ready,
+            "calibration_promotion_ready": calibration_promotion_ready,
+            "statistical_promotion_blocked": calibration_promotion_blocked,
+            "widest_wilson_95_half_width": widest_ci_half_width,
             "status": result.summary.status,
             "pair_counts": result.summary.pair_counts,
         },
+        "calibration_statistics": calibration_stats,
         "comparisons": comparable_rows,
         "sources": {
             "feedback": feedback_path,
@@ -795,7 +882,7 @@ fn run_judge_human_agreement(args: &[String]) -> i32 {
         }
     });
     let markdown = format!(
-        "# Eval Judge-Human Agreement Guard (Current)\n\n- generated_at: {}\n- ok: {}\n- status: {}\n- agreement_rate: {:.3}\n- agreement_min: {:.3}\n- comparable_samples: {}\n- minimum_samples: {}\n- calibration_ready: {}\n",
+        "# Eval Judge-Human Agreement Guard (Current)\n\n- generated_at: {}\n- ok: {}\n- status: {}\n- agreement_rate: {:.3}\n- agreement_min: {:.3}\n- comparable_samples: {}\n- minimum_samples: {}\n- calibration_ready: {}\n- calibration_promotion_ready: {}\n- statistical_promotion_blocked: {}\n- widest_wilson_95_half_width: {:.3}\n",
         report.get("generated_at").and_then(|v| v.as_str()).unwrap_or(""),
         ok,
         result.summary.status,
@@ -803,7 +890,10 @@ fn run_judge_human_agreement(args: &[String]) -> i32 {
         result.summary.agreement_min,
         result.summary.comparable_samples,
         result.summary.minimum_samples,
-        result.summary.calibration_ready
+        result.summary.calibration_ready,
+        calibration_promotion_ready,
+        calibration_promotion_blocked,
+        widest_ci_half_width
     );
 
     let write_ok = write_json(&out_latest_path, &report).is_ok()
@@ -823,7 +913,7 @@ fn run_judge_human_agreement(args: &[String]) -> i32 {
 
 fn usage() {
     eprintln!(
-        "usage: cargo run --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- <reviewer-feedback|quality-gate|judge-human-agreement|issue-drafts|replay|fix-verification|issue-lifecycle|rsi-escalation|phase-trace-persist|adversarial-routing|workflow-selection|runtime-ownership> [--strict=0|1] [args...]"
+        "usage: cargo run --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- <reviewer-feedback|quality-gate|judge-human-agreement|grader-hacking-guard|trace-localization-guard|trajectory-scoring-guard|multiturn-simulation-guard|contamination-guard|action-economy-guard|production-workflow-guard|metamorphic-guard|rsi-promotion-ladder|issue-drafts|replay|fix-verification|issue-lifecycle|rsi-escalation|phase-trace-persist|adversarial-routing|workflow-selection|runtime-ownership> [--strict=0|1] [args...]"
     );
 }
 
@@ -837,6 +927,19 @@ fn main() -> ExitCode {
         "reviewer-feedback" => run_reviewer_feedback(tail),
         "quality-gate" => run_quality_gate(tail),
         "judge-human-agreement" => run_judge_human_agreement(tail),
+        "grader-hacking-guard" => eval_grader_hacking::run_grader_hacking_guard(tail),
+        "trace-localization-guard" => eval_trace_localization::run_trace_localization_guard(tail),
+        "trajectory-scoring-guard" => eval_trajectory_scoring::run_trajectory_scoring_guard(tail),
+        "multiturn-simulation-guard" => {
+            eval_multiturn_simulation::run_multiturn_simulation_guard(tail)
+        }
+        "contamination-guard" => eval_contamination_guard::run_contamination_guard(tail),
+        "action-economy-guard" => eval_action_economy_guard::run_action_economy_guard(tail),
+        "production-workflow-guard" => {
+            eval_production_workflow_guard::run_production_workflow_guard(tail)
+        }
+        "metamorphic-guard" => eval_metamorphic_guard::run_metamorphic_guard(tail),
+        "rsi-promotion-ladder" => eval_rsi_promotion_guard::run_rsi_promotion_ladder_guard(tail),
         "issue-drafts" => eval_issue_runtime::run_issue_drafts(tail),
         "replay" => eval_issue_runtime::run_replay(tail),
         "fix-verification" => eval_lifecycle_runtime::run_fix_verification(tail),

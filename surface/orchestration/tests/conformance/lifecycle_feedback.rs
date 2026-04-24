@@ -186,9 +186,10 @@ fn workflow_phase_trace_projects_orchestration_lifecycle_for_eval_consumers() {
         trace.active_stage,
         package.control_plane_lifecycle.active_stage
     );
-    assert!(trace.phases.iter().any(|row| {
-        row.phase == WorkflowStage::IntakeNormalization && row.eval_visible
-    }));
+    assert!(trace
+        .phases
+        .iter()
+        .any(|row| { row.phase == WorkflowStage::IntakeNormalization && row.eval_visible }));
     assert!(trace
         .collectors
         .iter()

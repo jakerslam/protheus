@@ -1,0 +1,38 @@
+{
+  "type": "eval_rsi_promotion_ladder_policy",
+  "schema_version": 1,
+  "policy": {
+    "promotion_decision": "fail_closed_unless_every_required_proof_is_fresh_passing_and_unblocked",
+    "minimum_clean_passes": 1,
+    "unresolved_high_severity_threshold": 0,
+    "freshness_hours": 24
+  },
+  "required_proofs": [
+    {
+      "id": "calibrated_judge_confidence",
+      "artifact_path": "core/local/artifacts/eval_judge_human_agreement_current.json",
+      "ok_pointer": "/ok",
+      "block_if_true_pointer": "/summary/statistical_promotion_blocked"
+    },
+    {
+      "id": "trace_localization",
+      "artifact_path": "core/local/artifacts/eval_trace_localization_guard_current.json",
+      "ok_pointer": "/ok"
+    },
+    {
+      "id": "workflow_replay_pack",
+      "artifact_path": "local/state/ops/eval_replay_fixtures/workflow_specific_replay_pack_latest.json",
+      "ok_pointer": "/entries/0/workflow"
+    },
+    {
+      "id": "production_workflow_reliability",
+      "artifact_path": "core/local/artifacts/eval_production_workflow_guard_current.json",
+      "ok_pointer": "/ok"
+    },
+    {
+      "id": "metamorphic_routing",
+      "artifact_path": "core/local/artifacts/eval_metamorphic_guard_current.json",
+      "ok_pointer": "/ok"
+    }
+  ]
+}

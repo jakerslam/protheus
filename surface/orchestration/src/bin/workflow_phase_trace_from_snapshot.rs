@@ -243,23 +243,37 @@ fn build_trace(snapshot: &Value, generated_at_ms: u64) -> Value {
 
 fn run() -> io::Result<Value> {
     let args: Vec<String> = env::args().skip(1).collect();
-    let snapshot_path = parse_flag(&args, "snapshot").unwrap_or_else(|| DEFAULT_SNAPSHOT_PATH.to_string());
+    let snapshot_path =
+        parse_flag(&args, "snapshot").unwrap_or_else(|| DEFAULT_SNAPSHOT_PATH.to_string());
     let out_path = parse_flag(&args, "out").unwrap_or_else(|| DEFAULT_OUT_PATH.to_string());
     let snapshot = read_json(&snapshot_path)?;
     let trace = build_trace(&snapshot, now_ms());
     ensure_parent(&out_path)?;
-    fs::write(&out_path, format!("{}\n", serde_json::to_string_pretty(&trace).unwrap_or_default()))?;
+    fs::write(
+        &out_path,
+        format!(
+            "{}\n",
+            serde_json::to_string_pretty(&trace).unwrap_or_default()
+        ),
+    )?;
     Ok(trace)
 }
 
 fn main() -> ExitCode {
     match run() {
         Ok(report) => {
-            let _ = writeln!(io::stdout(), "{}", serde_json::to_string(&report).unwrap_or_default());
+            let _ = writeln!(
+                io::stdout(),
+                "{}",
+                serde_json::to_string(&report).unwrap_or_default()
+            );
             ExitCode::SUCCESS
         }
         Err(err) => {
-            let _ = writeln!(io::stderr(), "workflow phase trace generation failed: {err}");
+            let _ = writeln!(
+                io::stderr(),
+                "workflow phase trace generation failed: {err}"
+            );
             ExitCode::from(1)
         }
     }

@@ -224,11 +224,7 @@ fn normalized_failure_codes(package: &OrchestrationResultPackage) -> Vec<String>
     }
     for stage in &package.control_plane_lifecycle.stages {
         if stage.status == WorkflowStageStatus::Blocked {
-            codes.push(format!(
-                "phase_blocked:{:?}",
-                stage.stage
-            )
-            .to_ascii_lowercase());
+            codes.push(format!("phase_blocked:{:?}", stage.stage).to_ascii_lowercase());
         }
     }
     codes.sort();
