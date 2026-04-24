@@ -280,6 +280,84 @@
       return rows.slice(0, 2).map(function(row) { return row.label; }).join(' · ');
     },
 
+    thinkingWorkflowStatusLine: function(msg) {
+      if (!msg || !msg.thinking) return '';
+      var toolDialog = typeof this.currentToolDialogLabel === 'function'
+        ? String(this.currentToolDialogLabel(msg) || '').trim()
+        : '';
+      if (typeof this.normalizeThinkingStatusCandidate === 'function') {
+        toolDialog = this.normalizeThinkingStatusCandidate(toolDialog);
+      }
+      if (toolDialog) return toolDialog;
+      var explicitStatus = String(msg.thinking_status || msg.status_text || '').trim();
+      if (typeof this.normalizeThinkingStatusCandidate === 'function') {
+        explicitStatus = this.normalizeThinkingStatusCandidate(explicitStatus);
+      }
+      if (typeof this.isThinkingPlaceholderText === 'function' && this.isThinkingPlaceholderText(explicitStatus)) {
+        return '';
+      }
+      return explicitStatus;
+    },
+
+    thinkingInnerDialogLine: function(msg) {
+      if (!msg || !msg.thinking) return '';
+      var thought = typeof this.thinkingDisplayText === 'function'
+        ? String(this.thinkingDisplayText(msg) || '').trim()
+        : '';
+      if (!thought) {
+        thought = String(msg._reasoning || msg._thoughtText || '').trim();
+      }
+      if (!thought && msg && msg.thoughtStreaming) {
+        thought = String(msg._thought_latest_chunk || '').trim();
+      }
+      if (typeof this.normalizeThinkingStatusCandidate === 'function') {
+        thought = this.normalizeThinkingStatusCandidate(thought);
+      }
+      if (!thought) return '';
+      var lowered = thought.toLowerCase().replace(/\s+/g, ' ').trim();
+      if (!lowered || lowered === 'thinking') return '';
+      if (thought.length > 180) thought = thought.slice(0, 177).trim() + '...';
+      return thought;
+    },
+
+    thinkingBubbleLineText: function(msg) {
+      if (!msg || !msg.thinking) return '';
+      var primary = typeof this.thinkingWorkflowStatusLine === 'function'
+        ? String(this.thinkingWorkflowStatusLine(msg) || '').trim()
+        : '';
+      var primaryNorm = primary.toLowerCase().replace(/\s+/g, ' ').trim();
+      var thought = typeof this.thinkingInnerDialogLine === 'function'
+        ? String(this.thinkingInnerDialogLine(msg) || '').trim()
+        : '';
+      var thoughtNorm = thought.toLowerCase().replace(/\s+/g, ' ').trim();
+      if (primary && primaryNorm && primaryNorm !== 'thinking') {
+        if (
+          thought &&
+          thoughtNorm &&
+          thoughtNorm !== primaryNorm &&
+          thoughtNorm.indexOf(primaryNorm) === -1 &&
+          primaryNorm.indexOf(thoughtNorm) === -1
+        ) {
+          var composedPrimary = primary.replace(/(\.\.\.|…)+$/g, '').trim();
+          if (composedPrimary && !/[.!?:]$/.test(composedPrimary)) composedPrimary += '...';
+          else if (composedPrimary && /[.!?:]$/.test(composedPrimary) && !/(\.\.\.|…)$/.test(composedPrimary)) composedPrimary += ' ';
+          return (composedPrimary + ' ' + thought).replace(/\s+/g, ' ').trim();
+        }
+        return primary;
+      }
+      if (thought) return thought;
+      var phase = typeof this.thinkingPhaseText === 'function'
+        ? String(this.thinkingPhaseText(msg) || '').trim()
+        : '';
+      if (phase) return phase;
+      var trace = typeof this.thinkingTraceSummary === 'function'
+        ? String(this.thinkingTraceSummary(msg) || '').trim()
+        : '';
+      if (trace) return trace;
+      if (primary) return primary;
+      return 'Thinking';
+    },
+
     _workspaceState: function() {
       if (!this._messageWorkspaceState || typeof this._messageWorkspaceState !== 'object') {
         this._messageWorkspaceState = {
