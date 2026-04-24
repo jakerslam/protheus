@@ -10,7 +10,7 @@ Current chat workflow rule: the workflow interface is not allowed to help the LL
 
 ```mermaid
 flowchart TD
-    A[User turn] --> B["Gate 1: Need tool access? (T/F)"]
+    A[User turn] --> B["Gate 1: Need tools? (Yes/No)"]
     B --> C{"LLM submits F or T"}
     C -->|F| D[LLM answers directly]
     C -->|T| E[Present numbered tool family menu]
@@ -28,7 +28,7 @@ Direct conversation is the `F` branch at Gate 1. There is no separate bypass wor
 
 ```mermaid
 flowchart TD
-    A[User turn] --> B["Gate 1: Need tool access? (T/F)"]
+    A[User turn] --> B["Gate 1: Need tools? (Yes/No)"]
     B -->|F| C[LLM answers directly]
     B -->|T| D[Tool menu interface]
 ```

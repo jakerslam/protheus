@@ -12,6 +12,7 @@ pub mod request_classifier;
 pub mod result_packaging;
 pub mod self_maintenance;
 pub mod sequencing;
+pub mod telemetry;
 pub mod transient_context;
 
 use contracts::{

@@ -1,0 +1,27 @@
+{
+  "type": "eval_workflow_selection_cases",
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "greeting-simple",
+      "prompt": "hello",
+      "selected_workflow": "simple_conversation",
+      "simpler_workflow_would_suffice": true,
+      "recovery_escalation_justified": false
+    },
+    {
+      "id": "todo-task-execution",
+      "prompt": "execute the next TODO item wave",
+      "selected_workflow": "task_execution",
+      "simpler_workflow_would_suffice": false,
+      "recovery_escalation_justified": false
+    },
+    {
+      "id": "diagnostic-recovery",
+      "prompt": "diagnose why the workflow failed",
+      "selected_workflow": "diagnostic_recovery",
+      "simpler_workflow_would_suffice": false,
+      "recovery_escalation_justified": true
+    }
+  ]
+}

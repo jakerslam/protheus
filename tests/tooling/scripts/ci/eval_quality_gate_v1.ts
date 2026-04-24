@@ -44,7 +44,7 @@ function run(argv: string[] = process.argv.slice(2)): number {
     '--manifest-path',
     'surface/orchestration/Cargo.toml',
     '--bin',
-    'eval-runtime',
+    'eval_runtime',
     '--',
     'quality-gate',
     `--strict=${args.strict ? 1 : 0}`,

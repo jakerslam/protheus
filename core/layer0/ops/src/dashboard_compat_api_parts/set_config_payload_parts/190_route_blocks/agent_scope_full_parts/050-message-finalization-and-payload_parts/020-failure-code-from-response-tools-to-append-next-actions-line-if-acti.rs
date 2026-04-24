@@ -87,6 +87,20 @@ fn process_summary_tool_rows(response_tools: &[Value], limit: usize) -> Value {
     Value::Array(rows)
 }
 
+fn process_summary_tool_gate(tool_gate: &Value) -> Value {
+    json!({
+        "contract": clean_text(tool_gate.get("contract").and_then(Value::as_str).unwrap_or(""), 80),
+        "gate_decision_mode": clean_text(tool_gate.get("gate_decision_mode").and_then(Value::as_str).unwrap_or(""), 80),
+        "manual_gate_mode": clean_text(tool_gate.get("manual_gate_mode").and_then(Value::as_str).unwrap_or(""), 80),
+        "decision_authority_mode": clean_text(tool_gate.get("decision_authority_mode").and_then(Value::as_str).unwrap_or(""), 80),
+        "gate_prompt": clean_text(tool_gate.get("gate_prompt").and_then(Value::as_str).unwrap_or(""), 120),
+        "automatic_tool_calls_allowed": tool_gate.get("automatic_tool_calls_allowed").and_then(Value::as_bool).unwrap_or(false),
+        "should_call_tools": tool_gate.get("should_call_tools").and_then(Value::as_bool).unwrap_or(false),
+        "needs_tool_access": tool_gate.get("needs_tool_access").and_then(Value::as_bool).unwrap_or(false),
+        "selected_tool_family": clean_text(tool_gate.get("selected_tool_family").and_then(Value::as_str).unwrap_or(""), 60)
+    })
+}
+
 fn build_turn_process_summary(
     message: &str,
     response_tools: &[Value],
@@ -99,7 +113,7 @@ fn build_turn_process_summary(
         "request_excerpt": clean_text(message, 240),
         "tool_gate": response_workflow
             .get("tool_gate")
-            .cloned()
+            .map(process_summary_tool_gate)
             .unwrap_or_else(|| json!({})),
         "final_llm_status": clean_text(
             response_workflow

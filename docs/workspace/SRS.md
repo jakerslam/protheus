@@ -19649,6 +19649,166 @@ Source summary:
   - [`tests/tooling/scripts/ci/shell_truth_leak_guard.ts`](/Users/jay/.openclaw/workspace/tests/tooling/scripts/ci/shell_truth_leak_guard.ts)
   - [`docs/workspace/TODO.md`](/Users/jay/.openclaw/workspace/docs/workspace/TODO.md)
 
+### 2026-04-24 Orchestration Phase Trace Ownership Increment
+
+- SRS ID: `V11-ORCH-TRACE-001`
+- Status: `done`
+- Intent:
+  - Make `surface/orchestration/**` the canonical owner of workflow/chat phase trace normalization while leaving kernel/runtime, gateway, dashboard, and local state paths as collectors or consumers.
+- Acceptance criteria:
+  - Orchestration exposes a typed `orchestration_workflow_phase_trace` payload with phase statuses, active stage, decision trace, kernel receipt correlation, collector identities, and eval-visible issue signals.
+  - Phase traces expose eval-required intent/routing/finalization fields: user intent, selected workflow/model, tool decision, tool family, tool result summary, finalization status, fallback path, latency slot, receipt correlation, and normalized failure codes.
+  - A phase-trace completeness guard fails when eval-visible traces lack required fields, phase-field coverage, decision rationale, collector coverage, or receipt correlation.
+  - Eval chat monitoring can consume the orchestration phase trace path before falling back to attention/dashboard collector inference.
+  - Dashboard troubleshooting remains a display/storage collector and does not synthesize canonical workflow truth.
+- Regression evidence pointers:
+  - [`surface/orchestration/src/telemetry.rs`](/Users/jay/.openclaw/workspace/surface/orchestration/src/telemetry.rs)
+  - [`surface/orchestration/src/bin/workflow_phase_trace_guard.rs`](/Users/jay/.openclaw/workspace/surface/orchestration/src/bin/workflow_phase_trace_guard.rs)
+  - [`planes/contracts/orchestration/workflow_phase_trace_v1.json`](/Users/jay/.openclaw/workspace/planes/contracts/orchestration/workflow_phase_trace_v1.json)
+  - [`surface/orchestration/tests/conformance/lifecycle_feedback.rs`](/Users/jay/.openclaw/workspace/surface/orchestration/tests/conformance/lifecycle_feedback.rs)
+  - [`tests/tooling/scripts/ci/eval_agent_chat_monitor_guard.ts`](/Users/jay/.openclaw/workspace/tests/tooling/scripts/ci/eval_agent_chat_monitor_guard.ts)
+  - `cargo test --manifest-path surface/orchestration/Cargo.toml workflow_phase_trace_projects_orchestration_lifecycle_for_eval_consumers`
+  - `npm run -s ops:orchestration:phase-trace:collect`
+  - `npm run -s ops:orchestration:phase-trace:guard`
+  - `npm run -s ops:eval-agent:chat-monitor:guard`
+  - `npm run -s ops:eval:issue:filing:guard`
+  - `npm run -s ops:churn:guard`
+
+### 2026-04-24 Eval Gold Dataset Coverage Increment
+
+- SRS ID: `V11-EVAL-GOLD-001`
+- Status: `done`
+- Intent:
+  - Promote eval gold examples into the orchestration-owned RSI/eval surface so the evaluator can calibrate against real recent failures and matched non-failure counterexamples, not just ad hoc monitor output.
+- Acceptance criteria:
+  - The canonical eval gold dataset lives under `surface/orchestration/**` and includes the recent critical classes: hallucination, wrong tool selection, no response, repeated boilerplate/response loop, unsupported automatic-tool-selection claims, policy-block confusion, bad workflow selection, non-actionable feedback, and tool-output misdirection.
+  - Every critical issue class has at least one positive failure example and one negative abstention example.
+  - The gold dataset guard is Rust-owned by `surface/orchestration/**`, writes current/latest artifacts, and fails when required fields, severity values, class coverage, positive examples, or negative examples are missing.
+  - Legacy test-tooling seed data remains aligned to the orchestration-owned canonical dataset.
+- Regression evidence pointers:
+  - [`surface/orchestration/fixtures/eval/eval_gold_dataset_v1.jsonl`](/Users/jay/.openclaw/workspace/surface/orchestration/fixtures/eval/eval_gold_dataset_v1.jsonl)
+  - [`surface/orchestration/fixtures/eval/eval_issue_taxonomy_v1.json`](/Users/jay/.openclaw/workspace/surface/orchestration/fixtures/eval/eval_issue_taxonomy_v1.json)
+  - [`surface/orchestration/src/bin/eval_gold_dataset_guard.rs`](/Users/jay/.openclaw/workspace/surface/orchestration/src/bin/eval_gold_dataset_guard.rs)
+  - [`tests/tooling/fixtures/eval_gold_dataset_seed.jsonl`](/Users/jay/.openclaw/workspace/tests/tooling/fixtures/eval_gold_dataset_seed.jsonl)
+  - [`tests/tooling/config/eval_issue_taxonomy.json`](/Users/jay/.openclaw/workspace/tests/tooling/config/eval_issue_taxonomy.json)
+  - `npm run -s ops:eval:gold-dataset:schema:guard`
+  - `npm run -s ops:eval:quality:metrics:guard`
+  - `cargo test --manifest-path surface/orchestration/Cargo.toml --bin eval_gold_dataset_guard`
+
+### 2026-04-24 Eval Judge Lane Grounding Increment
+
+- SRS ID: `V11-EVAL-JUDGE-001`
+- Status: `done`
+- Intent:
+  - Add an orchestration-owned eval judge lane that can review current monitor findings against canonical phase traces and emit issue-ready verdicts with model-selection provenance and support evidence.
+- Acceptance criteria:
+  - The judge lane lives in `surface/orchestration/**` and emits verdict, issue class, severity, exact evidence, proposed fix, confidence, owner, acceptance criteria, and issue-readiness for sampled eval findings.
+  - The lane selects only strong eligible judge models, records the source of the candidate model, records the threshold decision, and records fallback reason when a candidate is not eligible.
+  - The lane fails closed on unsupported judge claims by requiring monitor evidence, raw turn identifiers/text, and orchestration phase-trace receipt correlation.
+  - Eval autopilot full flow runs the judge lane before issue filing and quality gates consume downstream artifacts.
+- Regression evidence pointers:
+  - [`surface/orchestration/src/bin/eval_judge_lane.rs`](/Users/jay/.openclaw/workspace/surface/orchestration/src/bin/eval_judge_lane.rs)
+  - [`artifacts/eval_judge_lane_latest.json`](/Users/jay/.openclaw/workspace/artifacts/eval_judge_lane_latest.json)
+  - [`core/local/artifacts/eval_judge_lane_current.json`](/Users/jay/.openclaw/workspace/core/local/artifacts/eval_judge_lane_current.json)
+  - `npm run -s ops:eval:judge-lane:guard`
+  - `cargo test --manifest-path surface/orchestration/Cargo.toml --bin eval_judge_lane`
+
+### 2026-04-24 Eval Reviewer Calibration + RSI Gate Increment
+
+- SRS ID: `V11-EVAL-CAL-001`
+- Status: `done`
+- Intent:
+  - Promote reviewer-feedback ingestion and reviewer-derived calibration into the orchestration eval runtime, then make RSI promotion visibly blocked when eval signal or human calibration is insufficient.
+- Acceptance criteria:
+  - Reviewer feedback ingestion accepts and normalizes `accepted`, `rejected`, `partial`, and `missed` eval finding outcomes.
+  - Reviewer calibration metrics include precision, recall, false positives, false negatives, partial findings, severity calibration, and drift against the previous report.
+  - The eval quality gate emits explicit `block_reasons` and `rsi_promotion_blocked` state when quality signal, monitor state, calibration, or consecutive-pass requirements are not satisfied.
+  - The reviewer ingestion test-tooling wrapper delegates to `surface/orchestration/src/bin/eval_runtime.rs` so eval calibration remains orchestration-owned.
+- Regression evidence pointers:
+  - [`surface/orchestration/src/bin/eval_runtime.rs`](/Users/jay/.openclaw/workspace/surface/orchestration/src/bin/eval_runtime.rs)
+  - [`tests/tooling/scripts/ci/eval_reviewer_feedback_ingest.ts`](/Users/jay/.openclaw/workspace/tests/tooling/scripts/ci/eval_reviewer_feedback_ingest.ts)
+  - [`surface/orchestration/fixtures/eval/eval_reviewer_feedback_sample.jsonl`](/Users/jay/.openclaw/workspace/surface/orchestration/fixtures/eval/eval_reviewer_feedback_sample.jsonl)
+  - [`core/local/artifacts/eval_reviewer_feedback_weekly_current.json`](/Users/jay/.openclaw/workspace/core/local/artifacts/eval_reviewer_feedback_weekly_current.json)
+  - [`core/local/artifacts/eval_quality_gate_v1_current.json`](/Users/jay/.openclaw/workspace/core/local/artifacts/eval_quality_gate_v1_current.json)
+  - `cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- reviewer-feedback --feedback=surface/orchestration/fixtures/eval/eval_reviewer_feedback_sample.jsonl`
+  - `cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- quality-gate --strict=0`
+  - `cargo test --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime`
+
+### 2026-04-24 Eval Issue Draft + Replay Increment
+
+- SRS ID: `V11-EVAL-ISSUE-REPLAY-001`
+- Status: `done`
+- Owner: `surface/orchestration`
+- Requirement:
+  - Eval issue drafts must be issue-ready before they feed RSI or human filing loops.
+  - Every draft must include exact evidence, affected owner/component, suspected root cause, acceptance criteria, suggested test, and replay command.
+  - Persistent high-severity eval findings must generate or link deterministic replay fixtures automatically.
+  - Eval replay fixtures must be runnable from the orchestration-owned runtime and emit pass/fail evidence.
+- Implementation:
+  - Added orchestration-owned issue-draft and replay runtime in [`surface/orchestration/src/eval_issue_runtime.rs`](/Users/jay/.openclaw/workspace/surface/orchestration/src/eval_issue_runtime.rs).
+  - Added `eval_runtime issue-drafts` to generate issue-ready drafts and high-severity replay fixtures.
+  - Added `eval_runtime replay` to execute replay fixtures and emit pass/fail artifacts.
+- Acceptance Criteria:
+  - `issue_draft_required_fields_contract` passes with all required issue-draft fields populated.
+  - `persistent_high_severity_replay_fixture_contract` passes with one replay fixture per persistent high-severity finding.
+  - `replay_fixture_execution_contract` passes with every generated replay fixture reproducible by the runner.
+- Regression Evidence:
+  - `cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- issue-drafts --strict=1`
+  - `cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- replay --strict=1`
+  - `cargo test --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime`
+  - Artifacts: `core/local/artifacts/eval_issue_drafts_current.json`, `core/local/artifacts/eval_replay_runner_current.json`, `local/state/ops/eval_replay_fixtures/*.json`
+
+### 2026-04-24 Eval Fix Verification + RSI Escalation Increment
+
+- SRS ID: `V11-EVAL-LIFECYCLE-RSI-001`
+- Status: `done`
+- Owner: `surface/orchestration`
+- Requirement:
+  - Eval must compare before/after replay evidence and classify each fix as `fixed`, `partially_fixed`, `unresolved`, or `regression_risk`.
+  - Eval issue lifecycle state must include draft readiness, human approval state, GitHub filing state, patch link state, replay verification, and closure score.
+  - RSI escalation must be blocked unless consecutive clean eval passes, fresh phase traces, passing replay fixtures, acceptable human calibration, and no unresolved high-severity eval issues are all satisfied.
+- Implementation:
+  - Added lifecycle runtime commands in [`surface/orchestration/src/eval_lifecycle_runtime.rs`](/Users/jay/.openclaw/workspace/surface/orchestration/src/eval_lifecycle_runtime.rs).
+  - Added `eval_runtime fix-verification`, `eval_runtime issue-lifecycle`, and `eval_runtime rsi-escalation`.
+  - Added before/after verification fixtures in `surface/orchestration/fixtures/eval/`.
+- Acceptance Criteria:
+  - `fix_verification_classification_contract` emits all supported fix-state classes from before/after replay inputs.
+  - `human_approval_before_github_filing_contract` blocks GitHub filing until human approval is present.
+  - `no_unresolved_high_severity_eval_issues_contract` participates in the RSI escalation gate alongside replay, calibration, phase-trace, and clean-pass checks.
+- Regression Evidence:
+  - `cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- fix-verification --strict=1`
+  - `cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- issue-lifecycle --strict=1`
+  - `cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- rsi-escalation --strict=0`
+  - `cargo test --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime`
+  - Artifacts: `core/local/artifacts/eval_fix_verification_current.json`, `core/local/artifacts/eval_issue_lifecycle_current.json`, `core/local/artifacts/eval_rsi_escalation_gate_current.json`
+
+### 2026-04-24 Eval Phase Trace + Routing Quality Closure Increment
+
+- SRS ID: `V11-EVAL-FINAL-CLOSURE-001`
+- Status: `done`
+- Owner: `surface/orchestration`
+- Requirement:
+  - Every live chat/workflow turn must be persistable as a canonical orchestration phase trace with receipt correlation, selected workflow, model, tool decision, finalization status, and normalized failure code.
+  - Adversarial eval must cover local-file intent that sounds like web, web intent mentioning files, policy-denied vs unavailable tools, empty tool results, and frustrated follow-up turns.
+  - Workflow-selection scoring must report whether the selected workflow was appropriate, whether a simpler workflow would have sufficed, and whether recovery/escalation was justified.
+  - Eval runtime ownership must be demonstrably orchestration-owned and not dependent on `tests/tooling` so the RSI evaluator survives shell/test stripping.
+- Implementation:
+  - Added final eval runtime commands in [`surface/orchestration/src/eval_final_runtime.rs`](/Users/jay/.openclaw/workspace/surface/orchestration/src/eval_final_runtime.rs).
+  - Added `eval_runtime phase-trace-persist`, `eval_runtime adversarial-routing`, `eval_runtime workflow-selection`, and `eval_runtime runtime-ownership`.
+  - Added fixtures `eval_phase_trace_sample.json`, `eval_adversarial_routing_cases.json`, and `eval_workflow_selection_cases.json`.
+- Acceptance Criteria:
+  - `phase_trace_required_fields_contract` passes for persisted canonical traces.
+  - `adversarial_route_contract` passes across the five tricky routing families.
+  - `workflow_selection_appropriateness_contract` and `workflow_recovery_justification_contract` pass.
+  - `eval_runtime_no_test_tooling_dependency` passes for orchestration-owned eval runtime sources.
+- Regression Evidence:
+  - `cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- phase-trace-persist --source=surface/orchestration/fixtures/eval/eval_phase_trace_sample.json --strict=1`
+  - `cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- adversarial-routing --strict=1`
+  - `cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- workflow-selection --strict=1`
+  - `cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- runtime-ownership --strict=1`
+  - `cargo test --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime`
+  - Artifacts: `core/local/artifacts/eval_phase_trace_persist_current.json`, `core/local/artifacts/eval_adversarial_routing_current.json`, `core/local/artifacts/eval_workflow_selection_current.json`, `core/local/artifacts/eval_runtime_ownership_current.json`
+
 ### 2026-04-22 Next-20 Wave H Increment: Scorecard-Gate Alignment + Audited-Key Set Closure + Shell Pattern Governance
 
 - Intent:

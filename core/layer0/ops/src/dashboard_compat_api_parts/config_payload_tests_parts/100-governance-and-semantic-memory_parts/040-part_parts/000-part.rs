@@ -159,11 +159,53 @@ fn workflow_library_marks_final_llm_stage_for_tool_turns() {
         workflow
             .pointer("/workflow_gate/status")
             .and_then(Value::as_str),
-        Some("enforced")
+        Some("presented")
     );
     assert_eq!(
         workflow
             .pointer("/final_llm_response/status")
+            .and_then(Value::as_str),
+        Some("skipped_test")
+    );
+    assert_eq!(
+        workflow
+            .pointer("/current_stage")
+            .and_then(Value::as_str),
+        Some("gate_6_llm_final_output")
+    );
+    assert_eq!(
+        workflow
+            .pointer("/visibility/system_injected_chat_text_allowed")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        workflow
+            .pointer("/library/default_workflow")
+            .and_then(Value::as_str),
+        Some("simple_conversation_v1")
+    );
+    assert_eq!(
+        workflow
+            .pointer("/stage_statuses/0/stage")
+            .and_then(Value::as_str),
+        Some("gate_1_need_tool_access_menu")
+    );
+    assert_eq!(
+        workflow
+            .pointer("/stage_statuses/0/status")
+            .and_then(Value::as_str),
+        Some("answered_no")
+    );
+    assert_eq!(
+        workflow
+            .pointer("/stage_statuses/1/stage")
+            .and_then(Value::as_str),
+        Some("gate_6_llm_final_output")
+    );
+    assert_eq!(
+        workflow
+            .pointer("/stage_statuses/1/status")
             .and_then(Value::as_str),
         Some("skipped_test")
     );
@@ -191,19 +233,43 @@ fn workflow_library_gate_applies_to_direct_answers_too() {
         workflow
             .pointer("/selected_workflow/name")
             .and_then(Value::as_str),
-        Some("complex_prompt_chain_v1")
+        Some("simple_conversation_v1")
     );
     assert_eq!(
         workflow
             .pointer("/workflow_gate/status")
             .and_then(Value::as_str),
-        Some("enforced")
+        Some("presented")
     );
     assert_eq!(
         workflow
             .pointer("/final_llm_response/status")
             .and_then(Value::as_str),
         Some("skipped_test")
+    );
+    assert_eq!(
+        workflow
+            .pointer("/current_stage")
+            .and_then(Value::as_str),
+        Some("gate_6_llm_final_output")
+    );
+    assert_eq!(
+        workflow
+            .pointer("/current_stage_status")
+            .and_then(Value::as_str),
+        Some("skipped_test")
+    );
+    assert_eq!(
+        workflow
+            .pointer("/visibility/formats/ui")
+            .and_then(Value::as_str),
+        Some("Workflow complete; no tools selected and direct LLM answer is ready.")
+    );
+    assert_eq!(
+        workflow
+            .pointer("/visibility/system_injected_chat_text_allowed")
+            .and_then(Value::as_bool),
+        Some(false)
     );
 }
 

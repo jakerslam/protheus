@@ -148,6 +148,67 @@ fn control_plane_result_includes_template_lifecycle_and_owner_contract() {
 }
 
 #[test]
+fn workflow_phase_trace_projects_orchestration_lifecycle_for_eval_consumers() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "phase-trace-contract".to_string(),
+            intent: "read workspace files and summarize findings".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "read",
+                    "resource_kind": "workspace",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "workspace_path", "value": "README.md" }]
+                },
+                "core_probe_envelope": {
+                    "workspace_read": {
+                        "tool_available": true,
+                        "transport_available": true
+                    }
+                }
+            }),
+        },
+        5_001,
+    );
+
+    let trace =
+        infring_orchestration_surface_v1::telemetry::build_workflow_phase_trace(&package, 5_001);
+
+    assert_eq!(
+        trace.trace_type,
+        infring_orchestration_surface_v1::telemetry::WORKFLOW_PHASE_TRACE_TYPE
+    );
+    assert_eq!(trace.owner, "surface_orchestration_control_plane");
+    assert_eq!(trace.workflow_template, package.workflow_template);
+    assert_eq!(
+        trace.active_stage,
+        package.control_plane_lifecycle.active_stage
+    );
+    assert!(trace.phases.iter().any(|row| {
+        row.phase == WorkflowStage::IntakeNormalization && row.eval_visible
+    }));
+    assert!(trace
+        .collectors
+        .iter()
+        .any(|row| row.collector_id == "dashboard_troubleshooting_snapshot"));
+    assert_eq!(
+        trace.expected_kernel_contract_ids,
+        package
+            .execution_state
+            .correlation
+            .expected_core_contract_ids
+    );
+    assert!(!trace.receipt_hash.is_empty());
+    let serialized = serde_json::to_value(&trace).expect("trace serializes");
+    assert_eq!(
+        serialized.get("type").and_then(|value| value.as_str()),
+        Some("orchestration_workflow_phase_trace")
+    );
+}
+
+#[test]
 fn failed_execution_observation_triggers_feedback_reroute_contract() {
     let mut runtime = OrchestrationSurfaceRuntime::new();
     runtime.record_execution_observation(
