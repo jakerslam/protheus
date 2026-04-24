@@ -28,7 +28,7 @@ fn adapted_tool_request_requires_explicit_tool_probe() {
 
     assert_eq!(
         package.execution_state.plan_status,
-        infring_orchestration_surface_v1::contracts::PlanStatus::Blocked
+        infring_orchestration_surface_v1::contracts::PlanStatus::ClarificationRequired
     );
     assert_eq!(
         package
@@ -36,7 +36,7 @@ fn adapted_tool_request_requires_explicit_tool_probe() {
             .recovery
             .as_ref()
             .and_then(|row| row.reason.clone()),
-        Some(infring_orchestration_surface_v1::contracts::RecoveryReason::PlannerContradiction)
+        Some(infring_orchestration_surface_v1::contracts::RecoveryReason::TransportFailure)
     );
     assert!(package
         .selected_plan
@@ -48,6 +48,11 @@ fn adapted_tool_request_requires_explicit_tool_probe() {
                 source == "probe.required_for_typed_surface.web_search.tool_available"
             })
     }));
+    assert!(package
+        .classification
+        .reasons
+        .iter()
+        .any(|row| row == "missing_probe: web_search.tool_available"));
 }
 
 #[test]
@@ -91,6 +96,11 @@ fn adapted_tool_request_rejects_payload_tool_probe_shortcut() {
                 source == "probe.required_for_typed_surface.web_search.tool_available"
             })
     }));
+    assert!(package
+        .classification
+        .reasons
+        .iter()
+        .any(|row| row == "missing_probe: web_search.tool_available"));
 }
 
 #[test]
@@ -504,6 +514,15 @@ fn non_legacy_tool_family_missing_capability_denials_are_exact() {
                 .any(|row| row == &expected_reason),
             "missing expected exact denial reason for {capability_key}"
         );
+        let expected_missing_probe = format!("missing_probe: {capability_key}");
+        assert!(
+            package
+                .classification
+                .reasons
+                .iter()
+                .any(|row| row == &expected_missing_probe),
+            "missing precise missing-probe code for {capability_key}"
+        );
         assert!(!package.classification.reasons.iter().any(|row| {
             row == "typed_probe_contract_missing:capability.execute_tool"
                 || row == "tool_unavailable"
@@ -647,11 +666,124 @@ fn non_legacy_tool_family_partial_probe_fields_emit_exact_field_denials() {
                 .any(|row| row == &expected_field_reason),
             "missing exact field denial reason for {capability_key}.{missing_field}"
         );
+        let expected_missing_probe = format!("missing_probe: {capability_key}.{missing_field}");
+        assert!(
+            package
+                .classification
+                .reasons
+                .iter()
+                .any(|row| row == &expected_missing_probe),
+            "missing precise missing-probe code for {capability_key}.{missing_field}"
+        );
         assert!(!package
             .classification
             .reasons
             .iter()
             .any(|row| row == &unexpected_capability_reason));
+        assert!(package
+            .classification
+            .clarification_reasons
+            .contains(&ClarificationReason::TypedProbeContractViolation));
+    }
+}
+
+#[test]
+fn non_legacy_tool_family_stale_payload_probe_shortcuts_emit_missing_probe_codes() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let cases = vec![
+        (
+            "workspace_read",
+            json!({
+                "sdk": {
+                    "operation_kind": "read",
+                    "resource_kind": "workspace",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "workspace_path", "value": "README.md" }]
+                }
+            }),
+        ),
+        (
+            "workspace_search",
+            json!({
+                "sdk": {
+                    "operation_kind": "search",
+                    "resource_kind": "workspace",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "workspace_path", "value": "README.md" }]
+                }
+            }),
+        ),
+        (
+            "web_search",
+            json!({
+                "sdk": {
+                    "operation_kind": "search",
+                    "resource_kind": "web",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
+                }
+            }),
+        ),
+        (
+            "web_fetch",
+            json!({
+                "sdk": {
+                    "operation_kind": "fetch",
+                    "resource_kind": "web",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
+                }
+            }),
+        ),
+        (
+            "tool_route",
+            json!({
+                "sdk": {
+                    "operation_kind": "inspect_tooling",
+                    "resource_kind": "tooling",
+                    "request_kind": "direct",
+                    "tool_hints": ["tool_route"],
+                    "targets": [{ "kind": "tool_name", "value": "shell.exec" }]
+                }
+            }),
+        ),
+    ];
+
+    for (offset, (capability_key, sdk_payload)) in cases.into_iter().enumerate() {
+        let mut payload_object = serde_json::Map::new();
+        payload_object.insert("sdk".to_string(), sdk_payload["sdk"].clone());
+        payload_object.insert(
+            "capability_probes".to_string(),
+            json!({
+                capability_key: {
+                    "tool_available": true,
+                    "transport_available": true
+                }
+            }),
+        );
+        let package = runtime.orchestrate(
+            OrchestrationRequest {
+                session_id: format!("sdk-stale-payload-shortcut-{capability_key}"),
+                intent: "typed fixture".to_string(),
+                surface: RequestSurface::Sdk,
+                payload: serde_json::Value::Object(payload_object),
+            },
+            75_000 + offset as u64,
+        );
+        assert!(package
+            .classification
+            .reasons
+            .iter()
+            .any(|row| row == "typed_probe_contract_missing:core_probe_envelope"));
+        let expected_missing_probe = format!("missing_probe: {capability_key}");
+        assert!(
+            package
+                .classification
+                .reasons
+                .iter()
+                .any(|row| row == &expected_missing_probe),
+            "missing stale-probe denial code for {capability_key}"
+        );
         assert!(package
             .classification
             .clarification_reasons
@@ -690,7 +822,12 @@ fn non_legacy_typed_surface_rejects_execute_tool_alias_in_core_probe_envelope() 
         .classification
         .reasons
         .iter()
-        .any(|row| row == "typed_probe_contract_missing:capability.tool_route"));
+        .any(|row| row == "typed_probe_contract_missing:core_probe_envelope"));
+    assert!(package
+        .classification
+        .reasons
+        .iter()
+        .any(|row| row == "missing_probe: tool_route"));
     assert!(!package
         .classification
         .reasons

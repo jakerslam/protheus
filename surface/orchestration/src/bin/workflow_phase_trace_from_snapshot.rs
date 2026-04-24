@@ -192,6 +192,11 @@ fn build_trace(snapshot: &Value, generated_at_ms: u64) -> Value {
         .and_then(Value::as_u64)
         .unwrap_or(0);
     let trace_id = str_field(snapshot, "snapshot_id");
+    let canonical_trace_id = if trace_id.is_empty() {
+        str_field(snapshot, "receipt_hash")
+    } else {
+        trace_id
+    };
     let active_stage = if failure_count > 0 {
         "recovery_escalation"
     } else {
@@ -202,7 +207,7 @@ fn build_trace(snapshot: &Value, generated_at_ms: u64) -> Value {
         "schema_version": 1,
         "generated_at_ms": generated_at_ms,
         "owner": "surface_orchestration_control_plane",
-        "trace_id": if trace_id.is_empty() { str_field(snapshot, "receipt_hash") } else { trace_id },
+        "trace_id": canonical_trace_id.clone(),
         "user_intent": first_user_intent(&entries),
         "selected_workflow": "diagnose_retry_escalate",
         "selected_model": null,
@@ -227,7 +232,29 @@ fn build_trace(snapshot: &Value, generated_at_ms: u64) -> Value {
             "chosen": "normalize_dashboard_collector_snapshot",
             "alternatives_rejected": [],
             "confidence": 0.91,
-            "rationale": ["dashboard_snapshot_is_collector_input", "orchestration_owns_phase_trace_normalization"]
+            "rationale": ["dashboard_snapshot_is_collector_input", "orchestration_owns_phase_trace_normalization"],
+            "receipt_metadata": [
+                format!("orchestration_trace_id={canonical_trace_id}"),
+                format!("collector_entry_count={}", entries.len()),
+                format!("observed_kernel_receipt_count={}", receipt_hashes(&entries).len())
+            ],
+            "step_records": [
+                {
+                    "step_id": "collector_snapshot_normalization",
+                    "inputs": [
+                        format!("snapshot_path={}", str_field(snapshot, "snapshot_path")),
+                        format!("entry_count={}", entries.len()),
+                        format!("failure_count={failure_count}")
+                    ],
+                    "chosen_path": "diagnose_retry_escalate",
+                    "alternatives_rejected": ["raw_collector_passthrough"],
+                    "confidence": 0.91,
+                    "receipt_metadata": [
+                        format!("orchestration_trace_id={canonical_trace_id}"),
+                        "receipt_surface=workflow_phase_trace".to_string()
+                    ]
+                }
+            ]
         },
         "observed_kernel_receipt_ids": receipt_hashes(&entries),
         "observed_kernel_outcome_refs": [],

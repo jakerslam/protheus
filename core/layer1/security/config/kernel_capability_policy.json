@@ -1,0 +1,57 @@
+{
+  "version": "kernel-capability-policy-v1",
+  "owner": "kernel/security",
+  "receipt_requirements": {
+    "required": true,
+    "include_granted_records": true,
+    "include_denied_records": true
+  },
+  "capabilities": [
+    {
+      "id": "read_file",
+      "description": "Allows bounded local file reads through Kernel-mediated workspace surfaces.",
+      "authority": "kernel",
+      "protected_resources": ["workspace_file"]
+    },
+    {
+      "id": "search_workspace",
+      "description": "Allows bounded workspace search through Kernel-mediated workspace surfaces.",
+      "authority": "kernel",
+      "protected_resources": ["workspace_index", "repo_paths"]
+    },
+    {
+      "id": "call_web",
+      "description": "Allows network/web fetch or search through approved Gateway surfaces.",
+      "authority": "kernel",
+      "protected_resources": ["web_search", "web_fetch"]
+    },
+    {
+      "id": "mutate_state",
+      "description": "Allows durable state mutation after policy, trust-zone, and rollback checks.",
+      "authority": "kernel",
+      "protected_resources": ["workspace_write", "runtime_state", "policy_state"]
+    }
+  ],
+  "protected_actions": [
+    {
+      "action": "read_file",
+      "required_capability": "read_file",
+      "receipt_type": "kernel_capability_check_receipt"
+    },
+    {
+      "action": "search_workspace",
+      "required_capability": "search_workspace",
+      "receipt_type": "kernel_capability_check_receipt"
+    },
+    {
+      "action": "call_web",
+      "required_capability": "call_web",
+      "receipt_type": "kernel_capability_check_receipt"
+    },
+    {
+      "action": "mutate_state",
+      "required_capability": "mutate_state",
+      "receipt_type": "kernel_capability_check_receipt"
+    }
+  ]
+}

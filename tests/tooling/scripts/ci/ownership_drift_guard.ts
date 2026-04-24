@@ -191,11 +191,11 @@ function runPolicyContracts(policy: Policy): DriftViolation[] {
       'ownership_policy_version_present_contract',
       'policy.version must be declared',
     );
-  } else if (!/^v?[0-9]+(?:\.[0-9]+){0,2}$/.test(version)) {
+  } else if (!/^\d{4}-\d{2}-\d{2}$/.test(version)) {
     pushContract(
       'path',
       'ownership_policy_version_canonical_contract',
-      `policy.version must be canonical semver-like token (found: ${version})`,
+      `policy.version must be canonical yyyy-mm-dd token (found: ${version})`,
     );
   }
 

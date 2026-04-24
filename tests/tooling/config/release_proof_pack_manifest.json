@@ -20,6 +20,7 @@
       "core/local/artifacts/runtime_boundedness_release_gate_current.json",
       "core/local/artifacts/queue_backpressure_policy_gate_current.json",
       "core/local/artifacts/runtime_multi_day_soak_evidence_current.json",
+      "core/local/artifacts/runtime_soak_scenarios_current.json",
       "core/local/artifacts/runtime_proof_synthetic_canary_current.json",
       "core/local/artifacts/runtime_proof_empirical_release_evidence_current.json",
       "core/local/artifacts/runtime_proof_empirical_trends_current.json",
@@ -29,6 +30,7 @@
       "core/local/artifacts/runtime_proof_empirical_profile_gate_failures_current.json",
       "core/local/artifacts/runtime_proof_empirical_profile_readiness_current.json",
       "core/local/artifacts/runtime_proof_empirical_minimum_contract_current.json",
+      "core/local/artifacts/runtime_proof_reality_guard_current.json",
       "core/local/artifacts/release_proof_checksums_current.json"
     ],
     "adapter_and_orchestration": [
@@ -100,6 +102,8 @@
       "core/local/artifacts/eval_issue_resolution_current.json",
       "core/local/artifacts/eval_quality_gate_v1_current.json",
       "core/local/artifacts/eval_runtime_authority_guard_current.json",
+      "core/local/artifacts/eval_regression_guard_current.json",
+      "core/local/artifacts/eval_feedback_router_current.json",
       "core/local/artifacts/eval_autopilot_guard_current.json"
     ]
   },
@@ -128,6 +132,7 @@
     "core/local/artifacts/runtime_boundedness_release_gate_current.json",
     "core/local/artifacts/queue_backpressure_policy_gate_current.json",
     "core/local/artifacts/runtime_multi_day_soak_evidence_current.json",
+    "core/local/artifacts/runtime_soak_scenarios_current.json",
     "core/local/artifacts/runtime_proof_synthetic_canary_current.json",
     "core/local/artifacts/runtime_proof_empirical_release_evidence_current.json",
     "core/local/artifacts/runtime_proof_empirical_trends_current.json",
@@ -137,6 +142,7 @@
     "core/local/artifacts/runtime_proof_empirical_profile_gate_failures_current.json",
     "core/local/artifacts/runtime_proof_empirical_profile_readiness_current.json",
     "core/local/artifacts/runtime_proof_empirical_minimum_contract_current.json",
+    "core/local/artifacts/runtime_proof_reality_guard_current.json",
     "core/local/artifacts/release_proof_checksums_current.json",
     "core/local/artifacts/gateway_runtime_chaos_gate_current.json",
     "core/local/artifacts/gateway_support_levels_current.json",
@@ -180,9 +186,16 @@
     "core/local/artifacts/gem_feedback_closure_guard_current.json",
     "core/local/artifacts/eval_agent_chat_monitor_guard_current.json",
     "core/local/artifacts/eval_quality_metrics_current.json",
+    "core/local/artifacts/eval_monitor_slo_current.json",
+    "core/local/artifacts/eval_reviewer_feedback_weekly_current.json",
     "core/local/artifacts/eval_quality_gate_v1_current.json",
     "core/local/artifacts/eval_judge_human_agreement_current.json",
+    "core/local/artifacts/eval_adversarial_guard_current.json",
+    "core/local/artifacts/eval_issue_filing_guard_current.json",
+    "core/local/artifacts/eval_issue_resolution_current.json",
     "core/local/artifacts/eval_runtime_authority_guard_current.json",
+    "core/local/artifacts/eval_regression_guard_current.json",
+    "core/local/artifacts/eval_feedback_router_current.json",
     "core/local/artifacts/eval_autopilot_guard_current.json"
   ],
   "optional_artifacts": [
@@ -207,6 +220,8 @@
     "local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_GATE_FAILURES_CURRENT.md",
     "local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_READINESS_CURRENT.md",
     "local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_MINIMUM_CONTRACT_CURRENT.md",
+    "local/workspace/reports/RUNTIME_SOAK_SCENARIOS_CURRENT.md",
+    "local/workspace/reports/RUNTIME_PROOF_REALITY_GUARD_CURRENT.md",
     "local/workspace/reports/WEB_TOOLING_RELIABILITY_CURRENT.md",
     "local/workspace/reports/WORKFLOW_FAILURE_RECOVERY_CURRENT.md",
     "local/workspace/reports/WORKSPACE_TOOLING_CONTEXT_SOAK_CURRENT.md",
@@ -231,6 +246,8 @@
     "local/workspace/reports/EVAL_ISSUE_RESOLUTION_CURRENT.md",
     "local/workspace/reports/EVAL_QUALITY_GATE_V1_CURRENT.md",
     "local/workspace/reports/EVAL_RUNTIME_AUTHORITY_GUARD_CURRENT.md",
+    "local/workspace/reports/EVAL_REGRESSION_GUARD_CURRENT.md",
+    "local/workspace/reports/EVAL_FEEDBACK_ROUTER_CURRENT.md",
     "local/workspace/reports/KERNEL_NEXUS_COUPLING_GUARD_CURRENT.md",
     "local/workspace/reports/PARITY_END_TO_END_REPLAY_CURRENT.md",
     "local/workspace/reports/PARITY_TREND_CURRENT.md",
@@ -249,6 +266,8 @@
     "local/state/ops/eval_agent_chat_monitor/issue_drafts_latest.json",
     "client/runtime/local/state/ui/infring_dashboard/troubleshooting/eval_issue_resolution_panel.json",
     "local/state/ops/eval_quality_gate_v1/history.json",
+    "artifacts/eval_regression_guard_latest.json",
+    "artifacts/eval_feedback_router_latest.json",
     "local/state/ops/eval_autopilot/latest.json",
     "local/workspace/reports/EVAL_AUTOPILOT_GUARD_CURRENT.md"
   ]

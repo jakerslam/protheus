@@ -3,7 +3,7 @@
 import { spawnSync } from 'node:child_process';
 import { cleanText, parseStrictOutArgs, readFlag } from '../../lib/cli.ts';
 
-const DEFAULT_FEEDBACK_PATH = 'local/state/ops/eval_agent_chat_monitor/reviewer_feedback.jsonl';
+const DEFAULT_FEEDBACK_PATH = 'surface/orchestration/fixtures/eval/eval_reviewer_feedback_sample.jsonl';
 const DEFAULT_OUT_PATH = 'core/local/artifacts/eval_reviewer_feedback_weekly_current.json';
 const DEFAULT_OUT_LATEST_PATH = 'artifacts/eval_reviewer_feedback_weekly_latest.json';
 const DEFAULT_MARKDOWN_PATH = 'local/workspace/reports/EVAL_REVIEWER_FEEDBACK_WEEKLY_CURRENT.md';

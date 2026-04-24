@@ -4405,9 +4405,9 @@ function chatPage() {
           self.refreshChatInputOverlayMetrics();
         });
         try { this._chatInputOverlayObserver.observe(inputArea); } catch(_) {}
-        var lane = inputArea.querySelector('.chat-input-lane');
-        if (lane) {
-          try { this._chatInputOverlayObserver.observe(lane); } catch(_) {}
+        var inputLaneEl = inputArea.querySelector('.chat-input-lane');
+        if (inputLaneEl) {
+          try { this._chatInputOverlayObserver.observe(inputLaneEl); } catch(_) {}
         }
       }
       this._chatInputOverlayResizeHandler = function() {
@@ -8850,16 +8850,10 @@ function chatPage() {
       return true;
     },
     shouldRenderMessageContent(msg, idx, list) {
-      if (!this.isMessageVirtualizationActive(list)) return true;
-      if (!this.messageHydrationReady) return true;
-      if (!msg || msg.is_notice) return true;
-      if (msg.thinking || msg.streaming || msg._typingVisual || msg._typewriterRunning) return true;
-      var domId = this.messageDomId(msg, idx);
-      if (domId && this.messageHydration && this.messageHydration[domId]) return true;
-      if (domId && this.selectedMessageDomId === domId) return true;
-      if (domId && this.hoveredMessageDomId === domId) return true;
-      if (domId && this.directHoveredMessageDomId === domId) return true;
-      return false;
+      void msg;
+      void idx;
+      void list;
+      return true;
     },
     messageEstimatedLineCount(msg) {
       var metrics = this.messageRenderMetrics(msg);
@@ -16238,13 +16232,13 @@ function chatPage() {
           var normalizedSendErrorText = (function(message) {
             var raw = String(message || '').replace(/\s+/g, ' ').trim();
             var lower = raw.toLowerCase();
-            if (!raw || lower === 'unknown error') return 'Connection failed before the runtime returned a usable response. Retry after the gateway is reachable.';
-            if (lower.indexOf('pairing required') >= 0) return 'Gateway pairing is required. Open Settings, pair this dashboard with the gateway, then retry.';
+            if (!raw || lower === 'unknown error') return 'Connection failed before the runtime returned a usable response. Try again after the gateway is reachable.';
+            if (lower.indexOf('pairing required') >= 0) return 'Gateway pairing is required. Open Settings, pair this dashboard with the gateway, then try again.';
             if (
               lower.indexOf('device identity required') >= 0 ||
               lower.indexOf('secure context') >= 0 ||
               lower.indexOf('https/localhost') >= 0
-            ) return 'This action requires HTTPS or localhost. Reopen the dashboard from a trusted origin, then retry.';
+            ) return 'This action requires HTTPS or localhost. Reopen the dashboard from a trusted origin, then try again.';
             if (
               lower.indexOf('unauthorized') >= 0 ||
               lower.indexOf('token mismatch') >= 0 ||
@@ -17677,12 +17671,12 @@ function chatPage() {
       if (!this.messageCanRetryFromMeta(msg, idx, rows)) return;
       var source = this.messageRetrySource(msg, idx, rows);
       if (!source) {
-        if (typeof InfringToast !== 'undefined') InfringToast.info('No prior user prompt was found for retry.');
+        if (typeof InfringToast !== 'undefined') InfringToast.info('No prior user prompt was found for resend.');
         return;
       }
       var text = String(source.text || '').trim();
       if (!text) {
-        if (typeof InfringToast !== 'undefined') InfringToast.info('Retry source is empty.');
+        if (typeof InfringToast !== 'undefined') InfringToast.info('Resend source is empty.');
         return;
       }
       await this._sendPayload(text, [], [], {

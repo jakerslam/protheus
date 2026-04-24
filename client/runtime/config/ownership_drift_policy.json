@@ -1,5 +1,5 @@
 {
-  "version": "2026-04-20",
+  "version": "2026-04-24",
   "import_boundaries": [
     {
       "id": "client_forbidden_orchestration_internal_import",
@@ -74,4 +74,3 @@
     }
   ]
 }
-

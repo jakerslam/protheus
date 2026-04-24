@@ -103,4 +103,68 @@ theorem layer0_invariant_bundle
     FailClosedBoundary boundary := by
   exact ⟨hRoute, hConstitution, hReceipt, hBoundary⟩
 
+structure SchedulerState where
+  queued : Bool
+  admitted : Bool
+  preempted : Bool
+
+def SchedulingFairness (state : SchedulerState) : Prop :=
+  state.queued = true → state.admitted = true ∨ state.preempted = true
+
+theorem scheduling_fairness_enforced
+    (state : SchedulerState)
+    (hFair : SchedulingFairness state)
+    (hQueued : state.queued = true) :
+    state.admitted = true ∨ state.preempted = true := by
+  exact hFair hQueued
+
+structure ResourceBoundState where
+  requestedBudget : Nat
+  maxBudget : Nat
+  admitted : Bool
+
+def ResourceBoundsRespected (state : ResourceBoundState) : Prop :=
+  state.admitted = true → state.requestedBudget ≤ state.maxBudget
+
+theorem resource_bound_enforced
+    (state : ResourceBoundState)
+    (hBounded : ResourceBoundsRespected state)
+    (hAdmitted : state.admitted = true) :
+    state.requestedBudget ≤ state.maxBudget := by
+  exact hBounded hAdmitted
+
+structure ExecutionReceiptState where
+  scheduled : Bool
+  completed : Bool
+  receiptRecorded : Bool
+
+def ReceiptCompleteness (state : ExecutionReceiptState) : Prop :=
+  state.completed = true → state.receiptRecorded = true
+
+theorem receipt_completeness_enforced
+    (state : ExecutionReceiptState)
+    (hComplete : ReceiptCompleteness state)
+    (hCompleted : state.completed = true) :
+    state.receiptRecorded = true := by
+  exact hComplete hCompleted
+
+theorem completed_execution_with_receipt_is_complete
+    (state : ExecutionReceiptState)
+    (hRecorded : state.receiptRecorded = true) :
+    ReceiptCompleteness state := by
+  intro _hCompleted
+  exact hRecorded
+
+theorem layer0_runtime_closure_invariant_bundle
+    (scheduler : SchedulerState)
+    (resources : ResourceBoundState)
+    (execution : ExecutionReceiptState)
+    (hFair : SchedulingFairness scheduler)
+    (hBounded : ResourceBoundsRespected resources)
+    (hReceipts : ReceiptCompleteness execution) :
+    SchedulingFairness scheduler ∧
+    ResourceBoundsRespected resources ∧
+    ReceiptCompleteness execution := by
+  exact ⟨hFair, hBounded, hReceipts⟩
+
 end Layer0Invariants

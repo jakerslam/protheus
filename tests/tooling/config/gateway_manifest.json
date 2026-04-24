@@ -1,0 +1,363 @@
+{
+  "schema_id": "gateway_manifest.v1",
+  "version": 3,
+  "support_levels": [
+    "experimental",
+    "candidate",
+    "graduated"
+  ],
+  "required_hooks": [
+    "health_check",
+    "startup_timeout_policy",
+    "request_timeout_policy",
+    "fail_closed_policy_hooks",
+    "receipt_schema_helpers",
+    "circuit_breaker_behavior",
+    "quarantine_hooks"
+  ],
+  "required_scenarios": [
+    "process_never_starts",
+    "starts_then_hangs",
+    "invalid_schema_response",
+    "response_too_large",
+    "repeated_flapping"
+  ],
+  "production_gateway_targets": [
+    "ollama",
+    "llama_cpp",
+    "mcp_baseline",
+    "otlp_exporter",
+    "durable_memory_local"
+  ],
+  "support_level_contract": {
+    "experimental": {
+      "required_checklist_keys": [
+        "health_checks",
+        "chaos_scenarios",
+        "fallback_degradation_declaration",
+        "receipt_completeness",
+        "recovery_bounds"
+      ],
+      "allowed_checklist_statuses": [
+        "pending",
+        "in_progress",
+        "complete"
+      ]
+    },
+    "candidate": {
+      "required_checklist_keys": [
+        "health_checks",
+        "chaos_scenarios",
+        "fallback_degradation_declaration",
+        "receipt_completeness",
+        "recovery_bounds"
+      ],
+      "allowed_checklist_statuses": [
+        "in_progress",
+        "complete"
+      ]
+    },
+    "graduated": {
+      "required_checklist_keys": [
+        "health_checks",
+        "fail_closed_behavior",
+        "chaos_scenarios",
+        "fallback_degradation_declaration",
+        "receipt_completeness",
+        "recovery_bounds"
+      ],
+      "allowed_checklist_statuses": [
+        "complete"
+      ]
+    }
+  },
+  "adapters": [
+    {
+      "id": "ollama",
+      "framework": "ollama",
+      "bridge_command": "ollama-bridge",
+      "tier": "candidate",
+      "readiness_track": "gateway_production_v1",
+      "required_for_graduation": false,
+      "support_level": "candidate",
+      "owner": "gateway-roadmap",
+      "blocker": "bridge lane pending",
+      "checklist": {
+        "health_checks": "in_progress",
+        "fail_closed_behavior": "in_progress",
+        "chaos_scenarios": "in_progress",
+        "receipt_completeness": "in_progress",
+        "fallback_degradation_declaration": "in_progress",
+        "recovery_bounds": "in_progress"
+      }
+    },
+    {
+      "id": "llama_cpp",
+      "framework": "llama_cpp",
+      "bridge_command": "llama-cpp-bridge",
+      "tier": "candidate",
+      "readiness_track": "gateway_production_v1",
+      "required_for_graduation": false,
+      "support_level": "candidate",
+      "owner": "gateway-roadmap",
+      "blocker": "bridge lane pending",
+      "checklist": {
+        "health_checks": "in_progress",
+        "fail_closed_behavior": "in_progress",
+        "chaos_scenarios": "in_progress",
+        "receipt_completeness": "in_progress",
+        "fallback_degradation_declaration": "in_progress",
+        "recovery_bounds": "in_progress"
+      }
+    },
+    {
+      "id": "mcp_baseline",
+      "framework": "mcp",
+      "bridge_command": "mcp-bridge",
+      "tier": "candidate",
+      "readiness_track": "gateway_production_v1",
+      "required_for_graduation": false,
+      "support_level": "candidate",
+      "owner": "gateway-roadmap",
+      "blocker": "baseline contract pending",
+      "checklist": {
+        "health_checks": "in_progress",
+        "fail_closed_behavior": "in_progress",
+        "chaos_scenarios": "in_progress",
+        "receipt_completeness": "in_progress",
+        "fallback_degradation_declaration": "in_progress",
+        "recovery_bounds": "in_progress"
+      }
+    },
+    {
+      "id": "otlp_exporter",
+      "framework": "otlp",
+      "bridge_command": "otlp-export-bridge",
+      "tier": "candidate",
+      "readiness_track": "gateway_production_v1",
+      "required_for_graduation": false,
+      "support_level": "candidate",
+      "owner": "gateway-roadmap",
+      "blocker": "export lane pending",
+      "checklist": {
+        "health_checks": "in_progress",
+        "fail_closed_behavior": "in_progress",
+        "chaos_scenarios": "in_progress",
+        "receipt_completeness": "in_progress",
+        "fallback_degradation_declaration": "in_progress",
+        "recovery_bounds": "in_progress"
+      }
+    },
+    {
+      "id": "durable_memory_local",
+      "framework": "durable_memory_local",
+      "bridge_command": "durable-memory-bridge",
+      "tier": "candidate",
+      "readiness_track": "gateway_production_v1",
+      "required_for_graduation": false,
+      "support_level": "candidate",
+      "owner": "gateway-roadmap",
+      "blocker": "local durability lane pending",
+      "checklist": {
+        "health_checks": "in_progress",
+        "fail_closed_behavior": "in_progress",
+        "chaos_scenarios": "in_progress",
+        "receipt_completeness": "in_progress",
+        "fallback_degradation_declaration": "in_progress",
+        "recovery_bounds": "in_progress"
+      }
+    }
+  ],
+  "gateways": [
+    {
+      "id": "ollama",
+      "support_level": "candidate",
+      "owner": "gateway-roadmap",
+      "readiness_track": "gateway_production_v1",
+      "blocker": "bridge lane pending",
+      "health_check": {
+        "status": "in_progress",
+        "artifact": "core/local/artifacts/gateway_runtime_chaos_gate_current.json"
+      },
+      "chaos_coverage": {
+        "status": "in_progress",
+        "artifact": "core/local/artifacts/gateway_runtime_chaos_gate_current.json",
+        "required_scenarios": [
+          "process_never_starts",
+          "starts_then_hangs",
+          "invalid_schema_response",
+          "response_too_large",
+          "repeated_flapping"
+        ]
+      },
+      "fail_closed_proof": {
+        "status": "in_progress",
+        "artifact": "core/local/artifacts/gateway_runtime_chaos_gate_current.json"
+      },
+      "receipt_completeness": {
+        "status": "in_progress",
+        "artifact": "core/local/artifacts/gateway_runtime_chaos_gate_current.json"
+      },
+      "fallback_degradation_declaration": {
+        "status": "in_progress",
+        "doc": "docs/workspace/process/roadmap_gateway_graduation_plan.md"
+      },
+      "recovery_bounds": {
+        "status": "in_progress",
+        "artifact": "core/local/artifacts/gateway_runtime_chaos_gate_current.json"
+      }
+    },
+    {
+      "id": "llama_cpp",
+      "support_level": "candidate",
+      "owner": "gateway-roadmap",
+      "readiness_track": "gateway_production_v1",
+      "blocker": "bridge lane pending",
+      "health_check": {
+        "status": "in_progress",
+        "artifact": "core/local/artifacts/gateway_runtime_chaos_gate_current.json"
+      },
+      "chaos_coverage": {
+        "status": "in_progress",
+        "artifact": "core/local/artifacts/gateway_runtime_chaos_gate_current.json",
+        "required_scenarios": [
+          "process_never_starts",
+          "starts_then_hangs",
+          "invalid_schema_response",
+          "response_too_large",
+          "repeated_flapping"
+        ]
+      },
+      "fail_closed_proof": {
+        "status": "in_progress",
+        "artifact": "core/local/artifacts/gateway_runtime_chaos_gate_current.json"
+      },
+      "receipt_completeness": {
+        "status": "in_progress",
+        "artifact": "core/local/artifacts/gateway_runtime_chaos_gate_current.json"
+      },
+      "fallback_degradation_declaration": {
+        "status": "in_progress",
+        "doc": "docs/workspace/process/roadmap_gateway_graduation_plan.md"
+      },
+      "recovery_bounds": {
+        "status": "in_progress",
+        "artifact": "core/local/artifacts/gateway_runtime_chaos_gate_current.json"
+      }
+    },
+    {
+      "id": "mcp_baseline",
+      "support_level": "candidate",
+      "owner": "gateway-roadmap",
+      "readiness_track": "gateway_production_v1",
+      "blocker": "baseline contract pending",
+      "health_check": {
+        "status": "in_progress",
+        "artifact": "core/local/artifacts/gateway_runtime_chaos_gate_current.json"
+      },
+      "chaos_coverage": {
+        "status": "in_progress",
+        "artifact": "core/local/artifacts/gateway_runtime_chaos_gate_current.json",
+        "required_scenarios": [
+          "process_never_starts",
+          "starts_then_hangs",
+          "invalid_schema_response",
+          "response_too_large",
+          "repeated_flapping"
+        ]
+      },
+      "fail_closed_proof": {
+        "status": "in_progress",
+        "artifact": "core/local/artifacts/gateway_runtime_chaos_gate_current.json"
+      },
+      "receipt_completeness": {
+        "status": "in_progress",
+        "artifact": "core/local/artifacts/gateway_runtime_chaos_gate_current.json"
+      },
+      "fallback_degradation_declaration": {
+        "status": "in_progress",
+        "doc": "docs/workspace/process/roadmap_gateway_graduation_plan.md"
+      },
+      "recovery_bounds": {
+        "status": "in_progress",
+        "artifact": "core/local/artifacts/gateway_runtime_chaos_gate_current.json"
+      }
+    },
+    {
+      "id": "otlp_exporter",
+      "support_level": "candidate",
+      "owner": "gateway-roadmap",
+      "readiness_track": "gateway_production_v1",
+      "blocker": "export lane pending",
+      "health_check": {
+        "status": "in_progress",
+        "artifact": "core/local/artifacts/gateway_runtime_chaos_gate_current.json"
+      },
+      "chaos_coverage": {
+        "status": "in_progress",
+        "artifact": "core/local/artifacts/gateway_runtime_chaos_gate_current.json",
+        "required_scenarios": [
+          "process_never_starts",
+          "starts_then_hangs",
+          "invalid_schema_response",
+          "response_too_large",
+          "repeated_flapping"
+        ]
+      },
+      "fail_closed_proof": {
+        "status": "in_progress",
+        "artifact": "core/local/artifacts/gateway_runtime_chaos_gate_current.json"
+      },
+      "receipt_completeness": {
+        "status": "in_progress",
+        "artifact": "core/local/artifacts/gateway_runtime_chaos_gate_current.json"
+      },
+      "fallback_degradation_declaration": {
+        "status": "in_progress",
+        "doc": "docs/workspace/process/roadmap_gateway_graduation_plan.md"
+      },
+      "recovery_bounds": {
+        "status": "in_progress",
+        "artifact": "core/local/artifacts/gateway_runtime_chaos_gate_current.json"
+      }
+    },
+    {
+      "id": "durable_memory_local",
+      "support_level": "candidate",
+      "owner": "gateway-roadmap",
+      "readiness_track": "gateway_production_v1",
+      "blocker": "local durability lane pending",
+      "health_check": {
+        "status": "in_progress",
+        "artifact": "core/local/artifacts/gateway_runtime_chaos_gate_current.json"
+      },
+      "chaos_coverage": {
+        "status": "in_progress",
+        "artifact": "core/local/artifacts/gateway_runtime_chaos_gate_current.json",
+        "required_scenarios": [
+          "process_never_starts",
+          "starts_then_hangs",
+          "invalid_schema_response",
+          "response_too_large",
+          "repeated_flapping"
+        ]
+      },
+      "fail_closed_proof": {
+        "status": "in_progress",
+        "artifact": "core/local/artifacts/gateway_runtime_chaos_gate_current.json"
+      },
+      "receipt_completeness": {
+        "status": "in_progress",
+        "artifact": "core/local/artifacts/gateway_runtime_chaos_gate_current.json"
+      },
+      "fallback_degradation_declaration": {
+        "status": "in_progress",
+        "doc": "docs/workspace/process/roadmap_gateway_graduation_plan.md"
+      },
+      "recovery_bounds": {
+        "status": "in_progress",
+        "artifact": "core/local/artifacts/gateway_runtime_chaos_gate_current.json"
+      }
+    }
+  ]
+}

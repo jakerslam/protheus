@@ -2442,7 +2442,8 @@ fn compare_workflow_harness_decomposes_local_and_web_evidence_before_final_synth
         .unwrap_or("");
     assert!(
         !response_text.trim().is_empty(),
-        "expected synthesized compare response"
+        "expected synthesized compare response; payload={}",
+        response.payload
     );
 }
 

@@ -29,12 +29,29 @@ type ReplayBundle = {
   events?: ReplayEvent[];
 };
 
+type Layer2ParityLane = {
+  lane_id?: string;
+  id?: string;
+  status?: string;
+  requested_action?: string;
+  expected_receipt_type?: string;
+  replay_fixture_path?: string;
+  replay_artifact_path?: string;
+};
+
+type Layer2ParityManifest = {
+  version?: number;
+  lanes?: Layer2ParityLane[];
+};
+
 type ReplayState = {
   submitted: number;
   routed: number;
   adapter_invoked: number;
   failed: number;
   completed: number;
+  canceled: number;
+  timed_out: number;
   classifications: Record<string, number>;
   queue_backpressure_actions: {
     defer_noncritical: number;
@@ -65,6 +82,10 @@ function parseArgs(argv: string[]) {
       readFlag(argv, 'out-diff') || 'core/local/artifacts/layer2_replay_diff_current.json',
       400,
     ),
+    manifestPath: cleanText(
+      readFlag(argv, 'manifest') || 'tests/tooling/config/layer2_parity_matrix.json',
+      400,
+    ),
   };
 }
 
@@ -91,6 +112,11 @@ function stateHash(state: ReplayState): string {
 function loadBundle(root: string, relPath: string): ReplayBundle {
   const abs = path.resolve(root, relPath);
   return JSON.parse(fs.readFileSync(abs, 'utf8')) as ReplayBundle;
+}
+
+function loadLayer2ParityManifest(root: string, relPath: string): Layer2ParityManifest {
+  const abs = path.resolve(root, relPath);
+  return JSON.parse(fs.readFileSync(abs, 'utf8')) as Layer2ParityManifest;
 }
 
 function markdown(report: any): string {
@@ -155,14 +181,34 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       ok: false,
     });
   }
+  let manifest: Layer2ParityManifest;
+  try {
+    manifest = loadLayer2ParityManifest(root, args.manifestPath);
+  } catch (err) {
+    const payload = {
+      ok: false,
+      type: 'layer2_receipt_replay',
+      error: 'layer2_parity_manifest_read_failed',
+      detail: cleanText(String(err), 400),
+      manifest_path: args.manifestPath,
+    };
+    return emitStructuredResult(payload, {
+      outPath: args.outPath,
+      strict: args.strict,
+      ok: false,
+    });
+  }
 
   const events = Array.isArray(bundle.events) ? bundle.events : [];
+  const parityLanes = Array.isArray(manifest.lanes) ? manifest.lanes : [];
   const state: ReplayState = {
     submitted: 0,
     routed: 0,
     adapter_invoked: 0,
     failed: 0,
     completed: 0,
+    canceled: 0,
+    timed_out: 0,
     classifications: {},
     queue_backpressure_actions: {
       defer_noncritical: 0,
@@ -238,6 +284,16 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         divergences.push({ id: 'completion_without_adapter_invocation', detail: `event=${eventId}` });
       }
       state.completed += 1;
+    } else if (stage === 'task_cancellation') {
+      if (state.submitted <= 0) {
+        divergences.push({ id: 'cancellation_without_submission', detail: `event=${eventId}` });
+      }
+      state.canceled += 1;
+    } else if (stage === 'task_timeout') {
+      if (state.submitted <= 0) {
+        divergences.push({ id: 'timeout_without_submission', detail: `event=${eventId}` });
+      }
+      state.timed_out += 1;
     } else {
       divergences.push({ id: 'unknown_stage', detail: `event=${eventId},stage=${stage || 'empty'}` });
     }
@@ -279,11 +335,19 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   }
 
   const laneTransitions = new Map<string, any[]>();
+  const actualStages = new Set<string>();
+  const actualReceiptTypes = new Set<string>();
   for (const transition of transitions) {
     const laneId = cleanText(transition?.lane_id || '', 120) || 'lane_unknown';
+    const stage = cleanText(transition?.stage || '', 120);
+    if (stage) actualStages.add(stage);
     const bucket = laneTransitions.get(laneId) || [];
     bucket.push(transition);
     laneTransitions.set(laneId, bucket);
+  }
+  for (const event of events) {
+    const receiptType = cleanText(((event.payload || {}) as any).receipt_type || '', 160);
+    if (receiptType) actualReceiptTypes.add(receiptType);
   }
   const laneGraphDiff: Record<
     string,
@@ -362,6 +426,37 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const actualEdges = Object.keys(globalActualEdgeCounts).sort();
   const missingRequiredEdges = Array.from(globalMissingEdgeSet).sort();
   const unexpectedEdges = Array.from(globalUnexpectedEdgeSet).sort();
+  const matrixLaneReplayRows = parityLanes
+    .map((lane) => {
+      const laneId = cleanText(lane.lane_id || lane.id || '', 120);
+      const status = cleanText(lane.status || '', 40).toLowerCase();
+      const requestedAction = cleanText(lane.requested_action || '', 160).toLowerCase();
+      const expectedReceiptType = cleanText(lane.expected_receipt_type || '', 160);
+      const expectedBundleMatches = cleanText(lane.replay_fixture_path || '', 400) === args.bundlePath;
+      const stageCovered = !!requestedAction && actualStages.has(requestedAction);
+      const receiptCovered = !!expectedReceiptType && actualReceiptTypes.has(expectedReceiptType);
+      const replayRequired = status !== 'experimental' && status !== 'blocked';
+      const pass = !replayRequired || (expectedBundleMatches && stageCovered && receiptCovered);
+      return {
+        lane_id: laneId,
+        status,
+        requested_action: requestedAction,
+        expected_receipt_type: expectedReceiptType,
+        replay_required: replayRequired,
+        expected_bundle_matches: expectedBundleMatches,
+        stage_covered: stageCovered,
+        receipt_covered: receiptCovered,
+        pass,
+      };
+    })
+    .filter((row) => row.replay_required);
+  const matrixLaneReplayFailures = matrixLaneReplayRows.filter((row) => !row.pass);
+  for (const row of matrixLaneReplayFailures) {
+    divergences.push({
+      id: 'matrix_lane_replay_diff_failed',
+      detail: `lane=${row.lane_id};bundle=${row.expected_bundle_matches};stage=${row.stage_covered};receipt=${row.receipt_covered}`,
+    });
+  }
 
   if (state.conduit_outages_detected <= 0) {
     divergences.push({ id: 'conduit_auto_heal_missing_outage_detection', detail: 'no conduit_outage_detected stage found' });
@@ -400,10 +495,13 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     revision: currentRevision(root),
     bundle_id: cleanText(bundle.bundle_id || '', 120),
     bundle_path: args.bundlePath,
+    manifest_path: args.manifestPath,
     markdown_path: args.markdownOutPath,
     summary: {
       event_count: events.length,
       divergence_count: divergences.length,
+      matrix_lane_count: matrixLaneReplayRows.length,
+      matrix_lane_replay_failure_count: matrixLaneReplayFailures.length,
       pass: divergences.length === 0,
     },
     final_state: state,
@@ -429,6 +527,12 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       unexpected_edges: unexpectedEdges,
       pass: missingRequiredEdges.length === 0 && unexpectedEdges.length === 0,
     },
+    matrix_lane_replay_diff: {
+      lane_count: matrixLaneReplayRows.length,
+      failing_lane_count: matrixLaneReplayFailures.length,
+      lanes: matrixLaneReplayRows,
+      pass: matrixLaneReplayFailures.length === 0,
+    },
     lane_graph_diff: laneGraphDiff,
     transitions,
     divergences,
@@ -448,8 +552,11 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         revision: report.revision,
         bundle_id: report.bundle_id,
         bundle_path: report.bundle_path,
+        manifest_path: report.manifest_path,
         summary: {
           lane_count: Object.keys(report.lane_graph_diff || {}).length,
+          matrix_lane_count: report.matrix_lane_replay_diff.lane_count,
+          matrix_lane_replay_failure_count: report.matrix_lane_replay_diff.failing_lane_count,
           required_edge_count: Array.isArray(report.receipt_graph_diff?.required_edges)
             ? report.receipt_graph_diff.required_edges.length
             : 0,
@@ -459,6 +566,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
           pass: report.receipt_graph_diff.pass,
         },
         receipt_graph_diff: report.receipt_graph_diff,
+        matrix_lane_replay_diff: report.matrix_lane_replay_diff,
         lane_graph_diff: report.lane_graph_diff,
       },
       null,

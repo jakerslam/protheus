@@ -32,7 +32,25 @@
       "normalized_failure_codes",
       "issue_signals",
       "receipt_hash"
-    ]
+    ],
+    "decision_trace": {
+      "required_fields": [
+        "chosen",
+        "alternatives_rejected",
+        "confidence",
+        "rationale",
+        "receipt_metadata",
+        "step_records"
+      ],
+      "step_record_required_fields": [
+        "step_id",
+        "inputs",
+        "chosen_path",
+        "alternatives_rejected",
+        "confidence",
+        "receipt_metadata"
+      ]
+    }
   },
   "ownership": {
     "orchestration": "normalizes phase order, handoff context, recovery state, and eval-visible issue signals",
@@ -55,6 +73,7 @@
     "attention_passive_memory"
   ],
   "claims": [
-    "V11-ORCH-TRACE-001"
+    "V11-ORCH-TRACE-001",
+    "V12-SMO-TRACE-001"
   ]
 }
