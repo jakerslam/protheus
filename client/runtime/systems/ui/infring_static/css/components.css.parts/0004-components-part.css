@@ -219,17 +219,19 @@
 }
 
 .chat-day-divider {
+  --chat-divider-text-color: var(--text);
+  --chat-divider-line-color: color-mix(in srgb, var(--chat-divider-text-color) 34%, transparent);
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 4px 0 14px;
+  margin: 0;
   user-select: none;
 }
 
 .chat-day-divider-line {
   flex: 1;
   height: 1px;
-  background: color-mix(in srgb, var(--border) 82%, transparent);
+  background: var(--chat-divider-line-color);
 }
 
 .chat-day-divider-label {
@@ -241,7 +243,8 @@
   font-family: var(--font-mono);
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--text);
+  line-height: 1;
 }
 
 .chat-event-info-icon {
@@ -255,36 +258,35 @@
   font-size: 9px;
   font-weight: 700;
   line-height: 1;
-  color: color-mix(in srgb, var(--accent) 92%, #fff 8%);
+  color: var(--text);
   border: 1px solid color-mix(in srgb, var(--accent) 46%, transparent);
   background: color-mix(in srgb, var(--accent-subtle) 76%, transparent);
 }
 
-/* Notice rows: neutral gray in light mode, off-white in dark mode. */
 .chat-event-divider .chat-day-divider-label {
-  color: color-mix(in srgb, #6b7280 86%, transparent);
+  color: var(--text);
 }
 
 .chat-event-divider .chat-day-divider-line {
-  background: color-mix(in srgb, #6b7280 44%, transparent);
+  background: var(--chat-divider-line-color);
 }
 
 .chat-event-divider .chat-event-info-icon {
-  color: color-mix(in srgb, #6b7280 86%, #fff 14%);
+  color: var(--text);
   border-color: color-mix(in srgb, #6b7280 56%, transparent);
   background: color-mix(in srgb, #6b7280 12%, transparent);
 }
 
 body[data-theme='dark'] .chat-event-divider .chat-day-divider-label {
-  color: color-mix(in srgb, #f3f4f6 86%, transparent);
+  color: var(--text);
 }
 
 body[data-theme='dark'] .chat-event-divider .chat-day-divider-line {
-  background: color-mix(in srgb, #f3f4f6 34%, transparent);
+  background: var(--chat-divider-line-color);
 }
 
 body[data-theme='dark'] .chat-event-divider .chat-event-info-icon {
-  color: color-mix(in srgb, #f9fafb 88%, transparent);
+  color: var(--text);
   border-color: color-mix(in srgb, #f3f4f6 42%, transparent);
   background: color-mix(in srgb, #f9fafb 10%, transparent);
 }
@@ -384,6 +386,7 @@ body[data-theme='dark'] .chat-event-divider .chat-event-info-icon {
   display: block;
   font-size: 10px;
   line-height: 10px;
+  font-weight: 700;
   color: var(--text-muted);
   font-family: var(--font-mono);
   letter-spacing: 0.01em;

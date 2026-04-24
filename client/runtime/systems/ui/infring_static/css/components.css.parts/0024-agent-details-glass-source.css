@@ -1,25 +1,25 @@
 :root {
-  --agent-details-glass-border: var(--overlay-magnified-surface-border);
-  --agent-details-glass-background: var(--overlay-magnified-surface-background);
-  --agent-details-glass-shadow: var(--overlay-magnified-surface-shell-shadow);
-  --agent-details-glass-rim-shadow: var(--overlay-magnified-surface-rim-shadow);
-  --agent-details-glass-specular: var(--overlay-magnified-surface-specular);
-  --agent-details-glass-specular-opacity: var(--overlay-magnified-surface-specular-opacity);
+  --agent-details-glass-border: var(--overlay-warped-surface-border);
+  --agent-details-glass-background: var(--overlay-warped-surface-background);
+  --agent-details-glass-shadow: var(--overlay-warped-surface-shell-shadow);
+  --agent-details-glass-rim-shadow: var(--overlay-warped-surface-rim-shadow);
+  --agent-details-glass-specular: var(--overlay-warped-surface-specular);
+  --agent-details-glass-specular-opacity: var(--overlay-warped-surface-specular-opacity);
   --agent-details-glass-filter:
-    var(--overlay-magnified-surface-distortion)
-    blur(var(--overlay-magnified-surface-blur))
-    saturate(var(--overlay-magnified-surface-saturate))
-    brightness(var(--overlay-magnified-surface-brightness))
-    contrast(var(--overlay-magnified-surface-contrast));
-  --agent-details-glass-lens-size: var(--overlay-magnified-surface-lens-size, 50%);
-  --agent-details-glass-lens-scale: var(--overlay-magnified-surface-lens-scale, 2);
-  --agent-details-glass-lens-opacity: var(--overlay-magnified-surface-lens-opacity, 0.34);
+    var(--overlay-warped-surface-distortion)
+    blur(var(--overlay-warped-surface-blur))
+    saturate(var(--overlay-warped-surface-saturate))
+    brightness(var(--overlay-warped-surface-brightness))
+    contrast(var(--overlay-warped-surface-contrast));
+  --agent-details-glass-lens-size: var(--overlay-warped-surface-lens-size, 50%);
+  --agent-details-glass-lens-scale: var(--overlay-warped-surface-lens-scale, 2);
+  --agent-details-glass-lens-opacity: var(--overlay-warped-surface-lens-opacity, 0.34);
   --agent-details-glass-lens-filter:
-    var(--overlay-magnified-surface-distortion)
-    blur(var(--overlay-magnified-surface-blur))
-    saturate(calc(var(--overlay-magnified-surface-saturate) + var(--overlay-magnified-surface-lens-saturate-boost, 0.08)))
-    brightness(calc(var(--overlay-magnified-surface-brightness) + var(--overlay-magnified-surface-lens-brightness-boost, 0.06)))
-    contrast(calc(var(--overlay-magnified-surface-contrast) + var(--overlay-magnified-surface-lens-contrast-boost, 0.08)));
+    var(--overlay-warped-surface-distortion)
+    blur(var(--overlay-warped-surface-blur))
+    saturate(calc(var(--overlay-warped-surface-saturate) + var(--overlay-warped-surface-lens-saturate-boost, 0.08)))
+    brightness(calc(var(--overlay-warped-surface-brightness) + var(--overlay-warped-surface-lens-brightness-boost, 0.06)))
+    contrast(calc(var(--overlay-warped-surface-contrast) + var(--overlay-warped-surface-lens-contrast-boost, 0.08)));
 }
 
 .chat-thread-profile,
