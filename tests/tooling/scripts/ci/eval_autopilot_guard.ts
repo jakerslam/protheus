@@ -393,6 +393,66 @@ function run(argv: string[] = process.argv.slice(2)): number {
   const thresholdsGeneratedAtNoPlaceholderOrMissing =
     !Object.prototype.hasOwnProperty.call(thresholds, 'generated_at')
     || !String(thresholds?.generated_at).includes('${');
+  const monitorGeneratedAtStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(monitor, 'generated_at')
+    || typeof monitor?.generated_at === 'string';
+  const qualityGeneratedAtStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(quality, 'generated_at')
+    || typeof quality?.generated_at === 'string';
+  const sloGeneratedAtStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(slo, 'generated_at')
+    || typeof slo?.generated_at === 'string';
+  const adversarialGeneratedAtStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(adversarial, 'generated_at')
+    || typeof adversarial?.generated_at === 'string';
+  const issueFilingGeneratedAtStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueFiling, 'generated_at')
+    || typeof issueFiling?.generated_at === 'string';
+  const issueResolutionGeneratedAtStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueResolution, 'generated_at')
+    || typeof issueResolution?.generated_at === 'string';
+  const qualityGateGeneratedAtStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(qualityGate, 'generated_at')
+    || typeof qualityGate?.generated_at === 'string';
+  const reviewerGeneratedAtStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(reviewer, 'generated_at')
+    || typeof reviewer?.generated_at === 'string';
+  const judgeHumanGeneratedAtStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(judgeHuman, 'generated_at')
+    || typeof judgeHuman?.generated_at === 'string';
+  const thresholdsGeneratedAtStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(thresholds, 'generated_at')
+    || typeof thresholds?.generated_at === 'string';
+  const monitorGeneratedAtLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(monitor, 'generated_at')
+    || String(monitor?.generated_at).length <= 40;
+  const qualityGeneratedAtLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(quality, 'generated_at')
+    || String(quality?.generated_at).length <= 40;
+  const sloGeneratedAtLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(slo, 'generated_at')
+    || String(slo?.generated_at).length <= 40;
+  const adversarialGeneratedAtLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(adversarial, 'generated_at')
+    || String(adversarial?.generated_at).length <= 40;
+  const issueFilingGeneratedAtLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueFiling, 'generated_at')
+    || String(issueFiling?.generated_at).length <= 40;
+  const issueResolutionGeneratedAtLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueResolution, 'generated_at')
+    || String(issueResolution?.generated_at).length <= 40;
+  const qualityGateGeneratedAtLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(qualityGate, 'generated_at')
+    || String(qualityGate?.generated_at).length <= 40;
+  const reviewerGeneratedAtLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(reviewer, 'generated_at')
+    || String(reviewer?.generated_at).length <= 40;
+  const judgeHumanGeneratedAtLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(judgeHuman, 'generated_at')
+    || String(judgeHuman?.generated_at).length <= 40;
+  const thresholdsGeneratedAtLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(thresholds, 'generated_at')
+    || String(thresholds?.generated_at).length <= 40;
 
   const checks = [
     { id: 'monitor_artifact_present', ok: fs.existsSync(monitorAbs), detail: args.monitorPath },
@@ -445,6 +505,26 @@ function run(argv: string[] = process.argv.slice(2)): number {
     { id: 'eval_autopilot_input_reviewer_generated_at_no_placeholder_or_missing_contract', ok: reviewerGeneratedAtNoPlaceholderOrMissing, detail: String(reviewer?.generated_at) },
     { id: 'eval_autopilot_input_judge_human_generated_at_no_placeholder_or_missing_contract', ok: judgeHumanGeneratedAtNoPlaceholderOrMissing, detail: String(judgeHuman?.generated_at) },
     { id: 'eval_autopilot_input_thresholds_generated_at_no_placeholder_or_missing_contract', ok: thresholdsGeneratedAtNoPlaceholderOrMissing, detail: String(thresholds?.generated_at) },
+    { id: 'eval_autopilot_input_monitor_generated_at_string_or_missing_contract', ok: monitorGeneratedAtStringOrMissing, detail: String(monitor?.generated_at) },
+    { id: 'eval_autopilot_input_quality_generated_at_string_or_missing_contract', ok: qualityGeneratedAtStringOrMissing, detail: String(quality?.generated_at) },
+    { id: 'eval_autopilot_input_slo_generated_at_string_or_missing_contract', ok: sloGeneratedAtStringOrMissing, detail: String(slo?.generated_at) },
+    { id: 'eval_autopilot_input_adversarial_generated_at_string_or_missing_contract', ok: adversarialGeneratedAtStringOrMissing, detail: String(adversarial?.generated_at) },
+    { id: 'eval_autopilot_input_issue_filing_generated_at_string_or_missing_contract', ok: issueFilingGeneratedAtStringOrMissing, detail: String(issueFiling?.generated_at) },
+    { id: 'eval_autopilot_input_issue_resolution_generated_at_string_or_missing_contract', ok: issueResolutionGeneratedAtStringOrMissing, detail: String(issueResolution?.generated_at) },
+    { id: 'eval_autopilot_input_quality_gate_generated_at_string_or_missing_contract', ok: qualityGateGeneratedAtStringOrMissing, detail: String(qualityGate?.generated_at) },
+    { id: 'eval_autopilot_input_reviewer_generated_at_string_or_missing_contract', ok: reviewerGeneratedAtStringOrMissing, detail: String(reviewer?.generated_at) },
+    { id: 'eval_autopilot_input_judge_human_generated_at_string_or_missing_contract', ok: judgeHumanGeneratedAtStringOrMissing, detail: String(judgeHuman?.generated_at) },
+    { id: 'eval_autopilot_input_thresholds_generated_at_string_or_missing_contract', ok: thresholdsGeneratedAtStringOrMissing, detail: String(thresholds?.generated_at) },
+    { id: 'eval_autopilot_input_monitor_generated_at_length_bounded_or_missing_contract', ok: monitorGeneratedAtLengthBoundedOrMissing, detail: String(monitor?.generated_at) },
+    { id: 'eval_autopilot_input_quality_generated_at_length_bounded_or_missing_contract', ok: qualityGeneratedAtLengthBoundedOrMissing, detail: String(quality?.generated_at) },
+    { id: 'eval_autopilot_input_slo_generated_at_length_bounded_or_missing_contract', ok: sloGeneratedAtLengthBoundedOrMissing, detail: String(slo?.generated_at) },
+    { id: 'eval_autopilot_input_adversarial_generated_at_length_bounded_or_missing_contract', ok: adversarialGeneratedAtLengthBoundedOrMissing, detail: String(adversarial?.generated_at) },
+    { id: 'eval_autopilot_input_issue_filing_generated_at_length_bounded_or_missing_contract', ok: issueFilingGeneratedAtLengthBoundedOrMissing, detail: String(issueFiling?.generated_at) },
+    { id: 'eval_autopilot_input_issue_resolution_generated_at_length_bounded_or_missing_contract', ok: issueResolutionGeneratedAtLengthBoundedOrMissing, detail: String(issueResolution?.generated_at) },
+    { id: 'eval_autopilot_input_quality_gate_generated_at_length_bounded_or_missing_contract', ok: qualityGateGeneratedAtLengthBoundedOrMissing, detail: String(qualityGate?.generated_at) },
+    { id: 'eval_autopilot_input_reviewer_generated_at_length_bounded_or_missing_contract', ok: reviewerGeneratedAtLengthBoundedOrMissing, detail: String(reviewer?.generated_at) },
+    { id: 'eval_autopilot_input_judge_human_generated_at_length_bounded_or_missing_contract', ok: judgeHumanGeneratedAtLengthBoundedOrMissing, detail: String(judgeHuman?.generated_at) },
+    { id: 'eval_autopilot_input_thresholds_generated_at_length_bounded_or_missing_contract', ok: thresholdsGeneratedAtLengthBoundedOrMissing, detail: String(thresholds?.generated_at) },
     { id: 'eval_autopilot_monitor_path_canonical_contract', ok: isCanonicalRelativePath(args.monitorPath), detail: args.monitorPath },
     { id: 'eval_autopilot_quality_path_canonical_contract', ok: isCanonicalRelativePath(args.qualityPath), detail: args.qualityPath },
     { id: 'eval_autopilot_slo_path_canonical_contract', ok: isCanonicalRelativePath(args.sloPath), detail: args.sloPath },
