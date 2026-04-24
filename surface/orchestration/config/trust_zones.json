@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "default_zone": "propose_only",
+  "zones": [
+    {
+      "id": "kernel_immutable",
+      "zone": "immutable",
+      "description": "Kernel authority, receipts, formal proofs, and policy-bearing runtime paths are immutable to self-modification apply decisions.",
+      "path_prefixes": [
+        "core/",
+        "proofs/",
+        "planes/contracts/"
+      ],
+      "apply_allowed": false,
+      "propose_allowed": true
+    },
+    {
+      "id": "policy_immutable",
+      "zone": "immutable",
+      "description": "Governance and self-modification policies may be proposed, but not directly applied by self-modification.",
+      "path_prefixes": [
+        "docs/workspace/codex_enforcer.md",
+        "docs/workspace/DEFINITION_OF_DONE.md",
+        "surface/orchestration/config/self_modification_policy.json",
+        "surface/orchestration/config/trust_zones.json"
+      ],
+      "apply_allowed": false,
+      "propose_allowed": true
+    },
+    {
+      "id": "control_plane_propose_only",
+      "zone": "propose_only",
+      "description": "Control-plane coordination code may produce proposals and validation evidence, but apply requires the governed pipeline and operator path.",
+      "path_prefixes": [
+        "surface/orchestration/"
+      ],
+      "apply_allowed": false,
+      "propose_allowed": true
+    },
+    {
+      "id": "shell_mutable",
+      "zone": "mutable",
+      "description": "Shell presentation and collection surfaces may be applied only after the self-modification gate stack passes.",
+      "path_prefixes": [
+        "client/"
+      ],
+      "apply_allowed": true,
+      "propose_allowed": true
+    },
+    {
+      "id": "gateway_mutable",
+      "zone": "mutable",
+      "description": "Gateway boundary integrations may be applied only after the self-modification gate stack passes.",
+      "path_prefixes": [
+        "adapters/"
+      ],
+      "apply_allowed": true,
+      "propose_allowed": true
+    }
+  ]
+}

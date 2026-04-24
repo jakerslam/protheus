@@ -19,6 +19,16 @@ const MANDATORY_RELEASE_PROOF_ARTIFACTS = [
   'core/local/artifacts/layer2_lane_parity_guard_current.json',
   'core/local/artifacts/layer2_receipt_replay_current.json',
   'core/local/artifacts/runtime_trusted_core_report_current.json',
+  'core/local/artifacts/eval_regression_guard_current.json',
+  'core/local/artifacts/eval_feedback_router_current.json',
+  'core/local/artifacts/runtime_proof_reality_guard_current.json',
+  'core/local/artifacts/runtime_soak_scenarios_current.json',
+];
+const MANDATORY_PASSING_RELEASE_PROOF_ARTIFACTS = [
+  'core/local/artifacts/eval_regression_guard_current.json',
+  'core/local/artifacts/eval_feedback_router_current.json',
+  'core/local/artifacts/runtime_proof_reality_guard_current.json',
+  'core/local/artifacts/runtime_soak_scenarios_current.json',
 ];
 
 function parseArgs(argv: string[]) {
@@ -70,6 +80,18 @@ function copyIntoPack(root: string, relPath: string, packRoot: string) {
     sizeBytes = fs.statSync(destination).size;
   }
   return { path: relPath, exists, source, destination, checksum, size_bytes: sizeBytes };
+}
+
+function jsonArtifactPasses(absPath: string): boolean {
+  try {
+    const payload = JSON.parse(fs.readFileSync(absPath, 'utf8'));
+    if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'ok')) {
+      return payload.ok === true;
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function markdown(report: any): string {
@@ -166,6 +188,15 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       return {
         path: artifactPath,
         failure: 'required_artifact_missing',
+      };
+    }
+    if (
+      MANDATORY_PASSING_RELEASE_PROOF_ARTIFACTS.includes(artifactPath) &&
+      !jsonArtifactPasses(row.source)
+    ) {
+      return {
+        path: artifactPath,
+        failure: 'required_artifact_not_passing',
       };
     }
     return null;

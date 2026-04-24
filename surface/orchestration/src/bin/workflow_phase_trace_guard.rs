@@ -116,6 +116,48 @@ fn validate_decision_trace(trace: &Value, issues: &mut Vec<String>) {
         Some(_) => issues.push("decision_trace_empty_array:rationale".to_string()),
         None => issues.push("decision_trace_missing_array:rationale".to_string()),
     }
+    match decision.get("confidence").and_then(Value::as_f64) {
+        Some(value) if value.is_finite() && (0.0..=1.0).contains(&value) => {}
+        Some(_) => issues.push("decision_trace_invalid_field:confidence".to_string()),
+        None => issues.push("decision_trace_missing_field:confidence".to_string()),
+    }
+    match decision.get("alternatives_rejected").and_then(Value::as_array) {
+        Some(_) => {}
+        None => issues.push("decision_trace_missing_array:alternatives_rejected".to_string()),
+    }
+    match decision.get("receipt_metadata").and_then(Value::as_array) {
+        Some(values) if !values.is_empty() => {}
+        Some(_) => issues.push("decision_trace_empty_array:receipt_metadata".to_string()),
+        None => issues.push("decision_trace_missing_array:receipt_metadata".to_string()),
+    }
+    let Some(step_records) = decision.get("step_records").and_then(Value::as_array) else {
+        issues.push("decision_trace_missing_array:step_records".to_string());
+        return;
+    };
+    if step_records.is_empty() {
+        issues.push("decision_trace_empty_array:step_records".to_string());
+    }
+    for (idx, step) in step_records.iter().enumerate() {
+        for field in ["step_id", "chosen_path"] {
+            match step.get(field).and_then(Value::as_str) {
+                Some(value) if !value.trim().is_empty() => {}
+                Some(_) => issues.push(format!("decision_trace_step_{idx}_empty_field:{field}")),
+                None => issues.push(format!("decision_trace_step_{idx}_missing_field:{field}")),
+            }
+        }
+        for field in ["inputs", "alternatives_rejected", "receipt_metadata"] {
+            match step.get(field).and_then(Value::as_array) {
+                Some(values) if !values.is_empty() || field == "alternatives_rejected" => {}
+                Some(_) => issues.push(format!("decision_trace_step_{idx}_empty_array:{field}")),
+                None => issues.push(format!("decision_trace_step_{idx}_missing_array:{field}")),
+            }
+        }
+        match step.get("confidence").and_then(Value::as_f64) {
+            Some(value) if value.is_finite() && (0.0..=1.0).contains(&value) => {}
+            Some(_) => issues.push(format!("decision_trace_step_{idx}_invalid_field:confidence")),
+            None => issues.push(format!("decision_trace_step_{idx}_missing_field:confidence")),
+        }
+    }
 }
 
 fn validate_trace(trace: &Value) -> Vec<String> {

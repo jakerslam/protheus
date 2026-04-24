@@ -1,4 +1,90 @@
 use super::*;
+use infring_orchestration_surface_v1::planner::preconditions::deterministic_routing_decision_trace;
+
+fn dashboard_tool_request_for_trace(
+    resource_kind: ResourceKind,
+    operation_kind: OperationKind,
+    target_descriptors: Vec<TargetDescriptor>,
+    target_refs: Vec<String>,
+    probe: Option<CapabilityProbeSnapshot>,
+) -> TypedOrchestrationRequest {
+    TypedOrchestrationRequest {
+        session_id: "dashboard-tool-routing-trace".to_string(),
+        surface: RequestSurface::Dashboard,
+        legacy_intent: "trace tool route".to_string(),
+        adapted: false,
+        payload: serde_json::json!({}),
+        request_kind: RequestKind::Direct,
+        operation_kind,
+        resource_kind,
+        mutability: Mutability::ReadOnly,
+        target_descriptors,
+        target_refs,
+        tool_hints: Vec::new(),
+        policy_scope: PolicyScope::Default,
+        user_constraints: Vec::new(),
+        core_probe_envelope: probe.map(|row| CoreProbeEnvelope { probes: vec![row] }),
+    }
+}
+
+fn full_positive_probe(capability: Capability) -> CapabilityProbeSnapshot {
+    CapabilityProbeSnapshot {
+        capability,
+        tool_available: Some(true),
+        target_supplied: Some(true),
+        target_syntactically_valid: Some(true),
+        target_exists: Some(true),
+        authorization_valid: Some(true),
+        policy_allows: Some(true),
+        transport_available: Some(true),
+    }
+}
+
+#[test]
+fn non_legacy_tool_routing_requires_authoritative_probe_even_when_unadapted() {
+    let request = dashboard_tool_request_for_trace(
+        ResourceKind::Web,
+        OperationKind::Search,
+        vec![TargetDescriptor::Url {
+            value: "https://example.com".to_string(),
+        }],
+        vec!["https://example.com".to_string()],
+        None,
+    );
+
+    let trace = deterministic_routing_decision_trace(&request);
+
+    assert_eq!(trace["selected"], "web_search");
+    assert_eq!(trace["reason"], "missing_probe: web_search.tool_available");
+    assert_eq!(trace["confidence"], 0.0);
+}
+
+#[test]
+fn routing_decision_trace_records_selected_rejected_reason_and_confidence() {
+    let request = dashboard_tool_request_for_trace(
+        ResourceKind::Workspace,
+        OperationKind::Search,
+        vec![TargetDescriptor::WorkspacePath {
+            value: "README.md".to_string(),
+        }],
+        vec!["README.md".to_string()],
+        Some(full_positive_probe(Capability::WorkspaceSearch)),
+    );
+
+    let trace = deterministic_routing_decision_trace(&request);
+
+    assert_eq!(trace["selected"], "workspace_search");
+    assert_eq!(
+        trace["reason"],
+        "probe.core_probe_envelope.workspace_search.tool_available"
+    );
+    assert_eq!(trace["confidence"], 1.0);
+    assert!(trace["rejected"]
+        .as_array()
+        .expect("rejected alternatives must be an array")
+        .iter()
+        .any(|row| row == "web_search"));
+}
 
 #[test]
 fn adapted_probe_authority_matrix_executes_50_real_cases() {
@@ -382,13 +468,17 @@ fn adapted_probe_authority_matrix_executes_50_real_cases() {
             &legacy_tool_request_without_probe_envelope(),
             &Capability::ExecuteTool,
         );
-    assert!(!legacy_tool_probe
+    assert!(legacy_tool_probe
         .blocked_on
         .contains(&Precondition::ToolAvailable));
     assert!(legacy_tool_probe
         .probe_sources
         .iter()
-        .any(|source| source.starts_with("heuristic.")));
+        .any(|source| source == "missing_probe: tool_route"));
+    assert!(!legacy_tool_probe
+        .probe_sources
+        .iter()
+        .any(|source| source == "heuristic.tool_hints_or_resource_kind"));
     assert!(!legacy_tool_probe
         .probe_sources
         .iter()

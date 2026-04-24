@@ -16,20 +16,34 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 #[path = "../eval_action_economy_guard.rs"]
 mod eval_action_economy_guard;
+#[path = "../eval_agent_feedback.rs"]
+mod eval_agent_feedback;
 #[path = "../eval_calibration_stats.rs"]
 mod eval_calibration_stats;
 #[path = "../eval_contamination_guard.rs"]
 mod eval_contamination_guard;
 #[path = "../eval_final_runtime.rs"]
 mod eval_final_runtime;
+#[path = "../eval_feedback_router.rs"]
+mod eval_feedback_router;
 #[path = "../eval_grader_hacking.rs"]
 mod eval_grader_hacking;
 #[path = "../eval_issue_runtime.rs"]
 mod eval_issue_runtime;
 #[path = "../eval_lifecycle_runtime.rs"]
 mod eval_lifecycle_runtime;
+#[path = "../eval_learning_loop.rs"]
+mod eval_learning_loop;
+#[path = "../eval_learning_loop_review.rs"]
+mod eval_learning_loop_review;
+#[path = "../eval_learning_loop_policy.rs"]
+mod eval_learning_loop_policy;
+#[path = "../eval_learning_loop_policy_version.rs"]
+mod eval_learning_loop_policy_version;
 #[path = "../eval_metamorphic_guard.rs"]
 mod eval_metamorphic_guard;
+#[path = "../eval_learning_loop_rsi_handoff.rs"]
+mod eval_learning_loop_rsi_handoff;
 #[path = "../eval_multiturn_simulation.rs"]
 mod eval_multiturn_simulation;
 #[path = "../eval_production_workflow_guard.rs"]
@@ -913,7 +927,7 @@ fn run_judge_human_agreement(args: &[String]) -> i32 {
 
 fn usage() {
     eprintln!(
-        "usage: cargo run --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- <reviewer-feedback|quality-gate|judge-human-agreement|grader-hacking-guard|trace-localization-guard|trajectory-scoring-guard|multiturn-simulation-guard|contamination-guard|action-economy-guard|production-workflow-guard|metamorphic-guard|rsi-promotion-ladder|issue-drafts|replay|fix-verification|issue-lifecycle|rsi-escalation|phase-trace-persist|adversarial-routing|workflow-selection|runtime-ownership> [--strict=0|1] [args...]"
+        "usage: cargo run --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- <reviewer-feedback|quality-gate|judge-human-agreement|feedback-router|agent-feedback|grader-hacking-guard|trace-localization-guard|trajectory-scoring-guard|multiturn-simulation-guard|contamination-guard|action-economy-guard|production-workflow-guard|learning-loop-ingest|learning-loop-issues|learning-loop-review|learning-loop-policy|learning-loop-version|learning-loop-rsi-handoff|metamorphic-guard|rsi-promotion-ladder|issue-drafts|replay|fix-verification|issue-lifecycle|rsi-escalation|phase-trace-persist|adversarial-routing|workflow-selection|runtime-ownership> [--strict=0|1] [args...]"
     );
 }
 
@@ -927,6 +941,8 @@ fn main() -> ExitCode {
         "reviewer-feedback" => run_reviewer_feedback(tail),
         "quality-gate" => run_quality_gate(tail),
         "judge-human-agreement" => run_judge_human_agreement(tail),
+        "feedback-router" => eval_feedback_router::run_eval_feedback_router(tail),
+        "agent-feedback" => eval_agent_feedback::run_eval_agent_feedback(tail),
         "grader-hacking-guard" => eval_grader_hacking::run_grader_hacking_guard(tail),
         "trace-localization-guard" => eval_trace_localization::run_trace_localization_guard(tail),
         "trajectory-scoring-guard" => eval_trajectory_scoring::run_trajectory_scoring_guard(tail),
@@ -937,6 +953,16 @@ fn main() -> ExitCode {
         "action-economy-guard" => eval_action_economy_guard::run_action_economy_guard(tail),
         "production-workflow-guard" => {
             eval_production_workflow_guard::run_production_workflow_guard(tail)
+        }
+        "learning-loop-ingest" => eval_learning_loop::run_eval_learning_loop_ingest(tail),
+        "learning-loop-issues" => eval_learning_loop::run_eval_learning_loop_issue_candidates(tail),
+        "learning-loop-review" => eval_learning_loop_review::run_eval_learning_loop_review(tail),
+        "learning-loop-policy" => eval_learning_loop_policy::run_eval_learning_loop_policy(tail),
+        "learning-loop-version" => {
+            eval_learning_loop_policy_version::run_eval_learning_loop_policy_version(tail)
+        }
+        "learning-loop-rsi-handoff" => {
+            eval_learning_loop_rsi_handoff::run_eval_learning_loop_rsi_handoff(tail)
         }
         "metamorphic-guard" => eval_metamorphic_guard::run_metamorphic_guard(tail),
         "rsi-promotion-ladder" => eval_rsi_promotion_guard::run_rsi_promotion_ladder_guard(tail),

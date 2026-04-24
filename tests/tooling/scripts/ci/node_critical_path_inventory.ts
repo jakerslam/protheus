@@ -16,6 +16,7 @@ type BurnLane = {
   target_classification: ScriptClass;
   target_date: string;
   migration_status: string;
+  rust_entrypoint?: string;
   notes: string;
 };
 
@@ -182,6 +183,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         ) as ScriptClass,
         target_date: cleanText(lane.target_date || '', 40),
         migration_status: cleanText(lane.migration_status || '', 80),
+        rust_entrypoint: cleanText(String(lane.rust_entrypoint || ''), 200),
         notes: cleanText(lane.notes || '', 240),
       }))
     : [];
@@ -316,9 +318,16 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     const lane = laneMap.get(id);
     const command = cleanText(scripts?.[id] || '', 2000);
     const classification = classifyScriptCommand(command);
+    const rustEntrypoint = cleanText(lane?.rust_entrypoint || '', 200);
+    const rustEntrypointCommand = rustEntrypoint ? cleanText(scripts?.[rustEntrypoint] || '', 2000) : '';
+    const rustEntrypointClassification = classifyScriptCommand(rustEntrypointCommand);
+    const rustEntrypointAvailable =
+      !!rustEntrypoint && rustEntrypointClassification === 'rust_native';
+    const effectiveClassification = rustEntrypointAvailable ? 'rust_native' : classification;
     const tsEntrypointTarget = classification === 'node_typescript' ? parseTsEntrypointTarget(command) : '';
     const tsConfinementAllowed =
       classification !== 'node_typescript' ||
+      rustEntrypointAvailable ||
       (!!tsEntrypointTarget &&
         allowedNodeTypescriptPrefixes.some((prefix) => tsEntrypointTarget.startsWith(prefix)));
     const targetEpoch = Number.isFinite(Date.parse(lane?.target_date || ''))
@@ -327,18 +336,22 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     const migrationOutstanding =
       !!lane &&
       lane.target_classification !== 'unknown' &&
-      classification !== lane.target_classification;
+      effectiveClassification !== lane.target_classification;
     const migrationOverdue = migrationOutstanding && Number.isFinite(targetEpoch) && nowEpoch > targetEpoch;
     return {
       id,
       command,
       classification,
+      effective_classification: effectiveClassification,
       domain: lane?.domain || 'unknown',
       owner: lane?.owner || '',
       priority: lane?.priority ?? 0,
       target_classification: lane?.target_classification || 'unknown',
       target_date: lane?.target_date || '',
       migration_status: lane?.migration_status || '',
+      rust_entrypoint: rustEntrypoint,
+      rust_entrypoint_classification: rustEntrypointClassification,
+      rust_entrypoint_available: rustEntrypointAvailable,
       notes: lane?.notes || '',
       ts_entrypoint_target: tsEntrypointTarget,
       ts_confinement_allowed: tsConfinementAllowed,
@@ -349,7 +362,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   });
 
   const missing = rows.filter((row) => !row.exists);
-  const rustNativeCount = rows.filter((row) => row.classification === 'rust_native').length;
+  const rustNativeCount = rows.filter((row) => row.effective_classification === 'rust_native').length;
   const nodeTypescriptCount = rows.filter((row) => row.classification === 'node_typescript').length;
   const npmWrapperCount = rows.filter((row) => row.classification === 'npm_wrapper').length;
   const unknownCount = rows.filter((row) => row.classification === 'unknown').length;
@@ -431,8 +444,8 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       rows
         .filter((row) => row.migration_overdue)
         .map((row) => ({
-          id: 'node_burndown_target_overdue',
-          detail: `${row.id}:target_date=${row.target_date};target=${row.target_classification};actual=${row.classification}`,
+        id: 'node_burndown_target_overdue',
+          detail: `${row.id}:target_date=${row.target_date};target=${row.target_classification};actual=${row.effective_classification}`,
         })),
     )
     .concat(
@@ -457,6 +470,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       critical_scripts_total: rows.length,
       critical_scripts_missing: missing.length,
       rust_native_count: rustNativeCount,
+      rust_entrypoint_available_count: rows.filter((row) => row.rust_entrypoint_available).length,
       node_typescript_count: nodeTypescriptCount,
       npm_wrapper_count: npmWrapperCount,
       unknown_count: unknownCount,

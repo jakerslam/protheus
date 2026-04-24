@@ -1,9 +1,13 @@
 // Layer ownership: tests (regression proof for orchestration surface contracts).
+use infring_orchestration_surface_v1::contracts::{
+    ControlPlaneDecisionTrace, ControlPlaneDecisionTraceStep, WorkflowStage,
+};
 use infring_orchestration_surface_v1::control_plane::{
-    assert_contract_consistency, control_plane_api_contract, enforce_authority_domain,
-    enforce_subdomain_kernel_input, enforce_subdomain_kernel_output,
-    enforce_subdomain_message_boundary, legacy_module_bindings, subdomain_boundaries,
-    subdomain_boundary_by_id, ContractViolationKind, SubdomainContract,
+    assert_contract_consistency, assert_decision_trace_contract, control_plane_api_contract,
+    decision_trace_contract_failures, enforce_authority_domain, enforce_subdomain_kernel_input,
+    enforce_subdomain_kernel_output, enforce_subdomain_message_boundary, legacy_module_bindings,
+    subdomain_boundaries, subdomain_boundary_by_id, subdomain_trace_contract_by_stage,
+    subdomain_trace_contracts, ContractViolationKind, SubdomainContract,
 };
 use infring_orchestration_surface_v1::control_plane::{
     decomposition_planning::DecompositionPlanningContract,
@@ -212,4 +216,72 @@ fn executable_contract_consistency_check_passes() {
         assert_contract_consistency().is_ok(),
         "subdomain declarations should align with global control-plane contract"
     );
+}
+
+#[test]
+fn subdomain_trace_contracts_cover_all_lifecycle_stages() {
+    let traces = subdomain_trace_contracts();
+    let stages = [
+        WorkflowStage::IntakeNormalization,
+        WorkflowStage::DecompositionPlanning,
+        WorkflowStage::CoordinationSequencing,
+        WorkflowStage::RecoveryEscalation,
+        WorkflowStage::ResultPackaging,
+        WorkflowStage::VerificationClosure,
+    ];
+    assert_eq!(traces.len(), stages.len());
+    for stage in stages {
+        let trace = subdomain_trace_contract_by_stage(stage.clone())
+            .expect("missing subdomain trace contract for lifecycle stage");
+        assert!(!trace.trace_id.is_empty());
+        assert!(
+            subdomain_boundary_by_id(trace.subdomain_id).is_some(),
+            "trace should bind to a declared subdomain"
+        );
+        assert!(trace.required_decision_fields.contains(&"chosen_path"));
+        assert!(trace
+            .required_decision_fields
+            .contains(&"alternatives_rejected"));
+        assert!(trace.required_decision_fields.contains(&"confidence"));
+        assert!(trace.required_decision_fields.contains(&"rationale"));
+        assert!(trace.required_decision_fields.contains(&"receipt_metadata"));
+        assert!(trace
+            .receipt_metadata_sources
+            .contains(&"orchestration_trace_id"));
+    }
+}
+
+#[test]
+fn decision_trace_contract_requires_path_rationale_confidence_and_receipts() {
+    let ok_trace = ControlPlaneDecisionTrace {
+        chosen: "plan_execute_review".to_string(),
+        alternatives_rejected: vec!["clarify_then_coordinate".to_string()],
+        confidence: 0.82,
+        rationale: vec!["typed_probe_contract_satisfied".to_string()],
+        receipt_metadata: vec!["orchestration_trace_id=orch_test".to_string()],
+        step_records: vec![ControlPlaneDecisionTraceStep {
+            step_id: "step_route_workspace_search".to_string(),
+            inputs: vec!["tool_family=workspace_search".to_string()],
+            chosen_path: "workspace_search".to_string(),
+            alternatives_rejected: vec!["web_search".to_string()],
+            confidence: 0.82,
+            receipt_metadata: vec!["orchestration_trace_id=orch_test".to_string()],
+        }],
+    };
+    assert!(assert_decision_trace_contract(&ok_trace).is_ok());
+
+    let bad_trace = ControlPlaneDecisionTrace {
+        chosen: "".to_string(),
+        alternatives_rejected: Vec::new(),
+        confidence: 1.7,
+        rationale: Vec::new(),
+        receipt_metadata: Vec::new(),
+        step_records: Vec::new(),
+    };
+    let failures = decision_trace_contract_failures(&bad_trace);
+    assert!(failures.contains(&"chosen_path"));
+    assert!(failures.contains(&"confidence"));
+    assert!(failures.contains(&"rationale"));
+    assert!(failures.contains(&"receipt_metadata"));
+    assert!(failures.contains(&"step_records"));
 }

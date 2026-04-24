@@ -631,6 +631,9 @@ function extractEmpiricalTrack(root: string, profile: ProfileId): EmpiricalTrack
   }
 
   metrics.recovery_time_ms = round(Math.max(metrics.conduit_recovery_ms, metrics.adapter_recovery_ms));
+  if (provided.has('conduit_recovery_ms') || provided.has('adapter_recovery_ms')) {
+    provided.add('recovery_time_ms');
+  }
   const normalized = normalizeMetrics(metrics);
   return {
     metrics: normalized,

@@ -51,6 +51,7 @@
     "workflow_retry_loop_next_actions_unordered_boilerplate",
     "client_retry_policy_branching",
     "client_lane_selection_heuristic",
+    "client_tool_route_selection",
     "client_runtime_state_policy_branching"
   ],
   "forbidden_patterns": [
@@ -107,6 +108,12 @@
       "severity": "warn",
       "description": "Shell lane-selection heuristics indicate shell truth leakage risk.",
       "regex": "\\b(if|switch)\\s*\\([^\\n]{0,220}\\b(lane|lane_id|selectedLane|resolveLane|chooseLane)\\b"
+    },
+    {
+      "id": "client_tool_route_selection",
+      "severity": "warn",
+      "description": "Shell must not select workspace/web/tool routes locally; routing decisions must come from orchestration/kernel contracts.",
+      "regex": "\\b(if|switch)\\s*\\([^\\n]{0,260}\\b(tool_route|toolRoute|routeTool|selectedTool|workspace_read|workspace_search|web_search|web_fetch)\\b"
     },
     {
       "id": "client_runtime_state_policy_branching",

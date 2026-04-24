@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "required_stages": [
+    "propose",
+    "validate",
+    "apply",
+    "monitor",
+    "rollback"
+  ],
+  "required_gates": [
+    {
+      "id": "self_modification_tests_gate",
+      "path": "core/local/artifacts/churn_guard_current.json",
+      "required": true,
+      "allow_blocked_eval": false
+    },
+    {
+      "id": "self_modification_replay_fixture_gate",
+      "path": "local/state/ops/orchestration/workflow_phase_trace_latest.json",
+      "required": true,
+      "allow_blocked_eval": false
+    },
+    {
+      "id": "self_modification_eval_gate",
+      "path": "core/local/artifacts/eval_feedback_router_current.json",
+      "required": true,
+      "allow_blocked_eval": false
+    }
+  ],
+  "apply_requirements": [
+    "tests",
+    "replay_fixtures",
+    "eval_gates",
+    "monitoring",
+    "rollback"
+  ],
+  "rollback_metadata_required": true,
+  "bypass_tokens_denied": [
+    "direct_apply",
+    "skip_validate",
+    "skip_eval",
+    "skip_rollback",
+    "force_apply"
+  ]
+}

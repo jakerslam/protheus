@@ -118,6 +118,72 @@
           ]
         }
       ]
+    },
+    {
+      "id": "core/layer2/execution::scheduler_fairness",
+      "status": "proven",
+      "engines": ["lean"],
+      "artifact": "proofs/layer0/Layer0Invariants.lean",
+      "proof_symbols": [
+        "SchedulingFairness",
+        "scheduling_fairness_enforced"
+      ],
+      "proof_commands": [
+        {
+          "id": "lean_verify",
+          "required": false,
+          "argv": ["bash", "proofs/layer0/verify.sh"]
+        },
+        {
+          "id": "formal_spec_guard",
+          "required": true,
+          "argv": ["npm", "run", "-s", "ops:formal-spec:check"]
+        }
+      ]
+    },
+    {
+      "id": "core/layer1/resource::resource_bounds",
+      "status": "proven",
+      "engines": ["lean"],
+      "artifact": "proofs/layer0/Layer0Invariants.lean",
+      "proof_symbols": [
+        "ResourceBoundsRespected",
+        "resource_bound_enforced"
+      ],
+      "proof_commands": [
+        {
+          "id": "lean_verify",
+          "required": false,
+          "argv": ["bash", "proofs/layer0/verify.sh"]
+        },
+        {
+          "id": "formal_spec_guard",
+          "required": true,
+          "argv": ["npm", "run", "-s", "ops:formal-spec:check"]
+        }
+      ]
+    },
+    {
+      "id": "core/layer2/execution::receipt_completeness",
+      "status": "proven",
+      "engines": ["lean"],
+      "artifact": "proofs/layer0/Layer0Invariants.lean",
+      "proof_symbols": [
+        "ReceiptCompleteness",
+        "receipt_completeness_enforced"
+      ],
+      "proof_commands": [
+        {
+          "id": "lean_verify",
+          "required": false,
+          "argv": ["bash", "proofs/layer0/verify.sh"]
+        },
+        {
+          "id": "formal_spec_guard",
+          "required": true,
+          "argv": ["npm", "run", "-s", "ops:formal-spec:check"]
+        }
+      ]
     }
   ]
 }

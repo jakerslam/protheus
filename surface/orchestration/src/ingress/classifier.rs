@@ -203,6 +203,11 @@ fn typed_probe_contract_diagnostics(
                 .iter()
                 .map(|row| format!("typed_probe_contract_expected:{}", row.0)),
         );
+        messages.extend(
+            requirements
+                .iter()
+                .map(|row| format!("missing_probe: {}", row.0)),
+        );
         return TypedProbeContractDiagnostics {
             messages,
             missing_count: 1,
@@ -217,6 +222,9 @@ fn typed_probe_contract_diagnostics(
             diagnostics.messages.push(format!(
                 "typed_probe_contract_missing:capability.{capability_key}"
             ));
+            diagnostics
+                .messages
+                .push(format!("missing_probe: {capability_key}"));
             diagnostics.missing_count += 1;
             continue;
         };
@@ -225,6 +233,9 @@ fn typed_probe_contract_diagnostics(
                 diagnostics.messages.push(format!(
                     "typed_probe_contract_missing:field.{capability_key}.{field}"
                 ));
+                diagnostics
+                    .messages
+                    .push(format!("missing_probe: {capability_key}.{field}"));
                 diagnostics.missing_count += 1;
             }
         }
@@ -271,13 +282,8 @@ fn required_probe_contract_for_capability(
             ],
         )),
         Capability::VerifyClaim => Some(("verify_claim", &["transport_available"])),
-        Capability::WorkspaceRead => {
-            Some(("workspace_read", &["tool_available", "transport_available"]))
-        }
-        Capability::WorkspaceSearch => Some((
-            "workspace_search",
-            &["tool_available", "transport_available"],
-        )),
+        Capability::WorkspaceRead => Some(("workspace_read", &["tool_available", "transport_available"])),
+        Capability::WorkspaceSearch => Some(("workspace_search", &["tool_available", "transport_available"])),
         Capability::WebSearch => Some(("web_search", &["tool_available", "transport_available"])),
         Capability::WebFetch => Some(("web_fetch", &["tool_available", "transport_available"])),
         Capability::ToolRoute => Some(("tool_route", &["tool_available", "transport_available"])),

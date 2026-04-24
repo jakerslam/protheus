@@ -3,7 +3,7 @@ use crate::contracts::{
     Capability, CapabilityProbeResult, DegradationReason, Mutability, OperationKind, PolicyScope,
     Precondition, RequestSurface, ResourceKind, TargetDescriptor, TypedOrchestrationRequest,
 };
-use serde_json::Value;
+use serde_json::{json, Value};
 
 fn capability_key(capability: &Capability) -> &'static str {
     match capability.probe_keys().first().copied() {
@@ -66,14 +66,18 @@ fn envelope_probe_bool(
             _ => None,
         };
         if let Some(value) = value {
-            return Some((value, envelope_probe_source(probe_key, field)));
+            return Some((value, envelope_probe_source(probe_key, field, value)));
         }
     }
     None
 }
 
-fn envelope_probe_source(capability_key: &str, field: &str) -> String {
-    format!("probe.core_probe_envelope.{capability_key}.{field}")
+fn envelope_probe_source(capability_key: &str, field: &str, value: bool) -> String {
+    if value {
+        format!("probe.core_probe_envelope.{capability_key}.{field}")
+    } else {
+        format!("denied_probe: {capability_key}.{field}")
+    }
 }
 
 fn parse_capability_key(value: &str) -> Option<Capability> {
@@ -91,7 +95,6 @@ fn parse_capability_key(value: &str) -> Option<Capability> {
         "web_lookup" => Some(Capability::WebSearch),
         "web_fetch" => Some(Capability::WebFetch),
         "tool_route" => Some(Capability::ToolRoute),
-        "execute_tool" => Some(Capability::ToolRoute),
         "plan_assimilation" => Some(Capability::PlanAssimilation),
         "verify_claim" => Some(Capability::VerifyClaim),
         _ => None,
@@ -100,6 +103,14 @@ fn parse_capability_key(value: &str) -> Option<Capability> {
 
 fn required_probe_key(capability: &Capability) -> &'static str {
     capability_key(capability)
+}
+
+fn missing_probe_source(capability: &Capability) -> String {
+    format!("missing_probe: {}", required_probe_key(capability))
+}
+
+fn missing_probe_field_source(capability: &Capability, probe_name: &str) -> String {
+    format!("missing_probe: {}.{}", required_probe_key(capability), probe_name)
 }
 
 fn traverse_bool(value: &Value, path: &[&str]) -> Option<bool> {
@@ -115,17 +126,33 @@ fn fail_closed_on_missing_probe_for_typed_surface(
     capability: &Capability,
     probe_name: &str,
 ) -> Option<(bool, String)> {
-    if request.adapted && !matches!(request.surface, RequestSurface::Legacy) {
-        return Some((
-            false,
-            format!(
-                "probe.required_for_typed_surface.{}.{}",
-                required_probe_key(capability),
-                probe_name
-            ),
-        ));
+    if !matches!(request.surface, RequestSurface::Legacy) {
+        return Some((false, missing_probe_field_source(capability, probe_name)));
     }
     None
+}
+
+pub fn deterministic_routing_decision_trace(request: &TypedOrchestrationRequest) -> Value {
+    let selected = Capability::primary_tool_for(&request.operation_kind, &request.resource_kind);
+    let selected_key = required_probe_key(&selected);
+    let (available, reason) = tool_available(request, &selected);
+    let rejected: Vec<&'static str> = [
+        Capability::WorkspaceRead,
+        Capability::WorkspaceSearch,
+        Capability::WebSearch,
+        Capability::WebFetch,
+        Capability::ToolRoute,
+    ]
+    .iter()
+    .filter(|candidate| required_probe_key(candidate) != selected_key)
+    .map(required_probe_key)
+    .collect();
+    json!({
+        "selected": selected_key,
+        "rejected": rejected,
+        "reason": reason,
+        "confidence": if available { 1.0 } else { 0.0 },
+    })
 }
 
 fn authoritative_probe_required(
@@ -152,18 +179,7 @@ fn tool_available(request: &TypedOrchestrationRequest, capability: &Capability) 
             );
         }
     }
-    (
-        !request.tool_hints.is_empty()
-            || matches!(
-                request.resource_kind,
-                ResourceKind::Web
-                    | ResourceKind::Workspace
-                    | ResourceKind::Tooling
-                    | ResourceKind::Mixed
-            )
-            || capability.is_tool_family(),
-        "heuristic.tool_hints_or_resource_kind".to_string(),
-    )
+    (false, missing_probe_source(capability))
 }
 
 fn target_supplied(request: &TypedOrchestrationRequest, capability: &Capability) -> (bool, String) {

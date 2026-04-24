@@ -34,8 +34,37 @@ fn first_sentence_for_test(raw: &str, max_len: usize) -> String {
 #[cfg(test)]
 fn extract_json_block_after(marker: &str, text: &str) -> Option<Value> {
     let start = text.find(marker)?;
-    let json_text = clean_text(&text[start + marker.len()..], 20_000);
-    serde_json::from_str::<Value>(&json_text).ok()
+    let tail = clean_text(&text[start + marker.len()..], 20_000);
+    let json_start = tail.find(|ch| ch == '[' || ch == '{')?;
+    let opener = tail.as_bytes().get(json_start).copied()?;
+    let closer = if opener == b'[' { b']' } else { b'}' };
+    let mut depth = 0i32;
+    let mut in_string = false;
+    let mut escaped = false;
+    for (offset, byte) in tail.as_bytes()[json_start..].iter().enumerate() {
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if *byte == b'\\' {
+                escaped = true;
+            } else if *byte == b'"' {
+                in_string = false;
+            }
+            continue;
+        }
+        if *byte == b'"' {
+            in_string = true;
+        } else if *byte == opener {
+            depth += 1;
+        } else if *byte == closer {
+            depth -= 1;
+            if depth == 0 {
+                let json_text = &tail[json_start..=json_start + offset];
+                return serde_json::from_str::<Value>(json_text).ok();
+            }
+        }
+    }
+    None
 }
 
 #[cfg(test)]
@@ -161,7 +190,7 @@ fn synthesize_test_response_from_tool_rows(user_message: &str) -> Option<String>
             .collect::<Vec<_>>()
             .join(" + ");
         return Some(format!(
-            "Using the {} results, here is the answer: {}",
+            "Using the {} results, here is the answer: {} [source:tool_receipt:scripted_tool_rows]",
             if label.is_empty() {
                 "recorded tool"
             } else {

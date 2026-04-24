@@ -1,8 +1,9 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
-    ControlPlaneDecisionTrace, CoreExecutionObservation, DegradationState, ExecutionCorrelation,
-    ExecutionState, OrchestrationPlan, PlanCandidate, PlanStatus, ReceiptDebugMetadata,
-    RecoveryReason, StepState, StepStatus, TypedOrchestrationRequest,
+    ControlPlaneDecisionTrace, ControlPlaneDecisionTraceStep, CoreExecutionObservation,
+    DegradationState, ExecutionCorrelation, ExecutionState, OrchestrationPlan, PlanCandidate,
+    PlanStatus, ReceiptDebugMetadata, RecoveryReason, StepState, StepStatus,
+    TypedOrchestrationRequest,
 };
 
 pub fn project_execution_state(
@@ -283,5 +284,29 @@ fn decision_trace_for_candidate(plan: &PlanCandidate) -> ControlPlaneDecisionTra
         alternatives_rejected: Vec::new(),
         confidence: plan.confidence,
         rationale,
+        receipt_metadata: vec![
+            format!("candidate_plan_id={}", plan.plan_id),
+            format!("candidate_step_count={}", plan.steps.len()),
+            format!("candidate_capability_count={}", plan.capabilities.len()),
+        ],
+        step_records: plan
+            .steps
+            .iter()
+            .map(|step| ControlPlaneDecisionTraceStep {
+                step_id: step.step_id.clone(),
+                inputs: vec![
+                    format!("operation={}", step.operation),
+                    format!("capability={:?}", step.capability).to_ascii_lowercase(),
+                ],
+                chosen_path: format!("{:?}", step.target_contract).to_ascii_lowercase(),
+                alternatives_rejected: Vec::new(),
+                confidence: plan.confidence,
+                receipt_metadata: step
+                    .expected_contract_refs
+                    .iter()
+                    .map(|id| format!("expected_core_contract={id}"))
+                    .collect(),
+            })
+            .collect(),
     }
 }

@@ -1,0 +1,16 @@
+{
+  "schema_id": "runtime_soak_scenarios_policy.v1",
+  "required_profiles": ["rich", "pure", "tiny-max"],
+  "required_scenarios": [
+    "multi_agent_workflow",
+    "long_running_task",
+    "mixed_workload_stress",
+    "gateway_failure_loop",
+    "gateway_recovery_behavior"
+  ],
+  "min_multi_agent_roles": 3,
+  "min_long_running_ticks": 72,
+  "min_mixed_workload_families": 3,
+  "min_gateway_flapping_cases": 5,
+  "min_gateway_recovery_cases": 5
+}

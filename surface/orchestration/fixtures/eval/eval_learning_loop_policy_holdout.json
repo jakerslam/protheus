@@ -1,0 +1,46 @@
+{
+  "type": "eval_learning_loop_policy_holdout",
+  "schema_version": 1,
+  "cases": [
+    {
+      "case_id": "holdout-supported-wrong-tool",
+      "class": "wrong_tool_claim",
+      "severity": "high",
+      "expected": "accept",
+      "active_score": 0.68,
+      "candidate_score": 0.84
+    },
+    {
+      "case_id": "holdout-unsupported-root-cause",
+      "class": "unsupported_root_cause",
+      "severity": "high",
+      "expected": "reject",
+      "active_score": 0.72,
+      "candidate_score": 0.24
+    },
+    {
+      "case_id": "holdout-hallucinated-issue",
+      "class": "hallucinated_issue",
+      "severity": "critical",
+      "expected": "reject",
+      "active_score": 0.61,
+      "candidate_score": 0.18
+    },
+    {
+      "case_id": "holdout-no-response-lockup",
+      "class": "no_response_lockup",
+      "severity": "high",
+      "expected": "reject",
+      "active_score": 0.55,
+      "candidate_score": 0.30
+    },
+    {
+      "case_id": "holdout-receipt-grounded-eval-uncertainty",
+      "class": "evaluator_uncertainty",
+      "severity": "high",
+      "expected": "accept",
+      "active_score": 0.57,
+      "candidate_score": 0.79
+    }
+  ]
+}

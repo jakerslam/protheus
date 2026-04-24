@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "sample_sources": [
+    {
+      "id": "eval_feedback_router",
+      "path": "core/local/artifacts/eval_feedback_router_current.json",
+      "required": true
+    },
+    {
+      "id": "workflow_phase_trace",
+      "path": "local/state/ops/orchestration/workflow_phase_trace_latest.json",
+      "required": true
+    },
+    {
+      "id": "eval_monitor_slo",
+      "path": "core/local/artifacts/eval_monitor_slo_current.json",
+      "required": false
+    }
+  ],
+  "drift_thresholds": {
+    "kernel_block_routes_max": 0,
+    "gateway_quarantine_routes_max": 0,
+    "control_plane_retry_routes_max": 2,
+    "missing_required_sources_max": 0
+  },
+  "mitigations": [
+    {
+      "id": "kernel_block_release_mitigation",
+      "trigger": "live_eval_kernel_block_drift",
+      "action": "block_release_and_open_kernel_truth_issue"
+    },
+    {
+      "id": "gateway_quarantine_mitigation",
+      "trigger": "live_eval_gateway_quarantine_drift",
+      "action": "quarantine_gateway_and_route_around"
+    },
+    {
+      "id": "control_plane_retry_review_mitigation",
+      "trigger": "live_eval_control_plane_retry_drift",
+      "action": "force_control_plane_retry_review"
+    },
+    {
+      "id": "missing_source_alert_mitigation",
+      "trigger": "live_eval_missing_required_source_drift",
+      "action": "raise_eval_observability_gap_alert"
+    }
+  ]
+}

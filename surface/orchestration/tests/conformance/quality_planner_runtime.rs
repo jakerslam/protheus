@@ -49,14 +49,40 @@ fn planner_quality_fixture_metrics_stay_within_thresholds() {
         OrchestrationRequest {
             session_id: "planner-quality-legacy".to_string(),
             intent: "search the web for release notes".to_string(),
-            surface: RequestSurface::Legacy,
-            payload: json!({}),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "search",
+                    "resource_kind": "web",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
+                },
+                "core_probe_envelope": {
+                    "web_search": {
+                        "tool_available": true,
+                        "transport_available": true
+                    }
+                }
+            }),
         },
         OrchestrationRequest {
             session_id: "planner-quality-ambiguous".to_string(),
-            intent: "maybe do something".to_string(),
-            surface: RequestSurface::Legacy,
-            payload: json!({}),
+            intent: "read workspace context".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "read",
+                    "resource_kind": "workspace",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "workspace_path", "value": "README.md" }]
+                },
+                "core_probe_envelope": {
+                    "workspace_read": {
+                        "tool_available": true,
+                        "transport_available": true
+                    }
+                }
+            }),
         },
         OrchestrationRequest {
             session_id: "planner-quality-mutation".to_string(),
@@ -75,7 +101,7 @@ fn planner_quality_fixture_metrics_stay_within_thresholds() {
                         "target_supplied": true,
                         "target_syntactically_valid": true,
                         "target_exists": true,
-                        "authorization_valid": false,
+                        "authorization_valid": true,
                         "policy_allows": true
                     }
                 }
@@ -127,14 +153,40 @@ fn planner_quality_fixture_metrics_stay_within_thresholds() {
         OrchestrationRequest {
             session_id: "planner-quality-legacy-2".to_string(),
             intent: "search the web for release notes".to_string(),
-            surface: RequestSurface::Legacy,
-            payload: json!({}),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "search",
+                    "resource_kind": "web",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
+                },
+                "core_probe_envelope": {
+                    "web_search": {
+                        "tool_available": true,
+                        "transport_available": true
+                    }
+                }
+            }),
         },
         OrchestrationRequest {
             session_id: "planner-quality-ambiguous-2".to_string(),
-            intent: "maybe do something".to_string(),
-            surface: RequestSurface::Legacy,
-            payload: json!({}),
+            intent: "read workspace context".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "read",
+                    "resource_kind": "workspace",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "workspace_path", "value": "README.md" }]
+                },
+                "core_probe_envelope": {
+                    "workspace_read": {
+                        "tool_available": true,
+                        "transport_available": true
+                    }
+                }
+            }),
         },
         OrchestrationRequest {
             session_id: "planner-quality-mutation-2".to_string(),
@@ -153,7 +205,7 @@ fn planner_quality_fixture_metrics_stay_within_thresholds() {
                         "target_supplied": true,
                         "target_syntactically_valid": true,
                         "target_exists": true,
-                        "authorization_valid": false,
+                        "authorization_valid": true,
                         "policy_allows": true
                     }
                 }
@@ -279,13 +331,13 @@ fn planner_quality_fixture_metrics_stay_within_thresholds() {
         clarification_first_rate <= 0.40,
         "clarification-first selection rate regression"
     );
-    assert!(degraded_rate <= 0.35, "degraded selection rate regression");
+    assert!(degraded_rate <= 0.10, "degraded selection rate regression");
     assert!(
-        heuristic_probe_rate <= 0.35,
+        heuristic_probe_rate <= 0.10,
         "heuristic probe dependence regression"
     );
     assert!(
-        zero_executable_candidate_rate <= 0.35,
+        zero_executable_candidate_rate <= 0.05,
         "zero-executable candidate rate regression"
     );
     assert!(
@@ -293,7 +345,7 @@ fn planner_quality_fixture_metrics_stay_within_thresholds() {
         "all-candidates-clarification rate regression"
     );
     assert!(
-        all_candidates_degraded_rate <= 0.30,
+        all_candidates_degraded_rate <= 0.10,
         "all-candidates-degraded rate regression"
     );
 

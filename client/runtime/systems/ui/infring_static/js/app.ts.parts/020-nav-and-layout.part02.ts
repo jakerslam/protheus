@@ -485,7 +485,7 @@
       }
       if (stage.indexOf('agent') >= 0) return 66;
       if (stage.indexOf('connect') >= 0) return 28;
-      if (stage.indexOf('retry') >= 0) return 24;
+      var isRecoveringStage = stage.indexOf('retry') >= 0; if (isRecoveringStage) return 24;
       if (stage.indexOf('unreachable') >= 0 || stage.indexOf('disconnected') >= 0) return 20;
       if (stage.indexOf('start') >= 0 || stage.indexOf('init') >= 0 || stage.indexOf('boot') >= 0) return 16;
       return 42;

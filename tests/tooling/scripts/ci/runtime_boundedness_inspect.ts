@@ -545,9 +545,10 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const queueUtilization = safeNumber(queueDepthMaxRow?.utilization, 0);
   const queueBand = selectQueueBand(queuePolicy, queueUtilization);
 
-  const failures = rows
+  const boundednessViolations = rows
     .filter((row) => row.status === 'critical')
     .map((row) => ({ id: 'boundedness_violation', detail: `${row.metric}:actual=${row.actual},limit=${row.limit}` }));
+  failures.push(...boundednessViolations);
   if (!queueBand) {
     failures.push({
       id: 'queue_backpressure_policy_unresolved',

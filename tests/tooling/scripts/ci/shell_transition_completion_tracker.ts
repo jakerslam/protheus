@@ -28,6 +28,7 @@ type AliasManifest = {
   schema_version: string;
   canonical_term: string;
   compatibility_alias: string;
+  alias_state?: string;
   retirement_target_version: string;
   retirement_target_date: string;
   required_alias_map_path?: string;
@@ -159,6 +160,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   }
 
   const manifest = manifestJson.payload;
+  const aliasState = cleanText(String(manifest.alias_state || 'compatibility_bridge_active'), 80);
   const scripts = packageJson.payload.scripts || {};
   const failures: Array<{ id: string; detail: string }> = [];
   let aliasMap: ShellAliasMap = {};
@@ -282,12 +284,12 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   }
 
   const compatibilityBridgesPath = cleanText(String(manifest.required_compatibility_bridges_path || ''), 500);
-  if (!compatibilityBridgesPath) {
+  if (!compatibilityBridgesPath && aliasState !== 'retired') {
     failures.push({
       id: 'shell_transition_compatibility_bridges_path_missing',
       detail: 'required_compatibility_bridges_path',
     });
-  } else {
+  } else if (compatibilityBridgesPath) {
     const bridgesAbs = path.resolve(root, compatibilityBridgesPath);
     if (!fs.existsSync(bridgesAbs)) {
       failures.push({
@@ -424,6 +426,15 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       detail: manifest.retirement_target_date || '',
     });
   }
+  if (!['compatibility_bridge_active', 'retired'].includes(aliasState)) {
+    failures.push({ id: 'shell_transition_manifest_alias_state_invalid', detail: aliasState });
+  }
+  if (aliasState === 'retired' && bridgeRows.some((row) => row.status === 'active')) {
+    failures.push({
+      id: 'shell_transition_retired_alias_has_active_bridge',
+      detail: 'retired shell/client compatibility aliases cannot keep active bridges',
+    });
+  }
 
   const payload = {
     ok: failures.length === 0,
@@ -436,6 +447,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     package_path: args.packagePath,
     summary: {
       docs_checked: docs.length,
+      alias_state: aliasState,
       markers_checked: markers.length,
       command_pairs_checked: aliasPairs.length,
       config_pairs_checked: requiredConfigPairs.length,

@@ -23,6 +23,68 @@ fn response_is_actionable_tool_diagnostic(text: &str) -> bool {
         || lowered.contains("doctor --json")
 }
 
+fn eval_agent_feedback_prompt_context(root: &Path, agent_id: &str, max_items: usize) -> String {
+    let id = clean_agent_id(agent_id);
+    if id.is_empty() {
+        return String::new();
+    }
+    let path = root
+        .join("local/state/ops/eval_agent_feedback")
+        .join(format!("{id}.json"));
+    let Some(state) = read_json_file(&path) else {
+        return String::new();
+    };
+    let rows = state
+        .get("visible_feedback_items")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let mut lines = Vec::<String>::new();
+    for row in rows.iter().take(max_items.max(1)) {
+        let title = clean_text(row.get("title").and_then(Value::as_str).unwrap_or(""), 180);
+        if title.is_empty() {
+            continue;
+        }
+        let related_agent = clean_text(
+            row.get("related_agent_id").and_then(Value::as_str).unwrap_or(""),
+            120,
+        );
+        let severity = clean_text(row.get("severity").and_then(Value::as_str).unwrap_or(""), 40);
+        let issue_class = clean_text(
+            row.get("issue_class").and_then(Value::as_str).unwrap_or(""),
+            120,
+        );
+        let expected_fix = clean_text(
+            row.get("expected_fix").and_then(Value::as_str).unwrap_or(""),
+            260,
+        );
+        let suggested_test = clean_text(
+            row.get("suggested_test").and_then(Value::as_str).unwrap_or(""),
+            180,
+        );
+        let relationship = if related_agent == id {
+            "self".to_string()
+        } else {
+            format!("child:{related_agent}")
+        };
+        let mut line = format!("- [{severity}] {title} ({relationship}; class: {issue_class})");
+        if !expected_fix.is_empty() {
+            line.push_str(&format!(" Fix target: {expected_fix}"));
+        }
+        if !suggested_test.is_empty() {
+            line.push_str(&format!(" Regression: {suggested_test}"));
+        }
+        lines.push(clean_text(&line, 700));
+    }
+    if lines.is_empty() {
+        return String::new();
+    }
+    format!(
+        "Scoped eval feedback attention (visible only for this agent and descendants):\n{}",
+        lines.join("\n")
+    )
+}
+
 fn strip_redundant_key_findings_prefix(raw: &str) -> String {
     let mut cleaned = clean_text(raw, 2_400);
     loop {

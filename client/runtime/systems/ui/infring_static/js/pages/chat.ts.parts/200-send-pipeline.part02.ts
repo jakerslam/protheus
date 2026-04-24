@@ -57,13 +57,13 @@
           var normalizedSendErrorText = (function(message) {
             var raw = String(message || '').replace(/\s+/g, ' ').trim();
             var lower = raw.toLowerCase();
-            if (!raw || lower === 'unknown error') return 'Connection failed before the runtime returned a usable response. Retry after the gateway is reachable.';
-            if (lower.indexOf('pairing required') >= 0) return 'Gateway pairing is required. Open Settings, pair this dashboard with the gateway, then retry.';
+            if (!raw || lower === 'unknown error') return 'Connection failed before the runtime returned a usable response. Try again after the gateway is reachable.';
+            if (lower.indexOf('pairing required') >= 0) return 'Gateway pairing is required. Open Settings, pair this dashboard with the gateway, then try again.';
             if (
               lower.indexOf('device identity required') >= 0 ||
               lower.indexOf('secure context') >= 0 ||
               lower.indexOf('https/localhost') >= 0
-            ) return 'This action requires HTTPS or localhost. Reopen the dashboard from a trusted origin, then retry.';
+            ) return 'This action requires HTTPS or localhost. Reopen the dashboard from a trusted origin, then try again.';
             if (
               lower.indexOf('unauthorized') >= 0 ||
               lower.indexOf('token mismatch') >= 0 ||

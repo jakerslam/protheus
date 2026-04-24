@@ -1,0 +1,42 @@
+{
+  "version": "system-health-policy-v1",
+  "owner": "kernel/layer2/ops",
+  "eval_failure_critical_threshold": 1,
+  "boundedness_regression_critical_score": 90,
+  "routing_anomaly_threshold": 3,
+  "retry_spike_threshold": 8,
+  "latency_anomaly_p95_ms": 2000,
+  "adaptation": {
+    "require_eval_validation": true,
+    "require_rollback_safety": true,
+    "block_when_critical": true,
+    "max_threshold_delta_percent": 5,
+    "max_retry_delta": 1
+  },
+  "gateway_capabilities": [
+    {
+      "gateway_id": "ollama",
+      "capabilities": ["local_llm_chat", "embeddings", "model_listing"],
+      "max_concurrent_requests": 2,
+      "max_payload_kb": 512,
+      "timeout_ms": 15000,
+      "planning_graph_contributions": ["local_model_inference", "offline_fallback"]
+    },
+    {
+      "gateway_id": "llama_cpp",
+      "capabilities": ["local_llm_chat", "grammar_constrained_decode"],
+      "max_concurrent_requests": 1,
+      "max_payload_kb": 384,
+      "timeout_ms": 15000,
+      "planning_graph_contributions": ["local_model_inference", "low_memory_fallback"]
+    },
+    {
+      "gateway_id": "mcp_baseline",
+      "capabilities": ["external_tool_catalog", "structured_tool_call"],
+      "max_concurrent_requests": 4,
+      "max_payload_kb": 256,
+      "timeout_ms": 10000,
+      "planning_graph_contributions": ["tool_graph_expansion", "capability_discovery"]
+    }
+  ]
+}

@@ -145,27 +145,34 @@ fn execute_tool_call_with_recovery(
     input: &Value,
 ) -> Value {
     let normalized_tool = normalize_tool_name(tool_name);
+    let execution_tool = resolve_tool_name_fallback(&normalized_tool, input);
+    #[cfg(test)]
+    if let Some(scripted_payload) = take_scripted_tool_harness_payload(root, &execution_tool, input)
+    {
+        return scripted_payload;
+    }
     if let Some(blocked) =
-        crate::dashboard_tool_turn_loop::pre_tool_permission_gate(root, tool_name, input)
+        crate::dashboard_tool_turn_loop::pre_tool_permission_gate(root, &execution_tool, input)
     {
         return blocked;
     }
     let nexus_connection =
-        match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(tool_name) {
+        match crate::dashboard_tool_turn_loop::authorize_ingress_tool_call_with_nexus(&execution_tool) {
             Ok(meta) => meta,
             Err(err) => {
                 return json!({
                     "ok": false,
                     "error": "tool_nexus_delivery_denied",
                     "message": "Tool execution blocked by hierarchical nexus ingress policy.",
-                    "tool": normalized_tool,
+                    "tool": execution_tool,
+                    "requested_tool": normalized_tool,
                     "fail_closed": true,
                     "nexus_error": clean_text(&err, 240)
                 })
             }
         };
-    let retry_backoff_ms = deterministic_tool_retry_backoff_ms(tool_name);
-    let retry_policy_class = deterministic_tool_retry_policy_class(tool_name).to_string();
+    let retry_backoff_ms = deterministic_tool_retry_backoff_ms(&execution_tool);
+    let retry_policy_class = deterministic_tool_retry_policy_class(&execution_tool).to_string();
     let mut payload =
         execute_tool_call_by_name(root, snapshot, actor_agent_id, existing, tool_name, input);
     let mut recovery_strategy = "none".to_string();

@@ -454,16 +454,10 @@
       return true;
     },
     shouldRenderMessageContent(msg, idx, list) {
-      if (!this.isMessageVirtualizationActive(list)) return true;
-      if (!this.messageHydrationReady) return true;
-      if (!msg || msg.is_notice) return true;
-      if (msg.thinking || msg.streaming || msg._typingVisual || msg._typewriterRunning) return true;
-      var domId = this.messageDomId(msg, idx);
-      if (domId && this.messageHydration && this.messageHydration[domId]) return true;
-      if (domId && this.selectedMessageDomId === domId) return true;
-      if (domId && this.hoveredMessageDomId === domId) return true;
-      if (domId && this.directHoveredMessageDomId === domId) return true;
-      return false;
+      void msg;
+      void idx;
+      void list;
+      return true;
     },
     messageEstimatedLineCount(msg) {
       var metrics = this.messageRenderMetrics(msg);

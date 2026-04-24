@@ -161,7 +161,7 @@ impl Capability {
             Capability::WebSearch => &["web_search"],
             Capability::WebFetch => &["web_fetch"],
             Capability::ToolRoute => &["tool_route"],
-            Capability::ExecuteTool => &["tool_route", "execute_tool"],
+            Capability::ExecuteTool => &["tool_route"],
             Capability::PlanAssimilation => &["plan_assimilation"],
             Capability::VerifyClaim => &["verify_claim"],
         }
@@ -535,11 +535,25 @@ pub struct DegradationState {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ControlPlaneDecisionTraceStep {
+    pub step_id: String,
+    pub inputs: Vec<String>,
+    pub chosen_path: String,
+    pub alternatives_rejected: Vec<String>,
+    pub confidence: f32,
+    pub receipt_metadata: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ControlPlaneDecisionTrace {
     pub chosen: String,
     pub alternatives_rejected: Vec<String>,
     pub confidence: f32,
     pub rationale: Vec<String>,
+    #[serde(default)]
+    pub receipt_metadata: Vec<String>,
+    #[serde(default)]
+    pub step_records: Vec<ControlPlaneDecisionTraceStep>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

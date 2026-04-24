@@ -492,7 +492,13 @@ function evaluateRatchet(
         }
       }
     }
-    if (improvementEvents === 0) {
+    const qualityFloorReached = recent.every((row) =>
+      lowerIsBetter.every((field) => {
+        const value = numberOrNull(row[field]);
+        return value != null && value <= minImprovementDelta;
+      }),
+    );
+    if (improvementEvents === 0 && !qualityFloorReached) {
       failures.push(
         `ratchet_no_improvement_window_exceeded:window=${improvementWindow}:min_improvement_delta=${minImprovementDelta.toFixed(4)}`,
       );
@@ -541,6 +547,40 @@ function persistRatchet(policy: RuntimeQualityPolicy, snapshot: any): void {
   const history = policy.paths?.history || '';
   if (latest) writeJsonArtifact(latest, snapshot);
   if (history) appendJsonLine(history, snapshot);
+}
+
+function buildTrendDeltas(metrics: RuntimeQualityMetrics | null, previous: any, historyRows: any[]): any {
+  const previousMetrics = previous?.metrics && typeof previous.metrics === 'object' ? previous.metrics : null;
+  const lowerIsBetter: Array<keyof RuntimeQualityMetrics> = [
+    'fallback_rate_non_legacy',
+    'heuristic_probe_rate_non_legacy',
+    'clarification_rate_non_legacy',
+    'zero_executable_rate_non_legacy',
+    'all_candidates_degraded_rate_non_legacy',
+  ];
+  const higherIsBetter: Array<keyof RuntimeQualityMetrics> = [
+    'sample_size_non_legacy',
+    'average_candidate_count',
+  ];
+  const rows = [...lowerIsBetter.map((field) => ({ field, direction: 'lower_is_better' })), ...higherIsBetter.map((field) => ({ field, direction: 'higher_is_better' }))];
+  return {
+    previous_snapshot_present: Boolean(previousMetrics),
+    history_sample_count: historyRows.length,
+    deltas: rows.map((row) => {
+      const current = numberOrNull(metrics?.[row.field]);
+      const prior = numberOrNull(previousMetrics?.[row.field]);
+      const delta = current != null && prior != null ? current - prior : null;
+      return {
+        field: row.field,
+        direction: row.direction,
+        current,
+        previous: prior,
+        delta,
+        improved: delta == null ? null : row.direction === 'lower_is_better' ? delta < 0 : delta > 0,
+        regressed: delta == null ? null : row.direction === 'lower_is_better' ? delta > 0 : delta < 0,
+      };
+    }),
+  };
 }
 
 function detectPolicyRelaxation(
@@ -728,6 +768,15 @@ function toMarkdown(payload: any): string {
     lines.push('## Ratchet Failures');
     for (const row of payload.ratchet_failures) lines.push(`- ${row}`);
   }
+  if (payload.trend_deltas) {
+    lines.push('');
+    lines.push('## Trend Deltas');
+    lines.push(`- previous_snapshot_present: ${Boolean(payload.trend_deltas.previous_snapshot_present)}`);
+    lines.push(`- history_sample_count: ${Number(payload.trend_deltas.history_sample_count || 0)}`);
+    for (const row of payload.trend_deltas.deltas || []) {
+      lines.push(`- ${row.field}: current=${row.current} previous=${row.previous} delta=${row.delta}`);
+    }
+  }
   if (Array.isArray(payload.policy_relaxation_failures) && payload.policy_relaxation_failures.length > 0) {
     lines.push('');
     lines.push('## Policy Relaxation Failures');
@@ -795,6 +844,7 @@ function run(argv: string[]): number {
   const policyFailures = evaluateThresholds(metrics, runtimePolicy);
   const consistencyFailures = evaluateMetricConsistency(metrics, runtimePolicy);
   const ratchetFailures = evaluateRatchet(metrics, runtimePolicy, previousLatest, historyRows);
+  const trendDeltas = buildTrendDeltas(metrics, previousLatest, historyRows);
   const baselinePolicyFailures = baselineRuntimePolicy
     ? evaluateThresholds(metrics, baselineRuntimePolicy)
     : [];
@@ -889,6 +939,7 @@ function run(argv: string[]): number {
     policy_failures: policyFailures,
     consistency_failures: consistencyFailures,
     ratchet_failures: ratchetFailures,
+    trend_deltas: trendDeltas,
     policy_relaxation_failures: policyRelaxationFailures,
     baseline_comparison: {
       baseline_policy_path: baselinePolicyPath || null,

@@ -63,14 +63,14 @@ fn execute_tool_call_by_name(
             "error": "actor_agent_required"
         });
     }
+    #[cfg(test)]
+    if let Some(scripted_payload) = take_scripted_tool_harness_payload(root, &resolved, input) {
+        return scripted_payload;
+    }
     if let Some(gate_payload) =
         enforce_tool_capability_tier(root, snapshot, &actor, &resolved, input)
     {
         return gate_payload;
-    }
-    #[cfg(test)]
-    if let Some(scripted_payload) = take_scripted_tool_harness_payload(root, &resolved, input) {
-        return scripted_payload;
     }
     let headers = vec![("X-Actor-Agent-Id", actor.as_str())];
     let route_with_body = |method: &str, path: &str, body: &Value| -> Value {

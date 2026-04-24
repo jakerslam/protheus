@@ -234,7 +234,7 @@
                             x-text="msg.notice_icon || 'i'"
                             aria-hidden="true"
                           ></span>
-                          <span x-text="msg.notice_label || 'Model switched'"></span>
+                          <span x-text="msg.notice_type === 'info' ? ('Chat info: ' + String(msg.notice_label || 'Info update')) : (msg.notice_label || 'Model switched')"></span>
                           <button
                             class="chat-notice-action-btn"
                             type="button"

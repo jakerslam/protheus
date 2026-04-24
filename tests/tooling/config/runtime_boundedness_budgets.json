@@ -1,0 +1,35 @@
+{
+  "schema_id": "runtime_boundedness_budgets.v1",
+  "description": "Release-class boundedness ceilings. Values are intentionally profile-scoped so RSS, queue depth, stale-surface count, and recovery-time regressions fail before release evidence is accepted.",
+  "require_previous_baseline": true,
+  "metrics": [
+    "max_rss_mb",
+    "queue_depth_max",
+    "queue_depth_p95",
+    "stale_surface_count",
+    "recovery_time_ms_max"
+  ],
+  "profiles": {
+    "rich": {
+      "max_rss_mb": 7.156,
+      "queue_depth_max": 2048,
+      "queue_depth_p95": 1945.6,
+      "stale_surface_count": 0,
+      "recovery_time_ms_max": 8261.265
+    },
+    "pure": {
+      "max_rss_mb": 1.516,
+      "queue_depth_max": 2048,
+      "queue_depth_p95": 1945.6,
+      "stale_surface_count": 0,
+      "recovery_time_ms_max": 5894.814
+    },
+    "tiny-max": {
+      "max_rss_mb": 582.486,
+      "queue_depth_max": 2048,
+      "queue_depth_p95": 1945.6,
+      "stale_surface_count": 0,
+      "recovery_time_ms_max": 3882.866
+    }
+  }
+}

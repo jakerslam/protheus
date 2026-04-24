@@ -1,28 +1,33 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 pub mod clarification;
+pub mod continuous_eval;
 pub mod contracts;
 pub mod control_plane;
 pub mod eval;
+pub mod eval_agent_feedback;
+pub mod eval_feedback_router;
 pub mod ingress;
 pub mod planner;
 pub mod posture;
 pub mod progress;
 pub mod recovery;
+pub mod self_modification;
 pub mod request_classifier;
 pub mod result_packaging;
 pub mod self_maintenance;
 pub mod sequencing;
 pub mod telemetry;
 pub mod transient_context;
+pub mod trust_zones;
 
 use contracts::{
-    ClosureState, ControlPlaneClosureState, ControlPlaneDecisionTrace, ControlPlaneHandoff,
-    ControlPlaneLifecycleState, CoreExecutionObservation, DegradationReason, ExecutionCorrelation,
-    ExecutionState, OrchestrationExecutionObservationUpdate, OrchestrationFallbackAction,
-    OrchestrationPlan, OrchestrationRequest, OrchestrationResultPackage, PlanCandidate, PlanScore,
-    PlanStatus, PlanVariant, ReceiptDebugMetadata, RecoveryDecision, RecoveryReason, RecoveryState,
-    RuntimeQualitySignals, WorkflowStage, WorkflowStageState, WorkflowStageStatus,
-    WorkflowTemplate,
+    ClosureState, ControlPlaneClosureState, ControlPlaneDecisionTrace,
+    ControlPlaneDecisionTraceStep, ControlPlaneHandoff, ControlPlaneLifecycleState,
+    CoreExecutionObservation, DegradationReason, ExecutionCorrelation, ExecutionState,
+    OrchestrationExecutionObservationUpdate, OrchestrationFallbackAction, OrchestrationPlan,
+    OrchestrationRequest, OrchestrationResultPackage, PlanCandidate, PlanScore, PlanStatus,
+    PlanVariant, ReceiptDebugMetadata, RecoveryDecision, RecoveryReason, RecoveryState,
+    RuntimeQualitySignals, WorkflowStage, WorkflowStageState, WorkflowStageStatus, WorkflowTemplate,
 };
 use self_maintenance::contracts::{
     ArchitectureAuditInput, CiReportInput, HealthMetricInput, MemoryPressureInput,
@@ -131,6 +136,26 @@ impl OrchestrationSurfaceRuntime {
                                 alternatives_rejected: Vec::new(),
                                 confidence: 0.0,
                                 rationale: vec!["transient_context_unavailable".to_string()],
+                                receipt_metadata: vec![format!(
+                                    "orchestration_trace_id=orch_{}_transient",
+                                    typed_request.session_id
+                                )],
+                                step_records: vec![ControlPlaneDecisionTraceStep {
+                                    step_id: "transient_context_write".to_string(),
+                                    inputs: vec![
+                                        format!("session_id={}", typed_request.session_id),
+                                        "phase=intake_normalization".to_string(),
+                                    ],
+                                    chosen_path: "halt_before_core_contract".to_string(),
+                                    alternatives_rejected: vec![
+                                        "continue_without_transient_context".to_string(),
+                                    ],
+                                    confidence: 0.0,
+                                    receipt_metadata: vec![format!(
+                                        "orchestration_trace_id=orch_{}_transient",
+                                        typed_request.session_id
+                                    )],
+                                }],
                             },
                         },
                     },
@@ -208,6 +233,26 @@ impl OrchestrationSurfaceRuntime {
                     alternatives_rejected: Vec::new(),
                     confidence: 0.0,
                     rationale: vec!["transient_context_unavailable".to_string()],
+                    receipt_metadata: vec![format!(
+                        "orchestration_trace_id=orch_{}_transient",
+                        typed_request.session_id
+                    )],
+                    step_records: vec![ControlPlaneDecisionTraceStep {
+                        step_id: "transient_context_write".to_string(),
+                        inputs: vec![
+                            format!("session_id={}", typed_request.session_id),
+                            "phase=intake_normalization".to_string(),
+                        ],
+                        chosen_path: "halt_before_core_contract".to_string(),
+                        alternatives_rejected: vec![
+                            "continue_without_transient_context".to_string(),
+                        ],
+                        confidence: 0.0,
+                        receipt_metadata: vec![format!(
+                            "orchestration_trace_id=orch_{}_transient",
+                            typed_request.session_id
+                        )],
+                    }],
                 },
                 workflow_template: workflow_template.clone(),
                 control_plane_lifecycle: ControlPlaneLifecycleState {

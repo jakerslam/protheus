@@ -38,4 +38,5 @@ jobs:
             core/local/artifacts/ownership_drift_weekly_current.json
             local/workspace/reports/OWNERSHIP_DRIFT_GUARD_CURRENT.md
             local/workspace/reports/OWNERSHIP_DRIFT_WEEKLY_CURRENT.md
+            local/workspace/reports/ownership_drift_report.md
           if-no-files-found: warn

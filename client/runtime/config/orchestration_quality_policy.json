@@ -1,5 +1,5 @@
 {
-  "version": "2026-04-21",
+  "version": "2026-04-24",
   "adapter_fallback": {
     "required_surface_fields": [
       "total",
@@ -16,15 +16,15 @@
     "max_fallback_rate": {
       "sdk": 0.05,
       "gateway": 0.05,
-      "dashboard": 0.35
+      "dashboard": 0.2
     },
     "max_low_confidence_rate": {
       "sdk": 0.05,
       "gateway": 0.05,
-      "dashboard": 0.35
+      "dashboard": 0.2
     },
     "ratchet": {
-      "max_regression_delta": 0.0
+      "max_regression_delta": 0
     },
     "paths": {
       "latest": "core/local/artifacts/orchestration_adapter_fallback_metrics_latest.json",
@@ -47,20 +47,20 @@
     "max_missing_metric_fields": 0,
     "consistency_epsilon": 0.000001,
     "min_request_count": 12,
-    "min_average_candidate_count": 2.0,
+    "min_average_candidate_count": 2,
     "max_clarification_first_rate": 0.4,
-    "degraded_max": 0.2,
-    "max_degraded_rate": 0.2,
+    "degraded_max": 0.1,
+    "max_degraded_rate": 0.1,
     "max_selected_plan_requires_clarification_rate": 0.4,
-    "max_selected_plan_degraded_rate": 0.35,
-    "heuristic_max": 0.2,
-    "max_heuristic_probe_rate": 0.2,
-    "zero_executable_max": 0.15,
-    "max_zero_executable_candidate_rate": 0.15,
+    "max_selected_plan_degraded_rate": 0.1,
+    "heuristic_max": 0.1,
+    "max_heuristic_probe_rate": 0.1,
+    "zero_executable_max": 0.05,
+    "max_zero_executable_candidate_rate": 0.05,
     "max_all_candidates_require_clarification_rate": 0.35,
-    "max_all_candidates_degraded_rate": 0.3,
+    "max_all_candidates_degraded_rate": 0.1,
     "ratchet": {
-      "max_regression_delta": 0.0,
+      "max_regression_delta": 0,
       "improvement_window": 3,
       "min_improvement_delta": 0.0001
     },
@@ -83,19 +83,19 @@
     "consistency_epsilon": 0.000001,
     "min_sample_size": 4,
     "min_average_candidate_count": 1.5,
-    "max_non_legacy_fallback_rate": 0.2,
-    "max_non_legacy_heuristic_probe_rate": 0.2,
-    "max_non_legacy_clarification_rate": 0.2,
-    "max_non_legacy_zero_executable_rate": 0.15,
-    "max_non_legacy_all_candidates_degraded_rate": 0.2,
-    "max_non_legacy_fallback_plus_heuristic_rate": 0.4,
-    "max_non_legacy_clarification_plus_degraded_rate": 0.4,
-    "max_non_legacy_fallback_minus_zero_executable_rate": 0.0,
-    "max_non_legacy_fallback_rate_trend_ceiling": 0.2,
-    "max_non_legacy_clarification_rate_trend_ceiling": 0.2,
+    "max_non_legacy_fallback_rate": 0.1,
+    "max_non_legacy_heuristic_probe_rate": 0.1,
+    "max_non_legacy_clarification_rate": 0.1,
+    "max_non_legacy_zero_executable_rate": 0.05,
+    "max_non_legacy_all_candidates_degraded_rate": 0.1,
+    "max_non_legacy_fallback_plus_heuristic_rate": 0.2,
+    "max_non_legacy_clarification_plus_degraded_rate": 0.2,
+    "max_non_legacy_fallback_minus_zero_executable_rate": 0,
+    "max_non_legacy_fallback_rate_trend_ceiling": 0.1,
+    "max_non_legacy_clarification_rate_trend_ceiling": 0.1,
     "baseline_policy_path": "tests/tooling/config/orchestration_runtime_quality_policy_baseline.json",
     "ratchet": {
-      "max_regression_delta": 0.0,
+      "max_regression_delta": 0,
       "improvement_window": 3,
       "min_improvement_delta": 0.0001
     },

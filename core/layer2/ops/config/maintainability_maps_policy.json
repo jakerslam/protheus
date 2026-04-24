@@ -1,0 +1,21 @@
+{
+  "version": "maintainability-maps-policy-v1",
+  "owner": "kernel/layer2/ops",
+  "scan_roots": ["core", "surface", "client", "adapters", "tests"],
+  "source_extensions": ["rs", "ts", "tsx", "json", "md", "toml"],
+  "deletion_cycle_total_changes": 20,
+  "deletion_cycle_removed_dead_code": 4,
+  "deletion_ratio_min_percent": 15,
+  "auto_update_required_artifacts": [
+    "core/local/artifacts/architecture_map_current.json",
+    "core/local/artifacts/dependency_graph_current.json",
+    "core/local/artifacts/ownership_map_current.json"
+  ],
+  "ownership_rules": [
+    { "prefix": "core", "owner": "kernel", "layer": "kernel" },
+    { "prefix": "surface", "owner": "control_plane", "layer": "orchestration" },
+    { "prefix": "client", "owner": "shell", "layer": "presentation" },
+    { "prefix": "adapters", "owner": "gateway", "layer": "external_boundary" },
+    { "prefix": "tests", "owner": "quality", "layer": "verification" }
+  ]
+}

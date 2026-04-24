@@ -47,6 +47,7 @@ type Args = {
   sourcePath: string;
   outJsonPath: string;
   outMarkdownPath: string;
+  reportAliasPath: string;
   highSeverityThreshold: number;
   severityBudgetLow: number;
   severityBudgetMedium: number;
@@ -58,6 +59,7 @@ const ROOT = process.cwd();
 const DEFAULT_SOURCE_PATH = 'core/local/artifacts/ownership_drift_guard_current.json';
 const DEFAULT_OUT_JSON = 'core/local/artifacts/ownership_drift_weekly_current.json';
 const DEFAULT_OUT_MARKDOWN = 'local/workspace/reports/OWNERSHIP_DRIFT_WEEKLY_CURRENT.md';
+const DEFAULT_REPORT_ALIAS = 'local/workspace/reports/ownership_drift_report.md';
 
 function rel(p: string): string {
   return path.relative(ROOT, p).replace(/\\/g, '/');
@@ -83,6 +85,7 @@ function parseArgs(argv: string[]): Args {
     sourcePath: cleanText(readFlag(argv, 'source') || DEFAULT_SOURCE_PATH, 400),
     outJsonPath: cleanText(readFlag(argv, 'out-json') || common.out || DEFAULT_OUT_JSON, 400),
     outMarkdownPath: cleanText(readFlag(argv, 'out-markdown') || DEFAULT_OUT_MARKDOWN, 400),
+    reportAliasPath: cleanText(readFlag(argv, 'report-alias') || DEFAULT_REPORT_ALIAS, 400),
     highSeverityThreshold:
       Number.isFinite(thresholdParsed) && thresholdParsed >= 0 ? thresholdParsed : 0,
     severityBudgetLow:
@@ -270,6 +273,14 @@ function toMarkdown(payload: any): string {
   return `${lines.join('\n')}\n`;
 }
 
+function writeReportMarkdown(args: Args, payload: any): void {
+  const markdown = toMarkdown(payload);
+  const paths = Array.from(new Set([args.outMarkdownPath, args.reportAliasPath].filter(Boolean)));
+  for (const row of paths) {
+    writeTextArtifact(path.resolve(ROOT, row), markdown);
+  }
+}
+
 function main(): number {
   const args = parseArgs(process.argv.slice(2));
   const sourceAbsPath = path.resolve(ROOT, args.sourcePath);
@@ -286,6 +297,8 @@ function main(): number {
       inputs: {
         strict: args.strict,
         source_path: args.sourcePath,
+        out_markdown: args.outMarkdownPath,
+        report_alias: args.reportAliasPath,
       },
       summary: {
         source_read_error: true,
@@ -299,6 +312,7 @@ function main(): number {
         },
       ],
     };
+    writeReportMarkdown(args, payload);
     return emitStructuredResult(payload, {
       outPath: path.resolve(ROOT, args.outJsonPath),
       strict: args.strict,
@@ -422,6 +436,7 @@ function main(): number {
       source_path: rel(sourceAbsPath),
       out_json: args.outJsonPath,
       out_markdown: args.outMarkdownPath,
+      report_alias: args.reportAliasPath,
       high_severity_threshold: args.highSeverityThreshold,
       severity_budget_low: args.severityBudgetLow,
       severity_budget_medium: args.severityBudgetMedium,
@@ -455,7 +470,7 @@ function main(): number {
     failures,
   };
 
-  writeTextArtifact(path.resolve(ROOT, args.outMarkdownPath), toMarkdown(payload));
+  writeReportMarkdown(args, payload);
   return emitStructuredResult(payload, {
     outPath: path.resolve(ROOT, args.outJsonPath),
     strict: args.strict,

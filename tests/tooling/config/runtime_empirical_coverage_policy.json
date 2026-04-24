@@ -1,0 +1,10 @@
+{
+  "schema_id": "runtime_empirical_coverage_policy.v1",
+  "supported_profiles": ["rich", "pure", "tiny-max"],
+  "min_empirical_sample_points": {
+    "rich": 1,
+    "pure": 1,
+    "tiny-max": 1
+  },
+  "exemptions": []
+}
