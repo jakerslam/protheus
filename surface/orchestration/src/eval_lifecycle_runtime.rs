@@ -13,15 +13,15 @@ const DEFAULT_FIX_AFTER_PATH: &str =
     "surface/orchestration/fixtures/eval/eval_fix_verification_after.json";
 const DEFAULT_FIX_OUT_PATH: &str = "core/local/artifacts/eval_fix_verification_current.json";
 const DEFAULT_FIX_OUT_LATEST_PATH: &str = "artifacts/eval_fix_verification_latest.json";
-const DEFAULT_FIX_MARKDOWN_PATH: &str =
-    "local/workspace/reports/EVAL_FIX_VERIFICATION_CURRENT.md";
+const DEFAULT_FIX_MARKDOWN_PATH: &str = "local/workspace/reports/EVAL_FIX_VERIFICATION_CURRENT.md";
 const DEFAULT_LIFECYCLE_OUT_PATH: &str = "core/local/artifacts/eval_issue_lifecycle_current.json";
 const DEFAULT_LIFECYCLE_OUT_LATEST_PATH: &str = "artifacts/eval_issue_lifecycle_latest.json";
 const DEFAULT_LIFECYCLE_MARKDOWN_PATH: &str =
     "local/workspace/reports/EVAL_ISSUE_LIFECYCLE_CURRENT.md";
 const DEFAULT_QUALITY_GATE_PATH: &str = "artifacts/eval_quality_gate_v1_latest.json";
 const DEFAULT_JUDGE_HUMAN_PATH: &str = "artifacts/eval_judge_human_agreement_latest.json";
-const DEFAULT_PHASE_TRACE_PATH: &str = "local/state/ops/orchestration/workflow_phase_trace_latest.json";
+const DEFAULT_PHASE_TRACE_PATH: &str =
+    "local/state/ops/orchestration/workflow_phase_trace_latest.json";
 const DEFAULT_RSI_OUT_PATH: &str = "core/local/artifacts/eval_rsi_escalation_gate_current.json";
 const DEFAULT_RSI_OUT_LATEST_PATH: &str = "artifacts/eval_rsi_escalation_gate_latest.json";
 const DEFAULT_RSI_MARKDOWN_PATH: &str =
@@ -146,8 +146,10 @@ fn classify_fix(before: Option<bool>, after: Option<bool>) -> &'static str {
 
 pub fn run_fix_verification(args: &[String]) -> i32 {
     let strict = parse_bool_flag(args, "strict", false);
-    let before_path = parse_flag(args, "before").unwrap_or_else(|| DEFAULT_FIX_BEFORE_PATH.to_string());
-    let after_path = parse_flag(args, "after").unwrap_or_else(|| DEFAULT_FIX_AFTER_PATH.to_string());
+    let before_path =
+        parse_flag(args, "before").unwrap_or_else(|| DEFAULT_FIX_BEFORE_PATH.to_string());
+    let after_path =
+        parse_flag(args, "after").unwrap_or_else(|| DEFAULT_FIX_AFTER_PATH.to_string());
     let out_path = parse_flag(args, "out").unwrap_or_else(|| DEFAULT_FIX_OUT_PATH.to_string());
     let out_latest_path =
         parse_flag(args, "out-latest").unwrap_or_else(|| DEFAULT_FIX_OUT_LATEST_PATH.to_string());
@@ -225,11 +227,16 @@ pub fn run_fix_verification(args: &[String]) -> i32 {
 
 pub fn run_issue_lifecycle(args: &[String]) -> i32 {
     let strict = parse_bool_flag(args, "strict", false);
-    let issues_path = parse_flag(args, "issues").unwrap_or_else(|| DEFAULT_ISSUE_DRAFTS_PATH.to_string());
-    let fix_path = parse_flag(args, "fixes").unwrap_or_else(|| DEFAULT_FIX_OUT_LATEST_PATH.to_string());
-    let out_path = parse_flag(args, "out").unwrap_or_else(|| DEFAULT_LIFECYCLE_OUT_PATH.to_string());
-    let out_latest_path = parse_flag(args, "out-latest").unwrap_or_else(|| DEFAULT_LIFECYCLE_OUT_LATEST_PATH.to_string());
-    let markdown_path = parse_flag(args, "out-markdown").unwrap_or_else(|| DEFAULT_LIFECYCLE_MARKDOWN_PATH.to_string());
+    let issues_path =
+        parse_flag(args, "issues").unwrap_or_else(|| DEFAULT_ISSUE_DRAFTS_PATH.to_string());
+    let fix_path =
+        parse_flag(args, "fixes").unwrap_or_else(|| DEFAULT_FIX_OUT_LATEST_PATH.to_string());
+    let out_path =
+        parse_flag(args, "out").unwrap_or_else(|| DEFAULT_LIFECYCLE_OUT_PATH.to_string());
+    let out_latest_path = parse_flag(args, "out-latest")
+        .unwrap_or_else(|| DEFAULT_LIFECYCLE_OUT_LATEST_PATH.to_string());
+    let markdown_path = parse_flag(args, "out-markdown")
+        .unwrap_or_else(|| DEFAULT_LIFECYCLE_MARKDOWN_PATH.to_string());
     let issues = read_json(&issues_path);
     let fixes = read_json(&fix_path);
     let fix_map: BTreeMap<String, String> = fixes
@@ -311,14 +318,20 @@ pub fn run_issue_lifecycle(args: &[String]) -> i32 {
 
 pub fn run_rsi_escalation(args: &[String]) -> i32 {
     let strict = parse_bool_flag(args, "strict", false);
-    let quality_path = parse_flag(args, "quality").unwrap_or_else(|| DEFAULT_QUALITY_GATE_PATH.to_string());
+    let quality_path =
+        parse_flag(args, "quality").unwrap_or_else(|| DEFAULT_QUALITY_GATE_PATH.to_string());
     let replay_path = parse_flag(args, "replay").unwrap_or_else(|| DEFAULT_REPLAY_PATH.to_string());
-    let judge_path = parse_flag(args, "judge-human").unwrap_or_else(|| DEFAULT_JUDGE_HUMAN_PATH.to_string());
-    let lifecycle_path = parse_flag(args, "lifecycle").unwrap_or_else(|| DEFAULT_LIFECYCLE_OUT_LATEST_PATH.to_string());
-    let phase_trace_path = parse_flag(args, "phase-trace").unwrap_or_else(|| DEFAULT_PHASE_TRACE_PATH.to_string());
+    let judge_path =
+        parse_flag(args, "judge-human").unwrap_or_else(|| DEFAULT_JUDGE_HUMAN_PATH.to_string());
+    let lifecycle_path = parse_flag(args, "lifecycle")
+        .unwrap_or_else(|| DEFAULT_LIFECYCLE_OUT_LATEST_PATH.to_string());
+    let phase_trace_path =
+        parse_flag(args, "phase-trace").unwrap_or_else(|| DEFAULT_PHASE_TRACE_PATH.to_string());
     let out_path = parse_flag(args, "out").unwrap_or_else(|| DEFAULT_RSI_OUT_PATH.to_string());
-    let out_latest_path = parse_flag(args, "out-latest").unwrap_or_else(|| DEFAULT_RSI_OUT_LATEST_PATH.to_string());
-    let markdown_path = parse_flag(args, "out-markdown").unwrap_or_else(|| DEFAULT_RSI_MARKDOWN_PATH.to_string());
+    let out_latest_path =
+        parse_flag(args, "out-latest").unwrap_or_else(|| DEFAULT_RSI_OUT_LATEST_PATH.to_string());
+    let markdown_path =
+        parse_flag(args, "out-markdown").unwrap_or_else(|| DEFAULT_RSI_MARKDOWN_PATH.to_string());
     let quality = read_json(&quality_path);
     let replay = read_json(&replay_path);
     let judge = read_json(&judge_path);

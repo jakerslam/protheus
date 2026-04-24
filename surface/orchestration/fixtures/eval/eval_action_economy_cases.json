@@ -1,0 +1,121 @@
+{
+  "type": "eval_action_economy_cases",
+  "schema_version": 1,
+  "thresholds": {
+    "min_cases": 3,
+    "max_unnecessary_steps_per_case": 0,
+    "max_redundant_planning_or_reflection_steps": 0,
+    "max_tool_call_overhead_per_case": 0,
+    "max_phase_latency_ms": 900,
+    "max_cost_per_success": 8.0,
+    "max_budget_overruns": 0,
+    "min_reference_efficiency_rate": 1.0
+  },
+  "cases": [
+    {
+      "id": "local_file_tooling_minimal_path",
+      "workflow": "default_local_file_workflow",
+      "budget": {
+        "max_cost_units": 6.0
+      },
+      "reference_steps": [
+        {
+          "purpose": "workspace_search",
+          "tool_call": true
+        },
+        {
+          "purpose": "workspace_read",
+          "tool_call": true
+        }
+      ],
+      "actual_steps": [
+        {
+          "purpose": "workspace_search",
+          "tool_call": true,
+          "required": true,
+          "phase_latency_ms": 220
+        },
+        {
+          "purpose": "workspace_read",
+          "tool_call": true,
+          "required": true,
+          "phase_latency_ms": 260
+        }
+      ],
+      "actual": {
+        "success": true,
+        "cost_units": 4.2
+      }
+    },
+    {
+      "id": "issue_synthesis_minimal_path",
+      "workflow": "eval_issue_synthesis_workflow",
+      "budget": {
+        "max_cost_units": 8.0
+      },
+      "reference_steps": [
+        {
+          "purpose": "phase_trace_read",
+          "tool_call": true
+        },
+        {
+          "purpose": "issue_draft",
+          "tool_call": true
+        }
+      ],
+      "actual_steps": [
+        {
+          "purpose": "phase_trace_read",
+          "tool_call": true,
+          "required": true,
+          "phase_latency_ms": 300
+        },
+        {
+          "purpose": "issue_draft",
+          "tool_call": true,
+          "required": true,
+          "phase_latency_ms": 410
+        }
+      ],
+      "actual": {
+        "success": true,
+        "cost_units": 6.4
+      }
+    },
+    {
+      "id": "policy_denial_minimal_path",
+      "workflow": "policy_denial_workflow",
+      "budget": {
+        "max_cost_units": 5.0
+      },
+      "reference_steps": [
+        {
+          "purpose": "capability_check",
+          "tool_call": true
+        },
+        {
+          "purpose": "safe_finalization",
+          "tool_call": false
+        }
+      ],
+      "actual_steps": [
+        {
+          "purpose": "capability_check",
+          "tool_call": true,
+          "required": true,
+          "phase_latency_ms": 180
+        },
+        {
+          "purpose": "safe_finalization",
+          "tool_call": false,
+          "required": true,
+          "phase_latency_ms": 240
+        }
+      ],
+      "actual": {
+        "success": true,
+        "cost_units": 2.1
+      }
+    }
+  ]
+}

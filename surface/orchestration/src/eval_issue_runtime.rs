@@ -4,7 +4,8 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const DEFAULT_ISSUE_SOURCE_PATH: &str = "surface/orchestration/fixtures/eval/eval_gold_dataset_v1.jsonl";
+const DEFAULT_ISSUE_SOURCE_PATH: &str =
+    "surface/orchestration/fixtures/eval/eval_gold_dataset_v1.jsonl";
 const DEFAULT_ISSUE_OUT_PATH: &str = "core/local/artifacts/eval_issue_drafts_current.json";
 const DEFAULT_ISSUE_OUT_LATEST_PATH: &str = "artifacts/eval_issue_drafts_latest.json";
 const DEFAULT_ISSUE_MARKDOWN_PATH: &str = "local/workspace/reports/EVAL_ISSUE_DRAFTS_CURRENT.md";
@@ -139,14 +140,22 @@ fn issue_owner(issue_class: &str) -> &'static str {
 fn root_cause(issue_class: &str) -> &'static str {
     match issue_class {
         "wrong_tool_selection" => "intent-to-tool routing selected an incompatible tool family",
-        "auto_tool_selection_claim" => "response synthesis inferred unsupported tool-routing causes",
+        "auto_tool_selection_claim" => {
+            "response synthesis inferred unsupported tool-routing causes"
+        }
         "no_response" => "workflow finalization returned fallback text instead of a direct answer",
         "response_loop" => "fallback recovery repeated boilerplate without loop breaking",
-        "policy_block_confusion" => "policy-denied state was not translated into user-actionable remediation",
+        "policy_block_confusion" => {
+            "policy-denied state was not translated into user-actionable remediation"
+        }
         "bad_workflow_selection" => "workflow selector chose a diagnostic path for a simple turn",
         "hallucination" => "answer was not grounded against current date or available evidence",
-        "tool_output_misdirection" => "tool output synthesis drifted away from the user's actual intent",
-        "non_actionable_feedback" => "eval finding omitted owner, acceptance, replay, or concrete evidence",
+        "tool_output_misdirection" => {
+            "tool output synthesis drifted away from the user's actual intent"
+        }
+        "non_actionable_feedback" => {
+            "eval finding omitted owner, acceptance, replay, or concrete evidence"
+        }
         _ => "eval finding requires triage",
     }
 }
@@ -243,11 +252,15 @@ fn write_replay_fixture(draft: &Value) -> bool {
 
 pub fn run_issue_drafts(args: &[String]) -> i32 {
     let strict = parse_bool_flag(args, "strict", false);
-    let source_path = parse_flag(args, "source").unwrap_or_else(|| DEFAULT_ISSUE_SOURCE_PATH.to_string());
+    let source_path =
+        parse_flag(args, "source").unwrap_or_else(|| DEFAULT_ISSUE_SOURCE_PATH.to_string());
     let out_path = parse_flag(args, "out").unwrap_or_else(|| DEFAULT_ISSUE_OUT_PATH.to_string());
-    let out_latest_path = parse_flag(args, "out-latest").unwrap_or_else(|| DEFAULT_ISSUE_OUT_LATEST_PATH.to_string());
-    let markdown_path = parse_flag(args, "out-markdown").unwrap_or_else(|| DEFAULT_ISSUE_MARKDOWN_PATH.to_string());
-    let fixture_dir = parse_flag(args, "fixture-dir").unwrap_or_else(|| DEFAULT_REPLAY_FIXTURE_DIR.to_string());
+    let out_latest_path =
+        parse_flag(args, "out-latest").unwrap_or_else(|| DEFAULT_ISSUE_OUT_LATEST_PATH.to_string());
+    let markdown_path =
+        parse_flag(args, "out-markdown").unwrap_or_else(|| DEFAULT_ISSUE_MARKDOWN_PATH.to_string());
+    let fixture_dir =
+        parse_flag(args, "fixture-dir").unwrap_or_else(|| DEFAULT_REPLAY_FIXTURE_DIR.to_string());
     let rows = read_jsonl(&source_path);
     let drafts: Vec<Value> = rows
         .iter()
@@ -355,10 +368,13 @@ fn read_fixture_paths(args: &[String], fixture_dir: &str) -> Vec<PathBuf> {
 
 pub fn run_replay(args: &[String]) -> i32 {
     let strict = parse_bool_flag(args, "strict", false);
-    let fixture_dir = parse_flag(args, "fixture-dir").unwrap_or_else(|| DEFAULT_REPLAY_FIXTURE_DIR.to_string());
+    let fixture_dir =
+        parse_flag(args, "fixture-dir").unwrap_or_else(|| DEFAULT_REPLAY_FIXTURE_DIR.to_string());
     let out_path = parse_flag(args, "out").unwrap_or_else(|| DEFAULT_REPLAY_OUT_PATH.to_string());
-    let out_latest_path = parse_flag(args, "out-latest").unwrap_or_else(|| DEFAULT_REPLAY_OUT_LATEST_PATH.to_string());
-    let markdown_path = parse_flag(args, "out-markdown").unwrap_or_else(|| DEFAULT_REPLAY_MARKDOWN_PATH.to_string());
+    let out_latest_path = parse_flag(args, "out-latest")
+        .unwrap_or_else(|| DEFAULT_REPLAY_OUT_LATEST_PATH.to_string());
+    let markdown_path = parse_flag(args, "out-markdown")
+        .unwrap_or_else(|| DEFAULT_REPLAY_MARKDOWN_PATH.to_string());
     let fixture_paths = read_fixture_paths(args, &fixture_dir);
     let mut results = Vec::new();
     let mut passed = 0_usize;

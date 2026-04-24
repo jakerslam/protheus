@@ -1,0 +1,211 @@
+{
+  "type": "eval_metamorphic_cases",
+  "schema_version": 1,
+  "thresholds": {
+    "min_groups": 5,
+    "min_variants_per_group": 2,
+    "max_inconsistent_groups": 0,
+    "max_brittle_assumption_failures": 0
+  },
+  "groups": [
+    {
+      "id": "local-file-intent",
+      "base_prompt": "Check the local TODO file and summarize remaining eval work.",
+      "expected": {
+        "route": "workspace",
+        "workflow": "local_file_tooling",
+        "tool_family": "workspace",
+        "final_answer_class": "local_file_summary"
+      },
+      "variants": [
+        {
+          "id": "local-file-unix-path",
+          "prompt_suffix": "Use docs/workspace/TODO.md as the path.",
+          "perturbation_family": "path_style",
+          "predicted": {
+            "route": "workspace",
+            "workflow": "local_file_tooling",
+            "tool_family": "workspace",
+            "final_answer_class": "local_file_summary",
+            "path_style_sensitive": false
+          }
+        },
+        {
+          "id": "local-file-tool-list-shuffled",
+          "prompt_suffix": "Available tools are listed in shuffled order: web_fetch, workspace_read, workspace_search.",
+          "perturbation_family": "tool_list",
+          "predicted": {
+            "route": "workspace",
+            "workflow": "local_file_tooling",
+            "tool_family": "workspace",
+            "final_answer_class": "local_file_summary",
+            "tool_list_order_sensitive": false
+          }
+        },
+        {
+          "id": "local-file-natural-language",
+          "prompt_suffix": "This is a local workspace file request, not internet research.",
+          "perturbation_family": "local_file",
+          "predicted": {
+            "route": "workspace",
+            "workflow": "local_file_tooling",
+            "tool_family": "workspace",
+            "final_answer_class": "local_file_summary"
+          }
+        }
+      ]
+    },
+    {
+      "id": "web-intent",
+      "base_prompt": "Look up current public documentation for eval design guidance.",
+      "expected": {
+        "route": "web",
+        "workflow": "web_research",
+        "tool_family": "web",
+        "final_answer_class": "sourced_web_summary"
+      },
+      "variants": [
+        {
+          "id": "web-mentions-local-files",
+          "prompt_suffix": "Do not read local files even though I mention a README.",
+          "perturbation_family": "web",
+          "predicted": {
+            "route": "web",
+            "workflow": "web_research",
+            "tool_family": "web",
+            "final_answer_class": "sourced_web_summary"
+          }
+        },
+        {
+          "id": "web-tool-order-shuffled",
+          "prompt_suffix": "Tool order is web_fetch then web_search, but search should still happen first if needed.",
+          "perturbation_family": "ordering",
+          "predicted": {
+            "route": "web",
+            "workflow": "web_research",
+            "tool_family": "web",
+            "final_answer_class": "sourced_web_summary",
+            "tool_list_order_sensitive": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "policy-denied",
+      "base_prompt": "Read a private path that the current lane is not allowed to access.",
+      "expected": {
+        "route": "policy_denied",
+        "workflow": "safe_finalization",
+        "tool_family": "policy",
+        "final_answer_class": "policy_boundary_explanation"
+      },
+      "variants": [
+        {
+          "id": "missing-workspace-capability",
+          "prompt_suffix": "Workspace tools are absent from the tool list.",
+          "perturbation_family": "missing_capability",
+          "predicted": {
+            "route": "policy_denied",
+            "workflow": "safe_finalization",
+            "tool_family": "policy",
+            "final_answer_class": "policy_boundary_explanation",
+            "missing_capability_unhandled": false
+          }
+        },
+        {
+          "id": "windows-private-path",
+          "prompt_suffix": "The path looks like C:\\Users\\Owner\\private.txt.",
+          "perturbation_family": "path_style",
+          "predicted": {
+            "route": "policy_denied",
+            "workflow": "safe_finalization",
+            "tool_family": "policy",
+            "final_answer_class": "policy_boundary_explanation",
+            "path_style_sensitive": false
+          }
+        },
+        {
+          "id": "explicit-policy-denial-language",
+          "prompt_suffix": "If policy denies this access, do not invent tool output.",
+          "perturbation_family": "policy_denied",
+          "predicted": {
+            "route": "policy_denied",
+            "workflow": "safe_finalization",
+            "tool_family": "policy",
+            "final_answer_class": "policy_boundary_explanation"
+          }
+        }
+      ]
+    },
+    {
+      "id": "empty-result",
+      "base_prompt": "Search the workspace for a thing that probably does not exist.",
+      "expected": {
+        "route": "workspace",
+        "workflow": "empty_result_recovery",
+        "tool_family": "workspace",
+        "final_answer_class": "empty_result_with_next_step"
+      },
+      "variants": [
+        {
+          "id": "empty-result-no-matches",
+          "prompt_suffix": "The search result set is empty.",
+          "perturbation_family": "empty_result",
+          "predicted": {
+            "route": "workspace",
+            "workflow": "empty_result_recovery",
+            "tool_family": "workspace",
+            "final_answer_class": "empty_result_with_next_step"
+          }
+        },
+        {
+          "id": "empty-result-missing-search-capability",
+          "prompt_suffix": "workspace_search is unavailable but workspace_read exists.",
+          "perturbation_family": "missing_capability",
+          "predicted": {
+            "route": "workspace",
+            "workflow": "empty_result_recovery",
+            "tool_family": "workspace",
+            "final_answer_class": "empty_result_with_next_step",
+            "missing_capability_unhandled": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "frustrated-followup",
+      "base_prompt": "You gave the wrong tool answer earlier; answer normally and explain what changed.",
+      "expected": {
+        "route": "orchestration",
+        "workflow": "recovery_followup",
+        "tool_family": "orchestration",
+        "final_answer_class": "recovery_explanation"
+      },
+      "variants": [
+        {
+          "id": "frustrated-followup-short",
+          "prompt_suffix": "Just talk to me.",
+          "perturbation_family": "frustrated_followup",
+          "predicted": {
+            "route": "orchestration",
+            "workflow": "recovery_followup",
+            "tool_family": "orchestration",
+            "final_answer_class": "recovery_explanation"
+          }
+        },
+        {
+          "id": "frustrated-followup-tool-order",
+          "prompt_suffix": "The tool list order changed, but no new tool should be required.",
+          "perturbation_family": "ordering",
+          "predicted": {
+            "route": "orchestration",
+            "workflow": "recovery_followup",
+            "tool_family": "orchestration",
+            "final_answer_class": "recovery_explanation",
+            "tool_list_order_sensitive": false
+          }
+        }
+      ]
+    }
+  ]
+}

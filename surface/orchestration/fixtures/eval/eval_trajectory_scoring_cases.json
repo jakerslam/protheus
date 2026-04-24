@@ -1,0 +1,178 @@
+{
+  "type": "eval_trajectory_scoring_cases",
+  "schema_version": 1,
+  "thresholds": {
+    "min_cases": 3,
+    "min_tool_choice_rate": 1.0,
+    "min_tool_order_rate": 1.0,
+    "min_parameter_rate": 1.0,
+    "min_stop_continue_rate": 1.0,
+    "max_redundant_tool_calls_per_turn": 0,
+    "max_repeated_call_loop_workflows": 0,
+    "max_ungrounded_outputs": 0
+  },
+  "cases": [
+    {
+      "id": "local_file_tooling_request",
+      "workflow": "default_local_file_workflow",
+      "expected_steps": [
+        {
+          "turn_id": "turn-001",
+          "tool_family": "workspace",
+          "tool_name": "file_search",
+          "parameters_subset": {
+            "scope": "repo"
+          },
+          "decision": "continue"
+        },
+        {
+          "turn_id": "turn-001",
+          "tool_family": "workspace",
+          "tool_name": "file_read",
+          "parameters_subset": {
+            "path": "docs/workspace/TODO.md"
+          },
+          "decision": "stop"
+        }
+      ],
+      "actual_steps": [
+        {
+          "turn_id": "turn-001",
+          "tool_family": "workspace",
+          "tool_name": "file_search",
+          "parameters": {
+            "scope": "repo",
+            "query": "TODO"
+          },
+          "decision": "continue",
+          "receipt": "receipt-local-search-001"
+        },
+        {
+          "turn_id": "turn-001",
+          "tool_family": "workspace",
+          "tool_name": "file_read",
+          "parameters": {
+            "path": "docs/workspace/TODO.md"
+          },
+          "decision": "stop",
+          "receipt": "receipt-local-read-001"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "final_answer",
+          "depends_on_receipts": ["receipt-local-search-001", "receipt-local-read-001"],
+          "cites_receipts": ["receipt-local-search-001", "receipt-local-read-001"]
+        }
+      ]
+    },
+    {
+      "id": "issue_synthesis_from_phase_trace",
+      "workflow": "eval_issue_synthesis_workflow",
+      "expected_steps": [
+        {
+          "turn_id": "turn-002",
+          "tool_family": "orchestration",
+          "tool_name": "phase_trace_read",
+          "parameters_subset": {
+            "trace_id": "trace-issue-001"
+          },
+          "decision": "continue"
+        },
+        {
+          "turn_id": "turn-002",
+          "tool_family": "orchestration",
+          "tool_name": "issue_draft",
+          "parameters_subset": {
+            "requires_replay": true
+          },
+          "decision": "stop"
+        }
+      ],
+      "actual_steps": [
+        {
+          "turn_id": "turn-002",
+          "tool_family": "orchestration",
+          "tool_name": "phase_trace_read",
+          "parameters": {
+            "trace_id": "trace-issue-001"
+          },
+          "decision": "continue",
+          "receipt": "receipt-trace-read-001"
+        },
+        {
+          "turn_id": "turn-002",
+          "tool_family": "orchestration",
+          "tool_name": "issue_draft",
+          "parameters": {
+            "requires_replay": true,
+            "severity_floor": "medium"
+          },
+          "decision": "stop",
+          "receipt": "receipt-issue-draft-001"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "issue_draft",
+          "depends_on_receipts": ["receipt-trace-read-001", "receipt-issue-draft-001"],
+          "cites_receipts": ["receipt-trace-read-001", "receipt-issue-draft-001"]
+        }
+      ]
+    },
+    {
+      "id": "policy_denied_tool_request",
+      "workflow": "policy_denial_workflow",
+      "expected_steps": [
+        {
+          "turn_id": "turn-003",
+          "tool_family": "policy",
+          "tool_name": "capability_check",
+          "parameters_subset": {
+            "capability": "workspace_read"
+          },
+          "decision": "continue"
+        },
+        {
+          "turn_id": "turn-003",
+          "tool_family": "orchestration",
+          "tool_name": "safe_finalization",
+          "parameters_subset": {
+            "fallback": "policy_denied"
+          },
+          "decision": "stop"
+        }
+      ],
+      "actual_steps": [
+        {
+          "turn_id": "turn-003",
+          "tool_family": "policy",
+          "tool_name": "capability_check",
+          "parameters": {
+            "capability": "workspace_read",
+            "domain": "client_ingress"
+          },
+          "decision": "continue",
+          "receipt": "receipt-policy-check-001"
+        },
+        {
+          "turn_id": "turn-003",
+          "tool_family": "orchestration",
+          "tool_name": "safe_finalization",
+          "parameters": {
+            "fallback": "policy_denied"
+          },
+          "decision": "stop",
+          "receipt": "receipt-safe-finalization-001"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "final_answer",
+          "depends_on_receipts": ["receipt-policy-check-001", "receipt-safe-finalization-001"],
+          "cites_receipts": ["receipt-policy-check-001", "receipt-safe-finalization-001"]
+        }
+      ]
+    }
+  ]
+}

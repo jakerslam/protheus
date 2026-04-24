@@ -1,0 +1,128 @@
+{
+  "type": "eval_trace_localization_cases",
+  "schema_version": 1,
+  "thresholds": {
+    "min_cases": 4,
+    "min_exact_or_near_span_rate": 1.0,
+    "max_wrong_phase": 0,
+    "max_unsupported_cause": 0
+  },
+  "cases": [
+    {
+      "id": "file_tool_request_misrouted_to_web",
+      "source_kind": "real_workflow_failure",
+      "failure_class": "wrong_tool_route",
+      "expected": {
+        "first_bad_phase": "tool_selection",
+        "first_bad_tool_call": "web_search",
+        "affected_receipt": "receipt-file-tool-misroute-001",
+        "failure_origin_confidence": 0.94,
+        "failure_span": {
+          "start": 3,
+          "end": 4
+        }
+      },
+      "predicted": {
+        "first_bad_phase": "tool_selection",
+        "first_bad_tool_call": "web_search",
+        "affected_receipt": "receipt-file-tool-misroute-001",
+        "supporting_receipts": ["receipt-file-tool-misroute-001"],
+        "failure_origin_confidence": 0.91,
+        "failure_span": {
+          "start": 3,
+          "end": 4
+        }
+      },
+      "evidence": {
+        "receipts": ["receipt-file-tool-misroute-001", "receipt-file-tool-misroute-002"]
+      }
+    },
+    {
+      "id": "workflow_gate_repeated_boilerplate",
+      "source_kind": "real_workflow_failure",
+      "failure_class": "repeated_response_loop",
+      "expected": {
+        "first_bad_phase": "finalization",
+        "first_bad_tool_call": "none",
+        "affected_receipt": "receipt-workflow-finalize-001",
+        "failure_origin_confidence": 0.88,
+        "failure_span": {
+          "start": 7,
+          "end": 8
+        }
+      },
+      "predicted": {
+        "first_bad_phase": "finalization",
+        "first_bad_tool_call": "none",
+        "affected_receipt": "receipt-workflow-finalize-001",
+        "supporting_receipts": ["receipt-workflow-finalize-001"],
+        "failure_origin_confidence": 0.84,
+        "failure_span": {
+          "start": 6,
+          "end": 8
+        }
+      },
+      "evidence": {
+        "receipts": ["receipt-workflow-finalize-001"]
+      }
+    },
+    {
+      "id": "policy_block_confused_with_provider_outage",
+      "source_kind": "real_workflow_failure",
+      "failure_class": "policy_block_confusion",
+      "expected": {
+        "first_bad_phase": "policy_gate",
+        "first_bad_tool_call": "file_list",
+        "affected_receipt": "receipt-policy-boundary-001",
+        "failure_origin_confidence": 0.9,
+        "failure_span": {
+          "start": 2,
+          "end": 2
+        }
+      },
+      "predicted": {
+        "first_bad_phase": "policy_gate",
+        "first_bad_tool_call": "file_list",
+        "affected_receipt": "receipt-policy-boundary-001",
+        "supporting_receipts": ["receipt-policy-boundary-001"],
+        "failure_origin_confidence": 0.87,
+        "failure_span": {
+          "start": 2,
+          "end": 2
+        }
+      },
+      "evidence": {
+        "receipts": ["receipt-policy-boundary-001"]
+      }
+    },
+    {
+      "id": "no_response_after_tool_failure",
+      "source_kind": "real_workflow_failure",
+      "failure_class": "no_response",
+      "expected": {
+        "first_bad_phase": "recovery",
+        "first_bad_tool_call": "file_read",
+        "affected_receipt": "receipt-recovery-no-response-001",
+        "failure_origin_confidence": 0.86,
+        "failure_span": {
+          "start": 5,
+          "end": 6
+        }
+      },
+      "predicted": {
+        "first_bad_phase": "recovery",
+        "first_bad_tool_call": "file_read",
+        "affected_receipt": "receipt-recovery-no-response-001",
+        "supporting_receipts": ["receipt-recovery-no-response-001"],
+        "failure_origin_confidence": 0.82,
+        "failure_span": {
+          "start": 5,
+          "end": 6
+        }
+      },
+      "evidence": {
+        "receipts": ["receipt-recovery-no-response-001"]
+      }
+    }
+  ]
+}

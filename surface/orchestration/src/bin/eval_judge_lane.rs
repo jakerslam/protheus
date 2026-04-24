@@ -55,7 +55,10 @@ fn write_json(path: &str, value: &Value) -> io::Result<()> {
     ensure_parent(path)?;
     fs::write(
         path,
-        format!("{}\n", serde_json::to_string_pretty(value).unwrap_or_default()),
+        format!(
+            "{}\n",
+            serde_json::to_string_pretty(value).unwrap_or_default()
+        ),
     )
 }
 
@@ -106,19 +109,18 @@ fn issue_class_by_id(issue_id: &str) -> &'static str {
 fn critical_classes(taxonomy: &Value) -> BTreeSet<String> {
     array_at(taxonomy, "classes")
         .iter()
-        .filter(|row| row.get("critical").and_then(Value::as_bool).unwrap_or(false))
+        .filter(|row| {
+            row.get("critical")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        })
         .filter_map(|row| row.get("id").and_then(Value::as_str))
         .map(ToString::to_string)
         .collect()
 }
 
 fn eligible_models() -> BTreeSet<&'static str> {
-    BTreeSet::from([
-        "gpt-5.5",
-        "gpt-5.4",
-        "gpt-5.3-codex",
-        "gpt-5.3-codex-spark",
-    ])
+    BTreeSet::from(["gpt-5.5", "gpt-5.4", "gpt-5.3-codex", "gpt-5.3-codex-spark"])
 }
 
 fn select_model(monitor: &Value) -> Value {
@@ -130,7 +132,10 @@ fn select_model(monitor: &Value) -> Value {
     let (candidate, source) = if !env_model.trim().is_empty() {
         (env_model.trim().to_string(), "env:INFRING_EVAL_JUDGE_MODEL")
     } else if !monitor_model.trim().is_empty() {
-        (monitor_model.trim().to_string(), "monitor.troubleshooting_latest_eval.model")
+        (
+            monitor_model.trim().to_string(),
+            "monitor.troubleshooting_latest_eval.model",
+        )
     } else {
         (DEFAULT_MODEL.to_string(), "default")
     };
@@ -203,7 +208,10 @@ fn issue_ready(
     if array_at(issue, "acceptance_criteria").is_empty() {
         blockers.push("missing_acceptance_criteria".to_string());
     }
-    let confidence = issue.get("confidence").and_then(Value::as_f64).unwrap_or(0.0);
+    let confidence = issue
+        .get("confidence")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0);
     if confidence < min_confidence {
         blockers.push("confidence_below_threshold".to_string());
     }
@@ -225,8 +233,13 @@ fn judge_rows(
         .map(|issue| {
             let issue_id = str_at(issue, "id");
             let issue_class = issue_class_by_id(issue_id);
-            let (ready, blockers, support) =
-                issue_ready(issue, issue_class, known_classes, phase_trace, min_confidence);
+            let (ready, blockers, support) = issue_ready(
+                issue,
+                issue_class,
+                known_classes,
+                phase_trace,
+                min_confidence,
+            );
             let evidence = array_at(issue, "evidence")
                 .iter()
                 .take(4)
@@ -271,7 +284,8 @@ fn support_summary(rows: &[Value]) -> BTreeMap<String, usize> {
 
 fn run() -> io::Result<(bool, Value)> {
     let args: Vec<String> = env::args().skip(1).collect();
-    let monitor_path = parse_flag(&args, "monitor").unwrap_or_else(|| DEFAULT_MONITOR_PATH.to_string());
+    let monitor_path =
+        parse_flag(&args, "monitor").unwrap_or_else(|| DEFAULT_MONITOR_PATH.to_string());
     let phase_trace_path =
         parse_flag(&args, "phase-trace").unwrap_or_else(|| DEFAULT_PHASE_TRACE_PATH.to_string());
     let taxonomy_path =
@@ -285,7 +299,12 @@ fn run() -> io::Result<(bool, Value)> {
     let taxonomy = read_json(&taxonomy_path);
     let known_classes = critical_classes(&taxonomy);
     let model = select_model(&monitor);
-    let rows = judge_rows(&monitor, &phase_trace, &known_classes, DEFAULT_MIN_CONFIDENCE);
+    let rows = judge_rows(
+        &monitor,
+        &phase_trace,
+        &known_classes,
+        DEFAULT_MIN_CONFIDENCE,
+    );
     let unsupported = rows
         .iter()
         .filter(|row| {
@@ -296,7 +315,11 @@ fn run() -> io::Result<(bool, Value)> {
         .count();
     let ready = rows
         .iter()
-        .filter(|row| row.get("issue_readiness").and_then(Value::as_bool).unwrap_or(false))
+        .filter(|row| {
+            row.get("issue_readiness")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        })
         .count();
     let ok = !rows.is_empty() && unsupported == 0 && ready == rows.len();
     let report = json!({
@@ -333,8 +356,16 @@ fn run() -> io::Result<(bool, Value)> {
 fn main() -> ExitCode {
     match run() {
         Ok((ok, report)) => {
-            let _ = writeln!(io::stdout(), "{}", serde_json::to_string(&report).unwrap_or_default());
-            if ok { ExitCode::SUCCESS } else { ExitCode::from(1) }
+            let _ = writeln!(
+                io::stdout(),
+                "{}",
+                serde_json::to_string(&report).unwrap_or_default()
+            );
+            if ok {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::from(1)
+            }
         }
         Err(err) => {
             let _ = writeln!(io::stderr(), "eval judge lane failed: {err}");

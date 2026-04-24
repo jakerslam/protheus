@@ -4,10 +4,14 @@ use std::io::{self, Write};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const DEFAULT_PHASE_TRACE_SOURCE: &str = "local/state/ops/orchestration/workflow_phase_trace_latest.json";
-const DEFAULT_PHASE_TRACE_OUT: &str = "local/state/ops/orchestration/workflow_phase_trace_latest.json";
-const DEFAULT_PHASE_TRACE_HISTORY: &str = "local/state/ops/orchestration/workflow_phase_trace_history.jsonl";
-const DEFAULT_PHASE_TRACE_ARTIFACT: &str = "core/local/artifacts/eval_phase_trace_persist_current.json";
+const DEFAULT_PHASE_TRACE_SOURCE: &str =
+    "local/state/ops/orchestration/workflow_phase_trace_latest.json";
+const DEFAULT_PHASE_TRACE_OUT: &str =
+    "local/state/ops/orchestration/workflow_phase_trace_latest.json";
+const DEFAULT_PHASE_TRACE_HISTORY: &str =
+    "local/state/ops/orchestration/workflow_phase_trace_history.jsonl";
+const DEFAULT_PHASE_TRACE_ARTIFACT: &str =
+    "core/local/artifacts/eval_phase_trace_persist_current.json";
 const DEFAULT_ADVERSARIAL_CASES: &str =
     "surface/orchestration/fixtures/eval/eval_adversarial_routing_cases.json";
 const DEFAULT_ADVERSARIAL_OUT: &str = "core/local/artifacts/eval_adversarial_routing_current.json";
@@ -70,7 +74,10 @@ fn write_json(path: &str, value: &Value) -> io::Result<()> {
 fn append_jsonl(path: &str, value: &Value) -> io::Result<()> {
     ensure_parent(path)?;
     let payload = serde_json::to_string(value).unwrap_or_else(|_| "{}".to_string());
-    let mut file = fs::OpenOptions::new().create(true).append(true).open(path)?;
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)?;
     writeln!(file, "{payload}")
 }
 
@@ -205,7 +212,12 @@ pub fn run_adversarial_routing(args: &[String]) -> i32 {
     let cases = read_json(&cases_path);
     let mut rows = Vec::new();
     let mut passed = 0_u64;
-    for case in cases.get("cases").and_then(|v| v.as_array()).into_iter().flatten() {
+    for case in cases
+        .get("cases")
+        .and_then(|v| v.as_array())
+        .into_iter()
+        .flatten()
+    {
         let prompt = str_at(case, &["prompt"]).unwrap_or("");
         let expected = str_at(case, &["expected_route"]).unwrap_or("unknown");
         let actual = infer_route(
@@ -251,7 +263,12 @@ pub fn run_workflow_selection(args: &[String]) -> i32 {
     let mut appropriate = 0_u64;
     let mut simpler_sufficed = 0_u64;
     let mut justified = 0_u64;
-    for case in cases.get("cases").and_then(|v| v.as_array()).into_iter().flatten() {
+    for case in cases
+        .get("cases")
+        .and_then(|v| v.as_array())
+        .into_iter()
+        .flatten()
+    {
         let prompt = str_at(case, &["prompt"]).unwrap_or("");
         let selected = str_at(case, &["selected_workflow"]).unwrap_or("unknown");
         let expected = workflow_for(prompt);
@@ -268,7 +285,8 @@ pub fn run_workflow_selection(args: &[String]) -> i32 {
         }
         rows.push(json!({"id": str_at(case, &["id"]).unwrap_or("unknown"), "selected_workflow": selected, "expected_workflow": expected, "appropriate": ok, "simpler_workflow_would_suffice": bool_at(case, &["simpler_workflow_would_suffice"]), "recovery_escalation_justified": recovery_justified}));
     }
-    let ok = !rows.is_empty() && appropriate as usize == rows.len() && justified as usize == rows.len();
+    let ok =
+        !rows.is_empty() && appropriate as usize == rows.len() && justified as usize == rows.len();
     let report = json!({
         "type": "eval_workflow_selection_quality",
         "schema_version": 1,

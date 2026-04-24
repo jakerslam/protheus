@@ -3,6 +3,9 @@
   "schema_version": 1,
   "global": {
     "judge_human_min_samples": 5,
-    "judge_human_agreement_min": 0.7
+    "judge_human_agreement_min": 0.7,
+    "judge_human_ci_max_half_width": 0.45,
+    "judge_human_sensitivity_min": 0.6,
+    "judge_human_specificity_min": 0.6
   }
 }

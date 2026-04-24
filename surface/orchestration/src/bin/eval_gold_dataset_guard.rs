@@ -8,7 +8,8 @@ use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const DEFAULT_DATASET_PATH: &str = "surface/orchestration/fixtures/eval/eval_gold_dataset_v1.jsonl";
-const DEFAULT_TAXONOMY_PATH: &str = "surface/orchestration/fixtures/eval/eval_issue_taxonomy_v1.json";
+const DEFAULT_TAXONOMY_PATH: &str =
+    "surface/orchestration/fixtures/eval/eval_issue_taxonomy_v1.json";
 const DEFAULT_OUT_PATH: &str = "core/local/artifacts/eval_gold_dataset_schema_guard_current.json";
 const DEFAULT_OUT_LATEST_PATH: &str = "artifacts/eval_gold_dataset_schema_guard_latest.json";
 
@@ -95,7 +96,11 @@ fn critical_classes(taxonomy: &Value) -> BTreeSet<String> {
         .and_then(Value::as_array)
         .into_iter()
         .flatten()
-        .filter(|row| row.get("critical").and_then(Value::as_bool).unwrap_or(false))
+        .filter(|row| {
+            row.get("critical")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        })
         .filter_map(|row| row.get("id").and_then(Value::as_str))
         .map(ToString::to_string)
         .collect()
@@ -125,7 +130,8 @@ fn validate_rows(
         let row_num = idx + 1;
         for field in ["id", "source_event_id", "ts", "prompt", "assistant_text"] {
             if str_field(row, field).trim().is_empty() {
-                failures.push(json!({"row": row_num, "reason": format!("missing_or_empty:{field}")}));
+                failures
+                    .push(json!({"row": row_num, "reason": format!("missing_or_empty:{field}")}));
             }
         }
         let id = str_field(row, "id").to_string();
@@ -149,7 +155,8 @@ fn validate_rows(
             failures.push(json!({"row": row_num, "reason": format!("unknown_or_noncritical_issue_class:{issue_class}")}));
         }
         if !severities.contains(&severity) {
-            failures.push(json!({"row": row_num, "reason": format!("invalid_severity:{severity}")}));
+            failures
+                .push(json!({"row": row_num, "reason": format!("invalid_severity:{severity}")}));
         }
         if expected_fix.trim().len() < 12 {
             failures.push(json!({"row": row_num, "reason": "expected_fix_too_short"}));
@@ -164,10 +171,12 @@ fn validate_rows(
     for class_id in critical {
         let entry = coverage.entry(class_id.clone()).or_default();
         if entry.positive == 0 {
-            failures.push(json!({"row": 0, "reason": format!("missing_positive_example:{class_id}")}));
+            failures
+                .push(json!({"row": 0, "reason": format!("missing_positive_example:{class_id}")}));
         }
         if entry.negative == 0 {
-            failures.push(json!({"row": 0, "reason": format!("missing_negative_example:{class_id}")}));
+            failures
+                .push(json!({"row": 0, "reason": format!("missing_negative_example:{class_id}")}));
         }
     }
 
@@ -176,10 +185,13 @@ fn validate_rows(
 
 fn run() -> io::Result<(bool, Value)> {
     let args: Vec<String> = env::args().skip(1).collect();
-    let dataset_path = parse_flag(&args, "dataset").unwrap_or_else(|| DEFAULT_DATASET_PATH.to_string());
-    let taxonomy_path = parse_flag(&args, "taxonomy").unwrap_or_else(|| DEFAULT_TAXONOMY_PATH.to_string());
+    let dataset_path =
+        parse_flag(&args, "dataset").unwrap_or_else(|| DEFAULT_DATASET_PATH.to_string());
+    let taxonomy_path =
+        parse_flag(&args, "taxonomy").unwrap_or_else(|| DEFAULT_TAXONOMY_PATH.to_string());
     let out_path = parse_flag(&args, "out").unwrap_or_else(|| DEFAULT_OUT_PATH.to_string());
-    let latest_path = parse_flag(&args, "out-latest").unwrap_or_else(|| DEFAULT_OUT_LATEST_PATH.to_string());
+    let latest_path =
+        parse_flag(&args, "out-latest").unwrap_or_else(|| DEFAULT_OUT_LATEST_PATH.to_string());
 
     let taxonomy = read_json(&taxonomy_path)?;
     let rows = read_jsonl(&dataset_path)?;
@@ -217,7 +229,10 @@ fn run() -> io::Result<(bool, Value)> {
     });
     ensure_parent(&out_path)?;
     ensure_parent(&latest_path)?;
-    let payload = format!("{}\n", serde_json::to_string_pretty(&report).unwrap_or_default());
+    let payload = format!(
+        "{}\n",
+        serde_json::to_string_pretty(&report).unwrap_or_default()
+    );
     fs::write(&out_path, &payload)?;
     fs::write(&latest_path, payload)?;
     Ok((ok, report))
@@ -226,8 +241,16 @@ fn run() -> io::Result<(bool, Value)> {
 fn main() -> ExitCode {
     match run() {
         Ok((ok, report)) => {
-            let _ = writeln!(io::stdout(), "{}", serde_json::to_string(&report).unwrap_or_default());
-            if ok { ExitCode::SUCCESS } else { ExitCode::from(1) }
+            let _ = writeln!(
+                io::stdout(),
+                "{}",
+                serde_json::to_string(&report).unwrap_or_default()
+            );
+            if ok {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::from(1)
+            }
         }
         Err(err) => {
             let _ = writeln!(io::stderr(), "eval gold dataset guard failed: {err}");
