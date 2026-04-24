@@ -1,0 +1,41 @@
+{
+  "type": "eval_adversarial_routing_cases",
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "local-file-intent-sounds-like-web",
+      "prompt": "look at the local html file and tell me why the link opens a website",
+      "policy_state": "allowed",
+      "tool_result_state": "normal",
+      "expected_route": "workspace"
+    },
+    {
+      "id": "web-intent-mentions-files",
+      "prompt": "search online for the latest docs about file upload APIs",
+      "policy_state": "allowed",
+      "tool_result_state": "normal",
+      "expected_route": "web"
+    },
+    {
+      "id": "policy-denied-not-unavailable",
+      "prompt": "list the local directory",
+      "policy_state": "denied",
+      "tool_result_state": "normal",
+      "expected_route": "policy_denied"
+    },
+    {
+      "id": "empty-tool-results",
+      "prompt": "search for the workspace fixture",
+      "policy_state": "allowed",
+      "tool_result_state": "empty",
+      "expected_route": "empty_result_recovery"
+    },
+    {
+      "id": "frustrated-followup",
+      "prompt": "what is going on, why did that happen again",
+      "policy_state": "allowed",
+      "tool_result_state": "normal",
+      "expected_route": "frustrated_followup_recovery"
+    }
+  ]
+}

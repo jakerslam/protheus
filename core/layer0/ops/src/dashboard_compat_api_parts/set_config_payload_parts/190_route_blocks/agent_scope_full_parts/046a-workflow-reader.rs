@@ -217,6 +217,12 @@ fn workflow_name_hint_from_mode(workflow_mode: &str) -> String {
         return String::new();
     }
     let lowered = cleaned.to_ascii_lowercase();
+    if lowered == "model_direct_answer" {
+        return "simple_conversation_v1".to_string();
+    }
+    if lowered == "model_inline_tool_execution" {
+        return "complex_prompt_chain_v1".to_string();
+    }
     for marker in ["workflow=", "workflow:", "workflow/"] {
         if let Some(idx) = lowered.find(marker) {
             let start = idx + marker.len();

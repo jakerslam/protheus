@@ -11,7 +11,7 @@ type ThresholdTriple = {
   fpr_max: number;
 };
 
-const DEFAULT_DATASET_PATH = 'tests/tooling/fixtures/eval_gold_dataset_seed.jsonl';
+const DEFAULT_DATASET_PATH = 'surface/orchestration/fixtures/eval/eval_gold_dataset_v1.jsonl';
 const DEFAULT_MONITOR_PATH = 'local/state/ops/eval_agent_chat_monitor/latest.json';
 const DEFAULT_THRESHOLDS_PATH = 'tests/tooling/config/eval_quality_thresholds.json';
 const DEFAULT_OUT_PATH = 'core/local/artifacts/eval_quality_metrics_current.json';
@@ -20,9 +20,9 @@ const DEFAULT_MARKDOWN_PATH = 'local/workspace/reports/EVAL_QUALITY_METRICS_CURR
 
 const ISSUE_CLASS_BY_ID: Record<string, string> = {
   workflow_retry_macro_template_detected: 'response_loop',
-  workflow_route_automation_claim_detected: 'policy_block_misframing',
-  auto_tool_selection_claim_detected: 'wrong_tool_selection',
-  policy_block_template_detected: 'policy_block_misframing',
+  workflow_route_automation_claim_detected: 'bad_workflow_selection',
+  auto_tool_selection_claim_detected: 'auto_tool_selection_claim',
+  policy_block_template_detected: 'policy_block_confusion',
   file_tool_route_misdirection_detected: 'tool_output_misdirection',
   repeated_response_loop_detected: 'response_loop',
   unsupported_claim_detected: 'hallucination',
@@ -308,7 +308,7 @@ function run(argv: string[] = process.argv.slice(2)): number {
   const regressionConfig = thresholds?.regression_guard || {};
   const regressionEnabled = Boolean(regressionConfig.enabled);
   const regressionViolations: Array<Record<string, unknown>> = [];
-  if (regressionEnabled && previous?.metrics?.overall) {
+  if (!insufficientSignal && regressionEnabled && previous?.metrics?.overall) {
     const prev = previous.metrics.overall;
     const precisionDrop = Number(prev.precision || 0) - overall.precision;
     const recallDrop = Number(prev.recall || 0) - overall.recall;

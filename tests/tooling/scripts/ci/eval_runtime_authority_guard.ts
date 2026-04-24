@@ -84,7 +84,7 @@ function run(argv: string[] = process.argv.slice(2)): number {
     const source = readText(path.resolve(root, rel));
     checks.push({
       id: `wrapper_delegates_to_runtime_bin:${rel}`,
-      ok: source.includes('--bin') && source.includes('eval-runtime'),
+      ok: source.includes('--bin') && source.includes('eval_runtime'),
       detail: rel,
     });
     checks.push({

@@ -109,7 +109,7 @@ The lifecycle projection is emitted by `control_plane::lifecycle::build_lifecycl
 
 Response workflow payloads may include a control-plane trace object with:
 
-- `gates.need_tool_access` (T/F gate result + numbered family/tool menus)
+- `gates.need_tool_access` (Yes/No gate result + numbered family/tool menus)
 - `process_position` (current stage, index, total, percent)
 - `trace_streams.*` (separate render channels)
 - `export` metadata for JSON/JSONL/timeline artifacts

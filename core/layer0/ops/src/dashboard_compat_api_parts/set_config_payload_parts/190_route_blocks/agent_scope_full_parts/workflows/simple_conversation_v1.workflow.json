@@ -1,8 +1,8 @@
 {
   "name": "simple_conversation_v1",
   "workflow_type": "hard_agent_workflow",
-  "default": false,
-  "description": "Direct conversation menu interface. If the LLM submits F at gate 1, no tool menu is consumed and the final response is LLM-authored.",
+  "default": true,
+  "description": "Direct conversation menu interface. If the LLM submits No at gate 1, no tool menu is consumed and the final response is LLM-authored.",
   "stages": [
     "gate_1_need_tool_access_menu",
     "gate_6_llm_final_output"

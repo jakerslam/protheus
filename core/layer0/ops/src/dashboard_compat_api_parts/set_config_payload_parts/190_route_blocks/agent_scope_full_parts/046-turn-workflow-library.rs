@@ -112,7 +112,7 @@ fn workflow_conversation_bypass_control_for_turn(
     json!({
         "enabled": false,
         "source": "retired",
-        "reason": "direct_response_uses_gate_1_false",
+        "reason": "direct_response_uses_gate_1_no",
         "blocked": false,
         "block_reason": "",
         "requested_enable": requested_enable,
@@ -192,7 +192,7 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
         canonical_gate
             .get("gate_decision_mode")
             .and_then(Value::as_str)
-            .unwrap_or("manual_need_tool_access"),
+            .unwrap_or("manual_need_tools_yes_no"),
         40,
     );
     let reason_code = clean_text(
@@ -273,7 +273,7 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
         canonical_gate
             .get("gate_prompt")
             .and_then(Value::as_str)
-            .unwrap_or("Need tool access for this query? T/F"),
+            .unwrap_or("Need tools? Yes/No"),
         120,
     );
     let tool_family_menu = canonical_gate
@@ -304,7 +304,7 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
         60,
     );
     json!({
-        "contract": "tool_decision_tree_v3",
+        "contract": "manual_toolbox_gate_v1",
         "workflow_gate_contract": "tool_menu_interface_v1",
         "gate_decision_mode": gate_decision_mode,
         "reason_code": reason_code,
@@ -341,8 +341,8 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
                 "required": false,
                 "selection_mode": "multiple_choice",
                 "options": [
-                    {"option": "F", "key": "no_tools", "label": "No tools; answer directly"},
-                    {"option": "T", "key": "use_tool", "label": "Use a tool"}
+                    {"option": "No", "key": "no_tools", "label": "No tools; answer directly"},
+                    {"option": "Yes", "key": "use_tool", "label": "Use a tool"}
                 ],
                 "reason_code": reason_code
             },
@@ -390,30 +390,14 @@ fn workflow_library_prompt_context(message: &str, latent_tool_candidates: &[Valu
         tool_gate
             .get("gate_prompt")
             .and_then(Value::as_str)
-            .unwrap_or("Need tool access for this query? T/F"),
+            .unwrap_or("Need tools? Yes/No"),
         120,
-    );
-    let tool_family_menu = clean_text(
-        &tool_gate
-            .get("tool_family_menu")
-            .cloned()
-            .unwrap_or_else(|| json!([]))
-            .to_string(),
-        1_400,
-    );
-    let tool_menu_by_family = clean_text(
-        &tool_gate
-            .get("tool_menu_by_family")
-            .cloned()
-            .unwrap_or_else(|| json!({}))
-            .to_string(),
-        2_600,
     );
     clean_text(
         &format!(
-            "Workflow interface only: present exactly one gate at a time; do not recommend, infer, classify, explain, or inject final chat text. Gate 1 multiple choice: `{gate_prompt}` options `F) no tools, answer directly` and `T) use a tool`. If F, answer normally. If T, present only the numbered family menu: {tool_family_menu}. Then present only the selected family's numbered tool menu from: {tool_menu_by_family}. Then present only the selected tool's request_format as a data-entry field. After tool results, present only `1) finish` or `2) another tool`; final synthesis is authored by the model only.",
+            "Workflow interface only: present exactly one gate at a time; do not recommend, infer, classify, explain, or inject final chat text. Gate 1 multiple choice: `{gate_prompt}` options `No) no tools; answer directly` and `Yes) use a tool`. If No, answer normally. If Yes, continue to the next workflow gate. Final synthesis is authored by the model only.",
         ),
-        3_600,
+        900,
     )
 }
 
@@ -461,10 +445,25 @@ fn turn_workflow_stage_rows(
     } else {
         "no_post_synthesis_required"
     };
+    if !requires_final_llm && response_tools.is_empty() && workflow_events.is_empty() {
+        return vec![
+            json!({
+                "stage": "gate_1_need_tool_access_menu",
+                "status": "answered_no",
+                "selection_mode": "multiple_choice",
+                "question": "Need tools? Yes/No"
+            }),
+            json!({
+                "stage": "gate_6_llm_final_output",
+                "status": "skipped_not_required",
+                "source": "initial_llm_answer"
+            }),
+        ];
+    }
     vec![
         json!({
-            "stage": "workflow_gate",
-            "status": "enforced"
+            "stage": "gate_1_need_tool_access_menu",
+            "status": "presented"
         }),
         json!({
             "stage": "initial_model_interpretation",
@@ -501,6 +500,61 @@ fn turn_workflow_stage_rows(
     ]
 }
 
+fn turn_workflow_visibility(final_stage_status: &str) -> Value {
+    let status = clean_text(final_stage_status, 80);
+    let (ui_status, agent_process_status, debug_status) = match status.as_str() {
+        "pending_final_llm" => (
+            "Workflow at final synthesis; waiting for the LLM-authored answer.",
+            "Gate 6 active: compose final answer from current context.",
+            "gate_6_llm_final_output.pending_final_llm",
+        ),
+        "synthesized" => (
+            "Workflow complete; final answer was authored by the LLM.",
+            "Gate 6 complete: final answer submitted.",
+            "gate_6_llm_final_output.synthesized",
+        ),
+        "skipped_not_required" | "skipped_test" | "no_post_synthesis_required" => (
+            "Workflow complete; no tools selected and direct LLM answer is ready.",
+            "Gate 1 answered No: respond directly without tool menus.",
+            "gate_1_need_tool_access_menu.no_tools",
+        ),
+        "skipped_missing_model" => (
+            "Workflow paused; model provider is unavailable for final synthesis.",
+            "Gate 6 blocked: model provider unavailable.",
+            "gate_6_llm_final_output.skipped_missing_model",
+        ),
+        "withheld_non_llm_fallback_response" => (
+            "Workflow withheld a non-LLM fallback; waiting for an LLM-authored answer.",
+            "Gate 6 blocked: non-LLM fallback text cannot be sent as chat.",
+            "gate_6_llm_final_output.withheld_non_llm_fallback_response",
+        ),
+        "synthesis_failed" | "invoke_failed" => (
+            "Workflow final synthesis failed; no system fallback text will be injected.",
+            "Gate 6 failed: retry needs an LLM-authored response.",
+            "gate_6_llm_final_output.final_synthesis_failed",
+        ),
+        _ => (
+            "Workflow state visible; waiting for the next LLM-controlled step.",
+            "Follow the currently presented workflow gate.",
+            "workflow.state_visible",
+        ),
+    };
+    json!({
+        "current_stage": "gate_6_llm_final_output",
+        "current_stage_status": status,
+        "ui_status": ui_status,
+        "agent_process_status": agent_process_status,
+        "debug_status": debug_status,
+        "final_chat_authority": "llm_only",
+        "system_injected_chat_text_allowed": false,
+        "formats": {
+            "ui": ui_status,
+            "agent_process": agent_process_status,
+            "debug": debug_status
+        }
+    })
+}
+
 fn turn_workflow_metadata(
     workflow_mode: &str,
     response_tools: &[Value],
@@ -521,11 +575,38 @@ fn turn_workflow_metadata(
     let requires_final_llm =
         turn_workflow_requires_final_llm(response_tools, workflow_events, draft_response);
     let tool_gate = workflow_turn_tool_decision_tree(message);
+    let final_stage_status = if requires_final_llm {
+        "pending_final_llm"
+    } else {
+        "no_post_synthesis_required"
+    };
+    let visibility = turn_workflow_visibility(final_stage_status);
     json!({
         "contract": "agent_workflow_library_v1",
+        "current_stage": visibility
+            .get("current_stage")
+            .cloned()
+            .unwrap_or_else(|| json!("gate_6_llm_final_output")),
+        "current_stage_status": visibility
+            .get("current_stage_status")
+            .cloned()
+            .unwrap_or_else(|| json!(final_stage_status)),
+        "ui_status": visibility
+            .get("ui_status")
+            .cloned()
+            .unwrap_or_else(|| json!("Workflow state visible.")),
+        "agent_process_status": visibility
+            .get("agent_process_status")
+            .cloned()
+            .unwrap_or_else(|| json!("Follow the currently presented workflow gate.")),
+        "debug_status": visibility
+            .get("debug_status")
+            .cloned()
+            .unwrap_or_else(|| json!("workflow.state_visible")),
+        "visibility": visibility,
         "workflow_gate": {
-            "required": true,
-            "status": "enforced"
+            "required": false,
+            "status": "presented"
         },
         "tool_gate": tool_gate,
         "library": {
@@ -540,7 +621,7 @@ fn turn_workflow_metadata(
         "failure_summary": clean_text(&response_tools_failure_reason_for_user(response_tools, 4), 2_000),
         "workflow_control": {
             "mode": "tool_menu_interface_v1",
-            "direct_response_path": "gate_1_false"
+            "direct_response_path": "gate_1_no"
         },
         "system_events": workflow_events,
         "stage_statuses": turn_workflow_stage_rows(workflow_mode, response_tools, workflow_events, draft_response),
@@ -552,6 +633,28 @@ fn turn_workflow_metadata(
 }
 
 fn set_turn_workflow_final_stage_status(workflow: &mut Value, status: &str) {
+    let visibility = turn_workflow_visibility(status);
+    workflow["current_stage"] = visibility
+        .get("current_stage")
+        .cloned()
+        .unwrap_or_else(|| json!("gate_6_llm_final_output"));
+    workflow["current_stage_status"] = visibility
+        .get("current_stage_status")
+        .cloned()
+        .unwrap_or_else(|| json!(clean_text(status, 80)));
+    workflow["ui_status"] = visibility
+        .get("ui_status")
+        .cloned()
+        .unwrap_or_else(|| json!("Workflow state visible."));
+    workflow["agent_process_status"] = visibility
+        .get("agent_process_status")
+        .cloned()
+        .unwrap_or_else(|| json!("Follow the currently presented workflow gate."));
+    workflow["debug_status"] = visibility
+        .get("debug_status")
+        .cloned()
+        .unwrap_or_else(|| json!("workflow.state_visible"));
+    workflow["visibility"] = visibility;
     if let Some(rows) = workflow
         .get_mut("stage_statuses")
         .and_then(Value::as_array_mut)
@@ -560,7 +663,7 @@ fn set_turn_workflow_final_stage_status(workflow: &mut Value, status: &str) {
             if row
                 .get("stage")
                 .and_then(Value::as_str)
-                .map(|value| value == "final_llm_response")
+                .map(|value| value == "final_llm_response" || value == "gate_6_llm_final_output")
                 .unwrap_or(false)
             {
                 row["status"] = Value::String(clean_text(status, 80));

@@ -4,7 +4,7 @@ fn workflow_decision_tree_v2_classifies_file_edits_as_task_route() {
     );
     assert_eq!(
         decision.get("gate_decision_mode").and_then(Value::as_str),
-        Some("manual_need_tool_access")
+        Some("manual_need_tools_yes_no")
     );
     assert_eq!(
         decision

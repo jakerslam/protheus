@@ -1,4 +1,4 @@
-fn workflow_library_owns_direct_answer_final_response() {
+fn workflow_library_allows_direct_answer_without_second_synthesis() {
     let root = governance_temp_root();
     let snapshot = governance_ok_snapshot();
     let created = handle(
@@ -23,10 +23,7 @@ fn workflow_library_owns_direct_answer_final_response() {
         &json!({
             "queue": [
                 {
-                    "response": "Initial model draft that should not be returned directly."
-                },
-                {
-                    "response": "Workflow-authored final answer for the user."
+                    "response": "Hello, the direct path is working."
                 }
             ],
             "calls": []
@@ -43,14 +40,14 @@ fn workflow_library_owns_direct_answer_final_response() {
     assert_eq!(response.status, 200);
     assert_eq!(
         response.payload.get("response").and_then(Value::as_str),
-        Some("Workflow-authored final answer for the user.")
+        Some("Hello, the direct path is working.")
     );
     assert_eq!(
         response
             .payload
             .pointer("/response_workflow/final_llm_response/status")
             .and_then(Value::as_str),
-        Some("synthesized")
+        Some("skipped_not_required")
     );
     assert_eq!(
         response
@@ -65,6 +62,34 @@ fn workflow_library_owns_direct_answer_final_response() {
             .pointer("/response_workflow/selected_workflow/gate_contract")
             .and_then(Value::as_str),
         Some("tool_menu_interface_v1")
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/response_workflow/library/default_workflow")
+            .and_then(Value::as_str),
+        Some("simple_conversation_v1")
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/response_workflow/stage_statuses/0/stage")
+            .and_then(Value::as_str),
+        Some("gate_1_need_tool_access_menu")
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/response_workflow/stage_statuses/0/status")
+            .and_then(Value::as_str),
+        Some("answered_no")
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/response_workflow/stage_statuses/1/stage")
+            .and_then(Value::as_str),
+        Some("gate_6_llm_final_output")
     );
 }
 

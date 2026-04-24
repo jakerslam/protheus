@@ -407,8 +407,8 @@
     #[test]
     fn chat_ui_route_classifier_ghost_copy_rewrite_keeps_normal_text() {
         let (rewritten, outcome) = rewrite_chat_ui_legacy_route_classifier_copy(
-            "Need tool access for this query? T/F",
+            "Need tools? Yes/No",
         );
         assert_eq!(outcome, "unchanged");
-        assert_eq!(rewritten, "Need tool access for this query? T/F");
+        assert_eq!(rewritten, "Need tools? Yes/No");
     }
