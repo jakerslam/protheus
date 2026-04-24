@@ -377,7 +377,7 @@ fn dashboard_selection_mode_defaults_to_read_memory_without_fallback() {
 }
 
 #[test]
-fn non_legacy_surface_adapter_fallback_uses_heuristics_and_stays_clarification_first() {
+fn non_legacy_surface_adapter_fallback_requires_authoritative_tool_probe() {
     let mut runtime = OrchestrationSurfaceRuntime::new();
     let package = runtime.orchestrate(
         OrchestrationRequest {
@@ -396,14 +396,14 @@ fn non_legacy_surface_adapter_fallback_uses_heuristics_and_stays_clarification_f
             && row
                 .probe_sources
                 .iter()
-                .any(|source| source == "heuristic.tool_hints_or_resource_kind")
+                .any(|source| source == "missing_probe: web_search")
     }));
     assert!(!package.selected_plan.capability_probes.iter().any(|row| {
         row.capability.is_tool_family()
             && row
                 .probe_sources
                 .iter()
-                .any(|source| source.starts_with("probe.required_for_typed_surface"))
+                .any(|source| source == "heuristic.tool_hints_or_resource_kind")
     }));
 }
 

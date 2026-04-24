@@ -5,6 +5,7 @@ Purpose:
 
 Scope examples:
 - Process lifecycle and isolation model
+- Execution-unit identity, lifecycle, budget, dependency, and receipt tracking
 - VFS/filesystem contract surface
 - Driver registration and syscall dispatch surfaces
 - Namespace, networking, and userland abstraction contracts

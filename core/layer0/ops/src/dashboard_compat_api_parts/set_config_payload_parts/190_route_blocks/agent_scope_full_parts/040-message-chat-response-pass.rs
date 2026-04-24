@@ -185,7 +185,8 @@ fn handle_message_chat_response_pass(
                 inline_tools_allowed,
             );
             response_text = tool_adjusted_response;
-            let allow_draft_retry_fallback = false;
+            let allow_draft_retry_fallback = inline_tools_suppressed
+                && message_requests_workspace_plus_web_comparison(message);
             let supplemental_comparison_tools =
                 if inline_tools_allowed || allow_draft_retry_fallback {
                     latent_tool_candidate_completion_cards(
@@ -212,7 +213,7 @@ fn handle_message_chat_response_pass(
                     response_text = supplemented_summary;
                 }
             }
-            if inline_tools_suppressed {
+            if inline_tools_suppressed && response_tools.is_empty() {
                 let direct_only_prompt = clean_text(
                     &format!(
                         "{}\n\nDirect-answer guard: unless the user explicitly requested tool execution in this turn, do not emit `<function=...>` calls. Respond directly in natural language.",

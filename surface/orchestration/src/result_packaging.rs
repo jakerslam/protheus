@@ -1,8 +1,8 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
-    ControlPlaneDecisionTrace, ControlPlaneLifecycleState, OrchestrationFallbackAction,
-    OrchestrationPlan, OrchestrationResultPackage, PlanStatus, PlanVariant, RecoveryReason,
-    RequestClass, RuntimeQualitySignals, StepStatus, WorkflowTemplate,
+    ControlPlaneDecisionTrace, ControlPlaneDecisionTraceStep, ControlPlaneLifecycleState,
+    OrchestrationFallbackAction, OrchestrationPlan, OrchestrationResultPackage, PlanStatus,
+    PlanVariant, RecoveryReason, RequestClass, RuntimeQualitySignals, StepStatus, WorkflowTemplate,
 };
 
 pub fn package_result(
@@ -304,5 +304,86 @@ fn decision_trace(plan: &OrchestrationPlan) -> ControlPlaneDecisionTrace {
             .collect(),
         confidence: plan.selected_plan.confidence,
         rationale,
+        receipt_metadata: decision_receipt_metadata(plan),
+        step_records: decision_step_records(plan),
     }
+}
+
+fn decision_step_records(plan: &OrchestrationPlan) -> Vec<ControlPlaneDecisionTraceStep> {
+    plan.selected_plan
+        .steps
+        .iter()
+        .map(|step| {
+            let status = plan
+                .execution_state
+                .steps
+                .iter()
+                .find(|row| row.step_id == step.step_id)
+                .map(|row| format!("{:?}", row.status).to_ascii_lowercase())
+                .unwrap_or_else(|| "unobserved".to_string());
+            ControlPlaneDecisionTraceStep {
+                step_id: step.step_id.clone(),
+                inputs: vec![
+                    format!("operation={}", step.operation),
+                    format!("capability={:?}", step.capability).to_ascii_lowercase(),
+                    format!("expected_contract_refs={}", step.expected_contract_refs.len()),
+                ],
+                chosen_path: format!("{:?}", step.target_contract).to_ascii_lowercase(),
+                alternatives_rejected: plan
+                    .alternative_plans
+                    .iter()
+                    .map(|candidate| candidate.plan_id.clone())
+                    .collect(),
+                confidence: plan.selected_plan.confidence,
+                receipt_metadata: std::iter::once(format!("step_status={status}"))
+                    .chain(
+                        step.expected_contract_refs
+                            .iter()
+                            .map(|id| format!("expected_core_contract={id}")),
+                    )
+                    .collect(),
+            }
+        })
+        .collect()
+}
+
+fn decision_receipt_metadata(plan: &OrchestrationPlan) -> Vec<String> {
+    let correlation = &plan.execution_state.correlation;
+    let mut metadata = vec![
+        format!(
+            "orchestration_trace_id={}",
+            correlation.orchestration_trace_id
+        ),
+        format!(
+            "expected_core_contract_count={}",
+            correlation.expected_core_contract_ids.len()
+        ),
+        format!(
+            "observed_core_receipt_count={}",
+            correlation.observed_core_receipt_ids.len()
+        ),
+        format!(
+            "observed_core_outcome_count={}",
+            correlation.observed_core_outcome_refs.len()
+        ),
+    ];
+    metadata.extend(
+        correlation
+            .expected_core_contract_ids
+            .iter()
+            .map(|id| format!("expected_core_contract={id}")),
+    );
+    metadata.extend(
+        correlation
+            .observed_core_receipt_ids
+            .iter()
+            .map(|id| format!("observed_core_receipt={id}")),
+    );
+    metadata.extend(
+        correlation
+            .observed_core_outcome_refs
+            .iter()
+            .map(|id| format!("observed_core_outcome={id}")),
+    );
+    metadata
 }

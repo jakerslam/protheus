@@ -113,9 +113,9 @@
           self.refreshChatInputOverlayMetrics();
         });
         try { this._chatInputOverlayObserver.observe(inputArea); } catch(_) {}
-        var lane = inputArea.querySelector('.chat-input-lane');
-        if (lane) {
-          try { this._chatInputOverlayObserver.observe(lane); } catch(_) {}
+        var inputLaneEl = inputArea.querySelector('.chat-input-lane');
+        if (inputLaneEl) {
+          try { this._chatInputOverlayObserver.observe(inputLaneEl); } catch(_) {}
         }
       }
       this._chatInputOverlayResizeHandler = function() {

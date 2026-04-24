@@ -553,7 +553,13 @@ function evaluateRatchet(
         }
       }
     }
-    if (improvementEvents === 0) {
+    const qualityFloorReached = recent.every((row) =>
+      lowerIsBetter.every((field) => {
+        const value = numberOrNull(row[field]);
+        return value != null && value <= minImprovementDelta;
+      }),
+    );
+    if (improvementEvents === 0 && !qualityFloorReached) {
       failures.push(
         `ratchet_no_improvement_window_exceeded:window=${improvementWindow}:min_improvement_delta=${minImprovementDelta.toFixed(4)}`,
       );
@@ -568,6 +574,43 @@ function persistRatchet(policy: PlannerPolicy, snapshot: any): void {
   const history = policy.paths?.history || '';
   if (latest) writeJsonArtifact(latest, snapshot);
   if (history) appendJsonLine(history, snapshot);
+}
+
+function buildTrendDeltas(metrics: PlannerMetrics | null, previous: any, historyRows: any[]): any {
+  const previousMetrics = previous?.metrics && typeof previous.metrics === 'object' ? previous.metrics : null;
+  const lowerIsBetter: Array<keyof PlannerMetrics> = [
+    'clarification_first_rate',
+    'degraded_rate',
+    'selected_plan_requires_clarification_rate',
+    'selected_plan_degraded_rate',
+    'heuristic_probe_rate',
+    'zero_executable_candidate_rate',
+    'all_candidates_require_clarification_rate',
+    'all_candidates_degraded_rate',
+  ];
+  const higherIsBetter: Array<keyof PlannerMetrics> = [
+    'request_count',
+    'average_candidate_count',
+  ];
+  const rows = [...lowerIsBetter.map((field) => ({ field, direction: 'lower_is_better' })), ...higherIsBetter.map((field) => ({ field, direction: 'higher_is_better' }))];
+  return {
+    previous_snapshot_present: Boolean(previousMetrics),
+    history_sample_count: historyRows.length,
+    deltas: rows.map((row) => {
+      const current = numberOrNull(metrics?.[row.field]);
+      const prior = numberOrNull(previousMetrics?.[row.field]);
+      const delta = current != null && prior != null ? current - prior : null;
+      return {
+        field: row.field,
+        direction: row.direction,
+        current,
+        previous: prior,
+        delta,
+        improved: delta == null ? null : row.direction === 'lower_is_better' ? delta < 0 : delta > 0,
+        regressed: delta == null ? null : row.direction === 'lower_is_better' ? delta > 0 : delta < 0,
+      };
+    }),
+  };
 }
 
 function toMarkdown(payload: any): string {
@@ -612,6 +655,15 @@ function toMarkdown(payload: any): string {
     lines.push('');
     lines.push('## Ratchet Failures');
     for (const row of payload.ratchet_failures) lines.push(`- ${row}`);
+  }
+  if (payload.trend_deltas) {
+    lines.push('');
+    lines.push('## Trend Deltas');
+    lines.push(`- previous_snapshot_present: ${Boolean(payload.trend_deltas.previous_snapshot_present)}`);
+    lines.push(`- history_sample_count: ${Number(payload.trend_deltas.history_sample_count || 0)}`);
+    for (const row of payload.trend_deltas.deltas || []) {
+      lines.push(`- ${row.field}: current=${row.current} previous=${row.previous} delta=${row.delta}`);
+    }
   }
   lines.push('');
   lines.push('## Output');
@@ -659,6 +711,7 @@ function run(argv: string[]): number {
   const policyFailures = evaluateThresholds(metrics, plannerPolicy);
   const consistencyFailures = evaluateMetricConsistency(metrics, plannerPolicy);
   const ratchetFailures = evaluateRatchet(metrics, plannerPolicy, previousLatest, historyRows);
+  const trendDeltas = buildTrendDeltas(metrics, previousLatest, historyRows);
   const metricFieldsPresent = metrics
     ? Object.values(metrics).filter((value) => numberOrNull(value) != null).length
     : 0;
@@ -699,6 +752,7 @@ function run(argv: string[]): number {
     policy_failures: policyFailures,
     consistency_failures: consistencyFailures,
     ratchet_failures: ratchetFailures,
+    trend_deltas: trendDeltas,
     output_excerpt: output,
   };
 

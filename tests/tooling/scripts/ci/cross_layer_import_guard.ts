@@ -12,6 +12,29 @@ const DEFAULT_OUT_MARKDOWN = 'local/workspace/reports/CROSS_LAYER_IMPORT_GUARD_C
 const SCAN_ROOTS = ['client', 'surface/orchestration', 'adapters'];
 const EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.mjs', '.cjs']);
 const ROOT_SPEC_PREFIXES = ['client/', 'core/', 'surface/', 'adapters/', 'tests/'];
+const BOUNDARY_RULES = [
+  {
+    rule_id: 'client_orchestration_internal_import_forbidden',
+    reason_id: 'shell_to_control_plane_internal_contract_violation',
+    source_layer: 'shell',
+    blocked_target: 'surface/orchestration internals',
+    policy_reference: 'docs/workspace/orchestration_ownership_policy.md#shell',
+  },
+  {
+    rule_id: 'orchestration_kernel_authority_import_forbidden',
+    reason_id: 'control_plane_to_kernel_authority_violation',
+    source_layer: 'control_plane',
+    blocked_target: 'kernel policy/admission/scheduler/receipt authority',
+    policy_reference: 'docs/workspace/orchestration_ownership_policy.md#control-plane',
+  },
+  {
+    rule_id: 'adapter_scheduler_admission_import_forbidden',
+    reason_id: 'gateway_to_kernel_or_control_plane_scheduler_authority_violation',
+    source_layer: 'gateway',
+    blocked_target: 'scheduler/admission authority',
+    policy_reference: 'docs/workspace/orchestration_ownership_policy.md#gateways',
+  },
+] as const;
 const IGNORED_DIR_NAMES = new Set([
   'node_modules',
   '.git',
@@ -67,7 +90,7 @@ function isCanonicalRelativePath(value: string): boolean {
   if (!value) return false;
   if (value.startsWith('/') || value.startsWith('\\')) return false;
   if (value.includes('..') || value.includes('\\') || value.includes('//')) return false;
-  return /^[A-Za-z0-9._/\-]+$/.test(value);
+  return /^[A-Za-z0-9._+/\-]+$/.test(value);
 }
 
 function hasCaseInsensitiveSuffix(value: string, suffix: string): boolean {
@@ -189,6 +212,8 @@ function isKernelPolicyAuthorityPath(target: string): boolean {
     lower.includes('policy_') ||
     lower.includes('/admission') ||
     lower.includes('admission_') ||
+    lower.includes('/receipt') ||
+    lower.includes('receipt_') ||
     lower.includes('/scheduler') ||
     lower.includes('scheduler_')
   );
@@ -271,7 +296,7 @@ function toMarkdown(payload: {
 
 function main(): number {
   const args = parseArgs(process.argv.slice(2));
-  const files = SCAN_ROOTS.flatMap((root) => walk(root));
+  const files = SCAN_ROOTS.flatMap((root) => walk(root)).sort((a, b) => a.localeCompare(b));
   const revision = currentRevision(ROOT);
   const violations: Violation[] = [];
   const edgeViolationCounts = new Map<string, number>();
@@ -315,9 +340,9 @@ function main(): number {
         reasonCounts.set(reasonId, (reasonCounts.get(reasonId) || 0) + 1);
       }
       if (isOrchestrationImportingKernelPolicyAuthority(sourcePath, target)) {
-        const reasonId = 'control_plane_to_kernel_policy_authority_violation';
+        const reasonId = 'control_plane_to_kernel_authority_violation';
         violations.push({
-          rule_id: 'orchestration_kernel_policy_import_forbidden',
+          rule_id: 'orchestration_kernel_authority_import_forbidden',
           reason_id: reasonId,
           file: sourcePath,
           spec,
@@ -326,7 +351,7 @@ function main(): number {
           target_layer: targetLayer,
           edge,
           policy_reference: 'docs/workspace/orchestration_ownership_policy.md#control-plane',
-          detail: 'orchestration imports kernel policy/admission/scheduler authority path',
+          detail: 'orchestration imports kernel policy/admission/scheduler/receipt authority path',
         });
         edgeViolationCounts.set(edge, (edgeViolationCounts.get(edge) || 0) + 1);
         reasonCounts.set(reasonId, (reasonCounts.get(reasonId) || 0) + 1);
@@ -376,7 +401,9 @@ function main(): number {
   });
   const outJsonArtifactsPrefixCanonical = args.outJson.startsWith('core/local/artifacts/');
   const outMarkdownReportsPrefixCanonical = args.outMarkdown.startsWith('local/workspace/reports/');
-  const outMarkdownContractPathExact = args.outMarkdown === DEFAULT_OUT_MARKDOWN;
+  const outMarkdownContractPathExact =
+    args.outMarkdown === DEFAULT_OUT_MARKDOWN ||
+    args.outMarkdown === 'local/workspace/reports/BOUNDARY_GUARD_CURRENT.md';
   const scanRootsExpectedOrder =
     SCAN_ROOTS.length === 3 &&
     SCAN_ROOTS[0] === 'client' &&
@@ -384,7 +411,7 @@ function main(): number {
     SCAN_ROOTS[2] === 'adapters';
   const scanRootsExist = SCAN_ROOTS.every((root) => fs.existsSync(path.resolve(ROOT, root)));
   const rootSpecPrefixesCoverScanRoots = SCAN_ROOTS.every((root) =>
-    ROOT_SPEC_PREFIXES.includes(`${root}/`),
+    ROOT_SPEC_PREFIXES.some((prefix) => `${root}/`.startsWith(prefix)),
   );
   const extensionAllowlistUnique = extensionList.length === EXTENSIONS.size;
   const extensionAllowlistContainsTsTsx =
@@ -407,8 +434,8 @@ function main(): number {
     const expected = {
       client_orchestration_internal_import_forbidden:
         'shell_to_control_plane_internal_contract_violation',
-      orchestration_kernel_policy_import_forbidden:
-        'control_plane_to_kernel_policy_authority_violation',
+      orchestration_kernel_authority_import_forbidden:
+        'control_plane_to_kernel_authority_violation',
       adapter_scheduler_admission_import_forbidden:
         'gateway_to_kernel_or_control_plane_scheduler_authority_violation',
     }[cleanText(row.rule_id || '', 200)];
@@ -532,6 +559,21 @@ function main(): number {
       detail: `count=${violations.length}`,
     },
     {
+      id: 'boundary_guard_client_orchestration_internal_rule_published',
+      ok: BOUNDARY_RULES.some((row) => row.rule_id === 'client_orchestration_internal_import_forbidden'),
+      detail: 'client_orchestration_internal_import_forbidden',
+    },
+    {
+      id: 'boundary_guard_orchestration_kernel_authority_rule_published',
+      ok: BOUNDARY_RULES.some((row) => row.rule_id === 'orchestration_kernel_authority_import_forbidden'),
+      detail: 'orchestration_kernel_authority_import_forbidden',
+    },
+    {
+      id: 'boundary_guard_gateway_scheduler_admission_rule_published',
+      ok: BOUNDARY_RULES.some((row) => row.rule_id === 'adapter_scheduler_admission_import_forbidden'),
+      detail: 'adapter_scheduler_admission_import_forbidden',
+    },
+    {
       id: 'cross_layer_import_guard_violation_policy_reference_workspace_prefix_contract',
       ok: violationPolicyReferenceWorkspacePrefix,
       detail: `count=${violations.length}`,
@@ -650,6 +692,7 @@ function main(): number {
     violation_reason_counts: Object.fromEntries(
       Array.from(reasonCounts.entries()).sort((a, b) => a[0].localeCompare(b[0])),
     ),
+    boundary_rules: BOUNDARY_RULES,
     violations,
   };
 

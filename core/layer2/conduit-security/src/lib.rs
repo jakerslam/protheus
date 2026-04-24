@@ -5,6 +5,8 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fmt;
 
+pub mod gateway_boundary;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CapabilityToken {
     pub token_id: String,

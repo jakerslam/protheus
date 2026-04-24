@@ -1,6 +1,34 @@
 {
   "version": 1,
   "bundle_id": "layer2_receipt_bundle_golden_v1",
+  "graph_expectations": {
+    "L2-CANCEL-001": {
+      "required_edges": [
+        "task_submission->task_cancellation"
+      ],
+      "allow_unexpected_edges": false
+    },
+    "L2-QUEUE-001": {
+      "required_edges": [
+        "task_submission->queue_routing",
+        "queue_routing->adapter_invocation_envelope",
+        "adapter_invocation_envelope->failure_classification",
+        "failure_classification->queue_backpressure_action",
+        "queue_backpressure_action->queue_backpressure_action",
+        "queue_backpressure_action->conduit_outage_detected",
+        "conduit_outage_detected->conduit_recovery_started",
+        "conduit_recovery_started->conduit_recovery_completed",
+        "conduit_recovery_completed->task_completed"
+      ],
+      "allow_unexpected_edges": false
+    },
+    "L2-TIMEOUT-001": {
+      "required_edges": [
+        "task_submission->task_timeout"
+      ],
+      "allow_unexpected_edges": false
+    }
+  },
   "events": [
     {
       "id": "ev_001",
@@ -96,6 +124,42 @@
       "stage": "task_completed",
       "payload": {
         "receipt_type": "layer2_task_completion_receipt"
+      }
+    },
+    {
+      "id": "ev_012",
+      "lane_id": "L2-CANCEL-001",
+      "stage": "task_submission",
+      "payload": {
+        "task_id": "task_cancel",
+        "receipt_type": "layer2_task_submission_receipt"
+      }
+    },
+    {
+      "id": "ev_013",
+      "lane_id": "L2-CANCEL-001",
+      "stage": "task_cancellation",
+      "payload": {
+        "task_id": "task_cancel",
+        "receipt_type": "layer2_task_cancellation_receipt"
+      }
+    },
+    {
+      "id": "ev_014",
+      "lane_id": "L2-TIMEOUT-001",
+      "stage": "task_submission",
+      "payload": {
+        "task_id": "task_timeout",
+        "receipt_type": "layer2_task_submission_receipt"
+      }
+    },
+    {
+      "id": "ev_015",
+      "lane_id": "L2-TIMEOUT-001",
+      "stage": "task_timeout",
+      "payload": {
+        "task_id": "task_timeout",
+        "receipt_type": "layer2_task_timeout_receipt"
       }
     }
   ]

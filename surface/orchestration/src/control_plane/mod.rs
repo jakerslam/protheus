@@ -7,6 +7,8 @@ pub mod result_shaping_packaging;
 pub mod templates;
 pub mod workflow_graph_dependency;
 
+use crate::contracts::{ControlPlaneDecisionTrace, WorkflowStage};
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SubdomainBoundary {
     pub id: &'static str,
@@ -28,6 +30,15 @@ pub struct ControlPlaneApiContract {
     pub allowed_kernel_outputs: &'static [&'static str],
     pub forbidden_authority_domains: &'static [&'static str],
     pub message_boundary_invariants: &'static [&'static str],
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubdomainTraceContract {
+    pub trace_id: &'static str,
+    pub subdomain_id: &'static str,
+    pub stage: WorkflowStage,
+    pub required_decision_fields: &'static [&'static str],
+    pub receipt_metadata_sources: &'static [&'static str],
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -225,6 +236,119 @@ pub fn assert_contract_consistency() -> Result<(), Vec<ControlPlaneContractViola
         return Ok(());
     }
     Err(violations)
+}
+
+pub fn subdomain_trace_contracts() -> Vec<SubdomainTraceContract> {
+    const REQUIRED_DECISION_FIELDS: &[&str] = &[
+        "chosen_path",
+        "alternatives_rejected",
+        "confidence",
+        "rationale",
+        "receipt_metadata",
+    ];
+    const RECEIPT_METADATA_SOURCES: &[&str] = &[
+        "orchestration_trace_id",
+        "expected_core_contract_ids",
+        "observed_core_receipt_ids",
+        "observed_core_outcome_refs",
+    ];
+    vec![
+        SubdomainTraceContract {
+            trace_id: "intake_normalization.trace",
+            subdomain_id: "intake_normalization",
+            stage: WorkflowStage::IntakeNormalization,
+            required_decision_fields: REQUIRED_DECISION_FIELDS,
+            receipt_metadata_sources: RECEIPT_METADATA_SOURCES,
+        },
+        SubdomainTraceContract {
+            trace_id: "decomposition_planning.trace",
+            subdomain_id: "decomposition_planning",
+            stage: WorkflowStage::DecompositionPlanning,
+            required_decision_fields: REQUIRED_DECISION_FIELDS,
+            receipt_metadata_sources: RECEIPT_METADATA_SOURCES,
+        },
+        SubdomainTraceContract {
+            trace_id: "workflow_graph_dependency_tracking.trace",
+            subdomain_id: "workflow_graph_dependency_tracking",
+            stage: WorkflowStage::CoordinationSequencing,
+            required_decision_fields: REQUIRED_DECISION_FIELDS,
+            receipt_metadata_sources: RECEIPT_METADATA_SOURCES,
+        },
+        SubdomainTraceContract {
+            trace_id: "recovery_escalation.trace",
+            subdomain_id: "recovery_escalation",
+            stage: WorkflowStage::RecoveryEscalation,
+            required_decision_fields: REQUIRED_DECISION_FIELDS,
+            receipt_metadata_sources: RECEIPT_METADATA_SOURCES,
+        },
+        SubdomainTraceContract {
+            trace_id: "result_shaping_packaging.trace",
+            subdomain_id: "result_shaping_packaging",
+            stage: WorkflowStage::ResultPackaging,
+            required_decision_fields: REQUIRED_DECISION_FIELDS,
+            receipt_metadata_sources: RECEIPT_METADATA_SOURCES,
+        },
+        SubdomainTraceContract {
+            trace_id: "verification_closure.trace",
+            subdomain_id: "result_shaping_packaging",
+            stage: WorkflowStage::VerificationClosure,
+            required_decision_fields: REQUIRED_DECISION_FIELDS,
+            receipt_metadata_sources: RECEIPT_METADATA_SOURCES,
+        },
+    ]
+}
+
+pub fn subdomain_trace_contract_by_stage(stage: WorkflowStage) -> Option<SubdomainTraceContract> {
+    subdomain_trace_contracts()
+        .into_iter()
+        .find(|row| row.stage == stage)
+}
+
+pub fn decision_trace_contract_failures(trace: &ControlPlaneDecisionTrace) -> Vec<&'static str> {
+    let mut failures = Vec::new();
+    if trace.chosen.trim().is_empty() {
+        failures.push("chosen_path");
+    }
+    if !trace.confidence.is_finite() || !(0.0..=1.0).contains(&trace.confidence) {
+        failures.push("confidence");
+    }
+    if trace.rationale.iter().all(|row| row.trim().is_empty()) {
+        failures.push("rationale");
+    }
+    if trace
+        .receipt_metadata
+        .iter()
+        .all(|row| row.trim().is_empty())
+    {
+        failures.push("receipt_metadata");
+    }
+    if trace.step_records.is_empty() {
+        failures.push("step_records");
+    }
+    if trace.step_records.iter().any(|step| {
+        step.step_id.trim().is_empty()
+            || step.inputs.iter().all(|row| row.trim().is_empty())
+            || step.chosen_path.trim().is_empty()
+            || !step.confidence.is_finite()
+            || !(0.0..=1.0).contains(&step.confidence)
+            || step
+                .receipt_metadata
+                .iter()
+                .all(|row| row.trim().is_empty())
+    }) {
+        failures.push("step_record_malformed");
+    }
+    failures
+}
+
+pub fn assert_decision_trace_contract(
+    trace: &ControlPlaneDecisionTrace,
+) -> Result<(), Vec<&'static str>> {
+    let failures = decision_trace_contract_failures(trace);
+    if failures.is_empty() {
+        return Ok(());
+    }
+    Err(failures)
 }
 
 pub fn subdomain_boundaries() -> Vec<SubdomainBoundary> {

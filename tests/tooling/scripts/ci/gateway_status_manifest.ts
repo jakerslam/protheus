@@ -24,6 +24,7 @@ type ManifestSchema = {
   version: number;
   required_hooks: string[];
   required_scenarios: string[];
+  gateways?: Array<Record<string, unknown>>;
   support_level_contract?: Partial<Record<SupportLevel, {
     required_checklist_keys?: string[];
     allowed_checklist_statuses?: string[];
@@ -98,6 +99,20 @@ const EXPECTED_GATEWAY_TARGET_IDS = [
   'otlp_exporter',
   'durable_memory_local',
 ];
+const REQUIRED_GATEWAY_EVIDENCE_KEYS = [
+  'health_check',
+  'chaos_coverage',
+  'fail_closed_proof',
+  'receipt_completeness',
+  'fallback_degradation_declaration',
+  'recovery_bounds',
+] as const;
+const GRADUATION_BLOCKING_EVIDENCE_KEYS = [
+  'health_check',
+  'chaos_coverage',
+  'fail_closed_proof',
+  'receipt_completeness',
+] as const;
 
 function normalizeStringArray(raw: unknown, maxLen = 80): string[] {
   return Array.isArray(raw)
@@ -134,7 +149,7 @@ function parseArgs(argv: string[]) {
       400,
     ),
     manifestPath: cleanText(
-      readFlag(argv, 'manifest') || 'tests/tooling/config/gateway_graduation_manifest.json',
+      readFlag(argv, 'manifest') || 'tests/tooling/config/gateway_manifest.json',
       400,
     ),
     supportLevelsPath: cleanText(
@@ -165,6 +180,22 @@ function readJsonBestEffort(filePath: string): any {
 
 function normalizeStatus(raw: unknown): string {
   return cleanText(String(raw || ''), 80).toLowerCase();
+}
+
+function localEvidenceExists(root: string, rawPath: unknown): boolean {
+  const artifactPath = cleanText(String(rawPath || ''), 400);
+  return artifactPath.length > 0 && fs.existsSync(path.resolve(root, artifactPath));
+}
+
+function gatewayManifestRows(manifest: any): Map<string, any> {
+  const rows = Array.isArray(manifest?.gateways) ? manifest.gateways : [];
+  const byId = new Map<string, any>();
+  for (const row of rows) {
+    const id = cleanText(row?.id || '', 80);
+    if (!id || byId.has(id)) continue;
+    byId.set(id, row);
+  }
+  return byId;
 }
 
 function renderMarkdown(payload: any): string {
@@ -435,6 +466,24 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     if (!id || adaptersById.has(id)) continue;
     adaptersById.set(id, row);
   }
+  const gatewayRowsById = gatewayManifestRows(manifest);
+  const duplicateGatewayRows = (Array.isArray(manifest?.gateways) ? manifest.gateways : [])
+    .map((row: any) => cleanText(row?.id || '', 80))
+    .filter(Boolean)
+    .filter((id: string, index: number, arr: string[]) => arr.indexOf(id) !== index);
+  if (duplicateGatewayRows.length > 0) {
+    failures.push({
+      id: 'gateway_manifest_rows_duplicate',
+      detail: Array.from(new Set(duplicateGatewayRows)).join(','),
+    });
+  }
+  const gatewayRowIds = Array.from(gatewayRowsById.keys());
+  if (gatewayRowIds.join('|') !== EXPECTED_GATEWAY_TARGET_IDS.join('|')) {
+    failures.push({
+      id: 'gateway_manifest_rows_noncanonical_order_or_set',
+      detail: gatewayRowIds.join(',') || 'missing',
+    });
+  }
   const supportRowsById = new Map<string, any>();
   const supportRowsRaw = Array.isArray(supportLevelsPayload?.gateway_support_levels)
     ? supportLevelsPayload.gateway_support_levels
@@ -485,9 +534,16 @@ export function run(argv: string[] = process.argv.slice(2)): number {
 
   const targets = targetIds.map((id) => {
     const adapter = adaptersById.get(id) || {};
+    const gatewayRow = gatewayRowsById.get(id) || {};
     if (!adaptersById.has(id)) {
       failures.push({
         id: 'gateway_target_missing_from_manifest_adapters',
+        detail: id,
+      });
+    }
+    if (!gatewayRowsById.has(id)) {
+      failures.push({
+        id: 'gateway_manifest_row_missing',
         detail: id,
       });
     }
@@ -511,6 +567,17 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       failures.push({
         id: 'gateway_support_level_mismatch_manifest_vs_support_payload',
         detail: `${id}:${manifestSupportLevel}->${supportPayloadLevel}`,
+      });
+    }
+    const gatewayManifestSupportLevel = normalizeStatus(gatewayRow.support_level || '') as SupportLevel;
+    if (
+      gatewayManifestSupportLevel
+      && manifestSupportLevel
+      && gatewayManifestSupportLevel !== manifestSupportLevel
+    ) {
+      failures.push({
+        id: 'gateway_support_level_mismatch_manifest_vs_gateway_row',
+        detail: `${id}:${manifestSupportLevel}->${gatewayManifestSupportLevel}`,
       });
     }
 
@@ -559,6 +626,68 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       });
     }
 
+    const evidence = Object.fromEntries(
+      REQUIRED_GATEWAY_EVIDENCE_KEYS.map((key) => {
+        const row = gatewayRow && typeof gatewayRow[key] === 'object' ? (gatewayRow[key] as any) : {};
+        const status = normalizeStatus(row.status) as ChecklistStatus;
+        const artifact = cleanText(row.artifact || row.doc || '', 400);
+        const artifact_exists = localEvidenceExists(root, artifact);
+        if (!row || Object.keys(row).length === 0) {
+          failures.push({
+            id: 'gateway_manifest_evidence_missing',
+            detail: `${id}:${key}`,
+          });
+        }
+        if (!ALLOWED_CHECKLIST_STATUS.has(status)) {
+          failures.push({
+            id: 'gateway_manifest_evidence_status_invalid',
+            detail: `${id}:${key}:${status || 'missing'}`,
+          });
+        }
+        if (!artifact) {
+          failures.push({
+            id: 'gateway_manifest_evidence_artifact_missing',
+            detail: `${id}:${key}`,
+          });
+        } else if (!artifact_exists) {
+          failures.push({
+            id: 'gateway_manifest_evidence_artifact_unresolved',
+            detail: `${id}:${key}:${artifact}`,
+          });
+        }
+        if (key === 'chaos_coverage') {
+          const scenarios = normalizeStringArray(row.required_scenarios, 80);
+          if (scenarios.join('|') !== EXPECTED_REQUIRED_SCENARIOS.join('|')) {
+            failures.push({
+              id: 'gateway_manifest_chaos_scenarios_noncanonical',
+              detail: `${id}:${scenarios.join(',') || 'missing'}`,
+            });
+          }
+        }
+        if (
+          supportLevel === 'graduated' &&
+          GRADUATION_BLOCKING_EVIDENCE_KEYS.includes(key as typeof GRADUATION_BLOCKING_EVIDENCE_KEYS[number]) &&
+          (status !== 'complete' || !artifact_exists)
+        ) {
+          failures.push({
+            id: 'gateway_graduation_blocked_missing_evidence',
+            detail: `${id}:${key}:status=${status || 'missing'};artifact_exists=${String(artifact_exists)}`,
+          });
+        }
+        return [
+          key,
+          {
+            status,
+            artifact,
+            artifact_exists,
+            required_scenarios: key === 'chaos_coverage'
+              ? normalizeStringArray(row.required_scenarios, 80)
+              : undefined,
+          },
+        ];
+      }),
+    );
+
     return {
       id,
       support_level: supportLevel,
@@ -574,6 +703,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       ),
       uniform_checklist_contract_ok: uniformChecklistContractOk,
       support_level_readiness_ok: supportLevelReadinessOk,
+      evidence,
     };
   });
 

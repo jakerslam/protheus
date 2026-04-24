@@ -99,10 +99,10 @@
       "execution_unit": {
         "id": "layer3.os_extension_wrapper",
         "lifecycle": [
-          "created",
+          "init",
           "running",
           "degraded",
-          "stopped"
+          "terminated"
         ],
         "budget": {
           "cpu": "bounded_by_layer2",

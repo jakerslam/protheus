@@ -96,7 +96,11 @@
       "description": "Formal spec guard.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
-      "script": "ops:formal-spec:check"
+      "script": "ops:formal-spec:check",
+      "artifact_paths": [
+        "core/local/artifacts/formal_spec_guard_current.json",
+        "local/workspace/reports/FORMAL_SPEC_GUARD_CURRENT.md"
+      ]
     },
     "runtime_dependency_contract": {
       "owner": "ops",
@@ -442,6 +446,17 @@
       "artifact_paths": [
         "core/local/artifacts/node_critical_path_inventory_current.json",
         "local/workspace/reports/NODE_CRITICAL_PATH_INVENTORY_CURRENT.md"
+      ]
+    },
+    "ops:operator-critical:guard": {
+      "owner": "ops",
+      "description": "Rust-native operator-critical status, recovery, and release entrypoint burn-down guard.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:operator-critical:guard",
+      "artifact_paths": [
+        "core/local/artifacts/operator_critical_burndown_current.json",
+        "local/workspace/reports/OPERATOR_CRITICAL_BURNDOWN_CURRENT.md"
       ]
     },
     "ops:agent-surface:status:guard": {
@@ -965,6 +980,39 @@
         "local/workspace/reports/GATEWAY_STATUS_MANIFEST_CURRENT.md"
       ]
     },
+    "ops:gateway-boundary:guard": {
+      "owner": "ops",
+      "description": "Kernel-owned gateway boundary isolation, resource-bound, health, quarantine, and recovery receipt guard.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:gateway-boundary:guard",
+      "artifact_paths": [
+        "core/local/artifacts/gateway_boundary_guard_current.json"
+      ]
+    },
+    "ops:system-health:guard": {
+      "owner": "ops",
+      "description": "Kernel-owned system health, anomaly detection, bounded adaptation, and gateway capability discovery guard.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:system-health:guard",
+      "artifact_paths": [
+        "core/local/artifacts/system_health_status_current.json"
+      ]
+    },
+    "ops:maintainability-maps:guard": {
+      "owner": "ops",
+      "description": "Kernel-owned maintainability maps, dependency graph, ownership map, and continuous deletion-ratio guard.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:maintainability-maps:guard",
+      "artifact_paths": [
+        "core/local/artifacts/maintainability_maps_current.json",
+        "core/local/artifacts/architecture_map_current.json",
+        "core/local/artifacts/dependency_graph_current.json",
+        "core/local/artifacts/ownership_map_current.json"
+      ]
+    },
     "ops:gateway-chaos:rust": {
       "owner": "ops",
       "description": "Rust-authoritative gateway chaos contract integration test.",
@@ -1410,7 +1458,8 @@
       "script": "ops:ownership:drift:weekly",
       "artifact_paths": [
         "core/local/artifacts/ownership_drift_weekly_current.json",
-        "local/workspace/reports/OWNERSHIP_DRIFT_WEEKLY_CURRENT.md"
+        "local/workspace/reports/OWNERSHIP_DRIFT_WEEKLY_CURRENT.md",
+        "local/workspace/reports/ownership_drift_report.md"
       ]
     },
     "ops:parity:e2e:replay": {

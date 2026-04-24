@@ -58,6 +58,11 @@ function parseArgs(argv: string[]) {
         'core/local/artifacts/runtime_boundedness_report_{profile}_baseline.json',
       400,
     ),
+    boundednessBudgetPolicyPath: cleanText(
+      readFlag(argv, 'boundedness-budget-policy') ||
+        'tests/tooling/config/runtime_boundedness_budgets.json',
+      400,
+    ),
     boundednessRegressionTolerancePct: Number(
       readFlag(argv, 'boundedness-regression-tolerance-pct') || '0',
     ),
@@ -192,6 +197,11 @@ function boundednessMetric(report: any, key: string): number {
   return Number.isFinite(value) ? value : Number.NaN;
 }
 
+function toleranceMultiplierFromPct(raw: number): number {
+  const pct = Number.isFinite(raw) ? Math.max(0, Number(raw)) : 0;
+  return 1 + pct / 100;
+}
+
 function isCanonicalToken(raw: string, maxLen = 120): boolean {
   const token = cleanText(String(raw || ''), maxLen);
   return /^[a-z0-9][a-z0-9._:-]*$/i.test(token);
@@ -220,9 +230,35 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     'stale_surface_incidents',
     'conduit_recovery_ms',
   ];
+  const regressionDiffMetrics = [
+    'max_rss_mb',
+    'queue_depth_max',
+    'queue_depth_p95',
+    'recovery_time_ms_max',
+  ];
+  const declaredBudgetMetrics = [...regressionDiffMetrics, 'stale_surface_count'];
 
   const failures: Array<{ id: string; detail: string }> = [];
   const warnings: Array<{ id: string; detail: string }> = [];
+  const boundednessRegressionDiff: Array<{
+    profile: string;
+    metric: string;
+    current: number;
+    baseline: number;
+    delta: number;
+    regression_pct: number | string;
+    max_allowed: number;
+    tolerance_pct: number;
+    ok: boolean;
+  }> = [];
+  const boundednessBudgetEvaluations: Array<{
+    profile: string;
+    metric: string;
+    current: number;
+    budget: number;
+    headroom: number;
+    ok: boolean;
+  }> = [];
   const supportRuns: Array<{
     id: string;
     script: string;
@@ -340,6 +376,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   let dashboardSurfaceGuard: any = null;
   let layer2Replay: any = null;
   let multiDaySoak: any = null;
+  let boundednessBudgetPolicy: any = null;
   try {
     boundednessEvidence = readJson(path.resolve(root, args.boundednessEvidencePath));
   } catch (error) {
@@ -385,6 +422,14 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   } catch (error) {
     failures.push({
       id: 'multi_day_soak_evidence_missing',
+      detail: cleanText(error instanceof Error ? error.message : String(error), 220),
+    });
+  }
+  try {
+    boundednessBudgetPolicy = readJson(path.resolve(root, args.boundednessBudgetPolicyPath));
+  } catch (error) {
+    failures.push({
+      id: 'boundedness_budget_policy_missing',
       detail: cleanText(error instanceof Error ? error.message : String(error), 220),
     });
   }
@@ -470,16 +515,22 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     });
   }
   const dashboardSummary = dashboardSurfaceGuard?.summary || {};
-  if (Number(dashboardSummary.runtime_block_freshness_contract_failures || 1) !== 0) {
+  const runtimeBlockFreshnessFailures = Number(
+    dashboardSummary.runtime_block_freshness_contract_failures,
+  );
+  if (!Number.isFinite(runtimeBlockFreshnessFailures) || runtimeBlockFreshnessFailures !== 0) {
     failures.push({
       id: 'dashboard_runtime_block_freshness_contract_failed',
-      detail: `failures=${Number(dashboardSummary.runtime_block_freshness_contract_failures || 0)}`,
+      detail: `failures=${Number.isFinite(runtimeBlockFreshnessFailures) ? runtimeBlockFreshnessFailures : 'missing'}`,
     });
   }
-  if (Number(dashboardSummary.runtime_sync_freshness_contract_failures || 1) !== 0) {
+  const runtimeSyncFreshnessFailures = Number(
+    dashboardSummary.runtime_sync_freshness_contract_failures,
+  );
+  if (!Number.isFinite(runtimeSyncFreshnessFailures) || runtimeSyncFreshnessFailures !== 0) {
     failures.push({
       id: 'dashboard_runtime_sync_freshness_contract_failed',
-      detail: `failures=${Number(dashboardSummary.runtime_sync_freshness_contract_failures || 0)}`,
+      detail: `failures=${Number.isFinite(runtimeSyncFreshnessFailures) ? runtimeSyncFreshnessFailures : 'missing'}`,
     });
   }
   if (dashboardSummary.runtime_sync_freshness_summary_consistent !== true) {
@@ -515,6 +566,31 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const profileReports = Array.isArray(boundednessProfiles?.profiles) ? boundednessProfiles.profiles : [];
   const soakProfiles = Array.isArray(multiDaySoak?.profiles) ? multiDaySoak.profiles : [];
   const boundednessBudgets: Record<string, any> = {};
+  const declaredProfileBudgets =
+    boundednessBudgetPolicy?.profiles && typeof boundednessBudgetPolicy.profiles === 'object'
+      ? boundednessBudgetPolicy.profiles
+      : {};
+  const requirePreviousBaseline = boundednessBudgetPolicy?.require_previous_baseline !== false;
+
+  if (!boundednessBudgetPolicy || typeof boundednessBudgetPolicy !== 'object' || Array.isArray(boundednessBudgetPolicy)) {
+    failures.push({
+      id: 'runtime_boundedness_budget_policy_object_contract_v3',
+      detail: args.boundednessBudgetPolicyPath,
+    });
+  }
+  if (boundednessBudgetPolicy && cleanText(String(boundednessBudgetPolicy?.schema_id || ''), 120) !== 'runtime_boundedness_budgets.v1') {
+    failures.push({
+      id: 'runtime_boundedness_budget_policy_schema_contract_v3',
+      detail: cleanText(String(boundednessBudgetPolicy?.schema_id || ''), 120) || 'missing',
+    });
+  }
+  const declaredBudgetProfileNames = Object.keys(declaredProfileBudgets).sort();
+  if (declaredBudgetProfileNames.join(',') !== [...requiredProfiles].sort().join(',')) {
+    failures.push({
+      id: 'runtime_boundedness_declared_budget_profile_set_contract_v3',
+      detail: `declared=${declaredBudgetProfileNames.join(',')};required=${requiredProfiles.join(',')}`,
+    });
+  }
 
   for (const profile of requiredProfiles) {
     const evidenceRow = evidenceProfiles.find((row: any) => cleanText(row?.profile || '', 40) === profile);
@@ -587,6 +663,61 @@ export function run(argv: string[] = process.argv.slice(2)): number {
           });
         }
       }
+      const declaredBudget = declaredProfileBudgets?.[profile];
+      if (!declaredBudget || typeof declaredBudget !== 'object' || Array.isArray(declaredBudget)) {
+        failures.push({
+          id: 'runtime_boundedness_declared_budget_profile_missing_v3',
+          detail: profile,
+        });
+      } else {
+        for (const summaryKey of declaredBudgetMetrics) {
+          const budgetValue = Number(declaredBudget?.[summaryKey]);
+          if (!isNonNegativeFiniteNumber(budgetValue)) {
+            failures.push({
+              id: 'runtime_boundedness_declared_budget_metric_contract_v3',
+              detail: `${profile}:${summaryKey}:${String(declaredBudget?.[summaryKey])}`,
+            });
+            continue;
+          }
+          const currentValue = boundednessMetric(currentBoundednessReport, summaryKey);
+          if (!Number.isFinite(currentValue)) continue;
+          const headroom = Number((budgetValue - currentValue).toFixed(6));
+          const ok = currentValue <= budgetValue;
+          boundednessBudgetEvaluations.push({
+            profile,
+            metric: summaryKey,
+            current: currentValue,
+            budget: budgetValue,
+            headroom,
+            ok,
+          });
+          if (!ok) {
+            failures.push({
+              id: 'boundedness_budget_exceeded',
+              detail: `${profile}:${summaryKey}:current=${currentValue};budget=${budgetValue}`,
+            });
+          }
+        }
+        if (
+          isNonNegativeFiniteNumber(declaredBudget?.queue_depth_p95) &&
+          isNonNegativeFiniteNumber(declaredBudget?.queue_depth_max) &&
+          Number(declaredBudget.queue_depth_p95) > Number(declaredBudget.queue_depth_max)
+        ) {
+          failures.push({
+            id: 'runtime_boundedness_declared_budget_queue_p95_leq_max_contract_v3',
+            detail: `${profile}:p95=${Number(declaredBudget.queue_depth_p95)};max=${Number(declaredBudget.queue_depth_max)}`,
+          });
+        }
+        if (
+          Number.isFinite(Number(declaredBudget?.stale_surface_count)) &&
+          !Number.isInteger(Number(declaredBudget.stale_surface_count))
+        ) {
+          failures.push({
+            id: 'runtime_boundedness_declared_budget_stale_surface_integer_contract_v3',
+            detail: `${profile}:stale_surface_count=${String(declaredBudget.stale_surface_count)}`,
+          });
+        }
+      }
     }
 
     const baselineBoundednessReportPath = path.resolve(
@@ -604,19 +735,46 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         });
       }
     } else {
-      warnings.push({
+      const missingBaseline = {
         id: 'boundedness_baseline_report_missing',
         detail: `${profile}:${path.relative(root, baselineBoundednessReportPath)}`,
-      });
+      };
+      if (requirePreviousBaseline) {
+        failures.push(missingBaseline);
+      } else {
+        warnings.push(missingBaseline);
+      }
     }
     if (currentBoundednessReport && baselineBoundednessReport) {
-      const toleranceMultiplier = 1 + Math.max(0, Number.isFinite(args.boundednessRegressionTolerancePct) ? args.boundednessRegressionTolerancePct : 0);
-      for (const summaryKey of requiredBoundednessSummaryKeys) {
+      const tolerancePct = Number.isFinite(args.boundednessRegressionTolerancePct)
+        ? Math.max(0, args.boundednessRegressionTolerancePct)
+        : 0;
+      const toleranceMultiplier = toleranceMultiplierFromPct(tolerancePct);
+      for (const summaryKey of regressionDiffMetrics) {
         const currentValue = boundednessMetric(currentBoundednessReport, summaryKey);
         const baselineValue = boundednessMetric(baselineBoundednessReport, summaryKey);
         if (!Number.isFinite(currentValue) || !Number.isFinite(baselineValue)) continue;
         const maxAllowed = baselineValue * toleranceMultiplier;
-        if (currentValue > maxAllowed) {
+        const delta = currentValue - baselineValue;
+        const regressionPct =
+          baselineValue > 0
+            ? Number(((delta / baselineValue) * 100).toFixed(6))
+            : currentValue > baselineValue
+              ? 'infinite'
+              : 0;
+        const ok = currentValue <= maxAllowed;
+        boundednessRegressionDiff.push({
+          profile,
+          metric: summaryKey,
+          current: currentValue,
+          baseline: baselineValue,
+          delta: Number(delta.toFixed(6)),
+          regression_pct: regressionPct,
+          max_allowed: Number(maxAllowed.toFixed(6)),
+          tolerance_pct: tolerancePct,
+          ok,
+        });
+        if (!ok) {
           failures.push({
             id: 'boundedness_regression_detected',
             detail: `${profile}:${summaryKey}:current=${currentValue};baseline=${baselineValue};max_allowed=${maxAllowed}`,
@@ -848,6 +1006,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       harness_root_path: args.harnessRootPath,
       boundedness_report_template: args.boundednessReportTemplate,
       boundedness_baseline_template: args.boundednessBaselineTemplate,
+      boundedness_budget_policy_path: args.boundednessBudgetPolicyPath,
       boundedness_regression_tolerance_pct: args.boundednessRegressionTolerancePct,
       soak_bootstrap_window_hours: soakBootstrapWindowHours,
       soak_target_window_hours: soakTargetWindowHours,
@@ -855,11 +1014,19 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     summary: {
       required_profiles: requiredProfiles,
       required_metric_rows: requiredRowMetrics,
+      regression_diff_metrics: regressionDiffMetrics,
       queue_backpressure_receipt_coverage_profiles: ['defer', 'shed', 'quarantine'],
       boundedness_regression_failure_count: failures.filter(
         (row) => row.id === 'boundedness_regression_detected',
       ).length,
+      boundedness_regression_diff_count: boundednessRegressionDiff.length,
+      boundedness_budget_failure_count: failures.filter(
+        (row) => row.id === 'boundedness_budget_exceeded',
+      ).length,
+      boundedness_budget_evaluation_count: boundednessBudgetEvaluations.length,
       boundedness_budget_profile_count: Object.keys(boundednessBudgets).length,
+      declared_boundedness_budget_profile_count: declaredBudgetProfileNames.length,
+      require_previous_baseline: requirePreviousBaseline,
       soak_projection_profile_count: soakProjectionProfiles.length,
       soak_projection_pass: soakProjection.ok === true,
       support_runs_total: supportRuns.length,
@@ -872,6 +1039,13 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       regression_tolerance_pct: args.boundednessRegressionTolerancePct,
       profiles: boundednessBudgets,
     },
+    declared_boundedness_budgets: {
+      schema_id: cleanText(String(boundednessBudgetPolicy?.schema_id || ''), 120),
+      require_previous_baseline: requirePreviousBaseline,
+      profiles: declaredProfileBudgets,
+    },
+    boundedness_regression_diff: boundednessRegressionDiff,
+    boundedness_budget_evaluations: boundednessBudgetEvaluations,
     soak_projection: soakProjection,
     support_runs: supportRuns,
     artifact_paths: [args.soakProjectionOutPath],

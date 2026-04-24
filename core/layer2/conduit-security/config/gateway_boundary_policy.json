@@ -1,0 +1,39 @@
+{
+  "version": "gateway-boundary-policy-v1",
+  "owner": "kernel/conduit-security",
+  "required_isolation_mode": "sandboxed_process",
+  "max_startup_timeout_ms": 5000,
+  "max_request_timeout_ms": 30000,
+  "max_memory_limit_mb": 512,
+  "quarantine_failure_threshold": 3,
+  "recovery_success_threshold": 2,
+  "gateways": [
+    {
+      "id": "ollama",
+      "isolation_mode": "sandboxed_process",
+      "sandbox_required": true,
+      "startup_timeout_ms": 3000,
+      "request_timeout_ms": 15000,
+      "memory_limit_mb": 384,
+      "route_around_target": "llama_cpp"
+    },
+    {
+      "id": "llama_cpp",
+      "isolation_mode": "sandboxed_process",
+      "sandbox_required": true,
+      "startup_timeout_ms": 3000,
+      "request_timeout_ms": 15000,
+      "memory_limit_mb": 384,
+      "route_around_target": "ollama"
+    },
+    {
+      "id": "mcp_baseline",
+      "isolation_mode": "sandboxed_process",
+      "sandbox_required": true,
+      "startup_timeout_ms": 2000,
+      "request_timeout_ms": 10000,
+      "memory_limit_mb": 256,
+      "route_around_target": "kernel_contract_fallback"
+    }
+  ]
+}

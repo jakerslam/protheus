@@ -583,12 +583,12 @@
       if (!this.messageCanRetryFromMeta(msg, idx, rows)) return;
       var source = this.messageRetrySource(msg, idx, rows);
       if (!source) {
-        if (typeof InfringToast !== 'undefined') InfringToast.info('No prior user prompt was found for retry.');
+        if (typeof InfringToast !== 'undefined') InfringToast.info('No prior user prompt was found for resend.');
         return;
       }
       var text = String(source.text || '').trim();
       if (!text) {
-        if (typeof InfringToast !== 'undefined') InfringToast.info('Retry source is empty.');
+        if (typeof InfringToast !== 'undefined') InfringToast.info('Resend source is empty.');
         return;
       }
       await this._sendPayload(text, [], [], {

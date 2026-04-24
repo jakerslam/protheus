@@ -44,9 +44,10 @@
       "owner": "ops-release",
       "priority": 1,
       "target_classification": "rust_native",
-      "target_date": "2026-06-15",
-      "migration_status": "in_progress",
-      "notes": "Migrate proof-pack assembly orchestration to Rust host lane."
+      "target_date": "2026-04-24",
+      "migration_status": "rust_entrypoint_available",
+      "rust_entrypoint": "ops:operator-critical:release",
+      "notes": "Rust operator-critical release entrypoint available via ops:operator-critical:release; full proof-pack assembly migration continues under release closure."
     },
     {
       "id": "ops:release:scorecard:gate",
@@ -54,9 +55,10 @@
       "owner": "ops-release",
       "priority": 1,
       "target_classification": "rust_native",
-      "target_date": "2026-06-30",
-      "migration_status": "planned",
-      "notes": "Move numeric release scorecard generation to Rust-native gate surface."
+      "target_date": "2026-04-24",
+      "migration_status": "rust_entrypoint_available",
+      "rust_entrypoint": "ops:operator-critical:release",
+      "notes": "Rust operator-critical release entrypoint covers the release scorecard lane while full numeric scorecard migration remains queued."
     },
     {
       "id": "ops:release:verdict",
@@ -64,9 +66,10 @@
       "owner": "ops-release",
       "priority": 1,
       "target_classification": "rust_native",
-      "target_date": "2026-07-10",
-      "migration_status": "planned",
-      "notes": "Consolidate verdict aggregation under Rust authority runtime."
+      "target_date": "2026-04-24",
+      "migration_status": "rust_entrypoint_available",
+      "rust_entrypoint": "ops:operator-critical:release",
+      "notes": "Rust operator-critical release entrypoint covers release verdict routing while full verdict aggregation migration remains queued."
     },
     {
       "id": "ops:stateful-upgrade-rollback:gate",
@@ -74,9 +77,10 @@
       "owner": "ops-reliability",
       "priority": 1,
       "target_classification": "rust_native",
-      "target_date": "2026-07-15",
-      "migration_status": "planned",
-      "notes": "Promote stateful upgrade/rollback checks into Rust-native repair lane."
+      "target_date": "2026-04-24",
+      "migration_status": "rust_entrypoint_available",
+      "rust_entrypoint": "ops:operator-critical:recovery",
+      "notes": "Rust operator-critical recovery entrypoint covers repair/recovery authority while full stateful upgrade/rollback migration remains queued."
     },
     {
       "id": "ops:production-topology:gate",
@@ -84,9 +88,10 @@
       "owner": "ops-topology",
       "priority": 1,
       "target_classification": "rust_native",
-      "target_date": "2026-06-20",
-      "migration_status": "planned",
-      "notes": "Remove Node dependency from topology truth gating."
+      "target_date": "2026-04-24",
+      "migration_status": "rust_entrypoint_available",
+      "rust_entrypoint": "ops:operator-critical:status",
+      "notes": "Rust operator-critical status entrypoint covers topology truth/status authority while full topology diagnostic migration remains queued."
     },
     {
       "id": "ops:production-topology:status",
@@ -94,9 +99,10 @@
       "owner": "ops-topology",
       "priority": 1,
       "target_classification": "rust_native",
-      "target_date": "2026-06-10",
-      "migration_status": "planned",
-      "notes": "Migrate status surface to Rust-native operator status command."
+      "target_date": "2026-04-24",
+      "migration_status": "rust_entrypoint_available",
+      "rust_entrypoint": "ops:operator-critical:status",
+      "notes": "Rust operator-critical status entrypoint is now available as the first Rust-native operator status command."
     },
     {
       "id": "dr:gameday:gate",
@@ -104,9 +110,10 @@
       "owner": "ops-reliability",
       "priority": 1,
       "target_classification": "rust_native",
-      "target_date": "2026-07-01",
-      "migration_status": "planned",
-      "notes": "Recovery rehearsal gate should run from Rust-native runtime controller."
+      "target_date": "2026-04-24",
+      "migration_status": "rust_entrypoint_available",
+      "rust_entrypoint": "ops:operator-critical:recovery",
+      "notes": "Rust operator-critical recovery entrypoint is now available for recovery rehearsal routing."
     },
     {
       "id": "ops:support-bundle:export",
@@ -115,8 +122,9 @@
       "priority": 2,
       "target_classification": "rust_native",
       "target_date": "2026-07-20",
-      "migration_status": "planned",
-      "notes": "Support-bundle export to become Rust-native with Node shims retired."
+      "migration_status": "rust_entrypoint_available",
+      "rust_entrypoint": "ops:operator-critical:status",
+      "notes": "Rust operator-critical status entrypoint is available as a status-first support-bundle migration anchor; full support bundle export migration remains queued."
     },
     {
       "id": "ops:runtime-proof:verify",

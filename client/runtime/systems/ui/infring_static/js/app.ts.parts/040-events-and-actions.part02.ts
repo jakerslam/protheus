@@ -205,11 +205,11 @@
           action: 'dashboard.github.issue.create',
           payload: { title: title, body: issueBody, source: 'dashboard_report_popup' }
         });
-        var lane = result && typeof result === 'object' ? (result.lane || result.payload || result) : {};
-        if ((result && result.ok === false) || (lane && lane.ok === false)) {
-          throw new Error(String((lane && (lane.error || lane.message)) || (result && (result.error || result.message)) || 'issue_submit_failed'));
+        var actionResult = result && typeof result === 'object' ? (result.lane || result.payload || result) : {};
+        if ((result && result.ok === false) || (actionResult && actionResult.ok === false)) {
+          throw new Error(String((actionResult && (actionResult.error || actionResult.message)) || (result && (result.error || result.message)) || 'issue_submit_failed'));
         }
-        var issueUrl = String((lane && (lane.html_url || lane.issue_url)) || '').trim();
+        var issueUrl = String((actionResult && (actionResult.html_url || actionResult.issue_url)) || '').trim();
         this.reportIssueDraft = ''; this.closePopupWindow('report');
         InfringToast.success(issueUrl ? ('Issue submitted: ' + issueUrl) : 'Issue submitted.');
       } catch (e) {

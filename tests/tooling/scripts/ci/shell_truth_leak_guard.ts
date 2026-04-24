@@ -56,6 +56,7 @@ const AUTHORITY_AUDIT_CATEGORIES: Record<string, string[]> = {
     'client_runtime_state_policy_branching',
   ],
   lane_selection: ['client_lane_selection_heuristic'],
+  routing_decisions: ['client_tool_route_selection', 'client_lane_selection_heuristic'],
   policy_branching: ['client_runtime_state_policy_branching'],
 };
 
@@ -147,6 +148,7 @@ function formatMarkdown(payload: any): string {
   lines.push(`- authority_retry_logic_violations: ${payload.summary.authority_retry_logic_violations}`);
   lines.push(`- authority_health_inference_violations: ${payload.summary.authority_health_inference_violations}`);
   lines.push(`- authority_lane_selection_violations: ${payload.summary.authority_lane_selection_violations}`);
+  lines.push(`- authority_routing_decision_violations: ${payload.summary.authority_routing_decision_violations}`);
   lines.push(`- authority_policy_branching_violations: ${payload.summary.authority_policy_branching_violations}`);
   lines.push('');
   lines.push('## Authority Audit (RTG-019)');
@@ -646,6 +648,8 @@ function main() {
         Number(authorityAuditMap.get('health_inference')?.violations || 0),
       authority_lane_selection_violations:
         Number(authorityAuditMap.get('lane_selection')?.violations || 0),
+      authority_routing_decision_violations:
+        Number(authorityAuditMap.get('routing_decisions')?.violations || 0),
       authority_policy_branching_violations:
         Number(authorityAuditMap.get('policy_branching')?.violations || 0),
       pass: coverageFailures.length === 0
