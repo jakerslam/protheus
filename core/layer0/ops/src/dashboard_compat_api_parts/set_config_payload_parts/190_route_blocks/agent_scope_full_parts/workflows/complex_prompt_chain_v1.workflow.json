@@ -1,7 +1,7 @@
 {
   "name": "complex_prompt_chain_v1",
   "workflow_type": "hard_agent_workflow",
-  "default": true,
+  "default": false,
   "description": "Default menu-only tool interface. The workflow presents one multiple-choice menu or one request payload field at a time; it never recommends, classifies, or authors visible chat text.",
   "stages": [
     "gate_1_need_tool_access_menu",

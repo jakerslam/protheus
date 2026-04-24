@@ -130,3 +130,70 @@
                     .contains("tool receipt summary")
         }));
     }
+
+    #[test]
+    fn chat_ui_tool_gate_system_prompt_is_compact_yes_no_exit_gate() {
+        let prompt = chat_ui_tool_gate_system_prompt("hey");
+        assert!(prompt.contains("Need tools? Yes/No"), "{prompt}");
+        assert!(prompt.contains("No"), "{prompt}");
+        assert!(prompt.contains("Yes"), "{prompt}");
+        assert!(
+            prompt.len() < 700,
+            "simple first gate should stay compact, got {} chars: {prompt}",
+            prompt.len()
+        );
+        assert!(!prompt.contains("parse_workspace"), "{prompt}");
+        assert!(!prompt.contains("batch_query"), "{prompt}");
+        assert!(!prompt.contains("tool_menu_by_family"), "{prompt}");
+        assert!(!prompt.contains("request_example"), "{prompt}");
+    }
+
+    #[test]
+    fn chat_ui_no_tool_trace_uses_simple_conversation_visibility() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let gate = chat_ui_turn_tool_decision_tree("hey");
+        let trace = chat_ui_build_response_workflow_trace(
+            root.path(),
+            "simple-exit-session",
+            "trace-simple-exit",
+            "hey",
+            "Hey - I'm here.",
+            &gate,
+            &[],
+            "not_required",
+            "ok",
+            false,
+            "",
+            "",
+            false,
+        );
+        assert_eq!(
+            trace
+                .pointer("/selected_workflow/name")
+                .and_then(Value::as_str),
+            Some("simple_conversation_v1")
+        );
+        assert_eq!(
+            trace
+                .pointer("/gates/need_tool_access/question")
+                .and_then(Value::as_str),
+            Some("Need tools? Yes/No")
+        );
+        assert_eq!(
+            trace
+                .pointer("/process_position/current_stage")
+                .and_then(Value::as_str),
+            Some("llm_final_output")
+        );
+        let ui_messages = trace
+            .pointer("/trace_streams/ui_status")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(ui_messages.iter().any(|row| {
+            row.get("message")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .contains("Need tools? Yes/No")
+        }));
+    }

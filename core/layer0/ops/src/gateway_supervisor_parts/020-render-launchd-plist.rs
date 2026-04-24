@@ -123,8 +123,9 @@ fn launchd_enable(
         let _ = fs::create_dir_all(parent);
     }
 
-    let args = watchdog_args(executable, cfg);
-    let codesign_refresh = refresh_codesign_signature(executable);
+    let executable = canonical_gateway_executable(executable);
+    let args = watchdog_args(&executable, cfg);
+    let codesign_refresh = refresh_codesign_signature(&executable);
     let plist = render_launchd_plist(root, log_path, label.as_str(), &args);
     if let Err(err) = fs::write(&plist_path, plist) {
         return GatewaySupervisorResult {

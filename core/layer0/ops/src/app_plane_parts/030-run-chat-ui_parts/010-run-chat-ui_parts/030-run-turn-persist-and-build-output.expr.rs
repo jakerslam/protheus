@@ -9,7 +9,7 @@
             tool_gate
                 .get("gate_decision_mode")
                 .and_then(Value::as_str)
-                .unwrap_or("manual_need_tool_access"),
+                .unwrap_or("manual_need_tools_yes_no"),
             40,
         );
         let workflow_reason_code = clean(

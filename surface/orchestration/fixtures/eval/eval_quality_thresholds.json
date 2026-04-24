@@ -1,0 +1,8 @@
+{
+  "type": "eval_quality_thresholds",
+  "schema_version": 1,
+  "global": {
+    "judge_human_min_samples": 5,
+    "judge_human_agreement_min": 0.7
+  }
+}

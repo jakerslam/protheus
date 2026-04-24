@@ -39,6 +39,8 @@ type IssueMetadata = {
 const DEFAULT_QUEUE_PATH = 'local/state/attention/queue.jsonl';
 const DEFAULT_TROUBLESHOOTING_LATEST_PATH =
   'client/runtime/local/state/ui/infring_dashboard/troubleshooting/latest_eval_report.json';
+const DEFAULT_ORCHESTRATION_PHASE_TRACE_PATH =
+  'local/state/ops/orchestration/workflow_phase_trace_latest.json';
 const DEFAULT_OUT_PATH = 'core/local/artifacts/eval_agent_chat_monitor_guard_current.json';
 const DEFAULT_OUT_LATEST_PATH = 'artifacts/eval_agent_chat_monitor_guard_latest.json';
 const DEFAULT_STATE_LATEST_PATH = 'local/state/ops/eval_agent_chat_monitor/latest.json';
@@ -208,6 +210,15 @@ const ISSUE_METADATA_BY_ID: Record<string, IssueMetadata> = {
     ],
     base_confidence: 0.88,
   },
+  orchestration_phase_trace_issue_signal_detected: {
+    owner_component: 'control_plane.phase_trace',
+    owner_path: 'surface/orchestration/',
+    acceptance_criteria: [
+      'Eval consumes the orchestration-owned phase trace before falling back to raw collector inference.',
+      'High or medium severity phase-trace issue signals include owner, phase, and remediation context.',
+    ],
+    base_confidence: 0.86,
+  },
 };
 
 function getIssueMetadata(issueId: string): IssueMetadata {
@@ -336,6 +347,10 @@ function parseArgs(argv: string[]) {
     queuePath: cleanText(readFlag(argv, 'queue') || DEFAULT_QUEUE_PATH, 500),
     troubleshootingPath: cleanText(
       readFlag(argv, 'troubleshooting-latest') || DEFAULT_TROUBLESHOOTING_LATEST_PATH,
+      500,
+    ),
+    phaseTracePath: cleanText(
+      readFlag(argv, 'phase-trace') || DEFAULT_ORCHESTRATION_PHASE_TRACE_PATH,
       500,
     ),
     outPath: cleanText(readFlag(argv, 'out') || common.out || DEFAULT_OUT_PATH, 500),
@@ -512,6 +527,7 @@ function run(argv: string[] = process.argv.slice(2)): number {
   const nowMs = Date.now();
   const queueAbs = path.resolve(root, args.queuePath);
   const troubleshootingAbs = path.resolve(root, args.troubleshootingPath);
+  const phaseTraceAbs = path.resolve(root, args.phaseTracePath);
   const outLatestAbs = path.resolve(root, args.outLatestPath);
   const stateLatestAbs = path.resolve(root, args.stateLatestPath);
   const historyAbs = path.resolve(root, args.historyPath);
@@ -663,6 +679,20 @@ function run(argv: string[] = process.argv.slice(2)): number {
     : Number.POSITIVE_INFINITY;
 
   const troubleshootingLatest = readJson(troubleshootingAbs) || {};
+  const phaseTraceExists = fs.existsSync(phaseTraceAbs);
+  const phaseTrace = phaseTraceExists ? readJson(phaseTraceAbs) || {} : {};
+  const phaseTraceType = cleanText(phaseTrace?.type || '', 120);
+  const phaseTracePhases = Array.isArray(phaseTrace?.phases) ? phaseTrace.phases : [];
+  const phaseTraceIssueSignals = Array.isArray(phaseTrace?.issue_signals)
+    ? phaseTrace.issue_signals
+    : [];
+  const phaseTraceValid =
+    !phaseTraceExists
+    || (
+      phaseTraceType === 'orchestration_workflow_phase_trace'
+      && Number(phaseTrace?.schema_version || 0) === 1
+      && phaseTracePhases.length > 0
+    );
   const troubleshootingLatestTs = cleanText(troubleshootingLatest.ts || '', 120);
   const troubleshootingLatestAgeSeconds = troubleshootingLatestTs
     ? ageSeconds(nowMs, troubleshootingLatestTs)
@@ -773,6 +803,22 @@ function run(argv: string[] = process.argv.slice(2)): number {
       evidence_count: noResponseCount,
       next_action:
         'Force degraded one-shot answer synthesis when finalization fails and block no-answer fallback templates.',
+    });
+  }
+  const actionablePhaseTraceSignals = phaseTraceIssueSignals.filter((row: any) => {
+    const severity = cleanText(row?.severity_hint || '', 20);
+    return severity === 'high' || severity === 'medium';
+  });
+  if (actionablePhaseTraceSignals.length > 0) {
+    issueDrafts.push({
+      id: 'orchestration_phase_trace_issue_signal_detected',
+      severity: actionablePhaseTraceSignals.some((row: any) => cleanText(row?.severity_hint || '', 20) === 'high')
+        ? 'high'
+        : 'medium',
+      summary: 'Detected actionable issue signals in orchestration-owned workflow phase trace.',
+      evidence_count: actionablePhaseTraceSignals.length,
+      next_action:
+        'Inspect phase-trace issue signals and patch the owning control-plane phase before relying on text-only eval inference.',
     });
   }
   const nowIso = new Date(nowMs).toISOString();
@@ -961,6 +1007,15 @@ function run(argv: string[] = process.argv.slice(2)): number {
       needs_human_review: Boolean(row?.needs_human_review),
     })),
     issue_fingerprint_clusters: fingerprintClusters,
+    orchestration_phase_trace: {
+      present: phaseTraceExists,
+      valid: phaseTraceValid,
+      path: args.phaseTracePath,
+      trace_id: cleanText(phaseTrace?.trace_id || '', 180) || null,
+      phase_count: phaseTracePhases.length,
+      issue_signal_count: phaseTraceIssueSignals.length,
+      owner: cleanText(phaseTrace?.owner || '', 180) || null,
+    },
   };
   writeJsonArtifact(troubleshootingAbs, monitorEvalReport);
 
@@ -1035,6 +1090,11 @@ function run(argv: string[] = process.argv.slice(2)): number {
       ok: true,
       detail: `ts=${monitorEvalReport.ts};threshold=${args.evalFreshSeconds};previous_ts=${troubleshootingLatestTs || 'missing'};previous_age_seconds=${Number.isFinite(troubleshootingLatestAgeSeconds) ? troubleshootingLatestAgeSeconds : -1}`,
     },
+    {
+      id: 'orchestration_phase_trace_contract',
+      ok: phaseTraceValid,
+      detail: `present=${phaseTraceExists};path=${args.phaseTracePath};phases=${phaseTracePhases.length};issue_signals=${phaseTraceIssueSignals.length}`,
+    },
   ];
 
   const report = {
@@ -1079,12 +1139,16 @@ function run(argv: string[] = process.argv.slice(2)): number {
         run_count: Number(row?.trend?.run_count || 0),
       })),
       issue_fingerprint_cluster_count: fingerprintClusters.length,
+      orchestration_phase_trace: monitorEvalReport.orchestration_phase_trace,
     },
     feedback,
+    issues: monitorEvalReport.issues,
+    issue_filing_candidates: monitorEvalReport.issue_filing_candidates,
     issue_fingerprint_clusters: fingerprintClusters,
     sources: {
       queue: args.queuePath,
       troubleshooting_latest: args.troubleshootingPath,
+      orchestration_phase_trace: args.phaseTracePath,
       history: args.historyPath,
     },
   };

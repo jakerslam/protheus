@@ -1,0 +1,11 @@
+{
+  "type": "eval_replay_runner",
+  "schema_version": 1,
+  "ok": false,
+  "results": [
+    {"issue_id": "eval-gold-003-pos-wrong-tool-selection", "ok": false},
+    {"issue_id": "eval-gold-005-pos-no-response", "ok": false},
+    {"issue_id": "eval-gold-007-pos-response-loop", "ok": false},
+    {"issue_id": "eval-gold-009-pos-auto-tool-selection-claim", "ok": false}
+  ]
+}

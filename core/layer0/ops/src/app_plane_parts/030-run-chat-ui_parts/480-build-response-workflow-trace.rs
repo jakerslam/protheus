@@ -143,7 +143,7 @@ fn chat_ui_build_response_workflow_trace(
         tool_gate
             .get("gate_decision_mode")
             .and_then(Value::as_str)
-            .unwrap_or("manual_need_tool_access"),
+            .unwrap_or("manual_need_tools_yes_no"),
         40,
     );
     let requires_live_web = tool_gate
@@ -184,7 +184,7 @@ fn chat_ui_build_response_workflow_trace(
         "seq": 1,
         "stage": "need_tool_access_gate",
         "status": if needs_tool_access { "submitted_true" } else { "submitted_false_or_not_used" },
-        "note": "presented options=T,F",
+        "note": "presented options=Yes,No",
         "ts": crate::now_iso()
     })];
     if needs_tool_access {
@@ -240,7 +240,7 @@ fn chat_ui_build_response_workflow_trace(
     let mut ui_status = vec![json!({
         "seq": 1,
         "ts": crate::now_iso(),
-        "message": "Workflow gate presented: Need tool access? T/F",
+            "message": "Workflow gate presented: Need tools? Yes/No",
         "stage": "need_tool_access_gate"
     })];
     if !needs_tool_access {
@@ -330,17 +330,22 @@ fn chat_ui_build_response_workflow_trace(
     } else {
         "llm_final_output"
     };
+    let selected_workflow_name = if needs_tool_access {
+        "complex_prompt_chain_v1"
+    } else {
+        "simple_conversation_v1"
+    };
     let mut workflow_trace = json!({
         "contract": "response_workflow_control_plane_trace_v1",
         "trace_id": trace_id,
         "session_id": session_id,
         "selected_workflow": {
-            "name": "complex_prompt_chain_v1",
+            "name": selected_workflow_name,
             "gate_contract": "tool_menu_interface_v1",
             "manual_tool_selection": true
         },
         "selected": {
-            "name": "complex_prompt_chain_v1"
+            "name": selected_workflow_name
         },
         "gates": {
             "gate_mode": {
@@ -349,7 +354,7 @@ fn chat_ui_build_response_workflow_trace(
                 "requires_live_web": requires_live_web
             },
             "need_tool_access": {
-                "question": "Need tool access for this query? T/F",
+                "question": "Need tools? Yes/No",
                 "required": false,
                 "reason_code": reason_code,
                 "selected_tool_family": selected_tool_family,

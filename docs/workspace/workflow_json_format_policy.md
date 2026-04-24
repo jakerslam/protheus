@@ -97,7 +97,7 @@ Canonical stage vocabulary:
 5. `gate_5_post_tool_menu`
 6. `gate_6_llm_final_output`
 
-Direct conversation is represented by `F` at `gate_1_need_tool_access_menu`, not by a separate automatic bypass classifier.
+Direct conversation is represented by `No` at `gate_1_need_tool_access_menu`, not by a separate automatic bypass classifier.
 
 ## Registration Rule (Required)
 

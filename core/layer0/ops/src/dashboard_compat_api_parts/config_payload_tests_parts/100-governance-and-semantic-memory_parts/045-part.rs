@@ -35,7 +35,7 @@ fn truthy_test_env(name: &str) -> bool {
 }
 
 #[test]
-fn workflow_library_owns_direct_answer_final_response() {
+fn workflow_library_allows_direct_answer_without_second_synthesis() {
     let root = governance_temp_root();
     let snapshot = governance_ok_snapshot();
     let created = handle(
@@ -60,10 +60,7 @@ fn workflow_library_owns_direct_answer_final_response() {
         &json!({
             "queue": [
                 {
-                    "response": "Initial model draft that should not be returned directly."
-                },
-                {
-                    "response": "Workflow-authored final answer for the user."
+                    "response": "Hello, the direct path is working."
                 }
             ],
             "calls": []
@@ -80,14 +77,14 @@ fn workflow_library_owns_direct_answer_final_response() {
     assert_eq!(response.status, 200);
     assert_eq!(
         response.payload.get("response").and_then(Value::as_str),
-        Some("Workflow-authored final answer for the user.")
+        Some("Hello, the direct path is working.")
     );
     assert_eq!(
         response
             .payload
             .pointer("/response_workflow/final_llm_response/status")
             .and_then(Value::as_str),
-        Some("synthesized")
+        Some("skipped_not_required")
     );
     assert_eq!(
         response

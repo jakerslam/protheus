@@ -1,0 +1,13 @@
+{
+  "turn_id": "eval-phase-trace-sample-001",
+  "user_intent": "evaluate workflow troubleshooting telemetry",
+  "selected_workflow": "diagnostic_recovery",
+  "selected_model": "gpt-5.4",
+  "tool_decision": "no_tool_required",
+  "tool_family": "none",
+  "tool_result_summary": "not_applicable",
+  "finalization_status": "synthesized",
+  "fallback_path": "none",
+  "normalized_failure_code": "none",
+  "receipt_correlation": "eval-phase-trace-receipt-001"
+}

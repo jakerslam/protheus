@@ -1,0 +1,60 @@
+{
+  "version": "v1",
+  "kind": "orchestration_workflow_phase_trace_contract",
+  "owner": "surface/orchestration",
+  "canonical_output": "local/state/ops/orchestration/workflow_phase_trace_latest.json",
+  "schema": {
+    "type": "orchestration_workflow_phase_trace",
+    "schema_version": 1,
+    "required_fields": [
+      "type",
+      "schema_version",
+      "generated_at_ms",
+      "owner",
+      "trace_id",
+      "user_intent",
+      "selected_workflow",
+      "selected_model",
+      "tool_decision",
+      "tool_family",
+      "tool_result_summary",
+      "finalization_status",
+      "fallback_path",
+      "latency_ms",
+      "workflow_template",
+      "active_stage",
+      "phases",
+      "collectors",
+      "decision_trace",
+      "observed_kernel_receipt_ids",
+      "observed_kernel_outcome_refs",
+      "expected_kernel_contract_ids",
+      "normalized_failure_codes",
+      "issue_signals",
+      "receipt_hash"
+    ]
+  },
+  "ownership": {
+    "orchestration": "normalizes phase order, handoff context, recovery state, and eval-visible issue signals",
+    "kernel_runtime": "emits authoritative policy, admission, receipt, and execution facts",
+    "gateways": "emit external tool/provider call receipts and failure reasons",
+    "shell_dashboard": "collects and displays snapshots without synthesizing canonical truth",
+    "eval": "consumes this trace before falling back to raw chat/dashboard collectors"
+  },
+  "phases": [
+    "intake_normalization",
+    "decomposition_planning",
+    "coordination_sequencing",
+    "recovery_escalation",
+    "result_packaging",
+    "verification_closure"
+  ],
+  "collectors": [
+    "kernel_runtime_receipts",
+    "dashboard_troubleshooting_snapshot",
+    "attention_passive_memory"
+  ],
+  "claims": [
+    "V11-ORCH-TRACE-001"
+  ]
+}

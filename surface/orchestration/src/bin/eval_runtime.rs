@@ -14,6 +14,13 @@ use std::path::Path;
 use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[path = "../eval_issue_runtime.rs"]
+mod eval_issue_runtime;
+#[path = "../eval_lifecycle_runtime.rs"]
+mod eval_lifecycle_runtime;
+#[path = "../eval_final_runtime.rs"]
+mod eval_final_runtime;
+
 const DEFAULT_QUALITY_PATH: &str = "artifacts/eval_quality_metrics_latest.json";
 const DEFAULT_MONITOR_PATH: &str = "local/state/ops/eval_agent_chat_monitor/latest.json";
 const DEFAULT_JUDGE_HUMAN_PATH: &str = "artifacts/eval_judge_human_agreement_latest.json";
@@ -25,11 +32,17 @@ const DEFAULT_QUALITY_MARKDOWN_PATH: &str =
 
 const DEFAULT_FEEDBACK_PATH: &str =
     "local/state/ops/eval_agent_chat_monitor/reviewer_feedback.jsonl";
-const DEFAULT_THRESHOLDS_PATH: &str = "tests/tooling/config/eval_quality_thresholds.json";
+const DEFAULT_THRESHOLDS_PATH: &str = "surface/orchestration/fixtures/eval/eval_quality_thresholds.json";
 const DEFAULT_JUDGE_OUT_PATH: &str = "core/local/artifacts/eval_judge_human_agreement_current.json";
 const DEFAULT_JUDGE_OUT_LATEST_PATH: &str = "artifacts/eval_judge_human_agreement_latest.json";
 const DEFAULT_JUDGE_MARKDOWN_PATH: &str =
     "local/workspace/reports/EVAL_JUDGE_HUMAN_AGREEMENT_CURRENT.md";
+const DEFAULT_REVIEWER_OUT_PATH: &str =
+    "core/local/artifacts/eval_reviewer_feedback_weekly_current.json";
+const DEFAULT_REVIEWER_OUT_LATEST_PATH: &str =
+    "artifacts/eval_reviewer_feedback_weekly_latest.json";
+const DEFAULT_REVIEWER_MARKDOWN_PATH: &str =
+    "local/workspace/reports/EVAL_REVIEWER_FEEDBACK_WEEKLY_CURRENT.md";
 
 fn now_iso_like() -> String {
     let ms = SystemTime::now()
@@ -187,6 +200,235 @@ fn verdict_from_row(row: &Value, keys: &[&str]) -> Option<EvalVerdict> {
     None
 }
 
+fn feedback_category_from_row(row: &Value) -> String {
+    for key in [
+        "reviewer_outcome",
+        "reviewer_status",
+        "feedback_outcome",
+        "verdict",
+        "human_verdict",
+        "human_label",
+        "label",
+    ] {
+        let raw = row
+            .get(key)
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .trim()
+            .to_ascii_lowercase();
+        let category = match raw.as_str() {
+            "accepted" | "accept" | "approved" | "correct" | "true_positive" | "tp" => {
+                "accepted"
+            }
+            "rejected" | "reject" | "incorrect" | "false_positive" | "fp" => "rejected",
+            "partial" | "partially_accepted" | "partially_correct" | "mixed" => "partial",
+            "missed" | "false_negative" | "fn" => "missed",
+            _ => "",
+        };
+        if !category.is_empty() {
+            return category.to_string();
+        }
+    }
+    "unknown".to_string()
+}
+
+fn string_field(row: &Value, keys: &[&str]) -> String {
+    for key in keys {
+        if let Some(raw) = row.get(*key).and_then(|v| v.as_str()) {
+            if !raw.trim().is_empty() {
+                return raw.trim().to_string();
+            }
+        }
+    }
+    String::new()
+}
+
+fn run_reviewer_feedback(args: &[String]) -> i32 {
+    let strict = parse_bool_flag(args, "strict", false);
+    let feedback_path =
+        parse_flag(args, "feedback").unwrap_or_else(|| DEFAULT_FEEDBACK_PATH.to_string());
+    let out_path = parse_flag(args, "out").unwrap_or_else(|| DEFAULT_REVIEWER_OUT_PATH.to_string());
+    let out_latest_path = parse_flag(args, "out-latest")
+        .unwrap_or_else(|| DEFAULT_REVIEWER_OUT_LATEST_PATH.to_string());
+    let markdown_path = parse_flag(args, "out-markdown")
+        .unwrap_or_else(|| DEFAULT_REVIEWER_MARKDOWN_PATH.to_string());
+    let window_days = parse_u64_flag(args, "window-days", 7);
+    let now_iso = now_iso_like();
+    let rows = read_jsonl(&feedback_path);
+    let previous = read_json(&out_latest_path);
+
+    let mut accepted = 0_u64;
+    let mut rejected = 0_u64;
+    let mut partial = 0_u64;
+    let mut missed = 0_u64;
+    let mut unknown = 0_u64;
+    let mut severity_checked = 0_u64;
+    let mut severity_matches = 0_u64;
+    let mut normalized_rows = Vec::new();
+
+    for row in &rows {
+        if !row.is_object() {
+            unknown = unknown.saturating_add(1);
+            continue;
+        }
+        let category = feedback_category_from_row(row);
+        match category.as_str() {
+            "accepted" => accepted = accepted.saturating_add(1),
+            "rejected" => rejected = rejected.saturating_add(1),
+            "partial" => partial = partial.saturating_add(1),
+            "missed" => missed = missed.saturating_add(1),
+            _ => unknown = unknown.saturating_add(1),
+        }
+        let judge_severity = string_field(row, &["severity", "judge_severity", "predicted_severity"]);
+        let reviewer_severity = string_field(row, &["reviewer_severity", "human_severity"]);
+        let severity_match = if judge_severity.is_empty() || reviewer_severity.is_empty() {
+            None
+        } else {
+            severity_checked = severity_checked.saturating_add(1);
+            let matches = judge_severity.eq_ignore_ascii_case(&reviewer_severity);
+            if matches {
+                severity_matches = severity_matches.saturating_add(1);
+            }
+            Some(matches)
+        };
+        normalized_rows.push(json!({
+            "ts": string_field(row, &["ts", "timestamp"]),
+            "issue_id": string_field(row, &["issue_id", "id"]),
+            "reviewer_outcome": category,
+            "judge_verdict": string_field(row, &["judge_verdict", "llm_verdict", "model_verdict", "predicted_verdict"]),
+            "human_verdict": string_field(row, &["human_verdict", "reviewer_verdict", "verdict"]),
+            "severity": judge_severity,
+            "reviewer_severity": reviewer_severity,
+            "severity_match": severity_match,
+            "note": string_field(row, &["note", "comment", "rationale"])
+        }));
+    }
+
+    let predicted_positive = accepted.saturating_add(rejected).saturating_add(partial);
+    let actual_positive = accepted.saturating_add(partial).saturating_add(missed);
+    let precision = if predicted_positive == 0 {
+        0.0
+    } else {
+        accepted as f64 / predicted_positive as f64
+    };
+    let recall = if actual_positive == 0 {
+        0.0
+    } else {
+        accepted as f64 / actual_positive as f64
+    };
+    let severity_calibration = if severity_checked == 0 {
+        0.0
+    } else {
+        severity_matches as f64 / severity_checked as f64
+    };
+    let previous_precision =
+        parse_f64_from_path(&previous, &["summary", "calibration", "precision"], precision);
+    let previous_recall =
+        parse_f64_from_path(&previous, &["summary", "calibration", "recall"], recall);
+    let previous_severity = parse_f64_from_path(
+        &previous,
+        &["summary", "calibration", "severity_calibration"],
+        severity_calibration,
+    );
+    let rows_len = rows.len() as u64;
+    let status = if rows.is_empty() {
+        "awaiting_feedback"
+    } else if unknown > 0 {
+        "needs_triage"
+    } else {
+        "active"
+    };
+    let checks = vec![
+        json!({
+            "id": "feedback_ingestion_contract",
+            "ok": Path::new(&feedback_path).exists() || rows.is_empty(),
+            "detail": format!("rows={};path={}", rows_len, feedback_path),
+        }),
+        json!({
+            "id": "reviewer_outcome_category_contract",
+            "ok": unknown == 0,
+            "detail": format!(
+                "accepted={};rejected={};partial={};missed={};unknown={}",
+                accepted, rejected, partial, missed, unknown
+            ),
+        }),
+        json!({
+            "id": "reviewer_calibration_metrics_contract",
+            "ok": true,
+            "detail": format!(
+                "precision={:.3};recall={:.3};false_positive={};false_negative={};severity_calibration={:.3}",
+                precision, recall, rejected, missed, severity_calibration
+            ),
+        }),
+    ];
+    let ok = checks
+        .iter()
+        .all(|row| row.get("ok").and_then(|v| v.as_bool()).unwrap_or(false));
+    let report = json!({
+        "type": "eval_reviewer_feedback_weekly_report",
+        "schema_version": 2,
+        "generated_at": now_iso,
+        "ok": ok,
+        "checks": checks,
+        "summary": {
+            "window_days": window_days,
+            "feedback_rows": rows_len,
+            "status": status,
+            "verdict_counts": {
+                "accepted": accepted,
+                "rejected": rejected,
+                "partial": partial,
+                "missed": missed,
+                "unknown": unknown
+            },
+            "calibration": {
+                "precision": precision,
+                "recall": recall,
+                "false_positives": rejected,
+                "false_negatives": missed,
+                "partial_findings": partial,
+                "severity_calibration": severity_calibration,
+                "severity_checked": severity_checked,
+                "precision_delta_vs_previous": precision - previous_precision,
+                "recall_delta_vs_previous": recall - previous_recall,
+                "severity_calibration_delta_vs_previous": severity_calibration - previous_severity
+            }
+        },
+        "feedback_rows": normalized_rows,
+        "sources": {
+            "feedback": feedback_path
+        }
+    });
+    let markdown = format!(
+        "# Eval Reviewer Feedback Weekly Report (Current)\n\n- generated_at: {}\n- ok: {}\n- status: {}\n- feedback_rows: {}\n- accepted: {}\n- rejected: {}\n- partial: {}\n- missed: {}\n- precision: {:.3}\n- recall: {:.3}\n- false_positives: {}\n- false_negatives: {}\n- severity_calibration: {:.3}\n",
+        report.get("generated_at").and_then(|v| v.as_str()).unwrap_or(""),
+        ok,
+        status,
+        rows_len,
+        accepted,
+        rejected,
+        partial,
+        missed,
+        precision,
+        recall,
+        rejected,
+        missed,
+        severity_calibration
+    );
+    let write_ok = write_json(&out_latest_path, &report).is_ok()
+        && write_json(&out_path, &report).is_ok()
+        && write_text(&markdown_path, &markdown).is_ok();
+    if !write_ok {
+        eprintln!("eval_runtime: failed to write reviewer feedback outputs");
+        return 2;
+    }
+    print_structured(&report);
+    if strict && !ok {
+        return 1;
+    }
+    0
+}
+
 fn run_quality_gate(args: &[String]) -> i32 {
     let strict = parse_bool_flag(args, "strict", false);
     let quality_path =
@@ -324,6 +566,7 @@ fn run_quality_gate(args: &[String]) -> i32 {
         "generated_at": now_iso,
         "ok": ok,
         "checks": checks,
+        "block_reasons": gate_block_reasons(&signal_snapshot, &calibration_snapshot, &gate_state),
         "summary": {
             "quality_ok": signal_snapshot.quality_ok,
             "monitor_ok": signal_snapshot.monitor_ok,
@@ -339,6 +582,7 @@ fn run_quality_gate(args: &[String]) -> i32 {
             "consecutive_passes": gate_state.consecutive_passes,
             "required_consecutive_passes": gate_state.required_consecutive_passes,
             "autonomous_escalation_allowed": gate_state.autonomous_escalation_allowed,
+            "rsi_promotion_blocked": !gate_state.autonomous_escalation_allowed,
             "remaining_to_unlock": gate_state.remaining_to_unlock,
         },
         "sources": {
@@ -385,6 +629,32 @@ fn run_quality_gate(args: &[String]) -> i32 {
         return 1;
     }
     0
+}
+
+fn gate_block_reasons(
+    signal_snapshot: &EvalQualitySignalSnapshot,
+    calibration_snapshot: &EvalCalibrationSnapshot,
+    gate_state: &infring_orchestration_surface_v1::contracts::EvalQualityGateState,
+) -> Vec<String> {
+    let mut reasons = Vec::new();
+    if !signal_snapshot.quality_ok {
+        reasons.push("quality_metrics_not_passing".to_string());
+    }
+    if !signal_snapshot.monitor_ok {
+        reasons.push("eval_monitor_not_passing".to_string());
+    }
+    if !gate_state.quality_signal_sufficient {
+        reasons.push("quality_signal_insufficient".to_string());
+    }
+    if !calibration_snapshot.calibration_ready {
+        reasons.push("human_calibration_not_ready".to_string());
+    }
+    if gate_state.remaining_to_unlock > 0 {
+        reasons.push("consecutive_clean_passes_below_required".to_string());
+    }
+    reasons.sort();
+    reasons.dedup();
+    reasons
 }
 
 fn run_judge_human_agreement(args: &[String]) -> i32 {
@@ -553,7 +823,7 @@ fn run_judge_human_agreement(args: &[String]) -> i32 {
 
 fn usage() {
     eprintln!(
-        "usage: cargo run --manifest-path surface/orchestration/Cargo.toml --bin eval-runtime -- <quality-gate|judge-human-agreement> [--strict=0|1] [args...]"
+        "usage: cargo run --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- <reviewer-feedback|quality-gate|judge-human-agreement|issue-drafts|replay|fix-verification|issue-lifecycle|rsi-escalation|phase-trace-persist|adversarial-routing|workflow-selection|runtime-ownership> [--strict=0|1] [args...]"
     );
 }
 
@@ -564,8 +834,18 @@ fn main() -> ExitCode {
         return ExitCode::from(2);
     };
     let status = match command.as_str() {
+        "reviewer-feedback" => run_reviewer_feedback(tail),
         "quality-gate" => run_quality_gate(tail),
         "judge-human-agreement" => run_judge_human_agreement(tail),
+        "issue-drafts" => eval_issue_runtime::run_issue_drafts(tail),
+        "replay" => eval_issue_runtime::run_replay(tail),
+        "fix-verification" => eval_lifecycle_runtime::run_fix_verification(tail),
+        "issue-lifecycle" => eval_lifecycle_runtime::run_issue_lifecycle(tail),
+        "rsi-escalation" => eval_lifecycle_runtime::run_rsi_escalation(tail),
+        "phase-trace-persist" => eval_final_runtime::run_phase_trace_persist(tail),
+        "adversarial-routing" => eval_final_runtime::run_adversarial_routing(tail),
+        "workflow-selection" => eval_final_runtime::run_workflow_selection(tail),
+        "runtime-ownership" => eval_final_runtime::run_runtime_ownership(tail),
         _ => {
             usage();
             2

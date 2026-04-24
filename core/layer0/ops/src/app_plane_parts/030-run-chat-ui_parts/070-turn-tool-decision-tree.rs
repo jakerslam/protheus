@@ -21,7 +21,7 @@ pub(crate) fn chat_ui_turn_tool_decision_tree(raw_input: &str) -> Value {
     let llm_should_answer_directly = false;
     let workflow_retry_limit = 1;
     let needs_tool_access = false;
-    let gate_prompt = "Need tool access for this query? T/F";
+    let gate_prompt = "Need tools? Yes/No";
     let selected_tool_family = "unselected";
     let tool_family_menu = json!([
         {
@@ -107,7 +107,7 @@ pub(crate) fn chat_ui_turn_tool_decision_tree(raw_input: &str) -> Value {
     let tool_menu = json!([]);
     let manual_tool_selection = true;
     json!({
-        "contract": "tool_decision_tree_v3",
+        "contract": "manual_toolbox_gate_v1",
         "auto_decisions_disabled": auto_decisions_disabled,
         "manual_gate_mode": "llm_only_multiple_choice_v1",
         "requires_file_mutation": requires_file_mutation,
@@ -119,7 +119,7 @@ pub(crate) fn chat_ui_turn_tool_decision_tree(raw_input: &str) -> Value {
         "should_call_tools": should_call_tools,
         "needs_tool_access": needs_tool_access,
         "gate_prompt": gate_prompt,
-        "gate_decision_mode": "manual_need_tool_access",
+        "gate_decision_mode": "manual_need_tools_yes_no",
         "reason_code": reason_code,
         "meta_diagnostic_request": meta_diagnostic_request,
         "info_source": info_source,

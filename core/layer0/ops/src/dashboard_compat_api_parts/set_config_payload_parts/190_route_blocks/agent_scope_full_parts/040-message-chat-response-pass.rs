@@ -67,7 +67,10 @@ fn handle_message_chat_response_pass(
             response_text = strip_internal_context_metadata_prefix(&response_text);
             response_text = strip_internal_cache_control_markup(&response_text);
             if response_text.is_empty() && response_had_context_meta {
-                response_text = "I have relevant prior context loaded and can keep going from here. Tell me what you want to do next.".to_string();
+                // Do not inject deterministic chat prose when the model produced only
+                // internal context metadata. Finalization/telemetry can record the
+                // empty LLM output without taking over the visible answer.
+                response_text.clear();
             }
             let local_workspace_tooling_probe_turn = {
                 let lowered = message.to_ascii_lowercase();
@@ -293,7 +296,10 @@ fn handle_message_chat_response_pass(
                     || response_looks_like_raw_web_artifact_dump(&response_text)
                     || response_looks_like_unsynthesized_web_snippet_dump(&response_text)
                 {
-                    response_text = "I can answer this directly without running tools. If you want live sourcing, ask me to run a web search explicitly.".to_string();
+                    // The workflow may expose this state in telemetry, but visible
+                    // chat must remain LLM-authored. Avoid replacing a bad draft
+                    // with system-written helper text.
+                    response_text.clear();
                 }
             }
             if let Some(ref pending) = inline_pending_confirmation {

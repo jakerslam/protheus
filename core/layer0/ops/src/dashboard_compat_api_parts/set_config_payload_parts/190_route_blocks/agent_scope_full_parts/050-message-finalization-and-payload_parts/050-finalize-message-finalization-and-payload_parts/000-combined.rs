@@ -381,7 +381,7 @@ fn finalize_message_finalization_and_payload(
     );
     response_finalization["workflow_control"] = json!({
         "mode": "tool_menu_interface_v1",
-        "direct_response_path": "gate_1_false"
+        "direct_response_path": "gate_1_no"
     });
     let process_summary = build_turn_process_summary(
         message,

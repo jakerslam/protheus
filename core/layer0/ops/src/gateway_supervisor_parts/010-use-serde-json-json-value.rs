@@ -141,6 +141,34 @@ fn watchdog_args(executable: &Path, cfg: &GatewaySupervisorConfig) -> Vec<String
     ]
 }
 
+#[cfg(target_os = "macos")]
+fn canonical_gateway_executable(proposed: &Path) -> PathBuf {
+    for env_key in ["INFRING_DAEMON_EXPECTED_BINARY", "INFRING_NPM_BINARY", "INFRING_OPS_BINARY"] {
+        let explicit = env::var(env_key)
+            .ok()
+            .map(|raw| raw.trim().to_string())
+            .filter(|raw| !raw.is_empty());
+        if let Some(raw) = explicit {
+            let candidate = PathBuf::from(raw);
+            if candidate.is_file() {
+                return candidate;
+            }
+        }
+    }
+    if let Some(home) = home_dir() {
+        let binary_name = if cfg!(windows) {
+            "infring-ops.exe"
+        } else {
+            "infring-ops"
+        };
+        let candidate = home.join(".local").join("bin").join(binary_name);
+        if candidate.is_file() {
+            return candidate;
+        }
+    }
+    proposed.to_path_buf()
+}
+
 fn unsupported_payload(action: &str, reason: &str) -> GatewaySupervisorResult {
     GatewaySupervisorResult {
         active: false,

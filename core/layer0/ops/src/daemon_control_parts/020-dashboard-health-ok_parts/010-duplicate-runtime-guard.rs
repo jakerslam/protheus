@@ -86,6 +86,23 @@ fn expected_dashboard_binary_path(root: &Path) -> Option<PathBuf> {
         }
         return Some(root.join(candidate));
     }
+    for env_key in ["INFRING_NPM_BINARY", "INFRING_OPS_BINARY"] {
+        let explicit_runtime = std::env::var(env_key)
+            .ok()
+            .map(|raw| raw.trim().to_string())
+            .filter(|raw| !raw.is_empty());
+        if let Some(raw) = explicit_runtime {
+            let candidate = PathBuf::from(raw);
+            let path = if candidate.is_absolute() {
+                candidate
+            } else {
+                root.join(candidate)
+            };
+            if path.is_file() {
+                return Some(path);
+            }
+        }
+    }
     let binary_name = if cfg!(windows) {
         "infring-ops.exe"
     } else {
@@ -244,5 +261,27 @@ PID\tStatus\tLabel\n\
                 "ai.openclaw.gateway".to_string()
             ]
         );
+    }
+
+    #[test]
+    fn expected_dashboard_binary_path_honors_runtime_binary_env() {
+        let root = tempfile::tempdir().expect("temp root");
+        let bin_path = root.path().join("target").join("debug").join("infring-ops");
+        fs::create_dir_all(bin_path.parent().unwrap()).expect("bin parent");
+        fs::write(&bin_path, b"fake").expect("fake binary");
+        let previous = std::env::var("INFRING_NPM_BINARY").ok();
+        unsafe {
+            std::env::set_var("INFRING_NPM_BINARY", bin_path.to_string_lossy().to_string());
+        }
+        let resolved = expected_dashboard_binary_path(root.path());
+        match previous {
+            Some(value) => unsafe {
+                std::env::set_var("INFRING_NPM_BINARY", value);
+            },
+            None => unsafe {
+                std::env::remove_var("INFRING_NPM_BINARY");
+            },
+        }
+        assert_eq!(resolved.as_deref(), Some(bin_path.as_path()));
     }
 }
