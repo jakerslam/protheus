@@ -47,6 +47,20 @@ function severityRank(raw: string): number {
   return Number(ranks[normalized] ?? 0);
 }
 
+function agentIdFromTurnId(raw: unknown): string {
+  const text = cleanText(raw, 240);
+  const match = text.match(/\bagent-[A-Za-z0-9_-]+\b/);
+  return match ? cleanText(match[0], 180) : '';
+}
+
+function latestEvidenceRows(rows: any[], limit: number): any[] {
+  return [...rows].sort((a, b) => {
+    const left = Date.parse(cleanText(a?.ts || a?.turn_id || '', 120)) || 0;
+    const right = Date.parse(cleanText(b?.ts || b?.turn_id || '', 120)) || 0;
+    return right - left;
+  }).slice(0, limit);
+}
+
 function renderMarkdown(report: any): string {
   const lines: string[] = [];
   lines.push('# Eval Issue Filing Guard (Current)');
@@ -134,11 +148,23 @@ function run(argv: string[] = process.argv.slice(2)): number {
     if (requirePersistence && !persistenceMet) blockers.push('persistence_not_met');
     if (requireHumanApproval && !approval) blockers.push('human_approval_missing');
 
-    const evidenceRows = Array.isArray(issue?.evidence) ? issue.evidence : [];
+    const evidenceRows = latestEvidenceRows(
+      Array.isArray(issue?.evidence) ? issue.evidence : [],
+      2,
+    );
     const acceptanceCriteria = Array.isArray(issue?.acceptance_criteria)
       ? issue.acceptance_criteria.map((entry: unknown) => cleanText(entry, 260)).filter(Boolean)
       : [];
     const readyToFile = blockers.length === 0;
+    const evidence = evidenceRows.slice(0, 2).map((row: any) => ({
+      turn_id: cleanText(row?.turn_id || '', 200),
+      ts: cleanText(row?.ts || '', 120),
+      agent_id: cleanText(row?.agent_id || agentIdFromTurnId(row?.turn_id), 180),
+      snippet: cleanText(row?.snippet || '', 260),
+    }));
+    const relatedAgentIds = Array.from(
+      new Set(evidence.map((row) => row.agent_id).filter(Boolean)),
+    );
     const title = `[${severity.toUpperCase()}][${issueId}] ${cleanText(issue?.summary || 'Eval issue', 120)}`;
     const bodyLines = [
       `Issue ID: ${issueId}`,
@@ -159,7 +185,7 @@ function run(argv: string[] = process.argv.slice(2)): number {
       ...acceptanceCriteria.map((entry) => `- ${entry}`),
       '',
       'Evidence:',
-      ...evidenceRows.slice(0, 2).map((row: any) => {
+      ...evidenceRows.map((row: any) => {
         return `- (${cleanText(row?.turn_id || 'unknown', 200)}) ${cleanText(row?.snippet || '', 260)}`;
       }),
     ];
@@ -177,11 +203,8 @@ function run(argv: string[] = process.argv.slice(2)): number {
       title,
       body: bodyLines.join('\n'),
       acceptance_criteria: acceptanceCriteria,
-      evidence: evidenceRows.slice(0, 2).map((row: any) => ({
-        turn_id: cleanText(row?.turn_id || '', 200),
-        ts: cleanText(row?.ts || '', 120),
-        snippet: cleanText(row?.snippet || '', 260),
-      })),
+      related_agent_ids: relatedAgentIds,
+      evidence,
     };
   });
 
@@ -255,4 +278,3 @@ function run(argv: string[] = process.argv.slice(2)): number {
 }
 
 process.exit(run(process.argv.slice(2)));
-

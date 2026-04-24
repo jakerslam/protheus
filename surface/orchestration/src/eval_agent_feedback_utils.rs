@@ -51,7 +51,11 @@ pub(super) fn write_jsonl(path: impl AsRef<Path>, rows: &[Value]) -> io::Result<
 }
 
 pub(super) fn print_json_line(value: &Value) {
-    let _ = writeln!(io::stdout(), "{}", serde_json::to_string(value).unwrap_or_default());
+    let _ = writeln!(
+        io::stdout(),
+        "{}",
+        serde_json::to_string(value).unwrap_or_default()
+    );
 }
 
 pub(super) fn str_at<'a>(value: &'a Value, path: &[&str]) -> Option<&'a str> {
@@ -105,8 +109,88 @@ pub(super) fn normalize_agent_id(raw: &str) -> String {
 pub(super) fn normalized_severity(raw: &str) -> String {
     match raw.trim().to_ascii_lowercase().as_str() {
         "critical" => "critical".to_string(),
-        "high" | "warn" | "warning" => "warn".to_string(),
+        "high" => "high".to_string(),
+        "warn" | "warning" => "warn".to_string(),
         _ => "info".to_string(),
+    }
+}
+
+pub(super) fn agent_id_from_source_event(raw: &str) -> Option<String> {
+    let tail = if let Some(idx) = raw.find("agent:") {
+        &raw[idx + "agent:".len()..]
+    } else if let Some(idx) = raw.find("agent-") {
+        &raw[idx..]
+    } else {
+        return None;
+    };
+    let token = tail
+        .split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '-' || ch == '_'))
+        .next()
+        .unwrap_or("");
+    let agent = normalize_agent_id(token);
+    if agent.is_empty() {
+        None
+    } else {
+        Some(agent)
+    }
+}
+
+pub(super) fn chat_monitor_next_action(row: &Value) -> String {
+    let direct = required_str(row, &["next_action"], "");
+    if !direct.is_empty() {
+        return direct;
+    }
+    let body = str_at(row, &["body"]).unwrap_or("");
+    section_after_heading(&body, "Next action").unwrap_or_default()
+}
+
+pub(super) fn chat_monitor_suggested_test(row: &Value) -> String {
+    string_array_at(row, &["acceptance_criteria"])
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| {
+            "Replay the eval chat-monitor evidence and verify the issue no longer recurs."
+                .to_string()
+        })
+}
+
+pub(super) fn evidence_summary(row: &Value) -> String {
+    for path in [
+        ["exact_evidence", "prompt"].as_slice(),
+        ["evidence", "sanitized_user_text"].as_slice(),
+        ["actual_behavior"].as_slice(),
+    ] {
+        let raw = required_str(row, path, "");
+        if !raw.is_empty() {
+            return clean_text(&raw, 240);
+        }
+    }
+    for evidence in array_at(row, &["evidence"]) {
+        for path in [["snippet"].as_slice(), ["turn_id"].as_slice()] {
+            let raw = required_str(&evidence, path, "");
+            if !raw.is_empty() {
+                return clean_text(&raw, 240);
+            }
+        }
+    }
+    String::new()
+}
+
+fn section_after_heading(body: &str, heading: &str) -> Option<String> {
+    let marker = format!("{heading}:");
+    let (_, tail) = body.split_once(&marker)?;
+    let section = tail
+        .lines()
+        .map(str::trim)
+        .skip_while(|line| line.is_empty())
+        .take_while(|line| !line.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ");
+    let cleaned = clean_text(&section, 500);
+    if cleaned.is_empty() {
+        None
+    } else {
+        Some(cleaned)
     }
 }
 
@@ -114,7 +198,11 @@ pub(super) fn stable_hash_hex(raw: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(raw.as_bytes());
     let digest = hasher.finalize();
-    digest.iter().take(8).map(|byte| format!("{byte:02x}")).collect()
+    digest
+        .iter()
+        .take(8)
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
 }
 
 pub(super) fn now_iso_like() -> String {

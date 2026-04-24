@@ -7,6 +7,7 @@ include!("lib_parts/050-run-startup-attestation.rs");
 include!("lib_parts/060-web-conduit-policy.rs");
 
 pub mod kernel_capabilities;
+pub mod agent_permission_contract;
 
 pub fn normalize_security_conduit_mode(raw: &str) -> String {
     let mut collapsed = String::new();

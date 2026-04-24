@@ -1,5 +1,6 @@
 use super::*;
 
+// SRS: V12-EVAL-AGENT-FEEDBACK-001
 fn issue(agent: &str, id: &str) -> EvalIssue {
     EvalIssue {
         id: id.to_string(),
@@ -56,5 +57,43 @@ fn source_event_id_extracts_agent_id() {
     assert_eq!(
         agent_id_from_source_event("agent:agent-5bc62b0875a9:passive_memory:abc").as_deref(),
         Some("agent-5bc62b0875a9")
+    );
+    assert_eq!(
+        agent_id_from_source_event("2026-04-24T14:23:01.449Z:agent-5bc62b0875a9").as_deref(),
+        Some("agent-5bc62b0875a9")
+    );
+}
+
+#[test]
+fn chat_monitor_no_response_issue_routes_to_evidence_agent() {
+    let row = json!({
+        "id": "no_response_detected",
+        "severity": "high",
+        "owner_component": "control_plane.finalization",
+        "title": "[HIGH][no_response_detected] Detected turns where assistant returned fallback-only text without substantive response.",
+        "body": "Next action:\nForce degraded one-shot answer synthesis when finalization fails and block no-answer fallback templates.\n\nAcceptance criteria:\n- User-visible responses contain substantive answer content.",
+        "acceptance_criteria": [
+            "User-visible responses contain substantive answer content for answerable prompts."
+        ],
+        "evidence": [
+            {
+                "turn_id": "2026-04-24T14:23:01.449Z:agent-5bc62b0875a9",
+                "ts": "2026-04-24T14:23:01.449Z",
+                "snippet": ""
+            }
+        ]
+    });
+    let issue = issue_from_chat_monitor_draft(&row);
+    assert_eq!(issue.source_kind, "eval_agent_chat_monitor_issue");
+    assert_eq!(issue.issue_class, "no_response");
+    assert_eq!(issue.related_agent_id, "agent-5bc62b0875a9");
+    assert!(issue.expected_fix.contains("Force degraded one-shot"));
+
+    let view = build_scoped_view("agent-5bc62b0875a9", &BTreeMap::new(), &[issue]);
+    assert_eq!(view.visible_issues.len(), 1);
+    let events = attention_events_for_view(&view);
+    assert_eq!(
+        str_at(&events[0], &["raw_event", "source_kind"]),
+        Some("eval_agent_chat_monitor_issue")
     );
 }

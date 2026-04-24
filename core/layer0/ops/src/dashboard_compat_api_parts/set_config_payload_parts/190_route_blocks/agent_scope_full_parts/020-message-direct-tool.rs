@@ -256,7 +256,7 @@ fn handle_agent_scope_message_route(
                 );
             }
             let initial_draft_response = finalized_response.clone();
-            let mut workflow_system_fallback_used = false;
+            let workflow_system_fallback_used = false;
             if workflow_used {
                 if let Some(synthesized) = response_workflow.get("response").and_then(Value::as_str)
                 {
@@ -354,6 +354,8 @@ fn handle_agent_scope_message_route(
             let turn_transaction = crate::dashboard_tool_turn_loop::turn_transaction_payload(
                 "complete", "complete", "complete", "complete",
             );
+            let previous_assistant =
+                latest_assistant_message_text(&session_messages(&load_session_state(root, agent_id)));
             let mut turn_receipt = append_turn_message(root, agent_id, &message, &response_text);
             turn_receipt["assistant_turn_patch"] = persist_last_assistant_turn_metadata(
                 root,
@@ -367,6 +369,14 @@ fn handle_agent_scope_message_route(
                 }),
             );
             turn_receipt["response_finalization"] = response_finalization.clone();
+            turn_receipt["live_eval_monitor"] = live_eval_monitor_turn(
+                root,
+                agent_id,
+                &message,
+                &response_text,
+                &previous_assistant,
+                &response_finalization,
+            );
             return Some(CompatApiResponse {
                 status: 200,
                 payload: json!({
@@ -383,6 +393,7 @@ fn handle_agent_scope_message_route(
                     "tools": response_tools,
                     "response_workflow": response_workflow,
                     "response_finalization": response_finalization,
+                    "live_eval_monitor": turn_receipt.get("live_eval_monitor").cloned().unwrap_or_else(|| json!({})),
                     "turn_transaction": turn_transaction,
                     "workspace_hints": workspace_hints_value.clone(),
                     "latent_tool_candidates": latent_tool_candidates_value.clone(),

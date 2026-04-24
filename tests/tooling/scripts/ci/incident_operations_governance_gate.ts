@@ -672,7 +672,7 @@ function toMarkdown(payload: {
   lines.push('');
   lines.push('## Checks');
   for (const check of payload.checks) {
-    lines.push(`- ${check.ok ? 'PASS' : 'FAIL'} \\`${check.id}\\` — ${check.detail}`);
+    lines.push(`-   — `);
   }
   if (payload.waivers_applied.length > 0) {
     lines.push('');
