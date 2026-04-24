@@ -3388,8 +3388,49 @@ exit /b !_cmd_rc!
 $daemonCompatDispatchTemplate = @'
 :_dispatch
 set "_daemon_cmd=%~1"
+if /I "%_daemon_cmd%"=="start" goto :_daemon_control_dispatch
+if /I "%_daemon_cmd%"=="stop" goto :_daemon_control_dispatch
+if /I "%_daemon_cmd%"=="restart" goto :_daemon_control_dispatch
+if /I "%_daemon_cmd%"=="status" goto :_daemon_control_dispatch
+if /I "%_daemon_cmd%"=="attach" goto :_daemon_control_dispatch
+if /I "%_daemon_cmd%"=="subscribe" goto :_daemon_control_dispatch
+if /I "%_daemon_cmd%"=="tick" goto :_daemon_control_dispatch
+if /I "%_daemon_cmd%"=="diagnostics" goto :_daemon_control_dispatch
+if /I "%_daemon_cmd%"=="efficiency-status" goto :_daemon_control_dispatch
+if /I "%_daemon_cmd%"=="embedded-core-status" goto :_daemon_control_dispatch
+if /I "%_daemon_cmd%"=="watchdog" goto :_daemon_control_dispatch
 if /I "%_daemon_cmd%"=="daemon-control" goto :_compat_dispatch
 if /I "%_daemon_cmd%"=="dashboard-ui" goto :_compat_dispatch
+call __ENTRY__ __ENTRY_ARGS__ %*
+set "_cmd_rc=!ERRORLEVEL!"
+exit /b !_cmd_rc!
+
+:_daemon_control_dispatch
+if exist "%~dp0infring-ops.exe" (
+  set "_needs_node_hint=0"
+  if /I "%_daemon_cmd%"=="start" set "_needs_node_hint=1"
+  if /I "%_daemon_cmd%"=="restart" set "_needs_node_hint=1"
+  if /I "%_daemon_cmd%"=="watchdog" set "_needs_node_hint=1"
+  if "!_needs_node_hint!"=="1" (
+    set "_has_node_flag=0"
+    for %%A in (%*) do (
+      set "_arg=%%~A"
+      if /I "!_arg:~0,14!"=="--node-binary=" set "_has_node_flag=1"
+    )
+    if "!_has_node_flag!"=="0" (
+      set "_node_hint=!INFRING_NODE_BINARY!"
+      if not defined _node_hint for %%N in (node.exe) do set "_node_hint=%%~$PATH:N"
+      if defined _node_hint (
+        call "%~dp0infring-ops.exe" daemon-control %* "--node-binary=!_node_hint!"
+        set "_cmd_rc=!ERRORLEVEL!"
+        exit /b !_cmd_rc!
+      )
+    )
+  )
+  call "%~dp0infring-ops.exe" daemon-control %*
+  set "_cmd_rc=!ERRORLEVEL!"
+  exit /b !_cmd_rc!
+)
 call __ENTRY__ __ENTRY_ARGS__ %*
 set "_cmd_rc=!ERRORLEVEL!"
 exit /b !_cmd_rc!

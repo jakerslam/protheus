@@ -30,7 +30,8 @@
   "policy_choke_points": [
     "evaluate_dispatch_security",
     "authorize_ingress_tool_call_with_nexus",
-    "fail_closed_cli_receipts"
+    "fail_closed_cli_receipts",
+    "dashboard_action_receipt_contract"
   ],
   "fallback_declarations": [
     {

@@ -12,6 +12,8 @@ const DEFAULT_PR_TEMPLATE = '.github/pull_request_template.md';
 const DEFAULT_PR_TEMPLATE_LENSMAP = '.github/PULL_REQUEST_TEMPLATE/lensmap.md';
 const DEFAULT_OUT_JSON = 'core/local/artifacts/capability_proof_burden_guard_current.json';
 const DEFAULT_OUT_MD = 'local/workspace/reports/CAPABILITY_PROOF_BURDEN_GUARD_CURRENT.md';
+const OWNERSHIP_PROOF_SECTION_HEADING =
+  'Capability Ownership + Proof Coverage (required for each net-new capability)';
 
 function rel(value: string): string {
   return path.relative(ROOT, value).replace(/\\/g, '/');
@@ -67,6 +69,8 @@ function templateMarkers() {
   return [
     'required for new or expanded capabilities',
     'gateway/lane/shell-state/control-plane feature',
+    'required for each net-new capability',
+    'Capability Ownership + Proof Coverage',
   ];
 }
 
@@ -80,6 +84,58 @@ function policyMarkers() {
     'Recovery Behavior',
     'Verifiable Runtime Truth Increase',
   ];
+}
+
+type ParsedTable = {
+  headers: string[];
+  rows: string[][];
+};
+
+function sectionBody(markdown: string, heading: string): string {
+  const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const start = new RegExp(`^##\\s+${escaped}\\s*$`, 'im').exec(markdown);
+  if (!start || start.index == null) return '';
+  const rest = markdown.slice(start.index + start[0].length);
+  const end = /^\s*##\s+/m.exec(rest);
+  return (end ? rest.slice(0, end.index) : rest).trim();
+}
+
+function parseMarkdownTable(section: string): ParsedTable | null {
+  const lines = section
+    .split('\n')
+    .map((line) => cleanText(line, 5000).trim())
+    .filter((line) => line.startsWith('|') && line.endsWith('|'));
+  if (lines.length < 2) return null;
+  const parseRow = (line: string): string[] =>
+    line
+      .slice(1, -1)
+      .split('|')
+      .map((cell) => cleanText(cell, 500).trim());
+  const headers = parseRow(lines[0]);
+  const divider = parseRow(lines[1]);
+  if (headers.length === 0 || headers.length !== divider.length) return null;
+  if (!divider.every((cell) => /^:?-{2,}:?$/.test(cell))) return null;
+  const rows = lines.slice(2).map(parseRow).filter((row) => row.length === headers.length);
+  return { headers, rows };
+}
+
+function indexOfHeader(headers: string[], expected: string): number {
+  const expectedNorm = cleanText(expected, 200).toLowerCase();
+  return headers.findIndex((header) => cleanText(header, 200).toLowerCase() === expectedNorm);
+}
+
+function loadPrBody(): { eventName: string; body: string } {
+  const eventName = cleanText(String(process.env.GITHUB_EVENT_NAME || ''), 80).toLowerCase();
+  const eventPath = cleanText(String(process.env.GITHUB_EVENT_PATH || ''), 500);
+  if (eventName !== 'pull_request' || !eventPath || !fs.existsSync(eventPath)) {
+    return { eventName, body: '' };
+  }
+  try {
+    const payload = JSON.parse(fs.readFileSync(eventPath, 'utf8')) as any;
+    return { eventName, body: cleanText(String(payload?.pull_request?.body || ''), 200000) };
+  } catch {
+    return { eventName, body: '' };
+  }
 }
 
 function toMarkdown(payload: any): string {
@@ -98,6 +154,7 @@ function toMarkdown(payload: any): string {
   lines.push(`- lensmap_required_field_failures: ${payload.summary.lensmap_required_field_failures}`);
   lines.push(`- lensmap_marker_failures: ${payload.summary.lensmap_marker_failures}`);
   lines.push(`- policy_marker_failures: ${payload.summary.policy_marker_failures}`);
+  lines.push(`- pr_metadata_mapping_failures: ${payload.summary.pr_metadata_mapping_failures}`);
   lines.push(`- violation_count: ${payload.summary.violation_count}`);
   lines.push('');
   lines.push('## Missing Files');
@@ -154,6 +211,103 @@ function main() {
     violations.push({ type: 'policy_missing_marker', detail: token });
   }
 
+  if (!prSource.includes(OWNERSHIP_PROOF_SECTION_HEADING)) {
+    violations.push({
+      type: 'pr_template_missing_marker',
+      detail: OWNERSHIP_PROOF_SECTION_HEADING,
+    });
+  }
+  if (!lensSource.includes(OWNERSHIP_PROOF_SECTION_HEADING)) {
+    violations.push({
+      type: 'lensmap_template_missing_marker',
+      detail: OWNERSHIP_PROOF_SECTION_HEADING,
+    });
+  }
+
+  const prRuntime = loadPrBody();
+  if (prRuntime.eventName === 'pull_request' && prRuntime.body.trim().length > 0) {
+    const capabilitySection = sectionBody(prRuntime.body, 'Capability Proof Burden');
+    const capabilityTable = parseMarkdownTable(capabilitySection);
+    if (!capabilityTable) {
+      violations.push({
+        type: 'pr_metadata_capability_table_missing',
+        detail: 'Capability Proof Burden table not found',
+      });
+    } else {
+      const capabilityIx = indexOfHeader(capabilityTable.headers, 'Capability');
+      if (capabilityIx < 0) {
+        violations.push({
+          type: 'pr_metadata_capability_header_missing',
+          detail: 'Capability',
+        });
+      } else {
+        const netNewCapabilities = capabilityTable.rows
+          .map((row) => cleanText(row[capabilityIx] || '', 260))
+          .filter((value) => value.length > 0)
+          .map((value) => value.toLowerCase());
+
+        const ownershipSection = sectionBody(prRuntime.body, OWNERSHIP_PROOF_SECTION_HEADING);
+        const ownershipTable = parseMarkdownTable(ownershipSection);
+        if (!ownershipTable) {
+          violations.push({
+            type: 'pr_metadata_ownership_mapping_table_missing',
+            detail: OWNERSHIP_PROOF_SECTION_HEADING,
+          });
+        } else {
+          const mappingCapabilityIx = indexOfHeader(ownershipTable.headers, 'Capability');
+          const ownerLayerIx = indexOfHeader(ownershipTable.headers, 'Owner Layer');
+          const proofCoverageIx = indexOfHeader(ownershipTable.headers, 'Proof / Gate Coverage');
+          if (mappingCapabilityIx < 0 || ownerLayerIx < 0 || proofCoverageIx < 0) {
+            violations.push({
+              type: 'pr_metadata_ownership_mapping_headers_missing',
+              detail: ownershipTable.headers.join('|'),
+            });
+          } else {
+            const allowedLayers = new Set([
+              'kernel',
+              'control_plane',
+              'shell',
+              'gateway',
+              'apps',
+            ]);
+            const mappingByCapability = new Map<string, { owner: string; proof: string }>();
+            for (const row of ownershipTable.rows) {
+              const capability = cleanText(row[mappingCapabilityIx] || '', 260).toLowerCase();
+              const owner = cleanText(row[ownerLayerIx] || '', 120).toLowerCase();
+              const proof = cleanText(row[proofCoverageIx] || '', 320);
+              if (!capability) continue;
+              mappingByCapability.set(capability, { owner, proof });
+              if (!allowedLayers.has(owner)) {
+                violations.push({
+                  type: 'pr_metadata_ownership_mapping_owner_invalid',
+                  detail: `${capability}:${owner}`,
+                });
+              }
+              const hasProofAnchor =
+                proof.includes('ops:')
+                || proof.includes('core/local/artifacts/')
+                || proof.includes('local/workspace/reports/');
+              if (!hasProofAnchor) {
+                violations.push({
+                  type: 'pr_metadata_ownership_mapping_proof_anchor_missing',
+                  detail: `${capability}:${proof}`,
+                });
+              }
+            }
+            for (const capability of netNewCapabilities) {
+              if (!mappingByCapability.has(capability)) {
+                violations.push({
+                  type: 'pr_metadata_ownership_mapping_missing_for_capability',
+                  detail: capability,
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
   const payload = {
     type: 'capability_proof_burden_guard',
     generated_at: new Date().toISOString(),
@@ -169,6 +323,9 @@ function main() {
       lensmap_required_field_failures: lensFieldMissing.length,
       lensmap_marker_failures: lensMarkerMissing.length,
       policy_marker_failures: policyMarkerMissing.length,
+      pr_metadata_mapping_failures: violations.filter((row) =>
+        row.type.startsWith('pr_metadata_'),
+      ).length,
       violation_count: violations.length,
       pass: violations.length === 0,
     },

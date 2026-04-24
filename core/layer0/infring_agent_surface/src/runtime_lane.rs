@@ -119,16 +119,44 @@ pub fn run_runtime_lane_with_registry(
         permissions_template,
         Some(&parent_permissions_manifest),
     );
+    let parent_permissions_snapshot = permission_manifest_snapshot(&parent_permissions_manifest);
+    let parent_permissions_manifest_present = parent_permissions_snapshot
+        .get("grants")
+        .and_then(Value::as_object)
+        .map(|grants| !grants.is_empty())
+        .unwrap_or(false);
+    let effective_permissions_snapshot = permission_manifest_snapshot(&permissions);
+    let parent_permissions_patch_clamped = metadata
+        .get("parent_permissions_patch_clamped")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     let catalog = CapabilityPackCatalog::new();
     let required_pack_permissions = catalog.required_permissions_for_packs(&capability_packs);
     for permission in &required_pack_permissions {
         let state = permission_for(&permissions, permission);
         if state != PermissionTrit::Allow {
+            let effective_state = permission_trit_code(state);
+            let parent_state =
+                permission_trit_code(permission_for(&parent_permissions_manifest, permission));
             return Ok(runtime_lane_fail_closed_with_state(
                 "runtime_lane_pack_permission_denied",
                 json!({
                     "permission": permission,
-                    "permission_state": permission_trit_code(state),
+                    "permission_state": effective_state,
+                    "enforcement_mode": "strict_fail_closed",
+                    "blocked_permission_key_lineage": {
+                        "permission": permission,
+                        "effective_state": effective_state,
+                        "parent_state": parent_state,
+                        "lineage_chain": [
+                            {"source": "effective_manifest", "state": effective_state},
+                            {"source": "parent_manifest", "state": parent_state}
+                        ]
+                    },
+                    "parent_permissions_manifest_present": parent_permissions_manifest_present,
+                    "parent_permissions_patch_clamped": parent_permissions_patch_clamped,
+                    "permissions_effective_snapshot": effective_permissions_snapshot.clone(),
+                    "permissions_parent_snapshot": parent_permissions_snapshot.clone(),
                 }),
                 &permissions,
                 wasm_sandbox.as_ref(),
@@ -139,11 +167,28 @@ pub fn run_runtime_lane_with_registry(
         }
     }
     if tools.iter().any(|tool| tool == "memory.read") && !memory_read_allowed(&permissions) {
+        let effective_state = permission_trit_code(permission_for(&permissions, "memory.read"));
+        let parent_state =
+            permission_trit_code(permission_for(&parent_permissions_manifest, "memory.read"));
         return Ok(runtime_lane_fail_closed_with_state(
             "runtime_lane_memory_read_denied",
             json!({
                 "permission": "memory.read",
-                "permission_state": permission_trit_code(permission_for(&permissions, "memory.read")),
+                "permission_state": effective_state,
+                "enforcement_mode": "strict_fail_closed",
+                "blocked_permission_key_lineage": {
+                    "permission": "memory.read",
+                    "effective_state": effective_state,
+                    "parent_state": parent_state,
+                    "lineage_chain": [
+                        {"source": "effective_manifest", "state": effective_state},
+                        {"source": "parent_manifest", "state": parent_state}
+                    ]
+                },
+                "parent_permissions_manifest_present": parent_permissions_manifest_present,
+                "parent_permissions_patch_clamped": parent_permissions_patch_clamped,
+                "permissions_effective_snapshot": effective_permissions_snapshot.clone(),
+                "permissions_parent_snapshot": parent_permissions_snapshot.clone(),
             }),
             &permissions,
             wasm_sandbox.as_ref(),
@@ -153,11 +198,28 @@ pub fn run_runtime_lane_with_registry(
         ));
     }
     if tools.iter().any(|tool| tool == "memory.write") && !memory_write_allowed(&permissions) {
+        let effective_state = permission_trit_code(permission_for(&permissions, "memory.write"));
+        let parent_state =
+            permission_trit_code(permission_for(&parent_permissions_manifest, "memory.write"));
         return Ok(runtime_lane_fail_closed_with_state(
             "runtime_lane_memory_write_denied",
             json!({
                 "permission": "memory.write",
-                "permission_state": permission_trit_code(permission_for(&permissions, "memory.write")),
+                "permission_state": effective_state,
+                "enforcement_mode": "strict_fail_closed",
+                "blocked_permission_key_lineage": {
+                    "permission": "memory.write",
+                    "effective_state": effective_state,
+                    "parent_state": parent_state,
+                    "lineage_chain": [
+                        {"source": "effective_manifest", "state": effective_state},
+                        {"source": "parent_manifest", "state": parent_state}
+                    ]
+                },
+                "parent_permissions_manifest_present": parent_permissions_manifest_present,
+                "parent_permissions_patch_clamped": parent_permissions_patch_clamped,
+                "permissions_effective_snapshot": effective_permissions_snapshot.clone(),
+                "permissions_parent_snapshot": parent_permissions_snapshot.clone(),
             }),
             &permissions,
             wasm_sandbox.as_ref(),

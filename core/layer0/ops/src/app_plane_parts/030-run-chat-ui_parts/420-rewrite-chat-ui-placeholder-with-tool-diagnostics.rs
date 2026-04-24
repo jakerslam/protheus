@@ -25,86 +25,101 @@ fn rewrite_chat_ui_placeholder_with_tool_diagnostics(
     let has_silent_failure = errors.contains_key("web_tool_silent_failure");
 
     if has_surface_unavailable {
-        return (
-            chat_ui_tool_surface_fail_closed_copy("web_tool_surface_unavailable").to_string(),
-            "placeholder_replaced_surface_unavailable".to_string(),
-        );
+        return ("".to_string(), "placeholder_withheld_surface_unavailable".to_string());
     }
     if has_surface_degraded {
-        return (
-            chat_ui_tool_surface_fail_closed_copy("web_tool_surface_degraded").to_string(),
-            "placeholder_replaced_surface_degraded".to_string(),
-        );
+        return ("".to_string(), "placeholder_withheld_surface_degraded".to_string());
     }
     if has_auth_missing {
-        return (
-            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                "auth_missing",
-                "web_tool_auth_missing",
-                None,
-            ),
-            "placeholder_replaced_auth".to_string(),
-        );
+        return ("".to_string(), "placeholder_withheld_auth".to_string());
     }
     if has_policy_blocked {
-        return (
-            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                "policy_blocked",
-                "web_tool_policy_blocked",
-                None,
-            ),
-            "placeholder_replaced_policy".to_string(),
-        );
+        return ("".to_string(), "placeholder_withheld_policy".to_string());
     }
     if has_invalid_response {
-        return (
-            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                "parse_failed",
-                "web_tool_invalid_response",
-                None,
-            ),
-            "placeholder_replaced_invalid_response".to_string(),
-        );
+        return ("".to_string(), "placeholder_withheld_invalid_response".to_string());
     }
     if has_not_found {
-        return (
-            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                "failed",
-                "web_tool_not_found",
-                None,
-            ),
-            "placeholder_replaced_not_found".to_string(),
-        );
+        return ("".to_string(), "placeholder_withheld_not_found".to_string());
     }
     if has_silent_failure {
-        return (
-            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                "failed",
-                "web_tool_silent_failure",
-                None,
-            ),
-            "placeholder_replaced_silent_failure".to_string(),
-        );
+        return ("".to_string(), "placeholder_withheld_silent_failure".to_string());
     }
     if has_error {
-        return (
-            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                "failed",
-                "web_tool_error",
-                None,
-            ),
-            "placeholder_replaced_error".to_string(),
-        );
+        return ("".to_string(), "placeholder_withheld_error".to_string());
     }
     if total_calls > 0 {
-        return (
-            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                "provider_low_signal",
-                "web_tool_low_signal",
-                None,
-            ),
-            "placeholder_replaced_low_signal".to_string(),
-        );
+        return ("".to_string(), "placeholder_withheld_low_signal".to_string());
     }
     (current, "unchanged".to_string())
+}
+
+fn chat_ui_contains_legacy_route_classifier_copy(text: &str) -> bool {
+    let lowered = clean(text, 8_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let route_classifier_template = lowered.contains("the first gate")
+        && (lowered.contains("workflow_route") || lowered.contains("task_or_info_route"))
+        && (lowered.contains("still classifying this as an \"info\" route rather than a \"task\" route")
+            || lowered.contains("still classifying this as an 'info' route rather than a 'task' route")
+            || lowered.contains("binary classification")
+            || lowered.contains("task classification path"));
+    let decision_tree_autoclassifier_template = lowered.contains("decision tree")
+        && lowered.contains("automatically classifies")
+        && lowered.contains("\"info\"")
+        && lowered.contains("\"task\"")
+        && lowered.contains("semantic analysis");
+    route_classifier_template
+        || decision_tree_autoclassifier_template
+        || lowered.contains("[source:workflow_gate]")
+        || lowered.contains("[source:tool_gate]")
+        || lowered.contains("[source:tool_decision_tree_v3]")
+        || lowered.contains("[source:workflow_route_classification]")
+        || lowered.contains("[source:gate_enforcement_mode]")
+        || lowered.contains("[source:tool_decision_policy]")
+        || lowered.contains("[source:conversation_bypass_control]")
+        || lowered.contains("[source:agent_framework_analysis]")
+        || lowered.contains("source:workflow_route_classification")
+        || lowered.contains("source:gate_enforcement_mode")
+        || lowered.contains("source:tool_decision_policy")
+        || lowered.contains("source:conversation_bypass_control")
+        || lowered.contains("source:agent_framework_analysis")
+        || lowered.contains("conversation bypass mode is currently active")
+        || lowered.contains("restricted from running web searches")
+        || lowered.contains("can't autonomously decide to use web tools")
+        || lowered.contains("requires manual step-by-step authorization for tool usage")
+}
+
+fn rewrite_chat_ui_legacy_route_classifier_copy(assistant: &str) -> (String, String) {
+    let current = clean(assistant, 16_000);
+    if current.is_empty() || !chat_ui_contains_legacy_route_classifier_copy(&current) {
+        return (current, "unchanged".to_string());
+    }
+    let mut rewritten = current;
+    for marker in [
+        "[source:workflow_gate]",
+        "[source:tool_gate]",
+        "[source:tool_decision_tree_v3]",
+        "[source:workflow_route_classification]",
+        "[source:gate_enforcement_mode]",
+        "[source:tool_decision_policy]",
+        "[source:conversation_bypass_control]",
+        "[source:agent_framework_analysis]",
+        "source:workflow_route_classification",
+        "source:gate_enforcement_mode",
+        "source:tool_decision_policy",
+        "source:conversation_bypass_control",
+        "source:agent_framework_analysis",
+    ] {
+        rewritten = rewritten.replace(marker, "");
+    }
+    let lowered = rewritten.to_ascii_lowercase();
+    if chat_ui_contains_legacy_route_classifier_copy(&lowered) {
+        return ("".to_string(), "legacy_route_classifier_copy_withheld".to_string());
+    }
+    (
+        clean(&rewritten, 16_000),
+        "legacy_route_classifier_copy_stripped".to_string(),
+    )
 }

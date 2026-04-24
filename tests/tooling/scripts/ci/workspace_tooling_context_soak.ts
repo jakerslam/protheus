@@ -40,6 +40,26 @@ const FIXTURE_PATH = path.join(
   'fixtures',
   'workspace_tooling_context_replay_matrix.json',
 );
+const PATH_TARGETING_FIXTURE_PATH = path.join(
+  ROOT,
+  'tests',
+  'tooling',
+  'fixtures',
+  'workspace_path_targeting_replay_matrix.json',
+);
+const ARTIFACT_RELIABILITY_LATEST_PATH = path.join(
+  ARTIFACT_DIR,
+  'workspace_tooling_reliability_latest.json',
+);
+const CORE_RELIABILITY_PATH = path.join(
+  ROOT,
+  'core',
+  'local',
+  'artifacts',
+  'workspace_tooling_reliability_current.json',
+);
+const STATE_RELIABILITY_PATH = path.join(STATE_DIR, 'reliability_latest.json');
+const RELIABILITY_STRICT = process.env.INFRING_WORKSPACE_TOOLING_RELIABILITY_STRICT !== '0';
 const TIMEOUT_MS = Math.max(
   30_000,
   Number.parseInt(process.env.INFRING_WORKSPACE_TOOLING_SOAK_TIMEOUT_MS || '900000', 10) || 900_000,
@@ -52,6 +72,9 @@ type ReplayScenario =
   | 'file_search'
   | 'repo_path_targeting'
   | 'mixed_workspace_tool_routing';
+
+type PathTargetingOperation = 'file_read' | 'file_search' | 'repo_path_targeting';
+type PathTargetingKind = 'relative' | 'absolute' | 'windows_style';
 
 const EXPECTED_REQUIRED_REPLAY_SCENARIOS: ReplayScenario[] = [
   'file_read',
@@ -77,6 +100,12 @@ const EXPECTED_REPLAY_CASES: Record<ReplayScenario, { id: string; test: string }
     test: 'compare_workflow_harness_decomposes_local_and_web_evidence_before_final_synthesis',
   },
 };
+const EXPECTED_PATH_TARGETING_OPERATIONS: PathTargetingOperation[] = [
+  'file_read',
+  'file_search',
+  'repo_path_targeting',
+];
+const EXPECTED_PATH_TARGETING_KINDS: PathTargetingKind[] = ['relative', 'absolute', 'windows_style'];
 
 const EXPECTED_SOAK_LANES: SoakLane[] = ['routing', 'hints', 'synthesis', 'replay'];
 
@@ -110,8 +139,10 @@ type SoakReport = {
   status: number;
   duration_ms: number;
   taxonomy: Record<string, unknown>;
+  taxonomy_contract: Record<string, unknown>;
   lane_pack: Record<string, unknown>;
   replay_pack: Record<string, unknown>;
+  reliability_pack: Record<string, unknown>;
   tests: SoakCaseResult[];
   stdout_tail: string;
   stderr_tail: string;
@@ -130,6 +161,15 @@ function cleanText(raw: unknown, maxLen = 3200): string {
     .trim()
     .replace(/\s+/g, ' ')
     .slice(0, maxLen);
+}
+
+function isWindowsStylePath(value: string): boolean {
+  const normalized = cleanText(value, 400);
+  return /^[a-zA-Z]:\\/.test(normalized) || normalized.startsWith('\\\\');
+}
+
+function isAbsoluteUnixPath(value: string): boolean {
+  return cleanText(value, 400).startsWith('/');
 }
 
 function writeJson(pathname: string, payload: unknown): void {
@@ -350,6 +390,132 @@ function readFixture(): { cases: SoakCase[]; requiredReplayScenarios: ReplayScen
   };
 }
 
+function readPathTargetingFixture(): {
+  cases: Array<{
+    id: string;
+    operation: PathTargetingOperation;
+    path_kind: PathTargetingKind;
+    workspace_path: string;
+    test: string;
+  }>;
+  coverage: Record<string, boolean>;
+  error: string;
+} {
+  let raw: any = null;
+  try {
+    raw = JSON.parse(fs.readFileSync(PATH_TARGETING_FIXTURE_PATH, 'utf8'));
+  } catch (error) {
+    return {
+      cases: [],
+      coverage: {},
+      error: `path_fixture_unavailable:${cleanText(error instanceof Error ? error.message : String(error), 240)}`,
+    };
+  }
+  const schemaId = cleanText(raw?.schema_id || '', 120);
+  const schemaVersion = Number(raw?.schema_version || 0);
+  if (schemaId !== 'workspace_path_targeting_replay_matrix') {
+    return {
+      cases: [],
+      coverage: {},
+      error: `path_fixture_schema_id_invalid:${schemaId || 'missing'}`,
+    };
+  }
+  if (schemaVersion !== 1) {
+    return {
+      cases: [],
+      coverage: {},
+      error: `path_fixture_schema_version_invalid:${Number.isFinite(schemaVersion) ? schemaVersion : 'missing'}`,
+    };
+  }
+  const rows = Array.isArray(raw?.cases) ? raw.cases : [];
+  const operationSet = new Set<PathTargetingOperation>(EXPECTED_PATH_TARGETING_OPERATIONS);
+  const kindSet = new Set<PathTargetingKind>(EXPECTED_PATH_TARGETING_KINDS);
+  const cases = rows
+    .map((row: any) => ({
+      id: cleanText(row?.id || '', 120),
+      operation: cleanText(row?.operation || '', 80) as PathTargetingOperation,
+      path_kind: cleanText(row?.path_kind || '', 80) as PathTargetingKind,
+      workspace_path: cleanText(row?.workspace_path || '', 400),
+      test: cleanText(row?.test || '', 200),
+    }))
+    .filter((row) => row.id && row.workspace_path && row.test);
+  if (cases.length === 0) {
+    return {
+      cases: [],
+      coverage: {},
+      error: 'path_fixture_cases_missing',
+    };
+  }
+  const invalidOperationRows = cases.filter((row) => !operationSet.has(row.operation));
+  if (invalidOperationRows.length > 0) {
+    return {
+      cases: [],
+      coverage: {},
+      error: `path_fixture_operation_invalid:${invalidOperationRows.map((row) => row.id).join(',')}`,
+    };
+  }
+  const invalidKindRows = cases.filter((row) => !kindSet.has(row.path_kind));
+  if (invalidKindRows.length > 0) {
+    return {
+      cases: [],
+      coverage: {},
+      error: `path_fixture_kind_invalid:${invalidKindRows.map((row) => row.id).join(',')}`,
+    };
+  }
+  const duplicateIds = cases
+    .map((row) => row.id)
+    .filter((id, index, arr) => arr.indexOf(id) !== index);
+  if (duplicateIds.length > 0) {
+    return {
+      cases: [],
+      coverage: {},
+      error: `path_fixture_case_ids_duplicate:${Array.from(new Set(duplicateIds)).join(',')}`,
+    };
+  }
+  const invalidPathFormRows = cases.filter((row) => {
+    if (row.path_kind === 'relative') {
+      return (
+        row.workspace_path.includes('\\') ||
+        isAbsoluteUnixPath(row.workspace_path) ||
+        isWindowsStylePath(row.workspace_path)
+      );
+    }
+    if (row.path_kind === 'absolute') {
+      return !isAbsoluteUnixPath(row.workspace_path);
+    }
+    return !isWindowsStylePath(row.workspace_path);
+  });
+  if (invalidPathFormRows.length > 0) {
+    return {
+      cases: [],
+      coverage: {},
+      error: `path_fixture_path_form_invalid:${invalidPathFormRows.map((row) => row.id).join(',')}`,
+    };
+  }
+  const coverage: Record<string, boolean> = {};
+  for (const operation of EXPECTED_PATH_TARGETING_OPERATIONS) {
+    for (const kind of EXPECTED_PATH_TARGETING_KINDS) {
+      const key = `${operation}:${kind}`;
+      coverage[key] = cases.some((row) => row.operation === operation && row.path_kind === kind);
+    }
+  }
+  const missing = Object.entries(coverage)
+    .filter(([, ok]) => !ok)
+    .map(([key]) => key);
+  if (missing.length > 0) {
+    return {
+      cases: [],
+      coverage: {},
+      error: `path_fixture_coverage_missing:${missing.join(',')}`,
+    };
+  }
+  return {
+    cases,
+    coverage,
+    error: '',
+  };
+}
+
 function runCargoTestWithTimeoutKill(testName: string): SoakCaseResult {
   const started = Date.now();
   const commandArgs = [
@@ -358,7 +524,6 @@ function runCargoTestWithTimeoutKill(testName: string): SoakCaseResult {
     'infring-ops-core',
     '--lib',
     testName,
-    '--quiet',
     '--',
     '--nocapture',
   ];
@@ -426,8 +591,13 @@ function renderMarkdown(report: SoakReport): string {
   lines.push(`- ok: ${report.ok ? 'true' : 'false'}`);
   lines.push(`- duration_ms: ${report.duration_ms}`);
   const replayPack = (report.replay_pack || {}) as any;
+  const reliabilityPack = (report.reliability_pack || {}) as any;
   lines.push(`- replay_required_missing: ${Number(replayPack.required_missing_count || 0)}`);
   lines.push(`- replay_required_failed: ${Number(replayPack.required_failed_count || 0)}`);
+  lines.push(`- reliability_strict_mode: ${reliabilityPack.strict_mode === true ? 'true' : 'false'}`);
+  lines.push(`- reliability_misroute_count: ${Number(reliabilityPack.misroute_count || 0)}`);
+  lines.push(`- reliability_timeout_count: ${Number(reliabilityPack.timeout_count || 0)}`);
+  lines.push(`- reliability_parse_failure_count: ${Number(reliabilityPack.parse_failure_count || 0)}`);
   lines.push('');
   lines.push('## Replay Scenario Coverage');
   const coverage = Array.isArray(replayPack.scenario_coverage) ? replayPack.scenario_coverage : [];
@@ -451,8 +621,10 @@ const startedAt = nowIso();
 const startedMs = Date.now();
 const results: SoakCaseResult[] = [];
 const fixture = readFixture();
+const pathTargetingFixture = readPathTargetingFixture();
 
-if (fixture.error) {
+if (fixture.error || pathTargetingFixture.error) {
+  const fixtureError = fixture.error || pathTargetingFixture.error;
   const report: SoakReport = {
     type: 'workspace_tooling_context_soak_report',
     schema_version: 2,
@@ -464,18 +636,53 @@ if (fixture.error) {
     duration_ms: Date.now() - startedMs,
     taxonomy: {
       family: 'workspace_file_tooling',
-      fixture_error: fixture.error,
+      fixture_error: fixtureError,
+      path_targeting_fixture_path: path.relative(ROOT, PATH_TARGETING_FIXTURE_PATH),
+    },
+    taxonomy_contract: {
+      ok: false,
+      failures: [fixtureError],
     },
     lane_pack: {},
     replay_pack: {
-      fixture_error: fixture.error,
+      fixture_error: fixtureError,
+    },
+    reliability_pack: {
+      strict_mode: RELIABILITY_STRICT,
+      misroute_count: 1,
+      timeout_count: 0,
+      parse_failure_count: 0,
+      failure_reason: fixtureError,
+      ok: !RELIABILITY_STRICT,
     },
     tests: [],
     stdout_tail: '',
-    stderr_tail: fixture.error,
+    stderr_tail: fixtureError,
+  };
+  const reliabilityReport = {
+    type: 'workspace_tooling_reliability',
+    schema_version: 1,
+    generated_at: report.finished_at,
+    source_report: 'core/local/artifacts/workspace_tooling_context_soak_current.json',
+    strict_mode: RELIABILITY_STRICT,
+    ok: !RELIABILITY_STRICT,
+    counters: {
+      misroute_count: 1,
+      timeout_count: 0,
+      parse_failure_count: 0,
+      total_cases: 0,
+      failed_cases: 0,
+    },
+    thresholds: {
+      misroute_count_max: 0,
+    },
+    failure_reason: fixtureError,
   };
   writeJson(CORE_ARTIFACT_PATH, report);
   writeJson(CORE_ARTIFACT_ALIAS_PATH, report);
+  writeJson(CORE_RELIABILITY_PATH, reliabilityReport);
+  writeJson(ARTIFACT_RELIABILITY_LATEST_PATH, reliabilityReport);
+  writeJson(STATE_RELIABILITY_PATH, reliabilityReport);
   writeJson(STATE_LATEST_PATH, report);
   writeJson(ARTIFACT_CONTEXT_LATEST_PATH, report);
   writeJson(ARTIFACT_ALIAS_LATEST_PATH, report);
@@ -518,6 +725,29 @@ const replayRequiredMissing = replayScenarioCoverage
 const replayRequiredFailed = replayScenarioCoverage
   .filter((row) => row.covered && !row.ok)
   .map((row) => row.scenario);
+const localPathScenarios = new Set<ReplayScenario>(['file_read', 'file_search', 'repo_path_targeting']);
+const misrouteRows = results.filter((row) => !row.ok && localPathScenarios.has(row.scenario));
+const timeoutRows = results.filter((row) => row.timed_out);
+const parseFailurePattern =
+  /(parse|parsererror|syntax error|unexpected token|failed to parse|unrecognized escape sequence|deserialize)/i;
+const parseFailureRows = results.filter(
+  (row) => !row.ok && parseFailurePattern.test(`${row.stderr_tail} ${row.stdout_tail}`),
+);
+const reliabilityPack = {
+  strict_mode: RELIABILITY_STRICT,
+  total_cases: results.length,
+  failed_cases: results.filter((row) => !row.ok).length,
+  misroute_count: misrouteRows.length,
+  misroute_ids: misrouteRows.map((row) => row.id),
+  timeout_count: timeoutRows.length,
+  timeout_ids: timeoutRows.map((row) => row.id),
+  parse_failure_count: parseFailureRows.length,
+  parse_failure_ids: parseFailureRows.map((row) => row.id),
+  thresholds: {
+    misroute_count_max: 0,
+  },
+  ok: RELIABILITY_STRICT ? misrouteRows.length === 0 : true,
+};
 const replayPack = {
   total: replayRows.length,
   passed: replayRows.length - replayFailedRows.length,
@@ -533,6 +763,9 @@ const replayPack = {
 const taxonomy = {
   family: 'workspace_file_tooling',
   fixture_path: path.relative(ROOT, FIXTURE_PATH),
+  path_targeting_fixture_path: path.relative(ROOT, PATH_TARGETING_FIXTURE_PATH),
+  path_targeting_total_cases: pathTargetingFixture.cases.length,
+  path_targeting_coverage: pathTargetingFixture.coverage,
   total_cases: results.length,
   passed_cases: results.filter((row) => row.ok).length,
   failed_cases: results.filter((row) => !row.ok).length,
@@ -558,19 +791,48 @@ const taxonomy = {
       replayScenarioCoverage.find((row) => row.scenario === 'mixed_workspace_tool_routing')?.ok === true,
   },
 };
+const taxonomyInvariantRows = Object.entries(
+  (taxonomy.invariants && typeof taxonomy.invariants === 'object' ? taxonomy.invariants : {}) as Record<
+    string,
+    unknown
+  >,
+).map(([id, value]) => ({
+  id: cleanText(id, 120),
+  ok: value === true,
+}));
+const taxonomyContractFailures = taxonomyInvariantRows
+  .filter((row) => !row.ok)
+  .map((row) => row.id);
+const taxonomyContract = {
+  ok: taxonomyContractFailures.length === 0,
+  total: taxonomyInvariantRows.length,
+  failures: taxonomyContractFailures,
+};
 
 const report: SoakReport = {
   type: 'workspace_tooling_context_soak_report',
   schema_version: 2,
   started_at: startedAt,
   finished_at: nowIso(),
-  ok: allTestsPassed && replayRequiredMissing.length === 0 && replayRequiredFailed.length === 0,
+  ok:
+    allTestsPassed &&
+    replayRequiredMissing.length === 0 &&
+    replayRequiredFailed.length === 0 &&
+    reliabilityPack.ok,
   command: 'cargo test -p infring-ops-core --lib <workspace-workflow-test-name> -- --nocapture',
-  status: allTestsPassed && replayRequiredMissing.length === 0 && replayRequiredFailed.length === 0 ? 0 : 1,
+  status:
+    allTestsPassed &&
+    replayRequiredMissing.length === 0 &&
+    replayRequiredFailed.length === 0 &&
+    reliabilityPack.ok
+      ? 0
+      : 1,
   duration_ms: Date.now() - startedMs,
   taxonomy,
+  taxonomy_contract: taxonomyContract,
   lane_pack: lanePack,
   replay_pack: replayPack,
+  reliability_pack: reliabilityPack,
   tests: results,
   stdout_tail: cleanText(
     results.map((row) => `${row.id}: ${row.stdout_tail}`).join('\n'),
@@ -591,6 +853,38 @@ writeJson(ARTIFACT_ALIAS_LATEST_PATH, report);
 writeJson(STATE_LATEST_PATH, report);
 writeJson(CORE_ARTIFACT_PATH, report);
 writeJson(CORE_ARTIFACT_ALIAS_PATH, report);
+const reliabilityReport = {
+  type: 'workspace_tooling_reliability',
+  schema_version: 1,
+  generated_at: report.finished_at,
+  source_report: 'core/local/artifacts/workspace_tooling_context_soak_current.json',
+  strict_mode: RELIABILITY_STRICT,
+  ok: report.reliability_pack.ok === true,
+  counters: {
+    misroute_count: Number(report.reliability_pack.misroute_count || 0),
+    timeout_count: Number(report.reliability_pack.timeout_count || 0),
+    parse_failure_count: Number(report.reliability_pack.parse_failure_count || 0),
+    total_cases: Number(report.reliability_pack.total_cases || 0),
+    failed_cases: Number(report.reliability_pack.failed_cases || 0),
+  },
+  thresholds: {
+    misroute_count_max: 0,
+  },
+  failure_ids: {
+    misroute: Array.isArray(report.reliability_pack.misroute_ids)
+      ? report.reliability_pack.misroute_ids
+      : [],
+    timeout: Array.isArray(report.reliability_pack.timeout_ids)
+      ? report.reliability_pack.timeout_ids
+      : [],
+    parse_failure: Array.isArray(report.reliability_pack.parse_failure_ids)
+      ? report.reliability_pack.parse_failure_ids
+      : [],
+  },
+};
+writeJson(CORE_RELIABILITY_PATH, reliabilityReport);
+writeJson(ARTIFACT_RELIABILITY_LATEST_PATH, reliabilityReport);
+writeJson(STATE_RELIABILITY_PATH, reliabilityReport);
 fs.mkdirSync(path.dirname(MARKDOWN_PATH), { recursive: true });
 fs.writeFileSync(MARKDOWN_PATH, renderMarkdown(report), 'utf8');
 

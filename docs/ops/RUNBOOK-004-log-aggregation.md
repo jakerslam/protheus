@@ -15,7 +15,7 @@ This runbook documents procedures for aggregating and analyzing system logs acro
 
 The Infring platform generates logs across multiple components:
 - **Kernel kernel** logs: `/var/log/infring/core/`  
-- **Client runtime** logs: `/var/log/infring/client/`  
+- **Shell runtime** logs: `/var/log/infring/client/`
 - **Adapter layer** logs: `/var/log/infring/adapters/`  
 - **CI pipeline** logs: Centralized via internal tooling
 

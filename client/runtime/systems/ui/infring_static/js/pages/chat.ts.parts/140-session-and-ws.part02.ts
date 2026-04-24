@@ -35,6 +35,9 @@
             if (phaseKey === 'streaming' || phaseKey === 'done') {
               break;
             }
+            if (phaseStatusCandidate && typeof this._setPendingWsStatusText === 'function') {
+              this._setPendingWsStatusText(data && data.agent_id ? String(data.agent_id) : '', phaseStatusCandidate);
+            }
             // Context warning: show prominently as a separate system message
             if (phaseKey === 'context_warning') {
               var cwDetail = data.detail || 'Context limit reached.';
@@ -60,6 +63,9 @@
                   phaseMsg.isHtml = true;
                   phaseMsg.thoughtStreaming = true;
                   phaseMsg.text = this.renderLiveThoughtHtml(phaseMsg._thoughtText, phaseMsg);
+                }
+                if (typeof this._setPendingWsStatusText === 'function') {
+                  this._setPendingWsStatusText(data && data.agent_id ? String(data.agent_id) : '', phaseStatusCandidate || thoughtChunk);
                 }
                 if (!phaseMsg.thinking_status && phaseStatusCandidate) {
                   if (phaseMsg.thinking_status !== phaseStatusCandidate) phaseMsg.thinking_status = phaseStatusCandidate;

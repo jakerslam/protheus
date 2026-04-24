@@ -258,6 +258,11 @@ audit_docs/
 # Local/simulated operator scratch (not source-of-truth)
 local/
 simulated-commits/
+
+# Manual assimilation working sets (trade-secret by default)
+**/*-Assimilation/
+**/*-Assimilation/target-repo/
+**/*-Assimilation/target-repo/**
 artifacts/churn_guard_current.json
 docs/workspace/CHURN_GUARD_CURRENT.md
 

@@ -1,0 +1,188 @@
+{
+  "schema_id": "web_tooling_extraction_contract_matrix",
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "web_fetch_article_html_chrome_removed",
+      "mode": "web_fetch",
+      "raw_input": "<!doctype html><html><head><style>body{font-family:Inter;display:flex;margin:0;padding:0;}</style></head><body><article><h1>Kernel authority contract</h1><p>InfRing keeps canonical truth in the kernel.</p></article></body></html>",
+      "expected_contains": [
+        "Kernel authority contract",
+        "InfRing keeps canonical truth in the kernel"
+      ],
+      "forbidden_contains": [
+        "font-family",
+        "display:flex",
+        "<style"
+      ],
+      "sources": [
+        "https://docs.infring.dev/architecture/kernel-authority"
+      ]
+    },
+    {
+      "id": "web_fetch_script_noise_removed",
+      "mode": "web_fetch",
+      "raw_input": "<html><body><script>window.__BOOTSTRAP__=true;</script><main><p>Gateway quarantine opens on repeated flapping events.</p></main></body></html>",
+      "expected_contains": [
+        "Gateway quarantine opens on repeated flapping events"
+      ],
+      "forbidden_contains": [
+        "window.__bootstrap__",
+        "<script"
+      ],
+      "sources": [
+        "https://docs.infring.dev/gateways/chaos"
+      ]
+    },
+    {
+      "id": "web_search_result_summaries_clean",
+      "mode": "web_search",
+      "raw_input": "Search results for: infring runtime proof\nResult 1: Runtime proof harness records synthetic and empirical tracks with effective metric sources.\nResult 2: Release gate fails when empirical profile coverage is below thresholds.\nRelated searches: runtime proof profile coverage",
+      "expected_contains": [
+        "Runtime proof harness records synthetic and empirical tracks",
+        "Release gate fails when empirical profile coverage is below thresholds"
+      ],
+      "forbidden_contains": [
+        "images videos maps news"
+      ],
+      "sources": [
+        "https://docs.infring.dev/runtime/proof-harness",
+        "https://docs.infring.dev/release/proof-gate"
+      ]
+    },
+    {
+      "id": "web_search_parser_no_html_chrome_leak",
+      "mode": "web_search",
+      "raw_input": "Query: workspace tooling reliability\nSearch result 1 snippet: File tool route misdirection max is zero in strict mode.\nSearch result 2 snippet: Reliability artifacts include parse-drift and source-attribution counters.",
+      "expected_contains": [
+        "File tool route misdirection max is zero in strict mode",
+        "Reliability artifacts include parse-drift and source-attribution counters"
+      ],
+      "forbidden_contains": [
+        "<html",
+        "<style",
+        "<script"
+      ],
+      "sources": [
+        "https://docs.infring.dev/workspace/reliability"
+      ]
+    },
+    {
+      "id": "web_search_instruction_snippet_suppressed",
+      "mode": "web_search",
+      "raw_input": "Search results for: infring release evidence\nResult 1 snippet: Proof pack now requires required_missing=0 before release publish.\nResult 2 snippet: Runtime closure tracks boundedness and replay evidence.\nNext actions: 1) clarify the exact outcome you want 2) run one targeted tool call 3) return a concise answer from current context",
+      "expected_contains": [
+        "Proof pack now requires required_missing=0 before release publish",
+        "Runtime closure tracks boundedness and replay evidence"
+      ],
+      "forbidden_contains": [
+        "next actions:",
+        "run one targeted tool call",
+        "return a concise answer from current context"
+      ],
+      "sources": [
+        "https://docs.infring.dev/release/proof-pack",
+        "https://docs.infring.dev/runtime/closure"
+      ]
+    },
+    {
+      "id": "web_fetch_benchmark_command_scaffold_removed",
+      "mode": "web_fetch",
+      "raw_input": "<html><body><article><h1>Benchmark reporting contract</h1><p>Public benchmark summaries are generated from canonical artifacts.</p></article><pre>npm run -s ops:benchmark:refresh\nnpm run -s ops:benchmark:sanity\nnpm run -s ops:benchmark:public-audit\nnpm run -s ops:benchmark:repro</pre></body></html>",
+      "expected_contains": [
+        "Benchmark reporting contract",
+        "Public benchmark summaries are generated from canonical artifacts"
+      ],
+      "forbidden_contains": [
+        "ops:benchmark:refresh",
+        "ops:benchmark:sanity",
+        "ops:benchmark:public-audit",
+        "ops:benchmark:repro"
+      ],
+      "sources": [
+        "https://docs.infring.dev/benchmarks/public-surface"
+      ]
+    },
+    {
+      "id": "web_search_metadata_card_keyset_suppressed",
+      "mode": "web_search",
+      "raw_input": "Search result 1 snippet: Local workspace tooling should remain fail-closed under policy boundaries.\ntitle: Learn how to use runtime lanes\nexcerpt: Runtime lane checks and fallback handling details\noriginalUrl: https://example.com/runtime-lanes\ntype: video\nprovider: Example Corp\nimages: https://example.com/thumb.png\nfeaturedContent: <iframe src=\"https://example.com/embed/123\"></iframe>",
+      "expected_contains": [
+        "Local workspace tooling should remain fail-closed under policy boundaries"
+      ],
+      "forbidden_contains": [
+        "title:",
+        "excerpt:",
+        "originalurl:",
+        "featuredcontent:"
+      ],
+      "sources": [
+        "https://docs.infring.dev/workspace/reliability"
+      ]
+    },
+    {
+      "id": "web_search_raw_function_scaffold_suppressed",
+      "mode": "web_search",
+      "raw_input": "<function=file_list>{\"path\":\".\"}</function>\nSearch result 1 snippet: Tool-routing authority remains LLM-controlled and fail-closed.",
+      "expected_contains": [
+        "Tool-routing authority remains LLM-controlled and fail-closed"
+      ],
+      "forbidden_contains": [
+        "<function=",
+        "</function>"
+      ],
+      "sources": [
+        "https://docs.infring.dev/tooling/routing"
+      ]
+    },
+    {
+      "id": "web_search_tool_trace_blocked_scaffold_suppressed",
+      "mode": "web_search",
+      "raw_input": "Tool trace complete1 done · 1 blocked\nFile List\nblocked\nInput\n{\n  \"path\": \"./\"\n}\nResult\n`file_list` was blocked by ingress delivery policy in this runtime lane (lease_denied:client_ingress_domain_boundary).\nSearch result 1 snippet: Runtime lane policy blocks are surfaced as explicit fail-closed diagnostics with direct-answer fallback.",
+      "expected_contains": [
+        "Runtime lane policy blocks are surfaced as explicit fail-closed diagnostics with direct-answer fallback"
+      ],
+      "forbidden_contains": [
+        "tool trace complete",
+        "done · 1 blocked",
+        "file list blocked",
+        "ingress delivery policy",
+        "lease_denied:client_ingress_domain_boundary"
+      ],
+      "sources": [
+        "https://docs.infring.dev/tooling/workflow-fallback"
+      ]
+    },
+    {
+      "id": "web_search_policy_gate_outage_template_suppressed",
+      "mode": "web_search",
+      "raw_input": "The File List step was blocked before I could finish the answer: This is a policy gate, not a web-provider outage.\nSearch result 1 snippet: Local file-tooling denials should produce direct actionable guidance, not repeated outage templates.",
+      "expected_contains": [
+        "Local file-tooling denials should produce direct actionable guidance, not repeated outage templates"
+      ],
+      "forbidden_contains": [
+        "this is a policy gate, not a web-provider outage",
+        "file list step was blocked before i could finish the answer"
+      ],
+      "sources": [
+        "https://docs.infring.dev/tooling/workflow-fallback"
+      ]
+    },
+    {
+      "id": "web_search_route_classification_template_suppressed",
+      "mode": "web_search",
+      "raw_input": "The first gate (\"workflow_route\") is still classifying this as an \"info\" route rather than a \"task\" route, which means it's still seeing this as a conversational exchange rather than a tool operation request. The system needs explicit tool-related phrasing to trigger the task classification path.\nSearch result 1 snippet: Explicit user tool requests should route to task execution without route-diagnostic boilerplate leakage.",
+      "expected_contains": [
+        "Explicit user tool requests should route to task execution without route-diagnostic boilerplate leakage"
+      ],
+      "forbidden_contains": [
+        "the first gate (\"workflow_route\") is still classifying this as an \"info\" route rather than a \"task\" route",
+        "task classification path",
+        "conversational exchange rather than a tool operation request"
+      ],
+      "sources": [
+        "https://docs.infring.dev/tooling/workflow-fallback"
+      ]
+    }
+  ]
+}

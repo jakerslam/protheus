@@ -7,6 +7,11 @@
       if (!text) return null;
       var canonicalText = text.replace(/\s+/g, ' ').trim().toLowerCase();
       if (/^error:\s*/i.test(canonicalText) && canonicalText.indexOf('operation was aborted') >= 0) return null;
+      if (payload.allow_chat_injection !== true) {
+        if (!Array.isArray(this.systemTelemetry)) this.systemTelemetry = [];
+        this.systemTelemetry.push({ text: text, origin: payload.system_origin || payload.systemOrigin || '', ts: Date.now() });
+        return null;
+      }
 
       var origin = String(payload.system_origin || payload.systemOrigin || '').trim();
       var tsRaw = Number(payload.ts || 0);

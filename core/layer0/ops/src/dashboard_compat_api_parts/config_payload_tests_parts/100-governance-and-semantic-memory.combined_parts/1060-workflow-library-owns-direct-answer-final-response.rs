@@ -64,7 +64,7 @@ fn workflow_library_owns_direct_answer_final_response() {
             .payload
             .pointer("/response_workflow/selected_workflow/gate_contract")
             .and_then(Value::as_str),
-        Some("workflow_gate_v3")
+        Some("tool_menu_interface_v1")
     );
 }
 

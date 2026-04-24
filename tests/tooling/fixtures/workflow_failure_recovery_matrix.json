@@ -1,0 +1,204 @@
+{
+  "schema_id": "workflow_failure_recovery_matrix",
+  "schema_version": 1,
+  "fallback_loop_policy": {
+    "max_repeat_in_window": 1,
+    "window_turns": 4,
+    "repetitive_patterns": [
+      "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.",
+      "I completed the run, but the final reply did not render.",
+      "I can access runtime telemetry, persistent memory, workspace files, channels, and approved command surfaces in this session.",
+      "The File List step was blocked before I could finish the answer: This is a policy gate, not a web-provider outage."
+    ]
+  },
+  "recovery_policy": {
+    "max_retry": 2,
+    "require_degraded_on_finalization_failure": true,
+    "allowed_terminal_reasons": [
+      "degraded_synthesis_after_bounded_retry",
+      "clarification_required_due_to_unresolved_state",
+      "final_llm_unavailable_degraded_path"
+    ]
+  },
+  "cases": [
+    {
+      "id": "loop_detected_and_blocked_with_reason",
+      "turns": [
+        {
+          "turn_id": "t1",
+          "assistant_text": "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly."
+        },
+        {
+          "turn_id": "t2",
+          "assistant_text": "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly."
+        },
+        {
+          "turn_id": "t3",
+          "assistant_text": "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly."
+        }
+      ],
+      "loop_blocked": true,
+      "loop_block_reason": "repetitive_fallback_loop_detected",
+      "finalization_failure": true,
+      "retry_count": 2,
+      "degraded_synthesis_forced": true,
+      "terminal_state_reason": "degraded_synthesis_after_bounded_retry"
+    },
+    {
+      "id": "single_fallback_no_loop",
+      "turns": [
+        {
+          "turn_id": "t1",
+          "assistant_text": "I completed the run, but the final reply did not render. Ask me to continue and I will synthesize from recorded workflow state."
+        },
+        {
+          "turn_id": "t2",
+          "assistant_text": "Summary from recovered state: local tooling request was denied by policy and requires capability escalation."
+        }
+      ],
+      "loop_blocked": false,
+      "loop_block_reason": "",
+      "finalization_failure": true,
+      "retry_count": 1,
+      "degraded_synthesis_forced": true,
+      "terminal_state_reason": "final_llm_unavailable_degraded_path"
+    },
+    {
+      "id": "capability_surface_boilerplate_loop_blocked",
+      "turns": [
+        {
+          "turn_id": "t1",
+          "assistant_text": "I can access runtime telemetry, persistent memory, workspace files, channels, and approved command surfaces in this session."
+        },
+        {
+          "turn_id": "t2",
+          "assistant_text": "I can access runtime telemetry, persistent memory, workspace files, channels, and approved command surfaces in this session."
+        }
+      ],
+      "loop_blocked": true,
+      "loop_block_reason": "repetitive_fallback_loop_detected",
+      "finalization_failure": true,
+      "retry_count": 1,
+      "degraded_synthesis_forced": true,
+      "terminal_state_reason": "degraded_synthesis_after_bounded_retry"
+    },
+    {
+      "id": "clarification_terminal_reason_allowed",
+      "turns": [
+        {
+          "turn_id": "t1",
+          "assistant_text": "Your request intersects both workspace and web paths; clarification required before execution."
+        }
+      ],
+      "loop_blocked": false,
+      "loop_block_reason": "",
+      "finalization_failure": true,
+      "retry_count": 0,
+      "degraded_synthesis_forced": true,
+      "terminal_state_reason": "clarification_required_due_to_unresolved_state"
+    },
+    {
+      "id": "policy_gate_outage_template_loop_blocked",
+      "turns": [
+        {
+          "turn_id": "t1",
+          "assistant_text": "The File List step was blocked before I could finish the answer: This is a policy gate, not a web-provider outage."
+        },
+        {
+          "turn_id": "t2",
+          "assistant_text": "The File List step was blocked before I could finish the answer: This is a policy gate, not a web-provider outage."
+        }
+      ],
+      "loop_blocked": true,
+      "loop_block_reason": "repetitive_fallback_loop_detected",
+      "finalization_failure": true,
+      "retry_count": 1,
+      "degraded_synthesis_forced": true,
+      "terminal_state_reason": "degraded_synthesis_after_bounded_retry"
+    },
+    {
+      "id": "ingress_domain_boundary_template_loop_blocked",
+      "turns": [
+        {
+          "turn_id": "t1",
+          "assistant_text": "`file_list` was blocked by ingress delivery policy in this runtime lane (lease_denied:client_ingress_domain_boundary). This is a policy gate, not a web-provider outage."
+        },
+        {
+          "turn_id": "t2",
+          "assistant_text": "Tool trace complete1 done · 1 blocked. `file_list` was blocked by ingress delivery policy in this runtime lane (lease_denied:client_ingress_domain_boundary)."
+        }
+      ],
+      "loop_blocked": true,
+      "loop_block_reason": "repetitive_fallback_loop_detected",
+      "finalization_failure": true,
+      "retry_count": 1,
+      "degraded_synthesis_forced": true,
+      "terminal_state_reason": "degraded_synthesis_after_bounded_retry"
+    },
+    {
+      "id": "paraphrased_retry_macro_loop_blocked",
+      "turns": [
+        {
+          "turn_id": "t1",
+          "assistant_text": "Workflow gate completed but the final workflow state was unexpected. Next actions: run one targeted tool call, then return a concise answer from current context."
+        },
+        {
+          "turn_id": "t2",
+          "assistant_text": "Workflow gate completed but the final workflow state was unexpected. Next actions: run one targeted tool call, then return a concise answer from current context."
+        }
+      ],
+      "loop_blocked": true,
+      "loop_block_reason": "repetitive_fallback_loop_detected",
+      "finalization_failure": true,
+      "retry_count": 1,
+      "degraded_synthesis_forced": true,
+      "terminal_state_reason": "degraded_synthesis_after_bounded_retry"
+    },
+    {
+      "id": "exact_duplicate_response_loop_blocked",
+      "turns": [
+        {
+          "turn_id": "t1",
+          "assistant_text": "I cannot complete this operation yet because workflow finalization did not produce a stable result bundle and requires retry coordination."
+        },
+        {
+          "turn_id": "t2",
+          "assistant_text": "I cannot complete this operation yet because workflow finalization did not produce a stable result bundle and requires retry coordination."
+        }
+      ],
+      "loop_blocked": true,
+      "loop_block_reason": "repetitive_fallback_loop_detected",
+      "finalization_failure": true,
+      "retry_count": 1,
+      "degraded_synthesis_forced": true,
+      "terminal_state_reason": "degraded_synthesis_after_bounded_retry"
+    },
+    {
+      "id": "alternating_retry_templates_loop_blocked",
+      "turns": [
+        {
+          "turn_id": "t1",
+          "assistant_text": "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly."
+        },
+        {
+          "turn_id": "t2",
+          "assistant_text": "I completed the run, but the final reply did not render. Ask me to continue and I will synthesize from recorded workflow state."
+        },
+        {
+          "turn_id": "t3",
+          "assistant_text": "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly."
+        },
+        {
+          "turn_id": "t4",
+          "assistant_text": "I completed the run, but the final reply did not render. Ask me to continue and I will synthesize from recorded workflow state."
+        }
+      ],
+      "loop_blocked": true,
+      "loop_block_reason": "repetitive_fallback_loop_detected",
+      "finalization_failure": true,
+      "retry_count": 2,
+      "degraded_synthesis_forced": true,
+      "terminal_state_reason": "degraded_synthesis_after_bounded_retry"
+    }
+  ]
+}

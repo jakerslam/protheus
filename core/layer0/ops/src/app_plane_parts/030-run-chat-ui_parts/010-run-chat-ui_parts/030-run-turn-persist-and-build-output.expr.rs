@@ -5,11 +5,11 @@
             .unwrap_or(false);
         let tool_gate = chat_ui_turn_tool_decision_tree(&message);
         let web_search_calls = chat_ui_web_search_call_count(&tools) as i64;
-        let workflow_route = clean(
+        let workflow_gate_mode = clean(
             tool_gate
-                .get("workflow_route")
+                .get("gate_decision_mode")
                 .and_then(Value::as_str)
-                .unwrap_or("info"),
+                .unwrap_or("manual_need_tool_access"),
             40,
         );
         let workflow_reason_code = clean(
@@ -41,7 +41,7 @@
             .unwrap_or(false);
         let workflow_process_summary = json!({
             "ts": crate::now_iso(),
-            "route": workflow_route.clone(),
+            "gate_mode": workflow_gate_mode.clone(),
             "reason_code": workflow_reason_code.clone(),
             "selection_authority": workflow_selection_authority.clone(),
             "automatic_tool_calls_allowed": workflow_auto_tools_allowed,
@@ -138,7 +138,7 @@
                 "status": transaction_status,
                 "complete": transaction_complete,
                 "classification": web_classification.clone(),
-                "workflow_route": workflow_route.clone(),
+                "workflow_gate_mode": workflow_gate_mode.clone(),
                 "workflow_reason_code": workflow_reason_code.clone(),
                 "retry": {
                     "recommended": guard_retry_recommended,
@@ -232,10 +232,7 @@
                     "contract": "tool_execution_receipt_v1",
                     "execution_statuses": ["ok", "error", "blocked", "not_found", "low_signal", "unknown"],
                     "discovered_tools": discovered_tools,
-                    "recommended_tool_family": clean(
-                        tool_gate.get("recommended_tool_family").and_then(Value::as_str).unwrap_or("none"),
-                        80
-                    ),
+                    "tool_selection_authority": "llm_submission_only",
                     "provider_catalog": providers,
                     "selected_provider": selected_provider,
                     "selected_model": selected_model

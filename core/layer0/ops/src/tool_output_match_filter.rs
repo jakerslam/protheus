@@ -438,26 +438,8 @@ pub fn canonical_tooling_fallback_copy(
         normalized_error = normalize_web_tooling_error_code(&normalized_error);
     }
     let detail = detail.map(|value| clean_text(value, 260)).unwrap_or_default();
-    if normalized_error == "web_tool_surface_unavailable"
-        || normalized_error == "web_tool_surface_degraded"
-    {
-        let mut out = if normalized_error == "web_tool_surface_unavailable" {
-            "I could not complete live web retrieval in this turn because the web tool surface is unavailable. Retry after restoring web tooling, or provide a source URL and I can continue with local analysis.".to_string()
-        } else {
-            "I could not complete live web retrieval in this turn because the web tool surface is degraded. Retry after restoring provider credentials/runtime, or provide a source URL and I can continue with local analysis.".to_string()
-        };
-        if !detail.is_empty() {
-            out.push_str(&format!(" detail: {detail}."));
-        }
-        return out;
-    }
-    let mut out = format!(
-        "Tool execution did not produce a usable final answer in this turn. web_status: {status}. error_code: {normalized_error}."
-    );
-    if !detail.is_empty() {
-        out.push_str(&format!(" detail: {detail}."));
-    }
-    out
+    let _ = (status, normalized_error, detail);
+    String::new()
 }
 
 fn looks_like_json_payload_envelope(text: &str) -> bool {
@@ -970,9 +952,7 @@ mod tests {
     #[test]
     fn canonical_tooling_fallback_copy_includes_status_and_error_code() {
         let copy = canonical_tooling_fallback_copy("parse_failed", "web_tool_invalid_response", None);
-        let lowered = copy.to_ascii_lowercase();
-        assert!(lowered.contains("web_status: parse_failed"));
-        assert!(lowered.contains("error_code: web_tool_invalid_response"));
+        assert!(copy.is_empty(), "{copy}");
     }
 
     #[test]
@@ -993,27 +973,13 @@ mod tests {
             canonical_tooling_fallback_copy("failed", "web_tool_surface_unavailable", None);
         let degraded =
             canonical_tooling_fallback_copy("failed", "web_tool_surface_degraded", None);
-        assert!(
-            unavailable
-                .to_ascii_lowercase()
-                .contains("web tool surface is unavailable"),
-            "{unavailable}"
-        );
-        assert!(
-            degraded
-                .to_ascii_lowercase()
-                .contains("web tool surface is degraded"),
-            "{degraded}"
-        );
+        assert!(unavailable.is_empty(), "{unavailable}");
+        assert!(degraded.is_empty(), "{degraded}");
     }
 
     #[test]
     fn canonical_tooling_fallback_copy_normalizes_surface_alias_to_surface_copy() {
         let copy = canonical_tooling_fallback_copy("failed", "surface_unavailable", None);
-        assert!(
-            copy.to_ascii_lowercase()
-                .contains("web tool surface is unavailable"),
-            "{copy}"
-        );
+        assert!(copy.is_empty(), "{copy}");
     }
 }

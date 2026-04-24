@@ -33,7 +33,7 @@ type SoakCaseResult = {
 
 type SoakReport = {
   type: 'web_tooling_context_soak_report';
-  schema_version: 2;
+  schema_version: 4;
   started_at: string;
   finished_at: string;
   ok: boolean;
@@ -41,6 +41,8 @@ type SoakReport = {
   status: number;
   duration_ms: number;
   taxonomy: Record<string, unknown>;
+  taxonomy_contract: Record<string, unknown>;
+  taxonomy_source: string;
   replay_pack: Record<string, unknown>;
   tests: SoakCaseResult[];
   stdout_tail: string;
@@ -66,6 +68,18 @@ const CASES: SoakCase[] = [
   },
 ];
 
+const PROVIDER_FAILURE_MODE_ALLOWLIST = new Set([
+  'provider_registry_missing',
+  'provider_registry_empty',
+  'provider_auth_missing',
+  'provider_unreachable',
+  'provider_partial_degradation',
+  'search_provider_unavailable',
+  'fetch_provider_unavailable',
+  'provider_timeout',
+  'provider_rate_limited',
+]);
+
 function nowIso(): string {
   return new Date().toISOString();
 }
@@ -86,24 +100,230 @@ function writeJson(pathname: string, payload: unknown): void {
   fs.writeFileSync(pathname, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
 }
 
-function parseTaxonomy(stdout: string, marker: string): Record<string, unknown> {
-  const line = stdout
-    .split('\n')
-    .find((row) => row.trim().startsWith(marker));
-  if (!line) {
-    return {
+function parseTaxonomy(stdout: string, marker: string): { taxonomy: Record<string, unknown>; source: string } {
+  const candidates = [marker, 'WORKFLOW_WEB_TOOLING_CONTEXT_SOAK_TAXONOMY=', 'WEB_TOOLING_SOAK_TAXONOMY='];
+  for (const candidate of candidates) {
+    const line = stdout
+      .split('\n')
+      .find((row) => row.trim().startsWith(candidate));
+    if (!line) continue;
+    const raw = line.trim().slice(candidate.length);
+    try {
+      return {
+        taxonomy: JSON.parse(raw) as Record<string, unknown>,
+        source: candidate,
+      };
+    } catch {
+      return {
+        taxonomy: {
+          parse_error: 'taxonomy_json_parse_failed',
+          raw: cleanText(raw, 1200),
+        },
+        source: candidate,
+      };
+    }
+  }
+  return {
+    taxonomy: {
       parse_error: 'taxonomy_marker_missing',
-    };
+    },
+    source: 'missing',
+  };
+}
+
+function asObject(value: unknown): Record<string, unknown> {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
   }
-  const raw = line.trim().slice(marker.length);
-  try {
-    return JSON.parse(raw) as Record<string, unknown>;
-  } catch {
-    return {
-      parse_error: 'taxonomy_json_parse_failed',
-      raw: cleanText(raw, 1200),
-    };
+  return {};
+}
+
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function readBoolLike(value: unknown): boolean | null {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const lowered = cleanText(value, 32).toLowerCase();
+    if (['true', '1', 'yes', 'y', 'on'].includes(lowered)) return true;
+    if (['false', '0', 'no', 'n', 'off'].includes(lowered)) return false;
   }
+  return null;
+}
+
+function readNumberLike(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number.parseFloat(cleanText(value, 64));
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return null;
+}
+
+function normalizeTaxonomyContracts(raw: Record<string, unknown>): Record<string, unknown> {
+  const taxonomy = { ...raw };
+  const cache = asObject(taxonomy.cache);
+  const qualityTelemetry = asObject(
+    taxonomy.quality_telemetry ?? taxonomy.telemetry ?? taxonomy.metrics,
+  );
+  const providerFailures = asArray(
+    taxonomy.provider_failures ?? taxonomy.provider_failure_events ?? taxonomy.failures,
+  ).map((row) => asObject(row));
+
+  const cacheSkipped =
+    readBoolLike(taxonomy.cache_skipped) ??
+    readBoolLike(cache.skipped) ??
+    readBoolLike(cache.cache_skipped) ??
+    false;
+  const cacheSkipReason = cleanText(
+    taxonomy.cache_skip_reason ?? cache.skip_reason ?? cache.reason ?? '',
+    240,
+  );
+  const cacheWriteAllowed =
+    readBoolLike(taxonomy.cache_write_allowed) ??
+    readBoolLike(cache.write_allowed) ??
+    false;
+  const cacheWriteAttempted =
+    readBoolLike(taxonomy.cache_write_attempted) ??
+    readBoolLike(cache.write_attempted) ??
+    false;
+  const cacheStaleAgeSeconds =
+    readNumberLike(taxonomy.cache_stale_age_seconds) ??
+    readNumberLike(cache.stale_age_seconds) ??
+    readNumberLike(cache.age_seconds) ??
+    readNumberLike(taxonomy.age_seconds) ??
+    null;
+  const workflowLoopLeakCount =
+    readNumberLike(taxonomy.workflow_loop_leak_count) ??
+    readNumberLike(taxonomy.workflow_retry_loop_detected_count) ??
+    readNumberLike(taxonomy.unexpected_state_loop_count) ??
+    readNumberLike(qualityTelemetry.workflow_unexpected_state_loop_count) ??
+    readNumberLike(qualityTelemetry.unexpected_state_loop_count) ??
+    0;
+  const fileToolRouteMisdirectionCount =
+    readNumberLike(taxonomy.file_tool_route_misdirection_count) ??
+    readNumberLike(taxonomy.route_misdirection_count) ??
+    readNumberLike(qualityTelemetry.file_tool_route_misdirection_count) ??
+    readNumberLike(qualityTelemetry.route_misdirection_count) ??
+    0;
+
+  taxonomy.provider_failures = providerFailures;
+  taxonomy.cache_skipped = cacheSkipped;
+  taxonomy.cache_skip_reason = cacheSkipReason;
+  taxonomy.cache_write_allowed = cacheWriteAllowed;
+  taxonomy.cache_write_attempted = cacheWriteAttempted;
+  taxonomy.cache_stale_age_seconds = cacheStaleAgeSeconds;
+  taxonomy.workflow_loop_leak_count = workflowLoopLeakCount;
+  taxonomy.file_tool_route_misdirection_count = fileToolRouteMisdirectionCount;
+  taxonomy.cache = {
+    ...cache,
+    skipped: cacheSkipped,
+    skip_reason: cacheSkipReason,
+    write_allowed: cacheWriteAllowed,
+    write_attempted: cacheWriteAttempted,
+    stale_age_seconds: cacheStaleAgeSeconds,
+  };
+  return taxonomy;
+}
+
+function normalizeProviderFailureMode(row: Record<string, unknown>): string {
+  return cleanText(
+    row.failure_mode
+      ?? row.reason
+      ?? row.code
+      ?? row.kind
+      ?? row.status
+      ?? row.type
+      ?? '',
+    100,
+  ).toLowerCase();
+}
+
+function evaluateTaxonomyContracts(taxonomy: Record<string, unknown>): Record<string, unknown> {
+  const providerRows = asArray(taxonomy.provider_failures).map((row) => asObject(row));
+  const providerFailureModes = new Set<string>();
+  let providerFailureContractViolationCount = 0;
+  for (const row of providerRows) {
+    const mode = normalizeProviderFailureMode(row);
+    if (!mode) {
+      providerFailureContractViolationCount += 1;
+      continue;
+    }
+    providerFailureModes.add(mode);
+    if (!PROVIDER_FAILURE_MODE_ALLOWLIST.has(mode)) {
+      providerFailureContractViolationCount += 1;
+    }
+  }
+  const singularMode = cleanText(taxonomy.provider_failure_mode ?? '', 100).toLowerCase();
+  if (singularMode) {
+    providerFailureModes.add(singularMode);
+    if (!PROVIDER_FAILURE_MODE_ALLOWLIST.has(singularMode)) {
+      providerFailureContractViolationCount += 1;
+    }
+  }
+  const cacheSkipped = readBoolLike(taxonomy.cache_skipped) ?? false;
+  const cacheSkipReason = cleanText(taxonomy.cache_skip_reason ?? '', 240);
+  const cacheWriteAllowed = readBoolLike(taxonomy.cache_write_allowed) ?? false;
+  const cacheWriteAttempted = readBoolLike(taxonomy.cache_write_attempted) ?? false;
+  const cacheStaleAgeSeconds = readNumberLike(taxonomy.cache_stale_age_seconds);
+  const workflowLoopLeakCount = Math.max(
+    0,
+    Math.trunc(readNumberLike(taxonomy.workflow_loop_leak_count) ?? 0),
+  );
+  const fileToolRouteMisdirectionCount = Math.max(
+    0,
+    Math.trunc(readNumberLike(taxonomy.file_tool_route_misdirection_count) ?? 0),
+  );
+  const cacheSkipReasonMissingCount = cacheSkipped && !cacheSkipReason ? 1 : 0;
+  const cacheWriteGateViolationCount =
+    providerFailureModes.size > 0 && (cacheWriteAllowed || cacheWriteAttempted) ? 1 : 0;
+  const staleAgeRequired = cacheSkipped || cacheWriteAttempted || providerFailureModes.size > 0;
+  const cacheStaleAgeMissingCount =
+    staleAgeRequired && (cacheStaleAgeSeconds == null || cacheStaleAgeSeconds < 0) ? 1 : 0;
+
+  const failures: string[] = [];
+  if (providerFailureContractViolationCount > 0) {
+    failures.push('provider_failure_mode_contract_violation');
+  }
+  if (cacheSkipReasonMissingCount > 0) {
+    failures.push('cache_skip_reason_missing');
+  }
+  if (cacheWriteGateViolationCount > 0) {
+    failures.push('cache_write_fail_closed_violation');
+  }
+  if (cacheStaleAgeMissingCount > 0) {
+    failures.push('cache_stale_age_metadata_missing');
+  }
+  if (workflowLoopLeakCount > 0) {
+    failures.push('workflow_loop_leak_detected');
+  }
+  if (fileToolRouteMisdirectionCount > 0) {
+    failures.push('file_tool_route_misdirection_detected');
+  }
+
+  return {
+    ok: failures.length === 0,
+    provider_failure_modes: Array.from(providerFailureModes).sort(),
+    provider_failure_contract_violation_count: providerFailureContractViolationCount,
+    cache_skipped: cacheSkipped,
+    cache_skip_reason: cacheSkipReason,
+    cache_skip_reason_missing_count: cacheSkipReasonMissingCount,
+    cache_write_allowed: cacheWriteAllowed,
+    cache_write_attempted: cacheWriteAttempted,
+    cache_write_gate_violation_count: cacheWriteGateViolationCount,
+    cache_stale_age_seconds: cacheStaleAgeSeconds,
+    cache_stale_age_required: staleAgeRequired,
+    cache_stale_age_missing_count: cacheStaleAgeMissingCount,
+    workflow_loop_leak_count: workflowLoopLeakCount,
+    file_tool_route_misdirection_count: fileToolRouteMisdirectionCount,
+    failures,
+  };
 }
 
 function runCargoTestWithTimeoutKill(testName: string): {
@@ -117,7 +337,6 @@ function runCargoTestWithTimeoutKill(testName: string): {
     'infring-ops-core',
     '--lib',
     testName,
-    '--quiet',
     '--',
     '--nocapture',
   ];
@@ -164,6 +383,7 @@ const results: SoakCaseResult[] = [];
 let taxonomy: Record<string, unknown> = {
   parse_error: 'taxonomy_marker_missing',
 };
+let taxonomySource = 'missing';
 
 for (const row of CASES) {
   const { result: run, stdoutRaw } = runCargoTestWithTimeoutKill(row.test);
@@ -173,10 +393,14 @@ for (const row of CASES) {
     lane: row.lane,
   };
   if (row.taxonomyMarker) {
-    taxonomy = parseTaxonomy(stdoutRaw, row.taxonomyMarker);
+    const parsed = parseTaxonomy(stdoutRaw, row.taxonomyMarker);
+    taxonomy = parsed.taxonomy;
+    taxonomySource = parsed.source;
   }
   results.push(result);
 }
+taxonomy = normalizeTaxonomyContracts(taxonomy);
+const taxonomyContract = evaluateTaxonomyContracts(taxonomy);
 
 const replayRows = results.filter((row) => row.lane === 'replay');
 const replayFailed = replayRows.filter((row) => !row.ok);
@@ -192,11 +416,11 @@ const taxonomyError = cleanText(
   120,
 );
 const allTestsPassed = results.every((row) => row.ok);
-const ok = allTestsPassed && taxonomyError.length === 0;
+const ok = allTestsPassed && taxonomyError.length === 0 && taxonomyContract.ok === true;
 
 const report: SoakReport = {
   type: 'web_tooling_context_soak_report',
-  schema_version: 2,
+  schema_version: 4,
   started_at: startedAt,
   finished_at: nowIso(),
   ok,
@@ -204,6 +428,8 @@ const report: SoakReport = {
   status: ok ? 0 : 1,
   duration_ms: Date.now() - startedMs,
   taxonomy,
+  taxonomy_contract: taxonomyContract,
+  taxonomy_source: taxonomySource,
   replay_pack: replayPack,
   tests: results,
   stdout_tail: cleanText(

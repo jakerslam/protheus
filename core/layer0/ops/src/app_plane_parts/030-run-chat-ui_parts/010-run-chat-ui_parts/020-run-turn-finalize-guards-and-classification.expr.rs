@@ -4,8 +4,15 @@
         let tool_diagnostics = chat_ui_tool_diagnostics(&tools);
         let receipt_summary =
             chat_ui_semantic_receipt_summary(&tool_diagnostics, requires_live_web, &message);
-        let (assistant_rewritten, rewrite_outcome) =
+        let (assistant_rewritten, placeholder_rewrite_outcome) =
             rewrite_chat_ui_placeholder_with_tool_diagnostics(&assistant_initial, &tool_diagnostics);
+        let (assistant_rewritten, legacy_route_rewrite_outcome) =
+            rewrite_chat_ui_legacy_route_classifier_copy(&assistant_rewritten);
+        let rewrite_outcome = if legacy_route_rewrite_outcome != "unchanged" {
+            legacy_route_rewrite_outcome
+        } else {
+            placeholder_rewrite_outcome
+        };
         let mut assistant = assistant_rewritten;
         let mut hard_guard = json!({
             "applied": false
@@ -45,11 +52,8 @@
             } else {
                 Some(format!("tool={inline_tool_name}"))
             };
-            assistant = crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                "parse_failed",
-                inline_error_code,
-                detail.as_deref(),
-            );
+            let _ = detail;
+            assistant.clear();
             hard_guard = json!({
                 "applied": true,
                 "status": "parse_failed",
@@ -68,11 +72,7 @@
             || chat_ui_contains_unverified_routing_root_cause_claim(&assistant))
             && !chat_ui_has_structured_routing_claim_evidence(&tools)
         {
-            assistant = crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                "parse_failed",
-                "web_tool_unverified_routing_claim",
-                Some("missing_receipt_evidence"),
-            );
+            assistant.clear();
             hard_guard = json!({
                 "applied": true,
                 "status": "parse_failed",
@@ -94,11 +94,7 @@
                 requires_live_web,
                 web_search_calls,
             );
-            assistant = crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                fallback_status,
-                fallback_error_code,
-                None,
-            );
+            assistant.clear();
             hard_guard = json!({
                 "applied": true,
                 "status": fallback_status,
@@ -276,15 +272,7 @@
             let fallback_status = chat_ui_fallback_status_for_classification(&web_classification);
             let fallback_error_code = chat_ui_error_code_for_classification(&web_classification);
             if !fallback_error_code.is_empty() {
-                assistant = if web_classification == "tool_not_invoked" {
-                    "Web tooling execution failed before any search tool call was recorded (error_code: web_tool_not_invoked). Retry lane: run `batch_query` with a narrower query or one specific source URL.".to_string()
-                } else {
-                    crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                        fallback_status,
-                        fallback_error_code,
-                        None,
-                    )
-                };
+                assistant.clear();
                 hard_guard = json!({
                     "applied": true,
                     "status": fallback_status,
@@ -321,7 +309,7 @@
                 .and_then(Value::as_bool)
                 .unwrap_or(false)
         {
-            assistant = "I could not produce a reliable response for your last message in this turn. Please retry and I will answer directly without running tools.".to_string();
+            assistant.clear();
             hard_guard = json!({
                 "applied": true,
                 "status": "failed",
@@ -434,7 +422,7 @@
                 .and_then(Value::as_bool)
                 .unwrap_or(false)
         {
-            assistant = "I could not produce a reliable final answer in this turn. Please retry once; if it still fails, I will return a structured fail-closed diagnosis.".to_string();
+            assistant.clear();
             hard_guard = json!({
                 "applied": true,
                 "status": "failed",

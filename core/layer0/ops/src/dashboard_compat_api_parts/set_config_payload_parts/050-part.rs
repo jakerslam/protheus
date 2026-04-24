@@ -41,6 +41,53 @@ fn important_memory_terms(text: &str, limit: usize) -> Vec<String> {
     out
 }
 
+const DEPRECATED_WORKFLOW_SOURCE_MARKERS: &[&str] = &[
+    "[source:workflow_gate]",
+    "source:workflow_gate",
+    "[source:tool_gate]",
+    "source:tool_gate",
+    "[source:tool_decision_tree_v3]",
+    "source:tool_decision_tree_v3",
+    "[source:workflow_route_classification]",
+    "source:workflow_route_classification",
+    "[source:gate_enforcement_mode]",
+    "source:gate_enforcement_mode",
+    "[source:tool_decision_policy]",
+    "source:tool_decision_policy",
+    "[source:conversation_bypass_control]",
+    "source:conversation_bypass_control",
+    "[source:agent_framework_analysis]",
+    "source:agent_framework_analysis",
+];
+
+fn strip_disallowed_source_tags(text: &str) -> String {
+    let mut cleaned = clean_text(text, 4_000);
+    if cleaned.is_empty() {
+        return cleaned;
+    }
+    loop {
+        let Some(start) = cleaned.find("[source:") else {
+            break;
+        };
+        let tail = &cleaned[start + 8..];
+        let Some(rel_end) = tail.find(']') else {
+            break;
+        };
+        let end = start + 8 + rel_end;
+        cleaned.replace_range(start..=end, "");
+    }
+    for marker in DEPRECATED_WORKFLOW_SOURCE_MARKERS {
+        cleaned = cleaned.replace(marker, "");
+    }
+    clean_text(&cleaned, 4_000)
+}
+
+fn contains_deprecated_workflow_source_marker(lowered: &str) -> bool {
+    DEPRECATED_WORKFLOW_SOURCE_MARKERS
+        .iter()
+        .any(|marker| lowered.contains(marker))
+}
+
 fn contains_deprecated_workflow_ghost_phrase(text: &str) -> bool {
     let lowered = clean_text(text, 4_000).to_ascii_lowercase();
     if lowered.is_empty() {
@@ -59,76 +106,52 @@ fn contains_deprecated_workflow_ghost_phrase(text: &str) -> bool {
                 || lowered.contains("automated classification based on semantic analysis")
                 || lowered.contains("not a true/false decision i control")
                 || lowered.contains("defaults to info")
-                || lowered.contains("[source:workflow_gate]")
-                || lowered.contains("source:workflow_gate"));
+                || contains_deprecated_workflow_source_marker(&lowered));
+    let decision_tree_autoclassifier_template = lowered.contains("decision tree")
+        && lowered.contains("automatically classifies")
+        && lowered.contains("\"info\"")
+        && lowered.contains("\"task\"")
+        && lowered.contains("semantic analysis");
     lowered.contains("task_or_info_route")
         || route_classification_template
         || route_binary_classifier_template
+        || decision_tree_autoclassifier_template
         || lowered.contains("i completed the workflow gate, but the final workflow state was unexpected")
         || lowered.contains("please retry so i can rerun the chain cleanly")
         || lowered.contains("final reply did not render")
         || lowered.contains("ask me to continue and i will synthesize")
         || lowered.contains("i can access runtime telemetry, persistent memory, workspace files, channels, and approved command surfaces in this session")
+        || lowered.contains("conversation bypass mode is currently active")
+        || lowered.contains("restricted from running web searches")
+        || lowered.contains("can't autonomously decide to use web tools")
+        || lowered.contains("cannot autonomously decide to use web tools")
+        || lowered.contains("requires manual step-by-step authorization for tool usage")
+        || lowered.contains("before i even get to make any manual decisions")
+        || lowered.contains("automatic classification based on semantic analysis of your input")
+        || (lowered.contains("tool workflow")
+            && lowered.contains("direct conversation")
+            && lowered.contains("semantic analysis"))
+        || contains_deprecated_workflow_source_marker(&lowered)
 }
 
 fn scrub_deprecated_workflow_ghost_text(text: &str) -> String {
-    let mut cleaned = clean_text(text, 4_000);
+    let mut cleaned = strip_disallowed_source_tags(text);
     if cleaned.is_empty() {
         return cleaned;
     }
     for legacy in [
-        "task_or_info_route",
         "`task_or_info_route`",
         "\"task_or_info_route\"",
         "'task_or_info_route'",
+        "task_or_info_route",
     ] {
         cleaned = cleaned.replace(legacy, "workflow_route");
     }
-    cleaned = cleaned.replace(
-        "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.",
-        "Workflow state was recovered after a retry-loop guard. Proceed with the next explicit tool step.",
-    );
-    cleaned = cleaned.replace(
-        "I completed the workflow gate, but the final workflow state was unexpected.",
-        "Workflow state was recovered after a retry-loop guard.",
-    );
-    cleaned = cleaned.replace(
-        "I completed the run, but the final reply did not render. Ask me to continue and I will synthesize from the recorded workflow state.",
-        "Workflow finalization recovered through direct-answer mode after render failure.",
-    );
-    cleaned = cleaned.replace(
-        "I completed the run, but the final reply did not render.",
-        "Workflow finalization recovered through direct-answer mode after render failure.",
-    );
-    cleaned = cleaned.replace(
-        "The first gate (\"workflow_route\") is still classifying this as an \"info\" route rather than a \"task\" route. The system needs explicit tool-related phrasing to trigger the task classification path.",
-        "Workflow naming has been upgraded: gate 1 is `need_tool_access`. Explicit tool-operation requests should route through `task` and proceed to tool-family selection.",
-    );
-    cleaned = cleaned.replace(
-        "The first gate (\"task_or_info_route\") is still classifying this as an \"info\" route rather than a \"task\" route. The system needs explicit tool-related phrasing to trigger the task classification path.",
-        "Workflow naming has been upgraded: gate 1 is `need_tool_access`. Explicit tool-operation requests should route through `task` and proceed to tool-family selection.",
-    );
-    cleaned = cleaned.replace(
-        "The first gate (\"workflow_route\") is a binary classification that determines whether the system routes the request through a workflow (task route) or handles it as a direct conversational response (info route). It's not a true/false decision I control - it's an automated classification based on semantic analysis of the user's input. When it detects tool-related intent (like explicit web search requests or file operations), it routes to task; otherwise, it defaults to info. [source:workflow_gate]",
-        "Gate 1 is now `need_tool_access`, and this turn uses advisory hints only. The LLM should explicitly decide tool access and continue in direct conversation when tools are not needed.",
-    );
-    cleaned = cleaned.replace(
-        "The first gate (\"workflow_route\") is a binary classification that determines whether the system routes the request through a workflow (task route) or handles it as a direct conversational response (info route). It's not a true/false decision I control - it's an automated classification based on semantic analysis of the user's input. When it detects tool-related intent (like explicit web search requests or file operations), it routes to task; otherwise, it defaults to info.",
-        "Gate 1 is now `need_tool_access`, and this turn uses advisory hints only. The LLM should explicitly decide tool access and continue in direct conversation when tools are not needed.",
-    );
-    cleaned = cleaned.replace(
-        "The first gate (\"task_or_info_route\") is a binary classification that determines whether the system routes the request through a workflow (task route) or handles it as a direct conversational response (info route). It's not a true/false decision I control - it's an automated classification based on semantic analysis of the user's input. When it detects tool-related intent (like explicit web search requests or file operations), it routes to task; otherwise, it defaults to info. [source:workflow_gate]",
-        "Gate 1 is now `need_tool_access`, and this turn uses advisory hints only. The LLM should explicitly decide tool access and continue in direct conversation when tools are not needed.",
-    );
-    cleaned = cleaned.replace(
-        "The first gate (\"task_or_info_route\") is a binary classification that determines whether the system routes the request through a workflow (task route) or handles it as a direct conversational response (info route). It's not a true/false decision I control - it's an automated classification based on semantic analysis of the user's input. When it detects tool-related intent (like explicit web search requests or file operations), it routes to task; otherwise, it defaults to info.",
-        "Gate 1 is now `need_tool_access`, and this turn uses advisory hints only. The LLM should explicitly decide tool access and continue in direct conversation when tools are not needed.",
-    );
-    cleaned = cleaned.replace(
-        "Next actions: 1) clarify the exact outcome you want 2) run one targeted tool call 3) return a concise answer from current context",
-        "Workflow fallback guard removed canned retry actions and kept direct-answer mode active.",
-    );
-    clean_text(&cleaned, 1_400)
+    let stabilized = strip_disallowed_source_tags(&cleaned);
+    if contains_deprecated_workflow_ghost_phrase(&stabilized) {
+        return String::new();
+    }
+    clean_text(&stabilized, 1_400)
 }
 
 fn passive_memory_attention_event(

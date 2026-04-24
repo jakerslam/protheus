@@ -2,6 +2,7 @@
 pub mod clarification;
 pub mod contracts;
 pub mod control_plane;
+pub mod eval;
 pub mod ingress;
 pub mod planner;
 pub mod posture;
@@ -177,6 +178,29 @@ impl OrchestrationSurfaceRuntime {
                     typed_probe_contract_gap_count: 0,
                     decision_rationale_count: 1,
                     fallback_action_count: 0,
+                    mcp_alias_route_required: false,
+                    retry_backoff_contract_required: false,
+                    mcp_transport_fallback_required: false,
+                    semantic_discovery_route_required: false,
+                    exact_pattern_search_required: false,
+                    known_path_direct_read_required: false,
+                    parallel_independent_tool_calls_required: false,
+                    grounded_verification_required: false,
+                    step_checkpointing_required: false,
+                    completion_hygiene_required: false,
+                    specialized_tool_usage_required: false,
+                    shell_terminal_only_usage_required: false,
+                    simple_lookup_locality_hygiene_required: false,
+                    subagent_brief_contract_required: false,
+                    subagent_output_contract_required: false,
+                    subagent_result_synthesis_required: false,
+                    mcp_retry_reason_count: 0,
+                    mcp_transport_fallback_action_count: 0,
+                    mcp_retry_recovery_active: false,
+                    mcp_diagnostic_summary: "mcp_diag:not_applicable".to_string(),
+                    tool_failure_budget_failed_step_count: 0,
+                    tool_failure_budget_limit: 0,
+                    tool_failure_budget_exceeded: false,
                 },
                 decision_trace: ControlPlaneDecisionTrace {
                     chosen: "plan_transient_context_failed".to_string(),

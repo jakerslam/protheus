@@ -484,11 +484,24 @@ fn handle_primary_dashboard_routes_c(
                     .get("name")
                     .cloned()
                     .unwrap_or_else(|| json!(name.clone())),
+                "role": row
+                    .get("role")
+                    .cloned()
+                    .unwrap_or_else(|| json!(role.clone())),
                 "state": row.get("state").cloned().unwrap_or_else(|| json!("Running")),
                 "model_provider": row.get("model_provider").cloned().unwrap_or_else(|| json!(default_provider)),
                 "model_name": row.get("model_name").cloned().unwrap_or_else(|| json!(default_model)),
                 "runtime_model": row.get("runtime_model").cloned().unwrap_or_else(|| json!(default_model)),
                 "created_at": row.get("created_at").cloned().unwrap_or_else(|| json!(crate::now_iso())),
+                "avatar_url": row.get("avatar_url").cloned().unwrap_or_else(|| json!("")),
+                "identity": row.get("identity").cloned().unwrap_or_else(|| identity.clone()),
+                "contract": row.get("contract").cloned().unwrap_or_else(|| contract_patch.clone()),
+                "sidebar_status_state": row.get("sidebar_status_state").cloned().unwrap_or_else(|| json!("active")),
+                "sidebar_status_label": row.get("sidebar_status_label").cloned().unwrap_or_else(|| json!("active")),
+                "sidebar_status_source": row.get("sidebar_status_source").cloned().unwrap_or_else(|| json!("")),
+                "sidebar_status_source_sequence": row.get("sidebar_status_source_sequence").cloned().unwrap_or_else(|| json!("")),
+                "sidebar_status_age_seconds": row.get("sidebar_status_age_seconds").cloned().unwrap_or_else(|| json!(0)),
+                "sidebar_status_stale": row.get("sidebar_status_stale").cloned().unwrap_or_else(|| json!(false)),
                 "permissions_manifest": permissions_manifest,
                 "permissions_receipt": permissions_receipt
             }),

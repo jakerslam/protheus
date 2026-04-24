@@ -87,4 +87,8 @@ fn runtime_lane_fail_closes_when_memory_write_permission_is_not_allowed() {
         response.error.as_deref(),
         Some("runtime_lane_memory_write_denied")
     );
+    let contract = response.contract.to_string();
+    assert!(contract.contains("\"enforcement_mode\":\"strict_fail_closed\""));
+    assert!(contract.contains("\"blocked_permission_key_lineage\""));
+    assert!(contract.contains("\"parent_permissions_patch_clamped\""));
 }

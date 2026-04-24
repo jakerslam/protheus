@@ -374,7 +374,18 @@
           httpCompact = String(httpText || '').replace(/\s+/g, ' ').trim();
         }
         if (!String(httpText || '').trim()) {
-          httpText = httpToolFailureSummary || httpToolSummary || httpWorkflowFallbackSummary || this.defaultAssistantFallback(httpSplit.thought || '', httpTools);
+          // Policy: do not inject system-authored fallback text into chat.
+          this.maybeAddAutoModelSwitchNotice(httpAutoSwitchPrevious, httpRoute || preflightRoute);
+          this._pendingAutoModelSwitchBaseline = '';
+          this._clearPendingWsRequest(targetAgentId);
+          this._inflightPayload = null;
+          this.sending = false;
+          this._responseStartedAt = 0;
+          this.tokenCount = 0;
+          this._clearTypingTimeout();
+          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
+          this.scheduleConversationPersist();
+          return;
         }
         var httpFailure = httpHasToolCompletion ? null : this.extractRecoverableBackendFailure(httpText);
         if (httpFailure) {

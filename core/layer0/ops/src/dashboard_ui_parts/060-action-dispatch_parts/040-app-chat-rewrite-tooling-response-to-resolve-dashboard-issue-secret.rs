@@ -9,24 +9,10 @@ fn app_chat_rewrite_tooling_response(raw_input: &str, response: &str, tools: &[V
     let web_search_calls = app_chat_web_search_call_count(tools);
 
     if app_chat_contains_malformed_tool_emit(response) {
-        return (
-            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                "parse_failed",
-                "tool_call_schema_invalid",
-                Some("malformed_function_call"),
-            ),
-            "suppressed_malformed_tool_call".to_string(),
-        );
+        return ("".to_string(), "withheld_malformed_tool_call".to_string());
     }
     if local_tooling_intent && web_search_calls > 0 {
-        return (
-            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                "policy_blocked",
-                "web_tool_not_allowed_for_local_intent",
-                Some("local_file_tooling_intent"),
-            ),
-            "blocked_web_for_local_intent".to_string(),
-        );
+        return ("".to_string(), "withheld_web_for_local_intent".to_string());
     }
     if local_tooling_intent
         && (response_lower.contains("web search")
@@ -35,37 +21,16 @@ fn app_chat_rewrite_tooling_response(raw_input: &str, response: &str, tools: &[V
             || response_lower.contains("provider:")
             || response_lower.contains("tool trace complete"))
     {
-        return (
-            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                "parse_failed",
-                "local_intent_response_mismatch",
-                Some("unexpected_web_surface"),
-            ),
-            "suppressed_local_intent_mismatch".to_string(),
-        );
+        return ("".to_string(), "withheld_local_intent_mismatch".to_string());
     }
     if tools.is_empty() {
         return (response.to_string(), String::new());
     }
     if crate::tool_output_match_filter::contains_forbidden_runtime_context_markers(response) {
-        return (
-            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                "parse_failed",
-                "web_tool_context_mismatch",
-                None,
-            ),
-            "suppressed_context_leak_dump".to_string(),
-        );
+        return ("".to_string(), "withheld_context_leak_dump".to_string());
     }
     if app_chat_contains_irrelevant_dump(raw_input, response) {
-        return (
-            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                "parse_failed",
-                "web_tool_context_mismatch",
-                Some("irrelevant_response_dump"),
-            ),
-            "suppressed_irrelevant_dump".to_string(),
-        );
+        return ("".to_string(), "withheld_irrelevant_dump".to_string());
     }
     let blocked = tools.iter().any(app_chat_tool_blocked_signal);
     let low_signal = tools.iter().any(|row| {
@@ -102,50 +67,21 @@ fn app_chat_rewrite_tooling_response(raw_input: &str, response: &str, tools: &[V
         } else {
             clean_text(&evidence.join(", "), 260)
         };
-        return (
-            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                "policy_blocked",
-                "web_tool_policy_blocked",
-                Some(&evidence_text),
-            ),
-            "blocked_with_structured_evidence".to_string(),
-        );
+        let _ = evidence_text;
+        return ("".to_string(), "withheld_blocked_with_structured_evidence".to_string());
     }
     if !blocked && web_search_calls > 0 && !query_aligned {
-        return (
-            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                "provider_low_signal",
-                "web_tool_low_signal",
-                Some("query_result_mismatch"),
-            ),
-            "suppressed_query_mismatch".to_string(),
-        );
+        return ("".to_string(), "withheld_query_mismatch".to_string());
     }
     if low_signal && (speculative || deferred) {
         if let Some(summary) = app_chat_framework_gap_summary(raw_input, tools) {
-            return (
-                format!("{summary} The web run completed with partial signal; a follow-up pass is needed for full coverage."),
-                "success_with_gaps".to_string(),
-            );
+            let _ = summary;
+            return ("".to_string(), "withheld_success_with_gaps".to_string());
         }
         if deferred {
-            return (
-                crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                    "provider_low_signal",
-                    "web_tool_low_signal",
-                    None,
-                ),
-                "success_with_gaps".to_string(),
-            );
+            return ("".to_string(), "withheld_deferred_low_signal".to_string());
         }
-        return (
-            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                "parse_failed",
-                "web_tool_unverified_blocker_claim",
-                None,
-            ),
-            "suppressed_unverified_blocker_claim".to_string(),
-        );
+        return ("".to_string(), "withheld_unverified_blocker_claim".to_string());
     }
     (response.to_string(), String::new())
 }

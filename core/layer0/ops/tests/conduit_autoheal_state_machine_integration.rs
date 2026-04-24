@@ -74,9 +74,18 @@ fn agency_plane_conduit_state_machine_fails_closed_then_recovers() {
     );
     assert_eq!(healthy_code, 0);
     let healthy = read_lifecycle(temp.path());
-    assert_eq!(healthy.get("state").and_then(Value::as_str), Some("healthy"));
-    assert_eq!(healthy.get("recovered_count").and_then(Value::as_u64), Some(1));
-    assert_eq!(healthy.get("transition_count").and_then(Value::as_u64), Some(3));
+    assert_eq!(
+        healthy.get("state").and_then(Value::as_str),
+        Some("healthy")
+    );
+    assert_eq!(
+        healthy.get("recovered_count").and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        healthy.get("transition_count").and_then(Value::as_u64),
+        Some(3)
+    );
 }
 
 #[test]

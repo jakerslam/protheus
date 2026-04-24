@@ -108,6 +108,7 @@ function chatPage() {
     toolPreviewMaxLines: 2,
     toolPreviewMaxChars: 100,
     messageHydration: {},
+    messageHydrationReady: false,
     _forcedHydrateById: {},
     _renderWindowRaf: 0,
     showFreshArchetypeTiles: false,

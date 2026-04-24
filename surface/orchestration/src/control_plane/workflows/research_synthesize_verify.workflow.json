@@ -1,0 +1,20 @@
+{
+  "name": "research_synthesize_verify",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "default": false,
+  "description": "Research and synthesis template used for evidence-heavy retrieval turns and mixed tooling/web/workspace analysis.",
+  "stages": [
+    "intake_normalization",
+    "decomposition_planning",
+    "coordination_sequencing",
+    "recovery_escalation",
+    "result_packaging",
+    "verification_closure"
+  ],
+  "final_response_policy": "control_plane_packaged_response",
+  "gate_contract": "control_plane_lifecycle_v1",
+  "default_for_request_classes": [
+    "read_only",
+    "tool_call"
+  ]
+}

@@ -95,9 +95,9 @@ fn handle_message_chat_response_pass(
                 response_text = if runtime_probe {
                     runtime_access_summary_text(&runtime_summary)
                 } else if local_workspace_tooling_probe_turn {
-                    "This turn hit a local workspace policy boundary. I will stay in direct-answer mode from current context, and if you want a live workspace check I can run it in a workspace-read-enabled lane.".to_string()
+                    String::new()
                 } else {
-                    format!("{runtime_capability_surface_template} Tell me what you want me to check and I will run it now.")
+                    String::new()
                 };
             }
             if local_workspace_tooling_probe_turn {
@@ -111,21 +111,31 @@ fn handle_message_chat_response_pass(
                         || response_lowered.contains("automated classification based on semantic analysis")
                         || response_lowered.contains("not a true/false decision i control")
                         || response_lowered.contains("defaults to info")
-                        || response_lowered.contains("[source:workflow_gate]")
-                        || response_lowered.contains("source:workflow_gate")
+                        || contains_deprecated_workflow_source_marker(&response_lowered)
                         || response_lowered.contains("explicit tool-related phrasing")
                         || response_lowered.contains("task classification path")
-                        || response_lowered.contains("tool operation request"));
+                        || response_lowered.contains("tool operation request")
+                        || response_lowered.contains("conversation bypass mode is currently active")
+                        || response_lowered.contains("restricted from running web searches")
+                        || response_lowered.contains("can't autonomously decide to use web tools")
+                        || response_lowered
+                            .contains("requires manual step-by-step authorization for tool usage"));
+                let decision_tree_autoclassifier_template = response_lowered.contains("decision tree")
+                    && response_lowered.contains("automatically classifies")
+                    && response_lowered.contains("\"info\"")
+                    && response_lowered.contains("\"task\"")
+                    && response_lowered.contains("semantic analysis");
                 if response_contains_unexpected_state_retry_boilerplate(&response_text)
                     || workflow_response_repetition_breaker_active(&response_text)
                     || route_classification_template
+                    || decision_tree_autoclassifier_template
                 {
-                    response_text = "Tool routing is still LLM-controlled. This turn hit a workflow finalization edge, so I am continuing in direct-answer mode. For local workspace checks I will stay on file/workspace tooling unless you explicitly request web search.".to_string();
+                    response_text.clear();
                 } else if response_text.contains("originalUrl:") && response_text.contains("title:")
                 {
-                    response_text = "That looked like an unrelated web payload artifact. For this local workspace check I will avoid web routing and continue directly from local context.".to_string();
+                    response_text.clear();
                 } else if response_text.contains(runtime_capability_surface_template) {
-                    response_text = "I’ll keep this local. For workspace/file checks I will stay on local tooling and avoid web routing; if this lane lacks workspace-read permission, I can still answer directly from current context.".to_string();
+                    response_text.clear();
                 }
             }
             if memory_recall_requested(message) || persistent_memory_denied_phrase(&response_text) {
@@ -235,7 +245,7 @@ fn handle_message_chat_response_pass(
                     }
                 }
                 if response_text.trim().is_empty() {
-                    response_text = "I can answer directly without tool calls. Ask your question naturally and I will respond conversationally unless you explicitly request a tool run.".to_string();
+                    response_text.clear();
                 }
             }
             if response_tools.is_empty()
@@ -345,20 +355,7 @@ fn handle_message_chat_response_pass(
             if response_contains_unexpected_state_retry_boilerplate(&response_text)
                 || workflow_response_repetition_breaker_active(&response_text)
             {
-                let fallback = workflow_unexpected_state_user_fallback(
-                    message,
-                    &latest_assistant_text,
-                    &response_tools,
-                );
-                let guarded = ensure_no_retry_boilerplate_copy(
-                    message,
-                    &latest_assistant_text,
-                    &response_tools,
-                    &fallback,
-                );
-                if !guarded.trim().is_empty() {
-                    response_text = guarded;
-                }
+                // Preserve LLM-authored output only; do not replace with system fallback text.
             }
             if response_is_unrelated_context_dump(message, &response_text) {
                 let strict_relevance_prompt = clean_text(
@@ -407,9 +404,7 @@ fn handle_message_chat_response_pass(
                         }
                     }
                 });
-                response_text = retried.unwrap_or_else(|| {
-                    "I dropped an unrelated context artifact and did not return it. Please resend your request and I will answer only that prompt.".to_string()
-                });
+                response_text = retried.unwrap_or_default();
             }
             let conversation_bypass_control = workflow_conversation_bypass_control_for_turn(
                 message,

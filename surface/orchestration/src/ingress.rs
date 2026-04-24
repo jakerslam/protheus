@@ -165,7 +165,7 @@ fn adapt_surface_request(
         &["resource_kind", "resource", "domain", "target_domain"],
     )
     .and_then(parse_resource_kind);
-    let explicit_request_kind =
+    let mut explicit_request_kind =
         read_string(obj, &["request_kind", "request_mode"]).and_then(parse_request_kind);
     let explicit_mutability =
         read_string(obj, &["mutability", "write_mode"]).and_then(parse_mutability);
@@ -178,10 +178,22 @@ fn adapt_surface_request(
     let operation_candidates = parser::operation_candidates(&tokens, &adapter_payload);
     let resource_candidates =
         parser::resource_candidates(&tokens, &adapter_payload, descriptor_targets.as_slice());
-    let operation_kind = explicit_operation.or_else(|| operation_candidates.first().cloned());
-    let resource_kind = explicit_resource
+    let mut operation_kind = explicit_operation.or_else(|| operation_candidates.first().cloned());
+    let mut resource_kind = explicit_resource
         .or_else(|| parser::infer_resource_from_descriptors(&descriptor_targets))
         .or_else(|| resource_candidates.first().cloned());
+    if matches!(surface, RequestSurface::Dashboard)
+        && operation_kind.is_none()
+        && resource_kind.is_none()
+        && explicit_request_kind.is_none()
+        && descriptor_targets.is_empty()
+        && tool_hints.is_empty()
+        && read_string(obj, &["selection_mode", "page", "panel", "view"]).is_some()
+    {
+        operation_kind = Some(OperationKind::Read);
+        resource_kind = Some(ResourceKind::Memory);
+        explicit_request_kind = Some(RequestKind::Direct);
+    }
     let mutability =
         explicit_mutability.or_else(|| operation_kind.as_ref().map(parser::infer_mutability));
 
@@ -193,6 +205,10 @@ fn adapt_surface_request(
         return None;
     }
 
+    let dashboard_defaulted_read_memory = matches!(surface, RequestSurface::Dashboard)
+        && operation_kind == Some(OperationKind::Read)
+        && resource_kind == Some(ResourceKind::Memory);
+
     Some(SurfaceAdaptedRequest {
         request_kind: explicit_request_kind,
         operation_kind,
@@ -200,7 +216,13 @@ fn adapt_surface_request(
         mutability,
         target_descriptors: descriptor_targets,
         tool_hints,
-        reasons: vec![format!("surface_adapter:{surface:?}").to_lowercase()],
+        reasons: {
+            let mut reasons = vec![format!("surface_adapter:{surface:?}").to_lowercase()];
+            if dashboard_defaulted_read_memory {
+                reasons.push("surface_adapter_dashboard_default:read_memory".to_string());
+            }
+            reasons
+        },
     })
 }
 
@@ -271,39 +293,15 @@ fn adapter_token_strings(surface: RequestSurface, obj: &Map<String, Value>) -> V
 
 fn parse_operation_kind(value: &str) -> Option<OperationKind> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "read"
-        | "/read"
-        | "/open"
-        | "/cat"
-        | "status"
-        | "inspect"
-        | "list"
-        | "ls"
-        | "dir"
-        | "directory"
-        | "folder"
-        | "browse"
-        | "open"
-        | "view"
-        | "look"
-        | "cat"
-        | "head"
+        "read" | "/read" | "/open" | "/cat" | "status" | "inspect" | "list" | "ls" | "dir"
+        | "directory" | "folder" | "browse" | "open" | "view" | "look" | "cat" | "head"
         | "tail" => Some(OperationKind::Read),
-        "search"
-        | "/search"
-        | "/find"
-        | "/grep"
-        | "/rg"
-        | "query"
-        | "lookup"
-        | "grep"
-        | "rg"
+        "search" | "/search" | "/find" | "/grep" | "/rg" | "query" | "lookup" | "grep" | "rg"
         | "glob" => Some(OperationKind::Search),
         "fetch" | "/fetch" | "/url" | "download" | "retrieve" => Some(OperationKind::Fetch),
         "compare" => Some(OperationKind::Compare),
-        "inspect_tooling" | "/tool" | "/tools" | "/gateway" | "tool" | "tool_call" | "runtime_bridge" => {
-            Some(OperationKind::InspectTooling)
-        }
+        "inspect_tooling" | "/tool" | "/tools" | "/gateway" | "tool" | "tool_call"
+        | "runtime_bridge" => Some(OperationKind::InspectTooling),
         "assimilate" | "/assimilate" | "ingest" => Some(OperationKind::Assimilate),
         "plan" | "/plan" | "propose" => Some(OperationKind::Plan),
         "mutate" | "/mutate" | "update" | "write" | "edit" => Some(OperationKind::Mutate),
@@ -314,22 +312,9 @@ fn parse_operation_kind(value: &str) -> Option<OperationKind> {
 fn parse_resource_kind(value: &str) -> Option<ResourceKind> {
     match value.trim().to_ascii_lowercase().as_str() {
         "web" | "/web" | "url" => Some(ResourceKind::Web),
-        "workspace"
-        | "/workspace"
-        | "/repo"
-        | "file"
-        | "repo"
-        | "repository"
-        | "repo_path"
-        | "repository_path"
-        | "directory"
-        | "folder"
-        | "filesystem"
-        | "disk"
-        | "project"
-        | "local"
-        | "cwd"
-        | "pwd" => Some(ResourceKind::Workspace),
+        "workspace" | "/workspace" | "/repo" | "file" | "repo" | "repository" | "repo_path"
+        | "repository_path" | "directory" | "folder" | "filesystem" | "disk" | "project"
+        | "local" | "cwd" | "pwd" => Some(ResourceKind::Workspace),
         "tooling" | "/tooling" | "/tools" | "tool" | "runtime" => Some(ResourceKind::Tooling),
         "task" | "task_graph" | "workflow" => Some(ResourceKind::TaskGraph),
         "memory" | "history" => Some(ResourceKind::Memory),
@@ -398,7 +383,7 @@ fn extract_core_probe_envelope(
     surface: RequestSurface,
 ) -> Option<CoreProbeEnvelope> {
     let mut probes = if let Some(explicit) = payload.get("core_probe_envelope") {
-        parse_capability_probe_rows(explicit)
+        parse_capability_probe_rows(explicit, matches!(surface, RequestSurface::Legacy))
     } else {
         Vec::new()
     };
@@ -407,7 +392,7 @@ fn extract_core_probe_envelope(
             .get("capability_probes")
             .or_else(|| payload.get("probes"))
         {
-            probes = parse_capability_probe_rows(compat);
+            probes = parse_capability_probe_rows(compat, true);
         }
     }
     if probes.is_empty() {
@@ -417,11 +402,14 @@ fn extract_core_probe_envelope(
     }
 }
 
-fn parse_capability_probe_rows(value: &Value) -> Vec<CapabilityProbeSnapshot> {
+fn parse_capability_probe_rows(
+    value: &Value,
+    allow_execute_tool_alias: bool,
+) -> Vec<CapabilityProbeSnapshot> {
     if let Some(rows) = value.get("probes").and_then(Value::as_array) {
         let mut out = rows
             .iter()
-            .filter_map(parse_capability_probe_snapshot)
+            .filter_map(|row| parse_capability_probe_snapshot(row, allow_execute_tool_alias))
             .collect::<Vec<_>>();
         out.sort_by_key(|row| format!("{:?}", row.capability));
         return out;
@@ -431,7 +419,8 @@ fn parse_capability_probe_rows(value: &Value) -> Vec<CapabilityProbeSnapshot> {
     };
     let mut out = Vec::new();
     for (raw_capability, raw_probe) in map {
-        let Some(capability) = parse_capability_name(raw_capability) else {
+        let Some(capability) = parse_capability_name(raw_capability, allow_execute_tool_alias)
+        else {
             continue;
         };
         let Some(probe) = raw_probe.as_object() else {
@@ -454,12 +443,15 @@ fn parse_capability_probe_rows(value: &Value) -> Vec<CapabilityProbeSnapshot> {
     out
 }
 
-fn parse_capability_probe_snapshot(value: &Value) -> Option<CapabilityProbeSnapshot> {
+fn parse_capability_probe_snapshot(
+    value: &Value,
+    allow_execute_tool_alias: bool,
+) -> Option<CapabilityProbeSnapshot> {
     let row = value.as_object()?;
     let capability = row
         .get("capability")
         .and_then(Value::as_str)
-        .and_then(parse_capability_name)?;
+        .and_then(|value| parse_capability_name(value, allow_execute_tool_alias))?;
     Some(CapabilityProbeSnapshot {
         capability,
         tool_available: row.get("tool_available").and_then(Value::as_bool),
@@ -474,7 +466,7 @@ fn parse_capability_probe_snapshot(value: &Value) -> Option<CapabilityProbeSnaps
     })
 }
 
-fn parse_capability_name(value: &str) -> Option<Capability> {
+fn parse_capability_name(value: &str, allow_execute_tool_alias: bool) -> Option<Capability> {
     match value.trim().to_ascii_lowercase().as_str() {
         "read_memory" => Some(Capability::ReadMemory),
         "mutate_task" => Some(Capability::MutateTask),
@@ -483,7 +475,7 @@ fn parse_capability_name(value: &str) -> Option<Capability> {
         "web_search" => Some(Capability::WebSearch),
         "web_fetch" => Some(Capability::WebFetch),
         "tool_route" => Some(Capability::ToolRoute),
-        "execute_tool" => Some(Capability::ToolRoute),
+        "execute_tool" if allow_execute_tool_alias => Some(Capability::ToolRoute),
         "plan_assimilation" => Some(Capability::PlanAssimilation),
         "verify_claim" => Some(Capability::VerifyClaim),
         _ => None,
@@ -634,10 +626,18 @@ mod tests {
             .reasons
             .iter()
             .any(|row| row == "typed_probe_contract_missing:core_probe_envelope"));
-        assert!(parsed
-            .reasons
-            .iter()
-            .any(|row| row == "typed_probe_contract_expected:web_search"));
+        for expected in [
+            "typed_probe_contract_expected:workspace_read",
+            "typed_probe_contract_expected:workspace_search",
+            "typed_probe_contract_expected:web_search",
+            "typed_probe_contract_expected:web_fetch",
+            "typed_probe_contract_expected:tool_route",
+        ] {
+            assert!(
+                parsed.reasons.iter().any(|row| row == expected),
+                "{expected}"
+            );
+        }
         assert!(parsed
             .ambiguity
             .contains(&crate::contracts::AmbiguityReason::TypedProbeContractViolation));
@@ -780,6 +780,90 @@ mod tests {
             .reasons
             .iter()
             .any(|row| row == "typed_probe_contract_missing:field.web_search.tool_available"));
+        assert!(parsed
+            .ambiguity
+            .contains(&crate::contracts::AmbiguityReason::TypedProbeContractViolation));
+    }
+
+    #[test]
+    fn typed_surface_incomplete_web_search_transport_probe_emits_exact_field_diagnostics() {
+        let parsed = normalize_request(OrchestrationRequest {
+            session_id: "sdk-web-search-probe-transport-field-missing".to_string(),
+            intent: "search release notes".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "search",
+                    "resource_kind": "web",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "url", "value": "https://example.com/releases" }]
+                },
+                "core_probe_envelope": {
+                    "web_search": {
+                        "tool_available": true
+                    }
+                }
+            }),
+        });
+        assert!(parsed.reasons.iter().any(|row| {
+            row == "typed_probe_contract_missing:field.web_search.transport_available"
+        }));
+        assert!(parsed
+            .ambiguity
+            .contains(&crate::contracts::AmbiguityReason::TypedProbeContractViolation));
+    }
+
+    #[test]
+    fn typed_surface_incomplete_workspace_read_probe_emits_exact_field_diagnostics() {
+        let parsed = normalize_request(OrchestrationRequest {
+            session_id: "sdk-workspace-read-probe-field-missing".to_string(),
+            intent: "read workspace file".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "read",
+                    "resource_kind": "workspace",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "workspace_path", "value": "README.md" }]
+                },
+                "core_probe_envelope": {
+                    "workspace_read": {
+                        "transport_available": true
+                    }
+                }
+            }),
+        });
+        assert!(parsed.reasons.iter().any(|row| {
+            row == "typed_probe_contract_missing:field.workspace_read.tool_available"
+        }));
+        assert!(parsed
+            .ambiguity
+            .contains(&crate::contracts::AmbiguityReason::TypedProbeContractViolation));
+    }
+
+    #[test]
+    fn typed_surface_missing_workspace_read_transport_field_emits_exact_diagnostic() {
+        let parsed = normalize_request(OrchestrationRequest {
+            session_id: "sdk-workspace-read-probe-transport-field-missing".to_string(),
+            intent: "read workspace file".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "read",
+                    "resource_kind": "workspace",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "workspace_path", "value": "README.md" }]
+                },
+                "core_probe_envelope": {
+                    "workspace_read": {
+                        "tool_available": true
+                    }
+                }
+            }),
+        });
+        assert!(parsed.reasons.iter().any(|row| {
+            row == "typed_probe_contract_missing:field.workspace_read.transport_available"
+        }));
         assert!(parsed
             .ambiguity
             .contains(&crate::contracts::AmbiguityReason::TypedProbeContractViolation));
@@ -1004,6 +1088,54 @@ mod tests {
             .typed_request
             .tool_hints
             .contains(&"workspace_search".to_string()));
+        assert!(!parsed
+            .typed_request
+            .tool_hints
+            .contains(&"web_search".to_string()));
+        assert!(!parsed
+            .typed_request
+            .tool_hints
+            .contains(&"web_fetch".to_string()));
+    }
+
+    #[test]
+    fn local_file_read_intent_never_injects_web_tool_hints() {
+        let parsed = normalize_request(OrchestrationRequest {
+            session_id: "local-file-read-no-web-hint".to_string(),
+            intent: "read local file README.md".to_string(),
+            surface: RequestSurface::Legacy,
+            payload: json!({
+                "path": "README.md"
+            }),
+        });
+        assert_eq!(parsed.typed_request.resource_kind, ResourceKind::Workspace);
+        assert!(!parsed
+            .typed_request
+            .tool_hints
+            .contains(&"web_search".to_string()));
+        assert!(!parsed
+            .typed_request
+            .tool_hints
+            .contains(&"web_fetch".to_string()));
+        assert!(parsed.typed_request.tool_hints.iter().any(|row| {
+            row == "workspace_read" || row == "workspace_search" || row == "tool_route"
+        }));
+    }
+
+    #[test]
+    fn local_tool_route_intent_never_injects_web_tool_hints() {
+        let parsed = normalize_request(OrchestrationRequest {
+            session_id: "local-tool-route-no-web-hint".to_string(),
+            intent: "route local tooling request".to_string(),
+            surface: RequestSurface::Legacy,
+            payload: json!({
+                "command": "/tool"
+            }),
+        });
+        assert!(parsed
+            .typed_request
+            .tool_hints
+            .contains(&"tool_route".to_string()));
         assert!(!parsed
             .typed_request
             .tool_hints

@@ -246,99 +246,11 @@
       });
     },
     completedToolOnlySummary: function(tools) {
-      var rows = Array.isArray(tools) ? tools.filter(function(tool) {
-        return !!(tool && String(tool.name || '').toLowerCase() !== 'thought_process');
-      }) : [];
-      if (!rows.length) return '';
-      var actionableWeb = rows.find(function(tool) {
-        if (!tool || tool.running || !this.isWebLikeToolName(tool.name || '')) return false;
-        return (
-          this.textMentionsContextGuard(tool.result || '') ||
-          this.textLooksNoFindingsPlaceholder(tool.result || '') ||
-          this.textLooksToolAckWithoutFindings(tool.result || '')
-        );
-      }, this);
-      if (actionableWeb) {
-        return this.lowSignalWebToolSummary(actionableWeb);
-      }
-      var successful = rows.filter(function(tool) {
-        if (!tool || tool.running || tool.is_error || tool.blocked) return false;
-        return !!this.toolResultSummarySnippet(tool);
-      }, this);
-      if (successful.length) {
-        var parts = successful.slice(0, 2).map(function(tool) {
-          var toolName = String(tool.name || 'tool').replace(/_/g, ' ').trim();
-          var result = this.toolResultSummarySnippet(tool);
-          return toolName ? (toolName + ': ' + result) : result;
-        }, this).filter(function(part) { return !!part; });
-        if (parts.length) return parts.join(' | ');
-      }
-      var blocked = rows.filter(function(tool) { return !!(tool && tool.blocked); });
-      if (blocked.length) {
-        var blockedNames = blocked.slice(0, 2).map(function(tool) {
-          return String(tool.name || 'tool').replace(/_/g, ' ').trim();
-        }).filter(function(name) { return !!name; });
-        return 'The tool run completed, but policy blocked ' + (blockedNames.join(' and ') || 'a required step') + ' before a final prose answer was composed.';
-      }
-      var failed = rows.filter(function(tool) { return !!(tool && tool.is_error); });
-      if (failed.length) {
-        var firstFailure = failed[0] || {};
-        if (this.isWebLikeToolName(firstFailure.name || '') && this.textMentionsContextGuard(firstFailure.result || '')) {
-          return this.lowSignalWebToolSummary(firstFailure);
-        }
-        var failureName = String(firstFailure.name || 'tool').replace(/_/g, ' ').trim();
-        var failureDetail = this.toolResultSummarySnippet(firstFailure) || String(firstFailure.status || '').replace(/\s+/g, ' ').trim();
-        if (failureDetail.length > 120) failureDetail = failureDetail.slice(0, 117) + '...';
-        if (failureDetail) {
-          return 'The tool run completed, but ' + (failureName || 'a required step') + ' failed before a final prose answer was composed: ' + failureDetail;
-        }
-        return 'The tool run completed, but a required step failed before a final prose answer was composed.';
-      }
-      var completedNames = rows.slice(0, 3).map(function(tool) {
-        return String(tool && tool.name ? tool.name : 'tool').replace(/_/g, ' ').trim();
-      }).filter(function(name, idx, list) {
-        return !!name && list.indexOf(name) === idx;
-      });
-      if (completedNames.length) {
-        return 'Completed tool steps: ' + completedNames.join(', ') + '. Ask me to continue from those recorded results.';
-      }
+      var _ = tools;
       return '';
     },
 
     defaultAssistantFallback: function(thoughtText, tools) {
-      var thought = String(thoughtText || '').trim();
-      var hasToolError = Array.isArray(tools) && tools.some(function(tool) {
-        return !!(tool && tool.is_error);
-      });
-      var toolCompletionSummary = this.completedToolOnlySummary(tools);
-      var successfulToolSummary = '';
-      if (Array.isArray(tools) && tools.length) {
-        var successful = tools.filter(function(tool) {
-          if (!tool || tool.running || tool.is_error) return false;
-          return !!this.toolResultSummarySnippet(tool);
-        }, this);
-        if (successful.length) {
-          var parts = successful.slice(0, 2).map(function(tool) {
-            var toolName = String(tool.name || 'tool').replace(/_/g, ' ').trim();
-            var result = this.toolResultSummarySnippet(tool);
-            return toolName ? (toolName + ': ' + result) : result;
-          }, this).filter(function(part) { return !!part; });
-          if (parts.length) successfulToolSummary = parts.join(' | ');
-        }
-      }
-      if (hasToolError && !successfulToolSummary && !toolCompletionSummary) {
-        return 'I could not finish the request because a required step failed. Please clarify the goal or try again.';
-      }
-      if (successfulToolSummary) {
-        return successfulToolSummary;
-      }
-      if (toolCompletionSummary) {
-        return toolCompletionSummary;
-      }
-      if (thought) {
-        var derived = this.deriveUserFacingFromThought(thought);
-        if (derived) return derived;
-        return 'I need one more clarification before I can finalize a reliable answer. Tell me the exact expected outcome.';
-      }
-      return 'I lost the final response handoff for this turn. Context is still intact, and I can continue from exactly where this left off.';
+      var _ = [thoughtText, tools];
+      return '';
     },

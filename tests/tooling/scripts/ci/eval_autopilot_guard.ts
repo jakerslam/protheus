@@ -453,6 +453,380 @@ function run(argv: string[] = process.argv.slice(2)): number {
   const thresholdsGeneratedAtLengthBoundedOrMissing =
     !Object.prototype.hasOwnProperty.call(thresholds, 'generated_at')
     || String(thresholds?.generated_at).length <= 40;
+  const monitorStatusTokenOrMissing =
+    !Object.prototype.hasOwnProperty.call(monitor, 'status')
+    || isCanonicalToken(String(monitor?.status), 120);
+  const qualityStatusTokenOrMissing =
+    !Object.prototype.hasOwnProperty.call(quality, 'status')
+    || isCanonicalToken(String(quality?.status), 120);
+  const sloStatusTokenOrMissing =
+    !Object.prototype.hasOwnProperty.call(slo, 'status')
+    || isCanonicalToken(String(slo?.status), 120);
+  const adversarialStatusTokenOrMissing =
+    !Object.prototype.hasOwnProperty.call(adversarial, 'status')
+    || isCanonicalToken(String(adversarial?.status), 120);
+  const issueFilingStatusTokenOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueFiling, 'status')
+    || isCanonicalToken(String(issueFiling?.status), 120);
+  const issueResolutionStatusTokenOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueResolution, 'status')
+    || isCanonicalToken(String(issueResolution?.status), 120);
+  const qualityGateStatusTokenOrMissing =
+    !Object.prototype.hasOwnProperty.call(qualityGate, 'status')
+    || isCanonicalToken(String(qualityGate?.status), 120);
+  const reviewerStatusTokenOrMissing =
+    !Object.prototype.hasOwnProperty.call(reviewer, 'status')
+    || isCanonicalToken(String(reviewer?.status), 120);
+  const judgeHumanStatusTokenOrMissing =
+    !Object.prototype.hasOwnProperty.call(judgeHuman, 'status')
+    || isCanonicalToken(String(judgeHuman?.status), 120);
+  const thresholdsStatusTokenOrMissing =
+    !Object.prototype.hasOwnProperty.call(thresholds, 'status')
+    || isCanonicalToken(String(thresholds?.status), 120);
+  const qualitySummaryStatusTokenOrMissing =
+    !Object.prototype.hasOwnProperty.call(quality?.summary || {}, 'status')
+    || isCanonicalToken(String(quality?.summary?.status), 120);
+  const sloSummaryStatusTokenOrMissing =
+    !Object.prototype.hasOwnProperty.call(slo?.summary || {}, 'status')
+    || isCanonicalToken(String(slo?.summary?.status), 120);
+  const adversarialSummaryStatusTokenOrMissing =
+    !Object.prototype.hasOwnProperty.call(adversarial?.summary || {}, 'status')
+    || isCanonicalToken(String(adversarial?.summary?.status), 120);
+  const issueFilingSummaryStatusTokenOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueFiling?.summary || {}, 'status')
+    || isCanonicalToken(String(issueFiling?.summary?.status), 120);
+  const issueResolutionSummaryStatusTokenOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueResolution?.summary || {}, 'status')
+    || isCanonicalToken(String(issueResolution?.summary?.status), 120);
+  const qualityGateSummaryStatusTokenOrMissing =
+    !Object.prototype.hasOwnProperty.call(qualityGate?.summary || {}, 'status')
+    || isCanonicalToken(String(qualityGate?.summary?.status), 120);
+  const reviewerSummaryStatusTokenOrMissing =
+    !Object.prototype.hasOwnProperty.call(reviewer?.summary || {}, 'status')
+    || isCanonicalToken(String(reviewer?.summary?.status), 120);
+  const judgeHumanSummaryStatusTokenOrMissing =
+    !Object.prototype.hasOwnProperty.call(judgeHuman?.summary || {}, 'status')
+    || isCanonicalToken(String(judgeHuman?.summary?.status), 120);
+  const thresholdsSummaryStatusTokenOrMissing =
+    !Object.prototype.hasOwnProperty.call(thresholds?.summary || {}, 'status')
+    || isCanonicalToken(String(thresholds?.summary?.status), 120);
+  const thresholdsGlobalStatusTokenOrMissing =
+    !Object.prototype.hasOwnProperty.call(thresholds?.global || {}, 'status')
+    || isCanonicalToken(String(thresholds?.global?.status), 120);
+  const monitorStatusStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(monitor, 'status') || typeof monitor?.status === 'string';
+  const qualityStatusStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(quality, 'status') || typeof quality?.status === 'string';
+  const sloStatusStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(slo, 'status') || typeof slo?.status === 'string';
+  const adversarialStatusStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(adversarial, 'status') || typeof adversarial?.status === 'string';
+  const issueFilingStatusStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueFiling, 'status') || typeof issueFiling?.status === 'string';
+  const issueResolutionStatusStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueResolution, 'status') || typeof issueResolution?.status === 'string';
+  const qualityGateStatusStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(qualityGate, 'status') || typeof qualityGate?.status === 'string';
+  const reviewerStatusStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(reviewer, 'status') || typeof reviewer?.status === 'string';
+  const judgeHumanStatusStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(judgeHuman, 'status') || typeof judgeHuman?.status === 'string';
+  const thresholdsStatusStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(thresholds, 'status') || typeof thresholds?.status === 'string';
+  const monitorSummaryStatusStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(monitor?.summary || {}, 'status') || typeof monitor?.summary?.status === 'string';
+  const qualitySummaryStatusStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(quality?.summary || {}, 'status') || typeof quality?.summary?.status === 'string';
+  const sloSummaryStatusStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(slo?.summary || {}, 'status') || typeof slo?.summary?.status === 'string';
+  const adversarialSummaryStatusStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(adversarial?.summary || {}, 'status') || typeof adversarial?.summary?.status === 'string';
+  const issueFilingSummaryStatusStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueFiling?.summary || {}, 'status') || typeof issueFiling?.summary?.status === 'string';
+  const issueResolutionSummaryStatusStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueResolution?.summary || {}, 'status') || typeof issueResolution?.summary?.status === 'string';
+  const qualityGateSummaryStatusStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(qualityGate?.summary || {}, 'status') || typeof qualityGate?.summary?.status === 'string';
+  const reviewerSummaryStatusStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(reviewer?.summary || {}, 'status') || typeof reviewer?.summary?.status === 'string';
+  const judgeHumanSummaryStatusStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(judgeHuman?.summary || {}, 'status') || typeof judgeHuman?.summary?.status === 'string';
+  const thresholdsSummaryStatusStringOrMissing =
+    !Object.prototype.hasOwnProperty.call(thresholds?.summary || {}, 'status') || typeof thresholds?.summary?.status === 'string';
+  const monitorStatusTrimmedOrMissing =
+    !Object.prototype.hasOwnProperty.call(monitor, 'status')
+    || String(monitor?.status) === String(monitor?.status).trim();
+  const qualityStatusTrimmedOrMissing =
+    !Object.prototype.hasOwnProperty.call(quality, 'status')
+    || String(quality?.status) === String(quality?.status).trim();
+  const sloStatusTrimmedOrMissing =
+    !Object.prototype.hasOwnProperty.call(slo, 'status')
+    || String(slo?.status) === String(slo?.status).trim();
+  const adversarialStatusTrimmedOrMissing =
+    !Object.prototype.hasOwnProperty.call(adversarial, 'status')
+    || String(adversarial?.status) === String(adversarial?.status).trim();
+  const issueFilingStatusTrimmedOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueFiling, 'status')
+    || String(issueFiling?.status) === String(issueFiling?.status).trim();
+  const issueResolutionStatusTrimmedOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueResolution, 'status')
+    || String(issueResolution?.status) === String(issueResolution?.status).trim();
+  const qualityGateStatusTrimmedOrMissing =
+    !Object.prototype.hasOwnProperty.call(qualityGate, 'status')
+    || String(qualityGate?.status) === String(qualityGate?.status).trim();
+  const reviewerStatusTrimmedOrMissing =
+    !Object.prototype.hasOwnProperty.call(reviewer, 'status')
+    || String(reviewer?.status) === String(reviewer?.status).trim();
+  const judgeHumanStatusTrimmedOrMissing =
+    !Object.prototype.hasOwnProperty.call(judgeHuman, 'status')
+    || String(judgeHuman?.status) === String(judgeHuman?.status).trim();
+  const thresholdsStatusTrimmedOrMissing =
+    !Object.prototype.hasOwnProperty.call(thresholds, 'status')
+    || String(thresholds?.status) === String(thresholds?.status).trim();
+  const monitorSummaryStatusTrimmedOrMissing =
+    !Object.prototype.hasOwnProperty.call(monitor?.summary || {}, 'status')
+    || String(monitor?.summary?.status) === String(monitor?.summary?.status).trim();
+  const qualitySummaryStatusTrimmedOrMissing =
+    !Object.prototype.hasOwnProperty.call(quality?.summary || {}, 'status')
+    || String(quality?.summary?.status) === String(quality?.summary?.status).trim();
+  const sloSummaryStatusTrimmedOrMissing =
+    !Object.prototype.hasOwnProperty.call(slo?.summary || {}, 'status')
+    || String(slo?.summary?.status) === String(slo?.summary?.status).trim();
+  const adversarialSummaryStatusTrimmedOrMissing =
+    !Object.prototype.hasOwnProperty.call(adversarial?.summary || {}, 'status')
+    || String(adversarial?.summary?.status) === String(adversarial?.summary?.status).trim();
+  const issueFilingSummaryStatusTrimmedOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueFiling?.summary || {}, 'status')
+    || String(issueFiling?.summary?.status) === String(issueFiling?.summary?.status).trim();
+  const issueResolutionSummaryStatusTrimmedOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueResolution?.summary || {}, 'status')
+    || String(issueResolution?.summary?.status) === String(issueResolution?.summary?.status).trim();
+  const qualityGateSummaryStatusTrimmedOrMissing =
+    !Object.prototype.hasOwnProperty.call(qualityGate?.summary || {}, 'status')
+    || String(qualityGate?.summary?.status) === String(qualityGate?.summary?.status).trim();
+  const reviewerSummaryStatusTrimmedOrMissing =
+    !Object.prototype.hasOwnProperty.call(reviewer?.summary || {}, 'status')
+    || String(reviewer?.summary?.status) === String(reviewer?.summary?.status).trim();
+  const judgeHumanSummaryStatusTrimmedOrMissing =
+    !Object.prototype.hasOwnProperty.call(judgeHuman?.summary || {}, 'status')
+    || String(judgeHuman?.summary?.status) === String(judgeHuman?.summary?.status).trim();
+  const thresholdsSummaryStatusTrimmedOrMissing =
+    !Object.prototype.hasOwnProperty.call(thresholds?.summary || {}, 'status')
+    || String(thresholds?.summary?.status) === String(thresholds?.summary?.status).trim();
+  const monitorStatusNoPlaceholderOrMissing =
+    !Object.prototype.hasOwnProperty.call(monitor, 'status')
+    || !String(monitor?.status).includes('${');
+  const qualityStatusNoPlaceholderOrMissing =
+    !Object.prototype.hasOwnProperty.call(quality, 'status')
+    || !String(quality?.status).includes('${');
+  const sloStatusNoPlaceholderOrMissing =
+    !Object.prototype.hasOwnProperty.call(slo, 'status')
+    || !String(slo?.status).includes('${');
+  const adversarialStatusNoPlaceholderOrMissing =
+    !Object.prototype.hasOwnProperty.call(adversarial, 'status')
+    || !String(adversarial?.status).includes('${');
+  const issueFilingStatusNoPlaceholderOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueFiling, 'status')
+    || !String(issueFiling?.status).includes('${');
+  const issueResolutionStatusNoPlaceholderOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueResolution, 'status')
+    || !String(issueResolution?.status).includes('${');
+  const qualityGateStatusNoPlaceholderOrMissing =
+    !Object.prototype.hasOwnProperty.call(qualityGate, 'status')
+    || !String(qualityGate?.status).includes('${');
+  const reviewerStatusNoPlaceholderOrMissing =
+    !Object.prototype.hasOwnProperty.call(reviewer, 'status')
+    || !String(reviewer?.status).includes('${');
+  const judgeHumanStatusNoPlaceholderOrMissing =
+    !Object.prototype.hasOwnProperty.call(judgeHuman, 'status')
+    || !String(judgeHuman?.status).includes('${');
+  const thresholdsStatusNoPlaceholderOrMissing =
+    !Object.prototype.hasOwnProperty.call(thresholds, 'status')
+    || !String(thresholds?.status).includes('${');
+  const monitorSummaryStatusNoPlaceholderOrMissing =
+    !Object.prototype.hasOwnProperty.call(monitor?.summary || {}, 'status')
+    || !String(monitor?.summary?.status).includes('${');
+  const qualitySummaryStatusNoPlaceholderOrMissing =
+    !Object.prototype.hasOwnProperty.call(quality?.summary || {}, 'status')
+    || !String(quality?.summary?.status).includes('${');
+  const sloSummaryStatusNoPlaceholderOrMissing =
+    !Object.prototype.hasOwnProperty.call(slo?.summary || {}, 'status')
+    || !String(slo?.summary?.status).includes('${');
+  const adversarialSummaryStatusNoPlaceholderOrMissing =
+    !Object.prototype.hasOwnProperty.call(adversarial?.summary || {}, 'status')
+    || !String(adversarial?.summary?.status).includes('${');
+  const issueFilingSummaryStatusNoPlaceholderOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueFiling?.summary || {}, 'status')
+    || !String(issueFiling?.summary?.status).includes('${');
+  const issueResolutionSummaryStatusNoPlaceholderOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueResolution?.summary || {}, 'status')
+    || !String(issueResolution?.summary?.status).includes('${');
+  const qualityGateSummaryStatusNoPlaceholderOrMissing =
+    !Object.prototype.hasOwnProperty.call(qualityGate?.summary || {}, 'status')
+    || !String(qualityGate?.summary?.status).includes('${');
+  const reviewerSummaryStatusNoPlaceholderOrMissing =
+    !Object.prototype.hasOwnProperty.call(reviewer?.summary || {}, 'status')
+    || !String(reviewer?.summary?.status).includes('${');
+  const judgeHumanSummaryStatusNoPlaceholderOrMissing =
+    !Object.prototype.hasOwnProperty.call(judgeHuman?.summary || {}, 'status')
+    || !String(judgeHuman?.summary?.status).includes('${');
+  const thresholdsSummaryStatusNoPlaceholderOrMissing =
+    !Object.prototype.hasOwnProperty.call(thresholds?.summary || {}, 'status')
+    || !String(thresholds?.summary?.status).includes('${');
+  const monitorStatusLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(monitor, 'status')
+    || String(monitor?.status).length <= 120;
+  const qualityStatusLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(quality, 'status')
+    || String(quality?.status).length <= 120;
+  const sloStatusLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(slo, 'status')
+    || String(slo?.status).length <= 120;
+  const adversarialStatusLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(adversarial, 'status')
+    || String(adversarial?.status).length <= 120;
+  const issueFilingStatusLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueFiling, 'status')
+    || String(issueFiling?.status).length <= 120;
+  const issueResolutionStatusLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueResolution, 'status')
+    || String(issueResolution?.status).length <= 120;
+  const qualityGateStatusLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(qualityGate, 'status')
+    || String(qualityGate?.status).length <= 120;
+  const reviewerStatusLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(reviewer, 'status')
+    || String(reviewer?.status).length <= 120;
+  const judgeHumanStatusLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(judgeHuman, 'status')
+    || String(judgeHuman?.status).length <= 120;
+  const thresholdsStatusLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(thresholds, 'status')
+    || String(thresholds?.status).length <= 120;
+  const monitorSummaryStatusLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(monitor?.summary || {}, 'status')
+    || String(monitor?.summary?.status).length <= 120;
+  const qualitySummaryStatusLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(quality?.summary || {}, 'status')
+    || String(quality?.summary?.status).length <= 120;
+  const sloSummaryStatusLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(slo?.summary || {}, 'status')
+    || String(slo?.summary?.status).length <= 120;
+  const adversarialSummaryStatusLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(adversarial?.summary || {}, 'status')
+    || String(adversarial?.summary?.status).length <= 120;
+  const issueFilingSummaryStatusLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueFiling?.summary || {}, 'status')
+    || String(issueFiling?.summary?.status).length <= 120;
+  const issueResolutionSummaryStatusLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueResolution?.summary || {}, 'status')
+    || String(issueResolution?.summary?.status).length <= 120;
+  const qualityGateSummaryStatusLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(qualityGate?.summary || {}, 'status')
+    || String(qualityGate?.summary?.status).length <= 120;
+  const reviewerSummaryStatusLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(reviewer?.summary || {}, 'status')
+    || String(reviewer?.summary?.status).length <= 120;
+  const judgeHumanSummaryStatusLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(judgeHuman?.summary || {}, 'status')
+    || String(judgeHuman?.summary?.status).length <= 120;
+  const thresholdsSummaryStatusLengthBoundedOrMissing =
+    !Object.prototype.hasOwnProperty.call(thresholds?.summary || {}, 'status')
+    || String(thresholds?.summary?.status).length <= 120;
+  const monitorSummaryStatusConsistentWithRootOrMissing =
+    (!Object.prototype.hasOwnProperty.call(monitor, 'status') || !Object.prototype.hasOwnProperty.call(monitor?.summary || {}, 'status'))
+    || String(monitor?.status) === String(monitor?.summary?.status);
+  const qualitySummaryStatusConsistentWithRootOrMissing =
+    (!Object.prototype.hasOwnProperty.call(quality, 'status') || !Object.prototype.hasOwnProperty.call(quality?.summary || {}, 'status'))
+    || String(quality?.status) === String(quality?.summary?.status);
+  const sloSummaryStatusConsistentWithRootOrMissing =
+    (!Object.prototype.hasOwnProperty.call(slo, 'status') || !Object.prototype.hasOwnProperty.call(slo?.summary || {}, 'status'))
+    || String(slo?.status) === String(slo?.summary?.status);
+  const adversarialSummaryStatusConsistentWithRootOrMissing =
+    (!Object.prototype.hasOwnProperty.call(adversarial, 'status') || !Object.prototype.hasOwnProperty.call(adversarial?.summary || {}, 'status'))
+    || String(adversarial?.status) === String(adversarial?.summary?.status);
+  const issueFilingSummaryStatusConsistentWithRootOrMissing =
+    (!Object.prototype.hasOwnProperty.call(issueFiling, 'status') || !Object.prototype.hasOwnProperty.call(issueFiling?.summary || {}, 'status'))
+    || String(issueFiling?.status) === String(issueFiling?.summary?.status);
+  const issueResolutionSummaryStatusConsistentWithRootOrMissing =
+    (!Object.prototype.hasOwnProperty.call(issueResolution, 'status') || !Object.prototype.hasOwnProperty.call(issueResolution?.summary || {}, 'status'))
+    || String(issueResolution?.status) === String(issueResolution?.summary?.status);
+  const qualityGateSummaryStatusConsistentWithRootOrMissing =
+    (!Object.prototype.hasOwnProperty.call(qualityGate, 'status') || !Object.prototype.hasOwnProperty.call(qualityGate?.summary || {}, 'status'))
+    || String(qualityGate?.status) === String(qualityGate?.summary?.status);
+  const reviewerSummaryStatusConsistentWithRootOrMissing =
+    (!Object.prototype.hasOwnProperty.call(reviewer, 'status') || !Object.prototype.hasOwnProperty.call(reviewer?.summary || {}, 'status'))
+    || String(reviewer?.status) === String(reviewer?.summary?.status);
+  const judgeHumanSummaryStatusConsistentWithRootOrMissing =
+    (!Object.prototype.hasOwnProperty.call(judgeHuman, 'status') || !Object.prototype.hasOwnProperty.call(judgeHuman?.summary || {}, 'status'))
+    || String(judgeHuman?.status) === String(judgeHuman?.summary?.status);
+  const thresholdsSummaryStatusConsistentWithRootOrMissing =
+    (!Object.prototype.hasOwnProperty.call(thresholds, 'status') || !Object.prototype.hasOwnProperty.call(thresholds?.summary || {}, 'status'))
+    || String(thresholds?.status) === String(thresholds?.summary?.status);
+  const monitorStatusNotEmptyOrMissing =
+    !Object.prototype.hasOwnProperty.call(monitor, 'status') || cleanText(String(monitor?.status), 120).length > 0;
+  const qualityStatusNotEmptyOrMissing =
+    !Object.prototype.hasOwnProperty.call(quality, 'status') || cleanText(String(quality?.status), 120).length > 0;
+  const sloStatusNotEmptyOrMissing =
+    !Object.prototype.hasOwnProperty.call(slo, 'status') || cleanText(String(slo?.status), 120).length > 0;
+  const adversarialStatusNotEmptyOrMissing =
+    !Object.prototype.hasOwnProperty.call(adversarial, 'status') || cleanText(String(adversarial?.status), 120).length > 0;
+  const issueFilingStatusNotEmptyOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueFiling, 'status') || cleanText(String(issueFiling?.status), 120).length > 0;
+  const issueResolutionStatusNotEmptyOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueResolution, 'status') || cleanText(String(issueResolution?.status), 120).length > 0;
+  const qualityGateStatusNotEmptyOrMissing =
+    !Object.prototype.hasOwnProperty.call(qualityGate, 'status') || cleanText(String(qualityGate?.status), 120).length > 0;
+  const reviewerStatusNotEmptyOrMissing =
+    !Object.prototype.hasOwnProperty.call(reviewer, 'status') || cleanText(String(reviewer?.status), 120).length > 0;
+  const judgeHumanStatusNotEmptyOrMissing =
+    !Object.prototype.hasOwnProperty.call(judgeHuman, 'status') || cleanText(String(judgeHuman?.status), 120).length > 0;
+  const thresholdsStatusNotEmptyOrMissing =
+    !Object.prototype.hasOwnProperty.call(thresholds, 'status') || cleanText(String(thresholds?.status), 120).length > 0;
+  const issueFilingOkBooleanOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueFiling, 'ok') || typeof issueFiling?.ok === 'boolean';
+  const issueResolutionOkBooleanOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueResolution, 'ok') || typeof issueResolution?.ok === 'boolean';
+  const reviewerOkBooleanOrMissing =
+    !Object.prototype.hasOwnProperty.call(reviewer, 'ok') || typeof reviewer?.ok === 'boolean';
+  const judgeHumanOkBooleanOrMissing =
+    !Object.prototype.hasOwnProperty.call(judgeHuman, 'ok') || typeof judgeHuman?.ok === 'boolean';
+  const thresholdsOkBooleanOrMissing =
+    !Object.prototype.hasOwnProperty.call(thresholds, 'ok') || typeof thresholds?.ok === 'boolean';
+  const monitorSummaryOkBooleanOrMissing =
+    !Object.prototype.hasOwnProperty.call(monitor?.summary || {}, 'ok') || typeof monitor?.summary?.ok === 'boolean';
+  const qualitySummaryOkBooleanOrMissing =
+    !Object.prototype.hasOwnProperty.call(quality?.summary || {}, 'ok') || typeof quality?.summary?.ok === 'boolean';
+  const sloSummaryOkBooleanOrMissing =
+    !Object.prototype.hasOwnProperty.call(slo?.summary || {}, 'ok') || typeof slo?.summary?.ok === 'boolean';
+  const adversarialSummaryOkBooleanOrMissing =
+    !Object.prototype.hasOwnProperty.call(adversarial?.summary || {}, 'ok') || typeof adversarial?.summary?.ok === 'boolean';
+  const issueFilingSummaryOkBooleanOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueFiling?.summary || {}, 'ok') || typeof issueFiling?.summary?.ok === 'boolean';
+  const issueResolutionSummaryOkBooleanOrMissing =
+    !Object.prototype.hasOwnProperty.call(issueResolution?.summary || {}, 'ok') || typeof issueResolution?.summary?.ok === 'boolean';
+  const qualityGateSummaryOkBooleanOrMissing =
+    !Object.prototype.hasOwnProperty.call(qualityGate?.summary || {}, 'ok') || typeof qualityGate?.summary?.ok === 'boolean';
+  const reviewerSummaryOkBooleanOrMissing =
+    !Object.prototype.hasOwnProperty.call(reviewer?.summary || {}, 'ok') || typeof reviewer?.summary?.ok === 'boolean';
+  const judgeHumanSummaryOkBooleanOrMissing =
+    !Object.prototype.hasOwnProperty.call(judgeHuman?.summary || {}, 'ok') || typeof judgeHuman?.summary?.ok === 'boolean';
+  const thresholdsSummaryOkBooleanOrMissing =
+    !Object.prototype.hasOwnProperty.call(thresholds?.summary || {}, 'ok') || typeof thresholds?.summary?.ok === 'boolean';
+  const thresholdsGlobalOkBooleanOrMissing =
+    !Object.prototype.hasOwnProperty.call(thresholds?.global || {}, 'ok') || typeof thresholds?.global?.ok === 'boolean';
+  const monitorSummaryOkConsistentWithRootOrMissing =
+    (!Object.prototype.hasOwnProperty.call(monitor, 'ok') || !Object.prototype.hasOwnProperty.call(monitor?.summary || {}, 'ok'))
+    || monitor?.ok === monitor?.summary?.ok;
+  const qualitySummaryOkConsistentWithRootOrMissing =
+    (!Object.prototype.hasOwnProperty.call(quality, 'ok') || !Object.prototype.hasOwnProperty.call(quality?.summary || {}, 'ok'))
+    || quality?.ok === quality?.summary?.ok;
+  const sloSummaryOkConsistentWithRootOrMissing =
+    (!Object.prototype.hasOwnProperty.call(slo, 'ok') || !Object.prototype.hasOwnProperty.call(slo?.summary || {}, 'ok'))
+    || slo?.ok === slo?.summary?.ok;
+  const adversarialSummaryOkConsistentWithRootOrMissing =
+    (!Object.prototype.hasOwnProperty.call(adversarial, 'ok') || !Object.prototype.hasOwnProperty.call(adversarial?.summary || {}, 'ok'))
+    || adversarial?.ok === adversarial?.summary?.ok;
 
   const checks = [
     { id: 'monitor_artifact_present', ok: fs.existsSync(monitorAbs), detail: args.monitorPath },
@@ -525,6 +899,146 @@ function run(argv: string[] = process.argv.slice(2)): number {
     { id: 'eval_autopilot_input_reviewer_generated_at_length_bounded_or_missing_contract', ok: reviewerGeneratedAtLengthBoundedOrMissing, detail: String(reviewer?.generated_at) },
     { id: 'eval_autopilot_input_judge_human_generated_at_length_bounded_or_missing_contract', ok: judgeHumanGeneratedAtLengthBoundedOrMissing, detail: String(judgeHuman?.generated_at) },
     { id: 'eval_autopilot_input_thresholds_generated_at_length_bounded_or_missing_contract', ok: thresholdsGeneratedAtLengthBoundedOrMissing, detail: String(thresholds?.generated_at) },
+    { id: 'eval_autopilot_input_monitor_status_token_or_missing_contract', ok: monitorStatusTokenOrMissing, detail: String(monitor?.status) },
+    { id: 'eval_autopilot_input_quality_status_token_or_missing_contract', ok: qualityStatusTokenOrMissing, detail: String(quality?.status) },
+    { id: 'eval_autopilot_input_slo_status_token_or_missing_contract', ok: sloStatusTokenOrMissing, detail: String(slo?.status) },
+    { id: 'eval_autopilot_input_adversarial_status_token_or_missing_contract', ok: adversarialStatusTokenOrMissing, detail: String(adversarial?.status) },
+    { id: 'eval_autopilot_input_issue_filing_status_token_or_missing_contract', ok: issueFilingStatusTokenOrMissing, detail: String(issueFiling?.status) },
+    { id: 'eval_autopilot_input_issue_resolution_status_token_or_missing_contract', ok: issueResolutionStatusTokenOrMissing, detail: String(issueResolution?.status) },
+    { id: 'eval_autopilot_input_quality_gate_status_token_or_missing_contract', ok: qualityGateStatusTokenOrMissing, detail: String(qualityGate?.status) },
+    { id: 'eval_autopilot_input_reviewer_status_root_token_or_missing_contract', ok: reviewerStatusTokenOrMissing, detail: String(reviewer?.status) },
+    { id: 'eval_autopilot_input_judge_human_status_token_or_missing_contract', ok: judgeHumanStatusTokenOrMissing, detail: String(judgeHuman?.status) },
+    { id: 'eval_autopilot_input_thresholds_status_token_or_missing_contract', ok: thresholdsStatusTokenOrMissing, detail: String(thresholds?.status) },
+    { id: 'eval_autopilot_input_quality_summary_status_token_or_missing_contract', ok: qualitySummaryStatusTokenOrMissing, detail: String(quality?.summary?.status) },
+    { id: 'eval_autopilot_input_slo_summary_status_token_or_missing_contract', ok: sloSummaryStatusTokenOrMissing, detail: String(slo?.summary?.status) },
+    { id: 'eval_autopilot_input_adversarial_summary_status_token_or_missing_contract', ok: adversarialSummaryStatusTokenOrMissing, detail: String(adversarial?.summary?.status) },
+    { id: 'eval_autopilot_input_issue_filing_summary_status_token_or_missing_contract', ok: issueFilingSummaryStatusTokenOrMissing, detail: String(issueFiling?.summary?.status) },
+    { id: 'eval_autopilot_input_issue_resolution_summary_status_token_or_missing_contract', ok: issueResolutionSummaryStatusTokenOrMissing, detail: String(issueResolution?.summary?.status) },
+    { id: 'eval_autopilot_input_quality_gate_summary_status_token_or_missing_contract', ok: qualityGateSummaryStatusTokenOrMissing, detail: String(qualityGate?.summary?.status) },
+    { id: 'eval_autopilot_input_reviewer_summary_status_token_or_missing_contract', ok: reviewerSummaryStatusTokenOrMissing, detail: String(reviewer?.summary?.status) },
+    { id: 'eval_autopilot_input_judge_human_summary_status_token_or_missing_contract', ok: judgeHumanSummaryStatusTokenOrMissing, detail: String(judgeHuman?.summary?.status) },
+    { id: 'eval_autopilot_input_thresholds_summary_status_token_or_missing_contract', ok: thresholdsSummaryStatusTokenOrMissing, detail: String(thresholds?.summary?.status) },
+    { id: 'eval_autopilot_input_thresholds_global_status_token_or_missing_contract', ok: thresholdsGlobalStatusTokenOrMissing, detail: String(thresholds?.global?.status) },
+    { id: 'eval_autopilot_input_monitor_status_string_or_missing_contract', ok: monitorStatusStringOrMissing, detail: String(monitor?.status) },
+    { id: 'eval_autopilot_input_quality_status_string_or_missing_contract', ok: qualityStatusStringOrMissing, detail: String(quality?.status) },
+    { id: 'eval_autopilot_input_slo_status_string_or_missing_contract', ok: sloStatusStringOrMissing, detail: String(slo?.status) },
+    { id: 'eval_autopilot_input_adversarial_status_string_or_missing_contract', ok: adversarialStatusStringOrMissing, detail: String(adversarial?.status) },
+    { id: 'eval_autopilot_input_issue_filing_status_string_or_missing_contract', ok: issueFilingStatusStringOrMissing, detail: String(issueFiling?.status) },
+    { id: 'eval_autopilot_input_issue_resolution_status_string_or_missing_contract', ok: issueResolutionStatusStringOrMissing, detail: String(issueResolution?.status) },
+    { id: 'eval_autopilot_input_quality_gate_status_string_or_missing_contract', ok: qualityGateStatusStringOrMissing, detail: String(qualityGate?.status) },
+    { id: 'eval_autopilot_input_reviewer_status_string_or_missing_contract', ok: reviewerStatusStringOrMissing, detail: String(reviewer?.status) },
+    { id: 'eval_autopilot_input_judge_human_status_string_or_missing_contract', ok: judgeHumanStatusStringOrMissing, detail: String(judgeHuman?.status) },
+    { id: 'eval_autopilot_input_thresholds_status_string_or_missing_contract', ok: thresholdsStatusStringOrMissing, detail: String(thresholds?.status) },
+    { id: 'eval_autopilot_input_monitor_summary_status_string_or_missing_contract', ok: monitorSummaryStatusStringOrMissing, detail: String(monitor?.summary?.status) },
+    { id: 'eval_autopilot_input_quality_summary_status_string_or_missing_contract', ok: qualitySummaryStatusStringOrMissing, detail: String(quality?.summary?.status) },
+    { id: 'eval_autopilot_input_slo_summary_status_string_or_missing_contract', ok: sloSummaryStatusStringOrMissing, detail: String(slo?.summary?.status) },
+    { id: 'eval_autopilot_input_adversarial_summary_status_string_or_missing_contract', ok: adversarialSummaryStatusStringOrMissing, detail: String(adversarial?.summary?.status) },
+    { id: 'eval_autopilot_input_issue_filing_summary_status_string_or_missing_contract', ok: issueFilingSummaryStatusStringOrMissing, detail: String(issueFiling?.summary?.status) },
+    { id: 'eval_autopilot_input_issue_resolution_summary_status_string_or_missing_contract', ok: issueResolutionSummaryStatusStringOrMissing, detail: String(issueResolution?.summary?.status) },
+    { id: 'eval_autopilot_input_quality_gate_summary_status_string_or_missing_contract', ok: qualityGateSummaryStatusStringOrMissing, detail: String(qualityGate?.summary?.status) },
+    { id: 'eval_autopilot_input_reviewer_summary_status_string_or_missing_contract', ok: reviewerSummaryStatusStringOrMissing, detail: String(reviewer?.summary?.status) },
+    { id: 'eval_autopilot_input_judge_human_summary_status_string_or_missing_contract', ok: judgeHumanSummaryStatusStringOrMissing, detail: String(judgeHuman?.summary?.status) },
+    { id: 'eval_autopilot_input_thresholds_summary_status_string_or_missing_contract', ok: thresholdsSummaryStatusStringOrMissing, detail: String(thresholds?.summary?.status) },
+    { id: 'eval_autopilot_input_monitor_status_trimmed_or_missing_contract', ok: monitorStatusTrimmedOrMissing, detail: String(monitor?.status) },
+    { id: 'eval_autopilot_input_quality_status_trimmed_or_missing_contract', ok: qualityStatusTrimmedOrMissing, detail: String(quality?.status) },
+    { id: 'eval_autopilot_input_slo_status_trimmed_or_missing_contract', ok: sloStatusTrimmedOrMissing, detail: String(slo?.status) },
+    { id: 'eval_autopilot_input_adversarial_status_trimmed_or_missing_contract', ok: adversarialStatusTrimmedOrMissing, detail: String(adversarial?.status) },
+    { id: 'eval_autopilot_input_issue_filing_status_trimmed_or_missing_contract', ok: issueFilingStatusTrimmedOrMissing, detail: String(issueFiling?.status) },
+    { id: 'eval_autopilot_input_issue_resolution_status_trimmed_or_missing_contract', ok: issueResolutionStatusTrimmedOrMissing, detail: String(issueResolution?.status) },
+    { id: 'eval_autopilot_input_quality_gate_status_trimmed_or_missing_contract', ok: qualityGateStatusTrimmedOrMissing, detail: String(qualityGate?.status) },
+    { id: 'eval_autopilot_input_reviewer_status_trimmed_or_missing_contract', ok: reviewerStatusTrimmedOrMissing, detail: String(reviewer?.status) },
+    { id: 'eval_autopilot_input_judge_human_status_trimmed_or_missing_contract', ok: judgeHumanStatusTrimmedOrMissing, detail: String(judgeHuman?.status) },
+    { id: 'eval_autopilot_input_thresholds_status_trimmed_or_missing_contract', ok: thresholdsStatusTrimmedOrMissing, detail: String(thresholds?.status) },
+    { id: 'eval_autopilot_input_monitor_summary_status_trimmed_or_missing_contract', ok: monitorSummaryStatusTrimmedOrMissing, detail: String(monitor?.summary?.status) },
+    { id: 'eval_autopilot_input_quality_summary_status_trimmed_or_missing_contract', ok: qualitySummaryStatusTrimmedOrMissing, detail: String(quality?.summary?.status) },
+    { id: 'eval_autopilot_input_slo_summary_status_trimmed_or_missing_contract', ok: sloSummaryStatusTrimmedOrMissing, detail: String(slo?.summary?.status) },
+    { id: 'eval_autopilot_input_adversarial_summary_status_trimmed_or_missing_contract', ok: adversarialSummaryStatusTrimmedOrMissing, detail: String(adversarial?.summary?.status) },
+    { id: 'eval_autopilot_input_issue_filing_summary_status_trimmed_or_missing_contract', ok: issueFilingSummaryStatusTrimmedOrMissing, detail: String(issueFiling?.summary?.status) },
+    { id: 'eval_autopilot_input_issue_resolution_summary_status_trimmed_or_missing_contract', ok: issueResolutionSummaryStatusTrimmedOrMissing, detail: String(issueResolution?.summary?.status) },
+    { id: 'eval_autopilot_input_quality_gate_summary_status_trimmed_or_missing_contract', ok: qualityGateSummaryStatusTrimmedOrMissing, detail: String(qualityGate?.summary?.status) },
+    { id: 'eval_autopilot_input_reviewer_summary_status_trimmed_or_missing_contract', ok: reviewerSummaryStatusTrimmedOrMissing, detail: String(reviewer?.summary?.status) },
+    { id: 'eval_autopilot_input_judge_human_summary_status_trimmed_or_missing_contract', ok: judgeHumanSummaryStatusTrimmedOrMissing, detail: String(judgeHuman?.summary?.status) },
+    { id: 'eval_autopilot_input_thresholds_summary_status_trimmed_or_missing_contract', ok: thresholdsSummaryStatusTrimmedOrMissing, detail: String(thresholds?.summary?.status) },
+    { id: 'eval_autopilot_input_monitor_status_no_placeholder_or_missing_contract', ok: monitorStatusNoPlaceholderOrMissing, detail: String(monitor?.status) },
+    { id: 'eval_autopilot_input_quality_status_no_placeholder_or_missing_contract', ok: qualityStatusNoPlaceholderOrMissing, detail: String(quality?.status) },
+    { id: 'eval_autopilot_input_slo_status_no_placeholder_or_missing_contract', ok: sloStatusNoPlaceholderOrMissing, detail: String(slo?.status) },
+    { id: 'eval_autopilot_input_adversarial_status_no_placeholder_or_missing_contract', ok: adversarialStatusNoPlaceholderOrMissing, detail: String(adversarial?.status) },
+    { id: 'eval_autopilot_input_issue_filing_status_no_placeholder_or_missing_contract', ok: issueFilingStatusNoPlaceholderOrMissing, detail: String(issueFiling?.status) },
+    { id: 'eval_autopilot_input_issue_resolution_status_no_placeholder_or_missing_contract', ok: issueResolutionStatusNoPlaceholderOrMissing, detail: String(issueResolution?.status) },
+    { id: 'eval_autopilot_input_quality_gate_status_no_placeholder_or_missing_contract', ok: qualityGateStatusNoPlaceholderOrMissing, detail: String(qualityGate?.status) },
+    { id: 'eval_autopilot_input_reviewer_status_no_placeholder_or_missing_contract', ok: reviewerStatusNoPlaceholderOrMissing, detail: String(reviewer?.status) },
+    { id: 'eval_autopilot_input_judge_human_status_no_placeholder_or_missing_contract', ok: judgeHumanStatusNoPlaceholderOrMissing, detail: String(judgeHuman?.status) },
+    { id: 'eval_autopilot_input_thresholds_status_no_placeholder_or_missing_contract', ok: thresholdsStatusNoPlaceholderOrMissing, detail: String(thresholds?.status) },
+    { id: 'eval_autopilot_input_monitor_summary_status_no_placeholder_or_missing_contract', ok: monitorSummaryStatusNoPlaceholderOrMissing, detail: String(monitor?.summary?.status) },
+    { id: 'eval_autopilot_input_quality_summary_status_no_placeholder_or_missing_contract', ok: qualitySummaryStatusNoPlaceholderOrMissing, detail: String(quality?.summary?.status) },
+    { id: 'eval_autopilot_input_slo_summary_status_no_placeholder_or_missing_contract', ok: sloSummaryStatusNoPlaceholderOrMissing, detail: String(slo?.summary?.status) },
+    { id: 'eval_autopilot_input_adversarial_summary_status_no_placeholder_or_missing_contract', ok: adversarialSummaryStatusNoPlaceholderOrMissing, detail: String(adversarial?.summary?.status) },
+    { id: 'eval_autopilot_input_issue_filing_summary_status_no_placeholder_or_missing_contract', ok: issueFilingSummaryStatusNoPlaceholderOrMissing, detail: String(issueFiling?.summary?.status) },
+    { id: 'eval_autopilot_input_issue_resolution_summary_status_no_placeholder_or_missing_contract', ok: issueResolutionSummaryStatusNoPlaceholderOrMissing, detail: String(issueResolution?.summary?.status) },
+    { id: 'eval_autopilot_input_quality_gate_summary_status_no_placeholder_or_missing_contract', ok: qualityGateSummaryStatusNoPlaceholderOrMissing, detail: String(qualityGate?.summary?.status) },
+    { id: 'eval_autopilot_input_reviewer_summary_status_no_placeholder_or_missing_contract', ok: reviewerSummaryStatusNoPlaceholderOrMissing, detail: String(reviewer?.summary?.status) },
+    { id: 'eval_autopilot_input_judge_human_summary_status_no_placeholder_or_missing_contract', ok: judgeHumanSummaryStatusNoPlaceholderOrMissing, detail: String(judgeHuman?.summary?.status) },
+    { id: 'eval_autopilot_input_thresholds_summary_status_no_placeholder_or_missing_contract', ok: thresholdsSummaryStatusNoPlaceholderOrMissing, detail: String(thresholds?.summary?.status) },
+    { id: 'eval_autopilot_input_monitor_status_length_bounded_or_missing_contract', ok: monitorStatusLengthBoundedOrMissing, detail: String(monitor?.status) },
+    { id: 'eval_autopilot_input_quality_status_length_bounded_or_missing_contract', ok: qualityStatusLengthBoundedOrMissing, detail: String(quality?.status) },
+    { id: 'eval_autopilot_input_slo_status_length_bounded_or_missing_contract', ok: sloStatusLengthBoundedOrMissing, detail: String(slo?.status) },
+    { id: 'eval_autopilot_input_adversarial_status_length_bounded_or_missing_contract', ok: adversarialStatusLengthBoundedOrMissing, detail: String(adversarial?.status) },
+    { id: 'eval_autopilot_input_issue_filing_status_length_bounded_or_missing_contract', ok: issueFilingStatusLengthBoundedOrMissing, detail: String(issueFiling?.status) },
+    { id: 'eval_autopilot_input_issue_resolution_status_length_bounded_or_missing_contract', ok: issueResolutionStatusLengthBoundedOrMissing, detail: String(issueResolution?.status) },
+    { id: 'eval_autopilot_input_quality_gate_status_length_bounded_or_missing_contract', ok: qualityGateStatusLengthBoundedOrMissing, detail: String(qualityGate?.status) },
+    { id: 'eval_autopilot_input_reviewer_status_length_bounded_or_missing_contract', ok: reviewerStatusLengthBoundedOrMissing, detail: String(reviewer?.status) },
+    { id: 'eval_autopilot_input_judge_human_status_length_bounded_or_missing_contract', ok: judgeHumanStatusLengthBoundedOrMissing, detail: String(judgeHuman?.status) },
+    { id: 'eval_autopilot_input_thresholds_status_length_bounded_or_missing_contract', ok: thresholdsStatusLengthBoundedOrMissing, detail: String(thresholds?.status) },
+    { id: 'eval_autopilot_input_monitor_summary_status_length_bounded_or_missing_contract', ok: monitorSummaryStatusLengthBoundedOrMissing, detail: String(monitor?.summary?.status) },
+    { id: 'eval_autopilot_input_quality_summary_status_length_bounded_or_missing_contract', ok: qualitySummaryStatusLengthBoundedOrMissing, detail: String(quality?.summary?.status) },
+    { id: 'eval_autopilot_input_slo_summary_status_length_bounded_or_missing_contract', ok: sloSummaryStatusLengthBoundedOrMissing, detail: String(slo?.summary?.status) },
+    { id: 'eval_autopilot_input_adversarial_summary_status_length_bounded_or_missing_contract', ok: adversarialSummaryStatusLengthBoundedOrMissing, detail: String(adversarial?.summary?.status) },
+    { id: 'eval_autopilot_input_issue_filing_summary_status_length_bounded_or_missing_contract', ok: issueFilingSummaryStatusLengthBoundedOrMissing, detail: String(issueFiling?.summary?.status) },
+    { id: 'eval_autopilot_input_issue_resolution_summary_status_length_bounded_or_missing_contract', ok: issueResolutionSummaryStatusLengthBoundedOrMissing, detail: String(issueResolution?.summary?.status) },
+    { id: 'eval_autopilot_input_quality_gate_summary_status_length_bounded_or_missing_contract', ok: qualityGateSummaryStatusLengthBoundedOrMissing, detail: String(qualityGate?.summary?.status) },
+    { id: 'eval_autopilot_input_reviewer_summary_status_length_bounded_or_missing_contract', ok: reviewerSummaryStatusLengthBoundedOrMissing, detail: String(reviewer?.summary?.status) },
+    { id: 'eval_autopilot_input_judge_human_summary_status_length_bounded_or_missing_contract', ok: judgeHumanSummaryStatusLengthBoundedOrMissing, detail: String(judgeHuman?.summary?.status) },
+    { id: 'eval_autopilot_input_thresholds_summary_status_length_bounded_or_missing_contract', ok: thresholdsSummaryStatusLengthBoundedOrMissing, detail: String(thresholds?.summary?.status) },
+    { id: 'eval_autopilot_input_monitor_summary_status_consistent_with_root_or_missing_contract', ok: monitorSummaryStatusConsistentWithRootOrMissing, detail: `${String(monitor?.status)}|${String(monitor?.summary?.status)}` },
+    { id: 'eval_autopilot_input_quality_summary_status_consistent_with_root_or_missing_contract', ok: qualitySummaryStatusConsistentWithRootOrMissing, detail: `${String(quality?.status)}|${String(quality?.summary?.status)}` },
+    { id: 'eval_autopilot_input_slo_summary_status_consistent_with_root_or_missing_contract', ok: sloSummaryStatusConsistentWithRootOrMissing, detail: `${String(slo?.status)}|${String(slo?.summary?.status)}` },
+    { id: 'eval_autopilot_input_adversarial_summary_status_consistent_with_root_or_missing_contract', ok: adversarialSummaryStatusConsistentWithRootOrMissing, detail: `${String(adversarial?.status)}|${String(adversarial?.summary?.status)}` },
+    { id: 'eval_autopilot_input_issue_filing_summary_status_consistent_with_root_or_missing_contract', ok: issueFilingSummaryStatusConsistentWithRootOrMissing, detail: `${String(issueFiling?.status)}|${String(issueFiling?.summary?.status)}` },
+    { id: 'eval_autopilot_input_issue_resolution_summary_status_consistent_with_root_or_missing_contract', ok: issueResolutionSummaryStatusConsistentWithRootOrMissing, detail: `${String(issueResolution?.status)}|${String(issueResolution?.summary?.status)}` },
+    { id: 'eval_autopilot_input_quality_gate_summary_status_consistent_with_root_or_missing_contract', ok: qualityGateSummaryStatusConsistentWithRootOrMissing, detail: `${String(qualityGate?.status)}|${String(qualityGate?.summary?.status)}` },
+    { id: 'eval_autopilot_input_reviewer_summary_status_consistent_with_root_or_missing_contract', ok: reviewerSummaryStatusConsistentWithRootOrMissing, detail: `${String(reviewer?.status)}|${String(reviewer?.summary?.status)}` },
+    { id: 'eval_autopilot_input_judge_human_summary_status_consistent_with_root_or_missing_contract', ok: judgeHumanSummaryStatusConsistentWithRootOrMissing, detail: `${String(judgeHuman?.status)}|${String(judgeHuman?.summary?.status)}` },
+    { id: 'eval_autopilot_input_thresholds_summary_status_consistent_with_root_or_missing_contract', ok: thresholdsSummaryStatusConsistentWithRootOrMissing, detail: `${String(thresholds?.status)}|${String(thresholds?.summary?.status)}` },
+    { id: 'eval_autopilot_input_monitor_status_not_empty_or_missing_contract', ok: monitorStatusNotEmptyOrMissing, detail: String(monitor?.status) },
+    { id: 'eval_autopilot_input_quality_status_not_empty_or_missing_contract', ok: qualityStatusNotEmptyOrMissing, detail: String(quality?.status) },
+    { id: 'eval_autopilot_input_slo_status_not_empty_or_missing_contract', ok: sloStatusNotEmptyOrMissing, detail: String(slo?.status) },
+    { id: 'eval_autopilot_input_adversarial_status_not_empty_or_missing_contract', ok: adversarialStatusNotEmptyOrMissing, detail: String(adversarial?.status) },
+    { id: 'eval_autopilot_input_issue_filing_status_not_empty_or_missing_contract', ok: issueFilingStatusNotEmptyOrMissing, detail: String(issueFiling?.status) },
+    { id: 'eval_autopilot_input_issue_resolution_status_not_empty_or_missing_contract', ok: issueResolutionStatusNotEmptyOrMissing, detail: String(issueResolution?.status) },
+    { id: 'eval_autopilot_input_quality_gate_status_not_empty_or_missing_contract', ok: qualityGateStatusNotEmptyOrMissing, detail: String(qualityGate?.status) },
+    { id: 'eval_autopilot_input_reviewer_status_not_empty_or_missing_contract', ok: reviewerStatusNotEmptyOrMissing, detail: String(reviewer?.status) },
+    { id: 'eval_autopilot_input_judge_human_status_not_empty_or_missing_contract', ok: judgeHumanStatusNotEmptyOrMissing, detail: String(judgeHuman?.status) },
+    { id: 'eval_autopilot_input_thresholds_status_not_empty_or_missing_contract', ok: thresholdsStatusNotEmptyOrMissing, detail: String(thresholds?.status) },
+    { id: 'eval_autopilot_input_issue_filing_ok_boolean_or_missing_contract', ok: issueFilingOkBooleanOrMissing, detail: String(issueFiling?.ok) },
+    { id: 'eval_autopilot_input_issue_resolution_ok_boolean_or_missing_contract', ok: issueResolutionOkBooleanOrMissing, detail: String(issueResolution?.ok) },
+    { id: 'eval_autopilot_input_reviewer_ok_boolean_or_missing_contract', ok: reviewerOkBooleanOrMissing, detail: String(reviewer?.ok) },
+    { id: 'eval_autopilot_input_judge_human_ok_boolean_or_missing_contract', ok: judgeHumanOkBooleanOrMissing, detail: String(judgeHuman?.ok) },
+    { id: 'eval_autopilot_input_thresholds_ok_boolean_or_missing_contract', ok: thresholdsOkBooleanOrMissing, detail: String(thresholds?.ok) },
+    { id: 'eval_autopilot_input_monitor_summary_ok_boolean_or_missing_contract', ok: monitorSummaryOkBooleanOrMissing, detail: String(monitor?.summary?.ok) },
+    { id: 'eval_autopilot_input_quality_summary_ok_boolean_or_missing_contract', ok: qualitySummaryOkBooleanOrMissing, detail: String(quality?.summary?.ok) },
+    { id: 'eval_autopilot_input_slo_summary_ok_boolean_or_missing_contract', ok: sloSummaryOkBooleanOrMissing, detail: String(slo?.summary?.ok) },
+    { id: 'eval_autopilot_input_adversarial_summary_ok_boolean_or_missing_contract', ok: adversarialSummaryOkBooleanOrMissing, detail: String(adversarial?.summary?.ok) },
+    { id: 'eval_autopilot_input_issue_filing_summary_ok_boolean_or_missing_contract', ok: issueFilingSummaryOkBooleanOrMissing, detail: String(issueFiling?.summary?.ok) },
+    { id: 'eval_autopilot_input_issue_resolution_summary_ok_boolean_or_missing_contract', ok: issueResolutionSummaryOkBooleanOrMissing, detail: String(issueResolution?.summary?.ok) },
+    { id: 'eval_autopilot_input_quality_gate_summary_ok_boolean_or_missing_contract', ok: qualityGateSummaryOkBooleanOrMissing, detail: String(qualityGate?.summary?.ok) },
+    { id: 'eval_autopilot_input_reviewer_summary_ok_boolean_or_missing_contract', ok: reviewerSummaryOkBooleanOrMissing, detail: String(reviewer?.summary?.ok) },
+    { id: 'eval_autopilot_input_judge_human_summary_ok_boolean_or_missing_contract', ok: judgeHumanSummaryOkBooleanOrMissing, detail: String(judgeHuman?.summary?.ok) },
+    { id: 'eval_autopilot_input_thresholds_summary_ok_boolean_or_missing_contract', ok: thresholdsSummaryOkBooleanOrMissing, detail: String(thresholds?.summary?.ok) },
+    { id: 'eval_autopilot_input_thresholds_global_ok_boolean_or_missing_contract', ok: thresholdsGlobalOkBooleanOrMissing, detail: String(thresholds?.global?.ok) },
+    { id: 'eval_autopilot_input_monitor_summary_ok_consistent_with_root_or_missing_contract', ok: monitorSummaryOkConsistentWithRootOrMissing, detail: `${String(monitor?.ok)}|${String(monitor?.summary?.ok)}` },
+    { id: 'eval_autopilot_input_quality_summary_ok_consistent_with_root_or_missing_contract', ok: qualitySummaryOkConsistentWithRootOrMissing, detail: `${String(quality?.ok)}|${String(quality?.summary?.ok)}` },
+    { id: 'eval_autopilot_input_slo_summary_ok_consistent_with_root_or_missing_contract', ok: sloSummaryOkConsistentWithRootOrMissing, detail: `${String(slo?.ok)}|${String(slo?.summary?.ok)}` },
+    { id: 'eval_autopilot_input_adversarial_summary_ok_consistent_with_root_or_missing_contract', ok: adversarialSummaryOkConsistentWithRootOrMissing, detail: `${String(adversarial?.ok)}|${String(adversarial?.summary?.ok)}` },
     { id: 'eval_autopilot_monitor_path_canonical_contract', ok: isCanonicalRelativePath(args.monitorPath), detail: args.monitorPath },
     { id: 'eval_autopilot_quality_path_canonical_contract', ok: isCanonicalRelativePath(args.qualityPath), detail: args.qualityPath },
     { id: 'eval_autopilot_slo_path_canonical_contract', ok: isCanonicalRelativePath(args.sloPath), detail: args.sloPath },
@@ -2321,6 +2835,147 @@ function run(argv: string[] = process.argv.slice(2)): number {
     detail: cleanText(String(report.generated_at || ''), 120),
   });
 
+  const finalCheckIdsEvalPrefixContract = finalCheckIds.every((id) => id.startsWith('eval_autopilot_'));
+  const finalCheckIdsContractSuffixContract = finalCheckIds.every((id) => id.endsWith('_contract'));
+  const finalCheckIdsLengthBoundedContract = finalCheckIds.every((id) => id.length <= 160);
+  const finalCheckIdsNoPlaceholderContract = finalCheckIds.every((id) => !id.includes('${'));
+  const finalCheckIdsAsciiContract = finalCheckIds.every((id) => isAsciiPrintable(id, 160));
+  const finalActionIdsNoPlaceholderContract = finalActionIds.every((id) => !id.includes('${'));
+  const finalActionIdsAsciiContract = finalActionIds.every((id) => isAsciiPrintable(id, 160));
+  const finalActionIdsNoDoubleSpaceContract = finalActionIds.every((id) => !id.includes('  '));
+  const finalActionIdsNonEmptyContract = finalActionIds.every((id) => id.length > 0);
+  const finalActionsSummaryNonEmptyContract = actions.every((row) => cleanText(String(row.summary || ''), 240).length > 0);
+  const finalActionsDetailNonEmptyContract = actions.every((row) => cleanText(String(row.detail || ''), 400).length > 0);
+  const finalActionsSummaryNoNewlineContract = actions.every((row) => !String(row.summary || '').includes('\n'));
+  const finalActionsDetailNoNewlineContract = actions.every((row) => !String(row.detail || '').includes('\n'));
+  const finalActionsSummaryNoTabContract = actions.every((row) => !String(row.summary || '').includes('\t'));
+  const finalActionsDetailNoTabContract = actions.every((row) => !String(row.detail || '').includes('\t'));
+  const finalActionsSummaryNoDoubleSpaceContract = actions.every(
+    (row) => !cleanText(String(row.summary || ''), 240).includes('  '),
+  );
+  const finalActionsDetailNoDoubleSpaceContract = actions.every(
+    (row) => !cleanText(String(row.detail || ''), 400).includes('  '),
+  );
+  const finalActionsCommandsUniquePerActionContract = actions.every((row) => {
+    const commands = Array.isArray(row.recommended_commands) ? row.recommended_commands : [];
+    return new Set(commands).size === commands.length;
+  });
+  const finalActionsCommandsCasefoldUniquePerActionContract = actions.every((row) => {
+    const commands = Array.isArray(row.recommended_commands)
+      ? row.recommended_commands.map((command) => cleanText(String(command || ''), 260).toLowerCase())
+      : [];
+    return new Set(commands).size === commands.length;
+  });
+  const finalActionsCommandsEachNonEmptyTrimmedContract = actions.every(
+    (row) =>
+      Array.isArray(row.recommended_commands)
+      && row.recommended_commands.every((command) => {
+        const raw = String(command || '');
+        const token = cleanText(raw, 260);
+        return token.length > 0 && token === raw.trim();
+      }),
+  );
+  checks.push({
+    id: 'eval_autopilot_final_check_ids_eval_prefix_contract',
+    ok: finalCheckIdsEvalPrefixContract,
+    detail: `count=${finalCheckIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_check_ids_contract_suffix_contract',
+    ok: finalCheckIdsContractSuffixContract,
+    detail: `count=${finalCheckIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_check_ids_length_bounded_contract',
+    ok: finalCheckIdsLengthBoundedContract,
+    detail: `count=${finalCheckIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_check_ids_no_placeholder_contract',
+    ok: finalCheckIdsNoPlaceholderContract,
+    detail: `count=${finalCheckIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_check_ids_ascii_contract',
+    ok: finalCheckIdsAsciiContract,
+    detail: `count=${finalCheckIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_ids_no_placeholder_contract',
+    ok: finalActionIdsNoPlaceholderContract,
+    detail: `count=${finalActionIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_ids_ascii_contract',
+    ok: finalActionIdsAsciiContract,
+    detail: `count=${finalActionIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_ids_no_double_space_contract',
+    ok: finalActionIdsNoDoubleSpaceContract,
+    detail: `count=${finalActionIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_ids_nonempty_contract',
+    ok: finalActionIdsNonEmptyContract,
+    detail: `count=${finalActionIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_actions_summary_nonempty_contract',
+    ok: finalActionsSummaryNonEmptyContract,
+    detail: `count=${actions.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_actions_detail_nonempty_contract',
+    ok: finalActionsDetailNonEmptyContract,
+    detail: `count=${actions.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_actions_summary_no_newline_contract',
+    ok: finalActionsSummaryNoNewlineContract,
+    detail: `count=${actions.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_actions_detail_no_newline_contract',
+    ok: finalActionsDetailNoNewlineContract,
+    detail: `count=${actions.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_actions_summary_no_tab_contract',
+    ok: finalActionsSummaryNoTabContract,
+    detail: `count=${actions.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_actions_detail_no_tab_contract',
+    ok: finalActionsDetailNoTabContract,
+    detail: `count=${actions.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_actions_summary_no_double_space_contract',
+    ok: finalActionsSummaryNoDoubleSpaceContract,
+    detail: `count=${actions.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_actions_detail_no_double_space_contract',
+    ok: finalActionsDetailNoDoubleSpaceContract,
+    detail: `count=${actions.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_actions_commands_unique_per_action_contract',
+    ok: finalActionsCommandsUniquePerActionContract,
+    detail: `count=${actions.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_actions_commands_casefold_unique_per_action_contract',
+    ok: finalActionsCommandsCasefoldUniquePerActionContract,
+    detail: `count=${actions.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_actions_commands_each_nonempty_trimmed_contract',
+    ok: finalActionsCommandsEachNonEmptyTrimmedContract,
+    detail: `count=${actions.length}`,
+  });
+
   const finalSeverityCounts = {
     critical: actions.filter((row) => row.severity === 'critical').length,
     high: actions.filter((row) => row.severity === 'high').length,
@@ -2337,6 +2992,3132 @@ function run(argv: string[] = process.argv.slice(2)): number {
   report.summary.high_or_critical_actions = finalHighOrCriticalActions;
   report.summary.automatable_actions = actions.filter((row) => row.automatable).length;
   report.summary.severity_counts = finalSeverityCounts;
+  const finalSummaryTotalActionsIntegerContract = Number.isInteger(report.summary.total_actions)
+    && report.summary.total_actions >= 0;
+  const finalSummaryTotalActionsMatchesActionsContract = report.summary.total_actions === actions.length;
+  const finalSummaryHighOrCriticalIntegerContract = Number.isInteger(report.summary.high_or_critical_actions)
+    && report.summary.high_or_critical_actions >= 0;
+  const finalSummaryHighOrCriticalMatchesActionsContract = report.summary.high_or_critical_actions === finalHighOrCriticalActions;
+  const finalSummaryHighOrCriticalBoundedContract = report.summary.high_or_critical_actions <= report.summary.total_actions;
+  const finalSummaryAutomatableIntegerContract = Number.isInteger(report.summary.automatable_actions)
+    && report.summary.automatable_actions >= 0;
+  const finalSummaryAutomatableMatchesActionsContract = report.summary.automatable_actions === actions.filter((row) => row.automatable).length;
+  const finalSummaryAutomatableBoundedContract = report.summary.automatable_actions <= report.summary.total_actions;
+  const finalSummaryAutopilotReadyMatchesReportOkContract = report.summary.autopilot_ready === report.ok;
+  const finalSummarySeverityCountsKeysExactContract = Object.keys(report.summary.severity_counts || {}).sort().join('|')
+    === ['critical', 'high', 'info', 'low', 'medium'].join('|');
+  const finalSummarySeverityCountsValuesIntegerContract = ['critical', 'high', 'medium', 'low', 'info']
+    .every((key) => Number.isInteger((report.summary.severity_counts as any)[key]));
+  const finalSummarySeverityCountsValuesNonNegativeContract = ['critical', 'high', 'medium', 'low', 'info']
+    .every((key) => Number((report.summary.severity_counts as any)[key]) >= 0);
+  const finalSummarySeverityCountsTotalMatchesTotalActionsContract = Object.values(report.summary.severity_counts || {})
+    .reduce((sum, value) => sum + Number(value || 0), 0) === report.summary.total_actions;
+  const finalSummarySeverityCountsTotalMatchesActionsContract = Object.values(report.summary.severity_counts || {})
+    .reduce((sum, value) => sum + Number(value || 0), 0) === actions.length;
+  const finalSummarySeverityCriticalMatchesContract = Number((report.summary.severity_counts as any).critical || 0) === finalSeverityCounts.critical;
+  const finalSummarySeverityHighMatchesContract = Number((report.summary.severity_counts as any).high || 0) === finalSeverityCounts.high;
+  const finalSummarySeverityMediumMatchesContract = Number((report.summary.severity_counts as any).medium || 0) === finalSeverityCounts.medium;
+  const finalSummarySeverityLowMatchesContract = Number((report.summary.severity_counts as any).low || 0) === finalSeverityCounts.low;
+  const finalSummarySeverityInfoMatchesContract = Number((report.summary.severity_counts as any).info || 0) === finalSeverityCounts.info;
+  const finalSummarySeverityHighOrCriticalMatchesSummaryContract = (
+    Number((report.summary.severity_counts as any).critical || 0)
+    + Number((report.summary.severity_counts as any).high || 0)
+  ) === report.summary.high_or_critical_actions;
+  checks.push({
+    id: 'eval_autopilot_final_summary_total_actions_integer_contract',
+    ok: finalSummaryTotalActionsIntegerContract,
+    detail: String(report.summary.total_actions),
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_total_actions_matches_actions_contract',
+    ok: finalSummaryTotalActionsMatchesActionsContract,
+    detail: `${report.summary.total_actions}|${actions.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_high_or_critical_integer_contract',
+    ok: finalSummaryHighOrCriticalIntegerContract,
+    detail: String(report.summary.high_or_critical_actions),
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_high_or_critical_matches_actions_contract',
+    ok: finalSummaryHighOrCriticalMatchesActionsContract,
+    detail: `${report.summary.high_or_critical_actions}|${finalHighOrCriticalActions}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_high_or_critical_bounded_contract',
+    ok: finalSummaryHighOrCriticalBoundedContract,
+    detail: `${report.summary.high_or_critical_actions}|${report.summary.total_actions}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_automatable_integer_contract',
+    ok: finalSummaryAutomatableIntegerContract,
+    detail: String(report.summary.automatable_actions),
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_automatable_matches_actions_contract',
+    ok: finalSummaryAutomatableMatchesActionsContract,
+    detail: `${report.summary.automatable_actions}|${actions.filter((row) => row.automatable).length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_automatable_bounded_contract',
+    ok: finalSummaryAutomatableBoundedContract,
+    detail: `${report.summary.automatable_actions}|${report.summary.total_actions}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_autopilot_ready_matches_report_ok_contract',
+    ok: finalSummaryAutopilotReadyMatchesReportOkContract,
+    detail: `${report.summary.autopilot_ready}|${report.ok}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_severity_counts_keys_exact_contract',
+    ok: finalSummarySeverityCountsKeysExactContract,
+    detail: Object.keys(report.summary.severity_counts || {}).sort().join('|'),
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_severity_counts_values_integer_contract',
+    ok: finalSummarySeverityCountsValuesIntegerContract,
+    detail: JSON.stringify(report.summary.severity_counts || {}),
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_severity_counts_values_nonnegative_contract',
+    ok: finalSummarySeverityCountsValuesNonNegativeContract,
+    detail: JSON.stringify(report.summary.severity_counts || {}),
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_severity_counts_total_matches_total_actions_contract',
+    ok: finalSummarySeverityCountsTotalMatchesTotalActionsContract,
+    detail: `${Object.values(report.summary.severity_counts || {}).reduce((sum, value) => sum + Number(value || 0), 0)}|${report.summary.total_actions}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_severity_counts_total_matches_actions_contract',
+    ok: finalSummarySeverityCountsTotalMatchesActionsContract,
+    detail: `${Object.values(report.summary.severity_counts || {}).reduce((sum, value) => sum + Number(value || 0), 0)}|${actions.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_severity_critical_matches_contract',
+    ok: finalSummarySeverityCriticalMatchesContract,
+    detail: `${Number((report.summary.severity_counts as any).critical || 0)}|${finalSeverityCounts.critical}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_severity_high_matches_contract',
+    ok: finalSummarySeverityHighMatchesContract,
+    detail: `${Number((report.summary.severity_counts as any).high || 0)}|${finalSeverityCounts.high}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_severity_medium_matches_contract',
+    ok: finalSummarySeverityMediumMatchesContract,
+    detail: `${Number((report.summary.severity_counts as any).medium || 0)}|${finalSeverityCounts.medium}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_severity_low_matches_contract',
+    ok: finalSummarySeverityLowMatchesContract,
+    detail: `${Number((report.summary.severity_counts as any).low || 0)}|${finalSeverityCounts.low}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_severity_info_matches_contract',
+    ok: finalSummarySeverityInfoMatchesContract,
+    detail: `${Number((report.summary.severity_counts as any).info || 0)}|${finalSeverityCounts.info}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_severity_high_or_critical_matches_summary_contract',
+    ok: finalSummarySeverityHighOrCriticalMatchesSummaryContract,
+    detail: `${Number((report.summary.severity_counts as any).critical || 0) + Number((report.summary.severity_counts as any).high || 0)}|${report.summary.high_or_critical_actions}`,
+  });
+  const finalSummaryTotalActionsSafeIntegerContract = Number.isSafeInteger(report.summary.total_actions);
+  const finalSummaryHighOrCriticalSafeIntegerContract = Number.isSafeInteger(report.summary.high_or_critical_actions);
+  const finalSummaryAutomatableSafeIntegerContract = Number.isSafeInteger(report.summary.automatable_actions);
+  const finalSummarySeverityCriticalSafeIntegerContract = Number.isSafeInteger(Number((report.summary.severity_counts as any).critical));
+  const finalSummarySeverityHighSafeIntegerContract = Number.isSafeInteger(Number((report.summary.severity_counts as any).high));
+  const finalSummarySeverityMediumSafeIntegerContract = Number.isSafeInteger(Number((report.summary.severity_counts as any).medium));
+  const finalSummarySeverityLowSafeIntegerContract = Number.isSafeInteger(Number((report.summary.severity_counts as any).low));
+  const finalSummarySeverityInfoSafeIntegerContract = Number.isSafeInteger(Number((report.summary.severity_counts as any).info));
+  const finalSummarySeverityCriticalBoundedByTotalContract = Number((report.summary.severity_counts as any).critical) <= report.summary.total_actions;
+  const finalSummarySeverityHighBoundedByTotalContract = Number((report.summary.severity_counts as any).high) <= report.summary.total_actions;
+  const finalSummarySeverityMediumBoundedByTotalContract = Number((report.summary.severity_counts as any).medium) <= report.summary.total_actions;
+  const finalSummarySeverityLowBoundedByTotalContract = Number((report.summary.severity_counts as any).low) <= report.summary.total_actions;
+  const finalSummarySeverityInfoBoundedByTotalContract = Number((report.summary.severity_counts as any).info) <= report.summary.total_actions;
+  const finalSummaryTotalActionsMaxTwentyContract = report.summary.total_actions <= 20;
+  const finalSummaryAutomatableMaxTwentyContract = report.summary.automatable_actions <= 20;
+  const finalSummaryHighOrCriticalMaxTwentyContract = report.summary.high_or_critical_actions <= 20;
+  const finalSummaryHighOrCriticalGeCriticalContract = report.summary.high_or_critical_actions >= Number((report.summary.severity_counts as any).critical);
+  const finalSummaryHighOrCriticalGeHighContract = report.summary.high_or_critical_actions >= Number((report.summary.severity_counts as any).high);
+  const finalSummarySeverityCountsJsonToken = cleanText(JSON.stringify(report.summary.severity_counts || {}), 400);
+  const finalSummarySeverityCountsJsonAsciiContract = isAsciiPrintable(finalSummarySeverityCountsJsonToken, 400);
+  const finalSummarySeverityCountsJsonNoPlaceholderContract = !finalSummarySeverityCountsJsonToken.includes('${');
+  checks.push({
+    id: 'eval_autopilot_final_summary_total_actions_safe_integer_contract',
+    ok: finalSummaryTotalActionsSafeIntegerContract,
+    detail: String(report.summary.total_actions),
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_high_or_critical_safe_integer_contract',
+    ok: finalSummaryHighOrCriticalSafeIntegerContract,
+    detail: String(report.summary.high_or_critical_actions),
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_automatable_safe_integer_contract',
+    ok: finalSummaryAutomatableSafeIntegerContract,
+    detail: String(report.summary.automatable_actions),
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_severity_critical_safe_integer_contract',
+    ok: finalSummarySeverityCriticalSafeIntegerContract,
+    detail: String(Number((report.summary.severity_counts as any).critical)),
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_severity_high_safe_integer_contract',
+    ok: finalSummarySeverityHighSafeIntegerContract,
+    detail: String(Number((report.summary.severity_counts as any).high)),
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_severity_medium_safe_integer_contract',
+    ok: finalSummarySeverityMediumSafeIntegerContract,
+    detail: String(Number((report.summary.severity_counts as any).medium)),
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_severity_low_safe_integer_contract',
+    ok: finalSummarySeverityLowSafeIntegerContract,
+    detail: String(Number((report.summary.severity_counts as any).low)),
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_severity_info_safe_integer_contract',
+    ok: finalSummarySeverityInfoSafeIntegerContract,
+    detail: String(Number((report.summary.severity_counts as any).info)),
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_severity_critical_bounded_by_total_contract',
+    ok: finalSummarySeverityCriticalBoundedByTotalContract,
+    detail: `${Number((report.summary.severity_counts as any).critical)}|${report.summary.total_actions}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_severity_high_bounded_by_total_contract',
+    ok: finalSummarySeverityHighBoundedByTotalContract,
+    detail: `${Number((report.summary.severity_counts as any).high)}|${report.summary.total_actions}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_severity_medium_bounded_by_total_contract',
+    ok: finalSummarySeverityMediumBoundedByTotalContract,
+    detail: `${Number((report.summary.severity_counts as any).medium)}|${report.summary.total_actions}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_severity_low_bounded_by_total_contract',
+    ok: finalSummarySeverityLowBoundedByTotalContract,
+    detail: `${Number((report.summary.severity_counts as any).low)}|${report.summary.total_actions}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_severity_info_bounded_by_total_contract',
+    ok: finalSummarySeverityInfoBoundedByTotalContract,
+    detail: `${Number((report.summary.severity_counts as any).info)}|${report.summary.total_actions}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_total_actions_max_twenty_contract',
+    ok: finalSummaryTotalActionsMaxTwentyContract,
+    detail: String(report.summary.total_actions),
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_automatable_max_twenty_contract',
+    ok: finalSummaryAutomatableMaxTwentyContract,
+    detail: String(report.summary.automatable_actions),
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_high_or_critical_max_twenty_contract',
+    ok: finalSummaryHighOrCriticalMaxTwentyContract,
+    detail: String(report.summary.high_or_critical_actions),
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_high_or_critical_ge_critical_contract',
+    ok: finalSummaryHighOrCriticalGeCriticalContract,
+    detail: `${report.summary.high_or_critical_actions}|${Number((report.summary.severity_counts as any).critical)}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_high_or_critical_ge_high_contract',
+    ok: finalSummaryHighOrCriticalGeHighContract,
+    detail: `${report.summary.high_or_critical_actions}|${Number((report.summary.severity_counts as any).high)}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_severity_counts_json_ascii_contract',
+    ok: finalSummarySeverityCountsJsonAsciiContract,
+    detail: finalSummarySeverityCountsJsonToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_severity_counts_json_no_placeholder_contract',
+    ok: finalSummarySeverityCountsJsonNoPlaceholderContract,
+    detail: finalSummarySeverityCountsJsonToken,
+  });
+  const finalSummarySeverityCountsJsonTrimmedContract = finalSummarySeverityCountsJsonToken === finalSummarySeverityCountsJsonToken.trim();
+  const finalSummarySeverityCountsJsonLengthBoundedContract = finalSummarySeverityCountsJsonToken.length <= 400;
+  const finalSummarySeverityCountsJsonNoNewlineContract = !finalSummarySeverityCountsJsonToken.includes('\n');
+  const finalSummarySeverityCountsJsonNoTabContract = !finalSummarySeverityCountsJsonToken.includes('\t');
+  const finalSummarySeverityCountsJsonNoDoubleSpaceContract = !finalSummarySeverityCountsJsonToken.includes('  ');
+  const finalSummaryNonAutomatableActions = report.summary.total_actions - report.summary.automatable_actions;
+  const finalSummaryNonAutomatableIntegerContract = Number.isInteger(finalSummaryNonAutomatableActions);
+  const finalSummaryNonAutomatableSafeIntegerContract = Number.isSafeInteger(finalSummaryNonAutomatableActions);
+  const finalSummaryNonAutomatableNonNegativeContract = finalSummaryNonAutomatableActions >= 0;
+  const finalSummaryNonAutomatableBoundedContract = finalSummaryNonAutomatableActions <= report.summary.total_actions;
+  const finalSummaryNonAutomatableMatchesActionsContract = finalSummaryNonAutomatableActions
+    === actions.filter((row) => !row.automatable).length;
+  const finalSummaryTotalEqualsAutomatablePlusNonAutomatableContract = report.summary.total_actions
+    === report.summary.automatable_actions + finalSummaryNonAutomatableActions;
+  const finalSummaryAutopilotReadyFormulaContract = report.summary.autopilot_ready
+    === (report.ok && report.summary.high_or_critical_actions === 0);
+  const finalSummaryAutopilotReadyFalseWhenHighOrCriticalPositiveContract = !(
+    report.summary.high_or_critical_actions > 0 && report.summary.autopilot_ready
+  );
+  const finalSummaryAutopilotReadyTrueRequiresZeroHighOrCriticalContract = !report.summary.autopilot_ready
+    || report.summary.high_or_critical_actions === 0;
+  const finalSummaryAutopilotReadyTrueRequiresReportOkContract = !report.summary.autopilot_ready || report.ok;
+  const finalSummaryReportOkFalseWhenHighOrCriticalPositiveContract = !(
+    report.summary.high_or_critical_actions > 0 && report.ok
+  );
+  const finalSummaryTotalZeroImpliesHighOrCriticalZeroContract = report.summary.total_actions !== 0
+    || report.summary.high_or_critical_actions === 0;
+  const finalSummaryTotalZeroImpliesAutomatableZeroContract = report.summary.total_actions !== 0
+    || report.summary.automatable_actions === 0;
+  const finalSummaryTotalZeroImpliesSeverityAllZeroContract = report.summary.total_actions !== 0
+    || ['critical', 'high', 'medium', 'low', 'info'].every(
+      (key) => Number((report.summary.severity_counts as any)[key] || 0) === 0,
+    );
+  const finalSummaryAutomatablePlusHighOrCriticalBoundedContract = (
+    report.summary.automatable_actions + report.summary.high_or_critical_actions
+  ) <= report.summary.total_actions;
+  checks.push({
+    id: 'eval_autopilot_final_summary_severity_counts_json_trimmed_contract',
+    ok: finalSummarySeverityCountsJsonTrimmedContract,
+    detail: finalSummarySeverityCountsJsonToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_severity_counts_json_length_bounded_contract',
+    ok: finalSummarySeverityCountsJsonLengthBoundedContract,
+    detail: String(finalSummarySeverityCountsJsonToken.length),
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_severity_counts_json_no_newline_contract',
+    ok: finalSummarySeverityCountsJsonNoNewlineContract,
+    detail: finalSummarySeverityCountsJsonToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_severity_counts_json_no_tab_contract',
+    ok: finalSummarySeverityCountsJsonNoTabContract,
+    detail: finalSummarySeverityCountsJsonToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_severity_counts_json_no_double_space_contract',
+    ok: finalSummarySeverityCountsJsonNoDoubleSpaceContract,
+    detail: finalSummarySeverityCountsJsonToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_non_automatable_integer_contract',
+    ok: finalSummaryNonAutomatableIntegerContract,
+    detail: String(finalSummaryNonAutomatableActions),
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_non_automatable_safe_integer_contract',
+    ok: finalSummaryNonAutomatableSafeIntegerContract,
+    detail: String(finalSummaryNonAutomatableActions),
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_non_automatable_nonnegative_contract',
+    ok: finalSummaryNonAutomatableNonNegativeContract,
+    detail: String(finalSummaryNonAutomatableActions),
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_non_automatable_bounded_contract',
+    ok: finalSummaryNonAutomatableBoundedContract,
+    detail: `${finalSummaryNonAutomatableActions}|${report.summary.total_actions}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_non_automatable_matches_actions_contract',
+    ok: finalSummaryNonAutomatableMatchesActionsContract,
+    detail: `${finalSummaryNonAutomatableActions}|${actions.filter((row) => !row.automatable).length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_total_equals_automatable_plus_non_automatable_contract',
+    ok: finalSummaryTotalEqualsAutomatablePlusNonAutomatableContract,
+    detail: `${report.summary.total_actions}|${report.summary.automatable_actions}|${finalSummaryNonAutomatableActions}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_autopilot_ready_formula_contract',
+    ok: finalSummaryAutopilotReadyFormulaContract,
+    detail: `${report.summary.autopilot_ready}|${report.ok}|${report.summary.high_or_critical_actions}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_autopilot_ready_false_when_high_or_critical_positive_contract',
+    ok: finalSummaryAutopilotReadyFalseWhenHighOrCriticalPositiveContract,
+    detail: `${report.summary.autopilot_ready}|${report.summary.high_or_critical_actions}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_autopilot_ready_true_requires_zero_high_or_critical_contract',
+    ok: finalSummaryAutopilotReadyTrueRequiresZeroHighOrCriticalContract,
+    detail: `${report.summary.autopilot_ready}|${report.summary.high_or_critical_actions}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_autopilot_ready_true_requires_report_ok_contract',
+    ok: finalSummaryAutopilotReadyTrueRequiresReportOkContract,
+    detail: `${report.summary.autopilot_ready}|${report.ok}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_report_ok_false_when_high_or_critical_positive_contract',
+    ok: finalSummaryReportOkFalseWhenHighOrCriticalPositiveContract,
+    detail: `${report.ok}|${report.summary.high_or_critical_actions}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_total_zero_implies_high_or_critical_zero_contract',
+    ok: finalSummaryTotalZeroImpliesHighOrCriticalZeroContract,
+    detail: `${report.summary.total_actions}|${report.summary.high_or_critical_actions}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_total_zero_implies_automatable_zero_contract',
+    ok: finalSummaryTotalZeroImpliesAutomatableZeroContract,
+    detail: `${report.summary.total_actions}|${report.summary.automatable_actions}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_total_zero_implies_severity_all_zero_contract',
+    ok: finalSummaryTotalZeroImpliesSeverityAllZeroContract,
+    detail: `${report.summary.total_actions}|${finalSummarySeverityCountsJsonToken}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_summary_automatable_plus_high_or_critical_bounded_contract',
+    ok: finalSummaryAutomatablePlusHighOrCriticalBoundedContract,
+    detail: `${report.summary.automatable_actions}|${report.summary.high_or_critical_actions}|${report.summary.total_actions}`,
+  });
+  const finalCheckIdsNoNewlineContract = finalCheckIds.every((id) => !id.includes('\n'));
+  const finalCheckIdsNoTabContract = finalCheckIds.every((id) => !id.includes('\t'));
+  const finalCheckIdsNoDoubleSpaceContract = finalCheckIds.every((id) => !id.includes('  '));
+  const finalCheckIdsNoSlashContract = finalCheckIds.every((id) => !id.includes('/'));
+  const finalCheckIdsNoBackslashContract = finalCheckIds.every((id) => !id.includes('\\'));
+  const finalCheckIdsNoDotDotContract = finalCheckIds.every((id) => !id.includes('..'));
+  const finalCheckIdsNoLeadingUnderscoreContract = finalCheckIds.every((id) => !id.startsWith('_'));
+  const finalCheckIdsNoTrailingUnderscoreContract = finalCheckIds.every((id) => !id.endsWith('_'));
+  const finalCheckIdsMinLengthContract = finalCheckIds.every((id) => id.length >= 12);
+  const finalCheckIdsUnderscoreCountMinTwoContract = finalCheckIds.every(
+    (id) => (id.match(/_/g) || []).length >= 2,
+  );
+  const finalActionIdsNoNewlineContract = finalActionIds.every((id) => !id.includes('\n'));
+  const finalActionIdsNoTabContract = finalActionIds.every((id) => !id.includes('\t'));
+  const finalActionIdsNoSlashContract = finalActionIds.every((id) => !id.includes('/'));
+  const finalActionIdsNoBackslashContract = finalActionIds.every((id) => !id.includes('\\'));
+  const finalActionIdsNoDotDotContract = finalActionIds.every((id) => !id.includes('..'));
+  const finalActionIdsNoLeadingUnderscoreContract = finalActionIds.every((id) => !id.startsWith('_'));
+  const finalActionIdsNoTrailingUnderscoreContract = finalActionIds.every((id) => !id.endsWith('_'));
+  const finalActionIdsNoWhitespaceContract = finalActionIds.every((id) => !/\s/.test(id));
+  const finalActionIdsUnderscoreCountMinOneContract = finalActionIds.every(
+    (id) => (id.match(/_/g) || []).length >= 1,
+  );
+  const finalActionCategoriesNoWhitespaceContract = finalActionCategories.every(
+    (category) => !/\s/.test(category),
+  );
+  checks.push({
+    id: 'eval_autopilot_final_check_ids_no_newline_contract',
+    ok: finalCheckIdsNoNewlineContract,
+    detail: `count=${finalCheckIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_check_ids_no_tab_contract',
+    ok: finalCheckIdsNoTabContract,
+    detail: `count=${finalCheckIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_check_ids_no_double_space_contract',
+    ok: finalCheckIdsNoDoubleSpaceContract,
+    detail: `count=${finalCheckIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_check_ids_no_slash_contract',
+    ok: finalCheckIdsNoSlashContract,
+    detail: `count=${finalCheckIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_check_ids_no_backslash_contract',
+    ok: finalCheckIdsNoBackslashContract,
+    detail: `count=${finalCheckIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_check_ids_no_dotdot_contract',
+    ok: finalCheckIdsNoDotDotContract,
+    detail: `count=${finalCheckIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_check_ids_no_leading_underscore_contract',
+    ok: finalCheckIdsNoLeadingUnderscoreContract,
+    detail: `count=${finalCheckIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_check_ids_no_trailing_underscore_contract',
+    ok: finalCheckIdsNoTrailingUnderscoreContract,
+    detail: `count=${finalCheckIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_check_ids_min_length_contract',
+    ok: finalCheckIdsMinLengthContract,
+    detail: `count=${finalCheckIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_check_ids_underscore_count_min_two_contract',
+    ok: finalCheckIdsUnderscoreCountMinTwoContract,
+    detail: `count=${finalCheckIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_ids_no_newline_contract',
+    ok: finalActionIdsNoNewlineContract,
+    detail: `count=${finalActionIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_ids_no_tab_contract',
+    ok: finalActionIdsNoTabContract,
+    detail: `count=${finalActionIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_ids_no_slash_contract',
+    ok: finalActionIdsNoSlashContract,
+    detail: `count=${finalActionIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_ids_no_backslash_contract',
+    ok: finalActionIdsNoBackslashContract,
+    detail: `count=${finalActionIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_ids_no_dotdot_contract',
+    ok: finalActionIdsNoDotDotContract,
+    detail: `count=${finalActionIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_ids_no_leading_underscore_contract',
+    ok: finalActionIdsNoLeadingUnderscoreContract,
+    detail: `count=${finalActionIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_ids_no_trailing_underscore_contract',
+    ok: finalActionIdsNoTrailingUnderscoreContract,
+    detail: `count=${finalActionIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_ids_no_whitespace_contract',
+    ok: finalActionIdsNoWhitespaceContract,
+    detail: `count=${finalActionIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_ids_underscore_count_min_one_contract',
+    ok: finalActionIdsUnderscoreCountMinOneContract,
+    detail: `count=${finalActionIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_categories_no_whitespace_contract',
+    ok: finalActionCategoriesNoWhitespaceContract,
+    detail: `count=${finalActionCategories.length}`,
+  });
+  const finalActionCategoriesNoNewlineContract = finalActionCategories.every((category) => !category.includes('\n'));
+  const finalActionCategoriesNoTabContract = finalActionCategories.every((category) => !category.includes('\t'));
+  const finalActionCategoriesNoDoubleSpaceContract = finalActionCategories.every((category) => !category.includes('  '));
+  const finalActionCategoriesNoSlashContract = finalActionCategories.every((category) => !category.includes('/'));
+  const finalActionCategoriesNoBackslashContract = finalActionCategories.every((category) => !category.includes('\\'));
+  const finalActionCategoriesNoDotDotContract = finalActionCategories.every((category) => !category.includes('..'));
+  const finalActionCategoriesNoLeadingUnderscoreContract = finalActionCategories.every(
+    (category) => !category.startsWith('_'),
+  );
+  const finalActionCategoriesNoTrailingUnderscoreContract = finalActionCategories.every(
+    (category) => !category.endsWith('_'),
+  );
+  const finalActionCategoriesMinLengthThreeContract = finalActionCategories.every((category) => category.length >= 3);
+  const finalActionCategoriesMaxLengthEightyContract = finalActionCategories.every((category) => category.length <= 80);
+  const finalActionCategoriesLowercaseContract = finalActionCategories.every((category) => category === category.toLowerCase());
+  const finalActionCategoriesCanonicalTokenContract = finalActionCategories.every(
+    (category) => isCanonicalToken(category, 120),
+  );
+  const finalActionCategoriesAsciiContract = finalActionCategories.every(
+    (category) => isAsciiPrintable(category, 120),
+  );
+  const finalActionCategoriesNoPlaceholderContract = finalActionCategories.every((category) => !category.includes('${'));
+  const finalActionCategoriesCasefoldUniqueContract = new Set(finalActionCategories.map((category) => category.toLowerCase())).size
+    === finalActionCategories.length;
+  const finalActionCategoriesUnderscoreCountMinOneContract = finalActionCategories.every(
+    (category) => (category.match(/_/g) || []).length >= 1,
+  );
+  const finalActionCategoriesNoDashContract = finalActionCategories.every((category) => !category.includes('-'));
+  const finalActionCategoriesNoColonContract = finalActionCategories.every((category) => !category.includes(':'));
+  const finalActionCategoriesNoSemicolonContract = finalActionCategories.every((category) => !category.includes(';'));
+  const finalActionCategoriesNoCommaContract = finalActionCategories.every((category) => !category.includes(','));
+  checks.push({
+    id: 'eval_autopilot_final_action_categories_no_newline_contract',
+    ok: finalActionCategoriesNoNewlineContract,
+    detail: `count=${finalActionCategories.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_categories_no_tab_contract',
+    ok: finalActionCategoriesNoTabContract,
+    detail: `count=${finalActionCategories.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_categories_no_double_space_contract',
+    ok: finalActionCategoriesNoDoubleSpaceContract,
+    detail: `count=${finalActionCategories.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_categories_no_slash_contract',
+    ok: finalActionCategoriesNoSlashContract,
+    detail: `count=${finalActionCategories.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_categories_no_backslash_contract',
+    ok: finalActionCategoriesNoBackslashContract,
+    detail: `count=${finalActionCategories.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_categories_no_dotdot_contract',
+    ok: finalActionCategoriesNoDotDotContract,
+    detail: `count=${finalActionCategories.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_categories_no_leading_underscore_contract',
+    ok: finalActionCategoriesNoLeadingUnderscoreContract,
+    detail: `count=${finalActionCategories.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_categories_no_trailing_underscore_contract',
+    ok: finalActionCategoriesNoTrailingUnderscoreContract,
+    detail: `count=${finalActionCategories.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_categories_min_length_three_contract',
+    ok: finalActionCategoriesMinLengthThreeContract,
+    detail: `count=${finalActionCategories.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_categories_max_length_eighty_contract',
+    ok: finalActionCategoriesMaxLengthEightyContract,
+    detail: `count=${finalActionCategories.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_categories_lowercase_contract',
+    ok: finalActionCategoriesLowercaseContract,
+    detail: `count=${finalActionCategories.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_categories_canonical_token_contract',
+    ok: finalActionCategoriesCanonicalTokenContract,
+    detail: `count=${finalActionCategories.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_categories_ascii_contract',
+    ok: finalActionCategoriesAsciiContract,
+    detail: `count=${finalActionCategories.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_categories_no_placeholder_contract',
+    ok: finalActionCategoriesNoPlaceholderContract,
+    detail: `count=${finalActionCategories.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_categories_casefold_unique_contract',
+    ok: finalActionCategoriesCasefoldUniqueContract,
+    detail: `count=${finalActionCategories.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_categories_underscore_count_min_one_contract',
+    ok: finalActionCategoriesUnderscoreCountMinOneContract,
+    detail: `count=${finalActionCategories.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_categories_no_dash_contract',
+    ok: finalActionCategoriesNoDashContract,
+    detail: `count=${finalActionCategories.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_categories_no_colon_contract',
+    ok: finalActionCategoriesNoColonContract,
+    detail: `count=${finalActionCategories.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_categories_no_semicolon_contract',
+    ok: finalActionCategoriesNoSemicolonContract,
+    detail: `count=${finalActionCategories.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_categories_no_comma_contract',
+    ok: finalActionCategoriesNoCommaContract,
+    detail: `count=${finalActionCategories.length}`,
+  });
+  const finalCheckIdsSnakeCaseContract = finalCheckIds.every((id) => /^[a-z0-9_]+$/.test(id));
+  const finalCheckIdsNoConsecutiveUnderscoreContract = finalCheckIds.every((id) => !id.includes('__'));
+  const finalCheckIdsNoLeadingDigitContract = finalCheckIds.every((id) => !/^[0-9]/.test(id));
+  const finalCheckIdsNoTrailingDigitContract = finalCheckIds.every((id) => !/[0-9]$/.test(id));
+  const finalCheckIdsContractSuffixOnceContract = finalCheckIds.every(
+    (id) => (id.match(/_contract/g) || []).length === 1,
+  );
+  const finalCheckIdsContainsAutopilotTokenContract = finalCheckIds.every((id) => id.includes('autopilot'));
+  const finalActionIdsSnakeCaseContract = finalActionIds.every((id) => /^[a-z0-9_]+$/.test(id));
+  const finalActionIdsNoConsecutiveUnderscoreContract = finalActionIds.every((id) => !id.includes('__'));
+  const finalActionIdsNoLeadingDigitContract = finalActionIds.every((id) => !/^[0-9]/.test(id));
+  const finalActionIdsNoTrailingDigitContract = finalActionIds.every((id) => !/[0-9]$/.test(id));
+  const finalActionIdsContainsEvalTokenContract = finalActionIds.every((id) => id.includes('eval'));
+  const finalActionIdsMinLengthTenContract = finalActionIds.every((id) => id.length >= 10);
+  const finalActionIdsMaxLengthEightyContract = finalActionIds.every((id) => id.length <= 80);
+  const finalActionCategoriesSnakeCaseContract = finalActionCategories.every(
+    (category) => /^[a-z0-9_]+$/.test(category),
+  );
+  const finalActionCategoriesNoConsecutiveUnderscoreContract = finalActionCategories.every(
+    (category) => !category.includes('__'),
+  );
+  const finalActionCategoriesNoLeadingDigitContract = finalActionCategories.every(
+    (category) => !/^[0-9]/.test(category),
+  );
+  const finalActionCategoriesNoTrailingDigitContract = finalActionCategories.every(
+    (category) => !/[0-9]$/.test(category),
+  );
+  const finalSourcePathsNoBackslashContract = sourcePathTokens.every((token) => !token.includes('\\'));
+  const finalSourcePathsNoDotDotContract = sourcePathTokens.every((token) => !token.includes('..'));
+  const finalSourcePathsNoTabContract = sourcePathTokens.every((token) => !token.includes('\t'));
+  checks.push({
+    id: 'eval_autopilot_final_check_ids_snake_case_contract',
+    ok: finalCheckIdsSnakeCaseContract,
+    detail: `count=${finalCheckIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_check_ids_no_consecutive_underscore_contract',
+    ok: finalCheckIdsNoConsecutiveUnderscoreContract,
+    detail: `count=${finalCheckIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_check_ids_no_leading_digit_contract',
+    ok: finalCheckIdsNoLeadingDigitContract,
+    detail: `count=${finalCheckIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_check_ids_no_trailing_digit_contract',
+    ok: finalCheckIdsNoTrailingDigitContract,
+    detail: `count=${finalCheckIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_check_ids_contract_suffix_once_contract',
+    ok: finalCheckIdsContractSuffixOnceContract,
+    detail: `count=${finalCheckIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_check_ids_contains_autopilot_token_contract',
+    ok: finalCheckIdsContainsAutopilotTokenContract,
+    detail: `count=${finalCheckIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_ids_snake_case_contract',
+    ok: finalActionIdsSnakeCaseContract,
+    detail: `count=${finalActionIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_ids_no_consecutive_underscore_contract',
+    ok: finalActionIdsNoConsecutiveUnderscoreContract,
+    detail: `count=${finalActionIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_ids_no_leading_digit_contract',
+    ok: finalActionIdsNoLeadingDigitContract,
+    detail: `count=${finalActionIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_ids_no_trailing_digit_contract',
+    ok: finalActionIdsNoTrailingDigitContract,
+    detail: `count=${finalActionIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_ids_contains_eval_token_contract',
+    ok: finalActionIdsContainsEvalTokenContract,
+    detail: `count=${finalActionIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_ids_min_length_ten_contract',
+    ok: finalActionIdsMinLengthTenContract,
+    detail: `count=${finalActionIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_ids_max_length_eighty_contract',
+    ok: finalActionIdsMaxLengthEightyContract,
+    detail: `count=${finalActionIds.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_categories_snake_case_contract',
+    ok: finalActionCategoriesSnakeCaseContract,
+    detail: `count=${finalActionCategories.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_categories_no_consecutive_underscore_contract',
+    ok: finalActionCategoriesNoConsecutiveUnderscoreContract,
+    detail: `count=${finalActionCategories.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_categories_no_leading_digit_contract',
+    ok: finalActionCategoriesNoLeadingDigitContract,
+    detail: `count=${finalActionCategories.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_action_categories_no_trailing_digit_contract',
+    ok: finalActionCategoriesNoTrailingDigitContract,
+    detail: `count=${finalActionCategories.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_no_backslash_contract',
+    ok: finalSourcePathsNoBackslashContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_no_dotdot_contract',
+    ok: finalSourcePathsNoDotDotContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_no_tab_contract',
+    ok: finalSourcePathsNoTabContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  const finalSourcePathsTailNoNewlineContract = sourcePathTokens.every((token) => !token.includes('\n'));
+  const finalSourcePathsTailNoDoubleSpaceContract = sourcePathTokens.every((token) => !token.includes('  '));
+  const finalSourcePathsTailNoLeadingSlashContract = sourcePathTokens.every((token) => !token.startsWith('/'));
+  const finalSourcePathsTailNoTrailingSlashContract = sourcePathTokens.every((token) => !token.endsWith('/'));
+  const finalSourcePathsTailNoWildcardContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260);
+    return !value.includes('*') && !value.includes('?');
+  });
+  const finalSourcePathsTailNoShellJoinersContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260);
+    return !value.includes('&&') && !value.includes('||') && !value.includes(';');
+  });
+  const finalSourcePathsTailNoPercentEnvContract = sourcePathTokens.every((token) => !cleanText(token, 260).includes('%'));
+  const finalSourcePathsTailNoWindowsDrivePrefixContract = sourcePathTokens.every(
+    (token) => !/^[A-Za-z]:/.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailLengthBoundedContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260);
+    return value.length > 0 && value.length <= 240;
+  });
+  const finalSourcePathsTailPathSegmentsNonEmptyContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260);
+    return value.split('/').every((segment) => segment.length > 0);
+  });
+  const finalReportGeneratedAtTailToken = cleanText(String(report.generated_at || ''), 120);
+  const finalReportGeneratedAtTailNoNewlineContract = !finalReportGeneratedAtTailToken.includes('\n');
+  const finalReportGeneratedAtTailNoTabContract = !finalReportGeneratedAtTailToken.includes('\t');
+  const finalReportGeneratedAtTailNoSpaceContract = !finalReportGeneratedAtTailToken.includes(' ');
+  const finalReportGeneratedAtTailContainsTContract = finalReportGeneratedAtTailToken.includes('T');
+  const finalReportGeneratedAtTailMinLengthTwentyContract = finalReportGeneratedAtTailToken.length >= 20;
+  const finalReportTypeTailToken = cleanText(String(report.type || ''), 120);
+  const finalReportTypeTailLowercaseContract = finalReportTypeTailToken === finalReportTypeTailToken.toLowerCase();
+  const finalReportTypeTailNoWhitespaceContract = !/\s/.test(finalReportTypeTailToken);
+  const finalReportTypeTailNoPlaceholderContract = !finalReportTypeTailToken.includes('${');
+  const finalReportTypeTailAsciiContract = isAsciiPrintable(finalReportTypeTailToken, 120);
+  const finalReportTypeTailLengthBoundedContract = finalReportTypeTailToken.length >= 3
+    && finalReportTypeTailToken.length <= 80;
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_newline_contract',
+    ok: finalSourcePathsTailNoNewlineContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_double_space_contract',
+    ok: finalSourcePathsTailNoDoubleSpaceContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_leading_slash_contract',
+    ok: finalSourcePathsTailNoLeadingSlashContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_trailing_slash_contract',
+    ok: finalSourcePathsTailNoTrailingSlashContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_wildcard_contract',
+    ok: finalSourcePathsTailNoWildcardContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_shell_joiners_contract',
+    ok: finalSourcePathsTailNoShellJoinersContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_percent_env_contract',
+    ok: finalSourcePathsTailNoPercentEnvContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_windows_drive_prefix_contract',
+    ok: finalSourcePathsTailNoWindowsDrivePrefixContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_length_bounded_contract',
+    ok: finalSourcePathsTailLengthBoundedContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_path_segments_nonempty_contract',
+    ok: finalSourcePathsTailPathSegmentsNonEmptyContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_newline_contract',
+    ok: finalReportGeneratedAtTailNoNewlineContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_tab_contract',
+    ok: finalReportGeneratedAtTailNoTabContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_space_contract',
+    ok: finalReportGeneratedAtTailNoSpaceContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_contains_t_contract',
+    ok: finalReportGeneratedAtTailContainsTContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_min_length_twenty_contract',
+    ok: finalReportGeneratedAtTailMinLengthTwentyContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_type_tail_lowercase_contract',
+    ok: finalReportTypeTailLowercaseContract,
+    detail: finalReportTypeTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_type_tail_no_whitespace_contract',
+    ok: finalReportTypeTailNoWhitespaceContract,
+    detail: finalReportTypeTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_type_tail_no_placeholder_contract',
+    ok: finalReportTypeTailNoPlaceholderContract,
+    detail: finalReportTypeTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_type_tail_ascii_contract',
+    ok: finalReportTypeTailAsciiContract,
+    detail: finalReportTypeTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_type_tail_length_bounded_contract',
+    ok: finalReportTypeTailLengthBoundedContract,
+    detail: finalReportTypeTailToken,
+  });
+  const finalSourcePathsTailNoPlaceholderContract = sourcePathTokens.every(
+    (token) => !cleanText(token, 260).includes('${'),
+  );
+  const finalSourcePathsTailNoBacktickContract = sourcePathTokens.every((token) => !cleanText(token, 260).includes('`'));
+  const finalSourcePathsTailNoDollarContract = sourcePathTokens.every((token) => !cleanText(token, 260).includes('$'));
+  const finalSourcePathsTailNoDoubleQuoteContract = sourcePathTokens.every((token) => !cleanText(token, 260).includes('"'));
+  const finalSourcePathsTailNoSingleQuoteContract = sourcePathTokens.every((token) => !cleanText(token, 260).includes('\''));
+  const finalSourcePathsTailNoAngleBracketContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260);
+    return !value.includes('<') && !value.includes('>');
+  });
+  const finalSourcePathsTailNoPipeContract = sourcePathTokens.every((token) => !cleanText(token, 260).includes('|'));
+  const finalSourcePathsTailNoAmpersandContract = sourcePathTokens.every((token) => !cleanText(token, 260).includes('&'));
+  const finalSourcePathsTailNoCarriageReturnContract = sourcePathTokens.every((token) => !token.includes('\r'));
+  const finalSourcePathsTailNoHashContract = sourcePathTokens.every((token) => !cleanText(token, 260).includes('#'));
+  const finalSourcePathsTailNoExclamationContract = sourcePathTokens.every((token) => !cleanText(token, 260).includes('!'));
+  const finalReportGeneratedAtTailNoPlaceholderContract = !finalReportGeneratedAtTailToken.includes('${');
+  const finalReportGeneratedAtTailAsciiContract = isAsciiPrintable(finalReportGeneratedAtTailToken, 120);
+  const finalReportGeneratedAtTailEndsWithZContract = finalReportGeneratedAtTailToken.endsWith('Z');
+  const finalReportGeneratedAtTailMaxLengthFortyContract = finalReportGeneratedAtTailToken.length <= 40;
+  const finalReportGeneratedAtTailContainsDashContract = finalReportGeneratedAtTailToken.includes('-');
+  const finalReportGeneratedAtTailContainsColonContract = finalReportGeneratedAtTailToken.includes(':');
+  const finalReportGeneratedAtTailNoSlashContract = !finalReportGeneratedAtTailToken.includes('/');
+  const finalReportGeneratedAtTailNoBackslashContract = !finalReportGeneratedAtTailToken.includes('\\');
+  const finalReportGeneratedAtTailNoCommaContract = !finalReportGeneratedAtTailToken.includes(',');
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_placeholder_contract',
+    ok: finalSourcePathsTailNoPlaceholderContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_backtick_contract',
+    ok: finalSourcePathsTailNoBacktickContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_dollar_contract',
+    ok: finalSourcePathsTailNoDollarContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_double_quote_contract',
+    ok: finalSourcePathsTailNoDoubleQuoteContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_single_quote_contract',
+    ok: finalSourcePathsTailNoSingleQuoteContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_angle_bracket_contract',
+    ok: finalSourcePathsTailNoAngleBracketContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_pipe_contract',
+    ok: finalSourcePathsTailNoPipeContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_ampersand_contract',
+    ok: finalSourcePathsTailNoAmpersandContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_carriage_return_contract',
+    ok: finalSourcePathsTailNoCarriageReturnContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_hash_contract',
+    ok: finalSourcePathsTailNoHashContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_exclamation_contract',
+    ok: finalSourcePathsTailNoExclamationContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_placeholder_contract',
+    ok: finalReportGeneratedAtTailNoPlaceholderContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_ascii_contract',
+    ok: finalReportGeneratedAtTailAsciiContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_ends_with_z_contract',
+    ok: finalReportGeneratedAtTailEndsWithZContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_max_length_forty_contract',
+    ok: finalReportGeneratedAtTailMaxLengthFortyContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_contains_dash_contract',
+    ok: finalReportGeneratedAtTailContainsDashContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_contains_colon_contract',
+    ok: finalReportGeneratedAtTailContainsColonContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_slash_contract',
+    ok: finalReportGeneratedAtTailNoSlashContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_backslash_contract',
+    ok: finalReportGeneratedAtTailNoBackslashContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_comma_contract',
+    ok: finalReportGeneratedAtTailNoCommaContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  const finalReportTypeTailStartsWithEvalAutopilotContract = finalReportTypeTailToken.startsWith('eval_autopilot_');
+  const finalReportTypeTailEndsWithReportContract = finalReportTypeTailToken.endsWith('_report');
+  const finalReportTypeTailSnakeCaseContract = /^[a-z0-9_]+$/.test(finalReportTypeTailToken);
+  const finalReportTypeTailNoConsecutiveUnderscoreContract = !finalReportTypeTailToken.includes('__');
+  const finalReportTypeTailNoLeadingDigitContract = !/^[0-9]/.test(finalReportTypeTailToken);
+  const finalReportTypeTailNoTrailingDigitContract = !/[0-9]$/.test(finalReportTypeTailToken);
+  const finalReportTypeTailNoLeadingUnderscoreContract = !finalReportTypeTailToken.startsWith('_');
+  const finalReportTypeTailNoTrailingUnderscoreContract = !finalReportTypeTailToken.endsWith('_');
+  const finalReportTypeTailNoDashContract = !finalReportTypeTailToken.includes('-');
+  const finalReportTypeTailNoColonContract = !finalReportTypeTailToken.includes(':');
+  const finalReportTypeTailNoSemicolonContract = !finalReportTypeTailToken.includes(';');
+  const finalReportTypeTailNoCommaContract = !finalReportTypeTailToken.includes(',');
+  const finalReportTypeTailNoSlashContract = !finalReportTypeTailToken.includes('/');
+  const finalReportTypeTailNoBackslashContract = !finalReportTypeTailToken.includes('\\');
+  const finalReportTypeTailNoDoubleSpaceContract = !finalReportTypeTailToken.includes('  ');
+  const finalReportTypeTailUnderscoreCountMinTwoContract = (finalReportTypeTailToken.match(/_/g) || []).length >= 2;
+  const finalReportTypeTailNoBacktickContract = !finalReportTypeTailToken.includes('`');
+  const finalReportTypeTailNoDollarContract = !finalReportTypeTailToken.includes('$');
+  const finalReportTypeTailNoDoubleQuoteContract = !finalReportTypeTailToken.includes('"');
+  const finalReportTypeTailNoSingleQuoteContract = !finalReportTypeTailToken.includes('\'');
+  checks.push({
+    id: 'eval_autopilot_final_report_type_tail_starts_with_eval_autopilot_contract',
+    ok: finalReportTypeTailStartsWithEvalAutopilotContract,
+    detail: finalReportTypeTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_type_tail_ends_with_report_contract',
+    ok: finalReportTypeTailEndsWithReportContract,
+    detail: finalReportTypeTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_type_tail_snake_case_contract',
+    ok: finalReportTypeTailSnakeCaseContract,
+    detail: finalReportTypeTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_type_tail_no_consecutive_underscore_contract',
+    ok: finalReportTypeTailNoConsecutiveUnderscoreContract,
+    detail: finalReportTypeTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_type_tail_no_leading_digit_contract',
+    ok: finalReportTypeTailNoLeadingDigitContract,
+    detail: finalReportTypeTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_type_tail_no_trailing_digit_contract',
+    ok: finalReportTypeTailNoTrailingDigitContract,
+    detail: finalReportTypeTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_type_tail_no_leading_underscore_contract',
+    ok: finalReportTypeTailNoLeadingUnderscoreContract,
+    detail: finalReportTypeTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_type_tail_no_trailing_underscore_contract',
+    ok: finalReportTypeTailNoTrailingUnderscoreContract,
+    detail: finalReportTypeTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_type_tail_no_dash_contract',
+    ok: finalReportTypeTailNoDashContract,
+    detail: finalReportTypeTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_type_tail_no_colon_contract',
+    ok: finalReportTypeTailNoColonContract,
+    detail: finalReportTypeTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_type_tail_no_semicolon_contract',
+    ok: finalReportTypeTailNoSemicolonContract,
+    detail: finalReportTypeTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_type_tail_no_comma_contract',
+    ok: finalReportTypeTailNoCommaContract,
+    detail: finalReportTypeTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_type_tail_no_slash_contract',
+    ok: finalReportTypeTailNoSlashContract,
+    detail: finalReportTypeTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_type_tail_no_backslash_contract',
+    ok: finalReportTypeTailNoBackslashContract,
+    detail: finalReportTypeTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_type_tail_no_double_space_contract',
+    ok: finalReportTypeTailNoDoubleSpaceContract,
+    detail: finalReportTypeTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_type_tail_underscore_count_min_two_contract',
+    ok: finalReportTypeTailUnderscoreCountMinTwoContract,
+    detail: finalReportTypeTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_type_tail_no_backtick_contract',
+    ok: finalReportTypeTailNoBacktickContract,
+    detail: finalReportTypeTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_type_tail_no_dollar_contract',
+    ok: finalReportTypeTailNoDollarContract,
+    detail: finalReportTypeTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_type_tail_no_double_quote_contract',
+    ok: finalReportTypeTailNoDoubleQuoteContract,
+    detail: finalReportTypeTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_type_tail_no_single_quote_contract',
+    ok: finalReportTypeTailNoSingleQuoteContract,
+    detail: finalReportTypeTailToken,
+  });
+  const finalReportGeneratedAtTailIsoMatch = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{3}))?Z$/.exec(
+    finalReportGeneratedAtTailToken,
+  );
+  const finalReportGeneratedAtTailIsoUtcShapeContract = finalReportGeneratedAtTailIsoMatch !== null;
+  const finalReportGeneratedAtTailSingleTContract = (finalReportGeneratedAtTailToken.match(/T/g) || []).length === 1;
+  const finalReportGeneratedAtTailSingleZContract = (finalReportGeneratedAtTailToken.match(/Z/g) || []).length === 1;
+  const finalReportGeneratedAtTailNoLowercaseZContract = !finalReportGeneratedAtTailToken.includes('z');
+  const finalReportGeneratedAtTailNoPlusContract = !finalReportGeneratedAtTailToken.includes('+');
+  const finalReportGeneratedAtTailNoMinusAfterTContract = !(
+    finalReportGeneratedAtTailToken.includes('T')
+    && finalReportGeneratedAtTailToken.split('T')[1].includes('-')
+  );
+  const finalReportGeneratedAtTailNoUnderscoreContract = !finalReportGeneratedAtTailToken.includes('_');
+  const finalReportGeneratedAtTailNoDotDotContract = !finalReportGeneratedAtTailToken.includes('..');
+  const finalReportGeneratedAtTailYear = finalReportGeneratedAtTailIsoMatch ? Number(finalReportGeneratedAtTailIsoMatch[1]) : NaN;
+  const finalReportGeneratedAtTailMonth = finalReportGeneratedAtTailIsoMatch ? Number(finalReportGeneratedAtTailIsoMatch[2]) : NaN;
+  const finalReportGeneratedAtTailDay = finalReportGeneratedAtTailIsoMatch ? Number(finalReportGeneratedAtTailIsoMatch[3]) : NaN;
+  const finalReportGeneratedAtTailHour = finalReportGeneratedAtTailIsoMatch ? Number(finalReportGeneratedAtTailIsoMatch[4]) : NaN;
+  const finalReportGeneratedAtTailMinute = finalReportGeneratedAtTailIsoMatch ? Number(finalReportGeneratedAtTailIsoMatch[5]) : NaN;
+  const finalReportGeneratedAtTailSecond = finalReportGeneratedAtTailIsoMatch ? Number(finalReportGeneratedAtTailIsoMatch[6]) : NaN;
+  const finalReportGeneratedAtTailYearRangeContract = finalReportGeneratedAtTailIsoUtcShapeContract
+    && finalReportGeneratedAtTailYear >= 2000
+    && finalReportGeneratedAtTailYear <= 2200;
+  const finalReportGeneratedAtTailMonthRangeContract = finalReportGeneratedAtTailIsoUtcShapeContract
+    && finalReportGeneratedAtTailMonth >= 1
+    && finalReportGeneratedAtTailMonth <= 12;
+  const finalReportGeneratedAtTailDayRangeContract = finalReportGeneratedAtTailIsoUtcShapeContract
+    && finalReportGeneratedAtTailDay >= 1
+    && finalReportGeneratedAtTailDay <= 31;
+  const finalReportGeneratedAtTailHourRangeContract = finalReportGeneratedAtTailIsoUtcShapeContract
+    && finalReportGeneratedAtTailHour >= 0
+    && finalReportGeneratedAtTailHour <= 23;
+  const finalReportGeneratedAtTailMinuteRangeContract = finalReportGeneratedAtTailIsoUtcShapeContract
+    && finalReportGeneratedAtTailMinute >= 0
+    && finalReportGeneratedAtTailMinute <= 59;
+  const finalReportGeneratedAtTailSecondRangeContract = finalReportGeneratedAtTailIsoUtcShapeContract
+    && finalReportGeneratedAtTailSecond >= 0
+    && finalReportGeneratedAtTailSecond <= 59;
+  const finalSourcePathsTailCasefoldUniqueContract = new Set(
+    sourcePathTokens.map((token) => cleanText(token, 260).toLowerCase()),
+  ).size === sourcePathTokens.length;
+  const finalSourcePathsTailNoLeadingDotSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260);
+    return value.split('/').every((segment) => !segment.startsWith('.'));
+  });
+  const finalSourcePathsTailNoTrailingDotSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260);
+    return value.split('/').every((segment) => !segment.endsWith('.'));
+  });
+  const finalSourcePathsTailSegmentsNoSpaceContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260);
+    return value.split('/').every((segment) => !segment.includes(' '));
+  });
+  const finalSourcePathsTailSegmentsLengthBoundedContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260);
+    return value.split('/').every((segment) => segment.length > 0 && segment.length <= 120);
+  });
+  const finalSourcePathsTailNoEmptyAfterTrimContract = sourcePathTokens.every(
+    (token) => cleanText(token, 260).trim().length > 0,
+  );
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_iso_utc_shape_contract',
+    ok: finalReportGeneratedAtTailIsoUtcShapeContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_single_t_contract',
+    ok: finalReportGeneratedAtTailSingleTContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_single_z_contract',
+    ok: finalReportGeneratedAtTailSingleZContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_lowercase_z_contract',
+    ok: finalReportGeneratedAtTailNoLowercaseZContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_plus_contract',
+    ok: finalReportGeneratedAtTailNoPlusContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_minus_after_t_contract',
+    ok: finalReportGeneratedAtTailNoMinusAfterTContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_underscore_contract',
+    ok: finalReportGeneratedAtTailNoUnderscoreContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_dotdot_contract',
+    ok: finalReportGeneratedAtTailNoDotDotContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_year_range_contract',
+    ok: finalReportGeneratedAtTailYearRangeContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_month_range_contract',
+    ok: finalReportGeneratedAtTailMonthRangeContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_day_range_contract',
+    ok: finalReportGeneratedAtTailDayRangeContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_hour_range_contract',
+    ok: finalReportGeneratedAtTailHourRangeContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_minute_range_contract',
+    ok: finalReportGeneratedAtTailMinuteRangeContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_second_range_contract',
+    ok: finalReportGeneratedAtTailSecondRangeContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_casefold_unique_contract',
+    ok: finalSourcePathsTailCasefoldUniqueContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_leading_dot_segment_contract',
+    ok: finalSourcePathsTailNoLeadingDotSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_trailing_dot_segment_contract',
+    ok: finalSourcePathsTailNoTrailingDotSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_segments_no_space_contract',
+    ok: finalSourcePathsTailSegmentsNoSpaceContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_segments_length_bounded_contract',
+    ok: finalSourcePathsTailSegmentsLengthBoundedContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_empty_after_trim_contract',
+    ok: finalSourcePathsTailNoEmptyAfterTrimContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  const finalReportGeneratedAtTailTrimmedContract = finalReportGeneratedAtTailToken === finalReportGeneratedAtTailToken.trim();
+  const finalReportGeneratedAtTailCharsetWhitelistContract = /^[0-9T:.\-Z]+$/.test(finalReportGeneratedAtTailToken);
+  const finalReportGeneratedAtTailDateParseValidContract = !Number.isNaN(Date.parse(finalReportGeneratedAtTailToken));
+  const finalReportGeneratedAtTailMillisFormatOptionalThreeDigitsContract = !finalReportGeneratedAtTailToken.includes('.')
+    || /\.\d{3}Z$/.test(finalReportGeneratedAtTailToken);
+  const finalReportGeneratedAtTailDotCountBoundedContract = (finalReportGeneratedAtTailToken.match(/\./g) || []).length <= 1;
+  const finalReportGeneratedAtTailNoDoubleColonContract = !finalReportGeneratedAtTailToken.includes('::');
+  const finalReportGeneratedAtTailSeparatorPositionsContract = finalReportGeneratedAtTailToken.length >= 20
+    && finalReportGeneratedAtTailToken[4] === '-'
+    && finalReportGeneratedAtTailToken[7] === '-'
+    && finalReportGeneratedAtTailToken[10] === 'T'
+    && finalReportGeneratedAtTailToken[13] === ':'
+    && finalReportGeneratedAtTailToken[16] === ':'
+    && finalReportGeneratedAtTailToken.endsWith('Z');
+  const finalReportGeneratedAtTailYearTokenLengthFourContract = finalReportGeneratedAtTailIsoUtcShapeContract
+    && String(finalReportGeneratedAtTailYear).length === 4;
+  const finalReportGeneratedAtTailMonthTokenLengthTwoContract = finalReportGeneratedAtTailIsoUtcShapeContract
+    && String(finalReportGeneratedAtTailIsoMatch?.[2] || '').length === 2;
+  const finalReportGeneratedAtTailDayTokenLengthTwoContract = finalReportGeneratedAtTailIsoUtcShapeContract
+    && String(finalReportGeneratedAtTailIsoMatch?.[3] || '').length === 2;
+  const finalReportGeneratedAtTailHourTokenLengthTwoContract = finalReportGeneratedAtTailIsoUtcShapeContract
+    && String(finalReportGeneratedAtTailIsoMatch?.[4] || '').length === 2;
+  const finalReportGeneratedAtTailMinuteTokenLengthTwoContract = finalReportGeneratedAtTailIsoUtcShapeContract
+    && String(finalReportGeneratedAtTailIsoMatch?.[5] || '').length === 2;
+  const finalReportGeneratedAtTailSecondTokenLengthTwoContract = finalReportGeneratedAtTailIsoUtcShapeContract
+    && String(finalReportGeneratedAtTailIsoMatch?.[6] || '').length === 2;
+  const finalReportGeneratedAtTailNoAlphaExceptTzContract = finalReportGeneratedAtTailToken
+    .replace(/[0-9:\-\.]/g, '')
+    .split('')
+    .every((char) => char === 'T' || char === 'Z');
+  const finalReportGeneratedAtTailNoParenthesesContract = !finalReportGeneratedAtTailToken.includes('(')
+    && !finalReportGeneratedAtTailToken.includes(')');
+  const finalReportGeneratedAtTailNoBracketsContract = !finalReportGeneratedAtTailToken.includes('[')
+    && !finalReportGeneratedAtTailToken.includes(']');
+  const finalReportGeneratedAtTailNoBracesContract = !finalReportGeneratedAtTailToken.includes('{')
+    && !finalReportGeneratedAtTailToken.includes('}');
+  const finalReportGeneratedAtTailNoAtSignContract = !finalReportGeneratedAtTailToken.includes('@');
+  const finalReportGeneratedAtTailNoQuestionContract = !finalReportGeneratedAtTailToken.includes('?');
+  const finalReportGeneratedAtTailNoAmpersandContract = !finalReportGeneratedAtTailToken.includes('&');
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_trimmed_contract',
+    ok: finalReportGeneratedAtTailTrimmedContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_charset_whitelist_contract',
+    ok: finalReportGeneratedAtTailCharsetWhitelistContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_date_parse_valid_contract',
+    ok: finalReportGeneratedAtTailDateParseValidContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_millis_format_optional_three_digits_contract',
+    ok: finalReportGeneratedAtTailMillisFormatOptionalThreeDigitsContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_dot_count_bounded_contract',
+    ok: finalReportGeneratedAtTailDotCountBoundedContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_double_colon_contract',
+    ok: finalReportGeneratedAtTailNoDoubleColonContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_separator_positions_contract',
+    ok: finalReportGeneratedAtTailSeparatorPositionsContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_year_token_length_four_contract',
+    ok: finalReportGeneratedAtTailYearTokenLengthFourContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_month_token_length_two_contract',
+    ok: finalReportGeneratedAtTailMonthTokenLengthTwoContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_day_token_length_two_contract',
+    ok: finalReportGeneratedAtTailDayTokenLengthTwoContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_hour_token_length_two_contract',
+    ok: finalReportGeneratedAtTailHourTokenLengthTwoContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_minute_token_length_two_contract',
+    ok: finalReportGeneratedAtTailMinuteTokenLengthTwoContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_second_token_length_two_contract',
+    ok: finalReportGeneratedAtTailSecondTokenLengthTwoContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_alpha_except_tz_contract',
+    ok: finalReportGeneratedAtTailNoAlphaExceptTzContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_parentheses_contract',
+    ok: finalReportGeneratedAtTailNoParenthesesContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_brackets_contract',
+    ok: finalReportGeneratedAtTailNoBracketsContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_braces_contract',
+    ok: finalReportGeneratedAtTailNoBracesContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_at_sign_contract',
+    ok: finalReportGeneratedAtTailNoAtSignContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_question_contract',
+    ok: finalReportGeneratedAtTailNoQuestionContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_ampersand_contract',
+    ok: finalReportGeneratedAtTailNoAmpersandContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  const finalSourcePathsTailNoColonContract = sourcePathTokens.every(
+    (token) => !cleanText(token, 260).includes(':'),
+  );
+  const finalSourcePathsTailNoSemicolonContract = sourcePathTokens.every(
+    (token) => !cleanText(token, 260).includes(';'),
+  );
+  const finalSourcePathsTailNoCommaContract = sourcePathTokens.every(
+    (token) => !cleanText(token, 260).includes(','),
+  );
+  const finalSourcePathsTailNoPlusContract = sourcePathTokens.every(
+    (token) => !cleanText(token, 260).includes('+'),
+  );
+  const finalSourcePathsTailNoEqualsContract = sourcePathTokens.every(
+    (token) => !cleanText(token, 260).includes('='),
+  );
+  const finalSourcePathsTailNoTildeContract = sourcePathTokens.every(
+    (token) => !cleanText(token, 260).includes('~'),
+  );
+  const finalSourcePathsTailNoParenthesesContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260);
+    return !value.includes('(') && !value.includes(')');
+  });
+  const finalSourcePathsTailNoBracketsContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260);
+    return !value.includes('[') && !value.includes(']');
+  });
+  const finalSourcePathsTailNoBracesContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260);
+    return !value.includes('{') && !value.includes('}');
+  });
+  const finalSourcePathsTailNoAtSignContract = sourcePathTokens.every(
+    (token) => !cleanText(token, 260).includes('@'),
+  );
+  const finalSourcePathsTailNoQuestionContract = sourcePathTokens.every(
+    (token) => !cleanText(token, 260).includes('?'),
+  );
+  const finalSourcePathsTailCharsetWhitelistContract = sourcePathTokens.every((token) =>
+    /^[A-Za-z0-9._/-]+$/.test(cleanText(token, 260)),
+  );
+  const finalReportGeneratedAtTailNoTildeContract = !finalReportGeneratedAtTailToken.includes('~');
+  const finalReportGeneratedAtTailNoPipeContract = !finalReportGeneratedAtTailToken.includes('|');
+  const finalReportGeneratedAtTailNoHashContract = !finalReportGeneratedAtTailToken.includes('#');
+  const finalReportGeneratedAtTailNoExclamationContract = !finalReportGeneratedAtTailToken.includes('!');
+  const finalReportGeneratedAtTailNoEqualsContract = !finalReportGeneratedAtTailToken.includes('=');
+  const finalReportGeneratedAtTailNoPercentContract = !finalReportGeneratedAtTailToken.includes('%');
+  const finalReportGeneratedAtTailNoBacktickContract = !finalReportGeneratedAtTailToken.includes('`');
+  const finalReportGeneratedAtTailNoDoubleSpaceContract = !finalReportGeneratedAtTailToken.includes('  ');
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_colon_contract',
+    ok: finalSourcePathsTailNoColonContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_semicolon_contract',
+    ok: finalSourcePathsTailNoSemicolonContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_comma_contract',
+    ok: finalSourcePathsTailNoCommaContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_plus_contract',
+    ok: finalSourcePathsTailNoPlusContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_equals_contract',
+    ok: finalSourcePathsTailNoEqualsContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_tilde_contract',
+    ok: finalSourcePathsTailNoTildeContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_parentheses_contract',
+    ok: finalSourcePathsTailNoParenthesesContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_brackets_contract',
+    ok: finalSourcePathsTailNoBracketsContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_braces_contract',
+    ok: finalSourcePathsTailNoBracesContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_at_sign_contract',
+    ok: finalSourcePathsTailNoAtSignContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_question_contract',
+    ok: finalSourcePathsTailNoQuestionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_charset_whitelist_contract',
+    ok: finalSourcePathsTailCharsetWhitelistContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_tilde_contract',
+    ok: finalReportGeneratedAtTailNoTildeContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_pipe_contract',
+    ok: finalReportGeneratedAtTailNoPipeContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_hash_contract',
+    ok: finalReportGeneratedAtTailNoHashContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_exclamation_contract',
+    ok: finalReportGeneratedAtTailNoExclamationContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_equals_contract',
+    ok: finalReportGeneratedAtTailNoEqualsContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_percent_contract',
+    ok: finalReportGeneratedAtTailNoPercentContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_backtick_contract',
+    ok: finalReportGeneratedAtTailNoBacktickContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_double_space_contract',
+    ok: finalReportGeneratedAtTailNoDoubleSpaceContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  const finalSourcePathsTailNoPercentContract = sourcePathTokens.every(
+    (token) => !cleanText(token, 260).includes('%'),
+  );
+  const finalSourcePathsTailNoCaretContract = sourcePathTokens.every(
+    (token) => !cleanText(token, 260).includes('^'),
+  );
+  const finalSourcePathsTailNoAsteriskContract = sourcePathTokens.every(
+    (token) => !cleanText(token, 260).includes('*'),
+  );
+  const finalSourcePathsTailNoControlCharsContract = sourcePathTokens.every(
+    (token) => !/[\x00-\x1F\x7F]/.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoConsecutiveSlashContract = sourcePathTokens.every(
+    (token) => !cleanText(token, 260).includes('//'),
+  );
+  const finalSourcePathsTailNoLeadingSlashContract = sourcePathTokens.every(
+    (token) => !cleanText(token, 260).startsWith('/'),
+  );
+  const finalSourcePathsTailNoTrailingSlashContract = sourcePathTokens.every(
+    (token) => !cleanText(token, 260).endsWith('/'),
+  );
+  const finalSourcePathsTailNoWindowsDrivePrefixContract = sourcePathTokens.every(
+    (token) => !/^[A-Za-z]:/.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailSegmentsNoLeadingDashContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260);
+    return value.split('/').every((segment) => !segment.startsWith('-'));
+  });
+  const finalSourcePathsTailSegmentsNoTrailingDashContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260);
+    return value.split('/').every((segment) => !segment.endsWith('-'));
+  });
+  const finalSourcePathsTailDepthMinTwoContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260);
+    return value.split('/').length >= 2;
+  });
+  const finalSourcePathsTailDepthMaxTwelveContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260);
+    return value.split('/').length <= 12;
+  });
+  const finalReportGeneratedAtTailNoSemicolonContract = !finalReportGeneratedAtTailToken.includes(';');
+  const finalReportGeneratedAtTailNoWhitespaceContract = !/\s/.test(finalReportGeneratedAtTailToken);
+  const finalReportGeneratedAtTailNoNewlineContract = !finalReportGeneratedAtTailToken.includes('\n');
+  const finalReportGeneratedAtTailNoTabContract = !finalReportGeneratedAtTailToken.includes('\t');
+  const finalReportGeneratedAtTailNoCarriageReturnContract = !finalReportGeneratedAtTailToken.includes('\r');
+  const finalReportGeneratedAtTailDashCountExactTwoContract = (finalReportGeneratedAtTailToken.match(/-/g) || []).length === 2;
+  const finalReportGeneratedAtTailColonCountExactTwoContract = (finalReportGeneratedAtTailToken.match(/:/g) || []).length === 2;
+  const finalReportGeneratedAtTailLengthTwentyOrTwentyFourContract = finalReportGeneratedAtTailToken.length === 20
+    || finalReportGeneratedAtTailToken.length === 24;
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_percent_contract',
+    ok: finalSourcePathsTailNoPercentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_caret_contract',
+    ok: finalSourcePathsTailNoCaretContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_asterisk_contract',
+    ok: finalSourcePathsTailNoAsteriskContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_control_chars_contract',
+    ok: finalSourcePathsTailNoControlCharsContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_consecutive_slash_contract',
+    ok: finalSourcePathsTailNoConsecutiveSlashContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_leading_slash_contract',
+    ok: finalSourcePathsTailNoLeadingSlashContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_trailing_slash_contract',
+    ok: finalSourcePathsTailNoTrailingSlashContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_windows_drive_prefix_contract',
+    ok: finalSourcePathsTailNoWindowsDrivePrefixContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_segments_no_leading_dash_contract',
+    ok: finalSourcePathsTailSegmentsNoLeadingDashContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_segments_no_trailing_dash_contract',
+    ok: finalSourcePathsTailSegmentsNoTrailingDashContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_depth_min_two_contract',
+    ok: finalSourcePathsTailDepthMinTwoContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_depth_max_twelve_contract',
+    ok: finalSourcePathsTailDepthMaxTwelveContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_semicolon_contract',
+    ok: finalReportGeneratedAtTailNoSemicolonContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_whitespace_contract',
+    ok: finalReportGeneratedAtTailNoWhitespaceContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_newline_contract',
+    ok: finalReportGeneratedAtTailNoNewlineContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_tab_contract',
+    ok: finalReportGeneratedAtTailNoTabContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_carriage_return_contract',
+    ok: finalReportGeneratedAtTailNoCarriageReturnContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_dash_count_exact_two_contract',
+    ok: finalReportGeneratedAtTailDashCountExactTwoContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_colon_count_exact_two_contract',
+    ok: finalReportGeneratedAtTailColonCountExactTwoContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_length_twenty_or_twenty_four_contract',
+    ok: finalReportGeneratedAtTailLengthTwentyOrTwentyFourContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  const finalSourcePathsTailNoUrlSchemeContract = sourcePathTokens.every(
+    (token) => !cleanText(token, 260).includes('://'),
+  );
+  const finalSourcePathsTailNoEncodedSlashContract = sourcePathTokens.every(
+    (token) => !/%2f/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoEncodedBackslashContract = sourcePathTokens.every(
+    (token) => !/%5c/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoEncodedDotDotContract = sourcePathTokens.every(
+    (token) => !/%2e%2e/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoCurrentDirSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260);
+    return value.split('/').every((segment) => segment !== '.');
+  });
+  const finalSourcePathsTailNoParentTraversalSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260);
+    return value.split('/').every((segment) => segment !== '..');
+  });
+  const finalSourcePathsTailNoEmptySegmentsContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260);
+    return value.split('/').every((segment) => segment.length > 0);
+  });
+  const finalSourcePathsTailSegmentCharsetWhitelistContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260);
+    return value.split('/').every((segment) => /^[A-Za-z0-9._-]+$/.test(segment));
+  });
+  const finalSourcePathsTailNoSegmentDoubleDashContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260);
+    return value.split('/').every((segment) => !segment.includes('--'));
+  });
+  const finalSourcePathsTailNoSegmentDoubleUnderscoreContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260);
+    return value.split('/').every((segment) => !segment.includes('__'));
+  });
+  const finalSourcePathsTailPosixNormalizeIdempotentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260);
+    return path.posix.normalize(value) === value;
+  });
+  const finalSourcePathsTailNormalizeNotParentPrefixedContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260);
+    const normalized = path.posix.normalize(value);
+    return normalized !== '..' && !normalized.startsWith('../');
+  });
+  const finalReportGeneratedAtTailDatePartIsoShapeContract = /^\d{4}-\d{2}-\d{2}T/.test(
+    finalReportGeneratedAtTailToken,
+  );
+  const finalReportGeneratedAtTailTimePartIsoShapeContract = /T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/.test(
+    finalReportGeneratedAtTailToken,
+  );
+  const finalReportGeneratedAtTailTIndexTenContract = finalReportGeneratedAtTailToken.indexOf('T') === 10;
+  const finalReportGeneratedAtTailNoLeadingSpaceContract = !finalReportGeneratedAtTailToken.startsWith(' ');
+  const finalReportGeneratedAtTailNoTrailingSpaceContract = !finalReportGeneratedAtTailToken.endsWith(' ');
+  const finalReportGeneratedAtTailNoTrailingDotBeforeZContract = !finalReportGeneratedAtTailToken.endsWith('.Z');
+  const finalReportGeneratedAtTailNoEpochSecondsShapeContract = !/^\d{10}$/.test(finalReportGeneratedAtTailToken);
+  const finalReportGeneratedAtTailNoEpochMillisShapeContract = !/^\d{13}$/.test(finalReportGeneratedAtTailToken);
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_url_scheme_contract',
+    ok: finalSourcePathsTailNoUrlSchemeContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_encoded_slash_contract',
+    ok: finalSourcePathsTailNoEncodedSlashContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_encoded_backslash_contract',
+    ok: finalSourcePathsTailNoEncodedBackslashContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_encoded_dotdot_contract',
+    ok: finalSourcePathsTailNoEncodedDotDotContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_current_dir_segment_contract',
+    ok: finalSourcePathsTailNoCurrentDirSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_parent_traversal_segment_contract',
+    ok: finalSourcePathsTailNoParentTraversalSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_empty_segments_contract',
+    ok: finalSourcePathsTailNoEmptySegmentsContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_segment_charset_whitelist_contract',
+    ok: finalSourcePathsTailSegmentCharsetWhitelistContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_segment_double_dash_contract',
+    ok: finalSourcePathsTailNoSegmentDoubleDashContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_segment_double_underscore_contract',
+    ok: finalSourcePathsTailNoSegmentDoubleUnderscoreContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_posix_normalize_idempotent_contract',
+    ok: finalSourcePathsTailPosixNormalizeIdempotentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_normalize_not_parent_prefixed_contract',
+    ok: finalSourcePathsTailNormalizeNotParentPrefixedContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_date_part_iso_shape_contract',
+    ok: finalReportGeneratedAtTailDatePartIsoShapeContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_time_part_iso_shape_contract',
+    ok: finalReportGeneratedAtTailTimePartIsoShapeContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_t_index_ten_contract',
+    ok: finalReportGeneratedAtTailTIndexTenContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_leading_space_contract',
+    ok: finalReportGeneratedAtTailNoLeadingSpaceContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_trailing_space_contract',
+    ok: finalReportGeneratedAtTailNoTrailingSpaceContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_trailing_dot_before_z_contract',
+    ok: finalReportGeneratedAtTailNoTrailingDotBeforeZContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_epoch_seconds_shape_contract',
+    ok: finalReportGeneratedAtTailNoEpochSecondsShapeContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_epoch_millis_shape_contract',
+    ok: finalReportGeneratedAtTailNoEpochMillisShapeContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  const finalSourcePathsTailNoWindowsReservedDeviceNamesContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260);
+    return value.split('/').every((segment) => !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i.test(segment));
+  });
+  const finalSourcePathsTailNoSegmentTrailingDotOrSpaceContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260);
+    return value.split('/').every((segment) => !/[. ]$/.test(segment));
+  });
+  const finalSourcePathsTailBasenameNonEmptyContract = sourcePathTokens.every(
+    (token) => path.posix.basename(cleanText(token, 260)).length > 0,
+  );
+  const finalSourcePathsTailDirnameNonEmptyContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260);
+    const dirname = path.posix.dirname(value);
+    return dirname !== '.' && dirname.length > 0;
+  });
+  const finalSourcePathsTailNoTempSuffixContract = sourcePathTokens.every(
+    (token) => !/\.(tmp|temp)$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoBackupSuffixContract = sourcePathTokens.every(
+    (token) => !/\.(bak|backup|old)$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoRejectSuffixContract = sourcePathTokens.every(
+    (token) => !/\.(rej|orig)$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoSwapSuffixContract = sourcePathTokens.every(
+    (token) => !/\.sw[opx]$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoBidiControlsContract = sourcePathTokens.every(
+    (token) => !/[\u202A-\u202E\u2066-\u2069]/.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoSegmentDoubleDotPatternContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260);
+    return value.split('/').every((segment) => !segment.includes('..'));
+  });
+  const finalSourcePathsTailNoBinaryArtifactExtensionContract = sourcePathTokens.every(
+    (token) => !/\.(exe|dll|so|dylib|bin|o|obj|a|class)$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoArchiveExtensionContract = sourcePathTokens.every(
+    (token) => !/\.(zip|tar|tgz|gz|bz2|xz|zst|7z)$/i.test(cleanText(token, 260)),
+  );
+  const finalReportGeneratedAtTailNoLowercaseTContract = !finalReportGeneratedAtTailToken.includes('t');
+  const finalReportGeneratedAtTailNoBidiControlsContract = !/[\u202A-\u202E\u2066-\u2069]/.test(
+    finalReportGeneratedAtTailToken,
+  );
+  const finalReportGeneratedAtTailNoControlCharsContract = !/[\x00-\x1F\x7F]/.test(
+    finalReportGeneratedAtTailToken,
+  );
+  const finalReportGeneratedAtTailDotCount = (finalReportGeneratedAtTailToken.match(/\./g) || []).length;
+  const finalReportGeneratedAtTailMillisPresenceMatchesDotCountContract = finalReportGeneratedAtTailToken.includes('.')
+    ? finalReportGeneratedAtTailDotCount === 1
+    : finalReportGeneratedAtTailDotCount === 0;
+  const finalReportGeneratedAtTailCanonicalizedIsoRoundtripContract = (() => {
+    const parsedMs = Date.parse(finalReportGeneratedAtTailToken);
+    if (Number.isNaN(parsedMs)) {
+      return false;
+    }
+    const normalized = finalReportGeneratedAtTailToken.includes('.')
+      ? finalReportGeneratedAtTailToken
+      : finalReportGeneratedAtTailToken.replace('Z', '.000Z');
+    return new Date(parsedMs).toISOString() === normalized;
+  })();
+  const finalReportGeneratedAtTailUtcComponentsMatchTokenContract = (() => {
+    if (!finalReportGeneratedAtTailIsoUtcShapeContract) {
+      return false;
+    }
+    const parsedMs = Date.parse(finalReportGeneratedAtTailToken);
+    if (Number.isNaN(parsedMs)) {
+      return false;
+    }
+    const parsed = new Date(parsedMs);
+    return parsed.getUTCFullYear() === finalReportGeneratedAtTailYear
+      && parsed.getUTCMonth() + 1 === finalReportGeneratedAtTailMonth
+      && parsed.getUTCDate() === finalReportGeneratedAtTailDay
+      && parsed.getUTCHours() === finalReportGeneratedAtTailHour
+      && parsed.getUTCMinutes() === finalReportGeneratedAtTailMinute
+      && parsed.getUTCSeconds() === finalReportGeneratedAtTailSecond;
+  })();
+  const finalReportGeneratedAtTailValidCalendarDateExactContract = (() => {
+    if (!finalReportGeneratedAtTailIsoUtcShapeContract) {
+      return false;
+    }
+    const calendar = new Date(
+      Date.UTC(finalReportGeneratedAtTailYear, finalReportGeneratedAtTailMonth - 1, finalReportGeneratedAtTailDay),
+    );
+    return calendar.getUTCFullYear() === finalReportGeneratedAtTailYear
+      && calendar.getUTCMonth() + 1 === finalReportGeneratedAtTailMonth
+      && calendar.getUTCDate() === finalReportGeneratedAtTailDay;
+  })();
+  const finalReportGeneratedAtTailNoSignedYearPrefixContract = !finalReportGeneratedAtTailToken.startsWith('+')
+    && !finalReportGeneratedAtTailToken.startsWith('-');
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_windows_reserved_device_names_contract',
+    ok: finalSourcePathsTailNoWindowsReservedDeviceNamesContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_segment_trailing_dot_or_space_contract',
+    ok: finalSourcePathsTailNoSegmentTrailingDotOrSpaceContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_basename_non_empty_contract',
+    ok: finalSourcePathsTailBasenameNonEmptyContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_dirname_non_empty_contract',
+    ok: finalSourcePathsTailDirnameNonEmptyContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_temp_suffix_contract',
+    ok: finalSourcePathsTailNoTempSuffixContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_backup_suffix_contract',
+    ok: finalSourcePathsTailNoBackupSuffixContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_reject_suffix_contract',
+    ok: finalSourcePathsTailNoRejectSuffixContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_swap_suffix_contract',
+    ok: finalSourcePathsTailNoSwapSuffixContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_bidi_controls_contract',
+    ok: finalSourcePathsTailNoBidiControlsContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_segment_double_dot_pattern_contract',
+    ok: finalSourcePathsTailNoSegmentDoubleDotPatternContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_binary_artifact_extension_contract',
+    ok: finalSourcePathsTailNoBinaryArtifactExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_archive_extension_contract',
+    ok: finalSourcePathsTailNoArchiveExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_lowercase_t_contract',
+    ok: finalReportGeneratedAtTailNoLowercaseTContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_bidi_controls_contract',
+    ok: finalReportGeneratedAtTailNoBidiControlsContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_control_chars_contract',
+    ok: finalReportGeneratedAtTailNoControlCharsContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_millis_presence_matches_dot_count_contract',
+    ok: finalReportGeneratedAtTailMillisPresenceMatchesDotCountContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_canonicalized_iso_roundtrip_contract',
+    ok: finalReportGeneratedAtTailCanonicalizedIsoRoundtripContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_utc_components_match_token_contract',
+    ok: finalReportGeneratedAtTailUtcComponentsMatchTokenContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_valid_calendar_date_exact_contract',
+    ok: finalReportGeneratedAtTailValidCalendarDateExactContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_signed_year_prefix_contract',
+    ok: finalReportGeneratedAtTailNoSignedYearPrefixContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  const finalSourcePathsTailNoNodeModulesSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'node_modules');
+  });
+  const finalSourcePathsTailNoTargetSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'target');
+  });
+  const finalSourcePathsTailNoDistSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'dist');
+  });
+  const finalSourcePathsTailNoBuildSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'build');
+  });
+  const finalSourcePathsTailNoOutSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'out');
+  });
+  const finalSourcePathsTailNoCoverageSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'coverage');
+  });
+  const finalSourcePathsTailNoGitSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.git');
+  });
+  const finalSourcePathsTailNoCacheSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.cache' && segment !== 'cache');
+  });
+  const finalSourcePathsTailNoTmpSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'tmp' && segment !== 'temp');
+  });
+  const finalSourcePathsTailNoVendorSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'vendor');
+  });
+  const finalSourcePathsTailNoGeneratedSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value
+      .split('/')
+      .every((segment) => segment !== 'generated' && segment !== '__generated__');
+  });
+  const finalSourcePathsTailNoSnapshotsSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value
+      .split('/')
+      .every((segment) => segment !== 'snapshots' && segment !== '__snapshots__');
+  });
+  const finalReportGeneratedAtTailDotPositionWhenMillisContract = !finalReportGeneratedAtTailToken.includes('.')
+    || finalReportGeneratedAtTailToken[19] === '.';
+  const finalReportGeneratedAtTailZPositionLastContract = finalReportGeneratedAtTailToken.lastIndexOf('Z')
+    === finalReportGeneratedAtTailToken.length - 1;
+  const finalReportGeneratedAtTailCharAtNineteenZOrDotContract = finalReportGeneratedAtTailToken.length >= 20
+    && (finalReportGeneratedAtTailToken[19] === 'Z' || finalReportGeneratedAtTailToken[19] === '.');
+  const finalReportGeneratedAtTailMillisPresenceMatchesLengthContract = finalReportGeneratedAtTailToken.includes('.')
+    ? finalReportGeneratedAtTailToken.length === 24
+    : finalReportGeneratedAtTailToken.length === 20;
+  const finalReportGeneratedAtTailFebruaryDayMaxContract = finalReportGeneratedAtTailMonth !== 2
+    || finalReportGeneratedAtTailDay <= 29;
+  const finalReportGeneratedAtTailThirtyDayMonthLimitContract = ![4, 6, 9, 11].includes(
+    finalReportGeneratedAtTailMonth,
+  ) || finalReportGeneratedAtTailDay <= 30;
+  const finalReportGeneratedAtTailThirtyOneDayMonthMembershipContract = finalReportGeneratedAtTailDay !== 31
+    || [1, 3, 5, 7, 8, 10, 12].includes(finalReportGeneratedAtTailMonth);
+  const finalReportGeneratedAtTailLeapDayRequiresLeapYearContract = !(
+    finalReportGeneratedAtTailMonth === 2 && finalReportGeneratedAtTailDay === 29
+  ) || (
+    finalReportGeneratedAtTailYear % 4 === 0
+      && (finalReportGeneratedAtTailYear % 100 !== 0 || finalReportGeneratedAtTailYear % 400 === 0)
+  );
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_node_modules_segment_contract',
+    ok: finalSourcePathsTailNoNodeModulesSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_target_segment_contract',
+    ok: finalSourcePathsTailNoTargetSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_dist_segment_contract',
+    ok: finalSourcePathsTailNoDistSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_build_segment_contract',
+    ok: finalSourcePathsTailNoBuildSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_out_segment_contract',
+    ok: finalSourcePathsTailNoOutSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_coverage_segment_contract',
+    ok: finalSourcePathsTailNoCoverageSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_git_segment_contract',
+    ok: finalSourcePathsTailNoGitSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_cache_segment_contract',
+    ok: finalSourcePathsTailNoCacheSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_tmp_segment_contract',
+    ok: finalSourcePathsTailNoTmpSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_vendor_segment_contract',
+    ok: finalSourcePathsTailNoVendorSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_generated_segment_contract',
+    ok: finalSourcePathsTailNoGeneratedSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_snapshots_segment_contract',
+    ok: finalSourcePathsTailNoSnapshotsSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_dot_position_when_millis_contract',
+    ok: finalReportGeneratedAtTailDotPositionWhenMillisContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_z_position_last_contract',
+    ok: finalReportGeneratedAtTailZPositionLastContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_char_at_nineteen_z_or_dot_contract',
+    ok: finalReportGeneratedAtTailCharAtNineteenZOrDotContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_millis_presence_matches_length_contract',
+    ok: finalReportGeneratedAtTailMillisPresenceMatchesLengthContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_february_day_max_contract',
+    ok: finalReportGeneratedAtTailFebruaryDayMaxContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_thirty_day_month_limit_contract',
+    ok: finalReportGeneratedAtTailThirtyDayMonthLimitContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_thirty_one_day_month_membership_contract',
+    ok: finalReportGeneratedAtTailThirtyOneDayMonthMembershipContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_leap_day_requires_leap_year_contract',
+    ok: finalReportGeneratedAtTailLeapDayRequiresLeapYearContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  const finalSourcePathsTailNoDsStoreSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.ds_store');
+  });
+  const finalSourcePathsTailNoThumbsDbSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'thumbs.db');
+  });
+  const finalSourcePathsTailNoRecycleBinSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '$recycle.bin');
+  });
+  const finalSourcePathsTailNoPycacheSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '__pycache__');
+  });
+  const finalSourcePathsTailNoPytestCacheSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.pytest_cache');
+  });
+  const finalSourcePathsTailNoMypyCacheSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.mypy_cache');
+  });
+  const finalSourcePathsTailNoRuffCacheSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.ruff_cache');
+  });
+  const finalSourcePathsTailNoNextSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.next');
+  });
+  const finalSourcePathsTailNoTurboSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.turbo');
+  });
+  const finalSourcePathsTailNoParcelCacheSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.parcel-cache');
+  });
+  const finalSourcePathsTailNoPnpmStoreSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.pnpm-store');
+  });
+  const finalSourcePathsTailNoNpmSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.npm');
+  });
+  const finalReportGeneratedAtTailParsedMs = Date.parse(finalReportGeneratedAtTailToken);
+  const finalReportGeneratedAtTailParsedMsFiniteContract = Number.isFinite(finalReportGeneratedAtTailParsedMs);
+  const finalReportGeneratedAtTailParsedMsSafeIntegerContract = Number.isSafeInteger(finalReportGeneratedAtTailParsedMs);
+  const finalReportGeneratedAtTailParsedNotBefore2024Contract = finalReportGeneratedAtTailParsedMsFiniteContract
+    && finalReportGeneratedAtTailParsedMs >= Date.UTC(2024, 0, 1, 0, 0, 0, 0);
+  const finalReportGeneratedAtTailNowMs = Date.now();
+  const finalReportGeneratedAtTailParsedNotAfterNowPlusOneDayContract = finalReportGeneratedAtTailParsedMsFiniteContract
+    && finalReportGeneratedAtTailParsedMs <= finalReportGeneratedAtTailNowMs + 86_400_000;
+  const finalReportGeneratedAtTailParsedNotBeforeNowMinusTenYearsContract = finalReportGeneratedAtTailParsedMsFiniteContract
+    && finalReportGeneratedAtTailParsedMs >= finalReportGeneratedAtTailNowMs - 315_576_000_000;
+  const finalReportGeneratedAtTailMillisToken = finalReportGeneratedAtTailIsoMatch?.[7] || '';
+  const finalReportGeneratedAtTailMillisTokenNumeric = finalReportGeneratedAtTailMillisToken.length > 0
+    ? Number(finalReportGeneratedAtTailMillisToken)
+    : 0;
+  const finalReportGeneratedAtTailMillisAbsentImpliesParsedMsModuloZeroContract = !finalReportGeneratedAtTailParsedMsFiniteContract
+    ? false
+    : finalReportGeneratedAtTailMillisToken.length > 0 || finalReportGeneratedAtTailParsedMs % 1000 === 0;
+  const finalReportGeneratedAtTailMillisPresentImpliesParsedMsModuloMatchesContract = !finalReportGeneratedAtTailParsedMsFiniteContract
+    ? false
+    : finalReportGeneratedAtTailMillisToken.length === 0
+      || finalReportGeneratedAtTailParsedMs % 1000 === finalReportGeneratedAtTailMillisTokenNumeric;
+  const finalReportGeneratedAtTailNoTimezoneWordContract = !/(UTC|GMT|PST|MST|CST|EST)/.test(
+    finalReportGeneratedAtTailToken,
+  );
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_ds_store_segment_contract',
+    ok: finalSourcePathsTailNoDsStoreSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_thumbs_db_segment_contract',
+    ok: finalSourcePathsTailNoThumbsDbSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_recycle_bin_segment_contract',
+    ok: finalSourcePathsTailNoRecycleBinSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_pycache_segment_contract',
+    ok: finalSourcePathsTailNoPycacheSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_pytest_cache_segment_contract',
+    ok: finalSourcePathsTailNoPytestCacheSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_mypy_cache_segment_contract',
+    ok: finalSourcePathsTailNoMypyCacheSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_ruff_cache_segment_contract',
+    ok: finalSourcePathsTailNoRuffCacheSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_next_segment_contract',
+    ok: finalSourcePathsTailNoNextSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_turbo_segment_contract',
+    ok: finalSourcePathsTailNoTurboSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_parcel_cache_segment_contract',
+    ok: finalSourcePathsTailNoParcelCacheSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_pnpm_store_segment_contract',
+    ok: finalSourcePathsTailNoPnpmStoreSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_npm_segment_contract',
+    ok: finalSourcePathsTailNoNpmSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_parsed_ms_finite_contract',
+    ok: finalReportGeneratedAtTailParsedMsFiniteContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_parsed_ms_safe_integer_contract',
+    ok: finalReportGeneratedAtTailParsedMsSafeIntegerContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_parsed_not_before_2024_contract',
+    ok: finalReportGeneratedAtTailParsedNotBefore2024Contract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_parsed_not_after_now_plus_one_day_contract',
+    ok: finalReportGeneratedAtTailParsedNotAfterNowPlusOneDayContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_parsed_not_before_now_minus_ten_years_contract',
+    ok: finalReportGeneratedAtTailParsedNotBeforeNowMinusTenYearsContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_millis_absent_implies_parsed_ms_modulo_zero_contract',
+    ok: finalReportGeneratedAtTailMillisAbsentImpliesParsedMsModuloZeroContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_millis_present_implies_parsed_ms_modulo_matches_contract',
+    ok: finalReportGeneratedAtTailMillisPresentImpliesParsedMsModuloMatchesContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_report_generated_at_tail_no_timezone_word_contract',
+    ok: finalReportGeneratedAtTailNoTimezoneWordContract,
+    detail: finalReportGeneratedAtTailToken,
+  });
+  const finalSourcePathsTailNoDotVenvSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.venv');
+  });
+  const finalSourcePathsTailNoVenvSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'venv');
+  });
+  const finalSourcePathsTailNoToxSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.tox');
+  });
+  const finalSourcePathsTailNoNoxSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.nox');
+  });
+  const finalSourcePathsTailNoGradleSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.gradle');
+  });
+  const finalSourcePathsTailNoTerraformSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.terraform');
+  });
+  const finalSourcePathsTailNoServerlessSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.serverless');
+  });
+  const finalSourcePathsTailNoAwsSamSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.aws-sam');
+  });
+  const finalSourcePathsTailNoIdeaSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.idea');
+  });
+  const finalSourcePathsTailNoVscodeSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.vscode');
+  });
+  const finalSourcePathsTailNoMacosxSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '__macosx');
+  });
+  const finalSourcePathsTailNoSassCacheSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.sass-cache');
+  });
+  const finalSourcePathsTailNoHypothesisSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.hypothesis');
+  });
+  const finalSourcePathsTailNoIpynbCheckpointsSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.ipynb_checkpoints');
+  });
+  const finalSourcePathsTailNoNuxtSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.nuxt');
+  });
+  const finalSourcePathsTailNoAngularSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.angular');
+  });
+  const finalSourcePathsTailNoExpoSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.expo');
+  });
+  const finalSourcePathsTailNoDartToolSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.dart_tool');
+  });
+  const finalSourcePathsTailNoSvelteKitSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.svelte-kit');
+  });
+  const finalSourcePathsTailNoWranglerSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== '.wrangler');
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_dot_venv_segment_contract',
+    ok: finalSourcePathsTailNoDotVenvSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_venv_segment_contract',
+    ok: finalSourcePathsTailNoVenvSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_tox_segment_contract',
+    ok: finalSourcePathsTailNoToxSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_nox_segment_contract',
+    ok: finalSourcePathsTailNoNoxSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_gradle_segment_contract',
+    ok: finalSourcePathsTailNoGradleSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_terraform_segment_contract',
+    ok: finalSourcePathsTailNoTerraformSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_serverless_segment_contract',
+    ok: finalSourcePathsTailNoServerlessSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_aws_sam_segment_contract',
+    ok: finalSourcePathsTailNoAwsSamSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_idea_segment_contract',
+    ok: finalSourcePathsTailNoIdeaSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_vscode_segment_contract',
+    ok: finalSourcePathsTailNoVscodeSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_macosx_segment_contract',
+    ok: finalSourcePathsTailNoMacosxSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_sass_cache_segment_contract',
+    ok: finalSourcePathsTailNoSassCacheSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_hypothesis_segment_contract',
+    ok: finalSourcePathsTailNoHypothesisSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_ipynb_checkpoints_segment_contract',
+    ok: finalSourcePathsTailNoIpynbCheckpointsSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_nuxt_segment_contract',
+    ok: finalSourcePathsTailNoNuxtSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_angular_segment_contract',
+    ok: finalSourcePathsTailNoAngularSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_expo_segment_contract',
+    ok: finalSourcePathsTailNoExpoSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_dart_tool_segment_contract',
+    ok: finalSourcePathsTailNoDartToolSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_svelte_kit_segment_contract',
+    ok: finalSourcePathsTailNoSvelteKitSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_wrangler_segment_contract',
+    ok: finalSourcePathsTailNoWranglerSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  const finalSourcePathsTailNoStorybookStaticSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'storybook-static');
+  });
+  const finalSourcePathsTailNoPlaywrightReportSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'playwright-report');
+  });
+  const finalSourcePathsTailNoTestResultsSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'test-results');
+  });
+  const finalSourcePathsTailNoJunitSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'junit');
+  });
+  const finalSourcePathsTailNoSurefireReportsSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'surefire-reports');
+  });
+  const finalSourcePathsTailNoAllureResultsSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'allure-results');
+  });
+  const finalSourcePathsTailNoAllureReportSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'allure-report');
+  });
+  const finalSourcePathsTailNoCypressSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'cypress');
+  });
+  const finalSourcePathsTailNoCypressCacheSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'cypress-cache');
+  });
+  const finalSourcePathsTailNoDetoxSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'detox');
+  });
+  const finalSourcePathsTailNoBenchmarkSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'benchmark');
+  });
+  const finalSourcePathsTailNoBenchmarksSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'benchmarks');
+  });
+  const finalSourcePathsTailNoPerfSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'perf');
+  });
+  const finalSourcePathsTailNoProfilesSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'profiles');
+  });
+  const finalSourcePathsTailNoTmpfilesSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'tmpfiles');
+  });
+  const finalSourcePathsTailNoArtifactSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'artifact');
+  });
+  const finalSourcePathsTailNoArtifactsSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'artifacts');
+  });
+  const finalSourcePathsTailNoDownloadsSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'downloads');
+  });
+  const finalSourcePathsTailNoUploadsSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'uploads');
+  });
+  const finalSourcePathsTailNoScratchSegmentContract = sourcePathTokens.every((token) => {
+    const value = cleanText(token, 260).toLowerCase();
+    return value.split('/').every((segment) => segment !== 'scratch');
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_storybook_static_segment_contract',
+    ok: finalSourcePathsTailNoStorybookStaticSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_playwright_report_segment_contract',
+    ok: finalSourcePathsTailNoPlaywrightReportSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_test_results_segment_contract',
+    ok: finalSourcePathsTailNoTestResultsSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_junit_segment_contract',
+    ok: finalSourcePathsTailNoJunitSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_surefire_reports_segment_contract',
+    ok: finalSourcePathsTailNoSurefireReportsSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_allure_results_segment_contract',
+    ok: finalSourcePathsTailNoAllureResultsSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_allure_report_segment_contract',
+    ok: finalSourcePathsTailNoAllureReportSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_cypress_segment_contract',
+    ok: finalSourcePathsTailNoCypressSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_cypress_cache_segment_contract',
+    ok: finalSourcePathsTailNoCypressCacheSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_detox_segment_contract',
+    ok: finalSourcePathsTailNoDetoxSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_benchmark_segment_contract',
+    ok: finalSourcePathsTailNoBenchmarkSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_benchmarks_segment_contract',
+    ok: finalSourcePathsTailNoBenchmarksSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_perf_segment_contract',
+    ok: finalSourcePathsTailNoPerfSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_profiles_segment_contract',
+    ok: finalSourcePathsTailNoProfilesSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_tmpfiles_segment_contract',
+    ok: finalSourcePathsTailNoTmpfilesSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_artifact_segment_contract',
+    ok: finalSourcePathsTailNoArtifactSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_artifacts_segment_contract',
+    ok: finalSourcePathsTailNoArtifactsSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_downloads_segment_contract',
+    ok: finalSourcePathsTailNoDownloadsSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_uploads_segment_contract',
+    ok: finalSourcePathsTailNoUploadsSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_scratch_segment_contract',
+    ok: finalSourcePathsTailNoScratchSegmentContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  const finalSourcePathsTailNoLogExtensionContract = sourcePathTokens.every(
+    (token) => !/\.log$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoTraceExtensionContract = sourcePathTokens.every(
+    (token) => !/\.trace$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoOutFileExtensionContract = sourcePathTokens.every(
+    (token) => !/\.out$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoErrFileExtensionContract = sourcePathTokens.every(
+    (token) => !/\.err$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoLcovExtensionContract = sourcePathTokens.every(
+    (token) => !/\.lcov$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoSarifExtensionContract = sourcePathTokens.every(
+    (token) => !/\.sarif$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoCpuProfileExtensionContract = sourcePathTokens.every(
+    (token) => !/\.cpuprofile$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoHeapProfileExtensionContract = sourcePathTokens.every(
+    (token) => !/\.heapprofile$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoProfExtensionContract = sourcePathTokens.every(
+    (token) => !/\.prof$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoGcdaExtensionContract = sourcePathTokens.every(
+    (token) => !/\.gcda$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoGcnoExtensionContract = sourcePathTokens.every(
+    (token) => !/\.gcno$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoDmpExtensionContract = sourcePathTokens.every(
+    (token) => !/\.dmp$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoStackdumpExtensionContract = sourcePathTokens.every(
+    (token) => !/\.stackdump$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoPidExtensionContract = sourcePathTokens.every(
+    (token) => !/\.pid$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoSeedExtensionContract = sourcePathTokens.every(
+    (token) => !/\.seed$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoSnapshotExtensionContract = sourcePathTokens.every(
+    (token) => !/\.snapshot$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoSnapExtensionContract = sourcePathTokens.every(
+    (token) => !/\.snap$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoCoverageArtifactExtensionContract = sourcePathTokens.every(
+    (token) => !/\.coverage$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoNycOutputExtensionContract = sourcePathTokens.every(
+    (token) => !/\.nyc_output$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoRstestJsonExtensionContract = sourcePathTokens.every(
+    (token) => !/\.rstest\.json$/i.test(cleanText(token, 260)),
+  );
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_log_extension_contract',
+    ok: finalSourcePathsTailNoLogExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_trace_extension_contract',
+    ok: finalSourcePathsTailNoTraceExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_out_file_extension_contract',
+    ok: finalSourcePathsTailNoOutFileExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_err_file_extension_contract',
+    ok: finalSourcePathsTailNoErrFileExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_lcov_extension_contract',
+    ok: finalSourcePathsTailNoLcovExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_sarif_extension_contract',
+    ok: finalSourcePathsTailNoSarifExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_cpu_profile_extension_contract',
+    ok: finalSourcePathsTailNoCpuProfileExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_heap_profile_extension_contract',
+    ok: finalSourcePathsTailNoHeapProfileExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_prof_extension_contract',
+    ok: finalSourcePathsTailNoProfExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_gcda_extension_contract',
+    ok: finalSourcePathsTailNoGcdaExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_gcno_extension_contract',
+    ok: finalSourcePathsTailNoGcnoExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_dmp_extension_contract',
+    ok: finalSourcePathsTailNoDmpExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_stackdump_extension_contract',
+    ok: finalSourcePathsTailNoStackdumpExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_pid_extension_contract',
+    ok: finalSourcePathsTailNoPidExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_seed_extension_contract',
+    ok: finalSourcePathsTailNoSeedExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_snapshot_extension_contract',
+    ok: finalSourcePathsTailNoSnapshotExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_snap_extension_contract',
+    ok: finalSourcePathsTailNoSnapExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_coverage_artifact_extension_contract',
+    ok: finalSourcePathsTailNoCoverageArtifactExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_nyc_output_extension_contract',
+    ok: finalSourcePathsTailNoNycOutputExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_rstest_json_extension_contract',
+    ok: finalSourcePathsTailNoRstestJsonExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  const finalSourcePathsTailNoProfrawExtensionContract = sourcePathTokens.every(
+    (token) => !/\.profraw$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoProfdataExtensionContract = sourcePathTokens.every(
+    (token) => !/\.profdata$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoGcovExtensionContract = sourcePathTokens.every(
+    (token) => !/\.gcov$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoCovExtensionContract = sourcePathTokens.every(
+    (token) => !/\.cov$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoTrxExtensionContract = sourcePathTokens.every(
+    (token) => !/\.trx$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoTapExtensionContract = sourcePathTokens.every(
+    (token) => !/\.tap$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoJunitXmlSuffixContract = sourcePathTokens.every(
+    (token) => !/junit.*\.xml$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoNunitXmlSuffixContract = sourcePathTokens.every(
+    (token) => !/nunit.*\.xml$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoXunitXmlSuffixContract = sourcePathTokens.every(
+    (token) => !/xunit.*\.xml$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoHeapdumpExtensionContract = sourcePathTokens.every(
+    (token) => !/\.heapdump$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoHprofExtensionContract = sourcePathTokens.every(
+    (token) => !/\.hprof$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoCrashExtensionContract = sourcePathTokens.every(
+    (token) => !/\.crash$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoCoreExtensionContract = sourcePathTokens.every(
+    (token) => !/\.core$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoPerfettoTraceExtensionContract = sourcePathTokens.every(
+    (token) => !/\.perfetto-trace$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoPidLockExtensionContract = sourcePathTokens.every(
+    (token) => !/\.pid\.lock$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoSockExtensionContract = sourcePathTokens.every(
+    (token) => !/\.sock$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoSocketExtensionContract = sourcePathTokens.every(
+    (token) => !/\.socket$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoCoverageFinalJsonSuffixContract = sourcePathTokens.every(
+    (token) => !/coverage-final\.json$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoNycOutputJsonSuffixContract = sourcePathTokens.every(
+    (token) => !/nyc-output\.json$/i.test(cleanText(token, 260)),
+  );
+  const finalSourcePathsTailNoFlamegraphSvgSuffixContract = sourcePathTokens.every(
+    (token) => !/flamegraph\.svg$/i.test(cleanText(token, 260)),
+  );
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_profraw_extension_contract',
+    ok: finalSourcePathsTailNoProfrawExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_profdata_extension_contract',
+    ok: finalSourcePathsTailNoProfdataExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_gcov_extension_contract',
+    ok: finalSourcePathsTailNoGcovExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_cov_extension_contract',
+    ok: finalSourcePathsTailNoCovExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_trx_extension_contract',
+    ok: finalSourcePathsTailNoTrxExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_tap_extension_contract',
+    ok: finalSourcePathsTailNoTapExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_junit_xml_suffix_contract',
+    ok: finalSourcePathsTailNoJunitXmlSuffixContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_nunit_xml_suffix_contract',
+    ok: finalSourcePathsTailNoNunitXmlSuffixContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_xunit_xml_suffix_contract',
+    ok: finalSourcePathsTailNoXunitXmlSuffixContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_heapdump_extension_contract',
+    ok: finalSourcePathsTailNoHeapdumpExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_hprof_extension_contract',
+    ok: finalSourcePathsTailNoHprofExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_crash_extension_contract',
+    ok: finalSourcePathsTailNoCrashExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_core_extension_contract',
+    ok: finalSourcePathsTailNoCoreExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_perfetto_trace_extension_contract',
+    ok: finalSourcePathsTailNoPerfettoTraceExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_pid_lock_extension_contract',
+    ok: finalSourcePathsTailNoPidLockExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_sock_extension_contract',
+    ok: finalSourcePathsTailNoSockExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_socket_extension_contract',
+    ok: finalSourcePathsTailNoSocketExtensionContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_coverage_final_json_suffix_contract',
+    ok: finalSourcePathsTailNoCoverageFinalJsonSuffixContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_nyc_output_json_suffix_contract',
+    ok: finalSourcePathsTailNoNycOutputJsonSuffixContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
+  checks.push({
+    id: 'eval_autopilot_final_source_paths_tail_no_flamegraph_svg_suffix_contract',
+    ok: finalSourcePathsTailNoFlamegraphSvgSuffixContract,
+    detail: `count=${sourcePathTokens.length}`,
+  });
   report.actions = actions;
   report.checks = checks;
 

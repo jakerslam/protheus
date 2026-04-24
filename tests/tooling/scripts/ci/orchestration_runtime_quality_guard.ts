@@ -11,6 +11,10 @@ const ROOT = process.cwd();
 const DEFAULT_OUT_JSON = 'core/local/artifacts/orchestration_runtime_quality_guard_current.json';
 const DEFAULT_OUT_MD = 'local/workspace/reports/ORCHESTRATION_RUNTIME_QUALITY_GUARD_CURRENT.md';
 const DEFAULT_POLICY_PATH = 'client/runtime/config/orchestration_quality_policy.json';
+const DEFAULT_CANDIDATE_SELECTION_DIAGNOSTICS_PATH =
+  'core/local/artifacts/candidate_selection_diagnostics_current.json';
+const DEFAULT_CANDIDATE_SELECTION_DIAGNOSTICS_ALIAS =
+  'artifacts/candidate_selection_diagnostics_latest.json';
 const TEST_NAME = 'quality_planner_runtime::runtime_quality_telemetry_metrics_stay_within_thresholds';
 
 type ScriptArgs = {
@@ -41,6 +45,9 @@ type RuntimeQualityPolicy = {
   max_non_legacy_fallback_plus_heuristic_rate?: number;
   max_non_legacy_clarification_plus_degraded_rate?: number;
   max_non_legacy_fallback_minus_zero_executable_rate?: number;
+  max_non_legacy_fallback_rate_trend_ceiling?: number;
+  max_non_legacy_clarification_rate_trend_ceiling?: number;
+  baseline_policy_path?: string;
   required_metric_fields?: string[];
   max_missing_metric_fields?: number;
   consistency_epsilon?: number;
@@ -490,6 +497,40 @@ function evaluateRatchet(
         `ratchet_no_improvement_window_exceeded:window=${improvementWindow}:min_improvement_delta=${minImprovementDelta.toFixed(4)}`,
       );
     }
+
+    const fallbackTrendCeiling = numberOrNull(policy.max_non_legacy_fallback_rate_trend_ceiling);
+    if (fallbackTrendCeiling != null) {
+      const fallbackSeries = recent
+        .map((row) => numberOrNull(row.fallback_rate_non_legacy))
+        .filter((value): value is number => value != null);
+      if (fallbackSeries.length > 0) {
+        const fallbackAverage =
+          fallbackSeries.reduce((sum, value) => sum + value, 0) / fallbackSeries.length;
+        if (fallbackAverage > fallbackTrendCeiling + delta) {
+          failures.push(
+            `ratchet_fallback_rate_non_legacy_trend_ceiling_exceeded:actual=${fallbackAverage.toFixed(4)}:max=${fallbackTrendCeiling.toFixed(4)}:window=${improvementWindow}`,
+          );
+        }
+      }
+    }
+
+    const clarificationTrendCeiling = numberOrNull(
+      policy.max_non_legacy_clarification_rate_trend_ceiling,
+    );
+    if (clarificationTrendCeiling != null) {
+      const clarificationSeries = recent
+        .map((row) => numberOrNull(row.clarification_rate_non_legacy))
+        .filter((value): value is number => value != null);
+      if (clarificationSeries.length > 0) {
+        const clarificationAverage =
+          clarificationSeries.reduce((sum, value) => sum + value, 0) / clarificationSeries.length;
+        if (clarificationAverage > clarificationTrendCeiling + delta) {
+          failures.push(
+            `ratchet_clarification_rate_non_legacy_trend_ceiling_exceeded:actual=${clarificationAverage.toFixed(4)}:max=${clarificationTrendCeiling.toFixed(4)}:window=${improvementWindow}`,
+          );
+        }
+      }
+    }
   }
 
   return failures;
@@ -500,6 +541,148 @@ function persistRatchet(policy: RuntimeQualityPolicy, snapshot: any): void {
   const history = policy.paths?.history || '';
   if (latest) writeJsonArtifact(latest, snapshot);
   if (history) appendJsonLine(history, snapshot);
+}
+
+function detectPolicyRelaxation(
+  baseline: RuntimeQualityPolicy | null,
+  current: RuntimeQualityPolicy,
+): string[] {
+  if (!baseline) return [];
+  const deltas: string[] = [];
+  const maxFields: Array<keyof RuntimeQualityPolicy> = [
+    'max_non_legacy_fallback_rate',
+    'max_non_legacy_heuristic_probe_rate',
+    'max_non_legacy_clarification_rate',
+    'max_non_legacy_zero_executable_rate',
+    'max_non_legacy_all_candidates_degraded_rate',
+    'max_non_legacy_fallback_plus_heuristic_rate',
+    'max_non_legacy_clarification_plus_degraded_rate',
+    'max_non_legacy_fallback_minus_zero_executable_rate',
+    'max_non_legacy_fallback_rate_trend_ceiling',
+    'max_non_legacy_clarification_rate_trend_ceiling',
+  ];
+  for (const field of maxFields) {
+    const baselineValue = numberOrNull(baseline[field]);
+    const currentValue = numberOrNull(current[field]);
+    if (baselineValue != null && currentValue != null && currentValue > baselineValue) {
+      deltas.push(
+        `max_threshold_relaxed:${String(field)}:baseline=${baselineValue.toFixed(4)}:current=${currentValue.toFixed(4)}`,
+      );
+    }
+  }
+
+  const minFields: Array<keyof RuntimeQualityPolicy> = [
+    'min_sample_size',
+    'min_average_candidate_count',
+  ];
+  for (const field of minFields) {
+    const baselineValue = numberOrNull(baseline[field]);
+    const currentValue = numberOrNull(current[field]);
+    if (baselineValue != null && currentValue != null && currentValue < baselineValue) {
+      deltas.push(
+        `min_threshold_relaxed:${String(field)}:baseline=${baselineValue.toFixed(4)}:current=${currentValue.toFixed(4)}`,
+      );
+    }
+  }
+
+  const baselineMissingLimit = numberOrNull(baseline.max_missing_metric_fields);
+  const currentMissingLimit = numberOrNull(current.max_missing_metric_fields);
+  if (
+    baselineMissingLimit != null
+    && currentMissingLimit != null
+    && currentMissingLimit > baselineMissingLimit
+  ) {
+    deltas.push(
+      `missing_metric_budget_relaxed:baseline=${baselineMissingLimit.toFixed(4)}:current=${currentMissingLimit.toFixed(4)}`,
+    );
+  }
+
+  const baselineRequiredFields = new Set(requiredMetricFieldsFromPolicy(baseline));
+  const currentRequiredFields = new Set(requiredMetricFieldsFromPolicy(current));
+  const droppedFields = [...baselineRequiredFields].filter((field) => !currentRequiredFields.has(field));
+  for (const field of droppedFields) {
+    deltas.push(`required_metric_field_dropped:${field}`);
+  }
+
+  return deltas;
+}
+
+function buildCandidateSelectionDiagnostics(
+  metrics: RuntimeQualityMetrics | null,
+  allFailures: string[],
+  policyPath: string,
+  revision: string,
+): any {
+  const zeroExecutableRate = numberOrNull(metrics?.zero_executable_rate_non_legacy);
+  const clarificationRate = numberOrNull(metrics?.clarification_rate_non_legacy);
+  const fallbackRate = numberOrNull(metrics?.fallback_rate_non_legacy);
+  const zeroExecutableIncidentDetected = (zeroExecutableRate ?? 0) > 0;
+  const relevantFailures = allFailures.filter(
+    (failure) =>
+      failure.includes('zero_executable')
+      || failure.includes('clarification')
+      || failure.includes('candidate')
+      || failure.includes('fallback'),
+  );
+
+  const causeRows = [
+    {
+      cause_id: 'classifier_zero_executable_candidate_path',
+      layer: 'control_plane_classifier',
+      source_file: 'surface/orchestration/src/request_classifier.rs',
+      trigger: (zeroExecutableRate ?? 0) > 0 || relevantFailures.some((row) => row.includes('zero_executable')),
+      evidence: relevantFailures.filter((row) => row.includes('zero_executable')),
+    },
+    {
+      cause_id: 'precondition_capability_probe_denial',
+      layer: 'control_plane_preconditions',
+      source_file: 'surface/orchestration/src/ingress/preconditions.rs',
+      trigger: relevantFailures.some((row) => row.includes('missing_metric') || row.includes('inconsistent')),
+      evidence: relevantFailures.filter(
+        (row) => row.includes('missing_metric') || row.includes('inconsistent'),
+      ),
+    },
+    {
+      cause_id: 'planner_candidate_pool_degradation',
+      layer: 'control_plane_planner',
+      source_file: 'surface/orchestration/src/plan_candidates.rs',
+      trigger: relevantFailures.some(
+        (row) =>
+          row.includes('all_candidates_degraded')
+          || row.includes('clarification_plus')
+          || row.includes('zero_executable'),
+      ),
+      evidence: relevantFailures.filter(
+        (row) =>
+          row.includes('all_candidates_degraded')
+          || row.includes('clarification_plus')
+          || row.includes('zero_executable'),
+      ),
+    },
+  ];
+
+  return {
+    type: 'candidate_selection_diagnostics',
+    generated_at: new Date().toISOString(),
+    revision,
+    policy_path: policyPath,
+    metrics: {
+      zero_executable_rate_non_legacy: zeroExecutableRate,
+      clarification_rate_non_legacy: clarificationRate,
+      fallback_rate_non_legacy: fallbackRate,
+    },
+    zero_executable_incident_detected: zeroExecutableIncidentDetected,
+    matched_failure_count: relevantFailures.length,
+    matched_failures: relevantFailures,
+    classifier_sources: ['surface/orchestration/src/request_classifier.rs'],
+    precondition_sources: ['surface/orchestration/src/ingress/preconditions.rs'],
+    candidate_selection_causes: causeRows,
+    recovery_actions: [
+      'tighten candidate eligibility in classifier before route selection',
+      'enforce exact precondition capability probes for typed routes',
+      'force degraded synthesis with explicit clarification when candidate set is empty',
+    ],
+  };
 }
 
 function toMarkdown(payload: any): string {
@@ -545,6 +728,22 @@ function toMarkdown(payload: any): string {
     lines.push('## Ratchet Failures');
     for (const row of payload.ratchet_failures) lines.push(`- ${row}`);
   }
+  if (Array.isArray(payload.policy_relaxation_failures) && payload.policy_relaxation_failures.length > 0) {
+    lines.push('');
+    lines.push('## Policy Relaxation Failures');
+    for (const row of payload.policy_relaxation_failures) lines.push(`- ${row}`);
+  }
+  if (payload.baseline_comparison) {
+    lines.push('');
+    lines.push('## Baseline Comparison');
+    lines.push(`- baseline_policy_present: ${Boolean(payload.baseline_comparison.baseline_policy_present)}`);
+    lines.push(`- baseline_would_pass: ${String(payload.baseline_comparison.baseline_would_pass)}`);
+    const deltas = Array.isArray(payload.baseline_comparison.policy_relaxation_deltas)
+      ? payload.baseline_comparison.policy_relaxation_deltas
+      : [];
+    lines.push(`- policy_relaxation_delta_count: ${deltas.length}`);
+    for (const delta of deltas) lines.push(`- relaxation_delta: ${delta}`);
+  }
   lines.push('');
   lines.push('## Output');
   lines.push('```text');
@@ -557,6 +756,11 @@ function run(argv: string[]): number {
   const args = resolveArgs(argv);
   const qualityPolicy = readJsonMaybe<OrchestrationQualityPolicy>(args.policyPath) || {};
   const runtimePolicy = qualityPolicy.runtime_quality || {};
+  const baselinePolicyPath = String(runtimePolicy.baseline_policy_path || '').trim();
+  const baselineQualityPolicy = baselinePolicyPath
+    ? (readJsonMaybe<OrchestrationQualityPolicy>(baselinePolicyPath) || {})
+    : null;
+  const baselineRuntimePolicy = baselineQualityPolicy?.runtime_quality || null;
 
   const command = [
     'cargo',
@@ -591,6 +795,54 @@ function run(argv: string[]): number {
   const policyFailures = evaluateThresholds(metrics, runtimePolicy);
   const consistencyFailures = evaluateMetricConsistency(metrics, runtimePolicy);
   const ratchetFailures = evaluateRatchet(metrics, runtimePolicy, previousLatest, historyRows);
+  const baselinePolicyFailures = baselineRuntimePolicy
+    ? evaluateThresholds(metrics, baselineRuntimePolicy)
+    : [];
+  const baselineConsistencyFailures = baselineRuntimePolicy
+    ? evaluateMetricConsistency(metrics, baselineRuntimePolicy)
+    : [];
+  const policyRelaxationDeltas = detectPolicyRelaxation(baselineRuntimePolicy, runtimePolicy);
+  const baselineWouldPass = baselineRuntimePolicy
+    ? testsOk && baselinePolicyFailures.length === 0 && baselineConsistencyFailures.length === 0
+    : null;
+  const policyRelaxationFailures: string[] = [];
+  if (
+    baselineRuntimePolicy
+    && testsOk
+    && policyFailures.length === 0
+    && consistencyFailures.length === 0
+    && ratchetFailures.length === 0
+    && baselineWouldPass === false
+    && policyRelaxationDeltas.length > 0
+  ) {
+    policyRelaxationFailures.push('policy_relaxation_only_pass_detected');
+    for (const delta of policyRelaxationDeltas) {
+      policyRelaxationFailures.push(`policy_relaxation_delta:${delta}`);
+    }
+    for (const failure of baselinePolicyFailures) {
+      policyRelaxationFailures.push(`baseline_threshold_failure:${failure}`);
+    }
+    for (const failure of baselineConsistencyFailures) {
+      policyRelaxationFailures.push(`baseline_consistency_failure:${failure}`);
+    }
+  }
+
+  const allFailures = [
+    ...policyFailures,
+    ...consistencyFailures,
+    ...ratchetFailures,
+    ...policyRelaxationFailures,
+  ];
+  const revision = currentRevision(ROOT);
+  const candidateSelectionDiagnostics = buildCandidateSelectionDiagnostics(
+    metrics,
+    allFailures,
+    args.policyPath,
+    revision,
+  );
+  writeJsonArtifact(DEFAULT_CANDIDATE_SELECTION_DIAGNOSTICS_PATH, candidateSelectionDiagnostics);
+  writeJsonArtifact(DEFAULT_CANDIDATE_SELECTION_DIAGNOSTICS_ALIAS, candidateSelectionDiagnostics);
+
   const metricFieldsPresent = metrics
     ? Object.values(metrics).filter((value) => numberOrNull(value) != null).length
     : 0;
@@ -598,13 +850,14 @@ function run(argv: string[]): number {
     testsOk
     && policyFailures.length === 0
     && consistencyFailures.length === 0
-    && ratchetFailures.length === 0;
+    && ratchetFailures.length === 0
+    && policyRelaxationFailures.length === 0;
 
   const payload = {
     ok,
     type: 'orchestration_runtime_quality_guard',
     generated_at: new Date().toISOString(),
-    revision: currentRevision(ROOT),
+    revision,
     inputs: {
       strict: args.strict,
       out_json: args.outJson,
@@ -622,6 +875,7 @@ function run(argv: string[]): number {
       policy_failure_count: policyFailures.length,
       consistency_failure_count: consistencyFailures.length,
       ratchet_failure_count: ratchetFailures.length,
+      policy_relaxation_failure_count: policyRelaxationFailures.length,
       metric_fields_present: metricFieldsPresent,
       required_metric_field_count: requiredMetricFields.length,
       missing_metric_field_count: missingMetricFields.length,
@@ -635,6 +889,16 @@ function run(argv: string[]): number {
     policy_failures: policyFailures,
     consistency_failures: consistencyFailures,
     ratchet_failures: ratchetFailures,
+    policy_relaxation_failures: policyRelaxationFailures,
+    baseline_comparison: {
+      baseline_policy_path: baselinePolicyPath || null,
+      baseline_policy_present: Boolean(baselineRuntimePolicy),
+      baseline_would_pass: baselineWouldPass,
+      policy_relaxation_deltas: policyRelaxationDeltas,
+      baseline_policy_failures: baselinePolicyFailures,
+      baseline_consistency_failures: baselineConsistencyFailures,
+    },
+    candidate_selection_diagnostics_path: DEFAULT_CANDIDATE_SELECTION_DIAGNOSTICS_PATH,
     output_excerpt: output,
   };
 

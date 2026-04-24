@@ -50,7 +50,7 @@ const RELEASE_VERDICT_REQUIRED_RELEASE_PROFILE_GATES = [
 ] as const;
 const RELEASE_VERDICT_POLICY_REQUIRED_RC_STEP_EXTRAS = [
   'dr:gameday:gate',
-  'audit:client-layer-boundary',
+  'audit:shell-layer-boundary',
   'ops:ipc-bridge:soak',
 ] as const;
 const RELEASE_VERDICT_POLICY_REQUIRED_FILES = [
@@ -85,9 +85,43 @@ const RELEASE_VERDICT_REQUIRED_GATE_ARTIFACT_PATHS: Record<string, string> = {
   'ops:production-closure:gate': 'core/local/artifacts/production_readiness_closure_gate_current.json',
   'ops:release:rc-rehearsal': 'core/local/artifacts/release_candidate_dress_rehearsal_current.json',
 };
+const RC_PREBUNDLE_BLOCKING_REQUIRED_GATE_IDS = new Set<string>(['release_policy_gate']);
+const RC_GATE_SECTION_FALLBACKS: Record<string, string[]> = {
+  'ops:runtime-proof:verify': ['runtime_proof'],
+  'ops:stateful-upgrade-rollback:gate': ['stateful_upgrade_rollback'],
+  'ops:layer2:parity:guard': ['layer2_parity'],
+  'ops:layer2:receipt:replay': ['layer2_receipt_replay'],
+  'ops:trusted-core:report': ['trusted_core'],
+  'ops:release:proof-pack': ['proof_pack'],
+  'ops:production-topology:gate': ['topology'],
+  'ops:orchestration:hidden-state:guard': ['hidden_state'],
+  'ops:release:scorecard:gate': ['release_scorecard'],
+  'ops:production-closure:gate': ['production_closure'],
+  'ops:release-blockers:gate': ['release_blockers'],
+  'ops:release-hardening-window:guard': ['release_hardening_window'],
+  'chaos:continuous:gate': ['chaos'],
+  'state:kernel:replay': ['replay'],
+};
+
+function parseStageToken(value: unknown, fallback: 'prebundle' | 'final' = 'prebundle'): 'prebundle' | 'final' {
+  const token = cleanText(value || '', 40).toLowerCase();
+  if (token === 'final') return 'final';
+  if (token === 'prebundle') return 'prebundle';
+  return fallback;
+}
+
+function fallbackSectionPayload(rcPayload: any, gateId: string): any {
+  const sectionKeys = RC_GATE_SECTION_FALLBACKS[gateId] || [];
+  for (const sectionKey of sectionKeys) {
+    const section = rcPayload?.[sectionKey];
+    if (isObjectRecord(section)) return section;
+  }
+  return null;
+}
 
 function parseArgs(argv: string[]) {
   const parsed = parseStrictOutArgs(argv, { out: DEFAULT_OUT, strict: false });
+  const stageRaw = cleanText(readFlag(argv, 'stage') || '', 40).toLowerCase();
   return {
     strict: parsed.strict,
     out: parsed.out || DEFAULT_OUT,
@@ -95,6 +129,7 @@ function parseArgs(argv: string[]) {
     gateRegistryPath: cleanText(readFlag(argv, 'gate-registry') || DEFAULT_GATE_REGISTRY, 400),
     verifyProfilesPath: cleanText(readFlag(argv, 'verify-profiles') || DEFAULT_VERIFY_PROFILES, 400),
     rootPath: cleanText(readFlag(argv, 'root') || '', 400),
+    stage: stageRaw === 'final' ? 'final' : 'prebundle',
   };
 }
 
@@ -110,6 +145,10 @@ function readJsonMaybe(filePath: string): any {
   } catch {
     return null;
   }
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
 }
 
 function isCanonicalRelativePathToken(
@@ -539,9 +578,196 @@ export function buildReport(rawArgs = parseArgs(process.argv.slice(2))) {
   );
   const rcSummaryStepCount = Number(rcPayload?.summary?.step_count ?? -1);
   const rcSummaryFailedCount = Number(rcPayload?.summary?.failed_count ?? -1);
+  const rcSummaryBlockingFailedCount = Number(rcPayload?.summary?.blocking_failed_count ?? -1);
+  const rcSummaryNonBlockingFailedCount = Number(rcPayload?.summary?.non_blocking_failed_count ?? -1);
   const rcSummaryRequiredStepCount = Number(rcPayload?.summary?.required_step_count ?? -1);
   const rcSummaryRequiredStepsSatisfied = rcPayload?.summary?.required_steps_satisfied === true;
   const rcSummaryCandidateReady = rcPayload?.summary?.candidate_ready === true;
+  const rcSummaryBlockingRows = Array.isArray(rcPayload?.blocking_failures)
+    ? rcPayload.blocking_failures
+    : [];
+  const rcSummaryNonBlockingRows = Array.isArray(rcPayload?.non_blocking_failures)
+    ? rcPayload.non_blocking_failures
+    : [];
+  const rcSummaryBlockingGateIds = rcSummaryBlockingRows
+    .map((row: any) => cleanText(row?.gate_id || '', 180))
+    .filter(Boolean);
+  const rcSummaryNonBlockingGateIds = rcSummaryNonBlockingRows
+    .map((row: any) => cleanText(row?.gate_id || '', 180))
+    .filter(Boolean);
+  const rcSummaryStageMode = cleanText(rcPayload?.summary?.stage_mode || '', 80);
+  const rcSummaryStepGateIdsUnique = rcPayload?.summary?.step_gate_ids_unique === true;
+  const rcSummaryStepOrderContiguous = rcPayload?.summary?.step_order_contiguous === true;
+  const rcSummaryFailureGateIdsUnique = rcPayload?.summary?.failure_gate_ids_unique === true;
+  const rcSummaryBlockingFailureGateIdsUnique =
+    rcPayload?.summary?.blocking_failure_gate_ids_unique === true;
+  const rcSummaryNonBlockingFailureGateIdsUnique =
+    rcPayload?.summary?.non_blocking_failure_gate_ids_unique === true;
+  const rcSummaryBlockingNonBlockingDisjoint =
+    rcPayload?.summary?.blocking_non_blocking_disjoint === true;
+  const rcSummaryFailurePartitionCountMatches =
+    rcPayload?.summary?.failure_partition_count_matches === true;
+  const rcSummaryRequiredStepIdsUnique =
+    rcPayload?.summary?.required_step_ids_unique === true;
+  const rcSummaryRequiredStepsMissingCount = Number(
+    rcPayload?.summary?.required_steps_missing_count ?? -1,
+  );
+  const rcSummaryRequiredStepsMissingIdsUnique =
+    rcPayload?.summary?.required_steps_missing_ids_unique === true;
+  const rcSummaryRequiredStepsMissingCountMatches =
+    rcPayload?.summary?.required_steps_missing_count_matches === true;
+  const rcSummaryEmittedArtifactPathCount = Number(
+    rcPayload?.summary?.emitted_artifact_path_count ?? -1,
+  );
+  const rcSummaryEmittedArtifactPathUniqueCount = Number(
+    rcPayload?.summary?.emitted_artifact_path_unique_count ?? -1,
+  );
+  const rcTopFailureGateIds = Array.isArray(rcPayload?.failure_gate_ids)
+    ? rcPayload.failure_gate_ids.map((row: any) => cleanText(row || '', 180)).filter(Boolean)
+    : [];
+  const rcTopBlockingFailureGateIds = Array.isArray(rcPayload?.blocking_failure_gate_ids)
+    ? rcPayload.blocking_failure_gate_ids
+        .map((row: any) => cleanText(row || '', 180))
+        .filter(Boolean)
+    : [];
+  const rcTopNonBlockingFailureGateIds = Array.isArray(
+    rcPayload?.non_blocking_failure_gate_ids,
+  )
+    ? rcPayload.non_blocking_failure_gate_ids
+        .map((row: any) => cleanText(row || '', 180))
+        .filter(Boolean)
+    : [];
+  const rcRequiredStepsMissingGateIds = Array.isArray(rcPayload?.required_steps_missing_gate_ids)
+    ? rcPayload.required_steps_missing_gate_ids
+        .map((row: any) => cleanText(row || '', 180))
+        .filter(Boolean)
+    : [];
+  const rcTopFailureGateIdsInvalidToken = rcTopFailureGateIds.filter(
+    (gateId) => !GATE_ID_TOKEN_REGEX.test(gateId),
+  );
+  const rcTopFailureGateIdsDuplicate = rcTopFailureGateIds.filter(
+    (gateId, idx, arr) => arr.indexOf(gateId) !== idx,
+  );
+  const rcTopFailureGateIdsMissingFromFailures = rcTopFailureGateIds.filter(
+    (gateId) => !rcFailureGateIds.includes(gateId),
+  );
+  const rcFailureGateIdsMissingFromTop = rcFailureGateIds.filter(
+    (gateId) => !rcTopFailureGateIds.includes(gateId),
+  );
+  const rcTopBlockingFailureGateIdsInvalidToken = rcTopBlockingFailureGateIds.filter(
+    (gateId) => !GATE_ID_TOKEN_REGEX.test(gateId),
+  );
+  const rcTopBlockingFailureGateIdsDuplicate = rcTopBlockingFailureGateIds.filter(
+    (gateId, idx, arr) => arr.indexOf(gateId) !== idx,
+  );
+  const rcTopBlockingFailureGateIdsOutsideTopFailure = rcTopBlockingFailureGateIds.filter(
+    (gateId) => !rcTopFailureGateIds.includes(gateId),
+  );
+  const rcTopBlockingFailureGateIdsMissingFromSummaryRows = rcTopBlockingFailureGateIds.filter(
+    (gateId) => !rcSummaryBlockingGateIds.includes(gateId),
+  );
+  const rcSummaryBlockingGateIdsMissingFromTop = rcSummaryBlockingGateIds.filter(
+    (gateId) => !rcTopBlockingFailureGateIds.includes(gateId),
+  );
+  const rcTopNonBlockingFailureGateIdsInvalidToken = rcTopNonBlockingFailureGateIds.filter(
+    (gateId) => !GATE_ID_TOKEN_REGEX.test(gateId),
+  );
+  const rcTopNonBlockingFailureGateIdsDuplicate = rcTopNonBlockingFailureGateIds.filter(
+    (gateId, idx, arr) => arr.indexOf(gateId) !== idx,
+  );
+  const rcTopNonBlockingFailureGateIdsOutsideTopFailure = rcTopNonBlockingFailureGateIds.filter(
+    (gateId) => !rcTopFailureGateIds.includes(gateId),
+  );
+  const rcTopNonBlockingFailureGateIdsMissingFromSummaryRows =
+    rcTopNonBlockingFailureGateIds.filter(
+      (gateId) => !rcSummaryNonBlockingGateIds.includes(gateId),
+    );
+  const rcSummaryNonBlockingGateIdsMissingFromTop = rcSummaryNonBlockingGateIds.filter(
+    (gateId) => !rcTopNonBlockingFailureGateIds.includes(gateId),
+  );
+  const rcTopFailurePartitionGateIds = Array.from(
+    new Set([...rcTopBlockingFailureGateIds, ...rcTopNonBlockingFailureGateIds]),
+  );
+  const rcTopFailureGateIdsMissingFromPartitionUnion = rcTopFailureGateIds.filter(
+    (gateId) => !rcTopFailurePartitionGateIds.includes(gateId),
+  );
+  const rcTopFailurePartitionGateIdsUnexpectedFromTop = rcTopFailurePartitionGateIds.filter(
+    (gateId) => !rcTopFailureGateIds.includes(gateId),
+  );
+  const rcTopFailurePartitionGateIdsDuplicateAcrossPartitions = [
+    ...rcTopBlockingFailureGateIds,
+    ...rcTopNonBlockingFailureGateIds,
+  ].filter((gateId, idx, arr) => arr.indexOf(gateId) !== idx);
+  const rcSummaryBlockingGateIdsInvalidToken = rcSummaryBlockingGateIds.filter(
+    (gateId) => !GATE_ID_TOKEN_REGEX.test(gateId),
+  );
+  const rcSummaryBlockingGateIdsDuplicate = rcSummaryBlockingGateIds.filter(
+    (gateId, idx, arr) => arr.indexOf(gateId) !== idx,
+  );
+  const rcSummaryBlockingGateIdsOutsideTopFailure = rcSummaryBlockingGateIds.filter(
+    (gateId) => !rcTopFailureGateIds.includes(gateId),
+  );
+  const rcSummaryNonBlockingGateIdsInvalidToken = rcSummaryNonBlockingGateIds.filter(
+    (gateId) => !GATE_ID_TOKEN_REGEX.test(gateId),
+  );
+  const rcSummaryNonBlockingGateIdsDuplicate = rcSummaryNonBlockingGateIds.filter(
+    (gateId, idx, arr) => arr.indexOf(gateId) !== idx,
+  );
+  const rcSummaryNonBlockingGateIdsOutsideTopFailure = rcSummaryNonBlockingGateIds.filter(
+    (gateId) => !rcTopFailureGateIds.includes(gateId),
+  );
+  const rcRequiredStepsMissingGateIdsInvalidToken = rcRequiredStepsMissingGateIds.filter(
+    (gateId) => !GATE_ID_TOKEN_REGEX.test(gateId),
+  );
+  const rcRequiredStepsMissingGateIdsDuplicate = rcRequiredStepsMissingGateIds.filter(
+    (gateId, idx, arr) => arr.indexOf(gateId) !== idx,
+  );
+  const rcRequiredStepsMissingGateIdsOutsidePolicy = rcRequiredStepsMissingGateIds.filter(
+    (gateId) => !rcPolicyRequiredStepGateIds.includes(gateId),
+  );
+  const rcDerivedRequiredStepsMissingGateIds = rcPolicyRequiredStepGateIds.filter(
+    (gateId) =>
+      !rcSteps.some(
+        (row: any) =>
+          cleanText(row?.gate_id || '', 180) === gateId && row?.ok === true,
+      ),
+  );
+  const rcDerivedRequiredStepsMissingGateIdsMissingInTop =
+    rcDerivedRequiredStepsMissingGateIds.filter(
+      (gateId) => !rcRequiredStepsMissingGateIds.includes(gateId),
+    );
+  const rcRequiredStepsMissingGateIdsUnexpectedFromDerived =
+    rcRequiredStepsMissingGateIds.filter(
+      (gateId) => !rcDerivedRequiredStepsMissingGateIds.includes(gateId),
+    );
+  const rcRequiredStepsMissingGateIdsPresentAsSuccessful = rcRequiredStepsMissingGateIds.filter(
+    (gateId) =>
+      rcSteps.some(
+        (row: any) => cleanText(row?.gate_id || '', 180) === gateId && row?.ok === true,
+      ),
+  );
+  const rcTopArtifactPathTokens = Array.isArray(rcPayload?.artifact_paths)
+    ? rcPayload.artifact_paths.map((row: any) => cleanText(row || '', 500)).filter(Boolean)
+    : [];
+  const rcTopArtifactPathTokenSet = new Set(rcTopArtifactPathTokens);
+  const rcRequestedStage = parseStageToken(args.stage, 'prebundle');
+  const rcPayloadStage = parseStageToken(rcPayload?.inputs?.stage, rcRequestedStage);
+  const rcFinalStage = rcPayloadStage === 'final';
+  const rcPrebundleStage = rcPayloadStage === 'prebundle';
+  const rcStageAwareCandidateReady = rcFinalStage
+    ? rcSummaryCandidateReady && rcSummaryRequiredStepsSatisfied
+    : rcSummaryRequiredStepsSatisfied && rcSummaryBlockingFailedCount === 0;
+  const rcDerivedFinalCandidateReady =
+    rcSummaryRequiredStepsSatisfied &&
+    rcSummaryFailedCount === 0 &&
+    rcSummaryBlockingFailedCount === 0 &&
+    rcSummaryNonBlockingFailedCount === 0;
+  const rcDerivedPrebundleCandidateReady =
+    rcSummaryRequiredStepsSatisfied && rcSummaryBlockingFailedCount === 0;
+  const rcDerivedCandidateReadyFromSummary = rcFinalStage
+    ? rcDerivedFinalCandidateReady
+    : rcDerivedPrebundleCandidateReady;
+  const rcBlockingGateIdSet = new Set(rcSummaryBlockingGateIds);
   const rcDerivedRequiredStepsSatisfied = rcPolicyRequiredStepGateIdsMissingInRcSteps.length === 0;
   const policyRequiredFiles = Array.isArray(policy?.required_files)
     ? policy.required_files.map((row: any) => cleanText(row || '', 500)).filter(Boolean)
@@ -846,7 +1072,7 @@ export function buildReport(rawArgs = parseArgs(process.argv.slice(2))) {
   const rcChaos = rcPayload?.chaos;
   const rcReplay = rcPayload?.replay;
   const rcTopology = rcPayload?.topology;
-  const rcClientBoundary = rcPayload?.client_boundary;
+  const rcShellBoundary = rcPayload?.shell_boundary ?? rcPayload?.client_boundary;
   const rcHiddenState = rcPayload?.hidden_state;
   const rcLayer2Parity = rcPayload?.layer2_parity;
   const rcLayer2ReceiptReplay = rcPayload?.layer2_receipt_replay;
@@ -856,8 +1082,8 @@ export function buildReport(rawArgs = parseArgs(process.argv.slice(2))) {
   const rcChaosIsObject = Boolean(rcChaos && typeof rcChaos === 'object' && !Array.isArray(rcChaos));
   const rcReplayIsObject = Boolean(rcReplay && typeof rcReplay === 'object' && !Array.isArray(rcReplay));
   const rcTopologyIsObject = Boolean(rcTopology && typeof rcTopology === 'object' && !Array.isArray(rcTopology));
-  const rcClientBoundaryIsObject = Boolean(
-    rcClientBoundary && typeof rcClientBoundary === 'object' && !Array.isArray(rcClientBoundary),
+  const rcShellBoundaryIsObject = Boolean(
+    rcShellBoundary && typeof rcShellBoundary === 'object' && !Array.isArray(rcShellBoundary),
   );
   const rcHiddenStateIsObject = Boolean(
     rcHiddenState && typeof rcHiddenState === 'object' && !Array.isArray(rcHiddenState),
@@ -890,18 +1116,18 @@ export function buildReport(rawArgs = parseArgs(process.argv.slice(2))) {
   const rcTopologyDegradedFlagsDuplicate = rcTopologyDegradedFlags.filter(
     (flag: string, idx: number, arr: string[]) => arr.indexOf(flag) !== idx,
   );
-  const rcClientBoundaryFailedIds = Array.isArray(rcClientBoundary?.failed_ids)
-    ? rcClientBoundary.failed_ids.map((id: any) => cleanText(id || '', 220)).filter(Boolean)
+  const rcShellBoundaryFailedIds = Array.isArray(rcShellBoundary?.failed_ids)
+    ? rcShellBoundary.failed_ids.map((id: any) => cleanText(id || '', 220)).filter(Boolean)
     : [];
-  const rcClientBoundaryFailedIdsInvalid = rcClientBoundaryFailedIds.filter(
+  const rcShellBoundaryFailedIdsInvalid = rcShellBoundaryFailedIds.filter(
     (id: string) => !id || /\s/.test(id) || id !== id.trim(),
   );
-  const rcClientBoundaryFailedIdsDuplicate = rcClientBoundaryFailedIds.filter(
+  const rcShellBoundaryFailedIdsDuplicate = rcShellBoundaryFailedIds.filter(
     (id: string, idx: number, arr: string[]) => arr.indexOf(id) !== idx,
   );
-  const rcClientBoundaryConsistency =
-    typeof rcClientBoundary?.ok === 'boolean' &&
-    (rcClientBoundary.ok === false || rcClientBoundaryFailedIds.length === 0);
+  const rcShellBoundaryConsistency =
+    typeof rcShellBoundary?.ok === 'boolean' &&
+    (rcShellBoundary.ok === false || rcShellBoundaryFailedIds.length === 0);
   const rcHiddenStateFailure = cleanText(rcHiddenState?.failure || '', 4000);
   const rcHiddenStateConsistency =
     typeof rcHiddenState?.ok === 'boolean' &&
@@ -2172,9 +2398,9 @@ export function buildReport(rawArgs = parseArgs(process.argv.slice(2))) {
       detail: `object=${String(rcTopologyIsObject)}`,
     },
     {
-      id: 'release_candidate_rehearsal_client_boundary_section_object_contract_v6',
-      ok: rcClientBoundaryIsObject,
-      detail: `object=${String(rcClientBoundaryIsObject)}`,
+      id: 'release_candidate_rehearsal_shell_boundary_section_object_contract_v7',
+      ok: rcShellBoundaryIsObject,
+      detail: `object=${String(rcShellBoundaryIsObject)}`,
     },
     {
       id: 'release_candidate_rehearsal_hidden_state_section_object_contract_v6',
@@ -2225,17 +2451,17 @@ export function buildReport(rawArgs = parseArgs(process.argv.slice(2))) {
           : `invalid=${rcTopologyDegradedFlagsInvalid.join(',') || 'none'};duplicate=${Array.from(new Set(rcTopologyDegradedFlagsDuplicate)).join(',') || 'none'}`,
     },
     {
-      id: 'release_candidate_rehearsal_client_boundary_failed_ids_contract_v6',
-      ok: rcClientBoundaryFailedIdsInvalid.length === 0 && rcClientBoundaryFailedIdsDuplicate.length === 0,
+      id: 'release_candidate_rehearsal_shell_boundary_failed_ids_contract_v7',
+      ok: rcShellBoundaryFailedIdsInvalid.length === 0 && rcShellBoundaryFailedIdsDuplicate.length === 0,
       detail:
-        rcClientBoundaryFailedIdsInvalid.length === 0 && rcClientBoundaryFailedIdsDuplicate.length === 0
+        rcShellBoundaryFailedIdsInvalid.length === 0 && rcShellBoundaryFailedIdsDuplicate.length === 0
           ? 'ok'
-          : `invalid=${rcClientBoundaryFailedIdsInvalid.join(',') || 'none'};duplicate=${Array.from(new Set(rcClientBoundaryFailedIdsDuplicate)).join(',') || 'none'}`,
+          : `invalid=${rcShellBoundaryFailedIdsInvalid.join(',') || 'none'};duplicate=${Array.from(new Set(rcShellBoundaryFailedIdsDuplicate)).join(',') || 'none'}`,
     },
     {
-      id: 'release_candidate_rehearsal_client_boundary_consistency_contract_v6',
-      ok: rcClientBoundaryConsistency,
-      detail: `ok=${String(rcClientBoundary?.ok === true)};failed_ids=${rcClientBoundaryFailedIds.length}`,
+      id: 'release_candidate_rehearsal_shell_boundary_consistency_contract_v7',
+      ok: rcShellBoundaryConsistency,
+      detail: `ok=${String(rcShellBoundary?.ok === true)};failed_ids=${rcShellBoundaryFailedIds.length}`,
     },
     {
       id: 'release_candidate_rehearsal_hidden_state_consistency_contract_v6',
@@ -2558,8 +2784,396 @@ export function buildReport(rawArgs = parseArgs(process.argv.slice(2))) {
     },
     {
       id: 'release_candidate_rehearsal_candidate_ready',
-      ok: rcPayload?.summary?.candidate_ready === true && rcPayload?.summary?.required_steps_satisfied === true,
-      detail: `candidate_ready=${String(rcPayload?.summary?.candidate_ready === true)};required_steps=${String(rcPayload?.summary?.required_steps_satisfied === true)}`,
+      ok: rcStageAwareCandidateReady,
+      detail: `stage=${rcPayloadStage};candidate_ready=${String(rcSummaryCandidateReady)};required_steps=${String(rcSummaryRequiredStepsSatisfied)};blocking_failed_count=${rcSummaryBlockingFailedCount}`,
+    },
+    {
+      id: 'release_candidate_rehearsal_stage_token_contract_v17',
+      ok: rcPayloadStage === 'prebundle' || rcPayloadStage === 'final',
+      detail: `stage=${rcPayloadStage};requested_stage=${rcRequestedStage}`,
+    },
+    {
+      id: 'release_candidate_rehearsal_blocking_failed_count_contract_v17',
+      ok:
+        Number.isInteger(rcSummaryBlockingFailedCount) &&
+        rcSummaryBlockingFailedCount >= 0 &&
+        rcSummaryBlockingFailedCount === rcSummaryBlockingRows.length,
+      detail: `summary=${rcSummaryBlockingFailedCount};rows=${rcSummaryBlockingRows.length}`,
+    },
+    {
+      id: 'release_candidate_rehearsal_non_blocking_failed_count_contract_v17',
+      ok:
+        Number.isInteger(rcSummaryNonBlockingFailedCount) &&
+        rcSummaryNonBlockingFailedCount >= 0 &&
+        rcSummaryNonBlockingFailedCount === rcSummaryNonBlockingRows.length,
+      detail: `summary=${rcSummaryNonBlockingFailedCount};rows=${rcSummaryNonBlockingRows.length}`,
+    },
+    {
+      id: 'release_candidate_rehearsal_blocking_rows_subset_failures_contract_v17',
+      ok: rcSummaryBlockingGateIds.every((gateId) => rcFailureGateIds.includes(gateId)),
+      detail:
+        rcSummaryBlockingGateIds.length === 0
+          ? 'ok'
+          : `blocking_gate_ids=${rcSummaryBlockingGateIds.join(',')}`,
+    },
+    {
+      id: 'release_candidate_rehearsal_non_blocking_rows_subset_failures_contract_v17',
+      ok: rcSummaryNonBlockingGateIds.every((gateId) => rcFailureGateIds.includes(gateId)),
+      detail:
+        rcSummaryNonBlockingGateIds.length === 0
+          ? 'ok'
+          : `non_blocking_gate_ids=${rcSummaryNonBlockingGateIds.join(',')}`,
+    },
+    {
+      id: 'release_candidate_rehearsal_blocking_partition_count_contract_v17',
+      ok:
+        Number.isInteger(rcSummaryFailedCount) &&
+        Number.isInteger(rcSummaryBlockingFailedCount) &&
+        Number.isInteger(rcSummaryNonBlockingFailedCount) &&
+        rcSummaryFailedCount >= 0 &&
+        rcSummaryBlockingFailedCount >= 0 &&
+        rcSummaryNonBlockingFailedCount >= 0 &&
+        rcSummaryBlockingFailedCount + rcSummaryNonBlockingFailedCount === rcSummaryFailedCount,
+      detail:
+        `failed=${rcSummaryFailedCount};blocking=${rcSummaryBlockingFailedCount};` +
+        `non_blocking=${rcSummaryNonBlockingFailedCount}`,
+    },
+    {
+      id: 'release_candidate_rehearsal_blocking_non_blocking_disjoint_contract_v17',
+      ok: rcSummaryBlockingGateIds.every((gateId) => !rcSummaryNonBlockingGateIds.includes(gateId)),
+      detail:
+        rcSummaryBlockingGateIds.filter((gateId) => rcSummaryNonBlockingGateIds.includes(gateId)).length === 0
+          ? 'ok'
+          : rcSummaryBlockingGateIds
+              .filter((gateId) => rcSummaryNonBlockingGateIds.includes(gateId))
+              .join(','),
+    },
+    {
+      id: 'release_candidate_rehearsal_stage_mode_contract_v18',
+      ok: rcSummaryStageMode === 'strict_final' || rcSummaryStageMode === 'prebundle_mixed',
+      detail: `stage_mode=${rcSummaryStageMode || 'missing'}`,
+    },
+    {
+      id: 'release_candidate_rehearsal_stage_mode_summary_alignment_contract_v18',
+      ok:
+        rcSummaryStageMode.length > 0 &&
+        rcSummaryStageMode === (rcFinalStage ? 'strict_final' : 'prebundle_mixed'),
+      detail:
+        `stage=${rcPayloadStage};stage_mode=${rcSummaryStageMode || 'missing'};` +
+        `expected=${rcFinalStage ? 'strict_final' : 'prebundle_mixed'}`,
+    },
+    {
+      id: 'release_candidate_rehearsal_required_steps_missing_ids_array_contract_v18',
+      ok: Array.isArray(rcPayload?.required_steps_missing_gate_ids),
+      detail: `rows=${rcRequiredStepsMissingGateIds.length}`,
+    },
+    {
+      id: 'release_candidate_rehearsal_required_steps_missing_ids_token_contract_v18',
+      ok: rcRequiredStepsMissingGateIdsInvalidToken.length === 0,
+      detail:
+        rcRequiredStepsMissingGateIdsInvalidToken.length === 0
+          ? 'ok'
+          : rcRequiredStepsMissingGateIdsInvalidToken.join(','),
+    },
+    {
+      id: 'release_candidate_rehearsal_required_steps_missing_ids_unique_contract_v18',
+      ok: rcRequiredStepsMissingGateIdsDuplicate.length === 0,
+      detail:
+        rcRequiredStepsMissingGateIdsDuplicate.length === 0
+          ? 'ok'
+          : Array.from(new Set(rcRequiredStepsMissingGateIdsDuplicate)).join(','),
+    },
+    {
+      id: 'release_candidate_rehearsal_required_steps_missing_ids_subset_policy_contract_v18',
+      ok: rcRequiredStepsMissingGateIdsOutsidePolicy.length === 0,
+      detail:
+        rcRequiredStepsMissingGateIdsOutsidePolicy.length === 0
+          ? 'ok'
+          : rcRequiredStepsMissingGateIdsOutsidePolicy.join(','),
+    },
+    {
+      id: 'release_candidate_rehearsal_required_steps_missing_ids_set_contract_v18',
+      ok:
+        rcDerivedRequiredStepsMissingGateIdsMissingInTop.length === 0 &&
+        rcRequiredStepsMissingGateIdsUnexpectedFromDerived.length === 0,
+      detail:
+        rcDerivedRequiredStepsMissingGateIdsMissingInTop.length === 0 &&
+        rcRequiredStepsMissingGateIdsUnexpectedFromDerived.length === 0
+          ? 'ok'
+          : `missing=${rcDerivedRequiredStepsMissingGateIdsMissingInTop.join(',') || 'none'};unexpected=${rcRequiredStepsMissingGateIdsUnexpectedFromDerived.join(',') || 'none'}`,
+    },
+    {
+      id: 'release_candidate_rehearsal_required_steps_missing_count_contract_v18',
+      ok:
+        Number.isInteger(rcSummaryRequiredStepsMissingCount) &&
+        rcSummaryRequiredStepsMissingCount >= 0 &&
+        rcSummaryRequiredStepsMissingCount === rcRequiredStepsMissingGateIds.length,
+      detail:
+        `summary=${rcSummaryRequiredStepsMissingCount};` +
+        `rows=${rcRequiredStepsMissingGateIds.length}`,
+    },
+    {
+      id: 'release_candidate_rehearsal_failure_gate_ids_array_contract_v18',
+      ok: Array.isArray(rcPayload?.failure_gate_ids),
+      detail: `rows=${rcTopFailureGateIds.length}`,
+    },
+    {
+      id: 'release_candidate_rehearsal_failure_gate_ids_token_contract_v18',
+      ok: rcTopFailureGateIdsInvalidToken.length === 0,
+      detail:
+        rcTopFailureGateIdsInvalidToken.length === 0
+          ? 'ok'
+          : rcTopFailureGateIdsInvalidToken.join(','),
+    },
+    {
+      id: 'release_candidate_rehearsal_failure_gate_ids_unique_contract_v18',
+      ok: rcTopFailureGateIdsDuplicate.length === 0,
+      detail:
+        rcTopFailureGateIdsDuplicate.length === 0
+          ? 'ok'
+          : Array.from(new Set(rcTopFailureGateIdsDuplicate)).join(','),
+    },
+    {
+      id: 'release_candidate_rehearsal_failure_gate_ids_set_contract_v18',
+      ok:
+        rcTopFailureGateIdsMissingFromFailures.length === 0 &&
+        rcFailureGateIdsMissingFromTop.length === 0,
+      detail:
+        rcTopFailureGateIdsMissingFromFailures.length === 0 &&
+        rcFailureGateIdsMissingFromTop.length === 0
+          ? 'ok'
+          : `missing=${rcFailureGateIdsMissingFromTop.join(',') || 'none'};unexpected=${rcTopFailureGateIdsMissingFromFailures.join(',') || 'none'}`,
+    },
+    {
+      id: 'release_candidate_rehearsal_blocking_failure_gate_ids_array_contract_v18',
+      ok: Array.isArray(rcPayload?.blocking_failure_gate_ids),
+      detail: `rows=${rcTopBlockingFailureGateIds.length}`,
+    },
+    {
+      id: 'release_candidate_rehearsal_blocking_failure_gate_ids_unique_contract_v18',
+      ok: rcTopBlockingFailureGateIdsDuplicate.length === 0,
+      detail:
+        rcTopBlockingFailureGateIdsDuplicate.length === 0
+          ? 'ok'
+          : Array.from(new Set(rcTopBlockingFailureGateIdsDuplicate)).join(','),
+    },
+    {
+      id: 'release_candidate_rehearsal_blocking_failure_gate_ids_set_contract_v18',
+      ok:
+        rcTopBlockingFailureGateIdsMissingFromSummaryRows.length === 0 &&
+        rcSummaryBlockingGateIdsMissingFromTop.length === 0,
+      detail:
+        rcTopBlockingFailureGateIdsMissingFromSummaryRows.length === 0 &&
+        rcSummaryBlockingGateIdsMissingFromTop.length === 0
+          ? 'ok'
+          : `missing=${rcSummaryBlockingGateIdsMissingFromTop.join(',') || 'none'};unexpected=${rcTopBlockingFailureGateIdsMissingFromSummaryRows.join(',') || 'none'}`,
+    },
+    {
+      id: 'release_candidate_rehearsal_non_blocking_failure_gate_ids_array_contract_v18',
+      ok: Array.isArray(rcPayload?.non_blocking_failure_gate_ids),
+      detail: `rows=${rcTopNonBlockingFailureGateIds.length}`,
+    },
+    {
+      id: 'release_candidate_rehearsal_blocking_failure_gate_ids_token_contract_v19',
+      ok: rcTopBlockingFailureGateIdsInvalidToken.length === 0,
+      detail:
+        rcTopBlockingFailureGateIdsInvalidToken.length === 0
+          ? 'ok'
+          : rcTopBlockingFailureGateIdsInvalidToken.join(','),
+    },
+    {
+      id: 'release_candidate_rehearsal_non_blocking_failure_gate_ids_token_contract_v19',
+      ok: rcTopNonBlockingFailureGateIdsInvalidToken.length === 0,
+      detail:
+        rcTopNonBlockingFailureGateIdsInvalidToken.length === 0
+          ? 'ok'
+          : rcTopNonBlockingFailureGateIdsInvalidToken.join(','),
+    },
+    {
+      id: 'release_candidate_rehearsal_blocking_failure_gate_ids_subset_failure_gate_ids_contract_v19',
+      ok: rcTopBlockingFailureGateIdsOutsideTopFailure.length === 0,
+      detail:
+        rcTopBlockingFailureGateIdsOutsideTopFailure.length === 0
+          ? 'ok'
+          : rcTopBlockingFailureGateIdsOutsideTopFailure.join(','),
+    },
+    {
+      id: 'release_candidate_rehearsal_non_blocking_failure_gate_ids_subset_failure_gate_ids_contract_v19',
+      ok: rcTopNonBlockingFailureGateIdsOutsideTopFailure.length === 0,
+      detail:
+        rcTopNonBlockingFailureGateIdsOutsideTopFailure.length === 0
+          ? 'ok'
+          : rcTopNonBlockingFailureGateIdsOutsideTopFailure.join(','),
+    },
+    {
+      id: 'release_candidate_rehearsal_failure_gate_ids_partition_union_contract_v19',
+      ok:
+        rcTopFailureGateIdsMissingFromPartitionUnion.length === 0 &&
+        rcTopFailurePartitionGateIdsUnexpectedFromTop.length === 0,
+      detail:
+        rcTopFailureGateIdsMissingFromPartitionUnion.length === 0 &&
+        rcTopFailurePartitionGateIdsUnexpectedFromTop.length === 0
+          ? 'ok'
+          : `missing=${rcTopFailureGateIdsMissingFromPartitionUnion.join(',') || 'none'};unexpected=${rcTopFailurePartitionGateIdsUnexpectedFromTop.join(',') || 'none'}`,
+    },
+    {
+      id: 'release_candidate_rehearsal_failure_partition_cross_duplicate_contract_v19',
+      ok: rcTopFailurePartitionGateIdsDuplicateAcrossPartitions.length === 0,
+      detail:
+        rcTopFailurePartitionGateIdsDuplicateAcrossPartitions.length === 0
+          ? 'ok'
+          : Array.from(new Set(rcTopFailurePartitionGateIdsDuplicateAcrossPartitions)).join(','),
+    },
+    {
+      id: 'release_candidate_rehearsal_summary_blocking_gate_ids_token_contract_v19',
+      ok: rcSummaryBlockingGateIdsInvalidToken.length === 0,
+      detail:
+        rcSummaryBlockingGateIdsInvalidToken.length === 0
+          ? 'ok'
+          : rcSummaryBlockingGateIdsInvalidToken.join(','),
+    },
+    {
+      id: 'release_candidate_rehearsal_summary_non_blocking_gate_ids_token_contract_v19',
+      ok: rcSummaryNonBlockingGateIdsInvalidToken.length === 0,
+      detail:
+        rcSummaryNonBlockingGateIdsInvalidToken.length === 0
+          ? 'ok'
+          : rcSummaryNonBlockingGateIdsInvalidToken.join(','),
+    },
+    {
+      id: 'release_candidate_rehearsal_summary_blocking_gate_ids_unique_contract_v19',
+      ok: rcSummaryBlockingGateIdsDuplicate.length === 0,
+      detail:
+        rcSummaryBlockingGateIdsDuplicate.length === 0
+          ? 'ok'
+          : Array.from(new Set(rcSummaryBlockingGateIdsDuplicate)).join(','),
+    },
+    {
+      id: 'release_candidate_rehearsal_summary_non_blocking_gate_ids_unique_contract_v19',
+      ok: rcSummaryNonBlockingGateIdsDuplicate.length === 0,
+      detail:
+        rcSummaryNonBlockingGateIdsDuplicate.length === 0
+          ? 'ok'
+          : Array.from(new Set(rcSummaryNonBlockingGateIdsDuplicate)).join(','),
+    },
+    {
+      id: 'release_candidate_rehearsal_summary_blocking_gate_ids_subset_failure_gate_ids_contract_v19',
+      ok: rcSummaryBlockingGateIdsOutsideTopFailure.length === 0,
+      detail:
+        rcSummaryBlockingGateIdsOutsideTopFailure.length === 0
+          ? 'ok'
+          : rcSummaryBlockingGateIdsOutsideTopFailure.join(','),
+    },
+    {
+      id: 'release_candidate_rehearsal_summary_non_blocking_gate_ids_subset_failure_gate_ids_contract_v19',
+      ok: rcSummaryNonBlockingGateIdsOutsideTopFailure.length === 0,
+      detail:
+        rcSummaryNonBlockingGateIdsOutsideTopFailure.length === 0
+          ? 'ok'
+          : rcSummaryNonBlockingGateIdsOutsideTopFailure.join(','),
+    },
+    {
+      id: 'release_candidate_rehearsal_required_steps_missing_not_successful_contract_v19',
+      ok: rcRequiredStepsMissingGateIdsPresentAsSuccessful.length === 0,
+      detail:
+        rcRequiredStepsMissingGateIdsPresentAsSuccessful.length === 0
+          ? 'ok'
+          : rcRequiredStepsMissingGateIdsPresentAsSuccessful.join(','),
+    },
+    {
+      id: 'release_candidate_rehearsal_summary_required_steps_satisfied_alignment_contract_v19',
+      ok: rcSummaryRequiredStepsSatisfied === rcDerivedRequiredStepsSatisfied,
+      detail:
+        `summary=${String(rcSummaryRequiredStepsSatisfied)};` +
+        `derived=${String(rcDerivedRequiredStepsSatisfied)}`,
+    },
+    {
+      id: 'release_candidate_rehearsal_summary_candidate_ready_alignment_contract_v19',
+      ok: rcSummaryCandidateReady === rcDerivedCandidateReadyFromSummary,
+      detail:
+        `summary=${String(rcSummaryCandidateReady)};` +
+        `derived=${String(rcDerivedCandidateReadyFromSummary)};stage=${rcPayloadStage}`,
+    },
+    {
+      id: 'release_candidate_rehearsal_prebundle_candidate_ready_blocking_zero_contract_v19',
+      ok: !rcPrebundleStage || !rcSummaryCandidateReady || rcSummaryBlockingFailedCount === 0,
+      detail:
+        `stage=${rcPayloadStage};candidate_ready=${String(rcSummaryCandidateReady)};` +
+        `blocking_failed_count=${rcSummaryBlockingFailedCount}`,
+    },
+    {
+      id: 'release_candidate_rehearsal_final_candidate_ready_zero_failure_contract_v19',
+      ok: !rcFinalStage || !rcSummaryCandidateReady || rcSummaryFailedCount === 0,
+      detail:
+        `stage=${rcPayloadStage};candidate_ready=${String(rcSummaryCandidateReady)};` +
+        `failed_count=${rcSummaryFailedCount}`,
+    },
+    {
+      id: 'release_candidate_rehearsal_non_blocking_failure_gate_ids_unique_contract_v18',
+      ok: rcTopNonBlockingFailureGateIdsDuplicate.length === 0,
+      detail:
+        rcTopNonBlockingFailureGateIdsDuplicate.length === 0
+          ? 'ok'
+          : Array.from(new Set(rcTopNonBlockingFailureGateIdsDuplicate)).join(','),
+    },
+    {
+      id: 'release_candidate_rehearsal_non_blocking_failure_gate_ids_set_contract_v18',
+      ok:
+        rcTopNonBlockingFailureGateIdsMissingFromSummaryRows.length === 0 &&
+        rcSummaryNonBlockingGateIdsMissingFromTop.length === 0,
+      detail:
+        rcTopNonBlockingFailureGateIdsMissingFromSummaryRows.length === 0 &&
+        rcSummaryNonBlockingGateIdsMissingFromTop.length === 0
+          ? 'ok'
+          : `missing=${rcSummaryNonBlockingGateIdsMissingFromTop.join(',') || 'none'};unexpected=${rcTopNonBlockingFailureGateIdsMissingFromSummaryRows.join(',') || 'none'}`,
+    },
+    {
+      id: 'release_candidate_rehearsal_summary_uniqueness_flags_contract_v18',
+      ok:
+        rcSummaryStepGateIdsUnique === (rcStepGateIdsDuplicate.length === 0) &&
+        rcSummaryStepOrderContiguous === rcStepOrderContiguous &&
+        rcSummaryFailureGateIdsUnique === (rcTopFailureGateIdsDuplicate.length === 0) &&
+        rcSummaryBlockingFailureGateIdsUnique ===
+          (rcTopBlockingFailureGateIdsDuplicate.length === 0) &&
+        rcSummaryNonBlockingFailureGateIdsUnique ===
+          (rcTopNonBlockingFailureGateIdsDuplicate.length === 0) &&
+        rcSummaryBlockingNonBlockingDisjoint ===
+          rcTopBlockingFailureGateIds.every(
+            (gateId) => !rcTopNonBlockingFailureGateIds.includes(gateId),
+          ) &&
+        rcSummaryFailurePartitionCountMatches ===
+          (rcSummaryBlockingFailedCount + rcSummaryNonBlockingFailedCount ===
+            rcSummaryFailedCount) &&
+        rcSummaryRequiredStepIdsUnique ===
+          (rcPolicyRequiredStepGateIds.filter((id, idx, arr) => arr.indexOf(id) !== idx).length ===
+            0) &&
+        rcSummaryRequiredStepsMissingIdsUnique ===
+          (rcRequiredStepsMissingGateIdsDuplicate.length === 0) &&
+        rcSummaryRequiredStepsMissingCountMatches ===
+          (rcSummaryRequiredStepsMissingCount === rcRequiredStepsMissingGateIds.length),
+      detail:
+        `step_gate_ids_unique=${String(rcSummaryStepGateIdsUnique)};` +
+        `step_order_contiguous=${String(rcSummaryStepOrderContiguous)};` +
+        `failure_gate_ids_unique=${String(rcSummaryFailureGateIdsUnique)};` +
+        `blocking_failure_gate_ids_unique=${String(rcSummaryBlockingFailureGateIdsUnique)};` +
+        `non_blocking_failure_gate_ids_unique=${String(rcSummaryNonBlockingFailureGateIdsUnique)};` +
+        `required_steps_missing_ids_unique=${String(rcSummaryRequiredStepsMissingIdsUnique)}`,
+    },
+    {
+      id: 'release_candidate_rehearsal_summary_artifact_count_contract_v18',
+      ok:
+        Number.isInteger(rcSummaryEmittedArtifactPathCount) &&
+        rcSummaryEmittedArtifactPathCount >= 0 &&
+        Number.isInteger(rcSummaryEmittedArtifactPathUniqueCount) &&
+        rcSummaryEmittedArtifactPathUniqueCount >= 0 &&
+        rcSummaryEmittedArtifactPathCount === rcTopArtifactPathTokens.length &&
+        rcSummaryEmittedArtifactPathUniqueCount === rcTopArtifactPathTokenSet.size &&
+        rcSummaryEmittedArtifactPathUniqueCount <= rcSummaryEmittedArtifactPathCount,
+      detail:
+        `summary_count=${rcSummaryEmittedArtifactPathCount};` +
+        `rows=${rcTopArtifactPathTokens.length};` +
+        `summary_unique=${rcSummaryEmittedArtifactPathUniqueCount};` +
+        `rows_unique=${rcTopArtifactPathTokenSet.size}`,
     },
   ];
 
@@ -2571,19 +3185,87 @@ export function buildReport(rawArgs = parseArgs(process.argv.slice(2))) {
   const requiredGatePayloadTypeMissing: string[] = [];
   const requiredGatePayloadGeneratedAtInvalid: string[] = [];
   const requiredGatePayloadOkBooleanInvalid: string[] = [];
+  const requiredGateStepModeInvalid: string[] = [];
+  const requiredGateHealthModeInvalid: string[] = [];
+  const requiredGateStepSourceInvalid: string[] = [];
+  const requiredGateStepModeHealthModeMismatch: string[] = [];
+  const requiredGateTopLevelSourceMismatch: string[] = [];
 
   for (const [gateId, relPath] of Object.entries(requiredGateArtifacts)) {
     const artifactPath = resolveMaybe(root, String(relPath || ''));
     const payload = readJsonMaybe(artifactPath);
     const step = rcStepMap.get(gateId);
+    const sectionPayload = fallbackSectionPayload(rcPayload, gateId);
+    const sectionDerivedStep = sectionPayload
+      ? {
+          gate_id: gateId,
+          ok: sectionPayload?.ok,
+          artifact_paths: Array.isArray(sectionPayload?.artifact_paths)
+            ? sectionPayload.artifact_paths
+            : [],
+          payload_type: cleanText(sectionPayload?.payload_type || sectionPayload?.type || '', 120),
+        }
+      : null;
+    const effectiveStep = step || sectionDerivedStep;
+    const stepPresent = gateId === 'ops:release:rc-rehearsal' ? true : Boolean(effectiveStep);
+    const stepSource = step ? 'steps' : sectionDerivedStep ? 'section_fallback' : 'missing';
+    const prebundleBlockingGate = RC_PREBUNDLE_BLOCKING_REQUIRED_GATE_IDS.has(gateId);
+    const stepMode =
+      gateId === 'ops:release:rc-rehearsal'
+        ? 'strict_rehearsal'
+        : rcFinalStage
+          ? 'strict_final'
+          : prebundleBlockingGate
+            ? 'strict_prebundle_blocking'
+            : 'prebundle_presence';
+    const stepOkRaw =
+      gateId === 'ops:release:rc-rehearsal'
+        ? rcPayload?.ok === true
+        : effectiveStep?.ok === true;
+    const stepOk =
+      gateId === 'ops:release:rc-rehearsal'
+        ? rcPayload?.ok === true
+        : stepMode === 'prebundle_presence'
+          ? stepPresent && !rcBlockingGateIdSet.has(gateId)
+          : stepOkRaw;
+    const healthOkRaw = artifactOk(gateId, payload);
+    const healthFallbackOk = isObjectRecord(payload) || isObjectRecord(sectionPayload);
+    const healthMode = stepMode === 'prebundle_presence' ? 'prebundle_presence' : 'strict';
+    const healthOk = healthMode === 'prebundle_presence' ? healthFallbackOk : healthOkRaw;
+    if (
+      ![
+        'strict_rehearsal',
+        'strict_final',
+        'strict_prebundle_blocking',
+        'prebundle_presence',
+      ].includes(stepMode)
+    ) {
+      requiredGateStepModeInvalid.push(`${gateId}:${stepMode}`);
+    }
+    if (!['strict', 'prebundle_presence'].includes(healthMode)) {
+      requiredGateHealthModeInvalid.push(`${gateId}:${healthMode}`);
+    }
+    if (!['steps', 'section_fallback', 'missing', 'top_level'].includes(stepSource)) {
+      requiredGateStepSourceInvalid.push(`${gateId}:${stepSource}`);
+    }
+    if ((stepMode === 'prebundle_presence') !== (healthMode === 'prebundle_presence')) {
+      requiredGateStepModeHealthModeMismatch.push(`${gateId}:${stepMode}->${healthMode}`);
+    }
+    if (gateId === 'ops:release:rc-rehearsal') {
+      if (stepSource !== 'top_level') {
+        requiredGateTopLevelSourceMismatch.push(`${gateId}:${stepSource}`);
+      }
+    } else if (stepSource === 'top_level') {
+      requiredGateTopLevelSourceMismatch.push(`${gateId}:${stepSource}`);
+    }
 
     if (!isCanonicalRelativePathToken(relPath, '', '.json')) {
       requiredGateArtifactPathTokenInvalid.push(`${gateId}:${relPath}`);
     }
-    if (gateId !== 'ops:release:rc-rehearsal' && !step) {
+    if (gateId !== 'ops:release:rc-rehearsal' && !effectiveStep) {
       requiredGateStepMissing.push(gateId);
     }
-    if (step && typeof step?.ok !== 'boolean') {
+    if (effectiveStep && typeof effectiveStep?.ok !== 'boolean') {
       requiredGateStepOkBooleanInvalid.push(gateId);
     }
     if (payload === null || payload === undefined) {
@@ -2606,11 +3288,11 @@ export function buildReport(rawArgs = parseArgs(process.argv.slice(2))) {
 
     checks.push({
       id: `release_gate_step:${gateId}`,
-      ok: gateId === 'ops:release:rc-rehearsal' ? rcPayload?.ok === true : step?.ok === true,
+      ok: stepOk,
       detail:
         gateId === 'ops:release:rc-rehearsal'
-          ? `present=${String(rcPayload?.ok === true)}`
-          : `present=${String(Boolean(step))};ok=${String(step?.ok === true)}`,
+          ? `present=${String(rcPayload?.ok === true)};ok=${String(rcPayload?.ok === true)};mode=${stepMode};source=top_level`
+          : `present=${String(stepPresent)};ok=${String(stepOkRaw)};mode=${stepMode};source=${stepSource}`,
     });
     checks.push({
       id: `release_gate_artifact:${gateId}`,
@@ -2619,8 +3301,8 @@ export function buildReport(rawArgs = parseArgs(process.argv.slice(2))) {
     });
     checks.push({
       id: `release_gate_health:${gateId}`,
-      ok: artifactOk(gateId, payload),
-      detail: `artifact_ok=${String(artifactOk(gateId, payload))}`,
+      ok: healthOk,
+      detail: `artifact_ok=${String(healthOkRaw)};mode=${healthMode};fallback=${String(healthFallbackOk)}`,
     });
     if (gateId === 'release_policy_gate' || gateId === 'ops:release:scorecard:gate' || gateId === 'ops:production-closure:gate') {
       checks.push({
@@ -2852,6 +3534,46 @@ export function buildReport(rawArgs = parseArgs(process.argv.slice(2))) {
       requiredGatePayloadOkBooleanInvalid.length === 0
         ? 'ok'
         : requiredGatePayloadOkBooleanInvalid.join(','),
+  });
+  checks.push({
+    id: 'release_verdict_required_gate_step_mode_contract_v19',
+    ok: requiredGateStepModeInvalid.length === 0,
+    detail:
+      requiredGateStepModeInvalid.length === 0
+        ? 'ok'
+        : requiredGateStepModeInvalid.join(','),
+  });
+  checks.push({
+    id: 'release_verdict_required_gate_health_mode_contract_v19',
+    ok: requiredGateHealthModeInvalid.length === 0,
+    detail:
+      requiredGateHealthModeInvalid.length === 0
+        ? 'ok'
+        : requiredGateHealthModeInvalid.join(','),
+  });
+  checks.push({
+    id: 'release_verdict_required_gate_step_source_contract_v19',
+    ok: requiredGateStepSourceInvalid.length === 0,
+    detail:
+      requiredGateStepSourceInvalid.length === 0
+        ? 'ok'
+        : requiredGateStepSourceInvalid.join(','),
+  });
+  checks.push({
+    id: 'release_verdict_required_gate_mode_alignment_contract_v19',
+    ok: requiredGateStepModeHealthModeMismatch.length === 0,
+    detail:
+      requiredGateStepModeHealthModeMismatch.length === 0
+        ? 'ok'
+        : requiredGateStepModeHealthModeMismatch.join(','),
+  });
+  checks.push({
+    id: 'release_verdict_required_gate_top_level_source_contract_v19',
+    ok: requiredGateTopLevelSourceMismatch.length === 0,
+    detail:
+      requiredGateTopLevelSourceMismatch.length === 0
+        ? 'ok'
+        : requiredGateTopLevelSourceMismatch.join(','),
   });
 
   const artifact_hashes = checksumArtifactPaths.map((relPath: string) => {
@@ -4548,6 +5270,241 @@ export function buildReport(rawArgs = parseArgs(process.argv.slice(2))) {
           : `missing=${v15RowsMissing.join(',') || 'none'};unexpected=${v15RowsUnexpected.join(',') || 'none'};order_match=${String(v15RowsOrderMatches)}`,
     },
   );
+  const postV16CheckIds = checks.map((row) => cleanText(row.id || '', 260)).filter(Boolean);
+  const postV16CheckIdsDuplicate = postV16CheckIds.filter(
+    (id, index, arr) => id && arr.indexOf(id) !== index,
+  );
+  const postV16CheckRowsObjectInvalidCount = checks.filter((row) => !isObjectRecord(row)).length;
+  const postV16CheckIdTokenInvalid = checks
+    .map((row) => cleanText((row as any)?.id || '', 260))
+    .filter((id) => !id || !checkIdTokenRegex.test(id));
+  const postV16CheckOkBooleanInvalid = checks
+    .filter((row: any) => typeof row?.ok !== 'boolean')
+    .map((row) => cleanText((row as any)?.id || '', 260));
+  const postV16CheckDetailInvalid = checks
+    .filter((row: any) => typeof row?.detail !== 'string' || !row.detail.trim())
+    .map((row) => cleanText((row as any)?.id || '', 260));
+  const postV16FailedIds = checks
+    .filter((row) => !row.ok)
+    .map((row) => cleanText(row.id || '', 260))
+    .filter(Boolean);
+  const postV16FailedRows = checks.filter((row) => !row.ok);
+  const postV16FailedIdsTokenInvalid = postV16FailedIds.filter(
+    (id) => !checkIdTokenRegex.test(id),
+  );
+  const postV16FailedIdsDuplicate = postV16FailedIds.filter(
+    (id, index, arr) => id && arr.indexOf(id) !== index,
+  );
+  const postV16FailedIdsUnknown = postV16FailedIds.filter((id) => !postV16CheckIds.includes(id));
+  const postV16FailedIdsOrderMatchesChecks =
+    postV16FailedIds.join(',') ===
+    checks
+      .filter((row) => !row.ok)
+      .map((row) => cleanText(row.id || '', 260))
+      .join(',');
+  const postV16ReleaseReadyCandidate = postV16FailedRows.length === 0;
+  const postV16ReleaseReadyConsistent =
+    postV16ReleaseReadyCandidate === (postV16FailedIds.length === 0);
+  const runtimeProofRowsV9FoundPostV16 = postV16CheckIds.filter((id) =>
+    runtimeProofContractIdsV9.includes(id as any),
+  );
+  const runtimeProofRowsV9DuplicatePostV16 = runtimeProofRowsV9FoundPostV16.filter(
+    (id, index, arr) => id && arr.indexOf(id) !== index,
+  );
+  const runtimeProofRowsV9MissingPostV16 = runtimeProofContractIdsV9.filter(
+    (id) => !runtimeProofRowsV9FoundPostV16.includes(id),
+  );
+  const proofPackRowsV9FoundPostV16 = postV16CheckIds.filter((id) =>
+    proofPackContractIdsV9.includes(id as any),
+  );
+  const proofPackRowsV9DuplicatePostV16 = proofPackRowsV9FoundPostV16.filter(
+    (id, index, arr) => id && arr.indexOf(id) !== index,
+  );
+  const proofPackRowsV9MissingPostV16 = proofPackContractIdsV9.filter(
+    (id) => !proofPackRowsV9FoundPostV16.includes(id),
+  );
+  const requiredGatePayloadRowsV9FoundPostV16 = postV16CheckIds.filter((id) =>
+    requiredGatePayloadContractIdsV9.includes(id as any),
+  );
+  const requiredGatePayloadRowsV9DuplicatePostV16 = requiredGatePayloadRowsV9FoundPostV16.filter(
+    (id, index, arr) => id && arr.indexOf(id) !== index,
+  );
+  const requiredGatePayloadRowsV9MissingPostV16 = requiredGatePayloadContractIdsV9.filter(
+    (id) => !requiredGatePayloadRowsV9FoundPostV16.includes(id),
+  );
+  const v10RowsFoundPostV16 = postV16CheckIds.filter((id) => v10ContractIds.includes(id as any));
+  const v10RowsDuplicatePostV16 = v10RowsFoundPostV16.filter(
+    (id, index, arr) => id && arr.indexOf(id) !== index,
+  );
+  const v10RowsMissingPostV16 = v10ContractIds.filter((id) => !v10RowsFoundPostV16.includes(id));
+  const v16ContractIdsExpected = [
+    'release_verdict_check_ids_unique_post_v15_contract_v16',
+    'release_verdict_check_rows_object_post_v15_contract_v16',
+    'release_verdict_check_id_token_post_v15_contract_v16',
+    'release_verdict_check_ok_boolean_post_v15_contract_v16',
+    'release_verdict_check_detail_post_v15_contract_v16',
+    'release_verdict_failed_ids_token_post_v15_contract_v16',
+    'release_verdict_failed_ids_unique_post_v15_contract_v16',
+    'release_verdict_failed_ids_subset_post_v15_contract_v16',
+    'release_verdict_failed_ids_order_post_v15_contract_v16',
+    'release_verdict_release_ready_semantics_post_v15_contract_v16',
+    'release_verdict_runtime_proof_v9_rows_count_post_v15_contract_v16',
+    'release_verdict_proof_pack_v9_rows_count_post_v15_contract_v16',
+    'release_verdict_required_gate_payload_v9_rows_count_post_v15_contract_v16',
+    'release_verdict_v10_rows_count_post_v15_contract_v16',
+    'release_verdict_v11_rows_count_post_v15_contract_v16',
+    'release_verdict_v12_rows_count_post_v15_contract_v16',
+    'release_verdict_v13_rows_count_post_v15_contract_v16',
+    'release_verdict_v14_rows_count_post_v15_contract_v16',
+    'release_verdict_v15_rows_unique_contract_v16',
+    'release_verdict_v15_rows_set_and_order_contract_v16',
+  ];
+  const v16RowsFound = postV16CheckIds.filter((id) => v16ContractIdsExpected.includes(id as any));
+  const v16RowsMissing = v16ContractIdsExpected.filter((id) => !v16RowsFound.includes(id));
+  const v16RowsUnexpected = v16RowsFound.filter(
+    (id) => !v16ContractIdsExpected.includes(id as any),
+  );
+  const v16RowsDuplicate = v16RowsFound.filter((id, index, arr) => id && arr.indexOf(id) !== index);
+  const v16RowsOrderMatches = v16RowsFound.join(',') === v16ContractIdsExpected.join(',');
+  checks.push(
+    {
+      id: 'release_verdict_check_ids_unique_post_v16_contract_v17',
+      ok: postV16CheckIdsDuplicate.length === 0,
+      detail:
+        postV16CheckIdsDuplicate.length === 0
+          ? 'ok'
+          : Array.from(new Set(postV16CheckIdsDuplicate)).join(','),
+    },
+    {
+      id: 'release_verdict_check_rows_object_post_v16_contract_v17',
+      ok: postV16CheckRowsObjectInvalidCount === 0,
+      detail: `invalid_rows=${postV16CheckRowsObjectInvalidCount}`,
+    },
+    {
+      id: 'release_verdict_check_id_token_post_v16_contract_v17',
+      ok: postV16CheckIdTokenInvalid.length === 0,
+      detail:
+        postV16CheckIdTokenInvalid.length === 0 ? 'ok' : postV16CheckIdTokenInvalid.join(','),
+    },
+    {
+      id: 'release_verdict_check_ok_boolean_post_v16_contract_v17',
+      ok: postV16CheckOkBooleanInvalid.length === 0,
+      detail:
+        postV16CheckOkBooleanInvalid.length === 0 ? 'ok' : postV16CheckOkBooleanInvalid.join(','),
+    },
+    {
+      id: 'release_verdict_check_detail_post_v16_contract_v17',
+      ok: postV16CheckDetailInvalid.length === 0,
+      detail:
+        postV16CheckDetailInvalid.length === 0 ? 'ok' : postV16CheckDetailInvalid.join(','),
+    },
+    {
+      id: 'release_verdict_failed_ids_token_post_v16_contract_v17',
+      ok: postV16FailedIdsTokenInvalid.length === 0,
+      detail:
+        postV16FailedIdsTokenInvalid.length === 0
+          ? 'ok'
+          : postV16FailedIdsTokenInvalid.join(','),
+    },
+    {
+      id: 'release_verdict_failed_ids_unique_post_v16_contract_v17',
+      ok: postV16FailedIdsDuplicate.length === 0,
+      detail:
+        postV16FailedIdsDuplicate.length === 0
+          ? 'ok'
+          : Array.from(new Set(postV16FailedIdsDuplicate)).join(','),
+    },
+    {
+      id: 'release_verdict_failed_ids_subset_post_v16_contract_v17',
+      ok: postV16FailedIdsUnknown.length === 0,
+      detail: postV16FailedIdsUnknown.length === 0 ? 'ok' : postV16FailedIdsUnknown.join(','),
+    },
+    {
+      id: 'release_verdict_failed_ids_order_post_v16_contract_v17',
+      ok: postV16FailedIdsOrderMatchesChecks,
+      detail: `order_match=${String(postV16FailedIdsOrderMatchesChecks)}`,
+    },
+    {
+      id: 'release_verdict_release_ready_semantics_post_v16_contract_v17',
+      ok: postV16ReleaseReadyConsistent,
+      detail: `failed_rows=${postV16FailedRows.length};failed_ids=${postV16FailedIds.length};release_ready=${String(postV16ReleaseReadyCandidate)}`,
+    },
+    {
+      id: 'release_verdict_runtime_proof_v9_rows_unique_post_v16_contract_v17',
+      ok: runtimeProofRowsV9DuplicatePostV16.length === 0,
+      detail:
+        runtimeProofRowsV9DuplicatePostV16.length === 0
+          ? 'ok'
+          : Array.from(new Set(runtimeProofRowsV9DuplicatePostV16)).join(','),
+    },
+    {
+      id: 'release_verdict_runtime_proof_v9_rows_set_post_v16_contract_v17',
+      ok: runtimeProofRowsV9MissingPostV16.length === 0,
+      detail:
+        runtimeProofRowsV9MissingPostV16.length === 0
+          ? 'ok'
+          : `missing=${runtimeProofRowsV9MissingPostV16.join(',')}`,
+    },
+    {
+      id: 'release_verdict_proof_pack_v9_rows_unique_post_v16_contract_v17',
+      ok: proofPackRowsV9DuplicatePostV16.length === 0,
+      detail:
+        proofPackRowsV9DuplicatePostV16.length === 0
+          ? 'ok'
+          : Array.from(new Set(proofPackRowsV9DuplicatePostV16)).join(','),
+    },
+    {
+      id: 'release_verdict_proof_pack_v9_rows_set_post_v16_contract_v17',
+      ok: proofPackRowsV9MissingPostV16.length === 0,
+      detail:
+        proofPackRowsV9MissingPostV16.length === 0
+          ? 'ok'
+          : `missing=${proofPackRowsV9MissingPostV16.join(',')}`,
+    },
+    {
+      id: 'release_verdict_required_gate_payload_v9_rows_unique_post_v16_contract_v17',
+      ok: requiredGatePayloadRowsV9DuplicatePostV16.length === 0,
+      detail:
+        requiredGatePayloadRowsV9DuplicatePostV16.length === 0
+          ? 'ok'
+          : Array.from(new Set(requiredGatePayloadRowsV9DuplicatePostV16)).join(','),
+    },
+    {
+      id: 'release_verdict_required_gate_payload_v9_rows_set_post_v16_contract_v17',
+      ok: requiredGatePayloadRowsV9MissingPostV16.length === 0,
+      detail:
+        requiredGatePayloadRowsV9MissingPostV16.length === 0
+          ? 'ok'
+          : `missing=${requiredGatePayloadRowsV9MissingPostV16.join(',')}`,
+    },
+    {
+      id: 'release_verdict_v10_rows_unique_post_v16_contract_v17',
+      ok: v10RowsDuplicatePostV16.length === 0,
+      detail:
+        v10RowsDuplicatePostV16.length === 0
+          ? 'ok'
+          : Array.from(new Set(v10RowsDuplicatePostV16)).join(','),
+    },
+    {
+      id: 'release_verdict_v10_rows_set_post_v16_contract_v17',
+      ok: v10RowsMissingPostV16.length === 0,
+      detail:
+        v10RowsMissingPostV16.length === 0 ? 'ok' : `missing=${v10RowsMissingPostV16.join(',')}`,
+    },
+    {
+      id: 'release_verdict_v16_rows_unique_contract_v17',
+      ok: v16RowsDuplicate.length === 0,
+      detail: v16RowsDuplicate.length === 0 ? 'ok' : Array.from(new Set(v16RowsDuplicate)).join(','),
+    },
+    {
+      id: 'release_verdict_v16_rows_set_and_order_contract_v17',
+      ok: v16RowsMissing.length === 0 && v16RowsUnexpected.length === 0 && v16RowsOrderMatches,
+      detail:
+        v16RowsMissing.length === 0 && v16RowsUnexpected.length === 0 && v16RowsOrderMatches
+          ? 'ok'
+          : `missing=${v16RowsMissing.join(',') || 'none'};unexpected=${v16RowsUnexpected.join(',') || 'none'};order_match=${String(v16RowsOrderMatches)}`,
+    },
+  );
   const failed = checks.filter((row) => !row.ok);
   return {
     root,
@@ -4557,10 +5514,16 @@ export function buildReport(rawArgs = parseArgs(process.argv.slice(2))) {
       type: 'release_verdict',
       generated_at: new Date().toISOString(),
       strict: Boolean(args.strict),
+      stage: args.stage,
       summary: {
         check_count: checks.length,
         failed_count: failed.length,
         release_ready: failed.length === 0,
+        requested_stage: rcRequestedStage,
+        rc_stage: rcPayloadStage,
+        rc_stage_mode: rcFinalStage ? 'strict_final' : 'prebundle_mixed',
+        rc_blocking_failed_count: rcSummaryBlockingFailedCount,
+        rc_non_blocking_failed_count: rcSummaryNonBlockingFailedCount,
       },
       failed_ids: failed.map((row) => row.id),
       checks,

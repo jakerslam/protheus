@@ -1,0 +1,185 @@
+{
+  "name": "codex_tooling_synthesis",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "default": false,
+  "description": "Codex assimilation template used for tooling-heavy synthesis and deterministic multi-step assimilation waves.",
+  "stages": [
+    "intake_normalization",
+    "decomposition_planning",
+    "coordination_sequencing",
+    "recovery_escalation",
+    "result_packaging",
+    "verification_closure"
+  ],
+  "final_response_policy": "control_plane_packaged_response",
+  "gate_contract": "control_plane_lifecycle_v1",
+  "default_for_request_classes": [
+    "assimilation"
+  ],
+  "subtemplates": [
+    {
+      "id": "codex_wave_preflight",
+      "description": "Codex wave preflight that enforces clean workspace/churn and 4-8 disjoint queued ledger shards before execution.",
+      "required_signals": [
+        "workspace_clean",
+        "churn_guard_ok",
+        "disjoint_files",
+        "all_queued"
+      ],
+      "required_gates": [
+        "ops:codex:wave:preflight",
+        "ops:churn:guard"
+      ],
+      "source_refs": [
+        "docs/workspace/CODEX_ASSIMILATION_WAVE_RUNBOOK.md",
+        "tests/tooling/scripts/ci/codex_wave_preflight.ts"
+      ]
+    },
+    {
+      "id": "codex_disjoint_wave_execution",
+      "description": "Deterministic Codex assimilation wave execution contract: implement selected shards only, run targeted checks, and complete one integration checkpoint.",
+      "required_signals": [
+        "wave_size_4_to_8",
+        "selected_rows_only",
+        "targeted_checks_complete",
+        "integration_checkpoint_complete"
+      ],
+      "required_gates": [
+        "codex_wave_runbook_contract"
+      ],
+      "source_refs": [
+        "docs/workspace/CODEX_ASSIMILATION_WAVE_RUNBOOK.md"
+      ]
+    },
+    {
+      "id": "codex_tool_route_misdirection",
+      "description": "Local workspace/tool intents must remain local and fail closed when route selection tries to drift into web tooling.",
+      "required_signals": [
+        "local_workspace_intent",
+        "path_target_present",
+        "local_tool_intent",
+        "tool_route_hint_present"
+      ],
+      "required_gates": [
+        "ops:tool-route:misdirection:guard"
+      ],
+      "source_refs": [
+        "tests/tooling/fixtures/tool_route_misdirection_matrix.json",
+        "tests/tooling/scripts/ci/tool_route_misdirection_guard.ts",
+        "local/workspace/vendor/rtk/.assimilation_deleted/.claude/commands/test-routing.md"
+      ]
+    },
+    {
+      "id": "codex_multi_provider_synthesis_recovery",
+      "description": "Tooling synthesis requires multi-language/provider evidence and explicit retry/escalation diagnostics when reroute options are exhausted.",
+      "required_signals": [
+        "require_multi_language_tooling_synthesis_evidence",
+        "require_multi_provider_tooling_synthesis_evidence",
+        "require_multi_provider_family_synthesis_evidence",
+        "require_context_surface_alignment_for_tooling_synthesis",
+        "retry_selected_plan",
+        "feedback_retry_selected_plan",
+        "emit_workflow_gate_diagnostic_with_single_retry_path"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "surface/orchestration/src/control_plane/lifecycle.rs",
+        "surface/orchestration/src/sequencing.rs"
+      ]
+    },
+    {
+      "id": "codex_route_probe_dry_run",
+      "description": "Dry-run route probe workflow that checks whether a command routes through filtered tooling before side-effectful execution.",
+      "required_signals": [
+        "route_probe_requested",
+        "filter_available_or_raw_fallback_reported",
+        "expected_route_reported",
+        "token_savings_expectation_reported"
+      ],
+      "required_gates": [
+        "ops:tool-route:misdirection:guard",
+        "ops:workspace-tooling:context:soak"
+      ],
+      "source_refs": [
+        "local/workspace/vendor/rtk/.assimilation_deleted/.claude/commands/test-routing.md"
+      ]
+    },
+    {
+      "id": "codex_environment_diagnose_parallel",
+      "description": "Parallel environment diagnostics workflow for runtime binary presence, hook readiness, route health, and corrective action recommendations.",
+      "required_signals": [
+        "binary_presence_checked",
+        "hook_executable_status_checked",
+        "runtime_context_checked",
+        "analytics_health_checked",
+        "targeted_fix_options_emitted"
+      ],
+      "required_gates": [
+        "ops:workflow-failure-recovery:guard",
+        "ops:web-tooling:reliability:guard"
+      ],
+      "source_refs": [
+        "local/workspace/vendor/rtk/.assimilation_deleted/.claude/commands/diagnose.md"
+      ]
+    },
+    {
+      "id": "codex_worktree_isolated_setup",
+      "description": "Isolated worktree setup workflow with branch-shape validation, safe path construction, optional background verification, and explicit next-step handoff.",
+      "required_signals": [
+        "branch_name_validated",
+        "worktree_path_materialized",
+        "gitignore_guard_passed",
+        "background_or_blocking_check_selected",
+        "next_steps_handoff_emitted"
+      ],
+      "required_gates": [
+        "ops:churn:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/vendor/rtk/.assimilation_deleted/.claude/commands/worktree.md",
+        "local/workspace/vendor/rtk/.assimilation_deleted/.claude/commands/worktree-status.md"
+      ]
+    },
+    {
+      "id": "codex_worktree_cleanup_safety_modes",
+      "description": "Worktree cleanup workflow with interactive and automatic safety modes, protected-branch guards, and dry-run preview before deletion.",
+      "required_signals": [
+        "stale_refs_pruned",
+        "protected_branch_skip_enforced",
+        "current_workdir_skip_enforced",
+        "interactive_or_dry_run_mode_selected",
+        "cleanup_summary_emitted"
+      ],
+      "required_gates": [
+        "ops:churn:guard"
+      ],
+      "source_refs": [
+        "local/workspace/vendor/rtk/.assimilation_deleted/.claude/commands/clean-worktree.md",
+        "local/workspace/vendor/rtk/.assimilation_deleted/.claude/commands/clean-worktrees.md"
+      ]
+    },
+    {
+      "id": "codex_review_fix_loop",
+      "description": "Local review/fix loop workflow that prioritizes must-fix findings, applies bounded auto-fix iterations, and requires quality-gate closure before review-ready state.",
+      "required_signals": [
+        "must_fix_findings_prioritized",
+        "bounded_autofix_iterations",
+        "quality_gate_fmt_clippy_test",
+        "anti_hallucination_verification_pass",
+        "review_ready_recheck"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard",
+        "ops:churn:guard"
+      ],
+      "source_refs": [
+        "local/workspace/vendor/rtk/.assimilation_deleted/.claude/commands/tech/codereview.md"
+      ]
+    }
+  ]
+}

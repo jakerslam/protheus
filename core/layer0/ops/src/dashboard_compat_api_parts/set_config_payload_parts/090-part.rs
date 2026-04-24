@@ -98,55 +98,19 @@ fn build_deterministic_final_fallback_response(
     tooling_failure_code: &str,
     inline_tools_allowed: bool,
 ) -> String {
-    let status_failure_fallback =
-        |lane: &str, classification: &str, failure_code: &str, next_step: &str| {
-            format!(
-                "{} did not produce a usable final answer in this turn. {}: {}. error_code: {}. Next step: {}.",
-                lane,
-                if lane.eq_ignore_ascii_case("web retrieval") {
-                    "web_status"
-                } else {
-                    "tool_status"
-                },
-                classification,
-                failure_code,
-                next_step
-            )
-        };
-    let mut deterministic_fallback =
-        clean_text(&response_tools_failure_reason_for_user(response_tools, 4), 4_000);
-    if deterministic_fallback.is_empty() {
-        deterministic_fallback = clean_text(&response_tools_summary_for_user(response_tools, 4), 4_000);
-    }
-    if deterministic_fallback.is_empty() && web_intent_detected {
-        let stable_error = if web_failure_code.is_empty() {
-            "web_tool_error".to_string()
-        } else {
-            web_failure_code.to_string()
-        };
-        deterministic_fallback = status_failure_fallback(
-            "Web retrieval",
-            web_turn_classification,
-            &stable_error,
-            "retry with a narrower query or provide one trusted source URL",
-        );
-    }
-    if deterministic_fallback.is_empty() && tooling_attempted && !tooling_failure_code.is_empty() {
-        deterministic_fallback = status_failure_fallback(
-            "Tool execution",
-            tooling_turn_classification,
-            tooling_failure_code,
-            "run one targeted tool call with explicit scope",
-        );
-    }
-    if deterministic_fallback.is_empty() && response_tools.is_empty() && !inline_tools_allowed {
-        deterministic_fallback =
-            "I can answer directly without tool calls. Ask your question naturally and I’ll respond conversationally unless you explicitly request a tool run.".to_string();
-    }
-    if deterministic_fallback.is_empty() {
-        deterministic_fallback = "I completed the workflow, but synthesis could not produce a valid final response in this turn. I can continue with a direct answer from current context, or rerun with explicit failure details if you want.".to_string();
-    }
-    clean_chat_text(&deterministic_fallback, 32_000)
+    let _ = (
+        response_tools,
+        web_intent_detected,
+        web_turn_classification,
+        web_failure_code,
+        tooling_attempted,
+        tooling_turn_classification,
+        tooling_failure_code,
+        inline_tools_allowed,
+    );
+    // Policy: deterministic finalization may withhold a bad response and record
+    // telemetry, but must not inject prose into the visible chat transcript.
+    String::new()
 }
 
 fn build_response_finalization_payload(
@@ -253,16 +217,20 @@ fn enforce_user_facing_finalization_contract(
             || response_looks_like_tool_ack_without_findings(&prefinalized_cleaned)
             || response_is_no_findings_placeholder(&prefinalized_cleaned))
     {
-        prefinalized = failure_reason.clone();
-        pre_outcome = merge_response_outcomes(&pre_outcome, "replaced_no_findings_with_tool_failure_reason", 220);
+        prefinalized.clear();
+        pre_outcome = merge_response_outcomes(
+            &pre_outcome,
+            "withheld_no_llm_response_due_tool_failure",
+            220,
+        );
     }
     let (mut finalized, mut report) = enforce_tool_completion_contract(prefinalized, response_tools);
     if !failure_reason.is_empty()
         && report.get("completion_state").and_then(Value::as_str) == Some("reported_no_findings")
     {
-        finalized = failure_reason;
+        finalized.clear();
         if let Some(obj) = report.as_object_mut() {
-            obj.insert("completion_state".to_string(), Value::String("reported_reason".to_string()));
+            obj.insert("completion_state".to_string(), Value::String("withheld".to_string()));
             obj.insert("final_ack_only".to_string(), Value::Bool(false));
             obj.insert("final_no_findings".to_string(), Value::Bool(false));
             obj.insert("reasoning".to_string(), Value::String(first_sentence(&finalized, 220)));
@@ -276,14 +244,14 @@ fn enforce_user_facing_finalization_contract(
             .and_then(Value::as_str)
             != Some("reported_findings")
     {
-        finalized = no_findings_user_facing_response();
+        finalized.clear();
         if let Some(obj) = report.as_object_mut() {
             obj.insert(
                 "completion_state".to_string(),
-                Value::String("reported_no_findings".to_string()),
+                Value::String("withheld".to_string()),
             );
             obj.insert("final_ack_only".to_string(), Value::Bool(false));
-            obj.insert("final_no_findings".to_string(), Value::Bool(true));
+            obj.insert("final_no_findings".to_string(), Value::Bool(false));
             obj.insert("final_deferred_execution".to_string(), Value::Bool(false));
             obj.insert(
                 "reasoning".to_string(),
@@ -294,7 +262,7 @@ fn enforce_user_facing_finalization_contract(
                 "outcome".to_string(),
                 Value::String(append_tool_completion_outcome(
                     &prior,
-                    "tool_completion_replaced_deferred_execution",
+                    "tool_completion_withheld_deferred_execution",
                 )),
             );
         }

@@ -1,0 +1,42 @@
+{
+  "type": "eval_adversarial_matrix",
+  "version": "v1",
+  "cases": [
+    {
+      "id": "quoted_failure_text_should_not_trigger",
+      "user_text": "Repeat this verbatim: I completed the workflow gate, but the final workflow state was unexpected.",
+      "assistant_text": "You said: I completed the workflow gate, but the final workflow state was unexpected.",
+      "expected": {
+        "quoted_guard_expected": true,
+        "issue_detected_expected": false
+      }
+    },
+    {
+      "id": "template_spam_should_trigger_loop_risk",
+      "user_text": "hello",
+      "assistant_text": "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.",
+      "expected": {
+        "quoted_guard_expected": false,
+        "issue_detected_expected": true
+      }
+    },
+    {
+      "id": "file_intent_with_web_card_should_trigger_misdirection",
+      "user_text": "check local file tooling",
+      "assistant_text": "title: random article excerpt: irrelevant provider: sample",
+      "expected": {
+        "quoted_guard_expected": false,
+        "issue_detected_expected": true
+      }
+    },
+    {
+      "id": "quoted_web_card_should_not_trigger",
+      "user_text": "quote this from me: title: foo excerpt: bar provider: baz",
+      "assistant_text": "You wrote: title: foo excerpt: bar provider: baz",
+      "expected": {
+        "quoted_guard_expected": true,
+        "issue_detected_expected": false
+      }
+    }
+  ]
+}

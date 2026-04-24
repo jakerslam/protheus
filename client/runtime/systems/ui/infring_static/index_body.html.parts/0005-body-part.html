@@ -170,9 +170,7 @@
                             <span class="thinking-orb-link-dot thinking-orb-link-dot-2"></span>
                             <span class="thinking-orb-link-dot thinking-orb-link-dot-3"></span>
                           </span>
-                          <div class="thinking-inline-text"><em class="thinking-shimmer-text" :data-shimmer-text="thinkingStatusText(msg) || 'Thinking'" x-text="thinkingStatusText(msg) || 'Thinking'"></em></div>
-                          <div class="thinking-inline-subtext thinking-shimmer-text" x-show="thinkingPhaseText(msg)" :data-shimmer-text="thinkingPhaseText(msg)" x-text="thinkingPhaseText(msg)"></div>
-                          <div class="thinking-inline-subtext thinking-shimmer-text" x-show="thinkingTraceSummary(msg)" :data-shimmer-text="thinkingTraceSummary(msg)" x-text="thinkingTraceSummary(msg)"></div>
+                          <div class="thinking-inline-text"><em class="thinking-shimmer-text" :data-shimmer-text="thinkingBubbleLineText(msg)" x-text="thinkingBubbleLineText(msg)"></em></div>
                           <div class="typing-dots"><span></span><span></span><span></span></div>
                         </div>
                         <template x-if="msg.terminal && terminalMessageCollapsed(msg, idx, filteredMessages)">
@@ -200,9 +198,18 @@
                         </template>
                         <!-- Normal message content -->
                         <div class="message-bubble" :class="{ 'markdown-body': ((String(msg.role || '').toLowerCase() === 'agent') || (String(msg.role || '').toLowerCase() === 'assistant') || (String(msg.role || '').toLowerCase() === 'system')) && !msg.thinking && !msg.isHtml, 'message-error': !msg.thoughtStreaming && isErrorMessage(msg), 'thinking-live': !!msg.thoughtStreaming, 'message-finish-bounce': !!msg._finish_bounce }" x-show="msg.text && msg.text.trim() && !msg.thinking && !(msg.terminal && terminalMessageCollapsed(msg, idx, filteredMessages))">
-                          <infring-chat-bubble-render :typing="!!msg._typingVisual" :html="messageBubbleHtml(msg)" :plain="String(msg.text || '')"></infring-chat-bubble-render>
+                          <template x-if="shouldRenderMessageContent(msg, idx, filteredMessages)">
+                            <infring-chat-bubble-render :typing="!!msg._typingVisual" :html="messageBubbleHtml(msg)" :plain="String(msg.text || '')"></infring-chat-bubble-render>
+                          </template>
+                          <template x-if="!shouldRenderMessageContent(msg, idx, filteredMessages)">
+                            <div class="message-placeholder-shell message-placeholder-shell-inline" :style="messagePlaceholderStyle(msg, idx, filteredMessages)">
+                              <template x-for="lineIdx in messagePlaceholderLineIndices(msg, idx, filteredMessages)" :key="'message-placeholder-inline-' + messageRenderKey(msg, idx) + '-' + lineIdx">
+                                <span class="message-placeholder-line" :class="{ 'message-placeholder-line-short': lineIdx === (messagePlaceholderResolvedLineCount(msg, idx, filteredMessages) - 1) && messagePlaceholderResolvedLineCount(msg, idx, filteredMessages) > 1 }"></span>
+                              </template>
+                            </div>
+                          </template>
                         </div>
-                        <div class="message-source-chips" x-show="messageHasSourceChips(msg)">
+                        <div class="message-source-chips" x-show="shouldRenderMessageContent(msg, idx, filteredMessages) && messageHasSourceChips(msg)">
                           <template x-for="chip in messageSourceChips(msg)" :key="chip.id">
                             <a class="message-source-chip" :href="chip.url" target="_blank" rel="noopener" :title="chip.url">
                               <span class="message-source-chip-label" x-text="chip.label"></span>
@@ -210,11 +217,11 @@
                             </a>
                           </template>
                         </div>
-                        <div class="message-tool-trace-summary" x-show="messageToolTraceSummary(msg).visible">
+                        <div class="message-tool-trace-summary" x-show="shouldRenderMessageContent(msg, idx, filteredMessages) && messageToolTraceSummary(msg).visible">
                           <span class="message-tool-trace-label" x-text="messageToolTraceSummary(msg).label"></span>
                           <span class="message-tool-trace-detail" x-text="messageToolTraceSummary(msg).detail"></span>
                         </div>
-                        <template x-if="messageProgress(msg)">
+                        <template x-if="shouldRenderMessageContent(msg, idx, filteredMessages) && messageProgress(msg)">
                           <div class="chat-progress-wrap">
                             <div class="chat-progress-meta">
                               <span x-text="messageProgress(msg).label"></span>
@@ -225,7 +232,7 @@
                             </div>
                           </div>
                         </template>
-                        <template x-if="msg.file_output && msg.file_output.path">
+                        <template x-if="shouldRenderMessageContent(msg, idx, filteredMessages) && msg.file_output && msg.file_output.path">
                           <div class="chat-artifact-card chat-file-output">
                             <div class="chat-artifact-head">
                               <span class="chat-artifact-title">File Output</span>
@@ -234,7 +241,7 @@
                             <pre class="chat-artifact-pre" x-text="msg.file_output.content || ''"></pre>
                           </div>
                         </template>
-                        <template x-if="msg.folder_output && msg.folder_output.path">
+                        <template x-if="shouldRenderMessageContent(msg, idx, filteredMessages) && msg.folder_output && msg.folder_output.path">
                           <div class="chat-artifact-card chat-folder-output">
                             <div class="chat-artifact-head">
                               <span class="chat-artifact-title">Folder Output</span>
@@ -247,7 +254,7 @@
                           </div>
                         </template>
                         <!-- Inline images from uploads (shown above tool cards) -->
-                        <template x-if="msg.images && msg.images.length">
+                        <template x-if="shouldRenderMessageContent(msg, idx, filteredMessages) && msg.images && msg.images.length">
                           <div style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0">
                             <template x-for="img in msg.images" :key="img.file_id">
                               <a :href="'/api/uploads/' + img.file_id" target="_blank" style="display:block">
@@ -257,7 +264,7 @@
                           </div>
                         </template>
                         <infring-tool-card-stack-shell>
-                        <template x-for="tool in (msg.tools || [])" :key="tool.id">
+                        <template x-for="tool in (shouldRenderMessageContent(msg, idx, filteredMessages) ? (msg.tools || []) : [])" :key="tool.id">
                           <div class="tool-card" :class="{ 'tool-card-error': tool.is_error && !isBlockedTool(tool), 'tool-card-blocked': isBlockedTool(tool), 'tool-card-success': isToolSuccessful(tool), 'tool-card-thought': isThoughtTool(tool) }" :data-tool="tool.name">
                             <div class="tool-card-header" @click="tool.expanded = !tool.expanded">
                               <template x-if="isThoughtTool(tool)">
@@ -319,7 +326,7 @@
                         <infring-message-meta-shell>
                         <div
                           class="message-stats-row"
-                          x-show="!msg.thinking && ((msg.text && msg.text.trim()) || (msg.tools && msg.tools.length) || msg.meta || msg.ts)"
+                          x-show="shouldRenderMessageContent(msg, idx, filteredMessages) && !msg.thinking && ((msg.text && msg.text.trim()) || (msg.tools && msg.tools.length) || msg.meta || msg.ts)"
                         >
                           <button class="message-stat-btn" :class="{ copied: msg._copied }" @click="copyMessage(msg)" :title="msg._copied ? 'Copied' : 'Copy message'">
                             <svg x-show="!msg._copied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>

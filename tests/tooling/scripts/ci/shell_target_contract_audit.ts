@@ -7,15 +7,15 @@ import { currentRevision } from '../../lib/git.ts';
 import { emitStructuredResult } from '../../lib/result.ts';
 
 const ROOT = process.cwd();
-const SCRIPT_PATH = 'tests/tooling/scripts/ci/client_target_contract_audit.ts';
+const SCRIPT_PATH = 'tests/tooling/scripts/ci/shell_target_contract_audit.ts';
 
 function parseArgs(argv) {
   const out = {
-    policy: 'client/runtime/config/client_target_contract_policy.json',
-    scope: 'core/local/artifacts/client_scope_inventory_current.json',
-    disposition: 'core/local/artifacts/client_surface_disposition_current.json',
-    boundary: 'core/local/artifacts/client_layer_boundary_audit_current.json',
-    out: 'core/local/artifacts/client_target_contract_audit_current.json',
+    policy: 'client/runtime/config/shell_target_contract_policy.json',
+    scope: 'core/local/artifacts/shell_scope_inventory_current.json',
+    disposition: 'core/local/artifacts/shell_surface_disposition_current.json',
+    boundary: 'core/local/artifacts/shell_layer_boundary_audit_current.json',
+    out: 'core/local/artifacts/shell_target_contract_audit_current.json',
     strict: false,
   };
   out.policy = cleanText(readFlag(argv, 'policy') || out.policy, 400);
@@ -121,7 +121,7 @@ function buildReport(args, root = ROOT) {
   }
 
   return {
-    type: 'client_target_contract_audit',
+    type: 'shell_target_contract_audit',
     generated_at: new Date().toISOString(),
     revision,
     policy_path: path.relative(root, policyPath).replace(/\\/g, '/'),

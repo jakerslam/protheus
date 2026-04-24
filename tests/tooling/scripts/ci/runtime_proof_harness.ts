@@ -158,6 +158,23 @@ function safeNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(num) ? num : fallback;
 }
 
+function isCanonicalToken(raw: string, maxLen = 120): boolean {
+  const token = cleanText(String(raw || ''), maxLen);
+  return /^[a-z0-9][a-z0-9._:-]*$/i.test(token);
+}
+
+function isCanonicalPathToken(raw: string, maxLen = 400): boolean {
+  const token = cleanText(String(raw || ''), maxLen);
+  if (!token) return false;
+  if (/^\s|\s$/.test(String(raw || ''))) return false;
+  return /^[a-z0-9_./:-]+$/i.test(token);
+}
+
+function isFiniteNonNegative(value: unknown): boolean {
+  const num = Number(value);
+  return Number.isFinite(num) && num >= 0;
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
@@ -688,6 +705,13 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const effective = resolveEffectiveMetrics(args.proofTrack, syntheticMetrics, empiricalTrack);
   const effectiveMetrics = effective.metrics;
   const empiricalMinSamplePoints = EMPIRICAL_MIN_SAMPLE_POINTS_BY_PROFILE[args.profile];
+  const expectedScenarioIds = [
+    'boundedness_72h',
+    'queue_saturation',
+    'conduit_failure_recovery',
+    'dashboard_disconnect_reconnect',
+    'adapter_crash_restart',
+  ];
 
   const failures = scenarios.filter((row) => !row.ok).map((row) => ({
     id: row.id,
@@ -708,6 +732,156 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       detail: `profile=${args.profile};required=${empiricalMinSamplePoints};actual=${empiricalTrack.sample_points}`,
     });
   }
+  if (!isCanonicalToken(args.profile, 40)) {
+    failures.push({
+      id: 'runtime_proof_harness_profile_token_contract_v2',
+      detail: args.profile,
+    });
+  }
+  if (!['synthetic', 'empirical', 'dual'].includes(args.proofTrack)) {
+    failures.push({
+      id: 'runtime_proof_harness_proof_track_token_contract_v2',
+      detail: args.proofTrack,
+    });
+  }
+  if (!cleanText(args.seed || '', 120)) {
+    failures.push({
+      id: 'runtime_proof_harness_seed_nonempty_contract_v2',
+      detail: 'seed_missing',
+    });
+  }
+  if (scenarios.length !== expectedScenarioIds.length) {
+    failures.push({
+      id: 'runtime_proof_harness_scenario_count_expected_contract_v2',
+      detail: `actual=${scenarios.length};expected=${expectedScenarioIds.length}`,
+    });
+  }
+  const scenarioIds = scenarios.map((row) => cleanText(row.id || '', 80)).filter(Boolean);
+  if (new Set(scenarioIds).size !== scenarioIds.length) {
+    failures.push({
+      id: 'runtime_proof_harness_scenario_ids_unique_contract_v2',
+      detail: scenarioIds.join(','),
+    });
+  }
+  const missingScenarioIds = expectedScenarioIds.filter((id) => !scenarioIds.includes(id));
+  const extraScenarioIds = scenarioIds.filter((id) => !expectedScenarioIds.includes(id));
+  if (missingScenarioIds.length > 0 || extraScenarioIds.length > 0) {
+    failures.push({
+      id: 'runtime_proof_harness_scenario_ids_set_contract_v2',
+      detail: `missing=${missingScenarioIds.join(',') || 'none'};extra=${extraScenarioIds.join(',') || 'none'}`,
+    });
+  }
+  const scenarioOkTypeInvalid = scenarios.some((row) => typeof row?.ok !== 'boolean');
+  if (scenarioOkTypeInvalid) {
+    failures.push({
+      id: 'runtime_proof_harness_scenario_ok_boolean_contract_v2',
+      detail: 'scenario_ok_not_boolean',
+    });
+  }
+  const scenarioMetricsKeyInvalidRows = scenarios.flatMap((row) => {
+    const metrics = row?.metrics && typeof row.metrics === 'object' ? row.metrics : {};
+    return Object.keys(metrics).filter((key) => !METRIC_KEYS.includes(key as MetricKey));
+  });
+  if (scenarioMetricsKeyInvalidRows.length > 0) {
+    failures.push({
+      id: 'runtime_proof_harness_scenario_metrics_keys_token_contract_v2',
+      detail: scenarioMetricsKeyInvalidRows.join(','),
+    });
+  }
+  const syntheticComplete = METRIC_KEYS.every((key) => isFiniteNonNegative(syntheticMetrics[key]));
+  if (!syntheticComplete) {
+    failures.push({
+      id: 'runtime_proof_harness_synthetic_metrics_complete_contract_v2',
+      detail: 'synthetic_metrics_missing_or_negative',
+    });
+  }
+  const empiricalComplete = METRIC_KEYS.every((key) => isFiniteNonNegative(empiricalTrack.metrics[key]));
+  if (!empiricalComplete) {
+    failures.push({
+      id: 'runtime_proof_harness_empirical_metrics_complete_contract_v2',
+      detail: 'empirical_metrics_missing_or_negative',
+    });
+  }
+  const effectiveComplete = METRIC_KEYS.every((key) => isFiniteNonNegative(effectiveMetrics[key]));
+  if (!effectiveComplete) {
+    failures.push({
+      id: 'runtime_proof_harness_effective_metrics_complete_contract_v2',
+      detail: 'effective_metrics_missing_or_negative',
+    });
+  }
+  const sourceKeys = Object.keys(effective.metric_sources || {});
+  const sourceKeysComplete = METRIC_KEYS.every((key) => sourceKeys.includes(key));
+  if (!sourceKeysComplete) {
+    failures.push({
+      id: 'runtime_proof_harness_effective_metric_sources_complete_contract_v2',
+      detail: sourceKeys.join(','),
+    });
+  }
+  const sourceTokenValid = METRIC_KEYS.every((key) => {
+    const src = cleanText(String(effective.metric_sources?.[key] || ''), 40);
+    return src === 'synthetic' || src === 'empirical';
+  });
+  if (!sourceTokenValid) {
+    failures.push({
+      id: 'runtime_proof_harness_effective_metric_sources_token_contract_v2',
+      detail: JSON.stringify(effective.metric_sources || {}),
+    });
+  }
+  if (args.proofTrack === 'dual') {
+    const provided = new Set(empiricalTrack.provided_keys);
+    const mismatch = METRIC_KEYS.some((key) => {
+      const expectedSource = provided.has(key) ? 'empirical' : 'synthetic';
+      return cleanText(String(effective.metric_sources?.[key] || ''), 24) !== expectedSource;
+    });
+    if (mismatch) {
+      failures.push({
+        id: 'runtime_proof_harness_dual_metric_source_parity_contract_v2',
+        detail: JSON.stringify(effective.metric_sources || {}),
+      });
+    }
+  }
+  const empiricalSourceIds = empiricalTrack.sources
+    .map((row) => cleanText(String(row?.id || ''), 80))
+    .filter(Boolean);
+  if (new Set(empiricalSourceIds).size !== empiricalSourceIds.length) {
+    failures.push({
+      id: 'runtime_proof_harness_empirical_source_ids_unique_contract_v2',
+      detail: empiricalSourceIds.join(','),
+    });
+  }
+  const empiricalSourceShapeInvalid = empiricalTrack.sources.some((row) => {
+    if (!isCanonicalToken(String(row?.id || ''), 80)) return true;
+    if (!isCanonicalPathToken(String(row?.path || ''), 400)) return true;
+    if (!Number.isInteger(row?.sample_points) || Number(row.sample_points) < 0) return true;
+    if (typeof row?.loaded !== 'boolean') return true;
+    return cleanText(String(row?.detail || ''), 220).length === 0;
+  });
+  if (empiricalSourceShapeInvalid) {
+    failures.push({
+      id: 'runtime_proof_harness_empirical_source_rows_shape_contract_v2',
+      detail: 'empirical_source_row_shape_invalid',
+    });
+  }
+  const providedKeys = empiricalTrack.provided_keys.map((row) => cleanText(String(row || ''), 80)).filter(Boolean);
+  if (new Set(providedKeys).size !== providedKeys.length) {
+    failures.push({
+      id: 'runtime_proof_harness_empirical_provided_keys_unique_contract_v2',
+      detail: providedKeys.join(','),
+    });
+  }
+  const invalidProvidedKeys = providedKeys.filter((key) => !METRIC_KEYS.includes(key as MetricKey));
+  if (invalidProvidedKeys.length > 0) {
+    failures.push({
+      id: 'runtime_proof_harness_empirical_provided_keys_subset_contract_v2',
+      detail: invalidProvidedKeys.join(','),
+    });
+  }
+  if (!Number.isInteger(empiricalTrack.sample_points) || empiricalTrack.sample_points < 0) {
+    failures.push({
+      id: 'runtime_proof_harness_empirical_sample_points_non_negative_contract_v2',
+      detail: String(empiricalTrack.sample_points),
+    });
+  }
 
   const deterministicPayload = {
     profile: args.profile,
@@ -720,6 +894,13 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     effective_metric_sources: effective.metric_sources,
     empirical_sources: empiricalTrack.sources,
   };
+  const deterministicChecksumValue = deterministicChecksum(deterministicPayload);
+  if (!/^[a-f0-9]{64}$/i.test(deterministicChecksumValue)) {
+    failures.push({
+      id: 'runtime_proof_harness_deterministic_checksum_hex_contract_v2',
+      detail: deterministicChecksumValue || 'missing',
+    });
+  }
   const metricsPayload = {
     ok: failures.length === 0,
     type: 'runtime_proof_metrics',
@@ -811,7 +992,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       },
     },
     scenarios,
-    deterministic_checksum: deterministicChecksum(deterministicPayload),
+    deterministic_checksum: deterministicChecksumValue,
     failures,
   };
 

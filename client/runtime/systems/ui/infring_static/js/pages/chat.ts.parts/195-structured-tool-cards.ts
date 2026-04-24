@@ -436,40 +436,6 @@
       var data = payload && typeof payload === 'object' ? payload : {};
       var workflowText = this.workflowResponseTextFromPayload(data);
       if (workflowText) return workflowText;
-      var rows = Array.isArray(tools) ? tools : [];
-      var failureSummary = this.readableToolFailureSummary(data, rows);
-      if (failureSummary) return failureSummary;
-      var toolSummary = this.completedToolOnlySummary(rows);
-      if (toolSummary) return toolSummary;
-      var finalization = this.responseFinalizationFromPayload(data);
-      var completion = finalization && finalization.tool_completion && typeof finalization.tool_completion === 'object'
-        ? finalization.tool_completion
-        : null;
-      var reasoning = String(completion && completion.reasoning ? completion.reasoning : '').trim();
-      if (reasoning && !this.textLooksNoFindingsPlaceholder(reasoning) && !this.textLooksToolAckWithoutFindings(reasoning)) {
-        return reasoning;
-      }
-      var stepRows = this.backfillToolRowsFromCompletion([], data);
-      if (stepRows.length) {
-        var stepSummary = this.completedToolOnlySummary(stepRows);
-        if (stepSummary) return stepSummary;
-      }
-      if (finalization && finalization.applied === true) {
-        return 'I hit a response finalization edge on that turn. I can continue with a direct answer from current context and avoid extra tool calls unless you explicitly request one.';
-      }
-      if (
-        data &&
-        typeof data === 'object' &&
-        (
-          data.response_finalization ||
-          data.turn_transaction ||
-          (Array.isArray(data.tools) && data.tools.length) ||
-          data.response != null ||
-          data.content != null
-        )
-      ) {
-        return 'I completed the run, but no visible reply was returned. Ask me to continue and I will retry the synthesis.';
-      }
       return '';
     },
     assistantTurnMetadataFromPayload: function(payload, tools) {

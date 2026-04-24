@@ -55,8 +55,8 @@ Run high-velocity change waves without losing correctness, architecture integrit
 
 ### Execution Rules
 
-1. Split by boundary, not arbitrary size; keep core modules cohesive and client adapters thin.
-2. Prefer primitive extraction in Rust over client-side orchestration growth.
+1. Split by boundary, not arbitrary size; keep core modules cohesive and shell adapters thin.
+2. Prefer primitive extraction in Rust over shell-side orchestration growth.
 3. Preserve behavior unless an explicit breaking change is requested.
 4. Add/maintain parity and regression checks whenever logic migrates coreward.
 5. Treat security/governance paths as fail-closed by default.

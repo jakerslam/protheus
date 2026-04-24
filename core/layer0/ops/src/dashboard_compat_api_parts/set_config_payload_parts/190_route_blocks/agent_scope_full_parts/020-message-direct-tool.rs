@@ -268,30 +268,10 @@ fn handle_agent_scope_message_route(
                     "workflow_authored",
                 );
             } else if workflow_fallback_allowed {
-                let mut fallback_response =
-                    maybe_tooling_failure_fallback(&message, &initial_draft_response, "")
-                        .unwrap_or_default();
-                tooling_fallback_used = !fallback_response.is_empty();
-                if fallback_response.is_empty()
-                    && !response_requires_visible_repair(&initial_draft_response)
-                {
-                    fallback_response = initial_draft_response.clone();
-                }
-                if fallback_response.is_empty()
-                    && response_is_no_findings_placeholder(&initial_draft_response)
-                    && message_requests_live_web_comparison(&message)
-                {
-                    comparative_fallback_used = true;
-                    fallback_response = comparative_no_findings_fallback(&message);
-                }
-                if fallback_response.is_empty() {
-                    fallback_response =
-                        ensure_tool_turn_response_text(&initial_draft_response, &response_tools);
-                }
-                workflow_system_fallback_used = true;
+                let fallback_response = initial_draft_response.clone();
                 finalization_outcome = merge_response_outcomes(
                     &finalization_outcome,
-                    "workflow_system_fallback",
+                    "workflow_no_system_fallback",
                     180,
                 );
                 let (contracted, report, retry_outcome) =
@@ -305,18 +285,12 @@ fn handle_agent_scope_message_route(
                 finalization_outcome =
                     merge_response_outcomes(&finalization_outcome, &retry_outcome, 180);
             } else {
-                workflow_system_fallback_used = true;
                 finalization_outcome = merge_response_outcomes(
                     &finalization_outcome,
-                    "workflow_unexpected_state",
+                    "workflow_no_system_fallback",
                     180,
                 );
-                let fallback_response = ensure_no_retry_boilerplate_copy(
-                    &message,
-                    "",
-                    &response_tools,
-                    &workflow_unexpected_state_user_fallback(&message, "", &response_tools),
-                );
+                let fallback_response = initial_draft_response.clone();
                 let (contracted, report, retry_outcome) = enforce_user_facing_finalization_contract(
                     &message,
                     fallback_response,

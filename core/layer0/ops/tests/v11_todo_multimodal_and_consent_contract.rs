@@ -34,8 +34,14 @@ fn multimodal_fixture_manifest_and_baselines_are_complete() {
     let mut kinds = BTreeSet::new();
     for row in rows {
         let id = row.get("id").and_then(Value::as_str).expect("fixture_id");
-        let kind = row.get("kind").and_then(Value::as_str).expect("fixture_kind");
-        let rel = row.get("path").and_then(Value::as_str).expect("fixture_path");
+        let kind = row
+            .get("kind")
+            .and_then(Value::as_str)
+            .expect("fixture_kind");
+        let rel = row
+            .get("path")
+            .and_then(Value::as_str)
+            .expect("fixture_path");
         kinds.insert(kind.to_string());
 
         let file_path = fixtures_root.join(rel);
@@ -73,7 +79,8 @@ fn multimodal_fixture_manifest_and_baselines_are_complete() {
 
 #[test]
 fn proactive_consent_templates_cover_required_placeholders() {
-    let templates_path = workspace_root().join("client/runtime/config/proactive_consent_templates.json");
+    let templates_path =
+        workspace_root().join("client/runtime/config/proactive_consent_templates.json");
     let templates = read_json(&templates_path);
     let obj = templates
         .get("templates")
@@ -86,10 +93,17 @@ fn proactive_consent_templates_cover_required_placeholders() {
         "system_health_alert",
         "release_watch",
     ];
-    let required_tokens = ["{{scope}}", "{{cadence}}", "{{quiet_hours}}", "{{opt_out_path}}"];
+    let required_tokens = [
+        "{{scope}}",
+        "{{cadence}}",
+        "{{quiet_hours}}",
+        "{{opt_out_path}}",
+    ];
 
     for source in required_sources {
-        let row = obj.get(source).unwrap_or_else(|| panic!("missing source template: {source}"));
+        let row = obj
+            .get(source)
+            .unwrap_or_else(|| panic!("missing source template: {source}"));
         let consent = row
             .get("consent_template")
             .and_then(Value::as_str)

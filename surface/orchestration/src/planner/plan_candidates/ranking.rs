@@ -42,5 +42,23 @@ pub(super) fn template_variant_bias(
             PlanVariant::Safest => 0.00,
             PlanVariant::Fastest => -0.02,
         },
+        WorkflowTemplate::CodexToolingSynthesis => match variant {
+            PlanVariant::Safest => 0.07,
+            PlanVariant::Fastest => 0.04,
+            PlanVariant::DegradedFallback => -0.01,
+            PlanVariant::ClarificationFirst => -0.03,
+        },
+        WorkflowTemplate::ForgeCodeAgentComposition => match variant {
+            PlanVariant::Safest => 0.08,
+            PlanVariant::Fastest => 0.05,
+            PlanVariant::ClarificationFirst => 0.03,
+            PlanVariant::DegradedFallback => -0.02,
+        },
+        WorkflowTemplate::ForgeCodeRawCapabilityAssimilation => match variant {
+            PlanVariant::Safest => 0.09,
+            PlanVariant::Fastest => 0.06,
+            PlanVariant::ClarificationFirst => 0.00,
+            PlanVariant::DegradedFallback => -0.03,
+        },
     }
 }

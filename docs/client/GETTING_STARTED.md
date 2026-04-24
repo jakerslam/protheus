@@ -208,5 +208,5 @@ NODE_PATH=$PWD/node_modules npm run -s formal:invariants:run
 ## Notes
 
 - Rust is the source of truth for kernel logic (primitives, constitution, policy, receipts).
-- TypeScript is limited to thin client surfaces and extension/UI workflows via conduit.
+- TypeScript is limited to thin shell surfaces and extension/UI workflows via conduit.
 - Python is optional and only provides a thin CLI wrapper that forwards to Rust.

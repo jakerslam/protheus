@@ -28,6 +28,13 @@ function duplicateValues(values: string[]): string[] {
     .sort();
 }
 
+function casefoldDuplicateValues(values: string[]): string[] {
+  const folded = values
+    .map((value) => String(value || '').trim().toLowerCase())
+    .filter((value) => value.length > 0);
+  return duplicateValues(folded);
+}
+
 function isCanonicalRelativePath(value: string): boolean {
   if (value.trim() !== value) return false;
   if (value.length === 0) return false;
@@ -77,6 +84,14 @@ function looksLikeArtifactFlag(value: string): boolean {
   );
 }
 
+function hasCaseInsensitiveSuffix(value: string, suffix: string): boolean {
+  return String(value || '').toLowerCase().endsWith(String(suffix || '').toLowerCase());
+}
+
+function isCanonicalFailureId(value: string): boolean {
+  return /^(_[a-z0-9_]+|[a-z0-9][a-z0-9:_-]*)$/.test(String(value || '').trim());
+}
+
 function run(argv: string[]) {
   const args = resolveArgs(argv);
   const registry = loadGateRegistry(args.registry);
@@ -117,11 +132,97 @@ function run(argv: string[]) {
       detail: `gate_id_duplicate:${duplicateGateIds.join(',')}`,
     });
   }
+  const duplicateGateIdsCasefold = casefoldDuplicateValues(gateIds);
+  if (duplicateGateIdsCasefold.length > 0) {
+    policyFailures.push({
+      id: '_policy',
+      detail: `gate_id_duplicate_casefold:${duplicateGateIdsCasefold.join(',')}`,
+    });
+  }
+  if (!gateIds.every((gateId) => gateId === gateId.toLowerCase())) {
+    policyFailures.push({
+      id: '_policy',
+      detail: 'gate_id_lowercase_contract_invalid',
+    });
+  }
   const sortedGateIds = [...gateIds].sort((left, right) => left.localeCompare(right));
   if (sortedGateIds.join('|') !== gateIds.join('|')) {
     policyFailures.push({
       id: '_policy',
       detail: 'gate_id_order_drift',
+    });
+  }
+  if (args.registry !== DEFAULT_REGISTRY) {
+    policyFailures.push({
+      id: '_policy',
+      detail: `registry_path_exact_default_contract_invalid:${args.registry}`,
+    });
+  }
+  if (args.out !== DEFAULT_OUT) {
+    policyFailures.push({
+      id: '_policy',
+      detail: `output_path_exact_default_contract_invalid:${args.out}`,
+    });
+  }
+  if (!hasCaseInsensitiveSuffix(args.out, '_current.json')) {
+    policyFailures.push({
+      id: '_policy',
+      detail: `output_path_current_json_suffix_contract_invalid:${args.out}`,
+    });
+  }
+  if (!String(args.out).startsWith('core/local/artifacts/')) {
+    policyFailures.push({
+      id: '_policy',
+      detail: `output_path_artifacts_prefix_contract_invalid:${args.out}`,
+    });
+  }
+  if (/\s/.test(String(args.out || ''))) {
+    policyFailures.push({
+      id: '_policy',
+      detail: `output_path_whitespace_contract_invalid:${args.out}`,
+    });
+  }
+  if (!String(args.registry).startsWith('tests/tooling/config/')) {
+    policyFailures.push({
+      id: '_policy',
+      detail: `registry_path_config_prefix_contract_invalid:${args.registry}`,
+    });
+  }
+  if (!hasCaseInsensitiveSuffix(args.registry, '.json')) {
+    policyFailures.push({
+      id: '_policy',
+      detail: `registry_path_json_suffix_contract_invalid:${args.registry}`,
+    });
+  }
+  if (/\s/.test(String(args.registry || ''))) {
+    policyFailures.push({
+      id: '_policy',
+      detail: `registry_path_whitespace_contract_invalid:${args.registry}`,
+    });
+  }
+  if (containsPlaceholder(String(args.registry || ''))) {
+    policyFailures.push({
+      id: '_policy',
+      detail: `registry_path_placeholder_contract_invalid:${args.registry}`,
+    });
+  }
+  if (containsPlaceholder(String(args.out || ''))) {
+    policyFailures.push({
+      id: '_policy',
+      detail: `output_path_placeholder_contract_invalid:${args.out}`,
+    });
+  }
+  const duplicateArtifactFlagPrefixes = duplicateValues(ARTIFACT_FLAG_PREFIXES);
+  if (ARTIFACT_FLAG_PREFIXES.length === 0 || duplicateArtifactFlagPrefixes.length > 0) {
+    policyFailures.push({
+      id: '_policy',
+      detail: `artifact_flag_prefixes_nonempty_unique_contract_invalid:${ARTIFACT_FLAG_PREFIXES.join(',')}`,
+    });
+  }
+  if (!ARTIFACT_FLAG_PREFIXES.every((prefix) => /^--[a-z0-9-]+=/.test(prefix))) {
+    policyFailures.push({
+      id: '_policy',
+      detail: `artifact_flag_prefixes_canonical_contract_invalid:${ARTIFACT_FLAG_PREFIXES.join(',')}`,
     });
   }
 
@@ -201,6 +302,12 @@ function run(argv: string[]) {
     }
 
     const commandTokens = command.map((part) => String(part || ''));
+    if (commandTokens.some((token) => token.trim() !== token)) {
+      failures.push({
+        id: gateId,
+        detail: 'command_token_trimmed_contract_invalid',
+      });
+    }
     const duplicateCommandTokens = duplicateValues(commandTokens.filter((part) => part.trim().length > 0));
     if (duplicateCommandTokens.length > 0 && hasCommand) {
       failures.push({
@@ -231,6 +338,13 @@ function run(argv: string[]) {
       failures.push({
         id: gateId,
         detail: `artifact_path_duplicate:${duplicateArtifactPaths.join(',')}`,
+      });
+    }
+    const duplicateArtifactPathsCasefold = casefoldDuplicateValues(artifactTokens.filter(Boolean));
+    if (duplicateArtifactPathsCasefold.length > 0) {
+      failures.push({
+        id: gateId,
+        detail: `artifact_path_duplicate_casefold:${duplicateArtifactPathsCasefold.join(',')}`,
       });
     }
 
@@ -302,8 +416,39 @@ function run(argv: string[]) {
   }
 
   const mergedFailures = [...policyFailures, ...failures];
+  if (!policyFailures.every((row) => isCanonicalFailureId(row.id) && String(row.detail || '').trim().length > 0)) {
+    policyFailures.push({
+      id: '_policy',
+      detail: 'policy_failure_shape_contract_invalid',
+    });
+  }
+  if (!mergedFailures.every((row) => isCanonicalFailureId(row.id) && String(row.detail || '').trim().length > 0)) {
+    failures.push({
+      id: '_policy',
+      detail: 'failure_shape_contract_invalid',
+    });
+  }
+  if (!mergedFailures.every((row) => String(row.detail || '') === String(row.detail || '').trim())) {
+    failures.push({
+      id: '_policy',
+      detail: 'failure_detail_trimmed_contract_invalid',
+    });
+  }
+  if (!mergedFailures.every((row) => !containsPlaceholder(String(row.detail || '')))) {
+    failures.push({
+      id: '_policy',
+      detail: 'failure_detail_placeholder_contract_invalid',
+    });
+  }
+  if (!mergedFailures.every((row) => isCanonicalFailureId(row.id))) {
+    failures.push({
+      id: '_policy',
+      detail: 'failure_id_token_contract_invalid',
+    });
+  }
+  const mergedFailuresFinal = [...policyFailures, ...failures];
   const payload = {
-    ok: mergedFailures.length === 0,
+    ok: mergedFailuresFinal.length === 0,
     type: 'tooling_registry_contract_guard',
     generated_at: new Date().toISOString(),
     inputs: {
@@ -314,11 +459,11 @@ function run(argv: string[]) {
       gate_count: gates.length,
       policy_failure_count: policyFailures.length,
       failure_count: failures.length,
-      total_issue_count: mergedFailures.length,
-      pass: mergedFailures.length === 0,
+      total_issue_count: mergedFailuresFinal.length,
+      pass: mergedFailuresFinal.length === 0,
     },
     policy_failures: policyFailures,
-    failures: mergedFailures,
+    failures: mergedFailuresFinal,
   };
 
   return emitStructuredResult(payload, {

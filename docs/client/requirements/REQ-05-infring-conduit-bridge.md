@@ -145,7 +145,7 @@ Delivered:
 - `infring-ops status --dashboard` now executes natively in Rust and emits deterministic receipts.
 - `health-status` lane performs Rust-side cron delivery integrity checks (fail-closed on `delivery.mode=none` and invalid channels for announce delivery).
 - Rust source-of-truth audit now verifies:
-  - file-type boundary contract (`.rs` core gates, `.ts` client surfaces, `.js` wrappers/shims),
+  - file-type boundary contract (`.rs` core gates, `.ts` shell surfaces, `.js` wrappers/shims),
   - strict token checks for `infringd.ts`, conduit budget lane, and dashboard wrapper path.
 - TS dashboard surface (`client/runtime/systems/ops/infring_status_dashboard.ts`) is a Rust bridge wrapper only.
 - Runbook/SLO wiring includes explicit incidents for cron-delivery misconfiguration and Rust source-of-truth drift.

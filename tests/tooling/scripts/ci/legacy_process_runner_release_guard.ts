@@ -109,6 +109,11 @@ function buildReport() {
       detail: 'process fallback helper must be loaded from adapters/runtime/dev_only',
     },
     {
+      id: 'runner_production_sets_sdk_process_transport_zero',
+      ok: runnerSource.includes("envOverrides.INFRING_SDK_ALLOW_PROCESS_TRANSPORT = '0'"),
+      detail: 'production bridge path must force INFRING_SDK_ALLOW_PROCESS_TRANSPORT=0',
+    },
+    {
       id: 'legacy_helper_marked_dev_only',
       ok:
         legacyHelperSource.includes('legacy_process_runner_dev_only') &&

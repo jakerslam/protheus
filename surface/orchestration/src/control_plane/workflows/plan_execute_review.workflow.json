@@ -1,0 +1,20 @@
+{
+  "name": "plan_execute_review",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "default": false,
+  "description": "Plan and execution template used for mutation/task proposal turns that require explicit sequencing and closure review.",
+  "stages": [
+    "intake_normalization",
+    "decomposition_planning",
+    "coordination_sequencing",
+    "recovery_escalation",
+    "result_packaging",
+    "verification_closure"
+  ],
+  "final_response_policy": "control_plane_packaged_response",
+  "gate_contract": "control_plane_lifecycle_v1",
+  "default_for_request_classes": [
+    "mutation",
+    "task_proposal"
+  ]
+}

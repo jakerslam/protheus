@@ -728,92 +728,18 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
   };
   const toolResultSummarySnippet = (tool) => cleanText(tool && (tool.result || tool.status || ''), 220);
   const toolOnlyResponseSummary = (assistantText, tools) => {
-    const rows = Array.isArray(tools) ? tools.filter((tool) => tool && cleanText(tool.name || '', 80).toLowerCase() !== 'thought_process') : [];
-    if (!rows.length) return cleanText(assistantText || '', 24000);
+    const _ = tools;
+    const assistant = cleanText(assistantText || '', 24000);
+    if (!assistant) return '';
     const lower = cleanText(assistantText || '', 1200).replace(/\s+/g, ' ').trim().toLowerCase();
     const lostHandoff =
       !lower ||
       lower === 'i lost the final response handoff for this turn. context is still intact, and i can continue from exactly where this left off.';
-    const replaceablePlaceholder = lostHandoff || textLooksNoFindingsPlaceholder(assistantText);
-    if (!replaceablePlaceholder) return cleanText(assistantText || '', 24000);
-    const actionableWeb = rows.find((tool) => {
-      const name = cleanText(tool && tool.name ? tool.name : '', 80).toLowerCase();
-      if (!(name === 'web_search' || name === 'web_fetch' || name === 'batch_query' || name === 'search_web' || name === 'web_query' || name === 'browse')) {
-        return false;
-      }
-      return textLooksActionableWebDiagnostic(tool.result || '');
-    });
-    if (actionableWeb) return lowSignalWebToolSummary(actionableWeb);
-    const successful = rows.filter((tool) => {
-      if (!tool || tool.running || tool.is_error || tool.blocked) return false;
-      return !!toolResultSummarySnippet(tool);
-    });
-    if (successful.length) {
-      const parts = successful.slice(0, 2).map((tool) => {
-        const label = cleanText(String(tool.name || 'tool').replace(/_/g, ' '), 80) || 'tool';
-        const result = toolResultSummarySnippet(tool);
-        return label ? `${label}: ${result}` : result;
-      }).filter(Boolean);
-      if (parts.length) return parts.join(' | ');
-    }
-    const blocked = rows.filter((tool) => tool && tool.blocked);
-    if (blocked.length) {
-      const blockedNames = blocked.slice(0, 2).map((tool) =>
-        cleanText(String(tool.name || 'tool').replace(/_/g, ' '), 80) || 'tool'
-      ).filter(Boolean);
-      return `The tool run completed, but policy blocked ${blockedNames.join(' and ') || 'a required step'} before a final prose answer was composed.`;
-    }
-    const failed = rows.find((tool) => tool && (tool.is_error || tool.blocked));
-    if (failed) {
-      const label = cleanText(String(failed.name || 'tool').replace(/_/g, ' '), 80) || 'tool';
-      const detail = stripContextGuardMarkers(failed.result || failed.status || '');
-      if (detail) {
-        return `The ${label} step finished without a final prose answer: ${cleanText(detail, 220)}.`;
-      }
-      return 'The tool run completed, but a required step failed before a final prose answer was composed.';
-    }
-    const completedNames = rows.slice(0, 3).map((tool) =>
-      cleanText(String(tool && tool.name ? tool.name : 'tool').replace(/_/g, ' '), 80) || 'tool'
-    ).filter((name, idx, list) => !!name && list.indexOf(name) === idx);
-    if (completedNames.length) {
-      return `Completed tool steps: ${completedNames.join(', ')}. Ask me to continue from those recorded results.`;
-    }
-    return '';
+    if (lostHandoff || textLooksNoFindingsPlaceholder(assistant)) return '';
+    return assistant;
   };
   const finalizationFallbackSummary = (payload, tools) => {
-    const rows = Array.isArray(tools) ? tools : [];
-    const toolSummary = toolOnlyResponseSummary('', rows);
-    if (toolSummary) return toolSummary;
-    const finalization =
-      payload &&
-      payload.response_finalization &&
-      typeof payload.response_finalization === 'object'
-        ? payload.response_finalization
-        : null;
-    const completion =
-      finalization &&
-      finalization.tool_completion &&
-      typeof finalization.tool_completion === 'object'
-        ? finalization.tool_completion
-        : null;
-    const reasoning = cleanText(completion && completion.reasoning ? completion.reasoning : '', 24000);
-    if (reasoning && !textLooksNoFindingsPlaceholder(reasoning)) return reasoning;
-    if (finalization && finalization.applied === true) {
-      return 'I hit a response finalization edge on that turn. I can continue with a direct answer from current context and avoid extra tool calls unless you explicitly request one.';
-    }
-    if (
-      payload &&
-      typeof payload === 'object' &&
-      (
-        payload.response_finalization ||
-        payload.turn_transaction ||
-        (Array.isArray(payload.tools) && payload.tools.length) ||
-        payload.response != null ||
-        payload.content != null
-      )
-    ) {
-      return 'No visible reply was returned for that turn, but I can continue directly from the recorded context without repeating tool steps.';
-    }
+    const _ = [payload, tools];
     return '';
   };
   const toolStatusFromCompletion = (toolName, toolIndex, completionSteps, fallbackStatus) => {

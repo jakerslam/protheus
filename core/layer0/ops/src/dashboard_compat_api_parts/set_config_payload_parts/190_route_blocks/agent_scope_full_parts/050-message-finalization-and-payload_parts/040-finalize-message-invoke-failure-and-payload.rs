@@ -112,7 +112,8 @@ fn finalize_message_invoke_failure_and_payload(
         &web_invariant,
     );
     response_finalization["workflow_control"] = json!({
-        "conversation_bypass": workflow_conversation_bypass_control_from_workflow(&response_workflow)
+        "mode": "tool_menu_interface_v1",
+        "direct_response_path": "gate_1_false"
     });
     response_finalization["initial_model_invoke_failed"] = Value::Bool(true);
     let process_summary =

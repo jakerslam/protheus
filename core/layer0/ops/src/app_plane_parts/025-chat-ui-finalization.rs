@@ -1,4 +1,3 @@
-const CHAT_UI_TOOLING_RETRY_GUIDANCE: &str = "Tool execution did not produce a usable final answer in this turn. web_status: provider_low_signal. error_code: web_tool_low_signal.";
 const CHAT_UI_FRAMEWORK_TARGETS: [&str; 5] = [
     "LangGraph",
     "OpenAI Agents SDK",
@@ -335,14 +334,6 @@ fn chat_ui_detect_tool_surface_error_code(rows: &[Value]) -> Option<&'static str
     }
 }
 
-fn chat_ui_tool_surface_fail_closed_copy(error_code: &str) -> &'static str {
-    if error_code == "web_tool_surface_unavailable" {
-        "I could not complete live web retrieval in this turn because the web tool surface is unavailable. Retry after restoring web tooling, or provide a source URL and I can continue with local analysis."
-    } else {
-        "I could not complete live web retrieval in this turn because the web tool surface is degraded. Retry after restoring provider credentials/runtime, or provide a source URL and I can continue with local analysis."
-    }
-}
-
 fn chat_ui_tool_surface_classification(error_code: &str) -> &'static str {
     if error_code == "web_tool_surface_unavailable" {
         "tool_surface_unavailable"
@@ -568,31 +559,6 @@ fn chat_ui_tools_have_valid_findings(rows: &[Value]) -> bool {
     rows.iter().any(chat_ui_tool_row_has_valid_findings)
 }
 
-fn chat_ui_tool_findings_summary(rows: &[Value], max_rows: usize) -> String {
-    let mut summaries = Vec::<String>::new();
-    for row in rows
-        .iter()
-        .filter(|row| chat_ui_tool_row_has_valid_findings(row))
-        .take(max_rows)
-    {
-        let tool_name = clean(row.get("name").and_then(Value::as_str).unwrap_or("tool"), 80);
-        let result = clean(row.get("result").and_then(Value::as_str).unwrap_or(""), 260);
-        if result.is_empty() {
-            continue;
-        }
-        summaries.push(format!(
-            "{}: {}",
-            if tool_name.is_empty() {
-                "tool"
-            } else {
-                &tool_name
-            },
-            result
-        ));
-    }
-    clean(&summaries.join(" "), 2_000)
-}
-
 fn finalize_chat_ui_assistant_response(
     user_message: &str,
     assistant_raw: &str,
@@ -600,7 +566,7 @@ fn finalize_chat_ui_assistant_response(
 ) -> (String, String) {
     if let Some(tool_surface_error) = chat_ui_detect_tool_surface_error_code(tools) {
         return (
-            chat_ui_tool_surface_fail_closed_copy(tool_surface_error).to_string(),
+            String::new(),
             "tool_surface_error_fail_closed".to_string(),
         );
     }
@@ -609,19 +575,22 @@ fn finalize_chat_ui_assistant_response(
     if let Some((rewritten, rule_id)) =
         crate::tool_output_match_filter::rewrite_raw_payload_dump(&cleaned)
     {
-        cleaned = rewritten;
+        let _ = rewritten;
+        cleaned.clear();
         outcome = format!("rewrote:{rule_id}");
     }
     if let Some((rewritten, rule_id)) =
         crate::tool_output_match_filter::rewrite_unsynthesized_web_dump(&cleaned)
     {
-        cleaned = rewritten;
+        let _ = rewritten;
+        cleaned.clear();
         outcome = format!("rewrote:{rule_id}");
     }
     if let Some((rewritten, rule_id)) =
         crate::tool_output_match_filter::rewrite_failure_placeholder(&cleaned)
     {
-        cleaned = rewritten;
+        let _ = rewritten;
+        cleaned.clear();
         outcome = format!("rewrote_failure:{rule_id}");
     }
     let speculative_blocker_copy = chat_ui_contains_speculative_blocker_language(&cleaned);
@@ -632,24 +601,7 @@ fn finalize_chat_ui_assistant_response(
         || chat_ui_looks_like_unrelated_programming_dump(user_message, &cleaned)
         || crate::tool_output_match_filter::contains_forbidden_runtime_context_markers(&cleaned);
     if unrelated_context_dump {
-        if let Some(summary) = partial_framework_coverage.clone() {
-            return (summary, "repaired_unrelated_context_dump".to_string());
-        }
-        let findings_summary = chat_ui_tool_findings_summary(tools, 3);
-        if !findings_summary.is_empty() {
-            return (
-                findings_summary,
-                "repaired_unrelated_context_dump".to_string(),
-            );
-        }
-        return (
-            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                "parse_failed",
-                "web_tool_context_mismatch",
-                None,
-            ),
-            "repaired_unrelated_context_dump".to_string(),
-        );
+        return (String::new(), "withheld_unrelated_context_dump".to_string());
     }
     if speculative_blocker_copy && has_block_evidence {
         let codes = chat_ui_structured_block_evidence_codes(tools);
@@ -658,27 +610,11 @@ fn finalize_chat_ui_assistant_response(
         } else {
             Some(codes.join(", "))
         };
-        return (
-            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                "policy_blocked",
-                "web_tool_policy_blocked",
-                detail.as_deref(),
-            ),
-            "blocked_with_structured_evidence".to_string(),
-        );
+        let _ = detail;
+        return (String::new(), "withheld_blocked_with_structured_evidence".to_string());
     }
     if speculative_blocker_copy && !has_block_evidence {
-        if let Some(summary) = partial_framework_coverage.clone() {
-            return (summary, "success_with_gaps".to_string());
-        }
-        return (
-            crate::tool_output_match_filter::canonical_tooling_fallback_copy(
-                "parse_failed",
-                "web_tool_unverified_blocker_claim",
-                None,
-            ),
-            "suppressed_unverified_blocker_claim".to_string(),
-        );
+        return (String::new(), "withheld_unverified_blocker_claim".to_string());
     }
     let low_signal = cleaned.trim().is_empty()
         || cleaned.contains("<function=")
@@ -700,18 +636,8 @@ fn finalize_chat_ui_assistant_response(
         }
         return (cleaned, outcome);
     }
-    if let Some(summary) = partial_framework_coverage {
-        return (summary, "success_with_gaps".to_string());
-    }
-    let findings_summary = chat_ui_tool_findings_summary(tools, 3);
-    if !findings_summary.is_empty() {
-        return (
-            findings_summary,
-            "repaired_with_tool_findings_summary".to_string(),
-        );
-    }
     (
-        CHAT_UI_TOOLING_RETRY_GUIDANCE.to_string(),
-        "repaired_with_retry_guidance".to_string(),
+        String::new(),
+        "withheld_non_llm_finalization_repair".to_string(),
     )
 }

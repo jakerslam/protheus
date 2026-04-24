@@ -72,6 +72,80 @@
       return 'Time limit active';
     },
 
+    showDashboardPopup(id, label, ev, overrides) {
+      var popupId = String(id || '').trim();
+      var title = String(label || '').trim();
+      if (!popupId || !title) {
+        if (typeof this.hideDashboardPopup === 'function') this.hideDashboardPopup();
+        return;
+      }
+      var eventType = String((ev && ev.type) || '').toLowerCase();
+      if (
+        eventType === 'mouseleave' ||
+        eventType === 'pointerleave' ||
+        eventType === 'blur' ||
+        eventType === 'focusout'
+      ) {
+        if (typeof this.hideDashboardPopup === 'function') this.hideDashboardPopup(popupId);
+        return;
+      }
+      if (ev && ev.isTrusted === false) return;
+      var config = overrides && typeof overrides === 'object' ? overrides : {};
+      var anchor = typeof this.dashboardPopupAnchorPoint === 'function'
+        ? this.dashboardPopupAnchorPoint(ev, config.side)
+        : { left: 0, top: 0, side: String(config.side || 'bottom'), inline_away: 'right', block_away: 'bottom' };
+      this.dashboardPopup = {
+        id: popupId,
+        active: true,
+        source: String(config.source || '').trim(),
+        title: title,
+        body: String(config.body || '').trim(),
+        meta_origin: String(config.meta_origin || 'Taskbar').trim(),
+        meta_time: String(config.meta_time || '').trim(),
+        unread: !!config.unread,
+        left: anchor.left,
+        top: anchor.top,
+        side: anchor.side,
+        inline_away: anchor.inline_away === 'left' ? 'left' : 'right',
+        block_away: anchor.block_away === 'top' ? 'top' : 'bottom',
+        compact: false
+      };
+    },
+
+    hideDashboardPopup(rawId) {
+      var popupId = String(rawId || '').trim();
+      var currentId = String((this.dashboardPopup && this.dashboardPopup.id) || '').trim();
+      if (popupId && currentId && popupId !== currentId) return;
+      if (typeof this.clearDashboardPopupState === 'function') {
+        this.clearDashboardPopupState();
+        return;
+      }
+      this.dashboardPopup = {
+        id: '',
+        active: false,
+        source: '',
+        title: '',
+        body: '',
+        meta_origin: '',
+        meta_time: '',
+        unread: false,
+        left: 0,
+        top: 0,
+        side: 'bottom',
+        inline_away: 'right',
+        block_away: 'bottom',
+        compact: false
+      };
+    },
+
+    hideDashboardPopupBySource(source) {
+      var popupSource = String(source || '').trim();
+      if (!popupSource) return;
+      var popup = this.dashboardPopup || {};
+      if (String(popup.source || '').trim() !== popupSource) return;
+      this.hideDashboardPopup(String(popup.id || '').trim());
+    },
+
     closeTaskbarHeroMenu() {
       this.taskbarHeroMenuOpen = false;
     },

@@ -8,7 +8,7 @@ This document defines the production integration contract between business, nexu
 - `core/layer0/ops/src/nexus_plane.rs` is authoritative for cross-domain bridging, receipt schema, and compliance ledger.
 - `core/layer0/ops/src/security_plane.rs` is authoritative for injection scanning, auto-remediation, blast-radius controls, and secrets federation.
 - `core/layer0/ops/src/enterprise_hardening.rs` is authoritative for enterprise profile and cross-plane zero-trust guard enforcement.
-- Client and adapter surfaces remain thin wrappers and do not own policy authority.
+- Shell and adapter surfaces remain thin wrappers and do not own policy authority.
 
 ## Cross-Component Data Flow
 1. Business intent enters `business_plane` and emits deterministic business receipts.

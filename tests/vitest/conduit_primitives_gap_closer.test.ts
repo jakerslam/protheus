@@ -968,10 +968,10 @@ describe('conduit primitive wrapper contract', () => {
     );
     expect(policy.release_candidate_rehearsal.required_every_cycle).toBe(true);
     expect(policy.release_candidate_rehearsal.required_step_gate_ids.includes('dr:gameday:gate')).toBe(true);
-    expect(policy.release_candidate_rehearsal.required_step_gate_ids.includes('audit:client-layer-boundary')).toBe(
+    expect(policy.release_candidate_rehearsal.required_step_gate_ids.includes('audit:shell-layer-boundary')).toBe(
       true,
     );
-    expect(policy.standing_regression_guards.client_authority_gate_id).toBe('audit:client-layer-boundary');
+    expect(policy.standing_regression_guards.shell_authority_gate_id).toBe('audit:shell-layer-boundary');
     expect(policy.legacy_process_runner_transition.deletion_target_release).toBe('v0.3.11-stable');
     expect(policy.legacy_process_runner_transition.deletion_target_date).toBe('2026-05-15');
   });
@@ -1006,7 +1006,7 @@ describe('conduit primitive wrapper contract', () => {
     expect(source.includes('release_metric:receipt_completeness_rate')).toBe(true);
     expect(source.includes('release_metric:supported_command_latency_ms')).toBe(true);
     expect(source.includes('release_candidate_rehearsal_completed')).toBe(true);
-    expect(source.includes('client_authority_regression_guard')).toBe(true);
+    expect(source.includes('shell_authority_regression_guard')).toBe(true);
   });
 
   test('release candidate rehearsal requires recovery and client-boundary gates', () => {
@@ -1015,7 +1015,7 @@ describe('conduit primitive wrapper contract', () => {
       'utf8',
     );
     expect(source.includes("'dr:gameday:gate'")).toBe(true);
-    expect(source.includes("'audit:client-layer-boundary'")).toBe(true);
+    expect(source.includes("'audit:shell-layer-boundary'")).toBe(true);
     expect(source.includes('required_step_gate_ids')).toBe(true);
     expect(source.includes('required_steps_satisfied')).toBe(true);
   });
@@ -1092,7 +1092,7 @@ describe('conduit primitive wrapper contract', () => {
     const payload = JSON.parse(fs.readFileSync(outPath, 'utf8'));
     expect(payload.type).toBe('support_bundle');
     expect(Array.isArray(payload.checks)).toBe(true);
-    expect(payload.closure_evidence.client_layer_boundary_audit).toBeTruthy();
+    expect(payload.closure_evidence.shell_layer_boundary_audit).toBeTruthy();
     expect(payload.closure_evidence.arch_boundary_conformance).toBeTruthy();
     expect(payload.closure_evidence.release_hardening_window).toBeTruthy();
     expect(Array.isArray(payload.incident_truth_package.failed_release_gates)).toBe(true);

@@ -46,7 +46,8 @@ function parseArgs(argv: string[]) {
     outPath: cleanText(readFlag(argv, 'out') || common.out || '', 400),
     policyPath: cleanText(readFlag(argv, 'policy') || 'tests/tooling/config/release_gates.yaml', 400),
     metricsPath: cleanText(
-      readFlag(argv, 'metrics') || 'core/local/artifacts/runtime_proof_metrics_rich_current.json',
+      readFlag(argv, 'metrics') ||
+        `core/local/artifacts/runtime_proof_release_gate_${profileSuffix}_current.json`,
       400,
     ),
     benchmarkPath: cleanText(
@@ -140,9 +141,85 @@ function readJsonMaybe(relPath: string): any {
   return JSON.parse(fs.readFileSync(abs, 'utf8'));
 }
 
+function extractMetricsPayload(metricsPayload: any): { metrics: Record<string, any>; source: string } {
+  if (!metricsPayload || typeof metricsPayload !== 'object') {
+    return { metrics: {}, source: 'missing' };
+  }
+
+  if (metricsPayload?.type === 'runtime_proof_release_gate') {
+    const effectiveMetrics = metricsPayload?.effective_metrics?.metrics;
+    if (effectiveMetrics && typeof effectiveMetrics === 'object') {
+      return {
+        metrics: effectiveMetrics,
+        source: 'runtime_proof_release_gate.effective_metrics',
+      };
+    }
+    const legacyMetrics = metricsPayload?.metrics;
+    if (legacyMetrics && typeof legacyMetrics === 'object') {
+      return {
+        metrics: legacyMetrics,
+        source: 'runtime_proof_release_gate.metrics',
+      };
+    }
+  }
+
+  if (metricsPayload?.type === 'runtime_proof_release_metrics') {
+    const releaseMetrics = metricsPayload?.metrics;
+    if (releaseMetrics && typeof releaseMetrics === 'object') {
+      return {
+        metrics: releaseMetrics,
+        source: 'runtime_proof_release_metrics.metrics',
+      };
+    }
+  }
+
+  if (metricsPayload?.type === 'runtime_proof_metrics') {
+    const proofMetrics = metricsPayload?.metrics;
+    if (proofMetrics && typeof proofMetrics === 'object') {
+      return {
+        metrics: proofMetrics,
+        source: 'runtime_proof_metrics.metrics',
+      };
+    }
+  }
+
+  if (metricsPayload?.metrics && typeof metricsPayload.metrics === 'object') {
+    return {
+      metrics: metricsPayload.metrics,
+      source: 'generic.metrics',
+    };
+  }
+
+  return {
+    metrics: metricsPayload,
+    source: 'raw_payload',
+  };
+}
+
 function safeNumber(value: unknown, fallback = 0): number {
   const num = Number(value);
   return Number.isFinite(num) ? num : fallback;
+}
+
+function isCanonicalToken(raw: string, maxLen = 120): boolean {
+  const token = cleanText(String(raw || ''), maxLen);
+  return /^[a-z0-9][a-z0-9._:-]*$/i.test(token);
+}
+
+function isCanonicalPathToken(raw: string, maxLen = 400): boolean {
+  const token = cleanText(String(raw || ''), maxLen);
+  if (!token) return false;
+  if (/^\s|\s$/.test(String(raw || ''))) return false;
+  return /^[a-z0-9_./:-]+$/i.test(token);
+}
+
+function isFiniteNonNegative(value: unknown): boolean {
+  const num = Number(value);
+  return Number.isFinite(num) && num >= 0;
+}
+
+function nearlyEqual(a: number, b: number, epsilon = 0.01): boolean {
+  return Math.abs(a - b) <= epsilon;
 }
 
 function statusForUtilization(value: number): 'healthy' | 'warning' | 'critical' {
@@ -249,9 +326,53 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       ok: false,
     });
   }
+  const failures: Array<{ id: string; detail: string }> = [];
+  if (!isCanonicalToken(args.profile, 40)) {
+    failures.push({
+      id: 'runtime_boundedness_inspect_profile_token_contract_v2',
+      detail: args.profile,
+    });
+  }
+  if (!Number.isInteger(policy.version) || Number(policy.version) < 1) {
+    failures.push({
+      id: 'runtime_boundedness_inspect_policy_version_scalar_contract_v2',
+      detail: `version=${String(policy.version)}`,
+    });
+  }
+  const requiredSections = ['memory', 'storage', 'queue', 'receipts', 'recovery', 'stale_surface'];
+  for (const section of requiredSections) {
+    const sectionValue = (profilePolicy as any)?.[section];
+    if (!sectionValue || typeof sectionValue !== 'object' || Array.isArray(sectionValue)) {
+      failures.push({
+        id: 'runtime_boundedness_inspect_policy_profile_sections_present_contract_v2',
+        detail: `${args.profile}:${section}`,
+      });
+    }
+  }
+  const policyThresholds: Array<[string, unknown]> = [
+    ['memory.peak_rss_mb_max', profilePolicy?.memory?.peak_rss_mb_max],
+    ['storage.disk_mb_max', profilePolicy?.storage?.disk_mb_max],
+    ['queue.depth_max', profilePolicy?.queue?.depth_max],
+    ['queue.depth_p95_max', profilePolicy?.queue?.depth_p95_max],
+    ['receipts.throughput_per_min_min', profilePolicy?.receipts?.throughput_per_min_min],
+    ['receipts.p95_latency_ms_max', profilePolicy?.receipts?.p95_latency_ms_max],
+    ['recovery.conduit_recovery_ms_max', profilePolicy?.recovery?.conduit_recovery_ms_max],
+    ['recovery.adapter_restart_count_max', profilePolicy?.recovery?.adapter_restart_count_max],
+    ['recovery.adapter_recovery_ms_max', profilePolicy?.recovery?.adapter_recovery_ms_max],
+    ['stale_surface.incidents_max', profilePolicy?.stale_surface?.incidents_max],
+  ];
+  for (const [key, value] of policyThresholds) {
+    if (!isFiniteNonNegative(value)) {
+      failures.push({
+        id: 'runtime_boundedness_inspect_policy_threshold_non_negative_contract_v2',
+        detail: `${args.profile}:${key}:${String(value)}`,
+      });
+    }
+  }
 
   const metricsPayload = readJsonMaybe(args.metricsPath) || {};
-  const metrics = metricsPayload.metrics || metricsPayload;
+  const metricSelection = extractMetricsPayload(metricsPayload);
+  const metrics = metricSelection.metrics;
   const benchmarkPayload = readJsonMaybe(args.benchmarkPath) || {};
   const queuePolicy = readJsonMaybe(args.queuePolicyPath) || {};
 
@@ -351,6 +472,67 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     utilization_pct: pct(throughputUtilization),
     status: throughputOk ? 'healthy' : 'critical',
   });
+  const expectedRowCount = rowSet.length + 1;
+  if (rows.length !== expectedRowCount) {
+    failures.push({
+      id: 'runtime_boundedness_inspect_rows_count_expected_contract_v2',
+      detail: `rows=${rows.length};expected=${expectedRowCount}`,
+    });
+  }
+  const rowMetricTokens = rows.map((row) => cleanText(String(row?.metric || ''), 80));
+  for (const metricToken of rowMetricTokens) {
+    if (!isCanonicalToken(metricToken, 80)) {
+      failures.push({
+        id: 'runtime_boundedness_inspect_rows_metric_token_contract_v2',
+        detail: metricToken || 'missing',
+      });
+    }
+  }
+  if (new Set(rowMetricTokens).size !== rowMetricTokens.length) {
+    failures.push({
+      id: 'runtime_boundedness_inspect_rows_metric_unique_contract_v2',
+      detail: rowMetricTokens.join(','),
+    });
+  }
+  for (const row of rows) {
+    const metric = cleanText(String(row?.metric || ''), 80) || 'unknown';
+    const numberFields = [
+      ['actual', row?.actual],
+      ['limit', row?.limit],
+      ['utilization', row?.utilization],
+      ['utilization_pct', row?.utilization_pct],
+    ] as const;
+    for (const [field, value] of numberFields) {
+      if (!isFiniteNonNegative(value)) {
+        failures.push({
+          id: 'runtime_boundedness_inspect_rows_numeric_non_negative_contract_v2',
+          detail: `${metric}:${field}=${String(value)}`,
+        });
+      }
+    }
+    if (!nearlyEqual(Number(row?.utilization_pct || 0), pct(Number(row?.utilization || 0)))) {
+      failures.push({
+        id: 'runtime_boundedness_inspect_rows_utilization_consistency_contract_v2',
+        detail: `${metric}:utilization=${String(row?.utilization)};utilization_pct=${String(row?.utilization_pct)}`,
+      });
+    }
+    const status = cleanText(String(row?.status || ''), 24);
+    if (!['healthy', 'warning', 'critical'].includes(status)) {
+      failures.push({
+        id: 'runtime_boundedness_inspect_rows_status_token_contract_v2',
+        detail: `${metric}:${status || 'missing'}`,
+      });
+    }
+    if (metric !== 'receipt_throughput_per_min_min') {
+      const expectedStatus = statusForUtilization(Number(row?.utilization || 0));
+      if (status && status !== expectedStatus) {
+        failures.push({
+          id: 'runtime_boundedness_inspect_rows_status_threshold_contract_v2',
+          detail: `${metric}:status=${status};expected=${expectedStatus}`,
+        });
+      }
+    }
+  }
 
   const statuses = rows.map((row) => row.status);
   const overallStatus = statuses.includes('critical')
@@ -381,6 +563,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     profile: args.profile,
     policy_path: args.policyPath,
     metrics_path: args.metricsPath,
+    metrics_source: metricSelection.source,
     benchmark_path: args.benchmarkPath,
     queue_policy_path: args.queuePolicyPath,
     markdown_path: args.markdownOutPath,
@@ -413,6 +596,85 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     failures,
     artifact_paths: [args.markdownOutPath, args.boundednessReportOutPath],
   };
+  const recomputedOverallStatus = statuses.includes('critical')
+    ? 'critical'
+    : statuses.includes('warning')
+      ? 'warning'
+      : 'healthy';
+  if (!['healthy', 'warning', 'critical'].includes(cleanText(String(report?.summary?.overall_status || ''), 24))) {
+    failures.push({
+      id: 'runtime_boundedness_inspect_overall_status_token_contract_v2',
+      detail: cleanText(String(report?.summary?.overall_status || ''), 40) || 'missing',
+    });
+  }
+  if (cleanText(String(report?.summary?.overall_status || ''), 24) !== recomputedOverallStatus) {
+    failures.push({
+      id: 'runtime_boundedness_inspect_overall_status_parity_contract_v2',
+      detail: `summary=${String(report?.summary?.overall_status)};derived=${recomputedOverallStatus}`,
+    });
+  }
+  if (Number(report?.summary?.row_count || 0) !== rows.length) {
+    failures.push({
+      id: 'runtime_boundedness_inspect_summary_row_count_parity_contract_v2',
+      detail: `summary=${String(report?.summary?.row_count)};rows=${rows.length}`,
+    });
+  }
+  if (Number(report?.summary?.failure_count || 0) !== failures.length) {
+    failures.push({
+      id: 'runtime_boundedness_inspect_summary_failure_count_parity_contract_v2',
+      detail: `summary=${String(report?.summary?.failure_count)};failures=${failures.length}`,
+    });
+  }
+  if (Boolean(report?.summary?.pass) !== (failures.length === 0)) {
+    failures.push({
+      id: 'runtime_boundedness_inspect_summary_pass_parity_contract_v2',
+      detail: `summary_pass=${String(report?.summary?.pass)};derived=${String(failures.length === 0)}`,
+    });
+  }
+  if ((queueBand ? 'resolved' : 'unresolved') !== report.controllers.queue_backpressure_band && !queueBand) {
+    failures.push({
+      id: 'runtime_boundedness_inspect_controller_band_resolution_contract_v2',
+      detail: `band=${String(report.controllers.queue_backpressure_band)}`,
+    });
+  }
+  if (queueBand && !isCanonicalToken(cleanText(String(report.controllers.queue_backpressure_action || ''), 80), 80)) {
+    failures.push({
+      id: 'runtime_boundedness_inspect_controller_action_nonempty_contract_v2',
+      detail: String(report.controllers.queue_backpressure_action || 'missing'),
+    });
+  }
+  const artifactPaths = Array.isArray(report.artifact_paths) ? report.artifact_paths : [];
+  const artifactTokens = artifactPaths.map((row) => cleanText(String(row || ''), 400)).filter(Boolean);
+  if (
+    artifactTokens.length === 0 ||
+    artifactTokens.length !== artifactPaths.length ||
+    new Set(artifactTokens).size !== artifactTokens.length ||
+    artifactTokens.some((token) => !isCanonicalPathToken(token, 400))
+  ) {
+    failures.push({
+      id: 'runtime_boundedness_inspect_artifact_paths_nonempty_unique_contract_v2',
+      detail: artifactTokens.join(',') || 'missing',
+    });
+  }
+  const failureRows = [...failures];
+  const failureIds = failureRows.map((row) => cleanText(String(row?.id || ''), 120)).filter(Boolean);
+  if (
+    failureRows.some(
+      (row) =>
+        !isCanonicalToken(cleanText(String(row?.id || ''), 120), 120) ||
+        !cleanText(String(row?.detail || ''), 400),
+    ) ||
+    new Set(failureIds).size !== failureIds.length
+  ) {
+    failures.push({
+      id: 'runtime_boundedness_inspect_failure_rows_shape_contract_v2',
+      detail: failureIds.join(',') || 'missing',
+    });
+  }
+  report.ok = failures.length === 0;
+  report.summary.pass = failures.length === 0;
+  report.summary.row_count = rows.length;
+  report.summary.failure_count = failures.length;
 
   const metric = (id: string) => rows.find((row) => row.metric === id);
   const peakRss = safeNumber(metric('peak_rss_mb')?.actual, 0);

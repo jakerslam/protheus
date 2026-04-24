@@ -1,8 +1,3 @@
-      msg._finish_bounce = true;
-      setTimeout(function() {
-        try { msg._finish_bounce = false; } catch(_) {}
-      }, 300);
-    },
     fetchModelContextWindows(force) {
       var now = Date.now();
       if (!force && this._contextModelsFetchedAt && (now - this._contextModelsFetchedAt) < 300000) {

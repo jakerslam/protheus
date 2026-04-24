@@ -62,8 +62,27 @@ Control-plane default templates are explicit, versioned behavior contracts (not 
 2. `research_synthesize_verify`
 3. `plan_execute_review`
 4. `diagnose_retry_escalate`
+5. `codex_tooling_synthesis`
 
 Template selection is computed in Rust by `control_plane::lifecycle::select_workflow_template(...)` using typed request class/kind, live plan status, and recovery state.
+Template definitions are cataloged by `control_plane::templates::workflow_template_definition(...)` so workflow profiles remain orchestration-owned.
+
+Codex template sub-workflows are also orchestration-owned and currently include:
+
+1. `codex_wave_preflight`
+2. `codex_disjoint_wave_execution`
+3. `codex_tool_route_misdirection`
+4. `codex_multi_provider_synthesis_recovery`
+5. `codex_route_probe_dry_run`
+6. `codex_environment_diagnose_parallel`
+7. `codex_worktree_isolated_setup`
+8. `codex_worktree_cleanup_safety_modes`
+9. `codex_review_fix_loop`
+
+Workflow JSON format policy and authoring template:
+
+- `docs/workspace/workflow_json_format_policy.md`
+- `docs/workspace/templates/workflow/workflow_template.workflow.json`
 
 ## Lifecycle Loop (Required Stages)
 

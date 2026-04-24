@@ -91,7 +91,7 @@ What is true in this repository today:
 - Release-candidate dress rehearsal: `npm run -s ops:release:rc-rehearsal`.
 - Release-candidate recovery rehearsal is required every cycle through `npm run -s ops:release:rc-rehearsal`.
 - Release-candidate rehearsal also requires chaos, replay, and orchestration hidden-state proofs.
-- Shell authority regression guard: `npm run -s ops:client-layer:boundary`.
+- Shell authority regression guard: `npm run -s ops:shell-layer:boundary`.
 - Support bundle is the single incident truth package for release closure.
 - Internal/maintenance lanes are not part of the public production SLA.
 - Operator diagnostics and incident export: `npm run -s ops:support-bundle:export`

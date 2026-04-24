@@ -202,7 +202,7 @@ pub fn infer_infring_home_from_exe() -> Option<PathBuf> {
 pub fn resolve_preferred_node_binary() -> String {
     let mut candidates = Vec::<String>::new();
 
-    for key in ["INFRING_NODE_BINARY", "INFRING_NODE_BINARY"] {
+    for key in ["INFRING_NODE_BINARY", "NODE_BINARY"] {
         if let Ok(value) = env::var(key) {
             let trimmed = value.trim();
             if !trimmed.is_empty() {
@@ -211,7 +211,7 @@ pub fn resolve_preferred_node_binary() -> String {
         }
     }
 
-    for key in ["INFRING_HOME", "INFRING_HOME"] {
+    for key in ["INFRING_HOME"] {
         if let Ok(value) = env::var(key) {
             let trimmed = value.trim();
             if !trimmed.is_empty() {
@@ -228,6 +228,11 @@ pub fn resolve_preferred_node_binary() -> String {
         if let Some(candidate) = resolve_node_from_runtime_root(runtime_root.as_path()) {
             candidates.push(candidate);
         }
+    }
+
+    if let Some(candidate) = resolve_binary_in_path(if cfg!(windows) { "node.exe" } else { "node" })
+    {
+        candidates.push(candidate);
     }
 
     for candidate in candidates {
@@ -569,7 +574,9 @@ fn is_invisible_unicode(ch: char) -> bool {
     )
 }
 pub fn strip_invisible_unicode(raw: &str) -> String {
-    raw.chars().filter(|ch| !is_invisible_unicode(*ch)).collect()
+    raw.chars()
+        .filter(|ch| !is_invisible_unicode(*ch))
+        .collect()
 }
 
 pub fn sanitize_web_tooling_query(raw: &str) -> String {
@@ -595,12 +602,9 @@ pub fn normalize_web_tooling_domain_hint(raw: &str) -> String {
         .or_else(|| lowered.strip_prefix("http://"))
         .unwrap_or(&lowered)
         .to_string();
-    clean_text(
-        Some(without_scheme.split('/').next().unwrap_or("")),
-        200,
-    )
-    .trim_matches('.')
-    .to_string()
+    clean_text(Some(without_scheme.split('/').next().unwrap_or("")), 200)
+        .trim_matches('.')
+        .to_string()
 }
 
 pub fn canonicalize_web_tooling_query(query: &str, domain_hint: Option<&str>) -> String {
@@ -654,7 +658,9 @@ pub fn http_status_to_code(status: u64) -> &'static str {
     }
 }
 
-pub fn web_tooling_auth_sources_from_env(env: &std::collections::HashMap<String, String>) -> Vec<String> {
+pub fn web_tooling_auth_sources_from_env(
+    env: &std::collections::HashMap<String, String>,
+) -> Vec<String> {
     let mut out = Vec::<String>::new();
     for (label, key) in [
         ("openai", "OPENAI_API_KEY"),

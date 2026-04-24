@@ -62,3 +62,11 @@ _Complete one row per new or expanded gateway/lane/shell-state/control-plane fea
 
 - [ ] No exterior capability expansion without verifiable runtime truth increase.
 - [ ] Every visible capability change links to at least one proof artifact, replay fixture, or release gate.
+
+## Capability Ownership + Proof Coverage (required for each net-new capability)
+
+_Add one row per net-new capability introduced by this PR. Use canonical owner layer tokens: `kernel`, `control_plane`, `shell`, `gateway`, `apps`._
+
+| Capability | Owner Layer | Proof / Gate Coverage |
+| --- | --- | --- |
+|  |  |  |

@@ -3,24 +3,18 @@ fn workflow_decision_tree_v2_selects_minimal_web_tools_only_when_needed() {
         "try to web search \"top ai agentic frameworks\" and return the results",
     );
     assert_eq!(
-        decision.get("route_classification").and_then(Value::as_str),
-        Some("task")
+        decision.get("gate_decision_mode").and_then(Value::as_str),
+        Some("manual_need_tool_access")
     );
     assert_eq!(
         decision
             .get("requires_live_web")
             .and_then(Value::as_bool),
-        Some(true)
+        Some(false)
     );
     assert_eq!(
         decision.get("should_call_tools").and_then(Value::as_bool),
-        Some(true)
-    );
-    assert_eq!(
-        decision
-            .get("recommended_tool_family")
-            .and_then(Value::as_str),
-        Some("web_tools")
+        Some(false)
     );
 }
 

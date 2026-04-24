@@ -4,70 +4,72 @@ This file is a readability map for the control plane.
 
 Scope: request decomposition, coordination, sequencing, recovery, and result packaging.
 
+Current chat workflow rule: the workflow interface is not allowed to help the LLM pick tools. It may only present a multiple-choice menu, present a text-input payload field, execute the submitted payload, record telemetry, or hand final response authorship back to the LLM.
+
 ## 1) Default Turn Flow
 
 ```mermaid
 flowchart TD
     A[User turn] --> B["Gate 1: Need tool access? (T/F)"]
-    B --> C{Tools required?}
-    C -->|No| D[Direct answer draft]
-    C -->|Yes| E[Numbered tool family menu]
+    B --> C{"LLM submits F or T"}
+    C -->|F| D[LLM answers directly]
+    C -->|T| E[Present numbered tool family menu]
     E --> F[Numbered tool menu]
-    F --> G[Execute selected tool]
-    G --> H{"Post-tool gate: finish or another tool?"}
-    H -->|Another tool| E
-    H -->|Finish| I[Collect receipts + events]
-    D --> G
-    I --> J[Final synthesis]
-    J --> K{Valid visible response?}
-    K -->|Yes| L[Return answer + receipts]
-    K -->|No| M[Recovery: repair or direct fallback]
-    M --> L
+    F --> G[Present selected tool request-format field]
+    G --> H[Execute submitted tool payload]
+    H --> I{"Post-tool menu: 1 finish / 2 another tool"}
+    I -->|Another tool| E
+    I -->|Finish| J[LLM-authored final answer]
 ```
 
-## 2) Conversation Bypass Flow (`conversation_bypass_v1`)
+## 2) Direct Conversation Flow
+
+Direct conversation is the `F` branch at Gate 1. There is no separate bypass workflow and no automatic bypass classifier.
 
 ```mermaid
 flowchart TD
-    A[User turn] --> B{Bypass override phrase or sticky bypass active?}
-    B -->|No| C[Run default workflow]
-    B -->|Yes| D{Safety gate passes?}
-    D -->|No: tooling/high-risk needed| C
-    D -->|Yes| E[Select conversation_bypass_v1]
-    E --> F[Direct response continuity]
-    F --> G[Persist bypass state with remaining TTL]
-    G --> H[Return response]
+    A[User turn] --> B["Gate 1: Need tool access? (T/F)"]
+    B -->|F| C[LLM answers directly]
+    B -->|T| D[Tool menu interface]
 ```
 
-## 3) Recovery + Loop Guard Flow
+## 3) Visibility + No-Injection Rule
 
 ```mermaid
 flowchart TD
-    A[Final response candidate] --> B{Empty, low-signal, or boilerplate loop?}
-    B -->|No| C[Keep candidate]
-    B -->|Yes| D[Generate workflow unexpected-state fallback]
-    D --> E[Non-repeat sanitizer]
-    E --> F{Still invalid?}
-    F -->|No| G[Return repaired direct answer]
-    F -->|Yes| H[Last-resort direct variant]
-    H --> G
+    A[Workflow event] --> B{Visible chat?}
+    B -->|No| C[Telemetry stream]
+    B -->|Yes| D{Authored by LLM?}
+    D -->|Yes| E[Chat bubble]
+    D -->|No| F[Withhold from chat]
 ```
 
-## 4) Ownership Reminder
+## 4) Tool Loop
+
+```mermaid
+flowchart TD
+    A[Tool result received] --> B[Present post-tool menu]
+    B --> C{"LLM submits option"}
+    C -->|1 finish| D[LLM synthesizes final answer]
+    C -->|2 another tool| E[Return to family menu]
+```
+
+## 5) Ownership Reminder
 
 - Kernel: truth, policy, admission, enforcement.
 - Orchestration control plane: what should happen next (decompose/coordinate/sequence/recover/package).
 - Shell: presentation and input only.
 
 See also: `docs/workspace/orchestration_ownership_policy.md`.
+Workflow format policy: `docs/workspace/workflow_json_format_policy.md`.
 
-## 5) Trace Streams + Exports
+## 6) Trace Streams + Exports
 
 The workflow now emits separate streams so the UI harness can render each channel differently:
 
 - `workflow_state` (machine-readable stage transitions)
 - `ui_status` (short user-facing status lines like "Searching the web")
-- `decision_summary` (concise rationale snapshots)
+- `decision_summary` (LLM submissions and guard telemetry only; no tool recommendations)
 - `tool_execution` (tool/audit timeline)
 
 Export formats (same turn, same trace id):

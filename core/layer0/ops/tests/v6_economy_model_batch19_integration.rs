@@ -76,7 +76,10 @@ fn assert_claim(payload: &Value, claim_id: &str) {
 
 fn assert_receipt_type(payload: &Value, expected_type: &str) {
     assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
-    assert_eq!(payload.get("type").and_then(Value::as_str), Some(expected_type));
+    assert_eq!(
+        payload.get("type").and_then(Value::as_str),
+        Some(expected_type)
+    );
 }
 
 #[test]

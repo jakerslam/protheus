@@ -1,0 +1,174 @@
+{
+  "schema_id": "synthesis_mixed_evidence_regression_matrix",
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "mixed_evidence_no_contradiction_full_coverage",
+      "evidence": [
+        {
+          "id": "ev_workspace_1",
+          "source_type": "workspace",
+          "claim": "runtime lane parity guard shows all required lanes complete"
+        },
+        {
+          "id": "ev_web_1",
+          "source_type": "web",
+          "claim": "external benchmark trend remains stable on latest run"
+        },
+        {
+          "id": "ev_tool_1",
+          "source_type": "tool",
+          "claim": "release proof pack required_missing is zero"
+        }
+      ],
+      "contradictions": [],
+      "expected_answer_shape": {
+        "required_sections": [
+          "answer_summary",
+          "evidence_trace",
+          "next_action"
+        ],
+        "must_reference_evidence_ids": [
+          "ev_workspace_1",
+          "ev_web_1",
+          "ev_tool_1"
+        ],
+        "max_dropped_evidence": 0,
+        "requires_clarification_on_unresolved_contradictions": false
+      },
+      "observed_answer_shape": {
+        "sections": [
+          "answer_summary",
+          "evidence_trace",
+          "next_action"
+        ],
+        "referenced_evidence_ids": [
+          "ev_workspace_1",
+          "ev_web_1",
+          "ev_tool_1"
+        ],
+        "dropped_evidence_ids": [],
+        "contradiction_strategy": "resolved",
+        "clarification_prompt_present": false,
+        "recovery_path_present": false,
+        "unresolved_contradictions_remaining": 0
+      }
+    },
+    {
+      "id": "mixed_evidence_unresolved_requires_clarification",
+      "evidence": [
+        {
+          "id": "ev_workspace_2",
+          "source_type": "workspace",
+          "claim": "queue pressure is under threshold in current artifact"
+        },
+        {
+          "id": "ev_web_2",
+          "source_type": "web",
+          "claim": "operator report says queue pressure exceeded threshold last run"
+        },
+        {
+          "id": "ev_tool_2",
+          "source_type": "tool",
+          "claim": "runtime quality guard reported clarification-safe fallback"
+        }
+      ],
+      "contradictions": [
+        {
+          "left": "ev_workspace_2",
+          "right": "ev_web_2",
+          "status": "unresolved"
+        }
+      ],
+      "expected_answer_shape": {
+        "required_sections": [
+          "answer_summary",
+          "evidence_trace",
+          "clarification"
+        ],
+        "must_reference_evidence_ids": [
+          "ev_workspace_2",
+          "ev_web_2"
+        ],
+        "max_dropped_evidence": 1,
+        "requires_clarification_on_unresolved_contradictions": true
+      },
+      "observed_answer_shape": {
+        "sections": [
+          "answer_summary",
+          "evidence_trace",
+          "clarification"
+        ],
+        "referenced_evidence_ids": [
+          "ev_workspace_2",
+          "ev_web_2"
+        ],
+        "dropped_evidence_ids": [
+          "ev_tool_2"
+        ],
+        "contradiction_strategy": "clarification",
+        "clarification_prompt_present": true,
+        "recovery_path_present": false,
+        "unresolved_contradictions_remaining": 1
+      }
+    },
+    {
+      "id": "mixed_evidence_unresolved_requires_recovery_path",
+      "evidence": [
+        {
+          "id": "ev_workspace_3",
+          "source_type": "workspace",
+          "claim": "gateway chaos gate shows repeated flapping"
+        },
+        {
+          "id": "ev_tool_3",
+          "source_type": "tool",
+          "claim": "quarantine transition was not observed in one lane"
+        },
+        {
+          "id": "ev_memory_3",
+          "source_type": "memory",
+          "claim": "prior run needed manual restart after flapping"
+        }
+      ],
+      "contradictions": [
+        {
+          "left": "ev_workspace_3",
+          "right": "ev_tool_3",
+          "status": "unresolved"
+        }
+      ],
+      "expected_answer_shape": {
+        "required_sections": [
+          "answer_summary",
+          "evidence_trace",
+          "recovery"
+        ],
+        "must_reference_evidence_ids": [
+          "ev_workspace_3",
+          "ev_tool_3",
+          "ev_memory_3"
+        ],
+        "max_dropped_evidence": 0,
+        "requires_clarification_on_unresolved_contradictions": true
+      },
+      "observed_answer_shape": {
+        "sections": [
+          "answer_summary",
+          "evidence_trace",
+          "recovery"
+        ],
+        "referenced_evidence_ids": [
+          "ev_workspace_3",
+          "ev_tool_3",
+          "ev_memory_3"
+        ],
+        "dropped_evidence_ids": [],
+        "contradiction_strategy": "recovery",
+        "clarification_prompt_present": false,
+        "recovery_path_present": true,
+        "unresolved_contradictions_remaining": 1
+      }
+    }
+  ]
+}

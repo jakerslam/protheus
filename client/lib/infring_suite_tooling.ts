@@ -2,7 +2,7 @@
 'use strict';
 
 // Layer ownership: core/layer2/runtime + core/layer0/ops::legacy-retired-lane (authoritative)
-// Client role: thin CLI helper for suite command dispatch.
+// Shell role: thin CLI helper for suite command dispatch.
 const { run } = require('../runtime/systems/compat/legacy_alias_adapter.ts');
 
 const SUITE_LANE_ID = 'RUNTIME-CLI-INFRING-SUITE-TOOLING';
@@ -14,4 +14,3 @@ function runTool(tool, args = []) {
 module.exports = {
   runTool
 };
-

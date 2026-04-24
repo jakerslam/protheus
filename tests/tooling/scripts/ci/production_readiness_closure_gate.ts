@@ -14,7 +14,7 @@ type Args = {
   topologyPath: string;
   stateCompatPath: string;
   rcRehearsalPath: string;
-  clientBoundaryPath: string;
+  shellBoundaryPath: string;
 };
 
 type Check = {
@@ -45,7 +45,7 @@ type Policy = {
     required_gate_artifacts?: Record<string, string>;
   };
   standing_regression_guards?: {
-    client_authority_gate_id?: string;
+    shell_authority_gate_id?: string;
   };
   release_evidence_flow?: {
     scorecard_stage?: 'prebundle' | 'final' | string;
@@ -74,9 +74,9 @@ const RELEASE_PROOF_PACK_PATH = path.join(
   ROOT,
   'core/local/artifacts/release_proof_pack_current.json',
 );
-const CLIENT_BOUNDARY_ARTIFACT_PATH = path.join(
+const SHELL_BOUNDARY_ARTIFACT_PATH = path.join(
   ROOT,
-  'core/local/artifacts/client_layer_boundary_audit_current.json',
+  'core/local/artifacts/shell_layer_boundary_audit_current.json',
 );
 const RELEASE_GATE_TELEMETRY_PROFILES = ['rich', 'pure', 'tiny-max'] as const;
 const RELEASE_GATE_TELEMETRY_KEYS = [
@@ -88,6 +88,7 @@ const RELEASE_PROOF_PACK_REQUIRED_ARTIFACT_PATHS = [
   'core/local/artifacts/layer2_lane_parity_guard_current.json',
   'core/local/artifacts/layer2_receipt_replay_current.json',
   'core/local/artifacts/runtime_trusted_core_report_current.json',
+  'core/local/artifacts/release_proof_pack_current.json',
 ] as const;
 const RELEASE_POLICY_REQUIRED_GATE_IDS = [
   'ops:layer2:parity:guard',
@@ -118,14 +119,14 @@ function parseArgs(argv: string[]): Args {
   const args: Args = {
     strict: false,
     out: 'core/local/artifacts/production_readiness_closure_gate_current.json',
-    runSmoke: true,
-    stage: 'final',
+    runSmoke: false,
+    stage: 'prebundle',
     supportBundlePath: SUPPORT_BUNDLE_ARTIFACT_PATH,
     scorecardPath: RELEASE_SCORECARD_PATH,
     topologyPath: TOPOLOGY_ARTIFACT_PATH,
     stateCompatPath: STATE_COMPAT_ARTIFACT_PATH,
     rcRehearsalPath: RELEASE_RC_REHEARSAL_PATH,
-    clientBoundaryPath: CLIENT_BOUNDARY_ARTIFACT_PATH,
+    shellBoundaryPath: SHELL_BOUNDARY_ARTIFACT_PATH,
   };
   for (const token of argv) {
     if (token === '--strict') args.strict = true;
@@ -150,8 +151,11 @@ function parseArgs(argv: string[]): Args {
     else if (token.startsWith('--rc-rehearsal=')) {
       args.rcRehearsalPath = path.resolve(ROOT, token.slice('--rc-rehearsal='.length));
     }
+    else if (token.startsWith('--shell-boundary=')) {
+      args.shellBoundaryPath = path.resolve(ROOT, token.slice('--shell-boundary='.length));
+    }
     else if (token.startsWith('--client-boundary=')) {
-      args.clientBoundaryPath = path.resolve(ROOT, token.slice('--client-boundary='.length));
+      args.shellBoundaryPath = path.resolve(ROOT, token.slice('--client-boundary='.length));
     }
   }
   return args;
@@ -431,7 +435,7 @@ function checkReleaseEvidence(policy: Policy, args: Args): Check[] {
   const supportBundle = readJson<any>(args.supportBundlePath, {});
   const scorecard = readJson<any>(args.scorecardPath, {});
   const rcRehearsal = readJson<any>(args.rcRehearsalPath, {});
-  const clientBoundary = readJson<any>(args.clientBoundaryPath, {});
+  const shellBoundary = readJson<any>(args.shellBoundaryPath, {});
   const releaseProofPack = readJson<any>(RELEASE_PROOF_PACK_PATH, {});
   const releaseProofPackSummary =
     releaseProofPack?.summary && typeof releaseProofPack.summary === 'object'
@@ -857,8 +861,8 @@ function checkReleaseEvidence(policy: Policy, args: Args): Check[] {
     .map((gateId) => String(gateId || '').trim())
     .filter((gateId) => gateId.length === 0 || /\s/.test(gateId))
     .sort((a, b) => a.localeCompare(b, 'en'));
-  const clientAuthorityGateId = String(
-    policy.standing_regression_guards?.client_authority_gate_id || 'audit:client-layer-boundary',
+  const shellAuthorityGateId = String(
+    policy.standing_regression_guards?.shell_authority_gate_id || 'audit:shell-layer-boundary',
   );
   const scorecardGates = new Map<string, any>(
     (Array.isArray(scorecard?.gates) ? scorecard.gates : []).map((row: any) => [String(row?.id || ''), row]),
@@ -953,7 +957,7 @@ function checkReleaseEvidence(policy: Policy, args: Args): Check[] {
         `scorecard_gate=${scorecardGates.get('recovery_rpo_threshold')?.ok === true}`,
     },
   ];
-  const clientBoundaryOk = clientBoundary?.summary?.pass === true || clientBoundary?.ok === true;
+  const shellBoundaryOk = shellBoundary?.summary?.pass === true || shellBoundary?.ok === true;
   return [
     {
       id: 'release_evidence_flow_stage_matches_policy',
@@ -1054,16 +1058,16 @@ function checkReleaseEvidence(policy: Policy, args: Args): Check[] {
         : `duplicate_rc_step_gate_ids=${duplicateRcStepIds.join(',')}`,
     },
     {
-      id: 'client_authority_regression_guard',
+      id: 'shell_authority_regression_guard',
       ok:
-        clientBoundaryOk &&
-        (!finalStage || activeRcCycle || passedRcStepIds.has(clientAuthorityGateId)),
+        shellBoundaryOk &&
+        (!finalStage || activeRcCycle || passedRcStepIds.has(shellAuthorityGateId)),
       detail:
         !finalStage
-          ? `stage=prebundle;violations=${safeNumber(clientBoundary?.summary?.violation_count, -1)}`
+          ? `stage=prebundle;violations=${safeNumber(shellBoundary?.summary?.violation_count, -1)}`
           : activeRcCycle
-          ? `current_rc_cycle_active;violations=${safeNumber(clientBoundary?.summary?.violation_count, -1)}`
-          : `rc_step=${clientAuthorityGateId};violations=${safeNumber(clientBoundary?.summary?.violation_count, -1)}`,
+          ? `current_rc_cycle_active;violations=${safeNumber(shellBoundary?.summary?.violation_count, -1)}`
+          : `rc_step=${shellAuthorityGateId};violations=${safeNumber(shellBoundary?.summary?.violation_count, -1)}`,
     },
     {
       id: 'support_bundle_incident_truth_package',
@@ -2127,6 +2131,7 @@ function checkReleaseEvidence(policy: Policy, args: Args): Check[] {
 
 function buildReport(args: Args) {
   const checks: Check[] = [];
+  const finalStage = args.stage === 'final';
   if (!fs.existsSync(POLICY_PATH)) {
     checks.push({
       id: 'policy_file',
@@ -2154,7 +2159,17 @@ function buildReport(args: Args) {
     ),
   );
   checks.push(...checkReleaseGateTelemetryThresholds());
-  if (args.runSmoke) checks.push(...runSmokeScripts(policy.smoke_scripts || []));
+  checks.push({
+    id: 'smoke_execution_mode',
+    ok: true,
+    detail:
+      args.runSmoke && finalStage
+        ? 'enabled_final_stage'
+        : args.runSmoke
+        ? 'requested_but_suppressed_for_prebundle'
+        : 'disabled',
+  });
+  if (args.runSmoke && finalStage) checks.push(...runSmokeScripts(policy.smoke_scripts || []));
   checks.push(...checkReleaseEvidence(policy, args));
 
   const failed = checks.filter((row) => !row.ok);

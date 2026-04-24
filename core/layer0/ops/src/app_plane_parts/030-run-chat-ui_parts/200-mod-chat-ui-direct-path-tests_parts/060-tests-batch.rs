@@ -9,13 +9,45 @@
                 }
             }),
         );
-        assert_eq!(outcome, "placeholder_replaced_surface_degraded");
-        assert!(
-            rewritten
-                .to_ascii_lowercase()
-                .contains("web tool surface is degraded"),
-            "{rewritten}"
+        assert_eq!(outcome, "placeholder_withheld_surface_degraded");
+        assert!(rewritten.is_empty(), "{rewritten}");
+    }
+
+    #[test]
+    fn direct_run_chat_ui_rewrites_route_classifier_ghost_copy() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_chat_script(
+            root.path(),
+            &json!({
+                "queue": [
+                    {
+                        "response": "The gate system is functioning as designed - it's a decision tree that automatically classifies requests as either \"info\" (direct conversation) or \"task\" (tool workflow) routes based on semantic analysis of your input. [source:tool_decision_tree_v3]",
+                        "tools": []
+                    }
+                ]
+            }),
         );
+        let payload = run_chat_ui(
+            root.path(),
+            &crate::parse_args(&[
+                "run".to_string(),
+                "--app=chat-ui".to_string(),
+                "--session-id=route-ghost-rewrite".to_string(),
+                "--message=try again".to_string(),
+                "--strict=1".to_string(),
+            ]),
+            true,
+            "run",
+        );
+        let assistant = payload.pointer("/turn/assistant").and_then(Value::as_str).unwrap_or("");
+        let lowered = assistant.to_ascii_lowercase();
+        assert!(
+            lowered.contains("automatic info/task route classification is disabled")
+                || lowered.contains("i could not produce a reliable response for your last message in this turn"),
+            "{assistant}"
+        );
+        assert!(!lowered.contains("decision tree that automatically classifies"), "{assistant}");
+        assert!(!lowered.contains("[source:tool_decision_tree_v3]"), "{assistant}");
     }
 
     #[test]

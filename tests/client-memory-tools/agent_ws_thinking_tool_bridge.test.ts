@@ -425,8 +425,8 @@ async function run() {
   const structuredEvents = scenarioTwo.events;
   const structuredTools = Array.isArray(structuredResponse.tools) ? structuredResponse.tools : [];
   assert.ok(
-    String(structuredResponse.content || '').toLowerCase().includes('example domain summary'),
-    'structured tool-only completions should synthesize a visible assistant summary instead of staying blank'
+    !String(structuredResponse.content || '').trim(),
+    'structured tool-only completions should not synthesize visible assistant text'
   );
   assert.strictEqual(structuredTools.length, 1, 'structured tool blocks should become response tool rows');
   assert.strictEqual(structuredTools[0].attempt_id, 'call-fetch-1', 'structured tool rows should preserve tool use ids');
@@ -448,8 +448,8 @@ async function run() {
     'structured tool error block should preserve nested text results instead of JSON blobs'
   );
   assert.ok(
-    String(scenarioThree.response.content || '').toLowerCase().includes('provider timeout after 30s'),
-    'bridge should synthesize a readable failure sentence when tool rows error and the server returned no prose'
+    !String(scenarioThree.response.content || '').trim(),
+    'bridge should keep tool-error diagnostics in tool rows instead of synthesizing visible assistant text'
   );
 
   const scenarioThreeB = await runScenario(
@@ -486,8 +486,8 @@ async function run() {
     'missing tool_result block should preserve the last known completion status'
   );
   assert.ok(
-    String(scenarioFive.response.content || '').toLowerCase().includes('low-signal web output'),
-    'tool-only low-signal web turns should produce an actionable fallback summary'
+    !String(scenarioFive.response.content || '').trim(),
+    'tool-only low-signal web turns should not produce a system-authored visible fallback summary'
   );
   const repairedResultEvent = scenarioFive.events.find((row) => row.type === 'tool_result');
   assert.ok(repairedResultEvent, 'synthetic tool rows should still replay a tool_result event');
@@ -499,11 +499,11 @@ async function run() {
   );
   assert.ok(
     !String(scenarioSix.response.content || '').toLowerCase().includes("don't have usable tool findings"),
-    'generic no-findings assistant placeholder should be replaced when the tool result already contains a better web diagnostic'
+    'generic no-findings assistant placeholder should not be visible in chat'
   );
   assert.ok(
-    String(scenarioSix.response.content || '').toLowerCase().includes('low-signal web output'),
-    'placeholder assistant prose should be replaced with actionable low-signal web guidance'
+    !String(scenarioSix.response.content || '').trim(),
+    'placeholder assistant prose should be withheld rather than replaced with system-authored guidance'
   );
 
   const scenarioSeven = await runScenario(
@@ -511,12 +511,8 @@ async function run() {
     'compare this system to openclaw'
   );
   assert.ok(
-    String(scenarioSeven.response.content || '').toLowerCase().includes('retrieval-quality miss'),
-    'comparison placeholder turns should explain that missing comparative coverage is a retrieval-quality miss'
-  );
-  assert.ok(
-    String(scenarioSeven.response.content || '').toLowerCase().includes('not proof the systems are equivalent'),
-    'comparison placeholder turns should avoid sounding like a definitive no-answer'
+    !String(scenarioSeven.response.content || '').trim(),
+    'comparison placeholder turns should keep retrieval diagnostics in tool telemetry instead of chat text'
   );
 
   const scenarioEight = await runScenario(
@@ -527,9 +523,8 @@ async function run() {
   assert.strictEqual(finalizationOnlyTools.length, 1, 'finalization-only tool receipts should synthesize a visible tool row');
   assert.strictEqual(finalizationOnlyTools[0].name, 'batch_query');
   assert.ok(
-    String(scenarioEight.response.content || '').toLowerCase().includes('completed tool steps') ||
-      String(scenarioEight.response.content || '').toLowerCase().includes('missing tool_result block'),
-    'finalization-only blank payloads should still produce a visible assistant fallback summary'
+    !String(scenarioEight.response.content || '').trim(),
+    'finalization-only blank payloads should not produce a visible assistant fallback summary'
   );
 
   const scenarioNine = await runScenario(

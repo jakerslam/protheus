@@ -47,6 +47,13 @@
           { remove_last_agent_failure: false }
         );
         if (!handedOffToRecovery) {
+          var rawSendErrorText = String(rawHttpError || (e && e.message) || '').replace(/\s+/g, ' ').trim();
+          var lowerSendErrorText = rawSendErrorText.toLowerCase();
+          var isTransientDisconnectError =
+            lowerSendErrorText === 'fetch failed' ||
+            lowerSendErrorText === 'failed to fetch' ||
+            lowerSendErrorText === 'connect failed' ||
+            lowerSendErrorText.indexOf('gateway connect failed') >= 0;
           var normalizedSendErrorText = (function(message) {
             var raw = String(message || '').replace(/\s+/g, ' ').trim();
             var lower = raw.toLowerCase();
@@ -72,14 +79,16 @@
             ) return 'Gateway connect failed. Check runtime availability, pairing, and auth settings, then retry.';
             return 'Connection error: ' + raw;
           })(rawHttpError || (e && e.message) || '');
-          this.pushSystemMessage({
-            text: normalizedSendErrorText,
-            meta: '',
-            tools: [],
-            system_origin: 'http:error',
-            ts: Date.now(),
-            dedupe_window_ms: 12000
-          });
+          if (!isTransientDisconnectError) {
+            this.pushSystemMessage({
+              text: normalizedSendErrorText,
+              meta: '',
+              tools: [],
+              system_origin: 'http:error',
+              ts: Date.now(),
+              dedupe_window_ms: 12000
+            });
+          }
           this._inflightPayload = null;
         } else {
           return;

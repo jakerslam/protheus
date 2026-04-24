@@ -287,7 +287,7 @@ skipped_non_runtime	docs/provider-config/mistral-ai.mdx	documentation/configurat
 skipped_non_runtime	docs/provider-config/moonshot.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
 skipped_non_runtime	docs/provider-config/nebius.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
 skipped_non_runtime	docs/provider-config/nousresearch.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	docs/provider-config/openai-codex.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
+imported	docs/provider-config/openai-codex.mdx	codex tooling/synthesis second-pass assimilation via codex-specific docs/snapshots/env mapping tranche-3 | source=codex | wave=CODEX-TOOLING-SYNTH-141
 skipped_non_runtime	docs/provider-config/openai-compatible.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
 skipped_non_runtime	docs/provider-config/openai.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
 skipped_non_runtime	docs/provider-config/openrouter.mdx	documentation/configuration asset; skipped for runtime capability import | deleted_to=.assimilation_deleted
@@ -910,10 +910,10 @@ skipped_non_runtime	src/core/prompts/system-prompt/__tests__/__snapshots__/opena
 skipped_non_runtime	src/core/prompts/system-prompt/__tests__/__snapshots__/openai_gpt_5_1-no-focus-chain.snap	test/docs snapshot artifact; skipped for direct capability import | deleted_to=.assimilation_deleted
 skipped_non_runtime	src/core/prompts/system-prompt/__tests__/__snapshots__/openai_gpt_5_1-no-mcp.snap	test/docs snapshot artifact; skipped for direct capability import | deleted_to=.assimilation_deleted
 skipped_non_runtime	src/core/prompts/system-prompt/__tests__/__snapshots__/openai_gpt_5_1_native.tools.snap	test/docs snapshot artifact; skipped for direct capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	src/core/prompts/system-prompt/__tests__/__snapshots__/openai_gpt_5_codex-basic.snap	test/docs snapshot artifact; skipped for direct capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	src/core/prompts/system-prompt/__tests__/__snapshots__/openai_gpt_5_codex-no-browser.snap	test/docs snapshot artifact; skipped for direct capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	src/core/prompts/system-prompt/__tests__/__snapshots__/openai_gpt_5_codex-no-focus-chain.snap	test/docs snapshot artifact; skipped for direct capability import | deleted_to=.assimilation_deleted
-skipped_non_runtime	src/core/prompts/system-prompt/__tests__/__snapshots__/openai_gpt_5_codex-no-mcp.snap	test/docs snapshot artifact; skipped for direct capability import | deleted_to=.assimilation_deleted
+imported	src/core/prompts/system-prompt/__tests__/__snapshots__/openai_gpt_5_codex-basic.snap	codex tooling/synthesis second-pass assimilation via codex-specific docs/snapshots/env mapping tranche-3 | source=codex | wave=CODEX-TOOLING-SYNTH-141
+imported	src/core/prompts/system-prompt/__tests__/__snapshots__/openai_gpt_5_codex-no-browser.snap	codex tooling/synthesis second-pass assimilation via codex-specific docs/snapshots/env mapping tranche-3 | source=codex | wave=CODEX-TOOLING-SYNTH-141
+imported	src/core/prompts/system-prompt/__tests__/__snapshots__/openai_gpt_5_codex-no-focus-chain.snap	codex tooling/synthesis second-pass assimilation via codex-specific docs/snapshots/env mapping tranche-3 | source=codex | wave=CODEX-TOOLING-SYNTH-141
+imported	src/core/prompts/system-prompt/__tests__/__snapshots__/openai_gpt_5_codex-no-mcp.snap	codex tooling/synthesis second-pass assimilation via codex-specific docs/snapshots/env mapping tranche-3 | source=codex | wave=CODEX-TOOLING-SYNTH-141
 skipped_non_runtime	src/core/prompts/system-prompt/__tests__/__snapshots__/openai_gpt_5_native.tools.snap	test/docs snapshot artifact; skipped for direct capability import | deleted_to=.assimilation_deleted
 skipped_non_runtime	src/core/prompts/system-prompt/__tests__/__snapshots__/openrouter_arcee_ai_trinity_large_preview-basic.snap	test/docs snapshot artifact; skipped for direct capability import | deleted_to=.assimilation_deleted
 skipped_non_runtime	src/core/prompts/system-prompt/__tests__/__snapshots__/openrouter_arcee_ai_trinity_large_preview-no-browser.snap	test/docs snapshot artifact; skipped for direct capability import | deleted_to=.assimilation_deleted
@@ -1938,7 +1938,7 @@ imported	.clinerules/workflows/hotfix-release.md	CODEX-TOOLING-SYNTH-105: assimi
 imported	.clinerules/workflows/pr-review.md	CODEX-TOOLING-SYNTH-105: assimilated workflow policy surfaces into tooling routing aliases and verifier clinerules-workflow synthesis coverage buckets
 imported	.clinerules/workflows/release.md	CODEX-TOOLING-SYNTH-105: assimilated workflow policy surfaces into tooling routing aliases and verifier clinerules-workflow synthesis coverage buckets
 imported	.clinerules/workflows/writing-documentation.md	CODEX-TOOLING-SYNTH-105: assimilated workflow policy surfaces into tooling routing aliases and verifier clinerules-workflow synthesis coverage buckets
-skipped_non_runtime	.codex/environments/environment.toml	non-runtime metadata or scaffolding file; skipped for capability import | deleted_to=.assimilation_deleted
+imported	.codex/environments/environment.toml	codex tooling/synthesis second-pass assimilation via codex-specific docs/snapshots/env mapping tranche-3 | source=codex | wave=CODEX-TOOLING-SYNTH-141
 skipped_non_runtime	.env.example	non-runtime metadata or scaffolding file; skipped for capability import | deleted_to=.assimilation_deleted
 skipped_non_runtime	.git/HEAD	non-runtime metadata or scaffolding file; skipped for capability import | deleted_to=.assimilation_deleted
 skipped_non_runtime	.git/config	non-runtime metadata or scaffolding file; skipped for capability import | deleted_to=.assimilation_deleted

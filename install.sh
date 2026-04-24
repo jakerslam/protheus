@@ -3435,6 +3435,39 @@ daemon_binary_wrapper_body() {
   cat <<'EOF'
 daemon_cmd="${1:-status}"
 case "$daemon_cmd" in
+  start|stop|restart|status|attach|subscribe|tick|diagnostics|efficiency-status|embedded-core-status|watchdog)
+    ops_bin="${INFRING_DAEMON_FALLBACK_OPS_BIN:-__INSTALL_DIR__/infring-ops}"
+    if [ -x "$ops_bin" ]; then
+      daemon_action="$daemon_cmd"
+      shift || true
+      needs_node_hint=0
+      case "$daemon_action" in
+        start|restart|watchdog)
+          needs_node_hint=1
+          ;;
+      esac
+      if [ "$needs_node_hint" = "1" ]; then
+        has_node_flag=0
+        for token in "$@"; do
+          case "$token" in
+            --node-binary=*)
+              has_node_flag=1
+              ;;
+          esac
+        done
+        if [ "$has_node_flag" = "0" ]; then
+          node_bin="${INFRING_NODE_BINARY:-}"
+          if [ -z "$node_bin" ]; then
+            node_bin="$(command -v node 2>/dev/null || true)"
+          fi
+          if [ -n "$node_bin" ]; then
+            exec "$ops_bin" daemon-control "$daemon_action" "$@" "--node-binary=${node_bin}"
+          fi
+        fi
+      fi
+      exec "$ops_bin" daemon-control "$daemon_action" "$@"
+    fi
+    ;;
   daemon-control|dashboard-ui)
     ops_bin="${INFRING_DAEMON_FALLBACK_OPS_BIN:-__INSTALL_DIR__/infring-ops}"
     if [ -x "$ops_bin" ]; then

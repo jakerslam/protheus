@@ -156,8 +156,211 @@ function patternsValid(patterns: string[]): boolean {
   return true;
 }
 
+function isCanonicalToken(value: string, max = 120): boolean {
+  const normalized = cleanText(value || '', max);
+  if (!normalized) return false;
+  if (normalized !== normalized.trim()) return false;
+  return /^[a-z0-9_]+$/.test(normalized);
+}
+
+function isCanonicalExtensionToken(value: string): boolean {
+  const normalized = cleanText(value || '', 40).toLowerCase();
+  if (!normalized) return false;
+  return /^\.[a-z0-9][a-z0-9_-]*$/.test(normalized);
+}
+
+function runPolicyContracts(policy: Policy): DriftViolation[] {
+  const violations: DriftViolation[] = [];
+  const pushContract = (
+    checkId: 'import' | 'symbol' | 'path',
+    boundaryId: string,
+    detail: string,
+  ): void => {
+    violations.push({
+      check_id: checkId,
+      boundary_id: boundaryId,
+      file: DEFAULT_POLICY_PATH,
+      detail: cleanText(detail, 260),
+    });
+  };
+
+  const version = cleanText(policy.version || '', 80);
+  if (!version) {
+    pushContract(
+      'path',
+      'ownership_policy_version_present_contract',
+      'policy.version must be declared',
+    );
+  } else if (!/^v?[0-9]+(?:\.[0-9]+){0,2}$/.test(version)) {
+    pushContract(
+      'path',
+      'ownership_policy_version_canonical_contract',
+      `policy.version must be canonical semver-like token (found: ${version})`,
+    );
+  }
+
+  const importRules = Array.isArray(policy.import_boundaries) ? policy.import_boundaries : [];
+  const symbolRules = Array.isArray(policy.symbol_boundaries) ? policy.symbol_boundaries : [];
+  const pathRules = Array.isArray(policy.path_boundaries) ? policy.path_boundaries : [];
+
+  if (importRules.length === 0) {
+    pushContract(
+      'import',
+      'ownership_import_boundaries_nonempty_contract',
+      'policy.import_boundaries must be non-empty',
+    );
+  }
+  if (symbolRules.length === 0) {
+    pushContract(
+      'symbol',
+      'ownership_symbol_boundaries_nonempty_contract',
+      'policy.symbol_boundaries must be non-empty',
+    );
+  }
+  if (pathRules.length === 0) {
+    pushContract(
+      'path',
+      'ownership_path_boundaries_nonempty_contract',
+      'policy.path_boundaries must be non-empty',
+    );
+  }
+
+  const importIds = importRules.map((row) => cleanText(row.id || '', 120)).filter(Boolean);
+  const symbolIds = symbolRules.map((row) => cleanText(row.id || '', 120)).filter(Boolean);
+  const pathIds = pathRules.map((row) => cleanText(row.id || '', 120)).filter(Boolean);
+
+  if (duplicateValues(importIds).length > 0) {
+    pushContract(
+      'import',
+      'ownership_import_boundary_ids_unique_contract',
+      'import boundary ids must be unique',
+    );
+  }
+  if (duplicateValues(symbolIds).length > 0) {
+    pushContract(
+      'symbol',
+      'ownership_symbol_boundary_ids_unique_contract',
+      'symbol boundary ids must be unique',
+    );
+  }
+  if (duplicateValues(pathIds).length > 0) {
+    pushContract('path', 'ownership_path_boundary_ids_unique_contract', 'path boundary ids must be unique');
+  }
+
+  for (const [index, rule] of importRules.entries()) {
+    const roots = Array.isArray(rule.scan_roots) ? rule.scan_roots : [];
+    if (roots.length === 0 || roots.some((root) => !isCanonicalRelativePath(root))) {
+      pushContract(
+        'import',
+        'ownership_import_boundary_scan_roots_nonempty_canonical_contract',
+        `import boundary scan_roots must be canonical (index ${index})`,
+      );
+    }
+    const extensions =
+      Array.isArray(rule.extensions) && rule.extensions.length > 0 ? rule.extensions : ['.ts', '.tsx', '.rs'];
+    if (extensions.some((token) => !isCanonicalExtensionToken(token))) {
+      pushContract(
+        'import',
+        'ownership_import_boundary_extensions_token_contract',
+        `import boundary extensions must be canonical (index ${index})`,
+      );
+    }
+    const forbidden = Array.isArray(rule.forbidden_import_patterns) ? rule.forbidden_import_patterns : [];
+    if (forbidden.length === 0 || !patternsValid(forbidden)) {
+      pushContract(
+        'import',
+        'ownership_import_boundary_forbidden_patterns_nonempty_valid_contract',
+        `import boundary forbidden_import_patterns must be non-empty and valid (index ${index})`,
+      );
+    }
+    const allow = Array.isArray(rule.allow_import_patterns) ? rule.allow_import_patterns : [];
+    if (allow.length > 0 && !patternsValid(allow)) {
+      pushContract(
+        'import',
+        'ownership_import_boundary_allow_patterns_valid_contract',
+        `import boundary allow_import_patterns must be valid when present (index ${index})`,
+      );
+    }
+  }
+
+  for (const [index, rule] of symbolRules.entries()) {
+    const roots = Array.isArray(rule.scan_roots) ? rule.scan_roots : [];
+    if (roots.length === 0 || roots.some((root) => !isCanonicalRelativePath(root))) {
+      pushContract(
+        'symbol',
+        'ownership_symbol_boundary_scan_roots_nonempty_canonical_contract',
+        `symbol boundary scan_roots must be canonical (index ${index})`,
+      );
+    }
+    const extensions =
+      Array.isArray(rule.extensions) && rule.extensions.length > 0 ? rule.extensions : ['.ts', '.tsx', '.rs'];
+    if (extensions.some((token) => !isCanonicalExtensionToken(token))) {
+      pushContract(
+        'symbol',
+        'ownership_symbol_boundary_extensions_token_contract',
+        `symbol boundary extensions must be canonical (index ${index})`,
+      );
+    }
+    const forbidden = Array.isArray(rule.forbidden_symbol_patterns) ? rule.forbidden_symbol_patterns : [];
+    if (forbidden.length === 0 || !patternsValid(forbidden)) {
+      pushContract(
+        'symbol',
+        'ownership_symbol_boundary_forbidden_patterns_nonempty_valid_contract',
+        `symbol boundary forbidden_symbol_patterns must be non-empty and valid (index ${index})`,
+      );
+    }
+    const allowFiles = Array.isArray(rule.allow_file_patterns) ? rule.allow_file_patterns : [];
+    if (allowFiles.length > 0 && !patternsValid(allowFiles)) {
+      pushContract(
+        'symbol',
+        'ownership_symbol_boundary_allow_files_valid_contract',
+        `symbol boundary allow_file_patterns must be valid when present (index ${index})`,
+      );
+    }
+  }
+
+  for (const [index, rule] of pathRules.entries()) {
+    const roots = Array.isArray(rule.scan_roots) ? rule.scan_roots : [];
+    if (roots.length === 0 || roots.some((root) => !isCanonicalRelativePath(root))) {
+      pushContract(
+        'path',
+        'ownership_path_boundary_scan_roots_nonempty_canonical_contract',
+        `path boundary scan_roots must be canonical (index ${index})`,
+      );
+    }
+    const extensions =
+      Array.isArray(rule.extensions) && rule.extensions.length > 0 ? rule.extensions : ['.ts', '.tsx', '.rs'];
+    if (extensions.some((token) => !isCanonicalExtensionToken(token))) {
+      pushContract(
+        'path',
+        'ownership_path_boundary_extensions_token_contract',
+        `path boundary extensions must be canonical (index ${index})`,
+      );
+    }
+    const forbidden = Array.isArray(rule.forbidden_path_patterns) ? rule.forbidden_path_patterns : [];
+    if (forbidden.length === 0 || !patternsValid(forbidden)) {
+      pushContract(
+        'path',
+        'ownership_path_boundary_forbidden_patterns_nonempty_valid_contract',
+        `path boundary forbidden_path_patterns must be non-empty and valid (index ${index})`,
+      );
+    }
+    const allow = Array.isArray(rule.allow_path_patterns) ? rule.allow_path_patterns : [];
+    if (allow.length > 0 && !patternsValid(allow)) {
+      pushContract(
+        'path',
+        'ownership_path_boundary_allow_patterns_valid_contract',
+        `path boundary allow_path_patterns must be valid when present (index ${index})`,
+      );
+    }
+  }
+
+  return violations;
+}
+
 function runImportBoundaries(policy: Policy): DriftViolation[] {
   const violations: DriftViolation[] = [];
+  violations.push(...runPolicyContracts(policy));
   for (const rule of policy.import_boundaries || []) {
     const boundaryId = cleanText(rule.id || 'import_boundary', 120);
     const roots = Array.isArray(rule.scan_roots) ? rule.scan_roots : [];

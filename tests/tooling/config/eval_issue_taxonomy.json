@@ -1,0 +1,44 @@
+{
+  "type": "eval_issue_taxonomy",
+  "version": "v1",
+  "updated_at": "2026-04-23T22:02:00.000Z",
+  "classes": [
+    {
+      "id": "hallucination",
+      "description": "Assistant asserts facts that are unsupported by available evidence or contradicted by trace/state.",
+      "critical": true
+    },
+    {
+      "id": "wrong_tool_selection",
+      "description": "Assistant routes an intent to the wrong tool family or claims no route despite valid capability.",
+      "critical": true
+    },
+    {
+      "id": "no_response",
+      "description": "Assistant does not provide a substantive response when one is required.",
+      "critical": true
+    },
+    {
+      "id": "response_loop",
+      "description": "Assistant repeats the same fallback/template response across turns.",
+      "critical": true
+    },
+    {
+      "id": "tool_output_misdirection",
+      "description": "Assistant output contains content from unrelated tools/results relative to user intent.",
+      "critical": true
+    },
+    {
+      "id": "policy_block_misframing",
+      "description": "Policy/lease-denied conditions are framed inaccurately or without bounded remediation guidance.",
+      "critical": true
+    }
+  ],
+  "severity_scale": [
+    "info",
+    "low",
+    "medium",
+    "high",
+    "critical"
+  ]
+}

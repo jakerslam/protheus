@@ -13,7 +13,7 @@ Deliver mech-suit behavior without violating Layer 0 invariants by making cockpi
 ## Safety Boundaries (Non-Negotiable)
 - Layer 0 remains deterministic source-of-truth.
 - No mutable cognition state is moved into Layer 0 correctness authority.
-- Client/core transport remains conduit + scrambler only.
+- Shell/core transport remains conduit + scrambler only.
 
 ## Functional Requirements
 

@@ -10,8 +10,14 @@ mod tests {
         );
         assert!(payload.get("ok").and_then(Value::as_bool).is_some());
         assert!(
-            payload.get("receipt_hash").and_then(Value::as_str).is_some()
-                || payload.get("claim_evidence").and_then(Value::as_array).is_some()
+            payload
+                .get("receipt_hash")
+                .and_then(Value::as_str)
+                .is_some()
+                || payload
+                    .get("claim_evidence")
+                    .and_then(Value::as_array)
+                    .is_some()
                 || payload.get("error").is_some()
                 || payload.get("reason").is_some()
         );
@@ -112,6 +118,15 @@ mod tests {
         assert_eq!(cfg.port, 4321);
         assert_eq!(cfg.ready_timeout_ms, 1_500);
         assert_eq!(cfg.watchdog_interval_ms, DASHBOARD_WATCHDOG_INTERVAL_MIN_MS);
+    }
+
+    #[test]
+    fn dashboard_launch_config_heals_empty_node_binary_flag() {
+        let cfg = parse_dashboard_launch_config(&["--node-binary=".to_string()], "watchdog");
+        assert!(
+            !cfg.node_binary.trim().is_empty(),
+            "empty node flag should fall back to resolver instead of disabling dashboard spawn"
+        );
     }
 
     #[test]
