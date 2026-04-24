@@ -147,7 +147,9 @@ fn leak_static_str_slice(values: Vec<String>) -> &'static [&'static str] {
     Box::leak(leaked.into_boxed_slice())
 }
 
-fn leak_static_subtemplate_slice(values: Vec<WorkflowSubtemplate>) -> &'static [WorkflowSubtemplate] {
+fn leak_static_subtemplate_slice(
+    values: Vec<WorkflowSubtemplate>,
+) -> &'static [WorkflowSubtemplate] {
     if values.is_empty() {
         return &[];
     }

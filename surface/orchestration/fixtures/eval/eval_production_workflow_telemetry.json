@@ -1,0 +1,84 @@
+{
+  "type": "eval_production_workflow_telemetry",
+  "schema_version": 1,
+  "thresholds": {
+    "min_events": 5,
+    "min_candidate_count": 5
+  },
+  "required_workflows": [
+    "installer_repair",
+    "local_file_tooling",
+    "workflow_selection",
+    "issue_synthesis",
+    "eval_escalation"
+  ],
+  "events": [
+    {
+      "event_id": "installer-repair-parse-error-001",
+      "workflow": "installer_repair",
+      "component": "setup/install.ps1",
+      "failure_class": "installer_parse_error",
+      "normalized_failure_code": "windows_installer_regex_escape_failure",
+      "severity": "high",
+      "success": false,
+      "recurrence_count": 2,
+      "sanitized_summary": "Windows installer failed on escaped path regex while repairing wrappers.",
+      "source_hash": "sha256-prod-installer-repair-001",
+      "receipt_ids": ["receipt-installer-parse-001"],
+      "raw_user_text": "[redacted before candidate emission]"
+    },
+    {
+      "event_id": "local-file-web-misroute-001",
+      "workflow": "local_file_tooling",
+      "component": "surface/orchestration/tool_route",
+      "failure_class": "wrong_tool_route",
+      "normalized_failure_code": "local_file_intent_routed_to_web",
+      "severity": "high",
+      "success": false,
+      "recurrence_count": 3,
+      "sanitized_summary": "Local workspace request was misrouted to web search instead of workspace tooling.",
+      "source_hash": "sha256-prod-local-file-route-001",
+      "receipt_ids": ["receipt-local-file-route-001"],
+      "raw_user_text": "[redacted before candidate emission]"
+    },
+    {
+      "event_id": "workflow-selection-boilerplate-001",
+      "workflow": "workflow_selection",
+      "component": "surface/orchestration/workflow_finalization",
+      "failure_class": "repeated_boilerplate_response",
+      "normalized_failure_code": "workflow_gate_unexpected_final_state",
+      "severity": "medium",
+      "success": false,
+      "recurrence_count": 4,
+      "sanitized_summary": "Final response looped on workflow-gate boilerplate instead of answering the user.",
+      "source_hash": "sha256-prod-workflow-selection-001",
+      "receipt_ids": ["receipt-workflow-selection-001"]
+    },
+    {
+      "event_id": "issue-synthesis-non-actionable-001",
+      "workflow": "issue_synthesis",
+      "component": "surface/orchestration/eval_issue_runtime",
+      "failure_class": "non_actionable_issue_feedback",
+      "normalized_failure_code": "issue_draft_missing_acceptance_criteria",
+      "severity": "medium",
+      "success": false,
+      "recurrence_count": 2,
+      "sanitized_summary": "Issue draft lacked exact evidence, owner, root cause, and replay command.",
+      "source_hash": "sha256-prod-issue-synthesis-001",
+      "receipt_ids": ["receipt-issue-synthesis-001"]
+    },
+    {
+      "event_id": "eval-escalation-weak-calibration-001",
+      "workflow": "eval_escalation",
+      "component": "surface/orchestration/eval_runtime",
+      "failure_class": "weak_eval_calibration",
+      "normalized_failure_code": "statistical_promotion_blocked",
+      "severity": "high",
+      "success": false,
+      "recurrence_count": 2,
+      "sanitized_summary": "Eval promotion was blocked because calibration confidence remained weak.",
+      "source_hash": "sha256-prod-eval-escalation-001",
+      "receipt_ids": ["receipt-eval-escalation-001"]
+    }
+  ]
+}

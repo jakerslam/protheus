@@ -1,0 +1,73 @@
+{
+  "type": "eval_contamination_cases",
+  "schema_version": 1,
+  "thresholds": {
+    "current_date": "2026-04-24",
+    "min_cases": 4,
+    "min_fresh_holdout_cases": 2,
+    "max_active_public_exposure_risk": 0.6,
+    "max_active_training_contamination_risk": 0.6
+  },
+  "cases": [
+    {
+      "id": "holdout-local-file-tool-routing-2026-04",
+      "status": "holdout",
+      "source_date": "2026-04-24",
+      "public_exposure_risk": 0.05,
+      "training_contamination_risk": 0.04,
+      "duplicate_source_hash": "sha256-holdout-local-file-route-001",
+      "retirement_date": "2026-07-24",
+      "public_benchmark_fingerprint": "none",
+      "prior_gold_patch_fingerprint": "none",
+      "checked_in_answer_key_fingerprint": "none"
+    },
+    {
+      "id": "holdout-policy-denial-recovery-2026-04",
+      "status": "holdout",
+      "source_date": "2026-04-24",
+      "public_exposure_risk": 0.04,
+      "training_contamination_risk": 0.03,
+      "duplicate_source_hash": "sha256-holdout-policy-denial-001",
+      "retirement_date": "2026-07-24",
+      "public_benchmark_fingerprint": "none",
+      "prior_gold_patch_fingerprint": "none",
+      "checked_in_answer_key_fingerprint": "none"
+    },
+    {
+      "id": "active-installer-repair-regression-2026-04",
+      "status": "active",
+      "source_date": "2026-04-23",
+      "public_exposure_risk": 0.12,
+      "training_contamination_risk": 0.08,
+      "duplicate_source_hash": "sha256-installer-repair-regression-001",
+      "retirement_date": "2026-06-24",
+      "public_benchmark_fingerprint": "none",
+      "prior_gold_patch_fingerprint": "none",
+      "checked_in_answer_key_fingerprint": "none"
+    },
+    {
+      "id": "retired-public-benchmark-style-file-task",
+      "status": "retired",
+      "source_date": "2025-12-01",
+      "public_exposure_risk": 0.91,
+      "training_contamination_risk": 0.84,
+      "duplicate_source_hash": "sha256-retired-public-style-001",
+      "retirement_date": "2026-01-31",
+      "public_benchmark_fingerprint": "none",
+      "prior_gold_patch_fingerprint": "none",
+      "checked_in_answer_key_fingerprint": "none"
+    },
+    {
+      "id": "quarantined-prior-gold-patch-shape",
+      "status": "quarantined",
+      "source_date": "2026-01-12",
+      "public_exposure_risk": 0.72,
+      "training_contamination_risk": 0.66,
+      "duplicate_source_hash": "sha256-quarantined-prior-gold-shape-001",
+      "retirement_date": "2026-03-01",
+      "public_benchmark_fingerprint": "none",
+      "prior_gold_patch_fingerprint": "none",
+      "checked_in_answer_key_fingerprint": "none"
+    }
+  ]
+}
