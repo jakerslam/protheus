@@ -1837,7 +1837,7 @@ fn workflow_library_allows_direct_answer_without_second_synthesis() {
         &json!({
             "queue": [
                 {
-                    "response": "Hello, the direct path is working."
+                    "response": "The workflow and tool menu are working, and I can answer directly."
                 }
             ],
             "calls": []
@@ -1854,7 +1854,7 @@ fn workflow_library_allows_direct_answer_without_second_synthesis() {
     assert_eq!(response.status, 200);
     assert_eq!(
         response.payload.get("response").and_then(Value::as_str),
-        Some("Hello, the direct path is working.")
+        Some("The workflow and tool menu are working, and I can answer directly.")
     );
     assert_eq!(
         response
@@ -1916,7 +1916,7 @@ fn workflow_library_allows_direct_answer_without_second_synthesis() {
         response
             .payload
             .pointer("/response_workflow/visibility/system_injected_chat_text_allowed")
-            .and_then(Value::as_bool),
+        .and_then(Value::as_bool),
         Some(false)
     );
 }

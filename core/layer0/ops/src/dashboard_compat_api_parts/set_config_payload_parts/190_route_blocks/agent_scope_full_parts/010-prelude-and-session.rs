@@ -303,6 +303,11 @@ fn handle_agent_scope_full(
         ) {
             return Some(response);
         }
+        if let Some(response) = handle_agent_scope_eval_feedback_report_issue_routes(
+            root, method, &segments, body, &agent_id,
+        ) {
+            return Some(response);
+        }
         if let Some(response) =
             handle_agent_scope_file_read_routes(root, method, &segments, body, &agent_id, &existing)
         {

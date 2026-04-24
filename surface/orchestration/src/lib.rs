@@ -5,6 +5,7 @@ pub mod contracts;
 pub mod control_plane;
 pub mod eval;
 pub mod eval_agent_feedback;
+pub mod eval_chat_report;
 pub mod eval_feedback_router;
 pub mod ingress;
 pub mod planner;

@@ -519,12 +519,11 @@ fn prepare_message_route_context(
     let memory_kv_entries = memory_kv_pairs_from_state(&state).len();
     let memory_prompt_context = memory_kv_prompt_context(&state, 24);
     let instinct_prompt_context = agent_instinct_prompt_context(root, 6_000);
-    let plugin_prompt_context =
-        dashboard_skills_marketplace::skills_prompt_context(root, 12, 4_000);
+    let plugin_prompt_context = dashboard_skills_marketplace::skills_prompt_context(root, 12, 4_000);
     let passive_memory_context = passive_attention_context_for_message(root, agent_id, message, 6);
+    let eval_feedback_context = eval_agent_feedback_prompt_context(root, agent_id, 4);
     let keyframe_context = context_keyframes_prompt_context(&state, 8, 2_400);
-    let overflow_keyframes_context =
-        historical_context_keyframes_prompt_context(&messages, &active_messages, 10, 2_400);
+    let overflow_keyframes_context = historical_context_keyframes_prompt_context(&messages, &active_messages, 10, 2_400);
     let relevant_recall_context =
         historical_relevant_recall_prompt_context(&messages, &active_messages, message, 8, 2_800);
     let identity_hydration_prompt = agent_identity_hydration_prompt(row);
@@ -566,6 +565,7 @@ fn prepare_message_route_context(
     if !passive_memory_context.is_empty() {
         prompt_parts.push(passive_memory_context);
     }
+    if !eval_feedback_context.is_empty() { prompt_parts.push(eval_feedback_context); }
     if !keyframe_context.is_empty() {
         prompt_parts.push(keyframe_context);
     }

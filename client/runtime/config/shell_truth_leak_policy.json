@@ -36,7 +36,12 @@
     "file_list_raw_lease_denied_echo",
     "file_list_raw_lease_denied_echo_unquoted",
     "workflow_retry_loop_next_actions_unordered_boilerplate",
-    "file_list_policy_gate_trace_blocked_template_generic"
+    "file_list_policy_gate_trace_blocked_template_generic",
+    "workflow_final_reply_not_rendered_short_boilerplate",
+    "workflow_retry_loop_next_actions_boilerplate",
+    "file_list_policy_gate_trace_blocked_template",
+    "workspace_file_policy_gate_template_loop",
+    "file_tooling_validation_drift_template"
   ],
   "error_on_warning_pattern_ids": [
     "workflow_final_reply_not_rendered_short_boilerplate",

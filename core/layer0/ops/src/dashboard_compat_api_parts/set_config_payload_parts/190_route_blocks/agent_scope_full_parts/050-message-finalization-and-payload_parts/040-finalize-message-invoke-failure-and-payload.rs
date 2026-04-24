@@ -159,6 +159,10 @@ fn finalize_message_invoke_failure_and_payload(
                 .get("attention_queue")
                 .cloned()
                 .unwrap_or_else(|| json!({})),
+            "live_eval_monitor": turn_receipt
+                .get("live_eval_monitor")
+                .cloned()
+                .unwrap_or_else(|| json!({})),
             "memory_capture": turn_receipt
                 .get("memory_capture")
                 .cloned()

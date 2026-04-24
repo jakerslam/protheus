@@ -206,7 +206,7 @@ const ISSUE_METADATA_BY_ID: Record<string, IssueMetadata> = {
     owner_path: 'surface/orchestration/',
     acceptance_criteria: [
       'User-visible responses contain substantive answer content for answerable prompts.',
-      'Fallback templates are replaced by bounded degraded responses when finalization fails.',
+      'Safe LLM-authored drafts are preserved instead of cleared into empty chat turns.',
     ],
     base_confidence: 0.88,
   },
@@ -550,14 +550,16 @@ function run(argv: string[] = process.argv.slice(2)): number {
 
   function recordEvidence(issueId: string, event: ChatEvent, patterns: RegExp[]) {
     const bucket = issueEvidenceById[issueId] || [];
-    if (bucket.length >= 2) return;
     bucket.push({
       turn_id: cleanText(event.turn_id, 260),
       ts: cleanText(event.ts, 120),
       agent_id: cleanText(event.agent_id, 180),
       snippet: extractSnippet(event.assistant_text, patterns),
     });
-    issueEvidenceById[issueId] = bucket;
+    bucket.sort((a, b) => {
+      return (Date.parse(cleanText(b.ts, 120)) || 0) - (Date.parse(cleanText(a.ts, 120)) || 0);
+    });
+    issueEvidenceById[issueId] = bucket.slice(0, 2);
   }
 
   let runPhrase = '';
@@ -802,7 +804,7 @@ function run(argv: string[] = process.argv.slice(2)): number {
       summary: 'Detected turns where assistant returned fallback-only text without substantive response.',
       evidence_count: noResponseCount,
       next_action:
-        'Force degraded one-shot answer synthesis when finalization fails and block no-answer fallback templates.',
+        'Preserve safe LLM-authored direct answers when finalization fails; do not inject system chat text.',
     });
   }
   const actionablePhaseTraceSignals = phaseTraceIssueSignals.filter((row: any) => {

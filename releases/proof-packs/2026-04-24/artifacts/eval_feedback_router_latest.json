@@ -1,0 +1,126 @@
+{
+  "checks": [
+    {
+      "detail": "routes=10;malformed=0",
+      "id": "eval_feedback_route_coverage_contract",
+      "ok": true
+    },
+    {
+      "detail": "destinations=control_plane_retry,gateway_quarantine,kernel_block",
+      "id": "eval_feedback_destination_set_contract",
+      "ok": true
+    },
+    {
+      "detail": "regression_failed=true;kernel_block_routes=3",
+      "id": "eval_regression_release_block_contract",
+      "ok": true
+    }
+  ],
+  "generated_at": "unix_ms:1777061895751",
+  "ok": true,
+  "routes": [
+    {
+      "action": "block_release_or_runtime_escalation",
+      "destination": "kernel_block",
+      "failure_class": "hallucination",
+      "failure_id": "eval-gold-001-pos-hallucination",
+      "receipt_type": "kernel_block_event",
+      "severity": "medium",
+      "source": "eval_issue_drafts"
+    },
+    {
+      "action": "retry_with_trace_and_probe_context",
+      "destination": "control_plane_retry",
+      "failure_class": "wrong_tool_selection",
+      "failure_id": "eval-gold-003-pos-wrong-tool-selection",
+      "receipt_type": "control_plane_retry_event",
+      "severity": "critical",
+      "source": "eval_issue_drafts"
+    },
+    {
+      "action": "retry_with_trace_and_probe_context",
+      "destination": "control_plane_retry",
+      "failure_class": "no_response",
+      "failure_id": "eval-gold-005-pos-no-response",
+      "receipt_type": "control_plane_retry_event",
+      "severity": "high",
+      "source": "eval_issue_drafts"
+    },
+    {
+      "action": "retry_with_trace_and_probe_context",
+      "destination": "control_plane_retry",
+      "failure_class": "response_loop",
+      "failure_id": "eval-gold-007-pos-response-loop",
+      "receipt_type": "control_plane_retry_event",
+      "severity": "critical",
+      "source": "eval_issue_drafts"
+    },
+    {
+      "action": "retry_with_trace_and_probe_context",
+      "destination": "control_plane_retry",
+      "failure_class": "auto_tool_selection_claim",
+      "failure_id": "eval-gold-009-pos-auto-tool-selection-claim",
+      "receipt_type": "control_plane_retry_event",
+      "severity": "high",
+      "source": "eval_issue_drafts"
+    },
+    {
+      "action": "retry_with_trace_and_probe_context",
+      "destination": "control_plane_retry",
+      "failure_class": "policy_block_confusion",
+      "failure_id": "eval-gold-011-pos-policy-block-confusion",
+      "receipt_type": "control_plane_retry_event",
+      "severity": "high",
+      "source": "eval_issue_drafts"
+    },
+    {
+      "action": "retry_with_trace_and_probe_context",
+      "destination": "control_plane_retry",
+      "failure_class": "bad_workflow_selection",
+      "failure_id": "eval-gold-013-pos-bad-workflow-selection",
+      "receipt_type": "control_plane_retry_event",
+      "severity": "high",
+      "source": "eval_issue_drafts"
+    },
+    {
+      "action": "block_release_or_runtime_escalation",
+      "destination": "kernel_block",
+      "failure_class": "non_actionable_feedback",
+      "failure_id": "eval-gold-015-pos-non-actionable-feedback",
+      "receipt_type": "kernel_block_event",
+      "severity": "medium",
+      "source": "eval_issue_drafts"
+    },
+    {
+      "action": "quarantine_gateway_and_route_around",
+      "destination": "gateway_quarantine",
+      "failure_class": "tool_output_misdirection",
+      "failure_id": "eval-gold-017-pos-tool-output-misdirection",
+      "receipt_type": "gateway_quarantine_event",
+      "severity": "high",
+      "source": "eval_issue_drafts"
+    },
+    {
+      "action": "block_release_or_runtime_escalation",
+      "destination": "kernel_block",
+      "failure_class": "eval_release_artifact_not_passing",
+      "failure_id": "eval_quality_gate_v1",
+      "receipt_type": "kernel_block_event",
+      "severity": "critical",
+      "source": "eval_regression_guard"
+    }
+  ],
+  "schema_version": 1,
+  "sources": {
+    "eval_issue_drafts": "core/local/artifacts/eval_issue_drafts_current.json",
+    "eval_regression_guard": "core/local/artifacts/eval_regression_guard_current.json"
+  },
+  "summary": {
+    "control_plane_retry": 6,
+    "eval_release_gate": "blocked",
+    "gateway_quarantine": 1,
+    "kernel_block": 3,
+    "route_count": 10
+  },
+  "type": "eval_feedback_router"
+}

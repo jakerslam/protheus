@@ -1,0 +1,1671 @@
+{
+  "ok": false,
+  "type": "release_proof_pack_manifest",
+  "generated_at": "2026-04-24T21:40:26.620Z",
+  "revision": "297d9fdd4090a3f96eed13cbd0407140ec06d2b1",
+  "version": "2026-04-24",
+  "pack_root": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24",
+  "source_manifest_path": "tests/tooling/config/release_proof_pack_manifest.json",
+  "category_completeness_min": {
+    "runtime_proof": 1,
+    "adapter_and_orchestration": 1,
+    "release_governance": 1,
+    "workload_and_quality": 1
+  },
+  "artifacts": [
+    {
+      "path": "core/local/artifacts/runtime_proof_verify_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_proof_verify_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_proof_verify_current.json",
+      "checksum": "2527cb65d331fcd182d431736de620f8a0ae4bf84cc97974f5a99b45eb6c0203",
+      "size_bytes": 33979,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_proof_harness_rich_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_proof_harness_rich_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_proof_harness_rich_current.json",
+      "checksum": "631d0da5facf348b40f24cd180fa9f5862a774a8b29b7f11975b61cd88c5acfb",
+      "size_bytes": 7877,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_proof_release_gate_rich_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_proof_release_gate_rich_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_proof_release_gate_rich_current.json",
+      "checksum": "aacdc682861b4cf0da945a1f34994365f9b85e00ae5778cf762711e89c17ee39",
+      "size_bytes": 19339,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_proof_release_metrics_rich_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_proof_release_metrics_rich_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_proof_release_metrics_rich_current.json",
+      "checksum": "e6fe803ea76b55d1b08b5c671730f7ed26b8b773a3e16fa4326787ee58cbc850",
+      "size_bytes": 19661,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_proof_harness_pure_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_proof_harness_pure_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_proof_harness_pure_current.json",
+      "checksum": "d16c7bb67393e0f7262a9a8fe9c216ab93ca2fe9a4c040c30eba0f6d1238d679",
+      "size_bytes": 7877,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_proof_release_gate_pure_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_proof_release_gate_pure_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_proof_release_gate_pure_current.json",
+      "checksum": "2dff617b4764491ec97d0a7e9cbea237191f3171f5ad6b059d6d77e91f0c5b60",
+      "size_bytes": 19335,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_proof_release_metrics_pure_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_proof_release_metrics_pure_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_proof_release_metrics_pure_current.json",
+      "checksum": "18e56815aeb0bdd4b58c36d7440356af1dd30735030369ca0735078396378d23",
+      "size_bytes": 19657,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_proof_harness_tiny-max_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_proof_harness_tiny-max_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_proof_harness_tiny-max_current.json",
+      "checksum": "a4586ac8b52c319d640f0896f1dc775e6cdf8b111fc0e28cc2a5b6a362dd428a",
+      "size_bytes": 7889,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_proof_release_gate_tiny-max_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_proof_release_gate_tiny-max_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_proof_release_gate_tiny-max_current.json",
+      "checksum": "d3fa250df7bbfb16ee93f9cd5b24c1a654bd5bcab8fb61129aaa97bfb6152df5",
+      "size_bytes": 19357,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_proof_release_metrics_tiny-max_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_proof_release_metrics_tiny-max_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_proof_release_metrics_tiny-max_current.json",
+      "checksum": "bdf76f96d7987dae349c1bf73cabf36fb5b1a88529a24d81b2aa276aeaa3a6cb",
+      "size_bytes": 19657,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_boundedness_72h_evidence_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_boundedness_72h_evidence_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_boundedness_72h_evidence_current.json",
+      "checksum": "8c3c271c40bd679470b31f99d9df7a5674bf75a0fd13b96339c999dae73dbc53",
+      "size_bytes": 1223,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_boundedness_profiles_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_boundedness_profiles_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_boundedness_profiles_current.json",
+      "checksum": "3976ac02dc6e8d05368a215485b398330239aa0c8db30748d0c015a008779f52",
+      "size_bytes": 7107,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_boundedness_inspect_rich_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_boundedness_inspect_rich_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_boundedness_inspect_rich_current.json",
+      "checksum": "40289ef77d6f509c1f9f90d3357696531de6248fd89ff2fe65357b0d854f2481",
+      "size_bytes": 3247,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_boundedness_inspect_pure_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_boundedness_inspect_pure_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_boundedness_inspect_pure_current.json",
+      "checksum": "f4f9d2dbdd411c2bc007abe07221260e46d78fd5b4cc562dbf13bad9c801e443",
+      "size_bytes": 3256,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_boundedness_inspect_tiny-max_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_boundedness_inspect_tiny-max_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_boundedness_inspect_tiny-max_current.json",
+      "checksum": "99600f915dd905875a4fc0a1bc62d00129bf48b866ffe30ab3321d16227d2636",
+      "size_bytes": 3272,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_boundedness_release_gate_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_boundedness_release_gate_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_boundedness_release_gate_current.json",
+      "checksum": "00fa561f3d3f3583d9406aeabe94c4debfdcb49fdf6f9c63abce1b8d419092fb",
+      "size_bytes": 10370,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/queue_backpressure_policy_gate_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/queue_backpressure_policy_gate_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/queue_backpressure_policy_gate_current.json",
+      "checksum": "11996ce921c33a24dfe19da504f5f777642a1f2fb81d9c776fd90806c08f223a",
+      "size_bytes": 2686,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_multi_day_soak_evidence_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_multi_day_soak_evidence_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_multi_day_soak_evidence_current.json",
+      "checksum": "1aa08ff2cc8f0238ab75a17fa16e86626daabadc5fbbf85609b4cbf464af8a41",
+      "size_bytes": 1044,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_soak_scenarios_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_soak_scenarios_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_soak_scenarios_current.json",
+      "checksum": "a4dbb0498573bfa82a93c1cc8554558c0bd42c98cc88bf2bf19e39de44214a5f",
+      "size_bytes": 5009,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_proof_synthetic_canary_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_proof_synthetic_canary_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_proof_synthetic_canary_current.json",
+      "checksum": "677e03070d51df60d7da011e630984e6e57da6c5f76ecd11cc486f7d6678c01b",
+      "size_bytes": 1914,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_proof_empirical_release_evidence_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_proof_empirical_release_evidence_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_proof_empirical_release_evidence_current.json",
+      "checksum": "8d59e21e0ab7269755120754ca48ed613c01691ffbc8001e18395adbc2d52043",
+      "size_bytes": 6610,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_proof_empirical_trends_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_proof_empirical_trends_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_proof_empirical_trends_current.json",
+      "checksum": "7c164a732f7958a8aa59cd2ae4de56f613b0f9ca7dbc29cd387706c2398e9901",
+      "size_bytes": 6488,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_proof_empirical_profile_coverage_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_proof_empirical_profile_coverage_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_proof_empirical_profile_coverage_current.json",
+      "checksum": "2d75a0b431ba79aa4949bf4b3fb1ea21c8021d32cd3830f7f7af6b3a360502d2",
+      "size_bytes": 19596,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_proof_empirical_source_matrix_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_proof_empirical_source_matrix_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_proof_empirical_source_matrix_current.json",
+      "checksum": "5636c5f306eea2defd62823b115a496e7d9f610d7fc60cc960d57119c1f9a2eb",
+      "size_bytes": 19593,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_proof_empirical_profile_gate_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_proof_empirical_profile_gate_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_proof_empirical_profile_gate_current.json",
+      "checksum": "0660ed47f68611728099472ae62447a210b05a98ed68172842c37776a6da67f2",
+      "size_bytes": 2594,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_proof_empirical_profile_gate_failures_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_proof_empirical_profile_gate_failures_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_proof_empirical_profile_gate_failures_current.json",
+      "checksum": "b14d79700d3d888fe8b81426f6b96f570782d8a6c6a0993a4d42082f47f48e61",
+      "size_bytes": 279,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_proof_empirical_profile_readiness_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_proof_empirical_profile_readiness_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_proof_empirical_profile_readiness_current.json",
+      "checksum": "d0467d7710f3ab1b49be231f80fafeb8bb74916d786d02b56149cd4273427db2",
+      "size_bytes": 1558,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_proof_empirical_minimum_contract_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_proof_empirical_minimum_contract_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_proof_empirical_minimum_contract_current.json",
+      "checksum": "35bf7e04ea79ca18cba45db5b50382776c80c23a167592cb10a4d423903ebaf1",
+      "size_bytes": 1499,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_proof_reality_guard_current.json",
+      "exists": false,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_proof_reality_guard_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_proof_reality_guard_current.json",
+      "checksum": "",
+      "size_bytes": 0,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/release_proof_checksums_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/release_proof_checksums_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/release_proof_checksums_current.json",
+      "checksum": "a2d203cbbd9f8f6e4962bfb342495e2d20c168ebe8c34542d8844bfa4f3972a2",
+      "size_bytes": 9367,
+      "category": "runtime_proof",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/gateway_runtime_chaos_gate_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/gateway_runtime_chaos_gate_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/gateway_runtime_chaos_gate_current.json",
+      "checksum": "2ced78e2d60909b81322ed8fa25b8f38325c2dd6f9a04d0760b31f6d0b3f75fe",
+      "size_bytes": 32008,
+      "category": "adapter_and_orchestration",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/gateway_support_levels_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/gateway_support_levels_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/gateway_support_levels_current.json",
+      "checksum": "2e82be88d0f2e581918169023a23e5557ec955aca2c350633eceb1e56a2c7440",
+      "size_bytes": 6240,
+      "category": "adapter_and_orchestration",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/gateway_status_manifest_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/gateway_status_manifest_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/gateway_status_manifest_current.json",
+      "checksum": "91dddc1c5d6088fd417841c0991ed488ef1a86d6e0ee7c0ae5b286eda2661c99",
+      "size_bytes": 10799,
+      "category": "adapter_and_orchestration",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/gateway_graduation_status_snapshot_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/gateway_graduation_status_snapshot_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/gateway_graduation_status_snapshot_current.json",
+      "checksum": "3839c01f038978c1d8a6378859ac504975ab027bd38a9d96be5f97239d950f31",
+      "size_bytes": 11031,
+      "category": "adapter_and_orchestration",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/layer2_lane_parity_guard_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/layer2_lane_parity_guard_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/layer2_lane_parity_guard_current.json",
+      "checksum": "82569e3615d1746869c938fa38d2dc19b72276baaa642a36d7ccdeeeca96be7d",
+      "size_bytes": 10113,
+      "category": "adapter_and_orchestration",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/layer2_receipt_replay_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/layer2_receipt_replay_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/layer2_receipt_replay_current.json",
+      "checksum": "9a267e6ec679b921659e3ecea8ff0f32eb0567f470fcb29771624d81e0d80c41",
+      "size_bytes": 13238,
+      "category": "adapter_and_orchestration",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_trusted_core_report_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_trusted_core_report_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_trusted_core_report_current.json",
+      "checksum": "b68822679c9e704c68ad9833aad7a57481d6a5899dd2532653876e00812726d9",
+      "size_bytes": 2554,
+      "category": "release_governance",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/kernel_nexus_coupling_guard_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/kernel_nexus_coupling_guard_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/kernel_nexus_coupling_guard_current.json",
+      "checksum": "d2491fa7f72dd84a752ce442571afb937cf64f24a33fd2155cb0eec20577a176",
+      "size_bytes": 2054,
+      "category": "release_governance",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/architecture_nexus_required_artifact_guard_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/architecture_nexus_required_artifact_guard_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/architecture_nexus_required_artifact_guard_current.json",
+      "checksum": "5eaa1eb7d66d6fcd069b93e795a21431818ea1f1a715cd11b40bf132feb4ca3f",
+      "size_bytes": 2279,
+      "category": "release_governance",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/layer3_contract_guard_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/layer3_contract_guard_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/layer3_contract_guard_current.json",
+      "checksum": "fee3f15033f580f2300d77cf235b6db3773b80e6d5659677fb4ab08c25a2cad0",
+      "size_bytes": 1122,
+      "category": "release_governance",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/node_critical_path_inventory_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/node_critical_path_inventory_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/node_critical_path_inventory_current.json",
+      "checksum": "cc32105511ab9f74f47407b063514f39502c369efb2284111c1193ea1f627504",
+      "size_bytes": 15069,
+      "category": "release_governance",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/agent_surface_status_guard_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/agent_surface_status_guard_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/agent_surface_status_guard_current.json",
+      "checksum": "e8a9b21a8e4ff175cb5e735018001cc37c10fa3a7887694d53b9911fcf0b5736",
+      "size_bytes": 2070,
+      "category": "release_governance",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/production_readiness_closure_gate_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/production_readiness_closure_gate_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/production_readiness_closure_gate_current.json",
+      "checksum": "89f52c6641493f3685ab07110f1ba68a105e9185481f8b41bb6b40984b806824",
+      "size_bytes": 51725,
+      "category": "release_governance",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/support_bundle_latest.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/support_bundle_latest.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/support_bundle_latest.json",
+      "checksum": "a379893fe96a0217583e7ba0d6cc662f72106a7d6b1fc5970869abf359483066",
+      "size_bytes": 700299,
+      "category": "release_governance",
+      "required": true
+    },
+    {
+      "path": "artifacts/web_tooling_context_soak_report_latest.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/artifacts/web_tooling_context_soak_report_latest.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/artifacts/web_tooling_context_soak_report_latest.json",
+      "checksum": "86479220df24865432372677f8f56f85bcd0a1977524abb30bfd1bdcf6b5d0eb",
+      "size_bytes": 19240,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "artifacts/web_tooling_reliability_latest.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/artifacts/web_tooling_reliability_latest.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/artifacts/web_tooling_reliability_latest.json",
+      "checksum": "a4af0dff043baa2eeff70e863cf444f9e2218ae5734237bb25a56b197de1b87a",
+      "size_bytes": 10057,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "artifacts/workflow_failure_recovery_latest.json",
+      "exists": false,
+      "source": "/Users/jay/.openclaw/workspace/artifacts/workflow_failure_recovery_latest.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/artifacts/workflow_failure_recovery_latest.json",
+      "checksum": "",
+      "size_bytes": 0,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "artifacts/workspace_tooling_context_soak_report_latest.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/artifacts/workspace_tooling_context_soak_report_latest.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/artifacts/workspace_tooling_context_soak_report_latest.json",
+      "checksum": "287168283b73faf361d78763c3aaa34b6a353b5206adaf78ec99cf7d5ae1d466",
+      "size_bytes": 56900,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "artifacts/workspace_tooling_soak_report_latest.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/artifacts/workspace_tooling_soak_report_latest.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/artifacts/workspace_tooling_soak_report_latest.json",
+      "checksum": "287168283b73faf361d78763c3aaa34b6a353b5206adaf78ec99cf7d5ae1d466",
+      "size_bytes": 56900,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/web_tooling_reliability_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/web_tooling_reliability_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/web_tooling_reliability_current.json",
+      "checksum": "cf860326a6ce52289307fd83f17d400e695d3ae1540e02a2afd83c319b37e1dc",
+      "size_bytes": 259,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/workflow_failure_recovery_current.json",
+      "exists": false,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/workflow_failure_recovery_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/workflow_failure_recovery_current.json",
+      "checksum": "",
+      "size_bytes": 0,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/workspace_tooling_context_soak_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/workspace_tooling_context_soak_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/workspace_tooling_context_soak_current.json",
+      "checksum": "287168283b73faf361d78763c3aaa34b6a353b5206adaf78ec99cf7d5ae1d466",
+      "size_bytes": 56900,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/workspace_tooling_release_proof_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/workspace_tooling_release_proof_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/workspace_tooling_release_proof_current.json",
+      "checksum": "3d68b9226f1c1f4894a364b3778beb6b51fba4ee10aae0f02c132b70eb72e085",
+      "size_bytes": 5980,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "docs/client/reports/benchmark_matrix_run_latest.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/docs/client/reports/benchmark_matrix_run_latest.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/docs/client/reports/benchmark_matrix_run_latest.json",
+      "checksum": "bb326350837a01b527fc7f9ca25736255cdb8405004c76a1f57858534c2a6d95",
+      "size_bytes": 48703,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "client/runtime/local/state/release/scorecard/release_scorecard.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/client/runtime/local/state/release/scorecard/release_scorecard.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/client/runtime/local/state/release/scorecard/release_scorecard.json",
+      "checksum": "4da59b1fe7e96e057732c7ba1185026996549fef672274764575e0e0c16d82fe",
+      "size_bytes": 9026,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/shell_truth_leak_guard_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/shell_truth_leak_guard_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/shell_truth_leak_guard_current.json",
+      "checksum": "b568b3b5cf7123e9b09495248addb2ef43b886e04f6d2fe844cf3579738ef258",
+      "size_bytes": 19754,
+      "category": "release_governance",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/terminology_transition_inventory_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/terminology_transition_inventory_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/terminology_transition_inventory_current.json",
+      "checksum": "9753bd04d62c7dbdd94a3ef32175e2a6083e31e2796f1727fe6961dc134ea197",
+      "size_bytes": 4165,
+      "category": "release_governance",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/srs_same_revision_guard_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/srs_same_revision_guard_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/srs_same_revision_guard_current.json",
+      "checksum": "aa36fdf4c789f1653d6992bcde20470f9d20d786bed90fd2e1d4e198c515171f",
+      "size_bytes": 69444,
+      "category": "release_governance",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_closure_board_guard_current.json",
+      "exists": false,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_closure_board_guard_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_closure_board_guard_current.json",
+      "checksum": "",
+      "size_bytes": 0,
+      "category": "release_governance",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/runtime_closure_feature_alignment_guard_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_closure_feature_alignment_guard_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/runtime_closure_feature_alignment_guard_current.json",
+      "checksum": "30843480390dc0ce739110fd1a1ca5b8a88d8b1d5233872e0313c58641e2cc02",
+      "size_bytes": 635,
+      "category": "release_governance",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/capability_proof_burden_guard_current.json",
+      "exists": false,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/capability_proof_burden_guard_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/capability_proof_burden_guard_current.json",
+      "checksum": "",
+      "size_bytes": 0,
+      "category": "release_governance",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/windows_installer_contract_guard_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/windows_installer_contract_guard_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/windows_installer_contract_guard_current.json",
+      "checksum": "8430fef8b413e2bf7cbd91daca5dc6a806a1f86dc1f9e40baa1e79ce4fb3c1a6",
+      "size_bytes": 5641,
+      "category": "release_governance",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/windows_install_reliability_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/windows_install_reliability_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/windows_install_reliability_current.json",
+      "checksum": "72079229304a43a88a099b1d31ad648b5b75cee50545a3dadbadd88f315e81f0",
+      "size_bytes": 1239,
+      "category": "release_governance",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/srs_todo_section_guard_current.json",
+      "exists": false,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/srs_todo_section_guard_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/srs_todo_section_guard_current.json",
+      "checksum": "",
+      "size_bytes": 0,
+      "category": "release_governance",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/parity_end_to_end_replay_current.json",
+      "exists": false,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/parity_end_to_end_replay_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/parity_end_to_end_replay_current.json",
+      "checksum": "",
+      "size_bytes": 0,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/parity_trend_current.json",
+      "exists": false,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/parity_trend_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/parity_trend_current.json",
+      "checksum": "",
+      "size_bytes": 0,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/parity_release_gate_current.json",
+      "exists": false,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/parity_release_gate_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/parity_release_gate_current.json",
+      "checksum": "",
+      "size_bytes": 0,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/gem_live_provider_smoke_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/gem_live_provider_smoke_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/gem_live_provider_smoke_current.json",
+      "checksum": "652edc15d9255965da7a115a2ad5231815662864f0083be2ce59d2c5c2f347df",
+      "size_bytes": 3976,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/gem_memory_durability_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/gem_memory_durability_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/gem_memory_durability_current.json",
+      "checksum": "d1c724bdb2c871e1a5fd41adcd17864c26277320c99c7a54ea76496b181487b5",
+      "size_bytes": 1778,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/gem_subagent_route_contract_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/gem_subagent_route_contract_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/gem_subagent_route_contract_current.json",
+      "checksum": "9865c6896e853391ac2580d17a9600d8f65016d49e9247bbc847b08300c2dcbb",
+      "size_bytes": 1572,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/gem_feedback_closure_guard_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/gem_feedback_closure_guard_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/gem_feedback_closure_guard_current.json",
+      "checksum": "14f17138544ecf43664bae5d5f7143051ab847de762feb9a9572c8eaa2e4ed2f",
+      "size_bytes": 2887,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/eval_agent_chat_monitor_guard_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/eval_agent_chat_monitor_guard_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/eval_agent_chat_monitor_guard_current.json",
+      "checksum": "dde1bef9f6643092eaf011236470ab5d693300378b7f8671d38306f5a9e1c4f2",
+      "size_bytes": 11239,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/eval_quality_metrics_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/eval_quality_metrics_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/eval_quality_metrics_current.json",
+      "checksum": "d1ebb210aa824b880e9f6784f71369afe2d75849417f2f32060f8aa24b0091da",
+      "size_bytes": 7324,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/eval_monitor_slo_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/eval_monitor_slo_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/eval_monitor_slo_current.json",
+      "checksum": "2093218898bd66504eae4d11b951dc9cba362f162da7e07286b427a2ebb22a14",
+      "size_bytes": 4087,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/eval_reviewer_feedback_weekly_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/eval_reviewer_feedback_weekly_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/eval_reviewer_feedback_weekly_current.json",
+      "checksum": "cdd2d68d6f8c783ac7c9e121f182d378a96a229582d241f495f24768a583a780",
+      "size_bytes": 3639,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/eval_quality_gate_v1_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/eval_quality_gate_v1_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/eval_quality_gate_v1_current.json",
+      "checksum": "54e18b21398637f05f289c56564f3b624a85e0f7e5ad3bede09519b893cf7fbd",
+      "size_bytes": 2235,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/eval_judge_human_agreement_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/eval_judge_human_agreement_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/eval_judge_human_agreement_current.json",
+      "checksum": "65d80f860e0b81652aab1421c480842bba584f79603594ce52ebef00930214ae",
+      "size_bytes": 6208,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/eval_adversarial_guard_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/eval_adversarial_guard_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/eval_adversarial_guard_current.json",
+      "checksum": "77ab16132bd993452581db6e4eec7b0e917bcb463be6195fbb84fa932ea2a01c",
+      "size_bytes": 1541,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/eval_issue_filing_guard_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/eval_issue_filing_guard_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/eval_issue_filing_guard_current.json",
+      "checksum": "0d2ecf01b0d1d690b1189fe8fa8edb9ac5e4e9d6aeb04983f98486e99b3ae1d3",
+      "size_bytes": 5512,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/eval_issue_resolution_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/eval_issue_resolution_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/eval_issue_resolution_current.json",
+      "checksum": "5c96b39da30d684a49d7391282265e6308f9530c5ac2ba57ef52a2305fcca97e",
+      "size_bytes": 1334,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/eval_runtime_authority_guard_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/eval_runtime_authority_guard_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/eval_runtime_authority_guard_current.json",
+      "checksum": "5b3a400ecf24bf9b25bce380cdea62a08af35ba56035c2ed16321b100a6c54a8",
+      "size_bytes": 1967,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/eval_regression_guard_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/eval_regression_guard_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/eval_regression_guard_current.json",
+      "checksum": "d6a598d8d55f4b61326978105746970cc66e17671aa956d9a787b9902ac4c7be",
+      "size_bytes": 4216,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/eval_feedback_router_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/eval_feedback_router_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/eval_feedback_router_current.json",
+      "checksum": "3e04b99369eb7090f7c9f0f7b14e7f6b52d340c32bbd71ec8fc84a40afc68742",
+      "size_bytes": 4231,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/eval_autopilot_guard_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/eval_autopilot_guard_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/artifacts/eval_autopilot_guard_current.json",
+      "checksum": "f3dc76d5eabde7639d7496176e44f2f75052971869470474190a38fad226504e",
+      "size_bytes": 3126,
+      "category": "workload_and_quality",
+      "required": true
+    },
+    {
+      "path": "local/workspace/reports/RUNTIME_PROOF_RELEASE_GATE_RICH_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/RUNTIME_PROOF_RELEASE_GATE_RICH_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/RUNTIME_PROOF_RELEASE_GATE_RICH_CURRENT.md",
+      "checksum": "b55f4c560b30487014ea58cf668dc6a0e62af6f92265fed3654a75a2dc109381",
+      "size_bytes": 3613,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/LAYER2_LANE_PARITY_GUARD_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/LAYER2_LANE_PARITY_GUARD_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/LAYER2_LANE_PARITY_GUARD_CURRENT.md",
+      "checksum": "7b0a2ef0138c7f086bf363a51c156f75bfd1468457e9b3b672e82714f6af157d",
+      "size_bytes": 3439,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/LAYER2_RECEIPT_REPLAY_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/LAYER2_RECEIPT_REPLAY_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/LAYER2_RECEIPT_REPLAY_CURRENT.md",
+      "checksum": "436dfef007dd047f7bd9ad62e6aee48a3994a68ce43e3097f0e9512ae85121bd",
+      "size_bytes": 2826,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/RUNTIME_TRUSTED_CORE_REPORT_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/RUNTIME_TRUSTED_CORE_REPORT_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/RUNTIME_TRUSTED_CORE_REPORT_CURRENT.md",
+      "checksum": "ba0df2a9e9796bf717b08ad3d2fd9d651de6c3a08321c1a0b68ace1f623f2763",
+      "size_bytes": 1217,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/GATEWAY_RUNTIME_CHAOS_GATE_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/GATEWAY_RUNTIME_CHAOS_GATE_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/GATEWAY_RUNTIME_CHAOS_GATE_CURRENT.md",
+      "checksum": "7c37a16cfe448afcd1fb8f055386466fbd009acda1464912963261d180453cd7",
+      "size_bytes": 1004,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/GATEWAY_STATUS_MANIFEST_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/GATEWAY_STATUS_MANIFEST_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/GATEWAY_STATUS_MANIFEST_CURRENT.md",
+      "checksum": "806e38d59668ffa48e6b656b009166cf09c339a7a67a096726e2bb9fa25bd172",
+      "size_bytes": 826,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/GATEWAY_GRADUATION_STATUS_SNAPSHOT_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/GATEWAY_GRADUATION_STATUS_SNAPSHOT_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/GATEWAY_GRADUATION_STATUS_SNAPSHOT_CURRENT.md",
+      "checksum": "099648c4bae4836ceed0a7394ec3374413deac8924743004c18bc29564fa2610",
+      "size_bytes": 867,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/LAYER3_CONTRACT_GUARD_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/LAYER3_CONTRACT_GUARD_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/LAYER3_CONTRACT_GUARD_CURRENT.md",
+      "checksum": "f47acec6ccdca35e0dee5e290ec63d568f90292f5a72e0fa25aabbf834f97ee1",
+      "size_bytes": 631,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/NODE_CRITICAL_PATH_INVENTORY_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/NODE_CRITICAL_PATH_INVENTORY_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/NODE_CRITICAL_PATH_INVENTORY_CURRENT.md",
+      "checksum": "ea6ee18f0716ac8a8798bb5a7c61f19667974afc7bfa115d129eff446cfbd3d8",
+      "size_bytes": 3140,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/AGENT_SURFACE_STATUS_GUARD_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/AGENT_SURFACE_STATUS_GUARD_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/AGENT_SURFACE_STATUS_GUARD_CURRENT.md",
+      "checksum": "ec016ed1ab04453e627fe67e8adee86d00cc851aeccb18810a53478e04658110",
+      "size_bytes": 798,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_RICH_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_RICH_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_RICH_CURRENT.md",
+      "checksum": "eb98c16c5e8117cb8e6321afc8d94879da983423e9d8debeab1406870fe02b02",
+      "size_bytes": 1104,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_PURE_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_PURE_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_PURE_CURRENT.md",
+      "checksum": "3bae6b76e108e26c42b65b7a68ee66f1c6212a852afef5e3347efc866299a5d9",
+      "size_bytes": 1109,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_TINY-MAX_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_TINY-MAX_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/RUNTIME_BOUNDEDNESS_INSPECT_TINY-MAX_CURRENT.md",
+      "checksum": "347a2c7c54182ec0daa62d4278fd79c14973eb843856dc3d0991b0eb42ccdbbd",
+      "size_bytes": 1116,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_RELEASE_EVIDENCE_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_RELEASE_EVIDENCE_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_RELEASE_EVIDENCE_CURRENT.md",
+      "checksum": "51fe2b8782c842dd9b51a18f79882f8c30aac8b9bab672ebdae10378e25dec32",
+      "size_bytes": 710,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_TRENDS_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_TRENDS_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_TRENDS_CURRENT.md",
+      "checksum": "ff333aebb305c11a398beb53b7725cba395afe76275f77bd63ddcbce644e40ec",
+      "size_bytes": 1300,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_COVERAGE_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_COVERAGE_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_COVERAGE_CURRENT.md",
+      "checksum": "f3baed4d9f8e5ae8a7563bd7a8f1d73b601172d58181e66b37eecaf6a2dd9166",
+      "size_bytes": 7870,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_SOURCE_MATRIX_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_SOURCE_MATRIX_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_SOURCE_MATRIX_CURRENT.md",
+      "checksum": "631543cec49d83c8da84fab32823129b6f3530d0d8dda36abea680e2d620929c",
+      "size_bytes": 6778,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_GATE_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_GATE_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_GATE_CURRENT.md",
+      "checksum": "25d7f1c0a1b353cb4f54407ee5fa573912d1dae0efe16f78e1db8f4c210cb4d9",
+      "size_bytes": 1092,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_GATE_FAILURES_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_GATE_FAILURES_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_GATE_FAILURES_CURRENT.md",
+      "checksum": "cc393e7afe151c73cfb9ca4c12d1ae388bea8141dd54b2d630298fa920419a9c",
+      "size_bytes": 248,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_READINESS_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_READINESS_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_READINESS_CURRENT.md",
+      "checksum": "2bf51eb334dc5c33ec7178df74d825bd33d57beb838f203824a42535115561d5",
+      "size_bytes": 707,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_MINIMUM_CONTRACT_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_MINIMUM_CONTRACT_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_MINIMUM_CONTRACT_CURRENT.md",
+      "checksum": "66c81fe4061d2c1dd000e60fab1838088ac1f24fba27eec05277149e589c14e7",
+      "size_bytes": 1212,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/RUNTIME_SOAK_SCENARIOS_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/RUNTIME_SOAK_SCENARIOS_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/RUNTIME_SOAK_SCENARIOS_CURRENT.md",
+      "checksum": "6906de0f2eb6ec87ea470d212baad9c697a00271e0a36ccaf13f62a954fa5f44",
+      "size_bytes": 1684,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/RUNTIME_PROOF_REALITY_GUARD_CURRENT.md",
+      "exists": false,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/RUNTIME_PROOF_REALITY_GUARD_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/RUNTIME_PROOF_REALITY_GUARD_CURRENT.md",
+      "checksum": "",
+      "size_bytes": 0,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/WEB_TOOLING_RELIABILITY_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/WEB_TOOLING_RELIABILITY_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/WEB_TOOLING_RELIABILITY_CURRENT.md",
+      "checksum": "0632e2e064528ece1e75d41603e540ea2882f8b73b695eef995377857900cbf8",
+      "size_bytes": 1175,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/WORKFLOW_FAILURE_RECOVERY_CURRENT.md",
+      "exists": false,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/WORKFLOW_FAILURE_RECOVERY_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/WORKFLOW_FAILURE_RECOVERY_CURRENT.md",
+      "checksum": "",
+      "size_bytes": 0,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/WORKSPACE_TOOLING_CONTEXT_SOAK_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/WORKSPACE_TOOLING_CONTEXT_SOAK_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/WORKSPACE_TOOLING_CONTEXT_SOAK_CURRENT.md",
+      "checksum": "1bd0a703744734ce868957a152b3b2faa45fe81f3dc54a3e322162ebbf07ada8",
+      "size_bytes": 1330,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/WORKSPACE_TOOLING_RELEASE_PROOF_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/WORKSPACE_TOOLING_RELEASE_PROOF_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/WORKSPACE_TOOLING_RELEASE_PROOF_CURRENT.md",
+      "checksum": "8a447bbfc2719e088b3574c0698456959665393ad99be6d953f1f5e75b1c6b5f",
+      "size_bytes": 573,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "core/local/state/ops/runtime_proof_empirical_history.jsonl",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/state/ops/runtime_proof_empirical_history.jsonl",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/core/local/state/ops/runtime_proof_empirical_history.jsonl",
+      "checksum": "91747629dcbdea287477300b0f48585624c431adf1659fad43f6d95212de507d",
+      "size_bytes": 10266,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/RELEASE_SCORECARD_CURRENT.md",
+      "exists": false,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/RELEASE_SCORECARD_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/RELEASE_SCORECARD_CURRENT.md",
+      "checksum": "",
+      "size_bytes": 0,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/SHELL_TRUTH_LEAK_GUARD_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/SHELL_TRUTH_LEAK_GUARD_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/SHELL_TRUTH_LEAK_GUARD_CURRENT.md",
+      "checksum": "ebecc7814c81c6bcd0eea430397e842bb1925cead3f488e2c5db3525013890f8",
+      "size_bytes": 3171,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/TERMINOLOGY_TRANSITION_INVENTORY_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/TERMINOLOGY_TRANSITION_INVENTORY_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/TERMINOLOGY_TRANSITION_INVENTORY_CURRENT.md",
+      "checksum": "6335d125351da7737f1d63795e5294bd5edc938b2c4a244f381c1ccf50bfc6b0",
+      "size_bytes": 2842,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/SRS_SAME_REVISION_GUARD_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/SRS_SAME_REVISION_GUARD_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/SRS_SAME_REVISION_GUARD_CURRENT.md",
+      "checksum": "435e57c756b561a5fbd62d62324fc3da6a0c364937f67eee6a1e05676d4602d2",
+      "size_bytes": 444,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/RUNTIME_CLOSURE_BOARD_GUARD_CURRENT.md",
+      "exists": false,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/RUNTIME_CLOSURE_BOARD_GUARD_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/RUNTIME_CLOSURE_BOARD_GUARD_CURRENT.md",
+      "checksum": "",
+      "size_bytes": 0,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/RUNTIME_CLOSURE_FEATURE_ALIGNMENT_GUARD_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/RUNTIME_CLOSURE_FEATURE_ALIGNMENT_GUARD_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/RUNTIME_CLOSURE_FEATURE_ALIGNMENT_GUARD_CURRENT.md",
+      "checksum": "3bbd3706739870c48c69309ce063ac78065769a4d6a120d13857c5a816aad0a2",
+      "size_bytes": 319,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/CAPABILITY_PROOF_BURDEN_GUARD_CURRENT.md",
+      "exists": false,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/CAPABILITY_PROOF_BURDEN_GUARD_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/CAPABILITY_PROOF_BURDEN_GUARD_CURRENT.md",
+      "checksum": "",
+      "size_bytes": 0,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/WINDOWS_INSTALL_RELIABILITY_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/WINDOWS_INSTALL_RELIABILITY_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/WINDOWS_INSTALL_RELIABILITY_CURRENT.md",
+      "checksum": "7c4794bca3bd6692359378dafc9dfacedf4d998b923511ed53a570049b155cc0",
+      "size_bytes": 327,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/WINDOWS_INSTALLER_CONTRACT_GUARD_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/WINDOWS_INSTALLER_CONTRACT_GUARD_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/WINDOWS_INSTALLER_CONTRACT_GUARD_CURRENT.md",
+      "checksum": "c9baf507be11a446be5fdf46920041f83fd38fc75464242e8109bae0ac31f68a",
+      "size_bytes": 4006,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/SRS_TODO_SECTION_GUARD_CURRENT.md",
+      "exists": false,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/SRS_TODO_SECTION_GUARD_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/SRS_TODO_SECTION_GUARD_CURRENT.md",
+      "checksum": "",
+      "size_bytes": 0,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/EVAL_QUALITY_METRICS_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/EVAL_QUALITY_METRICS_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/EVAL_QUALITY_METRICS_CURRENT.md",
+      "checksum": "070c0e69601979796b0199d1498938eb62ff3d63324e2d7b77db7426de8be1fb",
+      "size_bytes": 262,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/EVAL_MONITOR_SLO_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/EVAL_MONITOR_SLO_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/EVAL_MONITOR_SLO_CURRENT.md",
+      "checksum": "3df0fcae55ed65fc2eccd1bc20bf93e239fbab8c63b695ac39a8ccee3d3f070c",
+      "size_bytes": 192,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/EVAL_REVIEWER_FEEDBACK_WEEKLY_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/EVAL_REVIEWER_FEEDBACK_WEEKLY_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/EVAL_REVIEWER_FEEDBACK_WEEKLY_CURRENT.md",
+      "checksum": "cbb3032c653f354c9e2686893e5640cb93e49f924989dcd8155c54a159af75e0",
+      "size_bytes": 295,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/EVAL_JUDGE_HUMAN_AGREEMENT_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/EVAL_JUDGE_HUMAN_AGREEMENT_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/EVAL_JUDGE_HUMAN_AGREEMENT_CURRENT.md",
+      "checksum": "216fa0e479ada0bbc5990ba03607ae992f325f448a7545e8d5ec657bfe0f5b61",
+      "size_bytes": 346,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/EVAL_ADVERSARIAL_GUARD_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/EVAL_ADVERSARIAL_GUARD_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/EVAL_ADVERSARIAL_GUARD_CURRENT.md",
+      "checksum": "0c843a98facf4b6132e44ee191a2d9baaa6d0ddbfd5fc851b3aca3bb6ba2a303",
+      "size_bytes": 147,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/EVAL_ISSUE_FILING_GUARD_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/EVAL_ISSUE_FILING_GUARD_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/EVAL_ISSUE_FILING_GUARD_CURRENT.md",
+      "checksum": "0c596e8ab4472d8aebac9b76fc742708878b4f0f48e0192abf800825029fa175",
+      "size_bytes": 352,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/EVAL_ISSUE_RESOLUTION_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/EVAL_ISSUE_RESOLUTION_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/EVAL_ISSUE_RESOLUTION_CURRENT.md",
+      "checksum": "44db981e6656f271c37556ccc7426cede19ff16fe1adca1949b811060d67e5ba",
+      "size_bytes": 226,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/EVAL_QUALITY_GATE_V1_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/EVAL_QUALITY_GATE_V1_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/EVAL_QUALITY_GATE_V1_CURRENT.md",
+      "checksum": "02df8700e7b55d538d244bb33ada3bd53eca1875ac5730071b1df90669e52d57",
+      "size_bytes": 312,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/EVAL_RUNTIME_AUTHORITY_GUARD_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/EVAL_RUNTIME_AUTHORITY_GUARD_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/EVAL_RUNTIME_AUTHORITY_GUARD_CURRENT.md",
+      "checksum": "3ce984f20b5ccc3028c46ba3e04beba6ba24f5cf38cfa71df7a491296d04eb9f",
+      "size_bytes": 1180,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/EVAL_REGRESSION_GUARD_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/EVAL_REGRESSION_GUARD_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/EVAL_REGRESSION_GUARD_CURRENT.md",
+      "checksum": "050687eae9e6c12895b6889a9a3f660a8402a74a18ee57982a21cf19bbd75f79",
+      "size_bytes": 1320,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/EVAL_FEEDBACK_ROUTER_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/EVAL_FEEDBACK_ROUTER_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/EVAL_FEEDBACK_ROUTER_CURRENT.md",
+      "checksum": "05fc81e27937407dfe07cb9ab6ef76eeef5056789bdcefb80201c90df50160b6",
+      "size_bytes": 197,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/KERNEL_NEXUS_COUPLING_GUARD_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/KERNEL_NEXUS_COUPLING_GUARD_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/KERNEL_NEXUS_COUPLING_GUARD_CURRENT.md",
+      "checksum": "103d9b1ba85044f9676c9593e6f9a7896a2fc3fbdbea5f1162cff3270d139609",
+      "size_bytes": 1623,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/ARCHITECTURE_NEXUS_REQUIRED_ARTIFACT_GUARD_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/ARCHITECTURE_NEXUS_REQUIRED_ARTIFACT_GUARD_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/ARCHITECTURE_NEXUS_REQUIRED_ARTIFACT_GUARD_CURRENT.md",
+      "checksum": "be1feb5a7e5f21b1d65883ada9f2786859397c34665676d25d6eddbd264f47bf",
+      "size_bytes": 838,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/PARITY_END_TO_END_REPLAY_CURRENT.md",
+      "exists": false,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/PARITY_END_TO_END_REPLAY_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/PARITY_END_TO_END_REPLAY_CURRENT.md",
+      "checksum": "",
+      "size_bytes": 0,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/PARITY_TREND_CURRENT.md",
+      "exists": false,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/PARITY_TREND_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/PARITY_TREND_CURRENT.md",
+      "checksum": "",
+      "size_bytes": 0,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/PARITY_RELEASE_GATE_CURRENT.md",
+      "exists": false,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/PARITY_RELEASE_GATE_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/PARITY_RELEASE_GATE_CURRENT.md",
+      "checksum": "",
+      "size_bytes": 0,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/state/ops/parity/parity_trend_history.jsonl",
+      "exists": false,
+      "source": "/Users/jay/.openclaw/workspace/local/state/ops/parity/parity_trend_history.jsonl",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/state/ops/parity/parity_trend_history.jsonl",
+      "checksum": "",
+      "size_bytes": 0,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/GEM_LIVE_PROVIDER_SMOKE_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/GEM_LIVE_PROVIDER_SMOKE_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/GEM_LIVE_PROVIDER_SMOKE_CURRENT.md",
+      "checksum": "2cf487f0df6555f15a4259079aa830bdcbbf57f882226d99f2abb4d4353a0302",
+      "size_bytes": 1758,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/GEM_MEMORY_DURABILITY_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/GEM_MEMORY_DURABILITY_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/GEM_MEMORY_DURABILITY_CURRENT.md",
+      "checksum": "7093d7a1714bd7ff14e7357439f9bd1aedb79ba06e9f519cefb81cc922d7fb89",
+      "size_bytes": 764,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/GEM_SUBAGENT_ROUTE_CONTRACT_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/GEM_SUBAGENT_ROUTE_CONTRACT_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/GEM_SUBAGENT_ROUTE_CONTRACT_CURRENT.md",
+      "checksum": "9cb8f8f0b2783b7295daf3ca0e0937543e27a26493c927375b3f4ff506b3143b",
+      "size_bytes": 953,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/GEM_FEEDBACK_CLOSURE_GUARD_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/GEM_FEEDBACK_CLOSURE_GUARD_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/GEM_FEEDBACK_CLOSURE_GUARD_CURRENT.md",
+      "checksum": "82d19daf249f0fa402ea293d1363eae18dc864d44677ee5acf0d6a25cb163d82",
+      "size_bytes": 1680,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/EVAL_AGENT_CHAT_MONITOR_GUARD_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/EVAL_AGENT_CHAT_MONITOR_GUARD_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/EVAL_AGENT_CHAT_MONITOR_GUARD_CURRENT.md",
+      "checksum": "3c800f7bb5c3928b4df4d3970886787829b001d10eff3b48843d1623602478a9",
+      "size_bytes": 1726,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/state/ops/gem_live_provider_smoke/latest.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/state/ops/gem_live_provider_smoke/latest.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/state/ops/gem_live_provider_smoke/latest.json",
+      "checksum": "652edc15d9255965da7a115a2ad5231815662864f0083be2ce59d2c5c2f347df",
+      "size_bytes": 3976,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/state/ops/gem_memory_durability/latest.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/state/ops/gem_memory_durability/latest.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/state/ops/gem_memory_durability/latest.json",
+      "checksum": "d1c724bdb2c871e1a5fd41adcd17864c26277320c99c7a54ea76496b181487b5",
+      "size_bytes": 1778,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/state/ops/gem_subagent_route_contract/latest.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/state/ops/gem_subagent_route_contract/latest.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/state/ops/gem_subagent_route_contract/latest.json",
+      "checksum": "9865c6896e853391ac2580d17a9600d8f65016d49e9247bbc847b08300c2dcbb",
+      "size_bytes": 1572,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/state/ops/gem_feedback_closure_guard/latest.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/state/ops/gem_feedback_closure_guard/latest.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/state/ops/gem_feedback_closure_guard/latest.json",
+      "checksum": "14f17138544ecf43664bae5d5f7143051ab847de762feb9a9572c8eaa2e4ed2f",
+      "size_bytes": 2887,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/state/ops/eval_agent_chat_monitor/latest.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/state/ops/eval_agent_chat_monitor/latest.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/state/ops/eval_agent_chat_monitor/latest.json",
+      "checksum": "dde1bef9f6643092eaf011236470ab5d693300378b7f8671d38306f5a9e1c4f2",
+      "size_bytes": 11239,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/state/ops/eval_agent_chat_monitor/issue_drafts_latest.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/state/ops/eval_agent_chat_monitor/issue_drafts_latest.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/state/ops/eval_agent_chat_monitor/issue_drafts_latest.json",
+      "checksum": "2c3808691c28b9949043d3bb73eb11aa1dbd6e72d23cb0b9e407fb7d0e333446",
+      "size_bytes": 4416,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "client/runtime/local/state/ui/infring_dashboard/troubleshooting/eval_issue_resolution_panel.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/client/runtime/local/state/ui/infring_dashboard/troubleshooting/eval_issue_resolution_panel.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/client/runtime/local/state/ui/infring_dashboard/troubleshooting/eval_issue_resolution_panel.json",
+      "checksum": "d89c69d9f6644f5909d309fb0b9fa888f802712c41471534438a739e6fa590fb",
+      "size_bytes": 425,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/state/ops/eval_quality_gate_v1/history.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/state/ops/eval_quality_gate_v1/history.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/state/ops/eval_quality_gate_v1/history.json",
+      "checksum": "a56f667f3235eba5aa4e9e195f262c1cb73bb3b243aab8b1567d7b0a82deac8c",
+      "size_bytes": 247,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "artifacts/eval_regression_guard_latest.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/artifacts/eval_regression_guard_latest.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/artifacts/eval_regression_guard_latest.json",
+      "checksum": "d6a598d8d55f4b61326978105746970cc66e17671aa956d9a787b9902ac4c7be",
+      "size_bytes": 4216,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "artifacts/eval_feedback_router_latest.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/artifacts/eval_feedback_router_latest.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/artifacts/eval_feedback_router_latest.json",
+      "checksum": "3e04b99369eb7090f7c9f0f7b14e7f6b52d340c32bbd71ec8fc84a40afc68742",
+      "size_bytes": 4231,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/state/ops/eval_autopilot/latest.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/state/ops/eval_autopilot/latest.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/state/ops/eval_autopilot/latest.json",
+      "checksum": "f3dc76d5eabde7639d7496176e44f2f75052971869470474190a38fad226504e",
+      "size_bytes": 3126,
+      "category": "ungrouped",
+      "required": false
+    },
+    {
+      "path": "local/workspace/reports/EVAL_AUTOPILOT_GUARD_CURRENT.md",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/EVAL_AUTOPILOT_GUARD_CURRENT.md",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-24/local/workspace/reports/EVAL_AUTOPILOT_GUARD_CURRENT.md",
+      "checksum": "117d3dd7ce5ce2a22216ea19e92527513fc6fca05d57b16ea471f26b27b1f232",
+      "size_bytes": 748,
+      "category": "ungrouped",
+      "required": false
+    }
+  ],
+  "required_missing": [
+    "core/local/artifacts/runtime_proof_reality_guard_current.json",
+    "artifacts/workflow_failure_recovery_latest.json",
+    "core/local/artifacts/workflow_failure_recovery_current.json",
+    "core/local/artifacts/runtime_closure_board_guard_current.json",
+    "core/local/artifacts/capability_proof_burden_guard_current.json",
+    "core/local/artifacts/srs_todo_section_guard_current.json",
+    "core/local/artifacts/parity_end_to_end_replay_current.json",
+    "core/local/artifacts/parity_trend_current.json",
+    "core/local/artifacts/parity_release_gate_current.json"
+  ],
+  "mandatory_artifact_failures": [
+    {
+      "path": "core/local/artifacts/eval_regression_guard_current.json",
+      "failure": "required_artifact_not_passing"
+    },
+    {
+      "path": "core/local/artifacts/runtime_proof_reality_guard_current.json",
+      "failure": "required_artifact_missing"
+    }
+  ],
+  "category_threshold_failures": [
+    {
+      "id": "proof_pack_category_completeness_below_threshold",
+      "category": "runtime_proof",
+      "threshold": 1,
+      "actual": 0.9666666666666667,
+      "ok": false,
+      "detail": "runtime_proof: actual=0.967;required_min=1.000"
+    },
+    {
+      "id": "proof_pack_category_completeness_below_threshold",
+      "category": "release_governance",
+      "threshold": 1,
+      "actual": 0.8235294117647058,
+      "ok": false,
+      "detail": "release_governance: actual=0.824;required_min=1.000"
+    },
+    {
+      "id": "proof_pack_category_completeness_below_threshold",
+      "category": "workload_and_quality",
+      "threshold": 1,
+      "actual": 0.8387096774193549,
+      "ok": false,
+      "detail": "workload_and_quality: actual=0.839;required_min=1.000"
+    }
+  ],
+  "category_summary": [
+    {
+      "category": "runtime_proof",
+      "total": 30,
+      "present": 29,
+      "required_total": 30,
+      "required_present": 29,
+      "required_missing": 1,
+      "required_completeness": 0.9666666666666667
+    },
+    {
+      "category": "adapter_and_orchestration",
+      "total": 6,
+      "present": 6,
+      "required_total": 6,
+      "required_present": 6,
+      "required_missing": 0,
+      "required_completeness": 1
+    },
+    {
+      "category": "release_governance",
+      "total": 17,
+      "present": 14,
+      "required_total": 17,
+      "required_present": 14,
+      "required_missing": 3,
+      "required_completeness": 0.8235294117647058
+    },
+    {
+      "category": "workload_and_quality",
+      "total": 31,
+      "present": 26,
+      "required_total": 31,
+      "required_present": 26,
+      "required_missing": 5,
+      "required_completeness": 0.8387096774193549
+    },
+    {
+      "category": "ungrouped",
+      "total": 72,
+      "present": 62,
+      "required_total": 0,
+      "required_present": 0,
+      "required_missing": 0,
+      "required_completeness": 1
+    }
+  ]
+}

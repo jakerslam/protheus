@@ -88,6 +88,20 @@ function canonicalStringList(raw: unknown, maxLen = 220): string[] {
   return rows.map((value) => cleanText(value || '', maxLen)).filter(Boolean);
 }
 
+function duplicateValues(values: string[]): string[] {
+  const seen = new Set<string>();
+  const duplicates = new Set<string>();
+  for (const value of values) {
+    if (!value) continue;
+    if (seen.has(value)) {
+      duplicates.add(value);
+    } else {
+      seen.add(value);
+    }
+  }
+  return Array.from(duplicates);
+}
+
 function isCanonicalRelativePath(value: string, requiredPrefix = ''): boolean {
   const normalized = cleanText(value || '', 400);
   if (!normalized) return false;

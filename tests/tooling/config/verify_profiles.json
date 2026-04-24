@@ -20,10 +20,14 @@
         "ops:arch:conformance",
         "ops:layer3:contract:guard",
         "ops:incident-governance:gate",
+        "ops:incident-governance:closure:guard",
+        "ops:windows-installer:contract:guard",
+        "ops:installer-reliability:closure:guard",
         "ops:shell:truth-leak:guard",
         "ops:tool-route:misdirection:guard",
         "ops:workspace-tooling:context:soak",
         "ops:web-tooling:reliability:guard",
+        "ops:web-conduit:openclaw-media:closure:guard",
         "ops:synthesis:mixed-evidence:guard",
         "ops:parity:e2e:replay",
         "ops:parity:trend:report",
@@ -34,6 +38,8 @@
         "ops:capability-proof-burden:guard",
         "ops:srs:todo-section:guard",
         "ops:gem:memory:durability",
+        "ops:memory-continuity:closure:guard",
+        "ops:knowledge-graph-query-acceleration:closure:guard",
         "ops:gem:subagent-route:guard",
         "ops:gem:closure:guard",
         "ops:eval-agent:chat-monitor:guard",
@@ -63,10 +69,14 @@
         "ops:repo-surface:audit",
         "ops:layer3:contract:guard",
         "ops:incident-governance:gate",
+        "ops:incident-governance:closure:guard",
+        "ops:windows-installer:contract:guard",
+        "ops:installer-reliability:closure:guard",
         "ops:shell:truth-leak:guard",
         "ops:tool-route:misdirection:guard",
         "ops:workspace-tooling:context:soak",
         "ops:web-tooling:reliability:guard",
+        "ops:web-conduit:openclaw-media:closure:guard",
         "ops:synthesis:mixed-evidence:guard",
         "ops:parity:e2e:replay",
         "ops:parity:trend:report",
@@ -76,6 +86,8 @@
         "ops:capability-proof-burden:guard",
         "ops:srs:todo-section:guard",
         "ops:gem:memory:durability",
+        "ops:memory-continuity:closure:guard",
+        "ops:knowledge-graph-query-acceleration:closure:guard",
         "ops:gem:subagent-route:guard",
         "ops:gem:closure:guard",
         "ops:eval-agent:chat-monitor:guard",
@@ -143,6 +155,7 @@
         "ops:workspace-tooling:context:soak",
         "ops:workspace-tooling:release-proof",
         "ops:web-tooling:reliability:guard",
+        "ops:web-conduit:openclaw-media:closure:guard",
         "ops:synthesis:mixed-evidence:guard",
         "ops:parity:e2e:replay",
         "ops:parity:trend:report",
@@ -198,9 +211,14 @@
         "ops:release:proof-pack",
         "ops:benchmark:public-harness",
         "ops:incident-governance:gate",
+        "ops:incident-governance:closure:guard",
+        "ops:windows-installer:contract:guard",
+        "ops:installer-reliability:closure:guard",
         "ops:release:verdict",
         "ops:gem:provider:live-smoke",
         "ops:gem:memory:durability",
+        "ops:memory-continuity:closure:guard",
+        "ops:knowledge-graph-query-acceleration:closure:guard",
         "ops:gem:subagent-route:guard",
         "ops:gem:closure:guard",
         "ops:eval-agent:chat-monitor:guard",
@@ -250,5 +268,21 @@
         "ops:cross-layer-import:guard"
       ]
     }
+  },
+  "fast": {
+    "gate_ids": [
+      "ops:effective-loc:contract:guard"
+    ]
+  },
+  "boundary": {
+    "gate_ids": [
+      "ops:effective-loc:contract:guard"
+    ]
+  },
+  "release": {
+    "gate_ids": [
+      "ops:effective-loc:metric",
+      "ops:effective-loc:contract:guard"
+    ]
   }
 }

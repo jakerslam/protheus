@@ -3,6 +3,23 @@
   "schema_version": 1,
   "cases": [
     {
+      "id": "local_tool_route_only",
+      "intent": "route local tooling request",
+      "expected_route": "tool_route",
+      "rejected_routes": [
+        "web_search",
+        "web_fetch"
+      ],
+      "reason_codes": [
+        "local_tool_intent",
+        "tool_route_hint_present"
+      ],
+      "evidence_tests": [
+        "local_tool_route_intent_never_injects_web_tool_hints",
+        "tooling_route_classification_excludes_web_capabilities_for_local_tooling_intent"
+      ]
+    },
+    {
       "id": "local_workspace_read_route",
       "intent": "read local file README.md",
       "expected_route": "workspace_read",
@@ -33,23 +50,6 @@
       ],
       "evidence_tests": [
         "workspace_search_default_hints_do_not_inject_web_tools"
-      ]
-    },
-    {
-      "id": "local_tool_route_only",
-      "intent": "route local tooling request",
-      "expected_route": "tool_route",
-      "rejected_routes": [
-        "web_search",
-        "web_fetch"
-      ],
-      "reason_codes": [
-        "local_tool_intent",
-        "tool_route_hint_present"
-      ],
-      "evidence_tests": [
-        "local_tool_route_intent_never_injects_web_tool_hints",
-        "tooling_route_classification_excludes_web_capabilities_for_local_tooling_intent"
       ]
     }
   ]
