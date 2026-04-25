@@ -213,7 +213,7 @@ function parseArgs(argv: string[]) {
   };
 }
 
-export function run(argv: string[] = process.argv.slice(2)): number {
+function run(argv: string[] = process.argv.slice(2)): number {
   const root = process.cwd();
   const args = parseArgs(argv);
   const fixtureAbs = path.resolve(root, args.fixturePath);
@@ -337,6 +337,6 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   return exitCode;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (require.main === module) {
   process.exit(run());
 }

@@ -1,8 +1,8 @@
 {
   "ok": false,
   "type": "release_proof_pack_manifest",
-  "generated_at": "2026-04-25T02:39:05.631Z",
-  "revision": "a8d71910ce63d7b226ec878eba4ee6f014b5fbc5",
+  "generated_at": "2026-04-25T09:22:13.040Z",
+  "revision": "e563dd61a392ef5b47633c3d35409ba4dab72491",
   "version": "2026-04-25",
   "pack_root": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-25",
   "source_manifest_path": "tests/tooling/config/release_proof_pack_manifest.json",
@@ -21,7 +21,7 @@
       "checksum": "2527cb65d331fcd182d431736de620f8a0ae4bf84cc97974f5a99b45eb6c0203",
       "size_bytes": 33979,
       "source_modified_at": "2026-04-24T19:43:24.072Z",
-      "source_age_hours": 6.9280793247477215,
+      "source_age_hours": 13.646908491414388,
       "category": "runtime_proof",
       "required": true
     },
@@ -33,7 +33,7 @@
       "checksum": "631d0da5facf348b40f24cd180fa9f5862a774a8b29b7f11975b61cd88c5acfb",
       "size_bytes": 7877,
       "source_modified_at": "2026-04-24T19:41:41.886Z",
-      "source_age_hours": 6.956465105251736,
+      "source_age_hours": 13.675293994140626,
       "category": "runtime_proof",
       "required": true
     },
@@ -45,7 +45,7 @@
       "checksum": "aacdc682861b4cf0da945a1f34994365f9b85e00ae5778cf762711e89c17ee39",
       "size_bytes": 19339,
       "source_modified_at": "2026-04-24T19:42:02.588Z",
-      "source_age_hours": 6.950714653320312,
+      "source_age_hours": 13.669543264431423,
       "category": "runtime_proof",
       "required": true
     },
@@ -57,7 +57,7 @@
       "checksum": "e6fe803ea76b55d1b08b5c671730f7ed26b8b773a3e16fa4326787ee58cbc850",
       "size_bytes": 19661,
       "source_modified_at": "2026-04-24T19:42:02.588Z",
-      "source_age_hours": 6.950714805297851,
+      "source_age_hours": 13.669543694186741,
       "category": "runtime_proof",
       "required": true
     },
@@ -69,7 +69,7 @@
       "checksum": "d16c7bb67393e0f7262a9a8fe9c216ab93ca2fe9a4c040c30eba0f6d1238d679",
       "size_bytes": 7877,
       "source_modified_at": "2026-04-24T19:42:20.342Z",
-      "source_age_hours": 6.945783390706381,
+      "source_age_hours": 13.664612001817492,
       "category": "runtime_proof",
       "required": true
     },
@@ -81,7 +81,7 @@
       "checksum": "2dff617b4764491ec97d0a7e9cbea237191f3171f5ad6b059d6d77e91f0c5b60",
       "size_bytes": 19335,
       "source_modified_at": "2026-04-24T19:42:43.017Z",
-      "source_age_hours": 6.939485097995334,
+      "source_age_hours": 13.658313709106446,
       "category": "runtime_proof",
       "required": true
     },
@@ -93,7 +93,7 @@
       "checksum": "18e56815aeb0bdd4b58c36d7440356af1dd30735030369ca0735078396378d23",
       "size_bytes": 19657,
       "source_modified_at": "2026-04-24T19:42:43.016Z",
-      "source_age_hours": 6.9394854644775394,
+      "source_age_hours": 13.658313797810873,
       "category": "runtime_proof",
       "required": true
     },
@@ -105,7 +105,7 @@
       "checksum": "a4586ac8b52c319d640f0896f1dc775e6cdf8b111fc0e28cc2a5b6a362dd428a",
       "size_bytes": 7889,
       "source_modified_at": "2026-04-24T19:42:59.507Z",
-      "source_age_hours": 6.934904950968424,
+      "source_age_hours": 13.653733284301758,
       "category": "runtime_proof",
       "required": true
     },
@@ -117,7 +117,7 @@
       "checksum": "d3fa250df7bbfb16ee93f9cd5b24c1a654bd5bcab8fb61129aaa97bfb6152df5",
       "size_bytes": 19357,
       "source_modified_at": "2026-04-24T19:43:23.946Z",
-      "source_age_hours": 6.928117340766059,
+      "source_age_hours": 13.646944840766059,
       "category": "runtime_proof",
       "required": true
     },
@@ -129,7 +129,7 @@
       "checksum": "bdf76f96d7987dae349c1bf73cabf36fb5b1a88529a24d81b2aa276aeaa3a6cb",
       "size_bytes": 19657,
       "source_modified_at": "2026-04-24T19:43:23.945Z",
-      "source_age_hours": 6.928118248697917,
+      "source_age_hours": 13.646945193142361,
       "category": "runtime_proof",
       "required": true
     },
@@ -141,7 +141,7 @@
       "checksum": "8c3c271c40bd679470b31f99d9df7a5674bf75a0fd13b96339c999dae73dbc53",
       "size_bytes": 1223,
       "source_modified_at": "2026-04-24T19:43:23.961Z",
-      "source_age_hours": 6.928113815782335,
+      "source_age_hours": 13.64694076022678,
       "category": "runtime_proof",
       "required": true
     },
@@ -153,7 +153,7 @@
       "checksum": "32a30a7a9145ee4dc9c82538f9e09ea3c244653dcaa9fd1fa556cf5f98d49479",
       "size_bytes": 12868,
       "source_modified_at": "2026-04-25T02:11:04.788Z",
-      "source_age_hours": 0.4667734085422092,
+      "source_age_hours": 7.185600352986653,
       "category": "runtime_proof",
       "required": true
     },
@@ -165,7 +165,7 @@
       "checksum": "0839163dc4a299eb4ae88946217aff07ca9cc0305b779d0ef359e055c6ebd5c3",
       "size_bytes": 4885,
       "source_modified_at": "2026-04-25T02:11:04.737Z",
-      "source_age_hours": 0.4667880443657769,
+      "source_age_hours": 7.185614711032444,
       "category": "runtime_proof",
       "required": true
     },
@@ -177,7 +177,7 @@
       "checksum": "140193707a785acb4d6df4d204c55154e01f53f21422c4da156573ee74b35596",
       "size_bytes": 4900,
       "source_modified_at": "2026-04-25T02:11:04.757Z",
-      "source_age_hours": 0.46678267740885415,
+      "source_age_hours": 7.18560934407552,
       "category": "runtime_proof",
       "required": true
     },
@@ -189,7 +189,7 @@
       "checksum": "010818c7eeb6e0236ffd080681f902fd7a1e614e5f2ddf9c29f4c20bfa03b98a",
       "size_bytes": 4908,
       "source_modified_at": "2026-04-25T02:11:04.774Z",
-      "source_age_hours": 0.466778293999566,
+      "source_age_hours": 7.185604682888455,
       "category": "runtime_proof",
       "required": true
     },
@@ -201,7 +201,7 @@
       "checksum": "a27057f809d7a3c51a51c2b8f6cde75f8f304498aab1eb28b1a6bc5046b5ef1d",
       "size_bytes": 15513,
       "source_modified_at": "2026-04-25T02:12:39.092Z",
-      "source_age_hours": 0.44057935085720484,
+      "source_age_hours": 7.159405184190538,
       "category": "runtime_proof",
       "required": true
     },
@@ -213,7 +213,7 @@
       "checksum": "51f1de2afddd29fbedb2eb5341db7410fbfb5c981ede002bb98bacf3bdb35229",
       "size_bytes": 2686,
       "source_modified_at": "2026-04-25T02:11:05.134Z",
-      "source_age_hours": 0.46667905585394964,
+      "source_age_hours": 7.185504889187283,
       "category": "runtime_proof",
       "required": true
     },
@@ -225,7 +225,7 @@
       "checksum": "1aa08ff2cc8f0238ab75a17fa16e86626daabadc5fbbf85609b4cbf464af8a41",
       "size_bytes": 1044,
       "source_modified_at": "2026-04-24T19:43:23.975Z",
-      "source_age_hours": 6.928112275187175,
+      "source_age_hours": 13.646938108520509,
       "category": "runtime_proof",
       "required": true
     },
@@ -237,7 +237,7 @@
       "checksum": "a4dbb0498573bfa82a93c1cc8554558c0bd42c98cc88bf2bf19e39de44214a5f",
       "size_bytes": 5009,
       "source_modified_at": "2026-04-24T20:00:46.326Z",
-      "source_age_hours": 6.638570614149305,
+      "source_age_hours": 13.357396447482639,
       "category": "runtime_proof",
       "required": true
     },
@@ -249,7 +249,7 @@
       "checksum": "677e03070d51df60d7da011e630984e6e57da6c5f76ecd11cc486f7d6678c01b",
       "size_bytes": 1914,
       "source_modified_at": "2026-04-24T19:43:23.981Z",
-      "source_age_hours": 6.928111210191514,
+      "source_age_hours": 13.64693676574707,
       "category": "runtime_proof",
       "required": true
     },
@@ -261,7 +261,7 @@
       "checksum": "8d59e21e0ab7269755120754ca48ed613c01691ffbc8001e18395adbc2d52043",
       "size_bytes": 6610,
       "source_modified_at": "2026-04-24T19:43:23.987Z",
-      "source_age_hours": 6.928109382392035,
+      "source_age_hours": 13.646934937947591,
       "category": "runtime_proof",
       "required": true
     },
@@ -273,7 +273,7 @@
       "checksum": "7c164a732f7958a8aa59cd2ae4de56f613b0f9ca7dbc29cd387706c2398e9901",
       "size_bytes": 6488,
       "source_modified_at": "2026-04-24T19:43:24.000Z",
-      "source_age_hours": 6.928106144002279,
+      "source_age_hours": 13.646931699557834,
       "category": "runtime_proof",
       "required": true
     },
@@ -285,7 +285,7 @@
       "checksum": "2d75a0b431ba79aa4949bf4b3fb1ea21c8021d32cd3830f7f7af6b3a360502d2",
       "size_bytes": 19596,
       "source_modified_at": "2026-04-24T19:43:24.014Z",
-      "source_age_hours": 6.9281023373074,
+      "source_age_hours": 13.646927892862955,
       "category": "runtime_proof",
       "required": true
     },
@@ -297,7 +297,7 @@
       "checksum": "5636c5f306eea2defd62823b115a496e7d9f610d7fc60cc960d57119c1f9a2eb",
       "size_bytes": 19593,
       "source_modified_at": "2026-04-24T19:43:24.022Z",
-      "source_age_hours": 6.928100683186849,
+      "source_age_hours": 13.646925683186849,
       "category": "runtime_proof",
       "required": true
     },
@@ -309,7 +309,7 @@
       "checksum": "0660ed47f68611728099472ae62447a210b05a98ed68172842c37776a6da67f2",
       "size_bytes": 2594,
       "source_modified_at": "2026-04-24T19:43:24.030Z",
-      "source_age_hours": 6.9280988010660804,
+      "source_age_hours": 13.646923523288303,
       "category": "runtime_proof",
       "required": true
     },
@@ -321,7 +321,7 @@
       "checksum": "b14d79700d3d888fe8b81426f6b96f570782d8a6c6a0993a4d42082f47f48e61",
       "size_bytes": 279,
       "source_modified_at": "2026-04-24T19:43:24.038Z",
-      "source_age_hours": 6.928096913452149,
+      "source_age_hours": 13.646921357896593,
       "category": "runtime_proof",
       "required": true
     },
@@ -333,7 +333,7 @@
       "checksum": "d0467d7710f3ab1b49be231f80fafeb8bb74916d786d02b56149cd4273427db2",
       "size_bytes": 1558,
       "source_modified_at": "2026-04-24T19:43:24.048Z",
-      "source_age_hours": 6.9280943994140625,
+      "source_age_hours": 13.646918843858506,
       "category": "runtime_proof",
       "required": true
     },
@@ -345,19 +345,19 @@
       "checksum": "35bf7e04ea79ca18cba45db5b50382776c80c23a167592cb10a4d423903ebaf1",
       "size_bytes": 1499,
       "source_modified_at": "2026-04-24T19:43:24.007Z",
-      "source_age_hours": 6.928106009860569,
+      "source_age_hours": 13.646930176527235,
       "category": "runtime_proof",
       "required": true
     },
     {
       "path": "core/local/artifacts/runtime_proof_reality_guard_current.json",
-      "exists": false,
+      "exists": true,
       "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_proof_reality_guard_current.json",
       "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-25/core/local/artifacts/runtime_proof_reality_guard_current.json",
-      "checksum": "",
-      "size_bytes": 0,
-      "source_modified_at": "",
-      "source_age_hours": null,
+      "checksum": "24bc155b79074bf99d7f7e62392d22130bd6c71684f7a8e3a28e05710e2bfcfc",
+      "size_bytes": 5782,
+      "source_modified_at": "2026-04-25T09:18:16.510Z",
+      "source_age_hours": 0.06567954630533854,
       "category": "runtime_proof",
       "required": true
     },
@@ -369,7 +369,7 @@
       "checksum": "a2d203cbbd9f8f6e4962bfb342495e2d20c168ebe8c34542d8844bfa4f3972a2",
       "size_bytes": 9367,
       "source_modified_at": "2026-04-24T19:43:24.063Z",
-      "source_age_hours": 6.928090596923828,
+      "source_age_hours": 13.646915041368272,
       "category": "runtime_proof",
       "required": true
     },
@@ -381,7 +381,7 @@
       "checksum": "2ced78e2d60909b81322ed8fa25b8f38325c2dd6f9a04d0760b31f6d0b3f75fe",
       "size_bytes": 32008,
       "source_modified_at": "2026-04-23T14:05:10.269Z",
-      "source_age_hours": 36.56525610148112,
+      "source_age_hours": 43.28408082370334,
       "category": "adapter_and_orchestration",
       "required": true
     },
@@ -393,7 +393,7 @@
       "checksum": "2e82be88d0f2e581918169023a23e5557ec955aca2c350633eceb1e56a2c7440",
       "size_bytes": 6240,
       "source_modified_at": "2026-04-24T19:43:00.338Z",
-      "source_age_hours": 6.93468185804579,
+      "source_age_hours": 13.653506024712456,
       "category": "adapter_and_orchestration",
       "required": true
     },
@@ -405,7 +405,7 @@
       "checksum": "91dddc1c5d6088fd417841c0991ed488ef1a86d6e0ee7c0ae5b286eda2661c99",
       "size_bytes": 10799,
       "source_modified_at": "2026-04-24T18:49:38.696Z",
-      "source_age_hours": 7.82402735256619,
+      "source_age_hours": 14.542851519232856,
       "category": "adapter_and_orchestration",
       "required": true
     },
@@ -417,7 +417,7 @@
       "checksum": "3839c01f038978c1d8a6378859ac504975ab027bd38a9d96be5f97239d950f31",
       "size_bytes": 11031,
       "source_modified_at": "2026-04-24T18:49:38.694Z",
-      "source_age_hours": 7.824027928602431,
+      "source_age_hours": 14.542852095269097,
       "category": "adapter_and_orchestration",
       "required": true
     },
@@ -429,7 +429,7 @@
       "checksum": "03c94f287eb8a45989622204fa24e26fb4775d51d183d9525db7f0327e5d177d",
       "size_bytes": 4293,
       "source_modified_at": "2026-04-25T02:31:26.518Z",
-      "source_age_hours": 0.12741068725585938,
+      "source_age_hours": 6.846234576144748,
       "category": "adapter_and_orchestration",
       "required": true
     },
@@ -441,7 +441,7 @@
       "checksum": "8f034d3de4f5e9b546cf0a40288c8df2eccf1bcc9253dce9da5b31815fb1baca",
       "size_bytes": 3438,
       "source_modified_at": "2026-04-25T02:31:26.518Z",
-      "source_age_hours": 0.1274105845811632,
+      "source_age_hours": 6.846234473470052,
       "category": "adapter_and_orchestration",
       "required": true
     },
@@ -453,7 +453,7 @@
       "checksum": "82569e3615d1746869c938fa38d2dc19b72276baaa642a36d7ccdeeeca96be7d",
       "size_bytes": 10113,
       "source_modified_at": "2026-04-24T18:37:16.037Z",
-      "source_age_hours": 8.030322247992622,
+      "source_age_hours": 14.74914613688151,
       "category": "adapter_and_orchestration",
       "required": true
     },
@@ -465,7 +465,7 @@
       "checksum": "78750f839a5c3590d787ee1df0b1f454735b12b63077d2d2e093a0d0516c2867",
       "size_bytes": 13238,
       "source_modified_at": "2026-04-25T02:11:05.840Z",
-      "source_age_hours": 0.4664882810465495,
+      "source_age_hours": 7.18531189215766,
       "category": "adapter_and_orchestration",
       "required": true
     },
@@ -477,7 +477,7 @@
       "checksum": "b68822679c9e704c68ad9833aad7a57481d6a5899dd2532653876e00812726d9",
       "size_bytes": 2554,
       "source_modified_at": "2026-04-19T20:06:09.333Z",
-      "source_age_hours": 126.54885161709255,
+      "source_age_hours": 133.26767522820367,
       "category": "release_governance",
       "required": true
     },
@@ -489,7 +489,7 @@
       "checksum": "1c743261dc0e35b23d7cb9ec85443e5d89b95c98197f12c1145ca9047f1ab598",
       "size_bytes": 2103,
       "source_modified_at": "2026-04-25T02:20:55.900Z",
-      "source_age_hours": 0.30258397013346355,
+      "source_age_hours": 7.021406747911241,
       "category": "release_governance",
       "required": true
     },
@@ -501,7 +501,7 @@
       "checksum": "5eaa1eb7d66d6fcd069b93e795a21431818ea1f1a715cd11b40bf132feb4ca3f",
       "size_bytes": 2279,
       "source_modified_at": "2026-04-24T21:38:57.682Z",
-      "source_age_hours": 5.002089111531576,
+      "source_age_hours": 11.720911889309352,
       "category": "release_governance",
       "required": true
     },
@@ -513,7 +513,7 @@
       "checksum": "fee3f15033f580f2300d77cf235b6db3773b80e6d5659677fb4ab08c25a2cad0",
       "size_bytes": 1122,
       "source_modified_at": "2026-04-24T19:24:55.552Z",
-      "source_age_hours": 7.236014147677952,
+      "source_age_hours": 13.954837203233508,
       "category": "release_governance",
       "required": true
     },
@@ -525,7 +525,7 @@
       "checksum": "1fc7d371221be866562e8b833b991327e585c4d92590d733299eff289cf52d5c",
       "size_bytes": 21744,
       "source_modified_at": "2026-04-25T02:00:12.307Z",
-      "source_age_hours": 0.6480270177544488,
+      "source_age_hours": 7.366849795532227,
       "category": "release_governance",
       "required": true
     },
@@ -537,7 +537,7 @@
       "checksum": "e8a9b21a8e4ff175cb5e735018001cc37c10fa3a7887694d53b9911fcf0b5736",
       "size_bytes": 2070,
       "source_modified_at": "2026-04-23T07:20:05.739Z",
-      "source_age_hours": 43.31651833021376,
+      "source_age_hours": 50.035340830213755,
       "category": "release_governance",
       "required": true
     },
@@ -549,7 +549,7 @@
       "checksum": "89f52c6641493f3685ab07110f1ba68a105e9185481f8b41bb6b40984b806824",
       "size_bytes": 51725,
       "source_modified_at": "2026-04-23T16:11:41.169Z",
-      "source_age_hours": 34.45667720594618,
+      "source_age_hours": 41.1754994281684,
       "category": "release_governance",
       "required": true
     },
@@ -561,7 +561,7 @@
       "checksum": "0b8a3ab036a1115306f02f59400447844b3818c6e7fafa58df71dbed548b44d0",
       "size_bytes": 6085,
       "source_modified_at": "2026-04-24T21:49:31.865Z",
-      "source_age_hours": 4.8259286461046,
+      "source_age_hours": 11.544750868326823,
       "category": "release_governance",
       "required": true
     },
@@ -573,7 +573,7 @@
       "checksum": "a379893fe96a0217583e7ba0d6cc662f72106a7d6b1fc5970869abf359483066",
       "size_bytes": 700299,
       "source_modified_at": "2026-04-23T16:11:40.679Z",
-      "source_age_hours": 34.45681472527398,
+      "source_age_hours": 41.17563639194065,
       "category": "release_governance",
       "required": true
     },
@@ -585,7 +585,7 @@
       "checksum": "86479220df24865432372677f8f56f85bcd0a1977524abb30bfd1bdcf6b5d0eb",
       "size_bytes": 19240,
       "source_modified_at": "2026-04-24T19:43:19.922Z",
-      "source_age_hours": 6.929247759670681,
+      "source_age_hours": 13.648068870781792,
       "category": "workload_and_quality",
       "required": true
     },
@@ -597,7 +597,7 @@
       "checksum": "a4af0dff043baa2eeff70e863cf444f9e2218ae5734237bb25a56b197de1b87a",
       "size_bytes": 10057,
       "source_modified_at": "2026-04-23T18:32:11.404Z",
-      "source_age_hours": 32.11494711513943,
+      "source_age_hours": 38.83376850402832,
       "category": "workload_and_quality",
       "required": true
     },
@@ -609,7 +609,7 @@
       "checksum": "768a1f9fdc27b5034e6b717d2f9f3f32c2efba8cf730824653ac5fd104e75ce1",
       "size_bytes": 6922,
       "source_modified_at": "2026-04-24T22:09:27.650Z",
-      "source_age_hours": 4.493768040228949,
+      "source_age_hours": 11.21258915134006,
       "category": "workload_and_quality",
       "required": true
     },
@@ -621,7 +621,7 @@
       "checksum": "287168283b73faf361d78763c3aaa34b6a353b5206adaf78ec99cf7d5ae1d466",
       "size_bytes": 56900,
       "source_modified_at": "2026-04-24T19:43:23.932Z",
-      "source_age_hours": 6.928134712795681,
+      "source_age_hours": 13.646955546129014,
       "category": "workload_and_quality",
       "required": true
     },
@@ -633,7 +633,7 @@
       "checksum": "287168283b73faf361d78763c3aaa34b6a353b5206adaf78ec99cf7d5ae1d466",
       "size_bytes": 56900,
       "source_modified_at": "2026-04-24T19:43:23.932Z",
-      "source_age_hours": 6.928135191379123,
+      "source_age_hours": 13.64695574693468,
       "category": "workload_and_quality",
       "required": true
     },
@@ -645,7 +645,7 @@
       "checksum": "cf860326a6ce52289307fd83f17d400e695d3ae1540e02a2afd83c319b37e1dc",
       "size_bytes": 259,
       "source_modified_at": "2026-04-23T18:32:11.406Z",
-      "source_age_hours": 32.11494817742242,
+      "source_age_hours": 38.83376873297797,
       "category": "workload_and_quality",
       "required": true
     },
@@ -657,7 +657,7 @@
       "checksum": "06ad1272c925f4d28b48f015a058a9ea56b144cb4a754804082b965169f11790",
       "size_bytes": 3647,
       "source_modified_at": "2026-04-24T23:08:19.034Z",
-      "source_age_hours": 3.5128294342041015,
+      "source_age_hours": 10.231649711981879,
       "category": "workload_and_quality",
       "required": true
     },
@@ -669,7 +669,7 @@
       "checksum": "3b9d2ccc0fcea40818dc0500db075c1129240f0e00deea30fe7a777d4837f27f",
       "size_bytes": 5238,
       "source_modified_at": "2026-04-24T22:45:19.360Z",
-      "source_age_hours": 3.896072415907118,
+      "source_age_hours": 10.614892693684896,
       "category": "workload_and_quality",
       "required": true
     },
@@ -681,7 +681,7 @@
       "checksum": "bd2a0970dc69b3f86da46dda6d56db46527bfc2508135874ea63770c08737f19",
       "size_bytes": 265,
       "source_modified_at": "2026-04-24T22:09:27.650Z",
-      "source_age_hours": 4.49376960957845,
+      "source_age_hours": 11.212589887356229,
       "category": "workload_and_quality",
       "required": true
     },
@@ -693,7 +693,7 @@
       "checksum": "287168283b73faf361d78763c3aaa34b6a353b5206adaf78ec99cf7d5ae1d466",
       "size_bytes": 56900,
       "source_modified_at": "2026-04-24T19:43:23.934Z",
-      "source_age_hours": 6.928135638766818,
+      "source_age_hours": 13.64695563876682,
       "category": "workload_and_quality",
       "required": true
     },
@@ -705,7 +705,7 @@
       "checksum": "3d68b9226f1c1f4894a364b3778beb6b51fba4ee10aae0f02c132b70eb72e085",
       "size_bytes": 5980,
       "source_modified_at": "2026-04-24T18:25:38.597Z",
-      "source_age_hours": 8.22406287367079,
+      "source_age_hours": 14.94288287367079,
       "category": "workload_and_quality",
       "required": true
     },
@@ -717,7 +717,7 @@
       "checksum": "bb326350837a01b527fc7f9ca25736255cdb8405004c76a1f57858534c2a6d95",
       "size_bytes": 48703,
       "source_modified_at": "2026-04-23T06:17:21.067Z",
-      "source_age_hours": 44.36226606160482,
+      "source_age_hours": 51.08108578382704,
       "category": "workload_and_quality",
       "required": true
     },
@@ -729,7 +729,7 @@
       "checksum": "4da59b1fe7e96e057732c7ba1185026996549fef672274764575e0e0c16d82fe",
       "size_bytes": 9026,
       "source_modified_at": "2026-04-23T16:11:41.133Z",
-      "source_age_hours": 34.45669259162055,
+      "source_age_hours": 41.17551231384277,
       "category": "workload_and_quality",
       "required": true
     },
@@ -741,7 +741,7 @@
       "checksum": "286eb215278527c9436c059942686c7bdf0c70a945a8b4716dd80a889a0db843",
       "size_bytes": 19754,
       "source_modified_at": "2026-04-24T22:29:59.053Z",
-      "source_age_hours": 4.151715112236871,
+      "source_age_hours": 10.870534556681315,
       "category": "release_governance",
       "required": true
     },
@@ -753,7 +753,7 @@
       "checksum": "b2f29560448aa37da10fb63b66805e9fa548ba71529b68bf868208af62df9801",
       "size_bytes": 2631,
       "source_modified_at": "2026-04-25T01:53:22.564Z",
-      "source_age_hours": 0.7618512209743924,
+      "source_age_hours": 7.480670665418836,
       "category": "release_governance",
       "required": true
     },
@@ -765,19 +765,19 @@
       "checksum": "aa36fdf4c789f1653d6992bcde20470f9d20d786bed90fd2e1d4e198c515171f",
       "size_bytes": 69444,
       "source_modified_at": "2026-04-22T18:08:16.092Z",
-      "source_age_hours": 56.513649115804036,
+      "source_age_hours": 63.23246856024848,
       "category": "release_governance",
       "required": true
     },
     {
       "path": "core/local/artifacts/runtime_closure_board_guard_current.json",
-      "exists": false,
+      "exists": true,
       "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/runtime_closure_board_guard_current.json",
       "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-25/core/local/artifacts/runtime_closure_board_guard_current.json",
-      "checksum": "",
-      "size_bytes": 0,
-      "source_modified_at": "",
-      "source_age_hours": null,
+      "checksum": "18c81637281547d011ded79bc4bf40e7040b0dba64054c7f124d347d05199c0e",
+      "size_bytes": 3575,
+      "source_modified_at": "2026-04-25T09:19:55.496Z",
+      "source_age_hours": 0.03818972683376736,
       "category": "release_governance",
       "required": true
     },
@@ -789,19 +789,19 @@
       "checksum": "30843480390dc0ce739110fd1a1ca5b8a88d8b1d5233872e0313c58641e2cc02",
       "size_bytes": 635,
       "source_modified_at": "2026-04-22T18:05:20.209Z",
-      "source_age_hours": 56.56250567064073,
+      "source_age_hours": 63.28132511508518,
       "category": "release_governance",
       "required": true
     },
     {
       "path": "core/local/artifacts/capability_proof_burden_guard_current.json",
-      "exists": false,
+      "exists": true,
       "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/capability_proof_burden_guard_current.json",
       "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-25/core/local/artifacts/capability_proof_burden_guard_current.json",
-      "checksum": "",
-      "size_bytes": 0,
-      "source_modified_at": "",
-      "source_age_hours": null,
+      "checksum": "89771698cd6cd395be6bc22697e521fb7f06e1603e1fc38d52032743b2752e23",
+      "size_bytes": 735,
+      "source_modified_at": "2026-04-25T09:18:16.579Z",
+      "source_age_hours": 0.06566662238226996,
       "category": "release_governance",
       "required": true
     },
@@ -813,7 +813,7 @@
       "checksum": "d7ff6b61e2c71d3de02b04017b4f44f0183aaeef34fc80499930d7ff2d50936a",
       "size_bytes": 7877,
       "source_modified_at": "2026-04-24T22:31:50.093Z",
-      "source_age_hours": 4.1208712915039065,
+      "source_age_hours": 10.83969073594835,
       "category": "release_governance",
       "required": true
     },
@@ -825,7 +825,7 @@
       "checksum": "26618f1a4342a339cfcc3c7c5d56399a271f7da64de3b6a407d85f0496966c36",
       "size_bytes": 1367,
       "source_modified_at": "2026-04-24T22:31:50.092Z",
-      "source_age_hours": 4.120871691284179,
+      "source_age_hours": 10.839691413506403,
       "category": "release_governance",
       "required": true
     },
@@ -837,19 +837,19 @@
       "checksum": "080b6db85c0494621629ae36ec7840882f9f77db454100b135028d523c3dff62",
       "size_bytes": 5346,
       "source_modified_at": "2026-04-24T23:06:52.479Z",
-      "source_age_hours": 3.536875319824219,
+      "source_age_hours": 10.25569504204644,
       "category": "release_governance",
       "required": true
     },
     {
       "path": "core/local/artifacts/srs_todo_section_guard_current.json",
-      "exists": false,
+      "exists": true,
       "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/srs_todo_section_guard_current.json",
       "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-25/core/local/artifacts/srs_todo_section_guard_current.json",
-      "checksum": "",
-      "size_bytes": 0,
-      "source_modified_at": "",
-      "source_age_hours": null,
+      "checksum": "667d8560d1e901f6eb48e7c1a891b7a91908fa8a64dfdae84701cb79d5314dbe",
+      "size_bytes": 538,
+      "source_modified_at": "2026-04-25T09:22:06.604Z",
+      "source_age_hours": 0.0017713434516059027,
       "category": "release_governance",
       "required": true
     },
@@ -861,7 +861,7 @@
       "checksum": "a09c57d43ec3b958ad80081eb6b159665c244c6f7b9825eae342872b0dea1808",
       "size_bytes": 21401,
       "source_modified_at": "2026-04-25T01:47:43.226Z",
-      "source_age_hours": 0.8561125868055556,
+      "source_age_hours": 7.574932309027778,
       "category": "release_governance",
       "required": true
     },
@@ -873,43 +873,43 @@
       "checksum": "45e7e66b956ee1a1393e6b3fad010d0f40442ebcae53761295b6f85d92848441",
       "size_bytes": 8504,
       "source_modified_at": "2026-04-25T01:47:43.232Z",
-      "source_age_hours": 0.856111029188368,
+      "source_age_hours": 7.574930473632812,
       "category": "release_governance",
       "required": true
     },
     {
       "path": "core/local/artifacts/parity_end_to_end_replay_current.json",
-      "exists": false,
+      "exists": true,
       "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/parity_end_to_end_replay_current.json",
       "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-25/core/local/artifacts/parity_end_to_end_replay_current.json",
-      "checksum": "",
-      "size_bytes": 0,
-      "source_modified_at": "",
-      "source_age_hours": null,
+      "checksum": "01d08d614f31fc5430ba02d0c1d58ab40402fbfd1863b89ebbb52e204c4574fc",
+      "size_bytes": 2473,
+      "source_modified_at": "2026-04-25T09:21:49.001Z",
+      "source_age_hours": 0.0066613132731119795,
       "category": "workload_and_quality",
       "required": true
     },
     {
       "path": "core/local/artifacts/parity_trend_current.json",
-      "exists": false,
+      "exists": true,
       "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/parity_trend_current.json",
       "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-25/core/local/artifacts/parity_trend_current.json",
-      "checksum": "",
-      "size_bytes": 0,
-      "source_modified_at": "",
-      "source_age_hours": null,
+      "checksum": "67d68a159d2c8cfa588f9b58cea1f45cfaca1de6b3f348003266b5fb77b172ea",
+      "size_bytes": 2943,
+      "source_modified_at": "2026-04-25T09:21:56.997Z",
+      "source_age_hours": 0.0044404433865017365,
       "category": "workload_and_quality",
       "required": true
     },
     {
       "path": "core/local/artifacts/parity_release_gate_current.json",
-      "exists": false,
+      "exists": true,
       "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/parity_release_gate_current.json",
       "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-25/core/local/artifacts/parity_release_gate_current.json",
-      "checksum": "",
-      "size_bytes": 0,
-      "source_modified_at": "",
-      "source_age_hours": null,
+      "checksum": "e9746305fc4c5d3c508477f589830e25aa8011b3dadbb168a108a2716ce2c0f8",
+      "size_bytes": 1534,
+      "source_modified_at": "2026-04-25T09:22:00.712Z",
+      "source_age_hours": 0.0034086944580078125,
       "category": "workload_and_quality",
       "required": true
     },
@@ -921,7 +921,7 @@
       "checksum": "652edc15d9255965da7a115a2ad5231815662864f0083be2ce59d2c5c2f347df",
       "size_bytes": 3976,
       "source_modified_at": "2026-04-23T18:25:25.819Z",
-      "source_age_hours": 32.22761469760471,
+      "source_age_hours": 38.94643441982693,
       "category": "workload_and_quality",
       "required": true
     },
@@ -933,7 +933,7 @@
       "checksum": "d1c724bdb2c871e1a5fd41adcd17864c26277320c99c7a54ea76496b181487b5",
       "size_bytes": 1778,
       "source_modified_at": "2026-04-23T18:25:26.437Z",
-      "source_age_hours": 32.22744353474935,
+      "source_age_hours": 38.94626297919379,
       "category": "workload_and_quality",
       "required": true
     },
@@ -945,7 +945,7 @@
       "checksum": "872fae805a68ade5ca9e9da9dfa25ebe50b88a8af45d286ff09dbd7e74ee52c5",
       "size_bytes": 4080,
       "source_modified_at": "2026-04-24T22:37:54.601Z",
-      "source_age_hours": 4.019620862426758,
+      "source_age_hours": 10.738439751315648,
       "category": "workload_and_quality",
       "required": true
     },
@@ -957,7 +957,7 @@
       "checksum": "f6d539c8fe99a3fbe496d1a4f23cb3b5c959e4985a8527e31ef88c50c1c4ccc3",
       "size_bytes": 3574,
       "source_modified_at": "2026-04-24T22:41:22.352Z",
-      "source_age_hours": 3.9619124155680336,
+      "source_age_hours": 10.680731026679146,
       "category": "workload_and_quality",
       "required": true
     },
@@ -969,7 +969,7 @@
       "checksum": "9865c6896e853391ac2580d17a9600d8f65016d49e9247bbc847b08300c2dcbb",
       "size_bytes": 1572,
       "source_modified_at": "2026-04-23T18:25:27.143Z",
-      "source_age_hours": 32.22724850599501,
+      "source_age_hours": 38.94606711710612,
       "category": "workload_and_quality",
       "required": true
     },
@@ -981,7 +981,7 @@
       "checksum": "14f17138544ecf43664bae5d5f7143051ab847de762feb9a9572c8eaa2e4ed2f",
       "size_bytes": 2887,
       "source_modified_at": "2026-04-23T18:25:27.870Z",
-      "source_age_hours": 32.227046855129664,
+      "source_age_hours": 38.945865188462996,
       "category": "workload_and_quality",
       "required": true
     },
@@ -993,7 +993,7 @@
       "checksum": "31bf1160c5bdce3a4325fb5fac2215d039991b96b37de40f5d152ec8bf2aa07a",
       "size_bytes": 11409,
       "source_modified_at": "2026-04-24T21:57:48.488Z",
-      "source_age_hours": 4.687986580132378,
+      "source_age_hours": 11.406804913465711,
       "category": "workload_and_quality",
       "required": true
     },
@@ -1005,7 +1005,7 @@
       "checksum": "d1ebb210aa824b880e9f6784f71369afe2d75849417f2f32060f8aa24b0091da",
       "size_bytes": 7324,
       "source_modified_at": "2026-04-24T18:32:01.964Z",
-      "source_age_hours": 8.117577086859809,
+      "source_age_hours": 14.836394864637587,
       "category": "workload_and_quality",
       "required": true
     },
@@ -1017,7 +1017,7 @@
       "checksum": "2093218898bd66504eae4d11b951dc9cba362f162da7e07286b427a2ebb22a14",
       "size_bytes": 4087,
       "source_modified_at": "2026-04-24T18:32:00.937Z",
-      "source_age_hours": 8.117862966986761,
+      "source_age_hours": 14.836680189208984,
       "category": "workload_and_quality",
       "required": true
     },
@@ -1029,7 +1029,7 @@
       "checksum": "cdd2d68d6f8c783ac7c9e121f182d378a96a229582d241f495f24768a583a780",
       "size_bytes": 3639,
       "source_modified_at": "2026-04-24T18:32:02.749Z",
-      "source_age_hours": 8.117360039401584,
+      "source_age_hours": 14.836177261623806,
       "category": "workload_and_quality",
       "required": true
     },
@@ -1041,7 +1041,7 @@
       "checksum": "54e18b21398637f05f289c56564f3b624a85e0f7e5ad3bede09519b893cf7fbd",
       "size_bytes": 2235,
       "source_modified_at": "2026-04-24T18:32:04.438Z",
-      "source_age_hours": 8.116891190999349,
+      "source_age_hours": 14.835708135443793,
       "category": "workload_and_quality",
       "required": true
     },
@@ -1053,7 +1053,7 @@
       "checksum": "65d80f860e0b81652aab1421c480842bba584f79603594ce52ebef00930214ae",
       "size_bytes": 6208,
       "source_modified_at": "2026-04-24T18:32:03.212Z",
-      "source_age_hours": 8.11723395473904,
+      "source_age_hours": 14.836048676961264,
       "category": "workload_and_quality",
       "required": true
     },
@@ -1065,7 +1065,7 @@
       "checksum": "77ab16132bd993452581db6e4eec7b0e917bcb463be6195fbb84fa932ea2a01c",
       "size_bytes": 1541,
       "source_modified_at": "2026-04-24T18:32:01.519Z",
-      "source_age_hours": 8.117705973849827,
+      "source_age_hours": 14.836519029405382,
       "category": "workload_and_quality",
       "required": true
     },
@@ -1077,7 +1077,7 @@
       "checksum": "22e27d01844ebac8deb77b08b70e8805d828790405ffed9ae9c4c50957161b66",
       "size_bytes": 5648,
       "source_modified_at": "2026-04-24T21:57:48.797Z",
-      "source_age_hours": 4.687906960245768,
+      "source_age_hours": 11.406719738023545,
       "category": "workload_and_quality",
       "required": true
     },
@@ -1089,7 +1089,7 @@
       "checksum": "5c96b39da30d684a49d7391282265e6308f9530c5ac2ba57ef52a2305fcca97e",
       "size_bytes": 1334,
       "source_modified_at": "2026-04-24T18:32:04.046Z",
-      "source_age_hours": 8.117004358791775,
+      "source_age_hours": 14.835817136569553,
       "category": "workload_and_quality",
       "required": true
     },
@@ -1101,7 +1101,7 @@
       "checksum": "5b3a400ecf24bf9b25bce380cdea62a08af35ba56035c2ed16321b100a6c54a8",
       "size_bytes": 1967,
       "source_modified_at": "2026-04-24T15:23:28.614Z",
-      "source_age_hours": 11.260181137017144,
+      "source_age_hours": 17.97899308146159,
       "category": "workload_and_quality",
       "required": true
     },
@@ -1113,7 +1113,7 @@
       "checksum": "d6a598d8d55f4b61326978105746970cc66e17671aa956d9a787b9902ac4c7be",
       "size_bytes": 4216,
       "source_modified_at": "2026-04-24T18:33:10.326Z",
-      "source_age_hours": 8.098595483262804,
+      "source_age_hours": 14.817406316596138,
       "category": "workload_and_quality",
       "required": true
     },
@@ -1125,7 +1125,7 @@
       "checksum": "3e04b99369eb7090f7c9f0f7b14e7f6b52d340c32bbd71ec8fc84a40afc68742",
       "size_bytes": 4231,
       "source_modified_at": "2026-04-24T20:18:15.753Z",
-      "source_age_hours": 6.347089297010633,
+      "source_age_hours": 13.065899019232855,
       "category": "workload_and_quality",
       "required": true
     },
@@ -1137,7 +1137,7 @@
       "checksum": "f3dc76d5eabde7639d7496176e44f2f75052971869470474190a38fad226504e",
       "size_bytes": 3126,
       "source_modified_at": "2026-04-23T20:57:01.364Z",
-      "source_age_hours": 29.701087919514976,
+      "source_age_hours": 36.41989597507053,
       "category": "workload_and_quality",
       "required": true
     },
@@ -1149,7 +1149,7 @@
       "checksum": "c2315f72aa95d7a66502a189285056928d6fff6d73a099040a77b03044412b19",
       "size_bytes": 9138,
       "source_modified_at": "2026-04-24T19:04:40.725Z",
-      "source_age_hours": 7.573491715020074,
+      "source_age_hours": 14.29229588168674,
       "category": "adapter_and_orchestration",
       "required": true
     },
@@ -1161,7 +1161,7 @@
       "checksum": "ef75fa114f9c16e186cd360b0c95f60c681b2ac4e4819a0f8897643a3758695f",
       "size_bytes": 8815,
       "source_modified_at": "2026-04-24T19:04:40.650Z",
-      "source_age_hours": 7.573512897542318,
+      "source_age_hours": 14.292317064208984,
       "category": "adapter_and_orchestration",
       "required": true
     },
@@ -1173,7 +1173,7 @@
       "checksum": "aeead617a3bd649a8cc08de796a5fbcc23cb130b814b0196eb7a71c59d7e6223",
       "size_bytes": 6273,
       "source_modified_at": "2026-04-23T07:20:17.647Z",
-      "source_age_hours": 43.313236097140845,
+      "source_age_hours": 50.03203998602973,
       "category": "adapter_and_orchestration",
       "required": true
     },
@@ -1185,7 +1185,7 @@
       "checksum": "29566803a665a0b4bc3b65add26c2729e4eddfdc723804e9137241f730e924dd",
       "size_bytes": 818,
       "source_modified_at": "2026-04-23T16:51:11.892Z",
-      "source_age_hours": 33.79816806430393,
+      "source_age_hours": 40.516972230970595,
       "category": "adapter_and_orchestration",
       "required": true
     },
@@ -1197,7 +1197,7 @@
       "checksum": "9fa218d4d08848dad1f57b80d5626654b0fcdfa87b3e0104898d887fdf449691",
       "size_bytes": 5043,
       "source_modified_at": "2026-04-24T21:53:42.907Z",
-      "source_age_hours": 4.756220997314453,
+      "source_age_hours": 11.475023497314453,
       "category": "release_governance",
       "required": true
     },
@@ -1209,7 +1209,7 @@
       "checksum": "ffec91d1c6b508eb9c5271c9e196ef38ecbff7d5a827b379d6301559ee8646c5",
       "size_bytes": 36247,
       "source_modified_at": "2026-04-25T01:36:48.961Z",
-      "source_age_hours": 1.0378735868326823,
+      "source_age_hours": 7.756675253499349,
       "category": "adapter_and_orchestration",
       "required": true
     },
@@ -1221,7 +1221,7 @@
       "checksum": "f16e975fd65f9baf7e7443720b0900621ff70f051e332856d7aa8da60f5babe2",
       "size_bytes": 2508,
       "source_modified_at": "2026-04-25T01:36:52.496Z",
-      "source_age_hours": 1.0368923293728298,
+      "source_age_hours": 7.7556937182617185,
       "category": "adapter_and_orchestration",
       "required": true
     },
@@ -1233,7 +1233,7 @@
       "checksum": "c93d7647454d739aadff546ad725202ecda5aad2578521c7dcfb4ee244880f2a",
       "size_bytes": 321,
       "source_modified_at": "2026-04-23T18:35:00.625Z",
-      "source_age_hours": 32.06796825934516,
+      "source_age_hours": 38.78676881490072,
       "category": "release_governance",
       "required": true
     },
@@ -1245,7 +1245,7 @@
       "checksum": "565717974feaf6b6c39bf374a887080f61831302a33931556c55a1767be1feca",
       "size_bytes": 52644,
       "source_modified_at": "2026-04-24T22:14:13.494Z",
-      "source_age_hours": 4.414393829210069,
+      "source_age_hours": 11.133194384765625,
       "category": "release_governance",
       "required": true
     },
@@ -1257,7 +1257,7 @@
       "checksum": "d9205fd2bdd3f55113db582d20d09d5921aed8f96466b4f6c8d0d3572fdced65",
       "size_bytes": 13195,
       "source_modified_at": "2026-04-25T01:47:42.679Z",
-      "source_age_hours": 0.8562873440890842,
+      "source_age_hours": 7.575087621866862,
       "category": "release_governance",
       "required": true
     },
@@ -1269,7 +1269,7 @@
       "checksum": "97f1e0fb983a939d91c627b5ace34102195238f37d515a77753700476f38bff8",
       "size_bytes": 9642,
       "source_modified_at": "2026-04-24T21:59:22.656Z",
-      "source_age_hours": 4.661849330037435,
+      "source_age_hours": 11.380649330037436,
       "category": "release_governance",
       "required": true
     },
@@ -1281,7 +1281,7 @@
       "checksum": "b7090a5e0df75ce2628480d3318c9fac008a124c4de70beadb90c93c6bd2ac5b",
       "size_bytes": 13043,
       "source_modified_at": "2026-04-24T22:03:49.908Z",
-      "source_age_hours": 4.5876127857801645,
+      "source_age_hours": 11.306413063557942,
       "category": "workload_and_quality",
       "required": true
     },
@@ -1293,7 +1293,7 @@
       "checksum": "aed8bb03996bb16c584a3e3b87ea2ab5dde151608b51ee6c5171df65d970f83b",
       "size_bytes": 15266,
       "source_modified_at": "2026-04-24T22:09:26.338Z",
-      "source_age_hours": 4.494160236070421,
+      "source_age_hours": 11.21296023607042,
       "category": "workload_and_quality",
       "required": true
     },
@@ -1305,7 +1305,7 @@
       "checksum": "4be998fd04761e43a70264b630ca3ff9745451039554d4dde953ae8ae41c6064",
       "size_bytes": 3698,
       "source_modified_at": "2026-04-24T22:14:10.558Z",
-      "source_age_hours": 4.415210300428602,
+      "source_age_hours": 11.134010300428603,
       "category": "workload_and_quality",
       "required": true
     },
@@ -1317,7 +1317,7 @@
       "checksum": "293a5fbb1f3c604e00a366767e0ab770388774524ab1dee8754acfeee6fc2caf",
       "size_bytes": 1393,
       "source_modified_at": "2026-04-24T22:28:47.841Z",
-      "source_age_hours": 4.171520725504557,
+      "source_age_hours": 10.890320725504557,
       "category": "workload_and_quality",
       "required": true
     },
@@ -1329,7 +1329,7 @@
       "checksum": "4ab0a59daf40eaeffae190c8976b7525545c7b53959e61c6bc1f943326b643a4",
       "size_bytes": 4613,
       "source_modified_at": "2026-04-24T22:19:47.453Z",
-      "source_age_hours": 4.321628579033746,
+      "source_age_hours": 11.040428579033746,
       "category": "workload_and_quality",
       "required": true
     },
@@ -1341,7 +1341,7 @@
       "checksum": "e11278e4d9526ee6cdeb8787f4debf1290dc5734942ff87dd50e9717283f059b",
       "size_bytes": 11602,
       "source_modified_at": "2026-04-24T22:14:15.389Z",
-      "source_age_hours": 4.413870483737521,
+      "source_age_hours": 11.132668817070854,
       "category": "release_governance",
       "required": true
     },
@@ -1350,10 +1350,10 @@
       "exists": true,
       "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/trust_zone_guard_current.json",
       "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-25/core/local/artifacts/trust_zone_guard_current.json",
-      "checksum": "1bd02d55cad16bf5f4461ccc9a50e471c30190f2585f822a785e636d17897987",
+      "checksum": "3e3f3dd498a36bb379c9c90264eccd306c30781df2113d59804add974e7a4597",
       "size_bytes": 3261,
-      "source_modified_at": "2026-04-25T02:37:29.249Z",
-      "source_age_hours": 0.026687348158094617,
+      "source_modified_at": "2026-04-25T02:39:06.906Z",
+      "source_age_hours": 6.71835895690918,
       "category": "release_governance",
       "required": true
     },
@@ -1362,10 +1362,10 @@
       "exists": true,
       "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/self_modification_guard_current.json",
       "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-25/core/local/artifacts/self_modification_guard_current.json",
-      "checksum": "8543ff422fb3d803540630a73bd497ea6c74d39a21578fdb6f10f571c50cffd2",
+      "checksum": "4cd4f793edc78a2d60225c5bae28b2fe9be8e2710ebbcab788923b83711ba5ad",
       "size_bytes": 5738,
-      "source_modified_at": "2026-04-25T02:37:29.187Z",
-      "source_age_hours": 0.026704634738498264,
+      "source_modified_at": "2026-04-25T02:39:06.855Z",
+      "source_age_hours": 6.718373092108832,
       "category": "release_governance",
       "required": true
     },
@@ -1377,7 +1377,7 @@
       "checksum": "2e4179258a42e2090c3f21285acf9a6607b9e7841d7791480e80c77f50cb4f75",
       "size_bytes": 2229,
       "source_modified_at": "2026-04-24T22:26:59.253Z",
-      "source_age_hours": 4.201687074584961,
+      "source_age_hours": 10.920485130140516,
       "category": "release_governance",
       "required": true
     },
@@ -1389,7 +1389,19 @@
       "checksum": "e088dcf32ca07cb93b0b8f83e24e64db121ed480960b728646a5a5efa0825441",
       "size_bytes": 6007,
       "source_modified_at": "2026-04-24T22:26:59.949Z",
-      "source_age_hours": 4.201493866102431,
+      "source_age_hours": 10.920291643880208,
+      "category": "release_governance",
+      "required": true
+    },
+    {
+      "path": "core/local/artifacts/rust_core_file_size_gate_current.json",
+      "exists": true,
+      "source": "/Users/jay/.openclaw/workspace/core/local/artifacts/rust_core_file_size_gate_current.json",
+      "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-25/core/local/artifacts/rust_core_file_size_gate_current.json",
+      "checksum": "0044550cede60480bfe060c1e85d72f5adb7476ca58991e3c6665e71dfa03eb0",
+      "size_bytes": 32750,
+      "source_modified_at": "2026-04-25T02:53:40.451Z",
+      "source_age_hours": 6.475707950032552,
       "category": "release_governance",
       "required": true
     },
@@ -1401,7 +1413,7 @@
       "checksum": "b55f4c560b30487014ea58cf668dc6a0e62af6f92265fed3654a75a2dc109381",
       "size_bytes": 3613,
       "source_modified_at": "2026-04-24T19:42:02.588Z",
-      "source_age_hours": 6.950763860812717,
+      "source_age_hours": 13.669558860812717,
       "category": "ungrouped",
       "required": false
     },
@@ -1413,7 +1425,7 @@
       "checksum": "7b0a2ef0138c7f086bf363a51c156f75bfd1468457e9b3b672e82714f6af157d",
       "size_bytes": 3439,
       "source_modified_at": "2026-04-24T18:37:16.036Z",
-      "source_age_hours": 8.030363291151259,
+      "source_age_hours": 14.749156624484591,
       "category": "ungrouped",
       "required": false
     },
@@ -1425,7 +1437,7 @@
       "checksum": "436dfef007dd047f7bd9ad62e6aee48a3994a68ce43e3097f0e9512ae85121bd",
       "size_bytes": 2826,
       "source_modified_at": "2026-04-25T02:11:05.840Z",
-      "source_age_hours": 0.46656584967719184,
+      "source_age_hours": 7.1853225163438585,
       "category": "ungrouped",
       "required": false
     },
@@ -1437,7 +1449,7 @@
       "checksum": "ba0df2a9e9796bf717b08ad3d2fd9d651de6c3a08321c1a0b68ace1f623f2763",
       "size_bytes": 1217,
       "source_modified_at": "2026-04-19T20:06:09.333Z",
-      "source_age_hours": 126.54892945027669,
+      "source_age_hours": 133.2676855613878,
       "category": "ungrouped",
       "required": false
     },
@@ -1449,7 +1461,7 @@
       "checksum": "7c37a16cfe448afcd1fb8f055386466fbd009acda1464912963261d180453cd7",
       "size_bytes": 1004,
       "source_modified_at": "2026-04-24T19:43:00.339Z",
-      "source_age_hours": 6.934761518961588,
+      "source_age_hours": 13.653517352294921,
       "category": "ungrouped",
       "required": false
     },
@@ -1461,7 +1473,7 @@
       "checksum": "806e38d59668ffa48e6b656b009166cf09c339a7a67a096726e2bb9fa25bd172",
       "size_bytes": 826,
       "source_modified_at": "2026-04-24T18:49:38.695Z",
-      "source_age_hours": 7.824106921047634,
+      "source_age_hours": 14.542863032158746,
       "category": "ungrouped",
       "required": false
     },
@@ -1473,7 +1485,7 @@
       "checksum": "099648c4bae4836ceed0a7394ec3374413deac8924743004c18bc29564fa2610",
       "size_bytes": 867,
       "source_modified_at": "2026-04-24T18:49:38.695Z",
-      "source_age_hours": 7.8241072972276475,
+      "source_age_hours": 14.542863130560981,
       "category": "ungrouped",
       "required": false
     },
@@ -1485,7 +1497,7 @@
       "checksum": "f47acec6ccdca35e0dee5e290ec63d568f90292f5a72e0fa25aabbf834f97ee1",
       "size_bytes": 631,
       "source_modified_at": "2026-04-24T19:24:55.552Z",
-      "source_age_hours": 7.2360916987440325,
+      "source_age_hours": 13.954847254299588,
       "category": "ungrouped",
       "required": false
     },
@@ -1497,7 +1509,7 @@
       "checksum": "f86215230ae4786760c0d0b9fd930566cd279a4e67a5c9b06235e6ce4342f2c2",
       "size_bytes": 4545,
       "source_modified_at": "2026-04-25T02:00:12.305Z",
-      "source_age_hours": 0.6481053989664713,
+      "source_age_hours": 7.366860398966471,
       "category": "ungrouped",
       "required": false
     },
@@ -1509,7 +1521,7 @@
       "checksum": "ec016ed1ab04453e627fe67e8adee86d00cc851aeccb18810a53478e04658110",
       "size_bytes": 798,
       "source_modified_at": "2026-04-23T07:20:05.739Z",
-      "source_age_hours": 43.3165964864095,
+      "source_age_hours": 50.03535120863173,
       "category": "ungrouped",
       "required": false
     },
@@ -1521,7 +1533,7 @@
       "checksum": "dffff384cbc733b474432ae5daf5f30c5afa9f849325645e9c041dacd0a3e54a",
       "size_bytes": 1159,
       "source_modified_at": "2026-04-25T02:11:04.736Z",
-      "source_age_hours": 0.4668748762342665,
+      "source_age_hours": 7.185629598456488,
       "category": "ungrouped",
       "required": false
     },
@@ -1533,7 +1545,7 @@
       "checksum": "82cfe27d75dfcb66c6782ba3a92ac2b649221ec9ffa283e8a3e3ddfc4e0f4475",
       "size_bytes": 1166,
       "source_modified_at": "2026-04-25T02:11:04.756Z",
-      "source_age_hours": 0.4668699907769097,
+      "source_age_hours": 7.185624157443576,
       "category": "ungrouped",
       "required": false
     },
@@ -1545,7 +1557,7 @@
       "checksum": "702bc08c6f1f6726aa229308ba2e61d6e0ce149fc147188559c1b138eaeb0177",
       "size_bytes": 1171,
       "source_modified_at": "2026-04-25T02:11:04.774Z",
-      "source_age_hours": 0.46686501118977863,
+      "source_age_hours": 7.185619177856445,
       "category": "ungrouped",
       "required": false
     },
@@ -1557,7 +1569,7 @@
       "checksum": "51fe2b8782c842dd9b51a18f79882f8c30aac8b9bab672ebdae10378e25dec32",
       "size_bytes": 710,
       "source_modified_at": "2026-04-24T19:43:23.988Z",
-      "source_age_hours": 6.928194810655382,
+      "source_age_hours": 13.64694897732205,
       "category": "ungrouped",
       "required": false
     },
@@ -1569,7 +1581,7 @@
       "checksum": "ff333aebb305c11a398beb53b7725cba395afe76275f77bd63ddcbce644e40ec",
       "size_bytes": 1300,
       "source_modified_at": "2026-04-24T19:43:24.000Z",
-      "source_age_hours": 6.9281913478597,
+      "source_age_hours": 13.646945514526367,
       "category": "ungrouped",
       "required": false
     },
@@ -1581,7 +1593,7 @@
       "checksum": "f3baed4d9f8e5ae8a7563bd7a8f1d73b601172d58181e66b37eecaf6a2dd9166",
       "size_bytes": 7870,
       "source_modified_at": "2026-04-24T19:43:24.014Z",
-      "source_age_hours": 6.9281874490017366,
+      "source_age_hours": 13.646941893446181,
       "category": "ungrouped",
       "required": false
     },
@@ -1593,7 +1605,7 @@
       "checksum": "631543cec49d83c8da84fab32823129b6f3530d0d8dda36abea680e2d620929c",
       "size_bytes": 6778,
       "source_modified_at": "2026-04-24T19:43:24.022Z",
-      "source_age_hours": 6.9281855904134115,
+      "source_age_hours": 13.646939757080078,
       "category": "ungrouped",
       "required": false
     },
@@ -1605,7 +1617,7 @@
       "checksum": "25d7f1c0a1b353cb4f54407ee5fa573912d1dae0efe16f78e1db8f4c210cb4d9",
       "size_bytes": 1092,
       "source_modified_at": "2026-04-24T19:43:24.031Z",
-      "source_age_hours": 6.928183184339735,
+      "source_age_hours": 13.64693762878418,
       "category": "ungrouped",
       "required": false
     },
@@ -1617,7 +1629,7 @@
       "checksum": "cc393e7afe151c73cfb9ca4c12d1ae388bea8141dd54b2d630298fa920419a9c",
       "size_bytes": 248,
       "source_modified_at": "2026-04-24T19:43:24.038Z",
-      "source_age_hours": 6.928181583184136,
+      "source_age_hours": 13.646935472073025,
       "category": "ungrouped",
       "required": false
     },
@@ -1629,7 +1641,7 @@
       "checksum": "2bf51eb334dc5c33ec7178df74d825bd33d57beb838f203824a42535115561d5",
       "size_bytes": 707,
       "source_modified_at": "2026-04-24T19:43:24.049Z",
-      "source_age_hours": 6.928179006551106,
+      "source_age_hours": 13.646932617662218,
       "category": "ungrouped",
       "required": false
     },
@@ -1641,7 +1653,7 @@
       "checksum": "66c81fe4061d2c1dd000e60fab1838088ac1f24fba27eec05277149e589c14e7",
       "size_bytes": 1212,
       "source_modified_at": "2026-04-24T19:43:24.008Z",
-      "source_age_hours": 6.928190612860786,
+      "source_age_hours": 13.646943946194119,
       "category": "ungrouped",
       "required": false
     },
@@ -1653,19 +1665,19 @@
       "checksum": "6906de0f2eb6ec87ea470d212baad9c697a00271e0a36ccaf13f62a954fa5f44",
       "size_bytes": 1684,
       "source_modified_at": "2026-04-24T20:00:46.325Z",
-      "source_age_hours": 6.638657974717882,
+      "source_age_hours": 13.357411308051216,
       "category": "ungrouped",
       "required": false
     },
     {
       "path": "local/workspace/reports/RUNTIME_PROOF_REALITY_GUARD_CURRENT.md",
-      "exists": false,
+      "exists": true,
       "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/RUNTIME_PROOF_REALITY_GUARD_CURRENT.md",
       "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-25/local/workspace/reports/RUNTIME_PROOF_REALITY_GUARD_CURRENT.md",
-      "checksum": "",
-      "size_bytes": 0,
-      "source_modified_at": "",
-      "source_age_hours": null,
+      "checksum": "cca567dc3a4bafe27c700a6771ef0e2ccf6dc115fd4509b977f2c4ab435b8623",
+      "size_bytes": 315,
+      "source_modified_at": "2026-04-25T09:18:16.508Z",
+      "source_age_hours": 0.06569419352213542,
       "category": "ungrouped",
       "required": false
     },
@@ -1677,7 +1689,7 @@
       "checksum": "0632e2e064528ece1e75d41603e540ea2882f8b73b695eef995377857900cbf8",
       "size_bytes": 1175,
       "source_modified_at": "2026-04-23T18:32:11.405Z",
-      "source_age_hours": 32.115024954155814,
+      "source_age_hours": 38.833778287489146,
       "category": "ungrouped",
       "required": false
     },
@@ -1689,7 +1701,7 @@
       "checksum": "401aa2879cf8b4032621159849ea26ceb3e60c415bc83ba7c8696e039debb24c",
       "size_bytes": 298,
       "source_modified_at": "2026-04-24T22:09:27.650Z",
-      "source_age_hours": 4.493845747002496,
+      "source_age_hours": 11.21259908033583,
       "category": "ungrouped",
       "required": false
     },
@@ -1701,7 +1713,7 @@
       "checksum": "1bd0a703744734ce868957a152b3b2faa45fe81f3dc54a3e322162ebbf07ada8",
       "size_bytes": 1330,
       "source_modified_at": "2026-04-24T19:43:23.935Z",
-      "source_age_hours": 6.928211204901801,
+      "source_age_hours": 13.646964538235135,
       "category": "ungrouped",
       "required": false
     },
@@ -1713,7 +1725,7 @@
       "checksum": "8a447bbfc2719e088b3574c0698456959665393ad99be6d953f1f5e75b1c6b5f",
       "size_bytes": 573,
       "source_modified_at": "2026-04-24T18:25:38.597Z",
-      "source_age_hours": 8.224138749525283,
+      "source_age_hours": 14.942892082858615,
       "category": "ungrouped",
       "required": false
     },
@@ -1725,7 +1737,7 @@
       "checksum": "91747629dcbdea287477300b0f48585624c431adf1659fad43f6d95212de507d",
       "size_bytes": 10266,
       "source_modified_at": "2026-04-24T19:43:23.994Z",
-      "source_age_hours": 6.928195302734375,
+      "source_age_hours": 13.646948358289931,
       "category": "ungrouped",
       "required": false
     },
@@ -1749,7 +1761,7 @@
       "checksum": "a16f7787f2d70ac5650f7070a41ae629cdb27be907e90c070914b8bc8a023eeb",
       "size_bytes": 2911,
       "source_modified_at": "2026-04-24T21:49:31.865Z",
-      "source_age_hours": 4.826009147610135,
+      "source_age_hours": 11.544761925387911,
       "category": "ungrouped",
       "required": false
     },
@@ -1761,7 +1773,7 @@
       "checksum": "60f54a743e74dda84b18da8307571678ff5f320d2fd3a330fc9c6d52e1271085",
       "size_bytes": 3171,
       "source_modified_at": "2026-04-24T22:29:59.052Z",
-      "source_age_hours": 4.151790829806858,
+      "source_age_hours": 10.870543607584635,
       "category": "ungrouped",
       "required": false
     },
@@ -1773,7 +1785,7 @@
       "checksum": "d3f5e6751fc3394cceaf4ec4db858f905418d030d3d7b0be052e4f3007860704",
       "size_bytes": 2025,
       "source_modified_at": "2026-04-25T01:53:22.561Z",
-      "source_age_hours": 0.7619293753390842,
+      "source_age_hours": 7.48067993089464,
       "category": "ungrouped",
       "required": false
     },
@@ -1785,19 +1797,19 @@
       "checksum": "435e57c756b561a5fbd62d62324fc3da6a0c364937f67eee6a1e05676d4602d2",
       "size_bytes": 444,
       "source_modified_at": "2026-04-22T18:08:16.092Z",
-      "source_age_hours": 56.51372731709798,
+      "source_age_hours": 63.2324770393202,
       "category": "ungrouped",
       "required": false
     },
     {
       "path": "local/workspace/reports/RUNTIME_CLOSURE_BOARD_GUARD_CURRENT.md",
-      "exists": false,
+      "exists": true,
       "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/RUNTIME_CLOSURE_BOARD_GUARD_CURRENT.md",
       "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-25/local/workspace/reports/RUNTIME_CLOSURE_BOARD_GUARD_CURRENT.md",
-      "checksum": "",
-      "size_bytes": 0,
-      "source_modified_at": "",
-      "source_age_hours": null,
+      "checksum": "36ee805e339090c9b85dd166da1481320d2dbb69ce8d76e14f5e898c189b6e9a",
+      "size_bytes": 660,
+      "source_modified_at": "2026-04-25T09:19:55.496Z",
+      "source_age_hours": 0.038198182779947916,
       "category": "ungrouped",
       "required": false
     },
@@ -1809,19 +1821,19 @@
       "checksum": "3bbd3706739870c48c69309ce063ac78065769a4d6a120d13857c5a816aad0a2",
       "size_bytes": 319,
       "source_modified_at": "2026-04-22T18:05:20.208Z",
-      "source_age_hours": 56.56258391825358,
+      "source_age_hours": 63.28133391825358,
       "category": "ungrouped",
       "required": false
     },
     {
       "path": "local/workspace/reports/CAPABILITY_PROOF_BURDEN_GUARD_CURRENT.md",
-      "exists": false,
+      "exists": true,
       "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/CAPABILITY_PROOF_BURDEN_GUARD_CURRENT.md",
       "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-25/local/workspace/reports/CAPABILITY_PROOF_BURDEN_GUARD_CURRENT.md",
-      "checksum": "",
-      "size_bytes": 0,
-      "source_modified_at": "",
-      "source_age_hours": null,
+      "checksum": "742a7169c80ccee13310dd3211557f50d81e84325c2993d8babc295a977e69a3",
+      "size_bytes": 457,
+      "source_modified_at": "2026-04-25T09:18:16.579Z",
+      "source_age_hours": 0.06567528998480902,
       "category": "ungrouped",
       "required": false
     },
@@ -1833,7 +1845,7 @@
       "checksum": "a9512c44d1fd45d8221b6e619cc6a30bd30f5b508df92f6c6f27fc40def134a4",
       "size_bytes": 411,
       "source_modified_at": "2026-04-24T22:31:50.092Z",
-      "source_age_hours": 4.1209493202718095,
+      "source_age_hours": 10.83969932027181,
       "category": "ungrouped",
       "required": false
     },
@@ -1845,19 +1857,19 @@
       "checksum": "faeeb24f5fbc17cd709a4df9aa52d155018f9cfa89c1db69d59839d634e06482",
       "size_bytes": 5774,
       "source_modified_at": "2026-04-24T22:31:50.093Z",
-      "source_age_hours": 4.120949499172634,
+      "source_age_hours": 10.839699499172635,
       "category": "ungrouped",
       "required": false
     },
     {
       "path": "local/workspace/reports/SRS_TODO_SECTION_GUARD_CURRENT.md",
-      "exists": false,
+      "exists": true,
       "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/SRS_TODO_SECTION_GUARD_CURRENT.md",
       "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-25/local/workspace/reports/SRS_TODO_SECTION_GUARD_CURRENT.md",
-      "checksum": "",
-      "size_bytes": 0,
-      "source_modified_at": "",
-      "source_age_hours": null,
+      "checksum": "0b1b2e84320f090e37388777adce7663a519f76f0a7cbd827e2dc554a98e141f",
+      "size_bytes": 377,
+      "source_modified_at": "2026-04-25T09:22:06.604Z",
+      "source_age_hours": 0.0017797606743706598,
       "category": "ungrouped",
       "required": false
     },
@@ -1869,7 +1881,7 @@
       "checksum": "070c0e69601979796b0199d1498938eb62ff3d63324e2d7b77db7426de8be1fb",
       "size_bytes": 262,
       "source_modified_at": "2026-04-24T18:32:01.964Z",
-      "source_age_hours": 8.117651846720378,
+      "source_age_hours": 14.836401846720378,
       "category": "ungrouped",
       "required": false
     },
@@ -1881,7 +1893,7 @@
       "checksum": "3df0fcae55ed65fc2eccd1bc20bf93e239fbab8c63b695ac39a8ccee3d3f070c",
       "size_bytes": 192,
       "source_modified_at": "2026-04-24T18:32:00.937Z",
-      "source_age_hours": 8.117937450832791,
+      "source_age_hours": 14.836687173055013,
       "category": "ungrouped",
       "required": false
     },
@@ -1893,7 +1905,7 @@
       "checksum": "cbb3032c653f354c9e2686893e5640cb93e49f924989dcd8155c54a159af75e0",
       "size_bytes": 295,
       "source_modified_at": "2026-04-24T18:32:02.749Z",
-      "source_age_hours": 8.117434154527452,
+      "source_age_hours": 14.836184154527452,
       "category": "ungrouped",
       "required": false
     },
@@ -1905,7 +1917,7 @@
       "checksum": "216fa0e479ada0bbc5990ba03607ae992f325f448a7545e8d5ec657bfe0f5b61",
       "size_bytes": 346,
       "source_modified_at": "2026-04-24T18:32:03.212Z",
-      "source_age_hours": 8.117306414591472,
+      "source_age_hours": 14.836055581258139,
       "category": "ungrouped",
       "required": false
     },
@@ -1917,7 +1929,7 @@
       "checksum": "0c843a98facf4b6132e44ee191a2d9baaa6d0ddbfd5fc851b3aca3bb6ba2a303",
       "size_bytes": 147,
       "source_modified_at": "2026-04-24T18:32:01.519Z",
-      "source_age_hours": 8.117779335666233,
+      "source_age_hours": 14.8365260023329,
       "category": "ungrouped",
       "required": false
     },
@@ -1929,7 +1941,7 @@
       "checksum": "b57fc5296927d2d0c2a8e7fa048a0c3d3cfbd119441574a56bb3b8c3e20924f5",
       "size_bytes": 352,
       "source_modified_at": "2026-04-24T21:57:48.797Z",
-      "source_age_hours": 4.687980325317382,
+      "source_age_hours": 11.406726714206272,
       "category": "ungrouped",
       "required": false
     },
@@ -1941,7 +1953,7 @@
       "checksum": "44db981e6656f271c37556ccc7426cede19ff16fe1adca1949b811060d67e5ba",
       "size_bytes": 226,
       "source_modified_at": "2026-04-24T18:32:04.046Z",
-      "source_age_hours": 8.117079469401041,
+      "source_age_hours": 14.835824469401041,
       "category": "ungrouped",
       "required": false
     },
@@ -1953,7 +1965,7 @@
       "checksum": "02df8700e7b55d538d244bb33ada3bd53eca1875ac5730071b1df90669e52d57",
       "size_bytes": 312,
       "source_modified_at": "2026-04-24T18:32:04.438Z",
-      "source_age_hours": 8.116972260064019,
+      "source_age_hours": 14.835715593397353,
       "category": "ungrouped",
       "required": false
     },
@@ -1965,7 +1977,7 @@
       "checksum": "3ce984f20b5ccc3028c46ba3e04beba6ba24f5cf38cfa71df7a491296d04eb9f",
       "size_bytes": 1180,
       "source_modified_at": "2026-04-24T15:23:28.614Z",
-      "source_age_hours": 11.260257011854383,
+      "source_age_hours": 17.979000067409938,
       "category": "ungrouped",
       "required": false
     },
@@ -1977,7 +1989,7 @@
       "checksum": "050687eae9e6c12895b6889a9a3f660a8402a74a18ee57982a21cf19bbd75f79",
       "size_bytes": 1320,
       "source_modified_at": "2026-04-24T18:33:10.325Z",
-      "source_age_hours": 8.098670553724501,
+      "source_age_hours": 14.817413887057834,
       "category": "ungrouped",
       "required": false
     },
@@ -1989,7 +2001,7 @@
       "checksum": "05fc81e27937407dfe07cb9ab6ef76eeef5056789bdcefb80201c90df50160b6",
       "size_bytes": 197,
       "source_modified_at": "2026-04-24T20:18:15.754Z",
-      "source_age_hours": 6.347162795681424,
+      "source_age_hours": 13.065906129014756,
       "category": "ungrouped",
       "required": false
     },
@@ -2001,7 +2013,7 @@
       "checksum": "511ada34b069c154f2f6ae299b755ecf4c2b2a7a349adb874aaeac82d22c47aa",
       "size_bytes": 1661,
       "source_modified_at": "2026-04-25T02:20:55.899Z",
-      "source_age_hours": 0.3026788619656033,
+      "source_age_hours": 7.021421361965603,
       "category": "ungrouped",
       "required": false
     },
@@ -2013,55 +2025,55 @@
       "checksum": "be1feb5a7e5f21b1d65883ada9f2786859397c34665676d25d6eddbd264f47bf",
       "size_bytes": 838,
       "source_modified_at": "2026-04-24T21:38:57.683Z",
-      "source_age_hours": 5.002186332261827,
+      "source_age_hours": 11.720925776706272,
       "category": "ungrouped",
       "required": false
     },
     {
       "path": "local/workspace/reports/PARITY_END_TO_END_REPLAY_CURRENT.md",
-      "exists": false,
+      "exists": true,
       "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/PARITY_END_TO_END_REPLAY_CURRENT.md",
       "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-25/local/workspace/reports/PARITY_END_TO_END_REPLAY_CURRENT.md",
-      "checksum": "",
-      "size_bytes": 0,
-      "source_modified_at": "",
-      "source_age_hours": null,
+      "checksum": "8805e445a7e955d62eafde3badc21ecec38cae48d949682a5a017cea5d64a298",
+      "size_bytes": 623,
+      "source_modified_at": "2026-04-25T09:21:49.001Z",
+      "source_age_hours": 0.006671061537000868,
       "category": "ungrouped",
       "required": false
     },
     {
       "path": "local/workspace/reports/PARITY_TREND_CURRENT.md",
-      "exists": false,
+      "exists": true,
       "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/PARITY_TREND_CURRENT.md",
       "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-25/local/workspace/reports/PARITY_TREND_CURRENT.md",
-      "checksum": "",
-      "size_bytes": 0,
-      "source_modified_at": "",
-      "source_age_hours": null,
+      "checksum": "dd4d060fb2b91df98658248d938deb531ec8daaa21978b9e6cae23ad2ad0f0f3",
+      "size_bytes": 885,
+      "source_modified_at": "2026-04-25T09:21:56.997Z",
+      "source_age_hours": 0.004449921264648438,
       "category": "ungrouped",
       "required": false
     },
     {
       "path": "local/workspace/reports/PARITY_RELEASE_GATE_CURRENT.md",
-      "exists": false,
+      "exists": true,
       "source": "/Users/jay/.openclaw/workspace/local/workspace/reports/PARITY_RELEASE_GATE_CURRENT.md",
       "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-25/local/workspace/reports/PARITY_RELEASE_GATE_CURRENT.md",
-      "checksum": "",
-      "size_bytes": 0,
-      "source_modified_at": "",
-      "source_age_hours": null,
+      "checksum": "e2aa0206203d1f322199965fb3fae0b7a2fe481848201b2658ec4fc2750543c7",
+      "size_bytes": 802,
+      "source_modified_at": "2026-04-25T09:22:00.711Z",
+      "source_age_hours": 0.0034183104112413196,
       "category": "ungrouped",
       "required": false
     },
     {
       "path": "local/state/ops/parity/parity_trend_history.jsonl",
-      "exists": false,
+      "exists": true,
       "source": "/Users/jay/.openclaw/workspace/local/state/ops/parity/parity_trend_history.jsonl",
       "destination": "/Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-25/local/state/ops/parity/parity_trend_history.jsonl",
-      "checksum": "",
-      "size_bytes": 0,
-      "source_modified_at": "",
-      "source_age_hours": null,
+      "checksum": "76525d0e5a4d7f63026f75602128c7b4c911d88cbf685d70ee5bd58f70329fc3",
+      "size_bytes": 242,
+      "source_modified_at": "2026-04-25T09:21:56.997Z",
+      "source_age_hours": 0.004450114203559028,
       "category": "ungrouped",
       "required": false
     },
@@ -2073,7 +2085,7 @@
       "checksum": "2cf487f0df6555f15a4259079aa830bdcbbf57f882226d99f2abb4d4353a0302",
       "size_bytes": 1758,
       "source_modified_at": "2026-04-23T18:25:25.820Z",
-      "source_age_hours": 32.227704290364585,
+      "source_age_hours": 38.94644373480903,
       "category": "ungrouped",
       "required": false
     },
@@ -2085,7 +2097,7 @@
       "checksum": "7093d7a1714bd7ff14e7357439f9bd1aedb79ba06e9f519cefb81cc922d7fb89",
       "size_bytes": 764,
       "source_modified_at": "2026-04-23T18:25:26.437Z",
-      "source_age_hours": 32.22753495110406,
+      "source_age_hours": 38.94627217332628,
       "category": "ungrouped",
       "required": false
     },
@@ -2097,7 +2109,7 @@
       "checksum": "9cb8f8f0b2783b7295daf3ca0e0937543e27a26493c927375b3f4ff506b3143b",
       "size_bytes": 953,
       "source_modified_at": "2026-04-23T18:25:27.143Z",
-      "source_age_hours": 32.22733926859538,
+      "source_age_hours": 38.9460764908176,
       "category": "ungrouped",
       "required": false
     },
@@ -2109,7 +2121,7 @@
       "checksum": "82d19daf249f0fa402ea293d1363eae18dc864d44677ee5acf0d6a25cb163d82",
       "size_bytes": 1680,
       "source_modified_at": "2026-04-23T18:25:27.870Z",
-      "source_age_hours": 32.227137439778645,
+      "source_age_hours": 38.94587438422309,
       "category": "ungrouped",
       "required": false
     },
@@ -2121,7 +2133,7 @@
       "checksum": "8f5ce87fe5639a4d783b4d4dad55e22917c6946c30cc68d02baa73c6af08b276",
       "size_bytes": 1831,
       "source_modified_at": "2026-04-24T21:57:48.488Z",
-      "source_age_hours": 4.688076888359918,
+      "source_age_hours": 11.406813832804362,
       "category": "ungrouped",
       "required": false
     },
@@ -2133,7 +2145,7 @@
       "checksum": "652edc15d9255965da7a115a2ad5231815662864f0083be2ce59d2c5c2f347df",
       "size_bytes": 3976,
       "source_modified_at": "2026-04-23T18:25:25.819Z",
-      "source_age_hours": 32.227708523491756,
+      "source_age_hours": 38.94644435682509,
       "category": "ungrouped",
       "required": false
     },
@@ -2145,7 +2157,7 @@
       "checksum": "d1c724bdb2c871e1a5fd41adcd17864c26277320c99c7a54ea76496b181487b5",
       "size_bytes": 1778,
       "source_modified_at": "2026-04-23T18:25:26.437Z",
-      "source_age_hours": 32.22753694363064,
+      "source_age_hours": 38.94627277696397,
       "category": "ungrouped",
       "required": false
     },
@@ -2157,7 +2169,7 @@
       "checksum": "9865c6896e853391ac2580d17a9600d8f65016d49e9247bbc847b08300c2dcbb",
       "size_bytes": 1572,
       "source_modified_at": "2026-04-23T18:25:27.142Z",
-      "source_age_hours": 32.22734150539822,
+      "source_age_hours": 38.946077060953776,
       "category": "ungrouped",
       "required": false
     },
@@ -2169,7 +2181,7 @@
       "checksum": "14f17138544ecf43664bae5d5f7143051ab847de762feb9a9572c8eaa2e4ed2f",
       "size_bytes": 2887,
       "source_modified_at": "2026-04-23T18:25:27.870Z",
-      "source_age_hours": 32.227141096055774,
+      "source_age_hours": 38.94587470716689,
       "category": "ungrouped",
       "required": false
     },
@@ -2181,7 +2193,7 @@
       "checksum": "31bf1160c5bdce3a4325fb5fac2215d039991b96b37de40f5d152ec8bf2aa07a",
       "size_bytes": 11409,
       "source_modified_at": "2026-04-24T21:57:48.488Z",
-      "source_age_hours": 4.688080830485026,
+      "source_age_hours": 11.406814163818359,
       "category": "ungrouped",
       "required": false
     },
@@ -2193,7 +2205,7 @@
       "checksum": "006b7ad6ae39d359384e856101ceac2d5cfa280a3bb895aba5dbfbb626dfdbb3",
       "size_bytes": 4552,
       "source_modified_at": "2026-04-24T21:57:48.797Z",
-      "source_age_hours": 4.6879950994873045,
+      "source_age_hours": 11.406728710598415,
       "category": "ungrouped",
       "required": false
     },
@@ -2205,7 +2217,7 @@
       "checksum": "d89c69d9f6644f5909d309fb0b9fa888f802712c41471534438a739e6fa590fb",
       "size_bytes": 425,
       "source_modified_at": "2026-04-24T18:32:04.045Z",
-      "source_age_hours": 8.117092953559029,
+      "source_age_hours": 14.835826286892361,
       "category": "ungrouped",
       "required": false
     },
@@ -2217,7 +2229,7 @@
       "checksum": "a56f667f3235eba5aa4e9e195f262c1cb73bb3b243aab8b1567d7b0a82deac8c",
       "size_bytes": 247,
       "source_modified_at": "2026-04-24T18:32:04.437Z",
-      "source_age_hours": 8.116984148966472,
+      "source_age_hours": 14.835717482299804,
       "category": "ungrouped",
       "required": false
     },
@@ -2229,7 +2241,7 @@
       "checksum": "d6a598d8d55f4b61326978105746970cc66e17671aa956d9a787b9902ac4c7be",
       "size_bytes": 4216,
       "source_modified_at": "2026-04-24T18:33:10.324Z",
-      "source_age_hours": 8.098682563612195,
+      "source_age_hours": 14.817415619167752,
       "category": "ungrouped",
       "required": false
     },
@@ -2241,7 +2253,7 @@
       "checksum": "3e04b99369eb7090f7c9f0f7b14e7f6b52d340c32bbd71ec8fc84a40afc68742",
       "size_bytes": 4231,
       "source_modified_at": "2026-04-24T20:18:15.753Z",
-      "source_age_hours": 6.347174368760851,
+      "source_age_hours": 13.065907702094185,
       "category": "ungrouped",
       "required": false
     },
@@ -2253,7 +2265,7 @@
       "checksum": "f3dc76d5eabde7639d7496176e44f2f75052971869470474190a38fad226504e",
       "size_bytes": 3126,
       "source_modified_at": "2026-04-23T20:57:01.364Z",
-      "source_age_hours": 29.70117133911133,
+      "source_age_hours": 36.41990467244466,
       "category": "ungrouped",
       "required": false
     },
@@ -2265,7 +2277,7 @@
       "checksum": "117d3dd7ce5ce2a22216ea19e92527513fc6fca05d57b16ea471f26b27b1f232",
       "size_bytes": 748,
       "source_modified_at": "2026-04-23T20:57:01.364Z",
-      "source_age_hours": 29.70117156277127,
+      "source_age_hours": 36.419904618326825,
       "category": "ungrouped",
       "required": false
     },
@@ -2277,7 +2289,7 @@
       "checksum": "e76cb169845b5eb799897a36bb86325749a9aaff62fb84e3499a22568c9a904d",
       "size_bytes": 3303,
       "source_modified_at": "2026-04-24T21:53:42.908Z",
-      "source_age_hours": 4.756298695136176,
+      "source_age_hours": 11.475031472913955,
       "category": "ungrouped",
       "required": false
     },
@@ -2289,7 +2301,7 @@
       "checksum": "2afae92e323cedc13d095977ffa18305cfc362c8e230b49977f6ae2331cb0150",
       "size_bytes": 6598,
       "source_modified_at": "2026-04-24T21:59:22.657Z",
-      "source_age_hours": 4.661926935763889,
+      "source_age_hours": 11.38065693576389,
       "category": "ungrouped",
       "required": false
     },
@@ -2301,7 +2313,7 @@
       "checksum": "4f81fbe38484134a2692104e6594489f2645b6cdd86452265b610691e5fc121f",
       "size_bytes": 667,
       "source_modified_at": "2026-04-25T01:36:52.495Z",
-      "source_age_hours": 1.0369719595676,
+      "source_age_hours": 7.7557019595676,
       "category": "ungrouped",
       "required": false
     },
@@ -2313,56 +2325,19 @@
       "checksum": "e46e5967609a35c250e5a5407319a823998f7079160a34d8b8a0c13d74d7a541",
       "size_bytes": 9796,
       "source_modified_at": "2026-04-24T22:03:49.908Z",
-      "source_age_hours": 4.587691894802517,
+      "source_age_hours": 11.306420505913628,
       "category": "ungrouped",
       "required": false
     }
   ],
-  "required_missing": [
-    "core/local/artifacts/runtime_proof_reality_guard_current.json",
-    "core/local/artifacts/runtime_closure_board_guard_current.json",
-    "core/local/artifacts/capability_proof_burden_guard_current.json",
-    "core/local/artifacts/srs_todo_section_guard_current.json",
-    "core/local/artifacts/parity_end_to_end_replay_current.json",
-    "core/local/artifacts/parity_trend_current.json",
-    "core/local/artifacts/parity_release_gate_current.json"
-  ],
+  "required_missing": [],
   "mandatory_artifact_failures": [
     {
       "path": "core/local/artifacts/eval_regression_guard_current.json",
       "failure": "required_artifact_not_passing"
-    },
-    {
-      "path": "core/local/artifacts/runtime_proof_reality_guard_current.json",
-      "failure": "required_artifact_missing"
     }
   ],
-  "category_threshold_failures": [
-    {
-      "id": "proof_pack_category_completeness_below_threshold",
-      "category": "runtime_proof",
-      "threshold": 1,
-      "actual": 0.9666666666666667,
-      "ok": false,
-      "detail": "runtime_proof: actual=0.967;required_min=1.000"
-    },
-    {
-      "id": "proof_pack_category_completeness_below_threshold",
-      "category": "release_governance",
-      "threshold": 1,
-      "actual": 0.9032258064516129,
-      "ok": false,
-      "detail": "release_governance: actual=0.903;required_min=1.000"
-    },
-    {
-      "id": "proof_pack_category_completeness_below_threshold",
-      "category": "workload_and_quality",
-      "threshold": 1,
-      "actual": 0.925,
-      "ok": false,
-      "detail": "workload_and_quality: actual=0.925;required_min=1.000"
-    }
-  ],
+  "category_threshold_failures": [],
   "required_failed_artifacts": [
     {
       "path": "core/local/artifacts/runtime_proof_verify_current.json",
@@ -2411,11 +2386,11 @@
     {
       "category": "runtime_proof",
       "total": 30,
-      "present": 29,
+      "present": 30,
       "required_total": 30,
-      "required_present": 29,
-      "required_missing": 1,
-      "required_completeness": 0.9666666666666667
+      "required_present": 30,
+      "required_missing": 0,
+      "required_completeness": 1
     },
     {
       "category": "adapter_and_orchestration",
@@ -2428,26 +2403,26 @@
     },
     {
       "category": "release_governance",
-      "total": 31,
-      "present": 28,
-      "required_total": 31,
-      "required_present": 28,
-      "required_missing": 3,
-      "required_completeness": 0.9032258064516129
+      "total": 32,
+      "present": 32,
+      "required_total": 32,
+      "required_present": 32,
+      "required_missing": 0,
+      "required_completeness": 1
     },
     {
       "category": "workload_and_quality",
       "total": 40,
-      "present": 37,
+      "present": 40,
       "required_total": 40,
-      "required_present": 37,
-      "required_missing": 3,
-      "required_completeness": 0.925
+      "required_present": 40,
+      "required_missing": 0,
+      "required_completeness": 1
     },
     {
       "category": "ungrouped",
       "total": 77,
-      "present": 68,
+      "present": 76,
       "required_total": 0,
       "required_present": 0,
       "required_missing": 0,

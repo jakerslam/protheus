@@ -105,6 +105,11 @@ fn report_for_views(
     chat_monitor_path: &str,
     views: &[ScopedView],
 ) -> Value {
+    let trend_items = views
+        .iter()
+        .flat_map(|view| view.visible_issues.iter())
+        .filter(|issue| issue.source_kind == "eval_feedback_trend")
+        .count();
     let total_visible = views
         .iter()
         .map(|view| view.visible_issues.len())
@@ -140,6 +145,7 @@ fn report_for_views(
         "summary": {
             "agent_view_count": views.len(),
             "visible_item_count": total_visible,
+            "trend_item_count": trend_items,
             "hidden_unscoped_count": views.iter().map(|view| view.hidden_unscoped_count).sum::<usize>(),
             "attention_event_count": views.iter().map(|view| view.visible_issues.len()).sum::<usize>()
         },
@@ -169,10 +175,16 @@ fn scoped_state_for_view(view: &ScopedView, events: &[Value]) -> Value {
 }
 
 fn view_to_json(view: &ScopedView) -> Value {
+    let trend_item_count = view
+        .visible_issues
+        .iter()
+        .filter(|issue| issue.source_kind == "eval_feedback_trend")
+        .count();
     json!({
         "agent_id": view.agent_id,
         "scope_agent_ids": view.scope_agent_ids.iter().cloned().collect::<Vec<_>>(),
         "visible_item_count": view.visible_issues.len(),
+        "trend_item_count": trend_item_count,
         "hidden_unscoped_count": view.hidden_unscoped_count,
         "items": view.visible_issues.iter().map(issue_to_json).collect::<Vec<_>>()
     })
@@ -299,9 +311,12 @@ fn load_eval_issues(
         out.push(issue_from_eval_draft(&row));
     }
     let learning = read_json(learning_path);
+    let learning_start = out.len();
     for row in array_at(&learning, &["candidates"]) {
         out.push(issue_from_learning_candidate(&row));
     }
+    let learning_issues = out[learning_start..].to_vec();
+    out.extend(learning_trend_issues(&learning_issues));
     let chat_monitor = read_json(chat_monitor_path);
     for row in array_at(&chat_monitor, &["issue_drafts"]) {
         out.push(issue_from_chat_monitor_draft(&row));
@@ -362,6 +377,125 @@ fn issue_from_learning_candidate(row: &Value) -> EvalIssue {
         replay_command: required_str(row, &["repro_path"], ""),
         evidence_summary: evidence_summary(row),
         acceptance_criteria: string_array_at(row, &["acceptance_criteria"]),
+    }
+}
+
+fn learning_trend_issues(issues: &[EvalIssue]) -> Vec<EvalIssue> {
+    let mut grouped: BTreeMap<(String, String), Vec<&EvalIssue>> = BTreeMap::new();
+    for issue in issues {
+        if issue.source_kind != "eval_learning_loop_candidate" || issue.related_agent_id.is_empty()
+        {
+            continue;
+        }
+        for signal in learning_issue_signals(issue) {
+            grouped
+                .entry((issue.related_agent_id.clone(), signal))
+                .or_default()
+                .push(issue);
+        }
+    }
+
+    let mut out = Vec::new();
+    for ((agent_id, signal), rows) in grouped {
+        if rows.len() < 3 {
+            continue;
+        }
+        out.push(trend_issue_for_group(&agent_id, &signal, &rows));
+    }
+    out
+}
+
+fn learning_issue_signals(issue: &EvalIssue) -> Vec<String> {
+    let mut out = BTreeSet::new();
+    for raw in issue.issue_class.split(',') {
+        let cleaned = raw.trim();
+        if !cleaned.is_empty() {
+            out.insert(cleaned.to_string());
+        }
+    }
+    if out.is_empty() && issue.source_kind == "eval_learning_loop_candidate" {
+        out.insert("unknown".to_string());
+    }
+    out.into_iter().collect()
+}
+
+fn trend_issue_for_group(agent_id: &str, signal: &str, rows: &[&EvalIssue]) -> EvalIssue {
+    let mut case_terms = BTreeSet::new();
+    let mut high_count = 0usize;
+    let mut owner_counts: BTreeMap<String, usize> = BTreeMap::new();
+    let mut sample_ids = Vec::new();
+    for issue in rows {
+        if issue.severity == "high" || issue.severity == "critical" {
+            high_count += 1;
+        }
+        *owner_counts
+            .entry(issue.owner_component.clone())
+            .or_insert(0) += 1;
+        if sample_ids.len() < 3 {
+            sample_ids.push(issue.id.clone());
+        }
+        for token in issue.id.split([':', '/']) {
+            if token.ends_with("_request")
+                || token.ends_with("_recovery")
+                || token.ends_with("_answer")
+                || token.ends_with("_exit")
+            {
+                case_terms.insert(token.to_string());
+            }
+        }
+    }
+    let owner_component = owner_counts
+        .into_iter()
+        .max_by(|a, b| a.1.cmp(&b.1).then_with(|| b.0.cmp(&a.0)))
+        .map(|(owner, _)| owner)
+        .unwrap_or_else(|| "surface/orchestration".to_string());
+    let case_summary = if case_terms.is_empty() {
+        "multiple cases".to_string()
+    } else {
+        case_terms.into_iter().collect::<Vec<_>>().join(", ")
+    };
+    let severity = if rows.len() >= 10 && high_count >= 3 {
+        "critical"
+    } else if high_count > 0 {
+        "high"
+    } else {
+        "warn"
+    };
+    let sample_summary = sample_ids.join("; ");
+    EvalIssue {
+        id: format!(
+            "eval-feedback-trend-{}-{}-{}",
+            normalize_agent_id(agent_id),
+            signal,
+            stable_hash_hex(&sample_summary)
+        ),
+        source_kind: "eval_feedback_trend".to_string(),
+        title: format!("Repeated eval pattern: {signal} recurred {} times.", rows.len()),
+        severity: severity.to_string(),
+        owner_component,
+        issue_class: format!("repeated_{signal}"),
+        related_agent_id: agent_id.to_string(),
+        expected_fix: format!(
+            "Treat this as a repeated pattern before individual trace triage: {signal} recurred across {case_summary}."
+        ),
+        suggested_test: format!(
+            "Run the synthetic-user chat harness twice and verify no repeated {signal} trend is emitted."
+        ),
+        replay_command: rows
+            .first()
+            .map(|issue| issue.replay_command.clone())
+            .unwrap_or_default(),
+        evidence_summary: format!(
+            "{} scoped learning-loop candidates share `{}`; sample issue ids: {}",
+            rows.len(),
+            signal,
+            sample_summary
+        ),
+        acceptance_criteria: vec![
+            format!("Repeated `{signal}` candidates collapse into one trend item for agent attention."),
+            format!("A replay no longer emits three or more `{signal}` learning-loop candidates for the same agent."),
+            "The detailed candidate evidence remains available for audit.".to_string(),
+        ],
     }
 }
 

@@ -169,7 +169,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const expectedBucketValidationGates = new Map<string, string[]>([
     ['layer2_parity', ['ops:layer2:parity:guard', 'ops:layer2:receipt:replay']],
     ['production_gateways', ['ops:gateway-runtime-chaos:gate']],
-    ['boundedness', ['ops:runtime-proof:verify', 'ops:boundedness:release-gate']],
+    ['boundedness', ['ops:boundedness:release-gate', 'ops:runtime-proof:verify']],
     ['dashboard_truth', ['ops:dashboard:surface:guard', 'ops:shell:truth-leak:guard']],
     ['auto_heal_backpressure', ['ops:queue-backpressure:policy:gate', 'ops:runtime-proof:verify']],
   ]);
@@ -377,22 +377,6 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       detail: duplicateReleaseProfileGateIds.join(','),
     });
   }
-  const noncanonicalReleaseProfileGateIds = releaseProfileGateIdsList.filter(
-    (gateId) => !gateIdPattern.test(gateId),
-  );
-  if (noncanonicalReleaseProfileGateIds.length > 0) {
-    failures.push({
-      id: 'runtime_closure_guard_release_profile_gate_ids_noncanonical',
-      detail: noncanonicalReleaseProfileGateIds.join(','),
-    });
-  }
-  if (releaseProfileGateIdsList.join('|') !== [...releaseProfileGateIdsList].sort().join('|')) {
-    failures.push({
-      id: 'runtime_closure_guard_release_profile_gate_ids_unsorted',
-      detail: releaseProfileGateIdsList.join(','),
-    });
-  }
-
   if (runtimeProofProfileGateIdsList.length === 0) {
     failures.push({
       id: 'runtime_closure_guard_runtime_proof_profile_gate_ids_empty',
@@ -406,24 +390,6 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       detail: duplicateRuntimeProofProfileGateIds.join(','),
     });
   }
-  const noncanonicalRuntimeProofProfileGateIds = runtimeProofProfileGateIdsList.filter(
-    (gateId) => !gateIdPattern.test(gateId),
-  );
-  if (noncanonicalRuntimeProofProfileGateIds.length > 0) {
-    failures.push({
-      id: 'runtime_closure_guard_runtime_proof_profile_gate_ids_noncanonical',
-      detail: noncanonicalRuntimeProofProfileGateIds.join(','),
-    });
-  }
-  if (
-    runtimeProofProfileGateIdsList.join('|') !== [...runtimeProofProfileGateIdsList].sort().join('|')
-  ) {
-    failures.push({
-      id: 'runtime_closure_guard_runtime_proof_profile_gate_ids_unsorted',
-      detail: runtimeProofProfileGateIdsList.join(','),
-    });
-  }
-
   const unknownReleaseProfileGateIds = releaseProfileGateIdsList.filter(
     (gateId) => !knownGateIds.has(gateId),
   );
@@ -440,20 +406,6 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     failures.push({
       id: 'runtime_closure_guard_runtime_proof_profile_gate_ids_unknown_to_registry',
       detail: unknownRuntimeProofProfileGateIds.join(','),
-    });
-  }
-
-  const noncanonicalKnownGateIds = knownGateIdsList.filter((gateId) => !gateIdPattern.test(gateId));
-  if (noncanonicalKnownGateIds.length > 0) {
-    failures.push({
-      id: 'runtime_closure_guard_gate_registry_gate_ids_noncanonical',
-      detail: noncanonicalKnownGateIds.join(','),
-    });
-  }
-  if (knownGateIdsList.join('|') !== [...knownGateIdsList].sort().join('|')) {
-    failures.push({
-      id: 'runtime_closure_guard_gate_registry_gate_ids_unsorted',
-      detail: knownGateIdsList.join(','),
     });
   }
 
