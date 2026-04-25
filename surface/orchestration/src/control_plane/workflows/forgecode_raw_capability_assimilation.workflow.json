@@ -1268,6 +1268,33 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-04-06-retry-config-migration.md",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2026-04-05-config-init-at-startup-v1.md"
       ]
+    },
+    {
+      "id": "forgecode_raw_environment_config_sync_system_context_and_tool_service_contracts",
+      "description": "Raw-capability ForgeCode lane adapted from environment/config, workspace sync, system-context, and tool-service migration plans to expose deterministic config authority, sync preflight, prompt-refresh, and service-wrapper mechanics without composed-lane assumptions.",
+      "required_signals": [
+        "environment_raw_struct_keeps_only_os_pid_cwd_home_shell_base_path_and_history_path_accepts_custom_config_path_parameter",
+        "environment_raw_infra_adds_associated_config_type_get_config_method_and_implements_config_cache_loading_for_production_and_mock_infra",
+        "environment_raw_update_environment_applies_set_provider_set_model_set_commit_config_and_set_suggest_config_operations_to_forge_config",
+        "environment_raw_consumers_replace_removed_environment_config_fields_with_get_config_for_service_url_parallel_reads_tool_timeout_fetch_chars_model_and_retry_fields",
+        "workspace_sync_raw_v1_adds_workspace_is_indexed_path_command_with_silent_zero_one_exit_codes_and_optional_verbose_match_output",
+        "workspace_sync_raw_v1_zsh_background_sync_calls_is_indexed_before_sync_and_skips_unindexed_directories_with_debug_logging",
+        "system_context_raw_v1_render_system_accepts_variables_map_sorts_workspace_files_and_populates_system_context_with_fresh_time_and_tool_supported_flag",
+        "system_context_raw_final_init_agent_context_passes_empty_variables_for_initial_prompt_and_loop_rerenders_with_latest_conversation_variables",
+        "tool_service_raw_migration_creates_dedicated_services_for_fs_read_and_all_remaining_tools_then_refactors_tools_to_single_service_calls",
+        "tool_service_raw_migration_moves_business_logic_tests_to_services_keeps_ui_integration_tests_on_tools_and_registry_uses_services_trait_not_raw_infrastructure"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2026-03-31-slim-environment-and-add-get-config-v1.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2026-01-22-Fix Auto-Sync Workspace Registration Issue-v1.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-04-02-system-context-rendering-v1.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-06-07-tool-service-migration-v1.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-04-02-system-context-rendering-final.md"
+      ]
     }
   ],
   "workflow_templates": [
