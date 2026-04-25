@@ -1160,6 +1160,33 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/insta.yaml",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/package-lock.json"
       ]
+    },
+    {
+      "id": "forgecode_raw_package_flake_vertex_persistence_and_ide_contracts",
+      "description": "Raw-capability ForgeCode lane adapted from root package, flake, model catalog, Diesel, and rust-analyzer configuration to expose deterministic eval, build, model-metadata, persistence, and developer-analysis mechanics without composed-lane assumptions.",
+      "required_signals": [
+        "package_raw_eval_scripts_use_tsx_for_benchmarks_cli_bounty_issue_pr_sync_and_node_test_runner_for_bounty_tests",
+        "package_raw_dependency_surface_includes_ai_vertex_handlebars_p_limit_pino_strip_ansi_tmp_yaml_yargs_zod_and_typescript_for_eval_and_synthesis_tooling",
+        "flake_raw_outputs_generate_formatter_packages_apps_and_devshells_for_four_unix_systems",
+        "flake_raw_build_rust_package_uses_clean_source_cargo_lock_allow_builtin_fetch_git_and_package_specific_forge_main_binary_flags",
+        "flake_raw_native_inputs_include_cmake_nasm_perl_pkg_config_protobuf_and_platform_inputs_include_sqlite_linux_x11_wayland_or_darwin_frameworks",
+        "flake_raw_devshell_provisions_cargo_insta_llvm_cov_clippy_rust_analyzer_rustc_rustfmt_sqlite_protobuf_and_platform_libraries",
+        "vertex_raw_catalog_entries_include_context_lengths_from_128k_to_10m_tool_support_parallel_tool_call_support_reasoning_support_and_text_or_image_modalities",
+        "vertex_raw_catalog_supports_route_filtering_by_tools_reasoning_parallel_calls_modality_and_context_window_without_external_lookup",
+        "diesel_raw_config_points_print_schema_to_crates_forge_repo_src_database_schema_rs_and_migrations_to_crates_forge_repo_src_database_migrations",
+        "rust_analyzer_raw_config_enables_proc_macro_build_script_workspace_invocation_all_features_and_expand_limit_512_with_cargo_all_targets_false"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/package.json",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/flake.nix",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/vertex.json",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/diesel.toml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/rust-analyzer.toml"
+      ]
     }
   ],
   "workflow_templates": [
