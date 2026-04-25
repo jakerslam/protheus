@@ -2607,6 +2607,33 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-09-07-shell-env-variable-support-v1.md",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-09-13-dynamic-agent-slash-commands-v3.md"
       ]
+    },
+    {
+      "id": "forgecode_structured_compaction_tool_context_system_variables_and_conversation_id_contracts",
+      "description": "Structured ForgeCode lane that projects sequence-preserving context compaction, explicit tool-call context threading, per-turn system-context variables, and explicit conversation ID isolation into staged orchestration flow.",
+      "required_signals": [
+        "compaction_update_identifies_only_continuous_assistant_message_sequences_of_two_or_more_as_compressible_units",
+        "compaction_update_preserves_user_messages_single_assistant_messages_system_message_and_original_conversation_order_around_summaries",
+        "compaction_update_generates_sequence_scoped_summaries_and_returns_original_context_when_no_compressible_sequence_exists",
+        "compaction_concise_plan_keeps_agent_level_compact_config_with_token_turn_message_triggers_and_max_tokens_plus_transform_deprecation_path",
+        "tool_call_context_plan_requires_explicit_tool_call_context_parameter_for_every_executable_tool_and_json_tool_adapter_invocation",
+        "tool_call_context_plan_requires_test_context_helpers_and_systematic_update_of_shell_show_user_fs_patch_fetch_and_mock_tool_implementations",
+        "system_context_rendering_plan_rerenders_system_context_every_conversation_turn_so_current_time_and_conversation_variables_stay_fresh",
+        "system_context_rendering_plan_threads_variables_into_render_system_and_system_context_templates_alongside_env_tools_files_readme_and_custom_rules",
+        "conversation_id_plan_requires_explicit_generation_parsing_validation_and_resume_by_conversation_id_instead_of_implicit_last_conversation_selection",
+        "conversation_id_plan_preserves_multi_terminal_isolation_through_shell_env_storage_validation_deprecation_warning_and_specific_resume_targeting"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/agent-context-compaction-2025-03-25.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-04-11-tool-call-context-implementation.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/agent-context-compaction-2025-03-24-concise.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-04-02-system-context-rendering-v2.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-09-14-explicit-conversation-id-generation-v1.md"
+      ]
     }
   ],
   "workflow_templates": [

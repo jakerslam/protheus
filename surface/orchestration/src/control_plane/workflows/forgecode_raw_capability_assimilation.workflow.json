@@ -1214,6 +1214,33 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-09-07-shell-env-variable-support-v1.md",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-09-13-dynamic-agent-slash-commands-v3.md"
       ]
+    },
+    {
+      "id": "forgecode_raw_compaction_tool_context_system_variables_and_conversation_id_contracts",
+      "description": "Raw-capability ForgeCode lane adapted from compaction, tool-context, system-context, and conversation-ID plans to expose deterministic message-sequence, tool-call, prompt-rendering, and conversation-isolation mechanics without composed-lane assumptions.",
+      "required_signals": [
+        "compaction_raw_sequence_detector_tracks_start_end_indexes_for_consecutive_assistant_messages_and_skips_sequences_shorter_than_two",
+        "compaction_raw_sequence_compressor_splices_messages_before_each_sequence_replaces_eligible_sequence_with_one_summary_and_appends_remaining_messages",
+        "compaction_raw_summary_generation_builds_temporary_context_from_sequence_messages_and_uses_agent_compact_model_for_provider_summary",
+        "compact_raw_config_contains_token_threshold_turn_threshold_message_threshold_max_tokens_and_should_compact_trigger_checks",
+        "tool_context_raw_domain_adds_tool_call_context_struct_for_tests_helper_and_required_call_parameter_on_executable_tool",
+        "tool_context_raw_service_creates_context_at_tool_dispatch_and_passes_it_through_json_tool_adapter_and_all_tool_implementations",
+        "system_context_raw_template_service_render_system_accepts_hashmap_variables_and_system_context_includes_default_empty_variables_map",
+        "system_context_raw_orchestrator_rerenders_first_system_message_inside_each_provider_loop_iteration_using_latest_conversation_variables",
+        "conversation_id_raw_cli_adds_generate_conversation_id_conversation_id_parameter_and_resume_specific_conversation_validation",
+        "conversation_id_raw_shell_plugin_stores_conversation_id_in_env_transforms_resume_commands_with_explicit_id_and_falls_back_with_clear_guidance_when_missing"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/agent-context-compaction-2025-03-25.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-04-11-tool-call-context-implementation.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/agent-context-compaction-2025-03-24-concise.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-04-02-system-context-rendering-v2.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-09-14-explicit-conversation-id-generation-v1.md"
+      ]
     }
   ],
   "workflow_templates": [
