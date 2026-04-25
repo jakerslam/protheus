@@ -11,6 +11,10 @@ type DriftViolation = {
   boundary_id?: string;
   file?: string;
   detail?: string;
+  owner_layer?: string;
+  required_policy_test?: string;
+  runtime_contract_fix_required?: boolean;
+  suggested_contract_fix?: string;
 };
 
 type PolicyFailure = {
@@ -218,6 +222,7 @@ function toMarkdown(payload: any): string {
   lines.push(
     `- Multi-responsibility candidates: ${payload.summary.multi_responsibility_candidate_count}`,
   );
+  lines.push(`- Runtime/API contract fix candidates: ${payload.summary.contract_fix_candidate_count}`);
   lines.push(`- High-severity findings: ${payload.summary.high_severity_count}`);
   lines.push(
     `- High-severity threshold: ${payload.summary.high_severity_threshold} (pass when count <= threshold)`,
@@ -266,6 +271,24 @@ function toMarkdown(payload: any): string {
     for (const row of payload.multi_responsibility_candidates.slice(0, 150)) {
       lines.push(
         `| ${row.severity} | ${String(row.file).slice(0, 120)} | ${row.check_ids.length} | ${row.boundary_ids.length} | ${row.violation_count} |`,
+      );
+    }
+  }
+  lines.push('');
+  lines.push('## Runtime/API Contract Fix Candidates');
+  lines.push('');
+  lines.push('| Owner | Policy Test | File | Boundary | Suggested Fix |');
+  lines.push('| --- | --- | --- | --- | --- |');
+  if (!Array.isArray(payload.contract_fix_candidates) || payload.contract_fix_candidates.length === 0) {
+    lines.push('| (none) | - | - | - | - |');
+  } else {
+    for (const row of payload.contract_fix_candidates.slice(0, 150)) {
+      lines.push(
+        `| ${String(row.owner_layer || 'unknown')} | ${String(
+          row.required_policy_test || 'placement-test:unknown',
+        )} | ${String(row.file || '').slice(0, 120)} | ${String(
+          row.boundary_id || '',
+        ).slice(0, 120)} | ${String(row.suggested_contract_fix || '').slice(0, 160)} |`,
       );
     }
   }
@@ -329,10 +352,21 @@ function main(): number {
     boundary_id: cleanText(row.boundary_id || 'unknown', 160) || 'unknown',
     file: cleanText(row.file || 'unknown', 500) || 'unknown',
     detail: cleanText(row.detail || 'unspecified', 260) || 'unspecified',
+    owner_layer: cleanText(row.owner_layer || 'unknown', 80) || 'unknown',
+    required_policy_test:
+      cleanText(row.required_policy_test || 'placement-test:unknown', 120)
+      || 'placement-test:unknown',
+    runtime_contract_fix_required: row.runtime_contract_fix_required === true,
+    suggested_contract_fix:
+      cleanText(row.suggested_contract_fix || 'Add an explicit owner-layer contract.', 400)
+      || 'Add an explicit owner-layer contract.',
   }));
 
   const duplicateLogicCandidates = computeDuplicateLogicCandidates(violations);
   const multiResponsibilityCandidates = computeMultiResponsibilityCandidates(violations);
+  const contractFixCandidates = violations.filter(
+    (row) => row.runtime_contract_fix_required === true,
+  );
 
   const highSeverityFindings: Array<{ id: string; detail: string; severity: 'high' }> = [];
   const severityFindings: Array<{ id: string; detail: string; severity: 'low' | 'medium' | 'high' }> = [];
@@ -449,6 +483,7 @@ function main(): number {
       violation_count: violations.length,
       duplicate_logic_candidate_count: duplicateLogicCandidates.length,
       multi_responsibility_candidate_count: multiResponsibilityCandidates.length,
+      contract_fix_candidate_count: contractFixCandidates.length,
       high_severity_count: highSeverityCount,
       high_severity_threshold: args.highSeverityThreshold,
       severity_count_low: severityCountLow,
@@ -465,6 +500,7 @@ function main(): number {
     },
     duplicate_logic_candidates: duplicateLogicCandidates,
     multi_responsibility_candidates: multiResponsibilityCandidates,
+    contract_fix_candidates: contractFixCandidates,
     severity_findings: severityFindings,
     high_severity_findings: highSeverityFindings,
     failures,

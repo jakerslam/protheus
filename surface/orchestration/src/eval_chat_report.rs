@@ -136,6 +136,10 @@ fn message_role(row: &Value) -> String {
     }
 }
 
+fn is_reportable_agent_message(row: &Value) -> bool {
+    message_role(row) == "agent"
+}
+
 fn should_skip_message(row: &Value) -> bool {
     row.get("thinking")
         .and_then(Value::as_bool)
@@ -334,6 +338,9 @@ pub fn stage_dashboard_chat_eval_issue_report(
     }
     let (reported, context_messages) = collect_report_context(root, &agent, request);
     let reported = reported.unwrap_or_else(|| json!({}));
+    if !is_reportable_agent_message(&reported) {
+        return json!({"ok": false, "error": "agent_message_required"});
+    }
     let reported_text = clean_message_text(
         reported.get("text").and_then(Value::as_str).unwrap_or(""),
         1_200,
@@ -478,6 +485,36 @@ mod tests {
                 .join(format!("{agent}.json")),
         );
         assert_eq!(state.get("agent_id").and_then(Value::as_str), Some(agent));
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn report_issue_rejects_user_authored_messages() {
+        let root =
+            std::env::temp_dir().join(format!("infring_eval_chat_report_{}", now_iso_like()));
+        let agent = "agent-report";
+        let session_path = root
+            .join(AGENT_SESSIONS_DIR_REL)
+            .join(format!("{agent}.json"));
+        write_json(
+            &session_path,
+            &json!({"active_session_id": "default", "sessions": [{"session_id": "default", "messages": [
+                {"id": "m0", "role": "user", "text": "please report this user message"},
+                {"id": "m1", "role": "assistant", "text": "agent response"}
+            ]}]}),
+        );
+        let result =
+            stage_dashboard_chat_eval_issue_report(&root, agent, &json!({"message_id": "m0"}));
+        assert_eq!(result.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            result.get("error").and_then(Value::as_str),
+            Some("agent_message_required")
+        );
+        assert!(!root.join(CHAT_MONITOR_ISSUES_REL).exists());
+        assert!(!root
+            .join(EVAL_FEEDBACK_DIR_REL)
+            .join(format!("{agent}.json"))
+            .exists());
         let _ = fs::remove_dir_all(root);
     }
 }

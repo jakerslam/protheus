@@ -19,7 +19,7 @@ fn finalize_message_invoke_failure_and_payload(
         }),
     )];
     let latest_assistant_text = latest_assistant_message_text(active_messages);
-    let response_workflow = run_turn_workflow_final_response(
+    let mut response_workflow = run_turn_workflow_final_response(
         root,
         provider,
         model,
@@ -52,13 +52,11 @@ fn finalize_message_invoke_failure_and_payload(
             220,
         );
     }
-    let mut workflow_system_fallback_used = false;
     if !workflow_used && workflow_fallback_allowed {
-        response_text = initial_model_invoke_failure_response(message, error_text);
-        workflow_system_fallback_used = true;
+        response_text.clear();
         finalization_outcome = merge_response_outcomes(
             &finalization_outcome,
-            "workflow_system_fallback",
+            "workflow_no_system_fallback",
             220,
         );
     }
@@ -105,7 +103,7 @@ fn finalize_message_invoke_failure_and_payload(
         &tool_completion,
         false,
         comparative_repair_used,
-        workflow_system_fallback_used,
+        false,
         repair_outcome != "unchanged",
         &response_quality_telemetry,
         &tooling_invariant,
@@ -116,8 +114,20 @@ fn finalize_message_invoke_failure_and_payload(
         "direct_response_path": "gate_1_no"
     });
     response_finalization["initial_model_invoke_failed"] = Value::Bool(true);
+    let visible_response_source = visible_response_source_for_turn(
+        &finalized_response,
+        workflow_used,
+        repair_outcome != "unchanged",
+        &finalization_outcome,
+    );
+    apply_visible_response_provenance(
+        &mut response_workflow,
+        &mut response_finalization,
+        visible_response_source,
+    );
     let process_summary =
         build_turn_process_summary(message, &[], &response_workflow, &response_finalization);
+    let workflow_visibility = workflow_visibility_payload(&response_workflow, &response_finalization);
     let turn_transaction = crate::dashboard_tool_turn_loop::turn_transaction_payload(
         "complete",
         "none",
@@ -151,6 +161,10 @@ fn finalize_message_invoke_failure_and_payload(
             "response_workflow": response_workflow,
             "response_finalization": response_finalization,
             "process_summary": process_summary,
+            "workflow_visibility": workflow_visibility,
+            "response_quality_telemetry": response_quality_telemetry,
+            "visible_response_source": visible_response_source,
+            "system_chat_injection_used": false,
             "turn_transaction": turn_transaction,
             "terminal_transcript": terminal_transcript,
             "workspace_hints": workspace_hints,

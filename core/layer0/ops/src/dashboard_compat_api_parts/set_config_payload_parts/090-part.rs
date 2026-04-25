@@ -171,6 +171,8 @@ fn build_response_quality_telemetry_payload(
         "prompt_echo_reject": response_workflow_quality_count(response_workflow, "prompt_echo_reject"),
         "unsourced_claim_reject": response_workflow_quality_count(response_workflow, "unsourced_claim_reject"),
         "direct_answer_reject": response_workflow_quality_count(response_workflow, "direct_answer_reject"),
+        "contamination_reject": response_workflow_quality_count(response_workflow, "contamination_reject"),
+        "current_turn_dominance_reject": response_workflow_quality_count(response_workflow, "current_turn_dominance_reject"),
         "legacy_retry_template_detected": response_workflow_quality_count(response_workflow, "legacy_retry_template_detected"),
         "repeated_fallback_loop_detected": response_workflow_quality_count(response_workflow, "repeated_fallback_loop_detected"),
         "meta_control_tool_block": response_workflow_quality_value(response_workflow, "meta_control_tool_block")
@@ -617,6 +619,7 @@ fn append_turn_receipt_with_metadata(
     terminal_transcript: &[Value],
 ) -> Value {
     let previous_assistant = latest_assistant_message_text(&session_messages(&load_session_state(root, agent_id)));
+    let workflow_visibility = workflow_visibility_payload(response_workflow, response_finalization);
     let mut turn_receipt = append_turn_message(root, agent_id, message, finalized_response);
     turn_receipt["assistant_turn_patch"] = persist_last_assistant_turn_metadata(
         root,
@@ -627,11 +630,13 @@ fn append_turn_receipt_with_metadata(
             "response_workflow": response_workflow.clone(),
             "response_finalization": response_finalization.clone(),
             "process_summary": process_summary.clone(),
+            "workflow_visibility": workflow_visibility.clone(),
             "turn_transaction": turn_transaction.clone(),
             "terminal_transcript": terminal_transcript.to_vec()
         }),
     );
     turn_receipt["process_summary"] = process_summary.clone();
+    turn_receipt["workflow_visibility"] = workflow_visibility;
     turn_receipt["response_finalization"] = response_finalization.clone();
     turn_receipt["live_eval_monitor"] = live_eval_monitor_turn(root, agent_id, message, finalized_response, &previous_assistant, response_finalization);
     turn_receipt

@@ -161,7 +161,7 @@ fn adapted_workspace_request_requires_workspace_transport_probe_field() {
                 }
             }),
         },
-        43_292_1,
+        432_921,
     );
 
     assert!(package
@@ -203,7 +203,7 @@ fn adapted_tool_route_request_requires_transport_probe_field() {
                 }
             }),
         },
-        43_292_2,
+        432_922,
     );
 
     assert!(package

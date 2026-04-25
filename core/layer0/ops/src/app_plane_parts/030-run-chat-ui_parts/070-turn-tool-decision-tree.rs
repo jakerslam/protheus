@@ -109,6 +109,13 @@ pub(crate) fn chat_ui_turn_tool_decision_tree(raw_input: &str) -> Value {
     json!({
         "contract": "manual_toolbox_gate_v1",
         "auto_decisions_disabled": auto_decisions_disabled,
+        "semantic_route_classifier_active": false,
+        "info_task_route_classifier_active": false,
+        "workflow_route_classifier_active": false,
+        "system_may_select_tools": false,
+        "tool_recommendations_allowed": false,
+        "gate_1_question_type": "multiple_choice",
+        "gate_1_allowed_outputs": ["Yes", "No"],
         "manual_gate_mode": "llm_only_multiple_choice_v1",
         "requires_file_mutation": requires_file_mutation,
         "requires_local_lookup": requires_local_lookup,

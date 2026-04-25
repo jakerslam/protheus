@@ -517,15 +517,16 @@ fn prepare_message_route_context(
             )
     };
     let memory_kv_entries = memory_kv_pairs_from_state(&state).len();
-    let memory_prompt_context = memory_kv_prompt_context(&state, 24);
+    let inline_tools_allowed = inline_tool_calls_allowed_for_user_message(message);
+    let suppress_passive_context = simple_direct_chat_suppresses_passive_context(message, inline_tools_allowed);
+    let memory_prompt_context = if suppress_passive_context { String::new() } else { memory_kv_prompt_context(&state, 24) };
     let instinct_prompt_context = agent_instinct_prompt_context(root, 6_000);
     let plugin_prompt_context = dashboard_skills_marketplace::skills_prompt_context(root, 12, 4_000);
-    let passive_memory_context = passive_attention_context_for_message(root, agent_id, message, 6);
+    let passive_memory_context = if suppress_passive_context { String::new() } else { passive_attention_context_for_message(root, agent_id, message, 6) };
     let eval_feedback_context = eval_agent_feedback_prompt_context(root, agent_id, 4);
-    let keyframe_context = context_keyframes_prompt_context(&state, 8, 2_400);
-    let overflow_keyframes_context = historical_context_keyframes_prompt_context(&messages, &active_messages, 10, 2_400);
-    let relevant_recall_context =
-        historical_relevant_recall_prompt_context(&messages, &active_messages, message, 8, 2_800);
+    let keyframe_context = if suppress_passive_context { String::new() } else { context_keyframes_prompt_context(&state, 8, 2_400) };
+    let overflow_keyframes_context = if suppress_passive_context { String::new() } else { historical_context_keyframes_prompt_context(&messages, &active_messages, 10, 2_400) };
+    let relevant_recall_context = if suppress_passive_context { String::new() } else { historical_relevant_recall_prompt_context(&messages, &active_messages, message, 8, 2_800) };
     let identity_hydration_prompt = agent_identity_hydration_prompt(row);
     let custom_system_prompt = clean_text(
         row.get("system_prompt")
@@ -533,7 +534,6 @@ fn prepare_message_route_context(
             .unwrap_or(""),
         12_000,
     );
-    let inline_tools_allowed = inline_tool_calls_allowed_for_user_message(message);
     let mut prompt_parts = Vec::<String>::new();
     if !identity_hydration_prompt.is_empty() {
         prompt_parts.push(identity_hydration_prompt);

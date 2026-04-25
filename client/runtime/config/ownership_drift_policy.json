@@ -1,5 +1,13 @@
 {
-  "version": "2026-04-24",
+  "version": "2026-04-25",
+  "placement_policy": "docs/workspace/orchestration_ownership_policy.md",
+  "required_policy_tests": [
+    "placement-test:kernel",
+    "placement-test:control-plane",
+    "placement-test:shell",
+    "placement-test:gateway",
+    "placement-test:apps"
+  ],
   "import_boundaries": [
     {
       "id": "client_forbidden_orchestration_internal_import",
@@ -37,6 +45,39 @@
       "allow_import_patterns": [
         "client/runtime/config/"
       ]
+    },
+    {
+      "id": "orchestration_forbidden_kernel_policy_authority_import",
+      "scan_roots": [
+        "surface/orchestration/src"
+      ],
+      "extensions": [
+        ".rs",
+        ".ts"
+      ],
+      "forbidden_import_patterns": [
+        "core/layer1/security/src/kernel_capabilities",
+        "core/layer2/ops/src/operator_critical_paths",
+        "core/layer2/conduit-security/src/gateway_boundary"
+      ],
+      "allow_import_patterns": []
+    },
+    {
+      "id": "gateway_forbidden_scheduler_admission_import",
+      "scan_roots": [
+        "adapters"
+      ],
+      "extensions": [
+        ".ts",
+        ".tsx",
+        ".rs"
+      ],
+      "forbidden_import_patterns": [
+        "scheduler_truth",
+        "admission_truth",
+        "core/layer2/ops/src/system_health"
+      ],
+      "allow_import_patterns": []
     }
   ],
   "symbol_boundaries": [
@@ -52,6 +93,22 @@
         "re:\\\\b(issue|emit)_deterministic_receipt\\\\b",
         "re:\\\\b(authorize|enforce)_policy_truth\\\\b",
         "re:\\\\b(admit|admission)_task\\\\b"
+      ]
+    },
+    {
+      "id": "gateway_scheduler_admission_symbol_drift",
+      "scan_roots": [
+        "adapters"
+      ],
+      "extensions": [
+        ".ts",
+        ".tsx",
+        ".rs"
+      ],
+      "forbidden_symbol_patterns": [
+        "re:\\\\bscheduler_truth\\\\b",
+        "re:\\\\badmission_truth\\\\b",
+        "re:\\\\bkernel_block_without_receipt\\\\b"
       ]
     }
   ],
@@ -70,6 +127,37 @@
         "re:/authority/",
         "re:/admission/",
         "re:/scheduler_truth/"
+      ]
+    },
+    {
+      "id": "gateway_authority_path_drift",
+      "scan_roots": [
+        "adapters"
+      ],
+      "extensions": [
+        ".ts",
+        ".tsx",
+        ".rs"
+      ],
+      "forbidden_path_patterns": [
+        "re:/scheduler_truth/",
+        "re:/admission_truth/",
+        "re:/policy_authority/"
+      ]
+    },
+    {
+      "id": "control_plane_policy_authority_path_drift",
+      "scan_roots": [
+        "surface/orchestration/src"
+      ],
+      "extensions": [
+        ".rs",
+        ".ts"
+      ],
+      "forbidden_path_patterns": [
+        "re:/policy_truth/",
+        "re:/receipt_authority/",
+        "re:/admission_truth/"
       ]
     }
   ]

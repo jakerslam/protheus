@@ -1,4 +1,5 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
+// SRS: V12-MISTY-HEALTH-WAVE6-001
 use crate::contracts::{
     Capability, CapabilityProbeResult, DegradationReason, Mutability, OperationKind, PolicyScope,
     Precondition, RequestSurface, ResourceKind, TargetDescriptor, TypedOrchestrationRequest,
@@ -113,6 +114,14 @@ fn missing_probe_field_source(capability: &Capability, probe_name: &str) -> Stri
     format!("missing_probe: {}.{}", required_probe_key(capability), probe_name)
 }
 
+fn required_typed_surface_probe_source(capability: &Capability, probe_name: &str) -> String {
+    format!(
+        "probe.required_for_typed_surface.{}.{}",
+        required_probe_key(capability),
+        probe_name
+    )
+}
+
 fn traverse_bool(value: &Value, path: &[&str]) -> Option<bool> {
     let mut cursor = value;
     for segment in path {
@@ -126,10 +135,16 @@ fn fail_closed_on_missing_probe_for_typed_surface(
     capability: &Capability,
     probe_name: &str,
 ) -> Option<(bool, String)> {
-    if !matches!(request.surface, RequestSurface::Legacy) {
-        return Some((false, missing_probe_field_source(capability, probe_name)));
+    if matches!(request.surface, RequestSurface::Legacy) {
+        return None;
     }
-    None
+    if request.adapted {
+        return Some((
+            false,
+            required_typed_surface_probe_source(capability, probe_name),
+        ));
+    }
+    Some((false, missing_probe_field_source(capability, probe_name)))
 }
 
 pub fn deterministic_routing_decision_trace(request: &TypedOrchestrationRequest) -> Value {
@@ -366,6 +381,14 @@ fn dedupe<T: Ord>(rows: &mut Vec<T>) {
     rows.dedup();
 }
 
+fn push_probe_source(probe_sources: &mut Vec<String>, source: String, capability: &Capability) {
+    let missing_field_prefix = format!("missing_probe: {}.", required_probe_key(capability));
+    if source.starts_with(&missing_field_prefix) {
+        probe_sources.push(missing_probe_source(capability));
+    }
+    probe_sources.push(source);
+}
+
 pub fn probe_capability(
     request: &TypedOrchestrationRequest,
     capability: &Capability,
@@ -380,19 +403,19 @@ pub fn probe_capability(
     ) || request.mutability == Mutability::Mutation;
     if requires_target {
         let (supplied, source) = target_supplied(request, capability);
-        probe_sources.push(source);
+        push_probe_source(&mut probe_sources, source, capability);
         if !supplied {
             blocked_on.push(Precondition::TargetSupplied);
             degradation_reasons.push(DegradationReason::MissingTarget);
         } else {
             let (valid, source) = target_syntax_valid(request, capability);
-            probe_sources.push(source);
+            push_probe_source(&mut probe_sources, source, capability);
             if !valid {
                 blocked_on.push(Precondition::TargetSyntacticallyValid);
                 degradation_reasons.push(DegradationReason::TargetInvalid);
             } else {
                 let (exists, source) = target_exists(request, capability);
-                probe_sources.push(source);
+                push_probe_source(&mut probe_sources, source, capability);
                 if !exists {
                     blocked_on.push(Precondition::TargetExists);
                     degradation_reasons.push(DegradationReason::TargetNotFound);
@@ -403,7 +426,7 @@ pub fn probe_capability(
 
     if capability.is_tool_family() {
         let (available, source) = tool_available(request, capability);
-        probe_sources.push(source);
+        push_probe_source(&mut probe_sources, source, capability);
         if !available {
             blocked_on.push(Precondition::ToolAvailable);
             degradation_reasons.push(DegradationReason::ToolUnavailable);
@@ -412,7 +435,7 @@ pub fn probe_capability(
 
     if capability.is_tool_family() || matches!(capability, Capability::VerifyClaim) {
         let (available, source) = transport_available(request, capability);
-        probe_sources.push(source);
+        push_probe_source(&mut probe_sources, source, capability);
         if !available {
             blocked_on.push(Precondition::TransportAvailable);
             degradation_reasons.push(DegradationReason::TransportFailure);
@@ -421,7 +444,7 @@ pub fn probe_capability(
 
     if matches!(capability, Capability::MutateTask) {
         let (allowed, source) = authorization_valid(request, capability);
-        probe_sources.push(source);
+        push_probe_source(&mut probe_sources, source, capability);
         if !allowed {
             blocked_on.push(Precondition::AuthorizationValid);
             degradation_reasons.push(DegradationReason::AuthFailure);
@@ -434,7 +457,7 @@ pub fn probe_capability(
     ) || request.operation_kind == OperationKind::Assimilate
     {
         let (allowed, source) = policy_allows(request, capability);
-        probe_sources.push(source);
+        push_probe_source(&mut probe_sources, source, capability);
         if !allowed {
             blocked_on.push(Precondition::PolicyAllows);
             degradation_reasons.push(DegradationReason::PolicyDenied);

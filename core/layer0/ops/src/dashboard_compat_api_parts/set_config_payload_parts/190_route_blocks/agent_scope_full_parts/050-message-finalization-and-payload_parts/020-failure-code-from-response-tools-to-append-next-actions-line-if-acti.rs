@@ -129,6 +129,18 @@ fn build_turn_process_summary(
                 .unwrap_or(""),
             220
         ),
+        "visible_response_source": clean_text(
+            response_finalization
+                .get("visible_response_source")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            80
+        ),
+        "system_chat_injection_used": response_finalization
+            .get("system_chat_injection_used")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        "workflow_visibility": workflow_visibility_payload(response_workflow, response_finalization),
         "final_answer_contract": response_finalization
             .get("final_answer_contract")
             .cloned()

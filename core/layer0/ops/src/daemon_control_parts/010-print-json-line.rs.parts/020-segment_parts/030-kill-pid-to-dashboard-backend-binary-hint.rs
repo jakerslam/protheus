@@ -184,7 +184,7 @@ fn resolve_dashboard_executable(current_exe: &Path) -> PathBuf {
         .and_then(|name| name.to_str())
         .unwrap_or_default()
         .to_ascii_lowercase();
-    let legacy_launcher = file_name.contains("protheus") || file_name.contains("openclaw");
+    let legacy_launcher = file_name.contains("openclaw");
     if !(file_name.contains("infringd") || legacy_launcher) {
         return current_exe.to_path_buf();
     }

@@ -212,6 +212,15 @@
       "retirement_action": "emit_retirement_backlog_item"
     },
     {
+      "gate_id": "ops:assimilation:authority:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Orchestration-owned assimilation authority enforces map/ledger/queue source burn-down and workflow-vs-raw-capability placement.",
+      "strengthen_signal": "If ops:assimilation:authority:guard repeatedly fails, strengthen surface/orchestration assimilation authority instead of returning to manual ledger policing.",
+      "runtime_enforced_by": "surface/orchestration assimilation authority",
+      "proof_artifact": "core/local/artifacts/assimilation_authority_guard_current.json",
+      "validation_scope": "ops:assimilation:authority:guard behavioral/runtime self-enforcement validation."
+    },
+    {
       "gate_id": "ops:client-deauthority:closure:guard",
       "classification": "temporary_monitor",
       "invariant": "Shell/client deauthority work remains evidenced while client compatibility names are retired.",
@@ -1472,6 +1481,24 @@
       "strengthen_signal": "If test:ops:srs-contract-runtime-evidence repeatedly fails or requires special-case scaffolding, strengthen kernel/runtime so this gate validates runtime enforcement instead of compensating for missing authority.",
       "runtime_enforced_by": "kernel/runtime",
       "validation_scope": "test:ops:srs-contract-runtime-evidence behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:eval:issue-authority:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Eval chat monitoring, issue lifecycle states, and quality failure taxonomy are owned by orchestration runtime authority.",
+      "strengthen_signal": "If ops:eval:issue-authority:guard fails, strengthen surface/orchestration eval issue synthesis rather than adding support-only scaffolding.",
+      "runtime_enforced_by": "surface/orchestration eval issue synthesis authority",
+      "proof_artifact": "core/local/artifacts/eval_issue_authority_current.json",
+      "validation_scope": "ops:eval:issue-authority:guard behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:tool-routing:authority:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Tool routing decisions must use authoritative typed probe envelopes, return exact missing-probe diagnostics, emit receipt-facing decision traces, and reject web/workspace/file/tool route misclassification without heuristic fallback.",
+      "runtime_enforced_by": "surface/orchestration planner preconditions and deterministic routing decision traces",
+      "proof_artifact": "core/local/artifacts/tool_routing_authority_guard_current.json",
+      "validation_scope": "Typed tool-routing authority, missing-probe diagnostics, decision trace fields, and route-misdirection regression coverage.",
+      "strengthen_signal": "Any failure means orchestration tool routing is drifting back toward heuristic or generic execute_tool authority and should be fixed in planner preconditions, not in shell/workflow fallback text."
     }
   ]
 }

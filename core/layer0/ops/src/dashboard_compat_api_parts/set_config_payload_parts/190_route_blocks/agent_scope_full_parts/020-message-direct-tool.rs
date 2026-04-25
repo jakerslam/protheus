@@ -228,7 +228,7 @@ fn handle_agent_scope_message_route(
             } else {
                 None
             };
-            let response_workflow = run_turn_workflow_final_response(
+            let mut response_workflow = run_turn_workflow_final_response(
                 root,
                 &synthesis_provider,
                 &synthesis_model,
@@ -331,7 +331,7 @@ fn handle_agent_scope_message_route(
             tool_completion = enrich_tool_completion_receipt(tool_completion, &response_tools);
             let final_ack_only = response_looks_like_tool_ack_without_findings(&finalized_response);
             response_text = finalized_response;
-            let response_finalization = json!({
+            let mut response_finalization = json!({
                 "applied": finalization_outcome != "unchanged",
                 "outcome": finalization_outcome,
                 "initial_ack_only": initial_ack_only,
@@ -351,6 +351,24 @@ fn handle_agent_scope_message_route(
                 "retry_attempted": false,
                 "retry_used": false
             });
+            let visible_response_source = visible_response_source_for_turn(
+                &response_text,
+                workflow_used,
+                visible_response_repaired,
+                response_finalization
+                    .get("outcome")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+            );
+            apply_visible_response_provenance(
+                &mut response_workflow,
+                &mut response_finalization,
+                visible_response_source,
+            );
+            let process_summary = build_turn_process_summary(&message, &response_tools, &response_workflow, &response_finalization);
+            let workflow_visibility = workflow_visibility_payload(&response_workflow, &response_finalization);
+            let response_quality_telemetry = response_workflow.get("quality_telemetry").cloned().unwrap_or_else(|| json!({}));
+            let terminal_transcript = tool_terminal_transcript(&response_tools);
             let turn_transaction = crate::dashboard_tool_turn_loop::turn_transaction_payload(
                 "complete", "complete", "complete", "complete",
             );
@@ -365,9 +383,15 @@ fn handle_agent_scope_message_route(
                     "tools": response_tools.clone(),
                     "response_workflow": response_workflow.clone(),
                     "response_finalization": response_finalization.clone(),
+                    "process_summary": process_summary.clone(),
+                    "workflow_visibility": workflow_visibility.clone(),
+                    "response_quality_telemetry": response_quality_telemetry.clone(),
+                    "terminal_transcript": terminal_transcript.clone(),
                     "turn_transaction": turn_transaction.clone()
                 }),
             );
+            turn_receipt["process_summary"] = process_summary.clone();
+            turn_receipt["workflow_visibility"] = workflow_visibility.clone();
             turn_receipt["response_finalization"] = response_finalization.clone();
             turn_receipt["live_eval_monitor"] = live_eval_monitor_turn(
                 root,
@@ -393,6 +417,12 @@ fn handle_agent_scope_message_route(
                     "tools": response_tools,
                     "response_workflow": response_workflow,
                     "response_finalization": response_finalization,
+                    "process_summary": process_summary,
+                    "workflow_visibility": workflow_visibility,
+                    "response_quality_telemetry": response_quality_telemetry,
+                    "visible_response_source": visible_response_source,
+                    "system_chat_injection_used": false,
+                    "terminal_transcript": terminal_transcript,
                     "live_eval_monitor": turn_receipt.get("live_eval_monitor").cloned().unwrap_or_else(|| json!({})),
                     "turn_transaction": turn_transaction,
                     "workspace_hints": workspace_hints_value.clone(),

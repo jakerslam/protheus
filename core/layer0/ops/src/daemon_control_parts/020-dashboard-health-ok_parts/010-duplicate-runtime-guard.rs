@@ -30,8 +30,6 @@ fn parse_gateway_launchd_labels(raw: &str) -> Vec<String> {
         "ai.infring.gateway.legacy",
         "ai.openclaw.gateway",
         "openclaw.gateway",
-        "ai.protheus.gateway",
-        "protheus.gateway",
     ];
     let mut labels = Vec::<String>::new();
     for line in raw.lines() {
@@ -133,7 +131,7 @@ fn dashboard_binary_authority_issue(root: &Path) -> Option<Value> {
         .and_then(|value| value.to_str())
         .unwrap_or_default()
         .to_ascii_lowercase();
-    let deprecated_name = current_name.contains("protheus") || current_name.contains("openclaw");
+    let deprecated_name = current_name.contains("openclaw");
     let expected = expected_dashboard_binary_path(root);
     let mut reasons = Vec::<String>::new();
     if deprecated_name {

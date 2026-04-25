@@ -686,16 +686,15 @@ fn lifecycle_next_actions(
     {
         actions.push("complete_memory_packaging_handoff".to_string());
     }
-    append_workflow_subtemplate_actions(
-        &mut actions,
-        subtemplates,
+    let subtemplate_context = WorkflowSubtemplateContext {
         plan,
         fallback_actions,
         closure,
         has_workspace_capability,
         has_web_capability,
         has_tool_route,
-    );
+    };
+    append_workflow_subtemplate_actions(&mut actions, subtemplates, &subtemplate_context);
     actions.sort();
     actions.dedup();
     if actions.is_empty() {
@@ -753,26 +752,22 @@ fn forgecode_mcp_retry_diagnostic_summary(
     ))
 }
 
-fn append_workflow_subtemplate_actions(
-    actions: &mut Vec<String>,
-    subtemplates: &[WorkflowSubtemplate],
-    plan: &OrchestrationPlan,
-    fallback_actions: &[OrchestrationFallbackAction],
-    closure: &ControlPlaneClosureState,
+struct WorkflowSubtemplateContext<'a> {
+    plan: &'a OrchestrationPlan,
+    fallback_actions: &'a [OrchestrationFallbackAction],
+    closure: &'a ControlPlaneClosureState,
     has_workspace_capability: bool,
     has_web_capability: bool,
     has_tool_route: bool,
+}
+
+fn append_workflow_subtemplate_actions(
+    actions: &mut Vec<String>,
+    subtemplates: &[WorkflowSubtemplate],
+    context: &WorkflowSubtemplateContext<'_>,
 ) {
     for subtemplate in subtemplates {
-        if !workflow_subtemplate_active(
-            subtemplate.id,
-            plan,
-            fallback_actions,
-            closure,
-            has_workspace_capability,
-            has_web_capability,
-            has_tool_route,
-        ) {
+        if !workflow_subtemplate_active(subtemplate.id, context) {
             continue;
         }
         actions.push(format!("activate_subworkflow:{}", subtemplate.id).to_lowercase());
@@ -790,13 +785,12 @@ fn append_workflow_subtemplate_actions(
 
 fn workflow_subtemplate_active(
     subtemplate_id: &str,
-    plan: &OrchestrationPlan,
-    fallback_actions: &[OrchestrationFallbackAction],
-    closure: &ControlPlaneClosureState,
-    has_workspace_capability: bool,
-    has_web_capability: bool,
-    has_tool_route: bool,
+    context: &WorkflowSubtemplateContext<'_>,
 ) -> bool {
+    let plan = context.plan;
+    let has_workspace_capability = context.has_workspace_capability;
+    let has_web_capability = context.has_web_capability;
+    let has_tool_route = context.has_tool_route;
     let has_tooling_or_mixed_route =
         has_tool_route && (has_workspace_capability || has_web_capability);
     let mentions_worktree = plan_reason_contains(plan, &["worktree", ".worktrees", "branch"]);
@@ -820,14 +814,14 @@ fn workflow_subtemplate_active(
         "codex_multi_provider_synthesis_recovery" => has_tooling_or_mixed_route,
         "codex_route_probe_dry_run" => has_tool_route,
         "codex_environment_diagnose_parallel" => {
-            !fallback_actions.is_empty()
+            !context.fallback_actions.is_empty()
                 || plan.execution_state.recovery.is_some()
                 || plan.needs_clarification
                 || matches!(
                     plan.execution_state.plan_status,
                     PlanStatus::Blocked | PlanStatus::Failed | PlanStatus::Degraded
                 )
-                || closure.verification == ClosureState::Blocked
+                || context.closure.verification == ClosureState::Blocked
         }
         "codex_worktree_isolated_setup" => mentions_worktree && !mentions_cleanup,
         "codex_worktree_cleanup_safety_modes" => mentions_worktree && mentions_cleanup,

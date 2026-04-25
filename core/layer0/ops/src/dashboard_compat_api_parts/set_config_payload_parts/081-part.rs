@@ -144,11 +144,22 @@ fn live_eval_monitor_turn(
     previous_assistant: &str,
     response_finalization: &Value,
 ) -> Value {
+    let id = clean_agent_id(agent_id);
     let enabled = live_eval_monitor_enabled(root);
     if !enabled {
-        return json!({"ok": true, "enabled": false, "issue_count": 0});
+        return json!({
+            "ok": true,
+            "enabled": false,
+            "type": "live_eval_turn_monitor",
+            "agent_id": id,
+            "generated_at": crate::now_iso(),
+            "issue_count": 0,
+            "issues": [],
+            "stream_path": "local/state/ops/eval_live_monitor/events.jsonl",
+            "queue_receipts": [],
+            "chat_injection_allowed": false
+        });
     }
-    let id = clean_agent_id(agent_id);
     let final_text = clean_text(response, 2_400);
     let prev_sig = normalize_placeholder_signature(previous_assistant);
     let final_sig = normalize_placeholder_signature(&final_text);

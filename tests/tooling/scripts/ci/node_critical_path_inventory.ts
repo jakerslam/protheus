@@ -15,8 +15,17 @@ type BurnLane = {
   priority: number;
   target_classification: ScriptClass;
   target_date: string;
+  target_runtime_path: string;
+  target_rust_replacement: string;
   migration_status: string;
   rust_entrypoint?: string;
+  node_dependence_exemption?: {
+    id?: string;
+    owner?: string;
+    reason?: string;
+    expires_at?: string;
+    status?: string;
+  };
   notes: string;
 };
 
@@ -115,13 +124,19 @@ function markdown(payload: any): string {
     `- ordered_migration_queue_unknown_id_count: ${payload.summary.ordered_migration_queue_unknown_id_count}`,
     `- ordered_migration_queue_missing_operator_priority_one_count: ${payload.summary.ordered_migration_queue_missing_operator_priority_one_count}`,
     `- ts_confinement_violations: ${payload.summary.ts_confinement_violation_count}`,
+    `- target_runtime_path_missing: ${payload.summary.target_runtime_path_missing_count}`,
+    `- rust_replacement_missing: ${payload.summary.rust_replacement_missing_count}`,
+    `- rust_replacement_unresolved: ${payload.summary.rust_replacement_unresolved_count}`,
+    `- node_dependence_exemption_missing: ${payload.summary.node_dependence_exemption_missing_count}`,
+    `- node_dependence_exemption_invalid: ${payload.summary.node_dependence_exemption_invalid_count}`,
+    `- node_dependence_exemption_expired: ${payload.summary.node_dependence_exemption_expired_count}`,
     '',
-    '| script | domain | owner | priority | class | target_class | target_date | status | ts_target |',
-    '| --- | --- | --- | ---: | --- | --- | --- | --- | --- |',
+    '| script | domain | owner | priority | class | target_class | target_date | status | target_path | replacement | exemption | ts_target |',
+    '| --- | --- | --- | ---: | --- | --- | --- | --- | --- | --- | --- | --- |',
   ];
   for (const row of payload.rows) {
     lines.push(
-      `| ${row.id} | ${row.domain} | ${row.owner} | ${row.priority} | ${row.classification} | ${row.target_classification} | ${row.target_date} | ${row.migration_status} | ${row.ts_entrypoint_target || 'n/a'} |`,
+      `| ${row.id} | ${row.domain} | ${row.owner} | ${row.priority} | ${row.classification} | ${row.target_classification} | ${row.target_date} | ${row.migration_status} | ${row.target_runtime_path || 'missing'} | ${row.target_rust_replacement || 'missing'} | ${row.node_dependence_exemption?.status || 'n/a'} | ${row.ts_entrypoint_target || 'n/a'} |`,
     );
   }
   lines.push('');
@@ -182,8 +197,20 @@ export function run(argv: string[] = process.argv.slice(2)): number {
           40,
         ) as ScriptClass,
         target_date: cleanText(lane.target_date || '', 40),
+        target_runtime_path: cleanText(String(lane.target_runtime_path || ''), 400),
+        target_rust_replacement: cleanText(String(lane.target_rust_replacement || ''), 400),
         migration_status: cleanText(lane.migration_status || '', 80),
         rust_entrypoint: cleanText(String(lane.rust_entrypoint || ''), 200),
+        node_dependence_exemption:
+          lane.node_dependence_exemption && typeof lane.node_dependence_exemption === 'object'
+            ? {
+                id: cleanText(String(lane.node_dependence_exemption.id || ''), 120),
+                owner: cleanText(String(lane.node_dependence_exemption.owner || ''), 120),
+                reason: cleanText(String(lane.node_dependence_exemption.reason || ''), 260),
+                expires_at: cleanText(String(lane.node_dependence_exemption.expires_at || ''), 40),
+                status: cleanText(String(lane.node_dependence_exemption.status || 'active'), 40).toLowerCase(),
+              }
+            : undefined,
         notes: cleanText(lane.notes || '', 240),
       }))
     : [];
@@ -198,6 +225,12 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     }
     if (!Number.isFinite(Date.parse(lane.target_date))) {
       laneFailures.push({ id: 'node_burndown_lane_invalid_target_date', detail: `${lane.id}:${lane.target_date}` });
+    }
+    if (!lane.target_runtime_path) {
+      laneFailures.push({ id: 'node_burndown_lane_missing_target_runtime_path', detail: lane.id || 'unknown' });
+    }
+    if (lane.target_classification === 'rust_native' && !lane.target_rust_replacement) {
+      laneFailures.push({ id: 'node_burndown_lane_missing_target_rust_replacement', detail: lane.id || 'unknown' });
     }
     if (!lane.migration_status) {
       laneFailures.push({ id: 'node_burndown_lane_missing_status', detail: lane.id || 'unknown' });
@@ -314,6 +347,36 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const criticalScriptIds = Array.from(laneMap.keys());
   const nowEpoch = Date.now();
 
+  function replacementResolvable(replacement: string): boolean {
+    if (!replacement) return false;
+    if (replacement.startsWith('ops:') || replacement.startsWith('infring:') || replacement.startsWith('test:')) {
+      return typeof scripts?.[replacement] === 'string' && scripts[replacement].length > 0;
+    }
+    return fs.existsSync(path.resolve(root, replacement));
+  }
+
+  function normalizeNodeExemption(row: (typeof lanes)[number] | undefined) {
+    const exemption = row?.node_dependence_exemption;
+    const status = cleanText(String(exemption?.status || ''), 40).toLowerCase();
+    const expiresAt = cleanText(String(exemption?.expires_at || ''), 40);
+    const expiresEpoch = Number.isFinite(Date.parse(expiresAt)) ? Date.parse(expiresAt) : Number.NaN;
+    const valid =
+      !!exemption?.id &&
+      !!exemption?.owner &&
+      !!exemption?.reason &&
+      Number.isFinite(expiresEpoch) &&
+      (status === 'active' || status === 'retired');
+    return {
+      id: exemption?.id || '',
+      owner: exemption?.owner || '',
+      reason: exemption?.reason || '',
+      expires_at: expiresAt,
+      status: status || '',
+      valid,
+      expired: status === 'active' && Number.isFinite(expiresEpoch) && nowEpoch > expiresEpoch,
+    };
+  }
+
   const rows = criticalScriptIds.map((id) => {
     const lane = laneMap.get(id);
     const command = cleanText(scripts?.[id] || '', 2000);
@@ -338,6 +401,12 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       lane.target_classification !== 'unknown' &&
       effectiveClassification !== lane.target_classification;
     const migrationOverdue = migrationOutstanding && Number.isFinite(targetEpoch) && nowEpoch > targetEpoch;
+    const nodeDependenceExemption = normalizeNodeExemption(lane);
+    const operatorCriticalNodeDependence =
+      !!lane &&
+      operatorCriticalDomains.includes(lane.domain) &&
+      (classification === 'node_typescript' || classification === 'npm_wrapper') &&
+      effectiveClassification !== 'rust_native';
     return {
       id,
       command,
@@ -348,11 +417,16 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       priority: lane?.priority ?? 0,
       target_classification: lane?.target_classification || 'unknown',
       target_date: lane?.target_date || '',
+      target_runtime_path: lane?.target_runtime_path || '',
+      target_rust_replacement: lane?.target_rust_replacement || '',
+      target_rust_replacement_resolvable: replacementResolvable(lane?.target_rust_replacement || ''),
       migration_status: lane?.migration_status || '',
       rust_entrypoint: rustEntrypoint,
       rust_entrypoint_classification: rustEntrypointClassification,
       rust_entrypoint_available: rustEntrypointAvailable,
       notes: lane?.notes || '',
+      operator_critical_node_dependence: operatorCriticalNodeDependence,
+      node_dependence_exemption: nodeDependenceExemption,
       ts_entrypoint_target: tsEntrypointTarget,
       ts_confinement_allowed: tsConfinementAllowed,
       migration_outstanding: migrationOutstanding,
@@ -362,6 +436,22 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   });
 
   const missing = rows.filter((row) => !row.exists);
+  const targetRuntimePathMissing = rows.filter((row) => !row.target_runtime_path);
+  const rustReplacementMissing = rows.filter(
+    (row) => row.target_classification === 'rust_native' && !row.target_rust_replacement,
+  );
+  const rustReplacementUnresolved = rows.filter(
+    (row) => !!row.target_rust_replacement && !row.target_rust_replacement_resolvable,
+  );
+  const nodeDependenceExemptionMissing = rows.filter(
+    (row) => row.operator_critical_node_dependence && !row.node_dependence_exemption.id,
+  );
+  const nodeDependenceExemptionInvalid = rows.filter(
+    (row) => row.operator_critical_node_dependence && row.node_dependence_exemption.id && !row.node_dependence_exemption.valid,
+  );
+  const nodeDependenceExemptionExpired = rows.filter(
+    (row) => row.operator_critical_node_dependence && row.node_dependence_exemption.expired,
+  );
   const rustNativeCount = rows.filter((row) => row.effective_classification === 'rust_native').length;
   const nodeTypescriptCount = rows.filter((row) => row.classification === 'node_typescript').length;
   const npmWrapperCount = rows.filter((row) => row.classification === 'npm_wrapper').length;
@@ -433,12 +523,48 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       })),
     )
     .concat(
+      targetRuntimePathMissing.map((row) => ({
+        id: 'node_burndown_target_runtime_path_missing',
+        detail: row.id,
+      })),
+    )
+    .concat(
+      rustReplacementMissing.map((row) => ({
+        id: 'node_burndown_target_rust_replacement_missing',
+        detail: row.id,
+      })),
+    )
+    .concat(
+      rustReplacementUnresolved.map((row) => ({
+        id: 'node_burndown_target_rust_replacement_unresolved',
+        detail: `${row.id}:${row.target_rust_replacement}`,
+      })),
+    )
+    .concat(
       rows
         .filter((row) => row.classification === 'node_typescript' && !row.ts_confinement_allowed)
         .map((row) => ({
           id: 'node_typescript_confinement_violation',
           detail: `${row.id}:${row.ts_entrypoint_target || 'missing_target_path'}`,
         })),
+    )
+    .concat(
+      nodeDependenceExemptionMissing.map((row) => ({
+        id: 'node_burndown_operator_critical_node_exemption_missing',
+        detail: row.id,
+      })),
+    )
+    .concat(
+      nodeDependenceExemptionInvalid.map((row) => ({
+        id: 'node_burndown_operator_critical_node_exemption_invalid',
+        detail: `${row.id}:${row.node_dependence_exemption.id}`,
+      })),
+    )
+    .concat(
+      nodeDependenceExemptionExpired.map((row) => ({
+        id: 'node_burndown_operator_critical_node_exemption_expired',
+        detail: `${row.id}:${row.node_dependence_exemption.id}:${row.node_dependence_exemption.expires_at}`,
+      })),
     )
     .concat(
       rows
@@ -486,6 +612,13 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       ordered_migration_queue_duplicate_id_count: orderedQueueDuplicateIds.length,
       ordered_migration_queue_unknown_id_count: orderedQueueUnknownIds.length,
       ordered_migration_queue_missing_operator_priority_one_count: orderedQueueMissingOperatorCriticalPriorityOne.length,
+      target_runtime_path_missing_count: targetRuntimePathMissing.length,
+      rust_replacement_missing_count: rustReplacementMissing.length,
+      rust_replacement_unresolved_count: rustReplacementUnresolved.length,
+      operator_critical_node_dependence_count: rows.filter((row) => row.operator_critical_node_dependence).length,
+      node_dependence_exemption_missing_count: nodeDependenceExemptionMissing.length,
+      node_dependence_exemption_invalid_count: nodeDependenceExemptionInvalid.length,
+      node_dependence_exemption_expired_count: nodeDependenceExemptionExpired.length,
       ts_confinement_violation_count: rows.filter(
         (row) => row.classification === 'node_typescript' && !row.ts_confinement_allowed,
       ).length,

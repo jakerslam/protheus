@@ -22,6 +22,10 @@ const TEST_SOURCE_PATH = path.join(
   ROOT,
   'core/layer0/ops/src/runtime_systems_parts/120-run-writes-latest-and-status-reads-it.rs',
 );
+const TEST_SOURCE_PARTS_PATH = path.join(
+  ROOT,
+  'core/layer0/ops/src/runtime_systems_parts/120-run-writes-latest-and-status-reads-it_parts/000-combined.rs',
+);
 
 function parseArgs(argv: string[]): Args {
   const args: Args = { strict: false, out: DEFAULT_OUT };
@@ -61,7 +65,7 @@ function readText(filePath: string): string {
 function buildReport() {
   const contract = readJson(CONTRACT_PATH, {});
   const readme = readText(README_PATH);
-  const tests = readText(TEST_SOURCE_PATH);
+  const tests = `${readText(TEST_SOURCE_PATH)}\n${readText(TEST_SOURCE_PARTS_PATH)}`;
   const supportedComponents = Array.isArray(contract?.canonical_slice?.supported_components)
     ? contract.canonical_slice.supported_components.map((row: unknown) => clean(row, 120)).filter(Boolean)
     : [];

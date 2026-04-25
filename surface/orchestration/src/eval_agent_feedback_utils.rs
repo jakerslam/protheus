@@ -141,7 +141,7 @@ pub(super) fn chat_monitor_next_action(row: &Value) -> String {
         return direct;
     }
     let body = str_at(row, &["body"]).unwrap_or("");
-    section_after_heading(&body, "Next action").unwrap_or_default()
+    section_after_heading(body, "Next action").unwrap_or_default()
 }
 
 pub(super) fn chat_monitor_suggested_test(row: &Value) -> String {

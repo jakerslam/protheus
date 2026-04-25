@@ -11,18 +11,24 @@ const DEFAULT_POLICY_PATH = 'tests/tooling/config/kernel_nexus_coupling_policy.j
 const DEFAULT_OUT = 'core/local/artifacts/kernel_nexus_coupling_guard_current.json';
 const DEFAULT_REPORT = 'local/workspace/reports/KERNEL_NEXUS_COUPLING_GUARD_CURRENT.md';
 
+// SRS: V12-SYS-HL-030
+
 type ImportEdgeExemption = {
   from_package: string;
   to_crate: string;
+  owner?: string;
   reason?: string;
   expires?: string;
+  replacement_nexus?: string;
 };
 
 type CargoPathEdgeExemption = {
   from_manifest: string;
   to_path: string;
+  owner?: string;
   reason?: string;
   expires?: string;
+  replacement_nexus?: string;
 };
 
 type CouplingPolicy = {
@@ -133,6 +139,7 @@ function renderGuardReport(payload: {
     import_violations: number;
     cargo_path_violations: number;
     expired_exemptions: number;
+    malformed_exemptions: number;
     stale_exemptions: number;
     pass: boolean;
   };
@@ -146,6 +153,7 @@ function renderGuardReport(payload: {
     import_edges: ImportViolation[];
     cargo_path_edges: CargoPathViolation[];
     expired_exemptions: ExemptionDrift[];
+    malformed_exemptions: ExemptionDrift[];
     stale_exemptions: ExemptionDrift[];
   };
   policy_scope: {
@@ -191,6 +199,7 @@ function renderGuardReport(payload: {
   lines.push(`- Import violations: ${payload.summary.import_violations}`);
   lines.push(`- Cargo path violations: ${payload.summary.cargo_path_violations}`);
   lines.push(`- Expired exemptions: ${payload.summary.expired_exemptions}`);
+  lines.push(`- Malformed exemptions: ${payload.summary.malformed_exemptions}`);
   lines.push(`- Stale exemptions: ${payload.summary.stale_exemptions}`);
   lines.push('');
   lines.push('## Policy Scope');
@@ -244,6 +253,7 @@ function renderGuardReport(payload: {
   lines.push(`- Import edges: ${payload.violations.import_edges.length}`);
   lines.push(`- Cargo path edges: ${payload.violations.cargo_path_edges.length}`);
   lines.push(`- Expired exemptions: ${payload.violations.expired_exemptions.length}`);
+  lines.push(`- Malformed exemptions: ${payload.violations.malformed_exemptions.length}`);
   lines.push(`- Stale exemptions: ${payload.violations.stale_exemptions.length}`);
   lines.push('');
   return `${lines.join('\n')}\n`;
@@ -306,6 +316,21 @@ function cargoPathEdgeKey(fromManifest: string, toPath: string): string {
   return `${normalizePath(fromManifest)}->${normalizePath(toPath)}`;
 }
 
+function exemptionMetadataError(
+  exemption: ImportEdgeExemption | CargoPathEdgeExemption,
+): string | null {
+  const owner = cleanText(exemption.owner || '', 120);
+  const reason = cleanText(exemption.reason || '', 240);
+  const expires = cleanText(exemption.expires || '', 20);
+  const replacementNexus = cleanText(exemption.replacement_nexus || '', 200);
+  if (!owner) return 'missing_owner';
+  if (!reason) return 'missing_reason';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(expires)) return 'missing_or_invalid_expires';
+  if (!replacementNexus) return 'missing_replacement_nexus';
+  if (!replacementNexus.includes('nexus')) return 'replacement_nexus_must_reference_nexus';
+  return null;
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const policy = loadPolicy(args.policy);
@@ -341,6 +366,7 @@ function main() {
   const importExemptions = new Set<string>();
   const cargoPathExemptions = new Set<string>();
   const expiredExemptions: ExemptionDrift[] = [];
+  const malformedExemptions: ExemptionDrift[] = [];
   const usedImportExemptions = new Set<string>();
   const usedCargoPathExemptions = new Set<string>();
 
@@ -350,6 +376,14 @@ function main() {
       normalizeCrateName(cleanText(exemption.to_crate, 200)),
     );
     importExemptions.add(key);
+    const metadataError = exemptionMetadataError(exemption);
+    if (metadataError) {
+      malformedExemptions.push({
+        kind: 'import_edge',
+        key,
+        reason: metadataError,
+      });
+    }
     if (isExpired(exemption.expires)) {
       expiredExemptions.push({
         kind: 'import_edge',
@@ -365,6 +399,14 @@ function main() {
       cleanText(exemption.to_path, 400),
     );
     cargoPathExemptions.add(key);
+    const metadataError = exemptionMetadataError(exemption);
+    if (metadataError) {
+      malformedExemptions.push({
+        kind: 'cargo_path_edge',
+        key,
+        reason: metadataError,
+      });
+    }
     if (isExpired(exemption.expires)) {
       expiredExemptions.push({
         kind: 'cargo_path_edge',
@@ -610,6 +652,7 @@ function main() {
     forbiddenDirectNexusCargoPathViolations.length === 0 &&
     importViolations.length === 0 &&
     cargoPathViolations.length === 0 &&
+    malformedExemptions.length === 0 &&
     (!failOnExpired || expiredExemptions.length === 0) &&
     (!failOnStale || staleExemptions.length === 0);
 
@@ -635,6 +678,7 @@ function main() {
       import_violations: importViolations.length,
       cargo_path_violations: cargoPathViolations.length,
       expired_exemptions: expiredExemptions.length,
+      malformed_exemptions: malformedExemptions.length,
       stale_exemptions: staleExemptions.length,
       pass,
     },
@@ -650,6 +694,7 @@ function main() {
       forbidden_direct_nexus_import_edges: forbiddenDirectNexusImportViolations,
       forbidden_direct_nexus_cargo_path_edges: forbiddenDirectNexusCargoPathViolations,
       expired_exemptions: expiredExemptions,
+      malformed_exemptions: malformedExemptions,
       stale_exemptions: staleExemptions,
     },
     policy_scope: {

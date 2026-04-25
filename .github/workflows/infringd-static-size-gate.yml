@@ -1,4 +1,4 @@
-name: Protheusd Static Size Gate
+name: Infringd Static Size Gate
 
 on:
   pull_request:

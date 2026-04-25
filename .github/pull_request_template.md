@@ -33,6 +33,7 @@
 
 - Changed ownership zones:
 - Policy reference: `docs/workspace/orchestration_ownership_policy.md`
+- Cross-layer logic moves must cite the exact applicable placement test token below; do not leave touched zones blank.
 - Placement test references:
   - `placement-test:core` —
   - `placement-test:control-plane` —

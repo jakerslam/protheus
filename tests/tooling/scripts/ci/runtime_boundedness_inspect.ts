@@ -443,6 +443,11 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       limit: Number(profilePolicy.recovery.adapter_recovery_ms_max || 0),
     },
     {
+      metric: 'adapter_restart_count',
+      actual: Number(metrics.adapter_restart_count || 0),
+      limit: Number(profilePolicy.recovery.adapter_restart_count_max || 0),
+    },
+    {
       metric: 'stale_surface_incidents',
       actual: Number(metrics.stale_surface_incidents || 0),
       limit: Number(profilePolicy.stale_surface.incidents_max || 0),
@@ -454,8 +459,17 @@ export function run(argv: string[] = process.argv.slice(2)): number {
 
   const rows = rowSet.map((row) => {
     const utilization = ratio(row.actual, row.limit);
+    const metricClass =
+      row.metric === 'peak_rss_mb' || row.metric === 'storage_usage_mb'
+        ? 'resource'
+        : 'stability';
     return {
       ...row,
+      class: metricClass,
+      current: row.actual,
+      baseline: null,
+      max_allowed: row.limit,
+      baseline_status: 'no_baseline',
       utilization,
       utilization_pct: pct(utilization),
       status: statusForUtilization(utilization),
@@ -468,6 +482,11 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     metric: 'receipt_throughput_per_min_min',
     actual: throughputActual,
     limit: throughputLimitMin,
+    class: 'stability',
+    current: throughputActual,
+    baseline: null,
+    max_allowed: throughputLimitMin,
+    baseline_status: 'no_baseline',
     utilization: throughputUtilization,
     utilization_pct: pct(throughputUtilization),
     status: throughputOk ? 'healthy' : 'critical',
@@ -581,6 +600,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       queue_depth_p95_ceiling: Number(profilePolicy.queue.depth_p95_max || 0),
       stale_surface_incidents_max: Number(profilePolicy.stale_surface.incidents_max || 0),
       conduit_recovery_ms_max: Number(profilePolicy.recovery.conduit_recovery_ms_max || 0),
+      adapter_restart_count_max: Number(profilePolicy.recovery.adapter_restart_count_max || 0),
       adapter_recovery_ms_max: Number(profilePolicy.recovery.adapter_recovery_ms_max || 0),
     },
     controllers: {
@@ -684,6 +704,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const staleSurfaceCount = safeNumber(metric('stale_surface_incidents')?.actual, 0);
   const conduitRecoveryMs = safeNumber(metric('conduit_recovery_ms')?.actual, 0);
   const adapterRecoveryMs = safeNumber(metric('adapter_recovery_ms')?.actual, 0);
+  const adapterRestartCount = safeNumber(metric('adapter_restart_count')?.actual, 0);
   const boundednessReport = {
     ok: report.ok,
     type: 'runtime_boundedness_report',
@@ -698,6 +719,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       queue_depth_max: queueDepthMax,
       queue_depth_p95: queueDepthP95,
       stale_surface_count: staleSurfaceCount,
+      adapter_restart_count_max: adapterRestartCount,
       recovery_time_ms_max: Math.max(conduitRecoveryMs, adapterRecoveryMs),
       recovery_time_ms_conduit: conduitRecoveryMs,
       recovery_time_ms_adapter: adapterRecoveryMs,

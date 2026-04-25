@@ -1,5 +1,5 @@
 name: Feature request
-description: Suggest an idea or improvement for Protheus
+description: Suggest an idea or improvement for InfRing
 title: "[Feature]: "
 labels: ["enhancement"]
 body:
@@ -18,7 +18,7 @@ body:
     id: proposal
     attributes:
       label: Proposed solution
-      description: What should Protheus do?
+      description: What should InfRing do?
     validations:
       required: true
   - type: textarea

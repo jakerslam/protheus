@@ -12,22 +12,33 @@ fn response_requires_visible_repair(text: &str) -> bool {
         || response_looks_like_raw_web_artifact_dump(&cleaned)
 }
 
+fn response_requires_visible_repair_for_message(
+    message: &str,
+    text: &str,
+    response_tools: &[Value],
+) -> bool {
+    response_requires_visible_repair(text)
+        || response_contains_stale_code_context_dump(message, text)
+        || response_current_turn_dominance_violation(message, text, response_tools)
+        || response_contains_unrequested_content_without_tool_evidence(message, text, response_tools)
+}
+
 fn repair_visible_response_after_workflow(
-    _message: &str,
+    message: &str,
     candidate_response: &str,
     initial_draft_response: &str,
     _latest_assistant_text: &str,
-    _response_tools: &[Value],
+    response_tools: &[Value],
     _inline_tools_allowed: bool,
     _memory_fallback: Option<&str>,
 ) -> (String, String, bool, bool) {
     let cleaned = clean_chat_text(candidate_response, 32_000);
-    if !response_requires_visible_repair(&cleaned) {
+    if !response_requires_visible_repair_for_message(message, &cleaned, response_tools) {
         return (cleaned, "unchanged".to_string(), false, false);
     }
 
     let cleaned_initial_draft = clean_chat_text(initial_draft_response, 32_000);
-    if !response_requires_visible_repair(&cleaned_initial_draft)
+    if !response_requires_visible_repair_for_message(message, &cleaned_initial_draft, response_tools)
         && !response_contains_speculative_web_blocker_language(&cleaned_initial_draft)
     {
         return (

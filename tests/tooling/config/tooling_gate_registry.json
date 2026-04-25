@@ -285,6 +285,17 @@
         "core/local/artifacts/assimilation_v1_support_guard_current.json"
       ]
     },
+    "ops:assimilation:authority:guard": {
+      "owner": "ops",
+      "description": "Orchestration-owned assimilation authority guard for map/ledger/queue burn-down and JSON-workflow versus Rust raw-capability placement.",
+      "timeout_env": "VERIFY_CARGO_TIMEOUT_SEC",
+      "timeout_sec": 120,
+      "script": "ops:assimilation:authority:guard",
+      "artifact_paths": [
+        "core/local/artifacts/assimilation_authority_guard_current.json",
+        "local/workspace/reports/ASSIMILATION_AUTHORITY_GUARD_CURRENT.md"
+      ]
+    },
     "ops:release-blockers:gate": {
       "owner": "ops",
       "description": "Release blocker rubric gate.",
@@ -1614,6 +1625,45 @@
         "local/workspace/reports/EVAL_AGENT_CHAT_MONITOR_GUARD_CURRENT.md"
       ]
     },
+    "ops:eval:agent-self-diagnosis": {
+      "owner": "ops",
+      "description": "Scoped agent self-diagnosis guard proving agents can read only self and descendant eval feedback.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:eval:agent-self-diagnosis",
+      "artifact_paths": [
+        "core/local/artifacts/eval_agent_self_diagnosis_current.json",
+        "artifacts/eval_agent_self_diagnosis_latest.json",
+        "local/workspace/reports/EVAL_AGENT_SELF_DIAGNOSIS_CURRENT.md"
+      ]
+    },
+    "ops:eval:synthetic-user-chat:harness": {
+      "owner": "ops",
+      "description": "Synthetic user chat harness proving workflow, model, tool, finalization, telemetry, and attention-event behavior.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 120,
+      "script": "ops:eval:synthetic-user-chat:harness",
+      "artifact_paths": [
+        "core/local/artifacts/synthetic_user_chat_harness_current.json",
+        "artifacts/synthetic_user_chat_harness_latest.json",
+        "local/workspace/reports/SYNTHETIC_USER_CHAT_HARNESS_CURRENT.md",
+        "local/state/ops/synthetic_user_chat_harness/failures.jsonl"
+      ]
+    },
+    "ops:eval:misty-live-health:guard": {
+      "owner": "ops",
+      "description": "Strict live Misty health gate requiring the live synthetic user harness for agent-5bc62b0875a9.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 180,
+      "script": "ops:eval:misty-live-health:guard",
+      "artifact_paths": [
+        "core/local/artifacts/synthetic_user_chat_harness_current.json",
+        "artifacts/synthetic_user_chat_harness_latest.json",
+        "local/workspace/reports/SYNTHETIC_USER_CHAT_HARNESS_CURRENT.md",
+        "local/state/ops/synthetic_user_chat_harness/failures.jsonl",
+        "local/state/ops/eval_agent_feedback/agent-5bc62b0875a9.attention.jsonl"
+      ]
+    },
     "ops:eval:quality:metrics:guard": {
       "owner": "ops",
       "description": "Eval quality metrics guard enforcing precision/recall/FPR/actionability/calibration thresholds and regression contracts from labeled gold dataset + monitor feedback.",
@@ -1969,6 +2019,63 @@
         "local/workspace/reports/TEST_MATURITY_RETIREMENT_BACKLOG.md"
       ],
       "timeout_sec": 60
+    },
+    "ops:tool-routing:authority:guard": {
+      "owner": "ops",
+      "description": "Tool routing authority guard for probe-driven routing, exact missing-probe diagnostics, decision traces, and misclassification regressions.",
+      "timeout_env": "VERIFY_RUST_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:tool-routing:authority:guard",
+      "artifact_paths": [
+        "core/local/artifacts/tool_routing_authority_guard_current.json",
+        "local/workspace/reports/TOOL_ROUTING_AUTHORITY_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:gateway-support:matrix:guard": {
+      "owner": "ops",
+      "description": "Gateway support-level matrix and quarantine/recovery release proof guard.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:gateway-support:matrix:guard",
+      "artifact_paths": [
+        "core/local/artifacts/gateway_support_matrix_current.json",
+        "core/local/artifacts/gateway_quarantine_recovery_proof_current.json",
+        "local/workspace/reports/GATEWAY_SUPPORT_MATRIX_CURRENT.md"
+      ]
+    },
+    "ops:trust-zones:guard": {
+      "owner": "ops",
+      "description": "Self-modification trust-zone policy guard.",
+      "timeout_env": "VERIFY_RUST_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:trust-zones:guard",
+      "artifact_paths": [
+        "core/local/artifacts/trust_zone_guard_current.json",
+        "local/workspace/reports/TRUST_ZONE_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:self-modification:guard": {
+      "owner": "ops",
+      "description": "Governed self-modification pipeline guard with proof-burden and rollback evidence.",
+      "timeout_env": "VERIFY_RUST_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:self-modification:guard",
+      "artifact_paths": [
+        "core/local/artifacts/self_modification_guard_current.json",
+        "local/workspace/reports/SELF_MODIFICATION_GUARD_CURRENT.md"
+      ]
     }
+  },
+  "ops:eval:issue-authority:guard": {
+    "owner": "ops",
+    "description": "Orchestration-owned eval issue synthesis authority guard with lifecycle states and quality failure taxonomy.",
+    "timeout_env": "VERIFY_CARGO_TIMEOUT_SEC",
+    "timeout_sec": 120,
+    "script": "ops:eval:issue-authority:guard",
+    "artifact_paths": [
+      "core/local/artifacts/eval_issue_authority_current.json",
+      "artifacts/eval_issue_authority_latest.json",
+      "local/workspace/reports/EVAL_ISSUE_AUTHORITY_CURRENT.md"
+    ]
   }
 }

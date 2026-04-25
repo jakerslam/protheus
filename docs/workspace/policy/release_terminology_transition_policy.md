@@ -12,10 +12,10 @@ Define release-governed canonical terminology rules after alias retirement.
 
 ## Alias Retirement State
 
-- Kernel/Core and Gateways/Adapters aliases are retired effective:
+- Kernel/Core compatibility aliases and Gateways/Adapters compatibility aliases are retired effective:
   - version: `retired-2026-04-22`
   - date: `2026-04-22`
-- Shell/Client compatibility bridges are retired effective:
+- Shell/Client compatibility alias bridges are retired effective:
   - version: `retired-2026-04-24`
   - date: `2026-04-24`
   - guard source: `client/runtime/config/shell_transition_compatibility_bridges.json`
