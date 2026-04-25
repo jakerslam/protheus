@@ -9,8 +9,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 const DEFAULT_FEEDBACK_DIR: &str = "local/state/ops/eval_agent_feedback";
 const DEFAULT_OUT_PATH: &str = "core/local/artifacts/eval_agent_self_diagnosis_current.json";
 const DEFAULT_LATEST_PATH: &str = "artifacts/eval_agent_self_diagnosis_latest.json";
-const DEFAULT_MARKDOWN_PATH: &str =
-    "local/workspace/reports/EVAL_AGENT_SELF_DIAGNOSIS_CURRENT.md";
+const DEFAULT_MARKDOWN_PATH: &str = "local/workspace/reports/EVAL_AGENT_SELF_DIAGNOSIS_CURRENT.md";
 
 pub fn run_eval_agent_self_diagnosis(args: &[String]) -> i32 {
     let strict = parse_bool_flag(args, "strict", false);
@@ -332,13 +331,11 @@ mod tests {
                 .and_then(Value::as_str),
             Some("child-agent")
         );
-        assert!(
-            report
-                .pointer("/self_diagnosis_input/diagnosis_context")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .contains("Child repeated fallback")
-        );
+        assert!(report
+            .pointer("/self_diagnosis_input/diagnosis_context")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .contains("Child repeated fallback"));
     }
 
     #[test]
@@ -362,7 +359,9 @@ mod tests {
         let report = build_self_diagnosis_report("agent-a", root.to_str().unwrap());
         assert_eq!(report.get("ok").and_then(Value::as_bool), Some(false));
         assert_eq!(
-            report.pointer("/summary/scope_leak_count").and_then(Value::as_u64),
+            report
+                .pointer("/summary/scope_leak_count")
+                .and_then(Value::as_u64),
             Some(1)
         );
     }

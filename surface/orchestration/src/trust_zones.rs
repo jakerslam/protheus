@@ -57,9 +57,11 @@ struct TrustZoneGuardReport {
 
 pub fn run_trust_zone_guard(args: &[String]) -> i32 {
     let strict = flag_value(args, "--strict").unwrap_or_else(|| "0".to_string()) == "1";
-    let policy_path = flag_value(args, "--policy").unwrap_or_else(|| DEFAULT_TRUST_ZONES_PATH.to_string());
+    let policy_path =
+        flag_value(args, "--policy").unwrap_or_else(|| DEFAULT_TRUST_ZONES_PATH.to_string());
     let out_path = flag_value(args, "--out").unwrap_or_else(|| DEFAULT_OUT_PATH.to_string());
-    let report_path = flag_value(args, "--report").unwrap_or_else(|| DEFAULT_REPORT_PATH.to_string());
+    let report_path =
+        flag_value(args, "--report").unwrap_or_else(|| DEFAULT_REPORT_PATH.to_string());
     let targets = flag_value(args, "--targets")
         .map(|raw| split_targets(&raw))
         .unwrap_or_else(default_probe_targets);
@@ -293,8 +295,10 @@ fn write_markdown(path: &str, report: &TrustZoneGuardReport) -> bool {
 }
 
 fn flag_value(args: &[String], flag: &str) -> Option<String> {
-    args.iter()
-        .find_map(|arg| arg.strip_prefix(&format!("{flag}=")).map(|value| value.to_string()))
+    args.iter().find_map(|arg| {
+        arg.strip_prefix(&format!("{flag}="))
+            .map(|value| value.to_string())
+    })
 }
 
 fn now_unix_seconds() -> u64 {

@@ -326,7 +326,10 @@ fn decision_step_records(plan: &OrchestrationPlan) -> Vec<ControlPlaneDecisionTr
                 inputs: vec![
                     format!("operation={}", step.operation),
                     format!("capability={:?}", step.capability).to_ascii_lowercase(),
-                    format!("expected_contract_refs={}", step.expected_contract_refs.len()),
+                    format!(
+                        "expected_contract_refs={}",
+                        step.expected_contract_refs.len()
+                    ),
                 ],
                 chosen_path: format!("{:?}", step.target_contract).to_ascii_lowercase(),
                 alternatives_rejected: plan

@@ -136,10 +136,30 @@ fn synthetic_user_harness_enforces_simple_direct_budgets() {
         .into_iter()
         .filter_map(|value| value.as_str().map(ToString::to_string))
         .collect::<Vec<_>>();
-    assert!(failures.iter().any(|row| row.starts_with("simple_direct_response_tokens_over_budget")), "{failures:?}");
-    assert!(failures.iter().any(|row| row.starts_with("simple_direct_stage_count_over_budget")), "{failures:?}");
-    assert!(failures.iter().any(|row| row == "simple_direct_recorded_tool_calls"), "{failures:?}");
-    assert!(failures.iter().any(|row| row == "simple_direct_tool_gate_should_call_tools"), "{failures:?}");
+    assert!(
+        failures
+            .iter()
+            .any(|row| row.starts_with("simple_direct_response_tokens_over_budget")),
+        "{failures:?}"
+    );
+    assert!(
+        failures
+            .iter()
+            .any(|row| row.starts_with("simple_direct_stage_count_over_budget")),
+        "{failures:?}"
+    );
+    assert!(
+        failures
+            .iter()
+            .any(|row| row == "simple_direct_recorded_tool_calls"),
+        "{failures:?}"
+    );
+    assert!(
+        failures
+            .iter()
+            .any(|row| row == "simple_direct_tool_gate_should_call_tools"),
+        "{failures:?}"
+    );
 }
 
 #[test]
@@ -179,8 +199,14 @@ fn synthetic_user_harness_flags_fallback_text_and_writes_attention() {
         .get("replay_command")
         .and_then(Value::as_str)
         .unwrap_or("");
-    assert!(replay.contains("synthetic-user-chat-harness --live=0 --agent-id=agent-loop --strict=1"), "{replay}");
-    assert!(replay.contains(&format!("--cases={}", cases.display())), "{replay}");
+    assert!(
+        replay.contains("synthetic-user-chat-harness --live=0 --agent-id=agent-loop --strict=1"),
+        "{replay}"
+    );
+    assert!(
+        replay.contains(&format!("--cases={}", cases.display())),
+        "{replay}"
+    );
 }
 
 #[test]
@@ -236,7 +262,9 @@ fn synthetic_user_harness_live_monitor_freshness_contract() {
 fn misty_live_health_gate_command_requires_live_agent_and_strict() {
     let command = misty_live_health_gate_required_command("agent-5bc62b0875a9");
     assert!(
-        command.contains("synthetic-user-chat-harness --live=1 --agent-id=agent-5bc62b0875a9 --strict=1"),
+        command.contains(
+            "synthetic-user-chat-harness --live=1 --agent-id=agent-5bc62b0875a9 --strict=1"
+        ),
         "{command}"
     );
 }

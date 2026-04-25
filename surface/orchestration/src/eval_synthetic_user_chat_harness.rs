@@ -255,7 +255,8 @@ pub fn run_synthetic_user_chat_harness(args: &[String]) -> i32 {
 }
 
 pub fn run_misty_live_health_gate(args: &[String]) -> i32 {
-    let agent_id = parse_flag(args, "agent-id").unwrap_or_else(|| DEFAULT_MISTY_AGENT_ID.to_string());
+    let agent_id =
+        parse_flag(args, "agent-id").unwrap_or_else(|| DEFAULT_MISTY_AGENT_ID.to_string());
     let mut harness_args = vec![
         "--live=1".to_string(),
         format!("--agent-id={}", normalize_agent_id(&agent_id)),
@@ -378,7 +379,9 @@ fn evaluate_turn(input: TurnEvaluation<'_>) -> Vec<String> {
             u64_at(thresholds, &["simple_direct_max_stage_count"], 0),
         );
         if max_latency_ms > 0 && latency_ms > max_latency_ms {
-            failures.push(format!("simple_direct_latency_over_budget:{latency_ms}>{max_latency_ms}"));
+            failures.push(format!(
+                "simple_direct_latency_over_budget:{latency_ms}>{max_latency_ms}"
+            ));
         }
         if max_response_tokens > 0 && response_token_count > max_response_tokens {
             failures.push(format!(
@@ -500,11 +503,18 @@ fn owner_component_for_failure(reason: &str) -> &'static str {
     let lowered = reason.to_ascii_lowercase();
     if lowered.contains("workflow") || lowered.contains("stage") || lowered.contains("tool_gate") {
         "surface.orchestration.workflow"
-    } else if lowered.contains("live_eval") || lowered.contains("monitor") || lowered.contains("telemetry") {
+    } else if lowered.contains("live_eval")
+        || lowered.contains("monitor")
+        || lowered.contains("telemetry")
+    {
         "surface.orchestration.telemetry"
     } else if lowered.contains("tool") || lowered.contains("web") {
         "surface.orchestration.tool_routing"
-    } else if lowered.contains("empty") || lowered.contains("forbidden") || lowered.contains("repeated") || lowered.contains("response") {
+    } else if lowered.contains("empty")
+        || lowered.contains("forbidden")
+        || lowered.contains("repeated")
+        || lowered.contains("response")
+    {
         "surface.orchestration.finalization"
     } else {
         "surface.orchestration.eval"

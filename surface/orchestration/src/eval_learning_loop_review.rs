@@ -10,8 +10,7 @@ const DEFAULT_LABELS_PATH: &str =
     "surface/orchestration/fixtures/eval/eval_learning_loop_review_labels.jsonl";
 const DEFAULT_OUT_PATH: &str =
     "core/local/artifacts/eval_learning_loop_reviewed_examples_current.json";
-const DEFAULT_OUT_LATEST_PATH: &str =
-    "artifacts/eval_learning_loop_reviewed_examples_latest.json";
+const DEFAULT_OUT_LATEST_PATH: &str = "artifacts/eval_learning_loop_reviewed_examples_latest.json";
 const DEFAULT_STORE_PATH: &str = "local/state/ops/eval_learning_loop/reviewed_examples.jsonl";
 const DEFAULT_MARKDOWN_PATH: &str =
     "local/workspace/reports/EVAL_LEARNING_LOOP_REVIEWED_EXAMPLES_CURRENT.md";
@@ -38,7 +37,12 @@ pub fn run_eval_learning_loop_review(args: &[String]) -> i32 {
             missing_candidates.push(candidate_id.to_string());
             continue;
         };
-        examples.push(reviewed_example(candidate, label, &candidates_path, &labels_path));
+        examples.push(reviewed_example(
+            candidate,
+            label,
+            &candidates_path,
+            &labels_path,
+        ));
     }
 
     let coverage = label_coverage(&examples);
@@ -117,7 +121,12 @@ fn candidate_map(report: &Value) -> BTreeMap<String, Value> {
     out
 }
 
-fn reviewed_example(candidate: &Value, label: &Value, candidates_path: &str, labels_path: &str) -> Value {
+fn reviewed_example(
+    candidate: &Value,
+    label: &Value,
+    candidates_path: &str,
+    labels_path: &str,
+) -> Value {
     let candidate_id = str_at(candidate, &["id"]).unwrap_or("unknown");
     let reviewer_outcome = normalize_outcome(str_at(label, &["reviewer_outcome"]).unwrap_or(""));
     json!({
@@ -156,8 +165,14 @@ fn reviewed_example_store_contract_ok(example: &Value) -> bool {
         && str_at(example, &["reviewer_id"]).is_some()
         && str_at(example, &["reviewer_type"]).is_some()
         && str_at(example, &["timestamp"]).is_some()
-        && example.get("provenance").and_then(|node| node.as_object()).is_some()
-        && example.get("retention").and_then(|node| node.as_object()).is_some()
+        && example
+            .get("provenance")
+            .and_then(|node| node.as_object())
+            .is_some()
+        && example
+            .get("retention")
+            .and_then(|node| node.as_object())
+            .is_some()
 }
 
 #[derive(Default)]
@@ -239,7 +254,10 @@ fn str_at<'a>(value: &'a Value, path: &[&str]) -> Option<&'a str> {
     for segment in path {
         cursor = cursor.get(*segment)?;
     }
-    cursor.as_str().map(str::trim).filter(|value| !value.is_empty())
+    cursor
+        .as_str()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
 }
 
 fn bool_at(value: &Value, path: &[&str]) -> bool {

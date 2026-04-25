@@ -111,7 +111,11 @@ fn missing_probe_source(capability: &Capability) -> String {
 }
 
 fn missing_probe_field_source(capability: &Capability, probe_name: &str) -> String {
-    format!("missing_probe: {}.{}", required_probe_key(capability), probe_name)
+    format!(
+        "missing_probe: {}.{}",
+        required_probe_key(capability),
+        probe_name
+    )
 }
 
 fn required_typed_surface_probe_source(capability: &Capability, probe_name: &str) -> String {

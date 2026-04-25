@@ -55,9 +55,18 @@ pub fn build_tool_routing_authority_report(root: impl AsRef<Path>) -> ToolRoutin
     let root = root.as_ref();
     let contracts = read_text(root, "surface/orchestration/src/contracts.rs");
     let preconditions = read_text(root, "surface/orchestration/src/planner/preconditions.rs");
-    let probe_matrix = read_text(root, "surface/orchestration/tests/conformance/probe_matrix.rs");
-    let route_guard = read_text(root, "tests/tooling/scripts/ci/tool_route_misdirection_guard.ts");
-    let route_fixture = read_text(root, "tests/tooling/fixtures/tool_route_misdirection_matrix.json");
+    let probe_matrix = read_text(
+        root,
+        "surface/orchestration/tests/conformance/probe_matrix.rs",
+    );
+    let route_guard = read_text(
+        root,
+        "tests/tooling/scripts/ci/tool_route_misdirection_guard.ts",
+    );
+    let route_fixture = read_text(
+        root,
+        "tests/tooling/fixtures/tool_route_misdirection_matrix.json",
+    );
     let package_json = read_text(root, "package.json");
 
     let checks = vec![
@@ -74,7 +83,10 @@ pub fn build_tool_routing_authority_report(root: impl AsRef<Path>) -> ToolRoutin
     let failing_checks = checks.iter().filter(|row| !row.ok).count() as u64;
     let mut summary = BTreeMap::new();
     summary.insert("total_checks".to_string(), checks.len() as u64);
-    summary.insert("passing_checks".to_string(), checks.len() as u64 - failing_checks);
+    summary.insert(
+        "passing_checks".to_string(),
+        checks.len() as u64 - failing_checks,
+    );
     summary.insert("failing_checks".to_string(), failing_checks);
     summary.insert(
         "required_tool_probe_key_count".to_string(),
@@ -119,10 +131,7 @@ pub fn write_tool_routing_authority_artifacts(
     Ok(report)
 }
 
-fn required_probe_keys_declared(
-    contracts: &str,
-    preconditions: &str,
-) -> ToolRoutingAuthorityCheck {
+fn required_probe_keys_declared(contracts: &str, preconditions: &str) -> ToolRoutingAuthorityCheck {
     let combined = format!("{contracts}\n{preconditions}");
     let required = REQUIRED_TOOL_PROBE_KEYS
         .iter()
@@ -226,8 +235,7 @@ fn decision_trace_regressions_declared(probe_matrix: &str) -> ToolRoutingAuthori
         "decision_trace_regressions_declared",
         probe_matrix,
         &[
-            "non_legacy_tool_routing_requires_authoritative_probe_even_when_unadapted"
-                .to_string(),
+            "non_legacy_tool_routing_requires_authoritative_probe_even_when_unadapted".to_string(),
             "routing_decision_trace_records_selected_rejected_reason_and_confidence".to_string(),
             "missing_probe: web_search.tool_available".to_string(),
             "probe.core_probe_envelope.workspace_search.tool_available".to_string(),
@@ -253,9 +261,7 @@ fn route_misdirection_regression_declared(
             "web_search".to_string(),
             "web_fetch".to_string(),
         ],
-        vec![
-            "route misclassification guard covers local-vs-web route separation".to_string(),
-        ],
+        vec!["route misclassification guard covers local-vs-web route separation".to_string()],
     )
 }
 

@@ -14,8 +14,7 @@ const DEFAULT_SOURCE_PATH: &str =
 const DEFAULT_OUT_PATH: &str = "core/local/artifacts/eval_learning_loop_inbox_current.json";
 const DEFAULT_OUT_LATEST_PATH: &str = "artifacts/eval_learning_loop_inbox_latest.json";
 const DEFAULT_INBOX_PATH: &str = "local/state/ops/eval_learning_loop/inbox.jsonl";
-const DEFAULT_MARKDOWN_PATH: &str =
-    "local/workspace/reports/EVAL_LEARNING_LOOP_INBOX_CURRENT.md";
+const DEFAULT_MARKDOWN_PATH: &str = "local/workspace/reports/EVAL_LEARNING_LOOP_INBOX_CURRENT.md";
 
 pub fn run_eval_learning_loop_ingest(args: &[String]) -> i32 {
     let strict = parse_bool_flag(args, "strict", false);
@@ -23,7 +22,8 @@ pub fn run_eval_learning_loop_ingest(args: &[String]) -> i32 {
     let out_path = parse_flag(args, "out").unwrap_or_else(|| DEFAULT_OUT_PATH.to_string());
     let out_latest_path =
         parse_flag(args, "out-latest").unwrap_or_else(|| DEFAULT_OUT_LATEST_PATH.to_string());
-    let inbox_path = parse_flag(args, "out-inbox").unwrap_or_else(|| DEFAULT_INBOX_PATH.to_string());
+    let inbox_path =
+        parse_flag(args, "out-inbox").unwrap_or_else(|| DEFAULT_INBOX_PATH.to_string());
     let markdown_path =
         parse_flag(args, "out-markdown").unwrap_or_else(|| DEFAULT_MARKDOWN_PATH.to_string());
 
@@ -52,22 +52,37 @@ pub fn run_eval_learning_loop_ingest(args: &[String]) -> i32 {
         }
         rows.push(row);
     }
-    let required_signals = [
-        "wrong_tool_routing",
-        "no_response",
-        "repetitive_fallback",
-        "retry",
-        "user_frustration",
-        "evaluator_uncertainty",
-    ];
+    let seed_fixture =
+        source.get("type").and_then(Value::as_str) == Some("eval_learning_loop_trace_seed");
+    let required_signals = if seed_fixture {
+        vec![
+            "wrong_tool_routing",
+            "no_response",
+            "repetitive_fallback",
+            "retry",
+            "user_frustration",
+            "evaluator_uncertainty",
+        ]
+    } else {
+        Vec::new()
+    };
     let missing_required_signals: Vec<String> = required_signals
         .iter()
         .filter(|signal| !signal_counts.contains_key(**signal))
         .map(|signal| signal.to_string())
         .collect();
+    let unclassified_rows = rows
+        .iter()
+        .filter(|row| {
+            row.get("failure_signals")
+                .and_then(Value::as_array)
+                .map(Vec::is_empty)
+                .unwrap_or(true)
+        })
+        .count();
     let ingest_ok = !rows.is_empty();
     let redaction_ok = leak_count == 0;
-    let detector_ok = missing_required_signals.is_empty();
+    let detector_ok = missing_required_signals.is_empty() && unclassified_rows == 0;
     let ok = ingest_ok && redaction_ok && detector_ok;
     let report = json!({
         "type": "eval_learning_loop_inbox",
@@ -77,12 +92,13 @@ pub fn run_eval_learning_loop_ingest(args: &[String]) -> i32 {
         "checks": [
             {"id": "eval_trace_inbox_ingest_contract", "ok": ingest_ok, "detail": format!("rows={}", rows.len())},
             {"id": "eval_trace_redaction_contract", "ok": redaction_ok, "detail": format!("private_leaks={}", leak_count)},
-            {"id": "eval_failure_signal_detector_contract", "ok": detector_ok, "detail": format!("missing_required_signals={}", missing_required_signals.len())}
+            {"id": "eval_failure_signal_detector_contract", "ok": detector_ok, "detail": format!("missing_required_signals={};unclassified_rows={}", missing_required_signals.len(), unclassified_rows)}
         ],
         "summary": {
             "source_traces": traces.len(),
             "inbox_rows": rows.len(),
             "private_leaks": leak_count,
+            "unclassified_rows": unclassified_rows,
             "failure_signal_counts": signal_counts,
             "missing_required_signals": missing_required_signals
         },
@@ -114,22 +130,42 @@ pub fn run_eval_learning_loop_ingest(args: &[String]) -> i32 {
 }
 
 fn inbox_row(trace: &Value) -> Value {
-    let user_text = str_at(trace, &["user_text"]).unwrap_or("");
-    let assistant_text = str_at(trace, &["assistant_text"]).unwrap_or("");
+    let user_text = trace_user_text(trace);
+    let assistant_text = trace_assistant_text(trace);
     let failure_signals = detect_failure_signals(trace);
+    let trace_id = trace_id(trace);
+    let source_hash = stable_hash_hex(&format!(
+        "{}\n{}\n{}\n{}\n{}",
+        trace_source(trace).unwrap_or("unknown"),
+        trace_id,
+        failure_code(trace),
+        user_text,
+        assistant_text
+    ));
     json!({
-        "trace_id": str_at(trace, &["trace_id"]).unwrap_or("unknown"),
-        "workflow": str_at(trace, &["workflow"]).unwrap_or("unknown"),
-        "phase": str_at(trace, &["phase"]).unwrap_or("unknown"),
-        "tool_family": str_at(trace, &["tool_family"]).unwrap_or("unknown"),
-        "normalized_failure_code": str_at(trace, &["normalized_failure_code"]).unwrap_or("none"),
-        "receipt_ids": trace.get("receipt_ids").cloned().unwrap_or_else(|| json!([])),
+        "trace_id": trace_id,
+        "agent_id": str_at(trace, &["agent_id"])
+            .or_else(|| str_at(trace, &["evidence", "agent_id"]))
+            .unwrap_or(""),
+        "source": trace_source(trace).unwrap_or("unknown"),
+        "case_id": str_at(trace, &["case_id"]).unwrap_or(""),
+        "turn_id": str_at(trace, &["turn_id"]).unwrap_or(""),
+        "component": str_at(trace, &["component"]).unwrap_or(""),
+        "workflow": trace_workflow(trace),
+        "phase": trace_phase(trace),
+        "tool_family": trace_tool_family(trace),
+        "normalized_failure_code": failure_code(trace),
+        "receipt_ids": trace_receipt_ids(trace),
+        "monitor_evidence_id": format!("eval-monitor:{source_hash}"),
         "failure_signals": failure_signals,
         "suspected_layer": suspected_layer(trace),
         "confidence": signal_confidence(trace),
         "sanitized_user_text": redact_text(user_text),
         "sanitized_assistant_text": redact_text(assistant_text),
-        "source_hash": stable_hash_hex(&format!("{user_text}\n{assistant_text}")),
+        "evidence_summary": str_at(trace, &["summary"])
+            .or_else(|| str_at(trace, &["tool_result_summary"]))
+            .unwrap_or(""),
+        "source_hash": source_hash,
         "raw_text_excluded": true,
         "private_content_redacted": true
     })
@@ -137,18 +173,24 @@ fn inbox_row(trace: &Value) -> Value {
 
 fn detect_failure_signals(trace: &Value) -> Vec<String> {
     let mut signals = Vec::new();
-    let code = lower(str_at(trace, &["normalized_failure_code"]).unwrap_or(""));
-    let tool_family = lower(str_at(trace, &["tool_family"]).unwrap_or(""));
-    let user_text = lower(str_at(trace, &["user_text"]).unwrap_or(""));
-    let assistant_text = lower(str_at(trace, &["assistant_text"]).unwrap_or(""));
+    let code = lower(failure_code(trace));
+    let tool_family = lower(trace_tool_family(trace));
+    let user_text = lower(trace_user_text(trace));
+    let assistant_text = lower(trace_assistant_text(trace));
     let finalization = lower(str_at(trace, &["finalization_status"]).unwrap_or(""));
+    let component = lower(str_at(trace, &["component"]).unwrap_or(""));
     if code.contains("wrong_tool")
         || code.contains("routed_to_web")
+        || code.contains("stale_php_context")
+        || code.contains("stale_context")
         || (tool_family.contains("web") && mentions_local_workspace(&user_text))
     {
         signals.push("wrong_tool_routing".to_string());
     }
-    if finalization.contains("no_response") || assistant_text.trim().is_empty() {
+    if finalization.contains("no_response")
+        || code.contains("no_response")
+        || assistant_text.trim().is_empty()
+    {
         signals.push("no_response".to_string());
     }
     if finalization.contains("fallback_loop")
@@ -160,15 +202,30 @@ fn detect_failure_signals(trace: &Value) -> Vec<String> {
     if u64_at(trace, &["retry_count"]) > 0 {
         signals.push("retry".to_string());
     }
+    if code.contains("latency_over_budget")
+        || code.contains("stage_count_over_budget")
+        || code.contains("too_many_workflow_stages")
+        || code.contains("tokens_over_budget")
+    {
+        signals.push("action_economy".to_string());
+    }
+    if code.contains("workflow_visibility") {
+        signals.push("workflow_visibility".to_string());
+    }
     if user_text.contains("what's going on")
         || user_text.contains("whats going on")
         || user_text.contains("just answer")
         || user_text.contains("hardlocked")
         || user_text.contains("why is")
+        || user_text.contains("what? why")
+        || user_text.contains("why are you")
     {
         signals.push("user_frustration".to_string());
     }
-    if bool_at(trace, &["evaluator_uncertainty"]) || code.contains("uncertain") {
+    if bool_at(trace, &["evaluator_uncertainty"])
+        || code.contains("uncertain")
+        || component.contains("telemetry")
+    {
         signals.push("evaluator_uncertainty".to_string());
     }
     signals.sort();
@@ -177,12 +234,15 @@ fn detect_failure_signals(trace: &Value) -> Vec<String> {
 }
 
 fn suspected_layer(trace: &Value) -> &'static str {
-    let workflow = lower(str_at(trace, &["workflow"]).unwrap_or(""));
-    let phase = lower(str_at(trace, &["phase"]).unwrap_or(""));
+    let workflow = lower(trace_workflow(trace));
+    let phase = lower(trace_phase(trace));
+    let component = lower(str_at(trace, &["component"]).unwrap_or(""));
     if workflow.contains("tool") || phase.contains("tool") {
         "surface/orchestration/tool-routing"
     } else if phase.contains("final") || phase.contains("recovery") {
         "surface/orchestration/workflow-finalization"
+    } else if component.contains("telemetry") {
+        "surface/orchestration/telemetry"
     } else if workflow.contains("eval") {
         "surface/orchestration/eval"
     } else {
@@ -193,6 +253,86 @@ fn suspected_layer(trace: &Value) -> &'static str {
 fn signal_confidence(trace: &Value) -> f64 {
     let count = detect_failure_signals(trace).len() as f64;
     (0.45 + (count * 0.1)).min(0.95)
+}
+
+fn trace_id(trace: &Value) -> String {
+    if let Some(id) = str_at(trace, &["trace_id"]) {
+        return id.to_string();
+    }
+    let source = trace_source(trace).unwrap_or("unknown");
+    let case_id = str_at(trace, &["case_id"]).unwrap_or("case");
+    let turn_id = str_at(trace, &["turn_id"]).unwrap_or("turn");
+    let code = failure_code(trace);
+    format!("{case_id}:{turn_id}:{code}:{}", stable_hash_hex(source))
+}
+
+fn trace_source(trace: &Value) -> Option<&str> {
+    str_at(trace, &["source"])
+}
+
+fn trace_user_text(trace: &Value) -> &str {
+    str_at(trace, &["user_text"])
+        .or_else(|| str_at(trace, &["user_message_preview"]))
+        .or_else(|| str_at(trace, &["evidence", "user_message_preview"]))
+        .unwrap_or("")
+}
+
+fn trace_assistant_text(trace: &Value) -> &str {
+    str_at(trace, &["assistant_text"])
+        .or_else(|| str_at(trace, &["assistant_response_preview"]))
+        .or_else(|| str_at(trace, &["evidence", "assistant_response_preview"]))
+        .unwrap_or("")
+}
+
+fn failure_code(trace: &Value) -> &str {
+    str_at(trace, &["normalized_failure_code"])
+        .or_else(|| str_at(trace, &["code"]))
+        .unwrap_or("none")
+}
+
+fn trace_workflow(trace: &Value) -> &str {
+    str_at(trace, &["workflow"])
+        .or_else(|| str_at(trace, &["component"]))
+        .unwrap_or("unknown")
+}
+
+fn trace_phase(trace: &Value) -> &str {
+    str_at(trace, &["phase"])
+        .or_else(|| str_at(trace, &["turn_id"]))
+        .or_else(|| str_at(trace, &["case_id"]))
+        .unwrap_or("unknown")
+}
+
+fn trace_tool_family(trace: &Value) -> &str {
+    str_at(trace, &["tool_family"])
+        .or_else(|| str_at(trace, &["evidence", "expected_route"]))
+        .or_else(|| {
+            let code = failure_code(trace);
+            if code.contains("web") {
+                Some("web_search")
+            } else if code.contains("workspace") {
+                Some("workspace_search")
+            } else if code.contains("tool") {
+                Some("tool_route")
+            } else {
+                None
+            }
+        })
+        .unwrap_or("unknown")
+}
+
+fn trace_receipt_ids(trace: &Value) -> Value {
+    for path in [
+        ["receipt_ids"].as_slice(),
+        ["evidence", "receipt_ids"].as_slice(),
+    ] {
+        if let Some(ids) = value_at(trace, path).and_then(Value::as_array) {
+            if !ids.is_empty() {
+                return Value::Array(ids.clone());
+            }
+        }
+    }
+    json!([])
 }
 
 fn redact_text(raw: &str) -> String {
@@ -281,7 +421,10 @@ fn str_at<'a>(value: &'a Value, path: &[&str]) -> Option<&'a str> {
     for segment in path {
         cursor = cursor.get(*segment)?;
     }
-    cursor.as_str().map(str::trim).filter(|value| !value.is_empty())
+    cursor
+        .as_str()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
 }
 
 fn u64_at(value: &Value, path: &[&str]) -> u64 {
@@ -296,14 +439,17 @@ fn u64_at(value: &Value, path: &[&str]) -> u64 {
 }
 
 fn bool_at(value: &Value, path: &[&str]) -> bool {
+    value_at(value, path)
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
+
+fn value_at<'a>(value: &'a Value, path: &[&str]) -> Option<&'a Value> {
     let mut cursor = value;
     for segment in path {
-        let Some(next) = cursor.get(*segment) else {
-            return false;
-        };
-        cursor = next;
+        cursor = cursor.get(*segment)?;
     }
-    cursor.as_bool().unwrap_or(false)
+    Some(cursor)
 }
 
 fn read_json(path: &str) -> Value {
@@ -380,4 +526,48 @@ mod tests {
         assert!(signals.contains(&"retry".to_string()));
     }
 
+    #[test]
+    fn live_synthetic_trace_schema_preserves_monitor_metadata() {
+        // SRS: V12-EVAL-MONITOR-FEEDBACK-001
+        let trace = json!({
+            "schema_version": 1,
+            "source": "synthetic_user_chat_harness:round13",
+            "agent_id": "agent-5bc62b0875a9",
+            "case_id": "explicit_web_tool_request",
+            "turn_id": "web_001",
+            "component": "surface.orchestration.tool_routing",
+            "code": "wrong_tool_web_request_stale_php_context",
+            "severity": "high",
+            "summary": "Explicit web-search request returned stale PHP context.",
+            "evidence": {
+                "agent_id": "agent-5bc62b0875a9",
+                "user_message_preview": "Use web search to compare frameworks.",
+                "assistant_response_preview": "<?php namespace App\\Http\\Controllers; class ProductController {}",
+                "expected_route": "web_search",
+                "failures": ["missing_required_visible_text:web search"]
+            }
+        });
+
+        let row = inbox_row(&trace);
+        assert_eq!(str_at(&row, &["agent_id"]), Some("agent-5bc62b0875a9"));
+        assert_eq!(
+            str_at(&row, &["normalized_failure_code"]),
+            Some("wrong_tool_web_request_stale_php_context")
+        );
+        assert_eq!(str_at(&row, &["tool_family"]), Some("web_search"));
+        assert_eq!(
+            str_at(&row, &["sanitized_user_text"]),
+            Some("Use web search to compare frameworks.")
+        );
+        assert!(str_at(&row, &["monitor_evidence_id"])
+            .unwrap_or("")
+            .starts_with("eval-monitor:fnv64:"));
+        let signals = row
+            .get("failure_signals")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(signals.iter().any(|signal| signal == "wrong_tool_routing"));
+        assert!(!signals.iter().any(|signal| signal == "no_response"));
+    }
 }

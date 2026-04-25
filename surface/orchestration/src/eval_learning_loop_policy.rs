@@ -17,7 +17,8 @@ pub fn run_eval_learning_loop_policy(args: &[String]) -> i32 {
     let strict = parse_bool_flag(args, "strict", false);
     let reviewed_path =
         parse_flag(args, "reviewed").unwrap_or_else(|| DEFAULT_REVIEWED_PATH.to_string());
-    let holdout_path = parse_flag(args, "holdout").unwrap_or_else(|| DEFAULT_HOLDOUT_PATH.to_string());
+    let holdout_path =
+        parse_flag(args, "holdout").unwrap_or_else(|| DEFAULT_HOLDOUT_PATH.to_string());
     let out_path = parse_flag(args, "out").unwrap_or_else(|| DEFAULT_OUT_PATH.to_string());
     let out_latest_path =
         parse_flag(args, "out-latest").unwrap_or_else(|| DEFAULT_OUT_LATEST_PATH.to_string());
@@ -98,7 +99,11 @@ fn calibration_update(examples: &[Value]) -> CalibrationUpdate {
     let accepted_confidences: Vec<f64> = examples
         .iter()
         .filter(|example| desired_positive(example))
-        .filter_map(|example| example.pointer("/candidate/confidence").and_then(|node| node.as_f64()))
+        .filter_map(|example| {
+            example
+                .pointer("/candidate/confidence")
+                .and_then(|node| node.as_f64())
+        })
         .collect();
     let threshold = accepted_confidences
         .iter()
@@ -158,7 +163,8 @@ fn compare_on_reviewed_examples(examples: &[Value], candidate_threshold: f64) ->
             .unwrap_or(0.0);
         let expected_positive = desired_positive(example);
         let active_positive = confidence >= 0.65;
-        let candidate_positive = confidence >= candidate_threshold && bool_at(example, &["root_cause_correct"]);
+        let candidate_positive =
+            confidence >= candidate_threshold && bool_at(example, &["root_cause_correct"]);
         active_correct += (active_positive == expected_positive) as u64;
         candidate_correct += (candidate_positive == expected_positive) as u64;
         if is_high_severity(example) && active_positive != expected_positive {
@@ -204,7 +210,11 @@ fn compare_on_holdout(holdout: &Value) -> Comparison {
         .flatten()
     {
         let expected_positive = str_at(case, &["expected"]) == Some("accept");
-        let active_positive = case.get("active_score").and_then(|node| node.as_f64()).unwrap_or(0.0) >= 0.60;
+        let active_positive = case
+            .get("active_score")
+            .and_then(|node| node.as_f64())
+            .unwrap_or(0.0)
+            >= 0.60;
         let candidate_positive = case
             .get("candidate_score")
             .and_then(|node| node.as_f64())
@@ -212,7 +222,10 @@ fn compare_on_holdout(holdout: &Value) -> Comparison {
             >= 0.60;
         active_correct += (active_positive == expected_positive) as u64;
         candidate_correct += (candidate_positive == expected_positive) as u64;
-        let high = matches!(str_at(case, &["severity"]).unwrap_or(""), "high" | "critical");
+        let high = matches!(
+            str_at(case, &["severity"]).unwrap_or(""),
+            "high" | "critical"
+        );
         if high && active_positive != expected_positive {
             active_high_severity_misses += 1;
         }
@@ -247,16 +260,24 @@ fn compare_on_holdout(holdout: &Value) -> Comparison {
 fn regression_blockers(reviewed: &Comparison, holdout: &Comparison) -> Vec<Value> {
     let mut blockers = Vec::new();
     if reviewed.candidate_high_severity_misses > reviewed.active_high_severity_misses {
-        blockers.push(json!({"dataset": "reviewed_examples", "reason": "candidate_high_severity_regression"}));
+        blockers.push(
+            json!({"dataset": "reviewed_examples", "reason": "candidate_high_severity_regression"}),
+        );
     }
     if holdout.candidate_high_severity_misses > holdout.active_high_severity_misses {
-        blockers.push(json!({"dataset": "holdout_known_bad", "reason": "candidate_high_severity_regression"}));
+        blockers.push(
+            json!({"dataset": "holdout_known_bad", "reason": "candidate_high_severity_regression"}),
+        );
     }
     if reviewed.candidate_correct < reviewed.active_correct {
-        blockers.push(json!({"dataset": "reviewed_examples", "reason": "candidate_accuracy_regression"}));
+        blockers.push(
+            json!({"dataset": "reviewed_examples", "reason": "candidate_accuracy_regression"}),
+        );
     }
     if holdout.candidate_correct < holdout.active_correct {
-        blockers.push(json!({"dataset": "holdout_known_bad", "reason": "candidate_accuracy_regression"}));
+        blockers.push(
+            json!({"dataset": "holdout_known_bad", "reason": "candidate_accuracy_regression"}),
+        );
     }
     blockers
 }
@@ -269,7 +290,10 @@ fn desired_positive(example: &Value) -> bool {
 }
 
 fn is_high_severity(example: &Value) -> bool {
-    matches!(str_at(example, &["severity"]).unwrap_or(""), "high" | "critical")
+    matches!(
+        str_at(example, &["severity"]).unwrap_or(""),
+        "high" | "critical"
+    )
 }
 
 fn now_iso_like() -> String {
@@ -308,7 +332,10 @@ fn str_at<'a>(value: &'a Value, path: &[&str]) -> Option<&'a str> {
     for segment in path {
         cursor = cursor.get(*segment)?;
     }
-    cursor.as_str().map(str::trim).filter(|value| !value.is_empty())
+    cursor
+        .as_str()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
 }
 
 fn bool_at(value: &Value, path: &[&str]) -> bool {

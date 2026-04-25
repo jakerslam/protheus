@@ -44,7 +44,7 @@ pub fn run_eval_learning_loop_issue_candidates(args: &[String]) -> i32 {
     }
     let drafting_ok = !candidates.is_empty();
     let quality_ok = rejected.is_empty();
-    let receipt_grounding_ok = candidates.iter().all(candidate_has_receipt_evidence);
+    let receipt_grounding_ok = candidates.iter().all(candidate_has_grounded_evidence);
     let ok = drafting_ok && quality_ok && receipt_grounding_ok;
     let report = json!({
         "type": "eval_learning_loop_issue_candidates",
@@ -98,17 +98,30 @@ fn issue_candidate_from_inbox_row(row: &Value) -> Value {
         .unwrap_or(0.5);
     json!({
         "id": format!("eval-learning-{trace_id}"),
+        "agent_id": str_at(row, &["agent_id"]).unwrap_or(""),
+        "source": str_at(row, &["source"]).unwrap_or("unknown"),
+        "case_id": str_at(row, &["case_id"]).unwrap_or(""),
+        "turn_id": str_at(row, &["turn_id"]).unwrap_or(""),
+        "severity": severity_for_row(row),
         "trace_id": trace_id,
         "symptom": symptom_for_signal(signal),
         "expected_behavior": expected_behavior_for_signal(signal),
         "actual_behavior": str_at(row, &["sanitized_assistant_text"]).unwrap_or(""),
         "evidence": {
             "trace_id": trace_id,
+            "agent_id": str_at(row, &["agent_id"]).unwrap_or(""),
+            "source": str_at(row, &["source"]).unwrap_or("unknown"),
+            "case_id": str_at(row, &["case_id"]).unwrap_or(""),
+            "turn_id": str_at(row, &["turn_id"]).unwrap_or(""),
+            "component": str_at(row, &["component"]).unwrap_or(""),
             "receipt_ids": row.get("receipt_ids").cloned().unwrap_or_else(|| json!([])),
+            "monitor_evidence_id": str_at(row, &["monitor_evidence_id"]).unwrap_or(""),
+            "source_hash": str_at(row, &["source_hash"]).unwrap_or(""),
             "failure_signals": row.get("failure_signals").cloned().unwrap_or_else(|| json!([])),
             "normalized_failure_code": str_at(row, &["normalized_failure_code"]).unwrap_or("none"),
             "sanitized_user_text": str_at(row, &["sanitized_user_text"]).unwrap_or(""),
-            "sanitized_assistant_text": str_at(row, &["sanitized_assistant_text"]).unwrap_or("")
+            "sanitized_assistant_text": str_at(row, &["sanitized_assistant_text"]).unwrap_or(""),
+            "evidence_summary": str_at(row, &["evidence_summary"]).unwrap_or("")
         },
         "suspected_layer": suspected_layer,
         "suspected_root_cause": root_cause_for_signal(signal),
@@ -131,7 +144,7 @@ fn issue_candidate_quality_failures(candidate: &Value) -> Vec<String> {
     if str_at(candidate, &["symptom"]).is_none() {
         failures.push("missing_symptom".to_string());
     }
-    if !candidate_has_receipt_evidence(candidate) {
+    if !candidate_has_grounded_evidence(candidate) {
         failures.push("missing_receipt_backed_evidence".to_string());
     }
     if str_at(candidate, &["suspected_root_cause"]).is_none()
@@ -160,21 +173,55 @@ fn issue_candidate_quality_failures(candidate: &Value) -> Vec<String> {
     failures
 }
 
-fn candidate_has_receipt_evidence(candidate: &Value) -> bool {
-    candidate
+fn candidate_has_grounded_evidence(candidate: &Value) -> bool {
+    let has_receipts = candidate
         .pointer("/evidence/receipt_ids")
         .and_then(|node| node.as_array())
         .map(|rows| !rows.is_empty())
-        .unwrap_or(false)
-        && str_at(candidate, &["evidence", "trace_id"]).is_some()
+        .unwrap_or(false);
+    let has_monitor_evidence = str_at(candidate, &["evidence", "monitor_evidence_id"]).is_some()
+        && str_at(candidate, &["evidence", "source_hash"]).is_some();
+    (has_receipts || has_monitor_evidence) && str_at(candidate, &["evidence", "trace_id"]).is_some()
 }
 
 fn primary_signal(row: &Value) -> &str {
-    row.get("failure_signals")
+    let signals = row
+        .get("failure_signals")
         .and_then(|node| node.as_array())
-        .and_then(|rows| rows.first())
+        .map(Vec::as_slice)
+        .unwrap_or(&[]);
+    for preferred in [
+        "wrong_tool_routing",
+        "no_response",
+        "repetitive_fallback",
+        "user_frustration",
+        "workflow_visibility",
+        "action_economy",
+        "retry",
+        "evaluator_uncertainty",
+    ] {
+        if signals
+            .iter()
+            .any(|signal| signal.as_str() == Some(preferred))
+        {
+            return preferred;
+        }
+    }
+    signals
+        .first()
         .and_then(|node| node.as_str())
         .unwrap_or("unknown")
+}
+
+fn severity_for_row(row: &Value) -> &'static str {
+    if str_at(row, &["severity"]) == Some("high") {
+        return "high";
+    }
+    let signal = primary_signal(row);
+    match signal {
+        "wrong_tool_routing" | "no_response" | "repetitive_fallback" => "high",
+        _ => "warn",
+    }
 }
 
 fn symptom_for_signal(signal: &str) -> &'static str {
@@ -183,6 +230,8 @@ fn symptom_for_signal(signal: &str) -> &'static str {
         "no_response" => "Workflow did not produce a usable final answer.",
         "repetitive_fallback" => "Workflow finalization repeated fallback boilerplate.",
         "retry" => "Recovery required repeated tool or workflow attempts.",
+        "action_economy" => "Workflow exceeded latency, stage, or response-size budget.",
+        "workflow_visibility" => "Workflow visibility telemetry was missing for a live turn.",
         "user_frustration" => "User-visible recovery failed to answer direct frustration.",
         "evaluator_uncertainty" => "Evaluator confidence was too weak for promotion.",
         _ => "Eval learning-loop trace requires triage.",
@@ -195,6 +244,8 @@ fn expected_behavior_for_signal(signal: &str) -> &'static str {
         "no_response" => "Return a direct final answer or explicit grounded fallback.",
         "repetitive_fallback" => "Break fallback loops and answer from current workflow state.",
         "retry" => "Explain retry cause and bounded recovery path with receipts.",
+        "action_economy" => "Keep simple turns within latency, stage, and token budgets.",
+        "workflow_visibility" => "Emit workflow visibility payloads for every live workflow turn.",
         "user_frustration" => "Respond directly to the user's confusion before tool recovery.",
         "evaluator_uncertainty" => "Block promotion and request more reviewed evidence.",
         _ => "Triage should preserve trace evidence and classify a concrete owner.",
@@ -207,8 +258,14 @@ fn root_cause_for_signal(signal: &str) -> &'static str {
         "no_response" => "workflow finalization failed to synthesize a user-visible answer",
         "repetitive_fallback" => "fallback recovery did not detect repeated boilerplate",
         "retry" => "recovery path exceeded the intended action economy budget",
+        "action_economy" => "workflow path exceeded the intended action economy budget",
+        "workflow_visibility" => {
+            "workflow telemetry did not expose the active stage to the UI/eval monitor"
+        }
         "user_frustration" => "synthesis did not prioritize direct user-facing clarification",
-        "evaluator_uncertainty" => "eval calibration signal was insufficient for confident judgement",
+        "evaluator_uncertainty" => {
+            "eval calibration signal was insufficient for confident judgement"
+        }
         _ => "learning-loop classifier produced an unknown signal",
     }
 }
@@ -249,7 +306,10 @@ fn str_at<'a>(value: &'a Value, path: &[&str]) -> Option<&'a str> {
     for segment in path {
         cursor = cursor.get(*segment)?;
     }
-    cursor.as_str().map(str::trim).filter(|value| !value.is_empty())
+    cursor
+        .as_str()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
 }
 
 fn read_json(path: &str) -> Value {
@@ -301,5 +361,41 @@ mod tests {
         let failures = issue_candidate_quality_failures(&candidate);
         assert!(failures.contains(&"missing_receipt_backed_evidence".to_string()));
         assert!(failures.contains(&"unsupported_root_cause".to_string()));
+    }
+
+    #[test]
+    fn issue_candidate_accepts_source_hashed_monitor_evidence() {
+        let row = json!({
+            "trace_id": "explicit_web_tool_request:web_001:wrong_tool_web_request_stale_php_context:fnv64:abc",
+            "agent_id": "agent-5bc62b0875a9",
+            "source": "synthetic_user_chat_harness:round13",
+            "case_id": "explicit_web_tool_request",
+            "turn_id": "web_001",
+            "component": "surface.orchestration.tool_routing",
+            "severity": "high",
+            "suspected_layer": "surface/orchestration/tool-routing",
+            "confidence": 0.75,
+            "receipt_ids": [],
+            "monitor_evidence_id": "eval-monitor:fnv64:abc",
+            "source_hash": "fnv64:abc",
+            "failure_signals": ["wrong_tool_routing"],
+            "normalized_failure_code": "wrong_tool_web_request_stale_php_context",
+            "sanitized_user_text": "Use web search to compare frameworks.",
+            "sanitized_assistant_text": "<?php class ProductController {}",
+            "evidence_summary": "Explicit web-search request returned stale PHP context."
+        });
+
+        let candidate = issue_candidate_from_inbox_row(&row);
+        assert_eq!(
+            str_at(&candidate, &["agent_id"]),
+            Some("agent-5bc62b0875a9")
+        );
+        assert_eq!(str_at(&candidate, &["severity"]), Some("high"));
+        assert_eq!(
+            str_at(&candidate, &["evidence", "monitor_evidence_id"]),
+            Some("eval-monitor:fnv64:abc")
+        );
+        assert!(candidate_has_grounded_evidence(&candidate));
+        assert!(issue_candidate_quality_failures(&candidate).is_empty());
     }
 }

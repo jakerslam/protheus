@@ -1,6 +1,6 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
-pub mod clarification;
 pub mod assimilation_authority;
+pub mod clarification;
 pub mod continuous_eval;
 pub mod contracts;
 pub mod control_plane;
@@ -15,10 +15,10 @@ pub mod planner;
 pub mod posture;
 pub mod progress;
 pub mod recovery;
-pub mod self_modification;
 pub mod request_classifier;
 pub mod result_packaging;
 pub mod self_maintenance;
+pub mod self_modification;
 pub mod sequencing;
 pub mod telemetry;
 pub mod tool_routing_authority;
@@ -32,7 +32,8 @@ use contracts::{
     OrchestrationExecutionObservationUpdate, OrchestrationFallbackAction, OrchestrationPlan,
     OrchestrationRequest, OrchestrationResultPackage, PlanCandidate, PlanScore, PlanStatus,
     PlanVariant, ReceiptDebugMetadata, RecoveryDecision, RecoveryReason, RecoveryState,
-    RuntimeQualitySignals, WorkflowStage, WorkflowStageState, WorkflowStageStatus, WorkflowTemplate,
+    RuntimeQualitySignals, WorkflowStage, WorkflowStageState, WorkflowStageStatus,
+    WorkflowTemplate,
 };
 use self_maintenance::contracts::{
     ArchitectureAuditInput, CiReportInput, HealthMetricInput, MemoryPressureInput,

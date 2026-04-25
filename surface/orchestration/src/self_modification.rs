@@ -96,12 +96,14 @@ struct SelfModificationReport {
 
 pub fn run_self_modification_guard(args: &[String]) -> i32 {
     let strict = flag_value(args, "--strict").unwrap_or_else(|| "0".to_string()) == "1";
-    let policy_path = flag_value(args, "--policy").unwrap_or_else(|| DEFAULT_POLICY_PATH.to_string());
+    let policy_path =
+        flag_value(args, "--policy").unwrap_or_else(|| DEFAULT_POLICY_PATH.to_string());
     let trust_zones_path =
         flag_value(args, "--trust-zones").unwrap_or_else(|| DEFAULT_TRUST_ZONES_PATH.to_string());
     let proposal_path = flag_value(args, "--proposal");
     let out_path = flag_value(args, "--out").unwrap_or_else(|| DEFAULT_OUT_PATH.to_string());
-    let report_path = flag_value(args, "--report").unwrap_or_else(|| DEFAULT_REPORT_PATH.to_string());
+    let report_path =
+        flag_value(args, "--report").unwrap_or_else(|| DEFAULT_REPORT_PATH.to_string());
 
     let policy = match load_policy(&policy_path) {
         Ok(policy) => policy,
@@ -174,7 +176,9 @@ fn default_proposal() -> ProposalInput {
             "replay_fixtures".to_string(),
             "eval_gates".to_string(),
         ],
-        rollback_plan: "restore previous artifact snapshot, block apply lane, and rerun eval/replay gates".to_string(),
+        rollback_plan:
+            "restore previous artifact snapshot, block apply lane, and rerun eval/replay gates"
+                .to_string(),
         eval_result_artifact: "core/local/artifacts/eval_feedback_router_current.json".to_string(),
         affected_trust_zone: "propose_only".to_string(),
     }
@@ -253,7 +257,10 @@ fn build_self_modification_report(
         CheckRow {
             id: "self_modification_required_gates_contract".to_string(),
             ok: required_gates_present,
-            detail: format!("accepted_required_gates={}", gates.iter().filter(|g| g.required && g.accepted).count()),
+            detail: format!(
+                "accepted_required_gates={}",
+                gates.iter().filter(|g| g.required && g.accepted).count()
+            ),
         },
         CheckRow {
             id: "self_modification_apply_requirements_contract".to_string(),
@@ -268,7 +275,10 @@ fn build_self_modification_report(
         CheckRow {
             id: "self_modification_bypass_denied_contract".to_string(),
             ok: bypass_denied,
-            detail: proposal.requested_bypass.clone().unwrap_or_else(|| "none".to_string()),
+            detail: proposal
+                .requested_bypass
+                .clone()
+                .unwrap_or_else(|| "none".to_string()),
         },
         CheckRow {
             id: "self_modification_trust_zone_classification_contract".to_string(),
@@ -335,17 +345,28 @@ fn stages_match(required: &[String], requested: &[String]) -> bool {
 }
 
 fn requirements_present(policy: &SelfModificationPolicy) -> bool {
-    let required = ["tests", "replay_fixtures", "eval_gates", "monitoring", "rollback"];
+    let required = [
+        "tests",
+        "replay_fixtures",
+        "eval_gates",
+        "monitoring",
+        "rollback",
+    ];
     required
         .iter()
         .all(|item| policy.apply_requirements.iter().any(|row| row == item))
 }
 
-fn proposal_proof_burden_present(policy: &SelfModificationPolicy, proposal: &ProposalInput) -> bool {
+fn proposal_proof_burden_present(
+    policy: &SelfModificationPolicy,
+    proposal: &ProposalInput,
+) -> bool {
     ["tests", "replay_fixtures", "eval_gates"]
         .iter()
-        .all(|item| policy.apply_requirements.iter().any(|row| row == item)
-            && proposal.proof_burden.iter().any(|row| row == item))
+        .all(|item| {
+            policy.apply_requirements.iter().any(|row| row == item)
+                && proposal.proof_burden.iter().any(|row| row == item)
+        })
 }
 
 fn proposal_affected_trust_zone_matches(
@@ -353,9 +374,10 @@ fn proposal_affected_trust_zone_matches(
     trust_zones: &[TrustZoneEvaluation],
 ) -> bool {
     !proposal.affected_trust_zone.trim().is_empty()
-        && trust_zones
-            .iter()
-            .any(|zone| zone.zone == proposal.affected_trust_zone || zone.zone_id == proposal.affected_trust_zone)
+        && trust_zones.iter().any(|zone| {
+            zone.zone == proposal.affected_trust_zone
+                || zone.zone_id == proposal.affected_trust_zone
+        })
 }
 
 fn observe_gates(gates: &[GatePolicy]) -> Vec<GateObservation> {
@@ -377,7 +399,8 @@ fn observe_gates(gates: &[GatePolicy]) -> Vec<GateObservation> {
                 .and_then(Value::as_str)
                 == Some("blocked");
             let accepted = present
-                && ((ok == Some(true) && !blocked_eval) || (gate.allow_blocked_eval && blocked_eval));
+                && ((ok == Some(true) && !blocked_eval)
+                    || (gate.allow_blocked_eval && blocked_eval));
             let reason = if accepted {
                 "gate_accepted".to_string()
             } else if !present {
@@ -408,12 +431,17 @@ fn bypass_request_denied(policy: &SelfModificationPolicy, proposal: &ProposalInp
     }
 }
 
-fn rollback_metadata(policy: &SelfModificationPolicy, proposal: &ProposalInput) -> RollbackMetadata {
+fn rollback_metadata(
+    policy: &SelfModificationPolicy,
+    proposal: &ProposalInput,
+) -> RollbackMetadata {
     RollbackMetadata {
         rollback_required: policy.rollback_metadata_required,
         rollback_receipt_id: format!("rollback::{}", proposal.proposal_id),
         rollback_trigger: "post_apply_eval_or_replay_regression".to_string(),
-        rollback_plan: "restore previous artifact snapshot, block apply lane, and rerun eval/replay gates".to_string(),
+        rollback_plan:
+            "restore previous artifact snapshot, block apply lane, and rerun eval/replay gates"
+                .to_string(),
     }
 }
 
@@ -432,7 +460,9 @@ fn stage_decisions(
             let requested = proposal.requested_stages.iter().any(|row| row == stage);
             let (status, reason) = match stage.as_str() {
                 "propose" if requested => ("complete", "proposal_recorded"),
-                "validate" if requested && gates_accepted => ("complete", "tests_replay_eval_gates_accepted"),
+                "validate" if requested && gates_accepted => {
+                    ("complete", "tests_replay_eval_gates_accepted")
+                }
                 "apply" if requested && !trust_zones_apply_allowed => {
                     ("blocked", "apply_blocked_by_trust_zone")
                 }
@@ -480,14 +510,19 @@ fn write_markdown(path: &str, report: &SelfModificationReport) -> bool {
     body.push_str(&format!("- apply_decision: `{}`\n", report.apply_decision));
     body.push_str("- gates:\n");
     for gate in &report.gates {
-        body.push_str(&format!("  - `{}`: {} ({})\n", gate.id, gate.accepted, gate.reason));
+        body.push_str(&format!(
+            "  - `{}`: {} ({})\n",
+            gate.id, gate.accepted, gate.reason
+        ));
     }
     fs::write(path, body).is_ok()
 }
 
 fn flag_value(args: &[String], flag: &str) -> Option<String> {
-    args.iter()
-        .find_map(|arg| arg.strip_prefix(&format!("{flag}=")).map(|value| value.to_string()))
+    args.iter().find_map(|arg| {
+        arg.strip_prefix(&format!("{flag}="))
+            .map(|value| value.to_string())
+    })
 }
 
 fn now_unix_seconds() -> u64 {
@@ -509,10 +544,16 @@ mod tests {
                 .map(str::to_string)
                 .collect(),
             required_gates: vec![],
-            apply_requirements: vec!["tests", "replay_fixtures", "eval_gates", "monitoring", "rollback"]
-                .into_iter()
-                .map(str::to_string)
-                .collect(),
+            apply_requirements: vec![
+                "tests",
+                "replay_fixtures",
+                "eval_gates",
+                "monitoring",
+                "rollback",
+            ]
+            .into_iter()
+            .map(str::to_string)
+            .collect(),
             rollback_metadata_required: true,
             bypass_tokens_denied: vec!["direct_apply".to_string()],
         }
@@ -575,8 +616,7 @@ mod tests {
     fn trust_zone_blocks_control_plane_apply() {
         let mut proposal = default_proposal();
         proposal.eval_result_artifact = "Cargo.toml".to_string();
-        let report =
-            build_self_modification_report(&policy(), &trust_zone_policy(), proposal);
+        let report = build_self_modification_report(&policy(), &trust_zone_policy(), proposal);
         assert!(report.ok);
         assert!(!report.apply_allowed);
         assert!(report
@@ -595,9 +635,8 @@ mod tests {
         let report = build_self_modification_report(&policy(), &trust_zone_policy(), proposal);
         assert!(!report.ok);
         assert!(!report.apply_allowed);
-        assert!(report
-            .checks
-            .iter()
-            .any(|check| check.id == "self_modification_proposal_proof_burden_contract" && !check.ok));
+        assert!(report.checks.iter().any(|check| check.id
+            == "self_modification_proposal_proof_burden_contract"
+            && !check.ok));
     }
 }

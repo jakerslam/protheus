@@ -18,35 +18,36 @@ use std::time::{SystemTime, UNIX_EPOCH};
 mod eval_action_economy_guard;
 #[path = "../eval_agent_feedback.rs"]
 mod eval_agent_feedback;
-#[path = "../eval_agent_self_diagnosis.rs"] mod eval_agent_self_diagnosis;
+#[path = "../eval_agent_self_diagnosis.rs"]
+mod eval_agent_self_diagnosis;
 #[path = "../eval_calibration_stats.rs"]
 mod eval_calibration_stats;
 #[path = "../eval_contamination_guard.rs"]
 mod eval_contamination_guard;
-#[path = "../eval_final_runtime.rs"]
-mod eval_final_runtime;
 #[path = "../eval_feedback_router.rs"]
 mod eval_feedback_router;
+#[path = "../eval_final_runtime.rs"]
+mod eval_final_runtime;
 #[path = "../eval_grader_hacking.rs"]
 mod eval_grader_hacking;
 #[path = "../eval_issue_authority.rs"]
 mod eval_issue_authority;
 #[path = "../eval_issue_runtime.rs"]
 mod eval_issue_runtime;
-#[path = "../eval_lifecycle_runtime.rs"]
-mod eval_lifecycle_runtime;
 #[path = "../eval_learning_loop.rs"]
 mod eval_learning_loop;
-#[path = "../eval_learning_loop_review.rs"]
-mod eval_learning_loop_review;
 #[path = "../eval_learning_loop_policy.rs"]
 mod eval_learning_loop_policy;
 #[path = "../eval_learning_loop_policy_version.rs"]
 mod eval_learning_loop_policy_version;
-#[path = "../eval_metamorphic_guard.rs"]
-mod eval_metamorphic_guard;
+#[path = "../eval_learning_loop_review.rs"]
+mod eval_learning_loop_review;
 #[path = "../eval_learning_loop_rsi_handoff.rs"]
 mod eval_learning_loop_rsi_handoff;
+#[path = "../eval_lifecycle_runtime.rs"]
+mod eval_lifecycle_runtime;
+#[path = "../eval_metamorphic_guard.rs"]
+mod eval_metamorphic_guard;
 #[path = "../eval_multiturn_simulation.rs"]
 mod eval_multiturn_simulation;
 #[path = "../eval_production_workflow_guard.rs"]
@@ -959,7 +960,9 @@ fn main() -> ExitCode {
         "synthetic-user-chat-harness" => {
             eval_synthetic_user_chat_harness::run_synthetic_user_chat_harness(tail)
         }
-        "misty-live-health-gate" => eval_synthetic_user_chat_harness::run_misty_live_health_gate(tail),
+        "misty-live-health-gate" => {
+            eval_synthetic_user_chat_harness::run_misty_live_health_gate(tail)
+        }
         "contamination-guard" => eval_contamination_guard::run_contamination_guard(tail),
         "action-economy-guard" => eval_action_economy_guard::run_action_economy_guard(tail),
         "production-workflow-guard" => {
