@@ -785,6 +785,32 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/command.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/discovery.rs"
       ]
+    },
+    {
+      "id": "forgecode_raw_file_discovery_error_and_service_container_contracts",
+      "description": "Raw-capability ForgeCode lane adapted from service error, file-discovery, git/walker, and service-container primitives to expose deterministic discovery and service composition mechanics without composed-lane assumptions.",
+      "required_signals": [
+        "service_error_raw_enum_names_auth_and_indexing_failure_variants_for_exact_downstream_reason_projection",
+        "fd_raw_allowlist_loads_embedded_extensions_once_and_normalizes_extensions_to_lowercase",
+        "fd_raw_filter_resolves_relative_paths_against_workspace_root_then_drops_symlinks_lockfiles_and_disallowed_extensions",
+        "fd_raw_filter_returns_no_source_files_found_error_when_filtered_result_is_empty",
+        "fd_default_raw_router_prefers_git_discovery_and_warns_then_routes_to_walker_on_git_failure",
+        "fd_git_raw_path_executes_git_ls_files_with_workspace_cwd_and_maps_nonzero_exit_code_to_contextual_error",
+        "fd_walker_raw_path_runs_unlimited_skip_binary_walker_and_removes_directory_entries_before_filter_and_resolve",
+        "forge_services_raw_constructor_instantiates_all_tool_provider_config_auth_workspace_policy_mcp_and_skill_services_from_shared_arc_infra",
+        "forge_services_raw_trait_impl_returns_borrowed_service_handles_for_every_services_surface_without recomputation"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/error.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/fd.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/fd_git.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/fd_walker.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/forge_services.rs"
+      ]
     }
   ],
   "workflow_templates": [
@@ -1101,6 +1127,32 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/clipper.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/command.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/discovery.rs"
+      ]
+    },
+    {
+      "id": "forgecode_raw_file_discovery_error_and_service_container_contracts",
+      "description": "Raw-capability ForgeCode lane adapted from service error, file-discovery, git/walker, and service-container primitives to expose deterministic discovery and service composition mechanics without composed-lane assumptions.",
+      "required_signals": [
+        "service_error_raw_enum_names_auth_and_indexing_failure_variants_for_exact_downstream_reason_projection",
+        "fd_raw_allowlist_loads_embedded_extensions_once_and_normalizes_extensions_to_lowercase",
+        "fd_raw_filter_resolves_relative_paths_against_workspace_root_then_drops_symlinks_lockfiles_and_disallowed_extensions",
+        "fd_raw_filter_returns_no_source_files_found_error_when_filtered_result_is_empty",
+        "fd_default_raw_router_prefers_git_discovery_and_warns_then_routes_to_walker_on_git_failure",
+        "fd_git_raw_path_executes_git_ls_files_with_workspace_cwd_and_maps_nonzero_exit_code_to_contextual_error",
+        "fd_walker_raw_path_runs_unlimited_skip_binary_walker_and_removes_directory_entries_before_filter_and_resolve",
+        "forge_services_raw_constructor_instantiates_all_tool_provider_config_auth_workspace_policy_mcp_and_skill_services_from_shared_arc_infra",
+        "forge_services_raw_trait_impl_returns_borrowed_service_handles_for_every_services_surface_without recomputation"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/error.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/fd.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/fd_git.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/fd_walker.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/forge_services.rs"
       ]
     }
   ]
