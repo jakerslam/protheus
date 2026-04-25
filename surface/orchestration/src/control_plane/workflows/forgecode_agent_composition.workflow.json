@@ -2742,6 +2742,33 @@
         "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_undo_file_created.snap",
         "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_undo_file_removed.snap"
       ]
+    },
+    {
+      "id": "forgecode_structured_file_undo_and_net_fetch_snapshot_contracts",
+      "description": "Assimilates ForgeCode operation snapshots for file undo restoration/no-change evidence and bounded network fetch responses into the structured agent-composition workflow.",
+      "required_signals": [
+        "file_undo_restored_contract_records_path_status_restored_and_diff_like_removed_added_lines_for_operator_review",
+        "file_undo_no_changes_contract_records_path_status_no_changes_and_empty_payload_without_treating_absence_as_failure",
+        "file_undo_success_contract_preserves_minimal_single_line_restore_diff_without_summarizing_reversible_content",
+        "file_undo_contract_distinguishes_restored_no_changes_created_and_removed_states_for_recovery_planning",
+        "net_fetch_success_contract_records_url_status_code_char_window_total_chars_content_type_and_body_cdata",
+        "net_fetch_success_contract_treats_start_end_total_char_metadata_as_bounded_fetch_evidence_for_replay",
+        "net_fetch_truncated_contract_records_visible_body_window_and_operator_visible_truncation_notice",
+        "net_fetch_truncated_contract_exposes_remaining_content_path_without_auto_expanding_unbounded_context",
+        "net_fetch_contract_preserves_content_type_to_guide_synthesis_without_guessing_format",
+        "file_undo_and_net_fetch_snapshots_must_remain_replayable_for_eval_without_rewriting_tool_evidence_shape"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_undo_file_restored.snap",
+        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_undo_no_changes.snap",
+        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_undo_success.snap",
+        "crates/forge_app/src/snapshots/forge_app__operation__tests__net_fetch_success.snap",
+        "crates/forge_app/src/snapshots/forge_app__operation__tests__net_fetch_truncated.snap"
+      ]
     }
   ],
   "workflow_templates": [

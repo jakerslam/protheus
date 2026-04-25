@@ -1349,6 +1349,33 @@
         "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_undo_file_created.snap",
         "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_undo_file_removed.snap"
       ]
+    },
+    {
+      "id": "forgecode_raw_file_undo_and_net_fetch_snapshot_contracts",
+      "description": "Assimilates raw ForgeCode XML snapshot semantics for file undo states and HTTP fetch responses with char-window metadata, CDATA bodies, and explicit truncation spillover paths.",
+      "required_signals": [
+        "raw_file_undo_restored_output_wraps_restoration_diff_in_file_undo_element_with_status_restored",
+        "raw_file_undo_restored_diff_uses_removed_minus_and_added_plus_line_markers_inside_cdata",
+        "raw_file_undo_no_changes_output_keeps_empty_file_undo_element_with_status_no_changes",
+        "raw_file_undo_success_output_allows_minimal_single_hunk_restore_diff_for_small_files",
+        "raw_http_response_output_wraps_body_in_body_cdata_inside_http_response_element",
+        "raw_http_response_output_includes_url_status_code_start_char_end_char_total_chars_and_content_type_attributes",
+        "raw_http_response_success_output_uses_equal_end_and_total_chars_when_complete_body_is_visible",
+        "raw_http_response_truncated_output_uses_end_char_below_total_chars_and_includes_truncated_element",
+        "raw_http_response_truncated_output_exposes_remaining_content_path_for_explicit_follow_up_fetches_only",
+        "raw_file_undo_and_http_response_outputs_preserve_local_or_gateway_evidence_without_synthetic_summarization"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_undo_file_restored.snap",
+        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_undo_no_changes.snap",
+        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_undo_success.snap",
+        "crates/forge_app/src/snapshots/forge_app__operation__tests__net_fetch_success.snap",
+        "crates/forge_app/src/snapshots/forge_app__operation__tests__net_fetch_truncated.snap"
+      ]
     }
   ],
   "workflow_templates": [
