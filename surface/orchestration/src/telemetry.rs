@@ -1,7 +1,7 @@
 // Layer ownership: surface/orchestration (control-plane trace normalization only).
 use crate::contracts::{
-    ControlPlaneDecisionTrace, OrchestrationResultPackage, WorkflowStage, WorkflowStageStatus,
-    WorkflowQualitySignals, WorkflowTemplate,
+    ControlPlaneDecisionTrace, OrchestrationResultPackage, WorkflowQualitySignals, WorkflowStage,
+    WorkflowStageStatus, WorkflowTemplate,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};

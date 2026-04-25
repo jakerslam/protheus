@@ -8,6 +8,10 @@ fn web_search_request_read_failed_summary_is_actionable() {
     assert!(lowered.contains("retry transient failures"));
     assert!(lowered.contains("doctor --json"));
     assert!(lowered.contains("request_read_failed"));
+    assert_eq!(
+        deterministic_tool_retry_backoff_ms("web_search"),
+        vec![180, 360, 720]
+    );
 }
 
 #[test]

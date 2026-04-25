@@ -18,6 +18,36 @@ mod tests {
     }
 
     #[test]
+    fn turn_transaction_payload_emits_receipted_lifecycle_contract() {
+        let complete = turn_transaction_payload("complete", "complete", "complete", "complete");
+        assert_eq!(
+            complete.get("contract_version").and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(complete.get("complete").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            complete
+                .get("first_incomplete_stage")
+                .and_then(Value::as_str),
+            Some("")
+        );
+        let receipt_id = complete
+            .get("receipt_id")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        assert!(receipt_id.len() >= 32);
+
+        let failed = turn_transaction_payload("complete", "failed_closed", "skipped", "skipped");
+        assert_eq!(failed.get("complete").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            failed
+                .get("first_incomplete_stage")
+                .and_then(Value::as_str),
+            Some("tool_execute")
+        );
+    }
+
+    #[test]
     fn post_filter_rewrites_raw_payload_dump_summary() {
         let mut payload = json!({
             "ok": true,
@@ -87,6 +117,29 @@ mod tests {
             &json!({"count": 2, "objective": "parallelize"}),
         );
         assert!(out.is_none());
+        let decision = pre_tool_permission_decision(
+            root.path(),
+            "spawn_subagents",
+            &json!({"count": 2, "objective": "parallelize"}),
+        );
+        assert_eq!(
+            decision.get("verdict").and_then(Value::as_str),
+            Some("ask")
+        );
+        assert_eq!(
+            decision.get("effective_verdict").and_then(Value::as_str),
+            Some("allow")
+        );
+        assert_eq!(
+            decision.get("auto_confirm_reason").and_then(Value::as_str),
+            Some("autonomous_spawn_tool")
+        );
+        assert_eq!(
+            decision
+                .pointer("/spawn_autonomy_contract/deny_rules_still_fail_closed")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
     }
 
     #[test]

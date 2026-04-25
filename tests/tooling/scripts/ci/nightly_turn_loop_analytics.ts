@@ -51,6 +51,26 @@ function writeJson(pathname: string, payload: any): void {
   fs.writeFileSync(pathname, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
 }
 
+function pathFreshness(pathname: string, referenceMs: number) {
+  try {
+    const stat = fs.statSync(pathname);
+    const ageHours = Math.max(0, (referenceMs - stat.mtimeMs) / 3_600_000);
+    return {
+      exists: true,
+      mtime: stat.mtime.toISOString(),
+      age_hours: Number(ageHours.toFixed(3)),
+      status: ageHours <= 36 ? 'fresh' : 'stale',
+    };
+  } catch {
+    return {
+      exists: false,
+      mtime: null,
+      age_hours: null,
+      status: 'missing',
+    };
+  }
+}
+
 function extractLastJsonLine(raw: string): any {
   const lines = String(raw || '')
     .split('\n')
@@ -244,14 +264,22 @@ const allCommands = (sessions || []).flatMap((row) => row.commands || []);
 const commandProfile = classifyCommandProfile(allCommands);
 const defaultBudgetMode = deriveDefaultBudgetMode(adoptionPct, unsupported, outputTokens);
 const modelBias = deriveModelBias(commandProfile);
+const inputFreshness = {
+  sessions_dir: pathFreshness(SESSIONS_DIR, Date.now()),
+  provider_registry: pathFreshness(PROVIDER_REGISTRY_PATH, Date.now()),
+};
+const adoptionSource = sessions.length > 0 ? 'session_files' : 'tracking_top_segments';
 
 const tuning = {
   type: 'nightly_turn_loop_tuning',
-  schema_version: 1,
+  schema_version: 2,
   generated_at: nowIso(),
   source: {
     tracking_ok: tracking.ok,
     adoption_ok: adoption.ok,
+    adoption_source: adoptionSource,
+    input_freshness: inputFreshness,
+    degraded: adoptionSource !== 'session_files' || inputFreshness.provider_registry.status !== 'fresh',
   },
   routing: {
     default_budget_mode: defaultBudgetMode,
@@ -267,6 +295,8 @@ const tuning = {
     total_output_tokens: Number.isFinite(outputTokens) ? outputTokens : 0,
     tracked_rows: Number(trackingPayload.tracked_rows || 0),
     sessions_scanned: Number(adoptionPayload.sessions_scanned || 0),
+    sessions_with_commands: sessions.length,
+    commands_scanned: allCommands.length,
   },
 };
 
@@ -291,6 +321,8 @@ const report = {
   },
   tuning_path: TRACKING_TUNING_PATH,
   adoption_report_path: ADOPTION_REPORT_PATH,
+  input_freshness: inputFreshness,
+  adoption_source: adoptionSource,
   tuning,
 };
 report['ok'] = !!tracking.ok || !!adoption.ok;

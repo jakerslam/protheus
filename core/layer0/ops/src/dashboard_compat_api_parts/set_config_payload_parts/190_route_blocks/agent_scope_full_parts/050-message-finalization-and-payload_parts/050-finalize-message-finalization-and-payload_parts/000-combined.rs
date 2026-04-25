@@ -6,7 +6,7 @@ fn finalize_message_finalization_and_payload(
     response_text: String,
     mut response_tools: Vec<Value>,
     workflow_mode: String,
-    workflow_system_events: Vec<Value>,
+    mut workflow_system_events: Vec<Value>,
     runtime_summary: Value,
     state: Value,
     messages: Vec<Value>,
@@ -158,6 +158,21 @@ fn finalize_message_finalization_and_payload(
         None
     };
     let latest_assistant_text = latest_assistant_message_text(&active_messages);
+    if response_tools.is_empty() && !message_explicitly_disallows_tool_calls(message) {
+        if let Some(candidates) = latent_tool_candidates.as_array() {
+            if !candidates.is_empty() {
+                workflow_system_events.push(turn_workflow_event(
+                    "manual_toolbox_candidate_menu",
+                    json!({
+                        "selection_authority": "llm_only",
+                        "automatic_execution_allowed": false,
+                        "candidate_count": candidates.len(),
+                        "candidates": candidates.iter().take(4).cloned().collect::<Vec<_>>()
+                    }),
+                ));
+            }
+        }
+    }
     let mut response_workflow = run_turn_workflow_final_response(
         root,
         &provider,
@@ -178,9 +193,8 @@ fn finalize_message_finalization_and_payload(
     let mut finalized_response = clean_chat_text(&response_text, 32_000);
     let mut tool_completion = json!({});
     let workflow_status = workflow_final_response_status(&response_workflow);
-    let workflow_used = workflow_final_response_used(&response_workflow);
-    let workflow_fallback_allowed =
-        workflow_final_response_allows_system_fallback(&response_workflow);
+    let mut workflow_used = workflow_final_response_used(&response_workflow);
+    let workflow_fallback_allowed = workflow_final_response_allows_system_fallback(&response_workflow);
     let mut finalization_outcome = if workflow_used {
         "workflow_authored".to_string()
     } else {
@@ -258,6 +272,54 @@ fn finalize_message_finalization_and_payload(
     }
     tool_completion = enrich_tool_completion_receipt(tool_completion, &response_tools);
     response_text = finalized_response;
+    if response_text.trim().is_empty() {
+        let mut recovery_events = workflow_system_events.clone();
+        recovery_events.push(turn_workflow_event(
+            "empty_final_response_menu_recovery",
+            json!({
+                "selection_authority": "llm_only",
+                "automatic_execution_allowed": false,
+                "prior_finalization_outcome": finalization_outcome.clone(),
+                "latent_tool_candidates": latent_tool_candidates.clone()
+            }),
+        ));
+        let recovered_workflow = run_turn_workflow_final_response(
+            root,
+            &provider,
+            &model,
+            &active_messages,
+            message,
+            &workflow_mode,
+            &response_tools,
+            &recovery_events,
+            "",
+            &latest_assistant_text,
+        );
+        let recovered_text = clean_chat_text(
+            recovered_workflow
+                .get("response")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            32_000,
+        );
+        if workflow_final_response_used(&recovered_workflow) && !recovered_text.trim().is_empty() {
+            let (contract_finalized, contract_report, contract_outcome) =
+                enforce_user_facing_finalization_contract(message, recovered_text, &response_tools);
+            if !contract_finalized.trim().is_empty() {
+                response_workflow = recovered_workflow;
+                response_text = contract_finalized;
+                tool_completion = enrich_tool_completion_receipt(contract_report, &response_tools);
+                workflow_used = true;
+                finalization_outcome = merge_response_outcomes(
+                    &finalization_outcome,
+                    "empty_final_response_recovered_by_llm_menu",
+                    220,
+                );
+                finalization_outcome =
+                    merge_response_outcomes(&finalization_outcome, &contract_outcome, 220);
+            }
+        }
+    }
     let web_tool_attempted = response_tools_include_web_attempt(&response_tools);
     let web_tool_blocked = response_tools_web_blocked(&response_tools);
     let web_tool_low_signal = response_tools_web_low_signal(&response_tools);
@@ -416,6 +478,7 @@ fn finalize_message_finalization_and_payload(
         "complete",
     );
     let terminal_transcript = tool_terminal_transcript(&response_tools);
+    if response_text.trim().is_empty() { return final_response_empty_message_response(root, agent_id, message, &provider, &model, workspace_hints, latent_tool_candidates); }
     let turn_receipt = append_turn_receipt_with_metadata(
         root,
         agent_id,
@@ -429,9 +492,20 @@ fn finalize_message_finalization_and_payload(
         &terminal_transcript,
     );
     let agent_health_snapshot = persist_agent_control_plane_health_snapshot_for_turn(root, agent_id, message, &response_text, &response_workflow, &response_finalization, &process_summary, &turn_receipt);
+    let runtime_provider = clean_text(
+        response_workflow
+            .pointer("/final_llm_response/provider")
+            .or_else(|| response_workflow.get("provider"))
+            .and_then(Value::as_str)
+            .unwrap_or(&provider),
+        80,
+    );
     let runtime_model = clean_text(
-        result
-            .get("runtime_model")
+        response_workflow
+            .pointer("/final_llm_response/runtime_model")
+            .or_else(|| response_workflow.get("runtime_model"))
+            .or_else(|| result.get("runtime_model"))
+            .or_else(|| result.get("model"))
             .and_then(Value::as_str)
             .unwrap_or(&model),
         240,
@@ -443,22 +517,23 @@ fn finalize_message_finalization_and_payload(
         "updated_at": crate::now_iso()
     });
     if auto_route.is_some() {
-        runtime_patch["runtime_provider"] = json!(provider.clone());
+        runtime_patch["runtime_provider"] = json!(runtime_provider.clone());
         if !requested_provider.eq_ignore_ascii_case("auto")
             && !requested_model.is_empty()
             && !requested_model.eq_ignore_ascii_case("auto")
         {
-            runtime_patch["model_provider"] = json!(provider.clone());
-            runtime_patch["model_name"] = json!(model.clone());
-            runtime_patch["model_override"] = json!(format!("{provider}/{model}"));
+            runtime_patch["model_provider"] = json!(runtime_provider.clone());
+            runtime_patch["model_name"] = json!(runtime_model.clone());
+            runtime_patch["model_override"] = json!(format!("{runtime_provider}/{runtime_model}"));
         }
     }
     let _ = update_profile_patch(root, agent_id, &runtime_patch);
     let mut payload = result.clone();
     payload["ok"] = json!(true);
     payload["agent_id"] = json!(agent_id);
-    payload["provider"] = json!(provider);
-    payload["model"] = json!(model);
+    payload["provider"] = json!(runtime_provider);
+    payload["model"] = json!(runtime_model.clone());
+    payload["runtime_model"] = json!(runtime_model);
     payload["iterations"] = json!(1);
     payload["response"] = json!(response_text);
     payload["runtime_sync"] = runtime_summary;

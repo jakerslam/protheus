@@ -125,6 +125,17 @@ fn finalize_message_invoke_failure_and_payload(
         &mut response_finalization,
         visible_response_source,
     );
+    if finalized_response.trim().is_empty() {
+        return final_response_empty_message_response(
+            root,
+            agent_id,
+            message,
+            provider,
+            model,
+            workspace_hints,
+            latent_tool_candidates,
+        );
+    }
     let process_summary =
         build_turn_process_summary(message, &[], &response_workflow, &response_finalization);
     let workflow_visibility = workflow_visibility_payload(&response_workflow, &response_finalization);

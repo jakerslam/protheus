@@ -253,7 +253,8 @@ fn pure_read_plan_is_non_mutating_without_context_preparation() {
         .context_preparation_rationale
         .is_none());
     assert!(!package.selected_plan.steps.iter().any(|step| {
-        step.target_contract == infring_orchestration_surface_v1::contracts::CoreContractCall::ContextAtomAppend
+        step.target_contract
+            == infring_orchestration_surface_v1::contracts::CoreContractCall::ContextAtomAppend
     }));
     assert!(package
         .decision_trace
@@ -639,7 +640,9 @@ fn comparative_request_exposes_decomposition_metadata_with_distinct_capability_g
     let plans = std::iter::once(&package.selected_plan)
         .chain(package.alternative_plans.iter())
         .collect::<Vec<_>>();
-    assert!(plans.iter().all(|plan| !plan.decomposition_family.is_empty()));
+    assert!(plans
+        .iter()
+        .all(|plan| !plan.decomposition_family.is_empty()));
     assert!(plans.iter().all(|plan| !plan.contract_family.is_empty()));
     assert!(plans.iter().all(|plan| !plan.capability_graph.is_empty()));
     assert!(plans
@@ -710,13 +713,16 @@ fn forgecode_request_exposes_workflow_decomposition_metadata() {
     let plans = std::iter::once(&package.selected_plan)
         .chain(package.alternative_plans.iter())
         .collect::<Vec<_>>();
-    assert!(plans.iter().all(|plan| !plan.decomposition_family.is_empty()));
+    assert!(plans
+        .iter()
+        .all(|plan| !plan.decomposition_family.is_empty()));
     assert!(plans.iter().all(|plan| !plan.contract_family.is_empty()));
-    assert!(plans.iter().any(|plan| plan.contract_family.contains("assimilation")));
+    assert!(plans
+        .iter()
+        .any(|plan| plan.contract_family.contains("assimilation")));
     assert!(plans.iter().any(|plan| {
-        plan.capability_graph.contains(
-            &infring_orchestration_surface_v1::contracts::Capability::PlanAssimilation,
-        )
+        plan.capability_graph
+            .contains(&infring_orchestration_surface_v1::contracts::Capability::PlanAssimilation)
     }));
 
     let decomposition_families = plans

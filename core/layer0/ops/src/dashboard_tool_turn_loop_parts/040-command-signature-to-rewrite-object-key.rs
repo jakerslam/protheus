@@ -58,10 +58,46 @@ pub(crate) fn pre_tool_permission_gate(
     tool_name: &str,
     input: &Value,
 ) -> Option<Value> {
+    let decision = pre_tool_permission_decision(root, tool_name, input);
+    let error = decision
+        .get("blocked_error")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    if error.is_empty() {
+        return None;
+    }
+    Some(json!({
+        "ok": false,
+        "error": error,
+        "type": "tool_pre_gate_blocked",
+        "tool": decision.get("tool").cloned().unwrap_or_else(|| Value::String(normalize_tool_name(tool_name))),
+        "fail_closed": true,
+        "permission_gate": decision,
+        "hint": if error == "tool_confirmation_required" {
+            "Confirmation required before this tool can run."
+        } else {
+            "Tool blocked by command permission policy."
+        }
+    }))
+}
+
+pub(crate) fn pre_tool_permission_decision(root: &Path, tool_name: &str, input: &Value) -> Value {
     let normalized = normalize_tool_name(tool_name);
     let command = tool_command_signature(&normalized, input);
     if command.is_empty() {
-        return None;
+        return json!({
+            "tool": normalized,
+            "configured": false,
+            "verdict": "not_applicable",
+            "effective_verdict": "allow",
+            "matched": Value::Null,
+            "explicit_confirmation": input_confirmed(input),
+            "autonomous_spawn_tool": tool_is_autonomous_spawn(normalized.as_str()),
+            "auto_confirmed": false,
+            "auto_confirm_reason": Value::Null,
+            "blocked_error": Value::Null,
+            "command_signature": ""
+        });
     }
     let (deny_rules, ask_rules) = load_permission_rules(root);
     let (verdict, matched) =
@@ -71,38 +107,55 @@ pub(crate) fn pre_tool_permission_gate(
             &ask_rules,
         );
     let verdict_str = verdict.as_str().to_string();
-    if verdict_str == "allow" {
-        return None;
-    }
-    if verdict_str == "ask"
-        && (input_confirmed(input) || tool_is_autonomous_spawn(normalized.as_str()))
-    {
-        return None;
-    }
-    let error = if verdict_str == "deny" {
-        "tool_permission_denied"
+    let explicit_confirmation = input_confirmed(input);
+    let autonomous_spawn_tool = tool_is_autonomous_spawn(normalized.as_str());
+    let auto_confirmed =
+        verdict_str == "ask" && (explicit_confirmation || autonomous_spawn_tool);
+    let auto_confirm_reason = if verdict_str == "ask" && explicit_confirmation {
+        Some("input_confirmed")
+    } else if verdict_str == "ask" && autonomous_spawn_tool {
+        Some("autonomous_spawn_tool")
     } else {
-        "tool_confirmation_required"
+        None
     };
-    Some(json!({
-        "ok": false,
-        "error": error,
-        "type": "tool_pre_gate_blocked",
+    let effective_verdict = if verdict_str == "ask" && auto_confirmed {
+        "allow"
+    } else {
+        verdict_str.as_str()
+    };
+    let blocked_error = if effective_verdict == "deny" {
+        Some("tool_permission_denied")
+    } else if effective_verdict == "ask" {
+        Some("tool_confirmation_required")
+    } else {
+        None
+    };
+    let mut decision = json!({
         "tool": normalized,
-        "fail_closed": true,
-        "permission_gate": {
-            "verdict": verdict_str,
-            "matched": matched,
-            "deny_rules_count": deny_rules.len(),
-            "ask_rules_count": ask_rules.len(),
-            "command_signature": command
-        },
-        "hint": if error == "tool_confirmation_required" {
-            "Confirmation required before this tool can run."
-        } else {
-            "Tool blocked by command permission policy."
-        }
-    }))
+        "configured": true,
+        "verdict": verdict_str,
+        "effective_verdict": effective_verdict,
+        "matched": matched,
+        "deny_rules_count": deny_rules.len(),
+        "ask_rules_count": ask_rules.len(),
+        "command_signature": command,
+        "explicit_confirmation": explicit_confirmation,
+        "autonomous_spawn_tool": autonomous_spawn_tool,
+        "auto_confirmed": auto_confirmed,
+        "auto_confirm_reason": auto_confirm_reason,
+        "blocked_error": blocked_error,
+    });
+    if verdict_str == "ask"
+        && autonomous_spawn_tool
+        && !explicit_confirmation
+    {
+        decision["spawn_autonomy_contract"] = json!({
+            "mode": "ask_verdict_auto_allowed",
+            "deny_rules_still_fail_closed": true,
+            "confirmation_loop_suppressed": true
+        });
+    }
+    decision
 }
 
 fn rewrite_text_for_post_filter(value: &str) -> Option<(String, String)> {

@@ -107,6 +107,22 @@ mod tests {
             root.path().join(state_path).exists(),
             "assimilation state artifact should exist"
         );
+        assert_eq!(
+            contract
+                .get("ProtocolStepReceipt")
+                .and_then(|row| row.get("chain"))
+                .and_then(|row| row.get("valid"))
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            contract
+                .get("ProtocolStepReceipt")
+                .and_then(|row| row.get("chain"))
+                .and_then(|row| row.get("previous_hash"))
+                .and_then(Value::as_str),
+            Some("GENESIS")
+        );
     }
 
     #[test]

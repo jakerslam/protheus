@@ -13,6 +13,7 @@ pub mod dashboard_sidebar_view_model;
 pub mod dashboard_terminal_broker;
 pub mod dashboard_tool_turn_loop;
 pub mod dashboard_ui;
+pub mod memory_semantic_query;
 pub mod personas_cli;
 pub mod infringctl;
 pub mod rag_cli;

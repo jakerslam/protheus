@@ -44,11 +44,41 @@ pub(crate) fn turn_transaction_payload(
     synthesize: &str,
     session_persist: &str,
 ) -> Value {
+    let hydrate = clean_text(hydrate, 60);
+    let tool_execute = clean_text(tool_execute, 60);
+    let synthesize = clean_text(synthesize, 60);
+    let session_persist = clean_text(session_persist, 60);
+    let stages = [
+        ("hydrate", hydrate.as_str()),
+        ("tool_execute", tool_execute.as_str()),
+        ("synthesize", synthesize.as_str()),
+        ("session_persist", session_persist.as_str()),
+    ];
+    let complete = stages.iter().all(|(_, status)| *status == "complete");
+    let first_incomplete_stage = stages
+        .iter()
+        .find(|(_, status)| *status != "complete")
+        .map(|(stage, _)| *stage)
+        .unwrap_or("");
+    let receipt_id = crate::deterministic_receipt_hash(&json!({
+        "type": "turn_transaction_lifecycle_receipt",
+        "contract_version": 2,
+        "hydrate": &hydrate,
+        "tool_execute": &tool_execute,
+        "synthesize": &synthesize,
+        "session_persist": &session_persist,
+        "complete": complete,
+        "first_incomplete_stage": first_incomplete_stage
+    }));
     json!({
-        "hydrate": clean_text(hydrate, 60),
-        "tool_execute": clean_text(tool_execute, 60),
-        "synthesize": clean_text(synthesize, 60),
-        "session_persist": clean_text(session_persist, 60)
+        "contract_version": 2,
+        "receipt_id": receipt_id,
+        "hydrate": hydrate,
+        "tool_execute": tool_execute,
+        "synthesize": synthesize,
+        "session_persist": session_persist,
+        "complete": complete,
+        "first_incomplete_stage": first_incomplete_stage
     })
 }
 

@@ -35,6 +35,7 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
   const CONTEXT_LIMIT_TRUNCATION_NOTICE = 'more characters truncated';
   const DEFAULT_MAX_LIVE_TOOL_RESULT_CHARS = 40000;
+  const TOOL_TIMELINE_CONTRACT_VERSION = 2;
   const MIN_KEEP_CHARS = 2000;
   const MAX_TOOL_RESULT_CONTEXT_SHARE = 0.3;
   const MIDDLE_OMISSION_MARKER = '\n\n[... middle content omitted - showing head and tail ...]\n\n';
@@ -768,6 +769,9 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
     if (!Array.isArray(tools) || tools.length < 1) return;
     const replayCount = Math.min(tools.length, 8);
     const completionSteps = normalizeToolCompletionSteps(toolCompletion);
+    const timelineSource = toolCompletion && typeof toolCompletion === 'object'
+      ? 'response_finalization_tool_completion'
+      : 'response_tools_fallback';
     const fallbackToolStatus = cleanText(
       toolCompletion && typeof toolCompletion === 'object'
         ? toolCompletion.live_tool_status || ''
@@ -797,6 +801,8 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
         attempt_id: attemptId,
         attempt_sequence: attemptSequence,
         tool_status: toolStatus,
+        tool_timeline_contract_version: TOOL_TIMELINE_CONTRACT_VERSION,
+        tool_timeline_source: timelineSource,
       });
       if (toolStatus) {
         send(ws, {
@@ -806,6 +812,8 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
           detail: toolStatus,
           tool: toolName,
           source: 'tool_completion_receipt',
+          tool_timeline_contract_version: TOOL_TIMELINE_CONTRACT_VERSION,
+          tool_timeline_source: timelineSource,
           progress_percent: Math.round(((i + 1) / replayCount) * 100),
           tool_step_index: i + 1,
           tool_step_total: replayCount,
@@ -818,10 +826,12 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
       for (let ti = 0; ti < thoughtLines.length; ti++) {
         send(ws, {
           type: 'phase',
-          agent_id: agentId,
-          phase: 'reasoning',
-          detail: thoughtLines[ti],
-        });
+        agent_id: agentId,
+        phase: 'reasoning',
+        detail: thoughtLines[ti],
+        tool_timeline_contract_version: TOOL_TIMELINE_CONTRACT_VERSION,
+        tool_timeline_source: timelineSource,
+      });
         await sleep(basePauseMs);
       }
       send(ws, {
@@ -834,6 +844,8 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
         result: toolResult,
         is_error: toolError,
         tool_status: toolStatus,
+        tool_timeline_contract_version: TOOL_TIMELINE_CONTRACT_VERSION,
+        tool_timeline_source: timelineSource,
       });
       send(ws, {
         type: 'tool_end',
@@ -843,6 +855,8 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
         attempt_id: attemptId,
         attempt_sequence: attemptSequence,
         tool_status: toolStatus,
+        tool_timeline_contract_version: TOOL_TIMELINE_CONTRACT_VERSION,
+        tool_timeline_source: timelineSource,
       });
       await sleep(basePauseMs);
     }
@@ -915,6 +929,9 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
           if (toolRows.length > 0) {
             await replayToolTimeline(ws, targetAgent, toolRows, toolCompletion);
           }
+          const timelineSource = toolRows.length > 0
+            ? (toolCompletion ? 'response_finalization_tool_completion' : 'response_tools_fallback')
+            : '';
           const assistantContent = assistantTextFromPayload(out);
           const finalAssistantContent = toolOnlyResponseSummary(assistantContent, toolRows) || finalizationFallbackSummary(out, toolRows);
           send(ws, {
@@ -933,6 +950,9 @@ function createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson 
             context_pressure: cleanText(out.context_pressure || '', 32),
             auto_route: out.auto_route || null,
             tools: toolRows,
+            tool_timeline_contract_version: toolRows.length > 0 ? TOOL_TIMELINE_CONTRACT_VERSION : 0,
+            tool_timeline_source: timelineSource,
+            tool_timeline_events_replayed: toolRows.length > 0,
             response_workflow: out.response_workflow || null,
             response_finalization: out.response_finalization || null,
             turn_transaction: out.turn_transaction || null,

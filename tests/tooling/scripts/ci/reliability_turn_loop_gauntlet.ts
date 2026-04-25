@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -21,6 +22,8 @@ type GauntletResult = {
   stdout_tail: string;
   stderr_tail: string;
   failure_reason: string;
+  failure_fingerprint: string;
+  receipt_id: string;
 };
 
 const ROOT = process.cwd();
@@ -150,6 +153,20 @@ function cleanText(raw: unknown, maxLen = 1600): string {
     .slice(0, maxLen);
 }
 
+function stableJson(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+  const obj = value as Record<string, unknown>;
+  return `{${Object.keys(obj)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${stableJson(obj[key])}`)
+    .join(',')}}`;
+}
+
+function sha256(value: unknown): string {
+  return crypto.createHash('sha256').update(stableJson(value)).digest('hex');
+}
+
 function writeJson(pathname: string, payload: unknown): void {
   fs.mkdirSync(path.dirname(pathname), { recursive: true });
   fs.writeFileSync(pathname, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
@@ -189,17 +206,41 @@ function runCheck(check: GauntletCheck): GauntletResult {
   const failureReason = timedOut
     ? `timeout_after_ms_${CHECK_TIMEOUT_MS}`
     : cleanText(out.error?.message || '', 220);
+  const ok = status === 0;
+  const failureFingerprint = ok
+    ? ''
+    : sha256({
+        type: 'reliability_turn_loop_gauntlet_failure_fingerprint',
+        id: check.id,
+        lane: check.lane,
+        test: check.test,
+        status,
+        failure_reason: failureReason,
+        stderr_tail: cleanText(out.stderr, 360),
+      }).slice(0, 24);
+  const receiptId = sha256({
+    type: 'reliability_turn_loop_gauntlet_check_receipt',
+    id: check.id,
+    lane: check.lane,
+    test: check.test,
+    status,
+    ok,
+    failure_fingerprint: failureFingerprint,
+    timeout_ms: CHECK_TIMEOUT_MS,
+  });
   return {
     id: check.id,
     lane: check.lane,
     name: check.name,
     test: check.test,
     status,
-    ok: status === 0,
+    ok,
     duration_ms: durationMs,
     stdout_tail: cleanText(out.stdout, 1400),
     stderr_tail: cleanText(`${out.stderr || ''} ${failureReason}`.trim(), 1400),
     failure_reason: failureReason,
+    failure_fingerprint: failureFingerprint,
+    receipt_id: receiptId,
   };
 }
 
@@ -261,12 +302,14 @@ const failures = results
     lane: row.lane,
     test: row.test,
     status: row.status,
+    failure_fingerprint: row.failure_fingerprint,
+    receipt_id: row.receipt_id,
   }));
 const ok = failures.length === 0 && Object.values(lanes).every((row) => row.ok);
 
-const report = {
+const reportBase = {
   type: 'reliability_turn_loop_gauntlet_report',
-  schema_version: 1,
+  schema_version: 2,
   started_at: startedAt,
   finished_at: nowIso(),
   config: {
@@ -279,6 +322,18 @@ const report = {
   failures,
   recovery_hints: recoveryHints(results),
   command: 'cargo test -p infring-ops-core --lib <test-name> -- --nocapture',
+};
+const report = {
+  ...reportBase,
+  receipt_id: sha256({
+    type: 'reliability_turn_loop_gauntlet_report_receipt',
+    schema_version: reportBase.schema_version,
+    ok,
+    lanes,
+    selected_checks: checksToRun.map((row) => row.id),
+    check_receipts: results.map((row) => row.receipt_id),
+    failures,
+  }),
 };
 
 fs.mkdirSync(ARTIFACT_DIR, { recursive: true });

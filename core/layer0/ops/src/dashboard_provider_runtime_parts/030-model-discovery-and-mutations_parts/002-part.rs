@@ -75,6 +75,14 @@
                 &optimized_prefill,
             ) {
                 Ok(mut response) => {
+                    let response_runtime_model = clean_text(
+                        response
+                            .get("runtime_model")
+                            .or_else(|| response.get("model"))
+                            .and_then(Value::as_str)
+                            .unwrap_or(model),
+                        240,
+                    );
                     let input_tokens = response
                         .get("input_tokens")
                         .and_then(Value::as_i64)
@@ -93,7 +101,7 @@
                     response["cost_usd"] = json!(round_usd(estimated_cost));
                     response["provider"] = json!(provider);
                     response["model"] = json!(model);
-                    response["runtime_model"] = json!(model);
+                    response["runtime_model"] = json!(response_runtime_model);
                     let response_hash = crate::deterministic_receipt_hash(&json!({
                         "provider": provider,
                         "model": model,

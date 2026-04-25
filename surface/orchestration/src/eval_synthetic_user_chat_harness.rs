@@ -56,6 +56,7 @@ pub fn run_synthetic_user_chat_harness(args: &[String]) -> i32 {
     let max_failures = u64_at(&thresholds, &["max_failures"], 0);
 
     let mut rows = Vec::new();
+    let mut route_stage_deltas = Vec::new();
     let mut failure_events = Vec::new();
     let mut passed_turns = 0_u64;
     let mut total_turns = 0_u64;
@@ -112,17 +113,35 @@ pub fn run_synthetic_user_chat_harness(args: &[String]) -> i32 {
             let response_text = assistant_text(&response_payload);
             let response_token_count = estimate_response_tokens(&response_text);
             let workflow_stage_count = workflow_stage_count(&response_payload);
+            let route_error_code = route_error_code(&response_payload);
             let failures = evaluate_turn(TurnEvaluation {
+                live,
                 turn,
                 thresholds: &thresholds,
                 user_message: &user_message,
                 response_text: &response_text,
                 previous_response: &previous_response,
                 payload: &response_payload,
+                route_error_code: route_error_code.as_deref(),
                 latency_ms,
                 response_token_count,
                 workflow_stage_count,
             });
+            let route_stage_delta = route_stage_delta(
+                turn,
+                &response_payload,
+                route_error_code.as_deref(),
+                &response_text,
+                workflow_stage_count,
+                &failures,
+            );
+            if route_stage_delta
+                .get("diverged")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+            {
+                route_stage_deltas.push(route_stage_delta.clone());
+            }
             if failures.is_empty() && setup_failures.is_empty() {
                 passed_turns = passed_turns.saturating_add(1);
             }
@@ -148,9 +167,11 @@ pub fn run_synthetic_user_chat_harness(args: &[String]) -> i32 {
                 "normal_user_message_route_only": true,
                 "user_message_preview": clean_text(&user_message, 240),
                 "assistant_response_preview": clean_text(&response_text, 320),
+                "route_error_code": route_error_code,
                 "latency_ms": latency_ms,
                 "response_token_count": response_token_count,
                 "workflow_stage_count": workflow_stage_count,
+                "route_stage_delta": route_stage_delta,
                 "workflow_visible": workflow_visible(&response_payload),
                 "live_eval_chat_injection_allowed": response_payload
                     .pointer("/live_eval_monitor/chat_injection_allowed")
@@ -226,6 +247,11 @@ pub fn run_synthetic_user_chat_harness(args: &[String]) -> i32 {
             "max_failures": max_failures,
             "simple_direct_budgets": {
                 "max_latency_ms": u64_at(&thresholds, &["simple_direct_max_latency_ms"], 0),
+                "live_max_latency_ms": u64_at(
+                    &thresholds,
+                    &["simple_direct_live_max_latency_ms"],
+                    u64_at(&thresholds, &["simple_direct_max_latency_ms"], 0)
+                ),
                 "max_response_tokens": u64_at(&thresholds, &["simple_direct_max_response_tokens"], 0),
                 "max_stage_count": u64_at(&thresholds, &["simple_direct_max_stage_count"], 0)
             }
@@ -233,6 +259,7 @@ pub fn run_synthetic_user_chat_harness(args: &[String]) -> i32 {
         "setup_failures": setup_failures,
         "live_monitor_freshness": live_monitor_freshness,
         "turns": rows,
+        "route_stage_deltas": route_stage_deltas,
         "failure_events": failure_events,
         "sources": { "cases": cases_path }
     });
@@ -291,12 +318,14 @@ pub fn misty_live_health_gate_required_command(agent_id: &str) -> String {
 }
 
 struct TurnEvaluation<'a> {
+    live: bool,
     turn: &'a Value,
     thresholds: &'a Value,
     user_message: &'a str,
     response_text: &'a str,
     previous_response: &'a str,
     payload: &'a Value,
+    route_error_code: Option<&'a str>,
     latency_ms: u64,
     response_token_count: u64,
     workflow_stage_count: u64,
@@ -304,12 +333,14 @@ struct TurnEvaluation<'a> {
 
 fn evaluate_turn(input: TurnEvaluation<'_>) -> Vec<String> {
     let TurnEvaluation {
+        live,
         turn,
         thresholds,
         user_message,
         response_text,
         previous_response,
         payload,
+        route_error_code,
         latency_ms,
         response_token_count,
         workflow_stage_count,
@@ -318,7 +349,9 @@ fn evaluate_turn(input: TurnEvaluation<'_>) -> Vec<String> {
     if user_message.trim().is_empty() {
         failures.push("missing_synthetic_user_message".to_string());
     }
-    if response_text.trim().is_empty() {
+    if let Some(code) = route_error_code {
+        failures.push(format!("message_route_error:{code}"));
+    } else if response_text.trim().is_empty() {
         failures.push("empty_assistant_response".to_string());
     }
     if !response_text.trim().is_empty()
@@ -338,10 +371,9 @@ fn evaluate_turn(input: TurnEvaluation<'_>) -> Vec<String> {
         }
     }
     for needle in string_array_at(turn, &["expect", "required_substrings"]) {
-        if !response_text
-            .to_ascii_lowercase()
-            .contains(&needle.to_ascii_lowercase())
-        {
+        let normalized_response = normalize_for_compare(response_text).replace(['_', '-'], " ");
+        let normalized_needle = normalize_for_compare(&needle).replace(['_', '-'], " ");
+        if !normalized_response.contains(&normalized_needle) {
             failures.push(format!("missing_required_visible_text:{needle}"));
         }
     }
@@ -363,11 +395,16 @@ fn evaluate_turn(input: TurnEvaluation<'_>) -> Vec<String> {
         failures.push("missing_live_eval_monitor_payload".to_string());
     }
     if bool_at(turn, &["expect", "simple_direct_conversation"], false) {
-        let max_latency_ms = u64_at(
-            turn,
-            &["expect", "max_latency_ms"],
-            u64_at(thresholds, &["simple_direct_max_latency_ms"], 0),
-        );
+        let default_max_latency_ms = if live {
+            u64_at(
+                thresholds,
+                &["simple_direct_live_max_latency_ms"],
+                u64_at(thresholds, &["simple_direct_max_latency_ms"], 0),
+            )
+        } else {
+            u64_at(thresholds, &["simple_direct_max_latency_ms"], 0)
+        };
+        let max_latency_ms = u64_at(turn, &["expect", "max_latency_ms"], default_max_latency_ms);
         let max_response_tokens = u64_at(
             turn,
             &["expect", "max_response_tokens"],
@@ -410,6 +447,57 @@ fn evaluate_turn(input: TurnEvaluation<'_>) -> Vec<String> {
         }
     }
     failures
+}
+
+fn route_stage_delta(
+    turn: &Value,
+    payload: &Value,
+    route_error_code: Option<&str>,
+    response_text: &str,
+    actual_stage_count: u64,
+    failures: &[String],
+) -> Value {
+    let baseline = turn.get("mock_response").unwrap_or(&Value::Null);
+    let baseline_response = assistant_text(baseline);
+    let baseline_stage_count = workflow_stage_count(baseline);
+    let baseline_workflow_visible = workflow_visible(baseline);
+    let baseline_live_monitor = baseline.pointer("/live_eval_monitor").is_some();
+    let actual_workflow_visible = workflow_visible(payload);
+    let actual_live_monitor = payload.pointer("/live_eval_monitor").is_some();
+    let first_missing_stage = if let Some(code) = route_error_code {
+        format!("message_route_error:{code}")
+    } else if baseline_workflow_visible && !actual_workflow_visible {
+        "workflow_library_selection_or_payload_assembly".to_string()
+    } else if baseline_stage_count > actual_stage_count {
+        "workflow_stage_progression".to_string()
+    } else if !baseline_response.trim().is_empty() && response_text.trim().is_empty() {
+        "final_response".to_string()
+    } else if baseline_live_monitor && !actual_live_monitor {
+        "live_eval_monitor_attachment".to_string()
+    } else if failures.is_empty() {
+        "none".to_string()
+    } else {
+        owner_component_for_failure(failures[0].as_str()).to_string()
+    };
+    json!({
+        "contract": "route_stage_delta_v1",
+        "diverged": first_missing_stage != "none",
+        "first_missing_stage": first_missing_stage,
+        "baseline": {
+            "workflow_visible": baseline_workflow_visible,
+            "workflow_stage_count": baseline_stage_count,
+            "response_empty": baseline_response.trim().is_empty(),
+            "live_eval_monitor_present": baseline_live_monitor
+        },
+        "actual": {
+            "workflow_visible": actual_workflow_visible,
+            "workflow_stage_count": actual_stage_count,
+            "response_empty": response_text.trim().is_empty(),
+            "live_eval_monitor_present": actual_live_monitor,
+            "route_error_code": route_error_code
+        },
+        "failures": failures
+    })
 }
 
 fn estimate_response_tokens(text: &str) -> u64 {
@@ -594,7 +682,7 @@ fn default_forbidden_phrases() -> Vec<String> {
 
 fn markdown_report(report: &Value) -> String {
     format!(
-        "# Synthetic User Chat Harness\n\n- generated_at: {}\n- ok: {}\n- mode: {}\n- cases: {}\n- total_turns: {}\n- pass_rate: {:.3}\n- failure_count: {}\n",
+        "# Synthetic User Chat Harness\n\n- generated_at: {}\n- ok: {}\n- mode: {}\n- cases: {}\n- total_turns: {}\n- pass_rate: {:.3}\n- failure_count: {}\n- route_stage_deltas: {}\n",
         str_opt(report, &["generated_at"]).unwrap_or(""),
         bool_at(report, &["ok"], false),
         str_opt(report, &["mode"]).unwrap_or("unknown"),
@@ -602,6 +690,11 @@ fn markdown_report(report: &Value) -> String {
         u64_at(report, &["summary", "total_turns"], 0),
         f64_at(report, &["summary", "pass_rate"], 0.0),
         u64_at(report, &["summary", "failure_count"], 0),
+        report
+            .get("route_stage_deltas")
+            .and_then(Value::as_array)
+            .map(|rows| rows.len())
+            .unwrap_or(0),
     )
 }
 

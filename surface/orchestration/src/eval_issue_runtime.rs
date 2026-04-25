@@ -383,8 +383,8 @@ mod tests {
             }
         });
 
-        let draft = make_issue_draft(&row, "local/state/ops/eval_replay_fixtures")
-            .expect("issue draft");
+        let draft =
+            make_issue_draft(&row, "local/state/ops/eval_replay_fixtures").expect("issue draft");
 
         assert_eq!(
             draft.pointer("/exact_evidence/runtime_quality/candidate_count"),

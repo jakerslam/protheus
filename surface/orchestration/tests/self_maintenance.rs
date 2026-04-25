@@ -177,6 +177,30 @@ fn ephemeral_state_is_used_and_cleaned() {
 }
 
 #[test]
+fn observe_only_mode_does_not_submit_or_apply_tasks() {
+    let mut inputs = base_inputs();
+    inputs.ci_reports.push(CiReportInput {
+        report_id: "ci-observe".to_string(),
+        status: "failed".to_string(),
+        summary: "orchestration fallback should be reviewed without mutation".to_string(),
+        source_ref: "surface/orchestration/src/lib.rs".to_string(),
+    });
+
+    let mut supervisor =
+        GovernedSelfMaintenanceSupervisor::new(SupervisorMode::ObserveOnly, "self_maintenance");
+    let out = supervisor.run_cycle(inputs, 7_500).expect("run");
+
+    assert_eq!(out.mode, SupervisorMode::ObserveOnly);
+    assert!(!out.claim_bundle.claims.is_empty());
+    assert!(out.worker_outputs.is_empty());
+    assert!(out.escalation_requests.is_empty());
+    assert!(!out
+        .receipts
+        .iter()
+        .any(|row| row.detail.starts_with("execute_path:")));
+}
+
+#[test]
 fn custom_scope_id_submits_tasks_without_scope_mismatch() {
     let mut inputs = base_inputs();
     inputs.dependency_violations.push(DependencyViolationInput {

@@ -1,0 +1,498 @@
+// SRS: V12-MISTY-HEALTH-WAVE7-001, V12-MISTY-HEALTH-WAVE7-002, V12-MISTY-HEALTH-WAVE7-003, V12-MISTY-HEALTH-WAVE7-004, V12-MISTY-HEALTH-WAVE7-005, V12-MISTY-HEALTH-WAVE7-006
+
+#[test]
+fn misty_wave7_route_short_circuit_reports_no_model_as_diagnostics_not_blank_chat() {
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"misty-wave7-no-model-agent","role":"assistant"}"#,
+        &snapshot,
+    )
+    .expect("agent create");
+    let agent_id = clean_agent_id(
+        created
+            .payload
+            .get("agent_id")
+            .or_else(|| created.payload.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+
+    let response = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"hey"}"#,
+        &snapshot,
+    )
+    .expect("message response");
+
+    assert_eq!(response.status, 503);
+    assert_eq!(response.payload.get("ok").and_then(Value::as_bool), Some(false));
+    assert_eq!(
+        response.payload.get("error_code").and_then(Value::as_str),
+        Some("no_models_available")
+    );
+    assert_eq!(response.payload.get("response").and_then(Value::as_str), Some(""));
+    assert_eq!(
+        response
+            .payload
+            .pointer("/workflow_visibility/diagnostics_only")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/workflow_visibility/chat_injection_allowed")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert!(
+        response
+            .payload
+            .pointer("/response_workflow/stage_statuses")
+            .and_then(Value::as_array)
+            .map(|rows| !rows.is_empty())
+            .unwrap_or(false)
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/live_eval_monitor/chat_injection_allowed")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/live_eval_monitor/issue_count")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+}
+
+#[test]
+fn misty_wave7_successful_direct_turn_exposes_visibility_stage_count() {
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"misty-wave7-direct-agent","role":"assistant"}"#,
+        &snapshot,
+    )
+    .expect("agent create");
+    let agent_id = clean_agent_id(
+        created
+            .payload
+            .get("agent_id")
+            .or_else(|| created.payload.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    write_json(
+        &governance_test_chat_script_path(root.path()),
+        &json!({"queue": [{"response": "Hey, I am here."}], "calls": []}),
+    );
+
+    let response = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"hey"}"#,
+        &snapshot,
+    )
+    .expect("message response");
+
+    assert_eq!(response.status, 200);
+    assert_eq!(response.payload.get("ok").and_then(Value::as_bool), Some(true));
+    assert_eq!(
+        response.payload.get("response").and_then(Value::as_str),
+        Some("Hey, I am here.")
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/workflow_visibility/selected_workflow_id")
+            .and_then(Value::as_str),
+        Some("simple_conversation_v1")
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/workflow_visibility/stage_count")
+            .and_then(Value::as_u64),
+        Some(2)
+    );
+    assert!(
+        response
+            .payload
+            .pointer("/workflow_visibility/finalization_status")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .contains("workflow")
+    );
+}
+
+#[test]
+fn misty_wave7_recovery_turn_uses_single_minimal_llm_finalization() {
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"misty-wave7-recovery-fast-agent","role":"assistant"}"#,
+        &snapshot,
+    )
+    .expect("agent create");
+    let agent_id = clean_agent_id(
+        created
+            .payload
+            .get("agent_id")
+            .or_else(|| created.payload.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    write_json(
+        &governance_test_chat_script_path(root.path()),
+        &json!({"queue": [{"response": "No. I'll answer directly."}], "calls": []}),
+    );
+
+    let response = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"what? why are you repeating the same fallback text?"}"#,
+        &snapshot,
+    )
+    .expect("message response");
+
+    assert_eq!(response.status, 200);
+    assert_eq!(response.payload.get("ok").and_then(Value::as_bool), Some(true));
+    assert_eq!(
+        response.payload.get("response").and_then(Value::as_str),
+        Some("No. I'll answer directly.")
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/response_workflow/final_llm_response/attempted")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/response_workflow/final_llm_response/attempt_count")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/workflow_visibility/stage_count")
+            .and_then(Value::as_u64),
+        Some(2)
+    );
+    assert_eq!(
+        response
+            .payload
+            .get("system_chat_injection_used")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+}
+
+#[test]
+fn misty_wave7_dry_run_no_tools_uses_minimal_no_tool_exit() {
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"misty-wave7-dry-run-agent","role":"assistant"}"#,
+        &snapshot,
+    )
+    .expect("agent create");
+    let agent_id = clean_agent_id(
+        created
+            .payload
+            .get("agent_id")
+            .or_else(|| created.payload.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    write_json(
+        &governance_test_chat_script_path(root.path()),
+        &json!({"queue": [{"response": "No. I would use workspace_search, but I will not run tools for this dry run."}], "calls": []}),
+    );
+
+    let response = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"Dry run only: tell me which file tool you would use, but do not run tools yet."}"#,
+        &snapshot,
+    )
+    .expect("message response");
+
+    assert_eq!(response.status, 200);
+    assert_eq!(response.payload.get("ok").and_then(Value::as_bool), Some(true));
+    assert_eq!(
+        response.payload.get("response").and_then(Value::as_str),
+        Some("No. I would use workspace_search, but I will not run tools for this dry run.")
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/response_workflow/selected_workflow/mode")
+            .and_then(Value::as_str),
+        Some("direct_no_tool_exit")
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/workflow_visibility/stage_count")
+            .and_then(Value::as_u64),
+        Some(2)
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/response_workflow/final_llm_response/attempted")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        response.payload.get("tools").and_then(Value::as_array).map(Vec::len),
+        Some(0)
+    );
+    assert_eq!(
+        response
+            .payload
+            .get("system_chat_injection_used")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+}
+
+#[test]
+fn misty_wave7_finalization_edge_fails_closed_without_system_chat_injection() {
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"misty-wave7-empty-final-agent","role":"assistant"}"#,
+        &snapshot,
+    )
+    .expect("agent create");
+    let agent_id = clean_agent_id(
+        created
+            .payload
+            .get("agent_id")
+            .or_else(|| created.payload.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    write_json(
+        &governance_test_chat_script_path(root.path()),
+        &json!({"queue": [{
+            "response": "This is not a hard-coded system response. This turn hit a workflow finalization edge without a policy denial, and I can continue with a direct answer from current context."
+        }], "calls": []}),
+    );
+
+    let response = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"what about now? any better?"}"#,
+        &snapshot,
+    )
+    .expect("message response");
+
+    assert_eq!(response.status, 502);
+    assert_eq!(response.payload.get("ok").and_then(Value::as_bool), Some(false));
+    assert_eq!(
+        response.payload.get("error_code").and_then(Value::as_str),
+        Some("final_response_empty")
+    );
+    assert_eq!(response.payload.get("response").and_then(Value::as_str), Some(""));
+    assert_eq!(
+        response
+            .payload
+            .get("system_chat_injection_used")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/workflow_visibility/chat_injection_allowed")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/live_eval_monitor/issues/0/raw_event/issue_class")
+            .and_then(Value::as_str),
+        Some("message_route_error")
+    );
+}
+
+#[test]
+fn misty_wave7_empty_initial_tool_request_can_finish_with_llm_menu_selection() {
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"misty-wave7-manual-web-menu-agent","role":"assistant"}"#,
+        &snapshot,
+    )
+    .expect("agent create");
+    let agent_id = clean_agent_id(
+        created
+            .payload
+            .get("agent_id")
+            .or_else(|| created.payload.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    write_json(
+        &governance_test_chat_script_path(root.path()),
+        &json!({"queue": [
+            {"response": "", "provider": "ollama", "runtime_model": "deepseek-v3.1:671b-cloud"},
+            {"response": "Yes. Tool family: Web Search / Fetch. Tool: Web search. Request payload: {\"source\":\"web\",\"query\":\"compare infring to other major agentic frameworks in April 2026\",\"aperture\":\"medium\"}.", "provider": "ollama", "runtime_model": "deepseek-v3.1:671b-cloud"}
+        ], "calls": []}),
+    );
+
+    let response = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"Use web search to compare infring to other major agentic frameworks in April 2026."}"#,
+        &snapshot,
+    )
+    .expect("message response");
+
+    assert_eq!(response.status, 200);
+    assert_eq!(response.payload.get("ok").and_then(Value::as_bool), Some(true));
+    let response_text = response
+        .payload
+        .get("response")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    assert!(response_text.contains("Web search"), "{response_text}");
+    assert_eq!(
+        response.payload.get("tools").and_then(Value::as_array).map(Vec::len),
+        Some(0)
+    );
+    assert_eq!(
+        response.payload.get("model").and_then(Value::as_str),
+        Some("deepseek-v3.1:671b-cloud")
+    );
+    assert_eq!(
+        response
+            .payload
+            .get("system_chat_injection_used")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/response_workflow/system_events/0/kind")
+            .and_then(Value::as_str),
+        Some("manual_toolbox_candidate_menu")
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/workflow_visibility/chat_injection_allowed")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+}
+
+#[test]
+fn misty_wave7_empty_finalization_recovers_with_llm_menu_choice() {
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"misty-wave7-empty-recovery-agent","role":"assistant"}"#,
+        &snapshot,
+    )
+    .expect("agent create");
+    let agent_id = clean_agent_id(
+        created
+            .payload
+            .get("agent_id")
+            .or_else(|| created.payload.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    write_json(
+        &governance_test_chat_script_path(root.path()),
+        &json!({"queue": [
+            {"response": "", "provider": "ollama", "runtime_model": "deepseek-v3.1:671b-cloud"},
+            {"response": "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.", "provider": "ollama", "runtime_model": "deepseek-v3.1:671b-cloud"},
+            {"response": "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.", "provider": "ollama", "runtime_model": "deepseek-v3.1:671b-cloud"},
+            {"response": "Yes. Tool family: Web Search / Fetch. Tool: Web search. Request payload: {\"source\":\"web\",\"query\":\"compare infring to other major agentic frameworks in April 2026\",\"aperture\":\"medium\"}.", "provider": "ollama", "runtime_model": "deepseek-v3.1:671b-cloud"}
+        ], "calls": []}),
+    );
+
+    let response = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"Use web search to compare infring to other major agentic frameworks in April 2026."}"#,
+        &snapshot,
+    )
+    .expect("message response");
+
+    assert_eq!(response.status, 200);
+    assert_eq!(response.payload.get("ok").and_then(Value::as_bool), Some(true));
+    let response_text = response
+        .payload
+        .get("response")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    assert!(response_text.contains("Request payload"), "{response_text}");
+    assert_eq!(
+        response
+            .payload
+            .get("system_chat_injection_used")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    let event_kinds = response
+        .payload
+        .pointer("/response_workflow/system_events")
+        .and_then(Value::as_array)
+        .map(|events| {
+            events
+                .iter()
+                .filter_map(|event| event.get("kind").and_then(Value::as_str))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    assert!(
+        event_kinds.contains(&"draft_response_invalid")
+            || event_kinds.contains(&"empty_final_response_menu_recovery"),
+        "{event_kinds:?}"
+    );
+}

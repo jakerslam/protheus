@@ -193,20 +193,36 @@ pub fn resolve_node_from_runtime_root(runtime_root: &Path) -> Option<String> {
     }
     None
 }
-pub fn infer_infring_home_from_exe() -> Option<PathBuf> {
-    let exe = env::current_exe().ok()?;
-    let bin_dir = exe.parent()?;
-    let home = bin_dir.parent()?;
-    Some(home.to_path_buf())
+fn select_node_candidate_with_probe<F>(
+    candidates: Vec<(String, String)>,
+    mut probe: F,
+) -> (String, Vec<Value>)
+where
+    F: FnMut(&str) -> bool,
+{
+    let mut selected = String::new();
+    let mut attempts = Vec::new();
+    for (source, binary) in candidates {
+        let usable = probe(binary.as_str());
+        if selected.is_empty() && usable {
+            selected = binary.clone();
+        }
+        attempts.push(json!({
+            "source": source,
+            "binary": binary,
+            "usable": usable,
+        }));
+    }
+    (selected, attempts)
 }
-pub fn resolve_preferred_node_binary() -> String {
-    let mut candidates = Vec::<String>::new();
+fn preferred_node_candidates() -> Vec<(String, String)> {
+    let mut candidates = Vec::<(String, String)>::new();
 
     for key in ["INFRING_NODE_BINARY", "NODE_BINARY"] {
         if let Ok(value) = env::var(key) {
             let trimmed = value.trim();
             if !trimmed.is_empty() {
-                candidates.push(trimmed.to_string());
+                candidates.push((key.to_string(), trimmed.to_string()));
             }
         }
     }
@@ -217,7 +233,7 @@ pub fn resolve_preferred_node_binary() -> String {
             if !trimmed.is_empty() {
                 let runtime_root = Path::new(trimmed).join("node-runtime");
                 if let Some(candidate) = resolve_node_from_runtime_root(runtime_root.as_path()) {
-                    candidates.push(candidate);
+                    candidates.push((format!("{key}/node-runtime"), candidate));
                 }
             }
         }
@@ -226,21 +242,47 @@ pub fn resolve_preferred_node_binary() -> String {
     if let Some(home) = infer_infring_home_from_exe() {
         let runtime_root = home.join("node-runtime");
         if let Some(candidate) = resolve_node_from_runtime_root(runtime_root.as_path()) {
-            candidates.push(candidate);
+            candidates.push(("current_exe/node-runtime".to_string(), candidate));
         }
     }
 
     if let Some(candidate) = resolve_binary_in_path(if cfg!(windows) { "node.exe" } else { "node" })
     {
-        candidates.push(candidate);
+        candidates.push(("PATH".to_string(), candidate));
     }
 
-    for candidate in candidates {
-        if node_binary_usable(candidate.as_str()) {
-            return candidate;
-        }
-    }
-    String::new()
+    candidates
+}
+pub fn resolve_preferred_node_binary_report() -> Value {
+    let candidates = preferred_node_candidates();
+    let (selected, attempts) = select_node_candidate_with_probe(candidates, node_binary_usable);
+    json!({
+        "type": "node_binary_resolution_report",
+        "ok": !selected.is_empty(),
+        "selected_binary": selected,
+        "candidate_count": attempts.len(),
+        "fallback_order": [
+            "INFRING_NODE_BINARY",
+            "NODE_BINARY",
+            "INFRING_HOME/node-runtime",
+            "current_exe/node-runtime",
+            "PATH"
+        ],
+        "attempts": attempts,
+    })
+}
+pub fn infer_infring_home_from_exe() -> Option<PathBuf> {
+    let exe = env::current_exe().ok()?;
+    let bin_dir = exe.parent()?;
+    let home = bin_dir.parent()?;
+    Some(home.to_path_buf())
+}
+pub fn resolve_preferred_node_binary() -> String {
+    resolve_preferred_node_binary_report()
+        .get("selected_binary")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string()
 }
 pub fn resolve_infring_ops_command(root: &Path, domain: &str) -> (String, Vec<String>) {
     let explicit = env::var("INFRING_OPS_BIN").ok();
@@ -692,6 +734,24 @@ mod tests {
         let argv = vec!["--strict".to_string()];
         assert_eq!(parse_flag(&argv, "strict", true).as_deref(), Some("true"));
         assert_eq!(parse_flag(&argv, "strict", false), None);
+    }
+
+    #[test]
+    fn node_candidate_report_selects_first_usable_and_preserves_attempts() {
+        let (selected, attempts) = select_node_candidate_with_probe(
+            vec![
+                ("INFRING_NODE_BINARY".to_string(), "missing-node".to_string()),
+                ("PATH".to_string(), "usable-node".to_string()),
+            ],
+            |binary| binary == "usable-node",
+        );
+
+        assert_eq!(selected, "usable-node");
+        assert_eq!(attempts.len(), 2);
+        assert_eq!(attempts[0]["source"], "INFRING_NODE_BINARY");
+        assert_eq!(attempts[0]["usable"], false);
+        assert_eq!(attempts[1]["source"], "PATH");
+        assert_eq!(attempts[1]["usable"], true);
     }
 
     #[test]

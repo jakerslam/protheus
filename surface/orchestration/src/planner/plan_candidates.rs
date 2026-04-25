@@ -5,8 +5,9 @@ mod ranking;
 mod strategy;
 
 use crate::contracts::{
-    Capability, CapabilityProbeResult, CoreContractCall, OrchestrationPlanStep, PlanCandidate, PlanScore,
-    PlanVariant, Precondition, RequestClassification, TypedOrchestrationRequest, WorkflowTemplate,
+    Capability, CapabilityProbeResult, CoreContractCall, OrchestrationPlanStep, PlanCandidate,
+    PlanScore, PlanVariant, Precondition, RequestClassification, TypedOrchestrationRequest,
+    WorkflowTemplate,
 };
 
 use super::{capability_registry, preconditions, scoring};
@@ -84,7 +85,11 @@ pub fn propose_decomposition_candidates_with_template(
             )
             .then(variant_priority(&left.variant).cmp(&variant_priority(&right.variant)))
             .then(left.contract_family.cmp(&right.contract_family))
-            .then(left.capability_graph.len().cmp(&right.capability_graph.len()))
+            .then(
+                left.capability_graph
+                    .len()
+                    .cmp(&right.capability_graph.len()),
+            )
             .then(left.decomposition_family.cmp(&right.decomposition_family))
             .then(right.steps.len().cmp(&left.steps.len()))
     });
@@ -128,10 +133,12 @@ pub fn build_plan_candidate(
 
 fn contract_family_for(contracts: &[CoreContractCall], capabilities: &[Capability]) -> String {
     let mut parts = Vec::new();
-    if contracts
-        .iter()
-        .any(|row| matches!(row, CoreContractCall::ToolCapabilityProbe | CoreContractCall::ToolBrokerRequest))
-        || capabilities.iter().any(Capability::is_tool_family)
+    if contracts.iter().any(|row| {
+        matches!(
+            row,
+            CoreContractCall::ToolCapabilityProbe | CoreContractCall::ToolBrokerRequest
+        )
+    }) || capabilities.iter().any(Capability::is_tool_family)
     {
         parts.push("tool_route");
     }
@@ -303,8 +310,8 @@ fn build_candidate_for_variant(
         .iter()
         .map(|row| row.target_contract.clone())
         .collect::<Vec<_>>();
-    let decomposition_family = format!("decomposition_{strategy_family:?}_{variant:?}")
-        .to_lowercase();
+    let decomposition_family =
+        format!("decomposition_{strategy_family:?}_{variant:?}").to_lowercase();
     let capability_graph = strategy_capabilities.clone();
     let contract_family = contract_family_for(contracts.as_slice(), capability_graph.as_slice());
     let mut score = scoring::score_candidate(
@@ -327,9 +334,8 @@ fn build_candidate_for_variant(
     let mutates_session_context = steps
         .iter()
         .any(|step| step.target_contract == crate::contracts::CoreContractCall::ContextAtomAppend);
-    let context_preparation_rationale = mutates_session_context.then(|| {
-        "explicit_context_preparation_pre_step:selected_by_planner_rationale".to_string()
-    });
+    let context_preparation_rationale = mutates_session_context
+        .then(|| "explicit_context_preparation_pre_step:selected_by_planner_rationale".to_string());
 
     PlanCandidate {
         plan_id: format!(

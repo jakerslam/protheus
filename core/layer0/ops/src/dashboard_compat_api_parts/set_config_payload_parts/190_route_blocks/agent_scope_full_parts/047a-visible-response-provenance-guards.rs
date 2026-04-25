@@ -219,7 +219,9 @@ fn final_response_guard_report(
         || response_is_unrelated_context_dump(user_message, response_text)
         || unsupported_content_contamination;
     let final_contract_violation = response_fails_base_final_answer_contract(response_text)
-        || workflow_response_requests_more_tooling(response_text)
+        || (workflow_response_requests_more_tooling(response_text)
+            && !response_is_manual_toolbox_gate_choice(response_text))
+        || response_contains_unexpected_state_retry_boilerplate(response_text)
         || final_contamination_violation
         || current_turn_dominance_violation;
     json!({
@@ -369,6 +371,9 @@ fn workflow_visibility_payload(response_workflow: &Value, response_finalization:
         "agent_process_status": agent_process_status,
         "debug_status": debug_status,
         "formats": formats,
+        "selected_workflow_id": clean_text(response_workflow.pointer("/selected_workflow/name").and_then(Value::as_str).unwrap_or(""), 80),
+        "stage_count": response_workflow.get("stage_statuses").and_then(Value::as_array).map(|rows| rows.len()).unwrap_or(0),
+        "finalization_status": clean_text(response_finalization.get("outcome").and_then(Value::as_str).unwrap_or(""), 180),
         "diagnostics_only": true,
         "final_chat_authority": "llm_only",
         "visible_chat_text_authority": "llm_only",

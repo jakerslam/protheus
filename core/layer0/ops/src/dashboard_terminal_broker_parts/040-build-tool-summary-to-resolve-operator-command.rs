@@ -24,8 +24,27 @@ fn build_tool_summary(
         (false, true) => "stderr",
         (false, false) => "none",
     };
+    let result_kind = if status == "blocked" {
+        "blocked_by_policy"
+    } else if exit_code != 0 {
+        "failed"
+    } else if low_signal {
+        "low_signal_output"
+    } else {
+        "completed"
+    };
+    let headline = match result_kind {
+        "blocked_by_policy" => "Terminal command blocked by policy.".to_string(),
+        "failed" => format!("Terminal command failed with exit code {exit_code}."),
+        "low_signal_output" => {
+            "Terminal command completed, but produced no high-signal output.".to_string()
+        }
+        _ => format!("Terminal command completed with {found}."),
+    };
     let mut out = json!({
         "status": clean_text(status, 40),
+        "result_kind": result_kind,
+        "headline": headline,
         "cwd": cwd.to_string_lossy().to_string(),
         "requested_command": clean_text(requested_command, 4000),
         "executed_command": clean_text(executed_command, 4000),
@@ -44,7 +63,28 @@ fn build_tool_summary(
         "found": found,
         "low_signal": low_signal,
         "filter_events": filter_events,
-        "recovery_hints": recovery_hints
+        "recovery_hints": recovery_hints,
+        "display": {
+            "tool_summary": headline,
+            "show_recovery_hints": !recovery_hints.is_empty(),
+            "recovery_hints": recovery_hints,
+            "router_translation": {
+                "translated": command_translated,
+                "reason": clean_text(translation_reason, 240),
+                "requested_command": clean_text(requested_command, 4000),
+                "executed_command": clean_text(executed_command, 4000)
+            },
+            "policy": {
+                "verdict": clean_text(
+                    permission_gate.get("verdict").and_then(Value::as_str).unwrap_or("allow"),
+                    40
+                ),
+                "matched": permission_gate
+                    .get("matched")
+                    .cloned()
+                    .unwrap_or_else(|| Value::Array(Vec::new()))
+            }
+        }
     });
     if status == "blocked" {
         out["blocked"] = Value::Bool(true);

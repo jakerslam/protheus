@@ -24,6 +24,12 @@ fn run_mention(root: &Path, parsed: &crate::ParsedArgs, default_query: &str) -> 
         .map(|row| crate::clean(row, 8))
         .filter(|row| !row.is_empty())
         .unwrap_or_else(|| "@".to_string());
+    let mention_format = parsed
+        .flags
+        .get("mention-format")
+        .map(|row| crate::clean(row, 24).to_ascii_lowercase())
+        .filter(|row| matches!(row.as_str(), "at" | "path" | "markdown"))
+        .unwrap_or_else(|| "at".to_string());
     let query = search_payload
         .get("query")
         .and_then(Value::as_str)
@@ -46,13 +52,18 @@ fn run_mention(root: &Path, parsed: &crate::ParsedArgs, default_query: &str) -> 
             .and_then(Value::as_str)
             .unwrap_or_default()
             .to_string();
-        let mention = format!("{mention_prefix}{path}");
-        let receipt = json!({
+        let mention = match mention_format.as_str() {
+            "path" => path.clone(),
+            "markdown" => format!("[{}]({})", path, path),
+            _ => format!("{mention_prefix}{path}"),
+        };
+        let mut receipt = json!({
             "type": "workspace_file_search_mention_receipt",
             "ts": crate::now_iso(),
             "source": "cline/src/utils/file-search.ts",
             "query": query,
             "mention": mention,
+            "mention_format": mention_format,
             "path": path,
             "workspace_name": first
                 .get("workspace_name")
@@ -64,6 +75,8 @@ fn run_mention(root: &Path, parsed: &crate::ParsedArgs, default_query: &str) -> 
                 .unwrap_or_default(),
             "warnings": warnings,
         });
+        let receipt_hash = crate::deterministic_receipt_hash(&receipt);
+        receipt["receipt_hash"] = Value::String(receipt_hash.clone());
         append_receipt(root, &receipt);
         return json!({
             "ok": true,
@@ -72,7 +85,9 @@ fn run_mention(root: &Path, parsed: &crate::ParsedArgs, default_query: &str) -> 
             "source": "cline:file-search-mention",
             "query": query,
             "mention": mention,
+            "mention_format": mention_format,
             "path": path,
+            "receipt_hash": receipt_hash,
             "workspace_name": first
                 .get("workspace_name")
                 .and_then(Value::as_str)
@@ -92,6 +107,7 @@ fn run_mention(root: &Path, parsed: &crate::ParsedArgs, default_query: &str) -> 
         "source": "cline:file-search-mention",
         "query": query,
         "mention": Value::Null,
+        "mention_format": mention_format,
         "path": Value::Null,
         "warnings": warnings,
     })

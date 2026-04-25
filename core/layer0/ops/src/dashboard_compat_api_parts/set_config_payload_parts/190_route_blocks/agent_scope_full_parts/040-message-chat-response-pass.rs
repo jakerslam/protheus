@@ -50,6 +50,130 @@ fn handle_message_chat_response_pass(
         inline_tools_allowed,
         system_prompt,
     } = prepared;
+    let manual_toolbox_prompt_only_turn = response_tools_prompt_only_gate_required(
+        message,
+        &latent_tool_candidates,
+    );
+    let simple_conversation_minimal_final_turn =
+        workflow_turn_is_simple_conversation_without_tool_intent(message);
+    let no_tool_minimal_final_turn = workflow_turn_is_meta_control_message(message)
+        || message_explicitly_disallows_tool_calls(message)
+        || simple_conversation_minimal_final_turn;
+    if manual_toolbox_prompt_only_turn {
+        let runtime_summary = runtime_sync_summary(snapshot);
+        let synthetic_result = json!({
+            "provider": provider,
+            "model": model,
+            "runtime_model": model,
+            "response": "",
+            "input_tokens": estimate_tokens(message),
+            "output_tokens": 0,
+            "cost_usd": 0.0,
+            "workflow_prompt_only_gate": true
+        });
+        return Some(finalize_message_finalization_and_payload(
+            root,
+            agent_id,
+            message,
+            &synthetic_result,
+            String::new(),
+            Vec::new(),
+            "manual_toolbox_gate".to_string(),
+            Vec::new(),
+            runtime_summary,
+            state,
+            messages,
+            active_messages,
+            provider,
+            model,
+            requested_provider,
+            requested_model,
+            auto_route,
+            virtual_key_id,
+            virtual_key_gate,
+            fallback_window,
+            context_active_tokens,
+            context_ratio,
+            context_pressure,
+            context_pool_limit_tokens,
+            context_pool_tokens,
+            pooled_messages_len,
+            sessions_total,
+            memory_kv_entries,
+            active_context_target_tokens,
+            active_context_min_recent,
+            include_all_sessions_context,
+            pre_generation_pruned,
+            recent_floor_enforced,
+            recent_floor_injected,
+            history_trim_confirmed,
+            emergency_compact,
+            workspace_hints,
+            latent_tool_candidates,
+            inline_tools_allowed,
+        ));
+    }
+    if no_tool_minimal_final_turn {
+        let runtime_summary = runtime_sync_summary(snapshot);
+        let workflow_mode = if workflow_turn_is_meta_control_message(message) {
+            "direct_conversation_recovery"
+        } else if simple_conversation_minimal_final_turn {
+            "direct_simple_conversation"
+        } else {
+            "direct_no_tool_exit"
+        };
+        let synthetic_result = json!({
+            "provider": provider,
+            "model": model,
+            "runtime_model": model,
+            "response": "",
+            "input_tokens": estimate_tokens(message),
+            "output_tokens": 0,
+            "cost_usd": 0.0,
+            "workflow_direct_no_tool_gate": true
+        });
+        return Some(finalize_message_finalization_and_payload(
+            root,
+            agent_id,
+            message,
+            &synthetic_result,
+            String::new(),
+            Vec::new(),
+            workflow_mode.to_string(),
+            Vec::new(),
+            runtime_summary,
+            state,
+            messages,
+            active_messages,
+            provider,
+            model,
+            requested_provider,
+            requested_model,
+            auto_route,
+            virtual_key_id,
+            virtual_key_gate,
+            fallback_window,
+            context_active_tokens,
+            context_ratio,
+            context_pressure,
+            context_pool_limit_tokens,
+            context_pool_tokens,
+            pooled_messages_len,
+            sessions_total,
+            memory_kv_entries,
+            active_context_target_tokens,
+            active_context_min_recent,
+            include_all_sessions_context,
+            pre_generation_pruned,
+            recent_floor_enforced,
+            recent_floor_injected,
+            history_trim_confirmed,
+            emergency_compact,
+            workspace_hints,
+            latent_tool_candidates,
+            inline_tools_allowed,
+        ));
+    }
     match crate::dashboard_provider_runtime::invoke_chat(
         root,
         &provider,
@@ -59,6 +183,21 @@ fn handle_message_chat_response_pass(
         message,
     ) {
         Ok(result) => {
+            let turn_provider = clean_text(
+                result
+                    .get("provider")
+                    .and_then(Value::as_str)
+                    .unwrap_or(&provider),
+                80,
+            );
+            let turn_model = clean_text(
+                result
+                    .get("runtime_model")
+                    .or_else(|| result.get("model"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(&model),
+                240,
+            );
             let mut response_text = clean_chat_text(
                 result.get("response").and_then(Value::as_str).unwrap_or(""),
                 32_000,
@@ -223,8 +362,8 @@ fn handle_message_chat_response_pass(
                 );
                 if let Ok(retried) = crate::dashboard_provider_runtime::invoke_chat(
                     root,
-                    &provider,
-                    &model,
+                    &turn_provider,
+                    &turn_model,
                     &direct_only_prompt,
                     &active_messages,
                     message,
@@ -267,8 +406,8 @@ fn handle_message_chat_response_pass(
                 );
                 if let Ok(retried) = crate::dashboard_provider_runtime::invoke_chat(
                     root,
-                    &provider,
-                    &model,
+                    &turn_provider,
+                    &turn_model,
                     &no_fake_tooling_prompt,
                     &active_messages,
                     message,
@@ -383,8 +522,8 @@ fn handle_message_chat_response_pass(
                     .collect::<Vec<_>>();
                 let retried = crate::dashboard_provider_runtime::invoke_chat(
                     root,
-                    &provider,
-                    &model,
+                    &turn_provider,
+                    &turn_model,
                     &strict_relevance_prompt,
                     &relevance_retry_messages,
                     message,
@@ -434,6 +573,9 @@ fn handle_message_chat_response_pass(
             } else {
                 "model_inline_tool_execution".to_string()
             };
+            if workflow_turn_is_meta_control_message(message) && response_tools.is_empty() {
+                workflow_mode = "direct_conversation_recovery".to_string();
+            }
             if conversation_bypass_active
                 && response_tools.is_empty()
                 && !conversation_bypass_mode_override.is_empty()
@@ -468,8 +610,8 @@ fn handle_message_chat_response_pass(
                 state,
                 messages,
                 active_messages,
-                provider,
-                model,
+                turn_provider,
+                turn_model,
                 requested_provider,
                 requested_model,
                 auto_route,

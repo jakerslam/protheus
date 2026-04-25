@@ -171,8 +171,17 @@ fn live_eval_monitor_turn(
         .get("workflow_system_fallback_used")
         .and_then(Value::as_bool)
         .unwrap_or(false);
+    let route_failure_code = clean_text(
+        response_finalization
+            .pointer("/route_failure/error_code")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        120,
+    );
     let mut events = Vec::<Value>::new();
-    if final_text.is_empty() {
+    if final_text.is_empty() && !route_failure_code.is_empty() {
+        events.push(live_eval_issue_event(&id, "message_route_error", "warn", &format!("Live eval saw a structured message route error: {route_failure_code}."), message, response));
+    } else if final_text.is_empty() {
         events.push(live_eval_issue_event(&id, "no_response", "high", "Live eval saw an empty finalized assistant response.", message, response));
     } else if !prev_sig.is_empty() && prev_sig == final_sig {
         events.push(live_eval_issue_event(&id, "repeated_response_loop", "high", "Live eval saw a repeated assistant response.", message, response));

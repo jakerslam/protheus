@@ -175,7 +175,7 @@ fn candidate_from_duckduckgo_instant_payload(
         locator = clean_text(fallback_url, 2_200);
     }
     Ok(Candidate {
-        source_kind: "web".to_string(),
+        source_kind: "web_duckduckgo_instant".to_string(),
         title,
         locator,
         snippet: snippet.clone(),

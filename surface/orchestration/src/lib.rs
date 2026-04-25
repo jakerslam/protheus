@@ -11,6 +11,8 @@ pub mod eval_chat_report;
 pub mod eval_feedback_router;
 pub mod eval_issue_authority;
 pub mod ingress;
+pub mod legacy_ingress_budget;
+pub mod orchestration_stability_guard;
 pub mod planner;
 pub mod posture;
 pub mod progress;
@@ -40,10 +42,12 @@ use self_maintenance::contracts::{
     ObservationInputs, SupervisorMode,
 };
 use self_maintenance::GovernedSelfMaintenanceSupervisor;
+use std::collections::BTreeMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 use transient_context::{TransientContextStore, TransientSleepCleanupReport};
 
 const DEFAULT_SLEEP_CYCLE_IDLE_GAP_MS: u64 = 8 * 60 * 60 * 1000;
+const SELF_MAINTENANCE_RECOMMENDATION_RATE_LIMIT_WINDOW_MS: u64 = 30 * 60 * 1000;
 
 #[derive(Debug, Clone)]
 struct SelfMaintenanceProjection {
@@ -51,9 +55,18 @@ struct SelfMaintenanceProjection {
     lifecycle_next_actions: Vec<String>,
 }
 
+#[derive(Debug, Clone)]
+struct SelfMaintenanceRecommendationWindow {
+    cluster_id: String,
+    occurrence_count: u64,
+    first_seen_ms: u64,
+    last_seen_ms: u64,
+}
+
 #[derive(Debug)]
 pub struct OrchestrationSurfaceRuntime {
     transient_context_store: TransientContextStore,
+    self_maintenance_windows: BTreeMap<String, SelfMaintenanceRecommendationWindow>,
     last_activity_ms: Option<u64>,
     sleep_cycle_idle_gap_ms: u64,
 }
@@ -62,6 +75,7 @@ impl Default for OrchestrationSurfaceRuntime {
     fn default() -> Self {
         Self {
             transient_context_store: TransientContextStore::default(),
+            self_maintenance_windows: BTreeMap::new(),
             last_activity_ms: None,
             sleep_cycle_idle_gap_ms: DEFAULT_SLEEP_CYCLE_IDLE_GAP_MS,
         }
@@ -389,6 +403,7 @@ impl OrchestrationSurfaceRuntime {
             &plan,
             now_ms,
             self.transient_context_store.len() as u64,
+            &mut self.self_maintenance_windows,
         );
         let progress = progress::build_progress_projection(&plan);
         let tool_fallback_context =
@@ -508,10 +523,31 @@ fn project_self_maintenance_recommendations(
     plan: &OrchestrationPlan,
     now_ms: u64,
     transient_entry_count: u64,
+    recommendation_windows: &mut BTreeMap<String, SelfMaintenanceRecommendationWindow>,
 ) -> Option<SelfMaintenanceProjection> {
     if !should_project_self_maintenance(plan) {
         return None;
     }
+    prune_self_maintenance_windows(recommendation_windows, now_ms);
+    let cluster_id = self_maintenance_cluster_id(request, plan);
+    let window = recommendation_windows
+        .entry(cluster_id.clone())
+        .and_modify(|window| {
+            window.occurrence_count = window.occurrence_count.saturating_add(1);
+            window.last_seen_ms = now_ms;
+        })
+        .or_insert_with(|| SelfMaintenanceRecommendationWindow {
+            cluster_id: cluster_id.clone(),
+            occurrence_count: 1,
+            first_seen_ms: now_ms,
+            last_seen_ms: now_ms,
+        });
+    let occurrence_count = window.occurrence_count;
+    let first_seen_ms = window.first_seen_ms;
+    let last_seen_ms = window.last_seen_ms;
+    let rate_limited = occurrence_count > 1
+        && last_seen_ms.saturating_sub(first_seen_ms)
+            <= SELF_MAINTENANCE_RECOMMENDATION_RATE_LIMIT_WINDOW_MS;
     let observation_inputs =
         build_self_maintenance_observation_inputs(request, plan, transient_entry_count);
     let mut supervisor = GovernedSelfMaintenanceSupervisor::new(
@@ -519,18 +555,11 @@ fn project_self_maintenance_recommendations(
         format!("orchestration-control-plane:{}", request.session_id),
     );
     let run = supervisor.run_cycle(observation_inputs, now_ms).ok()?;
-    if run.claim_bundle.claims.is_empty() {
-        return None;
-    }
-
     let unresolved = run.claim_bundle.unresolved_questions.len();
     let conflicts = run.claim_bundle.conflicts.len();
     let candidate_task_count = run.generated_task_ids.len();
-    let mut lifecycle_next_actions = vec![format!(
-        "self_maintenance_review_claim_bundle:{}",
-        run.claim_bundle.claim_bundle_id
-    )
-    .to_lowercase()];
+    let mut lifecycle_next_actions =
+        vec![format!("self_maintenance_review_cluster:{}", window.cluster_id).to_lowercase()];
     if unresolved > 0 {
         lifecycle_next_actions
             .push("self_maintenance_clarify_unresolved_observations_before_retry".to_string());
@@ -544,13 +573,65 @@ fn project_self_maintenance_recommendations(
             kind: "self_maintenance_review".to_string(),
             label: "Review maintenance signals".to_string(),
             reason: format!(
-                "self-maintenance observed {candidate_task_count} candidate remediation task(s), unresolved={unresolved}, conflicts={conflicts}"
+                "self-maintenance observe-only window cluster_id={cluster_id}; occurrences={occurrence_count}; rate_limited={rate_limited}; candidate_tasks={candidate_task_count}; unresolved={unresolved}; conflicts={conflicts}; first_seen_ms={first_seen_ms}; last_seen_ms={last_seen_ms}"
             ),
             backend_class: None,
             reason_code: None,
         }],
         lifecycle_next_actions,
     })
+}
+
+fn prune_self_maintenance_windows(
+    recommendation_windows: &mut BTreeMap<String, SelfMaintenanceRecommendationWindow>,
+    now_ms: u64,
+) {
+    recommendation_windows.retain(|_, window| {
+        now_ms.saturating_sub(window.last_seen_ms)
+            <= SELF_MAINTENANCE_RECOMMENDATION_RATE_LIMIT_WINDOW_MS
+    });
+}
+
+fn self_maintenance_cluster_id(
+    request: &crate::contracts::TypedOrchestrationRequest,
+    plan: &OrchestrationPlan,
+) -> String {
+    let mut blocked_on = plan
+        .selected_plan
+        .blocked_on
+        .iter()
+        .map(|precondition| format!("{precondition:?}").to_lowercase())
+        .collect::<Vec<_>>();
+    blocked_on.sort();
+    let mut capabilities = plan
+        .selected_plan
+        .capabilities
+        .iter()
+        .map(|capability| format!("{capability:?}").to_lowercase())
+        .collect::<Vec<_>>();
+    capabilities.sort();
+    let recovery_reason = plan
+        .execution_state
+        .recovery
+        .as_ref()
+        .and_then(|recovery| recovery.reason.as_ref())
+        .map(|reason| format!("{reason:?}").to_lowercase())
+        .unwrap_or_else(|| "none".to_string());
+    let status = format!("{:?}", plan.execution_state.plan_status).to_lowercase();
+    let variant = format!("{:?}", plan.selected_plan.variant).to_lowercase();
+    format!(
+        "session={};plan={};variant={};status={};recovery={};blocked={};capabilities={};fallback={};clarify={};empty_steps={}",
+        request.session_id,
+        plan.selected_plan.plan_id,
+        variant,
+        status,
+        recovery_reason,
+        blocked_on.join(","),
+        capabilities.join(","),
+        plan.classification.surface_adapter_fallback,
+        plan.needs_clarification,
+        plan.selected_plan.steps.is_empty()
+    )
 }
 
 fn should_project_self_maintenance(plan: &OrchestrationPlan) -> bool {
