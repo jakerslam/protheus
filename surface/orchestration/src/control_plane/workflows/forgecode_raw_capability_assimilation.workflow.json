@@ -865,6 +865,31 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/sync.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/template.rs"
       ]
+    },
+    {
+      "id": "forgecode_raw_utils_path_tempdir_and_format_snapshot_contracts",
+      "description": "Raw-capability ForgeCode lane adapted from service utils and formatting snapshots to expose deterministic path validation, temp fixture, diff render, and todo render mechanics without composed-lane assumptions.",
+      "required_signals": [
+        "utils_raw_module_exports_path_helpers_and_conditionally_exports_temp_dir_helpers_only_for_tests",
+        "path_raw_assert_absolute_path_accepts_absolute_paths_and_fails_relative_paths_with_cross_platform_guidance",
+        "path_raw_assert_absolute_path_has_regression_cases_for_plain_dot_relative_and_parent_relative_inputs",
+        "temp_dir_raw_fixture_canonicalizes_env_temp_dir_and_creates_tempdir_in_that_location_with_known_prefix_suffix_markers",
+        "fmt_output_raw_patch_success_snapshot_renders_deletions_and_insertions_as_numbered_diff_rows",
+        "fmt_output_raw_patch_success_snapshot_shows_inserted_extra_line_with_incremented_new_file_line_number",
+        "todo_fmt_raw_mixed_changes_snapshot_renders_three_task_rows_covering_completed_active_and_pending_statuses",
+        "todo_fmt_raw_mixed_changes_snapshot_preserves_row_order_and_task_labels_while_status_symbols_change"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/utils/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/utils/path.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/utils/temp_dir.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/fmt/snapshots/forge_app__fmt__fmt_output__tests__fs_patch_success.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/fmt/snapshots/forge_app__fmt__todo_fmt__tests__todo_write_mixed_changes_snapshot.snap"
+      ]
     }
   ],
   "workflow_templates": [
@@ -1261,6 +1286,31 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/range.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/sync.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/template.rs"
+      ]
+    },
+    {
+      "id": "forgecode_raw_utils_path_tempdir_and_format_snapshot_contracts",
+      "description": "Raw-capability ForgeCode lane adapted from service utils and formatting snapshots to expose deterministic path validation, temp fixture, diff render, and todo render mechanics without composed-lane assumptions.",
+      "required_signals": [
+        "utils_raw_module_exports_path_helpers_and_conditionally_exports_temp_dir_helpers_only_for_tests",
+        "path_raw_assert_absolute_path_accepts_absolute_paths_and_fails_relative_paths_with_cross_platform_guidance",
+        "path_raw_assert_absolute_path_has_regression_cases_for_plain_dot_relative_and_parent_relative_inputs",
+        "temp_dir_raw_fixture_canonicalizes_env_temp_dir_and_creates_tempdir_in_that_location_with_known_prefix_suffix_markers",
+        "fmt_output_raw_patch_success_snapshot_renders_deletions_and_insertions_as_numbered_diff_rows",
+        "fmt_output_raw_patch_success_snapshot_shows_inserted_extra_line_with_incremented_new_file_line_number",
+        "todo_fmt_raw_mixed_changes_snapshot_renders_three_task_rows_covering_completed_active_and_pending_statuses",
+        "todo_fmt_raw_mixed_changes_snapshot_preserves_row_order_and_task_labels_while_status_symbols_change"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/utils/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/utils/path.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/utils/temp_dir.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/fmt/snapshots/forge_app__fmt__fmt_output__tests__fs_patch_success.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/fmt/snapshots/forge_app__fmt__todo_fmt__tests__todo_write_mixed_changes_snapshot.snap"
       ]
     }
   ]

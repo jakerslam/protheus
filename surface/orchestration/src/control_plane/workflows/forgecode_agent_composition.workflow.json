@@ -2256,6 +2256,32 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/sync.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/template.rs"
       ]
+    },
+    {
+      "id": "forgecode_structured_utils_path_tempdir_and_format_snapshot_contracts",
+      "description": "Structured ForgeCode lane that projects service utility export boundaries, absolute-path validation, canonical temporary directory fixtures, and app formatting snapshot expectations into staged orchestration flow.",
+      "required_signals": [
+        "service_utils_module_reexports_path_helpers_publicly_and_keeps_temp_dir_helpers_test_scoped",
+        "path_validation_requires_absolute_paths_and_returns_actionable_unix_or_windows_hint_for_relative_paths",
+        "path_validation_rejects_basic_current_directory_and_parent_directory_relative_paths",
+        "temp_dir_fixture_canonicalizes_system_temp_dir_before_creating_marked_test_directories",
+        "temp_dir_fixture_uses_start_and_end_markers_to_make_fixture_paths_identifiable_in_output",
+        "format_output_patch_success_snapshot_preserves_removed_lines_with_original_line_numbers_and_added_lines_with_new_line_numbers",
+        "format_output_patch_success_snapshot_aligns_minus_and_plus_diff_markers_for_readable_operator_display",
+        "todo_format_mixed_status_snapshot_distinguishes_done_in_progress_and_pending_rows_with_stable_status_marker_order",
+        "todo_format_mixed_status_snapshot_keeps_task_text_unmodified_while_only_projecting_status_visuals"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/utils/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/utils/path.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/utils/temp_dir.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/fmt/snapshots/forge_app__fmt__fmt_output__tests__fs_patch_success.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/fmt/snapshots/forge_app__fmt__todo_fmt__tests__todo_write_mixed_changes_snapshot.snap"
+      ]
     }
   ],
   "workflow_templates": [
@@ -2627,6 +2653,32 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/range.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/sync.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/template.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_utils_path_tempdir_and_format_snapshot_contracts",
+      "description": "Structured ForgeCode lane that projects service utility export boundaries, absolute-path validation, canonical temporary directory fixtures, and app formatting snapshot expectations into staged orchestration flow.",
+      "required_signals": [
+        "service_utils_module_reexports_path_helpers_publicly_and_keeps_temp_dir_helpers_test_scoped",
+        "path_validation_requires_absolute_paths_and_returns_actionable_unix_or_windows_hint_for_relative_paths",
+        "path_validation_rejects_basic_current_directory_and_parent_directory_relative_paths",
+        "temp_dir_fixture_canonicalizes_system_temp_dir_before_creating_marked_test_directories",
+        "temp_dir_fixture_uses_start_and_end_markers_to_make_fixture_paths_identifiable_in_output",
+        "format_output_patch_success_snapshot_preserves_removed_lines_with_original_line_numbers_and_added_lines_with_new_line_numbers",
+        "format_output_patch_success_snapshot_aligns_minus_and_plus_diff_markers_for_readable_operator_display",
+        "todo_format_mixed_status_snapshot_distinguishes_done_in_progress_and_pending_rows_with_stable_status_marker_order",
+        "todo_format_mixed_status_snapshot_keeps_task_text_unmodified_while_only_projecting_status_visuals"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/utils/mod.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/utils/path.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/utils/temp_dir.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/fmt/snapshots/forge_app__fmt__fmt_output__tests__fs_patch_success.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/fmt/snapshots/forge_app__fmt__todo_fmt__tests__todo_write_mixed_changes_snapshot.snap"
       ]
     }
   ]
