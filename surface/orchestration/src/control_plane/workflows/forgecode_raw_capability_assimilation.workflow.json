@@ -1085,6 +1085,30 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_read_with_explicit_range.snap",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_read_with_truncation_path.snap"
       ]
+    },
+    {
+      "id": "forgecode_raw_file_remove_and_search_result_snapshot_contracts",
+      "description": "Raw-capability assimilation lane for ForgeCode file-remove and search result snapshot mechanics without hardcoded workflow logic.",
+      "required_signals": [
+        "fs_remove_success_projects_file_removed_receipt_with_path_and_completed_status",
+        "fs_search_receipt_projects_path_max_bytes_total_lines_display_lines_and_pattern_metadata",
+        "fs_search_case_insensitive_results_preserve_matching_line_content_and_original_case_variants",
+        "fs_search_count_mode_projects_file_to_count_rows_without_match_body_content",
+        "fs_search_files_with_matches_mode_projects_file_path_only_rows",
+        "fs_search_truncated_output_includes_glob_metadata_and_reason_guidance_for_more_specific_patterns",
+        "fs_search_results_body_is_cdata_wrapped_to_preserve_colon_delimited_file_line_match_rows"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_remove_success.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_case_insensitive.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_count_mode.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_files_with_matches_mode.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_max_output.snap"
+      ]
     }
   ],
   "workflow_templates": [
