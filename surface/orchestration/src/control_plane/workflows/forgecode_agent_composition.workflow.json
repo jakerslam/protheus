@@ -2634,6 +2634,33 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-04-02-system-context-rendering-v2.md",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-09-14-explicit-conversation-id-generation-v1.md"
       ]
+    },
+    {
+      "id": "forgecode_structured_range_model_workspace_retry_and_startup_config_contracts",
+      "description": "Structured ForgeCode lane that projects range-read safety, interactive model selection, workspace auto-sync guardrails, retry config centralization, and fail-loud startup config initialization into staged orchestration flow.",
+      "required_signals": [
+        "range_read_v3_requires_optional_byte_range_reads_for_large_text_files_without_loading_entire_file_into_memory",
+        "range_read_v3_requires_binary_rejection_utf8_boundary_adjustment_total_file_size_actual_range_metadata_and_backward_compatible_full_file_reads",
+        "range_read_v3_enumerates_invalid_range_locked_file_special_file_os_limit_empty_file_and_malformed_utf8_edge_cases_as_validation_inputs",
+        "model_selection_command_fetches_available_models_displays_operator_selection_and_updates_standard_model_anchor_in_config_with_empty_list_missing_file_and_parse_error_handling",
+        "workspace_auto_sync_fix_requires_silent_porcelain_workspace_info_exit_codes_before_background_sync_to_prevent_unintended_parent_or_child_registration",
+        "workspace_auto_sync_fix_preserves_manual_first_time_sync_and_adds_debug_visibility_for_skipped_unindexed_directory_syncs",
+        "retry_config_migration_moves_retry_policy_from_workflow_to_environment_with_env_vars_for_initial_backoff_factor_max_attempts_and_status_codes",
+        "retry_config_migration_requires_provider_initialization_to_read_retry_from_environment_and_removes_retry_from_workflow_repository_contracts",
+        "startup_config_plan_requires_config_read_once_at_application_init_with_parse_errors_surfaced_to_user_before_runtime_construction",
+        "startup_config_plan_threads_pre_read_config_through_api_infra_environment_http_directory_and_grpc_construction_while_preserving_update_environment_freshness_for_new_sessions"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-04-26-large-file-read-range-support-v3.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-04-16-model-selection-command.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2026-01-22-Fix Auto-Sync Workspace Registration Issue-v2.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-04-06-retry-config-migration.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2026-04-05-config-init-at-startup-v1.md"
+      ]
     }
   ],
   "workflow_templates": [
