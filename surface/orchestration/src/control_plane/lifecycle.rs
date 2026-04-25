@@ -21,7 +21,14 @@ pub fn select_workflow_template(
     needs_clarification: bool,
     recovery: Option<&RecoveryState>,
 ) -> WorkflowTemplate {
-    if needs_clarification {
+    let is_forgecode_assimilation = is_forgecode_assimilation_request(request);
+    if is_forgecode_assimilation {
+        if is_forgecode_raw_capability_request(request) {
+            return WorkflowTemplate::ForgeCodeRawCapabilityAssimilation;
+        }
+        return WorkflowTemplate::ForgeCodeAgentComposition;
+    }
+    if needs_clarification && !is_forgecode_assimilation {
         return WorkflowTemplate::ClarifyThenCoordinate;
     }
     if matches!(
@@ -33,6 +40,9 @@ pub fn select_workflow_template(
     {
         return WorkflowTemplate::DiagnoseRetryEscalate;
     }
+    if matches!(classification.request_class, RequestClass::Assimilation) {
+        return WorkflowTemplate::CodexToolingSynthesis;
+    }
     if classification.request_class == RequestClass::ToolCall
         && (matches!(
             request.request_kind,
@@ -43,15 +53,6 @@ pub fn select_workflow_template(
         ))
     {
         return WorkflowTemplate::ResearchSynthesizeVerify;
-    }
-    if matches!(classification.request_class, RequestClass::Assimilation) {
-        if is_forgecode_assimilation_request(request) {
-            if is_forgecode_raw_capability_request(request) {
-                return WorkflowTemplate::ForgeCodeRawCapabilityAssimilation;
-            }
-            return WorkflowTemplate::ForgeCodeAgentComposition;
-        }
-        return WorkflowTemplate::CodexToolingSynthesis;
     }
     if matches!(
         classification.request_class,

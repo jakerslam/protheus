@@ -1025,6 +1025,31 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/conversation/conversation_record.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/conversation/conversation_repo.rs"
       ]
+    },
+    {
+      "id": "forgecode_raw_service_state_config_auth_workspace_and_conversation_contracts",
+      "description": "Raw-capability ForgeCode lane adapted from service state/config/auth/workspace/conversation primitives to expose deterministic registry, configuration, authentication, workspace-index, and conversation persistence mechanics without composed-lane assumptions.",
+      "required_signals": [
+        "service_agent_registry_raw_path_uses_double_checked_async_cache_initialization_and_repository_backed_reload",
+        "service_agent_registry_raw_path_separates_active_agent_id_state_from_agent_definition_storage",
+        "service_app_config_raw_path_maps_session_commit_suggest_and_reasoning_effort_config_into_domain_model_config_values",
+        "service_app_config_raw_path_delegates_config_operation_mutation_to_environment_update_without_local_shadow_state",
+        "service_auth_raw_path_builds_services_url_auth_routes_and_requires_bearer_header_status_success_before_json_decode",
+        "service_workspace_raw_path_extracts_forge_services_api_key_and_user_id_from_credential_url_params_fail_closed",
+        "service_workspace_raw_path_prefers_exact_workspace_match_then_longest_ancestor_match_before_sync_or_query",
+        "service_conversation_raw_path_requires_existing_conversation_for_modify_and_persists_upsert_after_closure_application"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/agent_registry.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/app_config.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/auth.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/context_engine.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/conversation.rs"
+      ]
     }
   ]
 }
