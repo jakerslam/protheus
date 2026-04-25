@@ -40,6 +40,16 @@ impl ToolRoutingAuthorityCheck {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlannerPayloadDecisionAuditRow {
+    pub path: String,
+    pub decision_scope: String,
+    pub payload_read_count: u64,
+    pub legacy_only: bool,
+    pub ok: bool,
+    pub evidence: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ToolRoutingAuthorityReport {
     pub schema_id: String,
     pub schema_version: u64,
@@ -47,6 +57,7 @@ pub struct ToolRoutingAuthorityReport {
     pub ok: bool,
     pub required_tool_probe_keys: Vec<String>,
     pub decision_trace_fields: Vec<String>,
+    pub planner_payload_decision_audit: Vec<PlannerPayloadDecisionAuditRow>,
     pub summary: BTreeMap<String, u64>,
     pub checks: Vec<ToolRoutingAuthorityCheck>,
 }
@@ -55,6 +66,19 @@ pub fn build_tool_routing_authority_report(root: impl AsRef<Path>) -> ToolRoutin
     let root = root.as_ref();
     let contracts = read_text(root, "surface/orchestration/src/contracts.rs");
     let preconditions = read_text(root, "surface/orchestration/src/planner/preconditions.rs");
+    let planner_candidates = read_text(root, "surface/orchestration/src/planner/plan_candidates.rs");
+    let planner_common = read_text(
+        root,
+        "surface/orchestration/src/planner/plan_candidates/common.rs",
+    );
+    let planner_chain = read_text(
+        root,
+        "surface/orchestration/src/planner/plan_candidates/chain.rs",
+    );
+    let planner_strategy = read_text(
+        root,
+        "surface/orchestration/src/planner/plan_candidates/strategy.rs",
+    );
     let probe_matrix = read_text(
         root,
         "surface/orchestration/tests/conformance/probe_matrix.rs",
@@ -68,6 +92,13 @@ pub fn build_tool_routing_authority_report(root: impl AsRef<Path>) -> ToolRoutin
         "tests/tooling/fixtures/tool_route_misdirection_matrix.json",
     );
     let package_json = read_text(root, "package.json");
+    let planner_payload_decision_audit = planner_payload_decision_audit(
+        &preconditions,
+        &planner_candidates,
+        &planner_common,
+        &planner_chain,
+        &planner_strategy,
+    );
 
     let checks = vec![
         required_probe_keys_declared(&contracts, &preconditions),
@@ -76,6 +107,7 @@ pub fn build_tool_routing_authority_report(root: impl AsRef<Path>) -> ToolRoutin
         specific_missing_probe_diagnostics_declared(&preconditions),
         decision_trace_shape_declared(&preconditions),
         decision_trace_regressions_declared(&probe_matrix),
+        planner_payload_decision_audit_enforced(&planner_payload_decision_audit),
         route_misdirection_regression_declared(&route_guard, &route_fixture),
         package_scripts_registered(&package_json),
     ];
@@ -96,6 +128,17 @@ pub fn build_tool_routing_authority_report(root: impl AsRef<Path>) -> ToolRoutin
         "decision_trace_field_count".to_string(),
         DECISION_TRACE_FIELDS.len() as u64,
     );
+    summary.insert(
+        "planner_payload_decision_audit_rows".to_string(),
+        planner_payload_decision_audit.len() as u64,
+    );
+    summary.insert(
+        "planner_payload_decision_audit_failures".to_string(),
+        planner_payload_decision_audit
+            .iter()
+            .filter(|row| !row.ok)
+            .count() as u64,
+    );
 
     ToolRoutingAuthorityReport {
         schema_id: "tool_routing_authority_guard".to_string(),
@@ -110,6 +153,7 @@ pub fn build_tool_routing_authority_report(root: impl AsRef<Path>) -> ToolRoutin
             .iter()
             .map(|row| row.to_string())
             .collect(),
+        planner_payload_decision_audit,
         summary,
         checks,
     }
@@ -278,6 +322,105 @@ fn package_scripts_registered(package_json: &str) -> ToolRoutingAuthorityCheck {
     )
 }
 
+fn planner_payload_decision_audit(
+    preconditions: &str,
+    planner_candidates: &str,
+    planner_common: &str,
+    planner_chain: &str,
+    planner_strategy: &str,
+) -> Vec<PlannerPayloadDecisionAuditRow> {
+    vec![
+        legacy_payload_decision_row(
+            "surface/orchestration/src/planner/preconditions.rs",
+            "legacy_probe_shortcuts",
+            preconditions,
+        ),
+        non_legacy_payload_decision_row(
+            "surface/orchestration/src/planner/plan_candidates.rs",
+            "candidate_generation",
+            planner_candidates,
+        ),
+        non_legacy_payload_decision_row(
+            "surface/orchestration/src/planner/plan_candidates/common.rs",
+            "candidate_common_helpers",
+            planner_common,
+        ),
+        non_legacy_payload_decision_row(
+            "surface/orchestration/src/planner/plan_candidates/chain.rs",
+            "candidate_chain_selection",
+            planner_chain,
+        ),
+        non_legacy_payload_decision_row(
+            "surface/orchestration/src/planner/plan_candidates/strategy.rs",
+            "strategy_capability_selection",
+            planner_strategy,
+        ),
+    ]
+}
+
+fn legacy_payload_decision_row(
+    path: &str,
+    decision_scope: &str,
+    source: &str,
+) -> PlannerPayloadDecisionAuditRow {
+    let payload_read_count = source.matches("request.payload").count() as u64;
+    let legacy_only = source.contains("allow_payload_probe_shortcuts")
+        && source.contains("RequestSurface::Legacy")
+        && source.contains("if !allow_payload_probe_shortcuts(request)");
+    PlannerPayloadDecisionAuditRow {
+        path: path.to_string(),
+        decision_scope: decision_scope.to_string(),
+        payload_read_count,
+        legacy_only,
+        ok: payload_read_count == 0 || legacy_only,
+        evidence: vec![
+            "payload probe shortcuts are allowed only behind RequestSurface::Legacy".to_string(),
+        ],
+    }
+}
+
+fn non_legacy_payload_decision_row(
+    path: &str,
+    decision_scope: &str,
+    source: &str,
+) -> PlannerPayloadDecisionAuditRow {
+    let payload_read_count = source.matches("request.payload").count() as u64;
+    PlannerPayloadDecisionAuditRow {
+        path: path.to_string(),
+        decision_scope: decision_scope.to_string(),
+        payload_read_count,
+        legacy_only: false,
+        ok: payload_read_count == 0,
+        evidence: vec![
+            "non-legacy planner candidate decisions must use typed fields, CoreProbeEnvelope, or execution observations".to_string(),
+        ],
+    }
+}
+
+fn planner_payload_decision_audit_enforced(
+    rows: &[PlannerPayloadDecisionAuditRow],
+) -> ToolRoutingAuthorityCheck {
+    let missing = rows
+        .iter()
+        .filter(|row| !row.ok)
+        .map(|row| {
+            format!(
+                "{} has {} non-legacy request.payload decision reads",
+                row.path, row.payload_read_count
+            )
+        })
+        .collect::<Vec<_>>();
+    ToolRoutingAuthorityCheck::new(
+        "planner_payload_decision_audit_enforced",
+        vec![
+            "planner candidate paths do not read raw request.payload for non-legacy decisions"
+                .to_string(),
+            "legacy precondition payload shortcuts remain explicitly gated".to_string(),
+        ],
+        missing,
+    )
+}
+
 fn token_check(
     id: &str,
     source: &str,
@@ -309,6 +452,14 @@ pub fn render_markdown(report: &ToolRoutingAuthorityReport) -> String {
         "- decision_trace_fields: {}",
         report.decision_trace_fields.join(", ")
     ));
+    lines.push(String::new());
+    lines.push("## Planner Payload Decision Audit".to_string());
+    for row in &report.planner_payload_decision_audit {
+        lines.push(format!(
+            "- {} [{}]: ok={} payload_read_count={} legacy_only={}",
+            row.path, row.decision_scope, row.ok, row.payload_read_count, row.legacy_only
+        ));
+    }
     lines.push(String::new());
     lines.push("## Checks".to_string());
     for check in &report.checks {
@@ -396,6 +547,7 @@ mod tests {
                 .iter()
                 .map(|row| row.to_string())
                 .collect(),
+            planner_payload_decision_audit: Vec::new(),
             summary,
             checks: Vec::new(),
         };
@@ -403,5 +555,36 @@ mod tests {
         assert!(markdown.contains("selected"));
         assert!(markdown.contains("rejected"));
         assert!(markdown.contains("confidence"));
+    }
+
+    #[test]
+    fn planner_payload_audit_allows_only_legacy_shortcut_reads() {
+        let rows = planner_payload_decision_audit(
+            "fn allow_payload_probe_shortcuts(request: &TypedOrchestrationRequest) -> bool { matches!(request.surface, RequestSurface::Legacy) } fn probe_bool(request: &TypedOrchestrationRequest) { if !allow_payload_probe_shortcuts(request) { return; } let _ = request.payload.get(\"capability_probes\"); }",
+            "fn build() {}",
+            "fn common() {}",
+            "fn chain() {}",
+            "fn strategy() {}",
+        );
+        let check = planner_payload_decision_audit_enforced(&rows);
+
+        assert!(check.ok);
+        assert_eq!(rows[0].payload_read_count, 1);
+        assert!(rows[0].legacy_only);
+    }
+
+    #[test]
+    fn planner_payload_audit_rejects_candidate_payload_reads() {
+        let rows = planner_payload_decision_audit(
+            "fn allow_payload_probe_shortcuts(request: &TypedOrchestrationRequest) -> bool { matches!(request.surface, RequestSurface::Legacy) } fn probe_bool(request: &TypedOrchestrationRequest) { if !allow_payload_probe_shortcuts(request) { return; } let _ = request.payload.get(\"capability_probes\"); }",
+            "fn build(request: &TypedOrchestrationRequest) { let _ = request.payload.get(\"transport_available\"); }",
+            "fn common() {}",
+            "fn chain() {}",
+            "fn strategy() {}",
+        );
+        let check = planner_payload_decision_audit_enforced(&rows);
+
+        assert!(!check.ok);
+        assert!(check.missing[0].contains("plan_candidates.rs"));
     }
 }

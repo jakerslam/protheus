@@ -222,6 +222,98 @@ fn comparative_request_exposes_verifier_and_alternative_plan_provenance() {
 }
 
 #[test]
+fn pure_read_plan_is_non_mutating_without_context_preparation() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "pure-read-no-context-mutation".to_string(),
+            intent: "read workspace file".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "read",
+                    "resource_kind": "workspace",
+                    "request_kind": "direct",
+                    "targets": [{ "kind": "workspace_path", "value": "README.md" }]
+                },
+                "core_probe_envelope": {
+                    "workspace_read": {
+                        "tool_available": true,
+                        "transport_available": true
+                    }
+                }
+            }),
+        },
+        4_989,
+    );
+
+    assert!(!package.selected_plan.mutates_session_context);
+    assert!(package
+        .selected_plan
+        .context_preparation_rationale
+        .is_none());
+    assert!(!package.selected_plan.steps.iter().any(|step| {
+        step.target_contract == infring_orchestration_surface_v1::contracts::CoreContractCall::ContextAtomAppend
+    }));
+    assert!(package
+        .decision_trace
+        .receipt_metadata
+        .iter()
+        .any(|row| row == "plan_mutates_session_context=false"));
+}
+
+#[test]
+fn comparative_read_plan_exposes_explicit_context_preparation_metadata() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "comparative-read-context-prep".to_string(),
+            intent: "compare workspace and web context".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "compare",
+                    "resource_kind": "mixed",
+                    "request_kind": "comparative",
+                    "targets": [
+                        { "kind": "workspace_path", "value": "README.md" },
+                        { "kind": "url", "value": "https://example.com" }
+                    ]
+                },
+                "core_probe_envelope": {
+                    "tool_route": {
+                        "tool_available": true,
+                        "transport_available": true
+                    },
+                    "verify_claim": {
+                        "transport_available": true
+                    }
+                }
+            }),
+        },
+        4_990,
+    );
+
+    let prepared = std::iter::once(&package.selected_plan)
+        .chain(package.alternative_plans.iter())
+        .find(|plan| plan.mutates_session_context)
+        .expect("at least one comparative plan should prepare context explicitly");
+
+    assert!(prepared
+        .context_preparation_rationale
+        .as_deref()
+        .unwrap_or("")
+        .contains("explicit_context_preparation_pre_step"));
+    assert!(prepared.steps.iter().any(|step| {
+        step.operation == "prepare_session_context_explicit"
+            && step
+                .rationale
+                .iter()
+                .any(|row| row == "mutates_session_context:true")
+    }));
+}
+
+#[test]
 fn observed_core_execution_is_projected_into_execution_state_correlation() {
     let mut runtime = OrchestrationSurfaceRuntime::new();
     runtime.record_execution_observation(
@@ -507,4 +599,132 @@ fn adapted_mutation_request_requires_explicit_target_probe_envelope_fields() {
                 source == "probe.required_for_typed_surface.mutate_task.target_supplied"
             })
     }));
+}
+
+#[test]
+fn comparative_request_exposes_decomposition_metadata_with_distinct_capability_graphs() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "cmp-decomposition-metadata".to_string(),
+            intent: "compare workspace and web evidence".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "compare",
+                    "resource_kind": "mixed",
+                    "request_kind": "comparative",
+                    "targets": [
+                        { "kind": "workspace_path", "value": "README.md" },
+                        { "kind": "url", "value": "https://example.com" }
+                    ]
+                },
+                "core_probe_envelope": {
+                    "tool_route": {
+                        "tool_available": true,
+                        "transport_available": true
+                    },
+                    "read_memory": {
+                        "transport_available": true
+                    },
+                    "verify_claim": {
+                        "transport_available": true
+                    }
+                }
+            }),
+        },
+        5_081,
+    );
+
+    let plans = std::iter::once(&package.selected_plan)
+        .chain(package.alternative_plans.iter())
+        .collect::<Vec<_>>();
+    assert!(plans.iter().all(|plan| !plan.decomposition_family.is_empty()));
+    assert!(plans.iter().all(|plan| !plan.contract_family.is_empty()));
+    assert!(plans.iter().all(|plan| !plan.capability_graph.is_empty()));
+    assert!(plans
+        .iter()
+        .any(|plan| plan.contract_family.contains("verification")));
+
+    let graph_signatures = plans
+        .iter()
+        .map(|plan| {
+            plan.capability_graph
+                .iter()
+                .map(|capability| format!("{capability:?}").to_lowercase())
+                .collect::<Vec<_>>()
+                .join("+")
+        })
+        .collect::<std::collections::BTreeSet<_>>();
+    assert!(
+        graph_signatures.len() >= 2,
+        "comparative alternatives should differ by capability graph, not only order"
+    );
+}
+
+#[test]
+fn forgecode_request_exposes_workflow_decomposition_metadata() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let package = runtime.orchestrate(
+        OrchestrationRequest {
+            session_id: "forgecode-decomposition-metadata".to_string(),
+            intent: "assimilate forgecode workflow lanes and routing mechanics".to_string(),
+            surface: RequestSurface::Sdk,
+            payload: json!({
+                "sdk": {
+                    "operation_kind": "assimilate",
+                    "resource_kind": "mixed",
+                    "request_kind": "workflow",
+                    "targets": [
+                        { "kind": "url", "value": "https://github.com/antinomyhq/forgecode" },
+                        { "kind": "workspace_path", "value": "local/workspace/assimilations/ForgeCode-Assimilation" }
+                    ]
+                },
+                "core_probe_envelope": {
+                    "plan_assimilation": {
+                        "transport_available": true
+                    },
+                    "tool_route": {
+                        "tool_available": true,
+                        "transport_available": true
+                    },
+                    "read_memory": {
+                        "transport_available": true
+                    },
+                    "verify_claim": {
+                        "transport_available": true
+                    },
+                    "mutate_task": {
+                        "transport_available": true
+                    }
+                }
+            }),
+        },
+        5_082,
+    );
+
+    assert_eq!(
+        package.workflow_template,
+        infring_orchestration_surface_v1::contracts::WorkflowTemplate::ForgeCodeAgentComposition
+    );
+    let plans = std::iter::once(&package.selected_plan)
+        .chain(package.alternative_plans.iter())
+        .collect::<Vec<_>>();
+    assert!(plans.iter().all(|plan| !plan.decomposition_family.is_empty()));
+    assert!(plans.iter().all(|plan| !plan.contract_family.is_empty()));
+    assert!(plans.iter().any(|plan| plan.contract_family.contains("assimilation")));
+    assert!(plans.iter().any(|plan| {
+        plan.capability_graph.contains(
+            &infring_orchestration_surface_v1::contracts::Capability::PlanAssimilation,
+        )
+    }));
+
+    let decomposition_families = plans
+        .iter()
+        .map(|plan| plan.decomposition_family.clone())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert!(
+        decomposition_families.len() >= 2,
+        "ForgeCode-heavy requests should expose multiple decomposition families"
+    );
 }

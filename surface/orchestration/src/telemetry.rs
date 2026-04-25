@@ -1,7 +1,7 @@
 // Layer ownership: surface/orchestration (control-plane trace normalization only).
 use crate::contracts::{
     ControlPlaneDecisionTrace, OrchestrationResultPackage, WorkflowStage, WorkflowStageStatus,
-    WorkflowTemplate,
+    WorkflowQualitySignals, WorkflowTemplate,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -153,15 +153,30 @@ fn tool_decision_for_package(package: &OrchestrationResultPackage) -> String {
 }
 
 fn tool_family_for_package(package: &OrchestrationResultPackage) -> String {
-    if package.runtime_quality.known_path_direct_read_required
-        || package.runtime_quality.exact_pattern_search_required
+    let forgecode_quality = match package.workflow_quality.as_ref() {
+        Some(WorkflowQualitySignals::ForgeCode(signals)) => Some(signals),
+        None => None,
+    };
+    if forgecode_quality
+        .map(|signals| {
+            signals.known_path_direct_read_required || signals.exact_pattern_search_required
+        })
+        .unwrap_or(false)
     {
         "workspace".to_string()
-    } else if package.runtime_quality.semantic_discovery_route_required {
+    } else if forgecode_quality
+        .map(|signals| signals.semantic_discovery_route_required)
+        .unwrap_or(false)
+    {
         "web_or_semantic_discovery".to_string()
-    } else if package.runtime_quality.shell_terminal_only_usage_required {
+    } else if forgecode_quality
+        .map(|signals| signals.shell_terminal_only_usage_required)
+        .unwrap_or(false)
+    {
         "shell_terminal".to_string()
-    } else if package.runtime_quality.specialized_tool_usage_required
+    } else if forgecode_quality
+        .map(|signals| signals.specialized_tool_usage_required)
+        .unwrap_or(false)
         || !package.core_contract_calls.is_empty()
     {
         "tool_route".to_string()

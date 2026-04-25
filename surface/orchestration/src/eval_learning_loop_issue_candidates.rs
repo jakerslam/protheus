@@ -121,7 +121,9 @@ fn issue_candidate_from_inbox_row(row: &Value) -> Value {
             "normalized_failure_code": str_at(row, &["normalized_failure_code"]).unwrap_or("none"),
             "sanitized_user_text": str_at(row, &["sanitized_user_text"]).unwrap_or(""),
             "sanitized_assistant_text": str_at(row, &["sanitized_assistant_text"]).unwrap_or(""),
-            "evidence_summary": str_at(row, &["evidence_summary"]).unwrap_or("")
+            "evidence_summary": str_at(row, &["evidence_summary"]).unwrap_or(""),
+            "runtime_quality": row.get("runtime_quality").cloned().unwrap_or_else(|| json!({})),
+            "workflow_quality": row.get("workflow_quality").cloned().unwrap_or_else(|| json!(null))
         },
         "suspected_layer": suspected_layer,
         "suspected_root_cause": root_cause_for_signal(signal),
@@ -382,7 +384,18 @@ mod tests {
             "normalized_failure_code": "wrong_tool_web_request_stale_php_context",
             "sanitized_user_text": "Use web search to compare frameworks.",
             "sanitized_assistant_text": "<?php class ProductController {}",
-            "evidence_summary": "Explicit web-search request returned stale PHP context."
+            "evidence_summary": "Explicit web-search request returned stale PHP context.",
+            "runtime_quality": {
+                "candidate_count": 4,
+                "zero_executable_candidates": false,
+                "typed_probe_contract_gap_count": 0
+            },
+            "workflow_quality": {
+                "workflow": "forge_code",
+                "signals": {
+                    "semantic_discovery_route_required": true
+                }
+            }
         });
 
         let candidate = issue_candidate_from_inbox_row(&row);
@@ -396,6 +409,14 @@ mod tests {
             Some("eval-monitor:fnv64:abc")
         );
         assert!(candidate_has_grounded_evidence(&candidate));
+        assert_eq!(
+            candidate.pointer("/evidence/runtime_quality/candidate_count"),
+            Some(&json!(4))
+        );
+        assert_eq!(
+            candidate.pointer("/evidence/workflow_quality/signals/semantic_discovery_route_required"),
+            Some(&json!(true))
+        );
         assert!(issue_candidate_quality_failures(&candidate).is_empty());
     }
 }

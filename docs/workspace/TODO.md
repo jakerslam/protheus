@@ -1,17 +1,18 @@
 # TODO (SRS Execution Checklist)
 
-Updated: 2026-04-25T09:23:36.006Z
+Updated: 2026-04-25T16:15:04.314Z
 
 ## Global Rollup
-- total_rows: 3739
-- queued: 91
-- in_progress: 16
+- total_rows: 3791
+- queued: 111
+- in_progress: 22
 - blocked: 0
 - blocked_external_prepared: 32
-- done: 1321
+- done: 1347
 - existing_coverage_validated: 2279
 
 ## SRS Section Checklist
+- [ ] Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25) — queued=20, in_progress=0, blocked=0, blocked_external_prepared=0, done=25, existing_coverage_validated=0
 - [x] High-ROI Release Proof-Pack Closure Wave (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Misty / Control-Plane Health Wave 1 (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Misty / Control-Plane Health Wave 2 (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
@@ -19,6 +20,7 @@ Updated: 2026-04-25T09:23:36.006Z
 - [x] Misty / Control-Plane Health Wave 4 (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Misty / Control-Plane Health Wave 5 (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Misty / Control-Plane Health Wave 6 (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
+- [ ] Misty / Control-Plane Health Wave 7 (2026-04-25) — queued=0, in_progress=6, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
 - [x] Test/Gate Maturity Registry Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] High-ROI Web + Installer Closure Guard Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=2, existing_coverage_validated=0
 - [x] Chat Rendering Experience Guard Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
@@ -32,7 +34,7 @@ Updated: 2026-04-25T09:23:36.006Z
 - [x] Undeniable System Closure Probe Contract Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Undeniable System Closure Boundedness Gate Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Undeniable System Closure Gateway Manifest Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
-- [x] Eval Agent Feedback Attention Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=2, existing_coverage_validated=0
+- [x] Eval Agent Feedback Attention Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=3, existing_coverage_validated=0
 - [x] Workflow Direct Answer Preservation Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Live Eval Monitor Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Synthetic User Chat Harness Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
@@ -654,6 +656,10 @@ Updated: 2026-04-25T09:23:36.006Z
 - [ ] `V11-TURNLOOP-014` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V11-WEB-007` — in_progress — Web Retrieval Reliability Intake (2026-04-06)
 - [ ] `V11-WEB-009` — in_progress — Web Retrieval Reliability Intake (2026-04-06)
+- [ ] `V12-EVAL-ISSUE-001` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
+- [ ] `V12-EVAL-ISSUE-002` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
+- [ ] `V12-MISTY-HEALTH-WAVE7-001` — in_progress — Misty / Control-Plane Health Wave 7 (2026-04-25)
+- [ ] `V12-MISTY-HEALTH-WAVE7-002` — in_progress — Misty / Control-Plane Health Wave 7 (2026-04-25)
 - [ ] `V6-ASSIM-001` — in_progress — Software Assimilation Capability Intake (2026-04-09)
 - [ ] `V6-ASSIM-002` — in_progress — Directed Assimilation Protocol Intake (2026-04-09)
 - [ ] `V6-AUTO-001` — in_progress — Governed Self-Maintenance Supervisor Intake (2026-04-09)
@@ -698,6 +704,15 @@ Updated: 2026-04-25T09:23:36.006Z
 - [ ] `V11-TURNLOOP-012` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V11-TURNLOOP-015` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V11-TURNLOOP-017` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
+- [ ] `V12-EVAL-ISSUE-003` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
+- [ ] `V12-EVAL-ISSUE-004` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
+- [ ] `V12-EVAL-ISSUE-005` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
+- [ ] `V12-MISTY-HEALTH-WAVE7-003` — in_progress — Misty / Control-Plane Health Wave 7 (2026-04-25)
+- [ ] `V12-MISTY-HEALTH-WAVE7-004` — in_progress — Misty / Control-Plane Health Wave 7 (2026-04-25)
+- [ ] `V12-MISTY-HEALTH-WAVE7-005` — in_progress — Misty / Control-Plane Health Wave 7 (2026-04-25)
+- [ ] `V12-ORCH-LEGACY-001` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
+- [ ] `V12-ORCH-LEGACY-002` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
+- [ ] `V12-ORCH-LEGACY-003` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
 - [ ] `V6-CONDUIT-002.10` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
 - [ ] `V6-CONDUIT-002.11` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
 - [ ] `V6-CONDUIT-002.12` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
@@ -726,6 +741,19 @@ Updated: 2026-04-25T09:23:36.006Z
 - [ ] `V11-TURNLOOP-004` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V11-TURNLOOP-016` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V12-FORGECODE-001` — in_progress — ForgeCode MCP/Retry Workflow Assimilation Increment (2026-04-23)
+- [ ] `V12-MISTY-HEALTH-WAVE7-006` — in_progress — Misty / Control-Plane Health Wave 7 (2026-04-25)
+- [ ] `V12-ORCH-LEGACY-004` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
+- [ ] `V12-ORCH-LEGACY-005` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
+- [ ] `V12-ORCH-STABILITY-001` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
+- [ ] `V12-ORCH-STABILITY-002` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
+- [ ] `V12-ORCH-STABILITY-003` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
+- [ ] `V12-ORCH-STABILITY-004` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
+- [ ] `V12-ORCH-STABILITY-005` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
+- [ ] `V12-SELF-MAINT-001` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
+- [ ] `V12-SELF-MAINT-002` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
+- [ ] `V12-SELF-MAINT-003` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
+- [ ] `V12-SELF-MAINT-004` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
+- [ ] `V12-SELF-MAINT-005` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
 - [ ] `V6-AUDIT-014` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
 - [ ] `V6-CONDUIT-002.5` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
 - [ ] `V6-OBS-005` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)

@@ -453,6 +453,14 @@ pub struct PlanCandidate {
     pub plan_id: String,
     pub variant: PlanVariant,
     pub steps: Vec<OrchestrationPlanStep>,
+    pub mutates_session_context: bool,
+    pub context_preparation_rationale: Option<String>,
+    #[serde(default)]
+    pub decomposition_family: String,
+    #[serde(default)]
+    pub capability_graph: Vec<Capability>,
+    #[serde(default)]
+    pub contract_family: String,
     pub confidence: f32,
     pub score: PlanScore,
     pub requires_clarification: bool,
@@ -627,6 +635,13 @@ pub struct RuntimeQualitySignals {
     pub typed_probe_contract_gap_count: u32,
     pub decision_rationale_count: u32,
     pub fallback_action_count: u32,
+    pub tool_failure_budget_failed_step_count: u32,
+    pub tool_failure_budget_limit: u32,
+    pub tool_failure_budget_exceeded: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ForgeCodeWorkflowQualitySignals {
     pub mcp_alias_route_required: bool,
     pub retry_backoff_contract_required: bool,
     pub mcp_transport_fallback_required: bool,
@@ -647,9 +662,12 @@ pub struct RuntimeQualitySignals {
     pub mcp_transport_fallback_action_count: u32,
     pub mcp_retry_recovery_active: bool,
     pub mcp_diagnostic_summary: String,
-    pub tool_failure_budget_failed_step_count: u32,
-    pub tool_failure_budget_limit: u32,
-    pub tool_failure_budget_exceeded: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "workflow", content = "signals", rename_all = "snake_case")]
+pub enum WorkflowQualitySignals {
+    ForgeCode(ForgeCodeWorkflowQualitySignals),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -744,6 +762,7 @@ pub struct OrchestrationResultPackage {
     pub selected_plan: PlanCandidate,
     pub alternative_plans: Vec<PlanCandidate>,
     pub runtime_quality: RuntimeQualitySignals,
+    pub workflow_quality: Option<WorkflowQualitySignals>,
     pub decision_trace: ControlPlaneDecisionTrace,
     pub workflow_template: WorkflowTemplate,
     pub control_plane_lifecycle: ControlPlaneLifecycleState,
