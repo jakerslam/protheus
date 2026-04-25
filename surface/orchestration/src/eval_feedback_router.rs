@@ -131,10 +131,9 @@ fn route_for_destination(destination: EnforcementDestination) -> (&'static str, 
             "quarantine_gateway_and_route_around",
             "gateway_quarantine_event",
         ),
-        EnforcementDestination::KernelBlock => (
-            "block_release_or_runtime_escalation",
-            "kernel_block_event",
-        ),
+        EnforcementDestination::KernelBlock => {
+            ("block_release_or_runtime_escalation", "kernel_block_event")
+        }
     }
 }
 
@@ -205,9 +204,17 @@ fn destination_count(routes: &[Value], destination: EnforcementDestination) -> u
 }
 
 fn route_is_well_formed(route: &Value) -> bool {
-    ["source", "failure_id", "failure_class", "severity", "destination", "action", "receipt_type"]
-        .iter()
-        .all(|field| str_at(route, &[*field]).is_some())
+    [
+        "source",
+        "failure_id",
+        "failure_class",
+        "severity",
+        "destination",
+        "action",
+        "receipt_type",
+    ]
+    .iter()
+    .all(|field| str_at(route, &[*field]).is_some())
 }
 
 fn build_report(regression_path: &str, issue_drafts_path: &str) -> Value {
@@ -216,7 +223,10 @@ fn build_report(regression_path: &str, issue_drafts_path: &str) -> Value {
     let mut routes = Vec::new();
     push_issue_routes(&mut routes, &issue_drafts);
     push_regression_routes(&mut routes, &regression);
-    let malformed = routes.iter().filter(|row| !route_is_well_formed(row)).count();
+    let malformed = routes
+        .iter()
+        .filter(|row| !route_is_well_formed(row))
+        .count();
     let regression_failed = !bool_at(&regression, &["ok"]);
     let regression_blocked = !regression_failed
         || routes

@@ -38,7 +38,11 @@ fn main() {
     println!(
         "[tool-routing authority] ok={} checks={} failing={}",
         report.ok,
-        report.summary.get("total_checks").copied().unwrap_or_default(),
+        report
+            .summary
+            .get("total_checks")
+            .copied()
+            .unwrap_or_default(),
         report
             .summary
             .get("failing_checks")

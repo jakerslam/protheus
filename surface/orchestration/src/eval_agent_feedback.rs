@@ -353,7 +353,7 @@ fn issue_from_learning_candidate(row: &Value) -> EvalIssue {
         id: required_str(row, &["id"], "eval_learning_issue"),
         source_kind: "eval_learning_loop_candidate".to_string(),
         title: required_str(row, &["symptom"], "Eval learning-loop issue"),
-        severity: "warn".to_string(),
+        severity: normalized_severity(str_at(row, &["severity"]).unwrap_or("warn")),
         owner_component: required_str(row, &["owner_component"], "unknown"),
         issue_class: string_array_at(row, &["root_cause_basis"]).join(","),
         related_agent_id: related_agent_id(row),

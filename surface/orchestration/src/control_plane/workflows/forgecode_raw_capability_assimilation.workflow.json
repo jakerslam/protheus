@@ -1376,6 +1376,39 @@
         "crates/forge_app/src/snapshots/forge_app__operation__tests__net_fetch_success.snap",
         "crates/forge_app/src/snapshots/forge_app__operation__tests__net_fetch_truncated.snap"
       ]
+    },
+    {
+      "id": "forgecode_raw_public_capability_coverage_audit_contracts",
+      "description": "Records raw ForgeCode public capability parity requirements as concrete CLI, config, agent, workspace, MCP, shell-plugin, and bounded-tool source contracts for future assimilation waves.",
+      "required_signals": [
+        "raw_capability_surface_includes_forge_without_args_forge_prompt_pipe_prompt_conversation_resume_agent_directory_and_sandbox_invocations",
+        "raw_capability_surface_includes_colon_prompt_colon_sage_colon_muse_colon_agent_colon_new_colon_conversation_colon_clone_colon_retry_colon_copy_colon_dump_and_colon_compact",
+        "raw_capability_surface_includes_colon_commit_colon_commit_preview_colon_suggest_colon_edit_colon_model_colon_reasoning_effort_colon_info_colon_tools_and_colon_skill",
+        "raw_agent_surface_includes_markdown_yaml_frontmatter_agents_with_id_title_description_tools_model_sampling_and_project_over_global_precedence",
+        "raw_builtin_agent_surface_distinguishes_default_forge_write_agent_sage_read_only_research_agent_and_muse_plan_writer_agent",
+        "raw_provider_surface_includes_provider_login_logout_list_and_migration_from_legacy_environment_credentials_to_file_storage",
+        "raw_workspace_surface_includes_workspace_init_sync_status_query_semantic_index_limits_and_workspace_server_url_override",
+        "raw_mcp_surface_includes_mcp_list_import_show_remove_reload_project_local_mcp_json_and_global_mcp_json_precedence",
+        "raw_config_surface_includes_custom_rules_commands_model_max_walker_depth_temperature_tool_failure_limits_request_limits_and_retry_http_controls",
+        "raw_safety_surface_includes_restricted_shell_mode_sandbox_worktree_branch_directory_selection_tool_timeout_and_fetch_search_truncation_bounds",
+        "raw_assimilation_quality_surface_requires_each_burned_source_to_be_tagged_as_public_capability_primary_mechanic_supporting_mechanic_or_snapshot_evidence_shape",
+        "raw_assimilation_quality_surface_blocks_parity_claims_when_only_snapshot_evidence_exists_for_an_uncovered_primary_capability_domain"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard",
+        "ops:assimilation:capability-coverage:guard"
+      ],
+      "source_refs": [
+        "https://github.com/tailcallhq/forgecode#how-forge-works-three-modes",
+        "https://github.com/tailcallhq/forgecode#zsh-plugin-the--prefix-system",
+        "https://github.com/tailcallhq/forgecode#quick-reference-all--commands",
+        "https://github.com/tailcallhq/forgecode#mcp-configuration",
+        "https://forgecode.dev/docs/creating-agents/",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/agent_executor.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/mcp/manager.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/tool_services/fetch.rs"
+      ]
     }
   ],
   "workflow_templates": [

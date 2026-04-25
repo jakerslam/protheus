@@ -121,7 +121,10 @@ fn validate_decision_trace(trace: &Value, issues: &mut Vec<String>) {
         Some(_) => issues.push("decision_trace_invalid_field:confidence".to_string()),
         None => issues.push("decision_trace_missing_field:confidence".to_string()),
     }
-    match decision.get("alternatives_rejected").and_then(Value::as_array) {
+    match decision
+        .get("alternatives_rejected")
+        .and_then(Value::as_array)
+    {
         Some(_) => {}
         None => issues.push("decision_trace_missing_array:alternatives_rejected".to_string()),
     }
@@ -154,8 +157,12 @@ fn validate_decision_trace(trace: &Value, issues: &mut Vec<String>) {
         }
         match step.get("confidence").and_then(Value::as_f64) {
             Some(value) if value.is_finite() && (0.0..=1.0).contains(&value) => {}
-            Some(_) => issues.push(format!("decision_trace_step_{idx}_invalid_field:confidence")),
-            None => issues.push(format!("decision_trace_step_{idx}_missing_field:confidence")),
+            Some(_) => issues.push(format!(
+                "decision_trace_step_{idx}_invalid_field:confidence"
+            )),
+            None => issues.push(format!(
+                "decision_trace_step_{idx}_missing_field:confidence"
+            )),
         }
     }
 }
