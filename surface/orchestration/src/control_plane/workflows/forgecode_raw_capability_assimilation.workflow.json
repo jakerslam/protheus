@@ -1295,6 +1295,33 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-06-07-tool-service-migration-v1.md",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-04-02-system-context-rendering-final.md"
       ]
+    },
+    {
+      "id": "forgecode_raw_workspace_search_snapshot_contracts",
+      "description": "Assimilates raw ForgeCode filesystem-search output semantics for search-result XML attributes, CDATA result bodies, context markers, file-type filtering, and byte-limit truncation behavior.",
+      "required_signals": [
+        "raw_fs_search_output_wraps_results_in_search_results_element_with_path_max_bytes_allowed_total_lines_display_lines_and_pattern_attributes",
+        "raw_fs_search_truncation_sets_display_lines_to_zero_zero_omits_result_body_and_preserves_reason_for_more_specific_query_guidance",
+        "raw_fs_search_after_context_uses_filename_colon_line_for_match_and_filename_dash_lines_for_following_context",
+        "raw_fs_search_before_context_uses_filename_dash_lines_for_prior_context_then_filename_colon_line_for_match",
+        "raw_fs_search_context_lines_snapshot_combines_before_match_and_after_lines_without_reordering_or_summarizing",
+        "raw_fs_search_file_type_filter_includes_file_type_attribute_and_returns_only_files_matching_the_requested_type",
+        "raw_fs_search_total_lines_counts_matches_while_display_lines_reports_visible_match_range",
+        "raw_fs_search_result_body_is_cdata_to_prevent_markup_corruption_from_source_text",
+        "raw_fs_search_snapshot_contracts_are_replayable_for_workspace_tooling_context_soak_and_eval_regression",
+        "raw_fs_search_size_boundaries_are_operator_visible_and_do_not_trigger_unbounded_retry_or_web_routing"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_very_lengthy_one_line_match.snap",
+        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_with_after_context.snap",
+        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_with_before_context.snap",
+        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_with_context_lines.snap",
+        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_with_file_type.snap"
+      ]
     }
   ],
   "workflow_templates": [
