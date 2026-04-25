@@ -890,6 +890,30 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/fmt/snapshots/forge_app__fmt__fmt_output__tests__fs_patch_success.snap",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/fmt/snapshots/forge_app__fmt__todo_fmt__tests__todo_write_mixed_changes_snapshot.snap"
       ]
+    },
+    {
+      "id": "forgecode_raw_todo_removed_and_orch_prompt_snapshot_contracts",
+      "description": "Raw-capability ForgeCode lane adapted from removed todo and orchestration prompt snapshots to expose deterministic status-rendering and prompt-context mechanics without composed-lane assumptions.",
+      "required_signals": [
+        "todo_raw_removed_in_progress_output_combines_in_progress_symbol_task_text_strikethrough_and_red_reset_envelope",
+        "todo_raw_removed_pending_output_combines_pending_symbol_task_text_strikethrough_and_red_reset_envelope",
+        "orch_prompt_raw_base_snapshot_orders_identity_system_information_tool_usage_instructions_and_non_negotiable_rules",
+        "orch_prompt_raw_tool_supported_snapshot_embeds_file_list_inside_system_information_context",
+        "orch_prompt_raw_extensions_snapshot_embeds_workspace_extension_histogram_with_git_ls_files_origin_and_percentages",
+        "orch_prompt_raw_tool_guidance_encodes_parallel_tool_calls_hide_tool_names_and_read_larger_sections_preferences",
+        "orch_prompt_raw_behavior_rules_encode_scope_control_existing_file_preference_doc_creation_restriction_code_reference_format_tagged_file_no_reread_and_emoji_policy"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/fmt/snapshots/forge_app__fmt__todo_fmt__tests__todo_write_removed_in_progress_renders_with_in_progress_icon_in_raw_snapshot.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/fmt/snapshots/forge_app__fmt__todo_fmt__tests__todo_write_removed_pending_renders_with_pending_icon_in_raw_snapshot.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/orch_spec/snapshots/forge_app__orch_spec__orch_system_spec__system_prompt.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/orch_spec/snapshots/forge_app__orch_spec__orch_system_spec__system_prompt_tool_supported.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/orch_spec/snapshots/forge_app__orch_spec__orch_system_spec__system_prompt_with_extensions.snap"
+      ]
     }
   ],
   "workflow_templates": [
@@ -1311,6 +1335,30 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/utils/temp_dir.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/fmt/snapshots/forge_app__fmt__fmt_output__tests__fs_patch_success.snap",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/fmt/snapshots/forge_app__fmt__todo_fmt__tests__todo_write_mixed_changes_snapshot.snap"
+      ]
+    },
+    {
+      "id": "forgecode_raw_todo_removed_and_orch_prompt_snapshot_contracts",
+      "description": "Raw-capability ForgeCode lane adapted from removed todo and orchestration prompt snapshots to expose deterministic status-rendering and prompt-context mechanics without composed-lane assumptions.",
+      "required_signals": [
+        "todo_raw_removed_in_progress_output_combines_in_progress_symbol_task_text_strikethrough_and_red_reset_envelope",
+        "todo_raw_removed_pending_output_combines_pending_symbol_task_text_strikethrough_and_red_reset_envelope",
+        "orch_prompt_raw_base_snapshot_orders_identity_system_information_tool_usage_instructions_and_non_negotiable_rules",
+        "orch_prompt_raw_tool_supported_snapshot_embeds_file_list_inside_system_information_context",
+        "orch_prompt_raw_extensions_snapshot_embeds_workspace_extension_histogram_with_git_ls_files_origin_and_percentages",
+        "orch_prompt_raw_tool_guidance_encodes_parallel_tool_calls_hide_tool_names_and_read_larger_sections_preferences",
+        "orch_prompt_raw_behavior_rules_encode_scope_control_existing_file_preference_doc_creation_restriction_code_reference_format_tagged_file_no_reread_and_emoji_policy"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/fmt/snapshots/forge_app__fmt__todo_fmt__tests__todo_write_removed_in_progress_renders_with_in_progress_icon_in_raw_snapshot.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/fmt/snapshots/forge_app__fmt__todo_fmt__tests__todo_write_removed_pending_renders_with_pending_icon_in_raw_snapshot.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/orch_spec/snapshots/forge_app__orch_spec__orch_system_spec__system_prompt.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/orch_spec/snapshots/forge_app__orch_spec__orch_system_spec__system_prompt_tool_supported.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/orch_spec/snapshots/forge_app__orch_spec__orch_system_spec__system_prompt_with_extensions.snap"
       ]
     }
   ]
