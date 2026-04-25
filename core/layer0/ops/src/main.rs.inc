@@ -679,6 +679,11 @@ fn main() {
             let exit = infring_ops_core::eval_plane::run(&cwd, &rest);
             std::process::exit(exit);
         }
+        "kernel-sentinel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = infring_ops_core::kernel_sentinel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "ab-lane-eval" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = infring_ops_core::ab_lane_eval::run(&cwd, &rest);
