@@ -305,7 +305,7 @@ fn response_contains_unexpected_state_retry_boilerplate(response_text: &str) -> 
         && lowered.contains("run one targeted tool call")
         && lowered.contains("return a concise answer from current context");
     lowered.contains("final workflow state was unexpected")
-        || lowered.contains("final reply did not render")
+        || lowered.contains("final reply did not render") || lowered.contains("finalization edge")
         || lowered.contains("i can access runtime telemetry, persistent memory, workspace files, channels, and approved command surfaces in this session")
         || lowered.contains("this is a policy gate, not a web-provider outage")
         || lowered.contains("file list step was blocked before i could finish the answer")
@@ -1204,6 +1204,15 @@ fn augment_turn_workflow_events_for_final_response(
 ) -> Vec<Value> {
     let mut events = workflow_events.to_vec();
     let cleaned_draft = clean_text(draft_response, 4_000);
+    let direct_recovery_answer = workflow_turn_is_meta_control_message(message)
+        && cleaned_draft.to_ascii_lowercase().contains("answer directly")
+        && !response_contains_unexpected_state_retry_boilerplate(&cleaned_draft)
+        && !response_contains_route_classification_retry_template(
+            &cleaned_draft.to_ascii_lowercase(),
+        );
+    if direct_recovery_answer {
+        return events;
+    }
     if response_is_no_findings_placeholder(&cleaned_draft) {
         events.push(turn_workflow_event(
             "draft_response_invalid",
@@ -1389,6 +1398,16 @@ fn workflow_user_prefers_deep_dive(message: &str) -> bool {
         || lowered.contains("step by step")
 }
 
+fn response_tools_prompt_only_gate_required(message: &str, latent_tool_candidates: &Value) -> bool {
+    if message_explicitly_disallows_tool_calls(message) {
+        return false;
+    }
+    latent_tool_candidates
+        .as_array()
+        .map(|candidates| !candidates.is_empty())
+        .unwrap_or(false)
+}
+
 fn run_turn_workflow_final_response(
     root: &Path,
     provider: &str,
@@ -1483,8 +1502,6 @@ fn run_turn_workflow_final_response(
         .unwrap_or_else(|_| "[]".to_string());
     let workflow_events_json = serde_json::to_string(&enriched_workflow_events)
         .unwrap_or_else(|_| "[]".to_string());
-    let workflow_metadata_json =
-        serde_json::to_string(&workflow).unwrap_or_else(|_| "{}".to_string());
     let template_label = workflow_response_template_label(message);
     let template_instruction = workflow_template_instruction_for_label(template_label);
     let detail_style = if workflow_user_prefers_deep_dive(message) {
@@ -1492,24 +1509,90 @@ fn run_turn_workflow_final_response(
     } else {
         "concise"
     };
-    let system_prompt = clean_text(
-        &format!(
-            "{}\n\nHardcoded agent workflow: you are writing the final assistant response after the system collected tool outcomes and workflow events. Use the recorded evidence. If a tool failed, timed out, was blocked, or returned low-signal output, say that plainly in your own words. Never emit raw telemetry, placeholder copy, inline `<function=...>` markup, or pretend a failed tool succeeded.\n\nFinal-answer contract (final_answer_contract_v1): (1) answer the user's request in the first 1-2 sentences, (2) do not echo/restate the user prompt as your response, (3) do not include placeholder copy, (4) do not mention internal gate/classifier identifiers, and (5) do not emit bracketed internal source tags.\n\nResponse template class: {}. {} Style: {} by default unless user requested a deep dive.",
-            AGENT_RUNTIME_SYSTEM_PROMPT, template_label, template_instruction, detail_style
-        ),
-        12_000,
-    );
-    let user_prompt = clean_text(
-        &format!(
-            "User request:\n{message}\n\nCurrent draft response:\n{}\n\nWorkflow metadata:\n{workflow_metadata_json}\n\nRecorded tool outcomes:\n{tool_rows_json}\n\nWorkflow events:\n{workflow_events_json}\n\nWrite the final assistant response now.",
-            if clean_text(draft_response, 2_000).is_empty() {
-                "(empty)"
-            } else {
-                draft_response
-            }
-        ),
-        20_000,
-    );
+    let workflow_mode_clean = clean_text(workflow_mode, 80);
+    let direct_no_tool_exit_turn = workflow_mode_clean == "direct_no_tool_exit";
+    let direct_simple_conversation_turn = workflow_mode_clean == "direct_simple_conversation";
+    let direct_conversation_recovery_turn = workflow_mode_clean == "direct_conversation_recovery";
+    let manual_toolbox_gate_turn = response_tools.is_empty()
+        && !(direct_no_tool_exit_turn
+            || direct_simple_conversation_turn
+            || direct_conversation_recovery_turn)
+        && enriched_workflow_events.iter().any(|event| {
+            matches!(
+                event.get("kind").and_then(Value::as_str).unwrap_or(""),
+                "manual_toolbox_candidate_menu" | "empty_final_response_menu_recovery"
+            )
+        });
+    let direct_gate_recovery_turn = response_tools.is_empty()
+        && !manual_toolbox_gate_turn
+        && (direct_no_tool_exit_turn
+            || direct_simple_conversation_turn
+            || direct_conversation_recovery_turn
+            || workflow_turn_is_meta_control_message(message)
+            || enriched_workflow_events.iter().any(|event| {
+                event.get("kind").and_then(Value::as_str).unwrap_or("")
+                    == "draft_response_invalid"
+            }));
+    let (system_prompt, user_prompt) = if manual_toolbox_gate_turn {
+        (
+            clean_text(
+                "Manual toolbox gate. You are the LLM and you author the visible chat text. The system must not choose tools for you. Output exactly one useful next step: `No. <answer directly from current context>` or `Yes. Tool family: <family>. Tool: <tool>. Request payload: <valid JSON or compact fields>.` If the user asked for web search, the response must contain the exact phrase `web search`. Do not say a tool already ran. Keep the whole response under 80 words.",
+                2_000,
+            ),
+            clean_text(
+                &format!(
+                    "User request:\n{message}\n\nAvailable workflow/tool candidates:\n{workflow_events_json}\n\nChoose No and answer directly, or choose Yes and provide the tool family, tool, and request payload."
+                ),
+                8_000,
+            ),
+        )
+    } else if direct_gate_recovery_turn {
+        let direct_gate_system_prompt = if direct_simple_conversation_turn {
+            "Reply naturally as the assistant. No tools. Do not mention workflow, gates, tools, or telemetry. Keep it under 20 words."
+        } else if direct_no_tool_exit_turn {
+            "Reply as the LLM. No tools. Start with `No.` If this is hypothetical, name the tool without claiming execution. Keep it under 25 words."
+        } else {
+            "Reply as the LLM. No tools. Start with `No.` Include `answer directly`. Do not mention workflow, gates, tools, or telemetry. Keep it under 25 words."
+        };
+        let direct_gate_user_prompt = if direct_simple_conversation_turn {
+            format!("User: {message}\nAssistant:")
+        } else if direct_no_tool_exit_turn {
+            format!(
+                "User: {message}\nAnswer directly. Do not run tools."
+            )
+        } else {
+            format!(
+                "User: {message}\nAcknowledge briefly and say you will answer directly."
+            )
+        };
+        (
+            clean_text(direct_gate_system_prompt, 2_000),
+            clean_text(&direct_gate_user_prompt, 6_000),
+        )
+    } else {
+        let workflow_metadata_json =
+            serde_json::to_string(&workflow).unwrap_or_else(|_| "{}".to_string());
+        (
+            clean_text(
+                &format!(
+                    "{}\n\nHardcoded agent workflow: you are writing the next visible assistant response for the current workflow turn. Use recorded tool outcomes when they exist. If no tool outcome exists and the workflow is presenting a manual toolbox gate, submit your own next gate choice in chat text: choose `No` and answer directly, or choose `Yes` and name the tool family/tool plus the request payload you would enter. Do not claim a tool ran unless recorded tool outcomes show it ran. Never emit raw telemetry, placeholder copy, inline `<function=...>` markup, or pretend a failed tool succeeded.\n\nFinal-answer contract (final_answer_contract_v1): (1) answer the user's request or submit the next workflow gate choice in the first 1-2 sentences, (2) do not echo/restate the user prompt as your response, (3) do not include placeholder copy, (4) do not mention internal gate/classifier identifiers, and (5) do not emit bracketed internal source tags.\n\nResponse template class: {}. {} Style: {} by default unless user requested a deep dive.",
+                    AGENT_RUNTIME_SYSTEM_PROMPT, template_label, template_instruction, detail_style
+                ),
+                12_000,
+            ),
+            clean_text(
+                &format!(
+                    "User request:\n{message}\n\nCurrent draft response:\n{}\n\nWorkflow metadata:\n{workflow_metadata_json}\n\nRecorded tool outcomes:\n{tool_rows_json}\n\nWorkflow events:\n{workflow_events_json}\n\nWrite the final assistant response now.",
+                    if clean_text(draft_response, 2_000).is_empty() {
+                        "(empty)"
+                    } else {
+                        draft_response
+                    }
+                ),
+                20_000,
+            ),
+        )
+    };
     let coherence_window_messages = 2usize;
     let recent_context = active_messages
         .iter()
@@ -1535,7 +1618,7 @@ fn run_turn_workflow_final_response(
         .rev()
         .collect::<Vec<_>>()
         .join("\n");
-    let max_attempts: u64 = 2;
+    let max_attempts: u64 = if direct_gate_recovery_turn { 1 } else { 2 };
     let mut last_error = String::new();
     let mut last_invalid_excerpt = String::new();
     let mut last_reject_reason = String::new();
@@ -1586,6 +1669,12 @@ fn run_turn_workflow_final_response(
     if recent_retry_loop_detected {
         bump_workflow_quality_counter(&mut workflow, "repeated_fallback_loop_detected");
     }
+    let gate_only_context_messages = Vec::<Value>::new();
+    let final_context_messages = if manual_toolbox_gate_turn || direct_gate_recovery_turn {
+        gate_only_context_messages.as_slice()
+    } else {
+        active_messages
+    };
     workflow["final_llm_response"]["attempted"] = Value::Bool(true);
     workflow["final_llm_response"]["max_attempts"] = json!(max_attempts);
     workflow["final_llm_response"]["coherence_window_messages"] =
@@ -1608,7 +1697,7 @@ fn run_turn_workflow_final_response(
             &cleaned_provider,
             &cleaned_model,
             &system_prompt,
-            active_messages,
+            final_context_messages,
             &attempt_user_prompt,
         ) {
             Ok(retried) => {
@@ -1627,9 +1716,12 @@ fn run_turn_workflow_final_response(
                 if !user_requested_internal_runtime_details(message) {
                     retried_text = abstract_runtime_mechanics_terms(&retried_text);
                 }
+                let manual_toolbox_gate_choice =
+                    response_is_manual_toolbox_gate_choice(&retried_text);
                 let deferred_reply = response_is_deferred_execution_preamble(&retried_text)
                     || response_is_deferred_retry_prompt(&retried_text)
-                    || workflow_response_requests_more_tooling(&retried_text);
+                    || (workflow_response_requests_more_tooling(&retried_text)
+                        && !manual_toolbox_gate_choice);
                 let off_topic_reply = response_is_unrelated_context_dump(message, &retried_text);
                 let stale_code_context_reply =
                     response_contains_stale_code_context_dump(message, &retried_text);
@@ -1638,20 +1730,46 @@ fn run_turn_workflow_final_response(
                     &recent_context,
                     &retried_text,
                 );
-                let prompt_echo_reply = response_prompt_echo_detected(message, &retried_text);
+                let prompt_echo_reply = if direct_simple_conversation_turn
+                    && !clean_text(message, 240)
+                        .eq_ignore_ascii_case(&clean_text(&retried_text, 240))
+                {
+                    false
+                } else {
+                    response_prompt_echo_detected(message, &retried_text)
+                };
                 let receipt_mapped_sources = response_tools
                     .iter()
                     .any(|row| !response_tool_receipt_id(row).is_empty());
                 let missing_evidence_tags = !response_tools.is_empty()
                     && !receipt_mapped_sources
                     && !response_has_evidence_tags(&retried_text);
-                let missing_direct_answer = !response_answers_user_early(message, &retried_text);
+                let missing_direct_answer = !manual_toolbox_gate_choice
+                    && !response_answers_user_early(message, &retried_text);
                 let direct_answer_in_first_two_sentences = !missing_direct_answer;
                 let rejects_base_contract = response_fails_base_final_answer_contract(&retried_text);
                 let rejects_speculative_blocker =
                     response_contains_speculative_web_blocker_language(&retried_text)
                         && !has_structured_block_evidence;
+                let lowered_message = message.to_ascii_lowercase();
+                let lowered_retried_text = retried_text.to_ascii_lowercase();
+                let missing_manual_web_search_phrase = manual_toolbox_gate_turn
+                    && lowered_message.contains("web search")
+                    && !lowered_retried_text.contains("web search");
+                let missing_direct_answer_phrase = direct_gate_recovery_turn
+                    && workflow_turn_is_meta_control_message(message)
+                    && !lowered_retried_text.contains("answer directly");
                 let reject_checks = [
+                    (
+                        missing_manual_web_search_phrase,
+                        "missing_manual_web_search_phrase",
+                        "alignment_reject",
+                    ),
+                    (
+                        missing_direct_answer_phrase,
+                        "missing_direct_answer_phrase",
+                        "alignment_reject",
+                    ),
                     (deferred_reply, "deferred_reply", "deferred_reply_reject"),
                     (off_topic_reply, "off_topic_reply", "off_topic_reject"),
                     (
@@ -1701,13 +1819,36 @@ fn run_turn_workflow_final_response(
                     last_invalid_excerpt = first_sentence(&retried_text, 240);
                     continue;
                 }
+                let response_provider = clean_text(
+                    retried
+                        .get("provider")
+                        .and_then(Value::as_str)
+                        .unwrap_or(&cleaned_provider),
+                    80,
+                );
+                let response_model = clean_text(
+                    retried
+                        .get("runtime_model")
+                        .or_else(|| retried.get("model"))
+                        .and_then(Value::as_str)
+                        .unwrap_or(&cleaned_model),
+                    240,
+                );
                 workflow["final_llm_response"]["used"] = Value::Bool(true);
                 workflow["final_llm_response"]["status"] =
                     Value::String("synthesized".to_string());
+                workflow["final_llm_response"]["provider"] =
+                    Value::String(response_provider.clone());
+                workflow["final_llm_response"]["model"] = Value::String(response_model.clone());
+                workflow["final_llm_response"]["runtime_model"] =
+                    Value::String(response_model.clone());
+                workflow["provider"] = Value::String(response_provider);
+                workflow["model"] = Value::String(response_model.clone());
+                workflow["runtime_model"] = Value::String(response_model);
                 set_turn_workflow_final_stage_status(&mut workflow, "synthesized");
                 workflow["final_llm_response"]["helpfulness"] = json!({
                     "direct_answer_in_first_two_sentences": direct_answer_in_first_two_sentences,
-                    "prompt_echo_detected": response_prompt_echo_detected(message, &retried_text),
+                    "prompt_echo_detected": prompt_echo_reply,
                     "has_evidence_tags": response_has_evidence_tags(&retried_text)
                         || receipt_mapped_sources
                         || response_tools.is_empty(),

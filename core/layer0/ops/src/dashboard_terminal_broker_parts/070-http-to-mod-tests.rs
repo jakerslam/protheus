@@ -113,6 +113,26 @@ mod tests {
             out.get("low_signal_output").and_then(Value::as_bool),
             Some(true)
         );
+        assert_eq!(
+            out.pointer("/tool_summary/result_kind")
+                .and_then(Value::as_str),
+            Some("low_signal_output")
+        );
+        assert_eq!(
+            out.pointer("/tool_summary/display/tool_summary")
+                .and_then(Value::as_str),
+            Some("Terminal command completed, but produced no high-signal output.")
+        );
+        assert_eq!(
+            out.pointer("/tool_summary/display/router_translation/translated")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/tool_summary/display/policy/verdict")
+                .and_then(Value::as_str),
+            Some("allow")
+        );
     }
 
     #[test]

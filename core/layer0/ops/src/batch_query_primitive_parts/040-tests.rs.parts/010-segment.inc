@@ -683,6 +683,12 @@ mod tests {
             .and_then(Value::as_str)
             .unwrap_or("");
         assert!(locator.contains("example.com/technology-news"));
+        let source_kind = evidence
+            .first()
+            .and_then(|row| row.get("source_kind"))
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        assert_eq!(source_kind, "web_duckduckgo_instant");
     }
 
     #[test]
@@ -693,7 +699,7 @@ mod tests {
                 "runtime dashboard reliability": {
                     "ok": true,
                     "summary": "",
-                    "content": "<html><body><script>alert('x')</script><style>.x{display:none}</style><svg><circle/></svg><img src='data:image/png;base64,abc123' /><div class='hero' data-x='1'>Runtime contract verification is healthy and dashboard startup is deterministic.</div></body></html>",
+                    "content": "<html><body><!-- tracking chrome --><script>alert('x')</script><style>.x{display:none}</style><svg><circle/></svg><noscript>Enable JavaScript to continue</noscript><template>Hydration placeholder</template><iframe src='https://tracker.example/frame'>iframe noise</iframe><picture><source srcset='data:image/png;base64,abc123'></picture><img src='data:image/png;base64,abc123' /><div class='hero' data-x='1'>Runtime contract verification is healthy and dashboard startup is deterministic.</div></body></html>",
                     "requested_url": "https://example.com/runtime-health",
                     "status_code": 200
                 }
@@ -713,6 +719,10 @@ mod tests {
         assert!(!lowered.contains("alert('x')"));
         assert!(!lowered.contains("<svg"));
         assert!(!lowered.contains("data:image"));
+        assert!(!lowered.contains("tracking chrome"));
+        assert!(!lowered.contains("enable javascript"));
+        assert!(!lowered.contains("hydration placeholder"));
+        assert!(!lowered.contains("iframe noise"));
     }
 
     #[test]

@@ -38,6 +38,42 @@ fn build_protocol_step_receipts(
     (rows, prior)
 }
 
+fn validate_protocol_step_receipt_chain(
+    system_id: &str,
+    rows: &[Value],
+    previous_hash: &str,
+) -> (bool, Vec<String>) {
+    let mut errors = Vec::<String>::new();
+    let mut prior = previous_hash.to_string();
+    for (idx, row) in rows.iter().enumerate() {
+        if row.get("protocol_version").and_then(Value::as_str)
+            != Some(ASSIMILATION_PROTOCOL_VERSION)
+        {
+            errors.push(format!("step_{}_protocol_version_mismatch", idx + 1));
+        }
+        if row.get("system_id").and_then(Value::as_str) != Some(system_id) {
+            errors.push(format!("step_{}_system_id_mismatch", idx + 1));
+        }
+        if row.get("step_number").and_then(Value::as_u64) != Some((idx + 1) as u64) {
+            errors.push(format!("step_{}_number_mismatch", idx + 1));
+        }
+        if row.get("previous_hash").and_then(Value::as_str) != Some(prior.as_str()) {
+            errors.push(format!("step_{}_previous_hash_mismatch", idx + 1));
+        }
+        let recorded_hash = row.get("step_hash").and_then(Value::as_str).unwrap_or("");
+        let mut recomputable = row.clone();
+        if let Some(obj) = recomputable.as_object_mut() {
+            obj.remove("step_hash");
+        }
+        let expected_hash = receipt_hash(&recomputable);
+        if recorded_hash != expected_hash {
+            errors.push(format!("step_{}_hash_mismatch", idx + 1));
+        }
+        prior = recorded_hash.to_string();
+    }
+    (errors.is_empty(), errors)
+}
+
 fn execute_assimilation_protocol_for_system(
     root: &Path,
     system_id: &str,
@@ -334,12 +370,27 @@ fn execute_assimilation_protocol_for_system(
         apply,
         previous_step_hash,
     );
+    let (step_hash_chain_valid, step_hash_chain_errors) =
+        validate_protocol_step_receipt_chain(system_id, &step_receipts, previous_step_hash);
+    if strict && !step_hash_chain_valid {
+        return Err(format!(
+            "assimilation_protocol_step_hash_chain_invalid:{}:{}",
+            component,
+            step_hash_chain_errors.join(",")
+        ));
+    }
     let protocol_step_receipt = json!({
         "trace_id": trace_id,
         "count": step_receipts.len(),
         "last_step_hash": last_step_hash,
         "last_step": step_receipts.last().cloned().unwrap_or(Value::Null),
-        "step_receipts_path": step_receipts_rel
+        "step_receipts_path": step_receipts_rel,
+        "chain": {
+            "previous_hash": previous_step_hash,
+            "valid": step_hash_chain_valid,
+            "error_count": step_hash_chain_errors.len(),
+            "errors": step_hash_chain_errors
+        }
     });
 
     let history_row = json!({

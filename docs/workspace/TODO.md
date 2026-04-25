@@ -1,18 +1,18 @@
 # TODO (SRS Execution Checklist)
 
-Updated: 2026-04-25T16:15:04.314Z
+Updated: 2026-04-25T18:21:37.050Z
 
 ## Global Rollup
 - total_rows: 3791
-- queued: 111
-- in_progress: 22
+- queued: 77
+- in_progress: 16
 - blocked: 0
 - blocked_external_prepared: 32
-- done: 1347
+- done: 1387
 - existing_coverage_validated: 2279
 
 ## SRS Section Checklist
-- [ ] Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25) — queued=20, in_progress=0, blocked=0, blocked_external_prepared=0, done=25, existing_coverage_validated=0
+- [x] Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=45, existing_coverage_validated=0
 - [x] High-ROI Release Proof-Pack Closure Wave (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Misty / Control-Plane Health Wave 1 (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Misty / Control-Plane Health Wave 2 (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
@@ -20,7 +20,7 @@ Updated: 2026-04-25T16:15:04.314Z
 - [x] Misty / Control-Plane Health Wave 4 (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Misty / Control-Plane Health Wave 5 (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Misty / Control-Plane Health Wave 6 (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
-- [ ] Misty / Control-Plane Health Wave 7 (2026-04-25) — queued=0, in_progress=6, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [x] Misty / Control-Plane Health Wave 7 (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
 - [x] Test/Gate Maturity Registry Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] High-ROI Web + Installer Closure Guard Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=2, existing_coverage_validated=0
 - [x] Chat Rendering Experience Guard Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
@@ -131,21 +131,21 @@ Updated: 2026-04-25T16:15:04.314Z
 - [x] Production Closure Program Intake (2026-04-10) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=2, existing_coverage_validated=0
 - [x] Workspace Operability Intake (2026-04-10) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
 - [x] Tooling and Task-Fabric Integrity Intake (2026-04-10) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
-- [ ] Orchestration Probe-Authority and Runtime-Quality Densification Intake (2026-04-15) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
+- [x] Orchestration Probe-Authority and Runtime-Quality Densification Intake (2026-04-15) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=2, existing_coverage_validated=0
 - [x] Web Tooling Reliability Intake (2026-04-07) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=2
 - [x] Workflow Eval + Troubleshooting Reliability Intake (2026-04-18) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
-- [ ] Assimilation Authority Runtime Intake (2026-04-08) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [x] Assimilation Authority Runtime Intake (2026-04-08) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Tool Broker & Evidence Pipeline Intake (2026-04-07) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Receipt Lineage Replay Intake (2026-04-08) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Unified Memory Heap Intake (2026-04-07) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Ephemeral Memory Scope Intake (2026-04-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
-- [ ] Cline Capability Assimilation Intake (2026-04-05) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
-- [ ] LlamaIndex Capability Assimilation Intake (2026-04-06) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
-- [ ] Evolution Compaction Intake (2026-04-06) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
-- [ ] Aider Capability Assimilation Intake (2026-04-06) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [x] Cline Capability Assimilation Intake (2026-04-05) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
+- [x] LlamaIndex Capability Assimilation Intake (2026-04-06) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
+- [x] Evolution Compaction Intake (2026-04-06) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
+- [x] Aider Capability Assimilation Intake (2026-04-06) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] RTK Capability Assimilation Intake (2026-04-05) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
-- [ ] Turn Loop Primitive Wiring Intake (2026-04-05) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
-- [ ] Knowledge Graph Query Acceleration Intake (2026-04-14) — queued=15, in_progress=0, blocked=0, blocked_external_prepared=0, done=7, existing_coverage_validated=0
+- [x] Turn Loop Primitive Wiring Intake (2026-04-05) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=2, existing_coverage_validated=0
+- [ ] Knowledge Graph Query Acceleration Intake (2026-04-14) — queued=9, in_progress=0, blocked=0, blocked_external_prepared=0, done=13, existing_coverage_validated=0
 - [ ] Web Retrieval Reliability Intake (2026-04-06) — queued=0, in_progress=2, blocked=0, blocked_external_prepared=0, done=12, existing_coverage_validated=1
 - [x] Container Runtime Reliability Intake (2026-04-08) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [ ] File Read Reliability Intake (2026-04-06) — queued=0, in_progress=3, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
@@ -168,7 +168,7 @@ Updated: 2026-04-25T16:15:04.314Z
 - [ ] Custom Arena + Slab Allocator Intake (2026-04-02) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
 - [ ] Reference Runtime Gap Closure Intake (2026-04-02) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
 - [ ] Digital DNA Foundation v1 Intake (2026-04-01) — queued=2, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
-- [ ] Agent Governance + Continuity Hardening Intake (2026-04-01) — queued=8, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Agent Governance + Continuity Hardening Intake (2026-04-01) — queued=7, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [ ] Claude Token-Efficiency Assimilation Intake (x.com/meta_alchemist/2038919582111670415, 2026-04-02) — queued=3, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
 - [ ] better-clawd Assimilation Intake (2026-04-02) — queued=3, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
 - [ ] Claude Leak Assimilation Intake #2 (Tiered Compaction / PROACTIVE_DAEMON / Speculation, 2026-04-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=1, done=5, existing_coverage_validated=1
@@ -648,18 +648,12 @@ Updated: 2026-04-25T16:15:04.314Z
 - [ ] `V11-TSRUST-001` — queued — Version Update CLI Reliability Intake (2026-04-05)
 - [ ] `V11-TSRUST-002` — queued — Version Update CLI Reliability Intake (2026-04-05)
 - [ ] `V11-TSRUST-005` — queued — Version Update CLI Reliability Intake (2026-04-05)
-- [ ] `V11-TURNLOOP-006` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
-- [ ] `V11-TURNLOOP-007` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V11-TURNLOOP-009` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V11-TURNLOOP-011` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V11-TURNLOOP-013` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V11-TURNLOOP-014` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V11-WEB-007` — in_progress — Web Retrieval Reliability Intake (2026-04-06)
 - [ ] `V11-WEB-009` — in_progress — Web Retrieval Reliability Intake (2026-04-06)
-- [ ] `V12-EVAL-ISSUE-001` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
-- [ ] `V12-EVAL-ISSUE-002` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
-- [ ] `V12-MISTY-HEALTH-WAVE7-001` — in_progress — Misty / Control-Plane Health Wave 7 (2026-04-25)
-- [ ] `V12-MISTY-HEALTH-WAVE7-002` — in_progress — Misty / Control-Plane Health Wave 7 (2026-04-25)
 - [ ] `V6-ASSIM-001` — in_progress — Software Assimilation Capability Intake (2026-04-09)
 - [ ] `V6-ASSIM-002` — in_progress — Directed Assimilation Protocol Intake (2026-04-09)
 - [ ] `V6-AUTO-001` — in_progress — Governed Self-Maintenance Supervisor Intake (2026-04-09)
@@ -690,29 +684,13 @@ Updated: 2026-04-25T16:15:04.314Z
 - [ ] `V10-DASH-INTENT-001.1` — queued — Intent-Aware Tooling + Memory Intelligence Delta (Feedback Assimilation, 2026-04-01)
 - [ ] `V10-DASH-INTENT-001.2` — queued — Intent-Aware Tooling + Memory Intelligence Delta (Feedback Assimilation, 2026-04-01)
 - [ ] `V10-DASH-SEARCH-001.1` — queued — Internal Conversation Search + Archived Chat View Intake (2026-04-01)
-- [ ] `V11-ASSIM-001` — queued — Assimilation Authority Runtime Intake (2026-04-08)
-- [ ] `V11-COMPACTION-001` — queued — Evolution Compaction Intake (2026-04-06)
 - [ ] `V11-FILE-002` — in_progress — File Read Reliability Intake (2026-04-06)
-- [ ] `V11-LLAMAINDEX-001` — queued — LlamaIndex Capability Assimilation Intake (2026-04-06)
 - [ ] `V11-OPS-UPDATE-001` — queued — Version Update CLI Reliability Intake (2026-04-05)
 - [ ] `V11-TSRUST-004` — queued — Version Update CLI Reliability Intake (2026-04-05)
-- [ ] `V11-TURNLOOP-002` — queued — Turn Loop Primitive Wiring Intake (2026-04-05)
-- [ ] `V11-TURNLOOP-003` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
-- [ ] `V11-TURNLOOP-005` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
-- [ ] `V11-TURNLOOP-008` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V11-TURNLOOP-010` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V11-TURNLOOP-012` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V11-TURNLOOP-015` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V11-TURNLOOP-017` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
-- [ ] `V12-EVAL-ISSUE-003` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
-- [ ] `V12-EVAL-ISSUE-004` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
-- [ ] `V12-EVAL-ISSUE-005` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
-- [ ] `V12-MISTY-HEALTH-WAVE7-003` — in_progress — Misty / Control-Plane Health Wave 7 (2026-04-25)
-- [ ] `V12-MISTY-HEALTH-WAVE7-004` — in_progress — Misty / Control-Plane Health Wave 7 (2026-04-25)
-- [ ] `V12-MISTY-HEALTH-WAVE7-005` — in_progress — Misty / Control-Plane Health Wave 7 (2026-04-25)
-- [ ] `V12-ORCH-LEGACY-001` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
-- [ ] `V12-ORCH-LEGACY-002` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
-- [ ] `V12-ORCH-LEGACY-003` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
 - [ ] `V6-CONDUIT-002.10` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
 - [ ] `V6-CONDUIT-002.11` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
 - [ ] `V6-CONDUIT-002.12` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
@@ -725,7 +703,6 @@ Updated: 2026-04-25T16:15:04.314Z
 - [ ] `V6-CONDUIT-002.9` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
 - [ ] `V6-CTX-021` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
 - [ ] `V6-LANGUAGE-004` — queued — Claude Token-Efficiency Assimilation Intake (x.com/meta_alchemist/2038919582111670415, 2026-04-02)
-- [ ] `V6-MEMORY-030` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
 - [ ] `V6-MEMORY-031` — queued — better-clawd Assimilation Intake (2026-04-02)
 - [ ] `V6-ORGAN-001.3` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
 - [ ] `V6-ORGAN-001.6` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
@@ -735,25 +712,9 @@ Updated: 2026-04-25T16:15:04.314Z
 - [ ] `V6-TOOL-001.2` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
 - [ ] `V6-UX-091` — queued — Runtime UX + Scheduler Autonomy Intake (2026-04-01)
 - [ ] `V10-MEMORY-032.1` — queued — Intent-Aware Tooling + Memory Intelligence Delta (Feedback Assimilation, 2026-04-01)
-- [ ] `V11-AIDER-001` — queued — Aider Capability Assimilation Intake (2026-04-06)
-- [ ] `V11-CLINE-004` — queued — Cline Capability Assimilation Intake (2026-04-05)
 - [ ] `V11-FILE-003` — in_progress — File Read Reliability Intake (2026-04-06)
-- [ ] `V11-TURNLOOP-004` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V11-TURNLOOP-016` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V12-FORGECODE-001` — in_progress — ForgeCode MCP/Retry Workflow Assimilation Increment (2026-04-23)
-- [ ] `V12-MISTY-HEALTH-WAVE7-006` — in_progress — Misty / Control-Plane Health Wave 7 (2026-04-25)
-- [ ] `V12-ORCH-LEGACY-004` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
-- [ ] `V12-ORCH-LEGACY-005` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
-- [ ] `V12-ORCH-STABILITY-001` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
-- [ ] `V12-ORCH-STABILITY-002` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
-- [ ] `V12-ORCH-STABILITY-003` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
-- [ ] `V12-ORCH-STABILITY-004` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
-- [ ] `V12-ORCH-STABILITY-005` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
-- [ ] `V12-SELF-MAINT-001` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
-- [ ] `V12-SELF-MAINT-002` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
-- [ ] `V12-SELF-MAINT-003` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
-- [ ] `V12-SELF-MAINT-004` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
-- [ ] `V12-SELF-MAINT-005` — queued — Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25)
 - [ ] `V6-AUDIT-014` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
 - [ ] `V6-CONDUIT-002.5` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
 - [ ] `V6-OBS-005` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
@@ -765,7 +726,6 @@ Updated: 2026-04-25T16:15:04.314Z
 - [ ] `V6-UX-092` — queued — Runtime UX + Scheduler Autonomy Intake (2026-04-01)
 - [ ] `V6-UX-093` — queued — Runtime UX + Scheduler Autonomy Intake (2026-04-01)
 - [ ] `V11-RUSTAUTH-001` — queued — Rust Authority Migration (V11-RUSTAUTH-001, 2026-04-06)
-- [ ] `V11-SWARM-ASK-001` — queued — Orchestration Probe-Authority and Runtime-Quality Densification Intake (2026-04-15)
 - [ ] `V11-TSRUST-003` — queued — Version Update CLI Reliability Intake (2026-04-05)
 - [ ] `V11-UX-AUTOMATION-001` — queued — Automation IA Consolidation Intake (2026-04-05)
 - [ ] `V11-UX-MANAGE-001` — queued — Manage IA Consolidation Intake (2026-04-05)

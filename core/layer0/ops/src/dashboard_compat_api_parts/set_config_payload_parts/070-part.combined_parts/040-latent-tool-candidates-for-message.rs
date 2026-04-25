@@ -112,6 +112,30 @@ fn latent_tool_candidates_for_message(message: &str, workspace_hints: &[Value]) 
             "Message explicitly asks for a live web search.",
             json!({"source": "web", "query": query, "aperture": "medium"}),
         );
+    } else if !message_explicitly_disallows_tool_calls(message)
+        && (lowered.contains("workspace")
+            || lowered.contains("repo")
+            || lowered.contains("codebase")
+            || lowered.contains("workflow file")
+            || lowered.contains("workflow files")
+            || lowered.contains("find the workflow"))
+        && (lowered.contains("find")
+            || lowered.contains("search")
+            || lowered.contains("which")
+            || lowered.contains("tell me")
+            || lowered.contains("active")
+            || lowered.contains("file")
+            || lowered.contains("files"))
+    {
+        push_latent_tool_candidate(
+            &mut out,
+            &mut seen,
+            lowered.as_str(),
+            "workspace_search",
+            "workspace search",
+            "Message asks for workspace/file evidence, so the LLM can choose the workspace search path.",
+            json!({"path": ".", "pattern": clean_text(message, 240)}),
+        );
     } else if let Some(query) = comparative_web_query_from_message(message) {
         push_latent_tool_candidate(
             &mut out,

@@ -138,6 +138,42 @@ mod tests {
             .to_string();
         assert!(mention.starts_with('@'));
         assert!(mention.contains("main.rs"));
+        assert_eq!(
+            payload.get("mention_format").and_then(Value::as_str),
+            Some("at")
+        );
+        assert!(payload
+            .get("receipt_hash")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .len()
+            >= 32);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn run_mention_supports_markdown_format_with_receipt() {
+        let _guard = test_env_lock()
+            .lock()
+            .expect("workspace_file_search test lock");
+        if !supports_rg() {
+            return;
+        }
+        let root = temp_case_root("mention-markdown");
+        reset_dir(&root.join("docs"));
+        fs::write(root.join("docs").join("guide.md"), "# guide").expect("fixture");
+        let mut args = search_args_for(&root, "guide");
+        args.flags
+            .insert("mention-format".to_string(), "markdown".to_string());
+        let payload = run_mention(&root, &args, "");
+        assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            payload.get("mention_format").and_then(Value::as_str),
+            Some("markdown")
+        );
+        let mention = payload.get("mention").and_then(Value::as_str).unwrap_or("");
+        assert!(mention.starts_with("[docs/guide.md]("));
+        assert!(payload.get("receipt_hash").and_then(Value::as_str).is_some());
         let _ = fs::remove_dir_all(&root);
     }
 

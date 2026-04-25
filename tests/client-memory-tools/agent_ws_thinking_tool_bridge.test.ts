@@ -406,6 +406,14 @@ async function run() {
   assert.strictEqual(byAttempt.get('attempt-error').status, 'error', 'errored attempts should keep error status');
   const toolStartEvents = events.filter((row) => row.type === 'tool_start');
   assert.strictEqual(toolStartEvents.length, 4, 'ws runtime should replay every tool_start event');
+  assert.ok(
+    toolStartEvents.every((row) => row.tool_timeline_contract_version === 2),
+    'tool_start events should expose the ws timeline contract version'
+  );
+  assert.ok(
+    toolStartEvents.every((row) => row.tool_timeline_source === 'response_finalization_tool_completion'),
+    'tool_start events should identify receipt-backed response-tool hydration source'
+  );
   assert.deepStrictEqual(
     toolStartEvents.map((row) => row.attempt_id),
     ['attempt-alpha', 'attempt-beta', 'attempt-blocked', 'attempt-error'],
@@ -413,12 +421,23 @@ async function run() {
   );
   const toolResultEvents = events.filter((row) => row.type === 'tool_result');
   assert.strictEqual(toolResultEvents.length, 4, 'ws runtime should replay every tool_result event');
+  assert.ok(
+    toolResultEvents.every((row) => row.tool_timeline_contract_version === 2),
+    'tool_result events should expose the ws timeline contract version'
+  );
   const blockedEvent = toolResultEvents.find((row) => row.attempt_id === 'attempt-blocked');
   assert.ok(blockedEvent, 'blocked tool result event should be present');
   assert.strictEqual(blockedEvent.tool_status, 'blocked by policy', 'blocked tool result should carry completion status');
   const errorEvent = toolResultEvents.find((row) => row.attempt_id === 'attempt-error');
   assert.ok(errorEvent, 'failed tool result event should be present');
   assert.strictEqual(errorEvent.is_error, true, 'failed tool result should remain flagged as error');
+  assert.strictEqual(response.tool_timeline_contract_version, 2, 'final ws response should carry the replay contract version');
+  assert.strictEqual(
+    response.tool_timeline_source,
+    'response_finalization_tool_completion',
+    'final ws response should carry the replay source for sparse stream hydration'
+  );
+  assert.strictEqual(response.tool_timeline_events_replayed, true, 'final ws response should report replayed timeline events');
 
   const scenarioTwo = await runScenario(structuredContentPayload, 'run tool blocks');
   const structuredResponse = scenarioTwo.response;

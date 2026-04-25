@@ -6,6 +6,7 @@
     "min_pass_rate": 1.0,
     "max_failures": 0,
     "simple_direct_max_latency_ms": 5000,
+    "simple_direct_live_max_latency_ms": 15000,
     "simple_direct_max_response_tokens": 80,
     "simple_direct_max_stage_count": 2
   },

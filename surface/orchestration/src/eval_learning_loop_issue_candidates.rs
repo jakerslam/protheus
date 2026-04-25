@@ -1,4 +1,5 @@
 use serde_json::{json, Value};
+use std::collections::BTreeMap;
 use std::fs;
 use std::io::{self, Write};
 use std::path::Path;
@@ -11,6 +12,7 @@ const DEFAULT_ISSUE_OUT_LATEST_PATH: &str =
     "artifacts/eval_learning_loop_issue_candidates_latest.json";
 const DEFAULT_ISSUE_MARKDOWN_PATH: &str =
     "local/workspace/reports/EVAL_LEARNING_LOOP_ISSUE_CANDIDATES_CURRENT.md";
+const MIN_RECURRENT_SIGNATURE_COUNT: usize = 2;
 
 pub fn run_eval_learning_loop_issue_candidates(args: &[String]) -> i32 {
     let strict = parse_bool_flag(args, "strict", false);
@@ -29,14 +31,20 @@ pub fn run_eval_learning_loop_issue_candidates(args: &[String]) -> i32 {
         .unwrap_or_default();
     let mut candidates = Vec::new();
     let mut rejected = Vec::new();
-    for row in rows.iter() {
-        let candidate = issue_candidate_from_inbox_row(row);
+    for cluster in clustered_issue_rows(rows.as_slice()) {
+        let row = cluster
+            .representative
+            .unwrap_or_else(|| rows.get(0).unwrap_or(&Value::Null));
+        let mut candidate = issue_candidate_from_inbox_row(row);
+        attach_cluster_evidence(&mut candidate, &cluster);
         let quality_failures = issue_candidate_quality_failures(&candidate);
         if quality_failures.is_empty() {
             candidates.push(candidate);
         } else {
             rejected.push(json!({
                 "trace_id": str_at(row, &["trace_id"]).unwrap_or("unknown"),
+                "stable_failure_signature": cluster.signature,
+                "recurrence_count": cluster.rows.len(),
                 "quality_failures": quality_failures,
                 "candidate": candidate
             }));
@@ -60,7 +68,8 @@ pub fn run_eval_learning_loop_issue_candidates(args: &[String]) -> i32 {
             "source_rows": rows.len(),
             "accepted_candidates": candidates.len(),
             "rejected_candidates": rejected.len(),
-            "receipt_grounded": receipt_grounding_ok
+            "receipt_grounded": receipt_grounding_ok,
+            "minimum_recurrent_signature_count": MIN_RECURRENT_SIGNATURE_COUNT
         },
         "sources": {"inbox": source_path},
         "candidates": candidates,
@@ -86,6 +95,135 @@ pub fn run_eval_learning_loop_issue_candidates(args: &[String]) -> i32 {
         return 1;
     }
     0
+}
+
+struct IssueRowCluster<'a> {
+    signature: String,
+    rows: Vec<&'a Value>,
+    representative: Option<&'a Value>,
+    critical_bypass: bool,
+}
+
+fn clustered_issue_rows(rows: &[Value]) -> Vec<IssueRowCluster<'_>> {
+    let mut grouped: BTreeMap<String, Vec<&Value>> = BTreeMap::new();
+    for row in rows {
+        grouped
+            .entry(stable_failure_signature(row))
+            .or_default()
+            .push(row);
+    }
+    grouped
+        .into_iter()
+        .map(|(signature, rows)| {
+            let critical_bypass = rows.iter().any(|row| is_critical_severity(row));
+            let representative = rows
+                .iter()
+                .copied()
+                .find(|row| is_critical_severity(row))
+                .or_else(|| rows.first().copied());
+            IssueRowCluster {
+                signature,
+                rows,
+                representative,
+                critical_bypass,
+            }
+        })
+        .collect()
+}
+
+fn stable_failure_signature(row: &Value) -> String {
+    let signal = primary_signal(row);
+    let code = str_at(row, &["normalized_failure_code"]).unwrap_or("none");
+    let layer = str_at(row, &["suspected_layer"])
+        .or_else(|| str_at(row, &["component"]))
+        .unwrap_or("surface/orchestration");
+    let quality = runtime_quality_signature(row.get("runtime_quality").unwrap_or(&Value::Null));
+    format!("{layer}|{signal}|{code}|{quality}")
+}
+
+fn runtime_quality_signature(runtime_quality: &Value) -> String {
+    [
+        (
+            "candidate_count",
+            runtime_quality_value(runtime_quality, "candidate_count"),
+        ),
+        (
+            "typed_probe_contract_gap_count",
+            runtime_quality_value(runtime_quality, "typed_probe_contract_gap_count"),
+        ),
+        (
+            "heuristic_probe_source_count",
+            runtime_quality_value(runtime_quality, "heuristic_probe_source_count"),
+        ),
+        (
+            "fallback_action_count",
+            runtime_quality_value(runtime_quality, "fallback_action_count"),
+        ),
+        (
+            "zero_executable_candidates",
+            runtime_quality_value(runtime_quality, "zero_executable_candidates"),
+        ),
+        (
+            "surface_adapter_fallback",
+            runtime_quality_value(runtime_quality, "surface_adapter_fallback"),
+        ),
+    ]
+    .iter()
+    .map(|(key, value)| format!("{key}={value}"))
+    .collect::<Vec<_>>()
+    .join(";")
+}
+
+fn runtime_quality_value(runtime_quality: &Value, key: &str) -> String {
+    runtime_quality
+        .get(key)
+        .map(|value| {
+            if let Some(raw) = value.as_u64() {
+                raw.to_string()
+            } else if let Some(raw) = value.as_bool() {
+                raw.to_string()
+            } else if let Some(raw) = value.as_str() {
+                raw.to_string()
+            } else {
+                "unknown".to_string()
+            }
+        })
+        .unwrap_or_else(|| "missing".to_string())
+}
+
+fn runtime_quality_metrics(row: &Value) -> Value {
+    let runtime_quality = row.get("runtime_quality").unwrap_or(&Value::Null);
+    json!({
+        "candidate_count": runtime_quality.get("candidate_count").cloned().unwrap_or_else(|| json!(null)),
+        "used_heuristic_probe": runtime_quality.get("used_heuristic_probe").cloned().unwrap_or_else(|| json!(null)),
+        "heuristic_probe_source_count": runtime_quality.get("heuristic_probe_source_count").cloned().unwrap_or_else(|| json!(null)),
+        "typed_probe_contract_gap_count": runtime_quality.get("typed_probe_contract_gap_count").cloned().unwrap_or_else(|| json!(null)),
+        "fallback_action_count": runtime_quality.get("fallback_action_count").cloned().unwrap_or_else(|| json!(null)),
+        "zero_executable_candidates": runtime_quality.get("zero_executable_candidates").cloned().unwrap_or_else(|| json!(null)),
+        "surface_adapter_fallback": runtime_quality.get("surface_adapter_fallback").cloned().unwrap_or_else(|| json!(null))
+    })
+}
+
+fn attach_cluster_evidence(candidate: &mut Value, cluster: &IssueRowCluster<'_>) {
+    let trace_ids = cluster
+        .rows
+        .iter()
+        .filter_map(|row| str_at(row, &["trace_id"]))
+        .collect::<Vec<_>>();
+    let signature = json!(cluster.signature);
+    let recurrence_count = json!(cluster.rows.len());
+    candidate["stable_failure_signature"] = signature.clone();
+    candidate["recurrence_count"] = recurrence_count.clone();
+    candidate["representative_trace_ids"] = json!(trace_ids);
+    candidate["critical_bypass"] = json!(cluster.critical_bypass);
+    if let Some(evidence) = candidate.get_mut("evidence") {
+        evidence["runtime_quality_metrics"] = cluster
+            .representative
+            .map(runtime_quality_metrics)
+            .unwrap_or_else(|| json!({}));
+        evidence["stable_failure_signature"] = signature;
+        evidence["recurrence_count"] = recurrence_count;
+    }
 }
 
 fn issue_candidate_from_inbox_row(row: &Value) -> Value {
@@ -143,6 +281,28 @@ fn issue_candidate_from_inbox_row(row: &Value) -> Value {
 
 fn issue_candidate_quality_failures(candidate: &Value) -> Vec<String> {
     let mut failures = Vec::new();
+    let recurrence_count = candidate
+        .get("recurrence_count")
+        .and_then(|node| node.as_u64())
+        .unwrap_or(0) as usize;
+    let critical_bypass = candidate
+        .get("critical_bypass")
+        .and_then(|node| node.as_bool())
+        .unwrap_or(false);
+    if recurrence_count < MIN_RECURRENT_SIGNATURE_COUNT && !critical_bypass {
+        failures.push("insufficient_recurrent_failure_signature".to_string());
+    }
+    if str_at(candidate, &["stable_failure_signature"]).is_none() {
+        failures.push("missing_stable_failure_signature".to_string());
+    }
+    if candidate
+        .pointer("/evidence/runtime_quality_metrics")
+        .and_then(|node| node.as_object())
+        .map(|metrics| metrics.is_empty())
+        .unwrap_or(true)
+    {
+        failures.push("missing_runtime_quality_metrics".to_string());
+    }
     if str_at(candidate, &["symptom"]).is_none() {
         failures.push("missing_symptom".to_string());
     }
@@ -216,6 +376,9 @@ fn primary_signal(row: &Value) -> &str {
 }
 
 fn severity_for_row(row: &Value) -> &'static str {
+    if is_critical_severity(row) {
+        return "critical";
+    }
     if str_at(row, &["severity"]) == Some("high") {
         return "high";
     }
@@ -224,6 +387,10 @@ fn severity_for_row(row: &Value) -> &'static str {
         "wrong_tool_routing" | "no_response" | "repetitive_fallback" => "high",
         _ => "warn",
     }
+}
+
+fn is_critical_severity(row: &Value) -> bool {
+    matches!(str_at(row, &["severity"]), Some("critical"))
 }
 
 fn symptom_for_signal(signal: &str) -> &'static str {
@@ -349,6 +516,43 @@ fn print_structured(report: &Value) {
 mod tests {
     use super::*;
 
+    fn grounded_row(trace_id: &str, severity: &str) -> Value {
+        json!({
+            "trace_id": trace_id,
+            "agent_id": "agent-5bc62b0875a9",
+            "source": "synthetic_user_chat_harness:test",
+            "case_id": "explicit_web_tool_request",
+            "turn_id": "web_001",
+            "component": "surface.orchestration.tool_routing",
+            "severity": severity,
+            "suspected_layer": "surface/orchestration/tool-routing",
+            "confidence": 0.75,
+            "receipt_ids": [],
+            "monitor_evidence_id": "eval-monitor:fnv64:abc",
+            "source_hash": "fnv64:abc",
+            "failure_signals": ["wrong_tool_routing"],
+            "normalized_failure_code": "wrong_tool_web_request_stale_php_context",
+            "sanitized_user_text": "Use web search to compare frameworks.",
+            "sanitized_assistant_text": "<?php class ProductController {}",
+            "evidence_summary": "Explicit web-search request returned stale PHP context.",
+            "runtime_quality": {
+                "candidate_count": 4,
+                "used_heuristic_probe": false,
+                "heuristic_probe_source_count": 0,
+                "zero_executable_candidates": false,
+                "typed_probe_contract_gap_count": 0,
+                "fallback_action_count": 0,
+                "surface_adapter_fallback": false
+            },
+            "workflow_quality": {
+                "workflow": "forge_code",
+                "signals": {
+                    "semantic_discovery_route_required": true
+                }
+            }
+        })
+    }
+
     #[test]
     fn issue_quality_gate_rejects_ungrounded_candidates() {
         let candidate = json!({
@@ -367,38 +571,22 @@ mod tests {
 
     #[test]
     fn issue_candidate_accepts_source_hashed_monitor_evidence() {
-        let row = json!({
-            "trace_id": "explicit_web_tool_request:web_001:wrong_tool_web_request_stale_php_context:fnv64:abc",
-            "agent_id": "agent-5bc62b0875a9",
-            "source": "synthetic_user_chat_harness:round13",
-            "case_id": "explicit_web_tool_request",
-            "turn_id": "web_001",
-            "component": "surface.orchestration.tool_routing",
-            "severity": "high",
-            "suspected_layer": "surface/orchestration/tool-routing",
-            "confidence": 0.75,
-            "receipt_ids": [],
-            "monitor_evidence_id": "eval-monitor:fnv64:abc",
-            "source_hash": "fnv64:abc",
-            "failure_signals": ["wrong_tool_routing"],
-            "normalized_failure_code": "wrong_tool_web_request_stale_php_context",
-            "sanitized_user_text": "Use web search to compare frameworks.",
-            "sanitized_assistant_text": "<?php class ProductController {}",
-            "evidence_summary": "Explicit web-search request returned stale PHP context.",
-            "runtime_quality": {
-                "candidate_count": 4,
-                "zero_executable_candidates": false,
-                "typed_probe_contract_gap_count": 0
-            },
-            "workflow_quality": {
-                "workflow": "forge_code",
-                "signals": {
-                    "semantic_discovery_route_required": true
-                }
-            }
-        });
-
-        let candidate = issue_candidate_from_inbox_row(&row);
+        let rows = vec![
+            grounded_row(
+                "explicit_web_tool_request:web_001:wrong_tool_web_request_stale_php_context:fnv64:abc",
+                "high",
+            ),
+            grounded_row(
+                "explicit_web_tool_request:web_002:wrong_tool_web_request_stale_php_context:fnv64:def",
+                "high",
+            ),
+        ];
+        let cluster = clustered_issue_rows(rows.as_slice())
+            .into_iter()
+            .next()
+            .expect("cluster");
+        let mut candidate = issue_candidate_from_inbox_row(cluster.representative.expect("row"));
+        attach_cluster_evidence(&mut candidate, &cluster);
         assert_eq!(
             str_at(&candidate, &["agent_id"]),
             Some("agent-5bc62b0875a9")
@@ -414,9 +602,43 @@ mod tests {
             Some(&json!(4))
         );
         assert_eq!(
-            candidate.pointer("/evidence/workflow_quality/signals/semantic_discovery_route_required"),
+            candidate.pointer("/evidence/runtime_quality_metrics/candidate_count"),
+            Some(&json!(4))
+        );
+        assert_eq!(
+            candidate
+                .pointer("/evidence/workflow_quality/signals/semantic_discovery_route_required"),
             Some(&json!(true))
         );
+        assert!(issue_candidate_quality_failures(&candidate).is_empty());
+    }
+
+    #[test]
+    fn issue_candidate_rejects_one_off_noncritical_degradation() {
+        let rows = vec![grounded_row("one-off-trace", "high")];
+        let cluster = clustered_issue_rows(rows.as_slice())
+            .into_iter()
+            .next()
+            .expect("cluster");
+        let mut candidate = issue_candidate_from_inbox_row(cluster.representative.expect("row"));
+        attach_cluster_evidence(&mut candidate, &cluster);
+
+        let failures = issue_candidate_quality_failures(&candidate);
+        assert!(failures.contains(&"insufficient_recurrent_failure_signature".to_string()));
+    }
+
+    #[test]
+    fn issue_candidate_allows_critical_singleton_bypass() {
+        let rows = vec![grounded_row("critical-trace", "critical")];
+        let cluster = clustered_issue_rows(rows.as_slice())
+            .into_iter()
+            .next()
+            .expect("cluster");
+        let mut candidate = issue_candidate_from_inbox_row(cluster.representative.expect("row"));
+        attach_cluster_evidence(&mut candidate, &cluster);
+
+        assert_eq!(str_at(&candidate, &["severity"]), Some("critical"));
+        assert_eq!(candidate.get("critical_bypass"), Some(&json!(true)));
         assert!(issue_candidate_quality_failures(&candidate).is_empty());
     }
 }

@@ -36,9 +36,15 @@ fn html_slimdown_regexes() -> &'static [Regex] {
     static REGEXES: OnceLock<Vec<Regex>> = OnceLock::new();
     REGEXES.get_or_init(|| {
         vec![
+            Regex::new(r"(?is)<!--.*?-->").expect("html-comment"),
             Regex::new(r"(?is)<script[^>]*>.*?</script>").expect("html-script"),
             Regex::new(r"(?is)<style[^>]*>.*?</style>").expect("html-style"),
             Regex::new(r"(?is)<svg[^>]*>.*?</svg>").expect("html-svg"),
+            Regex::new(r"(?is)<noscript[^>]*>.*?</noscript>").expect("html-noscript"),
+            Regex::new(r"(?is)<template[^>]*>.*?</template>").expect("html-template"),
+            Regex::new(r"(?is)<iframe[^>]*>.*?</iframe>").expect("html-iframe"),
+            Regex::new(r"(?is)<canvas[^>]*>.*?</canvas>").expect("html-canvas"),
+            Regex::new(r"(?is)<picture[^>]*>.*?</picture>").expect("html-picture"),
             Regex::new(r"(?is)<img[^>]*>").expect("html-img"),
             Regex::new(r#"(?is)<[^>]*(?:href|src)\s*=\s*["']data:[^"']*["'][^>]*>"#)
                 .expect("html-data-uri"),

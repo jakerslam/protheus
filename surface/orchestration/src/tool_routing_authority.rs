@@ -66,7 +66,8 @@ pub fn build_tool_routing_authority_report(root: impl AsRef<Path>) -> ToolRoutin
     let root = root.as_ref();
     let contracts = read_text(root, "surface/orchestration/src/contracts.rs");
     let preconditions = read_text(root, "surface/orchestration/src/planner/preconditions.rs");
-    let planner_candidates = read_text(root, "surface/orchestration/src/planner/plan_candidates.rs");
+    let planner_candidates =
+        read_text(root, "surface/orchestration/src/planner/plan_candidates.rs");
     let planner_common = read_text(
         root,
         "surface/orchestration/src/planner/plan_candidates/common.rs",

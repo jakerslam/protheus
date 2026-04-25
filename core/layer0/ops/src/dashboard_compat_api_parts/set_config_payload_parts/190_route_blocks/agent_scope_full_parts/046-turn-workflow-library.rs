@@ -152,6 +152,13 @@ fn workflow_turn_is_meta_control_message(message: &str) -> bool {
             "did you try it",
             "did you do it",
             "what happened",
+            "what?",
+            "why are you repeating",
+            "repeating the same",
+            "fallback text",
+            "parroting",
+            "hard coded response",
+            "hard-coded response",
         ],
     ) && !workflow_turn_contains_any(
         &lowered,
@@ -159,6 +166,41 @@ fn workflow_turn_is_meta_control_message(message: &str) -> bool {
             "search", "web", "online", "internet", "file", "patch", "edit", "update", "create",
             "read", "memory", "repo", "codebase",
         ],
+    )
+}
+
+fn workflow_turn_is_simple_conversation_without_tool_intent(message: &str) -> bool {
+    let lowered = clean_text(message, 240).to_ascii_lowercase();
+    if lowered.is_empty()
+        || lowered.contains('\n')
+        || inline_tool_calls_allowed_for_user_message(&lowered)
+        || message_explicitly_disallows_tool_calls(&lowered)
+        || message_requires_information_search(&lowered)
+    {
+        return false;
+    }
+    if workflow_turn_contains_any(
+        &lowered,
+        &[
+            "tool", "search", "web", "file", "repo", "workspace", "read", "write", "patch",
+            "edit", "run", "execute", "compare", "latest", "current",
+        ],
+    ) {
+        return false;
+    }
+    matches!(
+        lowered.trim_matches(|ch: char| ch.is_ascii_punctuation() || ch.is_whitespace()),
+        "hey"
+            | "hi"
+            | "hello"
+            | "yo"
+            | "sup"
+            | "hiya"
+            | "good morning"
+            | "good afternoon"
+            | "good evening"
+            | "are you there"
+            | "you there"
     )
 }
 
@@ -437,13 +479,31 @@ fn turn_workflow_stage_rows(
 ) -> Vec<Value> {
     let requires_final_llm =
         turn_workflow_requires_final_llm(response_tools, workflow_events, draft_response);
-    let _ = workflow_mode;
+    let workflow_mode = clean_text(workflow_mode, 80);
     let cleaned_draft = clean_text(draft_response, 2_000);
     let final_stage_status = if requires_final_llm {
         "pending_final_llm"
     } else {
         "no_post_synthesis_required"
     };
+    if workflow_mode == "direct_conversation_recovery"
+        || workflow_mode == "direct_no_tool_exit"
+        || workflow_mode == "direct_simple_conversation"
+    {
+        return vec![
+            json!({
+                "stage": "gate_1_need_tool_access_menu",
+                "status": "answered_no",
+                "selection_mode": "multiple_choice",
+                "question": "Need tools? Yes/No"
+            }),
+            json!({
+                "stage": "gate_6_llm_final_output",
+                "required": requires_final_llm,
+                "status": final_stage_status
+            }),
+        ];
+    }
     if !requires_final_llm && response_tools.is_empty() && workflow_events.is_empty() {
         return vec![
             json!({
@@ -718,6 +778,20 @@ fn workflow_response_requests_more_tooling(response: &str) -> bool {
         ]
         .iter()
         .any(|marker| lowered.contains(marker))
+}
+
+fn response_is_manual_toolbox_gate_choice(response: &str) -> bool {
+    let lowered = clean_text(response, 2_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let starts_with_yes =
+        lowered.starts_with("yes") || lowered.starts_with("1") || lowered.starts_with("use a tool");
+    starts_with_yes
+        && (lowered.contains("tool family")
+            || lowered.contains("tool:")
+            || lowered.contains("request payload")
+            || lowered.contains("payload:"))
 }
 
 fn strip_dangling_inline_tool_markup(text: &str) -> String {
