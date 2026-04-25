@@ -2202,6 +2202,33 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/fd_walker.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/forge_services.rs"
       ]
+    },
+    {
+      "id": "forgecode_structured_instructions_metadata_policy_and_module_contracts",
+      "description": "Structured ForgeCode lane that projects custom-instruction discovery, service module boundaries, metadata rendering, default policy compatibility, and user-confirmed policy mutation into staged orchestration flow.",
+      "required_signals": [
+        "custom_instructions_service_discovers_agents_md_from_global_base_git_root_and_current_working_directory_with_deduped_priority_order",
+        "custom_instructions_service_resolves_git_root_via_silent_git_rev_parse_and_ignores_unavailable_git_roots_without_failing",
+        "custom_instructions_service_reads_only_existing_agents_files_and_caches_loaded_instruction_content_for_session_reuse",
+        "service_module_surface_keeps_service_implementation_modules_private_while_reexporting_app_config_clipper_command_context_discovery_error_services_instructions_policy_and_provider_auth_contracts",
+        "service_module_surface_defines_into_domain_and_from_domain_conversion_traits_as_explicit_boundary_adapters",
+        "metadata_renderer_emits_yaml_style_frontmatter_delimiters_and_order_preserving_key_value_lines_with_optional_field_suppression",
+        "default_permission_yaml_compatibility_surface_declares_broad_read_write_command_and_url_allows_as_external_defaults_not_kernel_policy_law",
+        "policy_service_loads_embedded_default_policies_once_reads_user_policy_yaml_and_creates_missing_policy_file_before_evaluation",
+        "policy_service_maps_deny_allow_confirm_to_fail_closed_decisions_or_user_prompted_accept_reject_accept_and_remember_paths",
+        "policy_service_accept_and_remember_generates_narrow_extension_host_or_command_prefix_allow_rules_and_writes_them_to_policy_yaml"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/instructions.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/lib.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/metadata.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/permissions.default.yaml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/policy.rs"
+      ]
     }
   ],
   "workflow_templates": [
@@ -2519,6 +2546,33 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/fd_git.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/fd_walker.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/forge_services.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_instructions_metadata_policy_and_module_contracts",
+      "description": "Structured ForgeCode lane that projects custom-instruction discovery, service module boundaries, metadata rendering, default policy compatibility, and user-confirmed policy mutation into staged orchestration flow.",
+      "required_signals": [
+        "custom_instructions_service_discovers_agents_md_from_global_base_git_root_and_current_working_directory_with_deduped_priority_order",
+        "custom_instructions_service_resolves_git_root_via_silent_git_rev_parse_and_ignores_unavailable_git_roots_without_failing",
+        "custom_instructions_service_reads_only_existing_agents_files_and_caches_loaded_instruction_content_for_session_reuse",
+        "service_module_surface_keeps_service_implementation_modules_private_while_reexporting_app_config_clipper_command_context_discovery_error_services_instructions_policy_and_provider_auth_contracts",
+        "service_module_surface_defines_into_domain_and_from_domain_conversion_traits_as_explicit_boundary_adapters",
+        "metadata_renderer_emits_yaml_style_frontmatter_delimiters_and_order_preserving_key_value_lines_with_optional_field_suppression",
+        "default_permission_yaml_compatibility_surface_declares_broad_read_write_command_and_url_allows_as_external_defaults_not_kernel_policy_law",
+        "policy_service_loads_embedded_default_policies_once_reads_user_policy_yaml_and_creates_missing_policy_file_before_evaluation",
+        "policy_service_maps_deny_allow_confirm_to_fail_closed_decisions_or_user_prompted_accept_reject_accept_and_remember_paths",
+        "policy_service_accept_and_remember_generates_narrow_extension_host_or_command_prefix_allow_rules_and_writes_them_to_policy_yaml"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/instructions.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/lib.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/metadata.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/permissions.default.yaml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/policy.rs"
       ]
     }
   ]
