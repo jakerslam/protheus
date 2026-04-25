@@ -1133,6 +1133,33 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_no_results.snap",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_output.snap"
       ]
+    },
+    {
+      "id": "forgecode_raw_config_schema_dependency_and_eval_environment_contracts",
+      "description": "Raw-capability ForgeCode lane adapted from root lock/config/schema files to expose deterministic environment, dependency-update, config-validation, snapshot, and eval-runtime mechanics without composed-lane assumptions.",
+      "required_signals": [
+        "flake_lock_raw_root_node_depends_on_nixpkgs_and_records_locked_owner_repo_rev_and_nar_hash_for_replayable_shell_inputs",
+        "renovate_raw_config_declares_schema_extends_config_recommended_automerge_true_and_platform_automerge_true",
+        "forge_schema_raw_surface_lists_configurable_limits_for_max_file_read_batch_size_max_parallel_file_reads_max_file_size_bytes_max_read_lines_max_line_chars_max_search_lines_max_search_result_bytes_and_max_fetch_chars",
+        "forge_schema_raw_surface_lists_stdout_model_tool_failure_tool_timeout_model_cache_and_request_budget_limits_with_minimums_or_nullability",
+        "forge_schema_raw_provider_entries_support_builtin_override_and_new_provider_insertion_by_id_without_shadow_provider_state",
+        "forge_schema_raw_model_config_separates_session_commit_and_suggest_model_provider_selection_from_global_sampling_parameters",
+        "forge_schema_raw_restricted_boolean_and_tool_supported_boolean_encode_permission_required_and_no_tool_runtime_modes",
+        "forge_schema_raw_retry_http_reasoning_compact_update_and_autodump_definitions_keep_io_behavior_and_context_policy_schema_validated",
+        "insta_raw_policy_uses_nextest_runner_and_auto_accept_unseen_snapshots_only_as_local_snapshot_update_mechanic",
+        "package_lock_raw_eval_root_depends_on_ai_provider_sdks_p_limit_pino_handlebars_yaml_zod_typescript_tsx_and_lockfile_version_3_for_reproducible_eval_tooling"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/flake.lock",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/renovate.json",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/forge.schema.json",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/insta.yaml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/package-lock.json"
+      ]
     }
   ],
   "workflow_templates": [

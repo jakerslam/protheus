@@ -2526,6 +2526,33 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_no_results.snap",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_output.snap"
       ]
+    },
+    {
+      "id": "forgecode_structured_config_schema_dependency_and_eval_environment_contracts",
+      "description": "Structured ForgeCode lane that projects root reproducibility locks, dependency automation, config-schema limits, snapshot-acceptance policy, and eval dependency environment mechanics into staged orchestration flow.",
+      "required_signals": [
+        "flake_lock_projects_reproducible_nixpkgs_pin_as_environment_replay_input_not_runtime_authority",
+        "renovate_config_uses_recommended_dependency_policy_with_automerge_and_platform_automerge_as_automation_surface_requiring_local_release_gate_mapping",
+        "forge_config_schema_declares_optional_top_level_configuration_with_explicit_defaults_minimums_and_typed_nullability_instead_of_implicit_runtime_assumptions",
+        "forge_config_schema_groups_session_commit_suggest_reasoning_compact_retry_http_provider_updates_and_subagent_settings_as_configurable_control_plane_inputs",
+        "forge_config_schema_exposes_bounded_tool_ceiling_fields_for_file_reads_search_fetch_stdout_parallelism_tool_timeout_and_tool_failure_limits",
+        "forge_config_schema_requires_tool_supported_false_to_disable_tool_use_and_restricted_true_to_require_explicit_permission_grants",
+        "forge_config_schema_keeps_services_url_semantic_search_limits_custom_history_and_debug_request_paths_explicit_and_operator_visible",
+        "insta_snapshot_policy_auto_accepts_seen_and_unseen_snapshots_under_nextest_as_test_scoped_update_policy_not_production_truth",
+        "package_lock_v3_freezes_forge_code_evals_dependency_graph_and_keeps_provider_sdks_logging_concurrency_templating_yaml_and_zod_dependencies_reproducible",
+        "root_config_wave_maps_dependency_versions_and_external_schema_urls_to_audit_evidence_while_preserving_infring_local_policy_authority"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/flake.lock",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/renovate.json",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/forge.schema.json",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/insta.yaml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/package-lock.json"
+      ]
     }
   ],
   "workflow_templates": [
