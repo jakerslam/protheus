@@ -104,12 +104,19 @@ pub fn spec_for(capability: &Capability) -> CapabilitySpec {
 }
 
 pub fn context_preparation_step() -> OrchestrationPlanStep {
-    step(
+    let mut out = step(
         Capability::ReadMemory,
         "step_context_atom_append_prepare",
-        "append_context_atom",
+        "prepare_session_context_explicit",
         CoreContractCall::ContextAtomAppend,
-    )
+    );
+    out.rationale.extend([
+        "explicit_context_preparation_pre_step".to_string(),
+        "mutates_session_context:true".to_string(),
+    ]);
+    out.rationale.sort();
+    out.rationale.dedup();
+    out
 }
 
 fn step(

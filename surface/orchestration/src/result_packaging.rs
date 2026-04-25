@@ -1,8 +1,10 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
     ControlPlaneDecisionTrace, ControlPlaneDecisionTraceStep, ControlPlaneLifecycleState,
+    ForgeCodeWorkflowQualitySignals,
     OrchestrationFallbackAction, OrchestrationPlan, OrchestrationResultPackage, PlanStatus,
     PlanVariant, RecoveryReason, RequestClass, RuntimeQualitySignals, StepStatus, WorkflowTemplate,
+    WorkflowQualitySignals,
 };
 
 pub fn package_result(
@@ -36,7 +38,8 @@ pub fn shape_result_package(
         RequestClass::Mutation | RequestClass::TaskProposal | RequestClass::Assimilation
     );
     let summary = summary_for_plan(plan);
-    let runtime_quality = runtime_quality_signals(plan, &fallback_actions, &workflow_template);
+    let runtime_quality = runtime_quality_signals(plan, &fallback_actions);
+    let workflow_quality = workflow_quality_signals(plan, &fallback_actions, &workflow_template);
     let decision_trace = decision_trace(plan);
     let mut execution_state = plan.execution_state.clone();
     execution_state.correlation.receipt_metadata.decision_trace = decision_trace.clone();
@@ -58,6 +61,7 @@ pub fn shape_result_package(
         selected_plan: plan.selected_plan.clone(),
         alternative_plans: plan.alternative_plans.clone(),
         runtime_quality,
+        workflow_quality,
         decision_trace,
         workflow_template,
         control_plane_lifecycle,
@@ -84,13 +88,7 @@ fn summary_for_plan(plan: &OrchestrationPlan) -> String {
 fn runtime_quality_signals(
     plan: &OrchestrationPlan,
     fallback_actions: &[OrchestrationFallbackAction],
-    workflow_template: &WorkflowTemplate,
 ) -> RuntimeQualitySignals {
-    let is_forgecode_workflow = matches!(
-        workflow_template,
-        WorkflowTemplate::ForgeCodeAgentComposition
-            | WorkflowTemplate::ForgeCodeRawCapabilityAssimilation
-    );
     let fallback_action_count = fallback_actions.len() as u32;
     let candidates = std::iter::once(&plan.selected_plan)
         .chain(plan.alternative_plans.iter())
@@ -168,20 +166,6 @@ fn runtime_quality_signals(
                 .and_then(|row| row.reason.as_ref()),
             Some(RecoveryReason::ToolFailureBudgetExceeded)
         );
-    let mcp_retry_reason_count = mcp_retry_reason_count(plan);
-    let mcp_transport_fallback_action_count = mcp_transport_fallback_action_count(fallback_actions);
-    let mcp_retry_recovery_active = is_forgecode_workflow
-        && (mcp_retry_reason_count > 0
-            || mcp_transport_fallback_action_count > 0
-            || tool_failure_budget_exceeded);
-    let mcp_diagnostic_summary = build_mcp_diagnostic_summary(
-        mcp_retry_reason_count,
-        mcp_transport_fallback_action_count,
-        tool_failure_budget_exceeded,
-        fallback_action_count,
-        workflow_template,
-    );
-
     RuntimeQualitySignals {
         candidate_count,
         selected_variant: plan.selected_plan.variant.clone(),
@@ -200,30 +184,69 @@ fn runtime_quality_signals(
         typed_probe_contract_gap_count,
         decision_rationale_count,
         fallback_action_count,
-        mcp_alias_route_required: is_forgecode_workflow,
-        retry_backoff_contract_required: is_forgecode_workflow,
-        mcp_transport_fallback_required: is_forgecode_workflow,
-        semantic_discovery_route_required: is_forgecode_workflow,
-        exact_pattern_search_required: is_forgecode_workflow,
-        known_path_direct_read_required: is_forgecode_workflow,
-        parallel_independent_tool_calls_required: is_forgecode_workflow,
-        grounded_verification_required: is_forgecode_workflow,
-        step_checkpointing_required: is_forgecode_workflow,
-        completion_hygiene_required: is_forgecode_workflow,
-        specialized_tool_usage_required: is_forgecode_workflow,
-        shell_terminal_only_usage_required: is_forgecode_workflow,
-        simple_lookup_locality_hygiene_required: is_forgecode_workflow,
-        subagent_brief_contract_required: is_forgecode_workflow,
-        subagent_output_contract_required: is_forgecode_workflow,
-        subagent_result_synthesis_required: is_forgecode_workflow,
-        mcp_retry_reason_count,
-        mcp_transport_fallback_action_count,
-        mcp_retry_recovery_active,
-        mcp_diagnostic_summary,
         tool_failure_budget_failed_step_count,
         tool_failure_budget_limit,
         tool_failure_budget_exceeded,
     }
+}
+
+fn workflow_quality_signals(
+    plan: &OrchestrationPlan,
+    fallback_actions: &[OrchestrationFallbackAction],
+    workflow_template: &WorkflowTemplate,
+) -> Option<WorkflowQualitySignals> {
+    if !matches!(
+        workflow_template,
+        WorkflowTemplate::ForgeCodeAgentComposition
+            | WorkflowTemplate::ForgeCodeRawCapabilityAssimilation
+    ) {
+        return None;
+    }
+    let mcp_retry_reason_count = mcp_retry_reason_count(plan);
+    let mcp_transport_fallback_action_count = mcp_transport_fallback_action_count(fallback_actions);
+    let tool_failure_budget_exceeded = tool_failure_budget_marker(plan).is_some()
+        || matches!(
+            plan.execution_state
+                .recovery
+                .as_ref()
+                .and_then(|row| row.reason.as_ref()),
+            Some(RecoveryReason::ToolFailureBudgetExceeded)
+        );
+    let fallback_action_count = fallback_actions.len() as u32;
+    let mcp_retry_recovery_active = mcp_retry_reason_count > 0
+        || mcp_transport_fallback_action_count > 0
+        || tool_failure_budget_exceeded;
+    let mcp_diagnostic_summary = build_mcp_diagnostic_summary(
+        mcp_retry_reason_count,
+        mcp_transport_fallback_action_count,
+        tool_failure_budget_exceeded,
+        fallback_action_count,
+    );
+
+    Some(WorkflowQualitySignals::ForgeCode(
+        ForgeCodeWorkflowQualitySignals {
+            mcp_alias_route_required: true,
+            retry_backoff_contract_required: true,
+            mcp_transport_fallback_required: true,
+            semantic_discovery_route_required: true,
+            exact_pattern_search_required: true,
+            known_path_direct_read_required: true,
+            parallel_independent_tool_calls_required: true,
+            grounded_verification_required: true,
+            step_checkpointing_required: true,
+            completion_hygiene_required: true,
+            specialized_tool_usage_required: true,
+            shell_terminal_only_usage_required: true,
+            simple_lookup_locality_hygiene_required: true,
+            subagent_brief_contract_required: true,
+            subagent_output_contract_required: true,
+            subagent_result_synthesis_required: true,
+            mcp_retry_reason_count,
+            mcp_transport_fallback_action_count,
+            mcp_retry_recovery_active,
+            mcp_diagnostic_summary,
+        },
+    ))
 }
 
 fn mcp_retry_reason_count(plan: &OrchestrationPlan) -> u32 {
@@ -261,15 +284,7 @@ fn build_mcp_diagnostic_summary(
     mcp_transport_fallback_action_count: u32,
     tool_failure_budget_exceeded: bool,
     fallback_action_count: u32,
-    workflow_template: &WorkflowTemplate,
 ) -> String {
-    if !matches!(
-        workflow_template,
-        WorkflowTemplate::ForgeCodeAgentComposition
-            | WorkflowTemplate::ForgeCodeRawCapabilityAssimilation
-    ) {
-        return "mcp_diag:not_applicable".to_string();
-    }
     format!(
         "mcp_diag:retry_markers={mcp_retry_reason_count};transport_fallbacks={mcp_transport_fallback_action_count};fallbacks={fallback_action_count};budget_exceeded={tool_failure_budget_exceeded}"
     )
@@ -327,6 +342,10 @@ fn decision_step_records(plan: &OrchestrationPlan) -> Vec<ControlPlaneDecisionTr
                     format!("operation={}", step.operation),
                     format!("capability={:?}", step.capability).to_ascii_lowercase(),
                     format!(
+                        "plan_mutates_session_context={}",
+                        plan.selected_plan.mutates_session_context
+                    ),
+                    format!(
                         "expected_contract_refs={}",
                         step.expected_contract_refs.len()
                     ),
@@ -356,6 +375,10 @@ fn decision_receipt_metadata(plan: &OrchestrationPlan) -> Vec<String> {
         format!(
             "orchestration_trace_id={}",
             correlation.orchestration_trace_id
+        ),
+        format!(
+            "plan_mutates_session_context={}",
+            plan.selected_plan.mutates_session_context
         ),
         format!(
             "expected_core_contract_count={}",
@@ -388,5 +411,8 @@ fn decision_receipt_metadata(plan: &OrchestrationPlan) -> Vec<String> {
             .iter()
             .map(|id| format!("observed_core_outcome={id}")),
     );
+    if let Some(rationale) = &plan.selected_plan.context_preparation_rationale {
+        metadata.push(format!("context_preparation_rationale={rationale}"));
+    }
     metadata
 }

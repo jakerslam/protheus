@@ -310,6 +310,54 @@ impl TransientContextStore {
 mod tests {
     use super::*;
 
+    fn observation(receipt_id: &str) -> CoreExecutionObservation {
+        CoreExecutionObservation {
+            plan_status: None,
+            receipt_ids: vec![receipt_id.to_string()],
+            outcome_refs: Vec::new(),
+            step_statuses: Vec::new(),
+        }
+    }
+
+    fn observation_object_id(store: &TransientContextStore, session_id: &str) -> String {
+        store
+            .execution_observations
+            .get(session_id)
+            .expect("execution observation row should exist")
+            .object_id
+            .clone()
+    }
+
+    fn assert_observation_row_points_to_active_heap_object(
+        store: &TransientContextStore,
+        session_id: &str,
+    ) {
+        let entry = store
+            .execution_observations
+            .get(session_id)
+            .expect("execution observation row should exist");
+        let object = store
+            .heap
+            .ephemeral_object(entry.object_id.as_str())
+            .expect("execution observation heap object should exist");
+        assert_eq!(
+            object.terminal_outcome,
+            TerminalOutcome::Active,
+            "map row should point only to an active heap object"
+        );
+    }
+
+    fn assert_observation_absent(store: &TransientContextStore, session_id: &str) {
+        assert!(
+            store.execution_observations.get(session_id).is_none(),
+            "execution observation row should be removed"
+        );
+        assert!(
+            store.execution_observation(session_id).is_none(),
+            "read-side observation lookup should be empty"
+        );
+    }
+
     #[test]
     fn upsert_fails_closed_when_ephemeral_write_is_denied() {
         let mut heap = EphemeralMemoryHeap::new(VerityEphemeralPolicy::default());
@@ -368,5 +416,134 @@ mod tests {
         assert!(report.cleanup_cycle_id.starts_with("cycle_"));
         assert_eq!(store.len(), 0);
         assert_eq!(store.active_ephemeral_count(), 0);
+    }
+
+    #[test]
+    fn execution_observation_invariant_replace_retires_old_heap_object() {
+        let mut store = TransientContextStore::default();
+        store
+            .upsert_execution_observation("session-obs", observation("receipt-a"), 10)
+            .expect("first observation upsert");
+        let first_object_id = observation_object_id(&store, "session-obs");
+        assert_observation_row_points_to_active_heap_object(&store, "session-obs");
+
+        store
+            .upsert_execution_observation("session-obs", observation("receipt-b"), 20)
+            .expect("replacement observation upsert");
+        let second_object_id = observation_object_id(&store, "session-obs");
+        assert_ne!(
+            first_object_id, second_object_id,
+            "replacement should move the map row to a new heap object"
+        );
+        assert_eq!(
+            store
+                .heap
+                .ephemeral_object(first_object_id.as_str())
+                .expect("old heap object should still be auditable")
+                .terminal_outcome,
+            TerminalOutcome::Cleaned,
+            "replaced heap object should be retired"
+        );
+        assert_observation_row_points_to_active_heap_object(&store, "session-obs");
+        assert_eq!(
+            store
+                .execution_observation("session-obs")
+                .expect("replacement observation should remain readable")
+                .receipt_ids,
+            vec!["receipt-b".to_string()]
+        );
+    }
+
+    #[test]
+    fn execution_observation_invariant_clear_removes_row_and_retires_heap_object() {
+        let mut store = TransientContextStore::default();
+        store
+            .upsert_execution_observation("session-clear", observation("receipt-clear"), 30)
+            .expect("observation upsert");
+        let object_id = observation_object_id(&store, "session-clear");
+        assert!(store.clear_execution_observation("session-clear"));
+
+        assert_observation_absent(&store, "session-clear");
+        assert_eq!(
+            store
+                .heap
+                .ephemeral_object(object_id.as_str())
+                .expect("cleared heap object should remain auditable")
+                .terminal_outcome,
+            TerminalOutcome::Cleaned,
+            "clear should retire the heap object"
+        );
+    }
+
+    #[test]
+    fn execution_observation_invariant_sweep_prunes_inactive_observation_refs() {
+        let mut store = TransientContextStore::default();
+        let _ = store
+            .upsert("session-sweep", "short lived context", 40, 5)
+            .expect("context upsert");
+        store
+            .upsert_execution_observation("session-sweep", observation("receipt-sweep"), 41)
+            .expect("observation upsert");
+        let observation_object_id = observation_object_id(&store, "session-sweep");
+        store.cleanup_ephemeral_object(
+            observation_object_id.as_str(),
+            "test_observation_sweep",
+            "forced_inactive_observation",
+        );
+
+        let swept = store.sweep_expired(50);
+        assert_eq!(swept, 1);
+        assert!(store.get("session-sweep").is_none());
+        assert_observation_absent(&store, "session-sweep");
+    }
+
+    #[test]
+    fn execution_observation_invariant_sleep_cleanup_removes_observation_refs() {
+        let mut store = TransientContextStore::default();
+        let _ = store
+            .upsert("session-sleep", "sleep context", 60, 60_000)
+            .expect("context upsert");
+        store
+            .upsert_execution_observation("session-sleep", observation("receipt-sleep"), 61)
+            .expect("observation upsert");
+        assert_eq!(store.active_ephemeral_count(), 2);
+
+        let report = store
+            .run_sleep_cycle_cleanup("observation_sleep_cycle")
+            .expect("sleep cleanup");
+        assert_eq!(report.cleaned_count, 2);
+        assert_eq!(report.removed_session_count, 1);
+        assert_eq!(store.len(), 0);
+        assert_eq!(store.active_ephemeral_count(), 0);
+        assert_observation_absent(&store, "session-sleep");
+    }
+
+    #[test]
+    fn execution_observation_invariant_restart_sweep_removes_partial_replay_refs() {
+        let mut store = TransientContextStore::default();
+        let _ = store
+            .upsert("session-restart", "restart context", 70, 60_000)
+            .expect("context upsert");
+        store
+            .upsert_execution_observation("session-restart", observation("receipt-restart"), 71)
+            .expect("observation upsert");
+        assert_eq!(store.active_ephemeral_count(), 2);
+
+        store.begin_restart();
+        let blocked = store
+            .resume_after_restart()
+            .expect_err("resume should require stale sweep");
+        assert!(blocked.starts_with("transient_context_resume_blocked:"));
+
+        let swept = store
+            .sweep_stale_before_resume()
+            .expect("restart sweep should succeed");
+        assert_eq!(swept, 2);
+        assert_eq!(store.len(), 0);
+        assert_eq!(store.active_ephemeral_count(), 0);
+        assert_observation_absent(&store, "session-restart");
+        store
+            .resume_after_restart()
+            .expect("resume should succeed after observation refs are swept");
     }
 }
