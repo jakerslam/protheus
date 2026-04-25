@@ -2150,6 +2150,32 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/context_engine.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/conversation.rs"
       ]
+    },
+    {
+      "id": "forgecode_structured_workspace_ingress_command_and_discovery_contracts",
+      "description": "Structured ForgeCode lane that projects workspace attachment, clipping, command loading, and file discovery mechanics into staged orchestration flow.",
+      "required_signals": [
+        "workspace_ingress_allowlist_limits_text_attachment_extensions_to_known_source_doc_and_config_types",
+        "workspace_attachment_path_resolution_roots_relative_file_tags_at_current_working_directory_before_read_or_directory_listing",
+        "workspace_attachment_directory_projection_lists_entries_without_reading_contents_and_sorts_directories_before_files",
+        "workspace_attachment_text_projection_applies_resolved_line_ranges_and_preserves_full_file_hash_metadata_for_external_change_detection",
+        "workspace_attachment_image_projection_accepts_jpeg_png_and_webp_as byte_payloads_with_explicit_mime_type",
+        "workspace_clipper_preserves_unicode_boundaries_for_prefix_suffix_and_prefix_suffix_truncation_modes",
+        "workspace_command_loader_reads_builtin_global_and_cwd_markdown_commands_and_resolves_conflicts_with_cwd_precedence",
+        "workspace_command_loader_requires_yaml_frontmatter_and_projects_markdown_body_as_prompt_content",
+        "workspace_discovery_projects_walker_results_into_file_rows_and_lists_current_directory_with_directories_first_sorted_order"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/allowed_extensions.txt",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/attachment.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/clipper.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/command.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/discovery.rs"
+      ]
     }
   ],
   "workflow_templates": [
@@ -2415,6 +2441,32 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/conversation/mod.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/conversation/conversation_record.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_repo/src/conversation/conversation_repo.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_workspace_ingress_command_and_discovery_contracts",
+      "description": "Structured ForgeCode lane that projects workspace attachment, clipping, command loading, and file discovery mechanics into staged orchestration flow.",
+      "required_signals": [
+        "workspace_ingress_allowlist_limits_text_attachment_extensions_to_known_source_doc_and_config_types",
+        "workspace_attachment_path_resolution_roots_relative_file_tags_at_current_working_directory_before_read_or_directory_listing",
+        "workspace_attachment_directory_projection_lists_entries_without_reading_contents_and_sorts_directories_before_files",
+        "workspace_attachment_text_projection_applies_resolved_line_ranges_and_preserves_full_file_hash_metadata_for_external_change_detection",
+        "workspace_attachment_image_projection_accepts_jpeg_png_and_webp_as byte_payloads_with_explicit_mime_type",
+        "workspace_clipper_preserves_unicode_boundaries_for_prefix_suffix_and_prefix_suffix_truncation_modes",
+        "workspace_command_loader_reads_builtin_global_and_cwd_markdown_commands_and_resolves_conflicts_with_cwd_precedence",
+        "workspace_command_loader_requires_yaml_frontmatter_and_projects_markdown_body_as_prompt_content",
+        "workspace_discovery_projects_walker_results_into_file_rows_and_lists_current_directory_with_directories_first_sorted_order"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/allowed_extensions.txt",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/attachment.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/clipper.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/command.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/discovery.rs"
       ]
     }
   ]

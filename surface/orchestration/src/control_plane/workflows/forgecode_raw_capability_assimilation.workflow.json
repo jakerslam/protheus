@@ -759,6 +759,32 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/zsh/plugin.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/zsh/style.rs"
       ]
+    },
+    {
+      "id": "forgecode_raw_workspace_ingress_command_and_discovery_contracts",
+      "description": "Raw-capability ForgeCode lane adapted from workspace attachment, clipper, command, and discovery primitives to expose deterministic file ingress and command-loading mechanics without composed-lane assumptions.",
+      "required_signals": [
+        "workspace_allowlist_raw_path_enumerates_source_doc_config_and_script_extensions_as_safe_text_attachment_candidates",
+        "attachment_raw_path_canonicalizes_relative_file_tags_against_environment_cwd_before existence_and_file_type_checks",
+        "attachment_raw_path_returns_directory_listing_envelopes_for_non_file_paths_without_content_reads",
+        "attachment_raw_path_uses_range_read_utf8_with_resolved_bounds_and_full_file_hash_fileinfo_for_text_content",
+        "attachment_raw_path_treats_jpg_jpeg_png_and_webp_as_image_byte_payloads_with_explicit_mime_projection",
+        "clipper_raw_path_uses_character_counts_not_byte_counts_for_prefix_suffix_truncation_ranges",
+        "command_raw_loader_merges_builtin_global_and_cwd_markdown_commands_with_last_write_precedence_for_duplicate_names",
+        "command_raw_parser_fails_closed_on_missing_or_invalid_yaml_frontmatter_and_preserves_markdown_body_as_prompt",
+        "discovery_raw_path_maps_walker_entries_to_file_rows_and_lists_cwd_entries_with_dirs_first_lexical_order"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/allowed_extensions.txt",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/attachment.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/clipper.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/command.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/discovery.rs"
+      ]
     }
   ],
   "workflow_templates": [
@@ -1049,6 +1075,32 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/auth.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/context_engine.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/conversation.rs"
+      ]
+    },
+    {
+      "id": "forgecode_raw_workspace_ingress_command_and_discovery_contracts",
+      "description": "Raw-capability ForgeCode lane adapted from workspace attachment, clipper, command, and discovery primitives to expose deterministic file ingress and command-loading mechanics without composed-lane assumptions.",
+      "required_signals": [
+        "workspace_allowlist_raw_path_enumerates_source_doc_config_and_script_extensions_as_safe_text_attachment_candidates",
+        "attachment_raw_path_canonicalizes_relative_file_tags_against_environment_cwd_before existence_and_file_type_checks",
+        "attachment_raw_path_returns_directory_listing_envelopes_for_non_file_paths_without_content_reads",
+        "attachment_raw_path_uses_range_read_utf8_with_resolved_bounds_and_full_file_hash_fileinfo_for_text_content",
+        "attachment_raw_path_treats_jpg_jpeg_png_and_webp_as_image_byte_payloads_with_explicit_mime_projection",
+        "clipper_raw_path_uses_character_counts_not_byte_counts_for_prefix_suffix_truncation_ranges",
+        "command_raw_loader_merges_builtin_global_and_cwd_markdown_commands_with_last_write_precedence_for_duplicate_names",
+        "command_raw_parser_fails_closed_on_missing_or_invalid_yaml_frontmatter_and_preserves_markdown_body_as_prompt",
+        "discovery_raw_path_maps_walker_entries_to_file_rows_and_lists_cwd_entries_with_dirs_first_lexical_order"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/allowed_extensions.txt",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/attachment.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/clipper.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/command.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/discovery.rs"
       ]
     }
   ]
