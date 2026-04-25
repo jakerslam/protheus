@@ -2176,6 +2176,32 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/command.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/discovery.rs"
       ]
+    },
+    {
+      "id": "forgecode_structured_file_discovery_error_and_service_container_contracts",
+      "description": "Structured ForgeCode lane that projects typed service errors, git-first file discovery, walker fallback, source filtering, and service-container composition into staged orchestration flow.",
+      "required_signals": [
+        "service_error_surface_distinguishes_auth_flow_timeout_expiry_denial_poll_refresh_validation_parameter_url_context_and_no_source_files_failure_modes",
+        "file_discovery_extension_allowlist_is_loaded_from_embedded_lowercase_text_extensions_before_workspace_sync",
+        "file_discovery_filter_rejects_symlinks_lockfiles_generated_dependency_files_and_disallowed_extensions_before_indexing",
+        "file_discovery_filter_fails_closed_with_no_source_files_found_when_no_indexable_paths_survive",
+        "file_discovery_default_path_attempts_git_ls_files_first_and_falls_back_to_walker_on_empty_or_failed_git_discovery",
+        "file_discovery_git_path_runs_git_ls_files_in_workspace_root_and_requires_zero_exit_status_before_filtering",
+        "file_discovery_walker_path_uses_unlimited_cwd_scoped_skip_binary_walk_and_filters_directories_before_source_allowlist_projection",
+        "service_container_composes_arc_backed_provider_config_conversation_template_attachment_discovery_mcp_file_shell_fetch_policy_workspace_and_skill_services_from_shared_infra",
+        "service_container_exposes_each_composed_service_through_services_trait_without_shell_side_authority"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/error.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/fd.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/fd_git.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/fd_walker.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/forge_services.rs"
+      ]
     }
   ],
   "workflow_templates": [
@@ -2467,6 +2493,32 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/clipper.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/command.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/discovery.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_file_discovery_error_and_service_container_contracts",
+      "description": "Structured ForgeCode lane that projects typed service errors, git-first file discovery, walker fallback, source filtering, and service-container composition into staged orchestration flow.",
+      "required_signals": [
+        "service_error_surface_distinguishes_auth_flow_timeout_expiry_denial_poll_refresh_validation_parameter_url_context_and_no_source_files_failure_modes",
+        "file_discovery_extension_allowlist_is_loaded_from_embedded_lowercase_text_extensions_before_workspace_sync",
+        "file_discovery_filter_rejects_symlinks_lockfiles_generated_dependency_files_and_disallowed_extensions_before_indexing",
+        "file_discovery_filter_fails_closed_with_no_source_files_found_when_no_indexable_paths_survive",
+        "file_discovery_default_path_attempts_git_ls_files_first_and_falls_back_to_walker_on_empty_or_failed_git_discovery",
+        "file_discovery_git_path_runs_git_ls_files_in_workspace_root_and_requires_zero_exit_status_before_filtering",
+        "file_discovery_walker_path_uses_unlimited_cwd_scoped_skip_binary_walk_and_filters_directories_before_source_allowlist_projection",
+        "service_container_composes_arc_backed_provider_config_conversation_template_attachment_discovery_mcp_file_shell_fetch_policy_workspace_and_skill_services_from_shared_infra",
+        "service_container_exposes_each_composed_service_through_services_trait_without_shell_side_authority"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/error.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/fd.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/fd_git.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/fd_walker.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/forge_services.rs"
       ]
     }
   ]
