@@ -811,6 +811,33 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/fd_walker.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/forge_services.rs"
       ]
+    },
+    {
+      "id": "forgecode_raw_instructions_metadata_policy_and_module_contracts",
+      "description": "Raw-capability ForgeCode lane adapted from custom-instruction, metadata, module-export, default-permission, and policy-service primitives to expose deterministic instruction and permission mechanics without composed-lane assumptions.",
+      "required_signals": [
+        "instructions_raw_path_orders_agents_md_lookup_as_global_base_then_git_root_then_cwd_and_deduplicates_duplicate_paths",
+        "instructions_raw_path_executes_git_rev_parse_show_toplevel_silently_and_treats_non_success_as_no_repo_instruction_source",
+        "instructions_raw_path_caches_successfully_read_instruction_bodies_and_skips_missing_or_unreadable_agents_files",
+        "lib_raw_surface_separates_private_service_modules_from_public_reexports_and_constrains conversions_through_into_domain_from_domain_traits",
+        "metadata_raw_path_formats_metadata_as_frontmatter_block_with_order_preserved_static_keys_and_stringified_values",
+        "permissions_default_raw_surface_declares_external_broad_allow_defaults_for_read_write_command_and_url_rules_for_compatibility_audit_only",
+        "policy_raw_path_lazy_loads_embedded_default_policy_yaml_and_serializes_defaults_when_policy_file_is_missing",
+        "policy_raw_path_reads_policy_yaml_from_environment_permission_path_and_contextualizes_parse_errors_with_path_display",
+        "policy_raw_path_prompts_on_confirm_permissions_and_treats_reject_or_no_selection_as_denied",
+        "policy_raw_remember_path_derives_read_write_rules_from_file_extensions_fetch_rules_from_host_prefixes_and_execute_rules_from_command_or_command_subcommand_prefixes"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/instructions.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/lib.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/metadata.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/permissions.default.yaml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/policy.rs"
+      ]
     }
   ],
   "workflow_templates": [
@@ -1153,6 +1180,33 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/fd_git.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/fd_walker.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/forge_services.rs"
+      ]
+    },
+    {
+      "id": "forgecode_raw_instructions_metadata_policy_and_module_contracts",
+      "description": "Raw-capability ForgeCode lane adapted from custom-instruction, metadata, module-export, default-permission, and policy-service primitives to expose deterministic instruction and permission mechanics without composed-lane assumptions.",
+      "required_signals": [
+        "instructions_raw_path_orders_agents_md_lookup_as_global_base_then_git_root_then_cwd_and_deduplicates_duplicate_paths",
+        "instructions_raw_path_executes_git_rev_parse_show_toplevel_silently_and_treats_non_success_as_no_repo_instruction_source",
+        "instructions_raw_path_caches_successfully_read_instruction_bodies_and_skips_missing_or_unreadable_agents_files",
+        "lib_raw_surface_separates_private_service_modules_from_public_reexports_and_constrains conversions_through_into_domain_from_domain_traits",
+        "metadata_raw_path_formats_metadata_as_frontmatter_block_with_order_preserved_static_keys_and_stringified_values",
+        "permissions_default_raw_surface_declares_external_broad_allow_defaults_for_read_write_command_and_url_rules_for_compatibility_audit_only",
+        "policy_raw_path_lazy_loads_embedded_default_policy_yaml_and_serializes_defaults_when_policy_file_is_missing",
+        "policy_raw_path_reads_policy_yaml_from_environment_permission_path_and_contextualizes_parse_errors_with_path_display",
+        "policy_raw_path_prompts_on_confirm_permissions_and_treats_reject_or_no_selection_as_denied",
+        "policy_raw_remember_path_derives_read_write_rules_from_file_extensions_fetch_rules_from_host_prefixes_and_execute_rules_from_command_or_command_subcommand_prefixes"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/instructions.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/lib.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/metadata.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/permissions.default.yaml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/policy.rs"
       ]
     }
   ]
