@@ -15,6 +15,11 @@
     "tests/tooling/config/verify_profiles.json",
     "README.md",
     "ARCHITECTURE.md",
+    ".github/ISSUE_TEMPLATE/bug_report.yml",
+    ".github/ISSUE_TEMPLATE/feature_request.yml",
+    ".github/workflows/infringd-static-size-gate.yml",
+    ".github/workflows/release-security-artifacts.yml",
+    "install.ps1",
     "docs/workspace/codex_enforcer.md",
     "docs/workspace/DEFINITION_OF_DONE.md",
     "docs/workspace/policy/release_terminology_transition_policy.md",
@@ -29,5 +34,28 @@
   "legacy_token_exemptions": [],
   "doc_alias_terms": ["Core", "Adapters", "Client"],
   "doc_alias_context_regex": "compat(?:ibility)?\\s+alias",
+  "forbidden_public_runtime_terms": [
+    "\\bProtheus\\b",
+    "\\bProtheusd\\b",
+    "\\bprotheus-ops\\b",
+    "\\bprotheus_ops\\b",
+    "\\bprotheus-pure-workspace\\b",
+    "\\bprotheus-client\\b",
+    "\\bprotheusd(?:\\.cmd|\\.ps1|\\.exe)?\\b",
+    "\\bprotheusctl(?:\\.cmd|\\.ps1)?\\b",
+    "\\bprotheus(?:\\.cmd|\\.ps1)\\b",
+    "\\b(?:ai\\.)?protheus\\.gateway\\b"
+  ],
+  "forbidden_public_runtime_scan_files": [
+    ".github/ISSUE_TEMPLATE/bug_report.yml",
+    ".github/ISSUE_TEMPLATE/feature_request.yml",
+    ".github/workflows/infringd-static-size-gate.yml",
+    ".github/workflows/release-security-artifacts.yml",
+    "install.ps1",
+    "core/layer0/ops/src/daemon_control_parts/040-payload-for.rs",
+    "core/layer0/ops/src/daemon_control_parts/020-dashboard-health-ok_parts/010-duplicate-runtime-guard.rs",
+    "core/layer0/ops/src/daemon_control_parts/010-print-json-line.rs.parts/020-segment_parts/010-parse-dashboard-launch-config-to-launchd-uid-for-cleanup.rs",
+    "core/layer0/ops/src/daemon_control_parts/010-print-json-line.rs.parts/020-segment_parts/030-kill-pid-to-dashboard-backend-binary-hint.rs"
+  ],
   "temporary_compatibility_bridge_exemptions": []
 }

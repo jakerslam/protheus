@@ -18,6 +18,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 mod eval_action_economy_guard;
 #[path = "../eval_agent_feedback.rs"]
 mod eval_agent_feedback;
+#[path = "../eval_agent_self_diagnosis.rs"] mod eval_agent_self_diagnosis;
 #[path = "../eval_calibration_stats.rs"]
 mod eval_calibration_stats;
 #[path = "../eval_contamination_guard.rs"]
@@ -28,6 +29,8 @@ mod eval_final_runtime;
 mod eval_feedback_router;
 #[path = "../eval_grader_hacking.rs"]
 mod eval_grader_hacking;
+#[path = "../eval_issue_authority.rs"]
+mod eval_issue_authority;
 #[path = "../eval_issue_runtime.rs"]
 mod eval_issue_runtime;
 #[path = "../eval_lifecycle_runtime.rs"]
@@ -50,6 +53,8 @@ mod eval_multiturn_simulation;
 mod eval_production_workflow_guard;
 #[path = "../eval_rsi_promotion_guard.rs"]
 mod eval_rsi_promotion_guard;
+#[path = "../eval_synthetic_user_chat_harness.rs"]
+mod eval_synthetic_user_chat_harness;
 #[path = "../eval_trace_localization.rs"]
 mod eval_trace_localization;
 #[path = "../eval_trajectory_scoring.rs"]
@@ -927,7 +932,7 @@ fn run_judge_human_agreement(args: &[String]) -> i32 {
 
 fn usage() {
     eprintln!(
-        "usage: cargo run --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- <reviewer-feedback|quality-gate|judge-human-agreement|feedback-router|agent-feedback|grader-hacking-guard|trace-localization-guard|trajectory-scoring-guard|multiturn-simulation-guard|contamination-guard|action-economy-guard|production-workflow-guard|learning-loop-ingest|learning-loop-issues|learning-loop-review|learning-loop-policy|learning-loop-version|learning-loop-rsi-handoff|metamorphic-guard|rsi-promotion-ladder|issue-drafts|replay|fix-verification|issue-lifecycle|rsi-escalation|phase-trace-persist|adversarial-routing|workflow-selection|runtime-ownership> [--strict=0|1] [args...]"
+        "usage: cargo run --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- <reviewer-feedback|quality-gate|judge-human-agreement|feedback-router|agent-feedback|agent-self-diagnosis|issue-authority|grader-hacking-guard|trace-localization-guard|trajectory-scoring-guard|multiturn-simulation-guard|synthetic-user-chat-harness|misty-live-health-gate|contamination-guard|action-economy-guard|production-workflow-guard|learning-loop-ingest|learning-loop-issues|learning-loop-review|learning-loop-policy|learning-loop-version|learning-loop-rsi-handoff|metamorphic-guard|rsi-promotion-ladder|issue-drafts|replay|fix-verification|issue-lifecycle|rsi-escalation|phase-trace-persist|adversarial-routing|workflow-selection|runtime-ownership> [--strict=0|1] [args...]"
     );
 }
 
@@ -943,12 +948,18 @@ fn main() -> ExitCode {
         "judge-human-agreement" => run_judge_human_agreement(tail),
         "feedback-router" => eval_feedback_router::run_eval_feedback_router(tail),
         "agent-feedback" => eval_agent_feedback::run_eval_agent_feedback(tail),
+        "agent-self-diagnosis" => eval_agent_self_diagnosis::run_eval_agent_self_diagnosis(tail),
+        "issue-authority" => eval_issue_authority::run_eval_issue_authority(tail),
         "grader-hacking-guard" => eval_grader_hacking::run_grader_hacking_guard(tail),
         "trace-localization-guard" => eval_trace_localization::run_trace_localization_guard(tail),
         "trajectory-scoring-guard" => eval_trajectory_scoring::run_trajectory_scoring_guard(tail),
         "multiturn-simulation-guard" => {
             eval_multiturn_simulation::run_multiturn_simulation_guard(tail)
         }
+        "synthetic-user-chat-harness" => {
+            eval_synthetic_user_chat_harness::run_synthetic_user_chat_harness(tail)
+        }
+        "misty-live-health-gate" => eval_synthetic_user_chat_harness::run_misty_live_health_gate(tail),
         "contamination-guard" => eval_contamination_guard::run_contamination_guard(tail),
         "action-economy-guard" => eval_action_economy_guard::run_action_economy_guard(tail),
         "production-workflow-guard" => {

@@ -21,7 +21,6 @@ struct SelfModificationPolicy {
     rollback_metadata_required: bool,
     bypass_tokens_denied: Vec<String>,
 }
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct GatePolicy {
     id: String,
@@ -37,6 +36,10 @@ struct ProposalInput {
     summary: String,
     requested_stages: Vec<String>,
     requested_bypass: Option<String>,
+    proof_burden: Vec<String>,
+    rollback_plan: String,
+    eval_result_artifact: String,
+    affected_trust_zone: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -166,6 +169,14 @@ fn default_proposal() -> ProposalInput {
             "rollback".to_string(),
         ],
         requested_bypass: None,
+        proof_burden: vec![
+            "tests".to_string(),
+            "replay_fixtures".to_string(),
+            "eval_gates".to_string(),
+        ],
+        rollback_plan: "restore previous artifact snapshot, block apply lane, and rerun eval/replay gates".to_string(),
+        eval_result_artifact: "core/local/artifacts/eval_feedback_router_current.json".to_string(),
+        affected_trust_zone: "propose_only".to_string(),
     }
 }
 
@@ -191,12 +202,22 @@ fn build_self_modification_report(
     let rollback = rollback_metadata(policy, &proposal);
     let rollback_ok = !policy.rollback_metadata_required || rollback.rollback_required;
     let apply_requirements_present = requirements_present(policy);
+    let proposal_proof_burden_ok = proposal_proof_burden_present(policy, &proposal);
+    let proposal_rollback_plan_ok = !proposal.rollback_plan.trim().is_empty();
+    let proposal_eval_artifact_ok = !proposal.eval_result_artifact.trim().is_empty()
+        && Path::new(&proposal.eval_result_artifact).exists();
+    let proposal_affected_zone_ok = proposal_affected_trust_zone_matches(&proposal, &trust_zones);
+    let proposal_burden_ok = proposal_proof_burden_ok
+        && proposal_rollback_plan_ok
+        && proposal_eval_artifact_ok
+        && proposal_affected_zone_ok;
     let apply_allowed = stage_complete
         && gates_accepted
         && bypass_denied
         && rollback_ok
         && trust_zones_apply_allowed
-        && apply_requirements_present;
+        && apply_requirements_present
+        && proposal_burden_ok;
     let stages = stage_decisions(
         policy,
         &proposal,
@@ -215,6 +236,9 @@ fn build_self_modification_report(
         "regression_action": "auto_rollback_and_kernel_block",
         "monitor_window": "next_eval_sampling_cycle"
     });
+    // SRS: V12-SYS-HL-034
+    // SRS: V12-SYS-HL-035
+    // SRS: V12-SYS-HL-036
     let checks = vec![
         CheckRow {
             id: "self_modification_policy_schema_contract".to_string(),
@@ -256,6 +280,26 @@ fn build_self_modification_report(
             ok: trust_zones_enforced && (trust_zones_apply_allowed || !apply_allowed),
             detail: format!("trust_zone_apply_allowed={trust_zones_apply_allowed}"),
         },
+        CheckRow {
+            id: "self_modification_proposal_proof_burden_contract".to_string(),
+            ok: proposal_proof_burden_ok,
+            detail: proposal.proof_burden.join(","),
+        },
+        CheckRow {
+            id: "self_modification_proposal_rollback_plan_contract".to_string(),
+            ok: proposal_rollback_plan_ok,
+            detail: proposal.rollback_plan.clone(),
+        },
+        CheckRow {
+            id: "self_modification_proposal_eval_result_contract".to_string(),
+            ok: proposal_eval_artifact_ok,
+            detail: proposal.eval_result_artifact.clone(),
+        },
+        CheckRow {
+            id: "self_modification_proposal_affected_trust_zone_contract".to_string(),
+            ok: proposal_affected_zone_ok,
+            detail: proposal.affected_trust_zone.clone(),
+        },
     ];
     let ok = checks.iter().all(|check| check.ok);
 
@@ -295,6 +339,23 @@ fn requirements_present(policy: &SelfModificationPolicy) -> bool {
     required
         .iter()
         .all(|item| policy.apply_requirements.iter().any(|row| row == item))
+}
+
+fn proposal_proof_burden_present(policy: &SelfModificationPolicy, proposal: &ProposalInput) -> bool {
+    ["tests", "replay_fixtures", "eval_gates"]
+        .iter()
+        .all(|item| policy.apply_requirements.iter().any(|row| row == item)
+            && proposal.proof_burden.iter().any(|row| row == item))
+}
+
+fn proposal_affected_trust_zone_matches(
+    proposal: &ProposalInput,
+    trust_zones: &[TrustZoneEvaluation],
+) -> bool {
+    !proposal.affected_trust_zone.trim().is_empty()
+        && trust_zones
+            .iter()
+            .any(|zone| zone.zone == proposal.affected_trust_zone || zone.zone_id == proposal.affected_trust_zone)
 }
 
 fn observe_gates(gates: &[GatePolicy]) -> Vec<GateObservation> {
@@ -486,6 +547,8 @@ mod tests {
     fn full_pipeline_allows_apply_when_required_controls_are_present() {
         let mut proposal = default_proposal();
         proposal.target_paths = vec!["adapters/runtime/dev_only/legacy_runner.rs".to_string()];
+        proposal.affected_trust_zone = "mutable".to_string();
+        proposal.eval_result_artifact = "Cargo.toml".to_string();
         let report = build_self_modification_report(&policy(), &trust_zone_policy(), proposal);
         assert!(report.ok);
         assert!(report.apply_allowed);
@@ -496,6 +559,8 @@ mod tests {
     fn denied_bypass_blocks_apply() {
         let mut proposal = default_proposal();
         proposal.target_paths = vec!["adapters/runtime/dev_only/legacy_runner.rs".to_string()];
+        proposal.affected_trust_zone = "mutable".to_string();
+        proposal.eval_result_artifact = "Cargo.toml".to_string();
         proposal.requested_bypass = Some("direct_apply".to_string());
         let report = build_self_modification_report(&policy(), &trust_zone_policy(), proposal);
         assert!(!report.ok);
@@ -508,13 +573,31 @@ mod tests {
 
     #[test]
     fn trust_zone_blocks_control_plane_apply() {
+        let mut proposal = default_proposal();
+        proposal.eval_result_artifact = "Cargo.toml".to_string();
         let report =
-            build_self_modification_report(&policy(), &trust_zone_policy(), default_proposal());
+            build_self_modification_report(&policy(), &trust_zone_policy(), proposal);
         assert!(report.ok);
         assert!(!report.apply_allowed);
         assert!(report
             .stages
             .iter()
             .any(|stage| stage.stage == "apply" && stage.reason == "apply_blocked_by_trust_zone"));
+    }
+
+    #[test]
+    fn proposal_must_carry_proof_burden_bundle() {
+        let mut proposal = default_proposal();
+        proposal.target_paths = vec!["adapters/runtime/dev_only/legacy_runner.rs".to_string()];
+        proposal.affected_trust_zone = "mutable".to_string();
+        proposal.eval_result_artifact = "Cargo.toml".to_string();
+        proposal.proof_burden = vec!["tests".to_string()];
+        let report = build_self_modification_report(&policy(), &trust_zone_policy(), proposal);
+        assert!(!report.ok);
+        assert!(!report.apply_allowed);
+        assert!(report
+            .checks
+            .iter()
+            .any(|check| check.id == "self_modification_proposal_proof_burden_contract" && !check.ok));
     }
 }

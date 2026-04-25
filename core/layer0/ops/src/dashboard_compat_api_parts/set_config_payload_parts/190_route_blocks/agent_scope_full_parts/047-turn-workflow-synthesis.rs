@@ -800,6 +800,11 @@ fn sanitize_skipped_final_response_fallback_response(
         sanitized_retry_loop = true;
         fallback_source = "withheld_non_llm_fallback_response";
     }
+    if response_contains_stale_code_context_dump(message, &fallback_response) {
+        fallback_response.clear();
+        sanitized_retry_loop = true;
+        fallback_source = "withheld_contaminated_existing_response";
+    }
     if clean_text(&fallback_response, 2_000).is_empty() {
         fallback_response.clear();
         if !matches!(fallback_source, "withheld_non_llm_fallback_response") {
@@ -1562,6 +1567,7 @@ fn run_turn_workflow_final_response(
         "unsourced_claim_reject": 0,
         "direct_answer_reject": 0,
         "unexpected_state_loop_reject": 0,
+        "contamination_reject": 0,
         "legacy_retry_template_detected": 0,
         "repeated_fallback_loop_detected": 0,
         "meta_control_tool_block": workflow
@@ -1625,6 +1631,8 @@ fn run_turn_workflow_final_response(
                     || response_is_deferred_retry_prompt(&retried_text)
                     || workflow_response_requests_more_tooling(&retried_text);
                 let off_topic_reply = response_is_unrelated_context_dump(message, &retried_text);
+                let stale_code_context_reply =
+                    response_contains_stale_code_context_dump(message, &retried_text);
                 let low_alignment_reply = response_low_alignment_with_turn_context(
                     message,
                     &recent_context,
@@ -1646,6 +1654,11 @@ fn run_turn_workflow_final_response(
                 let reject_checks = [
                     (deferred_reply, "deferred_reply", "deferred_reply_reject"),
                     (off_topic_reply, "off_topic_reply", "off_topic_reject"),
+                    (
+                        stale_code_context_reply,
+                        "stale_code_context_dump",
+                        "contamination_reject",
+                    ),
                     (low_alignment_reply, "low_alignment_reply", "alignment_reject"),
                     (prompt_echo_reply, "prompt_echo_reply", "prompt_echo_reject"),
                     (

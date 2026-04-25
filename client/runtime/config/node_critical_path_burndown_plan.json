@@ -47,7 +47,9 @@
       "target_date": "2026-04-24",
       "migration_status": "rust_entrypoint_available",
       "rust_entrypoint": "ops:operator-critical:release",
-      "notes": "Rust operator-critical release entrypoint available via ops:operator-critical:release; full proof-pack assembly migration continues under release closure."
+      "notes": "Rust operator-critical release entrypoint available via ops:operator-critical:release; full proof-pack assembly migration continues under release closure.",
+      "target_runtime_path": "tests/tooling/scripts/ci/release_proof_pack_assemble.ts",
+      "target_rust_replacement": "ops:operator-critical:release"
     },
     {
       "id": "ops:release:scorecard:gate",
@@ -58,7 +60,9 @@
       "target_date": "2026-04-24",
       "migration_status": "rust_entrypoint_available",
       "rust_entrypoint": "ops:operator-critical:release",
-      "notes": "Rust operator-critical release entrypoint covers the release scorecard lane while full numeric scorecard migration remains queued."
+      "notes": "Rust operator-critical release entrypoint covers the release scorecard lane while full numeric scorecard migration remains queued.",
+      "target_runtime_path": "tests/tooling/scripts/ci/release_scorecard_generate.ts",
+      "target_rust_replacement": "ops:operator-critical:release"
     },
     {
       "id": "ops:release:verdict",
@@ -69,7 +73,9 @@
       "target_date": "2026-04-24",
       "migration_status": "rust_entrypoint_available",
       "rust_entrypoint": "ops:operator-critical:release",
-      "notes": "Rust operator-critical release entrypoint covers release verdict routing while full verdict aggregation migration remains queued."
+      "notes": "Rust operator-critical release entrypoint covers release verdict routing while full verdict aggregation migration remains queued.",
+      "target_runtime_path": "tests/tooling/scripts/ci/release_verdict.ts",
+      "target_rust_replacement": "ops:operator-critical:release"
     },
     {
       "id": "ops:stateful-upgrade-rollback:gate",
@@ -80,7 +86,9 @@
       "target_date": "2026-04-24",
       "migration_status": "rust_entrypoint_available",
       "rust_entrypoint": "ops:operator-critical:recovery",
-      "notes": "Rust operator-critical recovery entrypoint covers repair/recovery authority while full stateful upgrade/rollback migration remains queued."
+      "notes": "Rust operator-critical recovery entrypoint covers repair/recovery authority while full stateful upgrade/rollback migration remains queued.",
+      "target_runtime_path": "tests/tooling/scripts/ci/stateful_upgrade_rollback_gate.ts",
+      "target_rust_replacement": "ops:operator-critical:recovery"
     },
     {
       "id": "ops:production-topology:gate",
@@ -91,7 +99,9 @@
       "target_date": "2026-04-24",
       "migration_status": "rust_entrypoint_available",
       "rust_entrypoint": "ops:operator-critical:status",
-      "notes": "Rust operator-critical status entrypoint covers topology truth/status authority while full topology diagnostic migration remains queued."
+      "notes": "Rust operator-critical status entrypoint covers topology truth/status authority while full topology diagnostic migration remains queued.",
+      "target_runtime_path": "tests/tooling/scripts/ci/production_topology_gate.ts",
+      "target_rust_replacement": "ops:operator-critical:status"
     },
     {
       "id": "ops:production-topology:status",
@@ -102,7 +112,9 @@
       "target_date": "2026-04-24",
       "migration_status": "rust_entrypoint_available",
       "rust_entrypoint": "ops:operator-critical:status",
-      "notes": "Rust operator-critical status entrypoint is now available as the first Rust-native operator status command."
+      "notes": "Rust operator-critical status entrypoint is now available as the first Rust-native operator status command.",
+      "target_runtime_path": "tests/tooling/scripts/ci/production_topology_status.ts",
+      "target_rust_replacement": "ops:operator-critical:status"
     },
     {
       "id": "dr:gameday:gate",
@@ -113,7 +125,9 @@
       "target_date": "2026-04-24",
       "migration_status": "rust_entrypoint_available",
       "rust_entrypoint": "ops:operator-critical:recovery",
-      "notes": "Rust operator-critical recovery entrypoint is now available for recovery rehearsal routing."
+      "notes": "Rust operator-critical recovery entrypoint is now available for recovery rehearsal routing.",
+      "target_runtime_path": "tests/tooling/scripts/ci/disaster_recovery_gameday_gate.ts",
+      "target_rust_replacement": "ops:operator-critical:recovery"
     },
     {
       "id": "ops:support-bundle:export",
@@ -124,7 +138,9 @@
       "target_date": "2026-07-20",
       "migration_status": "rust_entrypoint_available",
       "rust_entrypoint": "ops:operator-critical:status",
-      "notes": "Rust operator-critical status entrypoint is available as a status-first support-bundle migration anchor; full support bundle export migration remains queued."
+      "notes": "Rust operator-critical status entrypoint is available as a status-first support-bundle migration anchor; full support bundle export migration remains queued.",
+      "target_runtime_path": "tests/tooling/scripts/ci/support_bundle_export.ts",
+      "target_rust_replacement": "ops:operator-critical:status"
     },
     {
       "id": "ops:runtime-proof:verify",
@@ -134,7 +150,16 @@
       "target_classification": "rust_native",
       "target_date": "2026-08-15",
       "migration_status": "planned",
-      "notes": "Runtime-proof orchestration to be hosted by Rust gate runner."
+      "notes": "Runtime-proof orchestration to be hosted by Rust gate runner.",
+      "target_runtime_path": "tests/tooling/scripts/ci/runtime_proof_verify.ts",
+      "target_rust_replacement": "ops:operator-critical:release",
+      "node_dependence_exemption": {
+        "id": "runtime-proof-rust-migration-window",
+        "owner": "ops-proofing",
+        "reason": "Runtime proof verification remains TypeScript during the proof-harness Rust migration window while strict release proof and target Rust replacement tracking stay active.",
+        "expires_at": "2026-08-15",
+        "status": "active"
+      }
     },
     {
       "id": "ops:layer2:parity:guard",
@@ -144,7 +169,16 @@
       "target_classification": "rust_native",
       "target_date": "2026-08-01",
       "migration_status": "planned",
-      "notes": "Layer2 parity guard to migrate to Rust-native checker."
+      "notes": "Layer2 parity guard to migrate to Rust-native checker.",
+      "target_runtime_path": "tests/tooling/scripts/ci/layer2_lane_parity_guard.ts",
+      "target_rust_replacement": "ops:operator-critical:status",
+      "node_dependence_exemption": {
+        "id": "layer2-parity-rust-migration-window",
+        "owner": "ops-proofing",
+        "reason": "Layer 2 parity guard remains TypeScript during the Rust checker migration window while parity proof artifacts and replacement tracking stay active.",
+        "expires_at": "2026-08-01",
+        "status": "active"
+      }
     },
     {
       "id": "ops:trusted-core:report",
@@ -154,7 +188,16 @@
       "target_classification": "rust_native",
       "target_date": "2026-07-30",
       "migration_status": "planned",
-      "notes": "Trusted core report generation to move into Rust-native reporter."
+      "notes": "Trusted core report generation to move into Rust-native reporter.",
+      "target_runtime_path": "tests/tooling/scripts/ci/runtime_trusted_core_report.ts",
+      "target_rust_replacement": "ops:operator-critical:status",
+      "node_dependence_exemption": {
+        "id": "trusted-core-report-rust-migration-window",
+        "owner": "ops-proofing",
+        "reason": "Trusted-core reporting remains TypeScript during the Rust reporter migration window while release evidence and replacement tracking stay active.",
+        "expires_at": "2026-07-30",
+        "status": "active"
+      }
     },
     {
       "id": "ops:node-critical-path:inventory",
@@ -164,7 +207,16 @@
       "target_classification": "node_typescript",
       "target_date": "2026-08-15",
       "migration_status": "in_progress",
-      "notes": "Keep as TypeScript governance gate while confinement and burn-down policy remain enforced."
+      "notes": "Keep as TypeScript governance gate while confinement and burn-down policy remain enforced.",
+      "target_runtime_path": "tests/tooling/scripts/ci/node_critical_path_inventory.ts",
+      "target_rust_replacement": "ops:operator-critical:status",
+      "node_dependence_exemption": {
+        "id": "node-critical-inventory-governance-gate",
+        "owner": "ops-governance",
+        "reason": "The inventory gate is CI governance tooling rather than runtime authority; it remains TypeScript temporarily while enforcing all runtime Node burn-down constraints.",
+        "expires_at": "2026-06-15",
+        "status": "active"
+      }
     }
   ]
 }

@@ -36,7 +36,7 @@ pub fn run_eval_learning_loop_policy(args: &[String]) -> i32 {
     let holdout_comparison = compare_on_holdout(&holdout);
     let regression_blockers = regression_blockers(&reviewed_comparison, &holdout_comparison);
     let calibration_ok = examples.len() >= 5
-        && bool_at(&calibration.report, &["runtime_code_mutation_requested"]) == false
+        && !bool_at(&calibration.report, &["runtime_code_mutation_requested"])
         && calibration.reference_examples >= 2;
     let promotion_ok = reviewed_comparison.candidate_correct > reviewed_comparison.active_correct
         && holdout_comparison.candidate_correct > holdout_comparison.active_correct

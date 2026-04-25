@@ -1,12 +1,15 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 pub mod clarification;
+pub mod assimilation_authority;
 pub mod continuous_eval;
 pub mod contracts;
 pub mod control_plane;
 pub mod eval;
 pub mod eval_agent_feedback;
+pub mod eval_agent_self_diagnosis;
 pub mod eval_chat_report;
 pub mod eval_feedback_router;
+pub mod eval_issue_authority;
 pub mod ingress;
 pub mod planner;
 pub mod posture;
@@ -18,6 +21,7 @@ pub mod result_packaging;
 pub mod self_maintenance;
 pub mod sequencing;
 pub mod telemetry;
+pub mod tool_routing_authority;
 pub mod transient_context;
 pub mod trust_zones;
 

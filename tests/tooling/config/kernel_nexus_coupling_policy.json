@@ -1,11 +1,11 @@
 {
-  "version": "1.0",
+  "version": "1.1",
   "scope": {
     "rust_scan_roots": [
-      "core/layer2"
+      "core"
     ],
     "cargo_scan_roots": [
-      "core/layer2"
+      "core"
     ]
   },
   "nexus_crates": [
@@ -32,5 +32,107 @@
   ],
   "allow_direct_nexus_layer1_packages": [],
   "fail_on_expired_exemptions": true,
-  "fail_on_stale_exemptions": true
+  "fail_on_stale_exemptions": true,
+  "exemptions": {
+    "import_edges": [
+      {
+        "from_package": "infring_memory_core",
+        "to_crate": "infring_layer1_memory_runtime",
+        "owner": "jay",
+        "reason": "memory runtime depends on Layer 1 recall policy while nexus replacement contract is extracted",
+        "expires": "2026-06-15",
+        "replacement_nexus": "infring_nexus_core_v1 contract extraction"
+      },
+      {
+        "from_package": "infring_memory_core",
+        "to_crate": "infring_memory_core_v1",
+        "owner": "jay",
+        "reason": "memory runtime depends on Layer 2 memory heap while nexus replacement contract is extracted",
+        "expires": "2026-06-15",
+        "replacement_nexus": "infring_nexus_core_v1 contract extraction"
+      },
+      {
+        "from_package": "infring_red_legion_core_v1",
+        "to_crate": "infring_observability_core_v1",
+        "owner": "jay",
+        "reason": "red legion chaos receipts depend on observability report types pending shared contract extraction",
+        "expires": "2026-06-15",
+        "replacement_nexus": "infring_nexus_core_v1 contract extraction"
+      },
+      {
+        "from_package": "infring_vault_core_v1",
+        "to_crate": "infring_memory_core_v6",
+        "owner": "jay",
+        "reason": "vault policy embeds memory-owned policy blobs pending shared contract extraction",
+        "expires": "2026-06-15",
+        "replacement_nexus": "infring_nexus_core_v1 contract extraction"
+      },
+      {
+        "from_package": "infring_observability_core_v1",
+        "to_crate": "infring_memory_core_v6",
+        "owner": "jay",
+        "reason": "observability profile embeds memory-owned profile blobs pending shared contract extraction",
+        "expires": "2026-06-15",
+        "replacement_nexus": "infring_nexus_core_v1 contract extraction"
+      },
+      {
+        "from_package": "infring_layer1_primitives",
+        "to_crate": "infring_layer1_provenance",
+        "owner": "jay",
+        "reason": "primitive receipts depend on provenance types pending shared receipt contract extraction",
+        "expires": "2026-06-15",
+        "replacement_nexus": "infring_nexus_core_v1 contract extraction"
+      }
+    ],
+    "cargo_path_edges": [
+      {
+        "from_manifest": "core/layer0/memory_runtime/Cargo.toml",
+        "to_path": "../../layer2/memory",
+        "owner": "jay",
+        "reason": "memory runtime depends on Layer 2 memory heap while nexus replacement contract is extracted",
+        "expires": "2026-06-15",
+        "replacement_nexus": "infring_nexus_core_v1 contract extraction"
+      },
+      {
+        "from_manifest": "core/layer0/memory_runtime/Cargo.toml",
+        "to_path": "../../layer1/memory_runtime",
+        "owner": "jay",
+        "reason": "memory runtime depends on Layer 1 recall policy while nexus replacement contract is extracted",
+        "expires": "2026-06-15",
+        "replacement_nexus": "infring_nexus_core_v1 contract extraction"
+      },
+      {
+        "from_manifest": "core/layer0/red_legion/Cargo.toml",
+        "to_path": "../../layer1/observability",
+        "owner": "jay",
+        "reason": "red legion chaos receipts depend on observability report types pending shared contract extraction",
+        "expires": "2026-06-15",
+        "replacement_nexus": "infring_nexus_core_v1 contract extraction"
+      },
+      {
+        "from_manifest": "core/layer0/vault/Cargo.toml",
+        "to_path": "../memory",
+        "owner": "jay",
+        "reason": "vault policy embeds memory-owned policy blobs pending shared contract extraction",
+        "expires": "2026-06-15",
+        "replacement_nexus": "infring_nexus_core_v1 contract extraction"
+      },
+      {
+        "from_manifest": "core/layer1/observability/Cargo.toml",
+        "to_path": "../../layer0/memory",
+        "owner": "jay",
+        "reason": "observability profile embeds memory-owned profile blobs pending shared contract extraction",
+        "expires": "2026-06-15",
+        "replacement_nexus": "infring_nexus_core_v1 contract extraction"
+      },
+      {
+        "from_manifest": "core/layer1/primitives/Cargo.toml",
+        "to_path": "../provenance",
+        "owner": "jay",
+        "reason": "primitive receipts depend on provenance types pending shared receipt contract extraction",
+        "expires": "2026-06-15",
+        "replacement_nexus": "infring_nexus_core_v1 contract extraction"
+      }
+    ]
+  }
 }

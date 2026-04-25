@@ -1,2 +1,17 @@
 include!("100-governance-and-semantic-memory.combined_parts/000-combined.rs");
 include!("100-governance-and-semantic-memory.combined_parts/1070-live-eval-monitor-switch.rs");
+include!(
+    "100-governance-and-semantic-memory.combined_parts/1080-misty-health-wave1-output-guards.rs"
+);
+include!(
+    "100-governance-and-semantic-memory.combined_parts/1090-misty-health-wave2-telemetry-shape.rs"
+);
+include!(
+    "100-governance-and-semantic-memory.combined_parts/1100-misty-health-wave3-tool-gate-behavior.rs"
+);
+include!(
+    "100-governance-and-semantic-memory.combined_parts/1110-misty-health-wave4-context-hygiene.rs"
+);
+include!(
+    "100-governance-and-semantic-memory.combined_parts/1120-misty-health-wave5-feedback-loop.rs"
+);

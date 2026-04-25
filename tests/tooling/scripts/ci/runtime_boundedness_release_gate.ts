@@ -58,6 +58,11 @@ function parseArgs(argv: string[]) {
         'core/local/artifacts/runtime_boundedness_report_{profile}_baseline.json',
       400,
     ),
+    gatewayChaosTemplate: cleanText(
+      readFlag(argv, 'gateway-chaos-template') ||
+        'core/local/artifacts/gateway_runtime_chaos_gate_{profile}_current.json',
+      400,
+    ),
     boundednessBudgetPolicyPath: cleanText(
       readFlag(argv, 'boundedness-budget-policy') ||
         'tests/tooling/config/runtime_boundedness_budgets.json',
@@ -227,6 +232,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     'storage_usage_mb',
     'queue_depth_max',
     'queue_depth_p95',
+    'adapter_restart_count',
     'stale_surface_incidents',
     'conduit_recovery_ms',
   ];
@@ -234,9 +240,11 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     'max_rss_mb',
     'queue_depth_max',
     'queue_depth_p95',
+    'stale_surface_count',
+    'adapter_restart_count_max',
     'recovery_time_ms_max',
   ];
-  const declaredBudgetMetrics = [...regressionDiffMetrics, 'stale_surface_count'];
+  const declaredBudgetMetrics = [...new Set([...regressionDiffMetrics, 'stale_surface_count'])];
 
   const failures: Array<{ id: string; detail: string }> = [];
   const warnings: Array<{ id: string; detail: string }> = [];
@@ -257,6 +265,17 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     current: number;
     budget: number;
     headroom: number;
+    ok: boolean;
+  }> = [];
+  const gatewayQuarantineRecoveryEvidence: Array<{
+    profile: string;
+    source_artifact: string;
+    fail_closed_cases: number;
+    transition_cases: number;
+    quarantine_events: number;
+    recovery_events: number;
+    chaos_fail_closed_ratio: number;
+    chaos_transition_ratio: number;
     ok: boolean;
   }> = [];
   const supportRuns: Array<{
@@ -425,6 +444,21 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       detail: cleanText(error instanceof Error ? error.message : String(error), 220),
     });
   }
+  if (multiDaySoak && multiDaySoak?.ok !== true) {
+    failures.push({
+      id: 'multi_day_soak_evidence_not_ok',
+      detail: args.multiDaySoakPath,
+    });
+  }
+  if (
+    multiDaySoak &&
+    cleanText(String(multiDaySoak?.type || ''), 120) !== 'runtime_multi_day_soak_evidence'
+  ) {
+    failures.push({
+      id: 'multi_day_soak_evidence_type_contract_v3',
+      detail: cleanText(String(multiDaySoak?.type || ''), 120) || 'missing',
+    });
+  }
   try {
     boundednessBudgetPolicy = readJson(path.resolve(root, args.boundednessBudgetPolicyPath));
   } catch (error) {
@@ -454,6 +488,10 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     ['shed', false],
     ['quarantine', false],
   ]);
+  const allowedQueueExpectationBands = new Set([
+    ...queueExpectationBandPresence.keys(),
+    'healthy',
+  ]);
   for (const row of queueExpectationChecks) {
     if (!row || typeof row !== 'object' || Array.isArray(row)) {
       failures.push({
@@ -463,12 +501,12 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       continue;
     }
     const band = cleanText(String(row?.expected_band || ''), 80);
-    if (!queueExpectationBandPresence.has(band)) {
+    if (!allowedQueueExpectationBands.has(band)) {
       failures.push({
         id: 'runtime_boundedness_queue_expectation_band_token_contract_v2',
         detail: band || 'missing',
       });
-    } else {
+    } else if (queueExpectationBandPresence.has(band)) {
       queueExpectationBandPresence.set(band, true);
     }
     const receiptType = cleanText(String(row?.expected_receipt_type || ''), 160);
@@ -565,6 +603,21 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const evidenceProfiles = Array.isArray(boundednessEvidence?.profiles) ? boundednessEvidence.profiles : [];
   const profileReports = Array.isArray(boundednessProfiles?.profiles) ? boundednessProfiles.profiles : [];
   const soakProfiles = Array.isArray(multiDaySoak?.profiles) ? multiDaySoak.profiles : [];
+  const soakProfileIds = soakProfiles
+    .map((row: any) => cleanText(String(row?.profile || ''), 40))
+    .filter(Boolean);
+  if (new Set(soakProfileIds).size !== soakProfileIds.length) {
+    failures.push({
+      id: 'multi_day_soak_profile_rows_unique_contract_v3',
+      detail: soakProfileIds.join(',') || 'missing',
+    });
+  }
+  if (soakProfiles.length !== requiredProfiles.length) {
+    failures.push({
+      id: 'multi_day_soak_profile_count_contract_v3',
+      detail: `profiles=${soakProfiles.length};required=${requiredProfiles.length}`,
+    });
+  }
   const boundednessBudgets: Record<string, any> = {};
   const declaredProfileBudgets =
     boundednessBudgetPolicy?.profiles && typeof boundednessBudgetPolicy.profiles === 'object'
@@ -643,6 +696,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       'max_rss_mb',
       'queue_depth_max',
       'queue_depth_p95',
+      'adapter_restart_count_max',
       'stale_surface_count',
       'recovery_time_ms_max',
     ];
@@ -651,6 +705,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         max_rss_mb: boundednessMetric(currentBoundednessReport, 'max_rss_mb'),
         queue_depth_max: boundednessMetric(currentBoundednessReport, 'queue_depth_max'),
         queue_depth_p95: boundednessMetric(currentBoundednessReport, 'queue_depth_p95'),
+        adapter_restart_count_max: boundednessMetric(currentBoundednessReport, 'adapter_restart_count_max'),
         stale_surface_count: boundednessMetric(currentBoundednessReport, 'stale_surface_count'),
         recovery_time_ms_max: boundednessMetric(currentBoundednessReport, 'recovery_time_ms_max'),
       };
@@ -837,10 +892,70 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     } else {
       const soakSamples = Number(soakProfile?.soak_source_sample_points || 0);
       const empiricalSamples = Number(soakProfile?.empirical_sample_points || 0);
+      const sourceArtifact = cleanText(String(soakProfile?.source_artifact || ''), 400);
       if (soakSamples <= 0 && empiricalSamples <= 0) {
         failures.push({
           id: 'multi_day_soak_profile_sample_points_missing',
           detail: profile,
+        });
+      }
+      if (!sourceArtifact || !/^[a-z0-9][a-z0-9._:/-]*$/i.test(sourceArtifact)) {
+        failures.push({
+          id: 'multi_day_soak_source_artifact_contract_v3',
+          detail: `${profile}:${sourceArtifact || 'missing'}`,
+        });
+      }
+    }
+
+    const gatewayChaosPath = resolveProfileTemplate(args.gatewayChaosTemplate, profile);
+    let gatewayChaos: any = null;
+    try {
+      gatewayChaos = readJson(path.resolve(root, gatewayChaosPath));
+    } catch (error) {
+      failures.push({
+        id: 'gateway_quarantine_recovery_artifact_missing',
+        detail: `${profile}:${cleanText(error instanceof Error ? error.message : String(error), 220)}`,
+      });
+    }
+    if (gatewayChaos) {
+      const chaosResults = Array.isArray(gatewayChaos?.chaos_results)
+        ? gatewayChaos.chaos_results
+        : [];
+      const transitionResults = Array.isArray(gatewayChaos?.chaos_transition_results)
+        ? gatewayChaos.chaos_transition_results
+        : [];
+      const quarantineRows = transitionResults.filter(
+        (row: any) =>
+          cleanText(String(row?.scenario || ''), 80) === 'repeated_flapping' &&
+          row?.transition_ok === true &&
+          cleanText(String(row?.runtime_circuit_state || ''), 40) === 'open' &&
+          row?.runtime_quarantine_active === true,
+      );
+      const recoveryRows = transitionResults.filter((row: any) => row?.transition_ok === true);
+      const failClosedRows = chaosResults.filter((row: any) => row?.ok === true);
+      const chaosFailClosedRatio = Number(gatewayChaos?.summary?.chaos_fail_closed_ratio || 0);
+      const chaosTransitionRatio = Number(gatewayChaos?.summary?.chaos_transition_ratio || 0);
+      const gatewayOk =
+        gatewayChaos?.ok === true &&
+        chaosFailClosedRatio >= 1 &&
+        chaosTransitionRatio >= 1 &&
+        quarantineRows.length > 0 &&
+        recoveryRows.length > 0;
+      gatewayQuarantineRecoveryEvidence.push({
+        profile,
+        source_artifact: gatewayChaosPath,
+        fail_closed_cases: failClosedRows.length,
+        transition_cases: transitionResults.length,
+        quarantine_events: quarantineRows.length,
+        recovery_events: recoveryRows.length,
+        chaos_fail_closed_ratio: chaosFailClosedRatio,
+        chaos_transition_ratio: chaosTransitionRatio,
+        ok: gatewayOk,
+      });
+      if (!gatewayOk) {
+        failures.push({
+          id: 'gateway_quarantine_recovery_evidence_not_ok',
+          detail: `${profile}:fail_closed_ratio=${chaosFailClosedRatio};transition_ratio=${chaosTransitionRatio};quarantine=${quarantineRows.length};recovery=${recoveryRows.length}`,
         });
       }
     }
@@ -858,6 +973,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       ['max_rss_mb', budget.max_rss_mb],
       ['queue_depth_max', budget.queue_depth_max],
       ['queue_depth_p95', budget.queue_depth_p95],
+      ['adapter_restart_count_max', budget.adapter_restart_count_max],
       ['stale_surface_count', budget.stale_surface_count],
       ['recovery_time_ms_max', budget.recovery_time_ms_max],
     ];
@@ -989,6 +1105,12 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       detail: `projection_path=${args.soakProjectionOutPath}`,
     });
   }
+  if (gatewayQuarantineRecoveryEvidence.length !== requiredProfiles.length) {
+    failures.push({
+      id: 'gateway_quarantine_recovery_profile_count_contract_v3',
+      detail: `profiles=${gatewayQuarantineRecoveryEvidence.length};required=${requiredProfiles.length}`,
+    });
+  }
 
   const report = {
     ok: failures.length === 0,
@@ -1007,6 +1129,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       boundedness_report_template: args.boundednessReportTemplate,
       boundedness_baseline_template: args.boundednessBaselineTemplate,
       boundedness_budget_policy_path: args.boundednessBudgetPolicyPath,
+      gateway_chaos_template: args.gatewayChaosTemplate,
       boundedness_regression_tolerance_pct: args.boundednessRegressionTolerancePct,
       soak_bootstrap_window_hours: soakBootstrapWindowHours,
       soak_target_window_hours: soakTargetWindowHours,
@@ -1029,6 +1152,9 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       require_previous_baseline: requirePreviousBaseline,
       soak_projection_profile_count: soakProjectionProfiles.length,
       soak_projection_pass: soakProjection.ok === true,
+      multi_day_soak_profile_count: soakProfiles.length,
+      gateway_quarantine_recovery_profile_count: gatewayQuarantineRecoveryEvidence.length,
+      gateway_quarantine_recovery_pass: gatewayQuarantineRecoveryEvidence.every((row) => row.ok),
       support_runs_total: supportRuns.length,
       support_runs_refreshed: supportRuns.filter((row) => row.refreshed).length,
       failed_count: failures.length,
@@ -1046,6 +1172,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     },
     boundedness_regression_diff: boundednessRegressionDiff,
     boundedness_budget_evaluations: boundednessBudgetEvaluations,
+    gateway_quarantine_recovery_evidence: gatewayQuarantineRecoveryEvidence,
     soak_projection: soakProjection,
     support_runs: supportRuns,
     artifact_paths: [args.soakProjectionOutPath],

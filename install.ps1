@@ -2884,18 +2884,12 @@ exit 0
 }
 
 function Invoke-RepairInstallDir {
-  $legacyWrapperTargets = @(
-    "protheus.cmd", "protheusctl.cmd", "protheusd.cmd"
-  )
+  $legacyWrapperTargets = @()
   $targets = @(
     "infring.cmd", "infringctl.cmd", "infringd.cmd",
     "infring.ps1", "infringctl.ps1", "infringd.ps1",
-    # Legacy compatibility wrappers/artifacts (removed during repair migration).
-    "protheus.cmd", "protheusctl.cmd", "protheusd.cmd",
     "infring-ops.exe", "infring-pure-workspace.exe",
-    "infringd.exe", "conduit_daemon.exe", "infring-client",
-    "protheus-ops.exe", "protheus-pure-workspace.exe",
-    "protheusd.exe", "protheus-client"
+    "infringd.exe", "conduit_daemon.exe", "infring-client"
   )
   $repairArchiveRoot = Join-Path $InstallDir "_repair_archive"
   $repairArchiveRun = Join-Path $repairArchiveRoot (Get-Date -Format "yyyyMMddTHHmmss")

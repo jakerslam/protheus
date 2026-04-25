@@ -44,11 +44,10 @@ fn finalize_message_finalization_and_payload(
         || response_is_no_findings_placeholder(&initial_draft_response);
     let web_intent = natural_web_intent_from_user_message(message);
     let finalization_tool_gate = workflow_turn_tool_decision_tree(message);
-    let gate_is_advisory = finalization_tool_gate
-        .get("gate_is_advisory")
+    let automatic_web_fallback_enabled = finalization_tool_gate
+        .get("automatic_tool_calls_allowed")
         .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let automatic_web_fallback_enabled = !gate_is_advisory;
+        .unwrap_or(false);
     let finalization_meta_control = finalization_tool_gate
         .get("meta_control_message")
         .and_then(Value::as_bool)
@@ -228,6 +227,12 @@ fn finalize_message_finalization_and_payload(
         finalization_outcome =
             merge_response_outcomes(&finalization_outcome, &contract_outcome, 200);
     }
+    let repair_candidate_contamination = response_contains_stale_code_context_dump(message, &finalized_response)
+        || response_contains_unrequested_content_without_tool_evidence(
+            message,
+            &finalized_response,
+            &response_tools,
+        );
     let (repaired_response, repair_outcome, repair_tooling_used, repair_comparative_used) =
         repair_visible_response_after_workflow(
             message,
@@ -301,20 +306,22 @@ fn finalize_message_finalization_and_payload(
     }
     if tooling_attempted {
         tooling_invariant_repair_used = true;
-        finalization_outcome = merge_response_outcomes(
-            &finalization_outcome,
-            "tooling_failure_code_appended",
-            200,
-        );
+        finalization_outcome = merge_response_outcomes(&finalization_outcome, "tooling_failure_code_appended", 200);
     }
-    let final_contract_violation = response_fails_base_final_answer_contract(&response_text)
-        || workflow_response_requests_more_tooling(&response_text);
-    if final_contract_violation {
+    let response_guard =
+        final_response_guard_report(message, &response_text, &response_tools, repair_candidate_contamination);
+    if response_guard_bool(&response_guard, "final_contract_violation") {
         // Do not synthesize deterministic system fallback text in chat.
         response_text.clear();
+        if response_guard_bool(&response_guard, "final_contamination_violation") {
+            bump_workflow_quality_counter(&mut response_workflow, "contamination_reject");
+        }
+        if response_guard_bool(&response_guard, "current_turn_dominance_violation") {
+            bump_workflow_quality_counter(&mut response_workflow, "current_turn_dominance_reject");
+        }
         finalization_outcome = merge_response_outcomes(
             &finalization_outcome,
-            "deterministic_final_fallback_suppressed",
+            final_response_guard_outcome(&response_guard),
             200,
         );
     }
@@ -322,8 +329,7 @@ fn finalize_message_finalization_and_payload(
         .pointer("/tool_gate/should_call_tools")
         .and_then(Value::as_bool)
         .unwrap_or(false);
-    let direct_answer_rate =
-        response_workflow_quality_rate(&response_workflow, "direct_answer_rate");
+    let direct_answer_rate = response_workflow_quality_rate(&response_workflow, "direct_answer_rate");
     let retry_rate = response_workflow_quality_rate(&response_workflow, "retry_rate");
     let off_topic_reject_rate =
         response_workflow_quality_rate(&response_workflow, "off_topic_reject_rate");
@@ -383,12 +389,22 @@ fn finalize_message_finalization_and_payload(
         "mode": "tool_menu_interface_v1",
         "direct_response_path": "gate_1_no"
     });
+    apply_response_guard_payloads(&mut response_finalization, &response_guard);
+    let visible_response_source = apply_visible_response_provenance_for_turn(
+        &mut response_workflow,
+        &mut response_finalization,
+        &response_text,
+        workflow_used,
+        visible_response_repaired,
+        &finalization_outcome,
+    );
     let process_summary = build_turn_process_summary(
         message,
         &response_tools,
         &response_workflow,
         &response_finalization,
     );
+    let workflow_visibility = workflow_visibility_payload(&response_workflow, &response_finalization);
     let turn_transaction = crate::dashboard_tool_turn_loop::turn_transaction_payload(
         "complete",
         if response_tools.is_empty() {
@@ -412,6 +428,7 @@ fn finalize_message_finalization_and_payload(
         &turn_transaction,
         &terminal_transcript,
     );
+    let agent_health_snapshot = persist_agent_control_plane_health_snapshot_for_turn(root, agent_id, message, &response_text, &response_workflow, &response_finalization, &process_summary, &turn_receipt);
     let runtime_model = clean_text(
         result
             .get("runtime_model")
@@ -450,7 +467,10 @@ fn finalize_message_finalization_and_payload(
     payload["terminal_transcript"] = Value::Array(terminal_transcript);
     payload["response_finalization"] = response_finalization;
     payload["process_summary"] = process_summary;
+    payload["workflow_visibility"] = workflow_visibility;
     payload["response_quality_telemetry"] = response_quality_telemetry;
+    payload["visible_response_source"] = json!(visible_response_source);
+    payload["system_chat_injection_used"] = json!(false);
     payload["web_intent"] = json!({
         "detected": web_intent_detected,
         "source": web_intent_source,
@@ -465,6 +485,8 @@ fn finalize_message_finalization_and_payload(
     payload["context_pressure"] = json!(context_pressure.clone());
     payload["attention_queue"] = turn_receipt.get("attention_queue").cloned().unwrap_or_else(|| json!({}));
     payload["live_eval_monitor"] = turn_receipt.get("live_eval_monitor").cloned().unwrap_or_else(|| json!({}));
+    payload["dashboard_health_indicator"] = agent_health_snapshot.get("dashboard_health_indicator").cloned().unwrap_or_else(|| json!({}));
+    payload["agent_health_snapshot"] = agent_health_snapshot;
     payload["memory_capture"] = turn_receipt
         .get("memory_capture")
         .cloned()

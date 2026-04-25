@@ -1,5 +1,5 @@
 name: Bug report
-description: File a bug report to help improve Protheus
+description: File a bug report to help improve InfRing
 title: "[Bug]: "
 labels: ["bug"]
 body:

@@ -1,0 +1,196 @@
+{
+  "schema_version": 1,
+  "description": "Synthetic user scenarios for driving the normal dashboard chat route without granting the simulator assistant/system authority.",
+  "thresholds": {
+    "min_cases": 5,
+    "min_pass_rate": 1.0,
+    "max_failures": 0,
+    "simple_direct_max_latency_ms": 5000,
+    "simple_direct_max_response_tokens": 80,
+    "simple_direct_max_stage_count": 2
+  },
+  "defaults": {
+    "agent_id": "synthetic-harness-agent"
+  },
+  "cases": [
+    {
+      "id": "casual_greeting_direct_answer",
+      "turns": [
+        {
+          "turn_id": "hello_001",
+          "user_message": "hey",
+          "mock_response": {
+            "response": "Hey, I am here. What would you like to work on?",
+            "response_workflow": {
+              "selected_workflow": {
+                "id": "simple_conversation_v1",
+                "gate_contract": "tool_menu_interface_v1"
+              },
+              "stage_statuses": [
+                {
+                  "stage": "gate_1_need_tool_access_menu",
+                  "status": "answered_no"
+                }
+              ]
+            },
+            "live_eval_monitor": {
+              "chat_injection_allowed": false
+            }
+          },
+          "expect": {
+            "required_substrings": ["Hey"],
+            "require_workflow_visibility": true,
+            "require_live_eval_monitor": true,
+            "simple_direct_conversation": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "dry_run_no_tool_exit",
+      "turns": [
+        {
+          "turn_id": "dry_run_001",
+          "user_message": "Dry run only: tell me which file tool you would use, but do not run tools yet.",
+          "mock_response": {
+            "response": "I would use the workspace search or read-file path after you approve tool use.",
+            "response_workflow": {
+              "selected_workflow": {
+                "id": "simple_conversation_v1",
+                "gate_contract": "tool_menu_interface_v1"
+              },
+              "stage_statuses": [
+                {
+                  "stage": "gate_1_need_tool_access_menu",
+                  "status": "answered_no"
+                },
+                {
+                  "stage": "gate_6_llm_final_output",
+                  "status": "skipped_not_required"
+                }
+              ],
+              "tool_gate": {
+                "should_call_tools": false
+              }
+            },
+            "tools": [],
+            "live_eval_monitor": {
+              "chat_injection_allowed": false
+            }
+          },
+          "expect": {
+            "required_substrings": ["would use"],
+            "require_workflow_visibility": true,
+            "require_live_eval_monitor": true,
+            "simple_direct_conversation": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "explicit_web_tool_request",
+      "turns": [
+        {
+          "turn_id": "web_001",
+          "user_message": "Use web search to compare infring to other major agentic frameworks in April 2026.",
+          "mock_response": {
+            "response": "I would choose the web search tool for current framework comparison, then synthesize the results after the tool returns.",
+            "response_workflow": {
+              "selected_workflow": {
+                "id": "tool_menu_v1",
+                "gate_contract": "tool_menu_interface_v1"
+              },
+              "stage_statuses": [
+                {
+                  "stage": "gate_1_need_tool_access_menu",
+                  "status": "answered_yes"
+                },
+                {
+                  "stage": "gate_2_tool_family_menu",
+                  "status": "selected_web_search"
+                }
+              ]
+            },
+            "live_eval_monitor": {
+              "chat_injection_allowed": false
+            }
+          },
+          "expect": {
+            "required_substrings": ["web search"],
+            "require_workflow_visibility": true,
+            "require_live_eval_monitor": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "workspace_file_request",
+      "turns": [
+        {
+          "turn_id": "file_001",
+          "user_message": "Find the workflow files in the workspace and tell me which one is active.",
+          "mock_response": {
+            "response": "I would choose the workspace search or file tooling path, inspect the workflow files, and report the active workflow from the evidence.",
+            "response_workflow": {
+              "selected_workflow": {
+                "id": "tool_menu_v1",
+                "gate_contract": "tool_menu_interface_v1"
+              },
+              "stage_statuses": [
+                {
+                  "stage": "gate_1_need_tool_access_menu",
+                  "status": "answered_yes"
+                },
+                {
+                  "stage": "gate_2_tool_family_menu",
+                  "status": "selected_workspace_search"
+                }
+              ]
+            },
+            "live_eval_monitor": {
+              "chat_injection_allowed": false
+            }
+          },
+          "expect": {
+            "required_substrings": ["workspace search"],
+            "require_workflow_visibility": true,
+            "require_live_eval_monitor": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "frustrated_user_recovery",
+      "turns": [
+        {
+          "turn_id": "recover_001",
+          "user_message": "what? why are you repeating the same fallback text?",
+          "mock_response": {
+            "response": "You are right to call that out. I should answer directly and use the monitor output only as telemetry, not as chat text.",
+            "response_workflow": {
+              "selected_workflow": {
+                "id": "simple_conversation_v1",
+                "gate_contract": "tool_menu_interface_v1"
+              },
+              "stage_statuses": [
+                {
+                  "stage": "gate_1_need_tool_access_menu",
+                  "status": "answered_no"
+                }
+              ]
+            },
+            "live_eval_monitor": {
+              "chat_injection_allowed": false
+            }
+          },
+          "expect": {
+            "required_substrings": ["answer directly"],
+            "require_workflow_visibility": true,
+            "require_live_eval_monitor": true,
+            "simple_direct_conversation": true
+          }
+        }
+      ]
+    }
+  ]
+}
