@@ -2661,6 +2661,33 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-04-06-retry-config-migration.md",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2026-04-05-config-init-at-startup-v1.md"
       ]
+    },
+    {
+      "id": "forgecode_structured_environment_config_sync_system_context_and_tool_service_contracts",
+      "description": "Structured ForgeCode lane that projects slim runtime environment boundaries, canonical config access, indexed-workspace sync preflight, dynamic system-context rendering, and service-owned tool business logic into staged orchestration flow.",
+      "required_signals": [
+        "slim_environment_plan_reduces_environment_to_runtime_derived_os_pid_cwd_home_shell_and_base_path_only",
+        "slim_environment_plan_moves_config_sourced_fields_to_canonical_get_config_access_instead_of_environment_shadow_fields",
+        "slim_environment_plan_requires_update_environment_to_mutate_forge_config_directly_and_remove_environment_apply_op_roundtrip_conversion_logic",
+        "slim_environment_plan_requires_consumers_to_read_config_limits_provider_retry_http_tool_and_model_fields_from_config_not_runtime_environment",
+        "workspace_auto_sync_v1_requires_indexed_workspace_detection_command_exit_codes_before_background_sync_to_prevent_unintended_registration",
+        "workspace_auto_sync_v1_preserves_manual_first_time_sync_and_makes_ancestor_current_state_visible_to_operator_display",
+        "system_context_rendering_v1_rerenders_system_context_each_turn_with_current_time_environment_tools_files_readme_custom_rules_and_conversation_variables",
+        "system_context_rendering_final_requires_initial_empty_variable_render_then_per_loop_latest_variable_rerender_before_provider_call",
+        "tool_service_migration_plan_moves_tool_business_logic_to_services_while_tools_remain_thin_tool_call_context_aware_ui_wrappers",
+        "tool_service_migration_plan_requires_services_to_use_infrastructure_traits_have_pure_input_output_interfaces_and_receive_registration_via_services_trait"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2026-03-31-slim-environment-and-add-get-config-v1.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2026-01-22-Fix Auto-Sync Workspace Registration Issue-v1.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-04-02-system-context-rendering-v1.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-06-07-tool-service-migration-v1.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-04-02-system-context-rendering-final.md"
+      ]
     }
   ],
   "workflow_templates": [
