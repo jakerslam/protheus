@@ -151,11 +151,25 @@ const ISLAND_SPECS = [
     filename: 'chat_thread_shell.svelte',
   },
   {
+    id: 'chat_divider_shell',
+    sourcePath: 'client/runtime/systems/ui/infring_static/js/svelte/chat_divider_shell_svelte_source.ts',
+    bundlePath: 'client/runtime/systems/ui/infring_static/js/svelte/chat_divider_shell.bundle.ts',
+    fallbackTag: 'infring-chat-divider-shell',
+    filename: 'chat_divider_shell.svelte',
+  },
+  {
     id: 'message_meta_shell',
     sourcePath: 'client/runtime/systems/ui/infring_static/js/svelte/message_meta_shell_svelte_source.ts',
     bundlePath: 'client/runtime/systems/ui/infring_static/js/svelte/message_meta_shell.bundle.ts',
     fallbackTag: 'infring-message-meta-shell',
     filename: 'message_meta_shell.svelte',
+  },
+  {
+    id: 'message_context_shell',
+    sourcePath: 'client/runtime/systems/ui/infring_static/js/svelte/message_context_shell_svelte_source.ts',
+    bundlePath: 'client/runtime/systems/ui/infring_static/js/svelte/message_context_shell.bundle.ts',
+    fallbackTag: 'infring-message-context-shell',
+    filename: 'message_context_shell.svelte',
   },
   {
     id: 'messages_surface_shell',
