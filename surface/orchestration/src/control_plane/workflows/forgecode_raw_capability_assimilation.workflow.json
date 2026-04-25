@@ -962,6 +962,33 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.gitignore",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.ignore"
       ]
+    },
+    {
+      "id": "forgecode_raw_format_agent_workspace_and_cross_build_contracts",
+      "description": "Raw-capability assimilation lane for ForgeCode rustfmt, agent-guideline, Cargo workspace/lockfile, and Cross target mechanics without hardcoded workflow logic.",
+      "required_signals": [
+        "rustfmt_unstable_style_groups_std_external_crate_imports_and_wraps_comments_to_eighty_columns",
+        "agent_guidelines_require_anyhow_service_errors_thiserror_domain_errors_and_manual_domain_error_conversion",
+        "agent_guidelines_require_three_phase_tests_with_pretty_assertions_reusable_fixtures_and_full_object_assertions",
+        "agent_guidelines_require_service_boundaries_without_service_to_service_dependencies_trait_objects_or_constructor_bounds",
+        "cargo_lockfile_v4_is_generated_integrity_source_with_exact_registry_versions_checksums_and_dependency_edges",
+        "cargo_workspace_uses_resolver_two_edition_2024_rust_version_floor_and_centralized_dependency_versions",
+        "cargo_release_profile_enforces_lto_single_codegen_unit_opt3_and_strip_for_distribution",
+        "cargo_workspace_internal_crates_are_explicit_path_dependencies_for_composition_visibility",
+        "cross_build_defaults_target_linux_gnu_and_passthrough_release_and_telemetry_environment_keys",
+        "cross_targets_pin_edge_images_rewrite_ubuntu_mirrors_to_azure_and_install_modern_protoc_before_build"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.rustfmt.toml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/AGENTS.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/Cargo.lock",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/Cargo.toml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/Cross.toml"
+      ]
     }
   ],
   "workflow_templates": [
