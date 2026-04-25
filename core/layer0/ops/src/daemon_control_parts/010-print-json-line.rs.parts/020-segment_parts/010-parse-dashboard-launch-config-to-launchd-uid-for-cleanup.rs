@@ -180,8 +180,6 @@ fn stale_launchd_labels_for_cleanup(current_label: &str) -> Vec<String> {
         "ai.infring.gateway.legacy".to_string(),
         "ai.openclaw.gateway".to_string(),
         "openclaw.gateway".to_string(),
-        "ai.protheus.gateway".to_string(),
-        "protheus.gateway".to_string(),
     ];
     labels.retain(|label| label != current_label);
     labels.sort();

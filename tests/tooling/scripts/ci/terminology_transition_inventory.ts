@@ -29,6 +29,8 @@ type Tracker = {
   legacy_token_exemptions?: string[];
   doc_alias_terms?: string[];
   doc_alias_context_regex?: string;
+  forbidden_public_runtime_terms?: string[];
+  forbidden_public_runtime_scan_files?: string[];
   temporary_compatibility_bridge_exemptions?: Array<{
     id?: string;
     bridge?: string;
@@ -108,6 +110,7 @@ function markdown(report: any): string {
   lines.push(`- artifact_alias_failures: ${report.summary.artifact_alias_failures}`);
   lines.push(`- doc_alias_context_failures: ${report.summary.doc_alias_context_failures}`);
   lines.push(`- doc_primary_authority_term_failures: ${report.summary.doc_primary_authority_term_failures}`);
+  lines.push(`- forbidden_public_runtime_term_failures: ${report.summary.forbidden_public_runtime_term_failures}`);
   lines.push(`- unmapped_legacy_token_count: ${report.summary.unmapped_legacy_token_count}`);
   lines.push(`- temporary_bridge_exemption_count: ${report.summary.temporary_bridge_exemption_count}`);
   lines.push(`- temporary_bridge_exemption_expired_count: ${report.summary.temporary_bridge_exemption_expired_count}`);
@@ -128,6 +131,15 @@ function markdown(report: any): string {
     lines.push(`| ${row.token} | ${row.file} | ${row.mapped} |`);
   }
   if (!(report.legacy_tokens || []).length) lines.push('| (none) | - | true |');
+  lines.push('');
+  lines.push('## Forbidden Public Runtime Terms');
+  if (!(report.forbidden_public_runtime_term_failures || []).length) {
+    lines.push('- none');
+  } else {
+    for (const row of report.forbidden_public_runtime_term_failures) {
+      lines.push(`- ${row.file}:${row.line} pattern=${row.pattern}`);
+    }
+  }
   lines.push('');
   lines.push('## Doc Alias Context Failures');
   if (!(report.doc_alias_context_failures || []).length) {
@@ -263,6 +275,7 @@ function run() {
     term: string;
     reason: string;
   }> = [];
+  const forbiddenPublicRuntimeTermFailures: Array<{ file: string; line: number; pattern: string }> = [];
 
   for (const file of scanFiles) {
     const abs = path.resolve(ROOT, file);
@@ -311,6 +324,30 @@ function run() {
             line: idx + 1,
             term: 'Core',
             reason: 'core_presented_as_primary_authority_term',
+          });
+        }
+      }
+    }
+  }
+  const forbiddenPublicRuntimeTerms = (tracker.forbidden_public_runtime_terms || [])
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
+  const forbiddenPublicRuntimeFiles = (tracker.forbidden_public_runtime_scan_files || [])
+    .map((value) => String(value || '').replace(/\\/g, '/').trim())
+    .filter(Boolean);
+  for (const file of forbiddenPublicRuntimeFiles) {
+    const abs = path.resolve(ROOT, file);
+    if (!fs.existsSync(abs)) continue;
+    const lines = fs.readFileSync(abs, 'utf8').split(/\r?\n/);
+    for (let idx = 0; idx < lines.length; idx += 1) {
+      const line = lines[idx];
+      for (const pattern of forbiddenPublicRuntimeTerms) {
+        const regex = safeRegex(pattern, 'i');
+        if (regex && regex.test(line)) {
+          forbiddenPublicRuntimeTermFailures.push({
+            file,
+            line: idx + 1,
+            pattern,
           });
         }
       }
@@ -367,6 +404,12 @@ function run() {
       detail: `${row.term} @ ${row.file}:${row.line}`,
     });
   }
+  for (const row of forbiddenPublicRuntimeTermFailures) {
+    violations.push({
+      type: 'forbidden_public_runtime_term',
+      detail: `${row.pattern} @ ${row.file}:${row.line}`,
+    });
+  }
 
   const retirementVersion = String(tracker.retirement_target?.version || '').trim();
   const retirementDate = String(tracker.retirement_target?.date || '').trim();
@@ -389,6 +432,7 @@ function run() {
       artifact_alias_failures: artifactAliasFailures.length,
       doc_alias_context_failures: docAliasContextFailures.length,
       doc_primary_authority_term_failures: docPrimaryAuthorityTermFailures.length,
+      forbidden_public_runtime_term_failures: forbiddenPublicRuntimeTermFailures.length,
       unmapped_legacy_token_count: unmappedLegacyTokens.length,
       temporary_bridge_exemption_count: 0,
       temporary_bridge_exemption_expired_count: 0,
@@ -400,6 +444,7 @@ function run() {
     legacy_tokens: legacyTokens,
     doc_alias_context_failures: docAliasContextFailures,
     doc_primary_authority_term_failures: docPrimaryAuthorityTermFailures,
+    forbidden_public_runtime_term_failures: forbiddenPublicRuntimeTermFailures,
     violations,
     temporary_compatibility_bridge_exemptions: [] as Array<{
       id: string;

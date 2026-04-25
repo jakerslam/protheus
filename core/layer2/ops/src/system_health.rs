@@ -268,12 +268,34 @@ pub fn build_system_health_guard_report(
                 && gateway.timeout_ms > 0
                 && !gateway.planning_graph_contributions.is_empty()
         });
+    let gateway_quarantine_snapshot_count = snapshots
+        .iter()
+        .filter(|signals| signals.gateway_quarantined_count > 0)
+        .count();
+    let recovery_snapshot_count = snapshots
+        .iter()
+        .filter(|signals| signals.recovery_active || signals.recovery_successes > 0)
+        .count();
+    let gateway_quarantine_recovery_ok = gateway_quarantine_snapshot_count > 0
+        && recovery_snapshot_count > 0
+        && statuses.iter().any(|row| {
+            row.reasons
+                .iter()
+                .any(|reason| reason == "gateway_quarantine_signal")
+        })
+        && statuses.iter().any(|row| {
+            row.reasons.iter().any(|reason| reason == "recovery_signal")
+        });
     let checks = vec![
         check_row("system_health_status_model_contract", status_model_ok),
         check_row("system_health_signal_derivation_contract", derivation_ok),
         check_row("system_health_anomaly_detection_contract", anomaly_ok),
         check_row("bounded_adaptation_eval_rollback_contract", adaptation_ok),
         check_row("gateway_capability_discovery_contract", gateway_capability_ok),
+        check_row(
+            "gateway_quarantine_recovery_health_signal_contract",
+            gateway_quarantine_recovery_ok,
+        ),
     ];
     let ok = checks
         .iter()
@@ -285,6 +307,8 @@ pub fn build_system_health_guard_report(
         summary: json!({
             "status_count": statuses.len(),
             "gateway_capability_count": gateway_capabilities.len(),
+            "gateway_quarantine_snapshot_count": gateway_quarantine_snapshot_count,
+            "recovery_snapshot_count": recovery_snapshot_count,
             "anomaly_count": statuses.iter().map(|row| row.anomalies.len()).sum::<usize>(),
             "adaptation_allowed_count": statuses.iter().filter(|row| row.adaptation.allowed).count(),
             "pass": ok

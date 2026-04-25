@@ -38,6 +38,8 @@
       "core/local/artifacts/gateway_support_levels_current.json",
       "core/local/artifacts/gateway_status_manifest_current.json",
       "core/local/artifacts/gateway_graduation_status_snapshot_current.json",
+      "core/local/artifacts/gateway_support_matrix_current.json",
+      "core/local/artifacts/gateway_quarantine_recovery_proof_current.json",
       "core/local/artifacts/layer2_lane_parity_guard_current.json",
       "core/local/artifacts/layer2_receipt_replay_current.json",
       "core/local/artifacts/orchestration_planner_quality_guard_current.json",
@@ -75,8 +77,11 @@
       "core/local/artifacts/release_policy_gate_current.json",
       "core/local/artifacts/tooling_task_fabric_closure_guard_current.json",
       "core/local/artifacts/release_contract_gate_current.json",
+      "core/local/artifacts/trust_zone_guard_current.json",
+      "core/local/artifacts/self_modification_guard_current.json",
       "core/local/artifacts/incident_operations_governance_gate_current.json",
-      "core/local/artifacts/incident_governance_closure_guard_current.json"
+      "core/local/artifacts/incident_governance_closure_guard_current.json",
+      "core/local/artifacts/rust_core_file_size_gate_current.json"
     ],
     "workload_and_quality": [
       "artifacts/web_tooling_context_soak_report_latest.json",
@@ -128,6 +133,8 @@
       "core/local/artifacts/eval_regression_guard_current.json",
       "core/local/artifacts/eval_feedback_router_current.json",
       "core/local/artifacts/eval_autopilot_guard_current.json",
+      "core/local/artifacts/eval_agent_self_diagnosis_current.json",
+      "core/local/artifacts/synthetic_user_chat_harness_current.json",
       "core/local/artifacts/chat_rendering_experience_guard_current.json",
       "core/local/artifacts/client_deauthority_closure_guard_current.json",
       "core/local/artifacts/dx_public_facade_closure_guard_current.json",
@@ -141,6 +148,27 @@
     "release_governance": 1,
     "workload_and_quality": 1
   },
+  "freshness_max_age_hours": {
+    "runtime_proof": 336,
+    "adapter_and_orchestration": 336,
+    "release_governance": 336,
+    "workload_and_quality": 336
+  },
+  "freshness_required_artifacts": [
+    "core/local/artifacts/runtime_proof_verify_current.json",
+    "core/local/artifacts/gateway_runtime_chaos_gate_current.json",
+    "core/local/artifacts/gateway_support_matrix_current.json",
+    "core/local/artifacts/gateway_quarantine_recovery_proof_current.json",
+    "core/local/artifacts/windows_installer_contract_guard_current.json",
+    "core/local/artifacts/windows_install_reliability_current.json",
+    "core/local/artifacts/installer_reliability_closure_guard_current.json",
+    "core/local/artifacts/eval_regression_guard_current.json",
+    "core/local/artifacts/eval_feedback_router_current.json",
+    "core/local/artifacts/test_maturity_registry_current.json",
+    "core/local/artifacts/trust_zone_guard_current.json",
+    "core/local/artifacts/self_modification_guard_current.json",
+    "core/local/artifacts/rust_core_file_size_gate_current.json"
+  ],
   "required_artifacts": [
     "core/local/artifacts/runtime_proof_verify_current.json",
     "core/local/artifacts/runtime_proof_harness_rich_current.json",
@@ -176,6 +204,8 @@
     "core/local/artifacts/gateway_support_levels_current.json",
     "core/local/artifacts/gateway_status_manifest_current.json",
     "core/local/artifacts/gateway_graduation_status_snapshot_current.json",
+    "core/local/artifacts/gateway_support_matrix_current.json",
+    "core/local/artifacts/gateway_quarantine_recovery_proof_current.json",
     "core/local/artifacts/layer2_lane_parity_guard_current.json",
     "core/local/artifacts/layer2_receipt_replay_current.json",
     "core/local/artifacts/runtime_trusted_core_report_current.json",
@@ -251,8 +281,11 @@
     "core/local/artifacts/effective_loc_metric_current.json",
     "core/local/artifacts/effective_loc_metric_contract_guard_current.json",
     "core/local/artifacts/release_contract_gate_current.json",
+    "core/local/artifacts/trust_zone_guard_current.json",
+    "core/local/artifacts/self_modification_guard_current.json",
     "core/local/artifacts/incident_operations_governance_gate_current.json",
-    "core/local/artifacts/incident_governance_closure_guard_current.json"
+    "core/local/artifacts/incident_governance_closure_guard_current.json",
+    "core/local/artifacts/rust_core_file_size_gate_current.json"
   ],
   "optional_artifacts": [
     "local/workspace/reports/RUNTIME_PROOF_RELEASE_GATE_RICH_CURRENT.md",

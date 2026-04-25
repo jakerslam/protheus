@@ -121,9 +121,9 @@ fn build_guard_report(
         .iter()
         .map(|zone| zone.zone.as_str())
         .collect::<Vec<_>>();
-    let has_immutable = labels.iter().any(|label| *label == "immutable");
-    let has_propose_only = labels.iter().any(|label| *label == "propose_only");
-    let has_mutable = labels.iter().any(|label| *label == "mutable");
+    let has_immutable = labels.contains(&"immutable");
+    let has_propose_only = labels.contains(&"propose_only");
+    let has_mutable = labels.contains(&"mutable");
     let kernel_denied = evaluations
         .iter()
         .any(|row| row.target_path.starts_with("core/") && !row.apply_allowed);

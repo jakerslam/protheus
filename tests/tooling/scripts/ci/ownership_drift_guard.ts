@@ -42,6 +42,10 @@ type DriftViolation = {
   boundary_id: string;
   file: string;
   detail: string;
+  owner_layer?: 'kernel' | 'control_plane' | 'shell' | 'gateway' | 'apps' | 'unknown';
+  required_policy_test?: string;
+  runtime_contract_fix_required?: boolean;
+  suggested_contract_fix?: string;
 };
 
 type Args = {
@@ -55,6 +59,7 @@ const ROOT = process.cwd();
 const DEFAULT_POLICY_PATH = 'client/runtime/config/ownership_drift_policy.json';
 const DEFAULT_OUT_JSON = 'core/local/artifacts/ownership_drift_guard_current.json';
 const DEFAULT_OUT_MARKDOWN = 'local/workspace/reports/OWNERSHIP_DRIFT_GUARD_CURRENT.md';
+const PLACEMENT_POLICY_PATH = 'docs/workspace/orchestration_ownership_policy.md';
 
 function rel(p: string): string {
   return path.relative(ROOT, p).replace(/\\/g, '/');
@@ -167,6 +172,44 @@ function isCanonicalExtensionToken(value: string): boolean {
   const normalized = cleanText(value || '', 40).toLowerCase();
   if (!normalized) return false;
   return /^\.[a-z0-9][a-z0-9_-]*$/.test(normalized);
+}
+
+function inferOwnerLayer(row: DriftViolation): NonNullable<DriftViolation['owner_layer']> {
+  const token = `${row.boundary_id} ${row.file}`.toLowerCase();
+  if (token.includes('client') || token.includes('shell')) return 'shell';
+  if (token.includes('orchestration') || token.includes('control_plane')) return 'control_plane';
+  if (token.includes('adapter') || token.includes('gateway')) return 'gateway';
+  if (token.includes('core') || token.includes('kernel')) return 'kernel';
+  if (token.includes('apps')) return 'apps';
+  return 'unknown';
+}
+
+function suggestedContractFix(ownerLayer: NonNullable<DriftViolation['owner_layer']>): string {
+  switch (ownerLayer) {
+    case 'shell':
+      return 'Expose backend-provided enums/freshness/public contracts instead of adding Shell-side authority.';
+    case 'control_plane':
+      return 'Move canonical truth/admission/receipt authority behind Kernel APIs and keep orchestration coordination-only.';
+    case 'gateway':
+      return 'Route external-boundary behavior through Gateway manifests, isolation, and Kernel admission APIs.';
+    case 'kernel':
+      return 'Keep truth/policy/receipt logic in Kernel authority and expose a narrow public contract to callers.';
+    case 'apps':
+      return 'Keep apps deletable and move shared/runtime behavior into core, surface, client, tests, or adapters.';
+    default:
+      return 'Add an explicit owner-layer contract and placement test before accepting this drift.';
+  }
+}
+
+function enrichViolation(row: DriftViolation): DriftViolation {
+  const ownerLayer = inferOwnerLayer(row);
+  return {
+    ...row,
+    owner_layer: ownerLayer,
+    required_policy_test: `placement-test:${ownerLayer}`,
+    runtime_contract_fix_required: true,
+    suggested_contract_fix: suggestedContractFix(ownerLayer),
+  };
 }
 
 function runPolicyContracts(policy: Policy): DriftViolation[] {
@@ -485,8 +528,8 @@ function toMarkdown(payload: any): string {
   lines.push('');
   lines.push('## Violations');
   lines.push('');
-  lines.push('| Check | Boundary | File | Detail |');
-  lines.push('| --- | --- | --- | --- |');
+  lines.push('| Check | Boundary | Owner | Policy Test | File | Detail | Contract Fix |');
+  lines.push('| --- | --- | --- | --- | --- | --- | --- |');
   const rows = Array.isArray(payload.violations) ? payload.violations : [];
   if (rows.length === 0) {
     lines.push('| (none) | - | - | - |');
@@ -494,8 +537,12 @@ function toMarkdown(payload: any): string {
     for (const row of rows.slice(0, 180)) {
       lines.push(
         `| ${String(row.check_id)} | ${String(row.boundary_id)} | ${String(
+          row.owner_layer || 'unknown',
+        )} | ${String(row.required_policy_test || 'placement-test:unknown')} | ${String(
           row.file,
-        )} | ${String(row.detail).slice(0, 180)} |`,
+        )} | ${String(row.detail).slice(0, 180)} | ${String(
+          row.suggested_contract_fix || '',
+        ).slice(0, 180)} |`,
       );
     }
   }
@@ -714,9 +761,9 @@ function main(): number {
     });
   }
 
-  const pathViolations = runPathBoundaries(policy);
-  const importViolations = runImportBoundaries(policy);
-  const symbolViolations = runSymbolBoundaries(policy);
+  const pathViolations = runPathBoundaries(policy).map(enrichViolation);
+  const importViolations = runImportBoundaries(policy).map(enrichViolation);
+  const symbolViolations = runSymbolBoundaries(policy).map(enrichViolation);
   const violations = [...pathViolations, ...importViolations, ...symbolViolations];
   const allFailures = [
     ...policyFailures,
@@ -746,6 +793,13 @@ function main(): number {
       symbol_violation_count: symbolViolations.length,
       total_violation_count: violations.length,
       total_issue_count: violations.length + policyFailures.length,
+      runtime_contract_fix_required_count: violations.filter(
+        (row) => row.runtime_contract_fix_required === true,
+      ).length,
+      placement_policy_path: PLACEMENT_POLICY_PATH,
+      placement_test_reference_count: violations.filter((row) =>
+        cleanText(row.required_policy_test || '', 80).startsWith('placement-test:'),
+      ).length,
     },
     policy_failures: policyFailures,
     violations,

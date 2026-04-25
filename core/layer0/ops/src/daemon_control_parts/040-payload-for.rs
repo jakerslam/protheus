@@ -151,10 +151,10 @@ mod tests {
     }
 
     #[test]
-    fn resolve_dashboard_executable_prefers_sibling_infring_ops_for_legacy_alias() {
+    fn resolve_dashboard_executable_prefers_sibling_infring_ops_for_openclaw_alias() {
         let temp = tempfile::tempdir().expect("tempdir");
         let dir = temp.path();
-        let current = dir.join("protheus-ops");
+        let current = dir.join("openclaw-ops");
         let sibling = dir.join("infring-ops");
         std::fs::write(&current, b"#!/bin/sh\n").expect("write current");
         std::fs::write(&sibling, b"#!/bin/sh\n").expect("write sibling");

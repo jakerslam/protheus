@@ -310,7 +310,7 @@ jobs:
         run: |
           STATIC_MB="$(cat state/release/provenance_bundle/infringd_static_size_mb.txt)"
           cat > release-notes-${GITHUB_REF_NAME}.md <<'EOF'
-          # Protheus ${GITHUB_REF_NAME}
+          # InfRing ${GITHUB_REF_NAME}
 
           This release ships with:
           - Per-artifact CycloneDX SBOMs (`state/release/provenance/sbom/*.cdx.json`)

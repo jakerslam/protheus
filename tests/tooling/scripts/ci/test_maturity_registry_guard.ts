@@ -186,7 +186,22 @@ function artifactObservation(path: string | undefined): MonitorRun {
   try {
     const payload = readJson(path);
     if (payload?.ok === true) return { at: new Date().toISOString(), ok: true, observation: 'pass', source_artifact: path };
-    if (payload?.ok === false) return { at: new Date().toISOString(), ok: false, observation: 'fail', source_artifact: path, detail: 'source artifact ok=false' };
+    if (payload?.ok === false) {
+      const failedIds = Array.isArray(payload.failed_ids)
+        ? payload.failed_ids.filter((row: unknown) => typeof row === 'string')
+        : [];
+      const failedChecks = Array.isArray(payload.checks)
+        ? payload.checks
+            .filter((row: any) => row && row.ok === false)
+            .map((row: any) => `${String(row.id ?? 'unknown')}: ${String(row.detail ?? 'failed')}`)
+        : [];
+      const detail = failedChecks.length > 0
+        ? failedChecks.join('; ')
+        : failedIds.length > 0
+          ? `failed_ids=${failedIds.join(',')}`
+          : 'source artifact ok=false';
+      return { at: new Date().toISOString(), ok: false, observation: 'fail', source_artifact: path, detail };
+    }
     return { at: new Date().toISOString(), ok: null, observation: 'unknown', source_artifact: path, detail: 'source artifact has no boolean ok field' };
   } catch (error) {
     return { at: new Date().toISOString(), ok: null, observation: 'unknown', source_artifact: path, detail: `source artifact parse failed: ${error instanceof Error ? error.message : String(error)}` };
@@ -335,6 +350,61 @@ function writeRetirementBacklog(path: string, statuses: MonitorStatus[], entries
   writeFileSync(path, lines.join('\n'));
 }
 
+function buildScaffoldAudit(entries: Entry[], statuses: MonitorStatus[]): Record<string, any> {
+  const statusByGate = new Map(statuses.map((status) => [status.gate_id, status]));
+  const scaffoldEntries = entries.filter((entry) => SCAFFOLD_CLASSES.has(entry.classification));
+  const alreadyRuntimeEnforced = scaffoldEntries
+    .filter((entry) => hasText(entry.runtime_enforced_by))
+    .map((entry) => ({
+      gate_id: entry.gate_id,
+      classification: entry.classification,
+      runtime_enforced_by: entry.runtime_enforced_by,
+      target_runtime_owner: entry.target_runtime_owner ?? null,
+      monitor_state: statusByGate.get(entry.gate_id)?.state ?? null,
+      migration_target: entry.migration_target ?? null,
+      delete_when: entry.delete_when ?? null,
+    }));
+  const scaffoldOnly = scaffoldEntries
+    .filter((entry) => !hasText(entry.runtime_enforced_by))
+    .map((entry) => ({
+      gate_id: entry.gate_id,
+      classification: entry.classification,
+      target_runtime_owner: entry.target_runtime_owner ?? null,
+      monitor_state: statusByGate.get(entry.gate_id)?.state ?? null,
+      migration_target: entry.migration_target ?? null,
+      delete_when: entry.delete_when ?? null,
+    }));
+  const blocked = statuses
+    .filter((status) => status.state === 'blocked_by_regression' || status.state === 'needs_runtime_strengthening')
+    .map((status) => ({
+      gate_id: status.gate_id,
+      state: status.state,
+      detail: status.detail,
+      source_artifact: status.source_artifact ?? null,
+      target_runtime_owner: entries.find((entry) => entry.gate_id === status.gate_id)?.target_runtime_owner ?? null,
+      migration_target: status.migration_target ?? null,
+    }));
+  const retirementCandidates = statuses
+    .filter((status) => status.state === 'eligible_for_retirement' || status.state === 'retirement_backlog_created')
+    .map((status) => ({
+      gate_id: status.gate_id,
+      state: status.state,
+      retirement_backlog_id: status.retirement_backlog_id ?? null,
+      migration_target: status.migration_target ?? null,
+    }));
+  return {
+    scaffold_count: scaffoldEntries.length,
+    already_runtime_enforced_count: alreadyRuntimeEnforced.length,
+    scaffold_only_count: scaffoldOnly.length,
+    blocked_count: blocked.length,
+    retirement_candidate_count: retirementCandidates.length,
+    already_runtime_enforced: alreadyRuntimeEnforced,
+    scaffold_only: scaffoldOnly,
+    blocked,
+    retirement_candidates: retirementCandidates,
+  };
+}
+
 function writeMarkdown(path: string, payload: any): void {
   ensureParent(path);
   const lines = [
@@ -358,6 +428,8 @@ function writeMarkdown(path: string, payload: any): void {
     `- runtime_enforcement_ratio: ${payload.summary.runtime_enforcement_ratio}`,
     `- retirement_candidates: ${payload.summary.retirement_candidates}`,
     `- monitors_needing_runtime_strengthening: ${payload.summary.monitors_needing_runtime_strengthening}`,
+    `- scaffold_only_count: ${payload.scaffold_audit.scaffold_only_count}`,
+    `- already_runtime_enforced_scaffolds: ${payload.scaffold_audit.already_runtime_enforced_count}`,
     '',
     '## Classification Counts',
     '',
@@ -370,6 +442,18 @@ function writeMarkdown(path: string, payload: any): void {
     '| Gate | State | Runs | Pass Rate | Streak | Detail |',
     '| --- | --- | ---: | ---: | ---: | --- |',
     ...payload.monitor_statuses.map((row: MonitorStatus) => `| ${row.gate_id} | ${row.state} | ${row.window_runs} | ${row.success_rate} | ${row.consecutive_passes} | ${row.detail.replace(/\|/g, '/') } |`),
+    '',
+    '## Scaffold Audit',
+    '',
+    `- scaffold_only_count: ${payload.scaffold_audit.scaffold_only_count}`,
+    `- already_runtime_enforced_count: ${payload.scaffold_audit.already_runtime_enforced_count}`,
+    `- blocked_count: ${payload.scaffold_audit.blocked_count}`,
+    `- retirement_candidate_count: ${payload.scaffold_audit.retirement_candidate_count}`,
+    '',
+    '| Gate | Classification | Runtime Owner | Monitor State | Migration Target |',
+    '| --- | --- | --- | --- | --- |',
+    ...payload.scaffold_audit.already_runtime_enforced.map((row: any) => `| ${row.gate_id} | ${row.classification} | ${String(row.target_runtime_owner ?? row.runtime_enforced_by ?? '').replace(/\|/g, '/') } | ${row.monitor_state ?? ''} | ${String(row.migration_target ?? '').replace(/\|/g, '/') } |`),
+    ...payload.scaffold_audit.scaffold_only.map((row: any) => `| ${row.gate_id} | ${row.classification} | ${String(row.target_runtime_owner ?? '').replace(/\|/g, '/') } | ${row.monitor_state ?? ''} | ${String(row.migration_target ?? '').replace(/\|/g, '/') } |`),
     '',
     '## Runtime Strengthening Targets',
     '',
@@ -506,6 +590,7 @@ function main(): void {
   const runtimeEnforcementRatio = denominator === 0 ? validatorCount : Number((validatorCount / denominator).toFixed(3));
   const failCount = findings.filter((row) => row.severity === 'fail').length;
   const ok = failCount === 0;
+  const scaffoldAudit = buildScaffoldAudit(entries, monitorStatuses);
   const retirementPayload = {
     ok: true,
     type: 'test_maturity_retirement_backlog',
@@ -550,6 +635,7 @@ function main(): void {
     },
     classification_counts: classificationCounts,
     monitor_statuses: monitorStatuses,
+    scaffold_audit: scaffoldAudit,
     strengthen_targets: classifyStrengthenTargets(entries),
     findings,
     artifact_paths: [outJson, outMarkdown, retirementJson, retirementMarkdown],

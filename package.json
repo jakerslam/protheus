@@ -30,6 +30,8 @@
     "ops:transport:topology:gate": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/transport_topology_status.ts --strict=1 --json=1",
     "ops:transport:spawn-audit": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/transport_spawn_audit.ts --strict=1 --out=core/local/artifacts/transport_spawn_audit_current.json",
     "ops:assimilation:v1:support:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/assimilation_v1_support_guard.ts --strict=1 --out=core/local/artifacts/assimilation_v1_support_guard_current.json",
+    "ops:assimilation:authority:guard": "cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin assimilation_authority_guard -- --strict=1",
+    "ops:assimilation:authority:report": "cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin assimilation_authority_guard -- --strict=0",
     "ops:production-topology:status": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ops/production_topology_diagnostic.ts --out=core/local/artifacts/production_topology_diagnostic_current.json",
     "ops:production-topology:gate": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ops/production_topology_diagnostic.ts --strict=1 --out=core/local/artifacts/production_topology_diagnostic_current.json",
     "ops:status:production": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ops/production_status.ts --out=core/local/artifacts/production_status_current.json",
@@ -1019,6 +1021,9 @@
     "ops:runtime-soak:scenarios:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/runtime_soak_scenarios_guard.ts --strict=1",
     "ops:eval:feedback:router": "cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- feedback-router --strict=1",
     "ops:eval:agent-feedback": "cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- agent-feedback --all=1 --strict=1",
+    "ops:eval:agent-self-diagnosis": "cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- agent-self-diagnosis --agent-id=agent-5bc62b0875a9 --strict=1",
+    "ops:eval:synthetic-user-chat:harness": "cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- synthetic-user-chat-harness --strict=1",
+    "ops:eval:misty-live-health:guard": "cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- misty-live-health-gate --agent-id=agent-5bc62b0875a9",
     "ops:eval:continuous:sample": "cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin continuous_eval -- --strict=0",
     "ops:eval:continuous:guard": "cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin continuous_eval -- --strict=1",
     "ops:self-modification:guard": "cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin self_modification_guard -- --strict=1",
@@ -1045,7 +1050,11 @@
     "ops:knowledge-graph-query-acceleration:closure:guard": "npm run -s tooling:run -- --id=ops:knowledge-graph-query-acceleration:closure:guard --strict=1",
     "ops:web-conduit:openclaw-media:closure:guard": "npm run -s tooling:run -- --id=ops:web-conduit:openclaw-media:closure:guard --strict=1",
     "ops:web-retrieval:reliability-closure:guard": "npm run -s tooling:run -- --id=ops:web-retrieval:reliability-closure:guard --strict=1",
-    "ops:test-maturity:registry:guard": "npm run -s tooling:run -- --id=ops:test-maturity:registry:guard --strict=1"
+    "ops:test-maturity:registry:guard": "npm run -s tooling:run -- --id=ops:test-maturity:registry:guard --strict=1",
+    "ops:eval:issue-authority:guard": "cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- issue-authority --strict=1",
+    "ops:tool-routing:authority:guard": "cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin tool_routing_authority_guard -- --strict=1",
+    "ops:tool-routing:authority:report": "cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin tool_routing_authority_guard --",
+    "ops:gateway-support:matrix:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/gateway_support_matrix_guard.ts --strict=1"
   },
   "bin": {
     "infring": "./client/cli/bin/infring",
