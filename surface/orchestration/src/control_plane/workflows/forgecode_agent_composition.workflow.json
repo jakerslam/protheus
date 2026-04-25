@@ -2688,6 +2688,33 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-06-07-tool-service-migration-v1.md",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-04-02-system-context-rendering-final.md"
       ]
+    },
+    {
+      "id": "forgecode_structured_workspace_search_snapshot_contracts",
+      "description": "Assimilates ForgeCode workspace-search snapshot contracts for bounded output, before/after context rendering, file-type filters, and truncation explanations into the structured agent-composition workflow.",
+      "required_signals": [
+        "workspace_search_snapshot_contracts_must_emit_path_max_bytes_total_lines_display_lines_pattern_and_optional_glob_or_file_type_metadata",
+        "workspace_search_snapshot_contracts_must_return_empty_cdata_when_results_are_truncated_by_size_limit_and_explain_the_specific_limit_reason",
+        "workspace_search_after_context_contract_preserves_match_line_then_following_context_lines_with_dash_prefixes",
+        "workspace_search_before_context_contract_preserves_leading_context_lines_with_dash_prefixes_before_the_colon_prefixed_match",
+        "workspace_search_bidirectional_context_contract_keeps_before_context_match_line_and_after_context_in_one_deterministic_cdata_block",
+        "workspace_search_file_type_contract_records_file_type_filter_and_limits_results_to_matching_language_files",
+        "workspace_search_display_lines_contract_must_report_visible_match_range_separately_from_total_line_count",
+        "workspace_search_tool_routing_contract_treats_size_truncation_as_successful_bounded_evidence_not_as_tool_failure",
+        "workspace_search_context_contracts_require_stable_text_snapshot_shape_for_eval_and_replay_comparison",
+        "workspace_search_operator_feedback_contract_recommends_more_specific_patterns_when byte_limits_hide_all_matches"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_very_lengthy_one_line_match.snap",
+        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_with_after_context.snap",
+        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_with_before_context.snap",
+        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_with_context_lines.snap",
+        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_with_file_type.snap"
+      ]
     }
   ],
   "workflow_templates": [
