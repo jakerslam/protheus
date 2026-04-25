@@ -97,3 +97,43 @@ fn chat_monitor_no_response_issue_routes_to_evidence_agent() {
         Some("eval_agent_chat_monitor_issue")
     );
 }
+
+#[test]
+fn repeated_learning_candidates_emit_agent_trend_feedback() {
+    // SRS: V12-EVAL-AGENT-FEEDBACK-TRENDS-001
+    let mut issues = Vec::new();
+    for idx in 0..4 {
+        let mut row = issue("agent-5bc62b0875a9", &format!("eval-learning-case:{idx}"));
+        row.source_kind = "eval_learning_loop_candidate".to_string();
+        row.issue_class = "no_response,workflow_visibility".to_string();
+        row.severity = "high".to_string();
+        row.owner_component = "surface/orchestration".to_string();
+        row.replay_command = "cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- learning-loop-issues --strict=1".to_string();
+        issues.push(row);
+    }
+
+    let trends = learning_trend_issues(&issues);
+    assert!(trends
+        .iter()
+        .any(|issue| issue.issue_class == "repeated_no_response"));
+    assert!(trends
+        .iter()
+        .any(|issue| issue.issue_class == "repeated_workflow_visibility"));
+
+    let mut all = issues;
+    all.extend(trends);
+    let view = build_scoped_view("agent-5bc62b0875a9", &BTreeMap::new(), &all);
+    let report = report_for_views(
+        "contracts.json",
+        "issues.json",
+        "learning.json",
+        "chat.json",
+        &[view],
+    );
+    assert_eq!(
+        report
+            .pointer("/summary/trend_item_count")
+            .and_then(Value::as_u64),
+        Some(2)
+    );
+}
