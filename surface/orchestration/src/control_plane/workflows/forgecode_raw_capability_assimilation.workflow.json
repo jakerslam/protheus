@@ -938,6 +938,30 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__command_generator__tests__generate_with_no_files.snap",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__compact__tests__render_summary_frame_snapshot-2.snap"
       ]
+    },
+    {
+      "id": "forgecode_raw_repo_policy_devcontainer_and_test_profile_contracts",
+      "description": "Raw-capability assimilation lane for ForgeCode repository policy roots covering fast-fail test profile, reproducible dev shell bootstrap, LF shell scripts, churn ignores, and snapshot autocomplete exclusion.",
+      "required_signals": [
+        "nextest_fast_fail_profile_marks_slow_after_one_second_and_terminates_after_thirty",
+        "nextest_operator_output_contract_surfaces_only_failed_tests_and_final_failures",
+        "devcontainer_reproducible_rust_node_gh_git_zsh_environment_bootstrap_contract",
+        "devcontainer_post_create_installs_fzf_fd_forgecode_rustfmt_clippy_insta_nextest_and_ast_grep",
+        "git_attributes_force_zsh_scripts_to_lf_line_endings",
+        "gitignore_excludes_build_outputs_jobs_backups_env_db_logs_dumps_mcp_node_and_ai_churn",
+        "autocomplete_ignore_excludes_snapshot_files_from_file_completion_noise"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.config/nextest.toml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.devcontainer/devcontainer.json",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.gitattributes",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.gitignore",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/.ignore"
+      ]
     }
   ],
   "workflow_templates": [
