@@ -7,6 +7,7 @@ pub mod enterprise_hardening;
 pub mod foundation_contract_gate;
 pub mod hardware_route_hardening;
 pub mod integrity_hash_utility_kernel;
+pub mod kernel_sentinel;
 pub mod offsite_backup;
 pub mod origin_integrity;
 pub mod quorum_validator_kernel;

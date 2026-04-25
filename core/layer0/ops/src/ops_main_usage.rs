@@ -48,6 +48,7 @@ pub(super) fn print_usage() {
     println!("  infring-ops f100-reliability-certification <run|status> [--strict=1|0] [--policy=<path>]");
     println!("  infring-ops sdlc-change-control <run|status> [--strict=1|0] [--policy=<path>] [--pr-body-path=<path>] [--changed-paths-path=<path>]");
     println!("  infring-ops system-health-audit-runner-kernel <run|status> [--strict=1|0] [--policy=<path>]");
+    println!("  infring-ops kernel-sentinel <run|status|report|help> [--strict=1|0] [--findings-path=<path>]");
     println!("  infring-ops supply-chain-provenance-v2 <run|status> [--strict=1|0] [--policy=<path>] [--bundle-path=<path>] [--vuln-summary-path=<path>]");
     println!("  infring-ops f100-readiness-program <run|run-all|status> [--lane=<V6-F100-XXX>] [--strict=1|0] [--apply=1|0] [--policy=<path>]");
     println!("  infring-ops identity-federation <authorize|scim-lifecycle|status> [flags]");
