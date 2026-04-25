@@ -2580,6 +2580,33 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/diesel.toml",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/rust-analyzer.toml"
       ]
+    },
+    {
+      "id": "forgecode_structured_toolchain_plans_range_compaction_shell_env_and_agent_commands_contracts",
+      "description": "Structured ForgeCode lane that projects Rust toolchain pinning plus planning-contract mechanics for large-file range reads, context compaction, shell environment passthrough, and dynamic agent slash commands into staged orchestration flow.",
+      "required_signals": [
+        "rust_toolchain_pin_declares_channel_1_92_default_profile_as_replayable_developer_environment_input",
+        "large_file_range_plan_requires_optional_start_byte_end_byte_text_only_reads_binary_rejection_and_utf8_boundary_preservation",
+        "large_file_range_plan_requires_total_file_size_requested_range_actual_adjusted_range_boundary_adjustment_and_partial_percent_metadata",
+        "large_file_range_plan_enumerates_edge_cases_for_out_of_bounds_inverted_equal_empty_locked_special_file_os_limit_and_malformed_utf8_reads",
+        "context_compaction_plan_models_token_turn_and_message_thresholds_with_max_tokens_as_agent_level_configuration",
+        "context_compaction_plan_prefers_agent_compact_field_over_transform_assistant_and_requires_deprecation_warnings_for_legacy_transform_use",
+        "shell_env_plan_allows_command_env_passthrough_by_variable_names_only_to_avoid_exposing_or_setting_arbitrary_values",
+        "shell_env_plan_requires_missing_env_values_to_be_graceful_and_optional_so_existing_shell_tool_calls_remain_compatible",
+        "dynamic_agent_command_plan_registers_agent_specific_slash_commands_from_discovered_agents_with_sanitized_ids_and_conflict_resolution",
+        "dynamic_agent_command_plan_keeps_builtin_commands_precedence_refreshes_agent_commands_on_state_init_and_reuses_existing_agent_switch_handler"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/rust-toolchain.toml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-04-27-large-file-read-range-support-v4.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/agent-context-compaction-2025-03-24.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-09-07-shell-env-variable-support-v1.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-09-13-dynamic-agent-slash-commands-v3.md"
+      ]
     }
   ],
   "workflow_templates": [
