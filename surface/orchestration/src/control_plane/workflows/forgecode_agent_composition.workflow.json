@@ -2307,6 +2307,30 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/orch_spec/snapshots/forge_app__orch_spec__orch_system_spec__system_prompt_tool_supported.snap",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/orch_spec/snapshots/forge_app__orch_spec__orch_system_spec__system_prompt_with_extensions.snap"
       ]
+    },
+    {
+      "id": "forgecode_structured_truncated_prompt_changed_files_command_and_compact_snapshot_contracts",
+      "description": "Structured ForgeCode lane that projects truncated workspace prompt context, external-change warnings, command-generation request envelopes, and compaction summary-frame contracts into staged orchestration flow.",
+      "required_signals": [
+        "workspace_extension_histogram_truncates_to_top15_and_other_bucket",
+        "external_change_warning_requires_re_read_for_relevant_modified_files",
+        "command_generator_requires_os_shell_cwd_home_and_optional_file_list_context",
+        "command_generator_outputs_single_line_json_schema_command",
+        "command_generator_normalizes_natural_language_malformed_vague_and_empty_inputs",
+        "command_generator_blocks_destructive_or_injection_inputs_with_safe_echo_fallback",
+        "compaction_summary_frame_becomes_authoritative_incremental_context_without_reexplaining"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/orch_spec/snapshots/forge_app__orch_spec__orch_system_spec__system_prompt_with_extensions_truncated.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__changed_files__tests__multiple_files_changed.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__command_generator__tests__generate_simple_command.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__command_generator__tests__generate_with_no_files.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__compact__tests__render_summary_frame_snapshot-2.snap"
+      ]
     }
   ],
   "workflow_templates": [
