@@ -2715,6 +2715,33 @@
         "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_with_context_lines.snap",
         "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_with_file_type.snap"
       ]
+    },
+    {
+      "id": "forgecode_structured_workspace_search_pagination_and_undo_contracts",
+      "description": "Assimilates ForgeCode operation snapshots for paginated workspace-search windows, result formatting without line numbers, and file undo evidence for created and removed files into the structured agent-composition workflow.",
+      "required_signals": [
+        "workspace_search_pagination_contract_must_report_total_lines_separately_from_display_lines_when_only_a_window_is_visible",
+        "workspace_search_pagination_contract_must_include_line_limit_truncation_reason_when_display_window_hides_remaining_matches",
+        "workspace_search_window_contract_preserves_exact_visible_match_range_without_reordering_or_summarizing_lines",
+        "workspace_search_multi_result_contract_preserves_each_file_match_as_one_cdata_line_with_pattern_and_glob_metadata",
+        "workspace_search_no_line_number_contract_allows_results_without_numeric_line_fields_when_source_provider_omits_line_numbers",
+        "workspace_search_no_line_number_contract_must_not_invent_line_numbers_during_synthesis_or_replay",
+        "file_undo_created_contract_records_path_created_status_total_lines_and_original_created_content_for_reversible_state_review",
+        "file_undo_removed_contract_records_path_removed_status_total_lines_and_deleted_content_for_reversible_state_review",
+        "file_undo_contracts_treat_created_and_removed_as_distinct_recovery_states_with_operator_visible_cdata_payloads",
+        "workspace_and_undo_snapshots_must_remain_replayable_for_eval_comparison_without_cross_routing_to_web_search"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_with_offset.snap",
+        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_with_results.snap",
+        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_without_line_numbers.snap",
+        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_undo_file_created.snap",
+        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_undo_file_removed.snap"
+      ]
     }
   ],
   "workflow_templates": [
