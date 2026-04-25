@@ -2,9 +2,9 @@
 
 - version: 2026-04-25
 - pack_root: /Users/jay/.openclaw/workspace/releases/proof-packs/2026-04-25
-- required_missing: 7
+- required_missing: 0
 - stale_artifacts: 0
-- failed_artifacts: 12
+- failed_artifacts: 11
 - historical_snapshot_artifacts: 0
 
 | artifact | category | required | exists | sha256 |
@@ -37,7 +37,7 @@
 | core/local/artifacts/runtime_proof_empirical_profile_gate_failures_current.json | runtime_proof | yes | yes | b14d79700d3d888fe8b81426f6b96f570782d8a6c6a0993a4d42082f47f48e61 |
 | core/local/artifacts/runtime_proof_empirical_profile_readiness_current.json | runtime_proof | yes | yes | d0467d7710f3ab1b49be231f80fafeb8bb74916d786d02b56149cd4273427db2 |
 | core/local/artifacts/runtime_proof_empirical_minimum_contract_current.json | runtime_proof | yes | yes | 35bf7e04ea79ca18cba45db5b50382776c80c23a167592cb10a4d423903ebaf1 |
-| core/local/artifacts/runtime_proof_reality_guard_current.json | runtime_proof | yes | no | missing |
+| core/local/artifacts/runtime_proof_reality_guard_current.json | runtime_proof | yes | yes | 24bc155b79074bf99d7f7e62392d22130bd6c71684f7a8e3a28e05710e2bfcfc |
 | core/local/artifacts/release_proof_checksums_current.json | runtime_proof | yes | yes | a2d203cbbd9f8f6e4962bfb342495e2d20c168ebe8c34542d8844bfa4f3972a2 |
 | core/local/artifacts/gateway_runtime_chaos_gate_current.json | adapter_and_orchestration | yes | yes | 2ced78e2d60909b81322ed8fa25b8f38325c2dd6f9a04d0760b31f6d0b3f75fe |
 | core/local/artifacts/gateway_support_levels_current.json | adapter_and_orchestration | yes | yes | 2e82be88d0f2e581918169023a23e5557ec955aca2c350633eceb1e56a2c7440 |
@@ -72,18 +72,18 @@
 | core/local/artifacts/shell_truth_leak_guard_current.json | release_governance | yes | yes | 286eb215278527c9436c059942686c7bdf0c70a945a8b4716dd80a889a0db843 |
 | core/local/artifacts/terminology_transition_inventory_current.json | release_governance | yes | yes | b2f29560448aa37da10fb63b66805e9fa548ba71529b68bf868208af62df9801 |
 | core/local/artifacts/srs_same_revision_guard_current.json | release_governance | yes | yes | aa36fdf4c789f1653d6992bcde20470f9d20d786bed90fd2e1d4e198c515171f |
-| core/local/artifacts/runtime_closure_board_guard_current.json | release_governance | yes | no | missing |
+| core/local/artifacts/runtime_closure_board_guard_current.json | release_governance | yes | yes | 18c81637281547d011ded79bc4bf40e7040b0dba64054c7f124d347d05199c0e |
 | core/local/artifacts/runtime_closure_feature_alignment_guard_current.json | release_governance | yes | yes | 30843480390dc0ce739110fd1a1ca5b8a88d8b1d5233872e0313c58641e2cc02 |
-| core/local/artifacts/capability_proof_burden_guard_current.json | release_governance | yes | no | missing |
+| core/local/artifacts/capability_proof_burden_guard_current.json | release_governance | yes | yes | 89771698cd6cd395be6bc22697e521fb7f06e1603e1fc38d52032743b2752e23 |
 | core/local/artifacts/windows_installer_contract_guard_current.json | release_governance | yes | yes | d7ff6b61e2c71d3de02b04017b4f44f0183aaeef34fc80499930d7ff2d50936a |
 | core/local/artifacts/windows_install_reliability_current.json | release_governance | yes | yes | 26618f1a4342a339cfcc3c7c5d56399a271f7da64de3b6a407d85f0496966c36 |
 | core/local/artifacts/installer_reliability_closure_guard_current.json | release_governance | yes | yes | 080b6db85c0494621629ae36ec7840882f9f77db454100b135028d523c3dff62 |
-| core/local/artifacts/srs_todo_section_guard_current.json | release_governance | yes | no | missing |
+| core/local/artifacts/srs_todo_section_guard_current.json | release_governance | yes | yes | 667d8560d1e901f6eb48e7c1a891b7a91908fa8a64dfdae84701cb79d5314dbe |
 | core/local/artifacts/test_maturity_registry_current.json | release_governance | yes | yes | a09c57d43ec3b958ad80081eb6b159665c244c6f7b9825eae342872b0dea1808 |
 | core/local/artifacts/test_maturity_retirement_backlog_current.json | release_governance | yes | yes | 45e7e66b956ee1a1393e6b3fad010d0f40442ebcae53761295b6f85d92848441 |
-| core/local/artifacts/parity_end_to_end_replay_current.json | workload_and_quality | yes | no | missing |
-| core/local/artifacts/parity_trend_current.json | workload_and_quality | yes | no | missing |
-| core/local/artifacts/parity_release_gate_current.json | workload_and_quality | yes | no | missing |
+| core/local/artifacts/parity_end_to_end_replay_current.json | workload_and_quality | yes | yes | 01d08d614f31fc5430ba02d0c1d58ab40402fbfd1863b89ebbb52e204c4574fc |
+| core/local/artifacts/parity_trend_current.json | workload_and_quality | yes | yes | 67d68a159d2c8cfa588f9b58cea1f45cfaca1de6b3f348003266b5fb77b172ea |
+| core/local/artifacts/parity_release_gate_current.json | workload_and_quality | yes | yes | e9746305fc4c5d3c508477f589830e25aa8011b3dadbb168a108a2716ce2c0f8 |
 | core/local/artifacts/gem_live_provider_smoke_current.json | workload_and_quality | yes | yes | 652edc15d9255965da7a115a2ad5231815662864f0083be2ce59d2c5c2f347df |
 | core/local/artifacts/gem_memory_durability_current.json | workload_and_quality | yes | yes | d1c724bdb2c871e1a5fd41adcd17864c26277320c99c7a54ea76496b181487b5 |
 | core/local/artifacts/memory_continuity_closure_guard_current.json | workload_and_quality | yes | yes | 872fae805a68ade5ca9e9da9dfa25ebe50b88a8af45d286ff09dbd7e74ee52c5 |
@@ -120,10 +120,11 @@
 | core/local/artifacts/effective_loc_metric_current.json | workload_and_quality | yes | yes | 293a5fbb1f3c604e00a366767e0ab770388774524ab1dee8754acfeee6fc2caf |
 | core/local/artifacts/effective_loc_metric_contract_guard_current.json | workload_and_quality | yes | yes | 4ab0a59daf40eaeffae190c8976b7525545c7b53959e61c6bc1f943326b643a4 |
 | core/local/artifacts/release_contract_gate_current.json | release_governance | yes | yes | e11278e4d9526ee6cdeb8787f4debf1290dc5734942ff87dd50e9717283f059b |
-| core/local/artifacts/trust_zone_guard_current.json | release_governance | yes | yes | 1bd02d55cad16bf5f4461ccc9a50e471c30190f2585f822a785e636d17897987 |
-| core/local/artifacts/self_modification_guard_current.json | release_governance | yes | yes | 8543ff422fb3d803540630a73bd497ea6c74d39a21578fdb6f10f571c50cffd2 |
+| core/local/artifacts/trust_zone_guard_current.json | release_governance | yes | yes | 3e3f3dd498a36bb379c9c90264eccd306c30781df2113d59804add974e7a4597 |
+| core/local/artifacts/self_modification_guard_current.json | release_governance | yes | yes | 4cd4f793edc78a2d60225c5bae28b2fe9be8e2710ebbcab788923b83711ba5ad |
 | core/local/artifacts/incident_operations_governance_gate_current.json | release_governance | yes | yes | 2e4179258a42e2090c3f21285acf9a6607b9e7841d7791480e80c77f50cb4f75 |
 | core/local/artifacts/incident_governance_closure_guard_current.json | release_governance | yes | yes | e088dcf32ca07cb93b0b8f83e24e64db121ed480960b728646a5a5efa0825441 |
+| core/local/artifacts/rust_core_file_size_gate_current.json | release_governance | yes | yes | 0044550cede60480bfe060c1e85d72f5adb7476ca58991e3c6665e71dfa03eb0 |
 | local/workspace/reports/RUNTIME_PROOF_RELEASE_GATE_RICH_CURRENT.md | ungrouped | no | yes | b55f4c560b30487014ea58cf668dc6a0e62af6f92265fed3654a75a2dc109381 |
 | local/workspace/reports/LAYER2_LANE_PARITY_GUARD_CURRENT.md | ungrouped | no | yes | 7b0a2ef0138c7f086bf363a51c156f75bfd1468457e9b3b672e82714f6af157d |
 | local/workspace/reports/LAYER2_RECEIPT_REPLAY_CURRENT.md | ungrouped | no | yes | 436dfef007dd047f7bd9ad62e6aee48a3994a68ce43e3097f0e9512ae85121bd |
@@ -146,7 +147,7 @@
 | local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_PROFILE_READINESS_CURRENT.md | ungrouped | no | yes | 2bf51eb334dc5c33ec7178df74d825bd33d57beb838f203824a42535115561d5 |
 | local/workspace/reports/RUNTIME_PROOF_EMPIRICAL_MINIMUM_CONTRACT_CURRENT.md | ungrouped | no | yes | 66c81fe4061d2c1dd000e60fab1838088ac1f24fba27eec05277149e589c14e7 |
 | local/workspace/reports/RUNTIME_SOAK_SCENARIOS_CURRENT.md | ungrouped | no | yes | 6906de0f2eb6ec87ea470d212baad9c697a00271e0a36ccaf13f62a954fa5f44 |
-| local/workspace/reports/RUNTIME_PROOF_REALITY_GUARD_CURRENT.md | ungrouped | no | no | missing |
+| local/workspace/reports/RUNTIME_PROOF_REALITY_GUARD_CURRENT.md | ungrouped | no | yes | cca567dc3a4bafe27c700a6771ef0e2ccf6dc115fd4509b977f2c4ab435b8623 |
 | local/workspace/reports/WEB_TOOLING_RELIABILITY_CURRENT.md | ungrouped | no | yes | 0632e2e064528ece1e75d41603e540ea2882f8b73b695eef995377857900cbf8 |
 | local/workspace/reports/WORKFLOW_FAILURE_RECOVERY_CURRENT.md | ungrouped | no | yes | 401aa2879cf8b4032621159849ea26ceb3e60c415bc83ba7c8696e039debb24c |
 | local/workspace/reports/WORKSPACE_TOOLING_CONTEXT_SOAK_CURRENT.md | ungrouped | no | yes | 1bd0a703744734ce868957a152b3b2faa45fe81f3dc54a3e322162ebbf07ada8 |
@@ -157,12 +158,12 @@
 | local/workspace/reports/SHELL_TRUTH_LEAK_GUARD_CURRENT.md | ungrouped | no | yes | 60f54a743e74dda84b18da8307571678ff5f320d2fd3a330fc9c6d52e1271085 |
 | local/workspace/reports/TERMINOLOGY_TRANSITION_INVENTORY_CURRENT.md | ungrouped | no | yes | d3f5e6751fc3394cceaf4ec4db858f905418d030d3d7b0be052e4f3007860704 |
 | local/workspace/reports/SRS_SAME_REVISION_GUARD_CURRENT.md | ungrouped | no | yes | 435e57c756b561a5fbd62d62324fc3da6a0c364937f67eee6a1e05676d4602d2 |
-| local/workspace/reports/RUNTIME_CLOSURE_BOARD_GUARD_CURRENT.md | ungrouped | no | no | missing |
+| local/workspace/reports/RUNTIME_CLOSURE_BOARD_GUARD_CURRENT.md | ungrouped | no | yes | 36ee805e339090c9b85dd166da1481320d2dbb69ce8d76e14f5e898c189b6e9a |
 | local/workspace/reports/RUNTIME_CLOSURE_FEATURE_ALIGNMENT_GUARD_CURRENT.md | ungrouped | no | yes | 3bbd3706739870c48c69309ce063ac78065769a4d6a120d13857c5a816aad0a2 |
-| local/workspace/reports/CAPABILITY_PROOF_BURDEN_GUARD_CURRENT.md | ungrouped | no | no | missing |
+| local/workspace/reports/CAPABILITY_PROOF_BURDEN_GUARD_CURRENT.md | ungrouped | no | yes | 742a7169c80ccee13310dd3211557f50d81e84325c2993d8babc295a977e69a3 |
 | local/workspace/reports/WINDOWS_INSTALL_RELIABILITY_CURRENT.md | ungrouped | no | yes | a9512c44d1fd45d8221b6e619cc6a30bd30f5b508df92f6c6f27fc40def134a4 |
 | local/workspace/reports/WINDOWS_INSTALLER_CONTRACT_GUARD_CURRENT.md | ungrouped | no | yes | faeeb24f5fbc17cd709a4df9aa52d155018f9cfa89c1db69d59839d634e06482 |
-| local/workspace/reports/SRS_TODO_SECTION_GUARD_CURRENT.md | ungrouped | no | no | missing |
+| local/workspace/reports/SRS_TODO_SECTION_GUARD_CURRENT.md | ungrouped | no | yes | 0b1b2e84320f090e37388777adce7663a519f76f0a7cbd827e2dc554a98e141f |
 | local/workspace/reports/EVAL_QUALITY_METRICS_CURRENT.md | ungrouped | no | yes | 070c0e69601979796b0199d1498938eb62ff3d63324e2d7b77db7426de8be1fb |
 | local/workspace/reports/EVAL_MONITOR_SLO_CURRENT.md | ungrouped | no | yes | 3df0fcae55ed65fc2eccd1bc20bf93e239fbab8c63b695ac39a8ccee3d3f070c |
 | local/workspace/reports/EVAL_REVIEWER_FEEDBACK_WEEKLY_CURRENT.md | ungrouped | no | yes | cbb3032c653f354c9e2686893e5640cb93e49f924989dcd8155c54a159af75e0 |
@@ -176,10 +177,10 @@
 | local/workspace/reports/EVAL_FEEDBACK_ROUTER_CURRENT.md | ungrouped | no | yes | 05fc81e27937407dfe07cb9ab6ef76eeef5056789bdcefb80201c90df50160b6 |
 | local/workspace/reports/KERNEL_NEXUS_COUPLING_GUARD_CURRENT.md | ungrouped | no | yes | 511ada34b069c154f2f6ae299b755ecf4c2b2a7a349adb874aaeac82d22c47aa |
 | local/workspace/reports/ARCHITECTURE_NEXUS_REQUIRED_ARTIFACT_GUARD_CURRENT.md | ungrouped | no | yes | be1feb5a7e5f21b1d65883ada9f2786859397c34665676d25d6eddbd264f47bf |
-| local/workspace/reports/PARITY_END_TO_END_REPLAY_CURRENT.md | ungrouped | no | no | missing |
-| local/workspace/reports/PARITY_TREND_CURRENT.md | ungrouped | no | no | missing |
-| local/workspace/reports/PARITY_RELEASE_GATE_CURRENT.md | ungrouped | no | no | missing |
-| local/state/ops/parity/parity_trend_history.jsonl | ungrouped | no | no | missing |
+| local/workspace/reports/PARITY_END_TO_END_REPLAY_CURRENT.md | ungrouped | no | yes | 8805e445a7e955d62eafde3badc21ecec38cae48d949682a5a017cea5d64a298 |
+| local/workspace/reports/PARITY_TREND_CURRENT.md | ungrouped | no | yes | dd4d060fb2b91df98658248d938deb531ec8daaa21978b9e6cae23ad2ad0f0f3 |
+| local/workspace/reports/PARITY_RELEASE_GATE_CURRENT.md | ungrouped | no | yes | e2aa0206203d1f322199965fb3fae0b7a2fe481848201b2658ec4fc2750543c7 |
+| local/state/ops/parity/parity_trend_history.jsonl | ungrouped | no | yes | 76525d0e5a4d7f63026f75602128c7b4c911d88cbf685d70ee5bd58f70329fc3 |
 | local/workspace/reports/GEM_LIVE_PROVIDER_SMOKE_CURRENT.md | ungrouped | no | yes | 2cf487f0df6555f15a4259079aa830bdcbbf57f882226d99f2abb4d4353a0302 |
 | local/workspace/reports/GEM_MEMORY_DURABILITY_CURRENT.md | ungrouped | no | yes | 7093d7a1714bd7ff14e7357439f9bd1aedb79ba06e9f519cefb81cc922d7fb89 |
 | local/workspace/reports/GEM_SUBAGENT_ROUTE_CONTRACT_CURRENT.md | ungrouped | no | yes | 9cb8f8f0b2783b7295daf3ca0e0937543e27a26493c927375b3f4ff506b3143b |
@@ -203,9 +204,9 @@
 | local/workspace/reports/CHAT_RENDERING_EXPERIENCE_GUARD_CURRENT.md | ungrouped | no | yes | e46e5967609a35c250e5a5407319a823998f7079160a34d8b8a0c13d74d7a541 |
 
 ## Category summary
-- runtime_proof: present=29/30;required=29/30;required_missing=1;required_completeness=0.967;required_min=1.000
+- runtime_proof: present=30/30;required=30/30;required_missing=0;required_completeness=1.000;required_min=1.000
 - adapter_and_orchestration: present=14/14;required=14/14;required_missing=0;required_completeness=1.000;required_min=1.000
-- release_governance: present=28/31;required=28/31;required_missing=3;required_completeness=0.903;required_min=1.000
-- workload_and_quality: present=37/40;required=37/40;required_missing=3;required_completeness=0.925;required_min=1.000
-- ungrouped: present=68/77;required=0/0;required_missing=0;required_completeness=1.000
+- release_governance: present=32/32;required=32/32;required_missing=0;required_completeness=1.000;required_min=1.000
+- workload_and_quality: present=40/40;required=40/40;required_missing=0;required_completeness=1.000;required_min=1.000
+- ungrouped: present=76/77;required=0/0;required_missing=0;required_completeness=1.000
 

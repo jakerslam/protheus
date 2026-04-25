@@ -36,8 +36,8 @@
       "owner": "runtime-proof",
       "status": "active",
       "validation_gates": [
-        "ops:runtime-proof:verify",
-        "ops:boundedness:release-gate"
+        "ops:boundedness:release-gate",
+        "ops:runtime-proof:verify"
       ],
       "evidence_artifacts": [
         "core/local/artifacts/runtime_boundedness_72h_evidence_current.json",
