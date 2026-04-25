@@ -392,6 +392,18 @@ fn forgecode_assimilation_request_selects_forgecode_workflow_template_and_lane_a
         package.workflow_template,
         infring_orchestration_surface_v1::contracts::WorkflowTemplate::ForgeCodeAgentComposition
     );
+    let workflow_quality = match &package.workflow_quality {
+        Some(infring_orchestration_surface_v1::contracts::WorkflowQualitySignals::ForgeCode(
+            signals,
+        )) => signals,
+        other => panic!("expected ForgeCode workflow quality signals, got {other:?}"),
+    };
+    assert!(workflow_quality.mcp_alias_route_required);
+    assert!(workflow_quality.semantic_discovery_route_required);
+    assert!(workflow_quality.subagent_result_synthesis_required);
+    assert!(workflow_quality
+        .mcp_diagnostic_summary
+        .starts_with("mcp_diag:"));
     assert!(package
         .control_plane_lifecycle
         .next_actions
