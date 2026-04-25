@@ -2430,6 +2430,30 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__follow_up_with_question.snap",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_create_basic.snap"
       ]
+    },
+    {
+      "id": "forgecode_structured_file_mutation_diff_and_warning_snapshot_contracts",
+      "description": "Structured ForgeCode lane that projects file mutation output receipts for overwrite/create/patch diffs and syntax-warning envelopes into staged orchestration workflow contracts.",
+      "required_signals": [
+        "fs_create_overwrite_projects_file_overwritten_receipt_with_path_total_lines_and_inline_file_diff",
+        "file_mutation_diff_receipts_use_cdata_body_for_minus_plus_context_line_projection",
+        "fs_create_warning_receipt_nests_warning_message_file_details_error_rows_and_suggestion",
+        "syntax_warning_receipt_supports_multiple_error_entries_with_line_column_and_cdata_error_text",
+        "fs_patch_success_projects_file_diff_receipt_with_path_total_lines_and_context_preserving_diff_body",
+        "fs_patch_warning_combines_diff_receipt_with_syntax_validation_warning_envelope",
+        "file_mutation_warning_details_state_write_success_with_syntax_error_count_without_collapsing_success_receipt"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_create_overwrite.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_create_with_warning.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_create_with_warning_xml_tags.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_patch_basic.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_patch_with_warning.snap"
+      ]
     }
   ],
   "workflow_templates": [
