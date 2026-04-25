@@ -838,6 +838,33 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/permissions.default.yaml",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/policy.rs"
       ]
+    },
+    {
+      "id": "forgecode_raw_provider_auth_range_sync_and_template_contracts",
+      "description": "Raw-capability ForgeCode lane adapted from provider auth, provider rendering, range, sync, and template primitives to expose deterministic credential, workspace-sync, and rendering mechanics without composed-lane assumptions.",
+      "required_signals": [
+        "provider_auth_raw_init_fetches_provider_url_params_for_api_key_like_flows_and_threads_existing_credential_params_into_request_context",
+        "provider_auth_raw_complete_maps_vertex_google_adc_marker_code_device_and_codex_device_contexts_to_auth_methods_then_upserts_completed_credential",
+        "provider_auth_raw_refresh_checks_needs_refresh_with_five_minute_buffer_and_stops_after_first_successful_refresh_store",
+        "provider_service_raw_render_url_template_substitutes_credential_params_through_handlebars_and_parses_rendered_url",
+        "provider_service_raw_get_all_providers_converts_only_configured_template_providers_to_url_providers_and_returns_all_others_as_is",
+        "range_raw_resolver_normalizes_missing_or_zero_bounds_orders_start_end_and_saturating_clamps_end_to_max_size_window",
+        "sync_raw_engine_discovers_files_reads_hashes_collects_failed_read_statuses_fetches_remote_hashes_and_builds_status_diff_plan",
+        "sync_raw_engine_batches_deletes_and_uploads_counts_failures_continues_after_upload_errors_and_returns_sync_failed_when_failed_files_remain",
+        "sync_raw_engine_emits_progress_for_discovery_file_counts_comparison_diff_counter_updates_and_completion_summary",
+        "template_raw_service_uses_oncecell_rwlock_handlebars_registry_skips_registered_template_names_compiles_lowercase_md_as_handlebars_and_other_files_as_raw_strings"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/provider_auth.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/provider_service.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/range.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/sync.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/template.rs"
+      ]
     }
   ],
   "workflow_templates": [
@@ -1207,6 +1234,33 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/metadata.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/permissions.default.yaml",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/policy.rs"
+      ]
+    },
+    {
+      "id": "forgecode_raw_provider_auth_range_sync_and_template_contracts",
+      "description": "Raw-capability ForgeCode lane adapted from provider auth, provider rendering, range, sync, and template primitives to expose deterministic credential, workspace-sync, and rendering mechanics without composed-lane assumptions.",
+      "required_signals": [
+        "provider_auth_raw_init_fetches_provider_url_params_for_api_key_like_flows_and_threads_existing_credential_params_into_request_context",
+        "provider_auth_raw_complete_maps_vertex_google_adc_marker_code_device_and_codex_device_contexts_to_auth_methods_then_upserts_completed_credential",
+        "provider_auth_raw_refresh_checks_needs_refresh_with_five_minute_buffer_and_stops_after_first_successful_refresh_store",
+        "provider_service_raw_render_url_template_substitutes_credential_params_through_handlebars_and_parses_rendered_url",
+        "provider_service_raw_get_all_providers_converts_only_configured_template_providers_to_url_providers_and_returns_all_others_as_is",
+        "range_raw_resolver_normalizes_missing_or_zero_bounds_orders_start_end_and_saturating_clamps_end_to_max_size_window",
+        "sync_raw_engine_discovers_files_reads_hashes_collects_failed_read_statuses_fetches_remote_hashes_and_builds_status_diff_plan",
+        "sync_raw_engine_batches_deletes_and_uploads_counts_failures_continues_after_upload_errors_and_returns_sync_failed_when_failed_files_remain",
+        "sync_raw_engine_emits_progress_for_discovery_file_counts_comparison_diff_counter_updates_and_completion_summary",
+        "template_raw_service_uses_oncecell_rwlock_handlebars_registry_skips_registered_template_names_compiles_lowercase_md_as_handlebars_and_other_files_as_raw_strings"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/provider_auth.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/provider_service.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/range.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/sync.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/template.rs"
       ]
     }
   ]

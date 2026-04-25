@@ -2229,6 +2229,33 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/permissions.default.yaml",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/policy.rs"
       ]
+    },
+    {
+      "id": "forgecode_structured_provider_auth_range_sync_and_template_contracts",
+      "description": "Structured ForgeCode lane that projects provider authentication, provider URL rendering, line-range normalization, workspace sync, and template registration mechanics into staged orchestration flow.",
+      "required_signals": [
+        "provider_auth_init_uses_provider_url_params_for_api_key_and_google_adc_flows_and_prefills_existing_credentials_with_adc_marker_awareness",
+        "provider_auth_complete_infers_api_key_google_adc_oauth_code_oauth_device_and_codex_device_methods_from_context_response_before_credential_persistence",
+        "provider_auth_refresh_uses_five_minute_expiry_buffer_attempts_refreshable_methods_and_keeps_existing_credentials_when_refresh_or_store_fails",
+        "provider_service_renders_configured_template_providers_to_url_providers_using_credential_url_params_and_leaves_unconfigured_templates_unrendered",
+        "provider_service_delegates_chat_models_credential_upsert_removal_and_env_migration_to_repository_without_local_shadow_state",
+        "range_resolver_defaults_start_to_one_swaps_inverted_ranges_clamps_to_max_size_and_returns_single_line_range_when_max_size_is_zero",
+        "workspace_sync_canonicalizes_workspace_paths_with_context_and_discovers_indexable_files_before_remote_hash_comparison",
+        "workspace_sync_emits_discover_compare_diff_progress_and_completion_events_and_fails_closed_when_read_upload_or_delete_failures_remain",
+        "workspace_sync_keeps_memory_bounded_by_hashing_first_then_batching_sequential_upload_payloads_by_batch_size",
+        "template_service_lazily_initializes_handlebars_registers_unregistered_files_only_reads_templates_in_parallel_and_treats_md_as_handlebars_while_non_md_is_raw"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/provider_auth.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/provider_service.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/range.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/sync.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/template.rs"
+      ]
     }
   ],
   "workflow_templates": [
@@ -2573,6 +2600,33 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/metadata.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/permissions.default.yaml",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/policy.rs"
+      ]
+    },
+    {
+      "id": "forgecode_structured_provider_auth_range_sync_and_template_contracts",
+      "description": "Structured ForgeCode lane that projects provider authentication, provider URL rendering, line-range normalization, workspace sync, and template registration mechanics into staged orchestration flow.",
+      "required_signals": [
+        "provider_auth_init_uses_provider_url_params_for_api_key_and_google_adc_flows_and_prefills_existing_credentials_with_adc_marker_awareness",
+        "provider_auth_complete_infers_api_key_google_adc_oauth_code_oauth_device_and_codex_device_methods_from_context_response_before_credential_persistence",
+        "provider_auth_refresh_uses_five_minute_expiry_buffer_attempts_refreshable_methods_and_keeps_existing_credentials_when_refresh_or_store_fails",
+        "provider_service_renders_configured_template_providers_to_url_providers_using_credential_url_params_and_leaves_unconfigured_templates_unrendered",
+        "provider_service_delegates_chat_models_credential_upsert_removal_and_env_migration_to_repository_without_local_shadow_state",
+        "range_resolver_defaults_start_to_one_swaps_inverted_ranges_clamps_to_max_size_and_returns_single_line_range_when_max_size_is_zero",
+        "workspace_sync_canonicalizes_workspace_paths_with_context_and_discovers_indexable_files_before_remote_hash_comparison",
+        "workspace_sync_emits_discover_compare_diff_progress_and_completion_events_and_fails_closed_when_read_upload_or_delete_failures_remain",
+        "workspace_sync_keeps_memory_bounded_by_hashing_first_then_batching_sequential_upload_payloads_by_batch_size",
+        "template_service_lazily_initializes_handlebars_registers_unregistered_files_only_reads_templates_in_parallel_and_treats_md_as_handlebars_while_non_md_is_raw"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/provider_auth.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/provider_service.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/range.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/sync.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/template.rs"
       ]
     }
   ]
