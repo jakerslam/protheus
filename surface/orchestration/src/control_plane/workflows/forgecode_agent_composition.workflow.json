@@ -2125,6 +2125,31 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/zsh/plugin.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_main/src/zsh/style.rs"
       ]
+    },
+    {
+      "id": "forgecode_structured_service_state_config_auth_workspace_and_conversation_contracts",
+      "description": "Structured ForgeCode lane that projects service-layer state mechanics (active-agent cache, latest config reads, service auth fetches, workspace sync/index lookup, and conversation persistence mutation) into staged orchestration flow.",
+      "required_signals": [
+        "service_agent_registry_lazily_loads_repository_agents_and_invalidates_cache_on_reload",
+        "service_agent_registry_tracks_active_agent_id_under_async_lock_without_shell_authority",
+        "service_app_config_reads_latest_environment_config_for_session_commit_suggest_and_reasoning_effort",
+        "service_app_config_updates_environment_via_config_operations_with_traceable_ops_payload",
+        "service_auth_fetches_user_info_and_usage_from_services_url_with_bearer_header_and_status_guard",
+        "service_workspace_sync_requires_forge_services_credential_user_id_and_exact_or_ancestor_workspace_lookup",
+        "service_workspace_sync_canonicalizes_workspace_root_before_progress_streaming_index_run",
+        "service_conversation_modify_loads_existing_conversation_applies_closure_and_upserts_atomically"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/agent_registry.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/app_config.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/auth.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/context_engine.rs",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/conversation.rs"
+      ]
     }
   ],
   "workflow_templates": [
