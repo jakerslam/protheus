@@ -468,7 +468,13 @@ function main(): void {
     }
   }
 
-  const closureLike = gateIds(tooling).filter((id) => /closure|scaffold|assimilation/i.test(id));
+  const allToolingGateIds = gateIds(tooling);
+  const unclassifiedToolingGates = allToolingGateIds.filter((id) => !classifiedIds.has(id));
+  for (const id of unclassifiedToolingGates.slice(0, 100)) {
+    addFinding(findings, 'unclassified_tooling_gate', 'fail', 'Every registered tooling gate must have a test maturity classification.', id);
+  }
+
+  const closureLike = allToolingGateIds.filter((id) => /closure|scaffold|assimilation/i.test(id));
   const unclassifiedClosureLike = closureLike.filter((id) => !classifiedIds.has(id));
   for (const id of unclassifiedClosureLike.slice(0, 50)) {
     addFinding(findings, 'unclassified_closure_like_gate', 'info', 'Closure/scaffold-like gate should be classified before it becomes permanent debt.', id);
@@ -523,6 +529,7 @@ function main(): void {
     summary: {
       classified_gates: entries.length,
       tooling_gate_count: toolingIds.size,
+      classified_tooling_gate_count: entries.filter((entry) => toolingIds.has(entry.gate_id)).length,
       scaffold_count: scaffoldCount,
       temporary_monitor_count: monitorCount,
       runtime_crutch_count: runtimeCrutchCount,
@@ -530,6 +537,7 @@ function main(): void {
       release_evidence_gate_count: releaseGateCount,
       architecture_drift_guard_count: architectureGuardCount,
       expired_scaffold_count: expiredScaffoldCount,
+      unclassified_tooling_gate_count: unclassifiedToolingGates.length,
       unclassified_closure_like_gate_count: unclassifiedClosureLike.length,
       retirement_candidates: retirementPayload.summary.retirement_candidates,
       monitors_blocked_by_regression: retirementPayload.summary.blocked_by_regression,

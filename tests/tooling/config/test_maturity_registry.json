@@ -22,6 +22,7 @@
       "temporary_monitor": "down"
     },
     "hard_rules": [
+      "all registered tooling gates require a maturity classification before release evidence can pass",
       "temporary_scaffold entries require scaffold_reason, expires_after, migration_target, and delete_when",
       "temporary_monitor entries require scaffold_reason, success_criteria, migration_target, retirement_action, delete_when, and target_runtime_owner",
       "runtime_crutch entries require weakness_indicator, target_runtime_owner, and migration_target",
@@ -325,6 +326,1152 @@
         "max_regressions_allowed": 0
       },
       "retirement_action": "emit_retirement_backlog_item"
+    },
+    {
+      "gate_id": "audit:client-import-integrity",
+      "classification": "architecture_drift_guard",
+      "invariant": "Client import integrity audit.",
+      "strengthen_signal": "If audit:client-import-integrity repeatedly fails or requires special-case scaffolding, strengthen shell/runtime_projection so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "shell/client surface and import boundaries",
+      "runtime_enforced_by": "shell/runtime_projection",
+      "validation_scope": "audit:client-import-integrity static drift/conformance validation."
+    },
+    {
+      "gate_id": "audit:module-cohesion",
+      "classification": "architecture_drift_guard",
+      "invariant": "Module cohesion policy audit with explicit output paths.",
+      "strengthen_signal": "If audit:module-cohesion repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "static governance and architecture drift surface",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "audit:module-cohesion static drift/conformance validation."
+    },
+    {
+      "gate_id": "audit:shell-layer-boundary",
+      "classification": "architecture_drift_guard",
+      "invariant": "Shell layer boundary audit with explicit artifact output.",
+      "strengthen_signal": "If audit:shell-layer-boundary repeatedly fails or requires special-case scaffolding, strengthen shell/runtime_projection so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "shell/client surface and import boundaries",
+      "runtime_enforced_by": "shell/runtime_projection",
+      "validation_scope": "audit:shell-layer-boundary static drift/conformance validation."
+    },
+    {
+      "gate_id": "audit:shell-scope-inventory",
+      "classification": "architecture_drift_guard",
+      "invariant": "Shell scope inventory.",
+      "strengthen_signal": "If audit:shell-scope-inventory repeatedly fails or requires special-case scaffolding, strengthen shell/runtime_projection so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "shell/client surface and import boundaries",
+      "runtime_enforced_by": "shell/runtime_projection",
+      "validation_scope": "audit:shell-scope-inventory static drift/conformance validation."
+    },
+    {
+      "gate_id": "audit:shell-surface-disposition",
+      "classification": "architecture_drift_guard",
+      "invariant": "Shell surface disposition inventory.",
+      "strengthen_signal": "If audit:shell-surface-disposition repeatedly fails or requires special-case scaffolding, strengthen shell/runtime_projection so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "shell/client surface and import boundaries",
+      "runtime_enforced_by": "shell/runtime_projection",
+      "validation_scope": "audit:shell-surface-disposition static drift/conformance validation."
+    },
+    {
+      "gate_id": "audit:shell-target-contract",
+      "classification": "self_enforcement_validator",
+      "invariant": "Shell target contract audit.",
+      "strengthen_signal": "If audit:shell-target-contract repeatedly fails or requires special-case scaffolding, strengthen shell/runtime_projection so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "shell/runtime_projection",
+      "validation_scope": "audit:shell-target-contract behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "cargo:v8-runtime-proof",
+      "classification": "architecture_drift_guard",
+      "invariant": "Rust runtime proof regression for Layer 0 ops.",
+      "strengthen_signal": "If cargo:v8-runtime-proof repeatedly fails or requires special-case scaffolding, strengthen kernel/runtime so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "static governance and architecture drift surface",
+      "runtime_enforced_by": "kernel/runtime",
+      "validation_scope": "cargo:v8-runtime-proof static drift/conformance validation."
+    },
+    {
+      "gate_id": "chaos:continuous:gate",
+      "classification": "self_enforcement_validator",
+      "invariant": "Continuous chaos resilience gate.",
+      "strengthen_signal": "If chaos:continuous:gate repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "chaos:continuous:gate behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "dr:gameday",
+      "classification": "self_enforcement_validator",
+      "invariant": "Recovery rehearsal run.",
+      "strengthen_signal": "If dr:gameday repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "dr:gameday behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "dr:gameday:gate",
+      "classification": "self_enforcement_validator",
+      "invariant": "Recovery rehearsal gate.",
+      "strengthen_signal": "If dr:gameday:gate repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "dr:gameday:gate behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:agent-surface:status:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Agent surface support-level/status manifest guard.",
+      "strengthen_signal": "If ops:agent-surface:status:guard repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:agent-surface:status:guard behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:arch:boundary:audit",
+      "classification": "architecture_drift_guard",
+      "invariant": "Architecture boundary audit.",
+      "strengthen_signal": "If ops:arch:boundary:audit repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "architecture/layer/nexus conformance",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:arch:boundary:audit static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:arch:conformance",
+      "classification": "architecture_drift_guard",
+      "invariant": "Architecture boundary conformance guard.",
+      "strengthen_signal": "If ops:arch:conformance repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "architecture/layer/nexus conformance",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:arch:conformance static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:arch:governance",
+      "classification": "architecture_drift_guard",
+      "invariant": "Architecture governance contract.",
+      "strengthen_signal": "If ops:arch:governance repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "architecture/layer/nexus conformance",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:arch:governance static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:architecture:nexus-required-artifact:guard",
+      "classification": "architecture_drift_guard",
+      "invariant": "Architecture conformance guard that requires Kernel nexus coupling evidence in gate registry and release proof-pack manifests.",
+      "strengthen_signal": "If ops:architecture:nexus-required-artifact:guard repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "architecture/layer/nexus conformance",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:architecture:nexus-required-artifact:guard static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:benchmark:class-trends",
+      "classification": "self_enforcement_validator",
+      "invariant": "Benchmark class-trend publication gate (kernel/shared, governed command path, realistic workload, artifact size).",
+      "strengthen_signal": "If ops:benchmark:class-trends repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:benchmark:class-trends behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:benchmark:public-audit",
+      "classification": "self_enforcement_validator",
+      "invariant": "Benchmark public audit gate.",
+      "strengthen_signal": "If ops:benchmark:public-audit repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:benchmark:public-audit behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:benchmark:public-harness",
+      "classification": "self_enforcement_validator",
+      "invariant": "Public benchmark harness reproducibility artifact.",
+      "strengthen_signal": "If ops:benchmark:public-harness repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:benchmark:public-harness behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:benchmark:sanity",
+      "classification": "self_enforcement_validator",
+      "invariant": "Benchmark sanity gate.",
+      "strengthen_signal": "If ops:benchmark:sanity repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:benchmark:sanity behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:boundedness:inspect",
+      "classification": "self_enforcement_validator",
+      "invariant": "Boundedness controller inspect command and artifact generation.",
+      "strengthen_signal": "If ops:boundedness:inspect repeatedly fails or requires special-case scaffolding, strengthen kernel/runtime so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "kernel/runtime",
+      "validation_scope": "ops:boundedness:inspect behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:boundedness:release-gate",
+      "classification": "release_evidence_gate",
+      "invariant": "Release-class boundedness evidence gate across rich/pure/tiny-max profiles.",
+      "strengthen_signal": "If ops:boundedness:release-gate repeatedly fails or requires special-case scaffolding, strengthen kernel/runtime so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "kernel/runtime",
+      "proof_artifact": "core/local/artifacts/runtime_boundedness_release_gate_current.json",
+      "validation_scope": "ops:boundedness:release-gate release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:capability-proof-burden:guard",
+      "classification": "release_evidence_gate",
+      "invariant": "Capability proof-burden contract guard for PR templates, policy markers, and PR metadata mapping for net-new capability ownership + proof/gate coverage.",
+      "strengthen_signal": "If ops:capability-proof-burden:guard repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "proof_artifact": "core/local/artifacts/capability_proof_burden_guard_current.json",
+      "validation_scope": "ops:capability-proof-burden:guard release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:chat-rendering:experience:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Chat rendering experience guard for source chips, tool traces, workspace panel, metadata actions, thinking status, and markdown code/table ergonomics.",
+      "strengthen_signal": "If ops:chat-rendering:experience:guard repeatedly fails or requires special-case scaffolding, strengthen shell/runtime_projection so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "shell/runtime_projection",
+      "validation_scope": "ops:chat-rendering:experience:guard behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:churn:commit-gate",
+      "classification": "architecture_drift_guard",
+      "invariant": "Repository churn commit gate.",
+      "strengthen_signal": "If ops:churn:commit-gate repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "workspace churn and generated output hygiene",
+      "runtime_enforced_by": null,
+      "validation_scope": "ops:churn:commit-gate static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:ci-quality:check",
+      "classification": "release_evidence_gate",
+      "invariant": "CI quality scorecard contract.",
+      "strengthen_signal": "If ops:ci-quality:check repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "proof_artifact": "core/local/artifacts/ci_quality_scorecard_current.json",
+      "validation_scope": "ops:ci-quality:check release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:ci-workflow:check",
+      "classification": "self_enforcement_validator",
+      "invariant": "CI workflow rationalization contract guard.",
+      "strengthen_signal": "If ops:ci-workflow:check repeatedly fails or requires special-case scaffolding, strengthen surface/orchestration so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "surface/orchestration",
+      "validation_scope": "ops:ci-workflow:check behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:command-registry:check",
+      "classification": "self_enforcement_validator",
+      "invariant": "Command registry contract check.",
+      "strengthen_signal": "If ops:command-registry:check repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:command-registry:check behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:dashboard:segment-ghost:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Fail when tracked dashboard segment part files use ghost/backup suffixes.",
+      "strengthen_signal": "If ops:dashboard:segment-ghost:guard repeatedly fails or requires special-case scaffolding, strengthen shell/runtime_projection so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "shell/runtime_projection",
+      "validation_scope": "ops:dashboard:segment-ghost:guard behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:dashboard:surface:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Authoritative dashboard surface + runtime freshness metadata guard.",
+      "strengthen_signal": "If ops:dashboard:surface:guard repeatedly fails or requires special-case scaffolding, strengthen shell/runtime_projection so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "shell/runtime_projection",
+      "validation_scope": "ops:dashboard:surface:guard behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:dashboard:svelte-shell-contract:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Fail when dashboard Svelte shell wrappers lack transparent/layout-host/interactive-surface contracts.",
+      "strengthen_signal": "If ops:dashboard:svelte-shell-contract:guard repeatedly fails or requires special-case scaffolding, strengthen shell/runtime_projection so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "shell/runtime_projection",
+      "validation_scope": "ops:dashboard:svelte-shell-contract:guard behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:debt:expiry:guard",
+      "classification": "architecture_drift_guard",
+      "invariant": "Debt expiry guard.",
+      "strengthen_signal": "If ops:debt:expiry:guard repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "static governance and architecture drift surface",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:debt:expiry:guard static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:dependency-boundary:check",
+      "classification": "architecture_drift_guard",
+      "invariant": "Dependency boundary policy gate.",
+      "strengthen_signal": "If ops:dependency-boundary:check repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "dependency/import boundary graph",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:dependency-boundary:check static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:dod:gate",
+      "classification": "self_enforcement_validator",
+      "invariant": "Definition-of-done gate.",
+      "strengthen_signal": "If ops:dod:gate repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:dod:gate behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:effective-loc:contract:guard",
+      "classification": "release_evidence_gate",
+      "invariant": "Fail-closed guard proving canonical effective LoC metric definition, npm entrypoints, proof-pack evidence, and release profile wiring stay aligned.",
+      "strengthen_signal": "If ops:effective-loc:contract:guard repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "proof_artifact": "core/local/artifacts/effective_loc_metric_contract_guard_current.json",
+      "validation_scope": "ops:effective-loc:contract:guard release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:effective-loc:metric",
+      "classification": "release_evidence_gate",
+      "invariant": "Canonical effective production LoC metric generator for tracked Rust/TypeScript production source counts.",
+      "strengthen_signal": "If ops:effective-loc:metric repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "proof_artifact": "core/local/artifacts/effective_loc_metric_current.json",
+      "validation_scope": "ops:effective-loc:metric release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:eval-agent:chat-monitor:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Live passive-memory chat monitor guard for eval-agent freshness and actionable troubleshooting feedback emission.",
+      "strengthen_signal": "If ops:eval-agent:chat-monitor:guard repeatedly fails or requires special-case scaffolding, strengthen orchestration/eval so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "orchestration/eval",
+      "validation_scope": "ops:eval-agent:chat-monitor:guard behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:eval:adversarial:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Adversarial eval suite guard covering quoted spoofing, tool-route spoofing, and template spam escapes.",
+      "strengthen_signal": "If ops:eval:adversarial:guard repeatedly fails or requires special-case scaffolding, strengthen orchestration/eval so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "orchestration/eval",
+      "validation_scope": "ops:eval:adversarial:guard behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:eval:autopilot:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Eval autopilot orchestration guard synthesizing quality/SLO/adversarial/issue-state signals into prioritized actionable operations.",
+      "strengthen_signal": "If ops:eval:autopilot:guard repeatedly fails or requires special-case scaffolding, strengthen orchestration/eval so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "orchestration/eval",
+      "validation_scope": "ops:eval:autopilot:guard behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:eval:issue:filing:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Eval issue drafting + safe filing policy guard with human-approval gating.",
+      "strengthen_signal": "If ops:eval:issue:filing:guard repeatedly fails or requires special-case scaffolding, strengthen orchestration/eval so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "orchestration/eval",
+      "validation_scope": "ops:eval:issue:filing:guard behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:eval:issue:resolution:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Eval issue patch-link closure tracking, fix-failed signaling, and dashboard panel payload.",
+      "strengthen_signal": "If ops:eval:issue:resolution:guard repeatedly fails or requires special-case scaffolding, strengthen orchestration/eval so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "orchestration/eval",
+      "validation_scope": "ops:eval:issue:resolution:guard behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:eval:judge-human:agreement:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Judge-vs-human agreement calibration guard for eval issue synthesis quality.",
+      "strengthen_signal": "If ops:eval:judge-human:agreement:guard repeatedly fails or requires special-case scaffolding, strengthen orchestration/eval so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "orchestration/eval",
+      "validation_scope": "ops:eval:judge-human:agreement:guard behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:eval:monitor:slo:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Eval monitor freshness/uptime SLO guard with alert threshold contracts.",
+      "strengthen_signal": "If ops:eval:monitor:slo:guard repeatedly fails or requires special-case scaffolding, strengthen orchestration/eval so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "orchestration/eval",
+      "validation_scope": "ops:eval:monitor:slo:guard behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:eval:quality:gate:v1",
+      "classification": "self_enforcement_validator",
+      "invariant": "RC-quality eval gate requiring threshold pass continuity before autonomous escalation enablement.",
+      "strengthen_signal": "If ops:eval:quality:gate:v1 repeatedly fails or requires special-case scaffolding, strengthen orchestration/eval so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "orchestration/eval",
+      "validation_scope": "ops:eval:quality:gate:v1 behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:eval:quality:metrics:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Eval quality metrics guard enforcing precision/recall/FPR/actionability/calibration thresholds and regression contracts from labeled gold dataset + monitor feedback.",
+      "strengthen_signal": "If ops:eval:quality:metrics:guard repeatedly fails or requires special-case scaffolding, strengthen orchestration/eval so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "orchestration/eval",
+      "validation_scope": "ops:eval:quality:metrics:guard behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:eval:reviewer:weekly:ingest",
+      "classification": "self_enforcement_validator",
+      "invariant": "Weekly reviewer feedback ingestion and calibration-delta report for eval quality.",
+      "strengthen_signal": "If ops:eval:reviewer:weekly:ingest repeatedly fails or requires special-case scaffolding, strengthen orchestration/eval so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "orchestration/eval",
+      "validation_scope": "ops:eval:reviewer:weekly:ingest behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:eval:runtime:authority:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Fail-closed guard ensuring eval authority lives in orchestration runtime and tests remain wrappers.",
+      "strengthen_signal": "If ops:eval:runtime:authority:guard repeatedly fails or requires special-case scaffolding, strengthen orchestration/eval so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "orchestration/eval",
+      "validation_scope": "ops:eval:runtime:authority:guard behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:file-size:gate",
+      "classification": "architecture_drift_guard",
+      "invariant": "Repository file size gate.",
+      "strengthen_signal": "If ops:file-size:gate repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "source file size and maintainability limits",
+      "runtime_enforced_by": null,
+      "validation_scope": "ops:file-size:gate static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:flaky:quarantine:audit",
+      "classification": "self_enforcement_validator",
+      "invariant": "Flaky quarantine audit.",
+      "strengthen_signal": "If ops:flaky:quarantine:audit repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:flaky:quarantine:audit behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:formal-spec:check",
+      "classification": "architecture_drift_guard",
+      "invariant": "Formal spec guard.",
+      "strengthen_signal": "If ops:formal-spec:check repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "static governance and architecture drift surface",
+      "runtime_enforced_by": null,
+      "validation_scope": "ops:formal-spec:check static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:gateway-boundary:guard",
+      "classification": "architecture_drift_guard",
+      "invariant": "Kernel-owned gateway boundary isolation, resource-bound, health, quarantine, and recovery receipt guard.",
+      "strengthen_signal": "If ops:gateway-boundary:guard repeatedly fails or requires special-case scaffolding, strengthen gateways/runtime-boundary so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "static governance and architecture drift surface",
+      "runtime_enforced_by": "gateways/runtime-boundary",
+      "validation_scope": "ops:gateway-boundary:guard static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:gateway-chaos:rust",
+      "classification": "self_enforcement_validator",
+      "invariant": "Rust-authoritative gateway chaos contract integration test.",
+      "strengthen_signal": "If ops:gateway-chaos:rust repeatedly fails or requires special-case scaffolding, strengthen gateways/runtime-boundary so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "gateways/runtime-boundary",
+      "validation_scope": "ops:gateway-chaos:rust behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:gateway-runtime-chaos:gate",
+      "classification": "release_evidence_gate",
+      "invariant": "Gateway runtime chaos gate across governed production gateways.",
+      "strengthen_signal": "If ops:gateway-runtime-chaos:gate repeatedly fails or requires special-case scaffolding, strengthen gateways/runtime-boundary so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "gateways/runtime-boundary",
+      "proof_artifact": "core/local/artifacts/gateway_runtime_chaos_gate_current.json",
+      "validation_scope": "ops:gateway-runtime-chaos:gate release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:gateway-status:manifest",
+      "classification": "release_evidence_gate",
+      "invariant": "Gateway status manifest for first-five production targets with support-level and uniform checklist contracts.",
+      "strengthen_signal": "If ops:gateway-status:manifest repeatedly fails or requires special-case scaffolding, strengthen gateways/runtime-boundary so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "gateways/runtime-boundary",
+      "proof_artifact": "core/local/artifacts/gateway_status_manifest_current.json",
+      "validation_scope": "ops:gateway-status:manifest release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:gem:memory:durability",
+      "classification": "self_enforcement_validator",
+      "invariant": "GEM persistent-memory durability lane verifying durable writes, bounded readback, and receipt-lineage replay contracts.",
+      "strengthen_signal": "If ops:gem:memory:durability repeatedly fails or requires special-case scaffolding, strengthen kernel/memory so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "kernel/memory",
+      "validation_scope": "ops:gem:memory:durability behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:gem:provider:live-smoke",
+      "classification": "release_evidence_gate",
+      "invariant": "GEM live-provider smoke lane for typed web_search/web_fetch production provider routing with deterministic skip diagnostics when credentials are absent.",
+      "strengthen_signal": "If ops:gem:provider:live-smoke repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "proof_artifact": "core/local/artifacts/gem_live_provider_smoke_current.json",
+      "validation_scope": "ops:gem:provider:live-smoke release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:gem:subagent-route:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "GEM subagent runtime route contract guard enforcing kernel-bound scheduling, deterministic receipts, and fail-closed fallback semantics.",
+      "strengthen_signal": "If ops:gem:subagent-route:guard repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:gem:subagent-route:guard behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:incident-governance:gate",
+      "classification": "architecture_drift_guard",
+      "invariant": "Incident operations governance contract guard (severity taxonomy, ownership roster, escalation SLA, rollback, post-incident schema, waivers, and process headings).",
+      "strengthen_signal": "If ops:incident-governance:gate repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "static governance and architecture drift surface",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:incident-governance:gate static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:ipc-bridge:soak",
+      "classification": "release_evidence_gate",
+      "invariant": "Resident IPC bridge stability soak for release readiness evidence.",
+      "strengthen_signal": "If ops:ipc-bridge:soak repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "proof_artifact": "artifacts/ops_ipc_bridge_stability_soak_report_latest.json",
+      "validation_scope": "ops:ipc-bridge:soak release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:kernel-naming:guard",
+      "classification": "architecture_drift_guard",
+      "invariant": "Kernel naming policy guard.",
+      "strengthen_signal": "If ops:kernel-naming:guard repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "static governance and architecture drift surface",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:kernel-naming:guard static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:layer0-ops:authority:audit",
+      "classification": "architecture_drift_guard",
+      "invariant": "Layer 0 ops authority domain audit.",
+      "strengthen_signal": "If ops:layer0-ops:authority:audit repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "architecture/layer/nexus conformance",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:layer0-ops:authority:audit static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:layer2:parity:guard",
+      "classification": "architecture_drift_guard",
+      "invariant": "Layer2 execution lane parity matrix guard.",
+      "strengthen_signal": "If ops:layer2:parity:guard repeatedly fails or requires special-case scaffolding, strengthen kernel/runtime so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "architecture/layer/nexus conformance",
+      "runtime_enforced_by": "kernel/runtime",
+      "validation_scope": "ops:layer2:parity:guard static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:layer2:receipt:replay",
+      "classification": "architecture_drift_guard",
+      "invariant": "Deterministic replay validation for Layer2 receipt bundles.",
+      "strengthen_signal": "If ops:layer2:receipt:replay repeatedly fails or requires special-case scaffolding, strengthen kernel/runtime so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "architecture/layer/nexus conformance",
+      "runtime_enforced_by": "kernel/runtime",
+      "validation_scope": "ops:layer2:receipt:replay static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:layer3:contract:guard",
+      "classification": "architecture_drift_guard",
+      "invariant": "Layer3 contract guard for execution-unit model, scheduler boundary, and module mapping coverage.",
+      "strengthen_signal": "If ops:layer3:contract:guard repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "architecture/layer/nexus conformance",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:layer3:contract:guard static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:legacy-alias:guard",
+      "classification": "architecture_drift_guard",
+      "invariant": "Legacy alias guard.",
+      "strengthen_signal": "If ops:legacy-alias:guard repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "static governance and architecture drift surface",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:legacy-alias:guard static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:legacy-runner:release-guard",
+      "classification": "release_evidence_gate",
+      "invariant": "Legacy process runner release guard.",
+      "strengthen_signal": "If ops:legacy-runner:release-guard repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "proof_artifact": "core/local/artifacts/legacy_process_runner_release_guard_current.json",
+      "validation_scope": "ops:legacy-runner:release-guard release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:license:spdx-story:gate",
+      "classification": "architecture_drift_guard",
+      "invariant": "License SPDX story gate.",
+      "strengthen_signal": "If ops:license:spdx-story:gate repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "static governance and architecture drift surface",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:license:spdx-story:gate static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:maintainability-maps:guard",
+      "classification": "architecture_drift_guard",
+      "invariant": "Kernel-owned maintainability maps, dependency graph, ownership map, and continuous deletion-ratio guard.",
+      "strengthen_signal": "If ops:maintainability-maps:guard repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "static governance and architecture drift surface",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:maintainability-maps:guard static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:nexus:kernel-coupling:guard",
+      "classification": "architecture_drift_guard",
+      "invariant": "Core nexus coupling guard with forbidden-direct-nexus and layer0 allowlist enforcement.",
+      "strengthen_signal": "If ops:nexus:kernel-coupling:guard repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "architecture/layer/nexus conformance",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:nexus:kernel-coupling:guard static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:node-critical-path:inventory",
+      "classification": "self_enforcement_validator",
+      "invariant": "Node-critical operator path inventory with owned burn-down plan, domain/date ownership checks, and TypeScript confinement enforcement.",
+      "strengthen_signal": "If ops:node-critical-path:inventory repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:node-critical-path:inventory behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:operator-critical:guard",
+      "classification": "release_evidence_gate",
+      "invariant": "Rust-native operator-critical status, recovery, and release entrypoint burn-down guard.",
+      "strengthen_signal": "If ops:operator-critical:guard repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "proof_artifact": "core/local/artifacts/operator_critical_burndown_current.json",
+      "validation_scope": "ops:operator-critical:guard release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:orchestration-naming:guard",
+      "classification": "architecture_drift_guard",
+      "invariant": "Orchestration naming policy guard.",
+      "strengthen_signal": "If ops:orchestration-naming:guard repeatedly fails or requires special-case scaffolding, strengthen surface/orchestration so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "static governance and architecture drift surface",
+      "runtime_enforced_by": "surface/orchestration",
+      "validation_scope": "ops:orchestration-naming:guard static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:orchestration:contract:guard",
+      "classification": "architecture_drift_guard",
+      "invariant": "Orchestration boundary contract guard.",
+      "strengthen_signal": "If ops:orchestration:contract:guard repeatedly fails or requires special-case scaffolding, strengthen surface/orchestration so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "static governance and architecture drift surface",
+      "runtime_enforced_by": "surface/orchestration",
+      "validation_scope": "ops:orchestration:contract:guard static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:orchestration:gateway-fallback:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Typed-surface gateway fallback regression guard.",
+      "strengthen_signal": "If ops:orchestration:gateway-fallback:guard repeatedly fails or requires special-case scaffolding, strengthen surface/orchestration so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "surface/orchestration",
+      "validation_scope": "ops:orchestration:gateway-fallback:guard behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:orchestration:hidden-state:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Hidden orchestration state guard.",
+      "strengthen_signal": "If ops:orchestration:hidden-state:guard repeatedly fails or requires special-case scaffolding, strengthen surface/orchestration so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "surface/orchestration",
+      "validation_scope": "ops:orchestration:hidden-state:guard behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:orchestration:planner-quality:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Planner quality evidence guard.",
+      "strengthen_signal": "If ops:orchestration:planner-quality:guard repeatedly fails or requires special-case scaffolding, strengthen surface/orchestration so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "surface/orchestration",
+      "validation_scope": "ops:orchestration:planner-quality:guard behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:orchestration:runtime-quality:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Orchestration runtime quality telemetry guard.",
+      "strengthen_signal": "If ops:orchestration:runtime-quality:guard repeatedly fails or requires special-case scaffolding, strengthen surface/orchestration so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "surface/orchestration",
+      "validation_scope": "ops:orchestration:runtime-quality:guard behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:orchestration:ts-boundary:guard",
+      "classification": "architecture_drift_guard",
+      "invariant": "Orchestration TS boundary guard.",
+      "strengthen_signal": "If ops:orchestration:ts-boundary:guard repeatedly fails or requires special-case scaffolding, strengthen surface/orchestration so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "static governance and architecture drift surface",
+      "runtime_enforced_by": "surface/orchestration",
+      "validation_scope": "ops:orchestration:ts-boundary:guard static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:orchestration:workflow-contract:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Control-plane workflow template and lifecycle contract guard.",
+      "strengthen_signal": "If ops:orchestration:workflow-contract:guard repeatedly fails or requires special-case scaffolding, strengthen surface/orchestration so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "surface/orchestration",
+      "validation_scope": "ops:orchestration:workflow-contract:guard behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:origin-integrity:certificate",
+      "classification": "release_evidence_gate",
+      "invariant": "Origin integrity certificate validation gate.",
+      "strengthen_signal": "If ops:origin-integrity:certificate repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "proof_artifact": "registry_only_no_json_artifact_declared",
+      "validation_scope": "ops:origin-integrity:certificate release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:origin-integrity:run",
+      "classification": "release_evidence_gate",
+      "invariant": "Origin integrity strict run gate.",
+      "strengthen_signal": "If ops:origin-integrity:run repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "proof_artifact": "registry_only_no_json_artifact_declared",
+      "validation_scope": "ops:origin-integrity:run release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:ownership:drift:weekly",
+      "classification": "self_enforcement_validator",
+      "invariant": "Weekly ownership drift severity-budget report with unresolved high-severity fail-close thresholds.",
+      "strengthen_signal": "If ops:ownership:drift:weekly repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:ownership:drift:weekly behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:parity:e2e:replay",
+      "classification": "release_evidence_gate",
+      "invariant": "End-to-end parity replay suite across typed probe routing, workspace/web tooling, synthesis, and recovery traces.",
+      "strengthen_signal": "If ops:parity:e2e:replay repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "proof_artifact": "core/local/artifacts/parity_end_to_end_replay_current.json",
+      "validation_scope": "ops:parity:e2e:replay release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:parity:release:gate",
+      "classification": "release_evidence_gate",
+      "invariant": "Release parity gate requiring parity artifacts and minimum score thresholds before release verdict pass.",
+      "strengthen_signal": "If ops:parity:release:gate repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "proof_artifact": "core/local/artifacts/parity_release_gate_current.json",
+      "validation_scope": "ops:parity:release:gate release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:parity:trend:report",
+      "classification": "release_evidence_gate",
+      "invariant": "Empirical parity trend report with per-gap score deltas and confidence bands.",
+      "strengthen_signal": "If ops:parity:trend:report repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "proof_artifact": "core/local/artifacts/parity_trend_current.json",
+      "validation_scope": "ops:parity:trend:report release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:policy-debt:summary",
+      "classification": "architecture_drift_guard",
+      "invariant": "Aggregated policy debt summary.",
+      "strengthen_signal": "If ops:policy-debt:summary repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "static governance and architecture drift surface",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:policy-debt:summary static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:production-topology:gate",
+      "classification": "release_evidence_gate",
+      "invariant": "Production topology diagnostic gate.",
+      "strengthen_signal": "If ops:production-topology:gate repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "proof_artifact": "core/local/artifacts/production_topology_diagnostic_current.json",
+      "validation_scope": "ops:production-topology:gate release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:production-topology:status",
+      "classification": "release_evidence_gate",
+      "invariant": "Operator production topology status diagnostic.",
+      "strengthen_signal": "If ops:production-topology:status repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "proof_artifact": "core/local/artifacts/production_topology_diagnostic_current.json",
+      "validation_scope": "ops:production-topology:status release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:public-platform:contract",
+      "classification": "self_enforcement_validator",
+      "invariant": "Public platform contract gate.",
+      "strengthen_signal": "If ops:public-platform:contract repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:public-platform:contract behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:queue-backpressure:policy:gate",
+      "classification": "self_enforcement_validator",
+      "invariant": "Deterministic queue/backpressure policy semantics gate.",
+      "strengthen_signal": "If ops:queue-backpressure:policy:gate repeatedly fails or requires special-case scaffolding, strengthen kernel/runtime so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "kernel/runtime",
+      "validation_scope": "ops:queue-backpressure:policy:gate behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:release-blockers:gate",
+      "classification": "release_evidence_gate",
+      "invariant": "Release blocker rubric gate.",
+      "strengthen_signal": "If ops:release-blockers:gate repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "proof_artifact": "core/local/artifacts/release_blocker_rubric_current.json",
+      "validation_scope": "ops:release-blockers:gate release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:release-contract:gate",
+      "classification": "release_evidence_gate",
+      "invariant": "Release contract gate.",
+      "strengthen_signal": "If ops:release-contract:gate repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "proof_artifact": "core/local/artifacts/release_contract_gate_current.json",
+      "validation_scope": "ops:release-contract:gate release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:release-hardening-window:guard",
+      "classification": "release_evidence_gate",
+      "invariant": "Release hardening window guard.",
+      "strengthen_signal": "If ops:release-hardening-window:guard repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "proof_artifact": "core/local/artifacts/release_hardening_window_guard_current.json",
+      "validation_scope": "ops:release-hardening-window:guard release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:release:proof-pack",
+      "classification": "release_evidence_gate",
+      "invariant": "Release proof-pack assembly gate.",
+      "strengthen_signal": "If ops:release:proof-pack repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "proof_artifact": "core/local/artifacts/release_proof_pack_current.json",
+      "validation_scope": "ops:release:proof-pack release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:release:rc-rehearsal",
+      "classification": "release_evidence_gate",
+      "invariant": "Release candidate dress rehearsal.",
+      "strengthen_signal": "If ops:release:rc-rehearsal repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "proof_artifact": "core/local/artifacts/release_candidate_dress_rehearsal_current.json",
+      "validation_scope": "ops:release:rc-rehearsal release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:release:scorecard:gate",
+      "classification": "release_evidence_gate",
+      "invariant": "Release numeric threshold scorecard gate.",
+      "strengthen_signal": "If ops:release:scorecard:gate repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "proof_artifact": "client/runtime/local/state/release/scorecard/release_scorecard.json",
+      "validation_scope": "ops:release:scorecard:gate release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:release:verdict",
+      "classification": "release_evidence_gate",
+      "invariant": "Aggregated release verdict artifact gate.",
+      "strengthen_signal": "If ops:release:verdict repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "proof_artifact": "core/local/artifacts/release_verdict_current.json",
+      "validation_scope": "ops:release:verdict release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:repo-health:check",
+      "classification": "architecture_drift_guard",
+      "invariant": "Repo health gate for package-script budget, file-size exception debt, shared tooling adoption, and root-surface drift.",
+      "strengthen_signal": "If ops:repo-health:check repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "static governance and architecture drift surface",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:repo-health:check static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:repo-surface:audit",
+      "classification": "architecture_drift_guard",
+      "invariant": "Repository surface contract audit.",
+      "strengthen_signal": "If ops:repo-surface:audit repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "static governance and architecture drift surface",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:repo-surface:audit static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:root-surface:audit",
+      "classification": "architecture_drift_guard",
+      "invariant": "Root surface contract audit.",
+      "strengthen_signal": "If ops:root-surface:audit repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "static governance and architecture drift surface",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:root-surface:audit static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:runtime-proof:verify",
+      "classification": "release_evidence_gate",
+      "invariant": "Runtime proof harness plus release-gate enforcement for rich/pure/tiny-max profiles with boundedness and soak evidence rollup.",
+      "strengthen_signal": "If ops:runtime-proof:verify repeatedly fails or requires special-case scaffolding, strengthen kernel/runtime so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "kernel/runtime",
+      "proof_artifact": "core/local/artifacts/runtime_proof_verify_current.json",
+      "validation_scope": "ops:runtime-proof:verify release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:rust-core-file-size:gate",
+      "classification": "architecture_drift_guard",
+      "invariant": "Rust core file size gate.",
+      "strengthen_signal": "If ops:rust-core-file-size:gate repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "source file size and maintainability limits",
+      "runtime_enforced_by": null,
+      "validation_scope": "ops:rust-core-file-size:gate static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:shell-naming:guard",
+      "classification": "architecture_drift_guard",
+      "invariant": "Shell naming policy guard.",
+      "strengthen_signal": "If ops:shell-naming:guard repeatedly fails or requires special-case scaffolding, strengthen shell/runtime_projection so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "shell/client surface and import boundaries",
+      "runtime_enforced_by": "shell/runtime_projection",
+      "validation_scope": "ops:shell-naming:guard static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:shell-transition:tracker",
+      "classification": "self_enforcement_validator",
+      "invariant": "Shell/Client compatibility-bridge tracker with explicit removal deadline enforcement.",
+      "strengthen_signal": "If ops:shell-transition:tracker repeatedly fails or requires special-case scaffolding, strengthen shell/runtime_projection so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "shell/runtime_projection",
+      "validation_scope": "ops:shell-transition:tracker behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:simplicity:audit",
+      "classification": "self_enforcement_validator",
+      "invariant": "Simplicity drift audit.",
+      "strengthen_signal": "If ops:simplicity:audit repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:simplicity:audit behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:srs:full:gate",
+      "classification": "self_enforcement_validator",
+      "invariant": "Full SRS gate.",
+      "strengthen_signal": "If ops:srs:full:gate repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:srs:full:gate behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:srs:full:regression",
+      "classification": "self_enforcement_validator",
+      "invariant": "Full SRS regression report.",
+      "strengthen_signal": "If ops:srs:full:regression repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:srs:full:regression behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:srs:same-revision:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Fail-closed guard requiring same-revision SRS row updates for net-new functionality signals (new source files, package scripts, tooling gate IDs).",
+      "strengthen_signal": "If ops:srs:same-revision:guard repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:srs:same-revision:guard behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:srs:todo-section:guard",
+      "classification": "release_evidence_gate",
+      "invariant": "Fail-closed guard that enforces SRS Global Rollup + SRS Section Checklist parity in TODO.",
+      "strengthen_signal": "If ops:srs:todo-section:guard repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "proof_artifact": "core/local/artifacts/srs_todo_section_guard_current.json",
+      "validation_scope": "ops:srs:todo-section:guard release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:stateful-upgrade-rollback:gate",
+      "classification": "self_enforcement_validator",
+      "invariant": "Stateful upgrade and rollback compatibility gate.",
+      "strengthen_signal": "If ops:stateful-upgrade-rollback:gate repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:stateful-upgrade-rollback:gate behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:strategic-contracts:audit",
+      "classification": "self_enforcement_validator",
+      "invariant": "Strategic contract registry audit.",
+      "strengthen_signal": "If ops:strategic-contracts:audit repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:strategic-contracts:audit behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:support-bundle:export",
+      "classification": "release_evidence_gate",
+      "invariant": "Support bundle export.",
+      "strengthen_signal": "If ops:support-bundle:export repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "proof_artifact": "core/local/artifacts/support_bundle_latest.json",
+      "validation_scope": "ops:support-bundle:export release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:synthesis:mixed-evidence:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Synthesis mixed-evidence quality guard with deterministic answer-shape contracts and contradiction clarification/recovery fail-close checks.",
+      "strengthen_signal": "If ops:synthesis:mixed-evidence:guard repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:synthesis:mixed-evidence:guard behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:system-health:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Kernel-owned system health, anomaly detection, bounded adaptation, and gateway capability discovery guard.",
+      "strengthen_signal": "If ops:system-health:guard repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:system-health:guard behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:system:fitness:gate",
+      "classification": "self_enforcement_validator",
+      "invariant": "System fitness gate.",
+      "strengthen_signal": "If ops:system:fitness:gate repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:system:fitness:gate behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:tech-debt:report",
+      "classification": "architecture_drift_guard",
+      "invariant": "Consolidated tech debt report.",
+      "strengthen_signal": "If ops:tech-debt:report repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "static governance and architecture drift surface",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:tech-debt:report static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:terminology:transition:inventory",
+      "classification": "self_enforcement_validator",
+      "invariant": "Kernel/Gateway terminology transition inventory + deprecation tracker guard for remaining core_/adapter_ operator-facing aliases.",
+      "strengthen_signal": "If ops:terminology:transition:inventory repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:terminology:transition:inventory behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:test-maturity:registry:guard",
+      "classification": "architecture_drift_guard",
+      "invariant": "Test/gate maturity registry guard classifying validators, temporary monitors, scaffolds, runtime crutches, release evidence gates, and architecture drift guards with success-criteria retirement backlog tracking.",
+      "strengthen_signal": "If ops:test-maturity:registry:guard repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "static governance and architecture drift surface",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:test-maturity:registry:guard static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:test-priority:audit",
+      "classification": "self_enforcement_validator",
+      "invariant": "Test priority manifest audit.",
+      "strengthen_signal": "If ops:test-priority:audit repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:test-priority:audit behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:tooling-registry:contract:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Tooling registry contract guard for concrete artifact paths.",
+      "strengthen_signal": "If ops:tooling-registry:contract:guard repeatedly fails or requires special-case scaffolding, strengthen kernel/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "kernel/tooling",
+      "validation_scope": "ops:tooling-registry:contract:guard behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:top1:proof-coverage",
+      "classification": "release_evidence_gate",
+      "invariant": "Top1 proof coverage verification.",
+      "strengthen_signal": "If ops:top1:proof-coverage repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "proof_artifact": "registry_only_no_json_artifact_declared",
+      "validation_scope": "ops:top1:proof-coverage release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:transport:convergence:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Transport convergence guard.",
+      "strengthen_signal": "If ops:transport:convergence:guard repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:transport:convergence:guard behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:transport:spawn-audit",
+      "classification": "self_enforcement_validator",
+      "invariant": "Spawn/spawnSync placement audit.",
+      "strengthen_signal": "If ops:transport:spawn-audit repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:transport:spawn-audit behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:transport:topology:gate",
+      "classification": "release_evidence_gate",
+      "invariant": "Production transport topology gate.",
+      "strengthen_signal": "If ops:transport:topology:gate repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "proof_artifact": "core/local/artifacts/production_topology_diagnostic_current.json",
+      "validation_scope": "ops:transport:topology:gate release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:trusted-core:report",
+      "classification": "architecture_drift_guard",
+      "invariant": "Trusted-core boundary and drift report.",
+      "strengthen_signal": "If ops:trusted-core:report repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "static governance and architecture drift surface",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:trusted-core:report static drift/conformance validation."
+    },
+    {
+      "gate_id": "ops:typed-probe:matrix:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Typed probe capability matrix guard with distinct authoritative keys for workspace/web/tool-route families and capability-specific missing diagnostics.",
+      "strengthen_signal": "If ops:typed-probe:matrix:guard repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "ops:typed-probe:matrix:guard behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:v8:runtime-proof:gate",
+      "classification": "release_evidence_gate",
+      "invariant": "V8 runtime proof gate.",
+      "strengthen_signal": "If ops:v8:runtime-proof:gate repeatedly fails or requires special-case scaffolding, strengthen kernel/runtime so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "kernel/runtime",
+      "proof_artifact": "registry_only_no_json_artifact_declared",
+      "validation_scope": "ops:v8:runtime-proof:gate release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:windows-installer:contract:guard",
+      "classification": "release_evidence_gate",
+      "invariant": "Windows installer contract guard for wrapper encoding, repair-floor continuity, parser-safe wrapper health checks, and bootstrap recovery guarantees.",
+      "strengthen_signal": "If ops:windows-installer:contract:guard repeatedly fails or requires special-case scaffolding, strengthen installer/runtime-doctor so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "installer/runtime-doctor",
+      "proof_artifact": "core/local/artifacts/windows_installer_contract_guard_current.json",
+      "validation_scope": "ops:windows-installer:contract:guard release/proof evidence validation."
+    },
+    {
+      "gate_id": "ops:workflow-failure-recovery:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Workflow finalization failure-recovery guard enforcing repetitive-fallback loop blocking, bounded retries, and forced degraded synthesis terminal contracts.",
+      "strengthen_signal": "If ops:workflow-failure-recovery:guard repeatedly fails or requires special-case scaffolding, strengthen surface/orchestration so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "surface/orchestration",
+      "validation_scope": "ops:workflow-failure-recovery:guard behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "ops:workspace-tooling:release-proof",
+      "classification": "release_evidence_gate",
+      "invariant": "Release-class proof artifact for workspace/file tooling reliability, sourced from fixture-backed replay scenario coverage.",
+      "strengthen_signal": "If ops:workspace-tooling:release-proof repeatedly fails or requires special-case scaffolding, strengthen kernel/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "kernel/tooling",
+      "proof_artifact": "core/local/artifacts/workspace_tooling_release_proof_current.json",
+      "validation_scope": "ops:workspace-tooling:release-proof release/proof evidence validation."
+    },
+    {
+      "gate_id": "proofs:layer0:verify",
+      "classification": "architecture_drift_guard",
+      "invariant": "Layer 0 proof bundle verification.",
+      "strengthen_signal": "If proofs:layer0:verify repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "architecture/layer/nexus conformance",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "proofs:layer0:verify static drift/conformance validation."
+    },
+    {
+      "gate_id": "release_policy_gate",
+      "classification": "release_evidence_gate",
+      "invariant": "Release policy gate.",
+      "strengthen_signal": "If release_policy_gate repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "proof_artifact": "core/local/artifacts/release_policy_gate_current.json",
+      "validation_scope": "release_policy_gate release/proof evidence validation."
+    },
+    {
+      "gate_id": "runtime_dependency_contract",
+      "classification": "architecture_drift_guard",
+      "invariant": "Runtime dependency contract gate.",
+      "strengthen_signal": "If runtime_dependency_contract repeatedly fails or requires special-case scaffolding, strengthen kernel/runtime so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "drift_surface": "dependency/import boundary graph",
+      "runtime_enforced_by": "kernel/runtime",
+      "validation_scope": "runtime_dependency_contract static drift/conformance validation."
+    },
+    {
+      "gate_id": "state:kernel:replay",
+      "classification": "self_enforcement_validator",
+      "invariant": "Deterministic replay verification for the state kernel.",
+      "strengthen_signal": "If state:kernel:replay repeatedly fails or requires special-case scaffolding, strengthen ops/tooling so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "ops/tooling",
+      "validation_scope": "state:kernel:replay behavioral/runtime self-enforcement validation."
+    },
+    {
+      "gate_id": "test:ops:srs-contract-runtime-evidence",
+      "classification": "self_enforcement_validator",
+      "invariant": "SRS runtime evidence regression.",
+      "strengthen_signal": "If test:ops:srs-contract-runtime-evidence repeatedly fails or requires special-case scaffolding, strengthen kernel/runtime so this gate validates runtime enforcement instead of compensating for missing authority.",
+      "runtime_enforced_by": "kernel/runtime",
+      "validation_scope": "test:ops:srs-contract-runtime-evidence behavioral/runtime self-enforcement validation."
     }
   ]
 }

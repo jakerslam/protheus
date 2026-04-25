@@ -1,11 +1,11 @@
 # TODO (SRS Execution Checklist)
 
-Updated: 2026-04-24T23:50:21.000Z
+Updated: 2026-04-25T00:48:50.000Z
 
 ## Frontloaded Actionable Queue (P0/P1/P2)
 
 ### P0 (Undeniable System Closure Backlog — 2026-04-24)
-- [x] `V12-TEST-MATURITY-REGISTRY-001` — done — Test/gate maturity registry now classifies gates and supports `temporary_monitor` entries with success criteria, pass/fail history, retirement candidate detection, and generated retirement backlog artifacts instead of unsafe self-deletion; evidence: `ops:test-maturity:registry:guard`, `test_maturity_registry_current.json`, and `test_maturity_retirement_backlog_current.json`.
+- [x] `V12-TEST-MATURITY-REGISTRY-001` — done — Test/gate maturity registry now classifies every registered tooling gate (`156/156`) and supports `temporary_monitor` entries with success criteria, pass/fail history, retirement candidate detection, and generated retirement backlog artifacts instead of unsafe self-deletion; evidence: `ops:test-maturity:registry:guard`, `test_maturity_registry_current.json`, and `test_maturity_retirement_backlog_current.json`.
 - [x] `USC-001` Remove heuristic fallback from orchestration `tool_available()` so tool availability is decided only by authoritative probe fields. — Done 2026-04-24: removed `heuristic.tool_hints_or_resource_kind` fallback from `surface/orchestration/src/planner/preconditions.rs`; updated conformance in `adapter_contracts_surface.rs` and `probe_matrix.rs`; validated with targeted cargo filters plus `npm run -s ops:typed-probe:matrix:guard`.
 - [x] `USC-002` Added distinct authoritative typed probe keys for `workspace_read`, `workspace_search`, `web_search`, `web_fetch`, and `tool_route` by keeping legacy `execute_tool` normalized before planner authority and removing it from canonical planner probe-key selection in [`contracts.rs`](/Users/jay/.openclaw/workspace/surface/orchestration/src/contracts.rs) and [`preconditions.rs`](/Users/jay/.openclaw/workspace/surface/orchestration/src/planner/preconditions.rs). Evidence: `cargo test --manifest-path surface/orchestration/Cargo.toml --test conformance adapted_probe_authority_matrix_executes_50_real_cases`.
 - [x] `USC-003` Added precise `missing_probe: <capability>` and `missing_probe: <capability>.<field>` diagnostics for typed probe contract gaps in [`classifier.rs`](/Users/jay/.openclaw/workspace/surface/orchestration/src/ingress/classifier.rs), replacing generic missing-tool ambiguity with capability-specific failure codes. Evidence: `cargo test --manifest-path surface/orchestration/Cargo.toml --test conformance non_legacy_tool_family`.
