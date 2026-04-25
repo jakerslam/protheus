@@ -2502,6 +2502,30 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_files_with_matches_mode.snap",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_max_output.snap"
       ]
+    },
+    {
+      "id": "forgecode_structured_search_truncation_empty_and_multiline_snapshot_contracts",
+      "description": "Structured ForgeCode lane that projects search truncation, empty-result, and multiline-match receipt edge cases into staged orchestration workflow contracts.",
+      "required_signals": [
+        "fs_search_byte_limit_truncation_projects_max_bytes_allowed_display_lines_total_lines_glob_and_reason_guidance",
+        "fs_search_line_limit_truncation_projects_display_window_and_reason_guidance_for_specific_pattern_refinement",
+        "fs_search_multiline_pattern_preserves_embedded_newline_match_body_inside_cdata",
+        "fs_search_no_matches_projects_empty_search_results_receipt_with_path_and_pattern_only",
+        "fs_search_no_results_uses_same_empty_receipt_shape_without_inventing_failure_text",
+        "fs_search_output_contract_keeps_pattern_glob_and_truncation_metadata_outside_result_body",
+        "fs_search_result_body_preserves_colon_delimited_file_line_match_rows_until_display_limit"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_min_lines_but_max_line_length.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_multiline_pattern.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_no_matches.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_no_results.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_output.snap"
+      ]
     }
   ],
   "workflow_templates": [
