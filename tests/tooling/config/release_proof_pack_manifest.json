@@ -67,6 +67,8 @@
       "core/local/artifacts/windows_install_reliability_current.json",
       "core/local/artifacts/installer_reliability_closure_guard_current.json",
       "core/local/artifacts/srs_todo_section_guard_current.json",
+      "core/local/artifacts/test_maturity_registry_current.json",
+      "core/local/artifacts/test_maturity_retirement_backlog_current.json",
       "core/local/artifacts/orchestration_quality_closure_guard_current.json",
       "core/local/artifacts/transport_convergence_guard_current.json",
       "core/local/artifacts/transport_spawn_audit_current.json",
@@ -83,6 +85,7 @@
       "artifacts/workspace_tooling_context_soak_report_latest.json",
       "artifacts/workspace_tooling_soak_report_latest.json",
       "core/local/artifacts/web_tooling_reliability_current.json",
+      "core/local/artifacts/web_retrieval_reliability_closure_guard_current.json",
       "core/local/artifacts/web_conduit_openclaw_media_closure_guard_current.json",
       "core/local/artifacts/workflow_failure_recovery_current.json",
       "core/local/artifacts/workspace_tooling_context_soak_current.json",
@@ -190,6 +193,7 @@
     "artifacts/workspace_tooling_context_soak_report_latest.json",
     "artifacts/workspace_tooling_soak_report_latest.json",
     "core/local/artifacts/web_tooling_reliability_current.json",
+    "core/local/artifacts/web_retrieval_reliability_closure_guard_current.json",
     "core/local/artifacts/web_conduit_openclaw_media_closure_guard_current.json",
     "core/local/artifacts/workflow_failure_recovery_current.json",
     "core/local/artifacts/workspace_tooling_context_soak_current.json",
@@ -206,6 +210,8 @@
     "core/local/artifacts/windows_install_reliability_current.json",
     "core/local/artifacts/installer_reliability_closure_guard_current.json",
     "core/local/artifacts/srs_todo_section_guard_current.json",
+    "core/local/artifacts/test_maturity_registry_current.json",
+    "core/local/artifacts/test_maturity_retirement_backlog_current.json",
     "core/local/artifacts/parity_end_to_end_replay_current.json",
     "core/local/artifacts/parity_trend_current.json",
     "core/local/artifacts/parity_release_gate_current.json",
@@ -339,6 +345,9 @@
     "local/workspace/reports/INSTALLER_RELIABILITY_CLOSURE_GUARD_CURRENT.md",
     "local/workspace/reports/MEMORY_CONTINUITY_CLOSURE_GUARD_CURRENT.md",
     "local/workspace/reports/KNOWLEDGE_GRAPH_QUERY_ACCELERATION_CLOSURE_GUARD_CURRENT.md",
-    "local/workspace/reports/WEB_CONDUIT_OPENCLAW_MEDIA_CLOSURE_GUARD_CURRENT.md"
+    "local/workspace/reports/WEB_CONDUIT_OPENCLAW_MEDIA_CLOSURE_GUARD_CURRENT.md",
+    "local/workspace/reports/WEB_RETRIEVAL_RELIABILITY_CLOSURE_GUARD_CURRENT.md",
+    "local/workspace/reports/TEST_MATURITY_REGISTRY_CURRENT.md",
+    "local/workspace/reports/TEST_MATURITY_RETIREMENT_BACKLOG.md"
   ]
 }

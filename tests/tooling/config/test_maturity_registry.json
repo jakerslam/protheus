@@ -1,0 +1,330 @@
+{
+  "schema_version": 1,
+  "generated_by": "manual_governance_seed",
+  "owner": "ops",
+  "classification_policy": {
+    "allowed_classifications": [
+      "self_enforcement_validator",
+      "temporary_scaffold",
+      "temporary_monitor",
+      "runtime_crutch",
+      "release_evidence_gate",
+      "architecture_drift_guard",
+      "one_time_closure_guard"
+    ],
+    "target_trend": {
+      "temporary_scaffold": "down",
+      "runtime_crutch": "down",
+      "one_time_closure_guard": "down",
+      "self_enforcement_validator": "up",
+      "release_evidence_gate": "stable",
+      "architecture_drift_guard": "stable",
+      "temporary_monitor": "down"
+    },
+    "hard_rules": [
+      "temporary_scaffold entries require scaffold_reason, expires_after, migration_target, and delete_when",
+      "temporary_monitor entries require scaffold_reason, success_criteria, migration_target, retirement_action, delete_when, and target_runtime_owner",
+      "runtime_crutch entries require weakness_indicator, target_runtime_owner, and migration_target",
+      "one_time_closure_guard entries require expires_after, migration_target, and delete_when",
+      "self_enforcement_validator entries require runtime_enforced_by and validation_scope",
+      "release_evidence_gate entries require proof_artifact",
+      "architecture_drift_guard entries require drift_surface"
+    ]
+  },
+  "entries": [
+    {
+      "gate_id": "ops:web-retrieval:reliability-closure:guard",
+      "classification": "temporary_monitor",
+      "invariant": "Web retrieval reliability evidence is wired into release proof packs and profile gates.",
+      "runtime_enforced_by": "kernel/web_conduit + kernel/batch_query",
+      "target_runtime_owner": "kernel/web_conduit",
+      "scaffold_reason": "Legacy V11 web retrieval TODO/SRS rows needed aggregate closure proof after implementation was already split across web conduit, batch query, and web tooling artifacts.",
+      "expires_after": "2026-05-15",
+      "migration_target": "Merge covered checks into ops:web-tooling:reliability:guard and ops:web-conduit:openclaw-media:closure:guard once V11 rows are archived.",
+      "delete_when": "Permanent web tooling and web conduit guards cover scoped search, provider fallback, fetch resilience, and batch-query synthesis quality without referencing legacy closure rows.",
+      "strengthen_signal": "If this remains needed, kernel web retrieval contracts are too dispersed and should be consolidated into a permanent web retrieval runtime proof artifact.",
+      "success_criteria": {
+        "minimum_runs": 30,
+        "success_rate_required": 0.98,
+        "observation_window_days": 14,
+        "consecutive_passes_required": 10,
+        "max_regressions_allowed": 0
+      },
+      "retirement_action": "emit_retirement_backlog_item"
+    },
+    {
+      "gate_id": "ops:installer-reliability:closure:guard",
+      "classification": "release_evidence_gate",
+      "invariant": "Installer offline/cache, wrapper repair, release-tag refresh, Windows parity, and summary truth contracts remain release evidence.",
+      "runtime_enforced_by": "install.sh + install.ps1 + infring doctor/verify-install",
+      "proof_artifact": "core/local/artifacts/installer_reliability_closure_guard_current.json",
+      "validation_scope": "Cross-shell installer contracts and release-governance proof-pack wiring.",
+      "strengthen_signal": "If installer failures recur, move more summary/wrapper verification into infring doctor so CI only verifies the authoritative runtime diagnosis."
+    },
+    {
+      "gate_id": "ops:web-tooling:reliability:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Web evidence extraction must reject chrome, scaffold leakage, low-attribution text, and provider/cache contract drift.",
+      "runtime_enforced_by": "kernel/web_conduit extraction and batch-query synthesis contracts",
+      "validation_scope": "Fixture-backed web extraction and soak-derived reliability artifact.",
+      "strengthen_signal": "Any new sanitizer-only rule should be reviewed for migration into kernel extraction policy instead of living only in tests."
+    },
+    {
+      "gate_id": "ops:workspace-tooling:context:soak",
+      "classification": "self_enforcement_validator",
+      "invariant": "Workspace/file tooling routes must use workspace probes and never misdirect into web/tool fallback paths.",
+      "runtime_enforced_by": "orchestration typed probes + workspace tooling contracts",
+      "validation_scope": "Workspace read/search, repo path targeting, and mixed workspace/web routing soak.",
+      "strengthen_signal": "If this needs more scaffolding, orchestration probe envelopes are still too weak for file tooling."
+    },
+    {
+      "gate_id": "ops:tool-route:misdirection:guard",
+      "classification": "self_enforcement_validator",
+      "invariant": "Tool routing must be probe-driven and return specific missing-probe reasons instead of heuristic fallback.",
+      "runtime_enforced_by": "surface/orchestration planner preconditions and ingress classifier",
+      "validation_scope": "Typed route misdirection fixture matrix.",
+      "strengthen_signal": "Any heuristic pass here means routing authority belongs deeper in orchestration, not in repair tests."
+    },
+    {
+      "gate_id": "ops:cross-layer-import:guard",
+      "classification": "architecture_drift_guard",
+      "invariant": "Shell, orchestration, gateways, and kernel must not import forbidden authority surfaces across layer boundaries.",
+      "drift_surface": "Cross-layer import graph",
+      "runtime_enforced_by": null,
+      "validation_scope": "Static architecture boundary scan.",
+      "strengthen_signal": "Repeated violations indicate missing module ownership APIs or nexuses, not just bad imports."
+    },
+    {
+      "gate_id": "ops:shell:truth-leak:guard",
+      "classification": "architecture_drift_guard",
+      "invariant": "Shell must remain presentation/collection only and avoid health inference, retry authority, lane selection, and policy branching.",
+      "drift_surface": "client/shell authority-bearing logic patterns",
+      "runtime_enforced_by": "kernel freshness enums and backend-provided runtime state",
+      "validation_scope": "Shell truth-leak scan and freshness contract checks.",
+      "strengthen_signal": "Any persistent finding means the backend is not exposing enough authoritative state for the shell to stay thin."
+    },
+    {
+      "gate_id": "ops:churn:guard",
+      "classification": "architecture_drift_guard",
+      "invariant": "Local/session/generated churn must not pollute root or release-critical surfaces.",
+      "drift_surface": "Workspace root, generated reports, session outputs, and shadow-agent churn",
+      "runtime_enforced_by": null,
+      "validation_scope": "Repository status and root-output hygiene scan.",
+      "strengthen_signal": "Repeated churn findings mean producers should be moved under local/state or local/workspace/shadow, not merely ignored."
+    },
+    {
+      "gate_id": "ops:orchestration:quality-closure:guard",
+      "classification": "release_evidence_gate",
+      "invariant": "Planner/runtime/gateway/workflow orchestration quality artifacts must stay required release evidence.",
+      "runtime_enforced_by": "surface/orchestration quality policy and runtime workflow contracts",
+      "proof_artifact": "core/local/artifacts/orchestration_quality_closure_guard_current.json",
+      "validation_scope": "Aggregate orchestration quality proof-pack alignment.",
+      "strengthen_signal": "If this gate catches repeated drift, individual orchestration guards should become runtime receipt checks."
+    },
+    {
+      "gate_id": "ops:production-release-gate:closure-audit",
+      "classification": "release_evidence_gate",
+      "invariant": "Release profile, proof-track, gateway chaos, installer evidence, and proof-pack policy must agree before release readiness.",
+      "runtime_enforced_by": "release-gates policy and proof-pack assembly",
+      "proof_artifact": "core/local/artifacts/production_release_gate_closure_audit_current.json",
+      "validation_scope": "Production release-governance evidence alignment.",
+      "strengthen_signal": "If this remains the only protection for a release invariant, move that invariant into release_proof_pack_assemble or runtime proof gates."
+    },
+    {
+      "gate_id": "ops:memory-continuity:closure:guard",
+      "classification": "temporary_monitor",
+      "invariant": "Memory continuity closure evidence covers recent-floor, full-history recall, and sleep cleanup before archival.",
+      "runtime_enforced_by": "memory continuity runtime and sleep cleanup policies",
+      "target_runtime_owner": "kernel/memory",
+      "scaffold_reason": "Backlog closure needed a focused evidence bundle after memory continuity implementation was spread across runtime and policy surfaces.",
+      "expires_after": "2026-05-22",
+      "migration_target": "Merge remaining checks into permanent memory durability and continuity gates.",
+      "delete_when": "Permanent memory durability/continuity gates cover the same invariants without closure-row lineage.",
+      "strengthen_signal": "If retained, memory continuity needs a single authoritative runtime health artifact.",
+      "success_criteria": {
+        "minimum_runs": 30,
+        "success_rate_required": 0.98,
+        "observation_window_days": 14,
+        "consecutive_passes_required": 10,
+        "max_regressions_allowed": 0
+      },
+      "retirement_action": "emit_retirement_backlog_item"
+    },
+    {
+      "gate_id": "ops:knowledge-graph-query-acceleration:closure:guard",
+      "classification": "temporary_monitor",
+      "invariant": "Knowledge graph acceleration closure evidence remains wired while assimilation rows are burned down.",
+      "runtime_enforced_by": "kernel knowledge graph query acceleration path",
+      "target_runtime_owner": "kernel/knowledge_graph",
+      "scaffold_reason": "Assimilation closure needed proof that acceleration artifacts and policies were wired before archiving rows.",
+      "expires_after": "2026-05-22",
+      "migration_target": "Merge into a permanent knowledge graph query performance/reliability gate.",
+      "delete_when": "A permanent query acceleration gate validates latency, correctness, and proof-pack evidence directly.",
+      "strengthen_signal": "If retained, query acceleration lacks a stable runtime performance contract.",
+      "success_criteria": {
+        "minimum_runs": 30,
+        "success_rate_required": 0.98,
+        "observation_window_days": 14,
+        "consecutive_passes_required": 10,
+        "max_regressions_allowed": 0
+      },
+      "retirement_action": "emit_retirement_backlog_item"
+    },
+    {
+      "gate_id": "ops:web-conduit:openclaw-media:closure:guard",
+      "classification": "temporary_monitor",
+      "invariant": "OpenClaw media/provider web-conduit imports are evidenced and release-visible during assimilation cleanup.",
+      "runtime_enforced_by": "kernel/web_conduit media/provider runtime",
+      "target_runtime_owner": "kernel/web_conduit",
+      "scaffold_reason": "Assimilation closure needed aggregate proof across media, fetch, image, and PDF runtime slices.",
+      "expires_after": "2026-05-22",
+      "migration_target": "Merge into permanent web media/provider reliability gates.",
+      "delete_when": "Permanent web media/provider gates cover the imported runtime behavior without assimilation lineage.",
+      "strengthen_signal": "If retained, web media capability needs better first-class runtime proof.",
+      "success_criteria": {
+        "minimum_runs": 30,
+        "success_rate_required": 0.98,
+        "observation_window_days": 14,
+        "consecutive_passes_required": 10,
+        "max_regressions_allowed": 0
+      },
+      "retirement_action": "emit_retirement_backlog_item"
+    },
+    {
+      "gate_id": "ops:assimilation:v1:support:guard",
+      "classification": "temporary_monitor",
+      "invariant": "Manual assimilation support policy and ledgers remain coherent while the assimilation process is being hardened.",
+      "runtime_enforced_by": "orchestration assimilation policy + workspace assimilation ledgers",
+      "target_runtime_owner": "orchestration/assimilation",
+      "scaffold_reason": "Assimilation is still partly manual, so a support guard tracks process evidence until runtime assimilation authority owns the flow.",
+      "expires_after": "2026-05-22",
+      "migration_target": "Move durable checks into Assimilation Map/Priority Ledger/Active Queue runtime policy and the assimilation authority guard.",
+      "delete_when": "Assimilation authority runtime enforces ledger burn-down, decisions, and workflow/raw-capability separation without a closure support guard.",
+      "strengthen_signal": "If retained, assimilation needs stronger orchestration-owned runtime authority instead of manual ledger policing.",
+      "success_criteria": {
+        "minimum_runs": 30,
+        "success_rate_required": 0.98,
+        "observation_window_days": 14,
+        "consecutive_passes_required": 10,
+        "max_regressions_allowed": 0
+      },
+      "retirement_action": "emit_retirement_backlog_item"
+    },
+    {
+      "gate_id": "ops:client-deauthority:closure:guard",
+      "classification": "temporary_monitor",
+      "invariant": "Shell/client deauthority work remains evidenced while client compatibility names are retired.",
+      "runtime_enforced_by": "backend freshness enums + shell truth-leak guard",
+      "target_runtime_owner": "shell/runtime_state_projection",
+      "scaffold_reason": "Client deauthority closure needed a focused bridge while old client surfaces and new shell terminology coexisted.",
+      "expires_after": "2026-05-22",
+      "migration_target": "Merge into ops:shell:truth-leak:guard and shell transition tracker.",
+      "delete_when": "Shell truth-leak guard and shell transition tracker cover deauthority invariants without closure lineage.",
+      "strengthen_signal": "If retained, backend state projection is still insufficiently authoritative for shell code to stay truth-free.",
+      "success_criteria": {
+        "minimum_runs": 30,
+        "success_rate_required": 0.98,
+        "observation_window_days": 14,
+        "consecutive_passes_required": 10,
+        "max_regressions_allowed": 0
+      },
+      "retirement_action": "emit_retirement_backlog_item"
+    },
+    {
+      "gate_id": "ops:dx-public-facade:closure:guard",
+      "classification": "temporary_monitor",
+      "invariant": "Developer-facing public facade naming and command contracts remain coherent during transition.",
+      "runtime_enforced_by": "CLI command registry and public facade contracts",
+      "target_runtime_owner": "kernel/cli_facade",
+      "scaffold_reason": "DX facade cleanup needed temporary aggregate proof while public/canonical terms were converging.",
+      "expires_after": "2026-05-22",
+      "migration_target": "Merge stable checks into command-registry and terminology transition guards.",
+      "delete_when": "Command registry and terminology inventory enforce public facade contracts directly.",
+      "strengthen_signal": "If retained, public CLI/runtime facade contracts are too diffuse.",
+      "success_criteria": {
+        "minimum_runs": 30,
+        "success_rate_required": 0.98,
+        "observation_window_days": 14,
+        "consecutive_passes_required": 10,
+        "max_regressions_allowed": 0
+      },
+      "retirement_action": "emit_retirement_backlog_item"
+    },
+    {
+      "gate_id": "ops:gem:closure:guard",
+      "classification": "temporary_monitor",
+      "invariant": "Gemini feedback-derived hardening remains evidenced while feedback intake rows are retired.",
+      "runtime_enforced_by": "workspace/tooling/eval guards produced from feedback intake",
+      "target_runtime_owner": "orchestration/eval_feedback",
+      "scaffold_reason": "External feedback produced a batch of cross-cutting TODO items that needed temporary closure evidence.",
+      "expires_after": "2026-05-22",
+      "migration_target": "Merge recurring feedback checks into eval issue synthesis and quality gates.",
+      "delete_when": "Eval issue synthesis can ingest, classify, and enforce feedback without a named Gemini closure guard.",
+      "strengthen_signal": "If retained, eval feedback ingestion is not yet strong enough to absorb external critique automatically.",
+      "success_criteria": {
+        "minimum_runs": 30,
+        "success_rate_required": 0.98,
+        "observation_window_days": 14,
+        "consecutive_passes_required": 10,
+        "max_regressions_allowed": 0
+      },
+      "retirement_action": "emit_retirement_backlog_item"
+    },
+    {
+      "gate_id": "ops:incident-governance:closure:guard",
+      "classification": "release_evidence_gate",
+      "invariant": "Incident governance policy, runbooks, gates, CI, profiles, and proof-pack evidence remain aligned.",
+      "runtime_enforced_by": "incident governance policy + release proof-pack assembly",
+      "proof_artifact": "core/local/artifacts/incident_governance_closure_guard_current.json",
+      "validation_scope": "Incident governance release evidence alignment.",
+      "strengthen_signal": "If this gate repeatedly catches drift, incident state should move into a stronger runtime incident ledger."
+    },
+    {
+      "gate_id": "ops:production-closure:gate",
+      "classification": "release_evidence_gate",
+      "invariant": "Production closure evidence is complete before release readiness is claimed.",
+      "runtime_enforced_by": "release closure board + production readiness gates",
+      "proof_artifact": "core/local/artifacts/production_readiness_closure_gate_current.json",
+      "validation_scope": "Production readiness release closure evidence.",
+      "strengthen_signal": "If this gate remains broad, split weak buckets into runtime-owned gates instead of one production umbrella."
+    },
+    {
+      "gate_id": "ops:runtime-closure:board:guard",
+      "classification": "release_evidence_gate",
+      "invariant": "Runtime closure board remains synchronized with release-blocking runtime buckets.",
+      "runtime_enforced_by": "runtime closure board policy + proof-pack assembly",
+      "proof_artifact": "core/local/artifacts/runtime_closure_board_guard_current.json",
+      "validation_scope": "Runtime closure board completeness and release-blocker visibility.",
+      "strengthen_signal": "If board-only enforcement persists, runtime subsystems need more direct pass/fail artifacts."
+    },
+    {
+      "gate_id": "ops:runtime-closure:feature-alignment:guard",
+      "classification": "release_evidence_gate",
+      "invariant": "New visible capabilities align with runtime closure buckets and proof burden.",
+      "runtime_enforced_by": "capability proof burden guard + runtime closure feature alignment policy",
+      "proof_artifact": "core/local/artifacts/runtime_closure_feature_alignment_guard_current.json",
+      "validation_scope": "Feature-to-proof alignment for runtime closure.",
+      "strengthen_signal": "If this gate catches repeated feature drift, PR/runtime admission should require proof burden metadata earlier."
+    },
+    {
+      "gate_id": "ops:tooling-task-fabric:closure:guard",
+      "classification": "temporary_monitor",
+      "invariant": "Tooling and Task Fabric closure evidence covers typed probes, route misdirection, resident-first transport, workspace/web evidence, and proof-carrying mutations during consolidation.",
+      "runtime_enforced_by": "orchestration typed probes + task fabric mutation contracts",
+      "target_runtime_owner": "orchestration/tooling_task_fabric",
+      "scaffold_reason": "Task Fabric closure spans multiple permanent gates and needed temporary aggregate evidence while the feature stabilized.",
+      "expires_after": "2026-05-22",
+      "migration_target": "Merge into typed probe, tool-route, workspace/web tooling, and task fabric mutation permanent gates.",
+      "delete_when": "Permanent gates cover each Task Fabric invariant without an aggregate closure guard.",
+      "strengthen_signal": "If retained, Task Fabric needs a single runtime authority artifact for mutation and route proof.",
+      "success_criteria": {
+        "minimum_runs": 30,
+        "success_rate_required": 0.98,
+        "observation_window_days": 14,
+        "consecutive_passes_required": 10,
+        "max_regressions_allowed": 0
+      },
+      "retirement_action": "emit_retirement_backlog_item"
+    }
+  ]
+}
