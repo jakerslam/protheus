@@ -2406,6 +2406,30 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/commands/github-pr-description.md",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/Cargo.toml"
       ]
+    },
+    {
+      "id": "forgecode_structured_compact_followup_and_file_create_snapshot_contracts",
+      "description": "Structured ForgeCode lane that projects compact summary-frame rendering, follow-up feedback receipts, and file-create success receipts into staged orchestration workflow contracts.",
+      "required_signals": [
+        "compact_summary_frame_declares_authoritative_reference_and_no_reexplain_revisit_policy",
+        "compact_summary_frame_preserves_ordered_user_assistant_tool_operation_history",
+        "compact_template_renders_read_update_search_semantic_search_and_execute_operations_as_summary_frames",
+        "compact_summary_frame_closes_with_proceed_with_implementation_context_handoff",
+        "follow_up_without_question_projects_interrupted_no_feedback_provided_receipt",
+        "follow_up_with_question_projects_feedback_payload_as_typed_receipt",
+        "fs_create_success_projects_file_created_receipt_with_path_and_total_lines_attributes"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__compact__tests__render_summary_frame_snapshot.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__compact__tests__template_engine_renders_summary_frame.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__follow_up_no_question.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__follow_up_with_question.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_create_basic.snap"
+      ]
     }
   ],
   "workflow_templates": [
