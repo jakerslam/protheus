@@ -2454,6 +2454,30 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_patch_basic.snap",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_patch_with_warning.snap"
       ]
+    },
+    {
+      "id": "forgecode_structured_file_read_and_special_char_warning_snapshot_contracts",
+      "description": "Structured ForgeCode lane that projects file-read receipts and special-character-safe mutation warning envelopes into staged orchestration workflow contracts.",
+      "required_signals": [
+        "file_mutation_warning_cdata_preserves_shell_special_characters_quotes_braces_and_parameter_expansions",
+        "file_mutation_warning_supports_three_or_more_syntax_errors_with_line_column_and_cdata_text",
+        "fs_read_receipt_projects_file_path_display_lines_total_lines_and_cdata_line_numbered_content",
+        "fs_read_receipt_preserves_code_like_angle_brackets_and_generics_inside_cdata_content",
+        "fs_read_explicit_range_projects_requested_window_with_total_line_count_context",
+        "fs_read_truncation_receipt_projects_display_window_total_lines_and_truncated_content_marker",
+        "file_read_output_contract_keeps_operator_visible_line_numbers_separate_from_receipt_metadata"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_patch_with_warning_special_chars.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_read_basic.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_read_basic_special_chars.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_read_with_explicit_range.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_read_with_truncation_path.snap"
+      ]
     }
   ],
   "workflow_templates": [
