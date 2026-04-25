@@ -1933,6 +1933,42 @@
         "core/local/artifacts/web_conduit_openclaw_media_closure_guard_current.json",
         "local/workspace/reports/WEB_CONDUIT_OPENCLAW_MEDIA_CLOSURE_GUARD_CURRENT.md"
       ]
+    },
+    "ops:web-retrieval:reliability-closure:guard": {
+      "owner": "ops",
+      "description": "Web retrieval reliability closure guard proving domain scoping, structured provider fallback, fetch resilience, batch-query synthesis quality, release profile coverage, and proof-pack evidence alignment.",
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/web_retrieval_reliability_closure_guard.ts",
+        "--strict=1",
+        "--out-json=core/local/artifacts/web_retrieval_reliability_closure_guard_current.json",
+        "--out-markdown=local/workspace/reports/WEB_RETRIEVAL_RELIABILITY_CLOSURE_GUARD_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/web_retrieval_reliability_closure_guard_current.json",
+        "local/workspace/reports/WEB_RETRIEVAL_RELIABILITY_CLOSURE_GUARD_CURRENT.md"
+      ],
+      "timeout_sec": 60
+    },
+    "ops:test-maturity:registry:guard": {
+      "owner": "ops",
+      "description": "Test/gate maturity registry guard classifying validators, temporary monitors, scaffolds, runtime crutches, release evidence gates, and architecture drift guards with success-criteria retirement backlog tracking.",
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/test_maturity_registry_guard.ts",
+        "--strict=1",
+        "--out-json=core/local/artifacts/test_maturity_registry_current.json",
+        "--out-markdown=local/workspace/reports/TEST_MATURITY_REGISTRY_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/test_maturity_registry_current.json",
+        "local/workspace/reports/TEST_MATURITY_REGISTRY_CURRENT.md",
+        "core/local/artifacts/test_maturity_retirement_backlog_current.json",
+        "local/workspace/reports/TEST_MATURITY_RETIREMENT_BACKLOG.md"
+      ],
+      "timeout_sec": 60
     }
   }
 }

@@ -1043,7 +1043,9 @@
     "ops:installer-reliability:closure:guard": "npm run -s tooling:run -- --id=ops:installer-reliability:closure:guard --strict=1",
     "ops:memory-continuity:closure:guard": "npm run -s tooling:run -- --id=ops:memory-continuity:closure:guard --strict=1",
     "ops:knowledge-graph-query-acceleration:closure:guard": "npm run -s tooling:run -- --id=ops:knowledge-graph-query-acceleration:closure:guard --strict=1",
-    "ops:web-conduit:openclaw-media:closure:guard": "npm run -s tooling:run -- --id=ops:web-conduit:openclaw-media:closure:guard --strict=1"
+    "ops:web-conduit:openclaw-media:closure:guard": "npm run -s tooling:run -- --id=ops:web-conduit:openclaw-media:closure:guard --strict=1",
+    "ops:web-retrieval:reliability-closure:guard": "npm run -s tooling:run -- --id=ops:web-retrieval:reliability-closure:guard --strict=1",
+    "ops:test-maturity:registry:guard": "npm run -s tooling:run -- --id=ops:test-maturity:registry:guard --strict=1"
   },
   "bin": {
     "infring": "./client/cli/bin/infring",

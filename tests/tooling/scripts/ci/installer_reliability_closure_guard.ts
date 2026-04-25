@@ -4,7 +4,17 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname } from 'path';
 
 const SRS_ID = 'V12-INSTALL-RELIABILITY-CLOSURE-001';
-const LEGACY_SRS_IDS = ['V11-INSTALL-005', 'V11-INSTALL-008'];
+const LEGACY_SRS_IDS = [
+  'V11-INSTALL-005',
+  'V11-INSTALL-008',
+  'V6-INSTALL-001.1',
+  'V6-INSTALL-001.2',
+  'V6-INSTALL-001.3',
+  'V6-INSTALL-001.4',
+  'V6-INSTALL-001.5',
+  'V6-INSTALL-001.6',
+  'V6-INSTALL-001.7',
+];
 const INSTALL_PS1 = 'install.ps1';
 const INSTALL_SH = 'install.sh';
 const REGISTRY = 'tests/tooling/config/tooling_gate_registry.json';
@@ -69,6 +79,41 @@ const DOCS = [
   'README.md',
   'docs/client/GETTING_STARTED.md',
   'docs/workspace/manuals/infring_manual_help_tab.md',
+];
+
+const V6_PS1_INSTALLER_TOKENS = [
+  'preflight windows toolchain',
+  'Get-WindowsToolInstallHint',
+  'cargo_present_but_unusable',
+  'cargo recovered via rustup default stable',
+  'Ensure-RuntimeNodeModuleClosure',
+  'Get-RuntimeNodeRequiredModules',
+  'runtime_contract_failed',
+  'Ensure-RepairBootstrapWrapperFloor',
+  'last_install_summary.txt',
+  'dashboard_runtime_persistence',
+  'summary_files',
+];
+
+const V6_SH_INSTALLER_TOKENS = [
+  'run_install_preflight',
+  'tool_install_hint',
+  'repair_rustup_default_toolchain',
+  'ensure_runtime_node_module_closure',
+  'verify_workspace_runtime_contract',
+  'repair_workspace_runtime_contract',
+  'run_post_install_smoke_command',
+  '--verify-install-summary-contract',
+  'last_install_summary.txt',
+  'dashboard_smoke',
+];
+
+const V6_DOCTOR_TOKENS = [
+  'run_install_doctor_domain',
+  'root_cause_codes',
+  'runtime_manifest_status',
+  'verify-install',
+  'dashboard-pid-running',
 ];
 
 function arg(name: string, fallback: string): string {
@@ -170,6 +215,7 @@ function main(): void {
   const pkg = readJson(PACKAGE_JSON);
   const ps1 = readText(INSTALL_PS1);
   const sh = readText(INSTALL_SH);
+  const doctor = readText('core/layer0/ops/src/infringctl_parts/020-evaluate-dispatch-security_parts/001-part_parts/030-install-doctor-domain.rs');
   const required = requiredArtifacts(manifest);
   const releaseGovernance = releaseGovernanceArtifacts(manifest);
   const reports = optionalReports(manifest);
@@ -197,6 +243,9 @@ function main(): void {
     check('ps1_release_tag_refresh_contract_tokens_present', missingReleaseTagPs1.length === 0, missingReleaseTagPs1.join(', ')),
     check('ps1_repair_wrapper_floor_contract_tokens_present', missingWrapper.length === 0, missingWrapper.join(', ')),
     check('sh_release_tag_readback_contract_present', sh.includes('workspace_release_tag_matches "$WORKSPACE_DIR" "$version"') && sh.includes('workspace_release_tag_write_verified=1'), 'install.sh readback verification'),
+    check('v6_ps1_installer_contract_tokens_present', missingTokens(ps1, V6_PS1_INSTALLER_TOKENS).length === 0, missingTokens(ps1, V6_PS1_INSTALLER_TOKENS).join(', ')),
+    check('v6_sh_installer_contract_tokens_present', missingTokens(sh, V6_SH_INSTALLER_TOKENS).length === 0, missingTokens(sh, V6_SH_INSTALLER_TOKENS).join(', ')),
+    check('v6_doctor_contract_tokens_present', missingTokens(doctor, V6_DOCTOR_TOKENS).length === 0, missingTokens(doctor, V6_DOCTOR_TOKENS).join(', ')),
     check('windows_contract_artifacts_required', required.includes(WINDOWS_CONTRACT_JSON) && required.includes(WINDOWS_RELIABILITY_JSON), `${WINDOWS_CONTRACT_JSON}, ${WINDOWS_RELIABILITY_JSON}`),
     check('closure_artifact_required', required.includes(outJson), outJson),
     check('windows_contract_artifacts_release_governance_grouped', releaseGovernance.includes(WINDOWS_CONTRACT_JSON) && releaseGovernance.includes(WINDOWS_RELIABILITY_JSON), `${WINDOWS_CONTRACT_JSON}, ${WINDOWS_RELIABILITY_JSON}`),
