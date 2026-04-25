@@ -210,6 +210,55 @@ fn workflow_phase_trace_projects_orchestration_lifecycle_for_eval_consumers() {
 }
 
 #[test]
+fn repeated_self_maintenance_projection_collapses_into_observe_only_window() {
+    let mut runtime = OrchestrationSurfaceRuntime::new();
+    let request = || OrchestrationRequest {
+        session_id: "self-maintenance-window".to_string(),
+        intent: "read workspace files".to_string(),
+        surface: RequestSurface::Sdk,
+        payload: json!({
+            "sdk": {
+                "operation_kind": "read",
+                "resource_kind": "workspace",
+                "request_kind": "direct"
+            }
+        }),
+    };
+
+    let first = runtime.orchestrate(request(), 8_000);
+    let second = runtime.orchestrate(request(), 8_250);
+    let first_action = first
+        .fallback_actions
+        .iter()
+        .find(|action| action.kind == "self_maintenance_review")
+        .expect("first self-maintenance projection");
+    let second_action = second
+        .fallback_actions
+        .iter()
+        .find(|action| action.kind == "self_maintenance_review")
+        .expect("second self-maintenance projection");
+
+    assert!(first_action.reason.contains("observe-only window"));
+    assert!(first_action.reason.contains("occurrences=1"));
+    assert!(second_action.reason.contains("occurrences=2"));
+    assert!(second_action.reason.contains("rate_limited=true"));
+
+    let first_next_action = first
+        .control_plane_lifecycle
+        .next_actions
+        .iter()
+        .find(|action| action.starts_with("self_maintenance_review_cluster:"))
+        .expect("first review cluster");
+    let second_next_action = second
+        .control_plane_lifecycle
+        .next_actions
+        .iter()
+        .find(|action| action.starts_with("self_maintenance_review_cluster:"))
+        .expect("second review cluster");
+    assert_eq!(first_next_action, second_next_action);
+}
+
+#[test]
 fn failed_execution_observation_triggers_feedback_reroute_contract() {
     let mut runtime = OrchestrationSurfaceRuntime::new();
     runtime.record_execution_observation(
@@ -334,11 +383,13 @@ fn degraded_or_fallback_paths_emit_self_maintenance_recommendations() {
     let package = runtime.orchestrate(
         OrchestrationRequest {
             session_id: "self-maintenance-fallback".to_string(),
-            intent: "search release notes".to_string(),
-            surface: RequestSurface::Dashboard,
+            intent: "read workspace files".to_string(),
+            surface: RequestSurface::Sdk,
             payload: json!({
-                "dashboard": {
-                    "selection_mode": "panel"
+                "sdk": {
+                    "operation_kind": "read",
+                    "resource_kind": "workspace",
+                    "request_kind": "direct"
                 }
             }),
         },

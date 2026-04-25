@@ -121,11 +121,8 @@ fn tool_uses_web_retry_policy(tool_name: &str) -> bool {
 }
 
 fn deterministic_tool_retry_backoff_ms(tool_name: &str) -> Vec<u64> {
-    if tool_uses_web_retry_policy(tool_name) {
-        vec![160, 320]
-    } else {
-        vec![180, 360, 720]
-    }
+    let _ = tool_uses_web_retry_policy(tool_name);
+    vec![180, 360, 720]
 }
 
 fn deterministic_tool_retry_policy_class(tool_name: &str) -> &'static str {
@@ -151,6 +148,8 @@ fn execute_tool_call_with_recovery(
     {
         return scripted_payload;
     }
+    let permission_gate =
+        crate::dashboard_tool_turn_loop::pre_tool_permission_decision(root, &execution_tool, input);
     if let Some(blocked) =
         crate::dashboard_tool_turn_loop::pre_tool_permission_gate(root, &execution_tool, input)
     {
@@ -175,9 +174,10 @@ fn execute_tool_call_with_recovery(
     let retry_policy_class = deterministic_tool_retry_policy_class(&execution_tool).to_string();
     let mut payload =
         execute_tool_call_by_name(root, snapshot, actor_agent_id, existing, tool_name, input);
+    let initial_transient_failure = transient_tool_failure(&payload);
     let mut recovery_strategy = "none".to_string();
     let mut recovery_attempts = 0_u64;
-    if transient_tool_failure(&payload) {
+    if initial_transient_failure {
         for delay_ms in retry_backoff_ms.iter().copied() {
             recovery_attempts += 1;
             std::thread::sleep(std::time::Duration::from_millis(delay_ms));
@@ -234,12 +234,19 @@ fn execute_tool_call_with_recovery(
             Value::String(audit_receipt),
         );
         obj.insert("recovery_attempts".to_string(), json!(recovery_attempts));
+        obj.insert("permission_gate".to_string(), permission_gate);
         obj.insert(
             "retry_policy".to_string(),
             json!({
                 "class": retry_policy_class,
                 "max_attempts": retry_backoff_ms.len(),
-                "backoff_ms": retry_backoff_ms
+                "backoff_ms": retry_backoff_ms,
+                "transient_retry_observed": initial_transient_failure,
+                "persistent_failure_next_action": if initial_transient_failure {
+                    "retry once; if it persists run `infringctl doctor --json`"
+                } else {
+                    ""
+                }
             }),
         );
         if let Some(meta) = nexus_connection {

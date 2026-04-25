@@ -163,6 +163,74 @@ fn synthetic_user_harness_enforces_simple_direct_budgets() {
 }
 
 #[test]
+fn synthetic_user_harness_uses_separate_live_latency_budget() {
+    let turn = json!({
+        "user_message": "hey",
+        "expect": {
+            "simple_direct_conversation": true
+        }
+    });
+    let thresholds = json!({
+        "simple_direct_max_latency_ms": 5000,
+        "simple_direct_live_max_latency_ms": 15000,
+        "simple_direct_max_response_tokens": 24,
+        "simple_direct_max_stage_count": 2
+    });
+    let payload = json!({
+        "response": "Hey, I am here.",
+        "response_workflow": {
+            "tool_gate": {"should_call_tools": false},
+            "stage_statuses": [
+                {"stage": "gate_1_need_tool_access_menu"},
+                {"stage": "gate_6_llm_final_output"}
+            ]
+        },
+        "tools": [],
+        "live_eval_monitor": {"chat_injection_allowed": false}
+    });
+
+    let offline_failures = evaluate_turn(TurnEvaluation {
+        live: false,
+        turn: &turn,
+        thresholds: &thresholds,
+        user_message: "hey",
+        response_text: "Hey, I am here.",
+        previous_response: "",
+        payload: &payload,
+        route_error_code: None,
+        latency_ms: 8_000,
+        response_token_count: 4,
+        workflow_stage_count: 2,
+    });
+    assert!(
+        offline_failures
+            .iter()
+            .any(|row| row == "simple_direct_latency_over_budget:8000>5000"),
+        "{offline_failures:?}"
+    );
+
+    let live_failures = evaluate_turn(TurnEvaluation {
+        live: true,
+        turn: &turn,
+        thresholds: &thresholds,
+        user_message: "hey",
+        response_text: "Hey, I am here.",
+        previous_response: "",
+        payload: &payload,
+        route_error_code: None,
+        latency_ms: 8_000,
+        response_token_count: 4,
+        workflow_stage_count: 2,
+    });
+    assert!(
+        !live_failures
+            .iter()
+            .any(|row| row.starts_with("simple_direct_latency_over_budget")),
+        "{live_failures:?}"
+    );
+}
+
+#[test]
 fn synthetic_user_harness_flags_fallback_text_and_writes_attention() {
     let root = temp_path("synthetic_user_harness_failure");
     let cases = write_case_file(
@@ -207,6 +275,33 @@ fn synthetic_user_harness_flags_fallback_text_and_writes_attention() {
         replay.contains(&format!("--cases={}", cases.display())),
         "{replay}"
     );
+}
+
+#[test]
+fn synthetic_user_harness_reports_first_route_stage_delta() {
+    let turn = json!({
+        "mock_response": {
+            "response": "Hey, I am here.",
+            "response_workflow": {
+                "stage_statuses": [{"stage": "gate_1_need_tool_access_menu"}]
+            },
+            "live_eval_monitor": {"chat_injection_allowed": false}
+        }
+    });
+    let actual = json!({"ok": true, "response": ""});
+    let delta = route_stage_delta(
+        &turn,
+        &actual,
+        None,
+        "",
+        workflow_stage_count(&actual),
+        &["empty_assistant_response".to_string()],
+    );
+    assert_eq!(
+        delta.get("first_missing_stage").and_then(Value::as_str),
+        Some("workflow_library_selection_or_payload_assembly")
+    );
+    assert_eq!(delta.get("diverged").and_then(Value::as_bool), Some(true));
 }
 
 #[test]

@@ -83,11 +83,20 @@ fn scripted_chat_harness_response(
             Some(Err(clean_text(error, 240)))
         } else {
             let response = clean_chat_text(row.get("response").and_then(Value::as_str).unwrap_or(""), 32_000);
+            let scripted_provider = row
+                .get("provider")
+                .and_then(Value::as_str)
+                .unwrap_or(provider_id);
+            let scripted_model = row
+                .get("runtime_model")
+                .or_else(|| row.get("model"))
+                .and_then(Value::as_str)
+                .unwrap_or(model_name);
             Some(Ok(json!({
                 "ok": true,
-                "provider": normalize_provider_id(provider_id),
-                "model": clean_text(model_name, 240),
-                "runtime_model": clean_text(model_name, 240),
+                "provider": normalize_provider_id(scripted_provider),
+                "model": clean_text(scripted_model, 240),
+                "runtime_model": clean_text(scripted_model, 240),
                 "response": response,
                 "input_tokens": ((user_message.len() as i64) / 4).max(1),
                 "output_tokens": ((response.len() as i64) / 4).max(1),

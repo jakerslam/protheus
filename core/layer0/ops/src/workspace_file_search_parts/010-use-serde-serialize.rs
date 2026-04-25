@@ -36,7 +36,7 @@ fn usage() {
         "  infring-ops workspace-file-search list [--workspace=<path>] [--workspace-roots-json='[...]'] [--workspace-hint=<name>] [--type=file|folder] [--limit=<n>] [--fetch-limit=<n>] [--allow-external=1]"
     );
     println!(
-        "  infring-ops workspace-file-search mention [--workspace=<path>] [--workspace-roots-json='[...]'] [--workspace-hint=<name>] [--q=<query>] [--type=file|folder] [--mention-prefix=@] [--allow-external=1]"
+        "  infring-ops workspace-file-search mention [--workspace=<path>] [--workspace-roots-json='[...]'] [--workspace-hint=<name>] [--q=<query>] [--type=file|folder] [--mention-prefix=@] [--mention-format=at|path|markdown] [--allow-external=1]"
     );
     println!("  infring-ops workspace-file-search status");
 }

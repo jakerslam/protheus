@@ -102,11 +102,14 @@ fn handle_agent_scope_message_route(
         if resolved_tool_intent.is_some() && !explicit_operator_command && !replayed_pending_confirmation {
             resolved_tool_intent = None;
         }
-        if available_model_count(root, snapshot) == 0 && resolved_tool_intent.is_none() {
-            return Some(CompatApiResponse {
-                status: 503,
-                payload: no_models_available_payload(agent_id),
-            });
+        if available_model_count(root, snapshot) == 0 && !workflow_test_llm_enabled(root) && resolved_tool_intent.is_none() {
+            return Some(no_models_available_message_response(
+                root,
+                agent_id,
+                &message,
+                workspace_hints_value.clone(),
+                latent_tool_candidates_value.clone(),
+            ));
         }
         if let Some((tool_name, tool_input)) = resolved_tool_intent {
             let tool_payload = execute_tool_call_with_recovery(

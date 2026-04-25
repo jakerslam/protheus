@@ -263,6 +263,11 @@ fn main() {
             let exit = infring_ops_core::batch_query_primitive::run(&cwd, &rest);
             std::process::exit(exit);
         }
+        "memory-semantic-query" | "memory_semantic_query" | "tool::memory_semantic_query" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = infring_ops_core::memory_semantic_query::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "context-stacks" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = infring_ops_core::context_stacks::run(&cwd, &rest);

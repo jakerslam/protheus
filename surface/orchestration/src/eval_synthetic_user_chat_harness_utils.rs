@@ -104,11 +104,22 @@ pub(super) fn assistant_text(payload: &Value) -> String {
     String::new()
 }
 
+pub(super) fn route_error_code(payload: &Value) -> Option<String> {
+    if payload.get("ok").and_then(Value::as_bool) != Some(false) {
+        return None;
+    }
+    str_opt(payload, &["error_code"])
+        .or_else(|| str_opt(payload, &["error"]))
+        .map(|raw| clean_text(raw, 160))
+        .filter(|raw| !raw.is_empty())
+}
+
 pub(super) fn workflow_visible(payload: &Value) -> bool {
     payload.get("response_workflow").is_some()
         || payload.get("workflow_state").is_some()
         || payload.get("workflow_trace").is_some()
         || payload.get("workflow_events").is_some()
+        || payload.get("workflow_visibility").is_some()
 }
 
 pub(super) fn is_local_dashboard_url(raw: &str) -> bool {

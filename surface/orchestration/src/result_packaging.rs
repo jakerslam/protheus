@@ -1,10 +1,9 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
     ControlPlaneDecisionTrace, ControlPlaneDecisionTraceStep, ControlPlaneLifecycleState,
-    ForgeCodeWorkflowQualitySignals,
-    OrchestrationFallbackAction, OrchestrationPlan, OrchestrationResultPackage, PlanStatus,
-    PlanVariant, RecoveryReason, RequestClass, RuntimeQualitySignals, StepStatus, WorkflowTemplate,
-    WorkflowQualitySignals,
+    ForgeCodeWorkflowQualitySignals, OrchestrationFallbackAction, OrchestrationPlan,
+    OrchestrationResultPackage, PlanStatus, PlanVariant, RecoveryReason, RequestClass,
+    RuntimeQualitySignals, StepStatus, WorkflowQualitySignals, WorkflowTemplate,
 };
 
 pub fn package_result(

@@ -419,6 +419,20 @@ mod tests {
             .filter_map(Value::as_str)
             .all(|row| !ends_with_question_variant(row)));
         assert!(joined.contains("infring") || joined.contains("command flow"));
+        assert!(value
+            .pointer("/suggestion_diagnostics/analytics_candidates")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            > 0);
+        assert!(value
+            .pointer("/suggestion_diagnostics/accepted_from_analytics")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            > 0);
+        assert!(value
+            .pointer("/suggestion_diagnostics/model_candidates")
+            .and_then(Value::as_u64)
+            .is_some());
     }
 
     #[test]

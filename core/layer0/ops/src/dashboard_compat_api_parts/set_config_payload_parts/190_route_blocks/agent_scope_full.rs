@@ -6,6 +6,7 @@ include!("agent_scope_full_parts/047a-visible-response-provenance-guards.rs");
 include!("agent_scope_full_parts/047b-agent-dashboard-health-indicator.rs");
 include!("agent_scope_full_parts/047-turn-workflow-synthesis.rs");
 include!("agent_scope_full_parts/050-message-finalization-and-payload.rs");
+include!("agent_scope_full_parts/055-message-route-failure-payload.rs");
 include!("agent_scope_full_parts/040-message-chat-response-pass.rs");
 include!("agent_scope_full_parts/020-message-direct-tool.rs");
 include!("agent_scope_full_parts/070-config-b-model-git.rs");
