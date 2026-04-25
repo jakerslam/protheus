@@ -2382,6 +2382,30 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/Cargo.toml",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/Cross.toml"
       ]
+    },
+    {
+      "id": "forgecode_structured_license_site_lint_command_and_app_crate_contracts",
+      "description": "Structured ForgeCode lane that projects license governance, docs-site configuration, byte-decoding lint policy, PR-description command templating, and app-crate dependency boundaries into staged assimilation workflow contracts.",
+      "required_signals": [
+        "apache_2_license_contract_requires_license_notice_attribution_patent_grant_and_warranty_disclaimer_tracking",
+        "jekyll_site_config_uses_remote_theme_and_explicit_plugin_declaration_for_docs_surface_projection",
+        "clippy_disallowed_methods_bans_string_from_utf8_lossy_in_favor_of_explicit_bstr_byte_slice_lossy_decode",
+        "command_frontmatter_github_pr_description_declares_name_description_and_parameterized_pull_request_skill_invocation",
+        "forge_app_crate_depends_on_domain_config_stream_display_template_json_repair_and_transport_surfaces_via_workspace_versions",
+        "forge_app_dev_dependencies_use_test_kit_pretty_assertions_insta_tokio_test_util_stream_and_fake_fixture_generation",
+        "app_crate_dependency_boundary_keeps_application_orchestration_composed_from_domain_config_stream_display_template_and_transport_crates"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/LICENSE",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/_config.yml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/clippy.toml",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/commands/github-pr-description.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/Cargo.toml"
+      ]
     }
   ],
   "workflow_templates": [
