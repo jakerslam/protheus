@@ -31,7 +31,10 @@ pub fn run_eval_learning_loop_policy_version(args: &[String]) -> i32 {
         .unwrap_or(false);
     let rollback_ok = str_at(&version, &["rollback", "rollback_path"]).is_some()
         && str_at(&version, &["rollback", "parent_policy_id"]).is_some()
-        && bool_at(&version, &["rollback", "safe_to_revert_without_runtime_code"]);
+        && bool_at(
+            &version,
+            &["rollback", "safe_to_revert_without_runtime_code"],
+        );
     let version_ok = str_at(&version, &["candidate_policy_id"]).is_some()
         && str_at(&version, &["parent_policy_id"]).is_some()
         && str_at(&version, &["reviewer_decision"]).is_some()
@@ -70,7 +73,11 @@ pub fn run_eval_learning_loop_policy_version(args: &[String]) -> i32 {
     );
     let write_ok = write_json(&out_path, &report).is_ok()
         && write_json(&out_latest_path, &report).is_ok()
-        && append_jsonl(&version_store_path, report.get("policy_version").unwrap_or(&json!({}))).is_ok()
+        && append_jsonl(
+            &version_store_path,
+            report.get("policy_version").unwrap_or(&json!({})),
+        )
+        .is_ok()
         && write_text(&markdown_path, &markdown).is_ok();
     if !write_ok {
         eprintln!("eval_runtime: failed to write eval learning-loop policy version outputs");
@@ -88,8 +95,8 @@ fn policy_version_record(policy: &Value, policy_path: &str, version_store_path: 
         .unwrap_or("eval-learning-loop-policy-candidate-v1");
     let parent_policy_id = str_at(policy, &["calibration_update", "parent_policy_id"])
         .unwrap_or("eval-learning-loop-policy-active-v1");
-    let promoted = bool_at(policy, &["summary", "candidate_policy_promotable"])
-        && bool_at(policy, &["ok"]);
+    let promoted =
+        bool_at(policy, &["summary", "candidate_policy_promotable"]) && bool_at(policy, &["ok"]);
     let reviewer_decision = if promoted {
         "approved_for_policy_promotion"
     } else {
@@ -158,7 +165,10 @@ fn str_at<'a>(value: &'a Value, path: &[&str]) -> Option<&'a str> {
     for segment in path {
         cursor = cursor.get(*segment)?;
     }
-    cursor.as_str().map(str::trim).filter(|value| !value.is_empty())
+    cursor
+        .as_str()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
 }
 
 fn bool_at(value: &Value, path: &[&str]) -> bool {
@@ -195,7 +205,10 @@ fn write_json(path: &str, value: &Value) -> io::Result<()> {
 fn append_jsonl(path: &str, value: &Value) -> io::Result<()> {
     ensure_parent(path)?;
     let payload = serde_json::to_string(value).unwrap_or_else(|_| "{}".to_string());
-    let mut file = fs::OpenOptions::new().create(true).append(true).open(path)?;
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)?;
     writeln!(file, "{payload}")
 }
 
@@ -227,7 +240,13 @@ mod tests {
         });
         let record = policy_version_record(&policy, "policy.json", "versions.jsonl");
         assert_eq!(str_at(&record, &["candidate_policy_id"]), Some("candidate"));
-        assert_eq!(str_at(&record, &["rollback", "parent_policy_id"]), Some("parent"));
-        assert!(bool_at(&record, &["rollback", "safe_to_revert_without_runtime_code"]));
+        assert_eq!(
+            str_at(&record, &["rollback", "parent_policy_id"]),
+            Some("parent")
+        );
+        assert!(bool_at(
+            &record,
+            &["rollback", "safe_to_revert_without_runtime_code"]
+        ));
     }
 }

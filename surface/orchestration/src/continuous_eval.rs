@@ -84,11 +84,15 @@ struct LiveEvalReport {
 
 pub fn run_continuous_eval(args: &[String]) -> i32 {
     let strict = flag_value(args, "--strict").unwrap_or_else(|| "0".to_string()) == "1";
-    let policy_path = flag_value(args, "--policy").unwrap_or_else(|| DEFAULT_POLICY_PATH.to_string());
-    let stream_path = flag_value(args, "--stream").unwrap_or_else(|| DEFAULT_STREAM_PATH.to_string());
+    let policy_path =
+        flag_value(args, "--policy").unwrap_or_else(|| DEFAULT_POLICY_PATH.to_string());
+    let stream_path =
+        flag_value(args, "--stream").unwrap_or_else(|| DEFAULT_STREAM_PATH.to_string());
     let out_path = flag_value(args, "--out").unwrap_or_else(|| DEFAULT_OUT_PATH.to_string());
-    let latest_path = flag_value(args, "--latest").unwrap_or_else(|| DEFAULT_LATEST_PATH.to_string());
-    let report_path = flag_value(args, "--report").unwrap_or_else(|| DEFAULT_REPORT_PATH.to_string());
+    let latest_path =
+        flag_value(args, "--latest").unwrap_or_else(|| DEFAULT_LATEST_PATH.to_string());
+    let report_path =
+        flag_value(args, "--report").unwrap_or_else(|| DEFAULT_REPORT_PATH.to_string());
 
     let policy = match load_policy(&policy_path) {
         Ok(policy) => policy,
@@ -127,11 +131,8 @@ fn load_policy(path: &str) -> Result<LiveEvalPolicy, String> {
 
 fn build_live_eval_report(policy: &LiveEvalPolicy, stream_path: &str) -> LiveEvalReport {
     let generated_unix_seconds = now_unix_seconds();
-    let sources: Vec<SourceObservation> = policy
-        .sample_sources
-        .iter()
-        .map(observe_source)
-        .collect();
+    let sources: Vec<SourceObservation> =
+        policy.sample_sources.iter().map(observe_source).collect();
     let metrics = derive_metrics(&sources);
     let drift_findings = drift_findings(policy, &metrics);
     let mitigations = policy
@@ -152,11 +153,17 @@ fn build_live_eval_report(policy: &LiveEvalPolicy, stream_path: &str) -> LiveEva
         },
         CheckRow {
             id: "live_eval_sources_present_contract".to_string(),
-            ok: metrics.get("missing_required_sources").copied().unwrap_or(0)
+            ok: metrics
+                .get("missing_required_sources")
+                .copied()
+                .unwrap_or(0)
                 <= policy.drift_thresholds.missing_required_sources_max,
             detail: format!(
                 "missing_required_sources={}",
-                metrics.get("missing_required_sources").copied().unwrap_or(0)
+                metrics
+                    .get("missing_required_sources")
+                    .copied()
+                    .unwrap_or(0)
             ),
         },
         CheckRow {
@@ -167,7 +174,11 @@ fn build_live_eval_report(policy: &LiveEvalPolicy, stream_path: &str) -> LiveEva
         CheckRow {
             id: "live_eval_drift_mitigation_contract".to_string(),
             ok: drift_findings.is_empty() || !mitigations.is_empty(),
-            detail: format!("drift_findings={};mitigations={}", drift_findings.len(), mitigations.len()),
+            detail: format!(
+                "drift_findings={};mitigations={}",
+                drift_findings.len(),
+                mitigations.len()
+            ),
         },
     ];
     let ok = checks.iter().all(|check| check.ok) && drift_findings.is_empty();
@@ -379,8 +390,10 @@ fn write_markdown(path: &str, report: &LiveEvalReport) -> bool {
 }
 
 fn flag_value(args: &[String], flag: &str) -> Option<String> {
-    args.iter()
-        .find_map(|arg| arg.strip_prefix(&format!("{flag}=")).map(|value| value.to_string()))
+    args.iter().find_map(|arg| {
+        arg.strip_prefix(&format!("{flag}="))
+            .map(|value| value.to_string())
+    })
 }
 
 fn now_unix_seconds() -> u64 {

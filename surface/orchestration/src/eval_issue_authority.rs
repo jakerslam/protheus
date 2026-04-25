@@ -53,7 +53,11 @@ const QUALITY_CLASSES: &[(&str, &[&str], &str)] = &[
     ),
     (
         "blocked_lane_misdiagnosis",
-        &["blocked_lane_misdiagnosis", "lease_denied", "policy_block_confusion"],
+        &[
+            "blocked_lane_misdiagnosis",
+            "lease_denied",
+            "policy_block_confusion",
+        ],
         "surface/orchestration/recovery",
     ),
 ];
@@ -79,7 +83,10 @@ pub fn run_eval_issue_authority(args: &[String]) -> i32 {
         eprintln!("eval_issue_authority: failed to write one or more outputs");
         return 2;
     }
-    println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&report).unwrap_or_default()
+    );
     if strict && !bool_at(&report, &["ok"]) {
         return 1;
     }

@@ -5,8 +5,7 @@ use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const DEFAULT_OUT_PATH: &str = "core/local/artifacts/assimilation_authority_guard_current.json";
-const DEFAULT_REPORT_PATH: &str =
-    "local/workspace/reports/ASSIMILATION_AUTHORITY_GUARD_CURRENT.md";
+const DEFAULT_REPORT_PATH: &str = "local/workspace/reports/ASSIMILATION_AUTHORITY_GUARD_CURRENT.md";
 const MANUAL_TEMPLATE_PATH: &str = "docs/workspace/ASSIMILATION_MANUAL_TEMPLATE.md";
 const WAVE_RUNBOOK_PATH: &str = "docs/workspace/CODEX_ASSIMILATION_WAVE_RUNBOOK.md";
 const WORKFLOW_POLICY_PATH: &str = "docs/workspace/workflow_json_format_policy.md";
@@ -170,7 +169,10 @@ fn build_checks(
     ));
     checks.push(check(
         "workflow_specs_parse_and_stage_contract",
-        !workflows.is_empty() && workflows.iter().all(|row| row.parse_ok && row.stage_count > 0),
+        !workflows.is_empty()
+            && workflows
+                .iter()
+                .all(|row| row.parse_ok && row.stage_count > 0),
         "every assimilation workflow JSON spec must parse and declare stages",
     ));
     checks.push(check(
@@ -252,7 +254,11 @@ fn observe_workflow(path: &str) -> WorkflowObservation {
                 parse_ok: true,
                 name: spec.name,
                 workflow_type: spec.workflow_type,
-                stage_count: spec.stages.iter().filter(|row| !row.trim().is_empty()).count(),
+                stage_count: spec
+                    .stages
+                    .iter()
+                    .filter(|row| !row.trim().is_empty())
+                    .count(),
                 subtemplate_count: spec.subtemplates.len(),
                 required_signal_count,
                 source_ref_count,
@@ -275,7 +281,9 @@ fn observe_workflow(path: &str) -> WorkflowObservation {
 
 fn placement_for(spec: &WorkflowSpec) -> String {
     let name = spec.name.to_ascii_lowercase();
-    let description = serde_json::to_string(spec).unwrap_or_default().to_ascii_lowercase();
+    let description = serde_json::to_string(spec)
+        .unwrap_or_default()
+        .to_ascii_lowercase();
     if name.contains("raw_capability") || description.contains("raw capability") {
         return "rust_raw_capability".to_string();
     }

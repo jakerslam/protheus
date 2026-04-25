@@ -282,8 +282,13 @@ fn required_probe_contract_for_capability(
             ],
         )),
         Capability::VerifyClaim => Some(("verify_claim", &["transport_available"])),
-        Capability::WorkspaceRead => Some(("workspace_read", &["tool_available", "transport_available"])),
-        Capability::WorkspaceSearch => Some(("workspace_search", &["tool_available", "transport_available"])),
+        Capability::WorkspaceRead => {
+            Some(("workspace_read", &["tool_available", "transport_available"]))
+        }
+        Capability::WorkspaceSearch => Some((
+            "workspace_search",
+            &["tool_available", "transport_available"],
+        )),
         Capability::WebSearch => Some(("web_search", &["tool_available", "transport_available"])),
         Capability::WebFetch => Some(("web_fetch", &["tool_available", "transport_available"])),
         Capability::ToolRoute => Some(("tool_route", &["tool_available", "transport_available"])),
