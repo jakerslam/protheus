@@ -1241,6 +1241,33 @@
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-04-02-system-context-rendering-v2.md",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-09-14-explicit-conversation-id-generation-v1.md"
       ]
+    },
+    {
+      "id": "forgecode_raw_range_model_workspace_retry_and_startup_config_contracts",
+      "description": "Raw-capability ForgeCode lane adapted from range-read, model command, workspace auto-sync, retry migration, and startup config plans to expose deterministic tool, config, and workspace registration mechanics without composed-lane assumptions.",
+      "required_signals": [
+        "range_raw_v3_adds_start_byte_end_byte_to_fs_read_input_and_new_service_method_for_seeked_partial_reads",
+        "range_raw_v3_detects_binary_by_sample_null_byte_or_byte_distribution_heuristics_and_returns_clear_binary_unsupported_error",
+        "range_raw_v3_uses_file_metadata_seek_limited_reader_utf8_validation_and_adjusted_range_reporting_for_memory_bounded_reads",
+        "model_command_raw_adds_inquire_selection_flow_fetches_models_updates_forge_yaml_standard_model_anchor_and_reports_empty_missing_or_malformed_config_errors",
+        "workspace_sync_raw_adds_workspace_info_porcelain_silent_mode_with_zero_for_existing_workspace_or_ancestor_and_one_for_none",
+        "workspace_sync_raw_zsh_helper_calls_workspace_info_porcelain_before_background_sync_and_skips_unindexed_directories_without_blocking_manual_sync",
+        "retry_raw_environment_fields_parse_forge_retry_initial_backoff_ms_backoff_factor_max_attempts_and_status_codes_with_defaults_and_clear_parse_errors",
+        "retry_raw_provider_service_constructor_uses_environment_retry_config_and_workflow_struct_and_repository_no_longer_own_retry_policy",
+        "startup_config_raw_main_reads_forge_config_before_ui_init_and_parse_or_deserialization_errors_exit_nonzero_with_user_visible_cause",
+        "startup_config_raw_removes_lazy_environment_get_config_default_fallback_and_replaces_services_url_expect_panic_with_validated_error_propagation"
+      ],
+      "required_gates": [
+        "ops:synthesis:mixed-evidence:guard",
+        "ops:workflow-failure-recovery:guard"
+      ],
+      "source_refs": [
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-04-26-large-file-read-range-support-v3.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-04-16-model-selection-command.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2026-01-22-Fix Auto-Sync Workspace Registration Issue-v2.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2025-04-06-retry-config-migration.md",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/plans/2026-04-05-config-init-at-startup-v1.md"
+      ]
     }
   ],
   "workflow_templates": [
