@@ -106,6 +106,11 @@ fn response_contains_project_dump_sections(text: &str) -> bool {
 
 fn response_contains_internal_prompt_dump(lowered: &str) -> bool {
     lowered.contains("you are the currently selected infring agent instance")
+        || (lowered.contains("<instructions>") && lowered.contains("manual toolbox gate"))
+        || lowered.contains("you are the llm and you author the visible chat text")
+        || lowered.contains("available workflow/tool candidates")
+        || lowered.contains("<output_format type=\"json\">")
+        || lowered.contains("do not expose raw gate choices")
         || lowered.contains("hardcoded agent workflow: you are writing the final assistant response")
         || (lowered.contains("use tool output as context and synthesize a direct answer")
             && lowered.contains("never output capability-denial claims"))

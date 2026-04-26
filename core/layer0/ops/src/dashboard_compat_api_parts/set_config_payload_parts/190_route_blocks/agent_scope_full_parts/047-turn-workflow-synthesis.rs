@@ -1408,6 +1408,28 @@ fn response_tools_prompt_only_gate_required(message: &str, latent_tool_candidate
         .unwrap_or(false)
 }
 
+fn record_manual_toolbox_pending_request(workflow: &mut Value, response_text: &str, message: &str) {
+    if workflow
+        .get("manual_toolbox_pending_tool_request")
+        .filter(|value| value.is_object())
+        .is_some()
+    {
+        return;
+    }
+    let Some(pending_request) =
+        manual_toolbox_pending_request_from_response(response_text, message)
+    else {
+        return;
+    };
+    workflow["manual_toolbox_pending_tool_request"] = pending_request.clone();
+    if let Some(events) = workflow.get_mut("system_events").and_then(Value::as_array_mut) {
+        events.push(turn_workflow_event(
+            "manual_toolbox_pending_tool_request",
+            pending_request,
+        ));
+    }
+}
+
 fn run_turn_workflow_final_response(
     root: &Path,
     provider: &str,
@@ -1720,6 +1742,9 @@ fn run_turn_workflow_final_response(
                     response_is_manual_toolbox_gate_choice(&retried_text);
                 let visible_gate_choice_reply =
                     response_is_visible_workflow_gate_choice(&retried_text);
+                if manual_toolbox_gate_choice || visible_gate_choice_reply {
+                    record_manual_toolbox_pending_request(&mut workflow, &retried_text, message);
+                }
                 let deferred_reply = response_is_deferred_execution_preamble(&retried_text)
                     || response_is_deferred_retry_prompt(&retried_text)
                     || (workflow_response_requests_more_tooling(&retried_text)
@@ -1752,6 +1777,12 @@ fn run_turn_workflow_final_response(
                 let rejects_speculative_blocker =
                     response_contains_speculative_web_blocker_language(&retried_text)
                         && !has_structured_block_evidence;
+                let unsupported_tool_success_claim =
+                    response_claims_tool_success_without_current_turn_evidence(
+                        message,
+                        &retried_text,
+                        response_tools,
+                    );
                 let lowered_message = message.to_ascii_lowercase();
                 let lowered_retried_text = retried_text.to_ascii_lowercase();
                 let missing_manual_web_search_phrase = manual_toolbox_gate_turn
@@ -1802,6 +1833,11 @@ fn run_turn_workflow_final_response(
                         "unexpected_state_loop_reject",
                     ),
                     (
+                        unsupported_tool_success_claim,
+                        "unsupported_tool_success_claim",
+                        "unsupported_tool_success_claim_reject",
+                    ),
+                    (
                         response_looks_like_tool_ack_without_findings(&retried_text),
                         "ack_only_reply",
                         "",
@@ -1819,20 +1855,7 @@ fn run_turn_workflow_final_response(
                     .unwrap_or(("", ""));
                 if !reject_reason.is_empty() {
                     if visible_gate_choice_reply {
-                        if let Some(pending_request) =
-                            manual_toolbox_pending_request_from_response(&retried_text, message)
-                        {
-                            workflow["manual_toolbox_pending_tool_request"] =
-                                pending_request.clone();
-                            if let Some(events) =
-                                workflow.get_mut("system_events").and_then(Value::as_array_mut)
-                            {
-                                events.push(turn_workflow_event(
-                                    "manual_toolbox_pending_tool_request",
-                                    pending_request,
-                                ));
-                            }
-                        }
+                        record_manual_toolbox_pending_request(&mut workflow, &retried_text, message);
                     }
                     if !reject_counter.is_empty() {
                         bump_workflow_quality_counter(&mut workflow, reject_counter);
@@ -1969,6 +1992,41 @@ fn run_turn_workflow_final_response(
 #[cfg(test)]
 mod workflow_fallback_tests {
     use super::*;
+
+    #[test]
+    fn manual_toolbox_selection_parses_pending_web_request() {
+        let pending = manual_toolbox_pending_request_from_response(
+            "Yes. Tool family: Web Search / Fetch. Tool: Web search. Request payload: {\"source\":\"web\",\"query\":\"compare infring\",\"aperture\":\"medium\"}.",
+            "Compare infring to other major agentic frameworks.",
+        )
+        .expect("pending request");
+
+        assert_eq!(
+            pending.get("status").and_then(Value::as_str),
+            Some("pending_confirmation")
+        );
+        assert_eq!(
+            pending.get("tool_name").and_then(Value::as_str),
+            Some("batch_query")
+        );
+        assert_eq!(
+            pending.pointer("/input/query").and_then(Value::as_str),
+            Some("compare infring")
+        );
+        assert_eq!(
+            pending
+                .get("execution_claim_allowed")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert!(
+            pending
+                .get("receipt_binding")
+                .and_then(Value::as_str)
+                .map(|value| !value.is_empty())
+                .unwrap_or(false)
+        );
+    }
 
     #[test]
     fn workflow_fallback_allowlist_disables_system_fallback_text() {

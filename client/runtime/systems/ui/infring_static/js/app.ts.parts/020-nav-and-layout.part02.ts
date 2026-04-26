@@ -210,6 +210,8 @@
     _popupWindowPointerUpHandler: null,
     taskbarHeroActionPending: '',
     taskbarDockEdge: (() => {
+      var service = infringTaskbarDockService();
+      if (service && typeof service.readLayoutConfig === 'function') return service.readLayoutConfig().taskbar.edge;
       try {
         var raw = String(localStorage.getItem('infring-taskbar-dock-edge') || '').trim().toLowerCase();
         if (raw === 'bottom') return 'bottom';
@@ -226,6 +228,8 @@
     _taskbarDockPointerMoveHandler: null,
     _taskbarDockPointerUpHandler: null,
     taskbarReorderLeft: (() => {
+      var service = infringTaskbarDockService();
+      if (service && typeof service.readTaskbarOrder === 'function') return service.readTaskbarOrder('left');
       var defaults = ['nav_cluster'];
       try {
         var raw = localStorage.getItem('infring-taskbar-order-left');
@@ -251,6 +255,8 @@
       }
     })(),
     taskbarReorderRight: (() => {
+      var service = infringTaskbarDockService();
+      if (service && typeof service.readTaskbarOrder === 'function') return service.readTaskbarOrder('right');
       var defaults = ['connectivity', 'theme', 'notifications', 'search', 'auth'];
       try {
         var raw = localStorage.getItem('infring-taskbar-order-right');
@@ -427,7 +433,21 @@
       ghost.style.top = Math.round(targetY) + 'px';
     },
 
+    dragbarService() {
+      var services = typeof window !== 'undefined' ? window.InfringSharedShellServices : null;
+      return services && services.dragbar ? services.dragbar : null;
+    },
+
+    taskbarDockService() {
+      var services = typeof window !== 'undefined' ? window.InfringSharedShellServices : null;
+      return services && services.taskbarDock ? services.taskbarDock : null;
+    },
+
     dragSurfaceMoveDurationMs(rawValue, fallbackMs) {
+      var service = this.dragbarService();
+      if (service && typeof service.moveDurationMs === 'function') {
+        return service.moveDurationMs(rawValue, fallbackMs);
+      }
       var fallback = Number(fallbackMs || 280);
       if (!Number.isFinite(fallback)) fallback = 280;
       fallback = Math.max(80, Math.round(fallback));

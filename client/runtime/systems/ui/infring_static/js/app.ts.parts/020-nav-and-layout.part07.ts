@@ -167,6 +167,17 @@
       if (this.page !== 'chat') return '';
       var durationMs = this.chatSidebarDragActive ? 0 : this.dragSurfaceMoveDurationMs(this._chatSidebarMoveDurationMs, 280);
       var wall = this.chatSidebarWallLockNormalized();
+      var service = this.dragbarService();
+      if (service && typeof service.pulltabStyle === 'function') {
+        return service.pulltabStyle({
+          active: this.page === 'chat',
+          dragging: this.chatSidebarDragActive,
+          durationMs: durationMs,
+          fallbackMs: 280,
+          transitionVar: '--sidebar-position-transition',
+          wall: wall
+        });
+      }
       var dockRight = wall === 'right';
       return [
         'position:absolute;',
@@ -178,6 +189,12 @@
       ].join('');
     },
     shouldIgnoreChatSidebarDragTarget(target) {
+      var service = this.dragbarService();
+      if (service && typeof service.shouldIgnoreTarget === 'function') {
+        return service.shouldIgnoreTarget(target, {
+          ignoreSelector: 'input,textarea,select,[contenteditable="true"],button,a,[role="button"],.sidebar-pulltab,.nav-item,.nav-agent-row,[data-agent-id]'
+        });
+      }
       var node = target;
       if (node && typeof node.closest !== 'function' && node.parentElement) {
         node = node.parentElement;
@@ -686,6 +703,8 @@
     },
 
     bottomDockDefaultOrder() {
+      var service = this.taskbarDockService();
+      if (service && typeof service.dockDefaultOrder === 'function') return service.dockDefaultOrder(this.bottomDockTileConfig);
       var registry = (this.bottomDockTileConfig && typeof this.bottomDockTileConfig === 'object')
         ? this.bottomDockTileConfig
         : null;
@@ -731,8 +750,12 @@
 
     bottomDockSlotStyle(id) {
       var key = String(id || '').trim();
-      var order = key ? this.bottomDockOrderIndex(key) : 999;
       var weight = this.bottomDockHoverWeight(key);
+      var service = this.taskbarDockService();
+      if (service && typeof service.dockSlotStyle === 'function') {
+        return service.dockSlotStyle(key, this.bottomDockOrder, weight, this.bottomDockTileConfig);
+      }
+      var order = key ? this.bottomDockOrderIndex(key) : 999;
       if (!Number.isFinite(weight) || weight < 0) weight = 0;
       if (weight > 1) weight = 1;
       return 'order:' + order + ';--bottom-dock-hover-weight:' + weight.toFixed(4);
@@ -746,6 +769,8 @@
     },
 
     normalizeBottomDockOrder(rawOrder) {
+      var service = this.taskbarDockService();
+      if (service && typeof service.normalizeOrder === 'function') return service.normalizeOrder(rawOrder, this.bottomDockDefaultOrder());
       var defaults = this.bottomDockDefaultOrder();
       var source = Array.isArray(rawOrder) ? rawOrder : [];
       var seen = {};
@@ -768,7 +793,9 @@
     persistBottomDockOrder() {
       this.bottomDockOrder = this.normalizeBottomDockOrder(this.bottomDockOrder);
       try {
-        localStorage.setItem('infring-bottom-dock-order', JSON.stringify(this.bottomDockOrder));
+        var service = this.taskbarDockService();
+        if (service && typeof service.persistDockOrder === 'function') this.bottomDockOrder = service.persistDockOrder(this.bottomDockOrder, this.bottomDockTileConfig);
+        else localStorage.setItem('infring-bottom-dock-order', JSON.stringify(this.bottomDockOrder));
       } catch(_) {}
       infringUpdateShellLayoutConfig(function(config) {
         config.dock.order = this.bottomDockOrder.slice();
@@ -778,6 +805,10 @@
     bottomDockOrderIndex(id) {
       var key = String(id || '').trim();
       if (!key) return 999;
+      var service = this.taskbarDockService();
+      if (service && typeof service.orderIndex === 'function') {
+        return service.orderIndex(key, this.bottomDockOrder, this.bottomDockDefaultOrder());
+      }
       var order = this.normalizeBottomDockOrder(this.bottomDockOrder);
       var idx = order.indexOf(key);
       if (idx >= 0) return idx;

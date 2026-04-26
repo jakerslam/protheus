@@ -304,6 +304,15 @@
     },
 
     bottomDockTaskbarContained() {
+      var service = this.taskbarDockService();
+      if (service && typeof service.dockTaskbarContained === 'function') {
+        return service.dockTaskbarContained(
+          this.bottomDockWallLockNormalized(),
+          this.taskbarDockEdge,
+          this.taskbarDockDragActive,
+          this._taskbarDockDraggingContainedBottomDock
+        );
+      }
       var wall = this.bottomDockWallLockNormalized();
       if (wall !== 'top' && wall !== 'bottom') return false;
       if (this.taskbarDockDragActive && String(this._taskbarDockDraggingContainedBottomDock || '') === wall) return true;
@@ -325,6 +334,15 @@
         var rect = textMenu && typeof textMenu.getBoundingClientRect === 'function' ? textMenu.getBoundingClientRect() : null;
         if (rect && Number.isFinite(Number(rect.right))) left = Number(rect.right) + 8;
       } catch(_) {}
+      var service = this.taskbarDockService();
+      if (service && typeof service.dockTaskbarContainedAnchorX === 'function') {
+        return service.dockTaskbarContainedAnchorX({
+          side: side,
+          viewportWidth: Number(view.width || 0),
+          dockWidth: dockWidth,
+          leftAnchor: left
+        });
+      }
       var minX = dockWidth / 2;
       var maxX = Math.max(minX, Number(view.width || 0) - minX - 10);
       return Math.max(minX, Math.min(maxX, left + (dockWidth / 2)));
@@ -344,6 +362,19 @@
       } catch(_) {}
       if (this.taskbarDockDragActive && String(this._taskbarDockDraggingContainedBottomDock || '')) {
         centerY = this.taskbarClampDragY(this.taskbarDockDragY) + (this.taskbarReadHeight() / 2);
+      }
+      var service = this.taskbarDockService();
+      if (service && typeof service.dockTaskbarContainedMetrics === 'function') {
+        return service.dockTaskbarContainedMetrics({
+          edge: edge,
+          viewportHeight: this.taskbarReadViewportHeight(),
+          fallbackHeight: 32,
+          groupHeight: height,
+          groupTop: centerY - (height / 2),
+          dragging: this.taskbarDockDragActive && String(this._taskbarDockDraggingContainedBottomDock || ''),
+          dragY: this.taskbarClampDragY(this.taskbarDockDragY),
+          taskbarHeight: this.taskbarReadHeight()
+        });
       }
       return { height: height, centerY: centerY };
     },

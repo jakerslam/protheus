@@ -6,7 +6,7 @@
 
     <!-- Page: Overview -->
     <template x-if="page === 'overview'">
-      <infring-overview-page-shell>
+      <infring-overview-page-shell shellprimitive="simple-page-panel" pageid="overview" panelrole="page" routecontract="overview" parentowneddata="true">
       <div x-data="overviewPage" x-init="loadOverview().then(() => startAutoRefresh())" @page-leave.window="stopAutoRefresh()">
         <div class="page-body">
           <!-- Loading skeleton state -->

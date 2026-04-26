@@ -867,12 +867,21 @@ fn manual_toolbox_payload_json(payload_text: &str) -> Option<Value> {
 }
 
 fn canonical_manual_toolbox_tool_name(family: &str, tool_label: &str) -> String {
-    let combined = format!("{family} {tool_label}").to_ascii_lowercase();
-    if combined.contains("web") && combined.contains("fetch") {
+    let selected_tool = tool_label.to_ascii_lowercase();
+    if selected_tool.contains("web")
+        && (selected_tool.contains("search") || selected_tool.contains("query"))
+    {
+        return "batch_query".to_string();
+    }
+    if selected_tool.contains("web") && selected_tool.contains("fetch") {
         return "web_fetch".to_string();
     }
+    let combined = format!("{family} {tool_label}").to_ascii_lowercase();
     if combined.contains("web") && (combined.contains("search") || combined.contains("query")) {
         return "batch_query".to_string();
+    }
+    if combined.contains("web") && combined.contains("fetch") {
+        return "web_fetch".to_string();
     }
     if combined.contains("workspace") && (combined.contains("search") || combined.contains("analy")) {
         return "workspace_analyze".to_string();
