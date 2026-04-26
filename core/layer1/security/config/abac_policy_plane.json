@@ -1,9 +1,7 @@
 {
   "version": "v1",
   "kind": "abac_policy_plane",
-  "canonical_path": "core/layer1/security/config/abac_policy_plane.json",
   "canonical_owner": "core/layer1/security",
-  "compatibility_mirror": true,
   "default_effect": "deny",
   "rules": [
     {

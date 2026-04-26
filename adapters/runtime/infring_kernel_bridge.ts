@@ -91,11 +91,31 @@ function invokeKernelPayload(domain, command, payload = {}, options = {}) {
   return result.payload;
 }
 
+function kernelFailClosedResult(type, reason, options = {}) {
+  const normalizedType = cleanText(type || 'kernel_bridge_reject', 120);
+  const normalizedReason = cleanText(reason || 'kernel_bridge_failed', 240);
+  const payload = {
+    ok: false,
+    type: normalizedType,
+    reason: normalizedReason,
+    fail_closed: true,
+    ...(options.payload && typeof options.payload === 'object' ? options.payload : {}),
+  };
+  return {
+    ok: false,
+    status: Number.isFinite(Number(options.status)) ? Number(options.status) : 2,
+    stdout: `${JSON.stringify(payload)}\n`,
+    stderr: `${cleanText(options.stderrPrefix || normalizedType, 120)}:${normalizedReason}\n`,
+    payload,
+  };
+}
+
 module.exports = {
   cleanText,
   encodeBase64,
   extractPayload,
   invokeKernel,
   invokeKernelPayload,
+  kernelFailClosedResult,
   parseLastJson,
 };

@@ -1,8 +1,6 @@
 {
   "version": "1.0",
-  "canonical_path": "surface/orchestration/config/workflow_executor_policy.json",
   "canonical_owner": "surface/orchestration",
-  "compatibility_mirror": true,
   "execution_gate": {
     "enabled": true,
     "min_steps": 3,

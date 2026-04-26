@@ -32,7 +32,7 @@
       {
         "id": "provider_onboarding_manifest",
         "enabled": true,
-        "path": "client/runtime/config/provider_onboarding_manifest.json",
+        "path": "surface/orchestration/config/provider_onboarding_manifest.json",
         "providers_path": "providers"
       },
       {

@@ -4,7 +4,7 @@
 // Layer ownership: core/layer0/ops (authoritative)
 // Thin TypeScript wrapper only.
 
-const { invokeKernelPayload } = require('../../lib/infring_kernel_bridge.ts');
+const { invokeKernelPayload, kernelFailClosedResult } = require('../../lib/infring_kernel_bridge.ts');
 
 const KNOWN_COMMANDS = new Set([
   'status',
@@ -152,37 +152,18 @@ function guardFailureResult(validation, context = {}) {
   );
   return out.result && typeof out.result === 'object'
     ? out.result
-    : {
-        ok: false,
-        status: 2,
-        stdout: `${JSON.stringify({
-          ok: false,
-          type: 'memory_policy_guard_reject',
-          reason: String(
-            validation && typeof validation.reason_code === 'string'
-              ? validation.reason_code
-              : 'policy_validation_failed'
-          ),
-          layer: 'client_runtime_memory_guard',
-          fail_closed: true
-        })}\n`,
-        stderr: `memory_policy_guard_reject:${String(
+    : kernelFailClosedResult(
+        'memory_policy_guard_reject',
+        String(
           validation && typeof validation.reason_code === 'string'
             ? validation.reason_code
             : 'policy_validation_failed'
-        )}\n`,
-        payload: {
-          ok: false,
-          type: 'memory_policy_guard_reject',
-          reason: String(
-            validation && typeof validation.reason_code === 'string'
-              ? validation.reason_code
-              : 'policy_validation_failed'
-          ),
-          layer: 'client_runtime_memory_guard',
-          fail_closed: true
+        ),
+        {
+          stderrPrefix: 'memory_policy_guard_reject',
+          payload: { layer: 'kernel_memory_policy_guard' }
         }
-      };
+      );
 }
 
 function usagePayload(command) {
