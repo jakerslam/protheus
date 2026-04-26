@@ -3,19 +3,19 @@
 
 use std::path::{Path, PathBuf};
 
-pub(super) fn bool_flag(args: &[String], name: &str) -> bool {
+pub(crate) fn bool_flag(args: &[String], name: &str) -> bool {
     args.iter()
         .any(|arg| arg == name || arg == &format!("{name}=1") || arg == &format!("{name}=true"))
 }
 
-pub(super) fn option_path(args: &[String], name: &str, fallback: PathBuf) -> PathBuf {
+pub(crate) fn option_path(args: &[String], name: &str, fallback: PathBuf) -> PathBuf {
     let prefix = format!("{name}=");
     args.iter()
         .find_map(|arg| arg.strip_prefix(&prefix).map(PathBuf::from))
         .unwrap_or(fallback)
 }
 
-pub(super) fn option_usize(args: &[String], name: &str, fallback: usize) -> usize {
+pub(crate) fn option_usize(args: &[String], name: &str, fallback: usize) -> usize {
     let prefix = format!("{name}=");
     args.iter()
         .find_map(|arg| arg.strip_prefix(&prefix).and_then(|raw| raw.parse::<usize>().ok()))
@@ -29,7 +29,7 @@ fn workspace_root(root: &Path) -> PathBuf {
         .unwrap_or_else(|| root.to_path_buf())
 }
 
-pub(super) fn state_dir_from_args(root: &Path, args: &[String]) -> PathBuf {
+pub(crate) fn state_dir_from_args(root: &Path, args: &[String]) -> PathBuf {
     let explicit = option_path(args, "--state-dir", PathBuf::new());
     if !explicit.as_os_str().is_empty() {
         return explicit;
