@@ -794,6 +794,119 @@ fn response_is_manual_toolbox_gate_choice(response: &str) -> bool {
             || lowered.contains("payload:"))
 }
 
+fn manual_toolbox_pending_request_from_response(response: &str, message: &str) -> Option<Value> {
+    if !response_is_manual_toolbox_gate_choice(response) {
+        return None;
+    }
+    let family = manual_toolbox_selection_field(response, "tool family:", &["tool:", "request payload:", "payload:"]);
+    let tool_label = manual_toolbox_selection_field(response, "tool:", &["request payload:", "payload:"]);
+    let payload_text = manual_toolbox_selection_field(response, "request payload:", &[])
+        .if_empty_then(|| manual_toolbox_selection_field(response, "payload:", &[]));
+    let tool_name = canonical_manual_toolbox_tool_name(&family, &tool_label);
+    if tool_name.is_empty() {
+        return None;
+    }
+    let mut input = manual_toolbox_payload_json(&payload_text).unwrap_or_else(|| json!({}));
+    if !input.is_object() {
+        input = json!({});
+    }
+    if tool_name == "batch_query" && input.get("query").and_then(Value::as_str).unwrap_or("").is_empty() {
+        input["query"] = Value::String(clean_text(message, 600));
+    }
+    let receipt_binding = crate::deterministic_receipt_hash(&json!({
+        "type": "manual_toolbox_pending_tool_request",
+        "tool_name": tool_name,
+        "input": input,
+        "message": clean_text(message, 600)
+    }));
+    Some(json!({
+        "status": "pending_confirmation",
+        "source": "manual_toolbox_gate",
+        "tool_name": tool_name,
+        "selected_tool_family": family,
+        "selected_tool_label": tool_label,
+        "input": input,
+        "receipt_binding": receipt_binding,
+        "chat_injection_allowed": false,
+        "execution_claim_allowed": false
+    }))
+}
+
+fn manual_toolbox_selection_field(response: &str, label: &str, end_labels: &[&str]) -> String {
+    let lowered = response.to_ascii_lowercase();
+    let Some(start) = lowered.find(label) else {
+        return String::new();
+    };
+    let value_start = start + label.len();
+    let mut value_end = response.len();
+    for end_label in end_labels {
+        if let Some(end) = lowered[value_start..].find(end_label) {
+            value_end = value_end.min(value_start + end);
+        }
+    }
+    clean_text(response.get(value_start..value_end).unwrap_or("").trim_matches([' ', '.', '\n', '\r']), 2_000)
+}
+
+trait EmptyStringExt {
+    fn if_empty_then<F: FnOnce() -> String>(self, fallback: F) -> String;
+}
+
+impl EmptyStringExt for String {
+    fn if_empty_then<F: FnOnce() -> String>(self, fallback: F) -> String {
+        if self.trim().is_empty() { fallback() } else { self }
+    }
+}
+
+fn manual_toolbox_payload_json(payload_text: &str) -> Option<Value> {
+    let start = payload_text.find('{')?;
+    let end = payload_text.rfind('}')?;
+    if end < start {
+        return None;
+    }
+    serde_json::from_str(payload_text.get(start..=end)?).ok()
+}
+
+fn canonical_manual_toolbox_tool_name(family: &str, tool_label: &str) -> String {
+    let combined = format!("{family} {tool_label}").to_ascii_lowercase();
+    if combined.contains("web") && combined.contains("fetch") {
+        return "web_fetch".to_string();
+    }
+    if combined.contains("web") && (combined.contains("search") || combined.contains("query")) {
+        return "batch_query".to_string();
+    }
+    if combined.contains("workspace") && (combined.contains("search") || combined.contains("analy")) {
+        return "workspace_analyze".to_string();
+    }
+    if combined.contains("file") && combined.contains("read") {
+        return "file_read".to_string();
+    }
+    normalize_tool_name(tool_label).replace(' ', "_")
+}
+
+fn response_is_visible_workflow_gate_choice(response: &str) -> bool {
+    let lowered = clean_text(response, 2_000).to_ascii_lowercase();
+    let trimmed = lowered.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+    response_is_manual_toolbox_gate_choice(trimmed)
+        || trimmed.starts_with("yes. tool family:")
+        || trimmed.starts_with("yes. tool:")
+        || trimmed.starts_with("no. tool")
+        || (trimmed.starts_with("no. ")
+            && (trimmed.contains("would use")
+                || trimmed.contains("answer directly")
+                || trimmed.contains("web search")
+                || trimmed.contains("workspace search")
+                || trimmed.contains("file_read")
+                || trimmed.contains("read_file")
+                || trimmed.contains("tool")))
+        || ((trimmed.starts_with("yes. ") || trimmed.starts_with("no. "))
+            && (trimmed.contains("request payload:")
+                || trimmed.contains("tool family:")
+                || trimmed.contains("tool:")))
+}
+
 fn strip_dangling_inline_tool_markup(text: &str) -> String {
     let mut cleaned = text.to_string();
     loop {

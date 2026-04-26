@@ -486,6 +486,7 @@ function buildPrimaryDashboardHtml(staticDir) {
     readForkScript(staticDir, 'js/svelte/hands_available_tab_shell.bundle'),
     readForkScript(staticDir, 'js/svelte/hands_active_tab_shell.bundle'),
     readForkScript(staticDir, 'js/shell/shared_shell_services'),
+    readForkScript(staticDir, 'js/shell/message_metadata_shell_services'),
     readForkScript(staticDir, 'js/api'),
     readForkScript(staticDir, 'js/app'),
     PAGE_SCRIPTS.map((name) => readForkScript(staticDir, `js/pages/${name}`)).filter(Boolean).join('\n'),

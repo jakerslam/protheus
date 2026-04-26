@@ -161,7 +161,10 @@ fn misty_wave7_recovery_turn_uses_single_minimal_llm_finalization() {
     );
     write_json(
         &governance_test_chat_script_path(root.path()),
-        &json!({"queue": [{"response": "No. I'll answer directly."}], "calls": []}),
+        &json!({"queue": [
+            {"response": "No. I'll answer directly."},
+            {"response": "You're right: I should answer directly and not repeat internal status text."}
+        ], "calls": []}),
     );
 
     let response = handle(
@@ -177,7 +180,9 @@ fn misty_wave7_recovery_turn_uses_single_minimal_llm_finalization() {
     assert_eq!(response.payload.get("ok").and_then(Value::as_bool), Some(true));
     assert_eq!(
         response.payload.get("response").and_then(Value::as_str),
-        Some("No. I'll answer directly.")
+        Some(
+            "You're right: I should answer directly and not repeat internal status text."
+        )
     );
     assert_eq!(
         response
@@ -191,7 +196,7 @@ fn misty_wave7_recovery_turn_uses_single_minimal_llm_finalization() {
             .payload
             .pointer("/response_workflow/final_llm_response/attempt_count")
             .and_then(Value::as_u64),
-        Some(1)
+        Some(2)
     );
     assert_eq!(
         response
@@ -231,7 +236,10 @@ fn misty_wave7_dry_run_no_tools_uses_minimal_no_tool_exit() {
     );
     write_json(
         &governance_test_chat_script_path(root.path()),
-        &json!({"queue": [{"response": "No. I would use workspace_search, but I will not run tools for this dry run."}], "calls": []}),
+        &json!({"queue": [
+            {"response": "No. I would use workspace_search, but I will not run tools for this dry run."},
+            {"response": "I would use workspace_search, but I will not run tools for this dry run."}
+        ], "calls": []}),
     );
 
     let response = handle(
@@ -247,7 +255,7 @@ fn misty_wave7_dry_run_no_tools_uses_minimal_no_tool_exit() {
     assert_eq!(response.payload.get("ok").and_then(Value::as_bool), Some(true));
     assert_eq!(
         response.payload.get("response").and_then(Value::as_str),
-        Some("No. I would use workspace_search, but I will not run tools for this dry run.")
+        Some("I would use workspace_search, but I will not run tools for this dry run.")
     );
     assert_eq!(
         response
@@ -273,6 +281,16 @@ fn misty_wave7_dry_run_no_tools_uses_minimal_no_tool_exit() {
     assert_eq!(
         response.payload.get("tools").and_then(Value::as_array).map(Vec::len),
         Some(0)
+    );
+    assert!(
+        !response
+            .payload
+            .get("response")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .starts_with("No."),
+        "{:?}",
+        response.payload.get("response")
     );
     assert_eq!(
         response
@@ -373,7 +391,8 @@ fn misty_wave7_empty_initial_tool_request_can_finish_with_llm_menu_selection() {
         &governance_test_chat_script_path(root.path()),
         &json!({"queue": [
             {"response": "", "provider": "ollama", "runtime_model": "deepseek-v3.1:671b-cloud"},
-            {"response": "Yes. Tool family: Web Search / Fetch. Tool: Web search. Request payload: {\"source\":\"web\",\"query\":\"compare infring to other major agentic frameworks in April 2026\",\"aperture\":\"medium\"}.", "provider": "ollama", "runtime_model": "deepseek-v3.1:671b-cloud"}
+            {"response": "Yes. Tool family: Web Search / Fetch. Tool: Web search. Request payload: {\"source\":\"web\",\"query\":\"compare infring to other major agentic frameworks in April 2026\",\"aperture\":\"medium\"}.", "provider": "ollama", "runtime_model": "deepseek-v3.1:671b-cloud"},
+            {"response": "I would choose web search for a current April 2026 framework comparison, then synthesize from the returned results.", "provider": "ollama", "runtime_model": "deepseek-v3.1:671b-cloud"}
         ], "calls": []}),
     );
 
@@ -393,10 +412,41 @@ fn misty_wave7_empty_initial_tool_request_can_finish_with_llm_menu_selection() {
         .get("response")
         .and_then(Value::as_str)
         .unwrap_or("");
-    assert!(response_text.contains("Web search"), "{response_text}");
+    assert!(response_text.to_ascii_lowercase().contains("web search"), "{response_text}");
+    assert!(!response_text.contains("Request payload"), "{response_text}");
+    assert!(!response_text.starts_with("Yes."), "{response_text}");
     assert_eq!(
         response.payload.get("tools").and_then(Value::as_array).map(Vec::len),
         Some(0)
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/pending_tool_request/status")
+            .and_then(Value::as_str),
+        Some("pending_confirmation")
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/pending_tool_request/tool_name")
+            .and_then(Value::as_str),
+        Some("batch_query")
+    );
+    assert!(
+        response
+            .payload
+            .pointer("/pending_tool_request/receipt_binding")
+            .and_then(Value::as_str)
+            .map(|value| !value.is_empty())
+            .unwrap_or(false)
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/pending_tool_request/execution_claim_allowed")
+            .and_then(Value::as_bool),
+        Some(false)
     );
     assert_eq!(
         response.payload.get("model").and_then(Value::as_str),
@@ -449,9 +499,8 @@ fn misty_wave7_empty_finalization_recovers_with_llm_menu_choice() {
         &governance_test_chat_script_path(root.path()),
         &json!({"queue": [
             {"response": "", "provider": "ollama", "runtime_model": "deepseek-v3.1:671b-cloud"},
-            {"response": "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.", "provider": "ollama", "runtime_model": "deepseek-v3.1:671b-cloud"},
-            {"response": "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.", "provider": "ollama", "runtime_model": "deepseek-v3.1:671b-cloud"},
-            {"response": "Yes. Tool family: Web Search / Fetch. Tool: Web search. Request payload: {\"source\":\"web\",\"query\":\"compare infring to other major agentic frameworks in April 2026\",\"aperture\":\"medium\"}.", "provider": "ollama", "runtime_model": "deepseek-v3.1:671b-cloud"}
+            {"response": "Yes. Tool family: Web Search / Fetch. Tool: Web search. Request payload: {\"source\":\"web\",\"query\":\"compare infring to other major agentic frameworks in April 2026\",\"aperture\":\"medium\"}.", "provider": "ollama", "runtime_model": "deepseek-v3.1:671b-cloud"},
+            {"response": "I would choose web search for a current April 2026 framework comparison, then synthesize from the returned results.", "provider": "ollama", "runtime_model": "deepseek-v3.1:671b-cloud"}
         ], "calls": []}),
     );
 
@@ -471,13 +520,29 @@ fn misty_wave7_empty_finalization_recovers_with_llm_menu_choice() {
         .get("response")
         .and_then(Value::as_str)
         .unwrap_or("");
-    assert!(response_text.contains("Request payload"), "{response_text}");
+    assert!(response_text.to_ascii_lowercase().contains("web search"), "{response_text}");
+    assert!(!response_text.contains("Request payload"), "{response_text}");
+    assert!(!response_text.starts_with("Yes."), "{response_text}");
     assert_eq!(
         response
             .payload
             .get("system_chat_injection_used")
             .and_then(Value::as_bool),
         Some(false)
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/pending_tool_request/status")
+            .and_then(Value::as_str),
+        Some("pending_confirmation")
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/pending_tool_request/tool_name")
+            .and_then(Value::as_str),
+        Some("batch_query")
     );
     let event_kinds = response
         .payload

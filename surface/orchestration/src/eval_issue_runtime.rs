@@ -191,7 +191,7 @@ fn make_issue_draft(row: &Value, fixture_dir: &str) -> Option<Value> {
             "assistant_text": assistant_text,
             "tool_trace": row.get("tool_trace").cloned().unwrap_or_else(|| json!([])),
             "runtime_quality": row.get("runtime_quality").cloned().unwrap_or_else(|| json!({})),
-            "workflow_quality": row.get("workflow_quality").cloned().unwrap_or_else(|| json!(null))
+            "workflow_quality": row.get("workflow_quality").cloned().unwrap_or(Value::Null)
         },
         "affected_owner_component": owner,
         "suspected_root_cause": root_cause(issue_class),
@@ -353,52 +353,6 @@ pub fn run_issue_drafts(args: &[String]) -> i32 {
     0
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn issue_draft_preserves_runtime_and_workflow_quality_evidence() {
-        let row = json!({
-            "id": "forgecode-quality-drift",
-            "prompt": "assimilate ForgeCode workflow",
-            "assistant_text": "fallback loop",
-            "labels": {
-                "is_failure": true,
-                "issue_class": "bad_workflow_selection",
-                "severity": "high",
-                "expected_fix": "preserve workflow-specific quality adjuncts"
-            },
-            "runtime_quality": {
-                "candidate_count": 4,
-                "zero_executable_candidates": false,
-                "typed_probe_contract_gap_count": 0
-            },
-            "workflow_quality": {
-                "workflow": "forge_code",
-                "signals": {
-                    "mcp_alias_route_required": true,
-                    "subagent_result_synthesis_required": true
-                }
-            }
-        });
-
-        let draft =
-            make_issue_draft(&row, "local/state/ops/eval_replay_fixtures").expect("issue draft");
-
-        assert_eq!(
-            draft.pointer("/exact_evidence/runtime_quality/candidate_count"),
-            Some(&json!(4))
-        );
-        assert_eq!(
-            draft.pointer(
-                "/exact_evidence/workflow_quality/signals/subagent_result_synthesis_required"
-            ),
-            Some(&json!(true))
-        );
-    }
-}
-
 fn read_fixture_paths(args: &[String], fixture_dir: &str) -> Vec<PathBuf> {
     if let Some(single) = parse_flag(args, "fixture") {
         return vec![PathBuf::from(single)];
@@ -503,4 +457,50 @@ pub fn run_replay(args: &[String]) -> i32 {
         return 1;
     }
     0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn issue_draft_preserves_runtime_and_workflow_quality_evidence() {
+        let row = json!({
+            "id": "forgecode-quality-drift",
+            "prompt": "assimilate ForgeCode workflow",
+            "assistant_text": "fallback loop",
+            "labels": {
+                "is_failure": true,
+                "issue_class": "bad_workflow_selection",
+                "severity": "high",
+                "expected_fix": "preserve workflow-specific quality adjuncts"
+            },
+            "runtime_quality": {
+                "candidate_count": 4,
+                "zero_executable_candidates": false,
+                "typed_probe_contract_gap_count": 0
+            },
+            "workflow_quality": {
+                "workflow": "forge_code",
+                "signals": {
+                    "mcp_alias_route_required": true,
+                    "subagent_result_synthesis_required": true
+                }
+            }
+        });
+
+        let draft =
+            make_issue_draft(&row, "local/state/ops/eval_replay_fixtures").expect("issue draft");
+
+        assert_eq!(
+            draft.pointer("/exact_evidence/runtime_quality/candidate_count"),
+            Some(&json!(4))
+        );
+        assert_eq!(
+            draft.pointer(
+                "/exact_evidence/workflow_quality/signals/subagent_result_synthesis_required"
+            ),
+            Some(&json!(true))
+        );
+    }
 }

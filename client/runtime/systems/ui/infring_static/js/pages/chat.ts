@@ -10385,7 +10385,7 @@ function chatPage() {
 	            if (!Number.isFinite(Number(phaseMsg._stream_started_at))) {
 	              phaseMsg._stream_started_at = Date.now();
 	            }
-	            var phaseStatusCandidate = phaseDetailText;
+	            var phaseStatusCandidate = String((data && (data.thinking_status || data.status_text || data.workflow_stage || data.stage)) || phaseDetailText || '').trim();
             var phaseKey = String(data && data.phase ? data.phase : '').trim().toLowerCase();
             if (!phaseStatusCandidate && phaseKey) {
               phaseStatusCandidate = phaseKey.replace(/[_-]+/g, ' ').trim();
@@ -10396,7 +10396,12 @@ function chatPage() {
             if (typeof this.isThinkingPlaceholderText === 'function' && this.isThinkingPlaceholderText(phaseStatusCandidate)) {
               phaseStatusCandidate = '';
             }
-            var phaseFingerprint = phaseKey + '|' + phaseDetailText + '|' + (Number.isFinite(phasePercent) ? String(Math.round(phasePercent)) : '');
+            var phaseCurrentStatus = String(phaseMsg.thinking_status || '').trim();
+            var phaseCanReplaceStatus = !!phaseStatusCandidate && (
+              !phaseCurrentStatus ||
+              (typeof this.isThinkingPlaceholderText === 'function' && this.isThinkingPlaceholderText(phaseCurrentStatus))
+            );
+            var phaseFingerprint = phaseKey + '|' + phaseDetailText + '|' + phaseStatusCandidate + '|' + (Number.isFinite(phasePercent) ? String(Math.round(phasePercent)) : '');
             if (phaseMsg._phase_update_fingerprint === phaseFingerprint) {
               phaseMsg._stream_updated_at = Date.now();
               this._resetTypingTimeout();
@@ -10441,14 +10446,15 @@ function chatPage() {
                 if (typeof this._setPendingWsStatusText === 'function') {
                   this._setPendingWsStatusText(data && data.agent_id ? String(data.agent_id) : '', phaseStatusCandidate || thoughtChunk);
                 }
-                if (!phaseMsg.thinking_status && phaseStatusCandidate) {
+                if (phaseCanReplaceStatus) {
                   if (phaseMsg.thinking_status !== phaseStatusCandidate) phaseMsg.thinking_status = phaseStatusCandidate;
                 }
               }
             } else if (phaseMsg.thinking) {
               if (phaseStatusCandidate && phaseMsg.thinking_status !== phaseStatusCandidate) phaseMsg.thinking_status = phaseStatusCandidate;
             }
-            if (!phaseMsg.thinking_status && phaseStatusCandidate) {
+            if (phaseStatusCandidate && phaseMsg.status_text !== phaseStatusCandidate) phaseMsg.status_text = phaseStatusCandidate;
+            if (phaseCanReplaceStatus) {
               if (phaseMsg.thinking_status !== phaseStatusCandidate) phaseMsg.thinking_status = phaseStatusCandidate;
             }
 	          }
@@ -11612,11 +11618,13 @@ function chatPage() {
     },
 
     messageStatResponseTimeText: function(msg) {
-      if (!msg || msg.thinking || msg.is_notice) return '';
-      if (typeof this.messageIsAgentOrigin === 'function' && !this.messageIsAgentOrigin(msg)) return '';
+      var service = typeof this.messageMetadataService === 'function' ? this.messageMetadataService() : null;
       var durationMs = this.messageStatResponseTimeMs(msg);
-      if (!durationMs || durationMs <= 0) return '';
-      return typeof this.formatResponseDuration === 'function' ? this.formatResponseDuration(durationMs) : (Math.round(durationMs) + 'ms');
+      if (service && typeof service.responseTimeText === 'function') {
+        return service.responseTimeText(msg, durationMs, typeof this.formatResponseDuration === 'function' ? this.formatResponseDuration.bind(this) : null);
+      }
+      if (!msg || msg.thinking || msg.is_notice || !durationMs || durationMs <= 0) return '';
+      return Math.round(durationMs) + 'ms';
     },
 
     messageStatTokensFromMeta: function(msg) {
@@ -11673,12 +11681,13 @@ function chatPage() {
     },
 
     messageStatBurnLabelText: function(msg) {
-      if (!msg || msg.thinking || msg.is_notice) return '';
       var total = this.messageStatBurnTotalTokens(msg);
-      if (!Number.isFinite(total) || total <= 0) return '';
-      if (total < 1000) return String(Math.round(total));
-      if (typeof this.formatTokenK === 'function') return this.formatTokenK(total);
-      return (Math.round((total / 1000) * 10) / 10).toFixed(1).replace(/\.0$/, '') + 'k';
+      var service = typeof this.messageMetadataService === 'function' ? this.messageMetadataService() : null;
+      if (service && typeof service.burnLabelText === 'function') {
+        return service.burnLabelText(msg, total, typeof this.formatTokenK === 'function' ? this.formatTokenK.bind(this) : null);
+      }
+      if (!msg || msg.thinking || msg.is_notice || !Number.isFinite(total) || total <= 0) return '';
+      return total < 1000 ? String(Math.round(total)) : ((Math.round((total / 1000) * 10) / 10).toFixed(1).replace(/\.0$/, '') + 'k');
     },
 
     shouldReloadHistoryForFinalEventPayload: function(payload) {
@@ -16751,8 +16760,11 @@ function chatPage() {
       return this.isFirstInSourceRun(idx, rows);
     },
     messageMetaVisible(msg, idx, rows) {
-      if (!msg || msg.is_notice || msg.thinking) return false;
-      return !this.isMessageMetaCollapsed(msg, idx, rows);
+      var service = typeof this.messageMetadataService === 'function' ? this.messageMetadataService() : null;
+      if (service && typeof service.visible === 'function') {
+        return service.visible(msg, this.isMessageMetaCollapsed(msg, idx, rows));
+      }
+      return !!(msg && !msg.is_notice && !msg.thinking && !this.isMessageMetaCollapsed(msg, idx, rows));
     },
     isMessageMetaCollapsed(msg, idx, rows) {
       if (!msg || msg.is_notice || msg.thinking) return true;
@@ -17524,98 +17536,75 @@ function chatPage() {
       };
     },
 
-    messageRetrySource: function(msg, idx, rows) {
+    messageMetadataService: function() {
+      var services = typeof InfringSharedShellServices !== 'undefined' ? InfringSharedShellServices : null;
+      return services && services.messageMeta ? services.messageMeta : null;
+    },
+
+    messageMetadataShellState: function(msg, idx, rows) {
+      var service = this.messageMetadataService();
       var list = Array.isArray(rows) ? rows : (Array.isArray(this.messages) ? this.messages : []);
-      var rowId = String(msg && msg.id || '').trim();
-      var resolvedIndex = Number(idx);
-      if (!Number.isFinite(resolvedIndex) || resolvedIndex < 0 || resolvedIndex >= list.length || (list[resolvedIndex] && rowId && String(list[resolvedIndex].id || '').trim() !== rowId)) {
-        resolvedIndex = -1;
-        for (var li = list.length - 1; li >= 0; li -= 1) {
-          var probe = list[li];
-          if (!probe) continue;
-          if (probe === msg) {
-            resolvedIndex = li;
-            break;
-          }
-          if (rowId && String(probe.id || '').trim() === rowId) {
-            resolvedIndex = li;
-            break;
-          }
-        }
-      }
-      if (resolvedIndex < 0) return null;
-      for (var i = resolvedIndex; i >= 0; i -= 1) {
-        var candidate = list[i];
-        if (!candidate || candidate.is_notice) continue;
-        var isHumanOrigin = typeof this.messageIsHumanOrigin === 'function'
-          ? this.messageIsHumanOrigin(candidate)
-          : String(candidate.role || '').toLowerCase() === 'user';
-        if (!isHumanOrigin) continue;
-        var text = String(candidate.text || '').trim();
-        if (!text) continue;
-        return candidate;
-      }
-      return null;
+      var model = service && typeof service.viewModel === 'function' ? service.viewModel({
+        row: msg,
+        index: idx,
+        rows: list,
+        agent: this.currentAgent,
+        shouldRender: typeof this.shouldRenderMessageContent === 'function' ? this.shouldRenderMessageContent(msg, idx, list) : true,
+        collapsed: typeof this.isMessageMetaCollapsed === 'function' ? this.isMessageMetaCollapsed(msg, idx, list) : false,
+        copied: !!(msg && msg._copied),
+        hasTools: typeof this.messageHasTools === 'function' ? this.messageHasTools(msg) : !!(msg && Array.isArray(msg.tools) && msg.tools.length),
+        toolsCollapsed: typeof this.allToolsCollapsed === 'function' ? this.allToolsCollapsed(msg) : true,
+        timestamp: typeof this.messageTs === 'function' ? this.messageTs(msg) : '',
+        responseTimeMs: typeof this.messageStatResponseTimeMs === 'function' ? this.messageStatResponseTimeMs(msg) : 0,
+        responseTimeFormatter: typeof this.formatResponseDuration === 'function' ? this.formatResponseDuration.bind(this) : null,
+        burnTotalTokens: typeof this.messageStatBurnTotalTokens === 'function' ? this.messageStatBurnTotalTokens(msg) : 0,
+        burnFormatter: typeof this.formatTokenK === 'function' ? this.formatTokenK.bind(this) : null
+      }) : { shouldRender: false };
+      try { return JSON.stringify(model); } catch (_) { return '{"shouldRender":false}'; }
+    },
+
+    handleMessageMetaAction: function(event, msg, idx, rows) {
+      var action = String(event && event.detail && event.detail.action || '').trim();
+      var handlers = {
+        copy: this.copyMessage.bind(this, msg),
+        report: this.reportIssueFromMeta.bind(this, msg, idx),
+        'toggle-tools': this.toggleMessageTools.bind(this, msg),
+        retry: this.retryMessageFromMeta.bind(this, msg, idx, rows),
+        reply: this.replyToMessageFromMeta.bind(this, msg, idx, rows),
+        fork: this.forkMessageFromMeta.bind(this, msg, idx, rows)
+      };
+      var handler = handlers[action];
+      if (typeof handler === 'function') return handler();
+    },
+
+    messageRetrySource: function(msg, idx, rows) {
+      var service = this.messageMetadataService();
+      var list = Array.isArray(rows) ? rows : (Array.isArray(this.messages) ? this.messages : []);
+      return service && typeof service.retrySource === 'function' ? service.retrySource(msg, idx, list) : null;
     },
 
     messageCanRetryFromMeta: function(msg, idx, rows) {
-      if (typeof this.messageIsAgentOrigin === 'function' && !this.messageIsAgentOrigin(msg)) {
-        return false;
-      }
-      if (!this.messageIsLatestAgentFromMeta(msg, idx, rows)) {
-        return false;
-      }
-      return !!this.messageRetrySource(msg, idx, rows);
+      var service = this.messageMetadataService();
+      var list = Array.isArray(rows) ? rows : (Array.isArray(this.messages) ? this.messages : []);
+      return !!(service && typeof service.canRetry === 'function' && service.canRetry(msg, idx, list));
     },
 
     _resolveMessageIndexFromMeta: function(msg, idx, rows) {
+      var service = this.messageMetadataService();
       var list = Array.isArray(rows) ? rows : (Array.isArray(this.messages) ? this.messages : []);
-      if (!list.length) return -1;
-      var rowId = String(msg && msg.id || '').trim();
-      var resolvedIndex = Number(idx);
-      if (!Number.isFinite(resolvedIndex) || resolvedIndex < 0 || resolvedIndex >= list.length) {
-        resolvedIndex = -1;
-      }
-      if (resolvedIndex >= 0) {
-        var probe = list[resolvedIndex];
-        if (probe && rowId && String(probe.id || '').trim() !== rowId) {
-          resolvedIndex = -1;
-        }
-      }
-      if (resolvedIndex >= 0) return resolvedIndex;
-      for (var i = list.length - 1; i >= 0; i -= 1) {
-        var candidate = list[i];
-        if (!candidate) continue;
-        if (candidate === msg) return i;
-        if (rowId && String(candidate.id || '').trim() === rowId) return i;
-      }
-      return -1;
+      return service && typeof service.resolveIndex === 'function' ? service.resolveIndex(msg, idx, list) : -1;
     },
 
     messageIsLatestAgentFromMeta: function(msg, idx, rows) {
+      var service = this.messageMetadataService();
       var list = Array.isArray(rows) ? rows : (Array.isArray(this.messages) ? this.messages : []);
-      if (!list.length) return false;
-      var resolvedIndex = this._resolveMessageIndexFromMeta(msg, idx, list);
-      if (resolvedIndex < 0) return false;
-      for (var i = list.length - 1; i >= 0; i -= 1) {
-        var candidate = list[i];
-        if (!candidate || candidate.is_notice) continue;
-        if (typeof this.messageIsAgentOrigin === 'function' && !this.messageIsAgentOrigin(candidate)) continue;
-        return i === resolvedIndex;
-      }
-      return false;
+      return !!(service && typeof service.isLatestAgent === 'function' && service.isLatestAgent(msg, idx, list));
     },
 
     messageCanReplyFromMeta: function(msg, idx, rows) {
+      var service = this.messageMetadataService();
       var list = Array.isArray(rows) ? rows : (Array.isArray(this.messages) ? this.messages : []);
-      if (!list.length) return false;
-      var resolvedIndex = this._resolveMessageIndexFromMeta(msg, idx, list);
-      if (resolvedIndex < 0) return false;
-      var row = list[resolvedIndex];
-      if (!row || row.is_notice) return false;
-      if (typeof this.messageIsHumanOrigin === 'function' && this.messageIsHumanOrigin(row)) return false;
-      var text = String(row.text || '').trim();
-      return text.length > 0;
+      return !!(service && typeof service.canReply === 'function' && service.canReply(msg, idx, list));
     },
 
     replyToMessageFromMeta: function(msg, idx, rows) {
@@ -17650,11 +17639,32 @@ function chatPage() {
     },
 
     messageCanForkFromMeta: function(msg) {
-      if (!this.currentAgent || !this.currentAgent.id) return false;
-      if (typeof this.messageIsAgentOrigin === 'function' && !this.messageIsAgentOrigin(msg)) {
-        return false;
+      var service = this.messageMetadataService();
+      return !!(service && typeof service.canFork === 'function' && service.canFork(msg, this.currentAgent));
+    },
+
+    messageCanReportIssueFromMeta: function(msg) {
+      var service = typeof this.messageMetadataService === 'function' ? this.messageMetadataService() : null;
+      if (service && typeof service.canReportIssue === 'function') {
+        return service.canReportIssue(msg, this.currentAgent);
       }
-      return true;
+      return false;
+    },
+
+    reportIssueFromMeta: async function(msg, idx) {
+      if (!this.messageCanReportIssueFromMeta(msg)) return;
+      try {
+        var result = await InfringAPI.post('/api/agents/' + encodeURIComponent(this.currentAgent.id) + '/eval-feedback/report-issue', {
+          message_id: String(msg && msg.id || ''),
+          message_index: idx
+        });
+        if (!result || result.ok === false) {
+          throw new Error(String((result && (result.error || result.message)) || 'eval_report_failed'));
+        }
+        if (typeof InfringToast !== 'undefined') InfringToast.success('Eval review queued.');
+      } catch (e) {
+        if (typeof InfringToast !== 'undefined') InfringToast.error('Failed to queue eval review: ' + String(e && e.message ? e.message : 'unknown error'));
+      }
     },
 
     _forkAgentRequestedName: function(sourceName) {
@@ -17668,7 +17678,8 @@ function chatPage() {
 
     retryMessageFromMeta: async function(msg, idx, rows) {
       if (this.sending) return;
-      if (!this.messageCanRetryFromMeta(msg, idx, rows)) return;
+      var allowed = this.messageCanRetryFromMeta(msg, idx, rows);
+      if (!allowed) return;
       var source = this.messageRetrySource(msg, idx, rows);
       if (!source) {
         if (typeof InfringToast !== 'undefined') InfringToast.info('No prior user prompt was found for resend.');

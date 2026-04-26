@@ -94,25 +94,33 @@
       var anchor = typeof this.dashboardPopupAnchorPoint === 'function'
         ? this.dashboardPopupAnchorPoint(ev, config.side)
         : { left: 0, top: 0, side: String(config.side || 'bottom'), inline_away: 'right', block_away: 'bottom' };
-      this.dashboardPopup = {
-        id: popupId,
-        active: true,
-        source: String(config.source || '').trim(),
-        title: title,
-        body: String(config.body || '').trim(),
-        meta_origin: String(config.meta_origin || 'Taskbar').trim(),
-        meta_time: String(config.meta_time || '').trim(),
-        unread: !!config.unread,
-        left: anchor.left,
-        top: anchor.top,
-        side: anchor.side,
-        inline_away: anchor.inline_away === 'left' ? 'left' : 'right',
-        block_away: anchor.block_away === 'top' ? 'top' : 'bottom',
-        compact: false
-      };
+      var service = typeof this.dashboardPopupService === 'function' ? this.dashboardPopupService() : null;
+      this.dashboardPopup = service && typeof service.openState === 'function'
+        ? service.openState(popupId, title, config, anchor)
+        : {
+          id: popupId,
+          active: true,
+          source: String(config.source || '').trim(),
+          title: title,
+          body: String(config.body || '').trim(),
+          meta_origin: String(config.meta_origin || 'Taskbar').trim(),
+          meta_time: String(config.meta_time || '').trim(),
+          unread: !!config.unread,
+          left: anchor.left,
+          top: anchor.top,
+          side: anchor.side,
+          inline_away: anchor.inline_away === 'left' ? 'left' : 'right',
+          block_away: anchor.block_away === 'top' ? 'top' : 'bottom',
+          compact: false
+        };
     },
 
     hideDashboardPopup(rawId) {
+      var service = typeof this.dashboardPopupService === 'function' ? this.dashboardPopupService() : null;
+      if (service && typeof service.closeState === 'function') {
+        this.dashboardPopup = service.closeState(this.dashboardPopup, rawId);
+        return;
+      }
       var popupId = String(rawId || '').trim();
       var currentId = String((this.dashboardPopup && this.dashboardPopup.id) || '').trim();
       if (popupId && currentId && popupId !== currentId) return;

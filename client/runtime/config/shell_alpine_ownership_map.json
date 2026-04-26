@@ -1,0 +1,120 @@
+{
+  "version": "1.0",
+  "srs_id": "V13-CODEX-SHELL-ALPINE-002",
+  "source_growth_policy": "client/runtime/config/shell_alpine_growth_policy.json",
+  "rule": "Every remaining Shell Alpine binding, store access, magic helper, and runtime API family must have an explicit owner, migration boundary, and Svelte/shared shell service target before removal work continues.",
+  "migration_classes": {
+    "bootstrap_only": "Legacy Alpine usage that exists only to register shell startup adapters, stores, toasts, or websocket bootstrap glue. Replacement target is a shared shell service bootstrap adapter.",
+    "interactive": "Legacy Alpine usage that still handles user-visible interaction, page state, menus, drag state, chat state, or component behavior. Replacement target is a Svelte component or shared shell service.",
+    "delete_ready": "Legacy Alpine usage whose behavior is already replaced and can be removed after a targeted parity check."
+  },
+  "rules": [
+    {
+      "id": "legacy_shell_template_bindings",
+      "owner_feature": "legacy static shell template bindings",
+      "target_replacement": "Svelte shell layout, page islands, and shared shell services for template event/state ownership",
+      "migration_class": "interactive",
+      "path_prefixes": [
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/"
+      ],
+      "applies_to_patterns": [
+        "alpine_x_directives",
+        "alpine_shorthand_events",
+        "alpine_shorthand_bindings",
+        "alpine_magic_store",
+        "alpine_magic_watch_next_tick"
+      ],
+      "notes": "Owns the remaining static template bindings until each slice is replaced by Svelte components wired through shared shell services."
+    },
+    {
+      "id": "shell_api_bootstrap_adapters",
+      "owner_feature": "shell API, toast, and websocket bootstrap adapters",
+      "target_replacement": "shared shell service bootstrap adapters with Svelte consumers",
+      "migration_class": "bootstrap_only",
+      "path_prefixes": [
+        "client/runtime/systems/ui/infring_static/js/api.ts"
+      ],
+      "applies_to_patterns": [
+        "alpine_direct_api"
+      ],
+      "notes": "Bootstrap-only Alpine registrations must not grow; final removal happens when toast/error/websocket bootstraps are fully service-owned."
+    },
+    {
+      "id": "shell_app_navigation_state",
+      "owner_feature": "shell app navigation, page routing, and global shell state",
+      "target_replacement": "Svelte shell root plus shared shell services for navigation and global state",
+      "migration_class": "interactive",
+      "path_prefixes": [
+        "client/runtime/systems/ui/infring_static/js/app.ts"
+      ],
+      "applies_to_patterns": [
+        "alpine_direct_api",
+        "alpine_magic_watch_next_tick"
+      ],
+      "notes": "Covers remaining Alpine app bootstrap/page-routing hooks while the Shell root continues moving to Svelte."
+    },
+    {
+      "id": "agent_directory_surface",
+      "owner_feature": "agent directory, agent details, filters, and permissions UI",
+      "target_replacement": "Svelte agent directory and agent details components backed by shared shell agent services",
+      "migration_class": "interactive",
+      "path_prefixes": [
+        "client/runtime/systems/ui/infring_static/js/pages/agents.ts"
+      ],
+      "applies_to_patterns": [
+        "alpine_direct_api",
+        "alpine_magic_store",
+        "alpine_magic_watch_next_tick"
+      ],
+      "notes": "Keeps agent list/detail interaction ownership explicit until the remaining Alpine store and helper usage is retired."
+    },
+    {
+      "id": "chat_runtime_surface",
+      "owner_feature": "chat runtime, message rendering, drag bars, chat map, and session websocket UI",
+      "target_replacement": "Svelte chat shell components and shared shell chat services for runtime/session state",
+      "migration_class": "interactive",
+      "path_prefixes": [
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts"
+      ],
+      "applies_to_patterns": [
+        "alpine_direct_api",
+        "alpine_magic_store",
+        "alpine_magic_watch_next_tick"
+      ],
+      "notes": "This is the highest-risk interactive Alpine owner because it includes session switching, render windows, scroll state, and drag behavior."
+    },
+    {
+      "id": "simple_dashboard_pages",
+      "owner_feature": "overview, logs, runtime, scheduler, sessions, and usage dashboard pages",
+      "target_replacement": "Svelte dashboard page islands with shared shell services for page actions",
+      "migration_class": "interactive",
+      "path_prefixes": [
+        "client/runtime/systems/ui/infring_static/js/pages/logs.ts",
+        "client/runtime/systems/ui/infring_static/js/pages/overview.ts",
+        "client/runtime/systems/ui/infring_static/js/pages/runtime.ts",
+        "client/runtime/systems/ui/infring_static/js/pages/scheduler.ts",
+        "client/runtime/systems/ui/infring_static/js/pages/sessions.ts",
+        "client/runtime/systems/ui/infring_static/js/pages/usage.ts"
+      ],
+      "applies_to_patterns": [
+        "alpine_direct_api",
+        "alpine_magic_watch_next_tick"
+      ],
+      "notes": "Groups low-count dashboard page Alpine calls so they have a clear migration lane without pretending they are deleted."
+    },
+    {
+      "id": "wizard_and_workflow_builder_pages",
+      "owner_feature": "wizard and workflow builder pages",
+      "target_replacement": "Svelte wizard/workflow-builder components with shared shell workflow services",
+      "migration_class": "interactive",
+      "path_prefixes": [
+        "client/runtime/systems/ui/infring_static/js/pages/wizard.ts",
+        "client/runtime/systems/ui/infring_static/js/pages/workflow-builder.ts"
+      ],
+      "applies_to_patterns": [
+        "alpine_direct_api"
+      ],
+      "notes": "Tracks the remaining wizard/workflow-builder Alpine calls until those pages are fully component-owned."
+    }
+  ]
+}

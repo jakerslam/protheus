@@ -42,6 +42,7 @@
             "required_substrings": ["Hey"],
             "require_workflow_visibility": true,
             "require_live_eval_monitor": true,
+            "forbid_gate_choice_leakage": true,
             "simple_direct_conversation": true
           }
         }
@@ -83,6 +84,7 @@
             "required_substrings": ["would use"],
             "require_workflow_visibility": true,
             "require_live_eval_monitor": true,
+            "forbid_gate_choice_leakage": true,
             "simple_direct_conversation": true
           }
         }
@@ -119,7 +121,8 @@
           "expect": {
             "required_substrings": ["web search"],
             "require_workflow_visibility": true,
-            "require_live_eval_monitor": true
+            "require_live_eval_monitor": true,
+            "forbid_gate_choice_leakage": true
           }
         }
       ]
@@ -155,7 +158,8 @@
           "expect": {
             "required_substrings": ["workspace search"],
             "require_workflow_visibility": true,
-            "require_live_eval_monitor": true
+            "require_live_eval_monitor": true,
+            "forbid_gate_choice_leakage": true
           }
         }
       ]
@@ -188,6 +192,7 @@
             "required_substrings": ["answer directly"],
             "require_workflow_visibility": true,
             "require_live_eval_monitor": true,
+            "forbid_gate_choice_leakage": true,
             "simple_direct_conversation": true
           }
         }

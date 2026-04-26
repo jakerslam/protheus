@@ -1,0 +1,246 @@
+{
+  "version": "1.0",
+  "policy": {
+    "mode": "fail_on_growth",
+    "srs_id": "V13-CODEX-SHELL-ALPINE-001",
+    "rule": "No new Alpine bindings, Alpine runtime API calls, or Alpine magic helpers may be added to the Shell UI without an explicit migration waiver and baseline update."
+  },
+  "scan_roots": [
+    "client/runtime/systems/ui/infring_static"
+  ],
+  "scan_extensions": [
+    ".html",
+    ".ts",
+    ".css"
+  ],
+  "ignore_path_contains": [
+    "client/runtime/systems/ui/infring_static/js/svelte/",
+    ".generated.",
+    ".min."
+  ],
+  "required_policy_docs": [
+    {
+      "path": "docs/workspace/shell_alpine_retirement_policy.md",
+      "must_include": [
+        "V13-CODEX-SHELL-ALPINE-001",
+        "No new Alpine",
+        "Svelte/shared shell services"
+      ]
+    }
+  ],
+  "patterns": [
+    {
+      "id": "alpine_direct_api",
+      "description": "Direct Alpine runtime API use.",
+      "regex": "\\bAlpine\\s*\\."
+    },
+    {
+      "id": "alpine_x_directives",
+      "description": "Alpine x-* attributes in shell templates.",
+      "regex": "\\bx-[A-Za-z0-9:_-]+\\s*="
+    },
+    {
+      "id": "alpine_shorthand_events",
+      "description": "Alpine shorthand event bindings in shell templates.",
+      "regex": "\\s@[A-Za-z0-9:_-]+(?:\\.[A-Za-z0-9:_-]+)*\\s*="
+    },
+    {
+      "id": "alpine_shorthand_bindings",
+      "description": "Alpine shorthand bound attributes in shell templates.",
+      "regex": "\\s:[A-Za-z0-9:_-]+\\s*="
+    },
+    {
+      "id": "alpine_magic_store",
+      "description": "Alpine $store access.",
+      "regex": "\\$store\\b"
+    },
+    {
+      "id": "alpine_magic_watch_next_tick",
+      "description": "Alpine magic helpers such as $watch, $nextTick, $dispatch, $refs, and $el.",
+      "regex": "\\$(?:watch|nextTick|dispatch|refs|el)\\b"
+    }
+  ],
+  "baseline": {
+    "alpine_direct_api": {
+      "total": 151,
+      "files": {
+        "client/runtime/systems/ui/infring_static/js/api.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/api.ts.parts/010-toast-and-errors.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/app.ts": 6,
+        "client/runtime/systems/ui/infring_static/js/app.ts.parts/010-core-state.part01.ts": 4,
+        "client/runtime/systems/ui/infring_static/js/app.ts.parts/030-agent-list-runtime.part01.ts": 2,
+        "client/runtime/systems/ui/infring_static/js/pages/agents.ts": 22,
+        "client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/010-state-and-load.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/020-list-and-filters.ts": 14,
+        "client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/030-actions-and-ops.ts": 7,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts": 35,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/020-init-roles-and-vibes.part01.ts": 2,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/040-models-and-cache.part01.ts": 7,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/070-init-sequences-and-pointer.part01.ts": 3,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/090-init-hooks-and-shortcuts.part01.ts": 2,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/110-failover-and-health.part01.ts": 2,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/120-slash-and-agent-select.ts": 2,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/130-render-window-and-session.part01.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/140-session-and-ws.part01.ts": 8,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/160-runtime-events-and-render.part01.ts": 2,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/170-grouping-and-day-map.part02.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/180-map-navigation.part01.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/180-map-navigation.part02.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/192-slash-alias-and-alerts.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/210-scroll-hover-sanitize.part01.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/215-rendering-and-metadata-upgrades.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/logs.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/overview.ts": 2,
+        "client/runtime/systems/ui/infring_static/js/pages/overview.ts.parts/020-actions-and-helpers.ts": 2,
+        "client/runtime/systems/ui/infring_static/js/pages/runtime.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/scheduler.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/scheduler.ts.parts/020-actions-and-helpers.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/sessions.ts": 3,
+        "client/runtime/systems/ui/infring_static/js/pages/usage.ts": 2,
+        "client/runtime/systems/ui/infring_static/js/pages/wizard.ts": 4,
+        "client/runtime/systems/ui/infring_static/js/pages/wizard.ts.parts/020-actions-and-finish.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/wizard.ts.parts/020-actions-and-finish.ts.part02.ts": 3,
+        "client/runtime/systems/ui/infring_static/js/pages/workflow-builder.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/workflow-builder.ts.parts/010-builder-state.ts": 1
+      }
+    },
+    "alpine_x_directives": {
+      "total": 2022,
+      "files": {
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0001-body-part.part01.html": 41,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0001-body-part.part01a.html": 23,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0001-body-part.part02.html": 36,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0001-body-part.part03.html": 9,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0002-body-part.html": 73,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0003-body-part.html": 163,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0004-body-part.html": 163,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0005-body-part.html": 160,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0006-body-part.html": 123,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0007-body-part.html": 77,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0008-body-part.html": 105,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0009-body-part.html": 112,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0010-body-part.html": 124,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0011-body-part.html": 139,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0012-body-part.html": 105,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0013-body-part.html": 125,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0014-body-part.html": 111,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0015-body-part.html": 109,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0016-body-part.html": 116,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0017-body-part.html": 108
+      }
+    },
+    "alpine_shorthand_events": {
+      "total": 891,
+      "files": {
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0001-body-part.part01.html": 72,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0001-body-part.part01a.html": 44,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0001-body-part.part02.html": 41,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0001-body-part.part03.html": 31,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0002-body-part.html": 31,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0003-body-part.html": 75,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0004-body-part.html": 82,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0005-body-part.html": 58,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0006-body-part.html": 64,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0007-body-part.html": 48,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0008-body-part.html": 71,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0009-body-part.html": 41,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0010-body-part.html": 48,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0011-body-part.html": 29,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0012-body-part.html": 23,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0013-body-part.html": 29,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0014-body-part.html": 20,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0015-body-part.html": 33,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0016-body-part.html": 24,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0017-body-part.html": 27
+      }
+    },
+    "alpine_shorthand_bindings": {
+      "total": 916,
+      "files": {
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0001-body-part.part01.html": 45,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0001-body-part.part01a.html": 20,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0001-body-part.part02.html": 29,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0001-body-part.part03.html": 92,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0002-body-part.html": 37,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0003-body-part.html": 68,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0004-body-part.html": 104,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0005-body-part.html": 68,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0006-body-part.html": 71,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0007-body-part.html": 23,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0008-body-part.html": 29,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0009-body-part.html": 47,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0010-body-part.html": 44,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0011-body-part.html": 39,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0012-body-part.html": 33,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0013-body-part.html": 42,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0014-body-part.html": 24,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0015-body-part.html": 43,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0016-body-part.html": 31,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0017-body-part.html": 27
+      }
+    },
+    "alpine_magic_store": {
+      "total": 74,
+      "files": {
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0001-body-part.part01.html": 16,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0001-body-part.part01a.html": 5,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0001-body-part.part02.html": 28,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0002-body-part.html": 5,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0003-body-part.html": 2,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0005-body-part.html": 3,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0015-body-part.html": 1,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0016-body-part.html": 2,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0017-body-part.html": 4,
+        "client/runtime/systems/ui/infring_static/js/pages/agents.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/020-list-and-filters.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts": 3,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/090-init-hooks-and-shortcuts.part01.ts": 3
+      }
+    },
+    "alpine_magic_watch_next_tick": {
+      "total": 191,
+      "files": {
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0001-body-part.part01.html": 5,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0001-body-part.part01a.html": 2,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0001-body-part.part02.html": 1,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0002-body-part.html": 2,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0004-body-part.html": 6,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0005-body-part.html": 1,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0006-body-part.html": 6,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0008-body-part.html": 1,
+        "client/runtime/systems/ui/infring_static/index_body.html.parts/0013-body-part.html": 2,
+        "client/runtime/systems/ui/infring_static/js/app.ts": 6,
+        "client/runtime/systems/ui/infring_static/js/app.ts.parts/020-nav-and-layout.part02.ts": 2,
+        "client/runtime/systems/ui/infring_static/js/app.ts.parts/020-nav-and-layout.part07.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/app.ts.parts/030-agent-list-runtime.part01.ts": 3,
+        "client/runtime/systems/ui/infring_static/js/pages/agents.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/agents.ts.parts/020-list-and-filters.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts": 75,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/020-init-roles-and-vibes.part02.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/030-init-selection-helpers.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/040-models-and-cache.part01.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/040-models-and-cache.part02.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/070-init-sequences-and-pointer.part01.ts": 8,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/080-normalize-and-context.part01.ts": 4,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/080-normalize-and-context.part01a.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/090-init-hooks-and-shortcuts.part01.ts": 15,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/090-init-hooks-and-shortcuts.part02.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/110-failover-and-health.part01.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/120-slash-and-agent-select.ts": 5,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/130-render-window-and-session.part01.ts": 3,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/130-render-window-and-session.part02.ts": 2,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/140-session-and-ws.part01.ts": 4,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/150-ws-stream-handlers.ts": 5,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/160-runtime-events-and-render.part01.ts": 4,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/180-map-navigation.part01.ts": 3,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/190-drawer-and-queue.part03.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/192-slash-alias-and-alerts.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/200-send-pipeline.part01.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/210-scroll-hover-sanitize.part01.ts": 9,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/215-rendering-and-metadata-upgrades.ts": 2,
+        "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/220-artifacts-voice-search.part01.ts": 1,
+        "client/runtime/systems/ui/infring_static/js/pages/logs.ts": 1
+      }
+    }
+  }
+}

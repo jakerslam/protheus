@@ -1536,12 +1536,12 @@ fn run_turn_workflow_final_response(
     let (system_prompt, user_prompt) = if manual_toolbox_gate_turn {
         (
             clean_text(
-                "Manual toolbox gate. You are the LLM and you author the visible chat text. The system must not choose tools for you. Output exactly one useful next step: `No. <answer directly from current context>` or `Yes. Tool family: <family>. Tool: <tool>. Request payload: <valid JSON or compact fields>.` If the user asked for web search, the response must contain the exact phrase `web search`. Do not say a tool already ran. Keep the whole response under 80 words.",
+                "Manual toolbox gate. You are the LLM and you author the visible chat text. The system must not choose tools for you. Do not expose raw gate choices in chat: no `Yes.`, no `No.`, no `Tool family:`, and no `Request payload:` labels. If no tool has run, answer naturally with what tool path you would choose next or what input is needed. If the user asked for web search, include the phrase `web search`. Do not say a tool already ran. Keep the whole response under 80 words.",
                 2_000,
             ),
             clean_text(
                 &format!(
-                    "User request:\n{message}\n\nAvailable workflow/tool candidates:\n{workflow_events_json}\n\nChoose No and answer directly, or choose Yes and provide the tool family, tool, and request payload."
+                    "User request:\n{message}\n\nAvailable workflow/tool candidates:\n{workflow_events_json}\n\nWrite the visible chat answer. Gate/menu choices belong in workflow telemetry only, not in the chat text."
                 ),
                 8_000,
             ),
@@ -1550,9 +1550,9 @@ fn run_turn_workflow_final_response(
         let direct_gate_system_prompt = if direct_simple_conversation_turn {
             "Reply naturally as the assistant. No tools. Do not mention workflow, gates, tools, or telemetry. Keep it under 20 words."
         } else if direct_no_tool_exit_turn {
-            "Reply as the LLM. No tools. Start with `No.` If this is hypothetical, name the tool without claiming execution. Keep it under 25 words."
+            "Reply as the LLM. No tools. Do not start with `No.` If this is hypothetical, name the tool without claiming execution. Keep it under 25 words."
         } else {
-            "Reply as the LLM. No tools. Start with `No.` Include `answer directly`. Do not mention workflow, gates, tools, or telemetry. Keep it under 25 words."
+            "Reply as the LLM. No tools. Do not start with `No.` Include `answer directly`. Do not mention workflow, gates, tools, or telemetry. Keep it under 25 words."
         };
         let direct_gate_user_prompt = if direct_simple_conversation_turn {
             format!("User: {message}\nAssistant:")
@@ -1575,7 +1575,7 @@ fn run_turn_workflow_final_response(
         (
             clean_text(
                 &format!(
-                    "{}\n\nHardcoded agent workflow: you are writing the next visible assistant response for the current workflow turn. Use recorded tool outcomes when they exist. If no tool outcome exists and the workflow is presenting a manual toolbox gate, submit your own next gate choice in chat text: choose `No` and answer directly, or choose `Yes` and name the tool family/tool plus the request payload you would enter. Do not claim a tool ran unless recorded tool outcomes show it ran. Never emit raw telemetry, placeholder copy, inline `<function=...>` markup, or pretend a failed tool succeeded.\n\nFinal-answer contract (final_answer_contract_v1): (1) answer the user's request or submit the next workflow gate choice in the first 1-2 sentences, (2) do not echo/restate the user prompt as your response, (3) do not include placeholder copy, (4) do not mention internal gate/classifier identifiers, and (5) do not emit bracketed internal source tags.\n\nResponse template class: {}. {} Style: {} by default unless user requested a deep dive.",
+                    "{}\n\nHardcoded agent workflow: you are writing the next visible assistant response for the current workflow turn. Use recorded tool outcomes when they exist. If no tool outcome exists and the workflow is presenting a manual toolbox gate, answer naturally with the tool path you would use next or the input needed; do not expose raw gate choices in chat (`Yes.`, `No.`, `Tool family:`, `Request payload:`). Do not claim a tool ran unless recorded tool outcomes show it ran. Never emit raw telemetry, placeholder copy, inline `<function=...>` markup, or pretend a failed tool succeeded.\n\nFinal-answer contract (final_answer_contract_v1): (1) answer the user's request in the first 1-2 sentences, (2) do not echo/restate the user prompt as your response, (3) do not include placeholder copy, (4) do not mention internal gate/classifier identifiers, (5) do not emit bracketed internal source tags, and (6) do not expose workflow menu labels as chat text.\n\nResponse template class: {}. {} Style: {} by default unless user requested a deep dive.",
                     AGENT_RUNTIME_SYSTEM_PROMPT, template_label, template_instruction, detail_style
                 ),
                 12_000,
@@ -1618,7 +1618,7 @@ fn run_turn_workflow_final_response(
         .rev()
         .collect::<Vec<_>>()
         .join("\n");
-    let max_attempts: u64 = if direct_gate_recovery_turn { 1 } else { 2 };
+    let max_attempts: u64 = if direct_simple_conversation_turn { 1 } else { 2 };
     let mut last_error = String::new();
     let mut last_invalid_excerpt = String::new();
     let mut last_reject_reason = String::new();
@@ -1684,7 +1684,7 @@ fn run_turn_workflow_final_response(
         let attempt_user_prompt = if attempt > 1 {
             clean_text(
                 &format!(
-                    "{}\n\nCorrection for attempt {} of {}: your previous answer did not complete the workflow because it tried to start another search, deferred the answer, emitted inline tool markup, or drifted away from the latest user request. Do not ask to retry, rerun, narrow the query, fetch another source, or emit `<function=...>` calls. Keep high lexical/semantic alignment to the latest user request and recent conversation context. Using only the recorded tool outcomes and workflow events above, explain what happened in your own words and tell the user what the tool actually returned.",
+                    "{}\n\nCorrection for attempt {} of {}: your previous answer did not complete the workflow because it tried to start another search, deferred the answer, exposed a raw workflow gate choice, emitted inline tool markup, or drifted away from the latest user request. Do not write `Yes.`, `No.`, `Tool family:`, `Tool:`, or `Request payload:` as visible chat. Do not ask to retry, rerun, narrow the query, fetch another source, or emit `<function=...>` calls. Keep high lexical/semantic alignment to the latest user request and recent conversation context. Using only the recorded tool outcomes and workflow events above, answer naturally and tell the user what the tool actually returned when recorded evidence exists.",
                     user_prompt, attempt, max_attempts
                 ),
                 20_000,
@@ -1718,6 +1718,8 @@ fn run_turn_workflow_final_response(
                 }
                 let manual_toolbox_gate_choice =
                     response_is_manual_toolbox_gate_choice(&retried_text);
+                let visible_gate_choice_reply =
+                    response_is_visible_workflow_gate_choice(&retried_text);
                 let deferred_reply = response_is_deferred_execution_preamble(&retried_text)
                     || response_is_deferred_retry_prompt(&retried_text)
                     || (workflow_response_requests_more_tooling(&retried_text)
@@ -1744,8 +1746,7 @@ fn run_turn_workflow_final_response(
                 let missing_evidence_tags = !response_tools.is_empty()
                     && !receipt_mapped_sources
                     && !response_has_evidence_tags(&retried_text);
-                let missing_direct_answer = !manual_toolbox_gate_choice
-                    && !response_answers_user_early(message, &retried_text);
+                let missing_direct_answer = !response_answers_user_early(message, &retried_text);
                 let direct_answer_in_first_two_sentences = !missing_direct_answer;
                 let rejects_base_contract = response_fails_base_final_answer_contract(&retried_text);
                 let rejects_speculative_blocker =
@@ -1760,6 +1761,11 @@ fn run_turn_workflow_final_response(
                     && workflow_turn_is_meta_control_message(message)
                     && !lowered_retried_text.contains("answer directly");
                 let reject_checks = [
+                    (
+                        visible_gate_choice_reply,
+                        "visible_gate_choice_reply",
+                        "alignment_reject",
+                    ),
                     (
                         missing_manual_web_search_phrase,
                         "missing_manual_web_search_phrase",
@@ -1812,6 +1818,22 @@ fn run_turn_workflow_final_response(
                     .map(|(_, reason, counter)| (reason, counter))
                     .unwrap_or(("", ""));
                 if !reject_reason.is_empty() {
+                    if visible_gate_choice_reply {
+                        if let Some(pending_request) =
+                            manual_toolbox_pending_request_from_response(&retried_text, message)
+                        {
+                            workflow["manual_toolbox_pending_tool_request"] =
+                                pending_request.clone();
+                            if let Some(events) =
+                                workflow.get_mut("system_events").and_then(Value::as_array_mut)
+                            {
+                                events.push(turn_workflow_event(
+                                    "manual_toolbox_pending_tool_request",
+                                    pending_request,
+                                ));
+                            }
+                        }
+                    }
                     if !reject_counter.is_empty() {
                         bump_workflow_quality_counter(&mut workflow, reject_counter);
                     }

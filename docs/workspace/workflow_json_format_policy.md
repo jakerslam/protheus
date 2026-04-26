@@ -31,8 +31,22 @@ Required reader-acceptance fields:
 
 1. `name` (string, non-empty after sanitization)
 2. `stages` (array of stage strings, at least one non-empty item after sanitization)
+3. `typed_execution_contract` (object, required for control-plane promotion)
 
-If either required field is invalid/empty, the reader rejects that spec.
+If any required field is invalid/empty, the reader rejects that spec.
+
+Control-plane promotion requires the Rust workflow contract guard to compile each JSON workflow into a typed graph before runtime use. `typed_execution_contract` must include:
+
+1. `gate_kind` (string)
+2. `input_kind` (`multiple_choice`, `text_input`, or `multiple_choice_or_text_input`)
+3. `allowed_transitions` (`stage_a->stage_b` strings, with terminal transitions allowed)
+4. `timeout_ms` (positive integer)
+5. `retry_policy.max_retries` and `retry_policy.on_failure`
+6. `terminal_states` containing `completed`, `needs_input`, `blocked`, `failed`, and `aborted`
+7. `telemetry_streams` containing `workflow_state`, `agent_internal_notes`, `tool_trace`, `eval_trace`, and `final_answer`
+8. `tool_family_contracts` containing `workspace`, `web`, `memory`, `agent`, `shell`, and `browser`
+9. `visible_chat_policy` set to `llm_final_only_no_system_injection`
+10. `run_budgets` with max stages, model turns, tool calls, token budget, and loop-signature detector
 
 Optional fields with reader defaults:
 
@@ -88,6 +102,13 @@ Disallowed workflow behavior:
 5. Injecting fallback text into the visible chat response
 6. Adding "next actions" or system-authored diagnostic prose to the final answer
 
+No-injection invariant:
+
+1. System-authored fallback text must never be inserted into visible chat.
+2. Failure/finalization diagnostics go to telemetry, attention queues, or UI diagnostic streams only.
+3. Visible chat text is emitted only by the LLM final output stage.
+4. `visible_chat_policy` must remain `llm_final_only_no_system_injection`.
+
 Canonical stage vocabulary:
 
 1. `gate_1_need_tool_access_menu`
@@ -124,6 +145,8 @@ Suggested test commands:
 1. `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib workflow_reader_loads_external_specs -- --nocapture`
 2. `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib workflow_reader_enforces_single_default -- --nocapture`
 3. `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib workflow_reader_sources_current_workflows_from_json_specs -- --nocapture`
+4. `cargo test --manifest-path surface/orchestration/Cargo.toml workflow_contract -- --nocapture`
+5. `cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin workflow_contract_guard -- --strict=1`
 
 ## Policy Guardrail
 
