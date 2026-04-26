@@ -19,6 +19,13 @@ const CORE_ARTIFACT_PATH = path.join(
   'artifacts',
   'workspace_tooling_context_soak_current.json',
 );
+const CORE_ARTIFACT_CONTEXT_LATEST_PATH = path.join(
+  ROOT,
+  'core',
+  'local',
+  'artifacts',
+  'workspace_tooling_context_soak_report_latest.json',
+);
 const CORE_ARTIFACT_ALIAS_PATH = path.join(
   ROOT,
   'core',
@@ -679,6 +686,7 @@ if (fixture.error || pathTargetingFixture.error) {
     failure_reason: fixtureError,
   };
   writeJson(CORE_ARTIFACT_PATH, report);
+  writeJson(CORE_ARTIFACT_CONTEXT_LATEST_PATH, report);
   writeJson(CORE_ARTIFACT_ALIAS_PATH, report);
   writeJson(CORE_RELIABILITY_PATH, reliabilityReport);
   writeJson(ARTIFACT_RELIABILITY_LATEST_PATH, reliabilityReport);
@@ -852,6 +860,7 @@ writeJson(ARTIFACT_CONTEXT_LATEST_PATH, report);
 writeJson(ARTIFACT_ALIAS_LATEST_PATH, report);
 writeJson(STATE_LATEST_PATH, report);
 writeJson(CORE_ARTIFACT_PATH, report);
+writeJson(CORE_ARTIFACT_CONTEXT_LATEST_PATH, report);
 writeJson(CORE_ARTIFACT_ALIAS_PATH, report);
 const reliabilityReport = {
   type: 'workspace_tooling_reliability',

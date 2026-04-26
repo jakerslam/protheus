@@ -20,7 +20,6 @@ include!("inversion_parts/190-compute-extract-failure-cluster-principle.rs");
 include!("inversion_parts/200-compute-conclave-high-risk-flags.rs");
 include!("inversion_parts/210-run-inversion-json.rs");
 include!("inversion_parts/220-normalize-impact-matches-expected-set.rs");
-include!("inversion_parts/230-placeholder.rs");
 
 #[allow(dead_code)]
 pub(crate) fn contains_forbidden_runtime_context_marker(raw: &str) -> bool {

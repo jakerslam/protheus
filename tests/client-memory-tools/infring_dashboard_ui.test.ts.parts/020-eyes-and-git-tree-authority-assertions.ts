@@ -752,6 +752,7 @@ function runSnapshotAssertions() {
   assertDashboardVersionRefreshUsesApiVersion();
   assertTaskbarHeroSystemMenu();
   assertDashboardHostOverlaysLiveVersion();
+  assertDashboardHostRejectsStaleBackendProcess();
   assertChatEnhancementFeatures();
   assertMemoryApiWired();
   assertEyesPageWired();

@@ -559,9 +559,17 @@ fn finalize_message_finalization_and_payload(
         &tooling_invariant,
         &web_invariant,
     );
+    let workflow_direct_response_path = response_workflow
+        .pointer("/workflow_control/direct_response_path")
+        .and_then(Value::as_str)
+        .unwrap_or(if manual_toolbox_pending_tool_request.is_some() {
+            "gate_1_yes_pending_tool_confirmation"
+        } else {
+            "gate_1_no"
+        });
     response_finalization["workflow_control"] = json!({
         "mode": "tool_menu_interface_v1",
-        "direct_response_path": "gate_1_no"
+        "direct_response_path": workflow_direct_response_path
     });
     apply_response_guard_payloads(&mut response_finalization, &response_guard);
     if let Some(pending_request) = manual_toolbox_pending_tool_request.as_ref() {

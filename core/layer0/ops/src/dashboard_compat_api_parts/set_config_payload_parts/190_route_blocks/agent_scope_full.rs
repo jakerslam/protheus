@@ -1,4 +1,5 @@
 include!("agent_scope_full_parts/030-message-routing-and-context.rs");
+include!("agent_scope_full_parts/034-simple-chat-fast-model.rs");
 include!("agent_scope_full_parts/045-tool-recovery-and-turn-persistence.rs");
 include!("agent_scope_full_parts/046a-workflow-reader.rs");
 include!("agent_scope_full_parts/046-turn-workflow-library.rs");

@@ -50,21 +50,38 @@ fn handle_message_chat_response_pass(
         inline_tools_allowed,
         system_prompt,
     } = prepared;
-    let manual_toolbox_prompt_only_turn = response_tools_prompt_only_gate_required(
-        message,
-        &latent_tool_candidates,
-    );
     let simple_conversation_minimal_final_turn =
         workflow_turn_is_simple_conversation_without_tool_intent(message);
     let no_tool_minimal_final_turn = workflow_turn_is_meta_control_message(message)
         || message_explicitly_disallows_tool_calls(message)
         || simple_conversation_minimal_final_turn;
+    let manual_toolbox_prompt_only_turn = !no_tool_minimal_final_turn
+        && response_tools_prompt_only_gate_required(message, &latent_tool_candidates);
     if manual_toolbox_prompt_only_turn {
         let runtime_summary = runtime_sync_summary(snapshot);
+        let fast_model_route = visible_response_fast_model_route(
+            root,
+            snapshot,
+            &provider,
+            &model,
+            "manual_toolbox_fast_model",
+        );
+        let (final_provider, final_model, final_auto_route, final_requested_provider, final_requested_model) =
+            if let Some((provider, model, route)) = fast_model_route {
+                (provider, model, Some(route), "auto".to_string(), String::new())
+            } else {
+                (
+                    provider.clone(),
+                    model.clone(),
+                    auto_route.clone(),
+                    requested_provider.clone(),
+                    requested_model.clone(),
+                )
+            };
         let synthetic_result = json!({
-            "provider": provider,
-            "model": model,
-            "runtime_model": model,
+            "provider": final_provider,
+            "model": final_model,
+            "runtime_model": final_model,
             "response": "",
             "input_tokens": estimate_tokens(message),
             "output_tokens": 0,
@@ -84,11 +101,11 @@ fn handle_message_chat_response_pass(
             state,
             messages,
             active_messages,
-            provider,
-            model,
-            requested_provider,
-            requested_model,
-            auto_route,
+            final_provider,
+            final_model,
+            final_requested_provider,
+            final_requested_model,
+            final_auto_route,
             virtual_key_id,
             virtual_key_gate,
             fallback_window,
@@ -122,10 +139,30 @@ fn handle_message_chat_response_pass(
         } else {
             "direct_no_tool_exit"
         };
+        let fast_model_route = simple_direct_chat_fast_model_route(
+            root,
+            snapshot,
+            message,
+            inline_tools_allowed,
+            &provider,
+            &model,
+        );
+        let (final_provider, final_model, final_auto_route, final_requested_provider, final_requested_model) =
+            if let Some((provider, model, route)) = fast_model_route {
+                (provider, model, Some(route), "auto".to_string(), String::new())
+            } else {
+                (
+                    provider.clone(),
+                    model.clone(),
+                    auto_route.clone(),
+                    requested_provider.clone(),
+                    requested_model.clone(),
+                )
+            };
         let synthetic_result = json!({
-            "provider": provider,
-            "model": model,
-            "runtime_model": model,
+            "provider": final_provider,
+            "model": final_model,
+            "runtime_model": final_model,
             "response": "",
             "input_tokens": estimate_tokens(message),
             "output_tokens": 0,
@@ -145,11 +182,11 @@ fn handle_message_chat_response_pass(
             state,
             messages,
             active_messages,
-            provider,
-            model,
-            requested_provider,
-            requested_model,
-            auto_route,
+            final_provider,
+            final_model,
+            final_requested_provider,
+            final_requested_model,
+            final_auto_route,
             virtual_key_id,
             virtual_key_gate,
             fallback_window,

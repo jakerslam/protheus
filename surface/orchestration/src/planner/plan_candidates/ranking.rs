@@ -60,5 +60,11 @@ pub(super) fn template_variant_bias(
             PlanVariant::ClarificationFirst => 0.00,
             PlanVariant::DegradedFallback => -0.03,
         },
+        WorkflowTemplate::OpenHandsControlPlaneAssimilation => match variant {
+            PlanVariant::Safest => 0.09,
+            PlanVariant::ClarificationFirst => 0.04,
+            PlanVariant::Fastest => 0.02,
+            PlanVariant::DegradedFallback => -0.03,
+        },
     }
 }

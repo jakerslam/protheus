@@ -5,7 +5,6 @@ include!("decompose_parts/040-build-queue-rows.rs");
 include!("decompose_parts/050-evaluate-route.rs");
 include!("decompose_parts/060-evaluate-heroic-gate.rs");
 include!("decompose_parts/070-decompose-generates-micro-tasks.rs");
-include!("decompose_parts/080-placeholder.rs");
 
 #[allow(dead_code)]
 pub(crate) fn contains_forbidden_runtime_context_marker(raw: &str) -> bool {

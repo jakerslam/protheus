@@ -23,12 +23,16 @@ const MANDATORY_RELEASE_PROOF_ARTIFACTS = [
   'core/local/artifacts/runtime_trusted_core_report_current.json',
   'core/local/artifacts/eval_regression_guard_current.json',
   'core/local/artifacts/eval_feedback_router_current.json',
+  'core/local/artifacts/issue_candidate_contract_guard_current.json',
+  'core/local/artifacts/issue_candidate_backlog_current.json',
   'core/local/artifacts/runtime_proof_reality_guard_current.json',
   'core/local/artifacts/runtime_soak_scenarios_current.json',
 ];
 const MANDATORY_PASSING_RELEASE_PROOF_ARTIFACTS = [
   'core/local/artifacts/eval_regression_guard_current.json',
   'core/local/artifacts/eval_feedback_router_current.json',
+  'core/local/artifacts/issue_candidate_contract_guard_current.json',
+  'core/local/artifacts/issue_candidate_backlog_current.json',
   'core/local/artifacts/runtime_proof_reality_guard_current.json',
   'core/local/artifacts/runtime_soak_scenarios_current.json',
 ];
@@ -40,6 +44,8 @@ const DEFAULT_FRESHNESS_REQUIRED_ARTIFACTS = [
   'core/local/artifacts/installer_reliability_closure_guard_current.json',
   'core/local/artifacts/eval_regression_guard_current.json',
   'core/local/artifacts/eval_feedback_router_current.json',
+  'core/local/artifacts/issue_candidate_contract_guard_current.json',
+  'core/local/artifacts/issue_candidate_backlog_current.json',
   'core/local/artifacts/test_maturity_registry_current.json',
 ];
 const DEFAULT_FRESHNESS_MAX_AGE_HOURS = 336;
@@ -85,6 +91,35 @@ function categoryLookup(manifest: PackManifest): Map<string, string> {
     }
   }
   return out;
+}
+
+function dedupePaths(rows: string[] | undefined): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const row of rows || []) {
+    const normalized = cleanText(row, 400);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    out.push(normalized);
+  }
+  return out;
+}
+
+function duplicatePathEntries(section: string, rows: string[] | undefined) {
+  const counts = new Map<string, number>();
+  for (const row of rows || []) {
+    const normalized = cleanText(row, 400);
+    if (!normalized) continue;
+    counts.set(normalized, (counts.get(normalized) || 0) + 1);
+  }
+  return Array.from(counts.entries())
+    .filter(([, count]) => count > 1)
+    .map(([pathToken, count]) => ({
+      section,
+      path: pathToken,
+      count,
+      recommendation: 'keep one canonical manifest entry; proof-pack assembly deduped this path for the current run',
+    }));
 }
 
 function copyIntoPack(root: string, relPath: string, packRoot: string) {
@@ -148,6 +183,102 @@ function isCurrentEvidencePath(relPath: string): boolean {
   return CURRENT_EVIDENCE_ALLOWED_SUFFIXES.some((suffix) => normalized.endsWith(suffix));
 }
 
+function blockerPriority(blocker: any): number {
+  const classRank: Record<string, number> = {
+    required_missing: 900,
+    mandatory_artifact_failures: 850,
+    required_failed_artifacts: 800,
+    summary_consistency_failures: 760,
+    category_threshold_failures: 720,
+    stale_artifact_failures: 650,
+    current_evidence_failures: 600,
+    manifest_duplicate_warnings: 100,
+  };
+  return Number(classRank[String(blocker?.class || '')] || 0);
+}
+
+function blockerOwner(blocker: any): string {
+  const blockerClass = String(blocker?.class || '');
+  if (blockerClass.includes('gateway')) return 'adapters/gateways';
+  if (blockerClass.includes('runtime') || blockerClass.includes('required')) return 'core/kernel';
+  if (blockerClass.includes('summary') || blockerClass.includes('manifest')) return 'release_governance/proof_pack';
+  return 'release_governance/proof_pack';
+}
+
+function blockerTargetLayer(blocker: any): string {
+  const blockerClass = String(blocker?.class || '');
+  if (blockerClass.includes('gateway')) return 'gateway';
+  if (blockerClass.includes('runtime') || blockerClass.includes('required')) return 'kernel';
+  return 'release_governance';
+}
+
+function blockerReleaseGateEffect(blocker: any): string {
+  return String(blocker?.severity || '') === 'release_blocking'
+    ? 'blocks_release_until_closed'
+    : 'non_blocking_hygiene';
+}
+
+function blockerEscalationTier(blocker: any): string {
+  const priority = blockerPriority(blocker);
+  if (priority >= 800) return 'release_blocker';
+  if (priority >= 600) return 'operator_attention';
+  return 'watchlist';
+}
+
+function blockerOperatorNextStep(blocker: any): string {
+  const action = String(blocker?.action || '').trim();
+  return action
+    ? `${action}; rerun release proof-pack assembly and confirm this dedupe key disappears`
+    : 'rerun release proof-pack assembly and inspect remaining top blockers';
+}
+
+function blockerTriageQueue(blocker: any): string {
+  const tier = blockerEscalationTier(blocker);
+  if (tier === 'release_blocker') return 'release_blockers';
+  if (tier === 'operator_attention') return 'release_operator_attention';
+  return 'release_watchlist';
+}
+
+function topBlockerActionable(blocker: any): boolean {
+  const requiredText = [
+    blocker?.source_report,
+    blocker?.issue_lifecycle_state,
+    blocker?.source_artifact_policy,
+    blocker?.dedupe_key,
+    blocker?.owner,
+    blocker?.target_layer,
+    blocker?.release_gate_effect,
+    blocker?.escalation_tier,
+    blocker?.operator_next_step,
+    blocker?.triage_queue,
+    blocker?.closing_evidence_required,
+    blocker?.closure_verification_command,
+  ];
+  return (
+    requiredText.every((value) => String(value || '').trim().length > 0) &&
+    Number(blocker?.issue_contract_version || 0) === 1 &&
+    Array.isArray(blocker?.source_artifacts) &&
+    blocker.source_artifacts.length > 0 &&
+    blocker.source_artifacts.every((row: unknown) => localArtifactPathOk(String(row || ''))) &&
+    blocker?.safe_to_auto_file_issue === true &&
+    blocker?.safe_to_auto_apply_patch === false &&
+    blocker?.human_review_required === true &&
+    blocker?.requires_operator_ack === true &&
+    blocker?.autonomous_mitigation_allowed === false
+  );
+}
+
+function localArtifactPathOk(pathToken: string): boolean {
+  const normalized = pathToken.trim();
+  return (
+    normalized.length > 0 &&
+    !path.isAbsolute(normalized) &&
+    !normalized.startsWith('http://') &&
+    !normalized.startsWith('https://') &&
+    !normalized.includes('..')
+  );
+}
+
 function markdown(report: any): string {
   const lines = [
     '# Release Proof Pack',
@@ -166,6 +297,29 @@ function markdown(report: any): string {
       `- stale_artifacts: ${Number(report.summary.stale_artifacts || 0)}`,
       `- failed_artifacts: ${Number(report.summary.failed_artifacts || 0)}`,
       `- historical_snapshot_artifacts: ${Number(report.summary.historical_snapshot_artifacts || 0)}`,
+      `- summary_consistency_failures: ${Number(report.summary.summary_consistency_failures || 0)}`,
+      `- category_required_missing_sum: ${Number(report.summary.category_required_missing_sum || 0)}`,
+      `- category_artifact_count_sum: ${Number(report.summary.category_artifact_count_sum || 0)}`,
+      `- category_required_total_sum: ${Number(report.summary.category_required_total_sum || 0)}`,
+      `- release_blocking_issue_count: ${Number(report.summary.release_blocking_issue_count || 0)}`,
+      `- top_blocker_count: ${Number(report.summary.top_blocker_count || 0)}`,
+      `- primary_blocker_class: ${report.summary.primary_blocker_class || 'none'}`,
+      `- primary_blocker_artifact: ${report.summary.primary_blocker_artifact || 'none'}`,
+      `- primary_blocker_action: ${report.summary.primary_blocker_action || 'none'}`,
+      `- primary_blocker_dedupe_key: ${report.summary.primary_blocker_dedupe_key || 'none'}`,
+      `- primary_blocker_priority_score: ${Number(report.summary.primary_blocker_priority_score || 0)}`,
+      `- primary_blocker_owner: ${report.summary.primary_blocker_owner || 'none'}`,
+      `- primary_blocker_target_layer: ${report.summary.primary_blocker_target_layer || 'none'}`,
+      `- primary_blocker_escalation_tier: ${report.summary.primary_blocker_escalation_tier || 'none'}`,
+      `- primary_blocker_release_gate_effect: ${report.summary.primary_blocker_release_gate_effect || 'none'}`,
+      `- primary_blocker_operator_next_step: ${report.summary.primary_blocker_operator_next_step || 'none'}`,
+      `- primary_blocker_triage_queue: ${report.summary.primary_blocker_triage_queue || 'none'}`,
+      `- primary_blocker_lifecycle_state: ${report.summary.primary_blocker_lifecycle_state || 'none'}`,
+      `- primary_blocker_source_artifact_count: ${Number(report.summary.primary_blocker_source_artifact_count || 0)}`,
+      `- primary_blocker_closure_verification_command: ${report.summary.primary_blocker_closure_verification_command || 'none'}`,
+      `- top_blockers_actionable: ${report.summary.top_blockers_actionable ? 'true' : 'false'}`,
+      `- top_blocker_actionability_failure_count: ${Number(report.summary.top_blocker_actionability_failure_count || 0)}`,
+      `- top_blocker_action_count: ${Number(report.summary.top_blocker_action_count || 0)}`,
     );
   }
   for (const row of report.artifacts) {
@@ -190,6 +344,46 @@ function markdown(report: any): string {
     );
   }
   lines.push('');
+  lines.push('## Operator summary');
+  if (report.operator_summary) {
+    lines.push(`- pass: ${report.operator_summary.pass ? 'true' : 'false'}`);
+    lines.push(`- primary_blocker: ${report.operator_summary.primary_blocker || 'none'}`);
+    lines.push(`- issue_candidate_ready: ${report.operator_summary.issue_candidate_ready ? 'true' : 'false'}`);
+    lines.push(`- next_actions: ${(report.operator_summary.next_actions || []).length}`);
+  } else {
+    lines.push('- unavailable');
+  }
+  lines.push('');
+  if (report.issue_candidate) {
+    lines.push('## Issue candidate');
+    lines.push(`- title: ${report.issue_candidate.title}`);
+    lines.push(`- severity: ${report.issue_candidate.severity}`);
+    lines.push(`- fingerprint: ${report.issue_candidate.fingerprint}`);
+    lines.push(`- next_actions: ${(report.issue_candidate.next_actions || []).length}`);
+    lines.push('');
+  }
+  if (Array.isArray(report.top_blockers) && report.top_blockers.length > 0) {
+    lines.push('## Top blockers');
+    for (const blocker of report.top_blockers.slice(0, 10)) {
+      lines.push(`- ${blocker.severity}: ${blocker.class} ${blocker.artifact} -> ${blocker.action}`);
+    }
+    lines.push('');
+  }
+  lines.push('## Manifest hygiene');
+  const duplicateWarnings = Array.isArray(report.manifest_duplicate_warnings)
+    ? report.manifest_duplicate_warnings
+    : [];
+  if (duplicateWarnings.length === 0) {
+    lines.push('- duplicate_warnings: 0');
+  } else {
+    lines.push(`- duplicate_warnings: ${duplicateWarnings.length}`);
+    for (const row of duplicateWarnings) {
+      lines.push(
+        `- ${row.section}: ${row.path} count=${row.count}; ${row.recommendation}`,
+      );
+    }
+  }
+  lines.push('');
   return `${lines.join('\n')}\n`;
 }
 
@@ -200,6 +394,25 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const manifestRaw = fs.readFileSync(path.resolve(root, args.manifestPath), 'utf8');
   const manifest = JSON.parse(manifestRaw) as PackManifest;
   const categoryByPath = categoryLookup(manifest);
+  const requiredArtifacts = dedupePaths(manifest.required_artifacts || []);
+  const requiredArtifactSet = new Set(requiredArtifacts);
+  const optionalArtifactsRaw = dedupePaths(manifest.optional_artifacts || []);
+  const optionalArtifacts = optionalArtifactsRaw.filter((row) => !requiredArtifactSet.has(row));
+  const manifestDuplicateWarnings = [
+    ...duplicatePathEntries('required_artifacts', manifest.required_artifacts || []),
+    ...duplicatePathEntries('optional_artifacts', manifest.optional_artifacts || []),
+    ...Object.entries(manifest.artifact_groups || {}).flatMap(([group, rows]) =>
+      duplicatePathEntries(`artifact_groups.${group}`, rows || []),
+    ),
+    ...optionalArtifactsRaw
+      .filter((row) => requiredArtifactSet.has(row))
+      .map((pathToken) => ({
+        section: 'optional_artifacts',
+        path: pathToken,
+        count: 1,
+        recommendation: 'remove optional duplicate because this path is already required evidence',
+      })),
+  ];
 
   const packRoot = path.resolve(root, 'releases', 'proof-packs', args.version);
   fs.mkdirSync(packRoot, { recursive: true });
@@ -217,16 +430,14 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     source_age_hours: number | null;
   }> = [];
 
-  for (const rel of manifest.required_artifacts || []) {
-    const normalized = cleanText(rel, 400);
+  for (const normalized of requiredArtifacts) {
     artifactRows.push({
       ...copyIntoPack(root, normalized, packRoot),
       category: cleanText(categoryByPath.get(normalized) || 'ungrouped', 120),
       required: true,
     });
   }
-  for (const rel of manifest.optional_artifacts || []) {
-    const normalized = cleanText(rel, 400);
+  for (const normalized of optionalArtifacts) {
     artifactRows.push({
       ...copyIntoPack(root, normalized, packRoot),
       category: cleanText(categoryByPath.get(normalized) || 'ungrouped', 120),
@@ -350,13 +561,325 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     })
     .filter((row): row is { id: string; category: string; threshold: number; actual: number; ok: boolean; detail: string } => !!row)
     .filter((row) => !row.ok);
+  const categoryRequiredMissingSum = categorySummary.reduce(
+    (sum, row) => sum + Number(row.required_missing || 0),
+    0,
+  );
+  const categoryArtifactCountSum = categorySummary.reduce((sum, row) => sum + Number(row.total || 0), 0);
+  const categoryRequiredTotalSum = categorySummary.reduce((sum, row) => sum + Number(row.required_total || 0), 0);
+  const proofPackSummaryConsistencyFailures = [
+    ...(categoryRequiredMissingSum === requiredMissing.length
+      ? []
+      : [
+          {
+            id: 'proof_pack_summary_required_missing_mismatch',
+            expected: requiredMissing.length,
+            actual: categoryRequiredMissingSum,
+            detail: `top_level_required_missing=${requiredMissing.length};category_required_missing_sum=${categoryRequiredMissingSum}`,
+          },
+        ]),
+    ...(categoryArtifactCountSum === artifactRows.length
+      ? []
+      : [
+          {
+            id: 'proof_pack_summary_artifact_count_mismatch',
+            expected: artifactRows.length,
+            actual: categoryArtifactCountSum,
+            detail: `artifact_rows=${artifactRows.length};category_artifact_count_sum=${categoryArtifactCountSum}`,
+          },
+        ]),
+    ...(categoryRequiredTotalSum === requiredArtifacts.length
+      ? []
+      : [
+          {
+            id: 'proof_pack_summary_required_total_mismatch',
+            expected: requiredArtifacts.length,
+            actual: categoryRequiredTotalSum,
+            detail: `required_artifacts=${requiredArtifacts.length};category_required_total_sum=${categoryRequiredTotalSum}`,
+          },
+        ]),
+  ];
+  const blockerClassCounts = {
+    required_missing: requiredMissing.length,
+    mandatory_artifact_failures: mandatoryArtifactFailures.length,
+    required_failed_artifacts: requiredFailedArtifacts.length,
+    category_threshold_failures: categoryThresholdFailures.length,
+    stale_artifact_failures: staleArtifactFailures.length,
+    current_evidence_failures: currentEvidenceFailures.length,
+    summary_consistency_failures: proofPackSummaryConsistencyFailures.length,
+    manifest_duplicate_warnings: manifestDuplicateWarnings.length,
+  };
+  const releaseBlockingIssueCount =
+    blockerClassCounts.required_missing +
+    blockerClassCounts.mandatory_artifact_failures +
+    blockerClassCounts.required_failed_artifacts +
+    blockerClassCounts.category_threshold_failures +
+    blockerClassCounts.stale_artifact_failures +
+    blockerClassCounts.current_evidence_failures +
+    blockerClassCounts.summary_consistency_failures;
+  const blockerSeverityCounts = {
+    release_blocking: releaseBlockingIssueCount,
+    hygiene: blockerClassCounts.manifest_duplicate_warnings,
+  };
+  const primaryBlockerClass =
+    Object.entries(blockerClassCounts).find(([, count]) => Number(count) > 0)?.[0] || '';
+  const topBlockers = [
+    ...requiredMissing.map((artifact) => ({
+      class: 'required_missing',
+      severity: 'release_blocking',
+      artifact,
+      action: `produce required proof artifact ${artifact}`,
+    })),
+    ...mandatoryArtifactFailures.map((row) => ({
+      class: 'mandatory_artifact_failures',
+      severity: 'release_blocking',
+      artifact: row.path,
+      action: `repair mandatory proof artifact ${row.path}`,
+      detail: row.failure,
+    })),
+    ...requiredFailedArtifacts.map((row) => ({
+      class: 'required_failed_artifacts',
+      severity: 'release_blocking',
+      artifact: row.path,
+      action: `repair failing required artifact ${row.path}`,
+      detail: row.failure,
+    })),
+    ...categoryThresholdFailures.map((row) => ({
+      class: 'category_threshold_failures',
+      severity: 'release_blocking',
+      artifact: row.category,
+      action: `restore proof-pack category completeness for ${row.category}`,
+      detail: row.detail,
+    })),
+    ...staleArtifactFailures.map((row) => ({
+      class: 'stale_artifact_failures',
+      severity: 'release_blocking',
+      artifact: row.path,
+      action: `refresh stale proof artifact ${row.path}`,
+      detail: `age_hours=${row.age_hours};max_age_hours=${row.max_age_hours}`,
+    })),
+    ...currentEvidenceFailures.map((row) => ({
+      class: 'current_evidence_failures',
+      severity: 'release_blocking',
+      artifact: row.path,
+      action: `replace non-current proof evidence path ${row.path}`,
+      detail: row.failure,
+    })),
+    ...proofPackSummaryConsistencyFailures.map((row) => ({
+      class: 'summary_consistency_failures',
+      severity: 'release_blocking',
+      artifact: 'release_proof_pack_summary',
+      action: 'repair proof-pack summary/category accounting mismatch',
+      detail: row.detail,
+    })),
+    ...manifestDuplicateWarnings.map((row) => ({
+      class: 'manifest_duplicate_warnings',
+      severity: 'hygiene',
+      artifact: row.path,
+      action: row.recommendation,
+      detail: row.section,
+    })),
+  ]
+    .sort((left, right) => blockerPriority(right) - blockerPriority(left))
+    .slice(0, 20)
+    .map((row, index) => ({
+      ...row,
+      issue_contract_version: 1,
+      source_report: 'release_proof_pack_assemble',
+      issue_lifecycle_state: 'candidate_open',
+      source_artifacts: [args.manifestPath, String(row.artifact || '')].filter(Boolean),
+      source_artifact_policy: 'local_relative_paths_only',
+      rank: index + 1,
+      priority_score: blockerPriority(row),
+      dedupe_key: `release_proof_pack:${row.class}:${row.artifact}`,
+      owner: blockerOwner(row),
+      target_layer: blockerTargetLayer(row),
+      release_gate_effect: blockerReleaseGateEffect(row),
+      escalation_tier: blockerEscalationTier(row),
+      operator_next_step: blockerOperatorNextStep(row),
+      triage_queue: blockerTriageQueue(row),
+      safe_to_auto_file_issue: true,
+      safe_to_auto_apply_patch: false,
+      human_review_required: true,
+      autonomous_mitigation_allowed: false,
+      requires_operator_ack: true,
+      reopen_policy: 'reopen_if_blocker_dedupe_key_recurs',
+      close_on_absence_window: 'next_release_proof_pack_assembly_pass',
+      closing_evidence_required: 'proof-pack assembly rerun reports pass=true and this blocker dedupe key is absent',
+      closure_verification_command:
+        'node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/release_proof_pack_assemble.ts --strict=0',
+    }));
+  const primaryBlocker = topBlockers[0] || null;
+  const primaryBlockerAction = primaryBlocker?.action || '';
+  const primaryBlockerArtifact = primaryBlocker?.artifact || '';
+  const primaryBlockerDedupeKey = primaryBlocker?.dedupe_key || '';
+  const primaryBlockerPriorityScore = Number(primaryBlocker?.priority_score || 0);
+  const primaryBlockerOwner = primaryBlocker?.owner || '';
+  const primaryBlockerTargetLayer = primaryBlocker?.target_layer || '';
+  const primaryBlockerEscalationTier = primaryBlocker?.escalation_tier || '';
+  const primaryBlockerReleaseGateEffect = primaryBlocker?.release_gate_effect || '';
+  const primaryBlockerOperatorNextStep = primaryBlocker?.operator_next_step || '';
+  const primaryBlockerTriageQueue = primaryBlocker?.triage_queue || '';
+  const primaryBlockerLifecycleState = primaryBlocker?.issue_lifecycle_state || '';
+  const primaryBlockerSourceArtifactCount = Array.isArray(primaryBlocker?.source_artifacts)
+    ? primaryBlocker.source_artifacts.length
+    : 0;
+  const primaryBlockerClosureVerificationCommand = primaryBlocker?.closure_verification_command || '';
+  const topBlockerActions = topBlockers.slice(0, 3).map((row) => ({
+    rank: row.rank,
+    class: row.class,
+    artifact: row.artifact,
+    action: row.action,
+    owner: row.owner,
+    target_layer: row.target_layer,
+    escalation_tier: row.escalation_tier,
+    release_gate_effect: row.release_gate_effect,
+    operator_next_step: row.operator_next_step,
+    triage_queue: row.triage_queue,
+    issue_lifecycle_state: row.issue_lifecycle_state,
+    source_artifacts: row.source_artifacts,
+    source_artifact_policy: row.source_artifact_policy,
+    closure_verification_command: row.closure_verification_command,
+  }));
+  const topBlockerActionabilityFailures = topBlockers.filter((row) => !topBlockerActionable(row));
   const pass =
     requiredMissing.length === 0 &&
     mandatoryArtifactFailures.length === 0 &&
     categoryThresholdFailures.length === 0 &&
     requiredFailedArtifacts.length === 0 &&
     staleArtifactFailures.length === 0 &&
-    currentEvidenceFailures.length === 0;
+    currentEvidenceFailures.length === 0 &&
+    proofPackSummaryConsistencyFailures.length === 0 &&
+    topBlockerActionabilityFailures.length === 0;
+  const topBlockersActionable = topBlockerActionabilityFailures.length === 0;
+  const issueCandidate =
+    pass && manifestDuplicateWarnings.length === 0
+      ? null
+      : {
+          type: 'release_proof_pack_issue_candidate',
+          schema_version: 1,
+          generated_at: new Date().toISOString(),
+          status: 'candidate',
+          source: 'release_proof_pack_assemble',
+          fingerprint: `release_proof_pack:${args.version}:${[
+            ...requiredMissing,
+            ...requiredFailedArtifacts.map((row) => row.path),
+            ...staleArtifactFailures.map((row) => row.path),
+            ...currentEvidenceFailures.map((row) => row.path),
+            ...proofPackSummaryConsistencyFailures.map((row) => row.id),
+            ...manifestDuplicateWarnings.map((row) => `${row.section}:${row.path}`),
+          ].join('|')}`,
+          dedupe_key: `release_proof_pack:${[
+            ...requiredMissing,
+            ...requiredFailedArtifacts.map((row) => row.path),
+            ...staleArtifactFailures.map((row) => row.path),
+            ...currentEvidenceFailures.map((row) => row.path),
+            ...proofPackSummaryConsistencyFailures.map((row) => row.id),
+            ...manifestDuplicateWarnings.map((row) => `${row.section}:${row.path}`),
+          ].join('|')}`,
+          owner: 'release_governance/proof_pack',
+          route_to: 'release_blocker_backlog',
+          labels: ['release-proof-pack', 'release-gate', pass ? 'manifest-hygiene' : 'release-blocker'],
+          title: pass
+            ? 'Release proof-pack manifest has duplicate evidence entries'
+            : 'Release proof-pack is not release-ready',
+          severity: pass ? 'low' : 'release_blocking',
+          impact: pass
+            ? 'proof-pack assembly remains usable, but duplicate manifest entries add release-governance noise'
+            : 'release evidence cannot be trusted or published until proof-pack blockers are resolved',
+          source_artifacts: [args.manifestPath],
+          required_missing_count: requiredMissing.length,
+          required_failed_artifact_count: requiredFailedArtifacts.length,
+          stale_artifact_failure_count: staleArtifactFailures.length,
+          current_evidence_failure_count: currentEvidenceFailures.length,
+          summary_consistency_failure_count: proofPackSummaryConsistencyFailures.length,
+          category_required_missing_sum: categoryRequiredMissingSum,
+          category_artifact_count_sum: categoryArtifactCountSum,
+          category_required_total_sum: categoryRequiredTotalSum,
+          manifest_duplicate_warning_count: manifestDuplicateWarnings.length,
+          blocker_class_counts: blockerClassCounts,
+          blocker_severity_counts: blockerSeverityCounts,
+          release_blocking_issue_count: releaseBlockingIssueCount,
+          primary_blocker_class: primaryBlockerClass,
+          primary_blocker_record: primaryBlocker,
+          primary_blocker_action: primaryBlockerAction,
+          primary_blocker_artifact: primaryBlockerArtifact,
+          primary_blocker_dedupe_key: primaryBlockerDedupeKey,
+          primary_blocker_priority_score: primaryBlockerPriorityScore,
+          primary_blocker_owner: primaryBlockerOwner,
+          primary_blocker_target_layer: primaryBlockerTargetLayer,
+          primary_blocker_escalation_tier: primaryBlockerEscalationTier,
+          primary_blocker_release_gate_effect: primaryBlockerReleaseGateEffect,
+          primary_blocker_operator_next_step: primaryBlockerOperatorNextStep,
+          primary_blocker_triage_queue: primaryBlockerTriageQueue,
+          primary_blocker_lifecycle_state: primaryBlockerLifecycleState,
+          primary_blocker_source_artifact_count: primaryBlockerSourceArtifactCount,
+          primary_blocker_closure_verification_command: primaryBlockerClosureVerificationCommand,
+          top_blocker_actionability_failure_count: topBlockerActionabilityFailures.length,
+          top_blockers_actionable: topBlockersActionable,
+          top_blocker_actions: topBlockerActions,
+          top_blockers: topBlockers,
+          automation_policy: {
+            mode: 'proposal_only',
+            requires_release_authority_receipt_before_apply: true,
+            autonomous_release_unblock_allowed: false,
+          },
+          triage: {
+            state: 'ready_for_issue_synthesis',
+            safe_to_auto_file_issue: true,
+            safe_to_auto_apply_patch: false,
+            requires_release_authority_receipt_to_close: true,
+          },
+          next_actions: [
+            ...requiredMissing.map((pathToken) => ({
+              action: `produce required proof artifact ${pathToken}`,
+              artifact: pathToken,
+            })),
+            ...mandatoryArtifactFailures.map((row) => ({
+              action: `repair mandatory proof artifact ${row.path}`,
+              artifact: row.path,
+              detail: row.failure,
+            })),
+            ...requiredFailedArtifacts.map((row) => ({
+              action: `repair failing required artifact ${row.path}`,
+              artifact: row.path,
+              detail: row.failure,
+            })),
+            ...categoryThresholdFailures.map((row) => ({
+              action: `restore proof-pack category completeness for ${row.category}`,
+              artifact: row.category,
+              detail: row.detail,
+            })),
+            ...staleArtifactFailures.map((row) => ({
+              action: `refresh stale proof artifact ${row.path}`,
+              artifact: row.path,
+              detail: `age_hours=${row.age_hours};max_age_hours=${row.max_age_hours}`,
+            })),
+            ...currentEvidenceFailures.map((row) => ({
+              action: `replace non-current proof evidence path ${row.path}`,
+              artifact: row.path,
+              detail: row.failure,
+            })),
+            ...proofPackSummaryConsistencyFailures.map((row) => ({
+              action: 'repair proof-pack top-level/category required_missing mismatch',
+              artifact: 'release_proof_pack_summary',
+              detail: row.detail,
+            })),
+            ...manifestDuplicateWarnings.map((row) => ({
+              action: row.recommendation,
+              artifact: row.path,
+              section: row.section,
+            })),
+          ],
+          acceptance_criteria: [
+            'required_missing_count is zero',
+            'required_failed_artifact_count is zero',
+            'stale_artifact_failure_count is zero',
+            'current_evidence_failure_count is zero',
+            'summary_consistency_failure_count is zero',
+            'manifest_duplicate_warning_count is zero or explicitly accepted as non-blocking hygiene debt',
+          ],
+        };
 
   const packManifest = {
     ok: pass,
@@ -374,6 +897,102 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     required_failed_artifacts: requiredFailedArtifacts,
     stale_artifact_failures: staleArtifactFailures,
     current_evidence_failures: currentEvidenceFailures,
+    manifest_duplicate_warnings: manifestDuplicateWarnings,
+    manifest_hygiene_contract: {
+      assembly_dedupes_duplicate_paths: true,
+      duplicate_entries_are_reported: true,
+      duplicate_entries_are_non_blocking_hygiene_debt: true,
+      duplicate_copy_prevention_enabled: true,
+      optional_required_overlap_prevented: true,
+      required_artifacts_unique_count: requiredArtifacts.length,
+      optional_artifacts_unique_count: optionalArtifacts.length,
+      duplicate_warning_count: manifestDuplicateWarnings.length,
+    },
+    summary_consistency_contract: {
+      top_level_required_missing: requiredMissing.length,
+      category_required_missing_sum: categoryRequiredMissingSum,
+      category_artifact_count_sum: categoryArtifactCountSum,
+      category_required_total_sum: categoryRequiredTotalSum,
+      mismatch_count: proofPackSummaryConsistencyFailures.length,
+      top_level_and_category_counts_must_match: true,
+    },
+    blocker_class_counts: blockerClassCounts,
+    blocker_severity_counts: blockerSeverityCounts,
+    primary_blocker_record: primaryBlocker,
+    primary_blocker_action: primaryBlockerAction,
+    primary_blocker_artifact: primaryBlockerArtifact,
+    primary_blocker_dedupe_key: primaryBlockerDedupeKey,
+    primary_blocker_priority_score: primaryBlockerPriorityScore,
+    primary_blocker_owner: primaryBlockerOwner,
+    primary_blocker_target_layer: primaryBlockerTargetLayer,
+    primary_blocker_escalation_tier: primaryBlockerEscalationTier,
+    primary_blocker_release_gate_effect: primaryBlockerReleaseGateEffect,
+    primary_blocker_operator_next_step: primaryBlockerOperatorNextStep,
+    primary_blocker_triage_queue: primaryBlockerTriageQueue,
+    primary_blocker_lifecycle_state: primaryBlockerLifecycleState,
+    primary_blocker_source_artifact_count: primaryBlockerSourceArtifactCount,
+    primary_blocker_closure_verification_command: primaryBlockerClosureVerificationCommand,
+    top_blocker_actionability_failures: topBlockerActionabilityFailures,
+    top_blocker_actionability_failure_count: topBlockerActionabilityFailures.length,
+    top_blockers_actionable: topBlockersActionable,
+    top_blocker_actions: topBlockerActions,
+    top_blockers: topBlockers,
+    issue_candidate: issueCandidate,
+    issue_candidate_contract: {
+      candidate_schema_version: 1,
+      safe_to_auto_file_issue: true,
+      safe_to_auto_apply_patch: false,
+      release_authority_receipt_required_to_close: true,
+    },
+    operator_summary: {
+      pass,
+      required_missing_count: requiredMissing.length,
+      required_failed_artifact_count: requiredFailedArtifacts.length,
+      mandatory_artifact_failure_count: mandatoryArtifactFailures.length,
+      category_threshold_failure_count: categoryThresholdFailures.length,
+      stale_artifact_failure_count: staleArtifactFailures.length,
+      current_evidence_failure_count: currentEvidenceFailures.length,
+      summary_consistency_failure_count: proofPackSummaryConsistencyFailures.length,
+      category_required_missing_sum: categoryRequiredMissingSum,
+      category_artifact_count_sum: categoryArtifactCountSum,
+      category_required_total_sum: categoryRequiredTotalSum,
+      manifest_duplicate_warning_count: manifestDuplicateWarnings.length,
+      release_blocking_issue_count: releaseBlockingIssueCount,
+      blocker_class_counts: blockerClassCounts,
+      blocker_severity_counts: blockerSeverityCounts,
+      primary_blocker_class: primaryBlockerClass,
+      primary_blocker_record: primaryBlocker,
+      primary_blocker_action: primaryBlockerAction,
+      primary_blocker_artifact: primaryBlockerArtifact,
+      primary_blocker_dedupe_key: primaryBlockerDedupeKey,
+      primary_blocker_priority_score: primaryBlockerPriorityScore,
+      primary_blocker_owner: primaryBlockerOwner,
+      primary_blocker_target_layer: primaryBlockerTargetLayer,
+      primary_blocker_escalation_tier: primaryBlockerEscalationTier,
+      primary_blocker_release_gate_effect: primaryBlockerReleaseGateEffect,
+      primary_blocker_operator_next_step: primaryBlockerOperatorNextStep,
+      primary_blocker_triage_queue: primaryBlockerTriageQueue,
+      primary_blocker_lifecycle_state: primaryBlockerLifecycleState,
+      primary_blocker_source_artifact_count: primaryBlockerSourceArtifactCount,
+      primary_blocker_closure_verification_command: primaryBlockerClosureVerificationCommand,
+      top_blocker_actionability_failure_count: topBlockerActionabilityFailures.length,
+      top_blockers_actionable: topBlockersActionable,
+      issue_candidate_count: issueCandidate ? 1 : 0,
+      top_blockers: topBlockers,
+      top_blocker_actions: topBlockerActions,
+      primary_blocker:
+        requiredMissing[0] ||
+        mandatoryArtifactFailures[0]?.path ||
+        requiredFailedArtifacts[0]?.path ||
+        categoryThresholdFailures[0]?.category ||
+        staleArtifactFailures[0]?.path ||
+        currentEvidenceFailures[0]?.path ||
+        proofPackSummaryConsistencyFailures[0]?.id ||
+        manifestDuplicateWarnings[0]?.path ||
+        '',
+      issue_candidate_ready: issueCandidate !== null,
+      next_actions: issueCandidate?.next_actions || [],
+    },
     category_summary: categorySummary,
   };
 
@@ -391,7 +1010,31 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         stale_artifacts: staleArtifactFailures.length,
         failed_artifacts: requiredFailedArtifacts.length + mandatoryArtifactFailures.length,
         historical_snapshot_artifacts: currentEvidenceFailures.length,
+        summary_consistency_failures: proofPackSummaryConsistencyFailures.length,
+        category_required_missing_sum: categoryRequiredMissingSum,
+        category_artifact_count_sum: categoryArtifactCountSum,
+        category_required_total_sum: categoryRequiredTotalSum,
+        release_blocking_issue_count: releaseBlockingIssueCount,
+        top_blocker_count: topBlockers.length,
+        primary_blocker_class: primaryBlockerClass,
+        primary_blocker_action: primaryBlockerAction,
+        primary_blocker_artifact: primaryBlockerArtifact,
+        primary_blocker_dedupe_key: primaryBlockerDedupeKey,
+        primary_blocker_priority_score: primaryBlockerPriorityScore,
+        primary_blocker_owner: primaryBlockerOwner,
+        primary_blocker_target_layer: primaryBlockerTargetLayer,
+        primary_blocker_escalation_tier: primaryBlockerEscalationTier,
+        primary_blocker_release_gate_effect: primaryBlockerReleaseGateEffect,
+        primary_blocker_operator_next_step: primaryBlockerOperatorNextStep,
+        primary_blocker_triage_queue: primaryBlockerTriageQueue,
+        primary_blocker_lifecycle_state: primaryBlockerLifecycleState,
+        primary_blocker_source_artifact_count: primaryBlockerSourceArtifactCount,
+        primary_blocker_closure_verification_command: primaryBlockerClosureVerificationCommand,
+        top_blocker_actionability_failure_count: topBlockerActionabilityFailures.length,
+        top_blockers_actionable: topBlockersActionable,
+        top_blocker_action_count: topBlockerActions.length,
       },
+      top_blockers: topBlockers,
     }),
   );
 
@@ -411,6 +1054,30 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       stale_artifact_count: staleArtifactFailures.length,
       historical_or_noncurrent_artifact_count: currentEvidenceFailures.length,
       category_threshold_failure_count: categoryThresholdFailures.length,
+      summary_consistency_failure_count: proofPackSummaryConsistencyFailures.length,
+      category_required_missing_sum: categoryRequiredMissingSum,
+      category_artifact_count_sum: categoryArtifactCountSum,
+      category_required_total_sum: categoryRequiredTotalSum,
+      release_blocking_issue_count: releaseBlockingIssueCount,
+      primary_blocker_class: primaryBlockerClass,
+      primary_blocker_record: primaryBlocker,
+      primary_blocker_action: primaryBlockerAction,
+      primary_blocker_artifact: primaryBlockerArtifact,
+      primary_blocker_dedupe_key: primaryBlockerDedupeKey,
+      primary_blocker_priority_score: primaryBlockerPriorityScore,
+      primary_blocker_owner: primaryBlockerOwner,
+      primary_blocker_target_layer: primaryBlockerTargetLayer,
+      primary_blocker_escalation_tier: primaryBlockerEscalationTier,
+      primary_blocker_release_gate_effect: primaryBlockerReleaseGateEffect,
+      primary_blocker_operator_next_step: primaryBlockerOperatorNextStep,
+      primary_blocker_triage_queue: primaryBlockerTriageQueue,
+      primary_blocker_lifecycle_state: primaryBlockerLifecycleState,
+      primary_blocker_source_artifact_count: primaryBlockerSourceArtifactCount,
+      primary_blocker_closure_verification_command: primaryBlockerClosureVerificationCommand,
+      top_blocker_actionability_failure_count: topBlockerActionabilityFailures.length,
+      top_blockers_actionable: topBlockersActionable,
+      blocker_severity_counts: blockerSeverityCounts,
+      top_blocker_count: topBlockers.length,
       pass,
     },
     category_completeness_min: categoryCompletenessMin,
@@ -420,6 +1087,10 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     required_failed_artifacts: requiredFailedArtifacts,
     stale_artifact_failures: staleArtifactFailures,
     current_evidence_failures: currentEvidenceFailures,
+    summary_consistency_failures: proofPackSummaryConsistencyFailures,
+    blocker_class_counts: blockerClassCounts,
+    blocker_severity_counts: blockerSeverityCounts,
+    top_blockers: topBlockers,
     category_threshold_failures: categoryThresholdFailures,
     failures: [
       ...requiredMissing.map((detail) => ({ id: 'proof_pack_required_artifact_missing', detail })),
@@ -439,7 +1110,12 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         id: 'proof_pack_current_evidence_contract_failed',
         detail: `${row.path}:${row.failure}`,
       })),
+      ...proofPackSummaryConsistencyFailures.map((row) => ({ id: row.id, detail: row.detail })),
       ...categoryThresholdFailures.map((row) => ({ id: row.id, detail: row.detail })),
+      ...topBlockerActionabilityFailures.map((row) => ({
+        id: 'proof_pack_top_blocker_actionability_failed',
+        detail: `${row.dedupe_key || row.class}:${row.artifact}`,
+      })),
     ],
     artifact_paths: [packManifestPath, reportPath],
   };

@@ -203,6 +203,150 @@ fn synthetic_user_harness_flags_visible_gate_choice_leakage() {
 }
 
 #[test]
+fn synthetic_user_harness_requires_real_work_tool_progress() {
+    let turn = json!({
+        "user_message": "Use web search to compare infring to other major agentic frameworks in April 2026.",
+        "expect": {
+            "require_tool_progress": true,
+            "forbid_unresolved_tool_need_without_progress": true
+        }
+    });
+    let thresholds = json!({});
+    let payload = json!({
+        "response": "I don't have current web search results. I can provide a comparison if you'd like me to search.",
+        "response_workflow": {
+            "stage_statuses": [
+                {"stage": "gate_1_need_tool_access_menu", "status": "presented"},
+                {"stage": "final_llm_response", "status": "synthesized"}
+            ]
+        },
+        "tools": [],
+        "live_eval_monitor": {"chat_injection_allowed": false}
+    });
+
+    let failures = evaluate_turn(TurnEvaluation {
+        live: false,
+        turn: &turn,
+        thresholds: &thresholds,
+        user_message: "Use web search to compare infring to other major agentic frameworks in April 2026.",
+        response_text: "I don't have current web search results. I can provide a comparison if you'd like me to search.",
+        previous_response: "",
+        payload: &payload,
+        route_error_code: None,
+        latency_ms: 100,
+        response_token_count: 17,
+        workflow_stage_count: 2,
+    });
+
+    assert!(
+        failures
+            .iter()
+            .any(|row| row == "missing_tool_progress_evidence"),
+        "{failures:?}"
+    );
+    assert!(
+        failures
+            .iter()
+            .any(|row| row == "unresolved_tool_need_without_progress"),
+        "{failures:?}"
+    );
+}
+
+#[test]
+fn synthetic_user_harness_accepts_pending_tool_progress() {
+    let turn = json!({
+        "user_message": "Use web search to compare infring to other major agentic frameworks in April 2026.",
+        "expect": {
+            "require_tool_progress": true,
+            "forbid_unresolved_tool_need_without_progress": true
+        }
+    });
+    let thresholds = json!({});
+    let payload = json!({
+        "response": "I would choose web search for a current framework comparison.",
+        "pending_tool_request": {
+            "status": "pending_confirmation",
+            "tool_name": "batch_query",
+            "execution_claim_allowed": false
+        },
+        "response_workflow": {
+            "stage_statuses": [
+                {"stage": "gate_1_need_tool_access_menu", "status": "presented"},
+                {"stage": "final_llm_response", "status": "synthesized"}
+            ]
+        },
+        "tools": [],
+        "live_eval_monitor": {"chat_injection_allowed": false}
+    });
+
+    let failures = evaluate_turn(TurnEvaluation {
+        live: false,
+        turn: &turn,
+        thresholds: &thresholds,
+        user_message: "Use web search to compare infring to other major agentic frameworks in April 2026.",
+        response_text: "I would choose web search for a current framework comparison.",
+        previous_response: "",
+        payload: &payload,
+        route_error_code: None,
+        latency_ms: 100,
+        response_token_count: 9,
+        workflow_stage_count: 2,
+    });
+
+    assert!(
+        !failures
+            .iter()
+            .any(|row| row == "missing_tool_progress_evidence"
+                || row == "unresolved_tool_need_without_progress"),
+        "{failures:?}"
+    );
+}
+
+#[test]
+fn synthetic_user_harness_flags_unbacked_tool_result_claims() {
+    let turn = json!({
+        "user_message": "what? why are you repeating the same fallback text?",
+        "expect": {
+            "required_substrings": ["answer directly"]
+        }
+    });
+    let thresholds = json!({});
+    let payload = json!({
+        "response": "I will answer directly. The tool returned no new results beyond the previous fallback text.",
+        "response_workflow": {
+            "stage_statuses": [
+                {"stage": "gate_1_need_tool_access_menu", "status": "presented"},
+                {"stage": "final_llm_response", "status": "synthesized"}
+            ]
+        },
+        "tools": [],
+        "live_eval_monitor": {"chat_injection_allowed": false}
+    });
+
+    let failures = evaluate_turn(TurnEvaluation {
+        live: false,
+        turn: &turn,
+        thresholds: &thresholds,
+        user_message: "what? why are you repeating the same fallback text?",
+        response_text:
+            "I will answer directly. The tool returned no new results beyond the previous fallback text.",
+        previous_response: "",
+        payload: &payload,
+        route_error_code: None,
+        latency_ms: 100,
+        response_token_count: 15,
+        workflow_stage_count: 2,
+    });
+
+    assert!(
+        failures
+            .iter()
+            .any(|row| row == "unsupported_tool_claim_without_progress"),
+        "{failures:?}"
+    );
+}
+
+#[test]
 fn synthetic_user_harness_uses_separate_live_latency_budget() {
     let turn = json!({
         "user_message": "hey",

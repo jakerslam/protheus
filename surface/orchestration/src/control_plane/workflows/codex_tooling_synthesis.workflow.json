@@ -1,6 +1,7 @@
 {
   "name": "codex_tooling_synthesis",
   "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assimilation_workflow_template",
   "default": false,
   "description": "Codex assimilation template used for tooling-heavy synthesis and deterministic multi-step assimilation waves.",
   "stages": [

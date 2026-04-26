@@ -64,6 +64,8 @@ const WORKFLOW_TEMPLATE_SPEC_FORGECODE_AGENT_COMPOSITION: &str =
     include_str!("workflows/forgecode_agent_composition.workflow.json");
 const WORKFLOW_TEMPLATE_SPEC_FORGECODE_RAW_CAPABILITY_ASSIMILATION: &str =
     include_str!("workflows/forgecode_raw_capability_assimilation.workflow.json");
+const WORKFLOW_TEMPLATE_SPEC_OPENHANDS_CONTROL_PLANE_ASSIMILATION: &str =
+    include_str!("workflows/openhands_control_plane_assimilation.workflow.json");
 
 const WORKFLOW_TEMPLATE_SPEC_SOURCES: &[(&str, &str)] = &[
     (
@@ -94,6 +96,10 @@ const WORKFLOW_TEMPLATE_SPEC_SOURCES: &[(&str, &str)] = &[
         "workflows/forgecode_raw_capability_assimilation.workflow.json",
         WORKFLOW_TEMPLATE_SPEC_FORGECODE_RAW_CAPABILITY_ASSIMILATION,
     ),
+    (
+        "workflows/openhands_control_plane_assimilation.workflow.json",
+        WORKFLOW_TEMPLATE_SPEC_OPENHANDS_CONTROL_PLANE_ASSIMILATION,
+    ),
 ];
 
 static WORKFLOW_TEMPLATE_REGISTRY: OnceLock<HashMap<String, WorkflowTemplateDefinition>> =
@@ -117,6 +123,9 @@ fn template_id_for_enum(template: &WorkflowTemplate) -> &'static str {
         WorkflowTemplate::ForgeCodeAgentComposition => "forgecode_agent_composition",
         WorkflowTemplate::ForgeCodeRawCapabilityAssimilation => {
             "forgecode_raw_capability_assimilation"
+        }
+        WorkflowTemplate::OpenHandsControlPlaneAssimilation => {
+            "openhands_control_plane_assimilation"
         }
     }
 }
@@ -296,6 +305,13 @@ fn workflow_template_definition_fallback(
             default_for_request_classes: &["assimilation"],
             subtemplates: FORGECODE_RAW_CAPABILITY_SUBTEMPLATES,
         },
+        WorkflowTemplate::OpenHandsControlPlaneAssimilation => WorkflowTemplateDefinition {
+            id: "openhands_control_plane_assimilation",
+            description:
+                "OpenHands assimilation template for control-plane event-loop, replay, agent-registry, and limit-control mechanics.",
+            default_for_request_classes: &["assimilation"],
+            subtemplates: EMPTY_SUBTEMPLATES,
+        },
     }
 }
 
@@ -315,6 +331,7 @@ fn load_workflow_template_registry() -> HashMap<String, WorkflowTemplateDefiniti
         WorkflowTemplate::CodexToolingSynthesis,
         WorkflowTemplate::ForgeCodeAgentComposition,
         WorkflowTemplate::ForgeCodeRawCapabilityAssimilation,
+        WorkflowTemplate::OpenHandsControlPlaneAssimilation,
     ] {
         let key = template_id_for_enum(&template).to_string();
         registry

@@ -549,6 +549,46 @@ function assertDashboardHostOverlaysLiveVersion() {
   );
 }
 
+function assertDashboardHostRejectsStaleBackendProcess() {
+  const { installTsRequireHook } = require(TS_BOOTSTRAP_TS_PATH);
+  installTsRequireHook();
+  const hostSource = readUtf8(ADAPTER_DASHBOARD_HOST_TS_PATH);
+  assertContains(
+    hostSource,
+    'function backendFreshnessSnapshot(flags)',
+    'dashboard host should expose a backend process freshness probe'
+  );
+  assertContains(
+    hostSource,
+    'backend_process_older_than_resolved_binary',
+    'dashboard host should mark a healthy-but-stale backend as unsafe to reuse'
+  );
+  assertContains(
+    hostSource,
+    'const result = await ensureBackend(flags);',
+    'dashboard host should inspect an already-healthy backend before reusing it'
+  );
+  assertContains(
+    hostSource,
+    'backend_freshness: backend.freshness',
+    'dashboard host status should publish backend freshness diagnostics'
+  );
+  const dashboardHost = require(TARGET_SOURCE);
+  assert.strictEqual(
+    typeof dashboardHost.backendFreshnessSnapshot,
+    'function',
+    'dashboard host should export backend freshness diagnostics for targeted tests'
+  );
+  const flags = dashboardHost.parseFlags(['serve', '--port=65000', '--api-port=65001']);
+  const freshness = dashboardHost.backendFreshnessSnapshot(flags);
+  assert.strictEqual(typeof freshness, 'object', 'backend freshness probe should return a structured object');
+  assert.strictEqual(freshness.stale, false, 'unused backend test port should not report stale reuse');
+  assert.ok(
+    Object.prototype.hasOwnProperty.call(freshness, 'restart_enabled'),
+    'backend freshness probe should report whether stale restart is enabled'
+  );
+}
+
 function assertChatEnhancementFeatures() {
   const chatSource = readUtf8(CHAT_PAGE_TS_PATH);
   const agentsSource = readUtf8(AGENTS_PAGE_TS_PATH);

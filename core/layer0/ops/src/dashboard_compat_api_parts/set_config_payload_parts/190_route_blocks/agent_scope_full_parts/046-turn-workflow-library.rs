@@ -614,6 +614,35 @@ fn turn_workflow_visibility(final_stage_status: &str) -> Value {
     })
 }
 
+fn turn_workflow_direct_response_path(workflow_mode: &str, workflow_events: &[Value]) -> &'static str {
+    let mode = clean_text(workflow_mode, 80);
+    if mode == "direct_conversation_recovery"
+        || mode == "direct_no_tool_exit"
+        || mode == "direct_simple_conversation"
+    {
+        return "gate_1_no";
+    }
+    let has_pending = workflow_events.iter().any(|event| {
+        matches!(
+            event.get("kind").and_then(Value::as_str).unwrap_or(""),
+            "manual_toolbox_pending_tool_request" | "pending_confirmation_required"
+        )
+    });
+    if has_pending {
+        return "gate_1_yes_pending_tool_confirmation";
+    }
+    let has_manual_toolbox_menu = workflow_events.iter().any(|event| {
+        matches!(
+            event.get("kind").and_then(Value::as_str).unwrap_or(""),
+            "manual_toolbox_candidate_menu" | "empty_final_response_menu_recovery"
+        )
+    });
+    if has_manual_toolbox_menu {
+        return "gate_1_pending_llm_tool_choice";
+    }
+    "gate_1_unresolved"
+}
+
 fn turn_workflow_metadata(
     workflow_mode: &str,
     response_tools: &[Value],
@@ -640,6 +669,7 @@ fn turn_workflow_metadata(
         "no_post_synthesis_required"
     };
     let visibility = turn_workflow_visibility(final_stage_status);
+    let direct_response_path = turn_workflow_direct_response_path(workflow_mode, workflow_events);
     json!({
         "contract": "agent_workflow_library_v1",
         "current_stage": visibility
@@ -680,7 +710,7 @@ fn turn_workflow_metadata(
         "failure_summary": clean_text(&response_tools_failure_reason_for_user(response_tools, 4), 2_000),
         "workflow_control": {
             "mode": "tool_menu_interface_v1",
-            "direct_response_path": "gate_1_no"
+            "direct_response_path": direct_response_path
         },
         "system_events": workflow_events,
         "stage_statuses": turn_workflow_stage_rows(workflow_mode, response_tools, workflow_events, draft_response),
@@ -778,6 +808,33 @@ fn workflow_response_requests_more_tooling(response: &str) -> bool {
         ]
         .iter()
         .any(|marker| lowered.contains(marker))
+}
+
+fn manual_toolbox_response_exposes_unresolved_tool_need(response: &str) -> bool {
+    let lowered = clean_text(response, 1_200).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    [
+        "i don't have current web search results",
+        "i do not have current web search results",
+        "i don't have usable tool findings",
+        "i do not have usable tool findings",
+        "i'll need to perform a web search",
+        "i will need to perform a web search",
+        "web search didn't return",
+        "web search did not return",
+        "web search returned limited",
+        "search returned limited",
+        "tool returned no new results",
+        "let me run that search",
+        "if you'd like me to search",
+        "if you would like me to search",
+        "if you'd like me to fetch",
+        "if you would like me to fetch",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker))
 }
 
 fn response_is_manual_toolbox_gate_choice(response: &str) -> bool {

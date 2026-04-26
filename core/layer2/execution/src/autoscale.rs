@@ -39,7 +39,6 @@ include!("autoscale_parts/380-compute-actionability-assessment.rs");
 include!("autoscale_parts/390-compute-queue-pressure-snapshot.rs");
 include!("autoscale_parts/400-run-autoscale-json.rs");
 include!("autoscale_parts/410-critical-pressure-scales-up.rs");
-include!("autoscale_parts/420-placeholder.rs");
 
 #[allow(dead_code)]
 pub(crate) fn contains_forbidden_runtime_context_marker(raw: &str) -> bool {

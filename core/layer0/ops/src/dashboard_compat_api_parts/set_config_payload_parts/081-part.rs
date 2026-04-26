@@ -188,6 +188,26 @@ fn live_eval_monitor_turn(
     } else if final_ack_only {
         events.push(live_eval_issue_event(&id, "ack_only_final_response", "warn", "Live eval saw an ack-only final response.", message, response));
     }
+    if visible_response_looks_like_internal_deliberation(&final_text) {
+        events.push(live_eval_issue_event(
+            &id,
+            "visible_internal_deliberation",
+            "high",
+            "Live eval saw internal deliberation exposed in the visible assistant response.",
+            message,
+            response,
+        ));
+    }
+    if visible_response_looks_like_json_response_wrapper(&final_text) {
+        events.push(live_eval_issue_event(
+            &id,
+            "visible_json_response_wrapper",
+            "warn",
+            "Live eval saw a JSON response wrapper exposed in the visible assistant response.",
+            message,
+            response,
+        ));
+    }
     if system_fallback {
         events.push(live_eval_issue_event(&id, "system_fallback_in_chat", "high", "Live eval saw system fallback usage in finalization.", message, response));
     }
@@ -216,6 +236,30 @@ fn live_eval_monitor_turn(
     });
     write_json_pretty(&latest_path, &latest);
     latest
+}
+
+fn visible_response_looks_like_internal_deliberation(response: &str) -> bool {
+    let lowered = response.to_ascii_lowercase();
+    let markers = [
+        "i'm trying to craft a response",
+        "i am trying to craft a response",
+        "i need to ensure my answer",
+        "given the original question",
+        "considering the constraints",
+        "my approach should be",
+        "first, i recognize the importance",
+        "to do this, i need to",
+        "i should provide a",
+    ];
+    let marker_hits = markers
+        .iter()
+        .filter(|marker| lowered.contains(**marker))
+        .count();
+    marker_hits >= 2 || (marker_hits >= 1 && response.split_whitespace().count() > 80)
+}
+
+fn visible_response_looks_like_json_response_wrapper(response: &str) -> bool {
+    normalize_response_field_json_wrapper(response).is_some()
 }
 
 fn strip_redundant_key_findings_prefix(raw: &str) -> String {

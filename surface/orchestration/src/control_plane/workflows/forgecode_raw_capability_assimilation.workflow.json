@@ -1,6 +1,7 @@
 {
   "name": "forgecode_raw_capability_assimilation",
   "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assimilation_workflow_template",
   "default": false,
   "description": "ForgeCode assimilation template for raw capability/mechanics extraction and direct runtime mapping without composed lane wrappers.",
   "stages": [

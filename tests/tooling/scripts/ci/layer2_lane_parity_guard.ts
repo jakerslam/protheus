@@ -47,6 +47,7 @@ type Manifest = {
   version: number;
   lanes: LaneRow[];
 };
+const CORE_LAYER2_MATRIX_ALIAS_PATH = 'core/local/artifacts/layer2_parity_matrix.json';
 
 const REQUIRED_INVARIANTS = [
   'receipt_emission',
@@ -329,6 +330,9 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     artifact_paths: [args.markdownOutPath],
   };
 
+  const matrixAliasPath = path.resolve(root, CORE_LAYER2_MATRIX_ALIAS_PATH);
+  fs.mkdirSync(path.dirname(matrixAliasPath), { recursive: true });
+  fs.writeFileSync(matrixAliasPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
   writeTextArtifact(args.markdownOutPath, toMarkdown(lanes, violations));
 
   return emitStructuredResult(report, {

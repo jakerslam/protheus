@@ -54,7 +54,7 @@ fn status_payload_cache() -> &'static Mutex<Option<StatusPayloadCacheEntry>> {
 
 fn status_payload(root: &Path, snapshot: &Value, host_header: &str) -> Value {
     let cache_key = format!(
-        "{}|{}|{}",
+        "{}|{}",
         clean_text(host_header, 200),
         clean_text(
             snapshot
@@ -62,18 +62,12 @@ fn status_payload(root: &Path, snapshot: &Value, host_header: &str) -> Value {
                 .and_then(Value::as_str)
                 .unwrap_or(""),
             128
-        ),
-        parse_non_negative_i64(
-            snapshot
-                .pointer("/runtime_sync/uptime_seconds")
-                .or_else(|| snapshot.pointer("/runtime_sync/uptime_sec")),
-            0
         )
     );
     let now_ms = monotonic_now_ms();
     if let Ok(guard) = status_payload_cache().lock() {
         if let Some(entry) = guard.as_ref() {
-            if entry.key == cache_key && now_ms.saturating_sub(entry.built_at_ms) <= 900 {
+            if entry.key == cache_key && now_ms.saturating_sub(entry.built_at_ms) <= 10_000 {
                 return entry.payload.clone();
             }
         }
@@ -345,11 +339,34 @@ fn agent_continuity_markers(root: &Path, snapshot: &Value, max_rows: usize) -> V
     rows
 }
 
+fn agent_continuity_markers_from_session_rows(session_rows: &[Value], max_rows: usize) -> Vec<Value> {
+    session_rows
+        .iter()
+        .take(max_rows.clamp(1, 24))
+        .map(|row| {
+            let agent_id = clean_agent_id(row.get("agent_id").and_then(Value::as_str).unwrap_or(""));
+            let message_count = row
+                .get("message_count")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                .max(0);
+            json!({
+                "agent_id": agent_id,
+                "name": agent_id,
+                "state": "active",
+                "objective": format!("{message_count} messages in active session."),
+                "completion_percent": 100,
+                "updated_at": clean_text(row.get("updated_at").and_then(Value::as_str).unwrap_or(""), 80)
+            })
+        })
+        .collect::<Vec<_>>()
+}
+
 fn continuity_pending_payload(root: &Path, snapshot: &Value) -> Value {
     let tasks = task_runtime_summary(root);
     let workers = worker_runtime_summary(root);
     let sessions = session_pending_rows(root, snapshot, 24);
-    let continuity_agents = agent_continuity_markers(root, snapshot, 12);
+    let continuity_agents = agent_continuity_markers_from_session_rows(&sessions, 12);
     let stale_sessions = sessions
         .iter()
         .filter(|row| {

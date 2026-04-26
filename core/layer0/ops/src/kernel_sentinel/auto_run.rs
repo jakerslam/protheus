@@ -59,6 +59,68 @@ pub fn build_auto_run_artifact(
     let max_stale_minutes = option_usize(args, "--max-stale-minutes", DEFAULT_STALE_MINUTES);
     let report_path = dir.join("kernel_sentinel_report_current.json");
     let verdict_path = dir.join("kernel_sentinel_verdict.json");
+    let rsi_ready = self_study_outputs["rsi_readiness"]["ready_for_autonomous_rsi"]
+        .as_bool()
+        .unwrap_or(false);
+    let evidence_ready = self_study_outputs["rsi_readiness"]["evidence_ready"]
+        .as_bool()
+        .unwrap_or(false);
+    let blocker_count = self_study_outputs["rsi_readiness"]["operator_summary"]["blocker_count"]
+        .as_u64()
+        .unwrap_or(0);
+    let primary_blocker = self_study_outputs["rsi_readiness"]["operator_summary"]["primary_blocker"]
+        .as_str()
+        .unwrap_or("none")
+        .to_string();
+    let next_actions = self_study_outputs["rsi_readiness"]["next_actions"].clone();
+    let issue_candidate = if rsi_ready {
+        Value::Null
+    } else {
+        json!({
+            "type": "kernel_sentinel_rsi_readiness_issue_candidate",
+            "schema_version": 1,
+            "generated_at": crate::now_iso(),
+            "status": "candidate",
+            "source": "kernel_sentinel_auto_run",
+            "fingerprint": format!("kernel_sentinel_rsi_readiness:{primary_blocker}"),
+            "dedupe_key": format!("kernel_sentinel_rsi_readiness:{primary_blocker}"),
+            "owner": "core/layer0/kernel_sentinel",
+            "route_to": "kernel_sentinel_issue_backlog",
+            "labels": ["kernel-sentinel", "rsi-readiness", "release-gate"],
+            "title": "Kernel Sentinel RSI readiness is blocked",
+            "severity": if evidence_ready { "medium" } else { "high" },
+            "primary_blocker": primary_blocker,
+            "blocker_count": blocker_count,
+            "source_artifacts": [
+                report_path.clone(),
+                verdict_path.clone(),
+                dir.join("rsi_readiness_summary_current.json"),
+                dir.join("top_system_holes_current.json"),
+                dir.join("feedback_inbox.jsonl"),
+                dir.join("trend_history.jsonl")
+            ],
+            "triage": {
+                "state": "ready_for_issue_synthesis",
+                "safe_to_auto_file_issue": true,
+                "safe_to_auto_apply_patch": false,
+                "requires_kernel_receipt_to_close": true
+            },
+            "automation_policy": {
+                "mode": "proposal_only",
+                "failure_priority": 1,
+                "optimization_priority": 2,
+                "automation_priority": 3,
+                "requires_operator_or_kernel_receipt_before_apply": true
+            },
+            "next_actions": next_actions.clone(),
+            "acceptance_criteria": [
+                "Kernel Sentinel has nonzero runtime evidence",
+                "Kernel Sentinel has at least three trend runs",
+                "Kernel Sentinel release gate is passing",
+                "Kernel Sentinel reports no active RSI readiness blockers"
+            ]
+        })
+    };
     let mut artifact = json!({
         "ok": verdict["ok"].as_bool().unwrap_or(false),
         "type": "kernel_sentinel_auto_run",
@@ -96,11 +158,28 @@ pub fn build_auto_run_artifact(
             "failure_detection_priority": 1,
             "optimization_priority": 2,
             "automation_priority": 3,
-            "purpose": "automatic_kernel_self_understanding_feedback_loop"
+            "purpose": "automatic_kernel_self_understanding_feedback_loop",
+            "ready_for_observation": self_study_outputs["rsi_readiness"]["ready_for_observation"].as_bool().unwrap_or(false),
+            "ready_for_autonomous_rsi": rsi_ready,
+            "evidence_ready": evidence_ready,
+            "action_required": !rsi_ready,
+            "blocker_count": blocker_count,
+            "primary_blocker": primary_blocker,
+            "next_actions": next_actions
+        },
+        "issue_candidate": issue_candidate,
+        "issue_candidate_contract": {
+            "candidate_schema_version": 1,
+            "safe_to_auto_file_issue": true,
+            "safe_to_auto_apply_patch": false,
+            "kernel_receipt_required_to_close": true
         },
         "release_gate_contract": {
             "required_for_release_verdict": true,
             "active_kernel_findings_block_release": true,
+            "nonzero_runtime_evidence_required": true,
+            "feedback_outputs_required": true,
+            "trend_outputs_required": true,
             "control_plane_eval_can_only_advise": true
         }
     });

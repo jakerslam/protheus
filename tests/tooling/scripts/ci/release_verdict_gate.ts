@@ -32,6 +32,8 @@ const RELEASE_VERDICT_REQUIRED_GATE_ORDER = [
   'ops:layer2:receipt:replay',
   'ops:trusted-core:report',
   'ops:kernel-sentinel:release-gate',
+  'ops:issue-candidate:contract:guard',
+  'ops:issue-candidate:backlog:assemble',
   'ops:release:proof-pack',
   'ops:release:scorecard:gate',
   'ops:production-closure:gate',
@@ -44,6 +46,8 @@ const RELEASE_VERDICT_REQUIRED_RELEASE_PROFILE_GATES = [
   'ops:layer2:receipt:replay',
   'ops:trusted-core:report',
   'ops:kernel-sentinel:release-gate',
+  'ops:issue-candidate:contract:guard',
+  'ops:issue-candidate:backlog:assemble',
   'ops:release:proof-pack',
   'ops:release:scorecard:gate',
   'ops:production-closure:gate',
@@ -85,6 +89,8 @@ const RELEASE_VERDICT_REQUIRED_GATE_ARTIFACT_PATHS: Record<string, string> = {
   'ops:layer2:receipt:replay': 'core/local/artifacts/layer2_receipt_replay_current.json',
   'ops:trusted-core:report': 'core/local/artifacts/runtime_trusted_core_report_current.json',
   'ops:kernel-sentinel:release-gate': 'core/local/artifacts/kernel_sentinel_auto_run_current.json',
+  'ops:issue-candidate:contract:guard': 'core/local/artifacts/issue_candidate_contract_guard_current.json',
+  'ops:issue-candidate:backlog:assemble': 'core/local/artifacts/issue_candidate_backlog_current.json',
   'ops:release:proof-pack': 'core/local/artifacts/release_proof_pack_current.json',
   'ops:release:scorecard:gate': 'client/runtime/local/state/release/scorecard/release_scorecard.json',
   'ops:production-closure:gate': 'core/local/artifacts/production_readiness_closure_gate_current.json',
@@ -203,6 +209,8 @@ function artifactOk(gateId: string, payload: any): boolean {
     case 'ops:layer2:parity:guard':
     case 'ops:layer2:receipt:replay':
     case 'ops:trusted-core:report':
+    case 'ops:issue-candidate:contract:guard':
+    case 'ops:issue-candidate:backlog:assemble':
     case 'ops:release:scorecard:gate':
       return payload?.ok === true;
     case 'ops:kernel-sentinel:release-gate':
@@ -210,7 +218,10 @@ function artifactOk(gateId: string, payload: any): boolean {
         payload?.ok === true &&
         payload?.type === 'kernel_sentinel_auto_run' &&
         payload?.automatic === true &&
-        payload?.release_gate_contract?.required_for_release_verdict === true
+        payload?.release_gate_contract?.required_for_release_verdict === true &&
+        payload?.release_gate_contract?.nonzero_runtime_evidence_required === true &&
+        payload?.self_study_outputs?.rsi_readiness?.ready_for_observation === true &&
+        payload?.self_study_outputs?.rsi_readiness?.evidence_ready === true
       );
     case 'ops:runtime-proof:verify': {
       const profiles = Array.isArray(payload?.profile_runs) ? payload.profile_runs : [];

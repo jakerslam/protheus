@@ -1,6 +1,7 @@
 {
   "name": "diagnose_retry_escalate",
   "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
   "default": false,
   "description": "Recovery template used for blocked/failed states to route retry, reroute, or escalation decisions.",
   "stages": [

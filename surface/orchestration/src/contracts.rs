@@ -680,6 +680,7 @@ pub enum WorkflowTemplate {
     CodexToolingSynthesis,
     ForgeCodeAgentComposition,
     ForgeCodeRawCapabilityAssimilation,
+    OpenHandsControlPlaneAssimilation,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -193,6 +193,65 @@ fn normalize_raw_response_payload_dump(text: &str) -> Option<String> {
     Some("I completed the tool call, but no synthesized response was available yet. Check the tool details below.".to_string())
 }
 
+fn response_field_from_json_wrapper(payload: &Value) -> Option<String> {
+    let Value::Object(map) = payload else {
+        return None;
+    };
+    let output_keys = ["response", "text", "answer", "message"];
+    let output_key = output_keys
+        .iter()
+        .find(|key| map.contains_key(**key))?;
+    let allowed_keys = ["response", "text", "answer", "message", "source", "status"];
+    if map.keys().any(|key| !allowed_keys.contains(&key.as_str())) {
+        return None;
+    }
+    let response = clean_chat_text(
+        map.get(*output_key).and_then(Value::as_str).unwrap_or(""),
+        32_000,
+    );
+    if response.trim().is_empty() {
+        return None;
+    }
+    Some(response)
+}
+
+fn response_wrapper_starts_with_output_key(text: &str) -> bool {
+    let lowered = text.to_ascii_lowercase();
+    ["response", "text", "answer", "message"].iter().any(|key| {
+        lowered.starts_with(&format!("\"{key}\""))
+            || lowered.starts_with(&format!("'{key}'"))
+            || lowered.starts_with(&format!("{key}:"))
+    })
+}
+
+fn normalize_response_field_json_wrapper(text: &str) -> Option<String> {
+    let cleaned = clean_text(text.trim(), 32_000);
+    if cleaned.is_empty() {
+        return None;
+    }
+    if let Some(payload) = parse_json_payload_dump(&cleaned) {
+        if let Some(response) = response_field_from_json_wrapper(&payload) {
+            return Some(response);
+        }
+        if let Some(inner) = payload.as_str() {
+            if let Some(inner_payload) = parse_json_payload_dump(inner) {
+                return response_field_from_json_wrapper(&inner_payload);
+            }
+        }
+    }
+
+    let trimmed = cleaned.trim();
+    if !response_wrapper_starts_with_output_key(trimmed) {
+        return None;
+    }
+    let jsonish = if trimmed.ends_with('}') {
+        format!("{{{trimmed}")
+    } else {
+        format!("{{{trimmed}}}")
+    };
+    parse_json_payload_dump(&jsonish).and_then(|payload| response_field_from_json_wrapper(&payload))
+}
+
 fn with_payload_normalization_outcome(outcome: &str, payload_normalized: bool) -> String {
     let cleaned = clean_text(outcome, 200);
     if !payload_normalized {
@@ -775,6 +834,10 @@ fn finalize_user_facing_response_with_outcome(
     let _findings_cleaned = sanitize_findings_for_final_response(findings);
     let mut cleaned = clean_text(output.trim(), 32_000);
     let mut payload_normalized = false;
+    if let Some(unwrapped) = normalize_response_field_json_wrapper(&cleaned) {
+        cleaned = clean_text(unwrapped.trim(), 32_000);
+        payload_normalized = true;
+    }
     if let Some(unwrapped) = normalize_raw_response_payload_dump(&cleaned) {
         cleaned = clean_text(unwrapped.trim(), 32_000);
         payload_normalized = true;

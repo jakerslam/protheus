@@ -399,6 +399,22 @@ fn evaluate_turn(input: TurnEvaluation<'_>) -> Vec<String> {
     {
         failures.push("visible_workflow_gate_choice_leakage".to_string());
     }
+    let has_tool_progress = payload_has_tool_progress(payload);
+    if bool_at(turn, &["expect", "require_tool_progress"], false) && !has_tool_progress {
+        failures.push("missing_tool_progress_evidence".to_string());
+    }
+    if bool_at(
+        turn,
+        &["expect", "forbid_unresolved_tool_need_without_progress"],
+        false,
+    ) && !has_tool_progress
+        && response_exposes_unresolved_tool_need(response_text)
+    {
+        failures.push("unresolved_tool_need_without_progress".to_string());
+    }
+    if !has_tool_progress && response_claims_tool_progress_without_evidence(response_text) {
+        failures.push("unsupported_tool_claim_without_progress".to_string());
+    }
     if bool_at(turn, &["expect", "simple_direct_conversation"], false) {
         let default_max_latency_ms = if live {
             u64_at(
@@ -452,6 +468,107 @@ fn evaluate_turn(input: TurnEvaluation<'_>) -> Vec<String> {
         }
     }
     failures
+}
+
+fn payload_has_tool_progress(payload: &Value) -> bool {
+    payload
+        .get("tools")
+        .and_then(Value::as_array)
+        .map(|rows| !rows.is_empty())
+        .unwrap_or(false)
+        || payload
+            .pointer("/pending_tool_request/status")
+            .and_then(Value::as_str)
+            == Some("pending_confirmation")
+        || payload
+            .pointer("/response_workflow/pending_tool_request/status")
+            .and_then(Value::as_str)
+            == Some("pending_confirmation")
+        || payload
+            .pointer("/response_workflow/manual_toolbox_pending_tool_request/status")
+            .and_then(Value::as_str)
+            == Some("pending_confirmation")
+        || payload
+            .pointer("/response_finalization/pending_tool_request/status")
+            .and_then(Value::as_str)
+            == Some("pending_confirmation")
+        || payload
+            .pointer("/response_finalization/tooling_invariant/tool_attempted")
+            .and_then(Value::as_bool)
+            == Some(true)
+        || payload
+            .pointer("/response_finalization/web_invariant/tool_attempted")
+            .and_then(Value::as_bool)
+            == Some(true)
+        || payload
+            .pointer("/response_finalization/tool_completion/tool_attempts")
+            .and_then(Value::as_array)
+            .map(|rows| !rows.is_empty())
+            .unwrap_or(false)
+}
+
+fn response_exposes_unresolved_tool_need(response_text: &str) -> bool {
+    let lowered = normalize_for_compare(response_text);
+    if lowered.is_empty() {
+        return false;
+    }
+    [
+        "i don't have current web search results",
+        "i do not have current web search results",
+        "i don't have usable tool findings",
+        "i do not have usable tool findings",
+        "i'll need to perform a web search",
+        "i will need to perform a web search",
+        "let me run that search",
+        "if you'd like me to search",
+        "if you would like me to search",
+        "after the tool returns",
+        "would choose the web search",
+        "would choose web search",
+        "would choose the workspace search",
+        "would choose workspace search",
+    ]
+    .iter()
+    .any(|needle| lowered.contains(*needle))
+}
+
+fn response_claims_tool_progress_without_evidence(response_text: &str) -> bool {
+    let lowered = normalize_for_compare(response_text);
+    if lowered.is_empty() {
+        return false;
+    }
+    let hypothetical_only = [
+        "i would use",
+        "i would choose",
+        "i'd use",
+        "i'd choose",
+        "would use",
+        "would choose",
+    ]
+    .iter()
+    .any(|needle| lowered.contains(*needle));
+    let claims_result = [
+        "web search returned",
+        "web search didn't return",
+        "web search did not return",
+        "search returned",
+        "search didn't return",
+        "search did not return",
+        "tool returned",
+        "tool didn't return",
+        "tool did not return",
+        "i searched",
+        "i ran",
+        "i used the tool",
+        "i called",
+        "i executed",
+        "workspace search returned",
+        "workspace search didn't return",
+        "workspace search did not return",
+    ]
+    .iter()
+    .any(|needle| lowered.contains(*needle));
+    claims_result && !hypothetical_only
 }
 
 fn visible_workflow_gate_choice_leakage(response_text: &str, payload: &Value) -> bool {

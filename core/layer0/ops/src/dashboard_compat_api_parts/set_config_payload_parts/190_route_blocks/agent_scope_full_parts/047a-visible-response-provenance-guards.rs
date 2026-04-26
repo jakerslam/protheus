@@ -91,7 +91,8 @@ fn user_message_explicitly_requests_memory_context(message: &str) -> bool {
 }
 
 fn simple_direct_chat_suppresses_passive_context(message: &str, inline_tools_allowed: bool) -> bool {
-    !inline_tools_allowed && !user_message_explicitly_requests_memory_context(message)
+    (!inline_tools_allowed || message_explicitly_disallows_tool_calls(message))
+        && !user_message_explicitly_requests_memory_context(message)
 }
 
 fn response_has_current_turn_tool_evidence(response_tools: &[Value]) -> bool {
@@ -112,25 +113,6 @@ fn response_claims_tool_success_without_current_turn_evidence(
     let response = clean_chat_text(response_text, 32_000);
     let lowered = response.to_ascii_lowercase();
     if lowered.is_empty() {
-        return false;
-    }
-    let hypothetical = [
-        "i would ",
-        "i'd ",
-        "i can ",
-        "i could ",
-        "i should ",
-        "would use",
-        "would choose",
-        "would run",
-        "would search",
-        "would inspect",
-        "would read",
-        "next i would",
-    ]
-    .iter()
-    .any(|needle| lowered.contains(*needle));
-    if hypothetical {
         return false;
     }
     let mentions_tool_surface = [
@@ -179,7 +161,8 @@ fn response_claims_tool_success_without_current_turn_evidence(
     let claims_empty_results = (lowered.contains("no findings")
         || lowered.contains("no results")
         || lowered.contains("didn't return")
-        || lowered.contains("did not return"))
+        || lowered.contains("did not return")
+        || lowered.contains("limited results"))
         && (lowered.contains("search") || lowered.contains("tool") || lowered.contains("workspace"));
     let claims_listings = [
         "files i found",
@@ -194,7 +177,28 @@ fn response_claims_tool_success_without_current_turn_evidence(
     ]
     .iter()
     .any(|needle| lowered.contains(*needle));
-    (mentions_tool_surface && (claims_execution || claims_empty_results)) || claims_listings
+    let claims_tool_result = (mentions_tool_surface && (claims_execution || claims_empty_results))
+        || claims_listings;
+    let hypothetical = [
+        "i would ",
+        "i'd ",
+        "i can ",
+        "i could ",
+        "i should ",
+        "would use",
+        "would choose",
+        "would run",
+        "would search",
+        "would inspect",
+        "would read",
+        "next i would",
+    ]
+    .iter()
+    .any(|needle| lowered.contains(*needle));
+    if hypothetical && !claims_tool_result {
+        return false;
+    }
+    claims_tool_result
 }
 
 fn response_has_gate_choice_prefix_leakage(response_text: &str) -> bool {

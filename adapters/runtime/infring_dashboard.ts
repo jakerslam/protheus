@@ -14,6 +14,11 @@ const {
 } = require('./run_infring_ops.ts');
 const { buildPrimaryDashboardHtml, hasPrimaryDashboardUi, readBuildVersionInfo, readPrimaryDashboardAsset } = require('./dashboard_asset_router.ts');
 const { createAgentWsBridge } = require('./agent_ws_bridge.ts');
+const {
+  backendFreshnessSnapshot: backendFreshnessSnapshotFromProcess,
+  backendSpawnEnv: backendSpawnEnvForRoot,
+  shouldRestartStaleBackend,
+} = require('./dashboard_backend_freshness.ts');
 
 const DASHBOARD_DIR = path.resolve(ROOT, 'client', 'runtime', 'systems', 'ui');
 const CANONICAL_STATIC_DIR = path.resolve(DASHBOARD_DIR, 'infring_static');
@@ -389,6 +394,31 @@ async function fetchBackendJson(flags, pathname, timeoutMs = 15000) {
 async function backendHealth(flags, timeoutMs = 5000) {
   try { return (await fetchBackend(flags, '/healthz', {}, timeoutMs)).ok; } catch { return false; }
 }
+function backendSpawnEnv() { return backendSpawnEnvForRoot(ROOT, process.env); }
+function backendFreshnessSnapshot(flags) {
+  return backendFreshnessSnapshotFromProcess(flags, { root: ROOT, resolveBinary, env: backendSpawnEnv() });
+}
+async function waitForBackendDown(flags, timeoutMs = 6000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (!(await backendHealth(flags, 800))) return true;
+    await sleep(150);
+  }
+  return !(await backendHealth(flags, 800));
+}
+async function stopStaleBackend(flags, freshness) {
+  const rows = freshness && Array.isArray(freshness.listener_pids) ? freshness.listener_pids : [];
+  const pids = rows.map((row) => Number(row && row.pid)).filter((pid) => Number.isInteger(pid) && pid > 0);
+  if (!pids.length) return false;
+  for (const pid of pids) {
+    try { process.kill(pid, 'SIGTERM'); } catch {}
+  }
+  if (await waitForBackendDown(flags)) return true;
+  for (const pid of pids) {
+    try { process.kill(pid, 'SIGKILL'); } catch {}
+  }
+  return waitForBackendDown(flags);
+}
 async function statusPayloadWithBootStage(flags) {
   const startedAt = Date.now();
   const healthOk = await backendHealth(flags, 1200);
@@ -437,12 +467,7 @@ async function statusPayloadWithBootStage(flags) {
 }
 function spawnBackend(flags) {
   const laneArgs = ['dashboard-ui', 'serve', `--host=${flags.apiHost}`, `--port=${flags.apiPort}`, `--team=${flags.team}`, `--refresh-ms=${flags.refreshMs}`];
-  const env = {
-    ...process.env,
-    INFRING_ROOT: ROOT,
-    INFRING_OPS_ALLOW_STALE: process.env.INFRING_OPS_ALLOW_STALE || '1',
-    INFRING_NPM_ALLOW_STALE: process.env.INFRING_NPM_ALLOW_STALE || '1',
-  };
+  const env = backendSpawnEnv();
   const bin = resolveBinary({ env });
   if (!bin) throw new Error('dashboard_backend_binary_missing');
   const child = spawn(bin, laneArgs, { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -451,11 +476,17 @@ function spawnBackend(flags) {
   return child;
 }
 async function ensureBackend(flags) {
-  if (await backendHealth(flags, 1500)) return { child: null, reused: true };
+  if (await backendHealth(flags, 1500)) {
+    const freshness = backendFreshnessSnapshot(flags);
+    if (!freshness.stale) return { child: null, reused: true, freshness };
+    if (!shouldRestartStaleBackend()) return { child: null, reused: true, freshness };
+    const stopped = await stopStaleBackend(flags, freshness);
+    if (!stopped) return { child: null, reused: true, freshness: { ...freshness, restart_failed: true } };
+  }
   const child = spawnBackend(flags);
   const deadline = Date.now() + flags.apiReadyTimeoutMs;
   while (Date.now() < deadline) {
-    if (await backendHealth(flags, 1500)) return { child, reused: false };
+    if (await backendHealth(flags, 1500)) return { child, reused: false, freshness: backendFreshnessSnapshot(flags) };
     if (child.exitCode != null) throw new Error(`dashboard_backend_exit:${child.exitCode}`);
     await sleep(250);
   }
@@ -702,6 +733,7 @@ async function runServe(flags) {
     child: null,
     reused: false,
     ready: await backendHealth(flags, 1500),
+    freshness: null,
     startup_error: '',
   };
   let backendStartPromise = null;
@@ -711,6 +743,7 @@ async function runServe(flags) {
         backend.child = result && result.child ? result.child : null;
         backend.reused = !!(result && result.reused);
         backend.ready = true;
+        backend.freshness = result && result.freshness ? result.freshness : null;
         backend.startup_error = '';
         return result;
       })
@@ -720,7 +753,18 @@ async function runServe(flags) {
         return null;
       });
   } else {
-    backend.reused = true;
+    try {
+      const result = await ensureBackend(flags);
+      backend.child = result && result.child ? result.child : null;
+      backend.reused = !!(result && result.reused);
+      backend.ready = true;
+      backend.freshness = result && result.freshness ? result.freshness : null;
+      backend.startup_error = '';
+    } catch (error) {
+      backend.reused = true;
+      backend.freshness = backendFreshnessSnapshot(flags);
+      backend.startup_error = cleanText(error && error.message ? error.message : String(error), 200);
+    }
   }
   const wsBridge = createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson });
   const status = {
@@ -738,6 +782,7 @@ async function runServe(flags) {
     backend_url: backendBase(flags),
     backend_reused: backend.reused,
     backend_ready: backend.ready,
+    backend_freshness: backend.freshness,
     backend_start_pending: !!backendStartPromise,
     backend_start_error: '',
     ws_bridge_enabled: !!wsBridge.ws_enabled,
@@ -748,6 +793,7 @@ async function runServe(flags) {
   function persistStatus() {
     status.backend_reused = backend.reused;
     status.backend_ready = backend.ready;
+    status.backend_freshness = backend.freshness;
     status.backend_start_pending = !!backendStartPromise && !backend.ready && !backend.startup_error;
     status.backend_start_error = backend.startup_error;
     ensureDir(STATUS_DIR);
@@ -927,6 +973,7 @@ async function run(argv = process.argv.slice(2)) {
 }
 module.exports = {
   cleanText,
+  backendFreshnessSnapshot,
   currentDashboardBuildInfo,
   dashboardSystemActionArgs,
   isTransientSocketError,
