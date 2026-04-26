@@ -29,8 +29,27 @@ fn value_str<'a>(value: &'a Value, key: &str) -> &'a str {
     value
         .get(key)
         .or_else(|| value.get("details").and_then(|details| details.get(key)))
+        .or_else(|| value.get("details").and_then(|details| details.get("details")).and_then(|details| details.get(key)))
         .and_then(Value::as_str)
         .unwrap_or("")
+}
+
+fn normalize_key(raw: &str) -> String {
+    let mut out = String::new();
+    let mut previous_lower_or_digit = false;
+    for ch in raw.trim().chars() {
+        if ch.is_ascii_alphanumeric() {
+            if ch.is_ascii_uppercase() && previous_lower_or_digit && !out.ends_with('_') {
+                out.push('_');
+            }
+            out.push(ch.to_ascii_lowercase());
+            previous_lower_or_digit = ch.is_ascii_lowercase() || ch.is_ascii_digit();
+        } else if !out.ends_with('_') {
+            out.push('_');
+            previous_lower_or_digit = false;
+        }
+    }
+    out.trim_matches('_').to_string()
 }
 
 fn row_contains_token(value: &Value, token: &str) -> bool {
@@ -86,7 +105,8 @@ fn boundary_rule(record: &Value) -> Option<BoundaryRule> {
     let category = value_str(record, "category");
 
     for raw_rule in [explicit_rule, violation, violation_kind, kind, category] {
-        match raw_rule {
+        let raw_rule = normalize_key(raw_rule);
+        match raw_rule.as_str() {
             "non_nexus_direct_authority_path" => {
                 return Some(BoundaryRule {
                     rule: "non_nexus_direct_authority_path",
@@ -114,7 +134,7 @@ fn boundary_rule(record: &Value) -> Option<BoundaryRule> {
                         "remove the bypass and restore nexus-mediated execution",
                 });
             }
-            "shell_truth_leak" | "client_truth_leak" => {
+            "shell_truth_leak" | "client_truth_leak" | "ui_truth_leak" | "presentation_truth_leak" => {
                 return Some(BoundaryRule {
                     rule: "shell_truth_leak",
                     category: KernelSentinelFindingCategory::SecurityBoundary,
@@ -133,7 +153,7 @@ fn boundary_rule(record: &Value) -> Option<BoundaryRule> {
                         "remove scheduler/admission authority from the gateway boundary",
                 });
             }
-            "orchestration_policy_ownership" | "orchestration_policy_authority" => {
+            "orchestration_policy_ownership" | "orchestration_policy_authority" | "control_plane_policy_authority" => {
                 return Some(BoundaryRule {
                     rule: "orchestration_policy_ownership",
                     category: KernelSentinelFindingCategory::SecurityBoundary,
@@ -142,7 +162,7 @@ fn boundary_rule(record: &Value) -> Option<BoundaryRule> {
                         "move hard policy ownership back to Kernel authority",
                 });
             }
-            "orchestration_receipt_authority" | "orchestration_receipt_ownership" => {
+            "orchestration_receipt_authority" | "orchestration_receipt_ownership" | "control_plane_receipt_authority" => {
                 return Some(BoundaryRule {
                     rule: "orchestration_receipt_authority",
                     category: KernelSentinelFindingCategory::SecurityBoundary,
