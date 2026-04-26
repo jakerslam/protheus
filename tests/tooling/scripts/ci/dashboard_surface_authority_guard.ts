@@ -157,19 +157,8 @@ function run(argv: string[]): number {
   const redirectAliasHandlers = hostSource.includes("location: `/dashboard${search}`") ? 1 : 0;
   const retiredAliasGuardPresent = hostSource.includes('dashboard_surface_retired');
   const svelteDashboardPackaged = distBuildSource.includes('dashboard_sveltekit');
-  const forbiddenDirectories = detectedForbiddenDirectories.filter((dirPath) => {
-    const name = path.basename(dirPath);
-    if (name === 'dashboard_sveltekit') {
-      return svelteDashboardPackaged;
-    }
-    return true;
-  });
-  const dormantUiRoots = uiRoots.filter(
-    (name) => name === 'dashboard_sveltekit' && !svelteDashboardPackaged,
-  );
-  const extraRoots = uiRoots.filter(
-    (name) => name !== PRIMARY_ROOT_NAME && !(name === 'dashboard_sveltekit' && !svelteDashboardPackaged),
-  );
+  const forbiddenDirectories = detectedForbiddenDirectories;
+  const extraRoots = uiRoots.filter((name) => name !== PRIMARY_ROOT_NAME);
   const dashboardAssetFiles = staticFiles(PRIMARY_ROOT);
   const snapshot = readJsonMaybe(SNAPSHOT_PATH);
   const runtimeBlocks = Array.isArray(snapshot?.dashboard_blocks?.runtime)
@@ -325,7 +314,6 @@ function run(argv: string[]): number {
       ui_roots_detected: uiRoots.length,
       dashboard_asset_files: dashboardAssetFiles.length,
       forbidden_surface_directories: forbiddenDirectories.length,
-      dormant_ui_roots: dormantUiRoots.length,
       redirect_alias_handlers: redirectAliasHandlers,
       retired_alias_guard_present: retiredAliasGuardPresent,
       svelte_dashboard_packaged: svelteDashboardPackaged,
