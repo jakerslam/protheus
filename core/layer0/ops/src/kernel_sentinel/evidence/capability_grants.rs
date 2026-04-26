@@ -14,28 +14,28 @@ struct CapabilityRequirement {
 }
 
 fn capability_requirement(kind: &str) -> Option<CapabilityRequirement> {
-    match kind {
-        "workspace_read" | "file_read" | "read_file" | "workspace_read_execution" => {
+    match normalize_key(kind).as_str() {
+        "workspace_read" | "file_read" | "read_file" | "workspace_read_execution" | "repo_path_read" => {
             Some(CapabilityRequirement {
                 execution_kind: "workspace_read",
                 capability: "workspace_read",
             })
         }
-        "workspace_search" | "file_search" | "repo_search" | "workspace_search_execution" => {
+        "workspace_search" | "file_search" | "repo_search" | "workspace_search_execution" | "search_workspace" => {
             Some(CapabilityRequirement {
                 execution_kind: "workspace_search",
                 capability: "workspace_search",
             })
         }
-        "web_search" | "web_search_execution" => Some(CapabilityRequirement {
+        "web_search" | "web_search_execution" | "call_web" => Some(CapabilityRequirement {
             execution_kind: "web_search",
             capability: "web_search",
         }),
-        "web_fetch" | "web_fetch_execution" => Some(CapabilityRequirement {
+        "web_fetch" | "web_fetch_execution" | "fetch_web" => Some(CapabilityRequirement {
             execution_kind: "web_fetch",
             capability: "web_fetch",
         }),
-        "tool_route" | "tool_execution" | "tool_call" | "tool_route_execution" => {
+        "tool_route" | "tool_execution" | "tool_call" | "tool_call_execution" | "tool_route_execution" => {
             Some(CapabilityRequirement {
                 execution_kind: "tool_route",
                 capability: "tool_route",
@@ -51,20 +51,66 @@ fn capability_requirement(kind: &str) -> Option<CapabilityRequirement> {
     }
 }
 
+fn field<'a>(value: &'a Value, key: &str) -> Option<&'a Value> {
+    value
+        .get(key)
+        .or_else(|| value.get("details").and_then(|details| details.get(key)))
+        .or_else(|| {
+            value
+                .get("details")
+                .and_then(|details| details.get("details"))
+                .and_then(|details| details.get(key))
+        })
+}
+
 fn value_str<'a>(value: &'a Value, key: &str) -> &'a str {
     value
         .get(key)
         .or_else(|| value.get("details").and_then(|details| details.get(key)))
+        .or_else(|| value.get("details").and_then(|details| details.get("details")).and_then(|details| details.get(key)))
         .and_then(Value::as_str)
         .unwrap_or("")
 }
 
 fn value_bool(value: &Value, key: &str) -> bool {
-    value
-        .get(key)
-        .or_else(|| value.get("details").and_then(|details| details.get(key)))
-        .and_then(Value::as_bool)
+    field(value, key)
+        .map(|raw| {
+            raw.as_bool()
+                .unwrap_or_else(|| matches!(raw.as_str().unwrap_or("").trim().to_lowercase().as_str(), "1" | "true" | "yes" | "payload" | "available"))
+        })
         .unwrap_or(false)
+}
+
+fn normalize_key(raw: &str) -> String {
+    let mut out = String::new();
+    let mut previous_lower_or_digit = false;
+    for ch in raw.trim().chars() {
+        if ch.is_ascii_alphanumeric() {
+            if ch.is_ascii_uppercase() && previous_lower_or_digit && !out.ends_with('_') {
+                out.push('_');
+            }
+            out.push(ch.to_ascii_lowercase());
+            previous_lower_or_digit = ch.is_ascii_lowercase() || ch.is_ascii_digit();
+        } else if !out.ends_with('_') {
+            out.push('_');
+            previous_lower_or_digit = false;
+        }
+    }
+    out.trim_matches('_').to_string()
+}
+
+fn capability_equivalent(actual: &str, expected: &str) -> bool {
+    let actual = normalize_key(actual);
+    let expected = normalize_key(expected);
+    actual == expected
+        || matches!(
+            (actual.as_str(), expected.as_str()),
+            ("read_file", "workspace_read")
+                | ("search_workspace", "workspace_search")
+                | ("call_web", "web_search")
+                | ("fetch_web", "web_fetch")
+                | ("mutate_state", "mutate_state")
+        )
 }
 
 fn row_contains_token(value: &Value, token: &str) -> bool {
@@ -87,10 +133,10 @@ fn authoritative_grant(record: &Value, requirement: CapabilityRequirement) -> bo
     let capability = value_str(record, "capability");
     let expected_specific = format!("{}_grant", requirement.capability);
     matches!(
-        kind,
+        normalize_key(kind).as_str(),
         "capability_grant" | "probe_grant" | "policy_grant" | "execution_grant"
-    ) || kind == expected_specific
-        || capability == requirement.capability
+    ) || normalize_key(kind) == expected_specific
+        || capability_equivalent(capability, requirement.capability)
 }
 
 fn grant_matches_execution(
@@ -101,7 +147,7 @@ fn grant_matches_execution(
     authoritative_grant(grant, requirement)
         && (row_contains_token(grant, value_str(execution, "id"))
             || row_contains_token(grant, value_str(execution, "subject"))
-            || value_str(grant, "grant_for") == requirement.execution_kind)
+            || capability_equivalent(value_str(grant, "grant_for"), requirement.execution_kind))
 }
 
 fn evidence_refs(record: &Value) -> Vec<String> {

@@ -6,7 +6,7 @@ use super::{
     KernelSentinelFinding, KernelSentinelFindingCategory, KernelSentinelSeverity,
     KERNEL_SENTINEL_FINDING_SCHEMA_VERSION,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::fs;
@@ -14,14 +14,18 @@ use std::path::{Path, PathBuf};
 
 mod capability_grants;
 mod boundedness;
+mod gateway_isolation;
 mod nexus_boundaries;
 mod receipt_completeness;
 mod state_transitions;
+mod trajectories;
 use boundedness::build_boundedness_report;
 use capability_grants::build_capability_grant_report;
+use gateway_isolation::build_gateway_isolation_report;
 use nexus_boundaries::build_nexus_boundary_report;
 use receipt_completeness::build_receipt_completeness_report;
 use state_transitions::build_state_transition_report;
+use trajectories::build_trajectory_report;
 
 #[derive(Debug, Clone)]
 pub struct KernelSentinelEvidenceIngestion {
@@ -48,8 +52,10 @@ struct RawEvidenceRecord {
     #[serde(default)]
     status: Option<String>,
     #[serde(default)]
+    #[serde(deserialize_with = "deserialize_optional_severity")]
     severity: Option<KernelSentinelSeverity>,
     #[serde(default)]
+    #[serde(deserialize_with = "deserialize_optional_category")]
     category: Option<KernelSentinelFindingCategory>,
     #[serde(default)]
     fingerprint: Option<String>,
@@ -65,6 +71,91 @@ struct RawEvidenceRecord {
     evidence: Vec<String>,
     #[serde(flatten)]
     details: BTreeMap<String, Value>,
+}
+
+fn normalize_key(raw: &str) -> String {
+    let mut out = String::new();
+    let mut previous_lower_or_digit = false;
+    for ch in raw.trim().chars() {
+        if ch.is_ascii_alphanumeric() {
+            if ch.is_ascii_uppercase() && previous_lower_or_digit && !out.ends_with('_') {
+                out.push('_');
+            }
+            out.push(ch.to_ascii_lowercase());
+            previous_lower_or_digit = ch.is_ascii_lowercase() || ch.is_ascii_digit();
+        } else if !out.ends_with('_') {
+            out.push('_');
+            previous_lower_or_digit = false;
+        }
+    }
+    out.trim_matches('_').to_string()
+}
+
+fn category_from_str(raw: &str) -> Option<KernelSentinelFindingCategory> {
+    match normalize_key(raw).as_str() {
+        "receipt_integrity" => Some(KernelSentinelFindingCategory::ReceiptIntegrity),
+        "capability_enforcement" => Some(KernelSentinelFindingCategory::CapabilityEnforcement),
+        "state_transition" => Some(KernelSentinelFindingCategory::StateTransition),
+        "nexus_boundary" => Some(KernelSentinelFindingCategory::NexusBoundary),
+        "boundedness" => Some(KernelSentinelFindingCategory::Boundedness),
+        "gateway_isolation" => Some(KernelSentinelFindingCategory::GatewayIsolation),
+        "queue_backpressure" => Some(KernelSentinelFindingCategory::QueueBackpressure),
+        "retry_storm" => Some(KernelSentinelFindingCategory::RetryStorm),
+        "release_evidence" => Some(KernelSentinelFindingCategory::ReleaseEvidence),
+        "self_maintenance_loop" => Some(KernelSentinelFindingCategory::SelfMaintenanceLoop),
+        "security_boundary" => Some(KernelSentinelFindingCategory::SecurityBoundary),
+        "runtime_correctness" => Some(KernelSentinelFindingCategory::RuntimeCorrectness),
+        "performance_regression" => Some(KernelSentinelFindingCategory::PerformanceRegression),
+        "automation_candidate" => Some(KernelSentinelFindingCategory::AutomationCandidate),
+        _ => None,
+    }
+}
+
+fn severity_from_str(raw: &str) -> Option<KernelSentinelSeverity> {
+    match normalize_key(raw).as_str() {
+        "critical" => Some(KernelSentinelSeverity::Critical),
+        "high" => Some(KernelSentinelSeverity::High),
+        "medium" => Some(KernelSentinelSeverity::Medium),
+        "low" => Some(KernelSentinelSeverity::Low),
+        _ => None,
+    }
+}
+
+fn deserialize_optional_category<'de, D>(
+    deserializer: D,
+) -> Result<Option<KernelSentinelFindingCategory>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = Option::<Value>::deserialize(deserializer)?;
+    Ok(match value {
+        Some(Value::String(raw)) => category_from_str(&raw),
+        Some(other) => serde_json::from_value(other).ok(),
+        None => None,
+    })
+}
+
+fn deserialize_optional_severity<'de, D>(
+    deserializer: D,
+) -> Result<Option<KernelSentinelSeverity>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = Option::<Value>::deserialize(deserializer)?;
+    Ok(match value {
+        Some(Value::String(raw)) => severity_from_str(&raw),
+        Some(other) => serde_json::from_value(other).ok(),
+        None => None,
+    })
+}
+
+fn merged_details(mut details: BTreeMap<String, Value>) -> Value {
+    if let Some(Value::Object(nested)) = details.remove("details") {
+        for (key, value) in nested {
+            details.entry(key).or_insert(value);
+        }
+    }
+    Value::Object(details.into_iter().collect())
 }
 
 fn source_configs() -> [EvidenceSourceConfig; 6] {
@@ -191,7 +282,7 @@ fn normalize_record(
     } else {
         record.evidence
     };
-    let details = Value::Object(record.details.into_iter().collect());
+    let details = merged_details(record.details);
     let normalized = json!({
         "source": source,
         "authority_class": authority.authority_class,
@@ -296,6 +387,7 @@ pub fn ingest_evidence_sources(state_dir: &Path, args: &[String]) -> KernelSenti
                 Err(err) => malformed_records.push(json!({
                     "source": source,
                     "path": path,
+                    "source_kind": "kernel_sentinel_evidence",
                     "line": idx + 1,
                     "error": err.to_string()
                 })),
@@ -326,6 +418,11 @@ pub fn ingest_evidence_sources(state_dir: &Path, args: &[String]) -> KernelSenti
     let (boundedness_report, boundedness_findings) =
         build_boundedness_report(&normalized_records);
     findings.extend(boundedness_findings);
+    let (gateway_isolation_report, gateway_isolation_findings) =
+        build_gateway_isolation_report(&normalized_records);
+    findings.extend(gateway_isolation_findings);
+    let (trajectory_report, trajectory_findings) = build_trajectory_report(&normalized_records);
+    findings.extend(trajectory_findings);
     let report = json!({
         "ok": malformed_records.is_empty(),
         "type": "kernel_sentinel_evidence_ingestion",
@@ -337,6 +434,8 @@ pub fn ingest_evidence_sources(state_dir: &Path, args: &[String]) -> KernelSenti
         "state_transitions": state_transitions_report,
         "nexus_boundaries": nexus_boundaries_report,
         "boundedness": boundedness_report,
+        "gateway_isolation": gateway_isolation_report,
+        "trajectories": trajectory_report,
         "normalized_record_count": normalized_records.len(),
         "finding_count": findings.len(),
         "malformed_record_count": malformed_records.len(),

@@ -14,12 +14,12 @@ struct ReceiptRequirement {
 }
 
 fn receipt_requirement(kind: &str) -> Option<ReceiptRequirement> {
-    match kind {
-        "state_mutation" | "state_mutation_committed" | "state_write" => Some(ReceiptRequirement {
+    match normalize_key(kind).as_str() {
+        "state_mutation" | "state_mutation_committed" | "state_write" | "mutate_state" => Some(ReceiptRequirement {
             action_kind: "state_mutation",
             expected_receipt_type: "state_mutation_receipt",
         }),
-        "tool_execution" | "tool_call" | "tool_result" => Some(ReceiptRequirement {
+        "tool_execution" | "tool_call" | "tool_result" | "tool_completion" | "tool_done" => Some(ReceiptRequirement {
             action_kind: "tool_execution",
             expected_receipt_type: "tool_execution_receipt",
         }),
@@ -39,8 +39,33 @@ fn receipt_requirement(kind: &str) -> Option<ReceiptRequirement> {
     }
 }
 
+fn field<'a>(value: &'a Value, key: &str) -> Option<&'a Value> {
+    value
+        .get(key)
+        .or_else(|| value.get("details").and_then(|details| details.get(key)))
+        .or_else(|| value.get("details").and_then(|details| details.get("details")).and_then(|details| details.get(key)))
+}
+
 fn value_str<'a>(value: &'a Value, key: &str) -> &'a str {
-    value.get(key).and_then(Value::as_str).unwrap_or("")
+    field(value, key).and_then(Value::as_str).unwrap_or("")
+}
+
+fn normalize_key(raw: &str) -> String {
+    let mut out = String::new();
+    let mut previous_lower_or_digit = false;
+    for ch in raw.trim().chars() {
+        if ch.is_ascii_alphanumeric() {
+            if ch.is_ascii_uppercase() && previous_lower_or_digit && !out.ends_with('_') {
+                out.push('_');
+            }
+            out.push(ch.to_ascii_lowercase());
+            previous_lower_or_digit = ch.is_ascii_lowercase() || ch.is_ascii_digit();
+        } else if !out.ends_with('_') {
+            out.push('_');
+            previous_lower_or_digit = false;
+        }
+    }
+    out.trim_matches('_').to_string()
 }
 
 fn row_contains_token(value: &Value, token: &str) -> bool {
@@ -59,8 +84,10 @@ fn receipt_matches_action(receipt: &Value, action: &Value, requirement: ReceiptR
     if value_str(receipt, "source") != "kernel_receipt" {
         return false;
     }
-    let receipt_kind = value_str(receipt, "kind");
+    let receipt_kind = normalize_key(value_str(receipt, "kind"));
+    let receipt_type = normalize_key(value_str(receipt, "receipt_type"));
     let type_matches = receipt_kind == requirement.expected_receipt_type
+        || receipt_type == requirement.expected_receipt_type
         || receipt_kind == "receipt"
         || receipt_kind.ends_with("_receipt");
     if !type_matches {
@@ -68,6 +95,9 @@ fn receipt_matches_action(receipt: &Value, action: &Value, requirement: ReceiptR
     }
     row_contains_token(receipt, value_str(action, "id"))
         || row_contains_token(receipt, value_str(action, "subject"))
+        || row_contains_token(receipt, value_str(action, "action_id"))
+        || value_str(receipt, "receipt_for") == value_str(action, "id")
+        || value_str(receipt, "action_for") == value_str(action, "id")
 }
 
 fn evidence_refs(record: &Value) -> Vec<String> {

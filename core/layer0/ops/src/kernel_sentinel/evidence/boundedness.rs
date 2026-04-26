@@ -30,6 +30,7 @@ fn value<'a>(record: &'a Value, key: &str) -> Option<&'a Value> {
     record
         .get(key)
         .or_else(|| record.get("details").and_then(|details| details.get(key)))
+        .or_else(|| record.get("details").and_then(|details| details.get("details")).and_then(|details| details.get(key)))
 }
 
 fn value_str<'a>(record: &'a Value, key: &str) -> &'a str {
@@ -37,7 +38,12 @@ fn value_str<'a>(record: &'a Value, key: &str) -> &'a str {
 }
 
 fn value_bool(record: &Value, key: &str) -> bool {
-    value(record, key).and_then(Value::as_bool).unwrap_or(false)
+    value(record, key)
+        .map(|raw| {
+            raw.as_bool()
+                .unwrap_or_else(|| matches!(raw.as_str().unwrap_or("").trim().to_lowercase().as_str(), "1" | "true" | "yes" | "fail" | "failed" | "regressed"))
+        })
+        .unwrap_or(false)
 }
 
 fn value_f64(record: &Value, key: &str) -> Option<f64> {
@@ -81,8 +87,8 @@ fn explicit_rule(record: &Value) -> Option<SignalRule> {
     let signal = value_str(record, "signal");
     let failure_mode = value_str(record, "failure_mode");
     for raw in [kind, signal, failure_mode] {
-        match raw {
-            "retry_storm" | "retry_loop" | "repeated_retry_loop" => {
+        match normalize_key(raw).as_str() {
+            "retry_storm" | "retry_loop" | "repeated_retry_loop" | "retry_budget_exceeded" => {
                 return Some(SignalRule {
                     rule: "retry_storm",
                     category: KernelSentinelFindingCategory::RetryStorm,
@@ -92,7 +98,7 @@ fn explicit_rule(record: &Value) -> Option<SignalRule> {
                         "shed, defer, or quarantine the loop and require recovery evidence before retrying",
                 });
             }
-            "queue_backpressure_failure" | "queue_backpressure" | "queue_saturation" => {
+            "queue_backpressure_failure" | "queue_backpressure" | "queue_saturation" | "queue_depth_exceeded" => {
                 return Some(SignalRule {
                     rule: "queue_depth",
                     category: KernelSentinelFindingCategory::QueueBackpressure,
@@ -102,7 +108,7 @@ fn explicit_rule(record: &Value) -> Option<SignalRule> {
                         "apply queue shed/defer/quarantine policy and restore bounded queue depth",
                 });
             }
-            "boundedness_regression" | "threshold_regression" | "boundedness_failure" => {
+            "boundedness_regression" | "threshold_regression" | "boundedness_failure" | "budget_regression" => {
                 return Some(SignalRule {
                     rule: "threshold_regression",
                     category: KernelSentinelFindingCategory::Boundedness,
@@ -116,6 +122,24 @@ fn explicit_rule(record: &Value) -> Option<SignalRule> {
         }
     }
     None
+}
+
+fn normalize_key(raw: &str) -> String {
+    let mut out = String::new();
+    let mut previous_lower_or_digit = false;
+    for ch in raw.trim().chars() {
+        if ch.is_ascii_alphanumeric() {
+            if ch.is_ascii_uppercase() && previous_lower_or_digit && !out.ends_with('_') {
+                out.push('_');
+            }
+            out.push(ch.to_ascii_lowercase());
+            previous_lower_or_digit = ch.is_ascii_lowercase() || ch.is_ascii_digit();
+        } else if !out.ends_with('_') {
+            out.push('_');
+            previous_lower_or_digit = false;
+        }
+    }
+    out.trim_matches('_').to_string()
 }
 
 fn metric_rules(record: &Value) -> Vec<SignalRule> {
@@ -140,7 +164,7 @@ fn metric_rules(record: &Value) -> Vec<SignalRule> {
         }
     }
     if let (Some(depth), Some(limit)) = (
-        first_metric(record, &["queue_depth_max", "queue_depth_p95", "queue_depth"]),
+        first_metric(record, &["queue_depth_max", "queue_depth_p95", "queue_depth", "queue_depth_current"]),
         first_metric(record, &["queue_depth_limit", "queue_depth_budget", "queue_limit"]),
     ) {
         if depth > limit {
@@ -159,7 +183,7 @@ fn metric_rules(record: &Value) -> Vec<SignalRule> {
         }
     }
     if let (Some(retry_count), Some(limit)) = (
-        first_metric(record, &["retry_count", "retry_loop_count", "repeated_retry_count"]),
+        first_metric(record, &["retry_count", "retry_loop_count", "repeated_retry_count", "retry_attempts"]),
         first_metric(record, &["retry_budget", "retry_limit", "retry_window_budget"]),
     ) {
         if retry_count > limit {
