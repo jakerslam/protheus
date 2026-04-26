@@ -18,6 +18,11 @@ fn response_requires_visible_repair_for_message(
     response_tools: &[Value],
 ) -> bool {
     response_requires_visible_repair(text)
+        || response_claims_tool_success_without_current_turn_evidence(
+            message,
+            text,
+            response_tools,
+        )
         || response_contains_stale_code_context_dump(message, text)
         || response_current_turn_dominance_violation(message, text, response_tools)
         || response_contains_unrequested_content_without_tool_evidence(message, text, response_tools)

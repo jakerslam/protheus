@@ -1,4 +1,6 @@
     taskbarDockEdgeNormalized(raw) {
+      var service = this.taskbarDockService();
+      if (service && typeof service.normalizeTaskbarEdge === 'function') return service.normalizeTaskbarEdge(raw);
       var key = String(raw || '').trim().toLowerCase();
       return key === 'bottom' ? 'bottom' : 'top';
     },
@@ -44,6 +46,12 @@
     },
 
     taskbarAnchorForDockEdge(edgeRaw) {
+      var service = this.taskbarDockService();
+      if (service && typeof service.normalizeTaskbarEdge === 'function') {
+        var edgeFromService = service.normalizeTaskbarEdge(edgeRaw);
+        if (edgeFromService === 'bottom') return Math.max(0, this.taskbarReadViewportHeight() - this.taskbarReadHeight());
+        return 0;
+      }
       var edge = this.taskbarDockEdgeNormalized(edgeRaw);
       if (edge === 'bottom') {
         return Math.max(0, this.taskbarReadViewportHeight() - this.taskbarReadHeight());
@@ -52,6 +60,13 @@
     },
 
     taskbarClampDragY(yRaw) {
+      var service = this.taskbarDockService();
+      if (service && typeof service.normalizeTaskbarEdge === 'function') {
+        var yFromService = Number(yRaw);
+        if (!Number.isFinite(yFromService)) yFromService = this.taskbarAnchorForDockEdge(this.taskbarDockEdge);
+        var maxFromService = Math.max(0, this.taskbarReadViewportHeight() - this.taskbarReadHeight());
+        return Math.max(0, Math.min(maxFromService, yFromService));
+      }
       var y = Number(yRaw);
       if (!Number.isFinite(y)) y = this.taskbarAnchorForDockEdge(this.taskbarDockEdge);
       var maxY = Math.max(0, this.taskbarReadViewportHeight() - this.taskbarReadHeight());
@@ -59,6 +74,13 @@
     },
 
     taskbarNearestDockEdge(yRaw) {
+      var service = this.taskbarDockService();
+      if (service && typeof service.normalizeTaskbarEdge === 'function') {
+        var yFromService = this.taskbarClampDragY(yRaw);
+        var topYFromService = this.taskbarAnchorForDockEdge('top');
+        var bottomYFromService = this.taskbarAnchorForDockEdge('bottom');
+        return Math.abs(yFromService - bottomYFromService) < Math.abs(yFromService - topYFromService) ? 'bottom' : 'top';
+      }
       var y = this.taskbarClampDragY(yRaw);
       var topY = this.taskbarAnchorForDockEdge('top');
       var bottomY = this.taskbarAnchorForDockEdge('bottom');
@@ -68,6 +90,16 @@
     },
 
     taskbarContainerStyle() {
+      var service = this.taskbarDockService();
+      if (service && typeof service.taskbarContainerStyle === 'function') {
+        return service.taskbarContainerStyle({
+          page: this.page,
+          edge: this.taskbarDockEdge,
+          dragging: this.taskbarDockDragActive,
+          dragY: this.taskbarClampDragY(this.taskbarDockDragY),
+          transitionMs: 220
+        });
+      }
       var styles = [];
       if (this.page !== 'chat') {
         styles.push('background:transparent;border-bottom:none;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;');
@@ -86,6 +118,12 @@
     },
 
     shouldIgnoreTaskbarDockDragTarget(target) {
+      var service = this.dragbarService();
+      if (service && typeof service.shouldIgnoreTarget === 'function') {
+        return service.shouldIgnoreTarget(target, {
+          ignoreSelector: 'button, a, input, textarea, select, [role="button"], [draggable="true"], .taskbar-reorder-item, .taskbar-hero-menu-anchor, .taskbar-hero-menu, .theme-switcher, .notif-wrap, .taskbar-search-popup, .taskbar-search-popup-anchor, .taskbar-clock'
+        });
+      }
       if (!target || typeof target.closest !== 'function') return false;
       return Boolean(
         target.closest(
@@ -237,6 +275,17 @@
         minTop = edge === 'top' ? taskbarH : 0;
         maxBottom = viewportHeight - (edge === 'bottom' ? taskbarH : 0);
       }
+      var service = this.dragbarService();
+      if (service && typeof service.hardBounds === 'function') {
+        return service.hardBounds({
+          width: width,
+          height: height,
+          viewportWidth: viewportWidth,
+          viewportHeight: viewportHeight,
+          minTop: minTop,
+          maxBottom: maxBottom
+        });
+      }
       return {
         minLeft: 0,
         maxLeft: Math.max(0, viewportWidth - width),
@@ -256,10 +305,25 @@
       var maxLeft = Math.max(minLeft, this.chatOverlayViewportWidth() - wallGap - width);
       var minTop = Number(vertical.minTop || 0);
       var maxTop = Math.max(minTop, Number(vertical.maxBottom || 0) - height);
+      var service = this.dragbarService();
+      if (service && typeof service.softBounds === 'function') {
+        return service.softBounds({
+          width: width,
+          height: height,
+          wallGap: wallGap,
+          viewportWidth: this.chatOverlayViewportWidth(),
+          minTop: minTop,
+          maxBottom: Number(vertical.maxBottom || 0)
+        });
+      }
       return { minLeft: minLeft, maxLeft: maxLeft, minTop: minTop, maxTop: maxTop };
     },
 
     dragSurfaceClampWithBounds(bounds, leftRaw, topRaw) {
+      var service = this.dragbarService();
+      if (service && typeof service.clampWithBounds === 'function') {
+        return service.clampWithBounds(bounds, leftRaw, topRaw);
+      }
       var box = bounds && typeof bounds === 'object' ? bounds : { minLeft: 0, maxLeft: 0, minTop: 0, maxTop: 0 };
       var left = Number(leftRaw); if (!Number.isFinite(left)) left = Number(box.minLeft || 0);
       var top = Number(topRaw); if (!Number.isFinite(top)) top = Number(box.minTop || 0);
@@ -270,6 +334,10 @@
     },
 
     dragSurfaceNearestWall(bounds, leftRaw, topRaw) {
+      var service = this.dragbarService();
+      if (service && typeof service.nearestWall === 'function') {
+        return service.nearestWall(bounds, leftRaw, topRaw);
+      }
       var clamped = this.dragSurfaceClampWithBounds(bounds, leftRaw, topRaw);
       var distances = {
         left: Math.max(0, clamped.left - Number(bounds.minLeft || 0)),
@@ -287,12 +355,20 @@
     },
 
     dragSurfaceNormalizeWall(wallRaw) {
+      var service = this.dragbarService();
+      if (service && typeof service.normalizeWall === 'function') {
+        return service.normalizeWall(wallRaw);
+      }
       var wall = String(wallRaw || '').trim().toLowerCase();
       if (wall === 'left' || wall === 'right' || wall === 'top' || wall === 'bottom') return wall;
       return '';
     },
 
     dragSurfaceApplyWallLock(bounds, leftRaw, topRaw, wallRaw) {
+      var service = this.dragbarService();
+      if (service && typeof service.applyWallLock === 'function') {
+        return service.applyWallLock(bounds, leftRaw, topRaw, wallRaw);
+      }
       var wall = this.dragSurfaceNormalizeWall(wallRaw);
       var clamped = this.dragSurfaceClampWithBounds(bounds, leftRaw, topRaw);
       if (!wall) return { left: clamped.left, top: clamped.top, wall: '' };
@@ -304,6 +380,10 @@
     },
 
     dragSurfaceDistanceFromWall(bounds, leftRaw, topRaw, wallRaw) {
+      var service = this.dragbarService();
+      if (service && typeof service.distanceFromWall === 'function') {
+        return service.distanceFromWall(bounds, leftRaw, topRaw, wallRaw);
+      }
       var wall = this.dragSurfaceNormalizeWall(wallRaw);
       if (!wall) return Number.POSITIVE_INFINITY;
       var clamped = this.dragSurfaceClampWithBounds(bounds, leftRaw, topRaw);
@@ -314,6 +394,10 @@
     },
 
     dragSurfaceWallLockOvershoot(bounds, leftRaw, topRaw, wallRaw) {
+      var service = this.dragbarService();
+      if (service && typeof service.wallLockOvershoot === 'function') {
+        return service.wallLockOvershoot(bounds, leftRaw, topRaw, wallRaw);
+      }
       var wall = this.dragSurfaceNormalizeWall(wallRaw);
       if (!wall) return 0;
       var left = Number(leftRaw);
@@ -327,17 +411,43 @@
     },
 
     dragSurfaceCenteredPoint(bounds) {
+      var service = this.dragbarService();
+      if (service && typeof service.centeredPoint === 'function') {
+        return service.centeredPoint(bounds);
+      }
       var box = bounds && typeof bounds === 'object' ? bounds : { minLeft: 0, maxLeft: 0, minTop: 0, maxTop: 0 };
       var left = Number(box.minLeft || 0) + ((Number(box.maxLeft || 0) - Number(box.minLeft || 0)) * 0.5);
       var top = Number(box.minTop || 0) + ((Number(box.maxTop || 0) - Number(box.minTop || 0)) * 0.5);
       return { left: left, top: top };
     },
 
-    dragSurfaceWallLockContactThreshold() { return Math.max(2, Math.round(this.overlayWallGapPx() * 0.12)); },
-    dragSurfaceWallLockDistanceThreshold() { return Math.max(8, Math.round(this.overlayWallGapPx() * 0.7)); },
-    dragSurfaceWallUnlockDistanceThreshold() { return Math.max(42, Math.round(this.overlayWallGapPx() * 2.6)); },
-    dragSurfaceWallLockOvershootThreshold() { return Math.max(5, Math.round(this.overlayWallGapPx() * 0.34)); },
+    dragSurfaceWallLockContactThreshold() {
+      var service = this.dragbarService();
+      if (service && typeof service.wallLockThresholds === 'function') return service.wallLockThresholds(this.overlayWallGapPx()).contact;
+      return Math.max(2, Math.round(this.overlayWallGapPx() * 0.12));
+    },
+    dragSurfaceWallLockDistanceThreshold() {
+      var service = this.dragbarService();
+      if (service && typeof service.wallLockThresholds === 'function') return service.wallLockThresholds(this.overlayWallGapPx()).distance;
+      return Math.max(8, Math.round(this.overlayWallGapPx() * 0.7));
+    },
+    dragSurfaceWallUnlockDistanceThreshold() {
+      var service = this.dragbarService();
+      if (service && typeof service.wallLockThresholds === 'function') return service.wallLockThresholds(this.overlayWallGapPx()).unlock;
+      return Math.max(42, Math.round(this.overlayWallGapPx() * 2.6));
+    },
+    dragSurfaceWallLockOvershootThreshold() {
+      var service = this.dragbarService();
+      if (service && typeof service.wallLockThresholds === 'function') return service.wallLockThresholds(this.overlayWallGapPx()).overshoot;
+      return Math.max(5, Math.round(this.overlayWallGapPx() * 0.34));
+    },
     dragSurfaceResolveWallLock(bounds, candidateLeft, candidateTop, nearest, motionDxRaw, motionDyRaw) {
+      var service = this.dragbarService();
+      if (service && typeof service.resolveWallLock === 'function') {
+        return service.resolveWallLock(bounds, candidateLeft, candidateTop, nearest, motionDxRaw, motionDyRaw, {
+          wallGap: this.overlayWallGapPx()
+        });
+      }
       var walls = ['left', 'right', 'top', 'bottom'];
       var overshootThreshold = this.dragSurfaceWallLockOvershootThreshold();
       var contactThreshold = this.dragSurfaceWallLockContactThreshold();
@@ -386,6 +496,10 @@
     },
 
     dragSurfaceRadiusByWall(wallRaw) {
+      var service = this.dragbarService();
+      if (service && typeof service.radiusByWall === 'function') {
+        return service.radiusByWall(wallRaw);
+      }
       var r = 'var(--overlay-shared-surface-radius, var(--overlay-surface-radius, 18px))';
       var wall = this.dragSurfaceNormalizeWall(wallRaw);
       if (wall === 'left') return '0 ' + r + ' ' + r + ' 0';
@@ -396,6 +510,10 @@
     },
 
     dragSurfaceLockTransformTimeMs(rawValue) {
+      var service = this.dragbarService();
+      if (service && typeof service.lockTransformTimeMs === 'function') {
+        return service.lockTransformTimeMs(rawValue, this._dragSurfaceLockTransformMs || 500);
+      }
       var fallback = Number(this._dragSurfaceLockTransformMs || 500);
       if (!Number.isFinite(fallback)) fallback = 500;
       var raw = Number(rawValue);
@@ -404,6 +522,10 @@
     },
 
     dragSurfaceLockBorderFadeDurationMs(transformMsRaw) {
+      var service = this.dragbarService();
+      if (service && typeof service.lockBorderFadeDurationMs === 'function') {
+        return service.lockBorderFadeDurationMs(transformMsRaw);
+      }
       var transformMs = this.dragSurfaceLockTransformTimeMs(transformMsRaw);
       return Math.max(80, Math.round(transformMs * 0.24));
     },
@@ -416,6 +538,10 @@
     },
 
     dragSurfaceLockVisualCssVars(surfaceKeyRaw, wallRaw, optionsRaw) {
+      var service = this.dragbarService();
+      if (service && typeof service.lockVisualCssVars === 'function') {
+        return service.lockVisualCssVars(surfaceKeyRaw, wallRaw, optionsRaw, this.dragSurfaceVisualStateStore());
+      }
       var key = String(surfaceKeyRaw || 'drag-surface').trim().toLowerCase(); if (!key) key = 'drag-surface';
       var wall = this.dragSurfaceNormalizeWall(wallRaw);
       var options = optionsRaw && typeof optionsRaw === 'object' ? optionsRaw : {};
@@ -480,6 +606,10 @@
     },
 
     dragSurfaceLockRadiusCssVars(wallRaw) {
+      var service = this.dragbarService();
+      if (service && typeof service.lockRadiusCssVars === 'function') {
+        return service.lockRadiusCssVars(wallRaw);
+      }
       var wall = this.dragSurfaceNormalizeWall(wallRaw);
       if (!wall) return '';
       var radius = this.dragSurfaceRadiusByWall(wall);
@@ -535,6 +665,12 @@
     },
 
     shouldIgnoreChatMapDragTarget(target) {
+      var service = this.dragbarService();
+      if (service && typeof service.shouldIgnoreTarget === 'function') {
+        return service.shouldIgnoreTarget(target, {
+          ignoreSelector: 'button, a, input, textarea, select, [role="button"], [contenteditable="true"], .chat-map-item, .chat-map-day, .chat-map-jump'
+        });
+      }
       var node = target;
       if (node && typeof node.closest !== 'function' && node.parentElement) {
         node = node.parentElement;
@@ -574,12 +710,16 @@
     },
 
     taskbarReorderDefaults(group) {
+      var service = this.taskbarDockService();
+      if (service && typeof service.taskbarOrderDefaults === 'function') return service.taskbarOrderDefaults(group);
       var key = String(group || '').trim().toLowerCase();
       if (key === 'right') return ['connectivity', 'theme', 'notifications', 'search', 'auth'];
       return ['nav_cluster'];
     },
 
     taskbarReorderStorageKey(group) {
+      var service = this.taskbarDockService();
+      if (service && typeof service.taskbarStorageKey === 'function') return service.taskbarStorageKey(group);
       var key = String(group || '').trim().toLowerCase();
       return key === 'right' ? 'infring-taskbar-order-right' : 'infring-taskbar-order-left';
     },
@@ -599,6 +739,8 @@
     },
 
     normalizeTaskbarReorder(group, rawOrder) {
+      var service = this.taskbarDockService();
+      if (service && typeof service.normalizeOrder === 'function') return service.normalizeOrder(rawOrder, this.taskbarReorderDefaults(group));
       var defaults = this.taskbarReorderDefaults(group);
       var source = Array.isArray(rawOrder) ? rawOrder : [];
       var seen = {};
@@ -624,7 +766,9 @@
       var normalized = this.normalizeTaskbarReorder(key, this.taskbarReorderOrderForGroup(key));
       this.setTaskbarReorderOrderForGroup(key, normalized);
       try {
-        localStorage.setItem(this.taskbarReorderStorageKey(key), JSON.stringify(normalized));
+        var service = this.taskbarDockService();
+        if (service && typeof service.persistTaskbarOrder === 'function') normalized = service.persistTaskbarOrder(key, normalized);
+        else localStorage.setItem(this.taskbarReorderStorageKey(key), JSON.stringify(normalized));
       } catch(_) {}
       infringUpdateShellLayoutConfig(function(config) {
         if (key === 'right') config.taskbar.orderRight = normalized.slice();
@@ -637,6 +781,10 @@
       if (key !== 'right') key = 'left';
       var itemId = String(item || '').trim();
       if (!itemId) return 999;
+      var service = this.taskbarDockService();
+      if (service && typeof service.orderIndex === 'function') {
+        return service.orderIndex(itemId, this.taskbarReorderOrderForGroup(key), this.taskbarReorderDefaults(key));
+      }
       var order = this.normalizeTaskbarReorder(key, this.taskbarReorderOrderForGroup(key));
       var idx = order.indexOf(itemId);
       if (idx >= 0) return idx;

@@ -1,4 +1,6 @@
     bottomDockOrder: (() => {
+      var service = infringTaskbarDockService();
+      if (service && typeof service.readDockOrder === 'function') return service.readDockOrder();
       var defaults = ['chat', 'overview', 'agents', 'scheduler', 'skills', 'runtime', 'settings'];
       try {
         var raw = localStorage.getItem('infring-bottom-dock-order');
@@ -23,7 +25,10 @@
         return defaults.slice();
       }
     })(),
-    bottomDockTileConfig: {
+    bottomDockTileConfig: (() => {
+      var service = infringTaskbarDockService();
+      if (service && typeof service.dockTileConfig === 'function') return service.dockTileConfig();
+      return {
       chat: { icon: 'messages', tone: 'message', tooltip: 'Messages', label: 'Messages' },
       overview: { icon: 'home', tone: 'bright', tooltip: 'Home', label: 'Home' },
       agents: { icon: 'agents', tone: 'bright', tooltip: 'Agents', label: 'Agents' },
@@ -31,7 +36,8 @@
       skills: { icon: 'apps', tone: 'default', tooltip: 'Apps', label: 'Apps' },
       runtime: { icon: 'system', tone: 'bright', tooltip: 'System', label: 'System', animation: ['system-terminal', 2000] },
       settings: { icon: 'settings', tone: 'muted', tooltip: 'Settings', label: 'Settings', animation: ['spin', 4000] }
-    },
+      };
+    })(),
     appsIconBottomRowColors: (() => {
       var palette = ['#14b8a6', '#06b6d4', '#38bdf8', '#22c55e', '#f59e0b', '#ef4444', '#a855f7', '#f43f5e', '#64748b'];
       var out = [];
@@ -95,6 +101,8 @@
     _bottomDockLastInsertionIndex: -1,
     _bottomDockReorderLockUntil: 0,
     bottomDockPlacementId: (() => {
+      var service = infringTaskbarDockService();
+      if (service && typeof service.readLayoutConfig === 'function') return service.readLayoutConfig().dock.placement;
       try {
         var raw = String(localStorage.getItem('infring-bottom-dock-placement') || '').trim().toLowerCase();
         var allowed = {
@@ -132,6 +140,8 @@
     bottomDockContainerDragX: 0,
     bottomDockContainerDragY: 0,
     bottomDockContainerWallLock: (() => {
+      var service = infringTaskbarDockService();
+      if (service && typeof service.readLayoutConfig === 'function') return service.readLayoutConfig().dock.wallLock;
       try {
         var raw = String(
           localStorage.getItem('infring-bottom-dock-wall-lock')

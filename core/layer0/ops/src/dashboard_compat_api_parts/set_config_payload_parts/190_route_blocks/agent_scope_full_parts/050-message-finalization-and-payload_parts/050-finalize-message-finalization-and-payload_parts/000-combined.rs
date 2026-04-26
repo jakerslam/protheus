@@ -273,6 +273,10 @@ fn finalize_message_finalization_and_payload(
     tool_completion = enrich_tool_completion_receipt(tool_completion, &response_tools);
     response_text = finalized_response;
     if response_text.trim().is_empty() {
+        let prior_manual_toolbox_pending_tool_request = response_workflow
+            .get("manual_toolbox_pending_tool_request")
+            .filter(|value| value.is_object())
+            .cloned();
         let mut recovery_events = workflow_system_events.clone();
         recovery_events.push(turn_workflow_event(
             "empty_final_response_menu_recovery",
@@ -283,7 +287,7 @@ fn finalize_message_finalization_and_payload(
                 "latent_tool_candidates": latent_tool_candidates.clone()
             }),
         ));
-        let recovered_workflow = run_turn_workflow_final_response(
+        let mut recovered_workflow = run_turn_workflow_final_response(
             root,
             &provider,
             &model,
@@ -295,6 +299,15 @@ fn finalize_message_finalization_and_payload(
             "",
             &latest_assistant_text,
         );
+        if recovered_workflow
+            .get("manual_toolbox_pending_tool_request")
+            .filter(|value| value.is_object())
+            .is_none()
+        {
+            if let Some(pending_request) = prior_manual_toolbox_pending_tool_request {
+                recovered_workflow["manual_toolbox_pending_tool_request"] = pending_request;
+            }
+        }
         let recovered_text = clean_chat_text(
             recovered_workflow
                 .get("response")
@@ -416,6 +429,12 @@ fn finalize_message_finalization_and_payload(
         }
         if response_guard_bool(&response_guard, "current_turn_dominance_violation") {
             bump_workflow_quality_counter(&mut response_workflow, "current_turn_dominance_reject");
+        }
+        if response_guard_bool(&response_guard, "unsupported_tool_success_claim") {
+            bump_workflow_quality_counter(
+                &mut response_workflow,
+                "unsupported_tool_success_claim_reject",
+            );
         }
         finalization_outcome = merge_response_outcomes(
             &finalization_outcome,

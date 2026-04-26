@@ -64,7 +64,7 @@
           </infring-settings-security-tab-shell>
 
           <!-- Network tab -->
-          <infring-settings-network-tab-shell>
+          <infring-settings-network-tab-shell shellprimitive="simple-page-panel" pageid="settings" tabid="network" panelrole="settings-tab" routecontract="settings:network" parentowneddata="true">
           <div x-show="tab === 'network'" x-data="{
             netStatus: null, a2aAgents: [], a2aDiscoverUrl: '', a2aDiscovering: false,
             async loadNetStatus() { try { this.netStatus = await InfringAPI.get('/api/network/status'); } catch(e) {} },
@@ -151,7 +151,7 @@
           </infring-settings-network-tab-shell>
 
           <!-- Budget tab -->
-          <infring-settings-budget-tab-shell>
+          <infring-settings-budget-tab-shell shellprimitive="simple-page-panel" pageid="settings" tabid="budget" panelrole="settings-tab" routecontract="settings:budget" parentowneddata="true">
           <div x-show="tab === 'budget'" x-data="{
             budgetData: null, agentRanking: [], budgetLoading: true,
             editMode: false,
@@ -293,7 +293,7 @@
           </infring-settings-budget-tab-shell>
 
           <!-- Migration tab -->
-          <infring-settings-migration-tab-shell>
+          <infring-settings-migration-tab-shell shellprimitive="simple-page-panel" pageid="settings" tabid="migration" panelrole="settings-tab" routecontract="settings:migration" parentowneddata="true">
           <div x-show="tab === 'migration'">
             <div class="card mb-4" style="border-left:3px solid var(--accent)" x-show="migStep === 'intro'">
               <div class="font-bold" style="font-size:14px;margin-bottom:6px">Migrate into Infring</div>

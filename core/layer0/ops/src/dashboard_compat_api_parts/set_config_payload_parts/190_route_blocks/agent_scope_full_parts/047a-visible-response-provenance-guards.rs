@@ -101,6 +101,92 @@ fn response_has_current_turn_tool_evidence(response_tools: &[Value]) -> bool {
     })
 }
 
+fn response_claims_tool_success_without_current_turn_evidence(
+    _user_message: &str,
+    response_text: &str,
+    response_tools: &[Value],
+) -> bool {
+    if response_has_current_turn_tool_evidence(response_tools) {
+        return false;
+    }
+    let response = clean_chat_text(response_text, 32_000);
+    let lowered = response.to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let hypothetical = [
+        "i would ",
+        "i'd ",
+        "i can ",
+        "i could ",
+        "i should ",
+        "would use",
+        "would choose",
+        "would run",
+        "would search",
+        "would inspect",
+        "would read",
+        "next i would",
+    ]
+    .iter()
+    .any(|needle| lowered.contains(*needle));
+    if hypothetical {
+        return false;
+    }
+    let mentions_tool_surface = [
+        "tool",
+        "web search",
+        "workspace",
+        "file search",
+        "file tooling",
+        "searched the files",
+        "searched files",
+        "read the file",
+        "opened the file",
+        "inspected the file",
+        "scanned the repo",
+        "searched the repo",
+        "terminal",
+        "command",
+    ]
+    .iter()
+    .any(|needle| lowered.contains(*needle));
+    let claims_execution = [
+        "i searched",
+        "i ran",
+        "i used",
+        "i called",
+        "i executed",
+        "i opened",
+        "i read",
+        "i inspected",
+        "i scanned",
+        "i found",
+        "tool ran",
+        "tool succeeded",
+        "tool completed",
+        "search returned",
+        "returned these",
+        "returned the following",
+    ]
+    .iter()
+    .any(|needle| lowered.contains(*needle));
+    let claims_listings = [
+        "files i found",
+        "file i found",
+        "found these files",
+        "found the following files",
+        "workspace results",
+        "search results",
+        "returned listings",
+        "listing",
+        "listings",
+    ]
+    .iter()
+    .any(|needle| lowered.contains(*needle));
+    (mentions_tool_surface && claims_execution) || claims_listings
+}
+
 fn response_contains_unrequested_content_without_tool_evidence(
     user_message: &str,
     response_text: &str,
@@ -116,6 +202,13 @@ fn response_contains_unrequested_content_without_tool_evidence(
         return false;
     }
     let lowered = cleaned.to_ascii_lowercase();
+    if response_claims_tool_success_without_current_turn_evidence(
+        user_message,
+        &cleaned,
+        response_tools,
+    ) {
+        return true;
+    }
     response_contains_stale_code_context_dump(user_message, &cleaned)
         || response_is_unrelated_context_dump(user_message, &cleaned)
         || response_contains_project_dump_sections(&cleaned)
@@ -214,6 +307,12 @@ fn final_response_guard_report(
             response_text,
             response_tools,
         );
+    let unsupported_tool_success_claim =
+        response_claims_tool_success_without_current_turn_evidence(
+            user_message,
+            response_text,
+            response_tools,
+        );
     let final_contamination_violation = repair_candidate_contamination
         || response_contains_stale_code_context_dump(user_message, response_text)
         || response_is_unrelated_context_dump(user_message, response_text)
@@ -224,6 +323,7 @@ fn final_response_guard_report(
             && !response_is_manual_toolbox_gate_choice(response_text))
         || response_contains_unexpected_state_retry_boilerplate(response_text)
         || visible_gate_choice_leakage
+        || unsupported_tool_success_claim
         || final_contamination_violation
         || current_turn_dominance_violation;
     json!({
@@ -234,15 +334,19 @@ fn final_response_guard_report(
             "contract": "unrequested_content_without_tool_evidence_v1",
             "detected": final_contamination_violation,
             "unsupported_content_detected": unsupported_content_contamination,
+            "unsupported_tool_success_claim": unsupported_tool_success_claim,
             "current_turn_tool_evidence": response_has_current_turn_tool_evidence(response_tools)
         },
+        "unsupported_tool_success_claim": unsupported_tool_success_claim,
         "final_contamination_violation": final_contamination_violation,
         "final_contract_violation": final_contract_violation
     })
 }
 
 fn final_response_guard_outcome(report: &Value) -> &'static str {
-    if response_guard_bool(report, "final_contamination_violation") {
+    if response_guard_bool(report, "unsupported_tool_success_claim") {
+        "unsupported_tool_success_claim_withheld"
+    } else if response_guard_bool(report, "final_contamination_violation") {
         "visible_response_contamination_withheld"
     } else if response_guard_bool(report, "current_turn_dominance_violation") {
         "current_turn_dominance_withheld"
