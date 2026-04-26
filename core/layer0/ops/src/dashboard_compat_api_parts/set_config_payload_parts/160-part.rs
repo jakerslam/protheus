@@ -891,6 +891,10 @@ fn natural_web_search_query_from_message(message: &str) -> Option<String> {
     let prefixes = [
         "try to web search ",
         "try web search ",
+        "use the web search tool to ",
+        "use the web search tool for ",
+        "use web search to ",
+        "use web search for ",
         "run a web search for ",
         "run web search for ",
         "run a web search ",

@@ -166,11 +166,21 @@ fn response_claims_tool_success_without_current_turn_evidence(
         "tool succeeded",
         "tool completed",
         "search returned",
+        "search found",
+        "returned no findings",
+        "returned no results",
+        "found no results",
+        "found no findings",
         "returned these",
         "returned the following",
     ]
     .iter()
     .any(|needle| lowered.contains(*needle));
+    let claims_empty_results = (lowered.contains("no findings")
+        || lowered.contains("no results")
+        || lowered.contains("didn't return")
+        || lowered.contains("did not return"))
+        && (lowered.contains("search") || lowered.contains("tool") || lowered.contains("workspace"));
     let claims_listings = [
         "files i found",
         "file i found",
@@ -184,7 +194,125 @@ fn response_claims_tool_success_without_current_turn_evidence(
     ]
     .iter()
     .any(|needle| lowered.contains(*needle));
-    (mentions_tool_surface && claims_execution) || claims_listings
+    (mentions_tool_surface && (claims_execution || claims_empty_results)) || claims_listings
+}
+
+fn response_has_gate_choice_prefix_leakage(response_text: &str) -> bool {
+    let lowered = clean_text(response_text, 2_000).to_ascii_lowercase();
+    let trimmed = lowered.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+    let starts_with_gate_token = trimmed.starts_with("yes,")
+        || trimmed.starts_with("yes.")
+        || trimmed.starts_with("yes ")
+        || trimmed.starts_with("no,")
+        || trimmed.starts_with("no.")
+        || trimmed.starts_with("no ");
+    if !starts_with_gate_token {
+        return false;
+    }
+    let after_token = trimmed
+        .strip_prefix("yes,")
+        .or_else(|| trimmed.strip_prefix("yes."))
+        .or_else(|| trimmed.strip_prefix("yes "))
+        .or_else(|| trimmed.strip_prefix("no,"))
+        .or_else(|| trimmed.strip_prefix("no."))
+        .or_else(|| trimmed.strip_prefix("no "))
+        .unwrap_or(trimmed)
+        .trim_start();
+    [
+        "tool family:",
+        "tool:",
+        "need tools:",
+        "use workflow:",
+        "selected tool",
+        "selected_tool",
+        "workflow gate",
+        "manual toolbox",
+    ]
+    .iter()
+    .any(|needle| after_token.starts_with(*needle))
+        || after_token.contains("request payload:")
+}
+
+fn natural_tool_choice_pending_request(response_text: &str, message: &str) -> Option<Value> {
+    let lowered = clean_text(response_text, 2_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return None;
+    }
+    let describes_choice = [
+        "i would choose",
+        "i would use",
+        "i'd choose",
+        "i'd use",
+        "i should choose",
+        "i should use",
+        "would choose",
+        "would use",
+        "would run",
+        "use the",
+    ]
+    .iter()
+    .any(|needle| lowered.contains(*needle));
+    let claims_execution = [
+        "i searched",
+        "i ran",
+        "i used",
+        "i called",
+        "i executed",
+        "returned",
+        "found",
+        "completed",
+        "succeeded",
+    ]
+    .iter()
+    .any(|needle| lowered.contains(*needle));
+    if !describes_choice || claims_execution {
+        return None;
+    }
+    let (tool_name, family, label, input) = if lowered.contains("web search")
+        || lowered.contains("batch_query")
+        || lowered.contains("web_search")
+    {
+        (
+            "batch_query",
+            "Web Search / Fetch",
+            "Web search",
+            json!({"source": "web", "query": clean_text(message, 600), "aperture": "medium"}),
+        )
+    } else if lowered.contains("workspace_search")
+        || lowered.contains("workspace search")
+        || lowered.contains("file search")
+        || lowered.contains("file tooling")
+    {
+        (
+            "workspace_search",
+            "File / Workspace",
+            "Search workspace",
+            json!({"path": ".", "pattern": clean_text(message, 600)}),
+        )
+    } else {
+        return None;
+    };
+    let receipt_binding = crate::deterministic_receipt_hash(&json!({
+        "type": "manual_toolbox_pending_tool_request",
+        "source": "natural_tool_choice",
+        "tool_name": tool_name,
+        "input": input,
+        "message": clean_text(message, 600)
+    }));
+    Some(json!({
+        "status": "pending_confirmation",
+        "source": "natural_tool_choice",
+        "tool_name": tool_name,
+        "selected_tool_family": family,
+        "selected_tool_label": label,
+        "input": input,
+        "receipt_binding": receipt_binding,
+        "chat_injection_allowed": false,
+        "execution_claim_allowed": false
+    }))
 }
 
 fn response_contains_unrequested_content_without_tool_evidence(
@@ -317,7 +445,8 @@ fn final_response_guard_report(
         || response_contains_stale_code_context_dump(user_message, response_text)
         || response_is_unrelated_context_dump(user_message, response_text)
         || unsupported_content_contamination;
-    let visible_gate_choice_leakage = response_is_visible_workflow_gate_choice(response_text);
+    let visible_gate_choice_leakage = response_is_visible_workflow_gate_choice(response_text)
+        || response_has_gate_choice_prefix_leakage(response_text);
     let final_contract_violation = response_fails_base_final_answer_contract(response_text)
         || (workflow_response_requests_more_tooling(response_text)
             && !response_is_manual_toolbox_gate_choice(response_text))
