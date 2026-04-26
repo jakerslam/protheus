@@ -1,6 +1,7 @@
 {
   "name": "plan_execute_review",
   "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
   "default": false,
   "description": "Plan and execution template used for mutation/task proposal turns that require explicit sequencing and closure review.",
   "stages": [

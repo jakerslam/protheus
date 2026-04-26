@@ -97,11 +97,31 @@
           "turn_id": "web_001",
           "user_message": "Use web search to compare infring to other major agentic frameworks in April 2026.",
           "mock_response": {
-            "response": "I would choose the web search tool for current framework comparison, then synthesize the results after the tool returns.",
+            "response": "I would choose web search for a current framework comparison, then synthesize from the returned evidence.",
+            "pending_tool_request": {
+              "status": "pending_confirmation",
+              "source": "natural_tool_choice",
+              "tool_name": "batch_query",
+              "selected_tool_family": "Web Search / Fetch",
+              "selected_tool_label": "Web search",
+              "input": {
+                "source": "web",
+                "query": "Use web search to compare infring to other major agentic frameworks in April 2026.",
+                "aperture": "medium"
+              },
+              "receipt_binding": "fixture-web-pending-tool-request",
+              "chat_injection_allowed": false,
+              "execution_claim_allowed": false
+            },
             "response_workflow": {
               "selected_workflow": {
                 "id": "tool_menu_v1",
                 "gate_contract": "tool_menu_interface_v1"
+              },
+              "pending_tool_request": {
+                "status": "pending_confirmation",
+                "tool_name": "batch_query",
+                "execution_claim_allowed": false
               },
               "stage_statuses": [
                 {
@@ -122,7 +142,9 @@
             "required_substrings": ["web search"],
             "require_workflow_visibility": true,
             "require_live_eval_monitor": true,
-            "forbid_gate_choice_leakage": true
+            "forbid_gate_choice_leakage": true,
+            "require_tool_progress": true,
+            "forbid_unresolved_tool_need_without_progress": true
           }
         }
       ]
@@ -134,11 +156,30 @@
           "turn_id": "file_001",
           "user_message": "Find the workflow files in the workspace and tell me which one is active.",
           "mock_response": {
-            "response": "I would choose the workspace search or file tooling path, inspect the workflow files, and report the active workflow from the evidence.",
+            "response": "I would choose workspace search to inspect the workflow files, then report the active workflow from evidence.",
+            "pending_tool_request": {
+              "status": "pending_confirmation",
+              "source": "natural_tool_choice",
+              "tool_name": "workspace_search",
+              "selected_tool_family": "File / Workspace",
+              "selected_tool_label": "Search workspace",
+              "input": {
+                "path": ".",
+                "pattern": "Find the workflow files in the workspace and tell me which one is active."
+              },
+              "receipt_binding": "fixture-workspace-pending-tool-request",
+              "chat_injection_allowed": false,
+              "execution_claim_allowed": false
+            },
             "response_workflow": {
               "selected_workflow": {
                 "id": "tool_menu_v1",
                 "gate_contract": "tool_menu_interface_v1"
+              },
+              "pending_tool_request": {
+                "status": "pending_confirmation",
+                "tool_name": "workspace_search",
+                "execution_claim_allowed": false
               },
               "stage_statuses": [
                 {
@@ -159,7 +200,9 @@
             "required_substrings": ["workspace search"],
             "require_workflow_visibility": true,
             "require_live_eval_monitor": true,
-            "forbid_gate_choice_leakage": true
+            "forbid_gate_choice_leakage": true,
+            "require_tool_progress": true,
+            "forbid_unresolved_tool_need_without_progress": true
           }
         }
       ]

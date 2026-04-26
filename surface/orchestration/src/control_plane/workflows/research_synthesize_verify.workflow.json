@@ -1,6 +1,7 @@
 {
   "name": "research_synthesize_verify",
   "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
   "default": false,
   "description": "Research and synthesis template used for evidence-heavy retrieval turns and mixed tooling/web/workspace analysis.",
   "stages": [

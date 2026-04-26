@@ -113,6 +113,7 @@ const GRADUATION_BLOCKING_EVIDENCE_KEYS = [
   'fail_closed_proof',
   'receipt_completeness',
 ] as const;
+const CORE_GATEWAY_MANIFEST_ALIAS_PATH = 'core/local/artifacts/gateway_manifest.json';
 
 function normalizeStringArray(raw: unknown, maxLen = 80): string[] {
   return Array.isArray(raw)
@@ -767,6 +768,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     failures,
   };
 
+  writeJson(path.resolve(root, CORE_GATEWAY_MANIFEST_ALIAS_PATH), payload);
   writeJson(path.resolve(root, args.snapshotPath), snapshot);
   writeMarkdown(path.resolve(root, args.snapshotMarkdownPath), renderSnapshotMarkdown(snapshot));
   writeMarkdown(path.resolve(root, args.markdownPath), renderMarkdown(payload));

@@ -1,5 +1,5 @@
 include!("network_protocol_run_parts/010-contribution-history-path.rs");
-include!("network_protocol_run_parts/020-placeholder.rs");
+include!("network_protocol_run_parts/020-web-tooling-health-signals.rs");
 
 fn network_web_tooling_runtime_path(root: &std::path::Path) -> std::path::PathBuf {
     super::state_root(root).join("web_tooling_runtime.json")

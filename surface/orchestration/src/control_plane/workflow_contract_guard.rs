@@ -55,6 +55,9 @@ pub fn run_workflow_contract_guard(args: &[String]) -> i32 {
         "summary": {
             "workflow_count": validations.len(),
             "valid_workflows": validations.iter().filter(|row| row.ok).count(),
+            "assistant_response_workflows": graphs.iter().filter(|row| row.workflow_role == "assistant_response_workflow").count(),
+            "assimilation_workflow_templates": graphs.iter().filter(|row| row.workflow_role == "assimilation_workflow_template").count(),
+            "assimilation_subtemplates": graphs.iter().map(|row| row.subtemplate_count).sum::<usize>(),
             "tool_family_contracts": REQUIRED_TOOL_FAMILIES.len(),
             "runtime_replay_fixtures": replay_reports.len(),
             "system_chat_injection_allowed": false,
@@ -97,6 +100,10 @@ fn build_checks(
     let parity_map = read_text(PARITY_MAP_PATH);
     vec![
         json!({"id": "workflow_json_compiles_to_typed_graphs", "ok": !graphs.is_empty() && validations.iter().all(|row| row.ok), "detail": format!("graphs={};workflows={}", graphs.len(), validations.len())}),
+        json!({"id": "workflow_role_typing_contract", "ok": graphs.iter().all(workflow_role_ok), "detail": "workflow_role must be assistant_response_workflow or assimilation_workflow_template"}),
+        json!({"id": "assistant_workflow_presence_contract", "ok": graphs.iter().any(|row| row.workflow_role == "assistant_response_workflow"), "detail": "at least one assistant-response workflow must remain available"}),
+        json!({"id": "assimilation_template_role_contract", "ok": graphs.iter().filter(|row| row.workflow_id.contains("assimilation") || row.workflow_id.contains("codex") || row.workflow_id.contains("forgecode") || row.workflow_id.contains("openhands")).all(|row| row.workflow_role == "assimilation_workflow_template"), "detail": "assimilation/codex/forgecode/openhands workflow specs must not masquerade as normal assistant response workflows"}),
+        json!({"id": "assimilation_template_structure_contract", "ok": graphs.iter().all(assimilation_template_structure_ok), "detail": "assimilation templates must declare at least one subtemplate and assistant-response workflows must not carry assimilation subtemplates"}),
         json!({"id": "structured_gate_contract", "ok": graphs.iter().all(|row| row.gate_contract.allowed_input_shapes == ["multiple_choice", "text_input"] && row.gate_contract.resume_token_required), "detail": "gates expose only multiple_choice or text_input with resume tokens"}),
         json!({"id": "tool_family_contracts_complete", "ok": tool_contracts_cover_required(tool_contracts), "detail": format!("families={}", tool_contracts.len())}),
         json!({"id": "run_budget_and_terminal_contract", "ok": graphs.iter().all(run_budget_ok), "detail": "terminal states and bounded run budgets required"}),
@@ -109,6 +116,31 @@ fn build_checks(
         json!({"id": "workflow_format_policy_contract", "ok": format_policy.contains("typed_execution_contract") && format_policy.contains("llm_final_only_no_system_injection"), "detail": FORMAT_POLICY_PATH}),
         json!({"id": "control_plane_parity_map_contract", "ok": all_present(&parity_map, &["OpenHands", "OpenFang", "Infring", "surface/orchestration/src", "event-sourced action/observation"]), "detail": PARITY_MAP_PATH}),
     ]
+}
+
+fn workflow_role_ok(graph: &NormalizedWorkflowGraph) -> bool {
+    graph.workflow_type == "control_plane_orchestration_workflow"
+        && matches!(
+            graph.workflow_role.as_str(),
+            "assistant_response_workflow" | "assimilation_workflow_template"
+        )
+        && if graph.workflow_role == "assimilation_workflow_template" {
+            graph.workflow_id.contains("assimilation")
+                || graph.workflow_id.contains("synthesis")
+                || graph.workflow_id.contains("codex")
+                || graph.workflow_id.contains("forgecode")
+                || graph.workflow_id.contains("openhands")
+        } else {
+            !graph.workflow_id.contains("assimilation")
+        }
+}
+
+fn assimilation_template_structure_ok(graph: &NormalizedWorkflowGraph) -> bool {
+    if graph.workflow_role == "assimilation_workflow_template" {
+        graph.subtemplate_count > 0
+    } else {
+        graph.subtemplate_count == 0
+    }
 }
 
 fn runtime_budget_ok(report: &WorkflowReplayReport) -> bool {

@@ -1035,7 +1035,6 @@ fn canonical_requested_tool_name(raw: &str) -> String {
         | "shared_clients_requesty"
         | "shared_cline_rules"
         | "shared_cline_api"
-        | "shared_cline_banner"
         | "shared_cline_index"
         | "shared_cline_onboarding"
         | "shared_combine_api_requests"

@@ -978,6 +978,25 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       row.revision_match !== false &&
       row.blocking_not_ok,
   ).length;
+  const blockingQualityReportRows = qualityTaxonomyRows.filter(
+    (row) => row.payload_ok === false && row.revision_match !== false && row.blocking_not_ok,
+  );
+  const transientQualityReportRows = qualityTaxonomyRows.filter(
+    (row) => row.payload_ok === false && row.revision_match !== false && row.transient_not_ok,
+  );
+  const qualityOperatorNextActions = [
+    ...blockingQualityReportRows.map((row) => ({
+      severity: 'release_blocking',
+      artifact: row.path,
+      action: `repair or refresh blocking quality artifact ${row.path}`,
+    })),
+    ...transientQualityReportRows.map((row) => ({
+      severity: 'transient',
+      artifact: row.path,
+      action: `refresh transient quality artifact ${row.path}`,
+      reason: row.transient_reason || '',
+    })),
+  ];
   const qualityReportReadErrorCount = qualityTaxonomyRows.filter((row) => !row.ok).length;
   const runtimeLaneCounters = runtimeLaneStateRaw.payload?.release_gate_counters || {};
   const runtimeLanePauseCounts = runtimeLaneCounters.pause_reason_counts || {};
@@ -1001,6 +1020,9 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     quality_report_not_ok_raw_count: qualityReportNotOkRawCount,
     quality_report_transient_not_ok_count: qualityReportTransientNotOkCount,
     quality_report_not_ok_count: qualityReportNotOkCount,
+    quality_report_blocking_paths: blockingQualityReportRows.map((row) => row.path),
+    quality_report_transient_paths: transientQualityReportRows.map((row) => row.path),
+    quality_report_operator_next_actions: qualityOperatorNextActions,
     quality_report_read_error_count: qualityReportReadErrorCount,
     quality_reports_total: qualityTaxonomyRows.length,
     quality_denied_actions: Number(runtimeLaneCounters.denied_actions_total || 0),
@@ -1440,9 +1462,78 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       support_runs_total: supportRuns.length,
       support_runs_refreshed: supportRuns.filter((row) => row.refreshed).length,
       support_runs_reused: supportRuns.filter((row) => !row.refreshed).length,
+      blocking_quality_report_count: blockingQualityReportRows.length,
+      blocking_quality_report_paths: blockingQualityReportRows.map((row) => row.path),
+      transient_quality_report_count: transientQualityReportRows.length,
+      transient_quality_report_paths: transientQualityReportRows.map((row) => row.path),
+      operator_next_actions: qualityOperatorNextActions,
     },
+    operator_summary: {
+      pass: failures.length === 0,
+      failure_count: failures.length,
+      primary_failure: failures[0]?.id || '',
+      blocking_quality_report_count: blockingQualityReportRows.length,
+      blocking_quality_report_paths: blockingQualityReportRows.map((row) => row.path),
+      transient_quality_report_count: transientQualityReportRows.length,
+      transient_quality_report_paths: transientQualityReportRows.map((row) => row.path),
+      issue_candidate_ready: failures.length > 0,
+      next_actions: qualityOperatorNextActions,
+    },
+    issue_candidate: failures.length === 0
+      ? null
+      : {
+          type: 'runtime_proof_release_gate_issue_candidate',
+          schema_version: 1,
+          generated_at: new Date().toISOString(),
+          status: 'candidate',
+          source: 'runtime_proof_release_gate',
+          fingerprint: `runtime_proof_release_gate:${args.profile}:${failures.map((row) => row.id).join('|')}`,
+          dedupe_key: `runtime_proof_release_gate:${args.profile}:${failures.map((row) => row.id).join('|')}`,
+          owner: 'runtime_proof/release_gate',
+          route_to: 'release_blocker_backlog',
+          title: `Runtime proof release gate failed for ${args.profile}`,
+          severity: 'release_blocking',
+          labels: ['runtime-proof', 'release-gate', args.profile],
+          impact: 'release evidence is not trustworthy enough to publish this profile',
+          profile: args.profile,
+          primary_failure: failures[0]?.id || '',
+          failure_count: failures.length,
+          blocking_quality_report_paths: blockingQualityReportRows.map((row) => row.path),
+          source_artifacts: [args.harnessPath, args.gatewayChaosPath, ...args.qualityPaths],
+          next_actions: qualityOperatorNextActions,
+          triage: {
+            state: 'ready_for_issue_synthesis',
+            safe_to_auto_file_issue: true,
+            safe_to_auto_apply_patch: false,
+            requires_release_authority_receipt_to_close: true,
+          },
+          automation_policy: {
+            mode: 'proposal_only',
+            requires_release_authority_receipt_before_apply: true,
+            autonomous_release_unblock_allowed: false,
+          },
+          acceptance_criteria: [
+            'runtime proof release gate passes for the profile',
+            'blocking quality report count is zero',
+            'empirical sample points satisfy the selected proof track',
+            'required runtime proof metric keys are present',
+          ],
+        },
     profile_requirements: profileRequirements,
     effective_policy: profileRequirements,
+    issue_candidate_contract: {
+      candidate_schema_version: 1,
+      safe_to_auto_file_issue: true,
+      safe_to_auto_apply_patch: false,
+      release_authority_receipt_required_to_close: true,
+    },
+    unlock_contract: {
+      issue_candidate_ready: failures.length > 0,
+      primary_failure: failures[0]?.id || '',
+      blocking_quality_report_paths: blockingQualityReportRows.map((row) => row.path),
+      next_actions: qualityOperatorNextActions,
+      operator_can_unlock_by_following_next_actions: true,
+    },
     synthetic_metrics: {
       sample_points: syntheticSamplePoints,
       metrics: syntheticMetrics,
@@ -1461,6 +1552,17 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       metrics,
       metric_sources: effectiveMetricSources,
     },
+    quality_report_statuses: qualityTaxonomyRows.map((row) => ({
+      path: row.path,
+      read_ok: row.ok,
+      payload_ok: row.payload_ok === true ? true : row.payload_ok === false ? false : null,
+      revision_match:
+        row.revision_match === true ? true : row.revision_match === false ? false : null,
+      blocking_not_ok: row.blocking_not_ok === true,
+      transient_not_ok: row.transient_not_ok === true,
+      transient_reason: row.transient_reason || '',
+    })),
+    operator_next_actions: qualityOperatorNextActions,
     checks,
     failures,
     artifact_paths: [args.metricsOutPath, args.tableOutPath],

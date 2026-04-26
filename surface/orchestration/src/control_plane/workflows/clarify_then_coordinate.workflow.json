@@ -1,6 +1,7 @@
 {
   "name": "clarify_then_coordinate",
   "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
   "default": false,
   "description": "Clarification-first control-plane template used when request intent is ambiguous or clarification is mandatory before execution.",
   "stages": [

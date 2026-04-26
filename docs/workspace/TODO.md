@@ -3,15 +3,16 @@
 Updated: 2026-04-26T04:07:02.969Z
 
 ## Global Rollup
-- total_rows: 3859
+- total_rows: 3860
 - queued: 78
-- in_progress: 17
+- in_progress: 18
 - blocked: 1
 - blocked_external_prepared: 32
 - done: 1452
 - existing_coverage_validated: 2279
 
 ## SRS Section Checklist
+- [ ] System Truth Closure ROI Wave (2026-04-26) — queued=0, in_progress=1, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
 - [ ] Eval Feedback Lifecycle Governance (2026-04-25) — queued=0, in_progress=1, blocked=0, blocked_external_prepared=0, done=27, existing_coverage_validated=0
 - [x] Kernel Sentinel Self-Study Automation Backlog (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=15, existing_coverage_validated=0
 - [x] Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=45, existing_coverage_validated=0
@@ -721,6 +722,7 @@ Updated: 2026-04-26T04:07:02.969Z
 - [ ] `V11-FILE-003` — in_progress — File Read Reliability Intake (2026-04-06)
 - [ ] `V11-TURNLOOP-016` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V12-FORGECODE-001` — in_progress — ForgeCode MCP/Retry Workflow Assimilation Increment (2026-04-23)
+- [ ] `V13-SYS-ROI-CLOSURE-001` — in_progress — System Truth Closure ROI Wave (2026-04-26); latest ROI slices added issue-candidate ownership/impact/target-layer/evidence-source/release-gate effect/closing evidence/escalation/stability/operator-next-step/triage queue/human-review/no-autopatch/reopen policy, live-eval source issue candidates with dedupe/labels/closeout/operator/triage evidence, and ranked/deduped proof-pack blocker priority, owner, layer, escalation, triage queue, release-gate effect, safety, actionability contracts, issue-contract versioning, source-report identity, operator ack requirements, close-on-absence semantics, lifecycle state, source artifact provenance, local-artifact hygiene, related failure IDs, closure verification commands, and top actions
 - [ ] `V13-EVAL-FEEDBACK-LIFECYCLE-001` — in_progress — Eval Feedback Lifecycle Governance (2026-04-25)
 - [ ] `V6-AUDIT-014` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
 - [ ] `V6-CONDUIT-002.5` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
@@ -783,4 +785,3 @@ Updated: 2026-04-26T04:07:02.969Z
 - npm run -s ops:srs:top200:regression
 - npm run -s test:ops:srs-contract-runtime-evidence
 - ./verify.sh
-

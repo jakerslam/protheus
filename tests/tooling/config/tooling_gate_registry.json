@@ -323,7 +323,54 @@
       "timeout_sec": 120,
       "script": "ops:kernel-sentinel:release-gate",
       "artifact_paths": [
-        "core/local/artifacts/kernel_sentinel_auto_run_current.json"
+        "core/local/artifacts/kernel_sentinel_auto_run_current.json",
+        "local/state/kernel_sentinel/kernel_sentinel_report_current.json",
+        "local/state/kernel_sentinel/kernel_sentinel_verdict.json",
+        "local/state/kernel_sentinel/feedback_inbox.jsonl",
+        "local/state/kernel_sentinel/trend_history.jsonl",
+        "local/state/kernel_sentinel/sentinel_trend_report_current.json",
+        "local/state/kernel_sentinel/rsi_readiness_summary_current.json",
+        "local/state/kernel_sentinel/top_system_holes_current.json",
+        "local/state/kernel_sentinel/issues.jsonl",
+        "local/state/kernel_sentinel/suggestions.jsonl",
+        "local/state/kernel_sentinel/automation_candidates.jsonl",
+        "local/state/kernel_sentinel/daily_report.md"
+      ]
+    },
+    "ops:issue-candidate:contract:guard": {
+      "owner": "ops",
+      "description": "Issue candidate lifecycle, safety, dedupe, and routing contract guard for eval, Sentinel, runtime proof, and release proof-pack issue emitters.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/issue_candidate_contract_guard.ts",
+        "--strict=1",
+        "--out=core/local/artifacts/issue_candidate_contract_guard_current.json",
+        "--out-markdown=local/workspace/reports/ISSUE_CANDIDATE_CONTRACT_GUARD_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/issue_candidate_contract_guard_current.json",
+        "local/workspace/reports/ISSUE_CANDIDATE_CONTRACT_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:issue-candidate:backlog:assemble": {
+      "owner": "ops",
+      "description": "Deduped issue-candidate backlog assembler for Sentinel, eval, runtime-proof, and release proof-pack issue emitters.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/issue_candidate_backlog_assemble.ts",
+        "--strict=1",
+        "--out=core/local/artifacts/issue_candidate_backlog_current.json",
+        "--out-markdown=local/workspace/reports/ISSUE_CANDIDATE_BACKLOG_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/issue_candidate_backlog_current.json",
+        "local/workspace/reports/ISSUE_CANDIDATE_BACKLOG_CURRENT.md"
       ]
     },
     "ops:ipc-bridge:soak": {
@@ -1042,6 +1089,7 @@
         "artifacts/workspace_tooling_context_soak_report_latest.json",
         "artifacts/workspace_tooling_soak_report_latest.json",
         "artifacts/workspace_tooling_reliability_latest.json",
+        "core/local/artifacts/workspace_tooling_context_soak_report_latest.json",
         "core/local/artifacts/workspace_tooling_context_soak_current.json",
         "core/local/artifacts/workspace_tooling_soak_current.json",
         "core/local/artifacts/workspace_tooling_reliability_current.json",
@@ -1144,6 +1192,7 @@
       "timeout_sec": 90,
       "script": "ops:gateway-status:manifest",
       "artifact_paths": [
+        "core/local/artifacts/gateway_manifest.json",
         "core/local/artifacts/gateway_status_manifest_current.json",
         "core/local/artifacts/gateway_graduation_status_snapshot_current.json",
         "local/workspace/reports/GATEWAY_GRADUATION_STATUS_SNAPSHOT_CURRENT.md",
@@ -1440,6 +1489,7 @@
       "timeout_sec": 90,
       "script": "ops:layer2:parity:guard",
       "artifact_paths": [
+        "core/local/artifacts/layer2_parity_matrix.json",
         "core/local/artifacts/layer2_lane_parity_guard_current.json",
         "local/workspace/reports/LAYER2_LANE_PARITY_GUARD_CURRENT.md"
       ]
