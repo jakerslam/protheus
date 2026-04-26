@@ -240,6 +240,7 @@
 
     <!-- Page: Sessions -->
     <template x-if="page === 'sessions'">
+      <infring-sessions-page-shell>
       <div x-data="sessionsPage">
         <div class="page-header manage-sessions-header">
           <div class="manage-sessions-header-left">
@@ -249,9 +250,11 @@
               <div class="tab" role="tab" :class="{ active: page === 'approvals' }" @click="navigate('approvals')">Approvals</div>
             </div>
           </div>
+          <infring-sessions-filter-controls-shell>
           <div class="manage-sessions-header-filter" x-show="tab === 'sessions'">
             <input class="form-input" placeholder="Filter by agent..." x-model="searchFilter">
           </div>
+          </infring-sessions-filter-controls-shell>
         </div>
         <div class="tabs">
           <div class="tab" :class="{ active: tab === 'sessions' }" @click="tab = 'sessions'">Sessions</div>
@@ -259,6 +262,7 @@
         </div>
         <div class="page-body" x-init="loadSessions()">
           <!-- Sessions tab -->
+          <infring-sessions-conversation-tab-shell>
           <div x-show="tab === 'sessions'">
             <div x-show="loading" class="loading-state"><div class="spinner"></div><span>Loading sessions...</span></div>
             <div x-show="!loading && loadError" class="error-state">
@@ -303,8 +307,10 @@
             <infring-chat-stream-shell class="empty-state" x-show="!filteredSessions.length && searchFilter"><p>No sessions match your filter.</p></infring-chat-stream-shell>
             </div>
           </div>
+          </infring-sessions-conversation-tab-shell>
 
           <!-- Memory tab -->
+          <infring-sessions-memory-tab-shell>
           <div x-show="tab === 'memory'">
             <div class="flex justify-between items-center mb-4">
               <div class="info-card" style="flex:1;margin-bottom:0">
@@ -382,8 +388,10 @@
               <p class="hint">Choose an agent from the dropdown above to browse and edit its memory store.</p>
             </infring-chat-stream-shell>
           </div>
+          </infring-sessions-memory-tab-shell>
         </div>
       </div>
+      </infring-sessions-page-shell>
     </template>
 
     <!-- Page: Logs -->

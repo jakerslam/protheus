@@ -168,6 +168,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
 
     <!-- Page: Hands -->
     <template x-if="page === 'hands'">
+      <infring-hands-page-shell>
       <div x-data="handsPage">
         <div class="page-header page-header-subtabs-center">
           <div class="tabs mt-3" role="tablist">
@@ -202,6 +203,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
             </div>
 
             <!-- TAB: Available Hands -->
+            <infring-hands-available-tab-shell>
             <div x-show="tab === 'available'">
               <div class="card-grid" x-show="hands.length">
                 <template x-for="hand in hands" :key="hand.id">
@@ -249,8 +251,10 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
                 <p>Hands are curated AI capability packages. They will appear once the kernel loads bundled hands.</p>
               </infring-chat-stream-shell>
             </div>
+            </infring-hands-available-tab-shell>
 
             <!-- TAB: Active Instances -->
+            <infring-hands-active-tab-shell>
             <div x-show="tab === 'active'">
               <div x-show="activeLoading" class="loading-state"><div class="spinner"></div><span>Loading active hands...</span></div>
               <div class="card-grid" x-show="instances.length && !activeLoading">
@@ -305,6 +309,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
                 <button class="btn btn-primary mt-4" @click="tab = 'available'">Browse Hands</button>
               </infring-chat-stream-shell>
             </div>
+            </infring-hands-active-tab-shell>
 
             <!-- Detail Modal -->
             <template x-if="detailHand">
