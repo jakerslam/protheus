@@ -11,6 +11,7 @@ const DEFAULT_STREAM_PATH: &str = "local/state/ops/eval/live_eval_stream.jsonl";
 const DEFAULT_OUT_PATH: &str = "core/local/artifacts/live_eval_current.json";
 const DEFAULT_LATEST_PATH: &str = "artifacts/live_eval_latest.json";
 const DEFAULT_REPORT_PATH: &str = "local/workspace/reports/LIVE_EVAL_CURRENT.md";
+const SOURCE_HEALTH_ISSUE_MIN_OCCURRENCES: u64 = 2;
 
 #[derive(Debug, Clone, Deserialize)]
 struct LiveEvalPolicy {
@@ -132,10 +133,23 @@ fn load_policy(path: &str) -> Result<LiveEvalPolicy, String> {
     serde_json::from_str(&raw).map_err(|err| err.to_string())
 }
 
+fn read_jsonl(path: &str) -> Vec<Value> {
+    fs::read_to_string(path)
+        .ok()
+        .map(|raw| {
+            raw.lines()
+                .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 fn build_live_eval_report(policy: &LiveEvalPolicy, stream_path: &str) -> LiveEvalReport {
     let generated_unix_seconds = now_unix_seconds();
     let sources: Vec<SourceObservation> =
         policy.sample_sources.iter().map(observe_source).collect();
+    let previous_reports = read_jsonl(stream_path);
+    let source_health = source_health(&sources, &previous_reports);
     let metrics = derive_metrics(&sources);
     let drift_findings = drift_findings(policy, &metrics);
     let mitigations = policy
@@ -186,16 +200,16 @@ fn build_live_eval_report(policy: &LiveEvalPolicy, stream_path: &str) -> LiveEva
         },
         CheckRow {
             id: "live_eval_source_health_not_critical_contract".to_string(),
-            ok: source_health(&sources)
+            ok: source_health
                 .get("state")
                 .and_then(Value::as_str)
                 != Some("critical"),
-            detail: format!("source_health={}", source_health(&sources)),
+            detail: format!("source_health={}", source_health),
         },
         CheckRow {
             id: "live_eval_source_issue_candidate_actionability_contract".to_string(),
-            ok: source_health_issue_candidate_ok(&source_health(&sources)),
-            detail: format!("source_health={}", source_health(&sources)),
+            ok: source_health_issue_candidate_ok(&source_health),
+            detail: format!("source_health={}", source_health),
         },
         CheckRow {
             id: "live_eval_stream_append_only_contract".to_string(),
@@ -220,7 +234,7 @@ fn build_live_eval_report(policy: &LiveEvalPolicy, stream_path: &str) -> LiveEva
         schema_version: 1,
         generated_unix_seconds,
         stream_path: stream_path.to_string(),
-        source_health: source_health(&sources),
+        source_health: source_health.clone(),
         sources,
         metrics,
         drift_findings,
@@ -229,7 +243,7 @@ fn build_live_eval_report(policy: &LiveEvalPolicy, stream_path: &str) -> LiveEva
     }
 }
 
-fn source_health(sources: &[SourceObservation]) -> Value {
+fn source_health(sources: &[SourceObservation], previous_reports: &[Value]) -> Value {
     let required_total = sources.iter().filter(|source| source.required).count();
     let required_present = sources
         .iter()
@@ -273,6 +287,14 @@ fn source_health(sources: &[SourceObservation]) -> Value {
     let primary_blocker =
         source_health_blocker(required_total, required_present, required_passing, optional_failed);
     let blocking_source_count = missing_required_sources.len() + failed_required_sources.len();
+    let dedupe_key = format!("live_eval_source_health:{primary_blocker}:{blocking_source_count}");
+    let stable_signature_occurrence_count = if health_state == "critical" {
+        source_health_signature_occurrences(previous_reports, dedupe_key.as_str()).saturating_add(1)
+    } else {
+        0
+    };
+    let issue_candidate_ready = health_state == "critical"
+        && stable_signature_occurrence_count >= SOURCE_HEALTH_ISSUE_MIN_OCCURRENCES;
     json!({
         "state": health_state,
         "primary_blocker": primary_blocker,
@@ -282,8 +304,17 @@ fn source_health(sources: &[SourceObservation]) -> Value {
         "release_gate_effect": source_health_release_gate_effect(health_state),
         "triage_queue": source_health_triage_queue(primary_blocker),
         "blocking_source_count": blocking_source_count,
-        "issue_candidate_ready": health_state == "critical",
-        "issue_candidate": source_health_issue_candidate(health_state, primary_blocker, blocking_source_count),
+        "dedupe_key": dedupe_key,
+        "stable_signature_occurrence_count": stable_signature_occurrence_count,
+        "minimum_issue_candidate_occurrences": SOURCE_HEALTH_ISSUE_MIN_OCCURRENCES,
+        "issue_candidate_ready": issue_candidate_ready,
+        "issue_candidate": source_health_issue_candidate(
+            health_state,
+            primary_blocker,
+            blocking_source_count,
+            stable_signature_occurrence_count,
+            issue_candidate_ready,
+        ),
         "required_total": required_total,
         "required_present": required_present,
         "required_passing": required_passing,
@@ -297,6 +328,19 @@ fn source_health(sources: &[SourceObservation]) -> Value {
         "failed_optional_sources": failed_optional_sources,
         "optional_presence_ratio": ratio(optional_present, optional_total)
     })
+}
+
+fn source_health_signature_occurrences(previous_reports: &[Value], dedupe_key: &str) -> u64 {
+    previous_reports
+        .iter()
+        .filter(|report| {
+            report
+                .pointer("/source_health/dedupe_key")
+                .or_else(|| report.pointer("/source_health/issue_candidate/dedupe_key"))
+                .and_then(Value::as_str)
+                == Some(dedupe_key)
+        })
+        .count() as u64
 }
 
 fn source_health_blocker(
@@ -402,6 +446,8 @@ fn source_health_issue_candidate(
     health_state: &str,
     primary_blocker: &str,
     blocking_source_count: usize,
+    stable_signature_occurrence_count: u64,
+    issue_candidate_ready: bool,
 ) -> Value {
     if health_state != "critical" {
         return json!({});
@@ -423,6 +469,10 @@ fn source_health_issue_candidate(
         "dedupe_key": format!("live_eval_source_health:{primary_blocker}:{blocking_source_count}"),
         "failure_class": primary_blocker,
         "blocking_source_count": blocking_source_count,
+        "stable_signature_occurrence_count": stable_signature_occurrence_count,
+        "minimum_issue_candidate_occurrences": SOURCE_HEALTH_ISSUE_MIN_OCCURRENCES,
+        "issue_candidate_ready": issue_candidate_ready,
+        "issue_candidate_reason": if issue_candidate_ready { "repeated_live_eval_source_health_signature" } else { "awaiting_repeated_stable_signature" },
         "safe_to_auto_file_issue": true,
         "safe_to_auto_apply_patch": false,
         "human_review_required": true,
@@ -797,5 +847,59 @@ mod tests {
         assert_eq!(metrics.get("kernel_block_routes"), Some(&1));
         assert_eq!(metrics.get("gateway_quarantine_routes"), Some(&2));
         assert_eq!(metrics.get("control_plane_retry_routes"), Some(&3));
+    }
+
+    #[test]
+    fn critical_source_health_waits_for_repeated_stable_signature() {
+        let source = SourceObservation {
+            id: "eval_feedback_router".to_string(),
+            path: "missing.json".to_string(),
+            present: false,
+            required: true,
+            ok: None,
+            summary: json!({}),
+        };
+        let health = source_health(&[source], &[]);
+
+        assert_eq!(health.get("state").and_then(Value::as_str), Some("critical"));
+        assert_eq!(
+            health.get("issue_candidate_ready").and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            health
+                .pointer("/issue_candidate/issue_candidate_reason")
+                .and_then(Value::as_str),
+            Some("awaiting_repeated_stable_signature")
+        );
+    }
+
+    #[test]
+    fn repeated_critical_source_health_becomes_issue_ready() {
+        let source = SourceObservation {
+            id: "eval_feedback_router".to_string(),
+            path: "missing.json".to_string(),
+            present: false,
+            required: true,
+            ok: None,
+            summary: json!({}),
+        };
+        let previous = json!({
+            "source_health": {
+                "dedupe_key": "live_eval_source_health:missing_required_source:1"
+            }
+        });
+        let health = source_health(&[source], &[previous]);
+
+        assert_eq!(
+            health.get("issue_candidate_ready").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            health
+                .pointer("/issue_candidate/stable_signature_occurrence_count")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
     }
 }

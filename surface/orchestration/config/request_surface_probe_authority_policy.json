@@ -1,0 +1,53 @@
+{
+  "type": "request_surface_probe_authority_policy",
+  "schema_version": 1,
+  "summary": "Non-legacy adapted request surfaces are probe-authoritative: SDK, gateway, dashboard, and typed CLI requests must use CoreProbeEnvelope authority and must not infer missing transport or policy probes from payload shortcuts or heuristics.",
+  "authority_source": "core_probe_envelope",
+  "canonical_probe_fields": [
+    "tool_available",
+    "transport_available",
+    "policy_allows"
+  ],
+  "adapted_surfaces": {
+    "sdk": {
+      "probe_authoritative": true,
+      "payload_probe_shortcuts_allowed": false,
+      "heuristic_probe_fallback_allowed": false,
+      "missing_transport_probe_behavior": "refuse_missing_transport_probe",
+      "missing_policy_probe_behavior": "refuse_missing_policy_probe"
+    },
+    "gateway": {
+      "probe_authoritative": true,
+      "payload_probe_shortcuts_allowed": false,
+      "heuristic_probe_fallback_allowed": false,
+      "missing_transport_probe_behavior": "refuse_missing_transport_probe",
+      "missing_policy_probe_behavior": "refuse_missing_policy_probe"
+    },
+    "dashboard": {
+      "probe_authoritative": true,
+      "payload_probe_shortcuts_allowed": false,
+      "heuristic_probe_fallback_allowed": false,
+      "missing_transport_probe_behavior": "refuse_missing_transport_probe",
+      "missing_policy_probe_behavior": "refuse_missing_policy_probe"
+    },
+    "typed_cli": {
+      "probe_authoritative": true,
+      "payload_probe_shortcuts_allowed": false,
+      "heuristic_probe_fallback_allowed": false,
+      "missing_transport_probe_behavior": "refuse_missing_transport_probe",
+      "missing_policy_probe_behavior": "refuse_missing_policy_probe"
+    }
+  },
+  "compatibility_lanes": {
+    "legacy": {
+      "probe_authoritative": false,
+      "payload_probe_shortcuts_allowed": true,
+      "heuristic_probe_fallback_allowed": true,
+      "required_marker": "RequestSurface::Legacy"
+    }
+  },
+  "required_diagnostics": [
+    "missing_probe: <capability>.<field>",
+    "probe.required_for_typed_surface.<capability>.<field>"
+  ]
+}

@@ -74,6 +74,73 @@
     }
     tool_completion = enrich_tool_completion_receipt(tool_completion, &response_tools);
     response_text = finalized_response;
+    if response_text.trim().is_empty() {
+        let prior_manual_toolbox_pending_tool_request = response_workflow
+            .get("manual_toolbox_pending_tool_request")
+            .filter(|value| value.is_object())
+            .cloned();
+        let mut recovery_events = workflow_system_events.clone();
+        recovery_events.push(turn_workflow_event(
+            "empty_final_response_menu_recovery",
+            json!({
+                "selection_authority": "llm_only",
+                "automatic_execution_allowed": false,
+                "prior_finalization_outcome": finalization_outcome.clone(),
+                "latent_tool_candidates": latent_tool_candidates.clone()
+            }),
+        ));
+        let (recovery_provider, recovery_model) =
+            visible_response_recovery_model(&provider, &model);
+        let mut recovered_workflow = run_turn_workflow_final_response(
+            root,
+            &recovery_provider,
+            &recovery_model,
+            &active_messages,
+            message,
+            &workflow_mode,
+            &response_tools,
+            &recovery_events,
+            "",
+            &latest_assistant_text,
+        );
+        recovered_workflow["visible_response_recovery_model"] = json!({
+            "provider": recovery_provider,
+            "model": recovery_model
+        });
+        if recovered_workflow
+            .get("manual_toolbox_pending_tool_request")
+            .filter(|value| value.is_object())
+            .is_none()
+        {
+            if let Some(pending_request) = prior_manual_toolbox_pending_tool_request {
+                recovered_workflow["manual_toolbox_pending_tool_request"] = pending_request;
+            }
+        }
+        let recovered_text = clean_chat_text(
+            recovered_workflow
+                .get("response")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            32_000,
+        );
+        if workflow_final_response_used(&recovered_workflow) && !recovered_text.trim().is_empty() {
+            let (contract_finalized, contract_report, contract_outcome) =
+                enforce_user_facing_finalization_contract(message, recovered_text, &response_tools);
+            if !contract_finalized.trim().is_empty() {
+                response_workflow = recovered_workflow;
+                response_text = contract_finalized;
+                tool_completion = enrich_tool_completion_receipt(contract_report, &response_tools);
+                workflow_used = true;
+                finalization_outcome = merge_response_outcomes(
+                    &finalization_outcome,
+                    "empty_final_response_recovered_by_llm_menu",
+                    220,
+                );
+                finalization_outcome =
+                    merge_response_outcomes(&finalization_outcome, &contract_outcome, 220);
+            }
+        }
+    }
     let web_tool_attempted = response_tools_include_web_attempt(&response_tools);
     let web_tool_blocked = response_tools_web_blocked(&response_tools);
     let web_tool_low_signal = response_tools_web_low_signal(&response_tools);
@@ -107,12 +174,7 @@
     let mut tooling_invariant_repair_used = false;
     let mut web_invariant_repair_used = false;
     if web_intent_detected && !web_tool_attempted {
-        response_text = format!(
-            "I detected a live web request, but no web tool lane executed in this turn. web_status: parse_failed. error_code: {}. Retry with `tool::web_search:::<query>` or `tool::web_tooling_health_probe`.",
-            web_failure_code
-        );
         web_invariant_repair_used = true;
-        final_fallback_used = true;
         finalization_outcome = merge_response_outcomes(
             &finalization_outcome,
             "web_invariant_missing_tool_attempt",

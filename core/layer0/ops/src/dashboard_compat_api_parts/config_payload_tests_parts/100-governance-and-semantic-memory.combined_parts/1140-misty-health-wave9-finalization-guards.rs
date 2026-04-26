@@ -165,3 +165,177 @@ fn misty_wave9_web_no_findings_without_tool_receipt_becomes_pending_choice() {
         Some(false)
     );
 }
+
+#[test]
+fn misty_wave9_explicit_web_search_executes_llm_selected_tool_without_second_turn() {
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"misty-wave9-explicit-web-execution-agent","role":"assistant"}"#,
+        &snapshot,
+    )
+    .expect("agent create");
+    let agent_id = clean_agent_id(
+        created
+            .payload
+            .get("agent_id")
+            .or_else(|| created.payload.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    write_json(
+        &governance_test_chat_script_path(root.path()),
+        &json!({"queue": [
+            {"response": "I would choose web search"},
+            {"response": "OpenHands is an open-source agent framework for software development tasks."}
+        ], "calls": []}),
+    );
+    write_json(
+        &governance_test_tool_script_path(root.path()),
+        &json!({"queue": [
+            {
+                "tool": "batch_query",
+                "payload": {
+                    "ok": true,
+                    "status": "ok",
+                    "summary": "OpenHands is an open-source agent framework for software development tasks."
+                }
+            }
+        ], "calls": []}),
+    );
+
+    let response = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"Use web search to find one current source about OpenHands agent framework and summarize it in one sentence."}"#,
+        &snapshot,
+    )
+    .expect("message response");
+
+    assert_eq!(response.status, 200);
+    assert_eq!(response.payload.get("ok").and_then(Value::as_bool), Some(true));
+    let response_text = response
+        .payload
+        .get("response")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    assert!(response_text.contains("OpenHands"), "{response_text}");
+    assert_eq!(
+        response
+            .payload
+            .get("tools")
+            .and_then(Value::as_array)
+            .map(Vec::len),
+        Some(1)
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/tools/0/name")
+            .and_then(Value::as_str),
+        Some("batch_query")
+    );
+    assert!(
+        response.payload.get("pending_tool_request").is_none(),
+        "{}",
+        response.payload
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/response_finalization/outcome")
+            .and_then(Value::as_str),
+        Some("manual_toolbox_pending_tool_request_executed")
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/response_finalization/workflow_control/direct_response_path")
+            .and_then(Value::as_str),
+        Some("manual_toolbox_executed_tool_route")
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/response_quality_telemetry/tool_overcall_rate")
+            .and_then(Value::as_f64),
+        Some(0.0)
+    );
+    assert_eq!(
+        response
+            .payload
+            .get("system_chat_injection_used")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+}
+
+#[test]
+fn misty_wave9_tool_synthesis_unwraps_content_type_json_fragment() {
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"misty-wave9-json-fragment-agent","role":"assistant"}"#,
+        &snapshot,
+    )
+    .expect("agent create");
+    let agent_id = clean_agent_id(
+        created
+            .payload
+            .get("agent_id")
+            .or_else(|| created.payload.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    write_json(
+        &governance_test_chat_script_path(root.path()),
+        &json!({"queue": [
+            {"response": "I would choose web search"},
+            {"response": "\"content\": \"OpenHands is an AI agent platform for software development.\", \"type\": \"platform\", \"format\": \"plain\" }"}
+        ], "calls": []}),
+    );
+    write_json(
+        &governance_test_tool_script_path(root.path()),
+        &json!({"queue": [
+            {
+                "tool": "batch_query",
+                "payload": {
+                    "ok": true,
+                    "status": "ok",
+                    "summary": "OpenHands is an AI agent platform for software development."
+                }
+            }
+        ], "calls": []}),
+    );
+
+    let response = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"Use web search to find one current source about OpenHands agent framework and summarize it in one sentence."}"#,
+        &snapshot,
+    )
+    .expect("message response");
+
+    assert_eq!(response.status, 200);
+    assert_eq!(
+        response.payload.get("response").and_then(Value::as_str),
+        Some("OpenHands is an AI agent platform for software development.")
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/live_eval_monitor/issue_count")
+            .and_then(Value::as_u64),
+        Some(0),
+        "{}",
+        response.payload
+    );
+}

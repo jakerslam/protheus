@@ -1,3 +1,64 @@
+fn pending_tool_request_can_execute_from_explicit_user_request(
+    message: &str,
+    pending_request: &Value,
+) -> bool {
+    if message_explicitly_disallows_tool_calls(message) {
+        return false;
+    }
+    let source = clean_text(
+        pending_request
+            .get("source")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        80,
+    )
+    .to_ascii_lowercase();
+    if source != "natural_tool_choice" {
+        return false;
+    }
+    let lowered = clean_text(message, 2_000).to_ascii_lowercase();
+    let asks_for_tool_selection_only = lowered.contains("need another tool")
+        || lowered.contains("which tool")
+        || lowered.contains("what tool")
+        || lowered.contains("would you choose")
+        || lowered.contains("would use")
+        || lowered.contains("dry run");
+    if asks_for_tool_selection_only {
+        return false;
+    }
+    let asks_for_result = lowered.contains("summarize")
+        || lowered.contains("return the result")
+        || lowered.contains("return results")
+        || lowered.contains("find one")
+        || lowered.contains("find a")
+        || lowered.contains("look up")
+        || lowered.contains("check current")
+        || lowered.contains("compare");
+    let tool_name = normalize_tool_name(
+        pending_request
+            .get("tool_name")
+            .or_else(|| pending_request.get("tool"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    let explicit_web_request = matches!(
+        tool_name.as_str(),
+        "batch_query" | "web_search" | "search_web" | "web_fetch"
+    ) && (lowered.contains("use web search")
+        || lowered.contains("web search")
+        || lowered.contains("search the web")
+        || lowered.contains("look up online"));
+    let explicit_workspace_request = matches!(
+        tool_name.as_str(),
+        "workspace_analyze" | "workspace_search" | "file_search" | "file_list"
+    ) && (lowered.contains("use workspace")
+        || lowered.contains("workspace search")
+        || lowered.contains("search files")
+        || lowered.contains("find file")
+        || lowered.contains("look in the workspace"));
+    asks_for_result && (explicit_web_request || explicit_workspace_request)
+}
+
 fn finalize_message_finalization_and_payload(
     root: &Path,
     agent_id: &str,
@@ -158,6 +219,14 @@ fn finalize_message_finalization_and_payload(
         None
     };
     let latest_assistant_text = latest_assistant_message_text(&active_messages);
+    let final_synthesis_needs_recovery_model =
+        response_text.trim().is_empty()
+            || response_requires_visible_repair_for_message(message, &response_text, &response_tools);
+    let (workflow_provider, workflow_model) = if final_synthesis_needs_recovery_model {
+        visible_response_recovery_model(&provider, &model)
+    } else {
+        (provider.clone(), model.clone())
+    };
     if response_tools.is_empty() && !message_explicitly_disallows_tool_calls(message) {
         if let Some(candidates) = latent_tool_candidates.as_array() {
             if !candidates.is_empty() {
@@ -175,8 +244,8 @@ fn finalize_message_finalization_and_payload(
     }
     let mut response_workflow = run_turn_workflow_final_response(
         root,
-        &provider,
-        &model,
+        &workflow_provider,
+        &workflow_model,
         &active_messages,
         message,
         &workflow_mode,
@@ -185,6 +254,12 @@ fn finalize_message_finalization_and_payload(
         &response_text,
         &latest_assistant_text,
     );
+    if final_synthesis_needs_recovery_model {
+        response_workflow["visible_response_recovery_model"] = json!({
+            "provider": workflow_provider,
+            "model": workflow_model
+        });
+    }
     let mut response_text = response_workflow
         .get("response")
         .and_then(Value::as_str)
@@ -287,10 +362,12 @@ fn finalize_message_finalization_and_payload(
                 "latent_tool_candidates": latent_tool_candidates.clone()
             }),
         ));
+        let (recovery_provider, recovery_model) =
+            visible_response_recovery_model(&provider, &model);
         let mut recovered_workflow = run_turn_workflow_final_response(
             root,
-            &provider,
-            &model,
+            &recovery_provider,
+            &recovery_model,
             &active_messages,
             message,
             &workflow_mode,
@@ -299,6 +376,10 @@ fn finalize_message_finalization_and_payload(
             "",
             &latest_assistant_text,
         );
+        recovered_workflow["visible_response_recovery_model"] = json!({
+            "provider": recovery_provider,
+            "model": recovery_model
+        });
         if recovered_workflow
             .get("manual_toolbox_pending_tool_request")
             .filter(|value| value.is_object())
@@ -333,10 +414,133 @@ fn finalize_message_finalization_and_payload(
             }
         }
     }
-    let manual_toolbox_pending_tool_request = response_workflow
+    let mut manual_toolbox_pending_tool_request = response_workflow
         .get("manual_toolbox_pending_tool_request")
         .filter(|value| value.is_object())
         .cloned();
+    let mut manual_toolbox_executed_pending_tool_request = false;
+    if let Some(pending_request) = manual_toolbox_pending_tool_request.clone() {
+        if pending_tool_request_can_execute_from_explicit_user_request(message, &pending_request) {
+            let pending_tool = normalize_tool_name(
+                pending_request
+                    .get("tool_name")
+                    .or_else(|| pending_request.get("tool"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+            );
+            let pending_input = pending_request
+                .get("input")
+                .cloned()
+                .unwrap_or_else(|| json!({}));
+            if !pending_tool.is_empty() {
+                let tool_payload = execute_tool_call_with_recovery(
+                    root,
+                    &state,
+                    agent_id,
+                    None,
+                    &pending_tool,
+                    &pending_input,
+                );
+                let ok = tool_payload
+                    .get("ok")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false);
+                let result_text = summarize_tool_payload(&pending_tool, &tool_payload);
+                let status = tool_card_status_from_payload(&tool_payload);
+                response_tools.push(json!({
+                    "id": format!("tool-manual-toolbox-{}", response_tools.len()),
+                    "name": pending_tool,
+                    "input": trim_text(&pending_input.to_string(), 4000),
+                    "result": trim_text(&result_text, 24_000),
+                    "is_error": !ok,
+                    "blocked": status == "blocked" || status == "policy_denied",
+                    "status": status,
+                    "tool_attempt_receipt": tool_payload
+                        .pointer("/tool_pipeline/tool_attempt_receipt")
+                        .cloned()
+                        .unwrap_or(Value::Null)
+                }));
+                workflow_system_events.push(turn_workflow_event(
+                    "manual_toolbox_pending_tool_request_executed",
+                    json!({
+                        "selection_authority": "llm_natural_tool_choice",
+                        "user_explicitly_requested_tool_result": true,
+                        "tool_name": response_tools
+                            .last()
+                            .and_then(|row| row.get("name"))
+                            .and_then(Value::as_str)
+                            .unwrap_or("")
+                    }),
+                ));
+                let mut synthesis_events =
+                    build_turn_workflow_events(&response_tools, None, false);
+                synthesis_events.extend(workflow_system_events.clone());
+                let tool_draft = clean_text(&response_tools_summary_for_user(&response_tools, 4), 32_000);
+                let (recovery_provider, recovery_model) =
+                    visible_response_recovery_model(&provider, &model);
+                let mut tool_workflow = run_turn_workflow_final_response(
+                    root,
+                    &recovery_provider,
+                    &recovery_model,
+                    &active_messages,
+                    message,
+                    "manual_toolbox_executed_tool_route",
+                    &response_tools,
+                    &synthesis_events,
+                    &tool_draft,
+                    &latest_assistant_text,
+                );
+                tool_workflow["visible_response_recovery_model"] = json!({
+                    "provider": recovery_provider,
+                    "model": recovery_model
+                });
+                let tool_response_text = clean_chat_text(
+                    tool_workflow
+                        .get("response")
+                        .and_then(Value::as_str)
+                        .unwrap_or(""),
+                    32_000,
+                );
+                if workflow_final_response_used(&tool_workflow) && !tool_response_text.trim().is_empty() {
+                    let (contract_finalized, contract_report, contract_outcome) =
+                        enforce_user_facing_finalization_contract(
+                            message,
+                            tool_response_text,
+                            &response_tools,
+                        );
+                    if !contract_finalized.trim().is_empty() {
+                        response_workflow = tool_workflow;
+                        response_text = contract_finalized;
+                        tool_completion = enrich_tool_completion_receipt(
+                            contract_report,
+                            &response_tools,
+                        );
+                        workflow_used = true;
+                        manual_toolbox_executed_pending_tool_request = true;
+                        final_fallback_used = false;
+                        tooling_fallback_used = false;
+                        comparative_fallback_used = false;
+                        finalization_outcome =
+                            "manual_toolbox_pending_tool_request_executed".to_string();
+                        finalization_outcome =
+                            merge_response_outcomes(&finalization_outcome, &contract_outcome, 220);
+                        manual_toolbox_pending_tool_request = None;
+                        clear_pending_tool_confirmation(root, agent_id);
+                        if let Some(map) = response_workflow.as_object_mut() {
+                            map.remove("manual_toolbox_pending_tool_request");
+                            map.remove("pending_tool_request");
+                        }
+                        response_workflow["workflow_control"]["direct_response_path"] =
+                            Value::String("manual_toolbox_executed_tool_route".to_string());
+                        response_workflow["tool_gate"]["needs_tool_access"] = Value::Bool(true);
+                        response_workflow["tool_gate"]["should_call_tools"] = Value::Bool(true);
+                        response_workflow["quality_telemetry"]["final_fallback_used"] =
+                            Value::Bool(false);
+                    }
+                }
+            }
+        }
+    }
     if let Some(pending_request) = manual_toolbox_pending_tool_request.as_ref() {
         let pending_tool = clean_text(
             pending_request
@@ -415,7 +619,7 @@ fn finalize_message_finalization_and_payload(
         finalization_outcome =
             merge_response_outcomes(&finalization_outcome, "web_failure_code_appended", 200);
     }
-    if tooling_attempted {
+    if tooling_attempted && (tooling_blocked || tooling_low_signal || !tooling_failure_code.is_empty()) {
         tooling_invariant_repair_used = true;
         finalization_outcome = merge_response_outcomes(&finalization_outcome, "tooling_failure_code_appended", 200);
     }
@@ -452,10 +656,12 @@ fn finalize_message_finalization_and_payload(
                 "unsupported_tool_success_claim": response_guard_bool(&response_guard, "unsupported_tool_success_claim")
             }),
         ));
-        let recovered_workflow = run_turn_workflow_final_response(
+        let (recovery_provider, recovery_model) =
+            visible_response_recovery_model(&provider, &model);
+        let mut recovered_workflow = run_turn_workflow_final_response(
             root,
-            &provider,
-            &model,
+            &recovery_provider,
+            &recovery_model,
             &active_messages,
             message,
             &workflow_mode,
@@ -464,6 +670,10 @@ fn finalize_message_finalization_and_payload(
             "",
             &latest_assistant_text,
         );
+        recovered_workflow["visible_response_recovery_model"] = json!({
+            "provider": recovery_provider,
+            "model": recovery_model
+        });
         let recovered_text = clean_chat_text(
             recovered_workflow
                 .get("response")
@@ -507,7 +717,10 @@ fn finalize_message_finalization_and_payload(
     let retry_rate = response_workflow_quality_rate(&response_workflow, "retry_rate");
     let off_topic_reject_rate =
         response_workflow_quality_rate(&response_workflow, "off_topic_reject_rate");
-    let tool_overcall_rate = if !tool_gate_should_call_tools && tooling_attempted {
+    let tool_overcall_rate = if !tool_gate_should_call_tools
+        && tooling_attempted
+        && !manual_toolbox_executed_pending_tool_request
+    {
         1.0
     } else {
         0.0

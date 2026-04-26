@@ -1640,17 +1640,17 @@ fn run_turn_workflow_final_response(
         } else if direct_no_tool_exit_turn {
             "Reply as the LLM. No tools. Do not start with `No.` If this is hypothetical, name the tool without claiming execution. Keep it under 25 words."
         } else {
-            "Reply as the LLM. No tools. Do not start with `No.` Answer the user's question directly in one sentence. Include `answer directly`. If the user asks about repeated fallback text, mention that the repeated fallback text came from a response-finalization loop. Do not mention workflow, gates, tools, or telemetry. Keep it under 25 words."
+            "Reply naturally as the assistant. No tools. Answer only the latest user request in one short sentence. If the user asks about repeated fallback text, briefly explain that it came from a response-finalization loop. Do not mention workflow, gates, tools, or telemetry. Keep it under 25 words."
         };
         let direct_gate_user_prompt = if direct_simple_conversation_turn {
             format!("User: {message}\nAssistant:")
         } else if direct_no_tool_exit_turn {
             format!(
-                "User: {message}\nAnswer directly. Do not run tools."
+                "User: {message}\nUse no tools for this reply."
             )
         } else {
             format!(
-                "User: {message}\nAnswer directly. If this asks about repeated fallback text, briefly explain that it was a response-finalization loop."
+                "User: {message}\nWrite the assistant reply now."
             )
         };
         (
@@ -1780,10 +1780,29 @@ fn run_turn_workflow_final_response(
         } else {
             user_prompt.clone()
         };
+        let (attempt_provider, attempt_model, recovery_attempt) = if attempt > 1 {
+            let (recovery_provider, recovery_model) =
+                visible_response_recovery_model(&cleaned_provider, &cleaned_model);
+            (recovery_provider, recovery_model, true)
+        } else {
+            (cleaned_provider.clone(), cleaned_model.clone(), false)
+        };
+        workflow["final_llm_response"]["current_attempt"] = json!({
+            "attempt": attempt,
+            "provider": attempt_provider,
+            "model": attempt_model,
+            "recovery_attempt": recovery_attempt
+        });
+        if recovery_attempt {
+            workflow["final_llm_response"]["recovery_model"] = json!({
+                "provider": attempt_provider.clone(),
+                "model": attempt_model.clone()
+            });
+        }
         match crate::dashboard_provider_runtime::invoke_chat(
             root,
-            &cleaned_provider,
-            &cleaned_model,
+            &attempt_provider,
+            &attempt_model,
             &system_prompt,
             final_context_messages,
             &attempt_user_prompt,
@@ -1963,7 +1982,7 @@ fn run_turn_workflow_final_response(
                     retried
                         .get("provider")
                         .and_then(Value::as_str)
-                        .unwrap_or(&cleaned_provider),
+                        .unwrap_or(&attempt_provider),
                     80,
                 );
                 let response_model = clean_text(
@@ -1971,7 +1990,7 @@ fn run_turn_workflow_final_response(
                         .get("runtime_model")
                         .or_else(|| retried.get("model"))
                         .and_then(Value::as_str)
-                        .unwrap_or(&cleaned_model),
+                        .unwrap_or(&attempt_model),
                     240,
                 );
                 workflow["final_llm_response"]["used"] = Value::Bool(true);

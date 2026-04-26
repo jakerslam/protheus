@@ -235,13 +235,11 @@ fn repeated_self_maintenance_projection_collapses_into_observe_only_window() {
     let second_action = second
         .fallback_actions
         .iter()
-        .find(|action| action.kind == "self_maintenance_review")
-        .expect("second self-maintenance projection");
+        .find(|action| action.kind == "self_maintenance_review");
 
     assert!(first_action.reason.contains("observe-only window"));
     assert!(first_action.reason.contains("occurrences=1"));
-    assert!(second_action.reason.contains("occurrences=2"));
-    assert!(second_action.reason.contains("rate_limited=true"));
+    assert!(second_action.is_none(), "rate-limited repeats should not emit another review fallback");
 
     let first_next_action = first
         .control_plane_lifecycle
@@ -452,6 +450,11 @@ fn forgecode_assimilation_request_selects_forgecode_workflow_template_and_lane_a
     assert!(workflow_quality.mcp_alias_route_required);
     assert!(workflow_quality.semantic_discovery_route_required);
     assert!(workflow_quality.subagent_result_synthesis_required);
+    assert!(workflow_quality.workflow_decomposition_signature_count >= 2);
+    assert!(workflow_quality.workflow_distinct_contract_family_count >= 1);
+    assert!(workflow_quality.workflow_distinct_capability_graph_count >= 1);
+    assert!(!workflow_quality.selected_decomposition_signature.is_empty());
+    assert!(!workflow_quality.alternative_decomposition_signatures.is_empty());
     assert!(workflow_quality
         .mcp_diagnostic_summary
         .starts_with("mcp_diag:"));

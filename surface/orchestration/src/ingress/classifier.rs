@@ -262,6 +262,7 @@ fn required_probe_contract_for_capability(
 ) -> Option<(&'static str, &'static [&'static str])> {
     match capability {
         Capability::ReadMemory => None,
+        Capability::PrepareContext => None,
         Capability::MutateTask => Some((
             "mutate_task",
             &[
@@ -302,6 +303,8 @@ fn probe_snapshot_for_contract_key<'a>(
 ) -> Option<&'a CapabilityProbeSnapshot> {
     let capability = match capability_key {
         "read_memory" => Capability::ReadMemory,
+        "prepare_context" => Capability::PrepareContext,
+        "context_preparation" => Capability::PrepareContext,
         "mutate_task" => Capability::MutateTask,
         "workspace_read" => Capability::WorkspaceRead,
         "workspace_search" => Capability::WorkspaceSearch,

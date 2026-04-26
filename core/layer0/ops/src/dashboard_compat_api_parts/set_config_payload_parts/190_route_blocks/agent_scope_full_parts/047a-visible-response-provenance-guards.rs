@@ -213,6 +213,14 @@ fn response_has_gate_choice_prefix_leakage(response_text: &str) -> bool {
         || trimmed.starts_with("no,")
         || trimmed.starts_with("no.")
         || trimmed.starts_with("no ");
+    let starts_with_directive_leak = trimmed.starts_with("answer directly")
+        || trimmed.starts_with("direct answer mode")
+        || trimmed.starts_with("direct-answer mode")
+        || trimmed.starts_with("direct answer path")
+        || trimmed.starts_with("direct-answer path");
+    if starts_with_directive_leak {
+        return true;
+    }
     if !starts_with_gate_token {
         return false;
     }
@@ -330,6 +338,9 @@ fn response_contains_unrequested_content_without_tool_evidence(
         return false;
     }
     let cleaned = clean_chat_text(response_text, 32_000);
+    if response_contains_short_unrelated_project_title(user_message, &cleaned) {
+        return true;
+    }
     if cleaned.len() < 160 {
         return false;
     }

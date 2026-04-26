@@ -12,25 +12,87 @@
             );
         }
     }
-    let final_contract_violation = response_fails_base_final_answer_contract(&response_text)
-        || workflow_response_requests_more_tooling(&response_text);
-    if final_contract_violation {
-        response_text = build_deterministic_final_fallback_response(
-            &response_tools,
-            web_intent_detected,
-            &web_turn_classification,
-            &web_failure_code,
-            tooling_attempted,
-            &tooling_turn_classification,
-            &tooling_failure_code,
-            inline_tools_allowed,
-        );
+    let response_guard =
+        final_response_guard_report(message, &response_text, &response_tools, false);
+    if response_guard_bool(&response_guard, "final_contract_violation") {
+        // Chat output stays LLM-authored only; the runtime may retry synthesis, but it must not
+        // inject deterministic fallback text into the visible response.
+        response_text.clear();
         final_fallback_used = true;
+        if response_guard_bool(&response_guard, "final_contamination_violation") {
+            bump_workflow_quality_counter(&mut response_workflow, "contamination_reject");
+        }
+        if response_guard_bool(&response_guard, "current_turn_dominance_violation") {
+            bump_workflow_quality_counter(&mut response_workflow, "current_turn_dominance_reject");
+        }
+        if response_guard_bool(&response_guard, "unsupported_tool_success_claim") {
+            bump_workflow_quality_counter(
+                &mut response_workflow,
+                "unsupported_tool_success_claim_reject",
+            );
+        }
         finalization_outcome = merge_response_outcomes(
             &finalization_outcome,
-            "deterministic_final_fallback_enforced",
+            final_response_guard_outcome(&response_guard),
             200,
         );
+        let mut guard_recovery_events = workflow_system_events.clone();
+        guard_recovery_events.push(turn_workflow_event(
+            "final_response_guard_recovery",
+            json!({
+                "selection_authority": "llm_only",
+                "automatic_execution_allowed": false,
+                "guard_outcome": final_response_guard_outcome(&response_guard),
+                "visible_gate_choice_leakage": response_guard_bool(&response_guard, "visible_gate_choice_leakage"),
+                "unsupported_tool_success_claim": response_guard_bool(&response_guard, "unsupported_tool_success_claim")
+            }),
+        ));
+        let (recovery_provider, recovery_model) =
+            visible_response_recovery_model(&provider, &model);
+        let mut recovered_workflow = run_turn_workflow_final_response(
+            root,
+            &recovery_provider,
+            &recovery_model,
+            &active_messages,
+            message,
+            &workflow_mode,
+            &response_tools,
+            &guard_recovery_events,
+            "",
+            &latest_assistant_text,
+        );
+        recovered_workflow["visible_response_recovery_model"] = json!({
+            "provider": recovery_provider,
+            "model": recovery_model
+        });
+        let recovered_text = clean_chat_text(
+            recovered_workflow
+                .get("response")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            32_000,
+        );
+        if workflow_final_response_used(&recovered_workflow) && !recovered_text.trim().is_empty() {
+            let recovered_guard =
+                final_response_guard_report(message, &recovered_text, &response_tools, false);
+            if !response_guard_bool(&recovered_guard, "final_contract_violation") {
+                let (contract_finalized, contract_report, contract_outcome) =
+                    enforce_user_facing_finalization_contract(message, recovered_text, &response_tools);
+                if !contract_finalized.trim().is_empty() {
+                    response_workflow = recovered_workflow;
+                    response_text = contract_finalized;
+                    tool_completion = enrich_tool_completion_receipt(contract_report, &response_tools);
+                    workflow_used = true;
+                    finalization_outcome = merge_response_outcomes(
+                        &finalization_outcome,
+                        "final_response_guard_recovered_by_llm",
+                        220,
+                    );
+                    finalization_outcome =
+                        merge_response_outcomes(&finalization_outcome, &contract_outcome, 220);
+                }
+            }
+        }
     }
     response_text = append_next_actions_line_if_actionable(message, &response_text, &response_tools);
     let tool_gate_should_call_tools = response_workflow

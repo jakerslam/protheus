@@ -397,10 +397,12 @@ fn handle_message_chat_response_pass(
                     ),
                     12_000,
                 );
+                let (retry_provider, retry_model) =
+                    visible_response_recovery_model(&turn_provider, &turn_model);
                 if let Ok(retried) = crate::dashboard_provider_runtime::invoke_chat(
                     root,
-                    &turn_provider,
-                    &turn_model,
+                    &retry_provider,
+                    &retry_model,
                     &direct_only_prompt,
                     &active_messages,
                     message,
@@ -441,10 +443,12 @@ fn handle_message_chat_response_pass(
                     ),
                     12_000,
                 );
+                let (retry_provider, retry_model) =
+                    visible_response_recovery_model(&turn_provider, &turn_model);
                 if let Ok(retried) = crate::dashboard_provider_runtime::invoke_chat(
                     root,
-                    &turn_provider,
-                    &turn_model,
+                    &retry_provider,
+                    &retry_model,
                     &no_fake_tooling_prompt,
                     &active_messages,
                     message,
@@ -557,10 +561,12 @@ fn handle_message_chat_response_pass(
                     .into_iter()
                     .rev()
                     .collect::<Vec<_>>();
+                let (retry_provider, retry_model) =
+                    visible_response_recovery_model(&turn_provider, &turn_model);
                 let retried = crate::dashboard_provider_runtime::invoke_chat(
                     root,
-                    &turn_provider,
-                    &turn_model,
+                    &retry_provider,
+                    &retry_model,
                     &strict_relevance_prompt,
                     &relevance_retry_messages,
                     message,

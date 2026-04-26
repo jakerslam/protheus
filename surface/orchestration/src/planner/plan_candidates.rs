@@ -17,6 +17,10 @@ use strategy::{
     ordered_capabilities_for_variant, strategy_capabilities_for_variant, strategy_family_for,
 };
 
+fn capability_key(capability: &Capability) -> &'static str {
+    capability.probe_keys().first().copied().unwrap_or("unknown")
+}
+
 pub fn propose_decomposition_candidates(
     request: &TypedOrchestrationRequest,
     classification: &RequestClassification,
@@ -131,6 +135,23 @@ pub fn build_plan_candidate(
     propose_decomposition_candidate_with_template(request, classification, None)
 }
 
+fn decomposition_signature(
+    decomposition_family: &str,
+    contract_family: &str,
+    capability_graph: &[Capability],
+) -> String {
+    let capabilities = if capability_graph.is_empty() {
+        "none".to_string()
+    } else {
+        capability_graph
+            .iter()
+            .map(capability_key)
+            .collect::<Vec<_>>()
+            .join("+")
+    };
+    format!("{decomposition_family}|{contract_family}|{capabilities}")
+}
+
 fn contract_family_for(contracts: &[CoreContractCall], capabilities: &[Capability]) -> String {
     let mut parts = Vec::new();
     if contracts.iter().any(|row| {
@@ -150,6 +171,7 @@ fn contract_family_for(contracts: &[CoreContractCall], capabilities: &[Capabilit
                 | CoreContractCall::ContextAtomAppend
         )
     }) || capabilities.contains(&Capability::ReadMemory)
+        || capabilities.contains(&Capability::PrepareContext)
     {
         parts.push("context_topology");
     }
@@ -312,8 +334,32 @@ fn build_candidate_for_variant(
         .collect::<Vec<_>>();
     let decomposition_family =
         format!("decomposition_{strategy_family:?}_{variant:?}").to_lowercase();
-    let capability_graph = strategy_capabilities.clone();
+    let mut capability_graph = strategy_capabilities.clone();
+    if steps
+        .iter()
+        .any(|row| row.capability == Capability::PrepareContext)
+        && !capability_graph.contains(&Capability::PrepareContext)
+    {
+        capability_graph.push(Capability::PrepareContext);
+    }
+    capability_graph.sort_by_key(capability_key);
+    capability_graph.dedup();
     let contract_family = contract_family_for(contracts.as_slice(), capability_graph.as_slice());
+    let decomposition_signature = decomposition_signature(
+        decomposition_family.as_str(),
+        contract_family.as_str(),
+        capability_graph.as_slice(),
+    );
+    reasons.push(format!(
+        "capability_graph:{}",
+        capability_graph
+            .iter()
+            .map(capability_key)
+            .collect::<Vec<_>>()
+            .join(",")
+    ));
+    reasons.push(format!("contract_family:{contract_family}"));
+    reasons.push(format!("decomposition_signature:{decomposition_signature}"));
     let mut score = scoring::score_candidate(
         request,
         classification,
@@ -335,7 +381,13 @@ fn build_candidate_for_variant(
         .iter()
         .any(|step| step.target_contract == crate::contracts::CoreContractCall::ContextAtomAppend);
     let context_preparation_rationale = mutates_session_context
-        .then(|| "explicit_context_preparation_pre_step:selected_by_planner_rationale".to_string());
+        .then(|| "explicit_context_preparation_pre_step:capability=prepare_context;contract=context_atom_append;selected_by_planner_rationale".to_string());
+    if mutates_session_context {
+        reasons.push("explicit_context_preparation_capability:selected".to_string());
+    }
+    reasons.sort();
+    reasons.dedup();
+    let reported_capabilities = capability_graph.clone();
 
     PlanCandidate {
         plan_id: format!(
@@ -350,12 +402,13 @@ fn build_candidate_for_variant(
         decomposition_family,
         capability_graph,
         contract_family,
+        decomposition_signature,
         confidence: score.overall,
         score,
         requires_clarification,
         blocked_on,
         degradation,
-        capabilities: strategy_capabilities,
+        capabilities: reported_capabilities,
         capability_probes: strategy_probes,
         reasons,
     }
@@ -366,6 +419,22 @@ fn empty_candidate(
     capabilities: Vec<Capability>,
     variant: PlanVariant,
 ) -> PlanCandidate {
+    let capability_graph = if capabilities.is_empty() {
+        classification.required_capabilities.clone()
+    } else {
+        capabilities.clone()
+    };
+    let contract_family = "empty_contract_graph".to_string();
+    let decomposition_signature = decomposition_signature(
+        "empty",
+        contract_family.as_str(),
+        capability_graph.as_slice(),
+    );
+    let mut reasons = classification.reasons.clone();
+    reasons.push(format!("contract_family:{contract_family}"));
+    reasons.push(format!("decomposition_signature:{decomposition_signature}"));
+    reasons.sort();
+    reasons.dedup();
     PlanCandidate {
         plan_id: "plan_empty".to_string(),
         variant,
@@ -373,8 +442,9 @@ fn empty_candidate(
         mutates_session_context: false,
         context_preparation_rationale: None,
         decomposition_family: "empty".to_string(),
-        capability_graph: classification.required_capabilities.clone(),
-        contract_family: "empty_contract_graph".to_string(),
+        capability_graph,
+        contract_family,
+        decomposition_signature,
         confidence: 0.0,
         score: PlanScore {
             overall: 0.0,
@@ -389,7 +459,7 @@ fn empty_candidate(
         degradation: Vec::new(),
         capabilities,
         capability_probes: Vec::new(),
-        reasons: classification.reasons.clone(),
+        reasons,
     }
 }
 

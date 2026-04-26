@@ -10,6 +10,7 @@ const DEFAULT_ISSUE_DRAFTS_PATH: &str = "core/local/artifacts/eval_issue_drafts_
 const DEFAULT_OUT_PATH: &str = "core/local/artifacts/eval_feedback_router_current.json";
 const DEFAULT_OUT_LATEST_PATH: &str = "artifacts/eval_feedback_router_latest.json";
 const DEFAULT_MARKDOWN_PATH: &str = "local/workspace/reports/EVAL_FEEDBACK_ROUTER_CURRENT.md";
+const ISSUE_CANDIDATE_MIN_OCCURRENCES: u64 = 2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EnforcementDestination {
@@ -266,13 +267,14 @@ fn route_issue_candidate_ready(route: &Value) -> bool {
         .get("occurrence_count")
         .and_then(Value::as_u64)
         .unwrap_or(1);
-    matches!(
-        str_at(route, &["destination"]),
-        Some("kernel_block" | "gateway_quarantine")
-    ) || matches!(
-        str_at(route, &["severity"]),
-        Some("critical" | "release_blocking" | "high")
-    ) || occurrence_count >= 2
+    occurrence_count >= ISSUE_CANDIDATE_MIN_OCCURRENCES
+        && (matches!(
+            str_at(route, &["destination"]),
+            Some("kernel_block" | "gateway_quarantine" | "control_plane_retry")
+        ) || matches!(
+            str_at(route, &["severity"]),
+            Some("critical" | "release_blocking" | "high" | "medium")
+        ))
 }
 
 fn annotate_issue_readiness(routes: &mut [Value]) {
@@ -288,16 +290,14 @@ fn issue_candidate_reason(route: &Value) -> &'static str {
         .get("occurrence_count")
         .and_then(Value::as_u64)
         .unwrap_or(1);
-    match (
-        str_at(route, &["destination"]),
-        str_at(route, &["severity"]),
-        occurrence_count,
-    ) {
-        (Some("kernel_block"), _, _) => "kernel_block_route",
-        (Some("gateway_quarantine"), _, _) => "gateway_quarantine_route",
-        (_, Some("critical" | "release_blocking" | "high"), _) => "high_severity_route",
-        (_, _, count) if count >= 2 => "repeated_failure_cluster",
-        _ => "not_issue_ready",
+    if occurrence_count < ISSUE_CANDIDATE_MIN_OCCURRENCES {
+        return "awaiting_repeated_stable_signature";
+    }
+    match (str_at(route, &["destination"]), str_at(route, &["severity"])) {
+        (Some("kernel_block"), _) => "repeated_kernel_block_route",
+        (Some("gateway_quarantine"), _) => "repeated_gateway_quarantine_route",
+        (_, Some("critical" | "release_blocking" | "high")) => "repeated_high_severity_route",
+        _ => "repeated_failure_cluster",
     }
 }
 
@@ -319,6 +319,8 @@ fn issue_candidate_routes(routes: &[Value]) -> Vec<Value> {
                 "dedupe_key": format!("eval_feedback:{failure_class}:{destination}"),
                 "source_artifacts": [issue_candidate_source_artifact(str_at(row, &["source"]).unwrap_or("unknown"))],
                 "source_artifact_policy": "local_relative_paths_only",
+                "stable_signature_occurrence_count": occurrence_count,
+                "minimum_issue_candidate_occurrences": ISSUE_CANDIDATE_MIN_OCCURRENCES,
                 "related_failure_ids": row.get("clustered_failure_ids").cloned().unwrap_or_else(|| json!([])),
                 "title": format!("Eval feedback route needs action: {failure_class} -> {destination}"),
                 "failure_class": failure_class,
@@ -823,5 +825,25 @@ mod tests {
         assert_eq!(routes[0]["occurrence_count"].as_u64(), Some(2));
         assert_eq!(str_at(&routes[0], &["severity"]), Some("high"));
         assert!(route_issue_candidate_ready(&routes[0]));
+    }
+
+    #[test]
+    fn single_high_severity_route_waits_for_repeated_stable_signature() {
+        let route = json!({
+            "source": "eval_issue_drafts",
+            "failure_id": "single",
+            "failure_class": "wrong_tool_selection",
+            "severity": "high",
+            "destination": "control_plane_retry",
+            "action": "retry_with_trace_and_probe_context",
+            "receipt_type": "control_plane_retry_event",
+            "occurrence_count": 1
+        });
+
+        assert!(!route_issue_candidate_ready(&route));
+        assert_eq!(
+            issue_candidate_reason(&route),
+            "awaiting_repeated_stable_signature"
+        );
     }
 }

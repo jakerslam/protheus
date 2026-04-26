@@ -375,8 +375,9 @@ fn handle_agent_scope_message_route(
             let turn_transaction = crate::dashboard_tool_turn_loop::turn_transaction_payload(
                 "complete", "complete", "complete", "complete",
             );
-            let previous_assistant =
-                latest_assistant_message_text(&session_messages(&load_session_state(root, agent_id)));
+            let prior_messages = session_messages(&load_session_state(root, agent_id));
+            let previous_assistant = latest_assistant_message_text(&prior_messages);
+            let previous_user = latest_user_message_text(&prior_messages);
             let mut turn_receipt = append_turn_message(root, agent_id, &message, &response_text);
             turn_receipt["assistant_turn_patch"] = persist_last_assistant_turn_metadata(
                 root,
@@ -402,6 +403,7 @@ fn handle_agent_scope_message_route(
                 &message,
                 &response_text,
                 &previous_assistant,
+                &previous_user,
                 &response_finalization,
             );
             return Some(CompatApiResponse {
