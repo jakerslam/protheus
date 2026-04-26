@@ -72,6 +72,43 @@ fn binary_file_digest(path: &Path) -> Option<String> {
     Some(crate::v8_kernel::sha256_hex_bytes(&bytes))
 }
 
+fn shell_wrapper_exec_target(path: &Path) -> Option<PathBuf> {
+    let bytes = fs::read(path).ok()?;
+    if bytes.len() > 4096 {
+        return None;
+    }
+    let text = String::from_utf8(bytes).ok()?;
+    if !text.lines().any(|line| line.trim_start().starts_with("#!")) {
+        return None;
+    }
+    for line in text.lines().map(str::trim) {
+        let Some(command) = line.strip_prefix("exec ") else {
+            continue;
+        };
+        let Some(token) = command.split_whitespace().next() else {
+            continue;
+        };
+        let raw = token.trim_matches('"').trim_matches('\'');
+        if raw.is_empty() || raw.starts_with('$') {
+            continue;
+        }
+        let candidate = PathBuf::from(raw);
+        let resolved = if candidate.is_absolute() {
+            candidate
+        } else {
+            path.parent()?.join(candidate)
+        };
+        if resolved.is_file() {
+            return Some(resolved);
+        }
+    }
+    None
+}
+
+fn canonical_dashboard_binary_path(path: &Path) -> PathBuf {
+    shell_wrapper_exec_target(path).unwrap_or_else(|| path.to_path_buf())
+}
+
 fn expected_dashboard_binary_path(root: &Path) -> Option<PathBuf> {
     let explicit = std::env::var("INFRING_DAEMON_EXPECTED_BINARY")
         .ok()
@@ -137,9 +174,16 @@ fn dashboard_binary_authority_issue(root: &Path) -> Option<Value> {
     if deprecated_name {
         reasons.push("deprecated_binary_name_runtime".to_string());
     }
+    let expected_launcher_resolved = expected
+        .as_ref()
+        .and_then(|path| shell_wrapper_exec_target(path))
+        .is_some();
+    let expected_canonical = expected
+        .as_ref()
+        .map(|path| canonical_dashboard_binary_path(path));
     let mut expected_digest = Value::Null;
     let mut current_digest = Value::Null;
-    if let Some(expected_path) = expected.as_ref() {
+    if let Some(expected_path) = expected_canonical.as_ref() {
         if let Some(digest) = binary_file_digest(&resolved) {
             current_digest = Value::String(digest.clone());
             if let Some(expected_value) = binary_file_digest(expected_path) {
@@ -161,9 +205,12 @@ fn dashboard_binary_authority_issue(root: &Path) -> Option<Value> {
         "code": "dashboard_runtime_binary_authority_mismatch",
         "message": "dashboard runtime binary did not match canonical infring authority binary",
         "current_executable": resolved.to_string_lossy().to_string(),
-        "expected_executable": expected.map(|path| path.to_string_lossy().to_string()),
+        "expected_executable": expected_canonical.map(|path| path.to_string_lossy().to_string()),
+        "expected_launcher": expected.map(|path| path.to_string_lossy().to_string()),
+        "expected_launcher_resolved": expected_launcher_resolved,
         "current_digest": current_digest,
         "expected_digest": expected_digest,
+        "recovery": "repair or reinstall the canonical infring launcher, or set INFRING_DAEMON_EXPECTED_BINARY to the real runtime binary for diagnostics",
         "reasons": reasons,
     }))
 }
@@ -241,6 +288,20 @@ mod duplicate_runtime_guard_tests {
             issues[0].get("code").and_then(Value::as_str),
             Some("dashboard_watchdog_duplicate_running")
         );
+    }
+
+    #[test]
+    fn canonical_dashboard_binary_path_resolves_simple_exec_wrapper() {
+        let root = tempfile::tempdir().expect("temp root");
+        let target = root.path().join("infring-ops-new");
+        let wrapper = root.path().join("infring-ops");
+        fs::write(&target, b"fake binary").expect("target");
+        fs::write(
+            &wrapper,
+            format!("#!/usr/bin/env sh\nexec {} \"$@\"\n", target.display()),
+        )
+        .expect("wrapper");
+        assert_eq!(canonical_dashboard_binary_path(&wrapper), target);
     }
 
     #[test]
