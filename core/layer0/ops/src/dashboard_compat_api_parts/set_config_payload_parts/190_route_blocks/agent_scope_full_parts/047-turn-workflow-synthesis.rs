@@ -1418,6 +1418,7 @@ fn record_manual_toolbox_pending_request(workflow: &mut Value, response_text: &s
     }
     let Some(pending_request) =
         manual_toolbox_pending_request_from_response(response_text, message)
+            .or_else(|| natural_tool_choice_pending_request(response_text, message))
     else {
         return;
     };
@@ -1741,14 +1742,18 @@ fn run_turn_workflow_final_response(
                 let manual_toolbox_gate_choice =
                     response_is_manual_toolbox_gate_choice(&retried_text);
                 let visible_gate_choice_reply =
-                    response_is_visible_workflow_gate_choice(&retried_text);
-                if manual_toolbox_gate_choice || visible_gate_choice_reply {
+                    response_is_visible_workflow_gate_choice(&retried_text)
+                        || response_has_gate_choice_prefix_leakage(&retried_text);
+                let pending_tool_choice_reply =
+                    natural_tool_choice_pending_request(&retried_text, message).is_some();
+                if manual_toolbox_gate_choice || visible_gate_choice_reply || pending_tool_choice_reply {
                     record_manual_toolbox_pending_request(&mut workflow, &retried_text, message);
                 }
                 let deferred_reply = response_is_deferred_execution_preamble(&retried_text)
                     || response_is_deferred_retry_prompt(&retried_text)
                     || (workflow_response_requests_more_tooling(&retried_text)
-                        && !manual_toolbox_gate_choice);
+                        && !manual_toolbox_gate_choice
+                        && !pending_tool_choice_reply);
                 let off_topic_reply = response_is_unrelated_context_dump(message, &retried_text);
                 let stale_code_context_reply =
                     response_contains_stale_code_context_dump(message, &retried_text);
