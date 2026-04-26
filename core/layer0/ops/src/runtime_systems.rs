@@ -9,6 +9,7 @@ include!("runtime_systems_parts/080-execute-workflow-visual-bridge-contract.rs")
 include!("runtime_systems_parts/090-execute-infring-detachment-contract.rs");
 include!("runtime_systems_parts/095-execute-assimilation-protocol-contract.rs");
 include!("runtime_systems_parts/100-collect-passthrough.rs");
+include!("runtime_systems_parts/105-entrypoint-authority-context.rs");
 include!("runtime_systems_parts/110-merge-payload.rs");
 include!("runtime_systems_parts/120-run-writes-latest-and-status-reads-it.rs");
 include!("runtime_systems_parts/125-contract-specific-regression-tests.rs");

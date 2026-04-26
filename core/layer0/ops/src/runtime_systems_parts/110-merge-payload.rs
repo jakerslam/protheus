@@ -353,6 +353,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         Ok(manifest_payload())
     } else if command == "roi-sweep" {
         roi_sweep_payload(root, &argv[1..])
+    } else if command == "entrypoint-context" {
+        entrypoint_authority_context_payload(&argv[1..])
     } else {
         let system_id = system_id_from_args(&command, &argv[1..]);
         if system_id.is_empty() {

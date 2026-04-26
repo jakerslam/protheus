@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 use crate::contract_lane_utils as lane_utils;
 
-const DEFAULT_POLICY_REL: &str = "config/egress_gateway_policy.json";
+const DEFAULT_POLICY_REL: &str = "core/layer0/ops/config/egress_gateway_policy.json";
 const DEFAULT_STATE_REL: &str = "local/state/security/egress_gateway/state.json";
 const DEFAULT_AUDIT_REL: &str = "local/state/security/egress_gateway/audit.jsonl";
 
@@ -112,9 +112,32 @@ fn runtime_root(root: &Path, payload: &Map<String, Value>) -> PathBuf {
     }
 }
 
+fn workspace_root_from_runtime(runtime_root: &Path) -> PathBuf {
+    if runtime_root.file_name().and_then(|value| value.to_str()) == Some("runtime")
+        && runtime_root
+            .parent()
+            .and_then(|parent| parent.file_name())
+            .and_then(|value| value.to_str())
+            == Some("client")
+    {
+        return runtime_root
+            .parent()
+            .and_then(|parent| parent.parent())
+            .unwrap_or(runtime_root)
+            .to_path_buf();
+    }
+    runtime_root.to_path_buf()
+}
+
 fn resolve_path(runtime_root: &Path, explicit: &str, fallback_rel: &str) -> PathBuf {
     let trimmed = explicit.trim();
     if trimmed.is_empty() {
+        if fallback_rel.starts_with("core/")
+            || fallback_rel.starts_with("surface/")
+            || fallback_rel.starts_with("client/")
+        {
+            return workspace_root_from_runtime(runtime_root).join(fallback_rel);
+        }
         return runtime_root.join(fallback_rel);
     }
     let candidate = PathBuf::from(trimmed);

@@ -1,8 +1,6 @@
 {
   "version": 1,
-  "canonical_path": "surface/orchestration/config/agent_routing_rules.json",
   "canonical_owner": "surface/orchestration",
-  "compatibility_mirror": true,
   "routing": {
     "default_slot": "master",
     "default_anchor_model": "ollama/kimi-k2.5:cloud",

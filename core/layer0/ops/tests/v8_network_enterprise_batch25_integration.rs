@@ -333,7 +333,7 @@ fn v8_batch25_organism_network_and_enterprise_contracts_are_behavior_proven() {
         }),
     );
     write_json(
-        &root.join("client/runtime/config/abac_policy_plane.json"),
+        &root.join("core/layer1/security/config/abac_policy_plane.json"),
         &json!({
             "policies": [
                 { "id": "abac-1", "subject": "role:operator", "action": "deploy", "resource": "release:*", "effect": "allow" }

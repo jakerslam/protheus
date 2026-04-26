@@ -120,11 +120,11 @@
       "approved_at": "2026-02-14",
       "note": "Agent slots inventory (control plane) - tiered model routing + token caps"
     },
-    "${WORKSPACE_ROOT}/client/runtime/config/agent_routing_rules.json": {
-      "sha256": "95ff2909b8ffddfff80b76be84cea9c998bafe3e6002fac0f4c9f87dab5bb675",
+    "${WORKSPACE_ROOT}/surface/orchestration/config/agent_routing_rules.json": {
+      "sha256": "74c5b05c7db6d7967d184d0c524d981bc2cb5525e42cc9d7240d2bd372cc7c9e",
       "approved_by": "local-operator",
       "approved_at": "2026-02-14",
-      "note": "Agent routing rules (control plane) - risk/complexity \u2192 slot mapping"
+      "note": "Agent routing rules (orchestration control plane) - risk/complexity \u2192 slot mapping"
     },
     "${WORKSPACE_ROOT}/tests/client-memory-tools/test_moltbook_api.ts": {
       "sha256": "d865c39d1386f66c45936d120df3878c194edda79e127c60930807469edd81aa",

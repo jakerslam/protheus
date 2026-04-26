@@ -43,7 +43,7 @@ function auditPathAllowed(value: string): boolean {
 function run(argv: string[]): number {
   const args = parseCommonArgs(argv, {
     command: argv[0] || 'check',
-    policy: 'client/runtime/config/state_tier_manifest.json',
+    policy: 'core/layer0/ops/config/state_tier_manifest.json',
   });
   const policy = readJson<Policy>(args.policy);
   const hotRuntime = Array.isArray(policy.hot_runtime) ? policy.hot_runtime : [];
