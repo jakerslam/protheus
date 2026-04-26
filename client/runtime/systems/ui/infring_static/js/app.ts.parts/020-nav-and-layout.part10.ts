@@ -162,26 +162,39 @@
       });
     },
 
+    dashboardPopupService() {
+      var root = typeof window !== 'undefined' ? window : {};
+      var services = root && root.InfringSharedShellServices;
+      return services && services.popup ? services.popup : null;
+    },
+
     clearDashboardPopupState() {
-      this.dashboardPopup = {
-        id: '',
-        active: false,
-        source: '',
-        title: '',
-        body: '',
-        meta_origin: '',
-        meta_time: '',
-        unread: false,
-        left: 0,
-        top: 0,
-        side: 'bottom',
-        inline_away: 'right',
-        block_away: 'bottom',
-        compact: false
-      };
+      var service = this.dashboardPopupService();
+      this.dashboardPopup = service && typeof service.emptyState === 'function'
+        ? service.emptyState()
+        : {
+          id: '',
+          active: false,
+          source: '',
+          title: '',
+          body: '',
+          meta_origin: '',
+          meta_time: '',
+          unread: false,
+          left: 0,
+          top: 0,
+          side: 'bottom',
+          inline_away: 'right',
+          block_away: 'bottom',
+          compact: false
+        };
     },
 
     normalizeDashboardPopupSide(sideValue, fallbackSide) {
+      var service = this.dashboardPopupService();
+      if (service && typeof service.normalizeSide === 'function') {
+        return service.normalizeSide(sideValue, fallbackSide);
+      }
       var fallback = String(fallbackSide || 'bottom').trim().toLowerCase();
       if (fallback !== 'top' && fallback !== 'left' && fallback !== 'right') fallback = 'bottom';
       var side = String(sideValue || fallback).trim().toLowerCase();
@@ -190,6 +203,10 @@
     },
 
     dashboardOppositeSide(sideValue) {
+      var service = this.dashboardPopupService();
+      if (service && typeof service.oppositeSide === 'function') {
+        return service.oppositeSide(sideValue);
+      }
       var side = this.normalizeDashboardPopupSide(sideValue, 'bottom');
       if (side === 'top') return 'bottom';
       if (side === 'left') return 'right';
@@ -198,6 +215,10 @@
     },
 
     dashboardPopupWallAffinity(rect) {
+      var service = this.dashboardPopupService();
+      if (service && typeof service.wallAffinity === 'function') {
+        return service.wallAffinity(rect);
+      }
       if (!rect || typeof window === 'undefined') return null;
       var viewportWidth = Number(window.innerWidth || 0);
       var viewportHeight = Number(window.innerHeight || 0);
@@ -284,6 +305,10 @@
     },
 
     dashboardPopupSideAwayFromNearestWall(rect, fallbackSide) {
+      var service = this.dashboardPopupService();
+      if (service && typeof service.sideAwayFromNearestWall === 'function') {
+        return service.sideAwayFromNearestWall(rect, fallbackSide);
+      }
       var fallback = this.normalizeDashboardPopupSide('', fallbackSide);
       var affinity = this.dashboardPopupWallAffinity(rect);
       if (!affinity || !affinity.scores || !affinity.distances) return fallback;
@@ -321,6 +346,10 @@
     },
 
     dashboardPopupHorizontalAwayFromNearestWall(rect, fallbackSide) {
+      var service = this.dashboardPopupService();
+      if (service && typeof service.horizontalAwayFromNearestWall === 'function') {
+        return service.horizontalAwayFromNearestWall(rect, fallbackSide);
+      }
       var fallback = String(fallbackSide || 'right').trim().toLowerCase();
       if (fallback !== 'left') fallback = 'right';
       var affinity = this.dashboardPopupWallAffinity(rect);
@@ -333,6 +362,10 @@
     },
 
     dashboardPopupVerticalAwayFromNearestWall(rect, fallbackSide) {
+      var service = this.dashboardPopupService();
+      if (service && typeof service.verticalAwayFromNearestWall === 'function') {
+        return service.verticalAwayFromNearestWall(rect, fallbackSide);
+      }
       var fallback = String(fallbackSide || 'bottom').trim().toLowerCase();
       if (fallback !== 'top') fallback = 'bottom';
       var affinity = this.dashboardPopupWallAffinity(rect);
@@ -345,6 +378,10 @@
     },
 
     dashboardPopupAxisAwareSideAway(rect, fallbackSide) {
+      var service = this.dashboardPopupService();
+      if (service && typeof service.axisAwareSideAway === 'function') {
+        return service.axisAwareSideAway(rect, fallbackSide);
+      }
       var fallback = this.normalizeDashboardPopupSide('', fallbackSide || 'bottom');
       if (fallback === 'left' || fallback === 'right') {
         return this.dashboardPopupHorizontalAwayFromNearestWall(rect, fallback);
@@ -353,13 +390,19 @@
     },
 
     taskbarAnchoredDropdownClass(anchorNode, fallbackSide, layoutKey) {
-      String(layoutKey == null ? '' : layoutKey);
       var fallback = this.normalizeDashboardPopupSide('', fallbackSide || 'bottom');
+      var anchorRect = anchorNode && typeof anchorNode.getBoundingClientRect === 'function'
+        ? this.dashboardPopupUsableAnchorRect(anchorNode)
+        : null;
+      var service = this.dashboardPopupService();
+      if (service && typeof service.dropdownClass === 'function') {
+        return service.dropdownClass(anchorRect, fallback, layoutKey);
+      }
+      String(layoutKey == null ? '' : layoutKey);
       var side = fallback;
       var inlineAway = 'right';
       var blockAway = 'bottom';
-      if (anchorNode && typeof anchorNode.getBoundingClientRect === 'function') {
-        var anchorRect = this.dashboardPopupUsableAnchorRect(anchorNode);
+      if (anchorRect) {
         side = this.dashboardPopupAxisAwareSideAway(anchorRect, fallback);
         inlineAway = this.dashboardPopupHorizontalAwayFromNearestWall(anchorRect, 'right');
         blockAway = this.dashboardPopupVerticalAwayFromNearestWall(anchorRect, 'bottom');
@@ -391,6 +434,10 @@
         return { left: 0, top: 0, side: preferredSide, inline_away: 'right', block_away: 'bottom' };
       }
       var rect = node.getBoundingClientRect();
+      var service = this.dashboardPopupService();
+      if (service && typeof service.anchorPoint === 'function') {
+        return service.anchorPoint(rect, preferredSide);
+      }
       var side = this.dashboardPopupAxisAwareSideAway(rect, preferredSide);
       var inlineAway = this.dashboardPopupHorizontalAwayFromNearestWall(rect, 'right');
       var blockAway = this.dashboardPopupVerticalAwayFromNearestWall(rect, 'bottom');
@@ -446,23 +493,25 @@
       if (ev && ev.isTrusted === false) return;
       var config = overrides && typeof overrides === 'object' ? overrides : {};
       var anchor = this.dashboardPopupAnchorPoint(ev, config.side);
-      var body = String(config.body || '').trim();
-      this.dashboardPopup = {
-        id: popupId,
-        active: true,
-        source: String(config.source || '').trim(),
-        title: title,
-        body: body,
-        meta_origin: String(config.meta_origin || 'Taskbar').trim(),
-        meta_time: String(config.meta_time || '').trim(),
-        unread: !!config.unread,
-        left: anchor.left,
-        top: anchor.top,
-        side: anchor.side,
-        inline_away: anchor.inline_away === 'left' ? 'left' : 'right',
-        block_away: anchor.block_away === 'top' ? 'top' : 'bottom',
-        compact: false
-      };
+      var service = this.dashboardPopupService();
+      this.dashboardPopup = service && typeof service.openState === 'function'
+        ? service.openState(popupId, title, config, anchor)
+        : {
+          id: popupId,
+          active: true,
+          source: String(config.source || '').trim(),
+          title: title,
+          body: String(config.body || '').trim(),
+          meta_origin: String(config.meta_origin || 'Taskbar').trim(),
+          meta_time: String(config.meta_time || '').trim(),
+          unread: !!config.unread,
+          left: anchor.left,
+          top: anchor.top,
+          side: anchor.side,
+          inline_away: anchor.inline_away === 'left' ? 'left' : 'right',
+          block_away: anchor.block_away === 'top' ? 'top' : 'bottom',
+          compact: false
+        };
     },
 
     showTaskbarNavPopup(label, ev) {
@@ -505,6 +554,11 @@
     },
 
     hideDashboardPopup(rawId) {
+      var service = this.dashboardPopupService();
+      if (service && typeof service.closeState === 'function') {
+        this.dashboardPopup = service.closeState(this.dashboardPopup, rawId);
+        return;
+      }
       var popupId = String(rawId || '').trim();
       var currentId = String(this.dashboardPopup && this.dashboardPopup.id || '').trim();
       if (popupId && currentId && popupId !== currentId) return;

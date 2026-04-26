@@ -13,6 +13,57 @@
   ],
   "final_response_policy": "control_plane_packaged_response",
   "gate_contract": "control_plane_lifecycle_v1",
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "multiple_choice_or_text_input",
+    "allowed_transitions": [
+      "intake_normalization->decomposition_planning",
+      "decomposition_planning->coordination_sequencing",
+      "coordination_sequencing->recovery_escalation",
+      "recovery_escalation->result_packaging",
+      "result_packaging->verification_closure",
+      "verification_closure->completed",
+      "recovery_escalation->needs_input",
+      "recovery_escalation->blocked",
+      "coordination_sequencing->failed",
+      "coordination_sequencing->aborted"
+    ],
+    "timeout_ms": 120000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "recover_or_escalate"
+    },
+    "terminal_states": [
+      "completed",
+      "needs_input",
+      "blocked",
+      "failed",
+      "aborted"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace",
+      "web",
+      "memory",
+      "agent",
+      "shell",
+      "browser"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 12,
+      "max_model_turns": 8,
+      "max_tool_calls": 6,
+      "token_budget": 16000,
+      "loop_signature_detector": "stage_tool_signature_v1"
+    }
+  },
   "default_for_request_classes": [
     "tool_call",
     "mutation",

@@ -394,6 +394,11 @@ fn evaluate_turn(input: TurnEvaluation<'_>) -> Vec<String> {
     {
         failures.push("missing_live_eval_monitor_payload".to_string());
     }
+    if bool_at(turn, &["expect", "forbid_gate_choice_leakage"], false)
+        && visible_workflow_gate_choice_leakage(response_text, payload)
+    {
+        failures.push("visible_workflow_gate_choice_leakage".to_string());
+    }
     if bool_at(turn, &["expect", "simple_direct_conversation"], false) {
         let default_max_latency_ms = if live {
             u64_at(
@@ -447,6 +452,32 @@ fn evaluate_turn(input: TurnEvaluation<'_>) -> Vec<String> {
         }
     }
     failures
+}
+
+fn visible_workflow_gate_choice_leakage(response_text: &str, payload: &Value) -> bool {
+    if !workflow_visible(payload) {
+        return false;
+    }
+    let normalized = normalize_for_compare(response_text);
+    let normalized = normalized.trim();
+    if normalized.starts_with("yes. tool family:")
+        || normalized.starts_with("yes. tool:")
+        || (normalized.starts_with("yes. ")
+            && (normalized.contains("request payload:")
+                || normalized.contains("tool family:")
+                || normalized.contains("workspace search")
+                || normalized.contains("web search")))
+    {
+        return true;
+    }
+    normalized.starts_with("no. ")
+        && (normalized.contains("would use")
+            || normalized.contains("answer directly")
+            || normalized.contains("web search")
+            || normalized.contains("workspace search")
+            || normalized.contains("file_read")
+            || normalized.contains("read_file")
+            || normalized.contains("tool"))
 }
 
 fn route_stage_delta(

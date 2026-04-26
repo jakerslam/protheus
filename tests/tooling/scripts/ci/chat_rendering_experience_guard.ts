@@ -30,6 +30,24 @@ const CONTRACTS: SourceContract[] = [
     ],
   },
   {
+    path: 'client/runtime/systems/ui/infring_static/js/pages/chat.ts',
+    tokens: [
+      'data.thinking_status || data.status_text || data.workflow_stage || data.stage',
+      'phaseCanReplaceStatus',
+      "phaseDetailText + '|' + phaseStatusCandidate",
+      'phaseMsg.status_text',
+    ],
+  },
+  {
+    path: 'client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/140-session-and-ws.part02.ts',
+    tokens: [
+      'data.thinking_status || data.status_text || data.workflow_stage || data.stage',
+      'phaseCanReplaceStatus',
+      "phaseDetailText + '|' + phaseStatusCandidate",
+      'phaseMsg.status_text',
+    ],
+  },
+  {
     path: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0003-body-part.html',
     tokens: [
       'message-source-chips',

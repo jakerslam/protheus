@@ -1,14 +1,14 @@
 # TODO (SRS Execution Checklist)
 
-Updated: 2026-04-26T02:48:47.433Z
+Updated: 2026-04-26T03:03:19.011Z
 
 ## Global Rollup
 - total_rows: 3859
-- queued: 87
+- queued: 86
 - in_progress: 18
 - blocked: 0
 - blocked_external_prepared: 32
-- done: 1443
+- done: 1444
 - existing_coverage_validated: 2279
 
 ## SRS Section Checklist
@@ -28,7 +28,7 @@ Updated: 2026-04-26T02:48:47.433Z
 - [x] Test/Gate Maturity Registry Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] High-ROI Web + Installer Closure Guard Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=2, existing_coverage_validated=0
 - [x] Chat Rendering Experience Guard Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
-- [ ] Codex Shell Alpine Retirement TODO Wave (2026-04-26) — queued=5, in_progress=0, blocked=0, blocked_external_prepared=0, done=3, existing_coverage_validated=0
+- [ ] Codex Shell Alpine Retirement TODO Wave (2026-04-26) — queued=4, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
 - [x] Tooling + Task Fabric Closure Guard Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Orchestration Quality Closure Guard Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Production Release Gate Closure Audit Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
@@ -728,7 +728,6 @@ Updated: 2026-04-26T02:48:47.433Z
 - [ ] `V11-FILE-003` — in_progress — File Read Reliability Intake (2026-04-06)
 - [ ] `V11-TURNLOOP-016` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V12-FORGECODE-001` — in_progress — ForgeCode MCP/Retry Workflow Assimilation Increment (2026-04-23)
-- [ ] `V13-CODEX-SHELL-ALPINE-004` — queued — Codex Shell Alpine Retirement TODO Wave (2026-04-26)
 - [ ] `V13-CODEX-SHELL-ALPINE-006` — queued — Codex Shell Alpine Retirement TODO Wave (2026-04-26)
 - [ ] `V13-EVAL-FEEDBACK-LIFECYCLE-001` — in_progress — Eval Feedback Lifecycle Governance (2026-04-25)
 - [ ] `V6-AUDIT-014` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)

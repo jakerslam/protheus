@@ -349,7 +349,7 @@ mod tests {
 
     fn assert_observation_absent(store: &TransientContextStore, session_id: &str) {
         assert!(
-            store.execution_observations.get(session_id).is_none(),
+            !store.execution_observations.contains_key(session_id),
             "execution observation row should be removed"
         );
         assert!(

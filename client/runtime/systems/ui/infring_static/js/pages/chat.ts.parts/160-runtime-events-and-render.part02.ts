@@ -106,11 +106,13 @@
     },
 
     messageStatResponseTimeText: function(msg) {
-      if (!msg || msg.thinking || msg.is_notice) return '';
-      if (typeof this.messageIsAgentOrigin === 'function' && !this.messageIsAgentOrigin(msg)) return '';
+      var service = typeof this.messageMetadataService === 'function' ? this.messageMetadataService() : null;
       var durationMs = this.messageStatResponseTimeMs(msg);
-      if (!durationMs || durationMs <= 0) return '';
-      return typeof this.formatResponseDuration === 'function' ? this.formatResponseDuration(durationMs) : (Math.round(durationMs) + 'ms');
+      if (service && typeof service.responseTimeText === 'function') {
+        return service.responseTimeText(msg, durationMs, typeof this.formatResponseDuration === 'function' ? this.formatResponseDuration.bind(this) : null);
+      }
+      if (!msg || msg.thinking || msg.is_notice || !durationMs || durationMs <= 0) return '';
+      return Math.round(durationMs) + 'ms';
     },
 
     messageStatTokensFromMeta: function(msg) {
@@ -167,12 +169,13 @@
     },
 
     messageStatBurnLabelText: function(msg) {
-      if (!msg || msg.thinking || msg.is_notice) return '';
       var total = this.messageStatBurnTotalTokens(msg);
-      if (!Number.isFinite(total) || total <= 0) return '';
-      if (total < 1000) return String(Math.round(total));
-      if (typeof this.formatTokenK === 'function') return this.formatTokenK(total);
-      return (Math.round((total / 1000) * 10) / 10).toFixed(1).replace(/\.0$/, '') + 'k';
+      var service = typeof this.messageMetadataService === 'function' ? this.messageMetadataService() : null;
+      if (service && typeof service.burnLabelText === 'function') {
+        return service.burnLabelText(msg, total, typeof this.formatTokenK === 'function' ? this.formatTokenK.bind(this) : null);
+      }
+      if (!msg || msg.thinking || msg.is_notice || !Number.isFinite(total) || total <= 0) return '';
+      return total < 1000 ? String(Math.round(total)) : ((Math.round((total / 1000) * 10) / 10).toFixed(1).replace(/\.0$/, '') + 'k');
     },
 
     shouldReloadHistoryForFinalEventPayload: function(payload) {

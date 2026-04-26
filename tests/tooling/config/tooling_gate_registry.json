@@ -316,6 +316,16 @@
         "core/local/artifacts/release_hardening_window_guard_current.json"
       ]
     },
+    "ops:kernel-sentinel:release-gate": {
+      "owner": "kernel",
+      "description": "Automatic Kernel Sentinel release-gate run and freshness artifact.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 120,
+      "script": "ops:kernel-sentinel:release-gate",
+      "artifact_paths": [
+        "core/local/artifacts/kernel_sentinel_auto_run_current.json"
+      ]
+    },
     "ops:ipc-bridge:soak": {
       "owner": "ops",
       "description": "Resident IPC bridge stability soak for release readiness evidence.",
@@ -464,6 +474,61 @@
       "artifact_paths": [
         "core/local/artifacts/dashboard_svelte_shell_contract_guard_current.json",
         "local/workspace/reports/DASHBOARD_SVELTE_SHELL_CONTRACT_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:shell:alpine-growth:guard": {
+      "owner": "ops",
+      "description": "Fail when Shell UI Alpine usage grows beyond the explicit legacy baseline.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:shell:alpine-growth:guard",
+      "artifact_paths": [
+        "core/local/artifacts/shell_alpine_growth_guard_current.json",
+        "local/workspace/reports/SHELL_ALPINE_GROWTH_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:shell:alpine-ownership:guard": {
+      "owner": "ops",
+      "description": "Fail when remaining Shell UI Alpine usage lacks an explicit owner and Svelte/shared-service migration boundary.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:shell:alpine-ownership:guard",
+      "artifact_paths": [
+        "core/local/artifacts/shell_alpine_ownership_inventory_current.json",
+        "local/workspace/reports/SHELL_ALPINE_OWNERSHIP_INVENTORY_CURRENT.md"
+      ]
+    },
+    "ops:shell:popup-runtime:guard": {
+      "owner": "ops",
+      "description": "Fail when popup, dropdown, and menu runtime behavior is not delegated to shared Shell services and Svelte shell seams.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:shell:popup-runtime:guard",
+      "artifact_paths": [
+        "core/local/artifacts/shell_popup_runtime_ownership_guard_current.json",
+        "local/workspace/reports/SHELL_POPUP_RUNTIME_OWNERSHIP_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:eval-feedback:lifecycle:guard": {
+      "owner": "ops",
+      "description": "Eval feedback lifecycle retention and preservation guard for raw traces, candidates, accepted findings, and Kernel Sentinel evidence.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:eval-feedback:lifecycle:guard",
+      "artifact_paths": [
+        "core/local/artifacts/eval_feedback_lifecycle_guard_current.json",
+        "local/workspace/reports/EVAL_FEEDBACK_LIFECYCLE_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:shell:message-metadata:guard": {
+      "owner": "ops",
+      "description": "Fail when chat message metadata controls and indicators are not rendered through the Svelte metadata shell backed by shared Shell services.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:shell:message-metadata:guard",
+      "artifact_paths": [
+        "core/local/artifacts/shell_message_metadata_ownership_guard_current.json",
+        "local/workspace/reports/SHELL_MESSAGE_METADATA_OWNERSHIP_GUARD_CURRENT.md"
       ]
     },
     "ops:node-critical-path:inventory": {
