@@ -13,17 +13,21 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 mod capability_grants;
+mod advisory_bridge;
 mod boundedness;
 mod gateway_isolation;
 mod nexus_boundaries;
 mod receipt_completeness;
+mod source_catalog;
 mod state_transitions;
 mod trajectories;
+use advisory_bridge::build_advisory_bridge_report;
 use boundedness::build_boundedness_report;
 use capability_grants::build_capability_grant_report;
 use gateway_isolation::build_gateway_isolation_report;
 use nexus_boundaries::build_nexus_boundary_report;
 use receipt_completeness::build_receipt_completeness_report;
+use source_catalog::source_configs;
 use state_transitions::build_state_transition_report;
 use trajectories::build_trajectory_report;
 
@@ -38,6 +42,7 @@ pub struct KernelSentinelEvidenceIngestion {
 struct EvidenceSourceConfig {
     source: KernelSentinelEvidenceSource,
     file_name: &'static str,
+    collector_family: &'static str,
     default_category: KernelSentinelFindingCategory,
     default_severity: KernelSentinelSeverity,
     missing_required_severity: KernelSentinelSeverity,
@@ -158,53 +163,6 @@ fn merged_details(mut details: BTreeMap<String, Value>) -> Value {
     Value::Object(details.into_iter().collect())
 }
 
-fn source_configs() -> [EvidenceSourceConfig; 6] {
-    [
-        EvidenceSourceConfig {
-            source: KernelSentinelEvidenceSource::KernelReceipt,
-            file_name: "kernel_receipts.jsonl",
-            default_category: KernelSentinelFindingCategory::ReceiptIntegrity,
-            default_severity: KernelSentinelSeverity::Critical,
-            missing_required_severity: KernelSentinelSeverity::Critical,
-        },
-        EvidenceSourceConfig {
-            source: KernelSentinelEvidenceSource::RuntimeObservation,
-            file_name: "runtime_observations.jsonl",
-            default_category: KernelSentinelFindingCategory::RuntimeCorrectness,
-            default_severity: KernelSentinelSeverity::High,
-            missing_required_severity: KernelSentinelSeverity::Critical,
-        },
-        EvidenceSourceConfig {
-            source: KernelSentinelEvidenceSource::ReleaseProofPack,
-            file_name: "release_proof_packs.jsonl",
-            default_category: KernelSentinelFindingCategory::ReleaseEvidence,
-            default_severity: KernelSentinelSeverity::Critical,
-            missing_required_severity: KernelSentinelSeverity::Critical,
-        },
-        EvidenceSourceConfig {
-            source: KernelSentinelEvidenceSource::GatewayHealth,
-            file_name: "gateway_health.jsonl",
-            default_category: KernelSentinelFindingCategory::GatewayIsolation,
-            default_severity: KernelSentinelSeverity::High,
-            missing_required_severity: KernelSentinelSeverity::High,
-        },
-        EvidenceSourceConfig {
-            source: KernelSentinelEvidenceSource::QueueBackpressure,
-            file_name: "queue_backpressure.jsonl",
-            default_category: KernelSentinelFindingCategory::QueueBackpressure,
-            default_severity: KernelSentinelSeverity::High,
-            missing_required_severity: KernelSentinelSeverity::High,
-        },
-        EvidenceSourceConfig {
-            source: KernelSentinelEvidenceSource::ControlPlaneEval,
-            file_name: "control_plane_eval.jsonl",
-            default_category: KernelSentinelFindingCategory::RuntimeCorrectness,
-            default_severity: KernelSentinelSeverity::Medium,
-            missing_required_severity: KernelSentinelSeverity::Low,
-        },
-    ]
-}
-
 fn source_key(source: KernelSentinelEvidenceSource) -> &'static str {
     match source {
         KernelSentinelEvidenceSource::KernelReceipt => "kernel_receipt",
@@ -285,7 +243,10 @@ fn normalize_record(
     let details = merged_details(record.details);
     let normalized = json!({
         "source": source,
+        "collector_family": config.collector_family,
         "authority_class": authority.authority_class,
+        "may_write_verdict": authority.may_write_verdict,
+        "may_waive_finding": authority.may_waive_finding,
         "may_block_release": authority.may_block_release,
         "advisory": authority.authority_class != KernelSentinelAuthorityClass::DeterministicKernelAuthority,
         "id": id,
@@ -362,8 +323,10 @@ pub fn ingest_evidence_sources(state_dir: &Path, args: &[String]) -> KernelSenti
             source_reports.push(json!({
                 "source": source,
                 "path": path,
+                "file_name": config.file_name,
                 "present": false,
                 "required": require_evidence,
+                "collector_family": config.collector_family,
                 "authority_class": authority_rule(config.source).authority_class
             }));
             continue;
@@ -396,9 +359,11 @@ pub fn ingest_evidence_sources(state_dir: &Path, args: &[String]) -> KernelSenti
         source_reports.push(json!({
             "source": source,
             "path": path,
+            "file_name": config.file_name,
             "present": true,
             "required": require_evidence,
             "record_count": record_count,
+            "collector_family": config.collector_family,
             "authority_class": authority_rule(config.source).authority_class
         }));
     }
@@ -421,6 +386,9 @@ pub fn ingest_evidence_sources(state_dir: &Path, args: &[String]) -> KernelSenti
     let (gateway_isolation_report, gateway_isolation_findings) =
         build_gateway_isolation_report(&normalized_records);
     findings.extend(gateway_isolation_findings);
+    let (advisory_bridge_report, advisory_bridge_findings) =
+        build_advisory_bridge_report(&normalized_records);
+    findings.extend(advisory_bridge_findings);
     let (trajectory_report, trajectory_findings) = build_trajectory_report(&normalized_records);
     findings.extend(trajectory_findings);
     let report = json!({
@@ -435,6 +403,7 @@ pub fn ingest_evidence_sources(state_dir: &Path, args: &[String]) -> KernelSenti
         "nexus_boundaries": nexus_boundaries_report,
         "boundedness": boundedness_report,
         "gateway_isolation": gateway_isolation_report,
+        "advisory_bridge": advisory_bridge_report,
         "trajectories": trajectory_report,
         "normalized_record_count": normalized_records.len(),
         "finding_count": findings.len(),
@@ -449,37 +418,4 @@ pub fn ingest_evidence_sources(state_dir: &Path, args: &[String]) -> KernelSenti
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn required_missing_kernel_sources_become_blocking_findings() {
-        let dir = std::env::temp_dir().join("kernel-sentinel-evidence-missing");
-        let args = vec!["--require-evidence=1".to_string(), format!("--evidence-dir={}", dir.display())];
-        let ingestion = ingest_evidence_sources(&dir, &args);
-        assert!(ingestion.findings.iter().any(|finding| {
-            finding.fingerprint == "kernel_receipt:missing_required_source"
-                && finding.severity == KernelSentinelSeverity::Critical
-        }));
-    }
-
-    #[test]
-    fn control_plane_eval_is_advisory_even_when_reported_critical() {
-        let dir = std::env::temp_dir().join("kernel-sentinel-evidence-advisory");
-        fs::create_dir_all(&dir).unwrap();
-        fs::write(
-            dir.join("control_plane_eval.jsonl"),
-            r#"{"id":"eval-1","ok":false,"severity":"critical","subject":"chat","kind":"wrong_tool","summary":"web search routed for file request","evidence":["eval://round/1"]}"#,
-        )
-        .unwrap();
-        let args = vec![format!("--evidence-dir={}", dir.display())];
-        let ingestion = ingest_evidence_sources(&dir, &args);
-        assert_eq!(ingestion.findings.len(), 1);
-        assert_eq!(ingestion.findings[0].severity, KernelSentinelSeverity::High);
-        assert_eq!(
-            ingestion.report["normalized_records"][0]["advisory"],
-            Value::Bool(true)
-        );
-    }
-
-}
+mod tests;

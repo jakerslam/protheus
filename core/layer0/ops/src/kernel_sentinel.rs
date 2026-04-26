@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;
 
-mod authority; mod boot_watch; mod cli_args; mod evidence; mod finding_lifecycle; mod findings_io; mod governance; mod graders; mod issue_synthesis; mod maintenance_synthesis; mod report_summary; mod rsi_handoff; mod waivers;
+mod authority; mod auto_run; mod boot_watch; mod cli_args; mod evidence; mod finding_lifecycle; mod findings_io; mod governance; mod graders; mod issue_synthesis; mod maintenance_synthesis; mod report_summary; mod rsi_handoff; mod scheduler; mod self_study; mod waivers;
 pub use authority::{authority_rule, kernel_sentinel_contract};
 use cli_args::{bool_flag, option_path, option_usize, state_dir_from_args};
 pub use evidence::{ingest_evidence_sources, KernelSentinelEvidenceIngestion};
@@ -225,11 +225,20 @@ pub fn build_report(root: &Path, args: &[String]) -> (Value, Value, i32) {
 pub fn run(root: &Path, args: &[String]) -> i32 {
     let command = args.first().map(String::as_str).unwrap_or("help");
     if command == "help" || command == "--help" || command == "-h" {
-        println!("infring-ops kernel-sentinel <run|status|report|help> [--strict=1|0] [--state-dir=<path>|--state-root=<path>] [--findings-path=<path>] [--evidence-dir=<path>] [--require-evidence=1] [--issue-threshold=<n>] [--suggestion-threshold=<n>] [--automation-threshold=<n>] [--boot-self-check=1] [--watch-refresh=1] [--waivers-path=<path>]");
+        println!("infring-ops kernel-sentinel <run|status|report|auto|schedule|heartbeat|help> [--strict=1|0] [--state-dir=<path>|--state-root=<path>] [--findings-path=<path>] [--evidence-dir=<path>] [--require-evidence=1] [--issue-threshold=<n>] [--suggestion-threshold=<n>] [--automation-threshold=<n>] [--boot-self-check=1] [--watch-refresh=1] [--waivers-path=<path>] [--cadence=maintenance|release|heartbeat] [--auto-artifact=<path>] [--schedule-artifact=<path>] [--interval-seconds=<n>] [--stale-window-seconds=<n>] [--max-stale-minutes=<n>]");
         println!("{}", serde_json::to_string_pretty(&kernel_sentinel_contract()).unwrap());
         return 0;
     }
     let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+    if command == "auto" {
+        return auto_run::run_auto(root, &rest);
+    }
+    if command == "schedule" {
+        return scheduler::run_schedule(root, &rest);
+    }
+    if command == "heartbeat" {
+        return scheduler::run_heartbeat(root, &rest);
+    }
     let (report, verdict, exit) = build_report(root, &rest);
     let dir = state_dir_from_args(root, &rest);
     let report_path = dir.join("kernel_sentinel_report_current.json");

@@ -23,6 +23,13 @@ const CHECKED_GATEWAY_RULES: [&str; 6] = [
     "gateway_isolation_breach",
 ];
 
+const CHECKED_GATEWAY_OUTCOMES: [&str; 4] = [
+    "gateway_quarantine_event",
+    "gateway_recovery_event",
+    "gateway_route_around",
+    "gateway_isolation_breach",
+];
+
 fn value<'a>(record: &'a Value, key: &str) -> Option<&'a Value> {
     record
         .get(key)
@@ -55,6 +62,15 @@ fn value_f64(record: &Value, key: &str) -> Option<f64> {
             .or_else(|| raw.as_i64().map(|number| number as f64))
             .or_else(|| raw.as_str().and_then(|text| text.parse::<f64>().ok()))
     })
+}
+
+fn normalize_key(raw: &str) -> String {
+    raw.trim()
+        .chars()
+        .map(|ch| if ch.is_ascii_alphanumeric() { ch.to_ascii_lowercase() } else { '_' })
+        .collect::<String>()
+        .trim_matches('_')
+        .to_string()
 }
 
 fn evidence_refs(record: &Value) -> Vec<String> {
@@ -154,6 +170,31 @@ fn explicit_rule(record: &Value) -> Option<GatewayRule> {
     None
 }
 
+fn gateway_outcome_kind(record: &Value) -> &'static str {
+    for raw in [
+        value_str(record, "kind"),
+        value_str(record, "signal"),
+        value_str(record, "event"),
+        value_str(record, "outcome"),
+    ] {
+        match normalize_key(raw).as_str() {
+            "gateway_quarantine_event" | "gateway_quarantine_receipt" | "gateway_quarantined"
+            | "quarantine" | "quarantined" => return "gateway_quarantine_event",
+            "gateway_recovery_event" | "gateway_recovered" | "recovery" | "recovered" => {
+                return "gateway_recovery_event";
+            }
+            "gateway_route_around" | "route_around" | "routed_around" => {
+                return "gateway_route_around";
+            }
+            "gateway_isolation_breach" | "gateway_boundary_escape" => {
+                return "gateway_isolation_breach";
+            }
+            _ => {}
+        }
+    }
+    "none"
+}
+
 fn has_quarantine_evidence(records: &[Value], record: &Value) -> bool {
     let subject = value_str(record, "subject");
     let gateway_id = value_str(record, "gateway_id");
@@ -233,7 +274,18 @@ pub(super) fn build_gateway_isolation_report(
     let mut checked_gateway_count = 0usize;
     let mut missing_quarantine_count = 0usize;
     let mut recovery_loop_count = 0usize;
+    let mut quarantine_event_count = 0usize;
+    let mut recovery_event_count = 0usize;
+    let mut route_around_count = 0usize;
+    let mut isolation_breach_count = 0usize;
     for record in records {
+        match gateway_outcome_kind(record) {
+            "gateway_quarantine_event" => quarantine_event_count += 1,
+            "gateway_recovery_event" => recovery_event_count += 1,
+            "gateway_route_around" => route_around_count += 1,
+            "gateway_isolation_breach" => isolation_breach_count += 1,
+            _ => {}
+        }
         let mut rules = Vec::new();
         if let Some(rule) = explicit_rule(record) {
             rules.push(rule);
@@ -256,9 +308,14 @@ pub(super) fn build_gateway_isolation_report(
     let report = json!({
         "ok": findings.is_empty(),
         "checked_gateway_rules": CHECKED_GATEWAY_RULES,
+        "checked_gateway_outcomes": CHECKED_GATEWAY_OUTCOMES,
         "checked_gateway_count": checked_gateway_count,
         "missing_quarantine_count": missing_quarantine_count,
         "recovery_loop_count": recovery_loop_count,
+        "quarantine_event_count": quarantine_event_count,
+        "recovery_event_count": recovery_event_count,
+        "route_around_count": route_around_count,
+        "isolation_breach_count": isolation_breach_count,
         "finding_count": findings.len(),
         "findings": findings
     });
@@ -311,5 +368,29 @@ mod tests {
         ];
         let (report, _findings) = build_gateway_isolation_report(&records);
         assert_eq!(report["missing_quarantine_count"], Value::from(0));
+    }
+
+    #[test]
+    fn gateway_quarantine_and_recovery_outcomes_are_reported() {
+        let records = vec![
+            json!({
+                "source": "gateway_health",
+                "id": "gw-quarantine-3",
+                "subject": "semantic-kernel-gateway",
+                "kind": "gateway_quarantine_event",
+                "evidence": ["gateway://semantic-kernel/quarantine"]
+            }),
+            json!({
+                "source": "gateway_health",
+                "id": "gw-recovery-3",
+                "subject": "semantic-kernel-gateway",
+                "kind": "gateway_recovery_event",
+                "evidence": ["gateway://semantic-kernel/recovery"]
+            }),
+        ];
+        let (report, findings) = build_gateway_isolation_report(&records);
+        assert_eq!(report["quarantine_event_count"], Value::from(1));
+        assert_eq!(report["recovery_event_count"], Value::from(1));
+        assert!(findings.is_empty());
     }
 }
