@@ -32,6 +32,7 @@
           </infring-logs-live-tab-shell>
 
           <!-- Audit trail tab -->
+          <infring-logs-audit-tab-shell>
           <div x-show="tab === 'audit'">
             <div x-show="auditLoading" class="loading-state"><div class="spinner"></div><span>Loading audit log...</span></div>
             <div x-show="!auditLoading && auditLoadError" class="error-state">
@@ -85,6 +86,7 @@
             </infring-chat-stream-shell>
             </div>
           </div>
+          </infring-logs-audit-tab-shell>
         </div>
       </div>
       </infring-logs-page-shell>
@@ -92,6 +94,7 @@
 
     <!-- Page: Comms -->
     <template x-if="$store.app.page === 'comms'">
+      <infring-comms-page-shell>
       <div x-data="commsPage" x-init="loadData()" @page-leave.window="stopSSE()">
         <div class="page-header">
           <h2>Agent Comms</h2>
@@ -260,10 +263,12 @@
           </div>
         </div>
       </div>
+      </infring-comms-page-shell>
     </template>
 
     <!-- Page: Setup Wizard -->
     <template x-if="$store.app.page === 'wizard'">
+      <infring-wizard-page-shell>
       <div x-data="wizardPage">
         <div class="page-header">
           <h2>Setup Wizard</h2>

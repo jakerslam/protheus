@@ -287,7 +287,7 @@
                             <div class="typing-dots"><span></span><span></span><span></span></div>
                           </div>
                           <template x-if="msg.terminal && terminalMessageCollapsed(msg, idx, messages)">
-                            <div
+                            <infring-message-terminal-shell><div
                               class="terminal-toolbox"
                               :class="terminalToolboxSideClass(msg)"
                               role="button"
@@ -307,7 +307,7 @@
                                 <span class="terminal-toolbox-title">Terminal Output</span>
                                 <span class="terminal-toolbox-preview" x-text="terminalToolboxPreview(msg)"></span>
                               </span>
-                            </div>
+                            </div></infring-message-terminal-shell>
                           </template>
                           <div
                             class="message-bubble"
@@ -324,11 +324,11 @@
                             <infring-chat-bubble-render :typing="!!msg._typingVisual" :html="messageBubbleHtml(msg, idx)" :plain="String(msg.text || '')"></infring-chat-bubble-render>
                           </template>
                           <template x-if="!shouldRenderMessageContent(msg, idx, messages)">
-                            <div class="message-placeholder-shell message-placeholder-shell-inline" :style="messagePlaceholderStyle(msg, idx, messages)">
+                            <infring-message-placeholder-shell><div class="message-placeholder-shell message-placeholder-shell-inline" :style="messagePlaceholderStyle(msg, idx, messages)">
                               <template x-for="lineIdx in messagePlaceholderLineIndices(msg, idx, messages)" :key="'message-placeholder-inline-' + messageRenderKey(msg, idx) + '-' + lineIdx">
                                 <span class="message-placeholder-line" :class="{ 'message-placeholder-line-short': lineIdx === (messagePlaceholderResolvedLineCount(msg, idx, messages) - 1) && messagePlaceholderResolvedLineCount(msg, idx, messages) > 1 }"></span>
                               </template>
-                            </div>
+                            </div></infring-message-placeholder-shell>
                           </template>
                           <div class="message-line-overflow" x-show="shouldRenderMessageContent(msg, idx, messages) && messageHasLineOverflow(msg, idx)"><span class="message-line-overflow-ellipsis">...</span><span class="message-line-overflow-link" role="button" tabindex="0" title="See more" style="cursor:pointer !important" @click.stop="expandMessageLines(msg, idx)" @keydown.enter.prevent.stop="expandMessageLines(msg, idx)" @keydown.space.prevent.stop="expandMessageLines(msg, idx)">See more</span></div>
                           <infring-message-context-shell>
@@ -336,7 +336,7 @@
                           <div class="message-tool-trace-summary" x-show="shouldRenderMessageContent(msg, idx, messages) && messageToolTraceSummary(msg).visible"><span class="message-tool-trace-label" x-text="messageToolTraceSummary(msg).label"></span><span class="message-tool-trace-detail" x-text="messageToolTraceSummary(msg).detail"></span></div>
                           </infring-message-context-shell>
                           <template x-if="shouldRenderMessageContent(msg, idx, messages) && messageProgress(msg)">
-                            <div class="chat-progress-wrap">
+                            <infring-message-progress-shell><div class="chat-progress-wrap">
                               <div class="chat-progress-meta">
                                 <span x-text="messageProgress(msg).label"></span>
                                 <span x-text="messageProgress(msg).percent + '%'"></span>
@@ -344,19 +344,19 @@
                               <div class="chat-progress-track">
                                 <span class="chat-progress-fill" :style="progressFillStyle(msg)"></span>
                               </div>
-                            </div>
+                            </div></infring-message-progress-shell>
                           </template>
                           <template x-if="shouldRenderMessageContent(msg, idx, messages) && msg.file_output && msg.file_output.path">
-                            <div class="chat-artifact-card chat-file-output">
+                            <infring-message-artifact-shell><div class="chat-artifact-card chat-file-output">
                               <div class="chat-artifact-head">
                                 <span class="chat-artifact-title">File Output</span>
                                 <span class="chat-artifact-path" x-text="msg.file_output.path"></span>
                               </div>
                               <pre class="chat-artifact-pre" x-text="msg.file_output.content || ''"></pre>
-                            </div>
+                            </div></infring-message-artifact-shell>
                           </template>
                           <template x-if="shouldRenderMessageContent(msg, idx, messages) && msg.folder_output && msg.folder_output.path">
-                            <div class="chat-artifact-card chat-folder-output">
+                            <infring-message-artifact-shell><div class="chat-artifact-card chat-folder-output">
                               <div class="chat-artifact-head">
                                 <span class="chat-artifact-title">Folder Output</span>
                                 <span class="chat-artifact-path" x-text="msg.folder_output.path"></span>
@@ -365,16 +365,16 @@
                               <a class="chat-folder-download-link" x-show="msg.folder_output.download_url" :href="msg.folder_output.download_url" target="_blank" rel="noopener">
                                 Download archive
                               </a>
-                            </div>
+                            </div></infring-message-artifact-shell>
                           </template>
                           <template x-if="shouldRenderMessageContent(msg, idx, messages) && msg.images && msg.images.length">
-                            <div style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0">
+                            <infring-message-media-shell><div style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0">
                               <template x-for="img in msg.images" :key="img.file_id">
                                 <a :href="'/api/uploads/' + img.file_id" target="_blank" style="display:block">
                                   <img :src="'/api/uploads/' + img.file_id" :alt="img.filename || 'uploaded image'" style="max-width:320px;max-height:320px;border-radius:8px;border:1px solid var(--border);cursor:pointer" loading="lazy">
                                 </a>
                               </template>
-                            </div>
+                            </div></infring-message-media-shell>
                           </template>
                           <template x-for="tool in (shouldRenderMessageContent(msg, idx, messages) ? (msg.tools || []) : [])" :key="tool.id">
                             <div class="tool-card tool-card-in-bubble" :class="{ 'tool-card-error': tool.is_error && !isBlockedTool(tool), 'tool-card-blocked': isBlockedTool(tool), 'tool-card-success': isToolSuccessful(tool), 'tool-card-thought': isThoughtTool(tool) }" :data-tool="tool.name">
