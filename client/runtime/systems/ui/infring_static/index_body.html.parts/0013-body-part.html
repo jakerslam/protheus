@@ -44,7 +44,7 @@
 
     <!-- Page: Settings -->
     <template x-if="page === 'settings'">
-      <infring-settings-page-shell>
+      <infring-settings-page-shell shellprimitive="simple-page-panel" pageid="settings" panelrole="page" routecontract="settings" parentowneddata="true">
       <div x-data="settingsPage">
         <div class="page-header"><h2>Settings</h2></div>
         <div class="page-body" x-init="loadSettings()">
@@ -69,7 +69,7 @@
           </div>
 
           <!-- Providers tab -->
-          <infring-settings-providers-tab-shell>
+          <infring-settings-providers-tab-shell shellprimitive="simple-page-panel" pageid="settings" tabid="providers" panelrole="settings-tab" routecontract="settings:providers" parentowneddata="true">
           <div x-show="tab === 'providers'">
             <div class="info-card">
               <h4>LLM Providers</h4>
@@ -171,7 +171,7 @@
           </infring-settings-providers-tab-shell>
 
           <!-- Models tab -->
-          <infring-settings-models-tab-shell>
+          <infring-settings-models-tab-shell shellprimitive="simple-page-panel" pageid="settings" tabid="models" panelrole="settings-tab" routecontract="settings:models" parentowneddata="true">
           <div x-show="tab === 'models'">
             <div class="info-card">
               <h4>Model Catalog</h4>
@@ -250,7 +250,7 @@
           </infring-settings-models-tab-shell>
 
           <!-- Tools tab -->
-          <infring-settings-tools-tab-shell>
+          <infring-settings-tools-tab-shell shellprimitive="simple-page-panel" pageid="settings" tabid="tools" panelrole="settings-tab" routecontract="settings:tools" parentowneddata="true">
           <div x-show="tab === 'tools'">
             <div class="search-input mb-4">
               <span style="color:var(--text-muted)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
@@ -280,7 +280,7 @@
           </infring-settings-tools-tab-shell>
 
           <!-- System Info tab -->
-          <infring-settings-info-tab-shell>
+          <infring-settings-info-tab-shell shellprimitive="simple-page-panel" pageid="settings" tabid="info" panelrole="settings-tab" routecontract="settings:info" parentowneddata="true">
           <div x-show="tab === 'info'">
             <div class="stats-row">
               <div class="stat-card"><div class="stat-value" x-text="sysInfo.version || '-'"></div><div class="stat-label">Version</div></div>
@@ -296,7 +296,7 @@
           </infring-settings-info-tab-shell>
 
           <!-- Config tab -->
-          <infring-settings-config-tab-shell>
+          <infring-settings-config-tab-shell shellprimitive="simple-page-panel" pageid="settings" tabid="config" panelrole="settings-tab" routecontract="settings:config" parentowneddata="true">
           <div x-show="tab === 'config'">
             <div class="info-card">
               <h4>Runtime Configuration</h4>
@@ -365,7 +365,7 @@
           </infring-settings-config-tab-shell>
 
           <!-- Security tab -->
-          <infring-settings-security-tab-shell>
+          <infring-settings-security-tab-shell shellprimitive="simple-page-panel" pageid="settings" tabid="security" panelrole="settings-tab" routecontract="settings:security" parentowneddata="true">
           <div x-show="tab === 'security'">
             <div x-show="secLoading" class="loading-state"><div class="spinner"></div><span>Loading security data...</span></div>
             <div x-show="!secLoading">

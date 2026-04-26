@@ -173,6 +173,7 @@ fn build_response_quality_telemetry_payload(
         "direct_answer_reject": response_workflow_quality_count(response_workflow, "direct_answer_reject"),
         "contamination_reject": response_workflow_quality_count(response_workflow, "contamination_reject"),
         "current_turn_dominance_reject": response_workflow_quality_count(response_workflow, "current_turn_dominance_reject"),
+        "unsupported_tool_success_claim_reject": response_workflow_quality_count(response_workflow, "unsupported_tool_success_claim_reject"),
         "legacy_retry_template_detected": response_workflow_quality_count(response_workflow, "legacy_retry_template_detected"),
         "repeated_fallback_loop_detected": response_workflow_quality_count(response_workflow, "repeated_fallback_loop_detected"),
         "meta_control_tool_block": response_workflow_quality_value(response_workflow, "meta_control_tool_block")

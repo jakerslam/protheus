@@ -107,6 +107,8 @@
       return mode;
     },
     uiBackgroundTemplateNormalized(modeRaw) {
+      var service = this.taskbarDockService ? this.taskbarDockService() : infringTaskbarDockService();
+      if (service && typeof service.normalizeBackgroundTemplate === 'function') return service.normalizeBackgroundTemplate(modeRaw);
       var mode = String(modeRaw || '').trim().toLowerCase();
       if (mode === 'unsplash-paper') return 'light-wood';
       if (mode === 'default-grid') return 'default-grid';
@@ -125,11 +127,15 @@
       }
       if (persist) {
         try {
-          var rawDisplaySettings = localStorage.getItem('infring-display-settings') || '';
-          var displaySettings = rawDisplaySettings ? JSON.parse(rawDisplaySettings) : {};
-          displaySettings = displaySettings && typeof displaySettings === 'object' ? displaySettings : {};
-          displaySettings.background = mode;
-          localStorage.setItem('infring-display-settings', JSON.stringify(displaySettings));
+          var service = this.taskbarDockService ? this.taskbarDockService() : infringTaskbarDockService();
+          if (service && typeof service.writeDisplayBackground === 'function') service.writeDisplayBackground(mode);
+          else {
+            var rawDisplaySettings = localStorage.getItem('infring-display-settings') || '';
+            var displaySettings = rawDisplaySettings ? JSON.parse(rawDisplaySettings) : {};
+            displaySettings = displaySettings && typeof displaySettings === 'object' ? displaySettings : {};
+            displaySettings.background = mode;
+            localStorage.setItem('infring-display-settings', JSON.stringify(displaySettings));
+          }
         } catch (_) {}
       }
       return mode;

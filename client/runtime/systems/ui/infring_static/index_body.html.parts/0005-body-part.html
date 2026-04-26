@@ -14,7 +14,7 @@
 
     <!-- Page: Agents -->
     <template x-if="page === 'agents'">
-      <infring-agents-page-shell>
+      <infring-agents-page-shell shellprimitive="simple-page-panel" pageid="agents" panelrole="page" routecontract="agents" parentowneddata="true">
       <div x-data="agentsPage" @close-chat.window="closeChat()">
 
         <!-- MODE 1: Inline Chat (agent selected) -->

@@ -1,7 +1,7 @@
-// SRS: V12-MISTY-HEALTH-WAVE7-001, V12-MISTY-HEALTH-WAVE7-002, V12-MISTY-HEALTH-WAVE7-003, V12-MISTY-HEALTH-WAVE7-004, V12-MISTY-HEALTH-WAVE7-005, V12-MISTY-HEALTH-WAVE7-006
+// SRS: V12-MISTY-HEALTH-WAVE7-001, V12-MISTY-HEALTH-WAVE7-002, V12-MISTY-HEALTH-WAVE7-003, V12-MISTY-HEALTH-WAVE7-004, V12-MISTY-HEALTH-WAVE7-005, V12-MISTY-HEALTH-WAVE7-006, V12-MISTY-HEALTH-WAVE8-003, V12-MISTY-HEALTH-WAVE8-004, V12-MISTY-HEALTH-WAVE8-005
 
 #[test]
-fn misty_wave7_route_short_circuit_reports_no_model_as_diagnostics_not_blank_chat() {
+fn misty_wave7_route_short_circuit_reports_empty_finalization_as_diagnostics_not_blank_chat() {
     let root = governance_temp_root();
     let snapshot = governance_ok_snapshot();
     let created = handle(
@@ -30,13 +30,45 @@ fn misty_wave7_route_short_circuit_reports_no_model_as_diagnostics_not_blank_cha
     )
     .expect("message response");
 
-    assert_eq!(response.status, 503);
+    assert_eq!(response.status, 200);
     assert_eq!(response.payload.get("ok").and_then(Value::as_bool), Some(false));
     assert_eq!(
         response.payload.get("error_code").and_then(Value::as_str),
-        Some("no_models_available")
+        Some("final_response_empty")
+    );
+    assert_eq!(
+        response
+            .payload
+            .get("diagnostic_class")
+            .and_then(Value::as_str),
+        Some("application_finalization_failure")
+    );
+    assert_eq!(
+        response.payload.get("retryable").and_then(Value::as_bool),
+        Some(false)
     );
     assert_eq!(response.payload.get("response").and_then(Value::as_str), Some(""));
+    assert_eq!(
+        response
+            .payload
+            .pointer("/turn_persistence/user_message_persisted")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/turn_persistence/assistant_message_persisted")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/turn_persistence/diagnostics_in_chat")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
     assert_eq!(
         response
             .payload
@@ -337,11 +369,43 @@ fn misty_wave7_finalization_edge_fails_closed_without_system_chat_injection() {
     )
     .expect("message response");
 
-    assert_eq!(response.status, 502);
+    assert_eq!(response.status, 200);
     assert_eq!(response.payload.get("ok").and_then(Value::as_bool), Some(false));
     assert_eq!(
         response.payload.get("error_code").and_then(Value::as_str),
         Some("final_response_empty")
+    );
+    assert_eq!(
+        response
+            .payload
+            .get("diagnostic_class")
+            .and_then(Value::as_str),
+        Some("application_finalization_failure")
+    );
+    assert_eq!(
+        response.payload.get("retryable").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        response
+            .payload
+            .get("transport_retryable")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        response
+            .payload
+            .get("infrastructure_failure")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/response_finalization/route_failure/diagnostic_class")
+            .and_then(Value::as_str),
+        Some("application_finalization_failure")
     );
     assert_eq!(response.payload.get("response").and_then(Value::as_str), Some(""));
     assert_eq!(
@@ -364,6 +428,146 @@ fn misty_wave7_finalization_edge_fails_closed_without_system_chat_injection() {
             .pointer("/live_eval_monitor/issues/0/raw_event/issue_class")
             .and_then(Value::as_str),
         Some("message_route_error")
+    );
+
+    let session = handle(
+        root.path(),
+        "GET",
+        &format!("/api/agents/{agent_id}/session"),
+        b"",
+        &snapshot,
+    )
+    .expect("session response");
+    assert_eq!(session.status, 200);
+    let messages = session
+        .payload
+        .get("messages")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    assert!(
+        messages.iter().any(|row| {
+            row.get("role").and_then(Value::as_str) == Some("user")
+                && row.get("text").and_then(Value::as_str)
+                    == Some("what about now? any better?")
+        }),
+        "{messages:?}"
+    );
+    assert!(
+        !messages.iter().any(|row| {
+            row.get("role").and_then(Value::as_str) == Some("assistant")
+                && row
+                    .get("text")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .contains("workflow finalization edge")
+        }),
+        "{messages:?}"
+    );
+}
+
+#[test]
+fn misty_wave8_tool_success_claim_without_evidence_fails_closed() {
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"misty-wave8-no-fake-tool-success-agent","role":"assistant"}"#,
+        &snapshot,
+    )
+    .expect("agent create");
+    let agent_id = clean_agent_id(
+        created
+            .payload
+            .get("agent_id")
+            .or_else(|| created.payload.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    let fake_tool_claim =
+        "I searched the workspace files and found the following files: routes/web.php and Cargo.toml. The file tooling succeeded.";
+    assert!(response_claims_tool_success_without_current_turn_evidence(
+        "Find the route files.",
+        fake_tool_claim,
+        &[]
+    ));
+    assert!(!response_claims_tool_success_without_current_turn_evidence(
+        "Find the route files.",
+        "I would use workspace search next, but I have not run it yet.",
+        &[]
+    ));
+    assert!(!response_claims_tool_success_without_current_turn_evidence(
+        "Find the route files.",
+        fake_tool_claim,
+        &[json!({
+            "name": "workspace_search",
+            "status": "ok",
+            "result": "routes/web.php",
+            "tool_attempt_receipt": {"receipt_hash": "receipt-workspace-search"}
+        })]
+    ));
+    let guard = final_response_guard_report("Find the route files.", fake_tool_claim, &[], false);
+    assert_eq!(
+        guard
+            .get("unsupported_tool_success_claim")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        final_response_guard_outcome(&guard),
+        "unsupported_tool_success_claim_withheld"
+    );
+    write_json(
+        &governance_test_chat_script_path(root.path()),
+        &json!({"queue": [{"response": fake_tool_claim}], "calls": []}),
+    );
+
+    let response = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"Find the route files in the workspace."}"#,
+        &snapshot,
+    )
+    .expect("message response");
+
+    assert_eq!(response.status, 200);
+    assert_eq!(response.payload.get("ok").and_then(Value::as_bool), Some(false));
+    assert_eq!(
+        response.payload.get("error_code").and_then(Value::as_str),
+        Some("final_response_empty")
+    );
+    assert_eq!(response.payload.get("response").and_then(Value::as_str), Some(""));
+    assert_eq!(
+        response.payload.get("system_chat_injection_used").and_then(Value::as_bool),
+        Some(false)
+    );
+    let session = handle(
+        root.path(),
+        "GET",
+        &format!("/api/agents/{agent_id}/session"),
+        b"",
+        &snapshot,
+    )
+    .expect("session response");
+    let messages = session
+        .payload
+        .get("messages")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    assert!(
+        messages.iter().any(|row| row.get("role").and_then(Value::as_str) == Some("user")),
+        "{messages:?}"
+    );
+    assert!(
+        !messages.iter().any(|row| {
+            row.get("role").and_then(Value::as_str) == Some("assistant")
+                && row.get("text").and_then(Value::as_str).unwrap_or("").contains("file tooling succeeded")
+        }),
+        "{messages:?}"
     );
 }
 

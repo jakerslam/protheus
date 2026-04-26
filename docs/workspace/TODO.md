@@ -1,14 +1,14 @@
 # TODO (SRS Execution Checklist)
 
-Updated: 2026-04-26T03:03:19.011Z
+Updated: 2026-04-26T04:07:02.969Z
 
 ## Global Rollup
 - total_rows: 3859
-- queued: 86
-- in_progress: 18
-- blocked: 0
+- queued: 78
+- in_progress: 17
+- blocked: 1
 - blocked_external_prepared: 32
-- done: 1444
+- done: 1452
 - existing_coverage_validated: 2279
 
 ## SRS Section Checklist
@@ -24,11 +24,11 @@ Updated: 2026-04-26T03:03:19.011Z
 - [x] Misty / Control-Plane Health Wave 5 (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Misty / Control-Plane Health Wave 6 (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Misty / Control-Plane Health Wave 7 (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
-- [ ] Misty / Control-Plane Health Wave 8 (2026-04-26) — queued=4, in_progress=1, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [x] Misty / Control-Plane Health Wave 8 (2026-04-26) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
 - [x] Test/Gate Maturity Registry Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] High-ROI Web + Installer Closure Guard Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=2, existing_coverage_validated=0
 - [x] Chat Rendering Experience Guard Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
-- [ ] Codex Shell Alpine Retirement TODO Wave (2026-04-26) — queued=4, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [ ] Codex Shell Alpine Retirement TODO Wave (2026-04-26) — queued=0, in_progress=0, blocked=1, blocked_external_prepared=0, done=7, existing_coverage_validated=0
 - [x] Tooling + Task Fabric Closure Guard Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Orchestration Quality Closure Guard Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Production Release Gate Closure Audit Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
@@ -659,9 +659,6 @@ Updated: 2026-04-26T03:03:19.011Z
 - [ ] `V11-TURNLOOP-014` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V11-WEB-007` — in_progress — Web Retrieval Reliability Intake (2026-04-06)
 - [ ] `V11-WEB-009` — in_progress — Web Retrieval Reliability Intake (2026-04-06)
-- [ ] `V12-MISTY-HEALTH-WAVE8-001` — in_progress — Misty / Control-Plane Health Wave 8 (2026-04-26)
-- [ ] `V12-MISTY-HEALTH-WAVE8-002` — queued — Misty / Control-Plane Health Wave 8 (2026-04-26)
-- [ ] `V12-MISTY-HEALTH-WAVE8-005` — queued — Misty / Control-Plane Health Wave 8 (2026-04-26)
 - [ ] `V12-ORCH-RESEARCH-005` — queued — Orchestration Control-Plane Research TODO Wave (2026-04-25)
 - [ ] `V6-ASSIM-001` — in_progress — Software Assimilation Capability Intake (2026-04-09)
 - [ ] `V6-ASSIM-002` — in_progress — Directed Assimilation Protocol Intake (2026-04-09)
@@ -700,10 +697,6 @@ Updated: 2026-04-26T03:03:19.011Z
 - [ ] `V11-TURNLOOP-012` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V11-TURNLOOP-015` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V11-TURNLOOP-017` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
-- [ ] `V12-MISTY-HEALTH-WAVE8-003` — queued — Misty / Control-Plane Health Wave 8 (2026-04-26)
-- [ ] `V12-MISTY-HEALTH-WAVE8-004` — queued — Misty / Control-Plane Health Wave 8 (2026-04-26)
-- [ ] `V13-CODEX-SHELL-ALPINE-005` — queued — Codex Shell Alpine Retirement TODO Wave (2026-04-26)
-- [ ] `V13-CODEX-SHELL-ALPINE-008` — queued — Codex Shell Alpine Retirement TODO Wave (2026-04-26)
 - [ ] `V6-CONDUIT-002.10` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
 - [ ] `V6-CONDUIT-002.11` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
 - [ ] `V6-CONDUIT-002.12` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
@@ -728,7 +721,6 @@ Updated: 2026-04-26T03:03:19.011Z
 - [ ] `V11-FILE-003` — in_progress — File Read Reliability Intake (2026-04-06)
 - [ ] `V11-TURNLOOP-016` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V12-FORGECODE-001` — in_progress — ForgeCode MCP/Retry Workflow Assimilation Increment (2026-04-23)
-- [ ] `V13-CODEX-SHELL-ALPINE-006` — queued — Codex Shell Alpine Retirement TODO Wave (2026-04-26)
 - [ ] `V13-EVAL-FEEDBACK-LIFECYCLE-001` — in_progress — Eval Feedback Lifecycle Governance (2026-04-25)
 - [ ] `V6-AUDIT-014` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
 - [ ] `V6-CONDUIT-002.5` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
@@ -738,7 +730,6 @@ Updated: 2026-04-26T03:03:19.011Z
 - [ ] `V6-PRIM-005` — in_progress — Unified Low-Level Provenance Primitive Bundle Intake (2026-04-09)
 - [ ] `V6-RESILIENCE-012` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
 - [ ] `V6-UX-094` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
-- [ ] `V13-CODEX-SHELL-ALPINE-007` — queued — Codex Shell Alpine Retirement TODO Wave (2026-04-26)
 - [ ] `V6-UX-092` — queued — Runtime UX + Scheduler Autonomy Intake (2026-04-01)
 - [ ] `V6-UX-093` — queued — Runtime UX + Scheduler Autonomy Intake (2026-04-01)
 - [ ] `V11-RUSTAUTH-001` — queued — Rust Authority Migration (V11-RUSTAUTH-001, 2026-04-06)

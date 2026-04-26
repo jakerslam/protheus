@@ -212,7 +212,14 @@
   });
 });
 
+function infringTaskbarDockService() {
+  var services = typeof window !== 'undefined' ? window.InfringSharedShellServices : null;
+  return services && services.taskbarDock ? services.taskbarDock : null;
+}
+
 function infringShellLayoutDefaultProfile() {
+  var service = infringTaskbarDockService();
+  if (service && typeof service.defaultProfile === 'function') return service.defaultProfile();
   var raw = '';
   try {
     raw = String((navigator && (navigator.userAgent || navigator.platform)) || '').toLowerCase();
@@ -224,6 +231,8 @@ function infringShellLayoutDefaultProfile() {
 }
 
 function infringShellLayoutDefaultConfig() {
+  var service = infringTaskbarDockService();
+  if (service && typeof service.defaultLayoutConfig === 'function') return service.defaultLayoutConfig();
   var profile = infringShellLayoutDefaultProfile();
   var macLike = profile === 'mac';
   return {
@@ -245,6 +254,8 @@ function infringShellLayoutDefaultConfig() {
 }
 
 function infringLocalStorageHasAny(keys) {
+  var service = infringTaskbarDockService();
+  if (service && typeof service.hasAnyStorage === 'function') return service.hasAnyStorage(keys);
   try {
     for (var i = 0; i < keys.length; i += 1) {
       if (localStorage.getItem(keys[i]) !== null) return true;
@@ -254,6 +265,8 @@ function infringLocalStorageHasAny(keys) {
 }
 
 function infringReadShellLayoutConfig() {
+  var service = infringTaskbarDockService();
+  if (service && typeof service.readLayoutConfig === 'function') return service.readLayoutConfig();
   var key = 'infring-shell-layout-config';
   var config = null;
   try {
@@ -285,12 +298,22 @@ function infringReadShellLayoutConfig() {
 }
 
 function infringWriteShellLayoutConfig(config) {
+  var service = infringTaskbarDockService();
+  if (service && typeof service.writeLayoutConfig === 'function') {
+    service.writeLayoutConfig(config);
+    return;
+  }
   try {
     localStorage.setItem('infring-shell-layout-config', JSON.stringify(config));
   } catch(_) {}
 }
 
 function infringUpdateShellLayoutConfig(mutator) {
+  var service = infringTaskbarDockService();
+  if (service && typeof service.updateLayoutConfig === 'function') {
+    infringShellLayoutConfig = service.updateLayoutConfig(mutator);
+    return;
+  }
   var config = infringReadShellLayoutConfig();
   try { mutator(config); } catch(_) {}
   infringShellLayoutConfig = config;
@@ -298,6 +321,8 @@ function infringUpdateShellLayoutConfig(mutator) {
 }
 
 function infringSeedShellLayoutConfig() {
+  var service = infringTaskbarDockService();
+  if (service && typeof service.seedLayoutConfig === 'function') return service.seedLayoutConfig();
   var config = infringReadShellLayoutConfig();
   var existed = false;
   try { existed = localStorage.getItem('infring-shell-layout-config') !== null; } catch(_) {}
@@ -350,6 +375,8 @@ function app() {
     themeMode: localStorage.getItem('infring-theme-mode') || 'system',
     overlayGlassTemplate: 'simple-glass',
     uiBackgroundTemplate: (() => {
+      var service = infringTaskbarDockService();
+      if (service && typeof service.readDisplayBackground === 'function') return service.readDisplayBackground();
       var mode = 'light-wood';
       try {
         var rawDisplaySettings = localStorage.getItem('infring-display-settings') || '';

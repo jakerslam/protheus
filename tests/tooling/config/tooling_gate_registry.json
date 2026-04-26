@@ -531,6 +531,50 @@
         "local/workspace/reports/SHELL_MESSAGE_METADATA_OWNERSHIP_GUARD_CURRENT.md"
       ]
     },
+    "ops:shell:dragbar:guard": {
+      "owner": "ops",
+      "description": "Fail when chat map/sidebar/pulltab dragbar behavior is not delegated to shared Shell dragbar services and Svelte shell seams.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:shell:dragbar:guard",
+      "artifact_paths": [
+        "core/local/artifacts/shell_dragbar_ownership_guard_current.json",
+        "local/workspace/reports/SHELL_DRAGBAR_OWNERSHIP_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:shell:taskbar-dock:guard": {
+      "owner": "ops",
+      "description": "Fail when taskbar, dock containment, display config, and OS-default layout behavior are not delegated to shared Shell taskbarDock services and Svelte shell seams.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:shell:taskbar-dock:guard",
+      "artifact_paths": [
+        "core/local/artifacts/shell_taskbar_dock_ownership_guard_current.json",
+        "local/workspace/reports/SHELL_TASKBAR_DOCK_OWNERSHIP_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:shell:simple-page-panel:guard": {
+      "owner": "ops",
+      "description": "Fail when overview, agents, approvals, workflows, and settings page/tab panels are not declared as same-dashboard Svelte simple-page-panel shells backed by shared Shell metadata.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:shell:simple-page-panel:guard",
+      "artifact_paths": [
+        "core/local/artifacts/shell_simple_page_panel_ownership_guard_current.json",
+        "local/workspace/reports/SHELL_SIMPLE_PAGE_PANEL_OWNERSHIP_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:shell:alpine-retirement:guard": {
+      "owner": "ops",
+      "description": "Fail until live shell Alpine usage, Alpine bootstrap/init calls, and dashboard Alpine vendor loading are all removed.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:shell:alpine-retirement:guard",
+      "artifact_paths": [
+        "core/local/artifacts/shell_alpine_retirement_guard_current.json",
+        "local/workspace/reports/SHELL_ALPINE_RETIREMENT_GUARD_CURRENT.md"
+      ]
+    },
     "ops:node-critical-path:inventory": {
       "owner": "ops",
       "description": "Node-critical operator path inventory with owned burn-down plan, domain/date ownership checks, and TypeScript confinement enforcement.",

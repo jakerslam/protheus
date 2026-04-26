@@ -5,7 +5,7 @@
 
     <!-- Page: Approvals -->
     <template x-if="page === 'approvals'">
-      <infring-approvals-page-shell>
+      <infring-approvals-page-shell shellprimitive="simple-page-panel" pageid="approvals" panelrole="page" routecontract="approvals" parentowneddata="true">
       <div x-data="approvalsPage" x-init="loadData()">
         <div class="page-header">
           <div class="tabs mt-3" role="tablist">
@@ -60,7 +60,7 @@
 
     <!-- Page: Workflows -->
     <template x-if="page === 'workflows'">
-      <infring-workflows-page-shell>
+      <infring-workflows-page-shell shellprimitive="simple-page-panel" pageid="workflows" panelrole="page" routecontract="workflows" parentowneddata="true">
       <div
         x-data="{ wfTab: (localStorage.getItem('infring-workflows-subtab') === 'builder' ? 'builder' : 'list') }"
         @wf-switch-tab.window="
@@ -91,7 +91,7 @@
 
         <!-- Tab: List -->
         <template x-if="wfTab === 'list'">
-        <infring-workflows-list-tab-shell>
+        <infring-workflows-list-tab-shell shellprimitive="simple-page-panel" pageid="workflows" tabid="list" panelrole="workflow-tab" routecontract="workflows:list" parentowneddata="true">
         <div x-data="workflowsPage">
         <div class="page-body" x-init="loadWorkflows()">
           <div x-show="loading" class="loading-state"><div class="spinner"></div><span>Loading workflows...</span></div>
@@ -230,7 +230,7 @@
 
         <!-- Tab: Visual Builder -->
         <template x-if="wfTab === 'builder'">
-        <infring-workflows-builder-tab-shell>
+        <infring-workflows-builder-tab-shell shellprimitive="simple-page-panel" pageid="workflows" tabid="builder" panelrole="workflow-tab" routecontract="workflows:builder" parentowneddata="true">
         <div x-data="workflowBuilder()" x-init="init()">
           <div class="wf-builder-layout">
             <!-- Node palette (left sidebar) -->

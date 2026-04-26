@@ -13,11 +13,22 @@ fn message_route_failure_response(
 ) -> CompatApiResponse {
     let clean_error = clean_text(error_code, 120);
     let clean_detail = clean_text(error_detail, 600);
+    let application_diagnostic = clean_error == "final_response_empty";
+    let transport_retryable = !application_diagnostic && status >= 500;
+    let diagnostic_class = if application_diagnostic {
+        "application_finalization_failure"
+    } else if status >= 500 {
+        "infrastructure_route_failure"
+    } else {
+        "application_route_failure"
+    };
     let events = vec![turn_workflow_event(
         "message_route_failure",
         json!({
             "error_code": clean_error,
             "detail": clean_detail,
+            "diagnostic_class": diagnostic_class,
+            "retryable": transport_retryable,
             "provider": clean_text(provider, 80),
             "model": clean_text(model, 240)
         }),
@@ -34,6 +45,9 @@ fn message_route_failure_response(
     let response_quality_telemetry = json!({
         "route_failure": true,
         "route_failure_code": clean_error,
+        "route_failure_diagnostic_class": diagnostic_class,
+        "application_diagnostic": application_diagnostic,
+        "transport_retryable": transport_retryable,
         "final_fallback_used": false
     });
     let tooling_invariant = json!({
@@ -82,6 +96,12 @@ fn message_route_failure_response(
     response_finalization["route_failure"] = json!({
         "error_code": clean_error,
         "detail": clean_detail,
+        "diagnostic_class": diagnostic_class,
+        "application_diagnostic": application_diagnostic,
+        "retryable": transport_retryable,
+        "transport_retryable": transport_retryable,
+        "infrastructure_failure": !application_diagnostic && status >= 500,
+        "transport_status": status,
         "chat_text_authored": false
     });
     apply_visible_response_provenance(&mut response_workflow, &mut response_finalization, "none");
@@ -117,6 +137,11 @@ fn message_route_failure_response(
     payload["error"] = Value::String(clean_error.clone());
     payload["error_code"] = Value::String(clean_error);
     payload["error_detail"] = Value::String(clean_detail);
+    payload["diagnostic_class"] = Value::String(diagnostic_class.to_string());
+    payload["application_diagnostic"] = Value::Bool(application_diagnostic);
+    payload["retryable"] = Value::Bool(transport_retryable);
+    payload["transport_retryable"] = Value::Bool(transport_retryable);
+    payload["infrastructure_failure"] = Value::Bool(!application_diagnostic && status >= 500);
     payload["agent_id"] = Value::String(clean_agent_id(agent_id));
     payload["provider"] = Value::String(clean_text(provider, 80));
     payload["model"] = Value::String(clean_text(model, 240));
@@ -182,11 +207,11 @@ fn final_response_empty_message_response(
     workspace_hints: Value,
     latent_tool_candidates: Value,
 ) -> CompatApiResponse {
-    message_route_failure_response(
+    let mut response = message_route_failure_response(
         root,
         agent_id,
         message,
-        502,
+        200,
         "final_response_empty",
         "The final LLM-authored response was empty after safety/finalization guards.",
         provider,
@@ -194,5 +219,13 @@ fn final_response_empty_message_response(
         "empty_final_response",
         workspace_hints,
         latent_tool_candidates,
-    )
+    );
+    let persistence_receipt = append_turn_message(root, agent_id, message, "");
+    response.payload["turn_persistence"] = json!({
+        "user_message_persisted": persistence_receipt.get("ok").and_then(Value::as_bool).unwrap_or(false),
+        "assistant_message_persisted": false,
+        "diagnostics_in_chat": false,
+        "receipt": persistence_receipt
+    });
+    response
 }
