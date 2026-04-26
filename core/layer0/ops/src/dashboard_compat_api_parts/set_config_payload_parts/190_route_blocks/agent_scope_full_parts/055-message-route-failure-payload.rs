@@ -118,14 +118,16 @@ fn message_route_failure_response(
     let process_summary =
         build_turn_process_summary(message, &response_tools, &response_workflow, &response_finalization);
     let workflow_visibility = workflow_visibility_payload(&response_workflow, &response_finalization);
-    let previous_assistant =
-        latest_assistant_message_text(&session_messages(&load_session_state(root, agent_id)));
+    let prior_messages = session_messages(&load_session_state(root, agent_id));
+    let previous_assistant = latest_assistant_message_text(&prior_messages);
+    let previous_user = latest_user_message_text(&prior_messages);
     let live_eval_monitor = live_eval_monitor_turn(
         root,
         agent_id,
         message,
         "",
         &previous_assistant,
+        &previous_user,
         &response_finalization,
     );
     let turn_receipt = json!({"live_eval_monitor": live_eval_monitor.clone()});

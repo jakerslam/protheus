@@ -162,10 +162,18 @@ fn finalize_message_finalization_and_payload(
         None
     };
     let latest_assistant_text = latest_assistant_message_text(&active_messages);
+    let final_synthesis_needs_recovery_model =
+        response_text.trim().is_empty()
+            || response_requires_visible_repair_for_message(message, &response_text, &response_tools);
+    let (workflow_provider, workflow_model) = if final_synthesis_needs_recovery_model {
+        visible_response_recovery_model(&provider, &model)
+    } else {
+        (provider.clone(), model.clone())
+    };
     let mut response_workflow = run_turn_workflow_final_response(
         root,
-        &provider,
-        &model,
+        &workflow_provider,
+        &workflow_model,
         &active_messages,
         message,
         &workflow_mode,
@@ -174,6 +182,12 @@ fn finalize_message_finalization_and_payload(
         &response_text,
         &latest_assistant_text,
     );
+    if final_synthesis_needs_recovery_model {
+        response_workflow["visible_response_recovery_model"] = json!({
+            "provider": workflow_provider,
+            "model": workflow_model
+        });
+    }
     let mut response_text = response_workflow
         .get("response")
         .and_then(Value::as_str)
@@ -182,7 +196,7 @@ fn finalize_message_finalization_and_payload(
     let mut finalized_response = clean_chat_text(&response_text, 32_000);
     let mut tool_completion = json!({});
     let workflow_status = workflow_final_response_status(&response_workflow);
-    let workflow_used = workflow_final_response_used(&response_workflow);
+    let mut workflow_used = workflow_final_response_used(&response_workflow);
     let workflow_fallback_allowed =
         workflow_final_response_allows_system_fallback(&response_workflow);
     let mut finalization_outcome = if workflow_used {

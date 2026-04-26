@@ -33,10 +33,21 @@ pub struct TransientExecutionObservationEntry {
     pub updated_at_ms: u64,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TransientExecutionObservationInvariantReport {
+    pub observation_row_count: usize,
+    pub dangling_observation_rows: usize,
+    pub active_observation_heap_refs: usize,
+    pub retired_observation_heap_refs: usize,
+    pub retired_observation_heap_still_active: usize,
+    pub ok: bool,
+}
+
 #[derive(Debug)]
 pub struct TransientContextStore {
     entries: BTreeMap<String, TransientContextEntry>,
     execution_observations: BTreeMap<String, TransientExecutionObservationEntry>,
+    retired_execution_observation_objects: BTreeSet<String>,
     heap: EphemeralMemoryHeap,
 }
 
@@ -47,6 +58,7 @@ impl Default for TransientContextStore {
         Self {
             entries: BTreeMap::new(),
             execution_observations: BTreeMap::new(),
+            retired_execution_observation_objects: BTreeSet::new(),
             heap,
         }
     }
@@ -58,6 +70,7 @@ impl TransientContextStore {
         Self {
             entries: BTreeMap::new(),
             execution_observations: BTreeMap::new(),
+            retired_execution_observation_objects: BTreeSet::new(),
             heap,
         }
     }
@@ -158,6 +171,8 @@ impl TransientContextStore {
                 "orchestration_observation_replace",
                 "observation_replaced",
             );
+            self.retired_execution_observation_objects
+                .insert(previous.object_id);
         }
         Ok(())
     }
@@ -177,7 +192,42 @@ impl TransientContextStore {
             "orchestration_observation_clear",
             "observation_cleared",
         );
+        self.retired_execution_observation_objects
+            .insert(entry.object_id);
         true
+    }
+
+    pub fn execution_observation_invariant_report(
+        &self,
+    ) -> TransientExecutionObservationInvariantReport {
+        let mut dangling_observation_rows = 0;
+        let mut active_observation_heap_refs = 0;
+        for entry in self.execution_observations.values() {
+            match self.heap.ephemeral_object(entry.object_id.as_str()) {
+                Some(object) if object.terminal_outcome == TerminalOutcome::Active => {
+                    active_observation_heap_refs += 1;
+                }
+                _ => dangling_observation_rows += 1,
+            }
+        }
+        let retired_observation_heap_still_active = self
+            .retired_execution_observation_objects
+            .iter()
+            .filter(|object_id| {
+                self.heap
+                    .ephemeral_object(object_id.as_str())
+                    .map(|object| object.terminal_outcome == TerminalOutcome::Active)
+                    .unwrap_or(false)
+            })
+            .count();
+        TransientExecutionObservationInvariantReport {
+            observation_row_count: self.execution_observations.len(),
+            dangling_observation_rows,
+            active_observation_heap_refs,
+            retired_observation_heap_refs: self.retired_execution_observation_objects.len(),
+            retired_observation_heap_still_active,
+            ok: dangling_observation_rows == 0 && retired_observation_heap_still_active == 0,
+        }
     }
 
     pub fn get(&self, session_id: &str) -> Option<&TransientContextEntry> {
@@ -219,12 +269,25 @@ impl TransientContextStore {
                 .map(|object| object.terminal_outcome == TerminalOutcome::Active)
                 .unwrap_or(false)
         });
+        let retired_observation_ids = self
+            .execution_observations
+            .values()
+            .filter(|entry| {
+                self.heap
+                    .ephemeral_object(entry.object_id.as_str())
+                    .map(|object| object.terminal_outcome != TerminalOutcome::Active)
+                    .unwrap_or(true)
+            })
+            .map(|entry| entry.object_id.clone())
+            .collect::<Vec<_>>();
         self.execution_observations.retain(|_, entry| {
             self.heap
                 .ephemeral_object(entry.object_id.as_str())
                 .map(|object| object.terminal_outcome == TerminalOutcome::Active)
                 .unwrap_or(false)
         });
+        self.retired_execution_observation_objects
+            .extend(retired_observation_ids);
         let removed_session_count = entry_count_before.saturating_sub(self.entries.len());
         let reclaimed_payload_bytes = self.heap.reclaim_cleaned_payloads();
         Ok(TransientSleepCleanupReport {
@@ -260,8 +323,16 @@ impl TransientContextStore {
             .collect::<BTreeSet<_>>();
         self.entries
             .retain(|_, entry| !cleaned_ids.contains(entry.object_id.as_str()));
+        let retired_observation_ids = self
+            .execution_observations
+            .values()
+            .filter(|entry| cleaned_ids.contains(entry.object_id.as_str()))
+            .map(|entry| entry.object_id.clone())
+            .collect::<Vec<_>>();
         self.execution_observations
             .retain(|_, entry| !cleaned_ids.contains(entry.object_id.as_str()));
+        self.retired_execution_observation_objects
+            .extend(retired_observation_ids);
         let _ = self.heap.reclaim_cleaned_payloads();
         Ok(receipts.len())
     }
@@ -516,6 +587,11 @@ mod tests {
         assert_eq!(store.len(), 0);
         assert_eq!(store.active_ephemeral_count(), 0);
         assert_observation_absent(&store, "session-sleep");
+        let invariant = store.execution_observation_invariant_report();
+        assert!(invariant.ok);
+        assert_eq!(invariant.observation_row_count, 0);
+        assert_eq!(invariant.retired_observation_heap_refs, 1);
+        assert_eq!(invariant.retired_observation_heap_still_active, 0);
     }
 
     #[test]
@@ -546,4 +622,36 @@ mod tests {
             .resume_after_restart()
             .expect("resume should succeed after observation refs are swept");
     }
+
+    #[test]
+    fn execution_observation_invariant_report_tracks_replace_and_clear() {
+        let mut store = TransientContextStore::default();
+        store
+            .upsert_execution_observation("session-report", observation("receipt-a"), 10)
+            .expect("initial observation upsert");
+        let initial = store.execution_observation_invariant_report();
+        assert!(initial.ok);
+        assert_eq!(initial.observation_row_count, 1);
+        assert_eq!(initial.active_observation_heap_refs, 1);
+        assert_eq!(initial.retired_observation_heap_refs, 0);
+
+        store
+            .upsert_execution_observation("session-report", observation("receipt-b"), 20)
+            .expect("replacement observation upsert");
+        let replaced = store.execution_observation_invariant_report();
+        assert!(replaced.ok);
+        assert_eq!(replaced.observation_row_count, 1);
+        assert_eq!(replaced.active_observation_heap_refs, 1);
+        assert_eq!(replaced.retired_observation_heap_refs, 1);
+        assert_eq!(replaced.retired_observation_heap_still_active, 0);
+
+        assert!(store.clear_execution_observation("session-report"));
+        let cleared = store.execution_observation_invariant_report();
+        assert!(cleared.ok);
+        assert_eq!(cleared.observation_row_count, 0);
+        assert_eq!(cleared.active_observation_heap_refs, 0);
+        assert_eq!(cleared.retired_observation_heap_refs, 2);
+        assert_eq!(cleared.retired_observation_heap_still_active, 0);
+    }
+
 }

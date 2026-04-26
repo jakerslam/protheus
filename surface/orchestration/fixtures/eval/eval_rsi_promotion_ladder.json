@@ -33,6 +33,13 @@
       "id": "metamorphic_routing",
       "artifact_path": "core/local/artifacts/eval_metamorphic_guard_current.json",
       "ok_pointer": "/ok"
+    },
+    {
+      "id": "longitudinal_authority_calibration",
+      "artifact_path": "core/local/artifacts/eval_authority_calibration_current.json",
+      "ok_pointer": "/ok",
+      "block_if_true_pointer": "/closed_loop_auto_change_allowed",
+      "note": "Observations may be authoritative; RSI promotion must not enable closed-loop automatic system changes unless a later authority-specific gate requires closed_loop_change_ready."
     }
   ]
 }

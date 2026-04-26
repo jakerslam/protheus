@@ -104,6 +104,46 @@ fn response_contains_project_dump_sections(text: &str) -> bool {
     hits >= 2
 }
 
+fn response_contains_short_unrelated_project_title(user_message: &str, response_text: &str) -> bool {
+    let cleaned = clean_chat_text(response_text, 1_000);
+    if cleaned.len() < 8 || cleaned.len() > 220 {
+        return false;
+    }
+    let lowered = cleaned.to_ascii_lowercase();
+    let looks_like_project_artifact = cleaned
+        .lines()
+        .take(3)
+        .any(|line| line.trim_start().starts_with("# "))
+        || lowered.contains("project-")
+        || lowered.contains("project 2 for")
+        || lowered.contains("itmd-")
+        || lowered.contains("readme.md");
+    if !looks_like_project_artifact {
+        return false;
+    }
+    let user_lowered = clean_text(user_message, 600).to_ascii_lowercase();
+    if [
+        "project",
+        "readme",
+        "assignment",
+        "itmd",
+        "repository title",
+        "repo title",
+    ]
+    .iter()
+    .any(|needle| user_lowered.contains(*needle))
+    {
+        return false;
+    }
+    let user_terms = important_memory_terms(user_message, 20)
+        .into_iter()
+        .collect::<HashSet<_>>();
+    let response_terms = important_memory_terms(&cleaned, 20)
+        .into_iter()
+        .collect::<HashSet<_>>();
+    user_terms.is_empty() || response_terms.is_empty() || user_terms.is_disjoint(&response_terms)
+}
+
 fn response_contains_internal_prompt_dump(lowered: &str) -> bool {
     lowered.contains("you are the currently selected infring agent instance")
         || (lowered.contains("<instructions>") && lowered.contains("manual toolbox gate"))
@@ -197,11 +237,14 @@ fn response_field_from_json_wrapper(payload: &Value) -> Option<String> {
     let Value::Object(map) = payload else {
         return None;
     };
-    let output_keys = ["response", "text", "answer", "message"];
+    let output_keys = ["response", "text", "answer", "message", "content", "output"];
     let output_key = output_keys
         .iter()
         .find(|key| map.contains_key(**key))?;
-    let allowed_keys = ["response", "text", "answer", "message", "source", "status"];
+    let allowed_keys = [
+        "response", "text", "answer", "message", "content", "output", "source", "status", "type",
+        "format", "kind", "style", "schema", "language",
+    ];
     if map.keys().any(|key| !allowed_keys.contains(&key.as_str())) {
         return None;
     }
@@ -217,7 +260,7 @@ fn response_field_from_json_wrapper(payload: &Value) -> Option<String> {
 
 fn response_wrapper_starts_with_output_key(text: &str) -> bool {
     let lowered = text.to_ascii_lowercase();
-    ["response", "text", "answer", "message"].iter().any(|key| {
+    ["response", "text", "answer", "message", "content", "output"].iter().any(|key| {
         lowered.starts_with(&format!("\"{key}\""))
             || lowered.starts_with(&format!("'{key}'"))
             || lowered.starts_with(&format!("{key}:"))
@@ -488,6 +531,9 @@ fn response_is_unrelated_context_dump(user_message: &str, response_text: &str) -
         return true;
     }
     if response_contains_competitive_programming_template_dump(user_message, response_text) {
+        return true;
+    }
+    if response_contains_short_unrelated_project_title(user_message, response_text) {
         return true;
     }
     if response_text.len() < 220 {

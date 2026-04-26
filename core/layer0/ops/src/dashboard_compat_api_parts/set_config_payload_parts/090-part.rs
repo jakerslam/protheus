@@ -619,7 +619,9 @@ fn append_turn_receipt_with_metadata(
     turn_transaction: &Value,
     terminal_transcript: &[Value],
 ) -> Value {
-    let previous_assistant = latest_assistant_message_text(&session_messages(&load_session_state(root, agent_id)));
+    let prior_messages = session_messages(&load_session_state(root, agent_id));
+    let previous_assistant = latest_assistant_message_text(&prior_messages);
+    let previous_user = latest_user_message_text(&prior_messages);
     let workflow_visibility = workflow_visibility_payload(response_workflow, response_finalization);
     let mut turn_receipt = append_turn_message(root, agent_id, message, finalized_response);
     turn_receipt["assistant_turn_patch"] = persist_last_assistant_turn_metadata(
@@ -639,7 +641,7 @@ fn append_turn_receipt_with_metadata(
     turn_receipt["process_summary"] = process_summary.clone();
     turn_receipt["workflow_visibility"] = workflow_visibility;
     turn_receipt["response_finalization"] = response_finalization.clone();
-    turn_receipt["live_eval_monitor"] = live_eval_monitor_turn(root, agent_id, message, finalized_response, &previous_assistant, response_finalization);
+    turn_receipt["live_eval_monitor"] = live_eval_monitor_turn(root, agent_id, message, finalized_response, &previous_assistant, &previous_user, response_finalization);
     turn_receipt
 }
 fn enrich_tool_completion_receipt(tool_completion: Value, response_tools: &[Value]) -> Value {

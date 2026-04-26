@@ -33,6 +33,11 @@ pub fn spec_for(capability: &Capability) -> CapabilitySpec {
                 CoreContractCall::UnifiedMemoryRead,
             )],
         },
+        Capability::PrepareContext => CapabilitySpec {
+            requires: Vec::new(),
+            primary_steps: vec![context_preparation_step()],
+            degraded_steps: Vec::new(),
+        },
         Capability::MutateTask => CapabilitySpec {
             requires: vec![Precondition::AuthorizationValid, Precondition::PolicyAllows],
             primary_steps: vec![step(
@@ -105,7 +110,7 @@ pub fn spec_for(capability: &Capability) -> CapabilitySpec {
 
 pub fn context_preparation_step() -> OrchestrationPlanStep {
     let mut out = step(
-        Capability::ReadMemory,
+        Capability::PrepareContext,
         "step_context_atom_append_prepare",
         "prepare_session_context_explicit",
         CoreContractCall::ContextAtomAppend,

@@ -127,6 +127,7 @@ pub enum ExecutionPosture {
 #[serde(rename_all = "snake_case")]
 pub enum Capability {
     ReadMemory,
+    PrepareContext,
     MutateTask,
     WorkspaceRead,
     WorkspaceSearch,
@@ -155,6 +156,7 @@ impl Capability {
     pub fn probe_keys(&self) -> &'static [&'static str] {
         match self {
             Capability::ReadMemory => &["read_memory"],
+            Capability::PrepareContext => &["prepare_context"],
             Capability::MutateTask => &["mutate_task"],
             Capability::WorkspaceRead => &["workspace_read"],
             Capability::WorkspaceSearch => &["workspace_search"],
@@ -461,6 +463,8 @@ pub struct PlanCandidate {
     pub capability_graph: Vec<Capability>,
     #[serde(default)]
     pub contract_family: String,
+    #[serde(default)]
+    pub decomposition_signature: String,
     pub confidence: f32,
     pub score: PlanScore,
     pub requires_clarification: bool,
@@ -642,6 +646,11 @@ pub struct RuntimeQualitySignals {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ForgeCodeWorkflowQualitySignals {
+    pub workflow_decomposition_signature_count: u32,
+    pub workflow_distinct_contract_family_count: u32,
+    pub workflow_distinct_capability_graph_count: u32,
+    pub selected_decomposition_signature: String,
+    pub alternative_decomposition_signatures: Vec<String>,
     pub mcp_alias_route_required: bool,
     pub retry_backoff_contract_required: bool,
     pub mcp_transport_fallback_required: bool,

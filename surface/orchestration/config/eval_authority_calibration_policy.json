@@ -1,0 +1,24 @@
+{
+  "type": "eval_authority_calibration_policy",
+  "schema_version": 1,
+  "summary": "Eval observations may be authoritative evidence now; closed-loop automatic system changes remain disabled until longitudinal reviewer outcomes prove stable accuracy and operator approval is present.",
+  "thresholds": {
+    "minimum_reviewed_samples": 50,
+    "minimum_precision": 0.9,
+    "minimum_recall": 0.85,
+    "maximum_false_positive_rate": 0.05,
+    "maximum_false_negative_rate": 0.1,
+    "minimum_consecutive_passing_windows": 4
+  },
+  "authority": {
+    "observation_authority_allowed": true,
+    "requires_operator_approval": true,
+    "closed_loop_autonomy_allowed": false,
+    "default_mode": "authoritative_observations_only",
+    "promotion_rule": "observations may inform issues/reports immediately; closed_loop_change_ready requires calibration_pass AND consecutive_clean_windows>=minimum AND operator_approved; closed_loop_auto_change_allowed requires explicit policy enablement"
+  },
+  "evidence": {
+    "feedback_source": "local/state/ops/eval_agent_chat_monitor/reviewer_feedback.jsonl",
+    "history_source": "local/state/ops/eval_authority_calibration/history.jsonl"
+  }
+}
