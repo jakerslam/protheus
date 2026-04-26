@@ -1,18 +1,18 @@
 # TODO (SRS Execution Checklist)
 
-Updated: 2026-04-25T22:42:27.537Z
+Updated: 2026-04-26T00:07:51.525Z
 
 ## Global Rollup
-- total_rows: 3830
-- queued: 96
+- total_rows: 3829
+- queued: 78
 - in_progress: 16
 - blocked: 0
 - blocked_external_prepared: 32
-- done: 1407
+- done: 1424
 - existing_coverage_validated: 2279
 
 ## SRS Section Checklist
-- [ ] Kernel Sentinel Failure Intelligence Backlog (2026-04-25) — queued=18, in_progress=0, blocked=0, blocked_external_prepared=0, done=9, existing_coverage_validated=0
+- [x] Kernel Sentinel Failure Intelligence Backlog (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=26, existing_coverage_validated=0
 - [x] Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=45, existing_coverage_validated=0
 - [ ] Orchestration Control-Plane Research TODO Wave (2026-04-25) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=11, existing_coverage_validated=0
 - [x] High-ROI Release Proof-Pack Closure Wave (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
@@ -657,15 +657,6 @@ Updated: 2026-04-25T22:42:27.537Z
 - [ ] `V11-WEB-007` — in_progress — Web Retrieval Reliability Intake (2026-04-06)
 - [ ] `V11-WEB-009` — in_progress — Web Retrieval Reliability Intake (2026-04-06)
 - [ ] `V12-ORCH-RESEARCH-005` — queued — Orchestration Control-Plane Research TODO Wave (2026-04-25)
-- [ ] `V13-KSENT-011` — queued — Kernel Sentinel Failure Intelligence Backlog (2026-04-25)
-- [ ] `V13-KSENT-015` — queued — Kernel Sentinel Failure Intelligence Backlog (2026-04-25)
-- [ ] `V13-KSENT-018` — queued — Kernel Sentinel Failure Intelligence Backlog (2026-04-25)
-- [ ] `V13-KSENT-020` — queued — Kernel Sentinel Failure Intelligence Backlog (2026-04-25)
-- [ ] `V13-KSENT-021` — queued — Kernel Sentinel Failure Intelligence Backlog (2026-04-25)
-- [ ] `V13-KSENT-022` — queued — Kernel Sentinel Failure Intelligence Backlog (2026-04-25)
-- [ ] `V13-KSENT-023` — queued — Kernel Sentinel Failure Intelligence Backlog (2026-04-25)
-- [ ] `V13-KSENT-025` — queued — Kernel Sentinel Failure Intelligence Backlog (2026-04-25)
-- [ ] `V13-KSENT-027` — queued — Kernel Sentinel Failure Intelligence Backlog (2026-04-25)
 - [ ] `V6-ASSIM-001` — in_progress — Software Assimilation Capability Intake (2026-04-09)
 - [ ] `V6-ASSIM-002` — in_progress — Directed Assimilation Protocol Intake (2026-04-09)
 - [ ] `V6-AUTO-001` — in_progress — Governed Self-Maintenance Supervisor Intake (2026-04-09)
@@ -703,14 +694,6 @@ Updated: 2026-04-25T22:42:27.537Z
 - [ ] `V11-TURNLOOP-012` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V11-TURNLOOP-015` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V11-TURNLOOP-017` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
-- [ ] `V13-KSENT-010` — queued — Kernel Sentinel Failure Intelligence Backlog (2026-04-25)
-- [ ] `V13-KSENT-013` — queued — Kernel Sentinel Failure Intelligence Backlog (2026-04-25)
-- [ ] `V13-KSENT-014` — queued — Kernel Sentinel Failure Intelligence Backlog (2026-04-25)
-- [ ] `V13-KSENT-016` — queued — Kernel Sentinel Failure Intelligence Backlog (2026-04-25)
-- [ ] `V13-KSENT-017` — queued — Kernel Sentinel Failure Intelligence Backlog (2026-04-25)
-- [ ] `V13-KSENT-019` — queued — Kernel Sentinel Failure Intelligence Backlog (2026-04-25)
-- [ ] `V13-KSENT-024` — queued — Kernel Sentinel Failure Intelligence Backlog (2026-04-25)
-- [ ] `V13-KSENT-026` — queued — Kernel Sentinel Failure Intelligence Backlog (2026-04-25)
 - [ ] `V6-CONDUIT-002.10` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
 - [ ] `V6-CONDUIT-002.11` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
 - [ ] `V6-CONDUIT-002.12` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
@@ -750,7 +733,6 @@ Updated: 2026-04-25T22:42:27.537Z
 - [ ] `V11-UX-AUTOMATION-001` — queued — Automation IA Consolidation Intake (2026-04-05)
 - [ ] `V11-UX-MANAGE-001` — queued — Manage IA Consolidation Intake (2026-04-05)
 - [ ] `V11-UX-SYSTEM-001` — queued — System IA Consolidation Intake (2026-04-05)
-- [ ] `V13-KSENT-012` — queued — Kernel Sentinel Failure Intelligence Backlog (2026-04-25)
 - [ ] `V6-FOUNDATION-DNA-001` — queued — Digital DNA Foundation v1 Intake (2026-04-01)
 - [ ] `V6-FOUNDATION-DNA-002` — queued — Digital DNA Foundation v1 Intake (2026-04-01)
 - [ ] `V6-ORGAN-001.9` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
