@@ -109,9 +109,13 @@ fn finalize_message_invoke_failure_and_payload(
         &tooling_invariant,
         &web_invariant,
     );
+    let workflow_direct_response_path = response_workflow
+        .pointer("/workflow_control/direct_response_path")
+        .and_then(Value::as_str)
+        .unwrap_or("gate_1_unresolved");
     response_finalization["workflow_control"] = json!({
         "mode": "tool_menu_interface_v1",
-        "direct_response_path": "gate_1_no"
+        "direct_response_path": workflow_direct_response_path
     });
     response_finalization["initial_model_invoke_failed"] = Value::Bool(true);
     let visible_response_source = visible_response_source_for_turn(

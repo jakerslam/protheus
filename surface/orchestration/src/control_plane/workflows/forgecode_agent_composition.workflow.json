@@ -1,6 +1,7 @@
 {
   "name": "forgecode_agent_composition",
   "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assimilation_workflow_template",
   "default": false,
   "description": "ForgeCode assimilation template that composes three specialized agent lanes (research, planning, implementation) into one single-agent master workflow.",
   "stages": [

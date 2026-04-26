@@ -540,6 +540,39 @@ fn run_quality_gate(args: &[String]) -> i32 {
         &history_snapshot,
         &policy,
     );
+    let sample_deficit = signal_snapshot
+        .minimum_eval_samples
+        .saturating_sub(signal_snapshot.predicted_non_info_samples);
+    let block_reasons = gate_block_reasons(&signal_snapshot, &calibration_snapshot, &gate_state);
+    let block_reason_text = block_reasons.join(", ");
+    let required_actions: Vec<String> = block_reasons
+        .iter()
+        .map(|reason| match reason.as_str() {
+            "quality_signal_insufficient" => format!(
+                "collect at least {} additional non-informational eval samples and rerun eval quality metrics",
+                sample_deficit
+            ),
+            "consecutive_clean_passes_below_required" => format!(
+                "run {} more clean eval quality gate pass(es) before allowing autonomous escalation",
+                gate_state.remaining_to_unlock
+            ),
+            "quality_thresholds_failed" => {
+                "repair eval quality threshold violations before using eval as a release gate".to_string()
+            }
+            "monitor_not_ok" => {
+                "repair eval chat monitor ingestion before trusting eval issue synthesis".to_string()
+            }
+            "judge_human_calibration_not_ready" => {
+                "collect or repair judge-human calibration samples before promoting eval autonomy".to_string()
+            }
+            _ => format!("review eval quality gate block reason: {reason}"),
+        })
+        .collect();
+    let required_action_text = if required_actions.is_empty() {
+        "none".to_string()
+    } else {
+        required_actions.join("; ")
+    };
 
     let checks = vec![
         json!({
@@ -602,6 +635,55 @@ fn run_quality_gate(args: &[String]) -> i32 {
     let ok = checks
         .iter()
         .all(|row| row.get("ok").and_then(|v| v.as_bool()).unwrap_or(false));
+    let release_gate_status = if gate_state.autonomous_escalation_allowed {
+        "autonomous_escalation_allowed"
+    } else if gate_state.current_pass {
+        "pass_collecting_consecutive_history"
+    } else {
+        "blocked"
+    };
+    let issue_candidate = if ok {
+        json!(null)
+    } else {
+        json!({
+            "type": "eval_quality_gate_issue_candidate",
+            "schema_version": 1,
+            "generated_at": now_iso.clone(),
+            "status": "candidate",
+            "source": "eval_quality_gate_v1",
+            "fingerprint": format!("eval_quality_gate_v1:{}", block_reasons.join("|")),
+            "dedupe_key": format!("eval_quality_gate_v1:{}", block_reasons.join("|")),
+            "owner": "surface/orchestration/eval",
+            "route_to": "eval_issue_backlog",
+            "title": "Eval quality gate is not ready for autonomous escalation",
+            "severity": if gate_state.current_pass { "medium" } else { "high" },
+            "labels": ["eval", "release-gate", "rsi-readiness"],
+            "impact": "eval cannot safely drive RSI promotion or autonomous escalation until this gate unlocks",
+            "block_reasons": block_reasons.clone(),
+            "required_actions": required_actions.clone(),
+            "source_artifacts": [quality_path.clone(), monitor_path.clone(), judge_human_path.clone()],
+            "triage": {
+                "state": "ready_for_issue_synthesis",
+                "safe_to_auto_file_issue": true,
+                "safe_to_auto_apply_patch": false,
+                "requires_eval_authority_receipt_to_close": true
+            },
+            "automation_policy": {
+                "mode": "proposal_only",
+                "requires_operator_or_eval_authority_receipt_before_apply": true,
+                "autonomous_escalation_allowed": false
+            },
+            "quality_evaluation_mode": evaluation_mode_raw,
+            "sample_deficit": sample_deficit,
+            "remaining_to_unlock": gate_state.remaining_to_unlock,
+            "acceptance_criteria": [
+                "quality_signal_sufficient is true",
+                "judge-human calibration is ready",
+                "required consecutive clean passes have been reached",
+                "autonomous_escalation_allowed is true"
+            ]
+        })
+    };
 
     let report = json!({
         "type": "eval_quality_gate_v1",
@@ -609,7 +691,7 @@ fn run_quality_gate(args: &[String]) -> i32 {
         "generated_at": now_iso,
         "ok": ok,
         "checks": checks,
-        "block_reasons": gate_block_reasons(&signal_snapshot, &calibration_snapshot, &gate_state),
+        "block_reasons": block_reasons.clone(),
         "summary": {
             "quality_ok": signal_snapshot.quality_ok,
             "monitor_ok": signal_snapshot.monitor_ok,
@@ -617,6 +699,7 @@ fn run_quality_gate(args: &[String]) -> i32 {
             "quality_evaluation_mode": evaluation_mode_raw,
             "predicted_non_info_samples": signal_snapshot.predicted_non_info_samples,
             "minimum_eval_samples": signal_snapshot.minimum_eval_samples,
+            "sample_deficit": sample_deficit,
             "calibration_ready": calibration_snapshot.calibration_ready,
             "calibration_status": calibration_snapshot.status,
             "calibration_agreement_rate": calibration_snapshot.agreement_rate,
@@ -627,6 +710,35 @@ fn run_quality_gate(args: &[String]) -> i32 {
             "autonomous_escalation_allowed": gate_state.autonomous_escalation_allowed,
             "rsi_promotion_blocked": !gate_state.autonomous_escalation_allowed,
             "remaining_to_unlock": gate_state.remaining_to_unlock,
+            "required_actions": required_actions.clone(),
+        },
+        "operator_summary": {
+            "status": release_gate_status,
+            "blocker_count": block_reasons.len(),
+            "primary_blocker": block_reasons.first().cloned().unwrap_or_else(|| "none".to_string()),
+            "block_reasons": block_reasons.clone(),
+            "required_actions": required_actions.clone(),
+            "issue_candidate_ready": !ok
+        },
+        "issue_candidate": issue_candidate,
+        "issue_candidate_contract": {
+            "candidate_schema_version": 1,
+            "safe_to_auto_file_issue": true,
+            "safe_to_auto_apply_patch": false,
+            "authority_receipt_required_to_close": true
+        },
+        "release_gate_contract": {
+            "pass_fail_authoritative": true,
+            "autonomous_escalation_requires_quality_signal": true,
+            "autonomous_escalation_requires_calibration": true,
+            "autonomous_escalation_requires_consecutive_passes": true
+        },
+        "unlock_contract": {
+            "remaining_to_unlock": gate_state.remaining_to_unlock,
+            "sample_deficit": sample_deficit,
+            "required_actions": required_actions.clone(),
+            "issue_candidate_ready": !ok,
+            "operator_can_unlock_by_following_required_actions": true
         },
         "sources": {
             "quality": quality_path,
@@ -644,19 +756,28 @@ fn run_quality_gate(args: &[String]) -> i32 {
         "autonomous_escalation_allowed": gate_state.autonomous_escalation_allowed,
         "last_soft_blocked": gate_state.soft_blocked,
         "last_result_ok": ok,
+        "last_block_reasons": block_reasons.clone(),
+        "last_required_actions": required_actions.clone(),
+        "last_sample_deficit": sample_deficit,
     });
     let markdown = format!(
-        "# Eval Quality Gate v1 (Current)\n\n- generated_at: {}\n- ok: {}\n- quality_ok: {}\n- monitor_ok: {}\n- quality_signal_sufficient: {}\n- calibration_ready: {}\n- calibration_status: {}\n- consecutive_passes: {}\n- required_consecutive_passes: {}\n- autonomous_escalation_allowed: {}\n",
+        "# Eval Quality Gate v1 (Current)\n\n- generated_at: {}\n- ok: {}\n- quality_ok: {}\n- monitor_ok: {}\n- quality_signal_sufficient: {}\n- quality_evaluation_mode: {}\n- predicted_non_info_samples: {}\n- minimum_eval_samples: {}\n- sample_deficit: {}\n- calibration_ready: {}\n- calibration_status: {}\n- consecutive_passes: {}\n- required_consecutive_passes: {}\n- autonomous_escalation_allowed: {}\n- block_reasons: {}\n- required_actions: {}\n",
         report.get("generated_at").and_then(|v| v.as_str()).unwrap_or(""),
         ok,
         signal_snapshot.quality_ok,
         signal_snapshot.monitor_ok,
         gate_state.quality_signal_sufficient,
+        evaluation_mode_raw,
+        signal_snapshot.predicted_non_info_samples,
+        signal_snapshot.minimum_eval_samples,
+        sample_deficit,
         calibration_snapshot.calibration_ready,
         calibration_snapshot.status,
         gate_state.consecutive_passes,
         gate_state.required_consecutive_passes,
-        gate_state.autonomous_escalation_allowed
+        gate_state.autonomous_escalation_allowed,
+        block_reason_text,
+        required_action_text
     );
 
     let write_ok = write_json(&history_path, &history_out).is_ok()

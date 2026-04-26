@@ -21,6 +21,9 @@ pub fn select_workflow_template(
     needs_clarification: bool,
     recovery: Option<&RecoveryState>,
 ) -> WorkflowTemplate {
+    if is_openhands_assimilation_request(request) {
+        return WorkflowTemplate::OpenHandsControlPlaneAssimilation;
+    }
     let is_forgecode_assimilation = is_forgecode_assimilation_request(request);
     if is_forgecode_assimilation {
         if is_forgecode_raw_capability_request(request) {
@@ -61,6 +64,28 @@ pub fn select_workflow_template(
         return WorkflowTemplate::PlanExecuteReview;
     }
     WorkflowTemplate::ResearchSynthesizeVerify
+}
+
+fn is_openhands_assimilation_request(request: &TypedOrchestrationRequest) -> bool {
+    let has_openhands_marker = |value: &str| {
+        let lower = value.to_ascii_lowercase();
+        lower.contains("openhands")
+            || lower.contains("open hands")
+            || lower.contains("openhands/openhands")
+            || lower.contains("all-hands-ai/openhands")
+    };
+
+    if has_openhands_marker(&request.legacy_intent) {
+        return true;
+    }
+    if request
+        .target_refs
+        .iter()
+        .any(|target| has_openhands_marker(target))
+    {
+        return true;
+    }
+    has_openhands_marker(&request.payload.to_string())
 }
 
 fn is_forgecode_assimilation_request(request: &TypedOrchestrationRequest) -> bool {

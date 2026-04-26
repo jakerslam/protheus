@@ -320,18 +320,36 @@ fn prepare_message_route_context(
     } else {
         128_000
     };
+    let inline_tools_allowed = inline_tool_calls_allowed_for_user_message(message);
+    let suppress_passive_context =
+        simple_direct_chat_suppresses_passive_context(message, inline_tools_allowed);
+    let default_active_context_target_tokens = if suppress_passive_context {
+        768
+    } else {
+        ((fallback_window as f64) * 0.68).round() as i64
+    };
+    let active_context_min_tokens = if suppress_passive_context {
+        512
+    } else {
+        4_096
+    };
+    let active_context_min_recent_floor = if suppress_passive_context {
+        2
+    } else {
+        ACTIVE_CONTEXT_MIN_RECENT_FLOOR
+    };
     let active_context_target_tokens = request
         .get("active_context_target_tokens")
         .or_else(|| request.get("target_context_window"))
         .and_then(Value::as_i64)
-        .unwrap_or_else(|| ((fallback_window as f64) * 0.68).round() as i64)
-        .clamp(4_096, 512_000);
+        .unwrap_or(default_active_context_target_tokens)
+        .clamp(active_context_min_tokens, 512_000);
     let active_context_min_recent = request
         .get("active_context_min_recent_messages")
         .or_else(|| request.get("min_recent_messages"))
         .and_then(Value::as_u64)
-        .unwrap_or(ACTIVE_CONTEXT_MIN_RECENT_FLOOR as u64)
-        .clamp(ACTIVE_CONTEXT_MIN_RECENT_FLOOR as u64, 256)
+        .unwrap_or(active_context_min_recent_floor as u64)
+        .clamp(active_context_min_recent_floor as u64, 256)
         as usize;
     let include_all_sessions_context = request
         .get("include_all_sessions_context")
@@ -407,6 +425,14 @@ fn prepare_message_route_context(
         active_context_target_tokens,
         active_context_min_recent,
     );
+    if suppress_passive_context && active_messages.len() > 8 {
+        active_messages = active_messages
+            .into_iter()
+            .rev()
+            .take(8)
+            .collect::<Vec<_>>();
+        active_messages.reverse();
+    }
     let mut context_pool_tokens = total_message_tokens(&pooled_messages);
     let mut context_active_tokens = total_message_tokens(&active_messages);
     let mut context_ratio = if fallback_window > 0 {
@@ -517,8 +543,6 @@ fn prepare_message_route_context(
             )
     };
     let memory_kv_entries = memory_kv_pairs_from_state(&state).len();
-    let inline_tools_allowed = inline_tool_calls_allowed_for_user_message(message);
-    let suppress_passive_context = simple_direct_chat_suppresses_passive_context(message, inline_tools_allowed);
     let memory_prompt_context = if suppress_passive_context { String::new() } else { memory_kv_prompt_context(&state, 24) };
     let instinct_prompt_context = agent_instinct_prompt_context(root, 6_000);
     let plugin_prompt_context = dashboard_skills_marketplace::skills_prompt_context(root, 12, 4_000);

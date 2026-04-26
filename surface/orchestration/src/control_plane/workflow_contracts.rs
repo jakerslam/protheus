@@ -1,5 +1,6 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::{BTreeSet, HashSet};
 
 pub const REQUIRED_TERMINAL_STATES: &[&str] =
@@ -72,6 +73,10 @@ const WORKFLOW_SOURCES: &[(&str, &str)] = &[
         "surface/orchestration/src/control_plane/workflows/forgecode_raw_capability_assimilation.workflow.json",
         include_str!("workflows/forgecode_raw_capability_assimilation.workflow.json"),
     ),
+    (
+        "surface/orchestration/src/control_plane/workflows/openhands_control_plane_assimilation.workflow.json",
+        include_str!("workflows/openhands_control_plane_assimilation.workflow.json"),
+    ),
 ];
 
 #[derive(Debug, Clone, Deserialize)]
@@ -81,7 +86,13 @@ struct WorkflowSpec {
     #[serde(default)]
     id: String,
     #[serde(default)]
+    workflow_type: String,
+    #[serde(default)]
+    workflow_role: String,
+    #[serde(default)]
     stages: Vec<String>,
+    #[serde(default)]
+    subtemplates: Vec<Value>,
     typed_execution_contract: Option<TypedExecutionContract>,
 }
 
@@ -134,6 +145,9 @@ pub struct RunBudgets {
 #[derive(Debug, Clone, Serialize)]
 pub struct NormalizedWorkflowGraph {
     pub workflow_id: String,
+    pub workflow_type: String,
+    pub workflow_role: String,
+    pub subtemplate_count: usize,
     pub stages: Vec<String>,
     pub transitions: Vec<String>,
     pub gate_contract: StructuredGateContract,
@@ -204,6 +218,22 @@ fn validate_workflow_source(path: &str, raw: &str) -> WorkflowValidation {
     if workflow_id.is_empty() {
         errors.push("missing_workflow_id".to_string());
     }
+    let workflow_type = spec.workflow_type.trim().to_string();
+    let workflow_role = spec.workflow_role.trim().to_string();
+    if workflow_type != "control_plane_orchestration_workflow" {
+        errors.push("invalid_workflow_type".to_string());
+    }
+    if !matches!(
+        workflow_role.as_str(),
+        "assistant_response_workflow" | "assimilation_workflow_template"
+    ) {
+        errors.push("invalid_workflow_role".to_string());
+    }
+    if workflow_role == "assimilation_workflow_template" {
+        validate_assimilation_subtemplates(&spec.subtemplates, &mut errors);
+    } else if !spec.subtemplates.is_empty() {
+        errors.push("assistant_workflow_must_not_declare_subtemplates".to_string());
+    }
     if stages.is_empty() {
         errors.push("missing_stages".to_string());
     }
@@ -211,12 +241,23 @@ fn validate_workflow_source(path: &str, raw: &str) -> WorkflowValidation {
         errors.push("missing_typed_execution_contract".to_string());
         return validation(path, false, &workflow_id, errors, None);
     };
-    let graph = compile_graph(&workflow_id, stages, contract, &mut errors);
+    let graph = compile_graph(
+        &workflow_id,
+        &workflow_type,
+        &workflow_role,
+        spec.subtemplates.len(),
+        stages,
+        contract,
+        &mut errors,
+    );
     validation(path, errors.is_empty(), &workflow_id, errors, graph)
 }
 
 fn compile_graph(
     workflow_id: &str,
+    workflow_type: &str,
+    workflow_role: &str,
+    subtemplate_count: usize,
     stages: Vec<String>,
     contract: TypedExecutionContract,
     errors: &mut Vec<String>,
@@ -253,6 +294,9 @@ fn compile_graph(
     }
     Some(NormalizedWorkflowGraph {
         workflow_id: workflow_id.to_string(),
+        workflow_type: workflow_type.to_string(),
+        workflow_role: workflow_role.to_string(),
+        subtemplate_count,
         stages,
         transitions,
         gate_contract: StructuredGateContract {
@@ -295,6 +339,118 @@ fn validate_contract_basics(contract: &TypedExecutionContract, errors: &mut Vec<
     {
         errors.push("missing_run_budget_semantics".to_string());
     }
+}
+
+fn validate_assimilation_subtemplates(subtemplates: &[Value], errors: &mut Vec<String>) {
+    if subtemplates.is_empty() {
+        errors.push("missing_assimilation_subtemplates".to_string());
+        return;
+    }
+    let mut subtemplate_ids = HashSet::new();
+    for (idx, subtemplate) in subtemplates.iter().enumerate() {
+        let subtemplate_id = json_str_field(subtemplate, "id");
+        if subtemplate_id.is_empty() {
+            errors.push(format!("missing_subtemplate_id:{idx}"));
+        } else if !subtemplate_id_ok(subtemplate_id) {
+            errors.push(format!("invalid_subtemplate_id:{idx}:{subtemplate_id}"));
+        } else if !subtemplate_ids.insert(subtemplate_id.to_string()) {
+            errors.push(format!("duplicate_subtemplate_id:{idx}:{subtemplate_id}"));
+        }
+        if json_str_field(subtemplate, "description").is_empty() {
+            errors.push(format!("missing_subtemplate_description:{idx}"));
+        }
+        for field in ["required_signals", "required_gates", "source_refs"] {
+            if !json_nonempty_string_array(subtemplate, field) {
+                errors.push(format!("missing_subtemplate_{field}:{idx}"));
+            }
+            if json_string_array_has_duplicates(subtemplate, field) {
+                errors.push(format!("duplicate_subtemplate_{field}:{idx}"));
+            }
+        }
+        for source_ref in json_string_array_values(subtemplate, "source_refs") {
+            if !assimilation_source_ref_ok(&source_ref) {
+                errors.push(format!("invalid_subtemplate_source_ref:{idx}:{source_ref}"));
+            }
+        }
+    }
+}
+
+fn json_str_field<'a>(value: &'a Value, key: &str) -> &'a str {
+    value
+        .get(key)
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .unwrap_or("")
+}
+
+fn json_nonempty_string_array(value: &Value, key: &str) -> bool {
+    value
+        .get(key)
+        .and_then(Value::as_array)
+        .map(|items| {
+            !items.is_empty()
+                && items
+                    .iter()
+                    .all(|item| matches!(item.as_str().map(str::trim), Some(raw) if !raw.is_empty()))
+        })
+        .unwrap_or(false)
+}
+
+fn json_string_array_values(value: &Value, key: &str) -> Vec<String> {
+    value
+        .get(key)
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::trim)
+                .filter(|raw| !raw.is_empty())
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn json_string_array_has_duplicates(value: &Value, key: &str) -> bool {
+    let mut seen = HashSet::new();
+    for item in json_string_array_values(value, key) {
+        if !seen.insert(item) {
+            return true;
+        }
+    }
+    false
+}
+
+fn assimilation_source_ref_ok(source_ref: &str) -> bool {
+    let source_ref = source_ref.trim();
+    if source_ref.is_empty()
+        || source_ref.starts_with('/')
+        || source_ref.starts_with("http://")
+        || source_ref.starts_with("https://")
+        || source_ref.contains("..")
+    {
+        return false;
+    }
+    [
+        "local/workspace/assimilations/",
+        "local/workspace/vendor/",
+        "surface/orchestration/",
+        "docs/workspace/",
+        "tests/tooling/",
+        "core/",
+        "adapters/",
+    ]
+    .iter()
+    .any(|prefix| source_ref.starts_with(prefix))
+}
+
+fn subtemplate_id_ok(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 120
+        && id
+            .chars()
+            .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '_' || ch == '-')
 }
 
 fn parse_transitions(

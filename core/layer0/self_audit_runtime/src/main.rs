@@ -1,4 +1,4 @@
-include!("../../legacy_rust_sources/self_audit/illusion_integrity_auditor.rs");
+include!("illusion_integrity_auditor.rs");
 
 const MAX_SELF_AUDIT_SUBJECT_CHARS: usize = 120;
 

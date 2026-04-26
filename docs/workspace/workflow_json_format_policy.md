@@ -31,7 +31,9 @@ Required reader-acceptance fields:
 
 1. `name` (string, non-empty after sanitization)
 2. `stages` (array of stage strings, at least one non-empty item after sanitization)
-3. `typed_execution_contract` (object, required for control-plane promotion)
+3. `workflow_type` (`control_plane_orchestration_workflow` for control-plane workflows)
+4. `workflow_role` (`assistant_response_workflow` or `assimilation_workflow_template`)
+5. `typed_execution_contract` (object, required for control-plane promotion)
 
 If any required field is invalid/empty, the reader rejects that spec.
 
@@ -50,13 +52,27 @@ Control-plane promotion requires the Rust workflow contract guard to compile eac
 
 Optional fields with reader defaults:
 
-1. `workflow_type` (default: `hard_agent_workflow`)
-2. `default` (default: `false`)
-3. `description` (default: `""`)
-4. `final_response_policy` (default: `llm_authored_when_online`)
-5. `gate_contract` (default: `tool_menu_interface_v1`)
+1. `default` (default: `false`)
+2. `description` (default: `""`)
+3. `final_response_policy` (default: `llm_authored_when_online`)
+4. `gate_contract` (default: `tool_menu_interface_v1`)
 
 Unknown extra keys are currently ignored by the reader.
+
+## Workflow Role Rule
+
+The control-plane workflow directory contains both assistant-response workflows and assimilation workflow templates. They must be role-typed so the runtime and guards do not confuse strategy templates with normal chat finalization paths.
+
+Allowed roles:
+
+1. `assistant_response_workflow`: may participate in user-visible assistant response flow and must obey the LLM-final-only policy.
+2. `assimilation_workflow_template`: may describe structured assimilation strategy and required signals, but must not be treated as the default user-visible response workflow.
+
+Assimilation workflow templates must declare at least one `subtemplates` row. Each subtemplate must include non-empty `id`, `description`, `required_signals`, `required_gates`, and `source_refs` fields so assimilation can be audited as capability transfer instead of ledger burn-down.
+
+Subtemplate `id` values must be unique within the workflow, no longer than 120 characters, and limited to lowercase ASCII letters, digits, `_`, and `-`. Subtemplate `required_signals`, `required_gates`, and `source_refs` must not contain duplicate values. `source_refs` must be repo-relative or local-assimilation paths under approved roots such as `local/workspace/assimilations/`, `local/workspace/vendor/`, `surface/orchestration/`, `docs/workspace/`, `tests/tooling/`, `core/`, or `adapters/`; absolute paths, URL refs, and `..` traversal are invalid.
+
+Assistant-response workflows must not declare `subtemplates`; if a normal response path needs reusable sequencing, promote it into stages/contracts rather than embedding assimilation doctrine.
 
 ## Sanitization + Length Limits
 
@@ -135,10 +151,12 @@ Before opening a PR for a new workflow:
 
 1. Start from `docs/workspace/templates/workflow/workflow_template.workflow.json`.
 2. Keep `name` unique and versioned (example: `_v1`, `_v2`).
-3. Ensure `stages` is non-empty and ordered by execution flow.
-4. Decide whether it should be default (`default: true`) or non-default.
-5. Register it in `046a-workflow-reader.rs`.
-6. Run workflow reader regression tests.
+3. Set `workflow_type` to `control_plane_orchestration_workflow`.
+4. Set `workflow_role` to either `assistant_response_workflow` or `assimilation_workflow_template`.
+5. Ensure `stages` is non-empty and ordered by execution flow.
+6. Decide whether it should be default (`default: true`) or non-default.
+7. Register it in `046a-workflow-reader.rs` when it belongs to the assistant response reader.
+8. Run workflow reader regression tests.
 
 Suggested test commands:
 

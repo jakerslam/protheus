@@ -41,6 +41,14 @@ fn message_route_failure_response(
         Value::String(clean_text(final_stage_status, 80));
     response_workflow["final_llm_response"]["error"] = Value::String(clean_error.clone());
     set_turn_workflow_final_stage_status(&mut response_workflow, final_stage_status);
+    let route_direct_response_path =
+        if response_tools_prompt_only_gate_required(message, &latent_tool_candidates) {
+            "gate_1_pending_llm_tool_choice"
+        } else {
+            "gate_1_unresolved"
+        };
+    response_workflow["workflow_control"]["direct_response_path"] =
+        Value::String(route_direct_response_path.to_string());
 
     let response_quality_telemetry = json!({
         "route_failure": true,
@@ -91,7 +99,7 @@ fn message_route_failure_response(
     );
     response_finalization["workflow_control"] = json!({
         "mode": "tool_menu_interface_v1",
-        "direct_response_path": "gate_1_no"
+        "direct_response_path": route_direct_response_path
     });
     response_finalization["route_failure"] = json!({
         "error_code": clean_error,

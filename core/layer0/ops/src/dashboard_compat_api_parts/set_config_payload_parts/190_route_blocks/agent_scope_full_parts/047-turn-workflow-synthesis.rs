@@ -1408,6 +1408,69 @@ fn response_tools_prompt_only_gate_required(message: &str, latent_tool_candidate
         .unwrap_or(false)
 }
 
+fn direct_gate_recovery_response_answers_user(
+    message: &str,
+    response_text: &str,
+    direct_gate_recovery_turn: bool,
+) -> bool {
+    if response_answers_user_early(message, response_text) {
+        return true;
+    }
+    if !direct_gate_recovery_turn || !workflow_turn_is_meta_control_message(message) {
+        return false;
+    }
+
+    let lowered = clean_text(response_text, 800).to_ascii_lowercase();
+    lowered.contains("answer directly")
+        && (lowered.contains("fallback")
+            || lowered.contains("repeating")
+            || lowered.contains("response-finalization")
+            || lowered.contains("finalization loop"))
+}
+
+fn response_answers_tool_confirmation_with_recorded_result(
+    response_text: &str,
+    response_tools: &[Value],
+) -> bool {
+    if response_tools.is_empty() {
+        return false;
+    }
+    let lowered = clean_text(response_text, 1_200).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let has_recorded_failure =
+        !response_tools_failure_reason_for_user(response_tools, 4).trim().is_empty()
+            || response_tools_any_low_signal(response_tools);
+    if !has_recorded_failure {
+        return false;
+    }
+    if response_is_no_findings_placeholder(&lowered) {
+        return true;
+    }
+    let mentions_tool_result = lowered.contains("tool")
+        || lowered.contains("search")
+        || lowered.contains("query")
+        || lowered.contains("source")
+        || lowered.contains("result")
+        || lowered.contains("find");
+    let explains_no_result = lowered.contains("didn't find")
+        || lowered.contains("did not find")
+        || lowered.contains("couldn't find")
+        || lowered.contains("could not find")
+        || lowered.contains("no relevant")
+        || lowered.contains("no usable")
+        || lowered.contains("no source")
+        || lowered.contains("not enough")
+        || lowered.contains("enough relevant information")
+        || lowered.contains("source coverage")
+        || lowered.contains("did not produce enough")
+        || lowered.contains("retrieval-quality")
+        || lowered.contains("low-signal")
+        || lowered.contains("hit issues");
+    mentions_tool_result && explains_no_result
+}
+
 fn record_manual_toolbox_pending_request(workflow: &mut Value, response_text: &str, message: &str) {
     if workflow
         .get("manual_toolbox_pending_tool_request")
@@ -1423,6 +1486,8 @@ fn record_manual_toolbox_pending_request(workflow: &mut Value, response_text: &s
         return;
     };
     workflow["manual_toolbox_pending_tool_request"] = pending_request.clone();
+    workflow["workflow_control"]["direct_response_path"] =
+        Value::String("gate_1_yes_pending_tool_confirmation".to_string());
     if let Some(events) = workflow.get_mut("system_events").and_then(Value::as_array_mut) {
         events.push(turn_workflow_event(
             "manual_toolbox_pending_tool_request",
@@ -1559,7 +1624,7 @@ fn run_turn_workflow_final_response(
     let (system_prompt, user_prompt) = if manual_toolbox_gate_turn {
         (
             clean_text(
-                "Manual toolbox gate. You are the LLM and you author the visible chat text. The system must not choose tools for you. Do not expose raw gate choices in chat: no `Yes.`, no `No.`, no `Tool family:`, and no `Request payload:` labels. If no tool has run, answer naturally with what tool path you would choose next or what input is needed. If the user asked for web search, include the phrase `web search`. Do not say a tool already ran. Keep the whole response under 80 words.",
+                "Manual toolbox gate. You are the LLM and you author the visible chat text. The system must not choose tools for you. Do not expose raw gate choices in chat: no `Yes.`, no `No.`, no `Tool family:`, and no `Request payload:` labels. If you need a tool, state the next tool path in natural prose using `I would choose ...` so the runtime can record a pending request; use `web search` for web candidates and `workspace search` for workspace/file candidates. If no tool is needed, answer directly. Do not claim a tool ran or say you lack current results unless recorded tool outcomes exist. Keep the whole response under 80 words.",
                 2_000,
             ),
             clean_text(
@@ -1575,7 +1640,7 @@ fn run_turn_workflow_final_response(
         } else if direct_no_tool_exit_turn {
             "Reply as the LLM. No tools. Do not start with `No.` If this is hypothetical, name the tool without claiming execution. Keep it under 25 words."
         } else {
-            "Reply as the LLM. No tools. Do not start with `No.` Include `answer directly`. Do not mention workflow, gates, tools, or telemetry. Keep it under 25 words."
+            "Reply as the LLM. No tools. Do not start with `No.` Answer the user's question directly in one sentence. Include `answer directly`. If the user asks about repeated fallback text, mention that the repeated fallback text came from a response-finalization loop. Do not mention workflow, gates, tools, or telemetry. Keep it under 25 words."
         };
         let direct_gate_user_prompt = if direct_simple_conversation_turn {
             format!("User: {message}\nAssistant:")
@@ -1585,7 +1650,7 @@ fn run_turn_workflow_final_response(
             )
         } else {
             format!(
-                "User: {message}\nAcknowledge briefly and say you will answer directly."
+                "User: {message}\nAnswer directly. If this asks about repeated fallback text, briefly explain that it was a response-finalization loop."
             )
         };
         (
@@ -1707,7 +1772,7 @@ fn run_turn_workflow_final_response(
         let attempt_user_prompt = if attempt > 1 {
             clean_text(
                 &format!(
-                    "{}\n\nCorrection for attempt {} of {}: your previous answer did not complete the workflow because it tried to start another search, deferred the answer, exposed a raw workflow gate choice, emitted inline tool markup, or drifted away from the latest user request. Do not write `Yes.`, `No.`, `Tool family:`, `Tool:`, or `Request payload:` as visible chat. Do not ask to retry, rerun, narrow the query, fetch another source, or emit `<function=...>` calls. Keep high lexical/semantic alignment to the latest user request and recent conversation context. Using only the recorded tool outcomes and workflow events above, answer naturally and tell the user what the tool actually returned when recorded evidence exists.",
+                    "{}\n\nCorrection for attempt {} of {}: your previous answer did not complete the workflow because it tried to start another search, deferred the answer, exposed a raw workflow gate choice, emitted inline tool markup, claimed missing results without tool evidence, or drifted away from the latest user request. Do not write `Yes.`, `No.`, `Tool family:`, `Tool:`, or `Request payload:` as visible chat. Do not ask to retry, rerun, narrow the query, fetch another source, or emit `<function=...>` calls. If a tool is needed, answer naturally with `I would choose web search` or `I would choose workspace search` as appropriate so a pending request can be recorded. Using only recorded tool outcomes and workflow events, answer naturally and tell the user what the tool actually returned when recorded evidence exists.",
                     user_prompt, attempt, max_attempts
                 ),
                 20_000,
@@ -1749,19 +1814,31 @@ fn run_turn_workflow_final_response(
                 if manual_toolbox_gate_choice || visible_gate_choice_reply || pending_tool_choice_reply {
                     record_manual_toolbox_pending_request(&mut workflow, &retried_text, message);
                 }
-                let deferred_reply = response_is_deferred_execution_preamble(&retried_text)
-                    || response_is_deferred_retry_prompt(&retried_text)
-                    || (workflow_response_requests_more_tooling(&retried_text)
-                        && !manual_toolbox_gate_choice
-                        && !pending_tool_choice_reply);
+                let recorded_tool_result_answer =
+                    response_answers_tool_confirmation_with_recorded_result(
+                        &retried_text,
+                        response_tools,
+                    );
+                let unresolved_tool_need_without_progress = manual_toolbox_gate_turn
+                    && response_tools.is_empty()
+                    && !manual_toolbox_gate_choice
+                    && !pending_tool_choice_reply
+                    && manual_toolbox_response_exposes_unresolved_tool_need(&retried_text);
+                let deferred_reply = !recorded_tool_result_answer
+                    && (response_is_deferred_execution_preamble(&retried_text)
+                        || response_is_deferred_retry_prompt(&retried_text)
+                        || (workflow_response_requests_more_tooling(&retried_text)
+                            && !manual_toolbox_gate_choice
+                            && !pending_tool_choice_reply));
                 let off_topic_reply = response_is_unrelated_context_dump(message, &retried_text);
                 let stale_code_context_reply =
                     response_contains_stale_code_context_dump(message, &retried_text);
-                let low_alignment_reply = response_low_alignment_with_turn_context(
-                    message,
-                    &recent_context,
-                    &retried_text,
-                );
+                let low_alignment_reply = !recorded_tool_result_answer
+                    && response_low_alignment_with_turn_context(
+                        message,
+                        &recent_context,
+                        &retried_text,
+                    );
                 let prompt_echo_reply = if direct_simple_conversation_turn
                     && !clean_text(message, 240)
                         .eq_ignore_ascii_case(&clean_text(&retried_text, 240))
@@ -1776,9 +1853,15 @@ fn run_turn_workflow_final_response(
                 let missing_evidence_tags = !response_tools.is_empty()
                     && !receipt_mapped_sources
                     && !response_has_evidence_tags(&retried_text);
-                let missing_direct_answer = !response_answers_user_early(message, &retried_text);
+                let missing_direct_answer = !recorded_tool_result_answer
+                    && !direct_gate_recovery_response_answers_user(
+                        message,
+                        &retried_text,
+                        direct_gate_recovery_turn,
+                    );
                 let direct_answer_in_first_two_sentences = !missing_direct_answer;
-                let rejects_base_contract = response_fails_base_final_answer_contract(&retried_text);
+                let rejects_base_contract = !recorded_tool_result_answer
+                    && response_fails_base_final_answer_contract(&retried_text);
                 let rejects_speculative_blocker =
                     response_contains_speculative_web_blocker_language(&retried_text)
                         && !has_structured_block_evidence;
@@ -1828,7 +1911,8 @@ fn run_turn_workflow_final_response(
                     ),
                     (retried_text.is_empty(), "empty_reply", ""),
                     (
-                        response_is_no_findings_placeholder(&retried_text),
+                        response_is_no_findings_placeholder(&retried_text)
+                            && !recorded_tool_result_answer,
                         "placeholder_reply",
                         "",
                     ),
@@ -1843,7 +1927,13 @@ fn run_turn_workflow_final_response(
                         "unsupported_tool_success_claim_reject",
                     ),
                     (
-                        response_looks_like_tool_ack_without_findings(&retried_text),
+                        unresolved_tool_need_without_progress,
+                        "unresolved_tool_need_without_progress",
+                        "deferred_reply_reject",
+                    ),
+                    (
+                        response_looks_like_tool_ack_without_findings(&retried_text)
+                            && !recorded_tool_result_answer,
                         "ack_only_reply",
                         "",
                     ),
@@ -2031,6 +2121,137 @@ mod workflow_fallback_tests {
                 .map(|value| !value.is_empty())
                 .unwrap_or(false)
         );
+    }
+
+    #[test]
+    fn manual_toolbox_candidate_menu_is_not_reported_as_gate_1_no() {
+        let workflow = turn_workflow_metadata(
+            "normal_turn",
+            &[],
+            &[turn_workflow_event(
+                "manual_toolbox_candidate_menu",
+                json!({"candidate_count": 1}),
+            )],
+            "",
+            "Use web search to compare infring to other major agentic frameworks in April 2026.",
+        );
+
+        assert_eq!(
+            workflow
+                .pointer("/workflow_control/direct_response_path")
+                .and_then(Value::as_str),
+            Some("gate_1_pending_llm_tool_choice")
+        );
+    }
+
+    #[test]
+    fn natural_pending_tool_choice_updates_workflow_path() {
+        let mut workflow = turn_workflow_metadata(
+            "normal_turn",
+            &[],
+            &[turn_workflow_event(
+                "manual_toolbox_candidate_menu",
+                json!({"candidate_count": 1}),
+            )],
+            "",
+            "Use web search to compare infring to other major agentic frameworks in April 2026.",
+        );
+        record_manual_toolbox_pending_request(
+            &mut workflow,
+            "I would choose web search for a current framework comparison.",
+            "Use web search to compare infring to other major agentic frameworks in April 2026.",
+        );
+
+        assert_eq!(
+            workflow
+                .pointer("/manual_toolbox_pending_tool_request/status")
+                .and_then(Value::as_str),
+            Some("pending_confirmation")
+        );
+        assert_eq!(
+            workflow
+                .pointer("/workflow_control/direct_response_path")
+                .and_then(Value::as_str),
+            Some("gate_1_yes_pending_tool_confirmation")
+        );
+    }
+
+    #[test]
+    fn unresolved_tool_need_without_progress_is_rejected_signal() {
+        assert!(manual_toolbox_response_exposes_unresolved_tool_need(
+            "I don't have current web search results, but I can compare if you'd like me to search."
+        ));
+        assert!(manual_toolbox_response_exposes_unresolved_tool_need(
+            "Web search returned limited results for this specific comparison. I can provide a ranked table."
+        ));
+        assert!(!manual_toolbox_response_exposes_unresolved_tool_need(
+            "I would choose web search for a current framework comparison."
+        ));
+    }
+
+    #[test]
+    fn unsupported_tool_claim_guard_ignores_later_hypothetical_offer() {
+        assert!(response_claims_tool_success_without_current_turn_evidence(
+            "Use web search to compare infring to other major agentic frameworks in April 2026.",
+            "Web search didn't return specific April 2026 comparisons. I can provide a source-backed ranked table if you name specific frameworks.",
+            &[],
+        ));
+        assert!(!response_claims_tool_success_without_current_turn_evidence(
+            "Use web search to compare infring to other major agentic frameworks in April 2026.",
+            "I would choose web search for a current framework comparison.",
+            &[],
+        ));
+    }
+
+    #[test]
+    fn recorded_low_signal_tool_result_counts_as_visible_answer() {
+        let tools = vec![json!({
+            "name": "batch_query",
+            "status": "no_results",
+            "result": "Search did not produce enough source coverage for the requested comparison."
+        })];
+
+        assert!(response_answers_tool_confirmation_with_recorded_result(
+            "The search did not find enough relevant source coverage for that comparison.",
+            &tools,
+        ));
+        assert!(!response_answers_tool_confirmation_with_recorded_result(
+            "I searched the web.",
+            &tools,
+        ));
+        assert!(!response_answers_tool_confirmation_with_recorded_result(
+            "",
+            &tools,
+        ));
+    }
+
+    #[test]
+    fn meta_control_recovery_takes_precedence_over_latent_tool_candidates() {
+        let message = "what? why are you repeating the same fallback text?";
+        let latent_tool_candidates = json!([{"tool": "batch_query"}]);
+        let no_tool_minimal_final_turn = workflow_turn_is_meta_control_message(message)
+            || message_explicitly_disallows_tool_calls(message)
+            || workflow_turn_is_simple_conversation_without_tool_intent(message);
+        let manual_toolbox_prompt_only_turn = !no_tool_minimal_final_turn
+            && response_tools_prompt_only_gate_required(message, &latent_tool_candidates);
+
+        assert!(no_tool_minimal_final_turn);
+        assert!(!manual_toolbox_prompt_only_turn);
+    }
+
+    #[test]
+    fn meta_control_recovery_accepts_direct_fallback_loop_answer() {
+        let message = "what? why are you repeating the same fallback text?";
+        assert!(direct_gate_recovery_response_answers_user(
+            message,
+            "The repeated fallback text came from a response-finalization loop; I will answer directly now.",
+            true,
+        ));
+        assert!(!direct_gate_recovery_response_answers_user(
+            message,
+            "I will answer directly now.",
+            true,
+        ));
     }
 
     #[test]

@@ -277,6 +277,7 @@ if (parseOnly) {
   assertDashboardVersionRefreshUsesApiVersion();
   assertTaskbarHeroSystemMenu();
   assertDashboardHostOverlaysLiveVersion();
+  assertDashboardHostRejectsStaleBackendProcess();
 } else if (contract) {
   runContract(contract);
 } else {
