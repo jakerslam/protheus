@@ -46,7 +46,7 @@ fn write_regulated_readiness_fixture(root: &Path, required_env: &str, include_do
     );
     write_text(
         root,
-        "client/runtime/config/abac_policy_plane.json",
+        "core/layer1/security/config/abac_policy_plane.json",
         r#"{
   "default_effect": "deny",
   "rules": [

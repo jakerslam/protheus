@@ -10,6 +10,12 @@ Status legend:
 - `blocked` waiting on dependency/decision
 - `done` completed
 
+## Shell Authority Boundary Reduction (2026-04-26)
+
+| ID | Status | Requirement | Rationale | Acceptance Criteria / Evidence | Priority | Layer |
+|---|---|---|---|---|---:|---|
+| V13-SHELL-AUTHORITY-REDUCTION-001 | in_progress | Move active shell-held runtime policy authority into canonical core/security/orchestration config and keep shell copies compatibility-only. | The shell should present and invoke runtime behavior, not own policy truth for state tiering, egress, ABAC, routing, workflow execution, or provider onboarding. | Canonical configs live under `core/layer0/ops/config`, `core/layer1/security/config`, and `surface/orchestration/config`; shell config copies declare `canonical_path`, `canonical_owner`, and `compatibility_mirror`; runtime wrappers default to canonical paths; runtime-system entrypoint classification/retry/mutation context comes from `core/layer0/ops` via `runtime-systems entrypoint-context`; `tests/tooling/scripts/ci/shell_authority_config_guard.ts` enforces the boundary. Validation still required before closure: `npm run -s ops:shell:authority-config:guard`, targeted shell wrapper checks, and runtime-systems core command proof. | 10 | 0/1/2 |
+
 ## System Truth Closure ROI Wave (2026-04-26)
 
 | ID | Status | Requirement | Rationale | Acceptance Criteria / Evidence | Priority | Layer |

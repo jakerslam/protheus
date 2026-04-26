@@ -4,9 +4,16 @@
 // Layer ownership: surface/orchestration (routing coordination); this file is a thin CLI bridge.
 
 const impl = require('../../../../surface/orchestration/scripts/provider_onboarding_manifest.ts');
+const BRIDGE_PATH = 'client/runtime/systems/routing/provider_onboarding_manifest.ts';
+const ORCHESTRATION_SCRIPT = 'surface/orchestration/scripts/provider_onboarding_manifest.ts';
+const MODULE_KEY = 'provider_onboarding_manifest';
+
+function normalizeArgs(args = []) {
+  return Array.isArray(args) ? args.map((arg) => String(arg)) : [];
+}
 
 function run(args = process.argv.slice(2)) {
-  return impl.run(args);
+  return impl.run(normalizeArgs(args));
 }
 
 if (require.main === module) {
@@ -15,5 +22,9 @@ if (require.main === module) {
 
 module.exports = {
   ...impl,
+  BRIDGE_PATH,
+  ORCHESTRATION_SCRIPT,
+  MODULE_KEY,
+  normalizeArgs,
   run
 };

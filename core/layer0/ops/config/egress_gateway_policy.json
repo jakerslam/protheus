@@ -1,8 +1,6 @@
 {
   "version": "1.0",
-  "canonical_path": "core/layer0/ops/config/egress_gateway_policy.json",
   "canonical_owner": "core/layer0/ops",
-  "compatibility_mirror": true,
   "default_decision": "deny",
   "global_rate_caps": {
     "per_hour": 1200,

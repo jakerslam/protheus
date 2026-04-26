@@ -22,7 +22,7 @@
     "client/runtime/config/token_economics_engine_policy.json",
     "client/runtime/config/weaver_policy.json",
     "client/runtime/config/workflow_execution_closure_policy.json",
-    "client/runtime/config/workflow_executor_policy.json",
+    "surface/orchestration/config/workflow_executor_policy.json",
     "client/runtime/config/workflow_policy.json"
   ],
   "outputs": {

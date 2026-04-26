@@ -5,7 +5,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // Thin TypeScript wrapper only. Network fetch remains local presentation logic.
 const path = require('path');
 const { createOpsLaneBridge } = require('./rust_lane_bridge.ts');
-const DEFAULT_POLICY_REL = 'config/egress_gateway_policy.json';
+const DEFAULT_POLICY_REL = 'core/layer0/ops/config/egress_gateway_policy.json';
 const DEFAULT_STATE_REL = 'local/state/security/egress_gateway/state.json';
 const DEFAULT_AUDIT_REL = 'local/state/security/egress_gateway/audit.jsonl';
 const BRIDGE_PATH = 'client/runtime/lib/egress_gateway.ts';
@@ -15,6 +15,14 @@ function runtimeRoot() {
         return path.resolve(String(process.env.INFRING_RUNTIME_ROOT));
     }
     return path.resolve(__dirname, '..');
+}
+
+function workspaceRootFromRuntime() {
+    const normalized = path.resolve(ROOT);
+    if (path.basename(normalized) === 'runtime' && path.basename(path.dirname(normalized)) === 'client') {
+        return path.dirname(path.dirname(normalized));
+    }
+    return normalized;
 }
 function cleanText(v, maxLen = 260) {
     return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, maxLen);
@@ -37,8 +45,12 @@ class EgressGatewayError extends Error {
 }
 function resolvePath(raw, fallbackRel) {
     const value = cleanText(raw, 520);
-    if (!value)
+    if (!value) {
+        if (fallbackRel.startsWith('core/') || fallbackRel.startsWith('surface/') || fallbackRel.startsWith('client/')) {
+            return path.join(workspaceRootFromRuntime(), fallbackRel);
+        }
         return path.join(ROOT, fallbackRel);
+    }
     return path.isAbsolute(value) ? value : path.join(ROOT, value);
 }
 function policyPath() {

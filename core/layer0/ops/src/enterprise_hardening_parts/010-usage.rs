@@ -12,7 +12,7 @@ use std::time::Instant;
 const DEFAULT_POLICY_REL: &str = "client/runtime/config/f100_enterprise_hardening_policy.json";
 const DEFAULT_IDENTITY_POLICY_REL: &str = "client/runtime/config/identity_federation_policy.json";
 const DEFAULT_ACCESS_POLICY_REL: &str = "client/runtime/config/enterprise_access_policy.json";
-const DEFAULT_ABAC_POLICY_REL: &str = "client/runtime/config/abac_policy_plane.json";
+const DEFAULT_ABAC_POLICY_REL: &str = "core/layer1/security/config/abac_policy_plane.json";
 const DEFAULT_SIEM_POLICY_REL: &str = "client/runtime/config/siem_bridge_policy.json";
 const DEFAULT_MULTI_TENANT_CONTRACT_REL: &str =
     "client/runtime/config/multi_tenant_isolation_contract.json";

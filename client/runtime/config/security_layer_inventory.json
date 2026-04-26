@@ -77,7 +77,7 @@
       ],
       "policy_paths": [
         "client/runtime/config/execution_sandbox_envelope_policy.json",
-        "client/runtime/config/egress_gateway_policy.json"
+        "core/layer0/ops/config/egress_gateway_policy.json"
       ],
       "guard_check_ids": [
         "execution_sandbox_envelope_status",

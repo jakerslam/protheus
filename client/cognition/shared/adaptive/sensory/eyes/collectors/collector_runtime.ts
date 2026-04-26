@@ -19,8 +19,9 @@ const WORKSPACE_ROOT = resolveWorkspaceRoot();
 
 process.env.EGRESS_GATEWAY_POLICY_PATH = path.join(
   WORKSPACE_ROOT,
-  'client',
-  'runtime',
+  'core',
+  'layer0',
+  'ops',
   'config',
   'egress_gateway_policy.json'
 );

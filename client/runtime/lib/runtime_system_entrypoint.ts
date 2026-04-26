@@ -5,42 +5,6 @@ const { createOpsLaneBridge } = require('./rust_lane_bridge.ts');
 
 const DEFAULT_MAX_ARG_LEN = 512;
 const DEFAULT_MAX_ARGS = 64;
-const RETRYABLE_ERROR_RE =
-  /429|rate\s*limit|timeout|timed\s*out|deadline|connect|reset|closed|temporar(?:y|ily)|unavailable|retry/i;
-const UNAVAILABLE_ERROR_RE =
-  /enoent|not\s+found|missing|spawn\s+\S+\s+eacces|permission\s+denied/i;
-const TIMEOUT_ERROR_RE = /timeout|timed\s*out|deadline/i;
-const MUTATING_ACTIONS = new Set([
-  'apply',
-  'append',
-  'delete',
-  'edit',
-  'kill',
-  'patch',
-  'restart',
-  'run',
-  'send',
-  'start',
-  'stop',
-  'submit',
-  'update',
-  'write'
-]);
-const READ_ONLY_ACTIONS = new Set([
-  'check',
-  'fetch',
-  'help',
-  'inspect',
-  'list',
-  'poll',
-  'probe',
-  'query',
-  'read',
-  'search',
-  'show',
-  'status',
-  'view'
-]);
 
 function stableStringify(value) {
   if (value === null || typeof value !== 'object') {
@@ -280,27 +244,6 @@ function normalizeExitCode(out) {
   return Number.isFinite(Number(out && out.status)) ? Number(out && out.status) : 1;
 }
 
-function detectMutationLikely(passthroughArgs) {
-  const action = String((Array.isArray(passthroughArgs) && passthroughArgs[0]) || '')
-    .trim()
-    .toLowerCase();
-  if (!action) {
-    return false;
-  }
-  if (READ_ONLY_ACTIONS.has(action)) {
-    return false;
-  }
-  if (MUTATING_ACTIONS.has(action)) {
-    return true;
-  }
-  return (
-    action.startsWith('set_') ||
-    action.startsWith('update_') ||
-    action.startsWith('delete_') ||
-    action.startsWith('patch_')
-  );
-}
-
 function computeAttemptSignature(systemId, passthroughArgs) {
   return crypto
     .createHash('sha256')
@@ -311,91 +254,6 @@ function computeAttemptSignature(systemId, passthroughArgs) {
       })
     )
     .digest('hex');
-}
-
-function classifyBridgeError({ status, error, errorCode }) {
-  const normalizedErrorCode = normalizeErrorText(errorCode).toLowerCase();
-  const normalizedError = normalizeErrorText(error).toLowerCase();
-
-  if (normalizedErrorCode === 'bridge_no_output') {
-    return 'transport_no_output';
-  }
-  if (status === 124 || TIMEOUT_ERROR_RE.test(normalizedError)) {
-    return 'timeout';
-  }
-  if (status === 126 || status === 127 || UNAVAILABLE_ERROR_RE.test(normalizedError)) {
-    return 'transport_unavailable';
-  }
-  if (RETRYABLE_ERROR_RE.test(normalizedError)) {
-    return 'transient';
-  }
-  if (normalizedError || status !== 0) {
-    return 'execution_error';
-  }
-  return 'none';
-}
-
-function inferBridgeErrorCode(errorClass, status, explicitErrorCode) {
-  const normalizedExplicit = normalizeErrorText(explicitErrorCode);
-  if (normalizedExplicit) {
-    return normalizedExplicit;
-  }
-  if (errorClass === 'timeout' || status === 124) {
-    return 'bridge_timeout';
-  }
-  if (errorClass === 'transport_unavailable') {
-    return 'bridge_transport_unavailable';
-  }
-  if (errorClass === 'transient') {
-    return 'bridge_transient_failure';
-  }
-  if (errorClass === 'transport_no_output') {
-    return 'bridge_no_output';
-  }
-  if (errorClass === 'execution_error') {
-    return 'bridge_execution_failed';
-  }
-  return undefined;
-}
-
-function retryHintsForErrorClass(errorClass, retryAfterMs) {
-  if (errorClass === 'timeout' || errorClass === 'transient') {
-    const minDelay = retryAfterMs !== undefined ? Math.max(200, retryAfterMs) : 400;
-    const maxDelay = retryAfterMs !== undefined ? Math.max(minDelay, retryAfterMs) : 5000;
-    return {
-      recommended: true,
-      strategy: 'bounded_backoff',
-      lane: 'same_lane_retry',
-      attempts: 2,
-      min_delay_ms: minDelay,
-      max_delay_ms: maxDelay,
-      jitter: retryAfterMs !== undefined ? 0.0 : 0.1,
-      ...(retryAfterMs !== undefined ? { retry_after_ms: retryAfterMs } : {})
-    };
-  }
-  if (errorClass === 'transport_no_output') {
-    return {
-      recommended: true,
-      strategy: 'quick_retry',
-      lane: 'same_lane_retry',
-      attempts: 1,
-      min_delay_ms: 250,
-      max_delay_ms: 1000,
-      jitter: 0.0
-    };
-  }
-  if (errorClass === 'transport_unavailable') {
-    return {
-      recommended: false,
-      strategy: 'manual_recovery',
-      lane: 'operator_fix'
-    };
-  }
-  return {
-    recommended: false,
-    strategy: 'none',
-    lane: 'none'
-  };
 }
 
 function buildToolErrorSummary(type, errorText, errorClass, attemptSignature, mutationLikely) {
@@ -412,26 +270,65 @@ function buildToolErrorSummary(type, errorText, errorClass, attemptSignature, mu
   };
 }
 
+function normalizeAuthorityContext(value) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+}
+
+function extractBridgePayload(out) {
+  if (out && out.payload && typeof out.payload === 'object' && !Array.isArray(out.payload)) {
+    if (out.payload.payload && typeof out.payload.payload === 'object' && !Array.isArray(out.payload.payload)) {
+      return out.payload.payload;
+    }
+    return out.payload;
+  }
+  return null;
+}
+
+function runtimeEntrypointAuthorityContext(authorityBridge, payload) {
+  try {
+    const out = authorityBridge.run([
+      'entrypoint-context',
+      `--payload-json=${JSON.stringify(payload && typeof payload === 'object' ? payload : {})}`
+    ]);
+    const authorityPayload = extractBridgePayload(out);
+    if (authorityPayload && authorityPayload.ok !== false) {
+      return authorityPayload;
+    }
+  } catch {
+    // Fail passive: missing context means no shell-side policy inference.
+  }
+  return {
+    ok: false,
+    authority: 'core/layer0/ops::runtime_systems',
+    error_class: 'none',
+    error_code: undefined,
+    retry: undefined,
+    mutation_likely: undefined
+  };
+}
+
 function buildErrorContext({
   type,
-  status,
   error,
   errorCode,
   attemptSignature,
-  mutationLikely,
-  retryAfterMs,
+  authorityContext
 }) {
   const normalizedError = normalizeErrorText(error) || normalizeErrorText(errorCode);
-  const errorClass = classifyBridgeError({
-    status,
-    error: normalizedError,
-    errorCode
-  });
+  const normalizedAuthority = normalizeAuthorityContext(authorityContext);
+  const errorClass = normalizeErrorText(normalizedAuthority.error_class) || 'none';
+  const mutationLikely =
+    typeof normalizedAuthority.mutation_likely === 'boolean'
+      ? normalizedAuthority.mutation_likely
+      : undefined;
   return {
     errorText: normalizedError,
     errorClass,
-    errorCode: inferBridgeErrorCode(errorClass, status, errorCode),
-    retry: retryHintsForErrorClass(errorClass, retryAfterMs),
+    errorCode: normalizeErrorText(normalizedAuthority.error_code) || undefined,
+    retry:
+      normalizedAuthority.retry && typeof normalizedAuthority.retry === 'object'
+        ? normalizedAuthority.retry
+        : undefined,
     toolErrorSummary: buildToolErrorSummary(
       type,
       normalizedError,
@@ -453,8 +350,11 @@ function enrichObjectPayload(payload, context) {
   if (!enriched.arg_policy && context.argPolicy) {
     enriched.arg_policy = context.argPolicy;
   }
-  if (typeof enriched.mutation_likely !== 'boolean') {
-    enriched.mutation_likely = Boolean(context.mutationLikely);
+  if (
+    typeof enriched.mutation_likely !== 'boolean' &&
+    typeof context.mutationLikely === 'boolean'
+  ) {
+    enriched.mutation_likely = context.mutationLikely;
   }
 
   const shouldAnnotate = enriched.ok === false || Boolean(context.errorText) || context.status !== 0;
@@ -464,12 +364,10 @@ function enrichObjectPayload(payload, context) {
 
   const errorContext = buildErrorContext({
     type: context.type,
-    status: context.status,
     error: context.errorText,
     errorCode: context.errorCode,
     attemptSignature: context.attemptSignature,
-    mutationLikely: context.mutationLikely,
-    retryAfterMs: context.retryAfterMs
+    authorityContext: context.authorityContext
   });
 
   if (
@@ -508,12 +406,17 @@ function createRuntimeSystemEntrypoint(
   const bridge = createOpsLaneBridge(scriptDir, lane, domain, {
     inheritStdio
   });
+  const authorityBridge = createOpsLaneBridge(
+    scriptDir,
+    'runtime_system_entrypoint_authority_context',
+    'runtime-systems',
+    { inheritStdio: false }
+  );
 
   function run(args = process.argv.slice(2)) {
     const argDetails = normalizeBridgeArgsDetailed(args, resolvedMaxArgLen, resolvedMaxArgs);
     const passthrough = argDetails.passthrough;
     const attemptSignature = computeAttemptSignature(systemId, passthrough);
-    const mutationLikely = detectMutationLikely(passthrough);
     const out = bridge.run([`--system-id=${String(systemId || '')}`].concat(passthrough));
     if (out && out.stdout) process.stdout.write(out.stdout);
     if (out && out.stderr) process.stderr.write(out.stderr);
@@ -527,6 +430,31 @@ function createRuntimeSystemEntrypoint(
       extractRetryAfterMs(payloadError.record) ||
       extractRetryAfterMs(stderrError.record) ||
       extractRetryAfterMs(runtimeError.record);
+    const status = normalizeExitCode(out);
+    const observedErrorCode =
+      !out || (!out.stdout && !out.stderr && !out.payload)
+        ? 'bridge_no_output'
+        : normalizeErrorText(out && out.payload && out.payload.error_code);
+    const shouldRequestAuthorityContext =
+      !out ||
+      status !== 0 ||
+      Boolean(resolvedErrorText) ||
+      Boolean(out && out.payload && out.payload.ok === false);
+    const authorityContext = shouldRequestAuthorityContext
+      ? runtimeEntrypointAuthorityContext(authorityBridge, {
+          system_id: String(systemId || ''),
+          type: String(type || lane || 'runtime_system_entrypoint'),
+          status,
+          error_text: resolvedErrorText,
+          error_code: observedErrorCode,
+          retry_after_ms: retryAfterMs,
+          passthrough_args: passthrough
+        })
+      : {};
+    const mutationLikely =
+      typeof authorityContext.mutation_likely === 'boolean'
+        ? authorityContext.mutation_likely
+        : undefined;
 
     if (out && out.payload && !out.stdout) {
       const payload =
@@ -541,12 +469,12 @@ function createRuntimeSystemEntrypoint(
               ),
               {
                 type: String(type || lane || 'runtime_system_entrypoint'),
-                status: normalizeExitCode(out),
+                status,
                 errorText: resolvedErrorText,
                 errorCode: normalizeErrorText(out.payload.error_code),
                 attemptSignature,
                 mutationLikely,
-                retryAfterMs,
+                authorityContext,
                 argPolicy: {
                   max_args: resolvedMaxArgs,
                   max_arg_len: resolvedMaxArgLen,
@@ -560,41 +488,41 @@ function createRuntimeSystemEntrypoint(
           : out.payload;
       process.stdout.write(`${JSON.stringify(payload)}\n`);
     } else if (!out || (!out.stdout && !out.stderr)) {
-      const status = normalizeExitCode(out);
       const fallbackErrorCode = 'bridge_no_output';
       const errorContext = buildErrorContext({
         type: String(type || lane || 'runtime_system_entrypoint'),
-        status,
         error: resolvedErrorText,
         errorCode: fallbackErrorCode,
         attemptSignature,
-        mutationLikely,
-        retryAfterMs
+        authorityContext
       });
+      const fallbackPayload = {
+        ok: false,
+        type: String(type || lane || 'runtime_system_entrypoint'),
+        lane: bridge.lane,
+        system_id: String(systemId || ''),
+        attempt_signature: attemptSignature,
+        arg_policy: {
+          max_args: resolvedMaxArgs,
+          max_arg_len: resolvedMaxArgLen,
+          args_count: argDetails.raw_count,
+          sanitized_count: argDetails.sanitized_count,
+          dropped_count: argDetails.dropped_count,
+          truncated: argDetails.truncated
+        },
+        error: fallbackErrorCode,
+        error_code: errorContext.errorCode || fallbackErrorCode,
+        error_class: errorContext.errorClass,
+        retry: errorContext.retry,
+        tool_error_summary: errorContext.toolErrorSummary,
+        status
+      };
+      if (typeof mutationLikely === 'boolean') {
+        fallbackPayload.mutation_likely = mutationLikely;
+      }
       process.stdout.write(
         `${JSON.stringify(
-          withReceiptHash({
-            ok: false,
-            type: String(type || lane || 'runtime_system_entrypoint'),
-            lane: bridge.lane,
-            system_id: String(systemId || ''),
-            attempt_signature: attemptSignature,
-            mutation_likely: mutationLikely,
-            arg_policy: {
-              max_args: resolvedMaxArgs,
-              max_arg_len: resolvedMaxArgLen,
-              args_count: argDetails.raw_count,
-              sanitized_count: argDetails.sanitized_count,
-              dropped_count: argDetails.dropped_count,
-              truncated: argDetails.truncated
-            },
-            error: fallbackErrorCode,
-            error_code: errorContext.errorCode || fallbackErrorCode,
-            error_class: errorContext.errorClass,
-            retry: errorContext.retry,
-            tool_error_summary: errorContext.toolErrorSummary,
-            status
-          })
+          withReceiptHash(fallbackPayload)
         )}\n`
       );
     }

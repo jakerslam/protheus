@@ -4,7 +4,7 @@
 // Layer ownership: core/layer0/ops (authoritative)
 // Thin TypeScript wrapper only.
 
-const { invokeKernelPayload } = require('../../lib/infring_kernel_bridge.ts');
+const { invokeKernelPayload, kernelFailClosedResult } = require('../../lib/infring_kernel_bridge.ts');
 
 const SESSION_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$/;
 const DEFAULT_STATE_PATH = 'client/runtime/local/state/memory/session_isolation.json';
@@ -159,23 +159,13 @@ function sessionFailureResult(validation, context = {}) {
   );
   return out.result && typeof out.result === 'object'
     ? out.result
-    : {
-        ok: false,
-        status: 2,
-        stdout: `${JSON.stringify({
-          ok: false,
-          type: 'memory_session_isolation_reject',
-          reason: 'session_isolation_failed',
-          fail_closed: true
-        })}\n`,
-        stderr: 'memory_session_isolation_reject:session_isolation_failed\n',
-        payload: {
-          ok: false,
-          type: 'memory_session_isolation_reject',
-          reason: 'session_isolation_failed',
-          fail_closed: true
-        }
-      };
+    : kernelFailClosedResult(
+        'memory_session_isolation_reject',
+        validation && typeof validation.reason_code === 'string'
+          ? validation.reason_code
+          : 'session_isolation_failed',
+        { stderrPrefix: 'memory_session_isolation_reject' }
+      );
 }
 
 function usagePayload(command) {

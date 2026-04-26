@@ -1,8 +1,6 @@
 {
   "version": "1.0",
-  "canonical_path": "core/layer0/ops/config/state_tier_manifest.json",
   "canonical_owner": "core/layer0/ops",
-  "compatibility_mirror": true,
   "enabled": true,
   "hot_runtime": [
     { "id": "memory_index", "authority": "core/layer0/memory", "paths": ["core/layer0/memory"], "read_contract": "native_store" },
