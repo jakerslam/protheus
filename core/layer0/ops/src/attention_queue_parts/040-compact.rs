@@ -207,6 +207,11 @@ fn enqueue(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
             return 2;
         }
     };
+    let ingress_decision = attention_ingress_decision(&event, &contract);
+    if !ingress_decision.allowed {
+        emit_attention_ingress_drop(&contract, &run_context, &event, &ingress_decision);
+        return 0;
+    }
     let queue_depth_before;
     let queue_depth_after;
     let action;
@@ -337,6 +342,7 @@ fn enqueue(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
                 "high_importance": event_high_importance
             }
         },
+        "attention_ingress": attention_ingress_json(&ingress_decision),
         "attention_contract": contract_snapshot(&contract),
         "event": {
             "source": event_or_default(&event, "source", Value::String("unknown_source".to_string())),
@@ -385,6 +391,8 @@ fn enqueue(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
             "attention_key": event_or_default(&event, "attention_key", Value::String("".to_string())),
             "escalate_required": event_or_default(&event, "escalate_required", Value::Bool(false)),
             "initiative_action": event_or_default(&event, "initiative_action", Value::String("silent".to_string())),
+            "attention_ingress_reason": ingress_decision.reason,
+            "attention_ingress_category": ingress_decision.category,
             "run_context": run_context,
             "receipt_hash": out_or_default(&receipt, "receipt_hash", Value::String("".to_string()))
         }),
