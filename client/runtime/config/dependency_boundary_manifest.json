@@ -37,7 +37,6 @@
     "exclude_contains": [".bak.", ".tmp", "node_modules", "dist/", "/tests/", ".test."],
     "allowlisted_files": [
       "client/runtime/lib/direct_conduit_lane_bridge.ts",
-      "client/lib/legacy_retired_lane_bridge.ts",
       "client/runtime/lib/spine_conduit_bridge.ts",
       "client/runtime/lib/rust_lane_bridge.ts",
       "client/runtime/lib/rust_lane_bridge.ts",

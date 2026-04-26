@@ -99,7 +99,6 @@
     "client/runtime/systems/autonomy/receipt_summary.ts",
     "client/runtime/systems/autonomy/suggestion_lane.ts",
     "client/runtime/systems/autonomy/strategy_mode.ts",
-    "client/runtime/systems/autonomy/tier1_governance.ts",
-    "client/runtime/lib/test_compactor_benchmark.ts"
+    "client/runtime/systems/autonomy/tier1_governance.ts"
   ]
 }
