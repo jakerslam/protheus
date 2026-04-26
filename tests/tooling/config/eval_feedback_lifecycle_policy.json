@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "policy_id": "eval_feedback_lifecycle_policy",
+  "summary": "Eval and Kernel Sentinel feedback are evidence-bearing artifacts with cleanup tiers, not ordinary generated churn.",
+  "scan_roots": [
+    "artifacts",
+    "core/local/artifacts",
+    "local/state/kernel_sentinel",
+    "local/state/ops/eval_learning_loop",
+    "local/state/ops/eval_agent_feedback",
+    "local/workspace/reports",
+    "local/workspace/shadow/eval-chat-report-proof"
+  ],
+  "required_tiers": [
+    "raw_eval_trace",
+    "issue_candidate",
+    "accepted_eval_finding",
+    "kernel_sentinel_finding",
+    "resolved_finding_summary"
+  ],
+  "protected_statuses": ["open", "accepted", "in_progress", "blocked", "waived_pending_review"],
+  "resolved_statuses": ["resolved", "closed", "superseded", "expired", "rejected"],
+  "tiers": {
+    "raw_eval_trace": {
+      "priority": 20,
+      "retention_days": 7,
+      "cleanup_action": "compact_then_delete",
+      "description": "Noisy per-turn traces and sampled workflow telemetry. Preserve while debugging, then compact into issue candidates or trend summaries.",
+      "path_regex": [
+        "local/state/ops/eval_learning_loop/.*conversation_traces\\.json$",
+        "local/state/ops/eval_learning_loop/.*raw.*\\.jsonl?$",
+        "local/state/ops/eval_live_monitor/.*\\.jsonl?$"
+      ]
+    },
+    "issue_candidate": {
+      "priority": 50,
+      "retention_days": 30,
+      "cleanup_action": "dedupe_then_archive",
+      "description": "Medium-retention candidate reports used for clustering, dedupe, and acceptance decisions.",
+      "path_regex": [
+        "(^|/)artifacts/.*issue_candidates.*\\.json$",
+        "(^|/)core/local/artifacts/.*issue_candidates.*\\.json$",
+        "local/workspace/reports/.*ISSUE_CANDIDATES.*\\.md$",
+        "local/state/ops/eval_learning_loop/.*issue_candidates.*\\.jsonl?$"
+      ]
+    },
+    "accepted_eval_finding": {
+      "priority": 80,
+      "retention_days": null,
+      "cleanup_action": "preserve_until_resolved",
+      "description": "Accepted or agent-visible eval findings that have become system improvement evidence.",
+      "path_regex": [
+        "local/state/ops/eval_agent_feedback/.*\\.jsonl?$",
+        "local/state/ops/eval_agent_chat_monitor/.*(issue|finding|draft).*\\.jsonl?$",
+        "local/workspace/shadow/eval-chat-report-proof/.*(issue|finding|draft).*\\.jsonl?$",
+        "local/workspace/shadow/eval-chat-report-proof/.*issue_drafts.*\\.json$"
+      ]
+    },
+    "kernel_sentinel_finding": {
+      "priority": 100,
+      "retention_days": null,
+      "cleanup_action": "preserve_until_resolved_or_waived",
+      "description": "Kernel-owned security/correctness/release-blocking evidence. Normal cleanup cannot delete active findings.",
+      "path_regex": [
+        "local/state/kernel_sentinel/.*findings.*\\.jsonl?$",
+        "local/state/kernel_sentinel/.*issues.*\\.jsonl?$",
+        "local/state/kernel_sentinel/kernel_sentinel_report_current\\.json$",
+        "local/state/kernel_sentinel/kernel_sentinel_verdict\\.json$",
+        "local/state/kernel_sentinel/evidence/.*\\.jsonl?$"
+      ]
+    },
+    "resolved_finding_summary": {
+      "priority": 70,
+      "retention_days": 365,
+      "cleanup_action": "archive_summary_keep_receipt",
+      "description": "Resolved, waived, or superseded findings kept as compact release/history records after bulky raw evidence is no longer needed.",
+      "path_regex": [
+        "local/state/kernel_sentinel/.*waivers.*\\.jsonl?$",
+        "local/state/kernel_sentinel/.*resolved.*\\.jsonl?$",
+        "local/state/ops/.*resolved.*eval.*\\.jsonl?$",
+        "local/workspace/reports/.*RESOLVED.*EVAL.*\\.md$"
+      ]
+    }
+  }
+}

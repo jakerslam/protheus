@@ -320,6 +320,42 @@ fn finalize_message_finalization_and_payload(
             }
         }
     }
+    let manual_toolbox_pending_tool_request = response_workflow
+        .get("manual_toolbox_pending_tool_request")
+        .filter(|value| value.is_object())
+        .cloned();
+    if let Some(pending_request) = manual_toolbox_pending_tool_request.as_ref() {
+        let pending_tool = clean_text(
+            pending_request
+                .get("tool_name")
+                .or_else(|| pending_request.get("tool"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            120,
+        );
+        if !pending_tool.is_empty() {
+            let pending_input = pending_request
+                .get("input")
+                .cloned()
+                .unwrap_or_else(|| json!({}));
+            store_pending_tool_confirmation(
+                root,
+                agent_id,
+                &pending_tool,
+                &pending_input,
+                pending_request
+                    .get("source")
+                    .and_then(Value::as_str)
+                    .unwrap_or("manual_toolbox_gate"),
+            );
+            response_workflow["pending_tool_request"] = pending_request.clone();
+            finalization_outcome = merge_response_outcomes(
+                &finalization_outcome,
+                "manual_toolbox_pending_tool_request",
+                200,
+            );
+        }
+    }
     let web_tool_attempted = response_tools_include_web_attempt(&response_tools);
     let web_tool_blocked = response_tools_web_blocked(&response_tools);
     let web_tool_low_signal = response_tools_web_low_signal(&response_tools);
@@ -452,6 +488,9 @@ fn finalize_message_finalization_and_payload(
         "direct_response_path": "gate_1_no"
     });
     apply_response_guard_payloads(&mut response_finalization, &response_guard);
+    if let Some(pending_request) = manual_toolbox_pending_tool_request.as_ref() {
+        response_finalization["pending_tool_request"] = pending_request.clone();
+    }
     let visible_response_source = apply_visible_response_provenance_for_turn(
         &mut response_workflow,
         &mut response_finalization,
@@ -541,6 +580,9 @@ fn finalize_message_finalization_and_payload(
     payload["response_workflow"] = response_workflow;
     payload["terminal_transcript"] = Value::Array(terminal_transcript);
     payload["response_finalization"] = response_finalization;
+    if let Some(pending_request) = manual_toolbox_pending_tool_request {
+        payload["pending_tool_request"] = pending_request;
+    }
     payload["process_summary"] = process_summary;
     payload["workflow_visibility"] = workflow_visibility;
     payload["response_quality_telemetry"] = response_quality_telemetry;

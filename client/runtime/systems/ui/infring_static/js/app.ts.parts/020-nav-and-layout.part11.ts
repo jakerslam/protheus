@@ -370,6 +370,10 @@
     },
 
     dashboardPopupOrigin(overrides) {
+      var service = this.dashboardPopupService();
+      if (service && typeof service.origin === 'function') {
+        return service.origin(overrides);
+      }
       return Object.assign({
         source: '',
         active: false,
@@ -408,6 +412,10 @@
     },
 
     dashboardPopupStateOrigin() {
+      var service = this.dashboardPopupService();
+      if (service && typeof service.stateOrigin === 'function') {
+        return service.stateOrigin(this.dashboardPopup);
+      }
       var popup = this.dashboardPopup || {};
       var title = String(popup.title || '').trim();
       var body = String(popup.body || '').trim();
@@ -453,6 +461,10 @@
 
     dashboardPopupOverlayClass() {
       var popup = this.activeDashboardPopupOrigin();
+      var service = this.dashboardPopupService();
+      if (service && typeof service.overlayClass === 'function') {
+        return service.overlayClass(popup, 'fogged-glass');
+      }
       return {
         'is-visible': !!(popup.active && popup.ready && popup.title),
         'is-side-top': popup.side === 'top',
@@ -471,6 +483,10 @@
 
     dashboardPopupOverlayStyle() {
       var popup = this.activeDashboardPopupOrigin();
+      var service = this.dashboardPopupService();
+      if (service && typeof service.overlayStyle === 'function') {
+        return service.overlayStyle(popup);
+      }
       if (!popup.active || !popup.ready) return 'left:-9999px;top:-9999px;';
       return 'left:' + Math.round(Number(popup.left || 0)) + 'px;top:' + Math.round(Number(popup.top || 0)) + 'px;';
     },

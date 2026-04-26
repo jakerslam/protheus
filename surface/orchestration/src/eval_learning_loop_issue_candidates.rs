@@ -34,7 +34,7 @@ pub fn run_eval_learning_loop_issue_candidates(args: &[String]) -> i32 {
     for cluster in clustered_issue_rows(rows.as_slice()) {
         let row = cluster
             .representative
-            .unwrap_or_else(|| rows.get(0).unwrap_or(&Value::Null));
+            .unwrap_or_else(|| rows.first().unwrap_or(&Value::Null));
         let mut candidate = issue_candidate_from_inbox_row(row);
         attach_cluster_evidence(&mut candidate, &cluster);
         let quality_failures = issue_candidate_quality_failures(&candidate);
@@ -194,13 +194,13 @@ fn runtime_quality_value(runtime_quality: &Value, key: &str) -> String {
 fn runtime_quality_metrics(row: &Value) -> Value {
     let runtime_quality = row.get("runtime_quality").unwrap_or(&Value::Null);
     json!({
-        "candidate_count": runtime_quality.get("candidate_count").cloned().unwrap_or_else(|| json!(null)),
-        "used_heuristic_probe": runtime_quality.get("used_heuristic_probe").cloned().unwrap_or_else(|| json!(null)),
-        "heuristic_probe_source_count": runtime_quality.get("heuristic_probe_source_count").cloned().unwrap_or_else(|| json!(null)),
-        "typed_probe_contract_gap_count": runtime_quality.get("typed_probe_contract_gap_count").cloned().unwrap_or_else(|| json!(null)),
-        "fallback_action_count": runtime_quality.get("fallback_action_count").cloned().unwrap_or_else(|| json!(null)),
-        "zero_executable_candidates": runtime_quality.get("zero_executable_candidates").cloned().unwrap_or_else(|| json!(null)),
-        "surface_adapter_fallback": runtime_quality.get("surface_adapter_fallback").cloned().unwrap_or_else(|| json!(null))
+        "candidate_count": runtime_quality.get("candidate_count").cloned().unwrap_or(Value::Null),
+        "used_heuristic_probe": runtime_quality.get("used_heuristic_probe").cloned().unwrap_or(Value::Null),
+        "heuristic_probe_source_count": runtime_quality.get("heuristic_probe_source_count").cloned().unwrap_or(Value::Null),
+        "typed_probe_contract_gap_count": runtime_quality.get("typed_probe_contract_gap_count").cloned().unwrap_or(Value::Null),
+        "fallback_action_count": runtime_quality.get("fallback_action_count").cloned().unwrap_or(Value::Null),
+        "zero_executable_candidates": runtime_quality.get("zero_executable_candidates").cloned().unwrap_or(Value::Null),
+        "surface_adapter_fallback": runtime_quality.get("surface_adapter_fallback").cloned().unwrap_or(Value::Null)
     })
 }
 
@@ -261,7 +261,7 @@ fn issue_candidate_from_inbox_row(row: &Value) -> Value {
             "sanitized_assistant_text": str_at(row, &["sanitized_assistant_text"]).unwrap_or(""),
             "evidence_summary": str_at(row, &["evidence_summary"]).unwrap_or(""),
             "runtime_quality": row.get("runtime_quality").cloned().unwrap_or_else(|| json!({})),
-            "workflow_quality": row.get("workflow_quality").cloned().unwrap_or_else(|| json!(null))
+            "workflow_quality": row.get("workflow_quality").cloned().unwrap_or(Value::Null)
         },
         "suspected_layer": suspected_layer,
         "suspected_root_cause": root_cause_for_signal(signal),

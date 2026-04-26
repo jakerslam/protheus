@@ -5,7 +5,17 @@ pub mod lifecycle;
 pub mod recovery_escalation;
 pub mod result_shaping_packaging;
 pub mod templates;
+pub mod workflow_contract_guard;
+pub mod workflow_contracts;
 pub mod workflow_graph_dependency;
+pub mod workflow_runtime;
+pub mod workflow_runtime_fixtures;
+pub mod workflow_runtime_types;
+
+#[cfg(test)]
+mod workflow_contracts_tests;
+#[cfg(test)]
+mod workflow_runtime_tests;
 
 use crate::contracts::{ControlPlaneDecisionTrace, WorkflowStage};
 

@@ -11,7 +11,7 @@
 	            if (!Number.isFinite(Number(phaseMsg._stream_started_at))) {
 	              phaseMsg._stream_started_at = Date.now();
 	            }
-	            var phaseStatusCandidate = phaseDetailText;
+	            var phaseStatusCandidate = String((data && (data.thinking_status || data.status_text || data.workflow_stage || data.stage)) || phaseDetailText || '').trim();
             var phaseKey = String(data && data.phase ? data.phase : '').trim().toLowerCase();
             if (!phaseStatusCandidate && phaseKey) {
               phaseStatusCandidate = phaseKey.replace(/[_-]+/g, ' ').trim();
@@ -22,7 +22,12 @@
             if (typeof this.isThinkingPlaceholderText === 'function' && this.isThinkingPlaceholderText(phaseStatusCandidate)) {
               phaseStatusCandidate = '';
             }
-            var phaseFingerprint = phaseKey + '|' + phaseDetailText + '|' + (Number.isFinite(phasePercent) ? String(Math.round(phasePercent)) : '');
+            var phaseCurrentStatus = String(phaseMsg.thinking_status || '').trim();
+            var phaseCanReplaceStatus = !!phaseStatusCandidate && (
+              !phaseCurrentStatus ||
+              (typeof this.isThinkingPlaceholderText === 'function' && this.isThinkingPlaceholderText(phaseCurrentStatus))
+            );
+            var phaseFingerprint = phaseKey + '|' + phaseDetailText + '|' + phaseStatusCandidate + '|' + (Number.isFinite(phasePercent) ? String(Math.round(phasePercent)) : '');
             if (phaseMsg._phase_update_fingerprint === phaseFingerprint) {
               phaseMsg._stream_updated_at = Date.now();
               this._resetTypingTimeout();
@@ -67,14 +72,15 @@
                 if (typeof this._setPendingWsStatusText === 'function') {
                   this._setPendingWsStatusText(data && data.agent_id ? String(data.agent_id) : '', phaseStatusCandidate || thoughtChunk);
                 }
-                if (!phaseMsg.thinking_status && phaseStatusCandidate) {
+                if (phaseCanReplaceStatus) {
                   if (phaseMsg.thinking_status !== phaseStatusCandidate) phaseMsg.thinking_status = phaseStatusCandidate;
                 }
               }
             } else if (phaseMsg.thinking) {
               if (phaseStatusCandidate && phaseMsg.thinking_status !== phaseStatusCandidate) phaseMsg.thinking_status = phaseStatusCandidate;
             }
-            if (!phaseMsg.thinking_status && phaseStatusCandidate) {
+            if (phaseStatusCandidate && phaseMsg.status_text !== phaseStatusCandidate) phaseMsg.status_text = phaseStatusCandidate;
+            if (phaseCanReplaceStatus) {
               if (phaseMsg.thinking_status !== phaseStatusCandidate) phaseMsg.thinking_status = phaseStatusCandidate;
             }
 	          }

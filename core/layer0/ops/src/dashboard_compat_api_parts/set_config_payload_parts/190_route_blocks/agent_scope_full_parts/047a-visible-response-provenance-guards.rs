@@ -218,15 +218,18 @@ fn final_response_guard_report(
         || response_contains_stale_code_context_dump(user_message, response_text)
         || response_is_unrelated_context_dump(user_message, response_text)
         || unsupported_content_contamination;
+    let visible_gate_choice_leakage = response_is_visible_workflow_gate_choice(response_text);
     let final_contract_violation = response_fails_base_final_answer_contract(response_text)
         || (workflow_response_requests_more_tooling(response_text)
             && !response_is_manual_toolbox_gate_choice(response_text))
         || response_contains_unexpected_state_retry_boilerplate(response_text)
+        || visible_gate_choice_leakage
         || final_contamination_violation
         || current_turn_dominance_violation;
     json!({
         "current_turn_dominance": current_turn_dominance,
         "current_turn_dominance_violation": current_turn_dominance_violation,
+        "visible_gate_choice_leakage": visible_gate_choice_leakage,
         "contamination_guard": {
             "contract": "unrequested_content_without_tool_evidence_v1",
             "detected": final_contamination_violation,

@@ -205,5 +205,5 @@ Each sprint/batch must include:
 - Every assistant-visible reply must be produced through a selected workflow from the workflow library.
 - The default selected workflow may be simple or complex, but no assistant reply path is allowed to bypass workflow selection and workflow finalization.
 - Post-workflow prose rewrites are prohibited for user-visible assistant text.
-- System-authored fallback text is allowed only when the workflow's final LLM stage is unavailable, skipped, or invoke-failed. In that case the fallback must be explicit about the failure mode.
+- System-authored fallback text is prohibited in visible chat. When the workflow's final LLM stage is unavailable, skipped, or invoke-failed, emit diagnostics through workflow telemetry / attention queues only; user-visible chat content must come from an LLM finalization stage or remain empty with a non-chat error channel.
 - Regression invariant: if `response_workflow.final_llm_response.status == synthesized`, the visible assistant text must come from the workflow-authored response and placeholder text such as “I don't have usable tool findings from this turn yet” must not survive in chat or restored history.

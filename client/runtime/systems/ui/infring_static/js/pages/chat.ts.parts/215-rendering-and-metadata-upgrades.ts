@@ -436,98 +436,75 @@
       };
     },
 
-    messageRetrySource: function(msg, idx, rows) {
+    messageMetadataService: function() {
+      var services = typeof InfringSharedShellServices !== 'undefined' ? InfringSharedShellServices : null;
+      return services && services.messageMeta ? services.messageMeta : null;
+    },
+
+    messageMetadataShellState: function(msg, idx, rows) {
+      var service = this.messageMetadataService();
       var list = Array.isArray(rows) ? rows : (Array.isArray(this.messages) ? this.messages : []);
-      var rowId = String(msg && msg.id || '').trim();
-      var resolvedIndex = Number(idx);
-      if (!Number.isFinite(resolvedIndex) || resolvedIndex < 0 || resolvedIndex >= list.length || (list[resolvedIndex] && rowId && String(list[resolvedIndex].id || '').trim() !== rowId)) {
-        resolvedIndex = -1;
-        for (var li = list.length - 1; li >= 0; li -= 1) {
-          var probe = list[li];
-          if (!probe) continue;
-          if (probe === msg) {
-            resolvedIndex = li;
-            break;
-          }
-          if (rowId && String(probe.id || '').trim() === rowId) {
-            resolvedIndex = li;
-            break;
-          }
-        }
-      }
-      if (resolvedIndex < 0) return null;
-      for (var i = resolvedIndex; i >= 0; i -= 1) {
-        var candidate = list[i];
-        if (!candidate || candidate.is_notice) continue;
-        var isHumanOrigin = typeof this.messageIsHumanOrigin === 'function'
-          ? this.messageIsHumanOrigin(candidate)
-          : String(candidate.role || '').toLowerCase() === 'user';
-        if (!isHumanOrigin) continue;
-        var text = String(candidate.text || '').trim();
-        if (!text) continue;
-        return candidate;
-      }
-      return null;
+      var model = service && typeof service.viewModel === 'function' ? service.viewModel({
+        row: msg,
+        index: idx,
+        rows: list,
+        agent: this.currentAgent,
+        shouldRender: typeof this.shouldRenderMessageContent === 'function' ? this.shouldRenderMessageContent(msg, idx, list) : true,
+        collapsed: typeof this.isMessageMetaCollapsed === 'function' ? this.isMessageMetaCollapsed(msg, idx, list) : false,
+        copied: !!(msg && msg._copied),
+        hasTools: typeof this.messageHasTools === 'function' ? this.messageHasTools(msg) : !!(msg && Array.isArray(msg.tools) && msg.tools.length),
+        toolsCollapsed: typeof this.allToolsCollapsed === 'function' ? this.allToolsCollapsed(msg) : true,
+        timestamp: typeof this.messageTs === 'function' ? this.messageTs(msg) : '',
+        responseTimeMs: typeof this.messageStatResponseTimeMs === 'function' ? this.messageStatResponseTimeMs(msg) : 0,
+        responseTimeFormatter: typeof this.formatResponseDuration === 'function' ? this.formatResponseDuration.bind(this) : null,
+        burnTotalTokens: typeof this.messageStatBurnTotalTokens === 'function' ? this.messageStatBurnTotalTokens(msg) : 0,
+        burnFormatter: typeof this.formatTokenK === 'function' ? this.formatTokenK.bind(this) : null
+      }) : { shouldRender: false };
+      try { return JSON.stringify(model); } catch (_) { return '{"shouldRender":false}'; }
+    },
+
+    handleMessageMetaAction: function(event, msg, idx, rows) {
+      var action = String(event && event.detail && event.detail.action || '').trim();
+      var handlers = {
+        copy: this.copyMessage.bind(this, msg),
+        report: this.reportIssueFromMeta.bind(this, msg, idx),
+        'toggle-tools': this.toggleMessageTools.bind(this, msg),
+        retry: this.retryMessageFromMeta.bind(this, msg, idx, rows),
+        reply: this.replyToMessageFromMeta.bind(this, msg, idx, rows),
+        fork: this.forkMessageFromMeta.bind(this, msg, idx, rows)
+      };
+      var handler = handlers[action];
+      if (typeof handler === 'function') return handler();
+    },
+
+    messageRetrySource: function(msg, idx, rows) {
+      var service = this.messageMetadataService();
+      var list = Array.isArray(rows) ? rows : (Array.isArray(this.messages) ? this.messages : []);
+      return service && typeof service.retrySource === 'function' ? service.retrySource(msg, idx, list) : null;
     },
 
     messageCanRetryFromMeta: function(msg, idx, rows) {
-      if (typeof this.messageIsAgentOrigin === 'function' && !this.messageIsAgentOrigin(msg)) {
-        return false;
-      }
-      if (!this.messageIsLatestAgentFromMeta(msg, idx, rows)) {
-        return false;
-      }
-      return !!this.messageRetrySource(msg, idx, rows);
+      var service = this.messageMetadataService();
+      var list = Array.isArray(rows) ? rows : (Array.isArray(this.messages) ? this.messages : []);
+      return !!(service && typeof service.canRetry === 'function' && service.canRetry(msg, idx, list));
     },
 
     _resolveMessageIndexFromMeta: function(msg, idx, rows) {
+      var service = this.messageMetadataService();
       var list = Array.isArray(rows) ? rows : (Array.isArray(this.messages) ? this.messages : []);
-      if (!list.length) return -1;
-      var rowId = String(msg && msg.id || '').trim();
-      var resolvedIndex = Number(idx);
-      if (!Number.isFinite(resolvedIndex) || resolvedIndex < 0 || resolvedIndex >= list.length) {
-        resolvedIndex = -1;
-      }
-      if (resolvedIndex >= 0) {
-        var probe = list[resolvedIndex];
-        if (probe && rowId && String(probe.id || '').trim() !== rowId) {
-          resolvedIndex = -1;
-        }
-      }
-      if (resolvedIndex >= 0) return resolvedIndex;
-      for (var i = list.length - 1; i >= 0; i -= 1) {
-        var candidate = list[i];
-        if (!candidate) continue;
-        if (candidate === msg) return i;
-        if (rowId && String(candidate.id || '').trim() === rowId) return i;
-      }
-      return -1;
+      return service && typeof service.resolveIndex === 'function' ? service.resolveIndex(msg, idx, list) : -1;
     },
 
     messageIsLatestAgentFromMeta: function(msg, idx, rows) {
+      var service = this.messageMetadataService();
       var list = Array.isArray(rows) ? rows : (Array.isArray(this.messages) ? this.messages : []);
-      if (!list.length) return false;
-      var resolvedIndex = this._resolveMessageIndexFromMeta(msg, idx, list);
-      if (resolvedIndex < 0) return false;
-      for (var i = list.length - 1; i >= 0; i -= 1) {
-        var candidate = list[i];
-        if (!candidate || candidate.is_notice) continue;
-        if (typeof this.messageIsAgentOrigin === 'function' && !this.messageIsAgentOrigin(candidate)) continue;
-        return i === resolvedIndex;
-      }
-      return false;
+      return !!(service && typeof service.isLatestAgent === 'function' && service.isLatestAgent(msg, idx, list));
     },
 
     messageCanReplyFromMeta: function(msg, idx, rows) {
+      var service = this.messageMetadataService();
       var list = Array.isArray(rows) ? rows : (Array.isArray(this.messages) ? this.messages : []);
-      if (!list.length) return false;
-      var resolvedIndex = this._resolveMessageIndexFromMeta(msg, idx, list);
-      if (resolvedIndex < 0) return false;
-      var row = list[resolvedIndex];
-      if (!row || row.is_notice) return false;
-      if (typeof this.messageIsHumanOrigin === 'function' && this.messageIsHumanOrigin(row)) return false;
-      var text = String(row.text || '').trim();
-      return text.length > 0;
+      return !!(service && typeof service.canReply === 'function' && service.canReply(msg, idx, list));
     },
 
     replyToMessageFromMeta: function(msg, idx, rows) {
@@ -562,11 +539,8 @@
     },
 
     messageCanForkFromMeta: function(msg) {
-      if (!this.currentAgent || !this.currentAgent.id) return false;
-      if (typeof this.messageIsAgentOrigin === 'function' && !this.messageIsAgentOrigin(msg)) {
-        return false;
-      }
-      return true;
+      var service = this.messageMetadataService();
+      return !!(service && typeof service.canFork === 'function' && service.canFork(msg, this.currentAgent));
     },
 
     _forkAgentRequestedName: function(sourceName) {
@@ -580,7 +554,8 @@
 
     retryMessageFromMeta: async function(msg, idx, rows) {
       if (this.sending) return;
-      if (!this.messageCanRetryFromMeta(msg, idx, rows)) return;
+      var allowed = this.messageCanRetryFromMeta(msg, idx, rows);
+      if (!allowed) return;
       var source = this.messageRetrySource(msg, idx, rows);
       if (!source) {
         if (typeof InfringToast !== 'undefined') InfringToast.info('No prior user prompt was found for resend.');

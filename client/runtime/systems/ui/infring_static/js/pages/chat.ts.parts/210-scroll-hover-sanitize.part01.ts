@@ -481,8 +481,11 @@
       return this.isFirstInSourceRun(idx, rows);
     },
     messageMetaVisible(msg, idx, rows) {
-      if (!msg || msg.is_notice || msg.thinking) return false;
-      return !this.isMessageMetaCollapsed(msg, idx, rows);
+      var service = typeof this.messageMetadataService === 'function' ? this.messageMetadataService() : null;
+      if (service && typeof service.visible === 'function') {
+        return service.visible(msg, this.isMessageMetaCollapsed(msg, idx, rows));
+      }
+      return !!(msg && !msg.is_notice && !msg.thinking && !this.isMessageMetaCollapsed(msg, idx, rows));
     },
     isMessageMetaCollapsed(msg, idx, rows) {
       if (!msg || msg.is_notice || msg.thinking) return true;

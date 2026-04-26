@@ -1,7 +1,7 @@
     messageCanReportIssueFromMeta: function(msg) {
-      var services = typeof InfringSharedShellServices !== 'undefined' ? InfringSharedShellServices : null;
-      if (services && services.message && typeof services.message.canRequestEvalIssueReport === 'function') {
-        return services.message.canRequestEvalIssueReport(msg, this.currentAgent);
+      var service = typeof this.messageMetadataService === 'function' ? this.messageMetadataService() : null;
+      if (service && typeof service.canReportIssue === 'function') {
+        return service.canReportIssue(msg, this.currentAgent);
       }
       if (!this.currentAgent || !this.currentAgent.id) return false;
       if (typeof this.messageIsAgentOrigin === 'function' && !this.messageIsAgentOrigin(msg)) return false;

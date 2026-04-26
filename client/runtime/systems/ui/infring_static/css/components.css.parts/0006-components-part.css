@@ -76,7 +76,8 @@
     transform 0.2s var(--ease-smooth);
 }
 
-.message-bubble > .message-stats-row {
+.message-bubble > .message-stats-row,
+.message-bubble > infring-message-meta-shell > .message-stats-row {
   --message-meta-icon-size: 11px;
   position: absolute;
   left: 16px;
@@ -94,17 +95,20 @@
   justify-content: center;
 }
 
-.message-bubble > .message-stats-row > * {
+.message-bubble > .message-stats-row > *,
+.message-bubble > infring-message-meta-shell > .message-stats-row > * {
   flex: 0 0 auto;
 }
 
-.message-bubble > .message-stats-row .message-stat-btn {
+.message-bubble > .message-stats-row .message-stat-btn,
+.message-bubble > infring-message-meta-shell > .message-stats-row .message-stat-btn {
   width: 16px;
   height: 16px;
   border-radius: 5px;
 }
 
-.message-bubble > .message-stats-row .message-reply-label {
+.message-bubble > .message-stats-row .message-reply-label,
+.message-bubble > infring-message-meta-shell > .message-stats-row .message-reply-label {
   display: none;
 }
 
@@ -115,7 +119,8 @@
   pointer-events: auto;
 }
 
-.message.meta-expanded .message-bubble > .message-stats-row {
+.message.meta-expanded .message-bubble > .message-stats-row,
+.message.meta-expanded .message-bubble > infring-message-meta-shell > .message-stats-row {
   max-height: 18px;
 }
 
@@ -148,7 +153,8 @@
   justify-content: flex-end;
 }
 
-.message.user .message-bubble > .message-stats-row {
+.message.user .message-bubble > .message-stats-row,
+.message.user .message-bubble > infring-message-meta-shell > .message-stats-row {
   justify-content: center;
 }
 

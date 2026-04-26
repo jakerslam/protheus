@@ -297,6 +297,11 @@ fn classification_fixture(
 }
 
 fn surface_for_classification(classification: &RequestClassification) -> LegacyIngressSurface {
+    let fallback_surface = if classification.surface_adapter_fallback {
+        LegacyIngressSurface::UnknownNonLegacy
+    } else {
+        LegacyIngressSurface::ExplicitLegacy
+    };
     classification
         .reasons
         .iter()
@@ -306,13 +311,7 @@ fn surface_for_classification(classification: &RequestClassification) -> LegacyI
                 .or_else(|| reason.strip_prefix("surface_adapter:"))
                 .and_then(surface_from_token)
         })
-        .unwrap_or_else(|| {
-            if classification.surface_adapter_fallback {
-                LegacyIngressSurface::UnknownNonLegacy
-            } else {
-                LegacyIngressSurface::ExplicitLegacy
-            }
-        })
+        .unwrap_or(fallback_surface)
 }
 
 fn surface_from_token(token: &str) -> Option<LegacyIngressSurface> {

@@ -163,6 +163,46 @@ fn synthetic_user_harness_enforces_simple_direct_budgets() {
 }
 
 #[test]
+fn synthetic_user_harness_flags_visible_gate_choice_leakage() {
+    let turn = json!({
+        "user_message": "Dry run only: tell me which file tool you would use, but do not run tools yet.",
+        "expect": {
+            "forbid_gate_choice_leakage": true
+        }
+    });
+    let thresholds = json!({});
+    let payload = json!({
+        "response": "No. I would use the read_file tool.",
+        "response_workflow": {
+            "stage_statuses": [{"stage": "gate_1_need_tool_access_menu"}]
+        },
+        "live_eval_monitor": {"chat_injection_allowed": false}
+    });
+
+    let failures = evaluate_turn(TurnEvaluation {
+        live: false,
+        turn: &turn,
+        thresholds: &thresholds,
+        user_message:
+            "Dry run only: tell me which file tool you would use, but do not run tools yet.",
+        response_text: "No. I would use the read_file tool.",
+        previous_response: "",
+        payload: &payload,
+        route_error_code: None,
+        latency_ms: 100,
+        response_token_count: 7,
+        workflow_stage_count: 1,
+    });
+
+    assert!(
+        failures
+            .iter()
+            .any(|row| row == "visible_workflow_gate_choice_leakage"),
+        "{failures:?}"
+    );
+}
+
+#[test]
 fn synthetic_user_harness_uses_separate_live_latency_budget() {
     let turn = json!({
         "user_message": "hey",

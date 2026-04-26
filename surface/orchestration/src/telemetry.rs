@@ -153,10 +153,10 @@ fn tool_decision_for_package(package: &OrchestrationResultPackage) -> String {
 }
 
 fn tool_family_for_package(package: &OrchestrationResultPackage) -> String {
-    let forgecode_quality = match package.workflow_quality.as_ref() {
-        Some(WorkflowQualitySignals::ForgeCode(signals)) => Some(signals),
-        None => None,
-    };
+    let forgecode_quality = package
+        .workflow_quality
+        .as_ref()
+        .map(|WorkflowQualitySignals::ForgeCode(signals)| signals);
     if forgecode_quality
         .map(|signals| {
             signals.known_path_direct_read_required || signals.exact_pattern_search_required
