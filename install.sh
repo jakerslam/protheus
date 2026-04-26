@@ -4282,6 +4282,27 @@ if [ "${1:-}" = "gateway" ]; then
     gateway_action="start"
   fi
 
+  dashboard_preflight_host="127.0.0.1"
+  dashboard_preflight_port="4173"
+  for token in "$@"; do
+    case "$token" in
+      --dashboard-host=*)
+        dashboard_preflight_host="${token#*=}"
+        ;;
+      --dashboard-port=*)
+        dashboard_preflight_port="${token#*=}"
+        ;;
+    esac
+  done
+  dashboard_preflight_url="${INFRING_DASHBOARD_URL:-http://${dashboard_preflight_host}:${dashboard_preflight_port}/dashboard#chat}"
+  if [ "$gateway_action" = "start" ] && infring_gateway_health_ok "$dashboard_preflight_host" "$dashboard_preflight_port"; then
+    echo "P o w e r  T o  T h e  U s e r s"
+    echo "[infring gateway] already active"
+    echo "[infring gateway] dashboard: $dashboard_preflight_url"
+    [ -n "${INFRING_WORKSPACE_ROOT:-}" ] && echo "[infring gateway] workspace: $INFRING_WORKSPACE_ROOT"
+    exit 0
+  fi
+
   gateway_output="$("__INSTALL_DIR__/infringd" "$gateway_action" "$@" 2>&1)"
   gateway_status=$?
   if [ "$gateway_status" -ne 0 ]; then
@@ -4346,6 +4367,12 @@ if [ "${1:-}" = "gateway" ]; then
   fi
 
   if [ "$gateway_action" = "start" ] || [ "$gateway_action" = "restart" ]; then
+    dashboard_already_active="0"
+    if [ "$gateway_action" = "start" ] \
+      && printf '%s\n' "$gateway_output" | grep -Eq '"running"[[:space:]]*:[[:space:]]*true' \
+      && printf '%s\n' "$gateway_output" | grep -Eq '"launched"[[:space:]]*:[[:space:]]*false'; then
+      dashboard_already_active="1"
+    fi
     if [ "$legacy_supervisor_mode" != "1" ]; then
       # Default mode: Rust core is sole authority for dashboard lifecycle/watchdog.
       infring_gateway_watchdog_stop "$dashboard_host" "$dashboard_port" >/dev/null 2>&1 || true
@@ -4389,10 +4416,38 @@ if [ "${1:-}" = "gateway" ]; then
       fi
     fi
     if [ "$dashboard_ready" != "1" ]; then
-      echo "[infring gateway] warning: dashboard healthz not ready at http://${dashboard_host}:${dashboard_port}/healthz" >&2
+      echo "[infring gateway] ${gateway_action} failed: dashboard healthz not ready at http://${dashboard_host}:${dashboard_port}/healthz" >&2
+      dashboard_error="$(printf '%s\n' "$gateway_output" | sed -n 's/.*"error":"\([^"]*\)".*/\1/p' | head -n 1)"
+      dashboard_issue_code="$(printf '%s\n' "$gateway_output" | sed -n 's/.*"code":"\([^"]*\)".*/\1/p' | head -n 1)"
+      dashboard_current_executable="$(printf '%s\n' "$gateway_output" | sed -n 's/.*"current_executable":"\([^"]*\)".*/\1/p' | head -n 1)"
+      dashboard_expected_executable="$(printf '%s\n' "$gateway_output" | sed -n 's/.*"expected_executable":"\([^"]*\)".*/\1/p' | head -n 1)"
+      dashboard_expected_launcher="$(printf '%s\n' "$gateway_output" | sed -n 's/.*"expected_launcher":"\([^"]*\)".*/\1/p' | head -n 1)"
+      dashboard_reasons="$(printf '%s\n' "$gateway_output" | sed -n 's/.*"reasons":\[\([^]]*\)\].*/\1/p' | head -n 1)"
+      if [ -n "$dashboard_error" ]; then
+        echo "[infring gateway] startup-cause: ${dashboard_error}" >&2
+      fi
+      if [ -n "$dashboard_issue_code" ]; then
+        echo "[infring gateway] startup-issue: ${dashboard_issue_code}" >&2
+      fi
+      if [ -n "$dashboard_current_executable" ]; then
+        echo "[infring gateway] current-executable: ${dashboard_current_executable}" >&2
+      fi
+      if [ -n "$dashboard_expected_executable" ]; then
+        echo "[infring gateway] expected-executable: ${dashboard_expected_executable}" >&2
+      fi
+      if [ -n "$dashboard_expected_launcher" ]; then
+        echo "[infring gateway] expected-launcher: ${dashboard_expected_launcher}" >&2
+      fi
+      if [ -n "$dashboard_reasons" ]; then
+        echo "[infring gateway] startup-reasons: ${dashboard_reasons}" >&2
+      fi
+      if [ "$dashboard_error" = "dashboard_duplicate_runtime_detected" ] || [ "$dashboard_issue_code" = "dashboard_runtime_binary_authority_mismatch" ]; then
+        echo "[infring gateway] authority-recovery: repair/reinstall the canonical launcher, or temporarily set INFRING_DAEMON_EXPECTED_BINARY to the resolved runtime binary." >&2
+      fi
       echo "[infring gateway] next-action: infring gateway status --dashboard-host=${dashboard_host} --dashboard-port=${dashboard_port}" >&2
       echo "[infring gateway] recovery: infring gateway restart --dashboard-host=${dashboard_host} --dashboard-port=${dashboard_port}" >&2
       echo "[infring gateway] diagnostics: infring doctor --json" >&2
+      exit 1
     fi
     if [ "$legacy_supervisor_mode" = "1" ] && [ "$dashboard_watchdog_enabled" != "0" ]; then
       infring_gateway_watchdog_start "$dashboard_host" "$dashboard_port" "$dashboard_watchdog_interval" >/dev/null 2>&1 || true
@@ -4400,6 +4455,8 @@ if [ "${1:-}" = "gateway" ]; then
     echo "P o w e r  T o  T h e  U s e r s"
     if [ "$gateway_action" = "restart" ]; then
       echo "[infring gateway] runtime restarted"
+    elif [ "$dashboard_already_active" = "1" ]; then
+      echo "[infring gateway] already active"
     else
       echo "[infring gateway] runtime started"
     fi
