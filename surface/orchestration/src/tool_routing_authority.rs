@@ -1,4 +1,8 @@
 // Layer ownership: surface/orchestration (tool-routing authority evidence only).
+mod report_rendering;
+
+pub use report_rendering::render_markdown;
+
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs;
@@ -49,6 +53,22 @@ pub struct PlannerPayloadDecisionAuditRow {
     pub evidence: Vec<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct ToolRoutingAuthorityOperatorSummary {
+    pub status: String,
+    pub total_checks: u64,
+    pub passing_checks: u64,
+    pub failing_checks: u64,
+    pub planner_payload_decision_audit_failures: u64,
+    pub json_artifact: String,
+    pub markdown_artifact: String,
+    pub operator_next_step: String,
+    pub top_failed_check: Option<String>,
+    pub top_failed_missing_count: u64,
+    pub authority_promotion_blocked: bool,
+    pub release_blocking: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ToolRoutingAuthorityReport {
     pub schema_id: String,
@@ -58,6 +78,7 @@ pub struct ToolRoutingAuthorityReport {
     pub required_tool_probe_keys: Vec<String>,
     pub decision_trace_fields: Vec<String>,
     pub planner_payload_decision_audit: Vec<PlannerPayloadDecisionAuditRow>,
+    pub operator_summary: ToolRoutingAuthorityOperatorSummary,
     pub summary: BTreeMap<String, u64>,
     pub checks: Vec<ToolRoutingAuthorityCheck>,
 }
@@ -66,6 +87,10 @@ pub fn build_tool_routing_authority_report(root: impl AsRef<Path>) -> ToolRoutin
     let root = root.as_ref();
     let contracts = read_text(root, "surface/orchestration/src/contracts.rs");
     let preconditions = read_text(root, "surface/orchestration/src/planner/preconditions.rs");
+    let capability_registry = read_text(
+        root,
+        "surface/orchestration/src/planner/capability_registry.rs",
+    );
     let planner_candidates =
         read_text(root, "surface/orchestration/src/planner/plan_candidates.rs");
     let planner_common = read_text(
@@ -80,6 +105,7 @@ pub fn build_tool_routing_authority_report(root: impl AsRef<Path>) -> ToolRoutin
         root,
         "surface/orchestration/src/planner/plan_candidates/strategy.rs",
     );
+    let sequencing = read_text(root, "surface/orchestration/src/sequencing.rs");
     let probe_matrix = read_text(
         root,
         "surface/orchestration/tests/conformance/probe_matrix.rs",
@@ -93,21 +119,55 @@ pub fn build_tool_routing_authority_report(root: impl AsRef<Path>) -> ToolRoutin
         "tests/tooling/fixtures/tool_route_misdirection_matrix.json",
     );
     let package_json = read_text(root, "package.json");
+    let request_surface_policy = read_text(
+        root,
+        "surface/orchestration/config/request_surface_probe_authority_policy.json",
+    );
+    let result_packaging = read_text(root, "surface/orchestration/src/result_packaging.rs");
+    let continuous_eval = read_text(root, "surface/orchestration/src/continuous_eval.rs");
+    let eval_feedback_router = read_text(root, "surface/orchestration/src/eval_feedback_router.rs");
+    let transient_context = read_text(root, "surface/orchestration/src/transient_context.rs");
+    let release_proof_pack_assemble = read_text(
+        root,
+        "tests/tooling/scripts/ci/release_proof_pack_assemble.ts",
+    );
     let planner_payload_decision_audit = planner_payload_decision_audit(
         &preconditions,
         &planner_candidates,
         &planner_common,
         &planner_chain,
         &planner_strategy,
+        &sequencing,
     );
 
     let checks = vec![
         required_probe_keys_declared(&contracts, &preconditions),
         typed_surfaces_fail_closed_on_missing_probes(&preconditions),
+        heuristic_probe_fallbacks_compatibility_fenced(&preconditions),
         generic_execute_tool_not_authoritative(&contracts, &preconditions),
         specific_missing_probe_diagnostics_declared(&preconditions),
         decision_trace_shape_declared(&preconditions),
         decision_trace_regressions_declared(&probe_matrix),
+        request_surface_probe_authority_policy_declared(&request_surface_policy),
+        request_surface_probe_authority_policy_semantics_declared(&request_surface_policy),
+        prepare_context_capability_contract_declared(
+            &contracts,
+            &preconditions,
+            &capability_registry,
+            &planner_candidates,
+        ),
+        planner_candidate_metadata_contract_declared(&planner_candidates),
+        workflow_quality_scoped_metadata_declared(&contracts, &result_packaging),
+        eval_issue_stability_gate_declared(&continuous_eval, &eval_feedback_router),
+        eval_issue_autonomy_safety_contract_declared(&continuous_eval, &eval_feedback_router),
+        issue_candidate_lifecycle_and_provenance_contract_declared(
+            &continuous_eval,
+            &eval_feedback_router,
+            &release_proof_pack_assemble,
+        ),
+        transient_observation_invariant_report_declared(&transient_context),
+        authority_artifact_paths_are_local(),
+        planner_payload_audit_scope_complete(&planner_payload_decision_audit),
         planner_payload_decision_audit_enforced(&planner_payload_decision_audit),
         route_misdirection_regression_declared(&route_guard, &route_fixture),
         package_scripts_registered(&package_json),
@@ -140,6 +200,8 @@ pub fn build_tool_routing_authority_report(root: impl AsRef<Path>) -> ToolRoutin
             .filter(|row| !row.ok)
             .count() as u64,
     );
+    let operator_summary =
+        build_operator_summary(&summary, &checks, &planner_payload_decision_audit);
 
     ToolRoutingAuthorityReport {
         schema_id: "tool_routing_authority_guard".to_string(),
@@ -155,8 +217,51 @@ pub fn build_tool_routing_authority_report(root: impl AsRef<Path>) -> ToolRoutin
             .map(|row| row.to_string())
             .collect(),
         planner_payload_decision_audit,
+        operator_summary,
         summary,
         checks,
+    }
+}
+
+fn build_operator_summary(
+    summary: &BTreeMap<String, u64>,
+    checks: &[ToolRoutingAuthorityCheck],
+    planner_payload_decision_audit: &[PlannerPayloadDecisionAuditRow],
+) -> ToolRoutingAuthorityOperatorSummary {
+    let failing_checks = summary.get("failing_checks").copied().unwrap_or_default();
+    let audit_failures = summary
+        .get("planner_payload_decision_audit_failures")
+        .copied()
+        .unwrap_or_default();
+    let top_failed_check = checks.iter().find(|check| !check.ok);
+    ToolRoutingAuthorityOperatorSummary {
+        status: if failing_checks == 0 && audit_failures == 0 {
+            "pass".to_string()
+        } else {
+            "fail".to_string()
+        },
+        total_checks: summary.get("total_checks").copied().unwrap_or_default(),
+        passing_checks: summary.get("passing_checks").copied().unwrap_or_default(),
+        failing_checks,
+        planner_payload_decision_audit_failures: audit_failures,
+        json_artifact: TOOL_ROUTING_AUTHORITY_ARTIFACT_JSON.to_string(),
+        markdown_artifact: TOOL_ROUTING_AUTHORITY_ARTIFACT_MARKDOWN.to_string(),
+        operator_next_step: if failing_checks == 0 && audit_failures == 0 {
+            "keep guard in release evidence bundle".to_string()
+        } else {
+            "fix failed checks before release or planner/eval authority promotion".to_string()
+        },
+        top_failed_check: top_failed_check.map(|check| check.id.clone()).or_else(|| {
+            planner_payload_decision_audit
+                .iter()
+                .find(|row| !row.ok)
+                .map(|row| format!("planner_payload_decision_audit:{}", row.decision_scope))
+        }),
+        top_failed_missing_count: top_failed_check
+            .map(|check| check.missing.len() as u64)
+            .unwrap_or_default(),
+        authority_promotion_blocked: failing_checks > 0 || audit_failures > 0,
+        release_blocking: failing_checks > 0 || audit_failures > 0,
     }
 }
 
@@ -329,6 +434,7 @@ fn planner_payload_decision_audit(
     planner_common: &str,
     planner_chain: &str,
     planner_strategy: &str,
+    sequencing: &str,
 ) -> Vec<PlannerPayloadDecisionAuditRow> {
     vec![
         legacy_payload_decision_row(
@@ -356,7 +462,418 @@ fn planner_payload_decision_audit(
             "strategy_capability_selection",
             planner_strategy,
         ),
+        non_legacy_payload_decision_row(
+            "surface/orchestration/src/sequencing.rs",
+            "sequencing_feedback_and_fallback",
+            sequencing,
+        ),
     ]
+}
+
+fn prepare_context_capability_contract_declared(
+    contracts: &str,
+    preconditions: &str,
+    capability_registry: &str,
+    planner_candidates: &str,
+) -> ToolRoutingAuthorityCheck {
+    let mut missing = Vec::new();
+    if !contracts.contains("Capability::PrepareContext")
+        || !contracts.contains("Capability::PrepareContext => &[\"prepare_context\"]")
+    {
+        missing.push(
+            "contracts must declare PrepareContext and map it to the prepare_context probe key"
+                .to_string(),
+        );
+    }
+    if !preconditions.contains("\"prepare_context\"") || !preconditions.contains("PrepareContext")
+    {
+        missing.push(
+            "preconditions must parse prepare_context as an explicit capability".to_string(),
+        );
+    }
+    if !capability_registry.contains("Capability::PrepareContext")
+        || !capability_registry.contains("ContextAtomAppend")
+    {
+        missing.push(
+            "capability registry must model context preparation as a mutating ContextAtomAppend pre-step"
+                .to_string(),
+        );
+    }
+    if !planner_candidates.contains("Capability::PrepareContext")
+        || !planner_candidates.contains("explicit_context_preparation_capability:selected")
+    {
+        missing.push(
+            "planner candidates must report selected context preparation as an explicit capability"
+                .to_string(),
+        );
+    }
+    ToolRoutingAuthorityCheck::new(
+        "prepare_context_capability_contract_declared",
+        vec![
+            "context preparation is a named capability, not an implicit read-memory side effect"
+                .to_string(),
+            "prepare_context has a typed probe key and mutating contract evidence".to_string(),
+        ],
+        missing,
+    )
+}
+
+fn planner_candidate_metadata_contract_declared(
+    planner_candidates: &str,
+) -> ToolRoutingAuthorityCheck {
+    let mut missing = Vec::new();
+    if !planner_candidates.contains("decomposition_signature(")
+        || !planner_candidates.contains("decomposition_signature,")
+    {
+        missing.push(
+            "plan candidates must populate decomposition_signature from family, contract, and capability graph"
+                .to_string(),
+        );
+    }
+    if !planner_candidates.contains("let reported_capabilities = capability_graph.clone();")
+        || !planner_candidates.contains("capabilities: reported_capabilities")
+    {
+        missing.push(
+            "reported candidate capabilities must mirror the final capability_graph after pre-step injection"
+                .to_string(),
+        );
+    }
+    if !planner_candidates.contains("fn capability_key(")
+        || !planner_candidates.contains(".map(capability_key)")
+    {
+        missing.push(
+            "decomposition signatures must use stable capability probe keys instead of debug formatting"
+                .to_string(),
+        );
+    }
+    ToolRoutingAuthorityCheck::new(
+        "planner_candidate_metadata_contract_declared",
+        vec![
+            "alternative plans expose stable decomposition signatures".to_string(),
+            "candidate capability metadata cannot drop injected mutating pre-step capabilities".to_string(),
+        ],
+        missing,
+    )
+}
+
+fn request_surface_probe_authority_policy_semantics_declared(
+    request_surface_policy: &str,
+) -> ToolRoutingAuthorityCheck {
+    let mut missing = Vec::new();
+    for surface in ["sdk", "gateway", "dashboard", "typed_cli"] {
+        if !request_surface_policy.contains(&format!("\"{surface}\"")) {
+            missing.push(format!(
+                "request-surface probe authority policy must cover adapted surface {surface}"
+            ));
+        }
+    }
+    for token in [
+        "\"authority_source\": \"core_probe_envelope\"",
+        "\"probe_authoritative\": true",
+        "\"payload_probe_shortcuts_allowed\": false",
+        "\"heuristic_probe_fallback_allowed\": false",
+        "\"missing_transport_probe_behavior\": \"refuse_missing_transport_probe\"",
+        "\"missing_policy_probe_behavior\": \"refuse_missing_policy_probe\"",
+        "\"legacy\"",
+        "\"payload_probe_shortcuts_allowed\": true",
+        "\"heuristic_probe_fallback_allowed\": true",
+        "\"required_marker\": \"RequestSurface::Legacy\"",
+        "\"missing_probe: <capability>.<field>\"",
+        "\"probe.required_for_typed_surface.<capability>.<field>\"",
+    ] {
+        if !request_surface_policy.contains(token) {
+            missing.push(format!("request-surface probe authority policy missing token: {token}"));
+        }
+    }
+    ToolRoutingAuthorityCheck::new(
+        "request_surface_probe_authority_policy_semantics_declared",
+        vec![
+            "adapted surfaces are CoreProbeEnvelope-authoritative by policy".to_string(),
+            "legacy is the only lane allowed to use payload shortcuts or heuristic fallback"
+                .to_string(),
+        ],
+        missing,
+    )
+}
+
+fn authority_artifact_paths_are_local() -> ToolRoutingAuthorityCheck {
+    let mut missing = Vec::new();
+    if !TOOL_ROUTING_AUTHORITY_ARTIFACT_JSON.starts_with("core/local/artifacts/") {
+        missing.push(
+            "tool-routing authority JSON artifact must stay under core/local/artifacts/"
+                .to_string(),
+        );
+    }
+    if !TOOL_ROUTING_AUTHORITY_ARTIFACT_MARKDOWN.starts_with("local/workspace/reports/") {
+        missing.push(
+            "tool-routing authority markdown report must stay under local/workspace/reports/"
+                .to_string(),
+        );
+    }
+    if TOOL_ROUTING_AUTHORITY_ARTIFACT_JSON.contains("/../")
+        || TOOL_ROUTING_AUTHORITY_ARTIFACT_MARKDOWN.contains("/../")
+    {
+        missing.push("tool-routing authority artifact paths must not traverse upward".to_string());
+    }
+    ToolRoutingAuthorityCheck::new(
+        "authority_artifact_paths_are_local",
+        vec![
+            "authority guard artifacts are local/runtime evidence, not root churn".to_string(),
+            "guard output cannot escape canonical local artifact/report directories".to_string(),
+        ],
+        missing,
+    )
+}
+
+fn planner_payload_audit_scope_complete(
+    rows: &[PlannerPayloadDecisionAuditRow],
+) -> ToolRoutingAuthorityCheck {
+    let required = [
+        (
+            "surface/orchestration/src/planner/preconditions.rs",
+            "legacy_probe_shortcuts",
+        ),
+        (
+            "surface/orchestration/src/planner/plan_candidates.rs",
+            "candidate_generation",
+        ),
+        (
+            "surface/orchestration/src/planner/plan_candidates/common.rs",
+            "candidate_common_helpers",
+        ),
+        (
+            "surface/orchestration/src/planner/plan_candidates/chain.rs",
+            "candidate_chain_selection",
+        ),
+        (
+            "surface/orchestration/src/planner/plan_candidates/strategy.rs",
+            "strategy_capability_selection",
+        ),
+        (
+            "surface/orchestration/src/sequencing.rs",
+            "sequencing_feedback_and_fallback",
+        ),
+    ];
+    let mut missing = Vec::new();
+    for (path, scope) in required {
+        if !rows
+            .iter()
+            .any(|row| row.path == path && row.decision_scope == scope)
+        {
+            missing.push(format!(
+                "planner payload audit must include {path} [{scope}]"
+            ));
+        }
+    }
+    let non_legacy_shortcut_rows = rows
+        .iter()
+        .filter(|row| row.legacy_only && row.path != "surface/orchestration/src/planner/preconditions.rs")
+        .map(|row| format!("{} [{}]", row.path, row.decision_scope))
+        .collect::<Vec<_>>();
+    missing.extend(non_legacy_shortcut_rows.into_iter().map(|row| {
+        format!("legacy payload shortcut allowance must not appear outside preconditions: {row}")
+    }));
+    ToolRoutingAuthorityCheck::new(
+        "planner_payload_audit_scope_complete",
+        vec![
+            "planner payload audit covers candidate, helper, chain, strategy, and sequencing paths"
+                .to_string(),
+            "legacy raw-payload shortcuts are scoped only to preconditions".to_string(),
+        ],
+        missing,
+    )
+}
+
+fn workflow_quality_scoped_metadata_declared(
+    contracts: &str,
+    result_packaging: &str,
+) -> ToolRoutingAuthorityCheck {
+    let mut missing = Vec::new();
+    for field in [
+        "workflow_decomposition_signature_count",
+        "workflow_distinct_contract_family_count",
+        "workflow_distinct_capability_graph_count",
+        "selected_decomposition_signature",
+        "alternative_decomposition_signatures",
+    ] {
+        if !contracts.contains(field) || !result_packaging.contains(field) {
+            missing.push(format!(
+                "workflow-scoped ForgeCode quality metadata must declare and populate {field}"
+            ));
+        }
+    }
+    if !contracts.contains("ForgeCode(ForgeCodeWorkflowQualitySignals)")
+        || !result_packaging.contains("WorkflowQualitySignals::ForgeCode")
+    {
+        missing.push(
+            "ForgeCode workflow quality must stay behind WorkflowQualitySignals::ForgeCode"
+                .to_string(),
+        );
+    }
+    ToolRoutingAuthorityCheck::new(
+        "workflow_quality_scoped_metadata_declared",
+        vec![
+            "workflow-family doctrine stays out of generic runtime quality".to_string(),
+            "ForgeCode decomposition evidence remains workflow-scoped and populated".to_string(),
+        ],
+        missing,
+    )
+}
+
+fn eval_issue_stability_gate_declared(
+    continuous_eval: &str,
+    eval_feedback_router: &str,
+) -> ToolRoutingAuthorityCheck {
+    let mut missing = Vec::new();
+    for token in [
+        "stable_signature_occurrence_count",
+        "minimum_issue_candidate_occurrences",
+        "issue_candidate_ready",
+    ] {
+        if !continuous_eval.contains(token) || !eval_feedback_router.contains(token) {
+            missing.push(format!(
+                "eval issue readiness must preserve repeated-signature token {token}"
+            ));
+        }
+    }
+    if !continuous_eval.contains("issue_candidate_waiting_for_recurrence")
+        && !eval_feedback_router.contains("issue_candidate_waiting_for_recurrence")
+    {
+        missing.push(
+            "single-occurrence eval failures must expose a waiting-for-recurrence reason"
+                .to_string(),
+        );
+    }
+    ToolRoutingAuthorityCheck::new(
+        "eval_issue_stability_gate_declared",
+        vec![
+            "eval observations stay authoritative while issue filing waits for stable recurrence"
+                .to_string(),
+            "one-off degraded runs cannot become issue candidates without recurrence metadata"
+                .to_string(),
+        ],
+        missing,
+    )
+}
+
+fn eval_issue_autonomy_safety_contract_declared(
+    continuous_eval: &str,
+    eval_feedback_router: &str,
+) -> ToolRoutingAuthorityCheck {
+    let combined = format!("{continuous_eval}\n{eval_feedback_router}");
+    token_check(
+        "eval_issue_autonomy_safety_contract_declared",
+        &combined,
+        &[
+            "safe_to_auto_file_issue".to_string(),
+            "safe_to_auto_apply_patch".to_string(),
+            "human_review_required".to_string(),
+            "autonomous_mitigation_allowed".to_string(),
+            "proposal_only".to_string(),
+        ],
+        vec![
+            "eval may produce authoritative observations and issue candidates".to_string(),
+            "eval issue candidates remain proposal-only and cannot auto-apply patches".to_string(),
+        ],
+    )
+}
+
+fn issue_candidate_lifecycle_and_provenance_contract_declared(
+    continuous_eval: &str,
+    eval_feedback_router: &str,
+    release_proof_pack_assemble: &str,
+) -> ToolRoutingAuthorityCheck {
+    let surfaces = [
+        ("continuous_eval", continuous_eval),
+        ("eval_feedback_router", eval_feedback_router),
+        ("release_proof_pack_assemble", release_proof_pack_assemble),
+    ];
+    let required_common = [
+        "issue_contract_version",
+        "source_report",
+        "issue_lifecycle_state",
+        "source_artifacts",
+        "source_artifact_policy",
+        "local_relative_paths_only",
+        "triage_queue",
+        "requires_operator_ack",
+        "reopen_policy",
+        "close_on_absence_window",
+        "closing_evidence_required",
+        "closure_verification_command",
+        "safe_to_auto_file_issue",
+        "safe_to_auto_apply_patch",
+        "human_review_required",
+        "autonomous_mitigation_allowed",
+    ];
+    let required_eval_like = ["closing_evidence_required"];
+    let required_proof_pack = ["localArtifactPathOk", "issue_candidate_contract"];
+    let mut missing = Vec::new();
+    for (surface, source) in surfaces {
+        for token in required_common {
+            if !source.contains(token) {
+                missing.push(format!(
+                    "{surface} issue-candidate contract missing token: {token}"
+                ));
+            }
+        }
+        if surface == "continuous_eval" || surface == "eval_feedback_router" {
+            for token in required_eval_like {
+                if !source.contains(token) {
+                    missing.push(format!(
+                        "{surface} eval issue-candidate contract missing token: {token}"
+                    ));
+                }
+            }
+        }
+        if surface == "release_proof_pack_assemble" {
+            for token in required_proof_pack {
+                if !source.contains(token) {
+                    missing.push(format!(
+                        "{surface} proof-pack issue-candidate contract missing token: {token}"
+                    ));
+                }
+            }
+        }
+    }
+    ToolRoutingAuthorityCheck::new(
+        "issue_candidate_lifecycle_and_provenance_contract_declared",
+        vec![
+            "eval, live-eval, and proof-pack issue candidates share lifecycle/provenance fields"
+                .to_string(),
+            "issue candidates require local evidence, operator acknowledgement, closure proof, and no auto-patch"
+                .to_string(),
+        ],
+        missing,
+    )
+}
+
+fn transient_observation_invariant_report_declared(
+    transient_context: &str,
+) -> ToolRoutingAuthorityCheck {
+    let mut missing = Vec::new();
+    for token in [
+        "TransientExecutionObservationInvariantReport",
+        "execution_observation_invariant_report",
+        "dangling_observation_rows",
+        "retired_execution_observation_objects",
+        "retired_observation_heap_still_active",
+    ] {
+        if !transient_context.contains(token) {
+            missing.push(format!(
+                "transient execution-observation invariant report must expose {token}"
+            ));
+        }
+    }
+    ToolRoutingAuthorityCheck::new(
+        "transient_observation_invariant_report_declared",
+        vec![
+            "transient execution observations expose map/heap drift as a production report"
+                .to_string(),
+            "retired observation refs are tracked so cleanup/restart drift is observable".to_string(),
+        ],
+        missing,
+    )
 }
 
 fn legacy_payload_decision_row(
@@ -436,49 +953,6 @@ fn token_check(
     ToolRoutingAuthorityCheck::new(id, evidence, missing)
 }
 
-pub fn render_markdown(report: &ToolRoutingAuthorityReport) -> String {
-    let mut lines = Vec::new();
-    lines.push("# Tool Routing Authority Guard (Current)".to_string());
-    lines.push(String::new());
-    lines.push(format!("- pass: {}", report.ok));
-    lines.push(format!(
-        "- generated_at_unix_seconds: {}",
-        report.generated_at_unix_seconds
-    ));
-    lines.push(format!(
-        "- required_tool_probe_keys: {}",
-        report.required_tool_probe_keys.join(", ")
-    ));
-    lines.push(format!(
-        "- decision_trace_fields: {}",
-        report.decision_trace_fields.join(", ")
-    ));
-    lines.push(String::new());
-    lines.push("## Planner Payload Decision Audit".to_string());
-    for row in &report.planner_payload_decision_audit {
-        lines.push(format!(
-            "- {} [{}]: ok={} payload_read_count={} legacy_only={}",
-            row.path, row.decision_scope, row.ok, row.payload_read_count, row.legacy_only
-        ));
-    }
-    lines.push(String::new());
-    lines.push("## Checks".to_string());
-    for check in &report.checks {
-        lines.push(format!(
-            "- {}: ok={} missing={}",
-            check.id,
-            check.ok,
-            if check.missing.is_empty() {
-                "none".to_string()
-            } else {
-                check.missing.join("; ")
-            }
-        ));
-    }
-    lines.push(String::new());
-    lines.join("\n")
-}
-
 fn read_text(root: &Path, relative: &str) -> String {
     fs::read_to_string(root.join(relative)).unwrap_or_default()
 }
@@ -549,6 +1023,7 @@ mod tests {
                 .map(|row| row.to_string())
                 .collect(),
             planner_payload_decision_audit: Vec::new(),
+            operator_summary: ToolRoutingAuthorityOperatorSummary::default(),
             summary,
             checks: Vec::new(),
         };
@@ -566,6 +1041,7 @@ mod tests {
             "fn common() {}",
             "fn chain() {}",
             "fn strategy() {}",
+            "fn sequencing() {}",
         );
         let check = planner_payload_decision_audit_enforced(&rows);
 
@@ -582,6 +1058,7 @@ mod tests {
             "fn common() {}",
             "fn chain() {}",
             "fn strategy() {}",
+            "fn sequencing() {}",
         );
         let check = planner_payload_decision_audit_enforced(&rows);
 

@@ -115,6 +115,28 @@ fn latest_assistant_message_text(messages: &[Value]) -> String {
     String::new()
 }
 
+fn latest_user_message_text(messages: &[Value]) -> String {
+    for row in messages.iter().rev() {
+        let role = clean_text(row.get("role").and_then(Value::as_str).unwrap_or(""), 40)
+            .to_ascii_lowercase();
+        if role != "user" {
+            continue;
+        }
+        let text = clean_text(
+            row.get("text")
+                .or_else(|| row.get("content"))
+                .or_else(|| row.get("message"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            2_000,
+        );
+        if !text.is_empty() {
+            return text;
+        }
+    }
+    String::new()
+}
+
 fn maybe_tooling_failure_fallback(
     message: &str,
     finalized_response: &str,

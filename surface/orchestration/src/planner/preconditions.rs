@@ -17,6 +17,10 @@ fn allow_payload_probe_shortcuts(request: &TypedOrchestrationRequest) -> bool {
     matches!(request.surface, RequestSurface::Legacy)
 }
 
+fn allow_heuristic_probe_fallback(request: &TypedOrchestrationRequest) -> bool {
+    matches!(request.surface, RequestSurface::Legacy)
+}
+
 fn probe_bool(request: &TypedOrchestrationRequest, path: &[&str], top_level: &str) -> Option<bool> {
     if !allow_payload_probe_shortcuts(request) {
         return None;
@@ -84,6 +88,8 @@ fn envelope_probe_source(capability_key: &str, field: &str, value: bool) -> Stri
 fn parse_capability_key(value: &str) -> Option<Capability> {
     match value {
         "read_memory" => Some(Capability::ReadMemory),
+        "prepare_context" => Some(Capability::PrepareContext),
+        "context_preparation" => Some(Capability::PrepareContext),
         "mutate_task" => Some(Capability::MutateTask),
         "workspace_read" => Some(Capability::WorkspaceRead),
         "file_read" => Some(Capability::WorkspaceRead),
@@ -324,6 +330,12 @@ fn policy_allows(request: &TypedOrchestrationRequest, capability: &Capability) -
             );
         }
     }
+    if !allow_heuristic_probe_fallback(request) {
+        return (
+            false,
+            missing_probe_field_source(capability, "policy_allows"),
+        );
+    }
     let allows = if request.mutability == Mutability::ReadOnly {
         true
     } else {
@@ -357,6 +369,12 @@ fn transport_available(
                 format!("probe.capability_probes.{probe_key}.transport_available"),
             );
         }
+    }
+    if !allow_heuristic_probe_fallback(request) {
+        return (
+            false,
+            missing_probe_field_source(capability, "transport_available"),
+        );
     }
     let likely_transport = !request.tool_hints.is_empty()
         || matches!(
@@ -531,5 +549,54 @@ fn can_degrade_reason(
         | DegradationReason::TargetInvalid
         | DegradationReason::TargetNotFound => matches!(request.mutability, Mutability::ReadOnly),
         DegradationReason::AuthFailure | DegradationReason::PolicyDenied => false,
+    }
+}
+
+
+#[cfg(test)]
+mod heuristic_fallback_tests {
+    use super::*;
+    use crate::contracts::{
+        Mutability, OperationKind, PolicyScope, RequestKind, RequestSurface, ResourceKind,
+        TypedOrchestrationRequest,
+    };
+    use serde_json::json;
+
+    fn request(surface: RequestSurface) -> TypedOrchestrationRequest {
+        TypedOrchestrationRequest {
+            session_id: "heuristic-fence".to_string(),
+            surface,
+            legacy_intent: "search workspace".to_string(),
+            adapted: false,
+            payload: json!({}),
+            request_kind: RequestKind::Direct,
+            operation_kind: OperationKind::Search,
+            resource_kind: ResourceKind::Workspace,
+            mutability: Mutability::ReadOnly,
+            target_descriptors: Vec::new(),
+            target_refs: Vec::new(),
+            tool_hints: vec!["workspace_search".to_string()],
+            policy_scope: PolicyScope::WorkspaceOnly,
+            user_constraints: Vec::new(),
+            core_probe_envelope: None,
+        }
+    }
+
+    #[test]
+    fn heuristic_fallbacks_are_legacy_only() {
+        let legacy = request(RequestSurface::Legacy);
+        let typed = request(RequestSurface::Sdk);
+
+        let (_, legacy_policy_source) = policy_allows(&legacy, &Capability::MutateTask);
+        let (_, legacy_transport_source) = transport_available(&legacy, &Capability::WorkspaceSearch);
+        let (_, typed_policy_source) = policy_allows(&typed, &Capability::MutateTask);
+        let (_, typed_transport_source) = transport_available(&typed, &Capability::WorkspaceSearch);
+
+        assert_eq!(legacy_policy_source, "heuristic.policy_scope_and_mutability");
+        assert_eq!(legacy_transport_source, "heuristic.transport_hints_or_operation");
+        assert!(typed_policy_source.starts_with("missing_probe: mutate_task.policy_allows")
+            || typed_policy_source.starts_with("probe.required_for_typed_surface.mutate_task.policy_allows"));
+        assert!(typed_transport_source.starts_with("missing_probe: workspace_search.transport_available")
+            || typed_transport_source.starts_with("probe.required_for_typed_surface.workspace_search.transport_available"));
     }
 }

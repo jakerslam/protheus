@@ -248,6 +248,12 @@ fn pure_read_plan_is_non_mutating_without_context_preparation() {
     );
 
     assert!(!package.selected_plan.mutates_session_context);
+    assert!(!package.selected_plan.capability_graph.contains(
+        &infring_orchestration_surface_v1::contracts::Capability::PrepareContext
+    ));
+    assert!(!package.selected_plan.capabilities.contains(
+        &infring_orchestration_surface_v1::contracts::Capability::PrepareContext
+    ));
     assert!(package
         .selected_plan
         .context_preparation_rationale
@@ -305,8 +311,16 @@ fn comparative_read_plan_exposes_explicit_context_preparation_metadata() {
         .as_deref()
         .unwrap_or("")
         .contains("explicit_context_preparation_pre_step"));
+    assert!(prepared.capability_graph.contains(
+        &infring_orchestration_surface_v1::contracts::Capability::PrepareContext
+    ));
+    assert!(prepared.capabilities.contains(
+        &infring_orchestration_surface_v1::contracts::Capability::PrepareContext
+    ));
     assert!(prepared.steps.iter().any(|step| {
         step.operation == "prepare_session_context_explicit"
+            && step.capability
+                == infring_orchestration_surface_v1::contracts::Capability::PrepareContext
             && step
                 .rationale
                 .iter()

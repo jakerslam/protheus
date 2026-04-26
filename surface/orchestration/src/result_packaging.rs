@@ -221,9 +221,43 @@ fn workflow_quality_signals(
         tool_failure_budget_exceeded,
         fallback_action_count,
     );
+    let workflow_decomposition_signatures = std::iter::once(&plan.selected_plan)
+        .chain(plan.alternative_plans.iter())
+        .map(|candidate| candidate.decomposition_signature.clone())
+        .filter(|signature| !signature.is_empty())
+        .collect::<Vec<_>>();
+    let workflow_distinct_contract_family_count = std::iter::once(&plan.selected_plan)
+        .chain(plan.alternative_plans.iter())
+        .map(|candidate| candidate.contract_family.clone())
+        .filter(|family| !family.is_empty())
+        .collect::<std::collections::BTreeSet<_>>()
+        .len() as u32;
+    let workflow_distinct_capability_graph_count = std::iter::once(&plan.selected_plan)
+        .chain(plan.alternative_plans.iter())
+        .map(|candidate| {
+            candidate
+                .capability_graph
+                .iter()
+                .map(|capability| format!("{capability:?}").to_lowercase())
+                .collect::<Vec<_>>()
+                .join("+")
+        })
+        .filter(|signature| !signature.is_empty())
+        .collect::<std::collections::BTreeSet<_>>()
+        .len() as u32;
 
     Some(WorkflowQualitySignals::ForgeCode(
         ForgeCodeWorkflowQualitySignals {
+            workflow_decomposition_signature_count: workflow_decomposition_signatures.len() as u32,
+            workflow_distinct_contract_family_count,
+            workflow_distinct_capability_graph_count,
+            selected_decomposition_signature: plan.selected_plan.decomposition_signature.clone(),
+            alternative_decomposition_signatures: plan
+                .alternative_plans
+                .iter()
+                .map(|candidate| candidate.decomposition_signature.clone())
+                .filter(|signature| !signature.is_empty())
+                .collect(),
             mcp_alias_route_required: true,
             retry_backoff_contract_required: true,
             mcp_transport_fallback_required: true,

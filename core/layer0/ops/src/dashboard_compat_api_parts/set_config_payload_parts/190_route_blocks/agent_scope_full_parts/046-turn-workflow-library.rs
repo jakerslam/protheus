@@ -1029,7 +1029,8 @@ fn sanitize_workflow_final_response_candidate(response: &str) -> String {
             .trim_end_matches(&['\n', ' ', '-', ':'][..])
             .to_string();
     }
-    clean_chat_text(cleaned.trim(), 32_000)
+    let cleaned = clean_chat_text(cleaned.trim(), 32_000);
+    normalize_response_field_json_wrapper(&cleaned).unwrap_or(cleaned)
 }
 
 #[cfg(test)]

@@ -109,7 +109,6 @@ fn misty_wave4_simple_direct_turn_uses_slim_active_context_window() {
         &snapshot,
     )
     .expect("message response");
-
     assert_eq!(response.status, 200);
     assert_eq!(
         response.payload.get("response").and_then(Value::as_str),
@@ -189,7 +188,6 @@ fn misty_wave4_simple_direct_turn_routes_to_fast_chat_model() {
         &snapshot,
     )
     .expect("message response");
-
     assert_eq!(response.status, 200);
     assert_eq!(
         response.payload.get("model").and_then(Value::as_str),
@@ -273,11 +271,9 @@ fn misty_wave4_manual_toolbox_turn_routes_to_fast_chat_model() {
             .and_then(Value::as_str),
         Some("manual_toolbox_fast_model")
     );
+    let script = read_json(&governance_test_chat_script_path(root.path())).expect("script");
     assert_eq!(
-        response
-            .payload
-            .pointer("/response_workflow/final_llm_response/model")
-            .and_then(Value::as_str),
+        script.pointer("/calls/1/model").and_then(Value::as_str),
         Some("gpt-5-mini")
     );
 }
@@ -324,6 +320,22 @@ fn misty_wave4_finalization_unwraps_visible_response_json_wrapper() {
 }
 
 #[test]
+fn misty_wave4_workflow_sanitizer_unwraps_visible_response_json_wrapper() {
+    let finalized = sanitize_workflow_final_response_candidate("\"response\": \"Hey there!\" }");
+
+    assert_eq!(finalized, "Hey there!");
+    assert!(!finalized.contains("\"response\""));
+}
+
+#[test]
+fn misty_wave4_workflow_sanitizer_unwraps_visible_content_json_wrapper() {
+    let finalized = sanitize_workflow_final_response_candidate("\"content\": \"Hey there!\" }");
+
+    assert_eq!(finalized, "Hey there!");
+    assert!(!finalized.contains("\"content\""));
+}
+
+#[test]
 fn misty_wave4_finalization_unwraps_visible_text_json_wrapper() {
     let (finalized, outcome, _) = finalize_user_facing_response_with_outcome(
         "\"text\": \"I'm sorry, but the search did not find enough relevant information.\" }"
@@ -346,6 +358,9 @@ fn misty_wave4_live_eval_flags_visible_response_json_wrapper() {
     ));
     assert!(visible_response_looks_like_json_response_wrapper(
         "\"text\": \"I'm sorry, but the search did not find enough relevant information.\" }"
+    ));
+    assert!(visible_response_looks_like_json_response_wrapper(
+        "\"content\": \"Hey there!\" }"
     ));
     assert!(!visible_response_looks_like_json_response_wrapper(
         "The tool run hit issues: batch query did not produce enough source coverage."
@@ -473,4 +488,211 @@ class AppServiceProvider extends ServiceProvider {
         Some("degraded")
     );
     assert!(agent_control_plane_health_snapshot_path(root.path(), &agent_id).exists());
+}
+
+#[test]
+fn misty_wave4_short_stale_project_title_without_overlap_is_withheld() {
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
+    let stale_title = "# Project-2\nProject 2 for ITMD-362";
+    assert!(response_contains_short_unrelated_project_title(
+        "Final sanitizer check: say hey in one short sentence, no JSON.",
+        stale_title
+    ));
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"misty-wave4-short-stale-title-agent","role":"assistant"}"#,
+        &snapshot,
+    )
+    .expect("agent create");
+    let agent_id = clean_agent_id(
+        created
+            .payload
+            .get("agent_id")
+            .or_else(|| created.payload.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    write_json(
+        &governance_test_chat_script_path(root.path()),
+        &json!({
+            "queue": [{"response": stale_title}],
+            "calls": []
+        }),
+    );
+
+    let response = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"Final sanitizer check: say hey in one short sentence, no JSON."}"#,
+        &snapshot,
+    )
+    .expect("message response");
+    assert_eq!(response.status, 200);
+    assert_eq!(response.payload.get("response").and_then(Value::as_str), Some(""));
+    assert_eq!(
+        response
+            .payload
+            .pointer("/agent_health_snapshot/status")
+            .and_then(Value::as_str),
+        Some("degraded")
+    );
+    assert!(agent_control_plane_health_snapshot_path(root.path(), &agent_id).exists());
+}
+
+#[test]
+fn misty_wave4_contaminated_draft_recovers_with_fast_visible_model() {
+    let _fast_model = ScopedEnvVar::set("INFRING_SIMPLE_CHAT_FAST_MODEL", "openai/gpt-5-mini");
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
+    crate::dashboard_provider_runtime::save_provider_key(root.path(), "openai", "sk-test-openai");
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"misty-wave4-fast-recovery-agent","role":"assistant"}"#,
+        &snapshot,
+    )
+    .expect("agent create");
+    let agent_id = clean_agent_id(
+        created
+            .payload
+            .get("agent_id")
+            .or_else(|| created.payload.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    let set_model_payload =
+        serde_json::to_vec(&json!({"model": "openai/gpt-5"})).expect("serialize model");
+    let set_model = handle(
+        root.path(),
+        "PUT",
+        &format!("/api/agents/{agent_id}/model"),
+        &set_model_payload,
+        &snapshot,
+    )
+    .expect("set model");
+    assert_eq!(set_model.status, 200);
+    write_json(
+        &governance_test_chat_script_path(root.path()),
+        &json!({
+            "queue": [
+                {"response": "# Project-2\nProject 2 for ITMD-362"},
+                {"response": ""},
+                {"response": "Hey there!"}
+            ],
+            "calls": []
+        }),
+    );
+
+    let response = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"Final sanitizer check: say hey in one short sentence, no JSON."}"#,
+        &snapshot,
+    )
+    .expect("message response");
+
+    assert_eq!(response.status, 200);
+    assert_eq!(
+        response.payload.get("response").and_then(Value::as_str),
+        Some("Hey there!")
+    );
+    let script = read_json(&governance_test_chat_script_path(root.path())).expect("script");
+    assert_eq!(
+        script.pointer("/calls/2/model").and_then(Value::as_str),
+        Some("gpt-5-mini"),
+        "{script}"
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/live_eval_monitor/issue_count")
+            .and_then(Value::as_u64),
+        Some(0)
+    );
+}
+
+#[test]
+fn misty_wave4_directive_leakage_is_rejected_during_recovery() {
+    let _fast_model = ScopedEnvVar::set("INFRING_SIMPLE_CHAT_FAST_MODEL", "openai/gpt-5-mini");
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
+    crate::dashboard_provider_runtime::save_provider_key(root.path(), "openai", "sk-test-openai");
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"misty-wave4-directive-leakage-agent","role":"assistant"}"#,
+        &snapshot,
+    )
+    .expect("agent create");
+    let agent_id = clean_agent_id(
+        created
+            .payload
+            .get("agent_id")
+            .or_else(|| created.payload.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    let set_model_payload =
+        serde_json::to_vec(&json!({"model": "openai/gpt-5"})).expect("serialize model");
+    let set_model = handle(
+        root.path(),
+        "PUT",
+        &format!("/api/agents/{agent_id}/model"),
+        &set_model_payload,
+        &snapshot,
+    )
+    .expect("set model");
+    assert_eq!(set_model.status, 200);
+    write_json(
+        &governance_test_chat_script_path(root.path()),
+        &json!({
+            "queue": [
+                {"response": "# Project-2\nProject 2 for ITMD-362"},
+                {"response": ""},
+                {"response": "Answer directly. This does not mention repeated fallback text."},
+                {"response": "Hey there!"}
+            ],
+            "calls": []
+        }),
+    );
+
+    let response = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"Final sanitizer check: say hey in one short sentence, no JSON."}"#,
+        &snapshot,
+    )
+    .expect("message response");
+
+    assert_eq!(response.status, 200);
+    assert_eq!(
+        response.payload.get("response").and_then(Value::as_str),
+        Some("Hey there!")
+    );
+    let script = read_json(&governance_test_chat_script_path(root.path())).expect("script");
+    assert_eq!(
+        script.pointer("/calls/2/model").and_then(Value::as_str),
+        Some("gpt-5-mini"),
+        "{script}"
+    );
+    assert_eq!(
+        script.pointer("/calls/3/model").and_then(Value::as_str),
+        Some("gpt-5-mini"),
+        "{script}"
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/live_eval_monitor/issue_count")
+            .and_then(Value::as_u64),
+        Some(0)
+    );
 }

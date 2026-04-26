@@ -109,3 +109,17 @@ fn simple_direct_chat_fast_model_route(
         "simple_direct_chat_fast_model",
     )
 }
+
+fn visible_response_recovery_model(current_provider: &str, current_model: &str) -> (String, String) {
+    let current_provider = clean_text(current_provider, 80);
+    let current_model = clean_text(current_model, 240);
+    for candidate in simple_direct_chat_fast_model_candidates() {
+        let Some((provider, model)) = split_fast_chat_model_ref(&candidate) else {
+            continue;
+        };
+        if simple_direct_chat_model_allows_visible_chat(&format!("{provider}/{model}")) {
+            return (provider, model);
+        }
+    }
+    (current_provider, current_model)
+}

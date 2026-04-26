@@ -142,6 +142,7 @@ fn live_eval_monitor_turn(
     message: &str,
     response: &str,
     previous_assistant: &str,
+    previous_user: &str,
     response_finalization: &Value,
 ) -> Value {
     let id = clean_agent_id(agent_id);
@@ -163,6 +164,10 @@ fn live_eval_monitor_turn(
     let final_text = clean_text(response, 2_400);
     let prev_sig = normalize_placeholder_signature(previous_assistant);
     let final_sig = normalize_placeholder_signature(&final_text);
+    let previous_user_sig = normalize_placeholder_signature(previous_user);
+    let current_user_sig = normalize_placeholder_signature(message);
+    let repeated_user_request =
+        !previous_user_sig.is_empty() && previous_user_sig == current_user_sig;
     let final_ack_only = response_finalization
         .get("final_ack_only")
         .and_then(Value::as_bool)
@@ -178,12 +183,20 @@ fn live_eval_monitor_turn(
             .unwrap_or(""),
         120,
     );
+    let repeated_response = !prev_sig.is_empty() && prev_sig == final_sig;
+    let repeated_response_has_failure_shape = system_fallback
+        || final_ack_only
+        || response_looks_like_tool_ack_without_findings(&final_text)
+        || response_looks_like_raw_web_artifact_dump(&final_text)
+        || response_looks_like_unsynthesized_web_snippet_dump(&final_text)
+        || visible_response_looks_like_internal_deliberation(&final_text)
+        || visible_response_looks_like_json_response_wrapper(&final_text);
     let mut events = Vec::<Value>::new();
     if final_text.is_empty() && !route_failure_code.is_empty() {
         events.push(live_eval_issue_event(&id, "message_route_error", "warn", &format!("Live eval saw a structured message route error: {route_failure_code}."), message, response));
     } else if final_text.is_empty() {
         events.push(live_eval_issue_event(&id, "no_response", "high", "Live eval saw an empty finalized assistant response.", message, response));
-    } else if !prev_sig.is_empty() && prev_sig == final_sig {
+    } else if repeated_response && (!repeated_user_request || repeated_response_has_failure_shape) {
         events.push(live_eval_issue_event(&id, "repeated_response_loop", "high", "Live eval saw a repeated assistant response.", message, response));
     } else if final_ack_only {
         events.push(live_eval_issue_event(&id, "ack_only_final_response", "warn", "Live eval saw an ack-only final response.", message, response));

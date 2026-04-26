@@ -7,6 +7,7 @@ pub mod control_plane;
 pub mod eval;
 pub mod eval_agent_feedback;
 pub mod eval_agent_self_diagnosis;
+pub mod eval_authority_calibration;
 pub mod eval_chat_report;
 pub mod eval_feedback_router;
 pub mod eval_issue_authority;
@@ -568,8 +569,10 @@ fn project_self_maintenance_recommendations(
         lifecycle_next_actions.push("self_maintenance_resolve_conflicting_evidence".to_string());
     }
 
-    Some(SelfMaintenanceProjection {
-        fallback_actions: vec![OrchestrationFallbackAction {
+    let fallback_actions = if rate_limited {
+        Vec::new()
+    } else {
+        vec![OrchestrationFallbackAction {
             kind: "self_maintenance_review".to_string(),
             label: "Review maintenance signals".to_string(),
             reason: format!(
@@ -577,7 +580,11 @@ fn project_self_maintenance_recommendations(
             ),
             backend_class: None,
             reason_code: None,
-        }],
+        }]
+    };
+
+    Some(SelfMaintenanceProjection {
+        fallback_actions,
         lifecycle_next_actions,
     })
 }

@@ -20,6 +20,8 @@ mod eval_action_economy_guard;
 mod eval_agent_feedback;
 #[path = "../eval_agent_self_diagnosis.rs"]
 mod eval_agent_self_diagnosis;
+#[path = "../eval_authority_calibration.rs"]
+mod eval_authority_calibration;
 #[path = "../eval_calibration_stats.rs"]
 mod eval_calibration_stats;
 #[path = "../eval_contamination_guard.rs"]
@@ -1054,7 +1056,7 @@ fn run_judge_human_agreement(args: &[String]) -> i32 {
 
 fn usage() {
     eprintln!(
-        "usage: cargo run --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- <reviewer-feedback|quality-gate|judge-human-agreement|feedback-router|agent-feedback|agent-self-diagnosis|issue-authority|grader-hacking-guard|trace-localization-guard|trajectory-scoring-guard|multiturn-simulation-guard|synthetic-user-chat-harness|misty-live-health-gate|contamination-guard|action-economy-guard|production-workflow-guard|learning-loop-ingest|learning-loop-issues|learning-loop-review|learning-loop-policy|learning-loop-version|learning-loop-rsi-handoff|metamorphic-guard|rsi-promotion-ladder|issue-drafts|replay|fix-verification|issue-lifecycle|rsi-escalation|phase-trace-persist|adversarial-routing|workflow-selection|runtime-ownership> [--strict=0|1] [args...]"
+        "usage: cargo run --manifest-path surface/orchestration/Cargo.toml --bin eval_runtime -- <reviewer-feedback|quality-gate|judge-human-agreement|authority-calibration|feedback-router|agent-feedback|agent-self-diagnosis|issue-authority|grader-hacking-guard|trace-localization-guard|trajectory-scoring-guard|multiturn-simulation-guard|synthetic-user-chat-harness|misty-live-health-gate|contamination-guard|action-economy-guard|production-workflow-guard|learning-loop-ingest|learning-loop-issues|learning-loop-review|learning-loop-policy|learning-loop-version|learning-loop-rsi-handoff|metamorphic-guard|rsi-promotion-ladder|issue-drafts|replay|fix-verification|issue-lifecycle|rsi-escalation|phase-trace-persist|adversarial-routing|workflow-selection|runtime-ownership> [--strict=0|1] [args...]"
     );
 }
 
@@ -1068,6 +1070,9 @@ fn main() -> ExitCode {
         "reviewer-feedback" => run_reviewer_feedback(tail),
         "quality-gate" => run_quality_gate(tail),
         "judge-human-agreement" => run_judge_human_agreement(tail),
+        "authority-calibration" => {
+            eval_authority_calibration::run_eval_authority_calibration(tail)
+        }
         "feedback-router" => eval_feedback_router::run_eval_feedback_router(tail),
         "agent-feedback" => eval_agent_feedback::run_eval_agent_feedback(tail),
         "agent-self-diagnosis" => eval_agent_self_diagnosis::run_eval_agent_self_diagnosis(tail),
@@ -1110,6 +1115,7 @@ fn main() -> ExitCode {
         "adversarial-routing" => eval_final_runtime::run_adversarial_routing(tail),
         "workflow-selection" => eval_final_runtime::run_workflow_selection(tail),
         "runtime-ownership" => eval_final_runtime::run_runtime_ownership(tail),
+                "authority-calibration" => eval_authority_calibration::run_eval_authority_calibration(tail),
         _ => {
             usage();
             2

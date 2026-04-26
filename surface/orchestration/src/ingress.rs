@@ -469,6 +469,8 @@ fn parse_capability_probe_snapshot(
 fn parse_capability_name(value: &str, allow_execute_tool_alias: bool) -> Option<Capability> {
     match value.trim().to_ascii_lowercase().as_str() {
         "read_memory" => Some(Capability::ReadMemory),
+        "prepare_context" => Some(Capability::PrepareContext),
+        "context_preparation" => Some(Capability::PrepareContext),
         "mutate_task" => Some(Capability::MutateTask),
         "workspace_read" => Some(Capability::WorkspaceRead),
         "workspace_search" => Some(Capability::WorkspaceSearch),
