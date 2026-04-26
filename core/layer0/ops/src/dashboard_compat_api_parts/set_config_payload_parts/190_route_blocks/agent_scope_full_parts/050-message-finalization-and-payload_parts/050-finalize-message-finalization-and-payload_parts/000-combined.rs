@@ -419,7 +419,7 @@ fn finalize_message_finalization_and_payload(
         tooling_invariant_repair_used = true;
         finalization_outcome = merge_response_outcomes(&finalization_outcome, "tooling_failure_code_appended", 200);
     }
-    let response_guard =
+    let mut response_guard =
         final_response_guard_report(message, &response_text, &response_tools, repair_candidate_contamination);
     if response_guard_bool(&response_guard, "final_contract_violation") {
         // Do not synthesize deterministic system fallback text in chat.
@@ -441,6 +441,63 @@ fn finalize_message_finalization_and_payload(
             final_response_guard_outcome(&response_guard),
             200,
         );
+        let mut guard_recovery_events = workflow_system_events.clone();
+        guard_recovery_events.push(turn_workflow_event(
+            "final_response_guard_recovery",
+            json!({
+                "selection_authority": "llm_only",
+                "automatic_execution_allowed": false,
+                "guard_outcome": final_response_guard_outcome(&response_guard),
+                "visible_gate_choice_leakage": response_guard_bool(&response_guard, "visible_gate_choice_leakage"),
+                "unsupported_tool_success_claim": response_guard_bool(&response_guard, "unsupported_tool_success_claim")
+            }),
+        ));
+        let recovered_workflow = run_turn_workflow_final_response(
+            root,
+            &provider,
+            &model,
+            &active_messages,
+            message,
+            &workflow_mode,
+            &response_tools,
+            &guard_recovery_events,
+            "",
+            &latest_assistant_text,
+        );
+        let recovered_text = clean_chat_text(
+            recovered_workflow
+                .get("response")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            32_000,
+        );
+        if workflow_final_response_used(&recovered_workflow) && !recovered_text.trim().is_empty() {
+            let recovered_guard =
+                final_response_guard_report(message, &recovered_text, &response_tools, false);
+            if !response_guard_bool(&recovered_guard, "final_contract_violation") {
+                let (contract_finalized, contract_report, contract_outcome) =
+                    enforce_user_facing_finalization_contract(message, recovered_text, &response_tools);
+                if !contract_finalized.trim().is_empty() {
+                    response_workflow = recovered_workflow;
+                    response_text = contract_finalized;
+                    tool_completion = enrich_tool_completion_receipt(contract_report, &response_tools);
+                    workflow_used = true;
+                    finalization_outcome = merge_response_outcomes(
+                        &finalization_outcome,
+                        "final_response_guard_recovered_by_llm",
+                        220,
+                    );
+                    finalization_outcome =
+                        merge_response_outcomes(&finalization_outcome, &contract_outcome, 220);
+                    response_guard = final_response_guard_report(
+                        message,
+                        &response_text,
+                        &response_tools,
+                        false,
+                    );
+                }
+            }
+        }
     }
     let tool_gate_should_call_tools = response_workflow
         .pointer("/tool_gate/should_call_tools")
@@ -536,7 +593,22 @@ fn finalize_message_finalization_and_payload(
         "complete",
     );
     let terminal_transcript = tool_terminal_transcript(&response_tools);
-    if response_text.trim().is_empty() { return final_response_empty_message_response(root, agent_id, message, &provider, &model, workspace_hints, latent_tool_candidates); }
+    let empty_response_has_guard_diagnostics =
+        response_guard_bool(&response_guard, "final_contamination_violation")
+            || response_guard_bool(&response_guard, "current_turn_dominance_violation")
+            || response_guard_bool(&response_guard, "unsupported_tool_success_claim")
+            || response_guard_bool(&response_guard, "visible_gate_choice_leakage");
+    if response_text.trim().is_empty() && !empty_response_has_guard_diagnostics {
+        return final_response_empty_message_response(
+            root,
+            agent_id,
+            message,
+            &provider,
+            &model,
+            workspace_hints,
+            latent_tool_candidates,
+        );
+    }
     let turn_receipt = append_turn_receipt_with_metadata(
         root,
         agent_id,
