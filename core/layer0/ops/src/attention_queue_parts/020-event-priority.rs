@@ -201,6 +201,8 @@ fn load_contract(root: &Path) -> AttentionContract {
         escalate_levels,
         priority_map,
         require_layer2_authority: !allow_layer0_fallback,
+        agent_ingress_policy_enabled: contract_obj.and_then(|v| v.get("attention_ingress_policy")).and_then(|v| v.get("enabled")).and_then(Value::as_bool).unwrap_or(true),
+        agent_ingress_allow_all: bool_from_env("INFRING_ATTENTION_AGENT_INGRESS_ALLOW_ALL").or_else(|| contract_obj.and_then(|v| v.get("attention_ingress_policy")).and_then(|v| v.get("agent_scoped_allow_all")).and_then(Value::as_bool)).unwrap_or(false),
     }
 }
 
@@ -418,7 +420,8 @@ fn contract_snapshot(contract: &AttentionContract) -> Value {
         "backpressure_drop_below": contract.backpressure_drop_below,
         "escalate_levels": contract.escalate_levels,
         "priority_map": contract.priority_map,
-        "require_layer2_authority": contract.require_layer2_authority
+        "require_layer2_authority": contract.require_layer2_authority,
+        "attention_ingress_policy": {"enabled": contract.agent_ingress_policy_enabled, "agent_scoped_allow_all": contract.agent_ingress_allow_all, "default_agent_scoped_mode": "owned_actionable"}
     })
 }
 
@@ -467,7 +470,7 @@ fn update_latest(
         "deduped" => {
             latest["deduped_total"] = Value::Number((deduped_total + 1).into());
         }
-        "dropped_backpressure" => {
+        "dropped_backpressure" | "dropped_ingress_policy" => {
             latest["dropped_total"] = Value::Number((dropped_total + 1).into());
         }
         _ => {}

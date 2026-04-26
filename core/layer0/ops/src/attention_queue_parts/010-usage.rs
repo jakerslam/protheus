@@ -32,6 +32,8 @@ struct AttentionContract {
     escalate_levels: Vec<String>,
     priority_map: BTreeMap<String, i64>,
     require_layer2_authority: bool,
+    agent_ingress_policy_enabled: bool,
+    agent_ingress_allow_all: bool,
 }
 
 #[derive(Debug, Clone)]
