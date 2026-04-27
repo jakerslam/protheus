@@ -185,25 +185,19 @@ fn build_live_eval_report(policy: &LiveEvalPolicy, stream_path: &str) -> LiveEva
         },
         CheckRow {
             id: "live_eval_required_sources_passing_contract".to_string(),
-            ok: metrics
-                .get("failed_required_sources")
-                .copied()
-                .unwrap_or(0)
-                <= policy.drift_thresholds.failed_required_sources_max.unwrap_or(0),
+            ok: metrics.get("failed_required_sources").copied().unwrap_or(0)
+                <= policy
+                    .drift_thresholds
+                    .failed_required_sources_max
+                    .unwrap_or(0),
             detail: format!(
                 "failed_required_sources={}",
-                metrics
-                    .get("failed_required_sources")
-                    .copied()
-                    .unwrap_or(0)
+                metrics.get("failed_required_sources").copied().unwrap_or(0)
             ),
         },
         CheckRow {
             id: "live_eval_source_health_not_critical_contract".to_string(),
-            ok: source_health
-                .get("state")
-                .and_then(Value::as_str)
-                != Some("critical"),
+            ok: source_health.get("state").and_then(Value::as_str) != Some("critical"),
             detail: format!("source_health={}", source_health),
         },
         CheckRow {
@@ -284,8 +278,12 @@ fn source_health(sources: &[SourceObservation], previous_reports: &[Value]) -> V
     } else {
         "healthy"
     };
-    let primary_blocker =
-        source_health_blocker(required_total, required_present, required_passing, optional_failed);
+    let primary_blocker = source_health_blocker(
+        required_total,
+        required_present,
+        required_passing,
+        optional_failed,
+    );
     let blocking_source_count = missing_required_sources.len() + failed_required_sources.len();
     let dedupe_key = format!("live_eval_source_health:{primary_blocker}:{blocking_source_count}");
     let stable_signature_occurrence_count = if health_state == "critical" {
@@ -434,7 +432,12 @@ fn source_health_recovery_action(
     required_passing: usize,
     optional_failed: usize,
 ) -> &'static str {
-    match source_health_blocker(required_total, required_present, required_passing, optional_failed) {
+    match source_health_blocker(
+        required_total,
+        required_present,
+        required_passing,
+        optional_failed,
+    ) {
         "missing_required_source" => "restore_required_eval_artifact_or_collector",
         "failed_required_source" => "repair_required_eval_artifact_before_release",
         "failed_optional_source" => "review_optional_eval_source_for_degradation",
@@ -472,7 +475,9 @@ fn source_health_issue_candidate(
         "stable_signature_occurrence_count": stable_signature_occurrence_count,
         "minimum_issue_candidate_occurrences": SOURCE_HEALTH_ISSUE_MIN_OCCURRENCES,
         "issue_candidate_ready": issue_candidate_ready,
+        "issue_candidate_waiting_for_recurrence": !issue_candidate_ready,
         "issue_candidate_reason": if issue_candidate_ready { "repeated_live_eval_source_health_signature" } else { "awaiting_repeated_stable_signature" },
+        "issue_candidate_authority": "proposal_only",
         "safe_to_auto_file_issue": true,
         "safe_to_auto_apply_patch": false,
         "human_review_required": true,
@@ -861,7 +866,10 @@ mod tests {
         };
         let health = source_health(&[source], &[]);
 
-        assert_eq!(health.get("state").and_then(Value::as_str), Some("critical"));
+        assert_eq!(
+            health.get("state").and_then(Value::as_str),
+            Some("critical")
+        );
         assert_eq!(
             health.get("issue_candidate_ready").and_then(Value::as_bool),
             Some(false)

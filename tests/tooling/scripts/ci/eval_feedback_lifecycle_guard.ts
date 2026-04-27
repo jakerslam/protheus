@@ -40,6 +40,9 @@ interface ArtifactRow {
 const DEFAULT_POLICY = 'tests/tooling/config/eval_feedback_lifecycle_policy.json';
 const DEFAULT_OUT_JSON = 'core/local/artifacts/eval_feedback_lifecycle_guard_current.json';
 const DEFAULT_OUT_MARKDOWN = 'local/workspace/reports/EVAL_FEEDBACK_LIFECYCLE_GUARD_CURRENT.md';
+const MAX_INLINE_INSPECTION_BYTES = 64 * 1024 * 1024;
+const STREAM_CHUNK_BYTES = 1024 * 1024;
+const STATUS_SCAN_CARRY_BYTES = 512;
 
 interface Args {
   policyPath: string;
@@ -114,8 +117,43 @@ function statusesFromValue(value: unknown, statuses: string[]): number {
   return count;
 }
 
+function inspectLargeJsonLikeByStatusScan(filePath: string, policy: LifecyclePolicy): Pick<ArtifactRow, 'active_findings' | 'resolved_findings' | 'malformed_rows'> {
+  let active = 0;
+  let resolved = 0;
+  let carry = '';
+  const buffer = Buffer.alloc(STREAM_CHUNK_BYTES);
+  const fd = fs.openSync(filePath, 'r');
+  const scanStatuses = (text: string): void => {
+    const re = /"status"\s*:\s*"([^"]+)"/gi;
+    let match: RegExpExecArray | null;
+    while ((match = re.exec(text)) !== null) {
+      const status = match[1].toLowerCase();
+      if (policy.protected_statuses.includes(status)) active += 1;
+      if (policy.resolved_statuses.includes(status)) resolved += 1;
+    }
+  };
+  try {
+    for (;;) {
+      const bytesRead = fs.readSync(fd, buffer, 0, buffer.length, null);
+      if (bytesRead <= 0) break;
+      const text = carry + buffer.toString('utf8', 0, bytesRead);
+      const stableEnd = Math.max(0, text.length - STATUS_SCAN_CARRY_BYTES);
+      scanStatuses(text.slice(0, stableEnd));
+      carry = text.slice(stableEnd);
+    }
+    scanStatuses(carry);
+  } finally {
+    fs.closeSync(fd);
+  }
+  return { active_findings: active, resolved_findings: resolved, malformed_rows: 0 };
+}
+
 function inspectJsonLike(filePath: string, policy: LifecyclePolicy): Pick<ArtifactRow, 'active_findings' | 'resolved_findings' | 'malformed_rows'> {
   const empty = { active_findings: 0, resolved_findings: 0, malformed_rows: 0 };
+  const stat = fs.statSync(filePath);
+  if (stat.size > MAX_INLINE_INSPECTION_BYTES) {
+    return inspectLargeJsonLikeByStatusScan(filePath, policy);
+  }
   const text = fs.readFileSync(filePath, 'utf8');
   if (!text.trim()) return empty;
   try {

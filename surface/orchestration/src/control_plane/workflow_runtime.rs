@@ -7,8 +7,8 @@ use super::workflow_runtime_fixtures::{
     workflow_replay_fixtures, WorkflowInput, WorkflowReplayFixture,
 };
 use super::workflow_runtime_types::{
-    ToolRequestEnvelope, WorkflowBudgetSnapshot, WorkflowInspectorArtifact, WorkflowReplayReport,
-    WorkflowRuntimeEvent,
+    ToolFamilyDiagnostic, ToolRequestEnvelope, WorkflowBudgetSnapshot, WorkflowInspectorArtifact,
+    WorkflowReplayReport, WorkflowRuntimeEvent,
 };
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, HashSet};
@@ -46,9 +46,19 @@ pub fn workflow_runtime_contract_ok(reports: &[WorkflowReplayReport]) -> bool {
 }
 
 pub fn run_workflow_replay(fixture: &WorkflowReplayFixture) -> WorkflowReplayReport {
-    let graph = select_runtime_workflow(fixture.workflow_id)
-        .or_else(|| registered_workflow_graphs().into_iter().next())
-        .expect("registered workflow graph required");
+    let (graph, selection_failure) = match select_runtime_workflow(fixture.workflow_id) {
+        Some(graph) => (graph, None),
+        None => {
+            let fallback = registered_workflow_graphs()
+                .into_iter()
+                .next()
+                .expect("registered workflow graph required");
+            (
+                fallback,
+                Some(format!("unregistered_workflow_id:{}", fixture.workflow_id)),
+            )
+        }
+    };
     let graph_hash = graph_hash(&graph);
     let mut state = RuntimeState::new(fixture, graph, graph_hash);
     state.event(
@@ -62,9 +72,41 @@ pub fn run_workflow_replay(fixture: &WorkflowReplayFixture) -> WorkflowReplayRep
         "workflow_state",
         "workflow_selected",
         "intake",
-        json!({"source": "orchestration_typed_graph_v1", "graph_hash": state.graph_hash}),
+        json!({
+            "source": "orchestration_typed_graph_v1",
+            "workflow_id": state.graph.workflow_id.clone(),
+            "source_json_path": state.graph.source_json_path.clone(),
+            "contract_schema_version": state.graph.contract_schema_version.clone(),
+            "graph_hash": state.graph_hash.clone()
+        }),
         false,
     );
+    state.event(
+        "workflow_state",
+        "tool_family_menu_ready",
+        "gate_2_tool_family_menu",
+        json!({
+            "families": REQUIRED_TOOL_FAMILIES,
+            "llm_selects_tool_family": true,
+            "automatic_tool_family_selection": false
+        }),
+        false,
+    );
+    if let Some(reason) = selection_failure {
+        state.failures.push(reason.clone());
+        state.event(
+            "eval_trace",
+            "workflow_selection_rejected",
+            "intake",
+            json!({
+                "reason": reason,
+                "requested_workflow_id": fixture.workflow_id,
+                "registered_graph_required": true
+            }),
+            false,
+        );
+        state.terminal_state = Some("failed".to_string());
+    }
     for input in &fixture.inputs {
         if state.terminal_state.is_some() {
             break;
@@ -86,6 +128,8 @@ pub fn select_runtime_workflow(workflow_id: &str) -> Option<NormalizedWorkflowGr
 pub fn graph_hash(graph: &NormalizedWorkflowGraph) -> String {
     let mut hasher = DefaultHasher::new();
     graph.workflow_id.hash(&mut hasher);
+    graph.source_json_path.hash(&mut hasher);
+    graph.contract_schema_version.hash(&mut hasher);
     graph.stages.hash(&mut hasher);
     graph.transitions.hash(&mut hasher);
     graph.visible_chat_policy.hash(&mut hasher);
@@ -404,6 +448,8 @@ impl RuntimeState {
             terminal_state,
             workflow_id: self.graph.workflow_id,
             graph_hash: self.graph_hash,
+            source_json_path: self.graph.source_json_path,
+            contract_schema_version: self.graph.contract_schema_version,
             events: self.events,
             tool_requests: self.tool_requests,
             budget,
@@ -463,12 +509,37 @@ fn inspector_artifact(
     WorkflowInspectorArtifact {
         workflow_id: graph.workflow_id.clone(),
         graph_hash: graph_hash.to_string(),
+        source_json_path: graph.source_json_path.clone(),
+        contract_schema_version: graph.contract_schema_version.clone(),
         selected_graph_source: "orchestration_typed_graph_v1".to_string(),
         stage_statuses,
         trace_streams: streams,
+        tool_family_diagnostics: tool_family_diagnostics(events),
         visible_chat_source: "final_answer_stream_only".to_string(),
         system_chat_injection_allowed: false,
     }
+}
+
+fn tool_family_diagnostics(events: &[WorkflowRuntimeEvent]) -> Vec<ToolFamilyDiagnostic> {
+    let selected = selected_tool_families(events);
+    REQUIRED_TOOL_FAMILIES
+        .iter()
+        .map(|family| ToolFamilyDiagnostic {
+            family: (*family).to_string(),
+            status: "menu_available_probe_required_before_execution".to_string(),
+            reason: "workflow_reader_exposes_family_without_autoselection".to_string(),
+            selected_by_llm: selected.contains(*family),
+        })
+        .collect()
+}
+
+fn selected_tool_families(events: &[WorkflowRuntimeEvent]) -> HashSet<String> {
+    events
+        .iter()
+        .filter(|event| event.stream == "tool_trace" && event.event_kind == "tool_request")
+        .filter_map(|event| event.payload.get("family").and_then(Value::as_str))
+        .map(str::to_string)
+        .collect()
 }
 
 fn token_estimate(text: &str) -> u64 {

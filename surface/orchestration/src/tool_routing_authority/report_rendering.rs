@@ -40,8 +40,14 @@ fn render_operator_summary(report: &ToolRoutingAuthorityReport, lines: &mut Vec<
         summary.planner_payload_decision_audit_failures
     ));
     lines.push(format!("- json_artifact: {}", summary.json_artifact));
-    lines.push(format!("- markdown_artifact: {}", summary.markdown_artifact));
-    lines.push(format!("- operator_next_step: {}", summary.operator_next_step));
+    lines.push(format!(
+        "- markdown_artifact: {}",
+        summary.markdown_artifact
+    ));
+    lines.push(format!(
+        "- operator_next_step: {}",
+        summary.operator_next_step
+    ));
     lines.push(format!(
         "- top_failed_check: {}",
         summary.top_failed_check.as_deref().unwrap_or("none")

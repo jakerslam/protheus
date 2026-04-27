@@ -1070,9 +1070,7 @@ fn main() -> ExitCode {
         "reviewer-feedback" => run_reviewer_feedback(tail),
         "quality-gate" => run_quality_gate(tail),
         "judge-human-agreement" => run_judge_human_agreement(tail),
-        "authority-calibration" => {
-            eval_authority_calibration::run_eval_authority_calibration(tail)
-        }
+        "authority-calibration" => eval_authority_calibration::run_eval_authority_calibration(tail),
         "feedback-router" => eval_feedback_router::run_eval_feedback_router(tail),
         "agent-feedback" => eval_agent_feedback::run_eval_agent_feedback(tail),
         "agent-self-diagnosis" => eval_agent_self_diagnosis::run_eval_agent_self_diagnosis(tail),
@@ -1115,7 +1113,6 @@ fn main() -> ExitCode {
         "adversarial-routing" => eval_final_runtime::run_adversarial_routing(tail),
         "workflow-selection" => eval_final_runtime::run_workflow_selection(tail),
         "runtime-ownership" => eval_final_runtime::run_runtime_ownership(tail),
-                "authority-calibration" => eval_authority_calibration::run_eval_authority_calibration(tail),
         _ => {
             usage();
             2
