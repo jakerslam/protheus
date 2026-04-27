@@ -78,6 +78,7 @@
       "ops:kernel-sentinel:release-gate",
       "ops:release:proof-pack",
       "ops:ipc-bridge:soak",
+      "ops:legacy-ingress-budget:gate",
       "ops:release:scorecard:gate",
       "ops:production-closure:gate"
     ]
@@ -101,6 +102,7 @@
       "ops:trusted-core:report": "core/local/artifacts/runtime_trusted_core_report_current.json",
       "ops:kernel-sentinel:release-gate": "core/local/artifacts/kernel_sentinel_auto_run_current.json",
       "ops:release:proof-pack": "core/local/artifacts/release_proof_pack_current.json",
+      "ops:legacy-ingress-budget:gate": "core/local/artifacts/legacy_ingress_budget_current.json",
       "ops:release:scorecard:gate": "client/runtime/local/state/release/scorecard/release_scorecard.json",
       "ops:production-closure:gate": "core/local/artifacts/production_readiness_closure_gate_current.json",
       "ops:release:rc-rehearsal": "core/local/artifacts/release_candidate_dress_rehearsal_current.json"
@@ -121,6 +123,7 @@
       "core/local/artifacts/runtime_trusted_core_report_current.json",
       "core/local/artifacts/kernel_sentinel_auto_run_current.json",
       "core/local/artifacts/release_proof_pack_current.json",
+      "core/local/artifacts/legacy_ingress_budget_current.json",
       "client/runtime/local/state/release/scorecard/release_scorecard.json",
       "core/local/artifacts/production_readiness_closure_gate_current.json",
       "core/local/artifacts/release_candidate_dress_rehearsal_current.json"
