@@ -131,6 +131,18 @@ pub fn build_tool_routing_authority_report(root: impl AsRef<Path>) -> ToolRoutin
         root,
         "tests/tooling/scripts/ci/release_proof_pack_assemble.ts",
     );
+    let self_maintenance_executor = read_text(
+        root,
+        "surface/orchestration/src/self_maintenance/executor.rs",
+    );
+    let self_maintenance_noise_policy_doc = read_text(
+        root,
+        "docs/workspace/policy/self_maintenance_noise_discipline_policy.md",
+    );
+    let self_maintenance_noise_policy_json = read_text(
+        root,
+        "surface/orchestration/config/self_maintenance_noise_discipline_policy.json",
+    );
     let planner_payload_decision_audit = planner_payload_decision_audit(
         &preconditions,
         &planner_candidates,
@@ -159,6 +171,12 @@ pub fn build_tool_routing_authority_report(root: impl AsRef<Path>) -> ToolRoutin
         planner_candidate_metadata_contract_declared(&planner_candidates),
         workflow_quality_scoped_metadata_declared(&contracts, &result_packaging),
         runtime_quality_schema_workflow_clean(&contracts),
+        legacy_heuristic_sources_registered(&preconditions, &request_surface_policy),
+        self_maintenance_noise_discipline_declared(
+            &self_maintenance_executor,
+            &self_maintenance_noise_policy_doc,
+            &self_maintenance_noise_policy_json,
+        ),
         eval_issue_stability_gate_declared(&continuous_eval, &eval_feedback_router),
         eval_issue_autonomy_safety_contract_declared(&continuous_eval, &eval_feedback_router),
         issue_candidate_lifecycle_and_provenance_contract_declared(
@@ -806,6 +824,128 @@ fn extract_runtime_quality_signals_body(contracts: &str) -> Option<&str> {
     let remainder = &contracts[body_start..];
     let close = remainder.find('}')?;
     Some(&remainder[..close])
+}
+
+/// Closed registry of heuristic source labels emitted by `preconditions.rs`
+/// when `allow_heuristic_probe_fallback` is true. Adding a new heuristic source
+/// requires updating this list AND the
+/// `legacy_heuristic_source_registry.sources` array in
+/// `surface/orchestration/config/request_surface_probe_authority_policy.json`.
+const LEGACY_HEURISTIC_SOURCE_REGISTRY: [&str; 7] = [
+    "heuristic.tool_hints_or_operation",
+    "heuristic.target_descriptors_present",
+    "heuristic.target_descriptor_domain",
+    "heuristic.target_refs_present",
+    "heuristic.mutation_cross_boundary",
+    "heuristic.policy_scope_and_mutability",
+    "heuristic.transport_hints_or_operation",
+];
+
+fn legacy_heuristic_sources_registered(
+    preconditions: &str,
+    request_surface_policy: &str,
+) -> ToolRoutingAuthorityCheck {
+    let mut missing = Vec::new();
+    for source in LEGACY_HEURISTIC_SOURCE_REGISTRY {
+        if !preconditions.contains(source) {
+            missing.push(format!(
+                "preconditions.rs is missing registered heuristic source: {source}"
+            ));
+        }
+        if !request_surface_policy.contains(source) {
+            missing.push(format!(
+                "request_surface_probe_authority_policy.json must declare heuristic source: {source}"
+            ));
+        }
+    }
+    if !request_surface_policy.contains("legacy_heuristic_source_registry") {
+        missing
+            .push("request_surface_probe_authority_policy.json missing legacy_heuristic_source_registry section".to_string());
+    }
+    // Guard against unregistered heuristic source labels: scan preconditions
+    // for any "heuristic.<token>" string that is not in the registry.
+    let mut cursor = 0;
+    let needle = "heuristic.";
+    while let Some(idx) = preconditions[cursor..].find(needle) {
+        let abs = cursor + idx;
+        let tail = &preconditions[abs..];
+        let mut end = needle.len();
+        while end < tail.len() {
+            let ch = tail.as_bytes()[end] as char;
+            if ch.is_ascii_alphanumeric() || ch == '_' {
+                end += 1;
+            } else {
+                break;
+            }
+        }
+        let candidate = &tail[..end];
+        if !LEGACY_HEURISTIC_SOURCE_REGISTRY.contains(&candidate)
+            && candidate != "heuristic."
+            && !candidate.is_empty()
+        {
+            missing.push(format!(
+                "preconditions.rs uses unregistered heuristic source: {candidate}"
+            ));
+        }
+        cursor = abs + end;
+    }
+    ToolRoutingAuthorityCheck::new(
+        "legacy_heuristic_sources_registered",
+        vec![
+            "every heuristic.* source label used in preconditions.rs is in the closed registry"
+                .to_string(),
+            "request_surface_probe_authority_policy.json declares the registry as a burn-down target"
+                .to_string(),
+        ],
+        missing,
+    )
+}
+
+fn self_maintenance_noise_discipline_declared(
+    self_maintenance_executor: &str,
+    noise_policy_doc: &str,
+    noise_policy_json: &str,
+) -> ToolRoutingAuthorityCheck {
+    let mut missing = Vec::new();
+    if !self_maintenance_executor.contains("ObserveOnly") {
+        missing.push(
+            "self_maintenance executor must keep ObserveOnly emission mode declared".to_string(),
+        );
+    }
+    for token in [
+        "self_maintenance_noise_discipline_policy",
+        "rate_limit_window_floor_ms",
+        "1800000",
+        "rate_limit_window_multiplier_vs_planner_clarification_window",
+        "ObserveOnly",
+    ] {
+        if !noise_policy_json.contains(token) {
+            missing.push(format!(
+                "self_maintenance_noise_discipline_policy.json missing token: {token}"
+            ));
+        }
+    }
+    for token in [
+        "Self-Maintenance Noise Discipline Policy",
+        "ObserveOnly",
+        "30 minutes",
+        "self_maintenance_noise_discipline_declared",
+    ] {
+        if !noise_policy_doc.contains(token) {
+            missing.push(format!(
+                "self_maintenance_noise_discipline_policy.md missing token: {token}"
+            ));
+        }
+    }
+    ToolRoutingAuthorityCheck::new(
+        "self_maintenance_noise_discipline_declared",
+        vec![
+            "self-maintenance recommendations stay in ObserveOnly mode".to_string(),
+            "rate-limit window stays >=2x planner clarification window with a 30-minute floor"
+                .to_string(),
+        ],
+        missing,
+    )
 }
 
 fn runtime_quality_schema_workflow_clean(contracts: &str) -> ToolRoutingAuthorityCheck {
