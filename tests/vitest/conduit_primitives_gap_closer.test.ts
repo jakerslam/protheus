@@ -142,9 +142,18 @@ describe('conduit primitive wrapper contract', () => {
     const psSource = fs.readFileSync(path.join(ROOT, 'install.ps1'), 'utf8');
     expect(shellSource.includes('--json')).toBe(true);
     expect(shellSource.includes('emit_install_success_summary')).toBe(true);
+    expect(shellSource.includes('emit_install_completion_card')).toBe(true);
+    expect(shellSource.includes('✔ InfRing successfully installed!')).toBe(true);
+    expect(shellSource.includes('✅ Installation complete!')).toBe(true);
+    expect(shellSource.includes('38;5;208')).toBe(true);
     expect(shellSource.includes('infring_install_success_summary')).toBe(true);
     expect(shellSource.includes('summary json:')).toBe(true);
     expect(psSource.includes('[switch]$Json')).toBe(true);
+    expect(psSource.includes('function Write-InstallCompletionCard')).toBe(true);
+    expect(psSource.includes('✔ InfRing successfully installed!')).toBe(true);
+    expect(psSource.includes('✅ Installation complete!')).toBe(true);
+    expect(psSource.includes('-ForegroundColor Green')).toBe(true);
+    expect(psSource.includes('-ForegroundColor DarkYellow')).toBe(true);
     expect(psSource.includes('infring_install_success_summary')).toBe(true);
     expect(psSource.includes('infring_install_smoke_summary')).toBe(true);
     expect(psSource.includes('smoke_checks')).toBe(true);

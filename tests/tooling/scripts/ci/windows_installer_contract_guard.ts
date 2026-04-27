@@ -399,6 +399,22 @@ function run(argv: string[]): number {
       'install.sh JSON success summary must include refresh/tag-state/write-verification contract fields',
   });
 
+  checks.push({
+    id: 'installer_success_completion_card_contract',
+    ok:
+      source.includes('function Write-InstallCompletionCard')
+      && source.includes('✔ InfRing successfully installed!')
+      && source.includes('✅ Installation complete!')
+      && source.includes('-ForegroundColor Green')
+      && source.includes('-ForegroundColor DarkYellow')
+      && sourceSh.includes('emit_install_completion_card')
+      && sourceSh.includes('✔ InfRing successfully installed!')
+      && sourceSh.includes('✅ Installation complete!')
+      && sourceSh.includes('38;5;208'),
+    detail:
+      'installers must retain Claude-style success completion card with green success text and orange version/command accents',
+  });
+
   const ok = checks.every((row) => row.ok);
   const sourceFallbackReasons = extractUnique(source, /source_fallback_reason=([a-z0-9_]+)/g, 1);
   const assetProbeStatuses = extractUnique(source, /asset_probe=([a-z_]+)/g, 1);
