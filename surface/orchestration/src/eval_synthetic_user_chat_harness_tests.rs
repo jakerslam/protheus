@@ -283,7 +283,8 @@ fn synthetic_user_harness_accepts_pending_tool_progress() {
         live: false,
         turn: &turn,
         thresholds: &thresholds,
-        user_message: "Use web search to compare infring to other major agentic frameworks in April 2026.",
+        user_message:
+            "Use web search to compare infring to other major agentic frameworks in April 2026.",
         response_text: "I would choose web search for a current framework comparison.",
         previous_response: "",
         payload: &payload,

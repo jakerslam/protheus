@@ -1368,11 +1368,11 @@
         "ops:workflow-failure-recovery:guard"
       ],
       "source_refs": [
-        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_very_lengthy_one_line_match.snap",
-        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_with_after_context.snap",
-        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_with_before_context.snap",
-        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_with_context_lines.snap",
-        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_with_file_type.snap"
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_very_lengthy_one_line_match.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_with_after_context.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_with_before_context.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_with_context_lines.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_with_file_type.snap"
       ]
     },
     {
@@ -1395,11 +1395,11 @@
         "ops:workflow-failure-recovery:guard"
       ],
       "source_refs": [
-        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_with_offset.snap",
-        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_with_results.snap",
-        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_without_line_numbers.snap",
-        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_undo_file_created.snap",
-        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_undo_file_removed.snap"
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_with_offset.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_with_results.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_search_without_line_numbers.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_undo_file_created.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_undo_file_removed.snap"
       ]
     },
     {
@@ -1422,11 +1422,11 @@
         "ops:workflow-failure-recovery:guard"
       ],
       "source_refs": [
-        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_undo_file_restored.snap",
-        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_undo_no_changes.snap",
-        "crates/forge_app/src/snapshots/forge_app__operation__tests__fs_undo_success.snap",
-        "crates/forge_app/src/snapshots/forge_app__operation__tests__net_fetch_success.snap",
-        "crates/forge_app/src/snapshots/forge_app__operation__tests__net_fetch_truncated.snap"
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_undo_file_restored.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_undo_no_changes.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__fs_undo_success.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__net_fetch_success.snap",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/snapshots/forge_app__operation__tests__net_fetch_truncated.snap"
       ]
     },
     {
@@ -1452,11 +1452,11 @@
         "ops:assimilation:capability-coverage:guard"
       ],
       "source_refs": [
-        "https://github.com/tailcallhq/forgecode#how-forge-works-three-modes",
-        "https://github.com/tailcallhq/forgecode#zsh-plugin-the--prefix-system",
-        "https://github.com/tailcallhq/forgecode#quick-reference-all--commands",
-        "https://github.com/tailcallhq/forgecode#mcp-configuration",
-        "https://forgecode.dev/docs/creating-agents/",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/README.md#how-forge-works-three-modes",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/README.md#zsh-plugin-the--prefix-system",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/README.md#quick-reference-all--commands",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/README.md#mcp-configuration",
+        "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/templates/forge-custom-agent-template.md",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_app/src/agent_executor.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/mcp/manager.rs",
         "local/workspace/assimilations/ForgeCode-Assimilation/target-repo/crates/forge_services/src/tool_services/fetch.rs"

@@ -653,5 +653,4 @@ mod tests {
         assert_eq!(cleared.retired_observation_heap_refs, 2);
         assert_eq!(cleared.retired_observation_heap_still_active, 0);
     }
-
 }

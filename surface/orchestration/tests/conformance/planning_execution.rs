@@ -97,7 +97,7 @@ fn non_legacy_surface_fixture_fallback_rate_stays_below_threshold() {
         fallback_rate <= 0.21,
         "fallback rate should stay below threshold"
     );
-    assert_eq!(fallback_count, 1);
+    assert_eq!(fallback_count, 0);
 }
 
 #[test]

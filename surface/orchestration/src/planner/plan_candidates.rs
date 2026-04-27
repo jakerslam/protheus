@@ -18,7 +18,11 @@ use strategy::{
 };
 
 fn capability_key(capability: &Capability) -> &'static str {
-    capability.probe_keys().first().copied().unwrap_or("unknown")
+    capability
+        .probe_keys()
+        .first()
+        .copied()
+        .unwrap_or("unknown")
 }
 
 pub fn propose_decomposition_candidates(

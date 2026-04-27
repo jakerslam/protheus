@@ -19,7 +19,7 @@ pub(super) fn is_structural_comparative_request(request: &TypedOrchestrationRequ
     request.request_kind == RequestKind::Comparative || request.resource_kind == ResourceKind::Mixed
 }
 
-pub(super) fn transport_explicitly_unavailable(request: &TypedOrchestrationRequest) -> bool {
+fn core_probe_envelope_reports_transport_unavailable(request: &TypedOrchestrationRequest) -> bool {
     let Some(envelope) = request.core_probe_envelope.as_ref() else {
         return false;
     };
@@ -39,6 +39,10 @@ pub(super) fn transport_explicitly_unavailable(request: &TypedOrchestrationReque
             || row.capability == Capability::VerifyClaim)
             && row.transport_available == Some(false)
     })
+}
+
+pub(super) fn transport_explicitly_unavailable(request: &TypedOrchestrationRequest) -> bool {
+    core_probe_envelope_reports_transport_unavailable(request)
 }
 
 #[cfg(test)]
@@ -98,5 +102,12 @@ mod tests {
         let request = non_legacy_workspace_search_request(true, false);
 
         assert!(transport_explicitly_unavailable(&request));
+    }
+
+    #[test]
+    fn transport_unavailable_source_is_core_probe_only() {
+        let request = non_legacy_workspace_search_request(false, false);
+
+        assert!(core_probe_envelope_reports_transport_unavailable(&request));
     }
 }
