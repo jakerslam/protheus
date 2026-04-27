@@ -1,10 +1,10 @@
 # TODO (SRS Execution Checklist)
 
-Updated: 2026-04-27T02:42:08.374Z
+Updated: 2026-04-27T05:03:03.300Z
 
 ## Global Rollup
-- total_rows: 3904
-- queued: 58
+- total_rows: 3940
+- queued: 94
 - in_progress: 7
 - blocked: 1
 - blocked_external_prepared: 32
@@ -759,3 +759,55 @@ Updated: 2026-04-27T02:42:08.374Z
 - npm run -s ops:srs:top200:regression
 - npm run -s test:ops:srs-contract-runtime-evidence
 - ./verify.sh
+
+---
+
+## OS-Readiness Wave — Layer 3 to True OS Migration (2026-04-26)
+
+Queued: 12 items (all priority 10). Intent: move InfRing from **AI-native runtime with OS intent** to **actual OS personality implementation**.
+
+| ID | Status | Priority | Title |
+|----|--------|----------|-------|
+| OS-001 | queued | 10 | Turn Layer 3 into real module set beyond os_extension_wrapper |
+| OS-002 | queued | 10 | Promote execution units from records to enforced runtime objects |
+| OS-003 | queued | 10 | Build minimum viable process and service model |
+| OS-004 | queued | 10 | Implement real VFS/storage surface backed by Rust primitives |
+| OS-005 | queued | 10 | Add syscall and driver facades as stable contracts |
+| OS-006 | queued | 10 | Finish REQ-08 primitive migration and parity program |
+| OS-007 | queued | 10 | Reduce Node dependency on rich operator surface |
+| OS-008 | queued | 10 | Define real boot and bring-up sequence |
+| OS-009 | queued | 10 | Define userland/runtime ABI for apps, plugins, extensions |
+| OS-010 | queued | 10 | Cross-profile OS conformance tests |
+| OS-011 | queued | 10 | Enforce Layer 2/3 authority boundary during Layer 3 growth |
+| OS-012 | queued | 10 | Create OS-readiness gate (checklist artifact, not qualitative) |
+
+## 🖥️ Tauri Desktop App Migration + Memory Fix Wave (2026-04-27)
+
+Queued: 24 items. Intent: migrate from browser dashboard → Tauri desktop app, fix unbounded memory growth, and align UI with OS shell pattern.
+
+| ID | Status | Priority | Title |
+|----|--------|----------|-------|
+| Tauri-UI-001 | queued | 10 | Add UI Projection Layer — stop sending full orchestration payloads to UI |
+| Tauri-UI-002 | queued | 10 | Cap In-Memory Chat — keep only last N messages in UI state |
+| Tauri-UI-003 | queued | 10 | Remove Default Decision Trace Rendering — lazy-load behind expand |
+| Tauri-UI-004 | queued | 10 | Create Data Access Layer (DAL) — backend API for paginated chat data |
+| Tauri-UI-005 | queued | 10 | Introduce Chat Storage (SQLite) — persist messages off-memory |
+| Tauri-UI-006 | queued | 10 | Add Windowed Loading — virtualization backed by storage |
+| Tauri-UI-007 | queued | 10 | Replace Snapshot State with Streaming — incremental UI updates |
+| Tauri-UI-008 | queued | 10 | Add Event Bus (Backend) — pub/sub for MessageAdded/Updated/ExecutionUpdate |
+| Tauri-UI-009 | queued | 10 | Deduplicate Subscriptions — prevent memory leaks from duplicate listeners |
+| Tauri-UI-010 | queued | 10 | Scaffold Tauri App — replace browser runtime with local executable |
+| Tauri-UI-011 | queued | 10 | Build IPC Layer — commands and events replacing HTTP/WebSocket |
+| Tauri-UI-012 | queued | 10 | Connect to Infring Core — direct Rust runtime integration over IPC |
+| Tauri-UI-013 | queued | 10 | Add Message Detail Lazy Loading — decision trace/signals on demand |
+| Tauri-UI-014 | queued | 10 | Compress Old Messages — summarization for long-session storage |
+| Tauri-UI-015 | queued | 10 | Add Memory Metrics — track RAM, message count, render time |
+| Tauri-UI-016 | queued | 9 | Treat UI as Shell — enforce no logic, no core calls from UI |
+| Tauri-UI-017 | queued | 9 | Introduce Session Kernel Interface — formal InfringKernel trait boundary |
+| Tauri-UI-018 | queued | 9 | Add Offline Capability — cache sessions, run without network |
+| Tauri-UI-019 | queued | 8 | Integrate Eval Output with UI — surface issue candidates and eval signals |
+| Tauri-UI-020 | queued | 8 | Add Issue Submission Pipeline — one-click Report Issue → GitHub |
+| Tauri-UI-021 | queued | 8 | Add Eval-Driven Issue Filing (Controlled) — threshold-based, deduplicated |
+| Tauri-UI-022 | queued | 10 | Define Tauri → Rust Core IPC Contract (IDL) — typed commands/events schema |
+| Tauri-UI-023 | queued | 9 | Port Dashboard Frontend to Tauri WebView — move HTML/JS/TS into tauri shell |
+| Tauri-UI-024 | queued | 9 | Add Cross-Platform Build Pipeline (macOS/Windows/Linux) — CI artifact matrix |
