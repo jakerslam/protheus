@@ -178,7 +178,7 @@
           var inputRect = input.getBoundingClientRect();
           if (inputRect.top > hostRect.top && inputRect.top < (hostRect.bottom + 140)) alignY = inputRect.top;
         }
-        var rows = host.querySelectorAll('.chat-message-block .message[id]');
+        var rows = host.querySelectorAll('.chat-message-block[id], .chat-message-block .message[id]');
         var best = null;
         var bestDiff = Number.POSITIVE_INFINITY;
         for (var i = 0; i < rows.length; i++) {

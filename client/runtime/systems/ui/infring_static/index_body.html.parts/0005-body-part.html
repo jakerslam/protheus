@@ -1,7 +1,8 @@
               </div>
             </div>
             <infring-chat-archived-banner-shell>
-            <div class="chat-archived-banner chat-archived-banner-bottom-center" x-show="currentAgent && isCurrentAgentArchived && isCurrentAgentArchived()">
+            <div class="chat-archived-banner chat-archived-banner-bottom-center" x-show="currentAgent && isCurrentAgentArchived && isCurrentAgentArchived()" role="status" aria-live="polite">
+              <span class="text-xs" style="margin-right:10px">Archived thread is read-only. Revive to send messages, run commands, or edit configuration.</span>
               <button type="button" class="btn btn-primary btn-sm" @click="reviveCurrentArchivedAgent()">Revive Agent</button>
             </div>
             </infring-chat-archived-banner-shell>
@@ -107,7 +108,7 @@
                 <infring-chat-thread-shell>
                 <div class="chat-thread">
                   <template x-for="(msg, idx) in filteredMessages" :key="messageRenderKey(msg, idx)">
-                    <div class="chat-message-block">
+                    <div class="chat-message-block" :id="messageDomId(msg, idx)" :data-msg-idx="idx">
                       <template x-if="msg.is_notice">
                         <infring-chat-divider-shell>
                         <div class="chat-day-divider chat-event-divider">
@@ -145,7 +146,7 @@
                       <infring-chat-stream-shell
                         class="message"
                         x-show="!msg.is_notice"
-                        :id="messageDomId(msg, idx)"
+                        :data-message-dom-id="messageDomId(msg, idx)"
                         :data-origin-kind="messageOriginKind(msg)"
                         :role="msg.role || ''"
                         :grouped="isGrouped(idx, filteredMessages)"
@@ -203,7 +204,7 @@
                         <!-- Normal message content -->
                         <div class="message-bubble" :class="{ 'markdown-body': ((String(msg.role || '').toLowerCase() === 'agent') || (String(msg.role || '').toLowerCase() === 'assistant') || (String(msg.role || '').toLowerCase() === 'system')) && !msg.thinking && !msg.isHtml, 'message-error': !msg.thoughtStreaming && isErrorMessage(msg), 'thinking-live': !!msg.thoughtStreaming, 'message-finish-bounce': !!msg._finish_bounce }" x-show="!msg.thinking && !(msg.terminal && terminalMessageCollapsed(msg, idx, filteredMessages)) && ((msg.text && msg.text.trim()) || messageHasTools(msg) || messageHasSourceChips(msg) || messageToolTraceSummary(msg).visible || messageProgress(msg) || (msg.file_output && msg.file_output.path) || (msg.folder_output && msg.folder_output.path) || (msg.images && msg.images.length))">
                           <template x-if="shouldRenderMessageContent(msg, idx, filteredMessages)">
-                            <infring-chat-bubble-render :typing="!!msg._typingVisual" :html="messageBubbleHtml(msg)" :plain="String(msg.text || '')"></infring-chat-bubble-render>
+                            <infring-chat-bubble-render :class="{ 'message-text-skeletonized': !isMessageTextInRenderWindow(msg, idx, filteredMessages) }" :typing="!!msg._typingVisual" :html="messageBubbleHtml(msg)" :plain="String(msg.text || '')"></infring-chat-bubble-render>
                           </template>
                           <template x-if="!shouldRenderMessageContent(msg, idx, filteredMessages)">
                             <infring-message-placeholder-shell><div class="message-placeholder-shell message-placeholder-shell-inline" :style="messagePlaceholderStyle(msg, idx, filteredMessages)">
