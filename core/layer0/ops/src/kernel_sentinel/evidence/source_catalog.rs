@@ -138,5 +138,13 @@ pub(super) fn source_configs() -> Vec<EvidenceSourceConfig> {
             KernelSentinelSeverity::Medium,
             KernelSentinelSeverity::Low,
         ),
+        source(
+            KernelSentinelEvidenceSource::ShellTelemetry,
+            "shell_telemetry.jsonl",
+            "shell_presentation_telemetry",
+            KernelSentinelFindingCategory::RuntimeCorrectness,
+            KernelSentinelSeverity::Low,
+            KernelSentinelSeverity::Low,
+        ),
     ]
 }

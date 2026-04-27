@@ -1,5 +1,34 @@
     use super::*;
 
+    fn write_required_sentinel_evidence(root: &Path) {
+        let evidence_dir = root.join("local/state/kernel_sentinel/evidence");
+        fs::create_dir_all(&evidence_dir).unwrap();
+        for (file_name, subject, category) in [
+            ("kernel_receipts.jsonl", "receipt-1", "ReceiptIntegrity"),
+            ("runtime_observations.jsonl", "runtime-1", "RuntimeCorrectness"),
+            ("state_mutations.jsonl", "mutation-1", "StateTransition"),
+            ("scheduler_admission.jsonl", "admission-1", "CapabilityEnforcement"),
+            ("live_recovery.jsonl", "recovery-1", "RuntimeCorrectness"),
+            ("boundedness_observations.jsonl", "boundedness-1", "Boundedness"),
+            ("release_proof_packs.jsonl", "proof-pack-1", "ReleaseEvidence"),
+            ("release_repairs.jsonl", "repair-1", "ReleaseEvidence"),
+            ("gateway_health.jsonl", "gateway-1", "GatewayIsolation"),
+            ("gateway_quarantine.jsonl", "quarantine-1", "GatewayIsolation"),
+            ("gateway_recovery.jsonl", "gateway-recovery-1", "GatewayIsolation"),
+            ("gateway_isolation.jsonl", "gateway-isolation-1", "GatewayIsolation"),
+            ("queue_backpressure.jsonl", "queue-1", "QueueBackpressure"),
+            ("control_plane_eval.jsonl", "eval-1", "RuntimeCorrectness"),
+        ] {
+            fs::write(
+                evidence_dir.join(file_name),
+                format!(
+                    "{{\"id\":\"{subject}\",\"ok\":true,\"subject\":\"{subject}\",\"kind\":\"required_stream_regression\",\"category\":\"{category}\",\"evidence\":[\"fixture://{subject}\"],\"details\":{{\"source_artifact\":\"fixture://{subject}\",\"freshness_age_seconds\":0}}}}"
+                ),
+            )
+            .unwrap();
+        }
+    }
+
     #[test]
     fn kernel_sentinel_contract_uses_distinct_canonical_name() {
         let contract = kernel_sentinel_contract();
@@ -125,8 +154,197 @@ fn evidence_ingestion_adds_runtime_failures_to_report() {
         let (report, verdict, exit) = build_report(&root, &args);
         assert_eq!(exit, 0);
         assert_eq!(verdict["finding_count"], 1);
-        assert_eq!(report["evidence_ingestion"]["normalized_record_count"], 1);
+    assert_eq!(report["evidence_ingestion"]["normalized_record_count"], 1);
     assert_eq!(report["findings"][0]["category"], "runtime_correctness");
+}
+
+#[test]
+fn missing_evidence_reports_data_starved_release_gate() {
+    let root = std::env::temp_dir().join(format!(
+        "kernel-sentinel-data-starved-{}",
+        crate::deterministic_receipt_hash(&json!({"test": "data-starved"}))
+    ));
+    let (report, verdict, exit) = build_report(&root, &[]);
+    assert_eq!(exit, 0);
+    assert_eq!(report["evidence_ingestion"]["observation_state"], "data_starved");
+    assert_eq!(report["evidence_ingestion"]["data_starved"], true);
+    assert_eq!(report["operator_summary"]["data_starved"], true);
+    assert_eq!(report["release_gate"]["data_starved"], true);
+    assert_eq!(report["release_gate"]["pass"], false);
+    assert_eq!(verdict["verdict"], "release_fail");
+}
+
+#[test]
+fn malformed_evidence_reports_source_path_and_stream_counts() {
+    let root = std::env::temp_dir().join(format!(
+        "kernel-sentinel-malformed-evidence-{}",
+        crate::deterministic_receipt_hash(&json!({"test": "malformed-evidence"}))
+    ));
+    let evidence_dir = root.join("local/state/kernel_sentinel/evidence");
+    fs::create_dir_all(&evidence_dir).unwrap();
+    fs::write(evidence_dir.join("runtime_observations.jsonl"), "{not-json").unwrap();
+    let (report, verdict, exit) = build_report(&root, &["--strict=1".to_string()]);
+    assert_eq!(exit, 2);
+    assert_eq!(report["evidence_ingestion"]["observation_state"], "malformed_evidence");
+    assert_eq!(
+        report["evidence_ingestion"]["malformed_by_source"]["runtime_observation"],
+        1
+    );
+    assert_eq!(
+        report["evidence_ingestion"]["malformed_by_file_name"]["runtime_observations.jsonl"],
+        1
+    );
+    assert_eq!(report["operator_summary"]["malformed_evidence_count"], 1);
+    assert_eq!(verdict["verdict"], "invalid");
+}
+
+#[test]
+fn stale_evidence_reports_age_threshold_and_blocks_fresh_readiness() {
+    let root = std::env::temp_dir().join(format!(
+        "kernel-sentinel-stale-evidence-{}",
+        crate::deterministic_receipt_hash(&json!({"test": "stale-evidence"}))
+    ));
+    let evidence_dir = root.join("local/state/kernel_sentinel/evidence");
+    fs::create_dir_all(&evidence_dir).unwrap();
+    fs::write(
+        evidence_dir.join("runtime_observations.jsonl"),
+        r#"{"id":"runtime-stale","ok":true,"subject":"runtime-1","kind":"runtime_status","category":"RuntimeCorrectness","evidence":["fixture://runtime-stale"],"details":{"source_artifact":"fixture://runtime-stale","freshness_age_seconds":7200}}"#,
+    )
+    .unwrap();
+    let args = vec![
+        "--strict=1".to_string(),
+        "--stale-evidence-seconds=60".to_string(),
+    ];
+    let (report, _verdict, exit) = build_report(&root, &args);
+    assert_eq!(exit, 2);
+    assert_eq!(report["evidence_ingestion"]["observation_state"], "stale_evidence");
+    assert_eq!(report["evidence_ingestion"]["stale_record_count"], 1);
+    assert_eq!(
+        report["evidence_ingestion"]["freshness_observed_record_count"],
+        1
+    );
+    assert_eq!(report["evidence_ingestion"]["max_evidence_age_seconds"], 7200);
+    assert_eq!(report["operator_summary"]["data_starved"], false);
+}
+
+#[test]
+fn evidence_ingestion_normalizes_major_stream_families() {
+    let root = std::env::temp_dir().join(format!(
+        "kernel-sentinel-stream-families-{}",
+        crate::deterministic_receipt_hash(&json!({"test": "stream-families"}))
+    ));
+    let evidence_dir = root.join("local/state/kernel_sentinel/evidence");
+    fs::create_dir_all(&evidence_dir).unwrap();
+    for (file_name, subject, category) in [
+        ("kernel_receipts.jsonl", "receipt-1", "ReceiptIntegrity"),
+        ("runtime_observations.jsonl", "runtime-1", "RuntimeCorrectness"),
+        ("release_proof_packs.jsonl", "proof-pack-1", "ReleaseEvidence"),
+        ("gateway_health.jsonl", "gateway-1", "GatewayIsolation"),
+        ("queue_backpressure.jsonl", "queue-1", "QueueBackpressure"),
+        ("control_plane_eval.jsonl", "eval-1", "RuntimeCorrectness"),
+    ] {
+        fs::write(
+            evidence_dir.join(file_name),
+            format!(
+                "{{\"id\":\"{subject}\",\"ok\":true,\"subject\":\"{subject}\",\"kind\":\"stream_family_regression\",\"category\":\"{category}\",\"evidence\":[\"fixture://{subject}\"],\"details\":{{\"source_artifact\":\"fixture://{subject}\"}}}}"
+            ),
+        )
+        .unwrap();
+    }
+    let (report, _verdict, exit) = build_report(&root, &[]);
+    assert_eq!(exit, 0);
+    assert_eq!(report["evidence_ingestion"]["normalized_record_count"], 6);
+    assert_eq!(report["evidence_ingestion"]["observation_state"], "partial_evidence");
+    assert_eq!(
+        report["evidence_ingestion"]["coverage"]["missing_optional_source_count"],
+        1
+    );
+    assert_eq!(
+        report["evidence_ingestion"]["advisory_bridge"]["checked_count"],
+        1
+    );
+    assert_eq!(
+        report["evidence_ingestion"]["coverage"]["malformed_record_count"],
+        0
+    );
+}
+
+#[test]
+fn shell_telemetry_is_observation_only_and_cannot_open_findings() {
+    let root = std::env::temp_dir().join(format!(
+        "kernel-sentinel-shell-observation-{}",
+        crate::deterministic_receipt_hash(&json!({"test": "shell-observation"}))
+    ));
+    let evidence_dir = root.join("local/state/kernel_sentinel/evidence");
+    fs::create_dir_all(&evidence_dir).unwrap();
+    fs::write(
+        evidence_dir.join("shell_telemetry.jsonl"),
+        r#"{"id":"shell-1","ok":false,"subject":"chat-bubble","kind":"presentation_status","category":"RuntimeCorrectness","severity":"Critical","summary":"shell displayed stale thinking text","evidence":["shell://chat-bubble"],"details":{"source_artifact":"shell://chat-bubble"}}"#,
+    )
+    .unwrap();
+    write_required_sentinel_evidence(&root);
+    let (report, verdict, exit) = build_report(&root, &["--strict=1".to_string()]);
+    assert_eq!(exit, 0);
+    assert_eq!(report["evidence_ingestion"]["normalized_record_count"], 15);
+    let shell_record = report["evidence_ingestion"]["normalized_records"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|record| record["source"] == "shell_telemetry")
+        .expect("shell telemetry record should be normalized");
+    assert_eq!(shell_record["may_write_verdict"], false);
+    assert_eq!(verdict["finding_count"], 0);
+    assert_eq!(report["findings"].as_array().unwrap().len(), 0);
+    assert_eq!(report["release_gate"]["pass"], true);
+}
+
+#[test]
+fn missing_shell_telemetry_does_not_make_complete_required_evidence_partial() {
+    let root = std::env::temp_dir().join(format!(
+        "kernel-sentinel-required-coverage-{}",
+        crate::deterministic_receipt_hash(&json!({"test": "required-coverage"}))
+    ));
+    let evidence_dir = root.join("local/state/kernel_sentinel/evidence");
+    fs::create_dir_all(&evidence_dir).unwrap();
+    for (file_name, subject, category) in [
+        ("kernel_receipts.jsonl", "receipt-1", "ReceiptIntegrity"),
+        ("runtime_observations.jsonl", "runtime-1", "RuntimeCorrectness"),
+        ("state_mutations.jsonl", "mutation-1", "StateTransition"),
+        ("scheduler_admission.jsonl", "admission-1", "CapabilityEnforcement"),
+        ("live_recovery.jsonl", "recovery-1", "RuntimeCorrectness"),
+        ("boundedness_observations.jsonl", "boundedness-1", "Boundedness"),
+        ("release_proof_packs.jsonl", "proof-pack-1", "ReleaseEvidence"),
+        ("release_repairs.jsonl", "repair-1", "ReleaseEvidence"),
+        ("gateway_health.jsonl", "gateway-1", "GatewayIsolation"),
+        ("gateway_quarantine.jsonl", "quarantine-1", "GatewayIsolation"),
+        ("gateway_recovery.jsonl", "gateway-recovery-1", "GatewayIsolation"),
+        ("gateway_isolation.jsonl", "gateway-isolation-1", "GatewayIsolation"),
+        ("queue_backpressure.jsonl", "queue-1", "QueueBackpressure"),
+        ("control_plane_eval.jsonl", "eval-1", "RuntimeCorrectness"),
+    ] {
+        fs::write(
+            evidence_dir.join(file_name),
+            format!(
+                "{{\"id\":\"{subject}\",\"ok\":true,\"subject\":\"{subject}\",\"kind\":\"required_stream_regression\",\"category\":\"{category}\",\"evidence\":[\"fixture://{subject}\"],\"details\":{{\"source_artifact\":\"fixture://{subject}\"}}}}"
+            ),
+        )
+        .unwrap();
+    }
+    let (report, _verdict, exit) = build_report(&root, &[]);
+    assert_eq!(exit, 0);
+    assert_eq!(report["evidence_ingestion"]["observation_state"], "healthy_observation");
+    assert_eq!(
+        report["evidence_ingestion"]["coverage"]["missing_required_source_count"],
+        0
+    );
+    assert_eq!(
+        report["evidence_ingestion"]["coverage"]["missing_optional_source_count"],
+        1
+    );
+    assert_eq!(
+        report["operator_summary"]["missing_required_source_count"],
+        0
+    );
 }
 
 #[test]
@@ -147,6 +365,7 @@ fn valid_human_waiver_unblocks_strict_report() {
         r#"{"id":"w1","fingerprint":"receipt:missing:mutation","approved_by":"human:jay","expires_at_epoch":4102444800,"evidence":["review://w1"],"rollback_plan":"restore previous build","mitigation_plan":"monitor receipts","receipt":"waiver_receipt://w1"}"#,
     )
     .unwrap();
+    write_required_sentinel_evidence(&root);
     let args = vec!["--strict=1".to_string()];
     let (report, verdict, exit) = build_report(&root, &args);
     assert_eq!(exit, 0);
