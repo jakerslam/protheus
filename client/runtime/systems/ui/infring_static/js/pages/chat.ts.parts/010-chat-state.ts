@@ -68,6 +68,7 @@ function chatPage() {
     messageDisplayInitialLimit: 10,
     messageDisplayStep: 5,
     messageDisplayCount: 10,
+    messageTextRenderWindowRadius: 20,
     _messageDisplayKey: '',
     // Voice recording state
     recording: false,

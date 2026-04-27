@@ -55,6 +55,32 @@
   color: var(--text-dim);
 }
 
+infring-chat-bubble-render.message-text-skeletonized .message-bubble-content {
+  color: transparent !important;
+  text-shadow: none !important;
+  user-select: none;
+  -webkit-user-select: none;
+  border-radius: 0 !important;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 0.36em,
+    color-mix(in srgb, var(--text-dim) 46%, transparent) 0.36em,
+    color-mix(in srgb, var(--text-dim) 46%, transparent) 1.06em,
+    transparent 1.06em,
+    transparent 1.65em
+  );
+}
+
+infring-chat-bubble-render.message-text-skeletonized .message-bubble-content * {
+  color: transparent !important;
+  border-color: transparent !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
 .message-stat-btn.message-stat-btn-text {
   width: auto;
   min-width: 0;
