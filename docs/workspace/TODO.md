@@ -1,45 +1,25 @@
-- [ ] `V13-SYS-ROI-CLOSURE-008` — in_progress — Add structured operator-summary data to the tool-routing authority JSON report. Acceptance: authority report JSON exposes status, check counts, planner audit failure count, artifact paths, operator next step, top failed check, missing count, authority-promotion block state, and release-blocking state, and Markdown rendering consumes that structured summary. Targets: `surface/orchestration/src/tool_routing_authority.rs`, `surface/orchestration/src/tool_routing_authority/report_rendering.rs`. Implementation patched; validation still required before closure.
-- [ ] `V13-SYS-ROI-CLOSURE-007` — in_progress — Split tool-routing authority report rendering out of the monolithic guard module. Acceptance: report rendering lives in a logically named Rust submodule with isolated operator summary, failed-check, payload-audit, and full-check rendering helpers while the parent guard keeps evidence collection/check logic. Targets: `surface/orchestration/src/tool_routing_authority.rs`, `surface/orchestration/src/tool_routing_authority/report_rendering.rs`. Implementation patched; validation still required before closure.
-- [ ] `V13-SYS-ROI-CLOSURE-006` — in_progress — Make the tool-routing authority report operator-actionable instead of pass/fail-only. Acceptance: rendered report exposes status, check counts, planner payload audit failures, artifact paths, operator next step, failed checks before full checks, missing counts, and evidence per check. Target: `surface/orchestration/src/tool_routing_authority.rs`. Implementation patched; validation still required before closure.
-- [ ] `V13-SYS-ROI-CLOSURE-005` — in_progress — Bind eval, live-eval, and release proof-pack issue candidates to one lifecycle/provenance/safety contract in the authority guard. Acceptance: guard checks contract version, source report, lifecycle state, local-relative source artifacts, triage queue, operator ack, reopen/absence policy, closure verification command, safe-to-file, no-auto-patch, human-review, no-autonomous-mitigation, eval closing-evidence fields, and proof-pack local artifact validation. Target: `surface/orchestration/src/tool_routing_authority.rs`. Implementation patched; validation still required before closure.
-- [ ] `V13-SYS-ROI-CLOSURE-004` — in_progress — Make the tool-routing authority guard validate request-surface policy semantics, local artifact hygiene, payload-audit scope, and eval issue safety posture. Acceptance: guard checks SDK/gateway/dashboard/typed CLI probe authority, legacy-only heuristic/payload shortcuts, missing-probe diagnostic tokens, local artifact output paths, complete planner/sequencing payload-audit scope, and proposal-only eval issue safety fields. Target: `surface/orchestration/src/tool_routing_authority.rs`. Implementation patched; validation still required before closure.
-- [ ] `V13-SYS-ROI-CLOSURE-003` — in_progress — Extend system authority guards across planner signatures, workflow-quality scoping, eval issue recurrence, and transient observation invariants. Acceptance: planner signatures use stable capability keys and visible reason metadata; tool-routing authority guard fails if workflow-scoped ForgeCode quality fields, repeated eval issue gates, or transient observation invariant reports disappear. Targets: `surface/orchestration/src/planner/plan_candidates.rs`, `surface/orchestration/src/tool_routing_authority.rs`. Implementation patched; validation still required before closure.
-- [ ] `V13-SYS-ROI-CLOSURE-002` — in_progress — Harden planner candidate metadata and authority guards after the V13 planner-truth wave. Acceptance: decomposition signatures use stable capability keys, selected/empty candidates populate decomposition signatures, reported capabilities mirror final capability graphs including `PrepareContext`, explicit context-preparation rationale is visible, and tool-routing authority guards enforce the metadata/probe contracts. Targets: `surface/orchestration/src/planner/plan_candidates.rs`, `surface/orchestration/src/tool_routing_authority.rs`. Implementation patched; validation still required before closure.
 # TODO (SRS Execution Checklist)
 
-
-## Planner Truth and Runtime Governance Cleanup (2026-04-26)
-
-- [ ] `V13-PLANNER-TRUTH-001` — queued — Remove the last raw-payload planner shortcut by replacing `transport_explicitly_unavailable()` with probe-envelope or execution-observation data only. Acceptance: non-legacy transport availability decisions no longer read `request.payload` directly. Targets: `surface/orchestration/src/planner/planner.rs`, `surface/orchestration/src/planner/preconditions.rs`.
-- [ ] `V13-PLANNER-TRUTH-002` — in_progress — Add a planner/source-of-truth guard that scans planner and sequencing paths for non-legacy planning decisions sourced directly from raw payload fields. Acceptance: guard reports any non-legacy `request.payload[...]` planning branch with file/line and allowed legacy exceptions. Targets: `tests/tooling/scripts/ci/**`, planner CI wiring. Implementation patched: `surface/orchestration/src/tool_routing_authority.rs` planner payload audit now includes `surface/orchestration/src/sequencing.rs` as `sequencing_feedback_and_fallback`, so non-legacy sequencing raw-payload decision reads are reported with planner candidate reads. Validation still required before closure.
-- [ ] `V13-PLANNER-TRUTH-003` — in_progress — Make adapted surfaces probe-authoritative by policy for SDK, gateway, dashboard, and typed CLI requests. Acceptance: adapted/non-legacy surfaces refuse missing transport/policy probes instead of inferring from hints. Targets: `surface/orchestration/src/planner/preconditions.rs`, request-surface policy config. Implementation patched: `surface/orchestration/config/request_surface_probe_authority_policy.json` declares SDK/gateway/dashboard/typed CLI as probe-authoritative with legacy as the only compatibility lane; `surface/orchestration/src/tool_routing_authority.rs` now requires that policy in the authority guard. Validation still required before closure.
-- [ ] `V13-PLANNER-TRUTH-004` — in_progress — Fence heuristic probe fallbacks behind explicit compatibility-lane metadata. Acceptance: `heuristic.policy_scope_and_mutability` and `heuristic.transport_hints_or_operation` cannot satisfy required probes unless the request is legacy/compatibility-tagged. Targets: `surface/orchestration/src/planner/preconditions.rs`, planner tests. Implementation patched: `surface/orchestration/src/planner/preconditions.rs` now exposes `allow_heuristic_probe_fallback()` as the legacy-only compatibility fence and returns missing-probe field diagnostics for non-legacy policy/transport fallback attempts; `surface/orchestration/src/tool_routing_authority.rs` now checks the fence. Validation still required before closure.
-- [ ] `V13-PLANNER-TRUTH-005` — in_progress — Split context preparation from read memory at the model level by promoting session context preparation into an explicit capability/pre-step with rationale. Acceptance: selected plans expose context preparation as a named mutating capability, not an invisible read helper. Targets: `surface/orchestration/src/planner/capability_registry.rs`, `surface/orchestration/src/planner/planner.rs`. Implementation patched: `surface/orchestration/src/contracts.rs` adds `Capability::PrepareContext`; ingress/preconditions parse `prepare_context`; `surface/orchestration/src/planner/capability_registry.rs` emits the session context pre-step with the explicit capability; conformance expectation now asserts the mutating pre-step capability identity. Validation still required before closure.
-- [ ] `V13-PLANNER-TRUTH-006` — in_progress — Add a pure-read nonmutation invariant for `ReadMemory`. Acceptance: pure read plans remain non-mutating unless the explicit context-preparation capability is selected and reported. Targets: orchestration planner regression tests. Implementation patched: `surface/orchestration/src/planner/plan_candidates.rs` now reports `Capability::PrepareContext` in candidate capability metadata whenever the mutating context-preparation pre-step is selected; `surface/orchestration/tests/conformance/planning_execution.rs` now asserts pure reads do not carry `PrepareContext` while context-preparing alternatives do. Validation still required before closure. Implementation patched: `surface/orchestration/src/planner/plan_candidates.rs` now reports `Capability::PrepareContext` in candidate capability metadata whenever the mutating context-preparation pre-step is selected; `surface/orchestration/tests/conformance/planning_execution.rs` now asserts pure reads do not carry `PrepareContext` while context-preparing alternatives do. Validation still required before closure.
-- [ ] `V13-PLANNER-TRUTH-007` — in_progress — Deepen `alternative_plans` for comparative request classes so alternatives differ by decomposition family/capability graph/contract family, not just ranking. Acceptance: at least two comparative alternatives carry distinct capability inventories. Targets: `surface/orchestration/src/planner/planner.rs`, `surface/orchestration/src/contracts.rs`. Implementation patched: `surface/orchestration/src/contracts.rs` adds `PlanCandidate.decomposition_signature`; `surface/orchestration/src/planner/plan_candidates.rs` derives the signature from decomposition family, contract family, and capability graph; comparative conformance now asserts distinct signatures as well as distinct capability inventories. Validation still required before closure.
-- [ ] `V13-PLANNER-TRUTH-008` — in_progress — Deepen `alternative_plans` for ForgeCode-heavy workflow requests using the existing workflow quality surface without leaking workflow-specific doctrine into generic runtime quality. Acceptance: ForgeCode alternatives expose distinct contract families through workflow-scoped quality fields only. Targets: `surface/orchestration/src/planner/planner.rs`, `surface/orchestration/src/result_packaging.rs`. Implementation patched: `surface/orchestration/src/contracts.rs` adds ForgeCode-only workflow decomposition signal fields; `surface/orchestration/src/result_packaging.rs` populates them from selected/alternative plan signatures, contract families, and capability graphs; `surface/orchestration/tests/conformance/lifecycle_feedback.rs` asserts the workflow-scoped decomposition evidence without adding ForgeCode doctrine to generic runtime quality. Validation still required before closure.
-- [ ] `V13-PLANNER-TRUTH-009` — in_progress — Add transient execution-observation invariant coverage for replace and clear paths. Acceptance: tests fail if BTreeMap observation rows and heap-backed transient objects drift after replace/clear. Targets: `surface/orchestration/src/transient_context.rs`, transient-context tests. Implementation patched: `surface/orchestration/src/transient_context.rs` now records retired observation refs during sleep cleanup and restart stale sweep before map rows are pruned, and tests assert invariant-report state after sleep cleanup/restart recovery. Validation still required before closure. Implementation patched: `surface/orchestration/src/transient_context.rs` now exposes `TransientExecutionObservationInvariantReport`, tracks retired execution-observation heap objects on replace/clear, and adds regression coverage for invariant report state across replace and clear. Validation still required before closure.
-- [ ] `V13-PLANNER-TRUTH-010` — in_progress — Add transient execution-observation invariant coverage for sleep cleanup and restart-style reload paths. Acceptance: tests fail if cleaned heap objects remain referenced or observations survive without matching transient context. Targets: `surface/orchestration/src/transient_context.rs`, transient-context tests.
-- [ ] `V13-PLANNER-TRUTH-011` — in_progress — Gate automated issue candidates on repeated stable signatures rather than one-off degraded runs. Acceptance: issue candidates require dedupe key recurrence/threshold evidence before `issue_candidate_ready=true`. Targets: `surface/orchestration/src/continuous_eval.rs`, `surface/orchestration/src/eval_feedback_router.rs`. Implementation patched: `surface/orchestration/src/eval_feedback_router.rs` and `surface/orchestration/src/continuous_eval.rs` now require clustered/repeated stable signatures before issue readiness and record stable-signature occurrence metadata. Validation still required before closing this row.
-- [ ] `V13-PLANNER-TRUTH-012` — in_progress — Rate-limit and cluster self-maintenance recommendations below issue filing so ordinary planner roughness does not amplify into repeated remediation noise. Acceptance: repeated degraded/fallback states collapse into one recommendation window by session, plan fingerprint, recovery reason, and blocked-precondition signature. Targets: `surface/orchestration/src/self_maintenance.rs`, `surface/orchestration/src/lib.rs`. Implementation patched: `surface/orchestration/src/lib.rs` now collapses repeated rate-limited windows by suppressing duplicate review fallback actions while retaining lifecycle cluster next-actions; conformance expectation updated in `surface/orchestration/tests/conformance/lifecycle_feedback.rs`. Validation still required before closing this row.
-
-Updated: 2026-04-26T04:07:02.969Z
+Updated: 2026-04-27T02:42:08.374Z
 
 ## Global Rollup
-- total_rows: 3860
-- queued: 78
-- in_progress: 18
+- total_rows: 3904
+- queued: 58
+- in_progress: 7
 - blocked: 1
 - blocked_external_prepared: 32
-- done: 1452
-- existing_coverage_validated: 2279
+- done: 1506
+- existing_coverage_validated: 2300
 
 ## SRS Section Checklist
-- [ ] System Truth Closure ROI Wave (2026-04-26) — queued=0, in_progress=1, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
-- [ ] Eval Feedback Lifecycle Governance (2026-04-25) — queued=0, in_progress=1, blocked=0, blocked_external_prepared=0, done=27, existing_coverage_validated=0
+- [x] Tool Execution Reliability and Synthesis Grounding Intake (2026-04-26) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Shell Authority Boundary Reduction (2026-04-26) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
+- [x] System Truth Closure ROI Wave (2026-04-26) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=8, existing_coverage_validated=0
+- [x] Kernel Sentinel Evidence Wiring and Data-Starvation Closure (2026-04-26) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=16, existing_coverage_validated=0
+- [x] Eval Feedback Lifecycle Governance (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=28, existing_coverage_validated=0
 - [x] Kernel Sentinel Self-Study Automation Backlog (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=15, existing_coverage_validated=0
-- [x] Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=45, existing_coverage_validated=0
-- [ ] Orchestration Control-Plane Research TODO Wave (2026-04-25) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=11, existing_coverage_validated=0
+- [x] Orchestration Planner Truth and Feedback-Loop Quality Intake (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=57, existing_coverage_validated=0
+- [x] Orchestration Control-Plane Research TODO Wave (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=12, existing_coverage_validated=0
 - [x] High-ROI Release Proof-Pack Closure Wave (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Misty / Control-Plane Health Wave 1 (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Misty / Control-Plane Health Wave 2 (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
@@ -49,6 +29,7 @@ Updated: 2026-04-26T04:07:02.969Z
 - [x] Misty / Control-Plane Health Wave 6 (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Misty / Control-Plane Health Wave 7 (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
 - [x] Misty / Control-Plane Health Wave 8 (2026-04-26) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [x] Misty / Control-Plane Health Wave 9 (2026-04-26) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=2, existing_coverage_validated=0
 - [x] Test/Gate Maturity Registry Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] High-ROI Web + Installer Closure Guard Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=2, existing_coverage_validated=0
 - [x] Chat Rendering Experience Guard Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
@@ -66,10 +47,11 @@ Updated: 2026-04-26T04:07:02.969Z
 - [x] Eval Agent Feedback Attention Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=3, existing_coverage_validated=0
 - [x] Workflow Direct Answer Preservation Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Live Eval Monitor Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
+- [x] Agent Attention Ingress Increment (2026-04-26) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Synthetic User Chat Harness Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] SRS Surface Evidence Regression Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Eval Learning Loop Inbox Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
-- [ ] ForgeCode MCP/Retry Workflow Assimilation Increment (2026-04-23) — queued=0, in_progress=1, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [x] ForgeCode MCP/Retry Workflow Assimilation Increment (2026-04-23) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Ownership Drift Weekly Generator + High-Severity Threshold Workflow Densification Increment (2026-04-23) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=2, existing_coverage_validated=0
 - [x] Shell Authority Audit + Truth-Leak Guard Hardening Increment (2026-04-23) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
 - [x] Release Verdict Gate Post-v15 Vector Integrity and v15 Family Continuity Densification Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
@@ -175,29 +157,29 @@ Updated: 2026-04-26T04:07:02.969Z
 - [x] RTK Capability Assimilation Intake (2026-04-05) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
 - [x] Turn Loop Primitive Wiring Intake (2026-04-05) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=2, existing_coverage_validated=0
 - [ ] Knowledge Graph Query Acceleration Intake (2026-04-14) — queued=9, in_progress=0, blocked=0, blocked_external_prepared=0, done=13, existing_coverage_validated=0
-- [ ] Web Retrieval Reliability Intake (2026-04-06) — queued=0, in_progress=2, blocked=0, blocked_external_prepared=0, done=12, existing_coverage_validated=1
+- [x] Web Retrieval Reliability Intake (2026-04-06) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=14, existing_coverage_validated=1
 - [x] Container Runtime Reliability Intake (2026-04-08) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [ ] File Read Reliability Intake (2026-04-06) — queued=0, in_progress=3, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
 - [x] Memory Continuity Reliability Intake (2026-04-06) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [ ] Manage IA Consolidation Intake (2026-04-05) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
 - [ ] Automation IA Consolidation Intake (2026-04-05) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
 - [ ] System IA Consolidation Intake (2026-04-05) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
-- [ ] Version Update CLI Reliability Intake (2026-04-05) — queued=6, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Version Update CLI Reliability Intake (2026-04-05) — queued=4, in_progress=2, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
 - [x] Installer Reliability v1.0 Intake (2026-04-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=7, existing_coverage_validated=0
 - [x] Mass Adoption Launch Checklist (Next Pass) (2026-04-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=28, existing_coverage_validated=1
 - [x] Adaptive Runtime Primitive Expansion Intake (2026-04-04) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
-- [ ] Task Fabric Primitive Intake (2026-04-09) — queued=0, in_progress=1, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
-- [ ] Governed Self-Maintenance Supervisor Intake (2026-04-09) — queued=0, in_progress=1, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
-- [ ] Software Assimilation Capability Intake (2026-04-09) — queued=0, in_progress=1, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
-- [ ] Directed Assimilation Protocol Intake (2026-04-09) — queued=0, in_progress=1, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
-- [ ] Unified Low-Level Provenance Primitive Bundle Intake (2026-04-09) — queued=0, in_progress=5, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
+- [x] Task Fabric Primitive Intake (2026-04-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
+- [x] Governed Self-Maintenance Supervisor Intake (2026-04-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
+- [x] Software Assimilation Capability Intake (2026-04-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
+- [x] Directed Assimilation Protocol Intake (2026-04-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
+- [x] Unified Low-Level Provenance Primitive Bundle Intake (2026-04-09) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=5
 - [x] Context Stacks for Cacheable Memory Groups Intake (2026-04-05) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=22, existing_coverage_validated=0
 - [ ] Runtime UX + Scheduler Autonomy Intake (2026-04-01) — queued=4, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
 - [x] Nexus Internal Protocol Intake (2026-04-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [ ] Custom Arena + Slab Allocator Intake (2026-04-02) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
 - [ ] Reference Runtime Gap Closure Intake (2026-04-02) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
 - [ ] Digital DNA Foundation v1 Intake (2026-04-01) — queued=2, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
-- [ ] Agent Governance + Continuity Hardening Intake (2026-04-01) — queued=7, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
+- [ ] Agent Governance + Continuity Hardening Intake (2026-04-01) — queued=1, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=3
 - [ ] Claude Token-Efficiency Assimilation Intake (x.com/meta_alchemist/2038919582111670415, 2026-04-02) — queued=3, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
 - [ ] better-clawd Assimilation Intake (2026-04-02) — queued=3, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
 - [ ] Claude Leak Assimilation Intake #2 (Tiered Compaction / PROACTIVE_DAEMON / Speculation, 2026-04-02) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=1, done=5, existing_coverage_validated=1
@@ -386,7 +368,7 @@ Updated: 2026-04-26T04:07:02.969Z
 - [x] Persona Seamless Workflow Integration Pack (2026-03-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=4
 - [x] Persona Conflict-Arbitration Automation Pack (2026-03-03) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=1
 - [x] Infring Conduit Program (Requirements Intake 2026-03-05) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=8
-- [ ] Hierarchical Nexus Routing System (Requirements Intake 2026-04-06) — queued=16, in_progress=0, blocked=0, blocked_external_prepared=0, done=3, existing_coverage_validated=0
+- [ ] Hierarchical Nexus Routing System (Requirements Intake 2026-04-06) — queued=7, in_progress=0, blocked=0, blocked_external_prepared=0, done=3, existing_coverage_validated=9
 - [x] Security Credibility And Verification Program (2026-03-06) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=9, existing_coverage_validated=0
 - [x] ZeroLeaks Injection Hardening Source Coverage Intake (Doc `143v84ci3rHjP7WtbYi9tJ2KeJZUkNTIsFTye1NHrheA`, 2026-03-11) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
 - [x] Rust Kernel Primitive Source-Of-Truth Program (2026-03-06) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=9
@@ -623,9 +605,9 @@ Updated: 2026-04-26T04:07:02.969Z
 - [x] Recent Runtime Regression-Shield Intake (2026-03-31) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=17
 - [x] Governed Web Conduit Intake (2026-03-31) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=15, existing_coverage_validated=19
 - [x] External Framework + Research Assimilation Intake (Internet Source Pass, 2026-04-01) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=2, existing_coverage_validated=1
-- [ ] Internal Conversation Search + Archived Chat View Intake (2026-04-01) — queued=2, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
+- [ ] Internal Conversation Search + Archived Chat View Intake (2026-04-01) — queued=1, in_progress=1, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
 - [ ] Intent-Aware Tooling + Memory Intelligence Delta (Feedback Assimilation, 2026-04-01) — queued=3, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
-- [ ] 10/10 Completion Intake (2026-04-03) — queued=1, in_progress=1, blocked=0, blocked_external_prepared=0, done=34, existing_coverage_validated=25
+- [ ] 10/10 Completion Intake (2026-04-03) — queued=0, in_progress=1, blocked=0, blocked_external_prepared=0, done=35, existing_coverage_validated=25
 - [x] Strategic Differentiation Intake (Filtered + Expanded, 2026-04-04) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=5
 - [ ] Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04) — queued=5, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
 - [ ] Stomach v1 Intake (V6-ORGAN-001, 2026-04-05) — queued=10, in_progress=0, blocked=0, blocked_external_prepared=0, done=0, existing_coverage_validated=0
@@ -670,31 +652,18 @@ Updated: 2026-04-26T04:07:02.969Z
 - [x] Eval Monitoring Feedback Integrity (2026-04-25) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 
 ## Actionable SRS Items (Queued/In Progress)
-- [ ] `V10-DASH-SEARCH-001.2` — queued — Internal Conversation Search + Archived Chat View Intake (2026-04-01)
+- [ ] `V10-DASH-SEARCH-001.2` — in_progress — Internal Conversation Search + Archived Chat View Intake (2026-04-01)
 - [ ] `V11-FILE-001` — in_progress — File Read Reliability Intake (2026-04-06)
 - [ ] `V11-LLM-002.4` — in_progress — 10/10 Completion Intake (2026-04-03)
-- [ ] `V11-SWARM-TOOL-RESP-005` — queued — 10/10 Completion Intake (2026-04-03)
-- [ ] `V11-TSRUST-001` — queued — Version Update CLI Reliability Intake (2026-04-05)
-- [ ] `V11-TSRUST-002` — queued — Version Update CLI Reliability Intake (2026-04-05)
+- [ ] `V11-TSRUST-001` — in_progress — Version Update CLI Reliability Intake (2026-04-05)
+- [ ] `V11-TSRUST-002` — in_progress — Version Update CLI Reliability Intake (2026-04-05)
 - [ ] `V11-TSRUST-005` — queued — Version Update CLI Reliability Intake (2026-04-05)
 - [ ] `V11-TURNLOOP-009` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V11-TURNLOOP-011` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V11-TURNLOOP-013` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V11-TURNLOOP-014` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
-- [ ] `V11-WEB-007` — in_progress — Web Retrieval Reliability Intake (2026-04-06)
-- [ ] `V11-WEB-009` — in_progress — Web Retrieval Reliability Intake (2026-04-06)
-- [ ] `V12-ORCH-RESEARCH-005` — queued — Orchestration Control-Plane Research TODO Wave (2026-04-25)
-- [ ] `V6-ASSIM-001` — in_progress — Software Assimilation Capability Intake (2026-04-09)
-- [ ] `V6-ASSIM-002` — in_progress — Directed Assimilation Protocol Intake (2026-04-09)
-- [ ] `V6-AUTO-001` — in_progress — Governed Self-Maintenance Supervisor Intake (2026-04-09)
-- [ ] `V6-CONDUIT-002.1` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
-- [ ] `V6-CONDUIT-002.3` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
-- [ ] `V6-CONDUIT-002.4` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
-- [ ] `V6-CONDUIT-002.6` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
-- [ ] `V6-CONDUIT-002.8` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
 - [ ] `V6-LANGUAGE-003` — queued — Claude Token-Efficiency Assimilation Intake (x.com/meta_alchemist/2038919582111670415, 2026-04-02)
 - [ ] `V6-LLM-005` — queued — better-clawd Assimilation Intake (2026-04-02)
-- [ ] `V6-ORCH-002` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
 - [ ] `V6-ORGAN-001.1` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
 - [ ] `V6-ORGAN-001.10` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
 - [ ] `V6-ORGAN-001.2` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
@@ -702,15 +671,11 @@ Updated: 2026-04-26T04:07:02.969Z
 - [ ] `V6-ORGAN-001.5` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
 - [ ] `V6-ORGAN-001.7` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
 - [ ] `V6-OS-001` — queued — Custom Arena + Slab Allocator Intake (2026-04-02)
-- [ ] `V6-PRIM-001` — in_progress — Unified Low-Level Provenance Primitive Bundle Intake (2026-04-09)
-- [ ] `V6-PRIM-002` — in_progress — Unified Low-Level Provenance Primitive Bundle Intake (2026-04-09)
-- [ ] `V6-SAFETY-031` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
 - [ ] `V6-SEC-022` — queued — better-clawd Assimilation Intake (2026-04-02)
 - [ ] `V6-SWARM-039` — queued — Claude Token-Efficiency Assimilation Intake (x.com/meta_alchemist/2038919582111670415, 2026-04-02)
 - [ ] `V6-TOOL-001.3` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
 - [ ] `V6-TOOL-001.4` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
 - [ ] `V6-TOOL-001.5` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
-- [ ] `V6-TOOL-004` — in_progress — Task Fabric Primitive Intake (2026-04-09)
 - [ ] `V10-DASH-INTENT-001.1` — queued — Intent-Aware Tooling + Memory Intelligence Delta (Feedback Assimilation, 2026-04-01)
 - [ ] `V10-DASH-INTENT-001.2` — queued — Intent-Aware Tooling + Memory Intelligence Delta (Feedback Assimilation, 2026-04-01)
 - [ ] `V10-DASH-SEARCH-001.1` — queued — Internal Conversation Search + Archived Chat View Intake (2026-04-01)
@@ -723,20 +688,15 @@ Updated: 2026-04-26T04:07:02.969Z
 - [ ] `V11-TURNLOOP-017` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
 - [ ] `V6-CONDUIT-002.10` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
 - [ ] `V6-CONDUIT-002.11` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
-- [ ] `V6-CONDUIT-002.12` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
 - [ ] `V6-CONDUIT-002.13` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
 - [ ] `V6-CONDUIT-002.14` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
 - [ ] `V6-CONDUIT-002.15` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
 - [ ] `V6-CONDUIT-002.16` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
-- [ ] `V6-CONDUIT-002.2` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
-- [ ] `V6-CONDUIT-002.7` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
 - [ ] `V6-CONDUIT-002.9` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
-- [ ] `V6-CTX-021` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
 - [ ] `V6-LANGUAGE-004` — queued — Claude Token-Efficiency Assimilation Intake (x.com/meta_alchemist/2038919582111670415, 2026-04-02)
 - [ ] `V6-MEMORY-031` — queued — better-clawd Assimilation Intake (2026-04-02)
 - [ ] `V6-ORGAN-001.3` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
 - [ ] `V6-ORGAN-001.6` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
-- [ ] `V6-PRIM-003` — in_progress — Unified Low-Level Provenance Primitive Bundle Intake (2026-04-09)
 - [ ] `V6-SCHED-024` — queued — Runtime UX + Scheduler Autonomy Intake (2026-04-01)
 - [ ] `V6-TOOL-001.1` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
 - [ ] `V6-TOOL-001.2` — queued — Batch Query Primitive Intake (V6-TOOL-001, 2026-04-04)
@@ -744,16 +704,7 @@ Updated: 2026-04-26T04:07:02.969Z
 - [ ] `V10-MEMORY-032.1` — queued — Intent-Aware Tooling + Memory Intelligence Delta (Feedback Assimilation, 2026-04-01)
 - [ ] `V11-FILE-003` — in_progress — File Read Reliability Intake (2026-04-06)
 - [ ] `V11-TURNLOOP-016` — queued — Knowledge Graph Query Acceleration Intake (2026-04-14)
-- [ ] `V12-FORGECODE-001` — in_progress — ForgeCode MCP/Retry Workflow Assimilation Increment (2026-04-23)
-- [ ] `V13-SYS-ROI-CLOSURE-001` — in_progress — System Truth Closure ROI Wave (2026-04-26); latest ROI slices added issue-candidate ownership/impact/target-layer/evidence-source/release-gate effect/closing evidence/escalation/stability/operator-next-step/triage queue/human-review/no-autopatch/reopen policy, live-eval source issue candidates with dedupe/labels/closeout/operator/triage evidence, and ranked/deduped proof-pack blocker priority, owner, layer, escalation, triage queue, release-gate effect, safety, actionability contracts, issue-contract versioning, source-report identity, operator ack requirements, close-on-absence semantics, lifecycle state, source artifact provenance, local-artifact hygiene, related failure IDs, closure verification commands, and top actions Eval authority calibration now has an orchestration-owned longitudinal guard at surface/orchestration/src/eval_authority_calibration.rs, exposed through eval_runtime authority-calibration, that treats eval observations as authoritative evidence while gating closed-loop automatic system changes behind reviewer-outcome precision/recall/error ceilings, consecutive clean-window tracking, operator approval, and explicit policy enablement.
-- [ ] `V13-EVAL-FEEDBACK-LIFECYCLE-001` — in_progress — Eval Feedback Lifecycle Governance (2026-04-25)
-- [ ] `V6-AUDIT-014` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
-- [ ] `V6-CONDUIT-002.5` — queued — Hierarchical Nexus Routing System (Requirements Intake 2026-04-06)
-- [ ] `V6-OBS-005` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
 - [ ] `V6-ORGAN-001.8` — queued — Stomach v1 Intake (V6-ORGAN-001, 2026-04-05)
-- [ ] `V6-PRIM-004` — in_progress — Unified Low-Level Provenance Primitive Bundle Intake (2026-04-09)
-- [ ] `V6-PRIM-005` — in_progress — Unified Low-Level Provenance Primitive Bundle Intake (2026-04-09)
-- [ ] `V6-RESILIENCE-012` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
 - [ ] `V6-UX-094` — queued — Agent Governance + Continuity Hardening Intake (2026-04-01)
 - [ ] `V6-UX-092` — queued — Runtime UX + Scheduler Autonomy Intake (2026-04-01)
 - [ ] `V6-UX-093` — queued — Runtime UX + Scheduler Autonomy Intake (2026-04-01)
