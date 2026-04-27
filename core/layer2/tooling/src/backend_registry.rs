@@ -263,7 +263,9 @@ fn retrieval_plane_health(state_root: &Path) -> ToolBackendHealth {
             resident_ipc_authoritative: resident_ipc_authoritative(),
         };
     }
-    let auth_ready = providers.iter().any(|provider| provider_auth_ready(provider));
+    let auth_ready = providers
+        .iter()
+        .any(|provider| provider_auth_ready(provider));
     let reachable = providers
         .iter()
         .any(|provider| provider_transport_ready(provider));

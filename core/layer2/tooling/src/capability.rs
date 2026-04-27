@@ -285,18 +285,9 @@ fn canonical_tool_name(raw: &str) -> String {
     match normalized.as_str() {
         "workspace_read" | "read_file" => "file_read".to_string(),
         "workspace_read_many" | "read_many_files" => "file_read_many".to_string(),
-        "workspace_search"
-        | "file_search"
-        | "file_list"
-        | "context_search"
-        | "context_resolve"
-        | "workspace_context"
-        | "local_context"
-        | "route_tool_call"
-        | "tool_route"
-        | "execute_tool"
-        | "git_status"
-        | "worktree_inspect" => "workspace_analyze".to_string(),
+        "workspace_search" | "file_search" | "file_list" | "context_search" | "context_resolve"
+        | "workspace_context" | "local_context" | "route_tool_call" | "tool_route"
+        | "execute_tool" | "git_status" | "worktree_inspect" => "workspace_analyze".to_string(),
         "web_lookup" | "browse_web" => "web_search".to_string(),
         "shell_exec" => "terminal_exec".to_string(),
         _ => normalized,

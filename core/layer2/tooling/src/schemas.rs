@@ -412,8 +412,7 @@ mod tests {
         assert!(
             rows.iter().any(|row| {
                 row.get("requested_tool_name").and_then(Value::as_str) == Some("workspace_read")
-                    && row.get("canonical_tool_name").and_then(Value::as_str)
-                        == Some("file_read")
+                    && row.get("canonical_tool_name").and_then(Value::as_str) == Some("file_read")
             }),
             "schema contract must publish workspace_read alias mapping"
         );
@@ -436,8 +435,7 @@ mod tests {
         );
         assert!(
             rows.iter().any(|row| {
-                row.get("requested_tool_name").and_then(Value::as_str)
-                    == Some("route_tool_call")
+                row.get("requested_tool_name").and_then(Value::as_str) == Some("route_tool_call")
                     && row.get("canonical_tool_name").and_then(Value::as_str)
                         == Some("workspace_analyze")
             }),
@@ -453,8 +451,7 @@ mod tests {
         );
         assert!(
             rows.iter().any(|row| {
-                row.get("requested_tool_name").and_then(Value::as_str)
-                    == Some("shell_exec")
+                row.get("requested_tool_name").and_then(Value::as_str) == Some("shell_exec")
                     && row.get("canonical_tool_name").and_then(Value::as_str)
                         == Some("terminal_exec")
             }),
@@ -462,8 +459,7 @@ mod tests {
         );
         assert!(
             rows.iter().any(|row| {
-                row.get("requested_tool_name").and_then(Value::as_str)
-                    == Some("mcp_status")
+                row.get("requested_tool_name").and_then(Value::as_str) == Some("mcp_status")
                     && row.get("canonical_tool_name").and_then(Value::as_str)
                         == Some("workspace_analyze")
             }),

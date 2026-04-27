@@ -1,4 +1,3 @@
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -241,8 +240,10 @@ mod tests {
     fn broker_can_recover_dedupe_state_from_ledger() {
         let ledger_path =
             std::env::temp_dir().join(format!("infring_tool_broker_recover_{}.jsonl", now_ms()));
-        let mut writer = ToolBroker::default();
-        writer.ledger_path = ledger_path.clone();
+        let mut writer = ToolBroker {
+            ledger_path: ledger_path.clone(),
+            ..ToolBroker::default()
+        };
         let first = writer
             .execute_and_normalize(
                 ToolCallRequest {
@@ -261,8 +262,10 @@ mod tests {
             )
             .expect("first");
         let first_result_id = first.normalized_result.result_id;
-        let mut recovered = ToolBroker::default();
-        recovered.ledger_path = ledger_path.clone();
+        let mut recovered = ToolBroker {
+            ledger_path: ledger_path.clone(),
+            ..ToolBroker::default()
+        };
         let recovered_count = recovered.recover_from_ledger().expect("recover");
         assert!(recovered_count >= 1);
         let second = recovered

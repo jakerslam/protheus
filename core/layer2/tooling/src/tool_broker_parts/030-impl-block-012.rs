@@ -1,4 +1,3 @@
-
 impl ToolBroker {
     fn ledger_error<E: std::fmt::Display>(&self, context: &str, err: E) -> BrokerError {
         BrokerError::LedgerWriteFailed(format!("{context}:{}:{err}", self.ledger_path.display()))
@@ -25,11 +24,7 @@ impl ToolBroker {
 
     pub fn capability_probe(&self, caller: BrokerCaller, tool_name: &str) -> ToolCapabilityProbe {
         let canonical_name = canonical_requested_tool_name(tool_name);
-        capability_probe_for(
-            &self.allowed_tools,
-            caller,
-            canonical_name.as_str(),
-        )
+        capability_probe_for(&self.allowed_tools, caller, canonical_name.as_str())
     }
 
     pub fn direct_tool_bypass_attempt(&self, caller: BrokerCaller) -> Result<(), BrokerError> {
@@ -86,35 +81,55 @@ impl ToolBroker {
                 ToolReasonCode::ExecutionError => ToolAttemptStatus::ExecutionError,
                 ToolReasonCode::Ok => ToolAttemptStatus::Ok,
             };
-            self.record_attempt_receipt(
-                request.trace_id.as_str(),
-                request.task_id.as_str(),
-                request.caller,
-                tool_name.as_str(),
-                attempt_status,
-                probe.reason.as_str(),
-                probe.reason_code,
-                event_ts,
-                0,
-                &probe,
-            );
+            let attempt_receipt = self.record_attempt_receipt(AttemptReceiptInput {
+                trace_id: request.trace_id.as_str(),
+                task_id: request.task_id.as_str(),
+                caller: request.caller,
+                tool_name: tool_name.as_str(),
+                status: attempt_status,
+                reason: probe.reason.as_str(),
+                reason_code: probe.reason_code,
+                timestamp: event_ts,
+                latency_ms: 0,
+                probe: &probe,
+            });
+            let execution_receipt = build_tool_execution_receipt(ToolExecutionReceiptInput {
+                attempt: &attempt_receipt,
+                input_hash: input_hash_for_tool(&tool_name, &request.args),
+                started_at: event_ts,
+                ended_at: event_ts,
+                data_ref: None,
+                evidence_count: 0,
+                error_code: error_code_for_attempt(&attempt_receipt),
+            });
+            self.execution_receipts.push(execution_receipt);
             return Err(BrokerError::UnauthorizedToolRequest(tool_name));
         }
         let normalized_args = match repair_and_validate_args(&tool_name, &request.args) {
             Ok(v) => v,
             Err(err) => {
-                self.record_attempt_receipt(
-                    request.trace_id.as_str(),
-                    request.task_id.as_str(),
-                    request.caller,
-                    tool_name.as_str(),
-                    ToolAttemptStatus::InvalidArgs,
-                    "invalid_args",
-                    ToolReasonCode::InvalidArgs,
-                    event_ts,
-                    0,
-                    &probe,
-                );
+                let attempt_receipt = self.record_attempt_receipt(AttemptReceiptInput {
+                    trace_id: request.trace_id.as_str(),
+                    task_id: request.task_id.as_str(),
+                    caller: request.caller,
+                    tool_name: tool_name.as_str(),
+                    status: ToolAttemptStatus::InvalidArgs,
+                    reason: "invalid_args",
+                    reason_code: ToolReasonCode::InvalidArgs,
+                    timestamp: event_ts,
+                    latency_ms: 0,
+                    probe: &probe,
+                });
+                let execution_receipt = build_tool_execution_receipt(ToolExecutionReceiptInput {
+                    attempt: &attempt_receipt,
+                    input_hash: input_hash_for_tool(&tool_name, &request.args),
+                    started_at: event_ts,
+                    ended_at: event_ts,
+                    data_ref: None,
+                    evidence_count: 0,
+                    error_code: error_code_for_attempt(&attempt_receipt),
+                });
+                self.execution_receipts.push(execution_receipt);
                 return Err(err);
             }
         };
@@ -192,8 +207,10 @@ impl ToolBroker {
             "freshness_bucket": freshness_bucket,
         }));
         let started = event_ts;
-        let execution = executor(&normalized_args);
-        let duration_ms = now_ms().saturating_sub(started);
+        let execution =
+            execute_tool_with_payload_validation(&tool_name, &normalized_args, executor);
+        let ended_at = now_ms();
+        let duration_ms = ended_at.saturating_sub(started);
         let (status, raw_payload, errors) = match execution {
             Ok(raw_payload) => (NormalizedToolStatus::Ok, raw_payload, Vec::new()),
             Err(err) => (
@@ -217,13 +234,13 @@ impl ToolBroker {
             NormalizedToolStatus::Error => "error",
             NormalizedToolStatus::Blocked => "blocked",
         };
-        let attempt_receipt = self.record_attempt_receipt(
-            request.trace_id.as_str(),
-            request.task_id.as_str(),
-            request.caller,
-            tool_name.as_str(),
-            attempt_status,
-            errors
+        let attempt_receipt = self.record_attempt_receipt(AttemptReceiptInput {
+            trace_id: request.trace_id.as_str(),
+            task_id: request.task_id.as_str(),
+            caller: request.caller,
+            tool_name: tool_name.as_str(),
+            status: attempt_status,
+            reason: errors
                 .first()
                 .map(String::as_str)
                 .unwrap_or(if status_tag == "ok" {
@@ -232,10 +249,10 @@ impl ToolBroker {
                     "execution_error"
                 }),
             reason_code,
-            event_ts,
-            duration_ms,
-            &probe,
-        );
+            timestamp: event_ts,
+            latency_ms: duration_ms,
+            probe: &probe,
+        });
         let content_fingerprint = deterministic_hash(&json!({
             "kind": "normalized_tool_result_content",
             "tool_name": tool_name,
@@ -313,7 +330,7 @@ impl ToolBroker {
             task_id: clean_text(&request.task_id, 160),
             tool_name,
             status,
-            normalized_args,
+            normalized_args: normalized_args.clone(),
             dedupe_hash,
             lineage,
             timestamp: event_ts,
@@ -343,175 +360,28 @@ impl ToolBroker {
         };
         self.persist_ledger_event(&ledger_event)?;
         self.ledger_events.push(ledger_event);
+        let execution_receipt = build_tool_execution_receipt(ToolExecutionReceiptInput {
+            attempt: &attempt_receipt,
+            input_hash: input_hash_for_tool(&normalized_result.tool_name, &normalized_args),
+            started_at: started,
+            ended_at,
+            data_ref: Some(normalized_result.raw_ref.clone()),
+            evidence_count: tool_payload_evidence_count(&raw_payload),
+            error_code: error_code_for_attempt(&attempt_receipt),
+        });
+        self.execution_receipts.push(execution_receipt.clone());
         let attempt = ToolAttemptEnvelope {
             attempt: attempt_receipt,
+            execution_receipt: execution_receipt.clone(),
             normalized_result: Some(normalized_result.clone()),
             raw_payload: Some(raw_payload.clone()),
             error: None,
         };
         Ok(ToolBrokerExecution {
             attempt,
+            execution_receipt,
             normalized_result,
             raw_payload,
         })
-    }
-
-    pub fn execute_and_envelope<F>(
-        &mut self,
-        request: ToolCallRequest,
-        executor: F,
-    ) -> ToolAttemptEnvelope
-    where
-        F: FnOnce(&Value) -> Result<Value, String>,
-    {
-        let before = self.attempt_receipts.len();
-        match self.execute_and_normalize(request.clone(), executor) {
-            Ok(out) => out.attempt,
-            Err(err) => {
-                let attempt = self
-                    .attempt_receipts
-                    .get(before)
-                    .cloned()
-                    .or_else(|| self.attempt_receipts.last().cloned())
-                    .unwrap_or_else(|| ToolAttemptReceipt {
-                        attempt_id: deterministic_hash(&json!({
-                            "kind": "tool_attempt_receipt_fallback",
-                            "trace_id": request.trace_id,
-                            "task_id": request.task_id,
-                            "tool_name": request.tool_name,
-                            "timestamp": now_ms()
-                        })),
-                        attempt_sequence: self.attempt_receipts.len() as u64 + 1,
-                        trace_id: clean_text(&request.trace_id, 160),
-                        task_id: clean_text(&request.task_id, 160),
-                        caller: request.caller,
-                        tool_name: canonical_requested_tool_name(&request.tool_name),
-                        status: ToolAttemptStatus::ExecutionError,
-                        outcome: "error".to_string(),
-                        reason_code: ToolReasonCode::ExecutionError,
-                        reason: clean_text(&err.as_message(), 300),
-                        latency_ms: 0,
-                        required_args: Vec::new(),
-                        backend: "unknown".to_string(),
-                        discoverable: false,
-                        timestamp: now_ms(),
-                    });
-                ToolAttemptEnvelope {
-                    attempt,
-                    normalized_result: None,
-                    raw_payload: None,
-                    error: Some(err.as_message()),
-                }
-            }
-        }
-    }
-
-    pub fn raw_payload(&self, raw_ref: &str) -> Option<&Value> {
-        self.raw_payloads.get(raw_ref)
-    }
-
-    pub fn ledger_events(&self) -> &[ToolExecutionLedgerEvent] {
-        self.ledger_events.as_slice()
-    }
-
-    pub fn ledger_path(&self) -> &PathBuf {
-        &self.ledger_path
-    }
-
-    pub fn recover_from_ledger(&mut self) -> Result<usize, BrokerError> {
-        if !self.ledger_path.exists() {
-            return Ok(0);
-        }
-        let file = File::open(&self.ledger_path)
-            .map_err(|err| self.ledger_error("open_for_recovery", err))?;
-        self.dedupe_lookup.clear();
-        self.ledger_events.clear();
-        self.event_sequence = 0;
-        let mut recovered = 0usize;
-        for line in BufReader::new(file).lines() {
-            let row = line.map_err(|err| self.ledger_error("read_recovery_line", err))?;
-            let trimmed = row.trim();
-            if trimmed.is_empty() {
-                continue;
-            }
-            let event = serde_json::from_str::<ToolExecutionLedgerEvent>(trimmed)
-                .map_err(|err| self.ledger_error("decode_recovery_line", err))?;
-            self.event_sequence = self.event_sequence.max(event.event_sequence);
-            self.dedupe_lookup
-                .entry(event.dedupe_hash.clone())
-                .or_insert_with(|| event.result_id.clone());
-            self.ledger_events.push(event);
-            recovered = recovered.saturating_add(1);
-        }
-        Ok(recovered)
-    }
-
-    fn persist_ledger_event(&self, event: &ToolExecutionLedgerEvent) -> Result<(), BrokerError> {
-        if let Some(parent) = self.ledger_path.parent() {
-            create_dir_all(parent).map_err(|err| self.ledger_error("create_dir", err))?;
-        }
-        let mut file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&self.ledger_path)
-            .map_err(|err| self.ledger_error("open", err))?;
-        let row = serde_json::to_string(event)
-            .map_err(|err| BrokerError::LedgerWriteFailed(format!("encode_event:{err}")))?;
-        file.write_all(format!("{row}\n").as_bytes())
-            .map_err(|err| self.ledger_error("append", err))?;
-        Ok(())
-    }
-
-    fn record_attempt_receipt(
-        &mut self,
-        trace_id: &str,
-        task_id: &str,
-        caller: BrokerCaller,
-        tool_name: &str,
-        status: ToolAttemptStatus,
-        reason: &str,
-        reason_code: ToolReasonCode,
-        timestamp: u64,
-        latency_ms: u64,
-        probe: &ToolCapabilityProbe,
-    ) -> ToolAttemptReceipt {
-        let attempt_sequence = self.attempt_receipts.len() as u64 + 1;
-        let outcome = match status {
-            ToolAttemptStatus::Ok => "ok",
-            ToolAttemptStatus::Unavailable => "unavailable",
-            ToolAttemptStatus::Blocked | ToolAttemptStatus::PolicyDenied => "blocked",
-            ToolAttemptStatus::InvalidArgs
-            | ToolAttemptStatus::ExecutionError
-            | ToolAttemptStatus::TransportError
-            | ToolAttemptStatus::Timeout => "error",
-        };
-        let receipt = ToolAttemptReceipt {
-            attempt_id: deterministic_hash(&json!({
-                "kind": "tool_attempt_receipt",
-                "trace_id": trace_id,
-                "task_id": task_id,
-                "caller": format!("{caller:?}").to_ascii_lowercase(),
-                "tool_name": tool_name,
-                "outcome": outcome,
-                "timestamp": timestamp,
-                "sequence": attempt_sequence
-            })),
-            attempt_sequence,
-            trace_id: clean_text(trace_id, 160),
-            task_id: clean_text(task_id, 160),
-            caller,
-            tool_name: clean_text(tool_name, 120),
-            status,
-            outcome: clean_text(outcome, 40),
-            reason_code,
-            reason: clean_text(reason, 300),
-            latency_ms,
-            required_args: probe.required_args.clone(),
-            backend: clean_text(&probe.backend, 120),
-            discoverable: probe.discoverable,
-            timestamp,
-        };
-        self.attempt_receipts.push(receipt.clone());
-        receipt
     }
 }

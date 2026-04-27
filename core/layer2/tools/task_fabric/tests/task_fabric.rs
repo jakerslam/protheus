@@ -143,14 +143,13 @@ fn stomach_template_integration_creates_phases() {
         ))
         .is_some());
     assert!(
-        fabric
+        !fabric
             .graph
             .dependencies_of(&phase_task_id(
                 "module-x",
                 infring_task_fabric_core_v1::StomachPhase::Analyzed
             ))
-            .len()
-            >= 1
+            .is_empty()
     );
 }
 

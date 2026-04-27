@@ -57,6 +57,7 @@ fn candidate_from_search_payload(query: &str, payload: &Value) -> Result<Candida
         && !content_normalized.is_empty()
         && !looks_like_ack_only(&content_normalized)
         && !content_empty_duckduckgo_shell
+        && !looks_like_source_only_snippet(&content_normalized)
     {
         snippet = trim_words(&content_normalized, 56);
     }

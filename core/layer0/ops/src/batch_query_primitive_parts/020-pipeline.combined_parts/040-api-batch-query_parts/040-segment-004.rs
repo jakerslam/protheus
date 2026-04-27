@@ -67,9 +67,9 @@
         }),
         status,
     );
+    if let Some(code) = no_results_error_code_from_summary(&summary) { out["error"] = Value::String(code.to_string()); }
     if let Some(meta) = nexus_connection {
         out["nexus_connection"] = meta;
     }
     out
 }
-

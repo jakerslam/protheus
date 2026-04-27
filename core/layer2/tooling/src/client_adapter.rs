@@ -110,8 +110,9 @@ impl ThinClientDelegator {
         }
         if produced_evidence_ids.is_empty() {
             if user_input_requests_local_workspace_only(request.user_input.as_str()) {
-                open_questions
-                    .push("No workspace target was supplied for this local tooling turn.".to_string());
+                open_questions.push(
+                    "No workspace target was supplied for this local tooling turn.".to_string(),
+                );
                 recommended_next_actions.push(
                     "Provide one exact workspace path (file or folder) so I can stay local and continue."
                         .to_string(),
@@ -227,7 +228,9 @@ fn user_input_requests_local_workspace_only(user_input: &str) -> bool {
         "repo",
         "path",
     ];
-    let web_tokens = ["http://", "https://", "web", "internet", "online", "browser"];
+    let web_tokens = [
+        "http://", "https://", "web", "internet", "online", "browser",
+    ];
     contains_any(lowered.as_str(), &local_tokens) && !contains_any(lowered.as_str(), &web_tokens)
 }
 

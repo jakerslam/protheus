@@ -116,7 +116,12 @@ impl Default for DefaultNexusPolicy {
                 "client_ingress.".to_string(),
             ],
             blocked_pairs: BTreeSet::new(),
-            client_ingress_allowed_targets: ["context_stacks".to_string()].into_iter().collect(),
+            client_ingress_allowed_targets: [
+                "context_stacks".to_string(),
+                "client_ingress_bridge".to_string(),
+            ]
+            .into_iter()
+            .collect(),
             max_ttl_ms_by_verity,
         }
     }

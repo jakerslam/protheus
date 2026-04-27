@@ -13,7 +13,10 @@ impl EvidenceExtractor {
         }
         let mut cards = Vec::<EvidenceCard>::new();
         let mut array_payload_seen = collect_array_cards(self, result, raw_payload, &mut cards);
-        if let Some(nested) = raw_payload.get("data").or_else(|| raw_payload.get("payload")) {
+        if let Some(nested) = raw_payload
+            .get("data")
+            .or_else(|| raw_payload.get("payload"))
+        {
             if collect_array_cards(self, result, nested, &mut cards) {
                 array_payload_seen = true;
             }
@@ -170,10 +173,10 @@ fn looks_like_interface_chrome(text: &str) -> bool {
         || normalized.contains("input {")
         || normalized.contains("done · 1 blocked")
         || (normalized.contains("file list") && normalized.contains("blocked"));
-    let ingress_policy_failure_dump = normalized.contains("file_list")
-        && normalized.contains("ingress delivery policy");
-    let policy_gate_outage_scaffold = normalized.contains("this is a policy gate")
-        && normalized.contains("web-provider outage");
+    let ingress_policy_failure_dump =
+        normalized.contains("file_list") && normalized.contains("ingress delivery policy");
+    let policy_gate_outage_scaffold =
+        normalized.contains("this is a policy gate") && normalized.contains("web-provider outage");
     let workflow_gate_loop = normalized.contains("workflow gate")
         && normalized.contains("final workflow state was unexpected");
     let retry_loop_scaffold = normalized.contains("please retry so i can rerun the chain cleanly");

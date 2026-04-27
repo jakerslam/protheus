@@ -41,6 +41,7 @@
             "partial_failure_details": partial_failure_details,
             "cache_status": "hit"
         });
+        if let Some(code) = no_results_error_code_from_summary(&summary) { out["error"] = Value::String(code.to_string()); }
         if let Some(meta) = nexus_connection {
             out["nexus_connection"] = meta;
         }
@@ -165,4 +166,3 @@
             .then_with(|| a.0.title.cmp(&b.0.title))
     });
     ranked.truncate(budget.max_evidence);
-
