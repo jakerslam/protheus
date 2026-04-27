@@ -83,13 +83,18 @@ const CONTRACTS: SourceContract[] = [
       "blockEl.closest('.chat-message-block')",
       'isMessageTextInRenderWindow',
       'messageTextRenderWindowRadius',
-      // shouldRenderMessageContent must consume the render-window gate and the
-      // hydration map, NOT be a `return true` stub. Reverting it to the stub
-      // collapses long-chat rendering back to CSS-only skeletonization (every
-      // DOM node still mounted, every markdown still parsed) and brings back
-      // the long-chat latency regression.
+      // shouldRenderMessageContent must consume the render-window gate and
+      // the forced-hydration map, NOT be a `return true` stub. Reverting it
+      // to the stub collapses long-chat rendering back to CSS-only
+      // skeletonization (every DOM node still mounted, every markdown still
+      // parsed) and brings back the long-chat latency regression. We
+      // deliberately do NOT require `this.messageHydration` here — that map
+      // is a viewport-buffer allowlist and including it as a gate makes
+      // shouldRenderMessageContent disagree with isMessageTextInRenderWindow
+      // (the ±active-radius set), which used to fire the .message-text-skeletonized
+      // CSS class for messages that were technically mounted, producing
+      // transparent-text gray-gradient on a hydrated bubble.
       'this.isMessageTextInRenderWindow(msg, idx, rows)',
-      'this.messageHydration',
       'this._forcedHydrateById',
     ],
   },
