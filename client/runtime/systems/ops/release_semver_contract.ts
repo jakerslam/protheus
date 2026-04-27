@@ -30,11 +30,10 @@ function run(argv = process.argv.slice(2)) {
   return runInfringOps(
     ['release-semver-contract', ...passArgs],
     {
-      // Route through conduit kernel; direct local-core dispatch omits this domain key.
-      preferLocalCore: false,
+      // Direct local-core dispatch now supported (V11-TSRUST-005).
+      preferLocalCore: true,
       env: {
-        // Local core is authoritative for newest domains; prebuilt may lag.
-        INFRING_OPS_USE_PREBUILT: process.env.INFRING_OPS_USE_PREBUILT || '0',
+        INFRING_OPS_USE_PREBUILT: process.env.INFRING_OPS_USE_PREBUILT || '1',
         INFRING_OPS_LOCAL_TIMEOUT_MS: process.env.INFRING_OPS_LOCAL_TIMEOUT_MS || '600000',
       },
     }
