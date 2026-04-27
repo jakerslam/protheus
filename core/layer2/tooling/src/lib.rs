@@ -32,7 +32,8 @@ pub use schemas::{
 };
 pub use tool_broker::{
     BrokerCaller, BrokerError, ToolAttemptEnvelope, ToolAttemptReceipt, ToolAttemptStatus,
-    ToolBroker, ToolBrokerExecution, ToolCallRequest,
+    ToolBroker, ToolBrokerExecution, ToolCallRequest, ToolExecutionReceipt,
+    ToolExecutionReceiptStatus, ToolSubstrateHealthReport,
 };
 pub use verifier::StructuredVerifier;
 

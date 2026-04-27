@@ -1,4 +1,3 @@
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BrokerCaller {
@@ -24,6 +23,7 @@ pub struct ToolCallRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ToolBrokerExecution {
     pub attempt: ToolAttemptEnvelope,
+    pub execution_receipt: ToolExecutionReceipt,
     pub normalized_result: NormalizedToolResult,
     pub raw_payload: Value,
 }
@@ -44,9 +44,47 @@ pub enum ToolAttemptStatus {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ToolAttemptEnvelope {
     pub attempt: ToolAttemptReceipt,
+    pub execution_receipt: ToolExecutionReceipt,
     pub normalized_result: Option<NormalizedToolResult>,
     pub raw_payload: Option<Value>,
     pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ToolExecutionReceiptStatus {
+    Success,
+    Error,
+    Blocked,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ToolExecutionReceipt {
+    pub attempt_id: String,
+    pub trace_id: String,
+    pub task_id: String,
+    pub status: ToolExecutionReceiptStatus,
+    pub tool_id: String,
+    pub input_hash: String,
+    pub started_at: u64,
+    pub ended_at: u64,
+    pub latency_ms: u64,
+    pub error_code: Option<String>,
+    pub data_ref: Option<String>,
+    pub evidence_count: usize,
+    pub receipt_hash: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ToolSubstrateHealthReport {
+    pub generated_at: u64,
+    pub bounded_workspace_root: String,
+    pub backends: Vec<ToolBackendHealth>,
+    pub available_tool_count: usize,
+    pub degraded_tool_count: usize,
+    pub blocked_tool_count: usize,
+    pub unavailable_tool_count: usize,
+    pub receipt_hash: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -120,6 +158,7 @@ pub struct ToolBroker {
     event_sequence: u64,
     ledger_events: Vec<ToolExecutionLedgerEvent>,
     attempt_receipts: Vec<ToolAttemptReceipt>,
+    execution_receipts: Vec<ToolExecutionReceipt>,
     ledger_path: PathBuf,
 }
 
@@ -151,6 +190,7 @@ impl Default for ToolBroker {
             event_sequence: 0,
             ledger_events: Vec::new(),
             attempt_receipts: Vec::new(),
+            execution_receipts: Vec::new(),
             ledger_path: default_ledger_path(),
         };
         let _ = out.recover_from_ledger();

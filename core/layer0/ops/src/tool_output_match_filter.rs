@@ -61,6 +61,11 @@ const UNSYNTHESIZED_WEB_MARKERS: &[&str] = &[
     "unfortunately, bots use duckduckgo too",
     "please complete the following challenge",
     "select all squares containing",
+    "verify you are human",
+    "captcha",
+    "cloudflare",
+    "access denied",
+    "enable javascript",
     "images not loading",
     "error-lite@duckduckgo.com",
     "duckduckgo duckduckgo",
@@ -623,7 +628,11 @@ pub fn rewrite_unsynthesized_web_dump(raw: &str) -> Option<(String, String)> {
     let lowered = clean_text(raw, 8_000).to_ascii_lowercase();
     let challenge = lowered.contains("please complete the following challenge")
         || lowered.contains("unfortunately, bots use duckduckgo too")
-        || lowered.contains("select all squares containing");
+        || lowered.contains("select all squares containing")
+        || lowered.contains("verify you are human")
+        || lowered.contains("captcha")
+        || lowered.contains("cloudflare")
+        || lowered.contains("access denied");
     if challenge {
         return Some((
             "Web retrieval hit an anti-bot challenge before usable content was extracted. Ask me to retry with alternate providers or specific source URLs for a source-backed synthesis."
@@ -840,6 +849,17 @@ mod tests {
     #[test]
     fn rewrites_antibot_unsynthesized_web_dump_copy() {
         let raw = "DuckDuckGo DuckDuckGo Unfortunately, bots use DuckDuckGo too. Please complete the following challenge to confirm this search was made by a human. Select all squares containing a duck.";
+        let rewritten = rewrite_unsynthesized_web_dump(raw).expect("rewrite");
+        assert!(rewritten
+            .0
+            .to_ascii_lowercase()
+            .contains("anti-bot challenge"));
+        assert_eq!(rewritten.1, "unsynthesized_web_dump_antibot_rewritten");
+    }
+
+    #[test]
+    fn rewrites_cloudflare_human_verification_web_dump_copy() {
+        let raw = "Cloudflare Access denied. Verify you are human. Enable JavaScript and complete the captcha to continue.";
         let rewritten = rewrite_unsynthesized_web_dump(raw).expect("rewrite");
         assert!(rewritten
             .0

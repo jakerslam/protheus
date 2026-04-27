@@ -1,5 +1,4 @@
 // Layer ownership: core/layer0/ops::batch-query-api (authoritative)
-
 pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     let started = Instant::now();
     let policy = load_policy(root);
@@ -77,8 +76,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     let cache_key_primary =
         cache_key_with_query_plan(&source, &query, &aperture, &policy, &query_plan.queries);
     let legacy_cache_key = cache_key(&source, &query, &aperture, &policy);
-    let (cached_response, cache_lookup_key) = if let Some(cached) = load_cached_response(root, &cache_key_primary)
-    {
+    let (cached_response, cache_lookup_key) = if let Some(cached) = load_cached_response(root, &cache_key_primary) {
         (Some(cached), cache_key_primary.clone())
     } else if cache_key_primary != legacy_cache_key {
         if let Some(cached) = load_cached_response(root, &legacy_cache_key) {
@@ -222,6 +220,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "partial_failure_details": partial_failure_details,
             "cache_status": "hit"
         });
+        if let Some(code) = no_results_error_code_from_summary(&summary) { out["error"] = Value::String(code.to_string()); }
         if let Some(meta) = nexus_connection {
             out["nexus_connection"] = meta;
         }
@@ -604,6 +603,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         }),
         status,
     );
+    if let Some(code) = no_results_error_code_from_summary(&summary) { out["error"] = Value::String(code.to_string()); }
     if let Some(meta) = nexus_connection {
         out["nexus_connection"] = meta;
     }
