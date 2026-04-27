@@ -8845,7 +8845,57 @@ function chatPage() {
       metrics.updatedAt = Date.now();
     },
     shouldRenderMessage(msg, idx, list) { void msg; void idx; void list; return true; },
-    shouldRenderMessageContent(msg, idx, list) { void msg; void idx; void list; return true; },
+    // Gate the heavyweight bubble content on the render window. When this returns
+    // false, Alpine's x-if branch in index_body.html.parts unmounts the
+    // <infring-chat-bubble-render> element (markdown + code blocks + media) and
+    // mounts the lightweight <infring-message-placeholder-shell> instead, which
+    // is a sized stack of <span class="message-placeholder-line"> elements
+    // dimensioned from msg._renderMetrics so scroll position is preserved.
+    //
+    // Previously this was hardcoded to `return true`, which meant the heavy
+    // bubble never unmounted; the .message-text-skeletonized CSS class was used
+    // as a visual fallback (transparent text + repeating-linear-gradient gray
+    // lines) but every DOM node was still rendered, so markdown parsing, code
+    // tokenization, and layout cost all stayed in the hot path. Flipping this
+    // gate to delegate to isMessageTextInRenderWindow turns the existing
+    // placeholder infrastructure into a real DOM-level virtualization.
+    shouldRenderMessageContent(msg, idx, list) {
+      var rows = Array.isArray(list) ? list : this.messages;
+      // Virtualization only kicks in once the chat passes the threshold
+      // (currently > 80 messages, see isMessageVirtualizationActive). Below
+      // that, render everything to keep the small-chat path simple.
+      if (typeof this.isMessageVirtualizationActive === 'function'
+        && !this.isMessageVirtualizationActive(rows)) return true;
+      // Always keep streaming / thinking / typing-visual / thought-streaming
+      // messages fully rendered. The user is actively watching them and any
+      // visual flicker from unmount/remount destroys the live-text experience.
+      if (msg && (msg.streaming || msg.thinking || msg._typingVisual || msg.thoughtStreaming)) return true;
+      // Forced hydration overrides: scheduleMessageRenderWindowUpdate's
+      // forceMessageRender path keeps a message rendered for ttlMs after focus,
+      // and the messageHydration map carries selected/hovered/recently-focused
+      // dom IDs as a viewport-aware allowlist. If either says yes, render.
+      var domId = typeof this.messageDomId === 'function'
+        ? this.messageDomId(msg, idx)
+        : null;
+      if (domId) {
+        var hydration = this.messageHydration && typeof this.messageHydration === 'object'
+          ? this.messageHydration
+          : null;
+        if (hydration && hydration[domId] === true) return true;
+        var forced = this._forcedHydrateById && typeof this._forcedHydrateById === 'object'
+          ? this._forcedHydrateById
+          : null;
+        if (forced && Number(forced[domId] || 0) > Date.now()) return true;
+      }
+      // Fall through to the existing render-window logic (±messageTextRenderWindowRadius
+      // around the active scroll position, default 20). Returns true for messages
+      // close to the user's current scroll focus, false for distant history.
+      if (typeof this.isMessageTextInRenderWindow === 'function') {
+        return !!this.isMessageTextInRenderWindow(msg, idx, rows);
+      }
+      // Conservative fallback: if the gate plumbing is missing, render.
+      return true;
+    },
     isMessageTextInRenderWindow(msg, idx, list) {
       var rows = Array.isArray(list) ? list : this.messages, active = Number(this.mapStepIndex), selected = String(this.selectedMessageDomId || this.hoveredMessageDomId || this.directHoveredMessageDomId || '').trim(), windowRows = Number(this.messageTextRenderWindowRadius || 20);
       if (!this.isMessageVirtualizationActive(rows)) return true;
