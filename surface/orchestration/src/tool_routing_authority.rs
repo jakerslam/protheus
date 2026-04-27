@@ -143,6 +143,10 @@ pub fn build_tool_routing_authority_report(root: impl AsRef<Path>) -> ToolRoutin
         root,
         "surface/orchestration/config/self_maintenance_noise_discipline_policy.json",
     );
+    let legacy_ingress_budget_ratchet_schedule = read_text(
+        root,
+        "surface/orchestration/config/legacy_ingress_budget_ratchet_schedule.json",
+    );
     let planner_payload_decision_audit = planner_payload_decision_audit(
         &preconditions,
         &planner_candidates,
@@ -172,6 +176,7 @@ pub fn build_tool_routing_authority_report(root: impl AsRef<Path>) -> ToolRoutin
         workflow_quality_scoped_metadata_declared(&contracts, &result_packaging),
         runtime_quality_schema_workflow_clean(&contracts),
         legacy_heuristic_sources_registered(&preconditions, &request_surface_policy),
+        legacy_ingress_budget_ratchet_monotonic_declared(&legacy_ingress_budget_ratchet_schedule),
         self_maintenance_noise_discipline_declared(
             &self_maintenance_executor,
             &self_maintenance_noise_policy_doc,
@@ -824,6 +829,101 @@ fn extract_runtime_quality_signals_body(contracts: &str) -> Option<&str> {
     let remainder = &contracts[body_start..];
     let close = remainder.find('}')?;
     Some(&remainder[..close])
+}
+
+fn legacy_ingress_budget_ratchet_monotonic_declared(
+    schedule_json: &str,
+) -> ToolRoutingAuthorityCheck {
+    let mut missing = Vec::new();
+    if schedule_json.is_empty() {
+        missing.push(
+            "legacy_ingress_budget_ratchet_schedule.json missing or empty".to_string(),
+        );
+        return ToolRoutingAuthorityCheck::new(
+            "legacy_ingress_budget_ratchet_monotonic_declared",
+            vec![
+                "legacy ingress budget has a release-keyed ratchet schedule".to_string(),
+                "max_legacy_shim_rate decreases monotonically toward 0.0".to_string(),
+            ],
+            missing,
+        );
+    }
+    for token in [
+        "legacy_ingress_budget_ratchet_schedule",
+        "ratchet_anchor_surface",
+        "ratchet_direction",
+        "monotonic_decreasing",
+        "ratchet_floor",
+        "schedule",
+        "max_legacy_shim_rate",
+        "non_legacy_invariant",
+    ] {
+        if !schedule_json.contains(token) {
+            missing.push(format!(
+                "legacy_ingress_budget_ratchet_schedule.json missing token: {token}"
+            ));
+        }
+    }
+    // Lightweight monotonic check: parse out each occurrence of
+    // "max_legacy_shim_rate": <number> in document order and assert the
+    // sequence is non-increasing (excluding the non_legacy_invariant section).
+    let mut rates: Vec<f64> = Vec::new();
+    let needle = "\"max_legacy_shim_rate\":";
+    let invariant_marker = "non_legacy_invariant";
+    let invariant_at = schedule_json.find(invariant_marker).unwrap_or(usize::MAX);
+    let mut cursor = 0usize;
+    while let Some(idx) = schedule_json[cursor..].find(needle) {
+        let abs = cursor + idx;
+        if abs > invariant_at {
+            break;
+        }
+        let tail = &schedule_json[abs + needle.len()..];
+        let trimmed = tail.trim_start();
+        let mut end = 0usize;
+        for ch in trimmed.chars() {
+            if ch == '-' || ch == '.' || ch.is_ascii_digit() {
+                end += ch.len_utf8();
+            } else {
+                break;
+            }
+        }
+        if end > 0 {
+            if let Ok(value) = trimmed[..end].parse::<f64>() {
+                rates.push(value);
+            }
+        }
+        cursor = abs + needle.len();
+    }
+    if rates.len() < 2 {
+        missing.push(format!(
+            "legacy_ingress_budget_ratchet_schedule must declare >=2 release rows; found {}",
+            rates.len()
+        ));
+    }
+    for window in rates.windows(2) {
+        if window[1] > window[0] {
+            missing.push(format!(
+                "legacy_ingress_budget ratchet must decrease monotonically; saw {} -> {}",
+                window[0], window[1]
+            ));
+        }
+    }
+    if let Some(last) = rates.last() {
+        if *last != 0.0 {
+            missing.push(format!(
+                "legacy_ingress_budget ratchet final entry must reach floor 0.0; found {}",
+                last
+            ));
+        }
+    }
+    ToolRoutingAuthorityCheck::new(
+        "legacy_ingress_budget_ratchet_monotonic_declared",
+        vec![
+            "legacy ingress budget carries a release-keyed ratchet schedule".to_string(),
+            "max_legacy_shim_rate decreases monotonically toward 0.0".to_string(),
+        ],
+        missing,
+    )
 }
 
 /// Closed registry of heuristic source labels emitted by `preconditions.rs`

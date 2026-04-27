@@ -1,0 +1,70 @@
+{
+  "type": "legacy_ingress_budget_ratchet_schedule",
+  "schema_version": 1,
+  "summary": "Release-keyed ratchet schedule for the legacy_ingress_budget compatibility-tail burn-down. Each non-legacy adapted surface (sdk, gateway, dashboard, typed_cli, unknown_non_legacy) stays at zero for both shim_rate and surface_adapter_fallback_rate at every release. The explicit_legacy lane has the ratchet: max_legacy_shim_rate tightens release-over-release toward 0.0. Guard: legacy_ingress_budget_ratchet_monotonic_declared in surface/orchestration/src/tool_routing_authority.rs.",
+  "ratchet_anchor_surface": "explicit_legacy",
+  "ratchet_metric": "max_legacy_shim_rate",
+  "ratchet_direction": "monotonic_decreasing",
+  "ratchet_floor": 0.0,
+  "schedule": [
+    {
+      "release": "v0.3.10-stable",
+      "max_legacy_shim_rate": 1.0,
+      "max_surface_adapter_fallback_rate": 0.0,
+      "next_release_legacy_shim_rate_target": 0.75,
+      "notes": "Established baseline; budget already aggregates the four signals (legacy_shim, surface_adapter_fallback, typed_probe_contract_violation, low_confidence)."
+    },
+    {
+      "release": "v0.3.11-stable",
+      "max_legacy_shim_rate": 0.75,
+      "max_surface_adapter_fallback_rate": 0.0,
+      "next_release_legacy_shim_rate_target": 0.50,
+      "notes": "Coincides with V11-OPS-PRD-001 legacy process runner deletion; expected drop in legacy ingress as the dev_only escape hatch retires."
+    },
+    {
+      "release": "v0.3.12-stable",
+      "max_legacy_shim_rate": 0.50,
+      "max_surface_adapter_fallback_rate": 0.0,
+      "next_release_legacy_shim_rate_target": 0.25,
+      "notes": "Halfway point. If shim rate is still trending high here, raise as a release blocker."
+    },
+    {
+      "release": "v0.3.13-stable",
+      "max_legacy_shim_rate": 0.25,
+      "max_surface_adapter_fallback_rate": 0.0,
+      "next_release_legacy_shim_rate_target": 0.10,
+      "notes": "Final approach to floor."
+    },
+    {
+      "release": "v0.3.14-stable",
+      "max_legacy_shim_rate": 0.10,
+      "max_surface_adapter_fallback_rate": 0.0,
+      "next_release_legacy_shim_rate_target": 0.0,
+      "notes": "Last release tolerating any non-zero legacy shim rate."
+    },
+    {
+      "release": "v0.3.15-stable",
+      "max_legacy_shim_rate": 0.0,
+      "max_surface_adapter_fallback_rate": 0.0,
+      "next_release_legacy_shim_rate_target": 0.0,
+      "notes": "Floor reached. Legacy lane is closed for new shim emissions; only documented compatibility shims for retired-but-not-yet-removed surfaces remain."
+    }
+  ],
+  "non_legacy_invariant": {
+    "summary": "Adapted surfaces (sdk, gateway, dashboard, typed_cli, unknown_non_legacy) stay strict-zero across every release. The ratchet only applies to the explicit_legacy compatibility lane.",
+    "max_legacy_shim_rate": 0.0,
+    "max_surface_adapter_fallback_rate": 0.0
+  },
+  "consumers": {
+    "rust_module": "surface/orchestration/src/legacy_ingress_budget.rs",
+    "rust_default_policies_function": "default_legacy_ingress_budget_policies",
+    "rust_strict_floor_function": "strict_non_legacy_policy",
+    "release_scorecard_gate": "legacy_ingress_budget_gate",
+    "scorecard_artifact": "core/local/artifacts/legacy_ingress_budget_current.json"
+  },
+  "operational_notes": [
+    "When cutting a release, update surface/orchestration/src/legacy_ingress_budget.rs::default_legacy_ingress_budget_policies to read the active row from this schedule.",
+    "If the production scorecard reports legacy_shim_rate above the active schedule entry, the release is blocked.",
+    "If the schedule needs to tighten faster than declared, edit the schedule and raise as a non-blocking improvement; the guard only enforces monotonic-decreasing direction, not specific values."
+  ]
+}
