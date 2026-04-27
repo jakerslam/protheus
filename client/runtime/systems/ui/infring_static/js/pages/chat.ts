@@ -8870,26 +8870,38 @@ function chatPage() {
       // messages fully rendered. The user is actively watching them and any
       // visual flicker from unmount/remount destroys the live-text experience.
       if (msg && (msg.streaming || msg.thinking || msg._typingVisual || msg.thoughtStreaming)) return true;
-      // Forced hydration overrides: scheduleMessageRenderWindowUpdate's
-      // forceMessageRender path keeps a message rendered for ttlMs after focus,
-      // and the messageHydration map carries selected/hovered/recently-focused
-      // dom IDs as a viewport-aware allowlist. If either says yes, render.
+      // Forced hydration override only: scheduleMessageRenderWindowUpdate's
+      // forceMessageRender path keeps a message rendered for ttlMs after focus
+      // (e.g., the message just had a menu action invoked on it). This keeps
+      // explicit operator interactions from unmounting their own target.
+      //
+      // Note: we deliberately do NOT consult `messageHydration` here. That map
+      // is a 320px-viewport-buffer allowlist computed by
+      // updateMessageRenderWindow, while isMessageTextInRenderWindow uses a
+      // ±20-around-active radius. If we accept either, the gate becomes a
+      // SUPERSET of isMessageTextInRenderWindow, and the
+      // .message-text-skeletonized CSS class (which keys on
+      // isMessageTextInRenderWindow) starts firing for messages where the
+      // bubble IS mounted — producing transparent text + gray-gradient on a
+      // mounted bubble, which looks identical to the placeholder but with
+      // none of the unmount benefit. Aligning both gates to the same
+      // ±active-radius set keeps the two functions logically consistent: if
+      // shouldRenderMessageContent returns true the text is visible, if it
+      // returns false the lightweight placeholder shell renders instead.
       var domId = typeof this.messageDomId === 'function'
         ? this.messageDomId(msg, idx)
         : null;
       if (domId) {
-        var hydration = this.messageHydration && typeof this.messageHydration === 'object'
-          ? this.messageHydration
-          : null;
-        if (hydration && hydration[domId] === true) return true;
         var forced = this._forcedHydrateById && typeof this._forcedHydrateById === 'object'
           ? this._forcedHydrateById
           : null;
         if (forced && Number(forced[domId] || 0) > Date.now()) return true;
       }
       // Fall through to the existing render-window logic (±messageTextRenderWindowRadius
-      // around the active scroll position, default 20). Returns true for messages
-      // close to the user's current scroll focus, false for distant history.
+      // around the active scroll position, default 20). Active position is
+      // updated on every scroll by syncMapSelectionToScroll which sets
+      // mapStepIndex + selectedMessageDomId from the viewport center, so this
+      // gate follows the user's current focus.
       if (typeof this.isMessageTextInRenderWindow === 'function') {
         return !!this.isMessageTextInRenderWindow(msg, idx, rows);
       }
