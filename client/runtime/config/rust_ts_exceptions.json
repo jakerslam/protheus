@@ -13,11 +13,171 @@
     "infring-ops",
     "bindLegacyRetiredModule",
     "legacy_retired_wrapper",
-    "bindNativeRustModule"
+    "bindNativeRustModule",
+    "createDomainCommandModule",
+    "createReplModule",
+    "createStatusDashboardModule",
+    "createUnknownGuardModule"
   ],
   "exceptions": [
     {
-      "path": "client/runtime/systems/assimilation/world_model_freshness.ts",
+      "path": "client/runtime/systems/ops/infring_control_plane.ts",
+      "reason": "Thin TS wrapper only. Delegates via createDomainCommandModule to Rust core domain; no policy, receipt, or authority logic."
+    },
+    {
+      "path": "client/runtime/systems/ops/infring_repl.ts",
+      "reason": "Thin TS wrapper only. Delegates via createDomainCommandModule to Rust core domain; no policy, receipt, or authority logic."
+    },
+    {
+      "path": "client/runtime/systems/ops/infring_status_dashboard.ts",
+      "reason": "Thin TS wrapper only. Delegates via createDomainCommandModule to Rust core domain; no policy, receipt, or authority logic."
+    },
+    {
+      "path": "client/runtime/systems/ops/infring_unknown_guard.ts",
+      "reason": "Thin TS wrapper only. Delegates via createDomainCommandModule to Rust core domain; no policy, receipt, or authority logic."
+    },
+    {
+      "path": "client/runtime/systems/ops/infring_version_cli.ts",
+      "reason": "Thin TS wrapper only. Delegates via runInfringOps to Rust core domain; no policy, receipt, or authority logic."
+    },
+    {
+      "path": "client/runtime/systems/ops/infringd.ts",
+      "reason": "Thin TS daemon bootstrap wrapper. Delegates via createDomainCommandModule to Rust core domain; runtime entrypoint authority lives in core."
+    },
+    {
+      "path": "client/runtime/systems/ops/backlog_github_sync.ts",
+      "reason": "Legacy operator tooling lane. Delegates via infring_cli_modules.ts to Rust core domain."
+    },
+    {
+      "path": "client/runtime/systems/ops/backlog_registry.ts",
+      "reason": "Legacy operator tooling lane. Delegates via createDomainCommandModule to Rust core domain."
+    },
+    {
+      "path": "client/runtime/systems/ops/command_registry_surface_contract.ts",
+      "reason": "Legacy operator tooling lane. Delegates via createDomainCommandModule to Rust core domain."
+    },
+    {
+      "path": "client/runtime/systems/ops/compliance_posture.ts",
+      "reason": "Legacy operator diagnostics/tooling lane retained as temporary TS exception pending Rust parity port."
+    },
+    {
+      "path": "client/runtime/systems/ops/contract_runtime_common.ts",
+      "reason": "Legacy operator tooling lane. Delegates via createDomainCommandModule to Rust core domain."
+    },
+    {
+      "path": "client/runtime/systems/ops/dr_gameday.ts",
+      "reason": "Legacy operator tooling lane. Delegates via createDomainCommandModule to Rust core domain."
+    },
+    {
+      "path": "client/runtime/systems/ops/dr_gameday_gate.ts",
+      "reason": "Legacy operator tooling lane. Delegates via createDomainCommandModule to Rust core domain."
+    },
+    {
+      "path": "client/runtime/systems/ops/entrypoint_runtime_contract.ts",
+      "reason": "Legacy operator tooling lane. Delegates via createDomainCommandModule to Rust core domain."
+    },
+    {
+      "path": "client/runtime/systems/ops/infring_command_list.ts",
+      "reason": "Legacy operator tooling lane. Delegates viacreateDomainCommandModule to Rust core domain."
+    },
+    {
+      "path": "client/runtime/systems/ops/infring_debug_diagnostics.ts",
+      "reason": "Legacy operator diagnostics/tooling lane retained as temporary TS exception pending Rust parity port."
+    },
+    {
+      "path": "client/runtime/systems/ops/legal_language_contract.ts",
+      "reason": "Legacy operator tooling lane. Delegates via createDomainCommandModule to Rust core domain."
+    },
+    {
+      "path": "client/runtime/systems/ops/package_manifest_contract.ts",
+      "reason": "Legacy operator tooling lane. Delegates via createDomainCommandModule to Rust core domain."
+    },
+    {
+      "path": "client/runtime/systems/ops/personal_infring_installer.ts",
+      "reason": "Legacy operator diagnostics/tooling lane retained as temporary TS exception pending Rust parity port."
+    },
+    {
+      "path": "client/runtime/systems/ops/postmortem_loop.ts",
+      "reason": "Legacy operator diagnostics/tooling lane retained as temporary TS exception pending Rust parity port."
+    },
+    {
+      "path": "client/runtime/systems/ops/public_benchmark_pack.ts",
+      "reason": "Legacy operator diagnostics/tooling lane retained as temporary TS exception pending Rust parity port."
+    },
+    {
+      "path": "client/runtime/systems/ops/relocatable_path_contract.ts",
+      "reason": "Legacy operator tooling lane. Delegates via createDomainCommandModule to Rust core domain."
+    },
+    {
+      "path": "client/runtime/systems/ops/rust50_migration_program.ts",
+      "reason": "Legacy operator tooling lane. Delegates via createDomainCommandModule to Rust core domain."
+    },
+    {
+      "path": "client/runtime/systems/ops/rust_enterprise_productivity_program.ts",
+      "reason": "Legacy operator tooling lane. Delegates via createDomainCommandModule to Rust core domain."
+    },
+    {
+      "path": "client/runtime/systems/ops/source_runtime_classifier_contract.ts",
+      "reason": "Legacy operator tooling lane. Delegates via createDomainCommandModule to Rust core domain."
+    },
+    {
+      "path": "client/runtime/systems/ops/state_tiering_contract.ts",
+      "reason": "Legacy operator tooling lane. Delegates via createDomainCommandModule to Rust core domain."
+    },
+    {
+      "path": "client/runtime/systems/ops/support_bundle_export.ts",
+      "reason": "Legacy operator diagnostics/tooling lane retained as temporary TS exception pending Rust parity port."
+    },
+    {
+      "path": "client/runtime/systems/ops/transport_topology_status.ts",
+      "reason": "Legacy operator tooling lane. Delegates via createDomainCommandModule to Rust core domain."
+    },
+    {
+      "path": "client/runtime/systems/ops/workspace_command_index.ts",
+      "reason": "Legacy operator tooling lane. Delegates via createDomainCommandModule to Rust core domain."
+    },
+    {
+      "path": "client/runtime/systems/security/directive_hierarchy_controller.ts",
+      "reason": "Legacy operator diagnostics/tooling lane retained as temporary TS exception pending Rust parity port."
+    },
+    {
+      "path": "client/runtime/systems/autonomy/swarm_orchestration_runtime.ts",
+      "reason": "Autonomy experimentation lane retained as temporary TS exception pending Rust autonomy-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/security/venom_containment_layer.ts",
+      "reason": "Security experimentation lane retained as temporary TS exception pending Rust security-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/autonomy/doctor_forge_micro_debug_lane.ts",
+      "reason": "Autonomy experimentation lane retained as temporary TS exception pending Rust autonomy-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/autonomy/motivational_state_vector.ts",
+      "reason": "Autonomy experimentation lane retained as temporary TS exception pending Rust autonomy-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/memory/causal_temporal_graph/tests/causal_temporal_graph.spec.ts",
+      "reason": "Test harness for memory Causal Temporal Graph; retained as temporary TS exception pending Rust memory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/memory/dynamic_memory_embedding_adapter.ts",
+      "reason": "Memory experimentation/research lane retained as temporary TS exception pending Rust memory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/memory/memory_federation_plane/tests/memory_federation_plane.spec.ts",
+      "reason": "Test harness for memory federation plane; retained as temporary TS exception pending Rust memory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/memory/memory_layer_guard.ts",
+      "reason": "Memory experimentation/research lane retained as temporary TS exception pending Rust memory-plane assimilation."
+    },
+    {
+      "path": "client/runtime/systems/assimilation/trajectory_skill_distiller.ts",
+      "reason": "Assimilation experimentation lane retained as temporary TS exception pending Rust assimilation-plane parity."
+    },
+    {
+      "path": "client/runtime/systems/assimilation/source_attestation_extension.ts",
       "reason": "Assimilation experimentation lane retained as temporary TS exception pending Rust assimilation-plane parity."
     },
     {
@@ -142,14 +302,6 @@
     },
     {
       "path": "client/runtime/systems/ops/local_runtime_partitioner.ts",
-      "reason": "Legacy operator diagnostics/tooling lane retained as temporary TS exception pending Rust parity port."
-    },
-    {
-      "path": "client/runtime/systems/ops/infring_command_list.ts",
-      "reason": "Legacy operator diagnostics/tooling lane retained as temporary TS exception pending Rust parity port."
-    },
-    {
-      "path": "client/runtime/systems/ops/infring_debug_diagnostics.ts",
       "reason": "Legacy operator diagnostics/tooling lane retained as temporary TS exception pending Rust parity port."
     },
     {
