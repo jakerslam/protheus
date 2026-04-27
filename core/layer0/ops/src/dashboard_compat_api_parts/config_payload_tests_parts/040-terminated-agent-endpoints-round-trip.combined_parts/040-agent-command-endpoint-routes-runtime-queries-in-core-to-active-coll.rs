@@ -73,6 +73,40 @@ fn agent_command_endpoint_routes_runtime_queries_in_core() {
         .and_then(Value::as_str)
         .unwrap_or("")
         .contains("Queue depth: 4"));
+
+    let _ = crate::dashboard_agent_state::append_turn(
+        root.path(),
+        &agent_id,
+        "Coordinate continuity markers for active child agents",
+        "I am tracking active objectives.",
+    );
+    let continuity = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/command"),
+        br#"{"command":"continuity"}"#,
+        &terminated_ok_snapshot(),
+    )
+    .expect("continuity command");
+    assert_eq!(continuity.status, 200);
+    assert_eq!(
+        continuity.payload.get("command").and_then(Value::as_str),
+        Some("continuity")
+    );
+    let message = continuity
+        .payload
+        .get("message")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    assert!(message.contains("Top active agents"));
+    assert!(message.contains("100%"));
+    assert!(message.contains("Coordinate continuity markers"));
+    assert!(continuity
+        .payload
+        .pointer("/continuity/active_agents/rows/0/objective")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .contains("Coordinate continuity markers"));
 }
 
 #[test]

@@ -13,7 +13,7 @@ fn pending_tool_request_can_execute_from_explicit_user_request(
         80,
     )
     .to_ascii_lowercase();
-    if source != "natural_tool_choice" {
+    if !matches!(source.as_str(), "natural_tool_choice" | "manual_toolbox_gate") {
         return false;
     }
     let lowered = clean_text(message, 2_000).to_ascii_lowercase();
@@ -28,7 +28,10 @@ fn pending_tool_request_can_execute_from_explicit_user_request(
     }
     let asks_for_result = lowered.contains("summarize")
         || lowered.contains("return the result")
+        || lowered.contains("return the results")
         || lowered.contains("return results")
+        || lowered.contains("show the result")
+        || lowered.contains("show the results")
         || lowered.contains("find one")
         || lowered.contains("find a")
         || lowered.contains("look up")

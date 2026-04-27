@@ -45,7 +45,9 @@ fn passive_attention_context_for_message(
                 .unwrap_or(""),
             1_200,
         );
-        if contains_deprecated_workflow_ghost_phrase(&assistant_text) {
+        if contains_deprecated_workflow_ghost_phrase(&assistant_text)
+            || response_contains_cross_project_assimilation_bleed(message, &assistant_text)
+        {
             continue;
         }
         let terms = row
@@ -507,6 +509,9 @@ fn response_matches_previous_message_self_check(user_message: &str, response_tex
 }
 
 fn response_is_unrelated_context_dump(user_message: &str, response_text: &str) -> bool {
+    if response_contains_cross_project_assimilation_bleed(user_message, response_text) {
+        return true;
+    }
     if response_contains_kernel_patch_thread_dump(user_message, response_text) {
         return true;
     }

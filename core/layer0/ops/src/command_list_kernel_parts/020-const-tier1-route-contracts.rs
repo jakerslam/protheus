@@ -11,6 +11,16 @@ const TIER1_ROUTE_CONTRACTS: &[Tier1RouteContract] = &[
         expected_script: "core://command-list",
     },
     Tier1RouteContract {
+        cmd: "completion",
+        rest: &[],
+        expected_script: "core://completion",
+    },
+    Tier1RouteContract {
+        cmd: "repl",
+        rest: &[],
+        expected_script: "core://repl",
+    },
+    Tier1RouteContract {
         cmd: "gateway",
         rest: &["status"],
         expected_script: "core://daemon-control",
@@ -61,6 +71,14 @@ const COMMAND_ALIASES: &[CommandAlias] = &[
     CommandAlias {
         alias: "-h",
         canonical: "help",
+    },
+    CommandAlias {
+        alias: "--version",
+        canonical: "version",
+    },
+    CommandAlias {
+        alias: "-v",
+        canonical: "version",
     },
     CommandAlias {
         alias: "boot",

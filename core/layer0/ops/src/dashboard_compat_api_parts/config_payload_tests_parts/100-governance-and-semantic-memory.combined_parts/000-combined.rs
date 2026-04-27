@@ -900,6 +900,37 @@ fn unrelated_dump_detector_flags_internal_prompt_leak_even_with_function_markup(
 }
 
 #[test]
+fn cross_project_framework_bleed_is_rejected_for_infring_turns() {
+    let user = "so how do you think that infring can be better?";
+    let bleed = "As an infring agent, I can help if you identify areas or functionalities within the external sample framework where improvements should be made.";
+    assert!(response_contains_cross_project_assimilation_bleed(user, bleed));
+    assert!(response_is_unrelated_context_dump(user, bleed));
+    assert!(passive_memory_attention_event("agent-misty", user, bleed).is_none());
+    let guard = final_response_guard_report(user, bleed, &[], false);
+    assert_eq!(
+        guard
+            .get("final_contract_violation")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    let comparison_user = "compare Infring and the external sample framework";
+    let comparison_response =
+        "Infring can borrow reliability ideas from within the external sample framework.";
+    assert!(!response_contains_cross_project_assimilation_bleed(
+        comparison_user,
+        comparison_response
+    ));
+}
+
+#[test]
+fn current_turn_project_boundary_prompt_marks_infring_as_host_system() {
+    let prompt = current_turn_project_boundary_prompt("how can infring be better?");
+    assert!(prompt.contains("Infring as the host system"));
+    assert!(prompt.contains("external repos"));
+    assert!(prompt.contains("assimilation targets"));
+}
+
+#[test]
 fn unrelated_dump_detector_flags_kernel_patch_thread_dumps() {
     let dump = "[PATCH v2 1/2] drm/msm/dpu: allow encoder to be created with empty dpu_crtc
 [Date Prev][Date Next][Thread Prev][Thread Next][Date Index][Thread Index]
@@ -2282,7 +2313,11 @@ fn web_tooling_harness_surfaces_no_results_with_final_llm_synthesis() {
     write_json(
         &governance_test_chat_script_path(root.path()),
         &json!({
-            "queue": [],
+            "queue": [
+                {
+                    "response": "Yes. Tool family: Web Search / Fetch. Tool: Web search. Request payload: {\"source\":\"web\",\"query\":\"top AI agentic frameworks\",\"aperture\":\"medium\"}"
+                }
+            ],
             "calls": []
         }),
     );
@@ -2317,7 +2352,9 @@ fn web_tooling_harness_surfaces_no_results_with_final_llm_synthesis() {
             .payload
             .pointer("/tools/0/name")
             .and_then(Value::as_str),
-        Some("batch_query")
+        Some("batch_query"),
+        "expected web search tool execution; payload={}",
+        response.payload
     );
     assert_eq!(
         response
@@ -2332,7 +2369,12 @@ fn web_tooling_harness_surfaces_no_results_with_final_llm_synthesis() {
         .and_then(Value::as_str)
         .unwrap_or("");
     let lowered = response_text.to_ascii_lowercase();
-    assert!(!response_text.trim().is_empty(), "expected synthesized no-results reply");
+    assert!(
+        !response_text.trim().is_empty(),
+        "expected synthesized no-results reply; payload={}; chat_calls={:?}",
+        response.payload,
+        read_json(&governance_test_chat_script_path(root.path()))
+    );
     assert!(
         lowered.contains("low-signal") || lowered.contains("source-backed answer"),
         "{response_text}"
@@ -2393,7 +2435,11 @@ fn compare_workflow_harness_decomposes_local_and_web_evidence_before_final_synth
     write_json(
         &governance_test_chat_script_path(root.path()),
         &json!({
-            "queue": [],
+            "queue": [
+                {
+                    "response": "I would choose workspace search first to gather local evidence for comparing this system to OpenClaw."
+                }
+            ],
             "calls": []
         }),
     );

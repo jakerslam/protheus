@@ -21,7 +21,11 @@ fn compare_workflow_harness_decomposes_local_and_web_evidence_before_final_synth
     write_json(
         &governance_test_chat_script_path(root.path()),
         &json!({
-            "queue": [],
+            "queue": [
+                {
+                    "response": "I would choose workspace search first to gather local evidence for comparing this system to OpenClaw."
+                }
+            ],
             "calls": []
         }),
     );

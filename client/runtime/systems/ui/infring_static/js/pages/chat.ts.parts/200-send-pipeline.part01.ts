@@ -167,6 +167,14 @@
         await this._sendSystemTerminalPayload(command);
         return;
       }
+      var terminalAgent = this.resolveAgent ? (this.resolveAgent(targetAgentId) || this.currentAgent) : this.currentAgent;
+      if (terminalAgent && this.isArchivedAgentRecord && this.isArchivedAgentRecord(terminalAgent)) {
+        this.sending = false;
+        this._responseStartedAt = 0;
+        this._clearPendingWsRequest(targetAgentId);
+        InfringToast.info('Archived conversations are read-only. Revive this agent to run commands.');
+        return;
+      }
       this.sending = true;
       this.setAgentLiveActivity(targetAgentId, 'working');
       this._responseStartedAt = Date.now();
@@ -242,6 +250,15 @@
       if (!targetAgentId) {
         this.sending = false;
         this._responseStartedAt = 0;
+        return;
+      }
+      var targetAgent = ensuredAgent || (this.resolveAgent ? this.resolveAgent(targetAgentId) : null) || this.currentAgent;
+      if (!this.isSystemThreadId(targetAgentId) && targetAgent && this.isArchivedAgentRecord && this.isArchivedAgentRecord(targetAgent)) {
+        this.sending = false;
+        this._responseStartedAt = 0;
+        this._clearPendingWsRequest(targetAgentId);
+        this._inflightPayload = null;
+        InfringToast.info('Archived conversations are read-only. Revive this agent to continue this chat.');
         return;
       }
       this.setAgentLiveActivity(targetAgentId, 'typing');

@@ -28,6 +28,13 @@ fn resolve_core_shortcuts_family_shell(cmd: &str, rest: &[String]) -> Option<Rou
                 .collect(),
             forward_stdin: false,
         }),
+        "--version" | "-v" => Some(Route {
+            script_rel: "core://version-cli".to_string(),
+            args: std::iter::once("version".to_string())
+                .chain(rest.iter().cloned())
+                .collect(),
+            forward_stdin: false,
+        }),
         "update" => Some(Route {
             script_rel: "core://version-cli".to_string(),
             args: std::iter::once("update".to_string())

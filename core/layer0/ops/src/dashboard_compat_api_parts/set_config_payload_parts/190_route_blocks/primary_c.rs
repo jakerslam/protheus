@@ -1,18 +1,5 @@
-const AGENT_PERMISSION_KEYS: [&str; 10] = [
-    "web.search.basic",
-    "web.fetch.url",
-    "agent.spawn",
-    "agent.permissions.manage",
-    "github.issue.create",
-    "file.read.workspace",
-    "file.write.workspace",
-    "file.delete.workspace",
-    "terminal.exec",
-    "memory.write",
-];
-
-const AGENT_PERMISSION_CATEGORIES: [&str; 6] =
-    ["agent", "web", "file", "github", "terminal", "memory"];
+const AGENT_PERMISSION_KEYS: [&str; 10] = ["web.search.basic", "web.fetch.url", "agent.spawn", "agent.permissions.manage", "github.issue.create", "file.read.workspace", "file.write.workspace", "file.delete.workspace", "terminal.exec", "memory.write"];
+const AGENT_PERMISSION_CATEGORIES: [&str; 6] = ["agent", "web", "file", "github", "terminal", "memory"];
 
 fn parse_permissions_payload(raw: &Value) -> Option<Value> {
     if raw.is_object() {
@@ -34,13 +21,7 @@ fn normalize_permission_trit(raw: &Value) -> &'static str {
         };
     }
     if let Some(value) = raw.as_i64() {
-        return if value > 0 {
-            "allow"
-        } else if value < 0 {
-            "deny"
-        } else {
-            "inherit"
-        };
+        return if value > 0 { "allow" } else if value < 0 { "deny" } else { "inherit" };
     }
     if let Some(value) = raw.as_bool() {
         return if value { "allow" } else { "deny" };
@@ -394,12 +375,8 @@ fn handle_primary_dashboard_routes_c(
                 .unwrap_or(""),
             80,
         );
-        let explicit_indefinite = contract_obj
-            .get("indefinite")
-            .and_then(Value::as_bool)
-            .unwrap_or(false)
-            || contract_lifespan == "permanent"
-            || contract_lifespan == "indefinite";
+        let explicit_indefinite = contract_obj.get("indefinite").and_then(Value::as_bool).unwrap_or(false)
+            || contract_lifespan == "permanent" || contract_lifespan == "indefinite";
         if explicit_indefinite {
             termination_condition = "manual".to_string();
         } else if contract_lifespan == "task" {
@@ -459,6 +436,10 @@ fn handle_primary_dashboard_routes_c(
                 "ephemeral"
             },
             "expires_at": clean_text(contract_obj.get("expires_at").and_then(Value::as_str).unwrap_or(""), 80),
+            "budget_tokens": contract_obj.get("budget_tokens").cloned().unwrap_or(Value::Null),
+            "merge_strategy": contract_obj.get("merge_strategy").cloned().unwrap_or(Value::Null),
+            "context_slice": contract_obj.get("context_slice").cloned().unwrap_or(Value::Null),
+            "spawn_guard": contract_obj.get("spawn_guard").cloned().unwrap_or(Value::Null),
             "source_user_directive": clean_text(contract_obj.get("source_user_directive").and_then(Value::as_str).unwrap_or(""), 800),
             "source_user_directive_receipt": clean_text(contract_obj.get("source_user_directive_receipt").and_then(Value::as_str).unwrap_or(""), 120)
         });

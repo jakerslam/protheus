@@ -298,6 +298,11 @@ fn handle_agent_scope_full(
         ) {
             return Some(response);
         }
+        if let Some(response) = handle_agent_scope_continuity_command_route(
+            root, method, &segments, body, snapshot, &agent_id,
+        ) {
+            return Some(response);
+        }
         if let Some(response) = handle_agent_scope_suggestions_command_config_routes(
             root, method, &segments, body, snapshot, &agent_id, &existing,
         ) {
