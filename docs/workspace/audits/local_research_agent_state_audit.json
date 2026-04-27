@@ -1,0 +1,151 @@
+{
+  "type": "local_research_agent_state_audit",
+  "schema_version": 1,
+  "generated_at": "2026-04-26",
+  "task_id": "V11-APP-VALIDATION-001",
+  "headline_finding": "apps/local-research-agent/ is a README-only placeholder. Flagship validation target is non-viable as picked. Recommend pivoting to apps/local-rag/.",
+  "audit_target_directory": "apps/local-research-agent",
+  "audit_target_file_count": 1,
+  "audit_target_files": [
+    "apps/local-research-agent/README.md"
+  ],
+  "apps_inventory": {
+    "placeholder_one_file": [
+      "apps/local-research-agent",
+      "apps/mcu-sensor-monitor-tiny-max",
+      "apps/sovereign-memory-os"
+    ],
+    "stub_two_files_no_run_ts": [
+      "apps/ad_factory",
+      "apps/creator_outreach",
+      "apps/video-ad-factory"
+    ],
+    "thin_shell_canonical_three_files": [
+      "apps/chat_starter",
+      "apps/chat_ui",
+      "apps/code_engineer",
+      "apps/graph-toolkit",
+      "apps/intelligence-nexus",
+      "apps/local-rag",
+      "apps/snowball_engine"
+    ],
+    "slightly_larger_four_to_five_files": [
+      "apps/habits",
+      "apps/photo-grit"
+    ],
+    "substantive": [
+      "apps/examples",
+      "apps/prism"
+    ],
+    "outliers_not_validation_candidates": [
+      "apps/lensmap",
+      "apps/personas"
+    ]
+  },
+  "backend_wiring": {
+    "verified_present": [
+      {
+        "app": "local-rag",
+        "core_route": "core://rag",
+        "anchor": "core/layer0/ops/src/infringctl_routes_parts/010-command-routing_parts/003-resolve_core_shortcuts_family_ops1_fn_parts/001-resolve_core_shortcuts_family_ops1_group_1.rs:21"
+      },
+      {
+        "app": "intelligence-nexus",
+        "core_module": "core/layer0/ops/src/intelligence_nexus_keys.rs"
+      }
+    ],
+    "verified_absent": [
+      {
+        "app": "local-research-agent",
+        "missing_domain": "research",
+        "missing_commands": [
+          "infring research fetch",
+          "infring research diagnostics",
+          "infring think"
+        ]
+      }
+    ],
+    "unverified": [
+      "chat_starter",
+      "chat_ui",
+      "code_engineer",
+      "graph-toolkit",
+      "snowball_engine"
+    ]
+  },
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "blocker",
+      "summary": "local-research-agent cannot be the flagship validation target — README only, no source",
+      "remediation": "Pivot V11-APP-VALIDATION-002 through -009 to apps/local-rag",
+      "fix_scope_estimate_hours": 0.5
+    },
+    {
+      "id": "F2",
+      "severity": "major",
+      "summary": "Three apps are README-only placeholders (local-research-agent, mcu-sensor-monitor-tiny-max, sovereign-memory-os)",
+      "remediation": "Implement (weeks each) OR demote to apps/_placeholder/ with tracked retirement record",
+      "fix_scope_estimate_hours": 6,
+      "scope_note": "2 hours per demotion x 3 apps = 6h for demotion path; weeks for implementation path"
+    },
+    {
+      "id": "F3",
+      "severity": "major",
+      "summary": "Three apps are 2-file stubs missing run.ts (ad_factory, creator_outreach, video-ad-factory)",
+      "remediation": "Add canonical 5-line run.ts wrapper if backend exists, else demote/retire",
+      "fix_scope_estimate_hours": 0.5
+    },
+    {
+      "id": "F4",
+      "severity": "major",
+      "summary": "Backend wiring unverified for 5 of 7 thin-shell apps (chat_starter, chat_ui, code_engineer, graph-toolkit, snowball_engine)",
+      "remediation": "Add tool_routing_authority CI guard asserting every apps/*/app.json with layer=app has a matching core/layer0/ops/ domain handler. Track as V11-APP-VALIDATION-001-FOLLOWUP-001.",
+      "fix_scope_estimate_hours": 4
+    },
+    {
+      "id": "F5",
+      "severity": "minor",
+      "summary": "local-research-agent README documents commands (research fetch, research diagnostics, think) with no core domain handlers",
+      "remediation": "Delete or revise suggested-commands section as part of the F1 pivot",
+      "fix_scope_estimate_hours": 0.1
+    },
+    {
+      "id": "F6",
+      "severity": "informational",
+      "summary": "personas/rohan-kapoor and lensmap inflate apps/ inventory but are sample data and a separate product respectively",
+      "remediation": "Note in playbook (V11-APP-VALIDATION-009) that these are not validation candidates",
+      "fix_scope_estimate_hours": 0.1
+    },
+    {
+      "id": "F7",
+      "severity": "informational",
+      "summary": "PR1 of legacy_process_runner deletion (commit 086ca76b8) affects every thin-shell app's runtime path via the shared run_infring_ops bridge",
+      "remediation": "No remediation required; mention this in V11-OPS-PRD-001-PR1 soak notes so any thin-shell app regressing is recognized as a PR1 effect",
+      "fix_scope_estimate_hours": 0
+    }
+  ],
+  "summary_counts": {
+    "blocker": 1,
+    "major": 3,
+    "minor": 1,
+    "informational": 2,
+    "total_findings": 7
+  },
+  "recommended_pivot": {
+    "from": "apps/local-research-agent",
+    "to": "apps/local-rag",
+    "rationale": [
+      "local-rag has the canonical 3-file thin-shell shape so V11-APP-VALIDATION-001..002 are reduced",
+      "local-rag has a real backend route (rag -> core://rag)",
+      "local-rag exercises memory + retrieval + chat — high-value validation surface",
+      "local-rag documents real commands (start, ingest, search, chat, memory search)"
+    ],
+    "doc_edit_cost_hours": 0.5
+  },
+  "out_of_scope_for_this_audit": [
+    "Fresh-machine smoke test (V11-APP-VALIDATION-003)",
+    "Backend wiring verification for chat_starter, chat_ui, code_engineer, graph-toolkit, snowball_engine",
+    "Assessment of apps/examples and apps/prism as alternative flagship targets"
+  ]
+}
