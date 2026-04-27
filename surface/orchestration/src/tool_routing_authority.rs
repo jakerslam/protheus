@@ -147,6 +147,14 @@ pub fn build_tool_routing_authority_report(root: impl AsRef<Path>) -> ToolRoutin
         root,
         "surface/orchestration/config/legacy_ingress_budget_ratchet_schedule.json",
     );
+    let eval_issue_candidate_dedupe_policy = read_text(
+        root,
+        "surface/orchestration/config/eval_issue_candidate_dedupe_policy.json",
+    );
+    let eval_issue_candidates_source = read_text(
+        root,
+        "surface/orchestration/src/eval_learning_loop_issue_candidates.rs",
+    );
     let planner_payload_decision_audit = planner_payload_decision_audit(
         &preconditions,
         &planner_candidates,
@@ -177,6 +185,10 @@ pub fn build_tool_routing_authority_report(root: impl AsRef<Path>) -> ToolRoutin
         runtime_quality_schema_workflow_clean(&contracts),
         legacy_heuristic_sources_registered(&preconditions, &request_surface_policy),
         legacy_ingress_budget_ratchet_monotonic_declared(&legacy_ingress_budget_ratchet_schedule),
+        eval_issue_candidate_dedupe_policy_declared(
+            &eval_issue_candidate_dedupe_policy,
+            &eval_issue_candidates_source,
+        ),
         self_maintenance_noise_discipline_declared(
             &self_maintenance_executor,
             &self_maintenance_noise_policy_doc,
@@ -829,6 +841,74 @@ fn extract_runtime_quality_signals_body(contracts: &str) -> Option<&str> {
     let remainder = &contracts[body_start..];
     let close = remainder.find('}')?;
     Some(&remainder[..close])
+}
+
+fn eval_issue_candidate_dedupe_policy_declared(
+    policy_json: &str,
+    issue_candidates_source: &str,
+) -> ToolRoutingAuthorityCheck {
+    let mut missing = Vec::new();
+    if policy_json.is_empty() {
+        missing.push("eval_issue_candidate_dedupe_policy.json missing or empty".to_string());
+    }
+    for token in [
+        "eval_issue_candidate_dedupe_policy",
+        "min_recurrent_signature_count",
+        "min_recurrent_signature_count_floor",
+        "critical_severity_bypass_allowed",
+        "signature_scope",
+        "INFRING_EVAL_ISSUE_DEDUPE_POLICY_PATH",
+    ] {
+        if !policy_json.contains(token) {
+            missing.push(format!(
+                "eval_issue_candidate_dedupe_policy.json missing token: {token}"
+            ));
+        }
+    }
+    // Verify the floor declared in policy matches the Rust floor constant
+    // and the policy declares min >= floor.
+    let needle = "\"min_recurrent_signature_count\":";
+    if let Some(idx) = policy_json.find(needle) {
+        let tail = &policy_json[idx + needle.len()..];
+        let trimmed = tail.trim_start();
+        let mut end = 0usize;
+        for ch in trimmed.chars() {
+            if ch.is_ascii_digit() {
+                end += ch.len_utf8();
+            } else {
+                break;
+            }
+        }
+        if let Ok(value) = trimmed[..end].parse::<u64>() {
+            if value < 2 {
+                missing.push(format!(
+                    "eval_issue_candidate_dedupe_policy.min_recurrent_signature_count={value} below floor 2"
+                ));
+            }
+        }
+    }
+    // Verify the consumer module references the policy + the floor constant.
+    for token in [
+        "MIN_RECURRENT_SIGNATURE_COUNT_FLOOR",
+        "MIN_RECURRENT_SIGNATURE_COUNT_DEFAULT",
+        "min_recurrent_signature_count(",
+        "EVAL_ISSUE_CANDIDATE_DEDUPE_POLICY_PATH",
+    ] {
+        if !issue_candidates_source.contains(token) {
+            missing.push(format!(
+                "eval_learning_loop_issue_candidates.rs missing token: {token}"
+            ));
+        }
+    }
+    ToolRoutingAuthorityCheck::new(
+        "eval_issue_candidate_dedupe_policy_declared",
+        vec![
+            "eval issue-candidate dedupe threshold lives in policy, not a hardcoded constant"
+                .to_string(),
+            "policy floor of 2 cannot be lowered without tripping the guard".to_string(),
+        ],
+        missing,
+    )
 }
 
 fn legacy_ingress_budget_ratchet_monotonic_declared(

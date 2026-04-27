@@ -12,10 +12,42 @@ const DEFAULT_ISSUE_OUT_LATEST_PATH: &str =
     "artifacts/eval_learning_loop_issue_candidates_latest.json";
 const DEFAULT_ISSUE_MARKDOWN_PATH: &str =
     "local/workspace/reports/EVAL_LEARNING_LOOP_ISSUE_CANDIDATES_CURRENT.md";
-const MIN_RECURRENT_SIGNATURE_COUNT: usize = 2;
+
+/// Compile-time floor for the recurring-signature dedupe threshold.
+/// Policy file may raise this; it must NOT lower it.
+pub const MIN_RECURRENT_SIGNATURE_COUNT_FLOOR: usize = 2;
+
+/// Default value used when no policy file is present or the policy's
+/// declared value is missing/below floor.
+pub const MIN_RECURRENT_SIGNATURE_COUNT_DEFAULT: usize = 2;
+
+const EVAL_ISSUE_CANDIDATE_DEDUPE_POLICY_PATH: &str =
+    "surface/orchestration/config/eval_issue_candidate_dedupe_policy.json";
+
+const EVAL_ISSUE_DEDUPE_POLICY_PATH_ENV: &str = "INFRING_EVAL_ISSUE_DEDUPE_POLICY_PATH";
+
+fn min_recurrent_signature_count() -> usize {
+    let path = std::env::var(EVAL_ISSUE_DEDUPE_POLICY_PATH_ENV)
+        .unwrap_or_else(|_| EVAL_ISSUE_CANDIDATE_DEDUPE_POLICY_PATH.to_string());
+    let raw = match fs::read_to_string(&path) {
+        Ok(contents) => contents,
+        Err(_) => return MIN_RECURRENT_SIGNATURE_COUNT_DEFAULT,
+    };
+    let parsed: Value = match serde_json::from_str(&raw) {
+        Ok(value) => value,
+        Err(_) => return MIN_RECURRENT_SIGNATURE_COUNT_DEFAULT,
+    };
+    let declared = parsed
+        .get("min_recurrent_signature_count")
+        .and_then(|node| node.as_u64())
+        .map(|value| value as usize)
+        .unwrap_or(MIN_RECURRENT_SIGNATURE_COUNT_DEFAULT);
+    declared.max(MIN_RECURRENT_SIGNATURE_COUNT_FLOOR)
+}
 
 pub fn run_eval_learning_loop_issue_candidates(args: &[String]) -> i32 {
     let strict = parse_bool_flag(args, "strict", false);
+    let min_recurrent = min_recurrent_signature_count();
     let source_path =
         parse_flag(args, "source").unwrap_or_else(|| DEFAULT_ISSUE_SOURCE_PATH.to_string());
     let out_path = parse_flag(args, "out").unwrap_or_else(|| DEFAULT_ISSUE_OUT_PATH.to_string());
@@ -69,7 +101,7 @@ pub fn run_eval_learning_loop_issue_candidates(args: &[String]) -> i32 {
             "accepted_candidates": candidates.len(),
             "rejected_candidates": rejected.len(),
             "receipt_grounded": receipt_grounding_ok,
-            "minimum_recurrent_signature_count": MIN_RECURRENT_SIGNATURE_COUNT
+            "minimum_recurrent_signature_count": min_recurrent
         },
         "sources": {"inbox": source_path},
         "candidates": candidates,
@@ -289,7 +321,7 @@ fn issue_candidate_quality_failures(candidate: &Value) -> Vec<String> {
         .get("critical_bypass")
         .and_then(|node| node.as_bool())
         .unwrap_or(false);
-    if recurrence_count < MIN_RECURRENT_SIGNATURE_COUNT && !critical_bypass {
+    if recurrence_count < min_recurrent_signature_count() && !critical_bypass {
         failures.push("insufficient_recurrent_failure_signature".to_string());
     }
     if str_at(candidate, &["stable_failure_signature"]).is_none() {
