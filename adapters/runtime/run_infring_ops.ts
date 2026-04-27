@@ -6,8 +6,13 @@
 const fs = require('fs');
 const path = require('path');
 const { createOpsLaneBridge } = require('./ops_lane_bridge.ts');
+const { resolveBinary: resolveBinaryFromRoot } = require('./binary_resolver.ts');
+// Dev-only escape hatch: legacy process runner is reachable only when
+// INFRING_OPS_FORCE_LEGACY_PROCESS_RUNNER=1 + INFRING_DEV_ENABLE_LEGACY_PROCESS_RUNNER=1
+// + non-production release channel. The runner is on the deletion path
+// (V11-OPS-PRD-001, target v0.3.11-stable / 2026-05-15) and PR2 will remove
+// this import along with the file.
 const {
-  resolveBinary: resolveLegacyBinary,
   runLegacyProcessRunner,
 } = require('./dev_only/legacy_process_runner.ts');
 
@@ -79,7 +84,7 @@ function legacyProcessRunnerForced(env = process.env) {
 }
 
 function resolveBinary(options = {}) {
-  return resolveLegacyBinary(ROOT, options);
+  return resolveBinaryFromRoot(ROOT, options);
 }
 
 function writeAll(fd, text) {
@@ -155,14 +160,33 @@ function runInfringOpsLegacy(args, options = {}) {
   return runLegacyProcessRunner(ROOT, args, options);
 }
 
+function emitBridgeFailureDeny(reason) {
+  const payload = JSON.stringify({
+    ok: false,
+    type: 'ipc_transport_unavailable',
+    reason,
+    resolution: 'check resident IPC daemon health; production has process fallback locked off',
+    process_fallback_blocked: true,
+    process_fallback_policy_reason: PROCESS_FALLBACK_FORBIDDEN_IN_PRODUCTION,
+  });
+  writeAll(2, `${payload}\n`);
+}
+
 function runInfringOps(args, options = {}) {
-  if (!legacyProcessRunnerForced(options && options.env ? options.env : process.env)) {
-    const viaBridge = runInfringOpsViaBridge(args, options);
-    if (Number.isFinite(Number(viaBridge))) {
-      return Number(viaBridge);
-    }
+  // Dev-only escape hatch: forced legacy is gated on env + non-production release channel.
+  // legacyProcessRunnerForced() returns false in any production release channel.
+  if (legacyProcessRunnerForced(options && options.env ? options.env : process.env)) {
+    return runInfringOpsLegacy(args, options);
   }
-  return runInfringOpsLegacy(args, options);
+  const viaBridge = runInfringOpsViaBridge(args, options);
+  if (Number.isFinite(Number(viaBridge))) {
+    return Number(viaBridge);
+  }
+  // Bridge failed in non-forced mode. Production transport is fail-closed:
+  // no silent fallback to a process spawn. Emit a structured deny payload
+  // and exit with status 1 so callers can detect IPC failure deterministically.
+  emitBridgeFailureDeny('bridge_returned_null');
+  return 1;
 }
 
 module.exports = {
