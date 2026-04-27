@@ -158,6 +158,7 @@ pub fn build_tool_routing_authority_report(root: impl AsRef<Path>) -> ToolRoutin
         ),
         planner_candidate_metadata_contract_declared(&planner_candidates),
         workflow_quality_scoped_metadata_declared(&contracts, &result_packaging),
+        runtime_quality_schema_workflow_clean(&contracts),
         eval_issue_stability_gate_declared(&continuous_eval, &eval_feedback_router),
         eval_issue_autonomy_safety_contract_declared(&continuous_eval, &eval_feedback_router),
         issue_candidate_lifecycle_and_provenance_contract_declared(
@@ -778,6 +779,74 @@ fn workflow_quality_scoped_metadata_declared(
     )
 }
 
+/// Tokens forbidden inside the `RuntimeQualitySignals` struct body.
+///
+/// The generic runtime-quality tier must stay workflow-agnostic; per-family
+/// doctrine (ForgeCode, OpenHands, Codex, etc.) belongs in a `WorkflowQualitySignals`
+/// enum variant, never in the generic struct. See:
+/// `docs/workspace/policy/workflow_quality_extension_boundary_policy.md`.
+const RUNTIME_QUALITY_FORBIDDEN_TOKENS: [&str; 11] = [
+    "forgecode",
+    "openhands",
+    "forge_",
+    "sage_",
+    "muse_",
+    "mcp_",
+    "subagent_",
+    "codex_",
+    "step_checkpoint",
+    "completion_hygiene",
+    "parallel_independent_tool_calls",
+];
+
+fn extract_runtime_quality_signals_body(contracts: &str) -> Option<&str> {
+    let header = "pub struct RuntimeQualitySignals {";
+    let start = contracts.find(header)?;
+    let body_start = start + header.len();
+    let remainder = &contracts[body_start..];
+    let close = remainder.find('}')?;
+    Some(&remainder[..close])
+}
+
+fn runtime_quality_schema_workflow_clean(contracts: &str) -> ToolRoutingAuthorityCheck {
+    let mut missing = Vec::new();
+    let body = match extract_runtime_quality_signals_body(contracts) {
+        Some(body) => body,
+        None => {
+            missing.push(
+                "RuntimeQualitySignals struct definition not found in contracts.rs".to_string(),
+            );
+            return ToolRoutingAuthorityCheck::new(
+                "runtime_quality_schema_workflow_clean",
+                vec![
+                    "generic RuntimeQualitySignals must remain workflow-family-agnostic"
+                        .to_string(),
+                    "workflow-family doctrine extends WorkflowQualitySignals enum, not the generic tier"
+                        .to_string(),
+                ],
+                missing,
+            );
+        }
+    };
+    let body_lower = body.to_ascii_lowercase();
+    for token in RUNTIME_QUALITY_FORBIDDEN_TOKENS {
+        if body_lower.contains(token) {
+            missing.push(format!(
+                "RuntimeQualitySignals contains workflow-family-specific token: {token}"
+            ));
+        }
+    }
+    ToolRoutingAuthorityCheck::new(
+        "runtime_quality_schema_workflow_clean",
+        vec![
+            "generic RuntimeQualitySignals stays workflow-family-agnostic".to_string(),
+            "new workflow doctrine lands in a WorkflowQualitySignals variant, not the generic tier"
+                .to_string(),
+        ],
+        missing,
+    )
+}
+
 fn eval_issue_stability_gate_declared(
     continuous_eval: &str,
     eval_feedback_router: &str,
@@ -1123,5 +1192,62 @@ mod tests {
 
         assert!(!check.ok);
         assert!(check.missing[0].contains("plan_candidates.rs"));
+    }
+
+    #[test]
+    fn runtime_quality_schema_workflow_clean_passes_for_generic_struct() {
+        let contracts = "pub struct RuntimeQualitySignals {\n    pub candidate_count: u32,\n    pub used_heuristic_probe: bool,\n    pub blocked_precondition_count: u32,\n    pub typed_probe_contract_gap_count: u32,\n    pub fallback_action_count: u32,\n}";
+        let check = runtime_quality_schema_workflow_clean(contracts);
+        assert!(check.ok, "expected clean schema to pass: {:?}", check.missing);
+        assert!(check.missing.is_empty());
+    }
+
+    #[test]
+    fn runtime_quality_schema_workflow_clean_rejects_forgecode_field() {
+        let contracts = "pub struct RuntimeQualitySignals {\n    pub candidate_count: u32,\n    pub forgecode_subagent_active: bool,\n}";
+        let check = runtime_quality_schema_workflow_clean(contracts);
+        assert!(!check.ok);
+        assert!(check
+            .missing
+            .iter()
+            .any(|row| row.contains("forgecode")));
+    }
+
+    #[test]
+    fn runtime_quality_schema_workflow_clean_rejects_mcp_token() {
+        let contracts =
+            "pub struct RuntimeQualitySignals {\n    pub mcp_alias_route_required: bool,\n}";
+        let check = runtime_quality_schema_workflow_clean(contracts);
+        assert!(!check.ok);
+        assert!(check.missing.iter().any(|row| row.contains("mcp_")));
+    }
+
+    #[test]
+    fn runtime_quality_schema_workflow_clean_rejects_subagent_token() {
+        let contracts = "pub struct RuntimeQualitySignals {\n    pub subagent_brief_required: bool,\n}";
+        let check = runtime_quality_schema_workflow_clean(contracts);
+        assert!(!check.ok);
+        assert!(check.missing.iter().any(|row| row.contains("subagent_")));
+    }
+
+    #[test]
+    fn runtime_quality_schema_workflow_clean_does_not_inspect_workflow_struct() {
+        // Tokens forbidden in RuntimeQualitySignals are allowed in the
+        // ForgeCodeWorkflowQualitySignals struct; the guard scopes its check
+        // strictly to the generic tier body.
+        let contracts = "pub struct RuntimeQualitySignals {\n    pub candidate_count: u32,\n}\n\npub struct ForgeCodeWorkflowQualitySignals {\n    pub mcp_alias_route_required: bool,\n    pub subagent_brief_required: bool,\n}";
+        let check = runtime_quality_schema_workflow_clean(contracts);
+        assert!(check.ok, "guard must not flag workflow-tier fields: {:?}", check.missing);
+    }
+
+    #[test]
+    fn runtime_quality_schema_workflow_clean_reports_missing_struct() {
+        let contracts = "pub struct UnrelatedThing { pub x: u32 }";
+        let check = runtime_quality_schema_workflow_clean(contracts);
+        assert!(!check.ok);
+        assert!(check
+            .missing
+            .iter()
+            .any(|row| row.contains("RuntimeQualitySignals struct definition not found")));
     }
 }
