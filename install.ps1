@@ -167,6 +167,33 @@ $script:InstallSummaryFinalized = $false
 $script:ResolvedInstallVersionForSummary = ""
 $script:ResolvedInstallTripleForSummary = ""
 
+function Write-InstallCompletionCard {
+  param(
+    [string]$Version,
+    [string]$InstallDir
+  )
+
+  $launcherPath = Join-Path $InstallDir "infring.cmd"
+  if (-not (Test-Path -LiteralPath $launcherPath)) {
+    $launcherPath = Join-Path $InstallDir "infring.ps1"
+  }
+
+  Write-Host ""
+  Write-Host "Setting up InfRing..."
+  Write-Host ""
+  Write-Host "✔ InfRing successfully installed!" -ForegroundColor Green
+  Write-Host ""
+  Write-Host -NoNewline "  Version: "
+  Write-Host "$Version." -ForegroundColor DarkYellow
+  Write-Host "  Location: $launcherPath"
+  Write-Host ""
+  Write-Host -NoNewline "  Next: Run "
+  Write-Host -NoNewline "infring --help" -ForegroundColor DarkYellow
+  Write-Host " to get started."
+  Write-Host ""
+  Write-Host "✅ Installation complete!"
+}
+
 function Test-InstallSummarySuccessContract {
   param(
     [string]$SummaryPath
@@ -4350,7 +4377,8 @@ if ($InstallJson) {
   $summaryPayload | ConvertTo-Json -Depth 8 -Compress | Write-Output
 }
 
-Write-Host "[infring install] installed: infring, infringctl, infringd"
+Write-InstallCompletionCard -Version $version -InstallDir $InstallDir
+Write-Host "[infring install] installed commands: infring, infringctl, infringd"
 Write-Host "[infring install] run now (direct path): $InstallDir\\infring.cmd --help"
 Write-Host "[infring install] quickstart now (direct path): $InstallDir\\infring.cmd gateway"
 Write-Host "[infring install] run in this shell: infring --help"

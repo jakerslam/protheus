@@ -1043,6 +1043,42 @@ install_json_escape() {
   printf '%s' "${1:-}" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\r//g; :a;N;$!ba;s/\n/\\n/g'
 }
 
+install_color_enabled() {
+  [ -t 1 ] && [ -z "${NO_COLOR:-}" ]
+}
+
+install_print_colored() {
+  color_code="$1"
+  text="$2"
+  no_newline="${3:-0}"
+  if install_color_enabled; then
+    if [ "$no_newline" = "1" ]; then
+      printf '\033[%sm%s\033[0m' "$color_code" "$text"
+    else
+      printf '\033[%sm%s\033[0m\n' "$color_code" "$text"
+    fi
+  elif [ "$no_newline" = "1" ]; then
+    printf '%s' "$text"
+  else
+    printf '%s\n' "$text"
+  fi
+}
+
+emit_install_completion_card() {
+  version_tag="$1"
+  install_location="$2"
+  printf '\nSetting up InfRing...\n\n'
+  install_print_colored "32" "✔ InfRing successfully installed!"
+  printf '\n'
+  printf '  Version: '
+  install_print_colored "38;5;208" "${version_tag}."
+  printf '  Location: %s\n\n' "$install_location"
+  printf '  Next: Run '
+  install_print_colored "38;5;208" "infring --help" "1"
+  printf ' to get started.\n\n'
+  printf '✅ Installation complete!\n'
+}
+
 emit_install_success_summary() {
   version_tag="$1"
   triple_id="$2"
@@ -4797,7 +4833,8 @@ ${ops_domain_dispatch}"
   install_summary_note "workspace_release_tag_written: ${WORKSPACE_RELEASE_TAG_WRITTEN}"
   install_summary_note "workspace_release_tag_write_verified: ${WORKSPACE_RELEASE_TAG_WRITE_VERIFIED}"
 
-  echo "[infring install] installed: infring, infringctl, infringd"
+  emit_install_completion_card "$version" "$INSTALL_DIR/infring"
+  echo "[infring install] installed commands: infring, infringctl, infringd"
   if [ -x "$INSTALL_DIR/infring" ] && [ -x "$INSTALL_DIR/infringctl" ] && [ -x "$INSTALL_DIR/infringd" ]; then
     echo "[infring install] sanity check: wrapper binaries installed"
   else
