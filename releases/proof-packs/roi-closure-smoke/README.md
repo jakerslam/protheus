@@ -289,4 +289,3 @@
 - optional_artifacts: local/state/kernel_sentinel/suggestions.jsonl count=1; remove optional duplicate because this path is already required evidence
 - optional_artifacts: local/state/kernel_sentinel/automation_candidates.jsonl count=1; remove optional duplicate because this path is already required evidence
 - optional_artifacts: local/state/kernel_sentinel/daily_report.md count=1; remove optional duplicate because this path is already required evidence
-
