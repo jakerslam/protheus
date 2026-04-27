@@ -1,3 +1,21 @@
+fn dashboard_start_payload_ready(payload: &Value) -> bool {
+    let start_payload = payload.get("started").unwrap_or(payload);
+    if start_payload.get("enabled").and_then(Value::as_bool) == Some(false) {
+        return true;
+    }
+    start_payload.get("running").and_then(Value::as_bool) == Some(true)
+}
+
+fn dashboard_start_failure_reason(payload: &Value) -> String {
+    let start_payload = payload.get("started").unwrap_or(payload);
+    start_payload
+        .get("error")
+        .or_else(|| payload.get("error"))
+        .and_then(Value::as_str)
+        .unwrap_or("dashboard_healthz_not_ready")
+        .to_string()
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let command = argv
         .first()
@@ -119,10 +137,17 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             }
             _ => json!({}),
         };
+        let start_ready = !matches!(command.as_str(), "start" | "restart")
+            || dashboard_start_payload_ready(&dashboard);
+        if !start_ready {
+            receipt["ok"] = Value::Bool(false);
+            receipt["error"] = Value::String(dashboard_start_failure_reason(&dashboard));
+            receipt["error_code"] = Value::String("dashboard_not_ready".to_string());
+        }
         receipt["dashboard"] = dashboard;
         receipt["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&receipt));
         print_json_line(&receipt);
-        return 0;
+        return if start_ready { 0 } else { 1 };
     }
 
     usage();

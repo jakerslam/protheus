@@ -1642,6 +1642,12 @@ fn run_turn_workflow_final_response(
         } else {
             "Reply naturally as the assistant. No tools. Answer only the latest user request in one short sentence. If the user asks about repeated fallback text, briefly explain that it came from a response-finalization loop. Do not mention workflow, gates, tools, or telemetry. Keep it under 25 words."
         };
+        let project_boundary_prompt = current_turn_project_boundary_prompt(message);
+        let direct_gate_system_prompt = if project_boundary_prompt.is_empty() {
+            direct_gate_system_prompt.to_string()
+        } else {
+            format!("{direct_gate_system_prompt} {project_boundary_prompt}")
+        };
         let direct_gate_user_prompt = if direct_simple_conversation_turn {
             format!("User: {message}\nAssistant:")
         } else if direct_no_tool_exit_turn {
@@ -1654,7 +1660,7 @@ fn run_turn_workflow_final_response(
             )
         };
         (
-            clean_text(direct_gate_system_prompt, 2_000),
+            clean_text(&direct_gate_system_prompt, 2_000),
             clean_text(&direct_gate_user_prompt, 6_000),
         )
     } else {
@@ -1893,6 +1899,7 @@ fn run_turn_workflow_final_response(
                 let lowered_message = message.to_ascii_lowercase();
                 let lowered_retried_text = retried_text.to_ascii_lowercase();
                 let missing_manual_web_search_phrase = manual_toolbox_gate_turn
+                    && response_tools.is_empty()
                     && lowered_message.contains("web search")
                     && !lowered_retried_text.contains("web search");
                 let missing_direct_answer_phrase = direct_gate_recovery_turn

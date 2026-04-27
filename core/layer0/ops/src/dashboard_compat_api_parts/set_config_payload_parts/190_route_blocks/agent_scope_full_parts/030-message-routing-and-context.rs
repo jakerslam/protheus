@@ -563,6 +563,10 @@ fn prepare_message_route_context(
         prompt_parts.push(identity_hydration_prompt);
     }
     prompt_parts.push(AGENT_RUNTIME_SYSTEM_PROMPT.to_string());
+    let project_boundary_prompt = current_turn_project_boundary_prompt(message);
+    if !project_boundary_prompt.is_empty() {
+        prompt_parts.push(project_boundary_prompt);
+    }
     let workflow_prompt_context = workflow_library_prompt_context(
         message,
         latent_tool_candidates

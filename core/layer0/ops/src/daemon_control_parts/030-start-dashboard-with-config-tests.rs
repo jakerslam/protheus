@@ -1,6 +1,7 @@
 mod startup_compaction_tests {
     use super::{
-        should_refresh_supervisor, supervisor_payload_healthy, supervisor_payload_running,
+        dashboard_start_payload_ready, should_refresh_supervisor, supervisor_payload_healthy,
+        supervisor_payload_running,
     };
     use serde_json::json;
 
@@ -38,6 +39,42 @@ mod startup_compaction_tests {
             "ok": true,
             "active": true,
             "running": false
+        })));
+    }
+
+    #[test]
+    fn dashboard_start_payload_ready_requires_running_when_dashboard_is_enabled() {
+        assert!(dashboard_start_payload_ready(&json!({
+            "enabled": true,
+            "running": true
+        })));
+        assert!(!dashboard_start_payload_ready(&json!({
+            "enabled": true,
+            "running": false,
+            "error": "dashboard_healthz_not_ready"
+        })));
+        assert!(dashboard_start_payload_ready(&json!({
+            "enabled": false,
+            "running": false
+        })));
+    }
+
+    #[test]
+    fn dashboard_start_payload_ready_reads_restart_started_payload() {
+        assert!(!dashboard_start_payload_ready(&json!({
+            "stopped": {"ok": true},
+            "started": {
+                "enabled": true,
+                "running": false,
+                "error": "dashboard_healthz_not_ready"
+            }
+        })));
+        assert!(dashboard_start_payload_ready(&json!({
+            "stopped": {"ok": true},
+            "started": {
+                "enabled": true,
+                "running": true
+            }
         })));
     }
 }

@@ -21,7 +21,11 @@ fn web_tooling_harness_surfaces_no_results_with_final_llm_synthesis() {
     write_json(
         &governance_test_chat_script_path(root.path()),
         &json!({
-            "queue": [],
+            "queue": [
+                {
+                    "response": "Yes. Tool family: Web Search / Fetch. Tool: Web search. Request payload: {\"source\":\"web\",\"query\":\"top AI agentic frameworks\",\"aperture\":\"medium\"}"
+                }
+            ],
             "calls": []
         }),
     );
@@ -56,7 +60,9 @@ fn web_tooling_harness_surfaces_no_results_with_final_llm_synthesis() {
             .payload
             .pointer("/tools/0/name")
             .and_then(Value::as_str),
-        Some("batch_query")
+        Some("batch_query"),
+        "expected web search tool execution; payload={}",
+        response.payload
     );
     assert_eq!(
         response
@@ -71,7 +77,12 @@ fn web_tooling_harness_surfaces_no_results_with_final_llm_synthesis() {
         .and_then(Value::as_str)
         .unwrap_or("");
     let lowered = response_text.to_ascii_lowercase();
-    assert!(!response_text.trim().is_empty(), "expected synthesized no-results reply");
+    assert!(
+        !response_text.trim().is_empty(),
+        "expected synthesized no-results reply; payload={}; chat_calls={:?}",
+        response.payload,
+        read_json(&governance_test_chat_script_path(root.path()))
+    );
     assert!(
         lowered.contains("low-signal") || lowered.contains("source-backed answer"),
         "{response_text}"

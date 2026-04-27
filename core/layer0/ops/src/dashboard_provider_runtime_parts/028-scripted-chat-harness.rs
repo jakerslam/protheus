@@ -33,8 +33,15 @@ fn first_sentence_for_test(raw: &str, max_len: usize) -> String {
 
 #[cfg(test)]
 fn extract_json_block_after(marker: &str, text: &str) -> Option<Value> {
-    let start = text.find(marker)?;
-    let tail = clean_text(&text[start + marker.len()..], 20_000);
+    let (start, marker_len) = text
+        .find(marker)
+        .map(|start| (start, marker.len()))
+        .or_else(|| {
+            let collapsed_marker = marker.trim_end();
+            text.find(collapsed_marker)
+                .map(|start| (start, collapsed_marker.len()))
+        })?;
+    let tail = clean_text(&text[start + marker_len..], 20_000);
     let json_start = tail.find(|ch| ch == '[' || ch == '{')?;
     let opener = tail.as_bytes().get(json_start).copied()?;
     let closer = if opener == b'[' { b']' } else { b'}' };
@@ -65,6 +72,19 @@ fn extract_json_block_after(marker: &str, text: &str) -> Option<Value> {
         }
     }
     None
+}
+
+#[cfg(test)]
+fn extract_text_between_for_test(text: &str, start_marker: &str, end_marker: &str) -> Option<String> {
+    let start = text.find(start_marker)? + start_marker.len();
+    let tail = text.get(start..)?;
+    let end = tail.find(end_marker).unwrap_or(tail.len());
+    let extracted = clean_text(tail.get(..end).unwrap_or(""), 600);
+    if extracted.is_empty() {
+        None
+    } else {
+        Some(extracted)
+    }
 }
 
 #[cfg(test)]
@@ -241,6 +261,38 @@ fn synthesize_test_response_from_tool_rows(user_message: &str) -> Option<String>
 }
 
 #[cfg(test)]
+fn infer_test_manual_toolbox_gate_response(user_message: &str) -> Option<String> {
+    let cleaned = clean_text(user_message, 80_000);
+    let lowered = cleaned.to_ascii_lowercase();
+    let looks_like_manual_gate = lowered.contains("available workflow/tool candidates:")
+        || lowered.contains("manual toolbox gate")
+        || lowered.contains("gate/menu choices belong in workflow telemetry")
+        || lowered.contains("manual_toolbox_candidate_menu");
+    if !looks_like_manual_gate
+    {
+        return None;
+    }
+    let request = extract_text_between_for_test(&cleaned, "User request:\n", "\n\n")
+        .unwrap_or_else(|| clean_text(&cleaned, 600));
+    if lowered.contains("workspace_analyze") || lowered.contains("workspace_search") {
+        return Some(format!(
+            "I would choose workspace search first to gather local evidence for: {}.",
+            clean_text(&request, 320)
+        ));
+    }
+    if lowered.contains("batch_query") || lowered.contains("web_search") {
+        return Some(format!(
+            "I would choose web search to gather current external evidence for: {}.",
+            clean_text(&request, 320)
+        ));
+    }
+    Some(format!(
+        "I can answer directly from current context for: {}.",
+        clean_text(&request, 320)
+    ))
+}
+
+#[cfg(test)]
 fn infer_test_inline_tool_response(user_message: &str) -> Option<String> {
     let cleaned = clean_text(user_message, 80_000);
     let lowered = cleaned.to_ascii_lowercase();
@@ -250,7 +302,11 @@ fn infer_test_inline_tool_response(user_message: &str) -> Option<String> {
     if lowered.contains("write the final assistant response now.")
         || lowered.contains("write the final assistant reply now.")
     {
-        return synthesize_test_response_from_tool_rows(&cleaned);
+        return synthesize_test_response_from_tool_rows(user_message)
+            .or_else(|| synthesize_test_response_from_tool_rows(&cleaned));
+    }
+    if let Some(response) = infer_test_manual_toolbox_gate_response(&cleaned) {
+        return Some(response);
     }
     if lowered.contains("run `infring web search` as the next safe step") {
         return Some(

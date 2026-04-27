@@ -106,6 +106,16 @@ mod continuity_tests {
             .and_then(Value::as_array)
             .map(|rows| !rows.is_empty())
             .unwrap_or(false));
+        assert!(out
+            .pointer("/active_agents/rows/0/objective")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .contains("investigate pending deployment"));
+        assert_eq!(
+            out.pointer("/active_agents/rows/0/completion_percent")
+                .and_then(Value::as_i64),
+            Some(20)
+        );
     }
 
     #[test]

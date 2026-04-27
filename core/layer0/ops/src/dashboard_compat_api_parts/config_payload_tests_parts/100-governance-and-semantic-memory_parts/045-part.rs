@@ -286,7 +286,11 @@ fn web_tooling_harness_surfaces_no_results_with_final_llm_synthesis() {
     write_json(
         &governance_test_chat_script_path(root.path()),
         &json!({
-            "queue": [],
+            "queue": [
+                {
+                    "response": "Yes. Tool family: Web Search / Fetch. Tool: Web search. Request payload: {\"source\":\"web\",\"query\":\"top AI agentic frameworks\",\"aperture\":\"medium\"}"
+                }
+            ],
             "calls": []
         }),
     );
@@ -321,7 +325,9 @@ fn web_tooling_harness_surfaces_no_results_with_final_llm_synthesis() {
             .payload
             .pointer("/tools/0/name")
             .and_then(Value::as_str),
-        Some("batch_query")
+        Some("batch_query"),
+        "expected web search tool execution; payload={}",
+        response.payload
     );
     assert_eq!(
         response
@@ -397,7 +403,11 @@ fn compare_workflow_harness_decomposes_local_and_web_evidence_before_final_synth
     write_json(
         &governance_test_chat_script_path(root.path()),
         &json!({
-            "queue": [],
+            "queue": [
+                {
+                    "response": "I would choose workspace search first to gather local evidence for comparing this system to OpenClaw."
+                }
+            ],
             "calls": []
         }),
     );

@@ -129,6 +129,17 @@ fn scripted_chat_harness_response(
             }))
         })
     });
+    let response_excerpt = match &response {
+        Some(Ok(value)) => clean_chat_text(
+            value
+                .get("response")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            20_000,
+        ),
+        Some(Err(error)) => clean_text(error, 1_000),
+        None => String::new(),
+    };
     if script_exists {
         if let Some(obj) = script.as_object_mut() {
             let calls = obj.entry("calls".to_string()).or_insert_with(|| json!([]));
@@ -137,7 +148,8 @@ fn scripted_chat_harness_response(
                     "provider": normalize_provider_id(provider_id),
                     "model": clean_text(model_name, 240),
                     "system_prompt": clean_text(system_prompt, 4_000),
-                    "user_message": clean_text(user_message, 20_000)
+                    "user_message": clean_text(user_message, 20_000),
+                    "response": response_excerpt
                 }));
             }
         }
