@@ -382,13 +382,15 @@
         var rowTs = Number(row.ts || 0);
         var ageMs = rowTs > 0 ? Math.abs(nowTs - rowTs) : 0;
         if (ageMs > maxAge && checked > 3) break;
+        var rowSignature = this.agentMessageSignature(row);
+        if (rowSignature === signature && (!rowTs || ageMs <= maxAge)) return row;
         if (candidateTurnStart > 0) {
           var rowTurnStart = this.assistantTurnStartTimestamp(row);
           if (!(rowTurnStart > 0 && Math.abs(rowTurnStart - candidateTurnStart) <= 1200)) {
             continue;
           }
         }
-        if (this.agentMessageSignature(row) === signature) return row;
+        if (rowSignature === signature) return row;
         if (checked >= 16) break;
       }
       return null;

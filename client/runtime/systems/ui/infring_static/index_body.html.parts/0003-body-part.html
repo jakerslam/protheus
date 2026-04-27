@@ -321,7 +321,7 @@
                             x-text="messageActorLabel(msg)"
                           ></div>
                           <template x-if="shouldRenderMessageContent(msg, idx, messages)">
-                            <infring-chat-bubble-render :typing="!!msg._typingVisual" :html="messageBubbleHtml(msg, idx)" :plain="String(msg.text || '')"></infring-chat-bubble-render>
+                            <infring-chat-bubble-render :class="{ 'message-text-skeletonized': !isMessageTextInRenderWindow(msg, idx, messages) }" :typing="!!msg._typingVisual" :html="messageBubbleHtml(msg, idx)" :plain="String(msg.text || '')"></infring-chat-bubble-render>
                           </template>
                           <template x-if="!shouldRenderMessageContent(msg, idx, messages)">
                             <infring-message-placeholder-shell><div class="message-placeholder-shell message-placeholder-shell-inline" :style="messagePlaceholderStyle(msg, idx, messages)">

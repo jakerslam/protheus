@@ -68,6 +68,7 @@ function chatPage() {
     messageDisplayInitialLimit: 10,
     messageDisplayStep: 5,
     messageDisplayCount: 10,
+    messageTextRenderWindowRadius: 20,
     _messageDisplayKey: '',
     // Voice recording state
     recording: false,
@@ -8819,9 +8820,9 @@ function chatPage() {
     },
     trackRenderedMessageMetrics(blockEl) {
       if (!blockEl || typeof blockEl.querySelector !== 'function') return;
-      var bubble = blockEl.querySelector('.message:not(.message-placeholder) .message-bubble:not(.message-placeholder-bubble)');
+      var metricRoot = blockEl.classList && blockEl.classList.contains('chat-message-block') ? blockEl : ((typeof blockEl.closest === 'function' && blockEl.closest('.chat-message-block')) || blockEl), bubble = metricRoot.querySelector('.message:not(.message-placeholder) .message-bubble:not(.message-placeholder-bubble)');
       if (!bubble) return;
-      var msg = this.resolveMessageByDomId(blockEl.id);
+      var msg = this.resolveMessageByDomId(String(metricRoot.id || blockEl.id || '').trim());
       if (!msg) return;
       var styles = window.getComputedStyle(bubble);
       var paddingTop = parseFloat(styles.paddingTop || '0');
@@ -8843,17 +8844,14 @@ function chatPage() {
       metrics.bubbleWidth = bubbleWidth;
       metrics.updatedAt = Date.now();
     },
-    shouldRenderMessage(msg, idx, list) {
-      void msg;
-      void idx;
-      void list;
-      return true;
-    },
-    shouldRenderMessageContent(msg, idx, list) {
-      void msg;
-      void idx;
-      void list;
-      return true;
+    shouldRenderMessage(msg, idx, list) { void msg; void idx; void list; return true; },
+    shouldRenderMessageContent(msg, idx, list) { void msg; void idx; void list; return true; },
+    isMessageTextInRenderWindow(msg, idx, list) {
+      var rows = Array.isArray(list) ? list : this.messages, active = Number(this.mapStepIndex), selected = String(this.selectedMessageDomId || this.hoveredMessageDomId || this.directHoveredMessageDomId || '').trim(), windowRows = Number(this.messageTextRenderWindowRadius || 20);
+      if (!this.isMessageVirtualizationActive(rows)) return true;
+      if (!Number.isFinite(active) || active < 0 || active >= rows.length) active = Math.max(0, rows.length - 1);
+      for (var i = 0; selected && i < rows.length; i++) if (this.messageDomId(rows[i], i) === selected) { active = i; break; }
+      return Math.abs(Number(idx || 0) - active) <= (Number.isFinite(windowRows) && windowRows > 0 ? windowRows : 20) || !!(msg && (msg.streaming || msg.thinking || msg._typingVisual));
     },
     messageEstimatedLineCount(msg) {
       var metrics = this.messageRenderMetrics(msg);
@@ -8948,7 +8946,7 @@ function chatPage() {
         this.messageHydrationReady = false;
         return;
       }
-      var blocks = Array.prototype.slice.call(root.querySelectorAll('.chat-message-block .message[id]'));
+      var blocks = Array.prototype.slice.call(root.querySelectorAll('.chat-message-block[id]')); if (!blocks.length) blocks = Array.prototype.slice.call(root.querySelectorAll('.chat-message-block .message[id]'));
       if (!blocks.length) {
         this.messageHydration = {};
         this.messageHydrationReady = false;
@@ -12365,13 +12363,15 @@ function chatPage() {
         var rowTs = Number(row.ts || 0);
         var ageMs = rowTs > 0 ? Math.abs(nowTs - rowTs) : 0;
         if (ageMs > maxAge && checked > 3) break;
+        var rowSignature = this.agentMessageSignature(row);
+        if (rowSignature === signature && (!rowTs || ageMs <= maxAge)) return row;
         if (candidateTurnStart > 0) {
           var rowTurnStart = this.assistantTurnStartTimestamp(row);
           if (!(rowTurnStart > 0 && Math.abs(rowTurnStart - candidateTurnStart) <= 1200)) {
             continue;
           }
         }
-        if (this.agentMessageSignature(row) === signature) return row;
+        if (rowSignature === signature) return row;
         if (checked >= 16) break;
       }
       return null;
