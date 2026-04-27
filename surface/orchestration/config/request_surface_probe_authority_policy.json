@@ -49,5 +49,18 @@
   "required_diagnostics": [
     "missing_probe: <capability>.<field>",
     "probe.required_for_typed_surface.<capability>.<field>"
-  ]
+  ],
+  "legacy_heuristic_source_registry": {
+    "summary": "Closed registry of heuristic source labels emitted by preconditions.rs when allow_heuristic_probe_fallback returns true. Adding a new heuristic source requires extending this registry and updating the legacy_heuristic_sources_registered guard.",
+    "sources": [
+      "heuristic.tool_hints_or_operation",
+      "heuristic.target_descriptors_present",
+      "heuristic.target_descriptor_domain",
+      "heuristic.target_refs_present",
+      "heuristic.mutation_cross_boundary",
+      "heuristic.policy_scope_and_mutability",
+      "heuristic.transport_hints_or_operation"
+    ],
+    "burn_down_target": "legacy_ingress_budget heuristic_probe_source_count rate ratchets toward 0 per release"
+  }
 }

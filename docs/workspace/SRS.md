@@ -21133,6 +21133,48 @@ External reader pass over public `main` HEAD concluded the project has crossed o
   - `core/local/artifacts/release_blocker_rubric_current.json`
 
 
+## ChatGPT Second-Pass External Review Intake (2026-04-26)
+
+Second external review pass over public `main` HEAD largely reconfirms the first pass. Six of its six numbered recommendations map onto existing IDs already tracked: V11-EXT-CHATGPT-001 (raw-payload shortcut), V11-EXT-CHATGPT-002 (probe-authoritative adapted surfaces), V11-EXT-CHATGPT-004 (prepare-context split), V11-EXT-CHATGPT-005 (decomposition diversity), V11-EXT-CHATGPT-006 (transient observation invariants), V11-EXT-CHATGPT-008 (issue-candidate dedupe + threshold). The two genuinely new findings get their own addendums below.
+
+### 2026-04-26 Heuristic Compatibility Source Registry Addendum (V11-EXT-CHATGPT2-002)
+
+- Intent:
+  - The second-pass review specifically named `heuristic.policy_scope_and_mutability` as a heuristic source still in use on the legacy compatibility lane that the first-pass review missed (it only flagged `heuristic.transport_hints_or_operation`). Consolidate the heuristic sources into a closed registry so the compatibility-tail burn-down can track every one of them and any new entry requires explicit registration.
+- Status as of 2026-04-26: complete.
+- Changes landed:
+  - Extended `surface/orchestration/config/request_surface_probe_authority_policy.json` with a new `legacy_heuristic_source_registry` section enumerating the seven current heuristic sources used in `preconditions.rs`: `tool_hints_or_operation`, `target_descriptors_present`, `target_descriptor_domain`, `target_refs_present`, `mutation_cross_boundary`, `policy_scope_and_mutability`, `transport_hints_or_operation`. Declares the burn-down target as the `legacy_ingress_budget` `heuristic_probe_source_count` rate ratcheting toward zero.
+  - Added `LEGACY_HEURISTIC_SOURCE_REGISTRY` constant (seven entries) in `surface/orchestration/src/tool_routing_authority.rs` mirroring the JSON config.
+  - Added new CI guard `legacy_heuristic_sources_registered` that asserts: every registered source is present in `preconditions.rs`; every registered source is declared in the policy JSON; the policy JSON includes the registry section; and any `heuristic.<token>` label string in `preconditions.rs` is in the registry (catches unregistered additions). Wired into the standard checks vec.
+- Acceptance criteria status:
+  - Closed registry of heuristic sources. Closed by the constant + JSON config + cross-check guard.
+  - Adding a new heuristic source is gated. Closed: any new `heuristic.<token>` string in preconditions.rs that isn't in the constant fails the guard.
+- Regression evidence pointers:
+  - `surface/orchestration/config/request_surface_probe_authority_policy.json`
+  - `surface/orchestration/src/tool_routing_authority.rs` (`legacy_heuristic_sources_registered`)
+  - `surface/orchestration/src/planner/preconditions.rs`
+
+### 2026-04-26 Self-Maintenance Noise Discipline Addendum (V11-EXT-CHATGPT2-001)
+
+- Intent:
+  - Self-maintenance recommendations sit downstream of planner degradation, blocked-precondition states, clarification-bound plans, and adapter-fallback-driven plans. Without a quantitative discipline, ordinary planner roughness amplifies into self-maintenance noise. This addendum fixes the rate-limit + dedupe + emission-mode contract and adds a guard that fails closed on drift.
+- Status as of 2026-04-26: complete.
+- Changes landed:
+  - New policy doc `docs/workspace/policy/self_maintenance_noise_discipline_policy.md` declares the `2x planner clarification window` + `30-minute floor` + `ObserveOnly`-only emission rule.
+  - New machine-readable config `surface/orchestration/config/self_maintenance_noise_discipline_policy.json` carries the rate-limit floor (1,800,000 ms), the multiplier (`2x`), the required emission mode (`ObserveOnly`), the dedupe scope triple (`component + recommendation_kind + source_observation_signature`), and the critical-severity bypass rule.
+  - New CI guard `self_maintenance_noise_discipline_declared` in `surface/orchestration/src/tool_routing_authority.rs` reads the executor source, the policy doc, and the policy JSON. Asserts `ObserveOnly` is still declared in the executor, the JSON config carries the floor + multiplier + required mode + dedupe-scope tokens, and the policy doc references the discipline. Wired into the standard checks vec next to `runtime_quality_schema_workflow_clean`.
+- Acceptance criteria status:
+  - Quantitative discipline declared (2x rule + 30-min floor). Closed by policy doc + JSON config.
+  - CI guard asserts the discipline is honored. Closed by `self_maintenance_noise_discipline_declared` token check.
+  - Emission mode locked to `ObserveOnly`. Closed: guard fails when executor drops the discriminant.
+- Follow-ups (lower priority):
+  - Wire a runtime metric `self_maintenance_signal_to_planner_roughness_ratio` into the dashboard so the noise-amplifier failure mode is observable rather than just gated. The metric numerator: count of recommendations emitted in the last hour. Denominator: count of `RuntimeQualitySignals.zero_executable_candidates || all_candidates_degraded || all_candidates_require_clarification` events in the same window. Ratio above ~0.5 indicates amplification.
+- Regression evidence pointers:
+  - `docs/workspace/policy/self_maintenance_noise_discipline_policy.md`
+  - `surface/orchestration/config/self_maintenance_noise_discipline_policy.json`
+  - `surface/orchestration/src/tool_routing_authority.rs` (`self_maintenance_noise_discipline_declared`)
+  - `surface/orchestration/src/self_maintenance/executor.rs`
+
 ## OS-Readiness Wave — Layer 3 to True OS Migration (2026-04-26)
 
 Intent: move InfRing from **AI-native runtime with OS intent** to **actual OS personality implementation**.
