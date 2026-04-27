@@ -134,10 +134,21 @@ fn core_shortcut_routes_completion_to_core_domain() {
 }
 
 #[test]
+fn core_shortcut_routes_repl_to_core_domain() {
+    let route = resolve_core_shortcuts("repl", &[]).expect("route");
+    assert_eq!(route.script_rel, "core://repl");
+    assert!(route.args.is_empty());
+}
+
+#[test]
 fn core_shortcut_routes_version_and_update_to_core_version_domain() {
     let version = resolve_core_shortcuts("version", &[]).expect("version route");
     assert_eq!(version.script_rel, "core://version-cli");
     assert_eq!(version.args, vec!["version"]);
+
+    let version_alias = resolve_core_shortcuts("--version", &[]).expect("version alias route");
+    assert_eq!(version_alias.script_rel, "core://version-cli");
+    assert_eq!(version_alias.args, vec!["version"]);
 
     let update = resolve_core_shortcuts("update", &["--json=1".to_string()]).expect("update route");
     assert_eq!(update.script_rel, "core://version-cli");

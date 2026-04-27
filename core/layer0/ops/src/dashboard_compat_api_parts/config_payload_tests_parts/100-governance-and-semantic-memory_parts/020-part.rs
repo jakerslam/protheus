@@ -447,6 +447,37 @@ fn unrelated_dump_detector_flags_internal_prompt_leak_even_with_function_markup(
 }
 
 #[test]
+fn cross_project_framework_bleed_is_rejected_for_infring_turns() {
+    let user = "so how do you think that infring can be better?";
+    let bleed = "As an infring agent, I can help if you identify areas or functionalities within the external sample framework where improvements should be made.";
+    assert!(response_contains_cross_project_assimilation_bleed(user, bleed));
+    assert!(response_is_unrelated_context_dump(user, bleed));
+    assert!(passive_memory_attention_event("agent-misty", user, bleed).is_none());
+    let guard = final_response_guard_report(user, bleed, &[], false);
+    assert_eq!(
+        guard
+            .get("final_contract_violation")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    let comparison_user = "compare Infring and the external sample framework";
+    let comparison_response =
+        "Infring can borrow reliability ideas from within the external sample framework.";
+    assert!(!response_contains_cross_project_assimilation_bleed(
+        comparison_user,
+        comparison_response
+    ));
+}
+
+#[test]
+fn current_turn_project_boundary_prompt_marks_infring_as_host_system() {
+    let prompt = current_turn_project_boundary_prompt("how can infring be better?");
+    assert!(prompt.contains("Infring as the host system"));
+    assert!(prompt.contains("external repos"));
+    assert!(prompt.contains("assimilation targets"));
+}
+
+#[test]
 fn append_turn_message_captures_explicit_remember_fact_for_long_term_memory() {
     let root = governance_temp_root();
     let captured =

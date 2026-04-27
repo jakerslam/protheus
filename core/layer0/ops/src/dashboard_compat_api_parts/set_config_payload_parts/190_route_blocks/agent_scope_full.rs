@@ -12,6 +12,7 @@ include!("agent_scope_full_parts/040-message-chat-response-pass.rs");
 include!("agent_scope_full_parts/020-message-direct-tool.rs");
 include!("agent_scope_full_parts/070-config-b-model-git.rs");
 include!("agent_scope_full_parts/060-suggestions-command-config-a.rs");
+include!("agent_scope_full_parts/063-continuity-command.rs");
 include!("agent_scope_full_parts/065-eval-feedback-report-issue.rs");
 include!("agent_scope_full_parts/080-file-read-routes.rs");
 include!("agent_scope_full_parts/090-folder-terminal-upload-routes.rs");

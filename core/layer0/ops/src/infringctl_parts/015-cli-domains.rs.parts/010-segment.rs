@@ -15,6 +15,12 @@ const GITHUB_RELEASE_LATEST_API_URL: &str =
 
 const CORE_COMPLETION_COMMANDS: &[&str] = &[
     "gateway",
+    "help",
+    "list",
+    "completion",
+    "repl",
+    "version",
+    "update",
     "start",
     "stop",
     "restart",
@@ -31,7 +37,6 @@ const CORE_COMPLETION_COMMANDS: &[&str] = &[
     "kairos",
     "speculate",
     "setup",
-    "help",
 ];
 
 #[derive(Debug, Clone)]

@@ -19,6 +19,9 @@ fn historical_context_keyframes_prompt_context(
         if snippet.is_empty() {
             continue;
         }
+        if text_contains_external_framework_identity_bleed_for_host(&snippet) {
+            continue;
+        }
         candidates.push((role_label.to_string(), snippet));
     }
     if candidates.is_empty() {
@@ -91,6 +94,9 @@ fn historical_relevant_recall_prompt_context(
         };
         let snippet = clean_text(&message_text(row), 360);
         if snippet.is_empty() {
+            continue;
+        }
+        if response_contains_cross_project_assimilation_bleed(user_message, &snippet) {
             continue;
         }
         let role_label = role_label.to_string();

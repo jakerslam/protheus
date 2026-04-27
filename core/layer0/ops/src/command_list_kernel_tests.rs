@@ -92,6 +92,27 @@ mod tests {
             Some("dashboard")
         );
         assert_eq!(canonical_command_name("kairos").as_deref(), Some("proactive_daemon"));
+        assert_eq!(canonical_command_name("--version").as_deref(), Some("version"));
+        assert_eq!(canonical_command_name("-v").as_deref(), Some("version"));
         assert!(canonical_command_name("not_a_real_command").is_none());
+    }
+
+    #[test]
+    fn cli_authority_surfaces_are_core_registry_entries() {
+        for command in ["help", "list", "completion", "repl", "version", "update"] {
+            let item = command_registry_item(command).expect("registry item");
+            assert_eq!(item.handler_kind().as_str(), "core_domain");
+            assert!(item.expected_script().starts_with("core://"));
+        }
+        assert_eq!(
+            command_registry_item("completion")
+                .map(|row| row.expected_script()),
+            Some("core://completion")
+        );
+        assert_eq!(
+            command_registry_item("repl")
+                .map(|row| row.expected_script()),
+            Some("core://repl")
+        );
     }
 }

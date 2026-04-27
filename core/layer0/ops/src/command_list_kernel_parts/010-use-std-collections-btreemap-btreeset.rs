@@ -79,6 +79,24 @@ const COMMANDS: &[CommandItem] = &[
         unsafe_surface: false,
     },
     CommandItem {
+        synopsis: "completion",
+        desc: "Print shell completion candidates from the Rust command registry.",
+        tier: CommandTier::Tier1,
+        handler: CommandHandlerKind::CoreDomain,
+        script_rel: "core://completion",
+        read_only: true,
+        unsafe_surface: false,
+    },
+    CommandItem {
+        synopsis: "repl",
+        desc: "Open the lightweight Rust command index REPL fallback.",
+        tier: CommandTier::Tier1,
+        handler: CommandHandlerKind::CoreDomain,
+        script_rel: "core://repl",
+        read_only: true,
+        unsafe_surface: false,
+    },
+    CommandItem {
         synopsis: "gateway [start|stop|restart|status] [--gateway-persist=1|0]",
         desc:
             "One-command runtime gateway (boots rich dashboard + persistent supervisor by default).",

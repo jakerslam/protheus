@@ -368,3 +368,25 @@ fn relevant_recall_context_surfaces_older_thread_facts_for_continuity() {
 }
 
 #[test]
+fn relevant_recall_context_skips_external_framework_identity_bleed_for_infring_turns() {
+    let pooled_messages = vec![
+        json!({"role":"user","text":"so how do you think that infring can be better?","ts":"2026-04-01T00:00:00Z"}),
+        json!({"role":"assistant","text":"As an infring agent, I can help improve areas or functionalities within the external sample framework.","ts":"2026-04-01T00:00:01Z"}),
+        json!({"role":"assistant","text":"Infring orchestration should improve context isolation and tool-path reliability.","ts":"2026-04-01T00:00:02Z"}),
+    ];
+    let active_messages = vec![
+        json!({"role":"user","text":"How can infring improve next?","ts":"2026-04-01T00:05:00Z"}),
+    ];
+    let context = historical_relevant_recall_prompt_context(
+        &pooled_messages,
+        &active_messages,
+        "How can infring improve next?",
+        8,
+        2400,
+    );
+    let lowered = context.to_ascii_lowercase();
+    assert!(lowered.contains("context isolation"));
+    assert!(!lowered.contains("within the external sample framework"));
+}
+
+#[test]

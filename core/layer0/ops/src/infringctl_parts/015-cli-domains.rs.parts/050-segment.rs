@@ -1,5 +1,13 @@
 fn maybe_redirect_ts_wrapper_to_core_domain(script_rel: &str, args: &[String]) -> Option<(String, Vec<String>)> {
-    match script_rel {
+    let normalized_script_rel;
+    let route_rel = if let Some(stem) = script_rel.strip_suffix(".js") {
+        normalized_script_rel = format!("{stem}.ts");
+        normalized_script_rel.as_str()
+    } else {
+        script_rel
+    };
+
+    match route_rel {
         "client/runtime/systems/ops/infring_control_plane.ts" => {
             let sub = normalize_domain_subcommand(args.first(), "status");
             let normalized = match sub.as_str() {
@@ -213,6 +221,25 @@ mod cli_domain_wrapper_redirect_tests {
     }
 
     #[test]
+    fn js_wrapper_counterparts_redirect_to_core_domain() {
+        let (domain, args) = maybe_redirect_ts_wrapper_to_core_domain(
+            "client/runtime/systems/ops/release_semver_contract.js",
+            &["run".to_string(), "--write=1".to_string()],
+        )
+        .expect("redirect");
+        assert_eq!(domain, "release-semver-contract");
+        assert_eq!(args, vec!["run".to_string(), "--write=1".to_string()]);
+
+        let (domain, args) = maybe_redirect_ts_wrapper_to_core_domain(
+            "client/runtime/systems/ops/infring_status_dashboard.js",
+            &["--web".to_string()],
+        )
+        .expect("redirect");
+        assert_eq!(domain, "daemon-control");
+        assert_eq!(args, vec!["start"]);
+    }
+
+    #[test]
     fn status_dashboard_wrapper_redirects_web_to_daemon_start() {
         let (domain, args) = maybe_redirect_ts_wrapper_to_core_domain(
             "client/runtime/systems/ops/infring_status_dashboard.ts",
@@ -226,4 +253,3 @@ mod cli_domain_wrapper_redirect_tests {
         );
     }
 }
-

@@ -88,6 +88,87 @@ fn contains_deprecated_workflow_source_marker(lowered: &str) -> bool {
         .any(|marker| lowered.contains(marker))
 }
 
+fn message_mentions_host_project(text: &str) -> bool {
+    clean_text(text, 2_000)
+        .to_ascii_lowercase()
+        .contains("infring")
+}
+
+fn current_turn_project_boundary_prompt(message: &str) -> String {
+    if !message_mentions_host_project(message) {
+        return String::new();
+    }
+    "Current-turn project boundary: answer about Infring as the host system. Treat recently discussed external repos, frameworks, benchmarks, and assimilation targets as optional references only; do not reinterpret Infring as one of those external systems unless the current user explicitly asks for comparison or assimilation details.".to_string()
+}
+
+fn normalized_identity_subject(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| ch.is_ascii_alphanumeric() || *ch == '_' || *ch == '-')
+        .collect::<String>()
+        .to_ascii_lowercase()
+}
+
+fn external_framework_subjects_from_text(text: &str) -> Vec<String> {
+    let lowered = clean_text(text, 4_000).to_ascii_lowercase();
+    let mut subjects = Vec::<String>::new();
+    for prefix in [
+        "within the ",
+        "inside the ",
+        "as part of the ",
+        "functionality within the ",
+        "functionalities within the ",
+        "areas within the ",
+        "areas or functionalities within the ",
+    ] {
+        let mut remainder = lowered.as_str();
+        while let Some(start) = remainder.find(prefix) {
+            let after_prefix = &remainder[start + prefix.len()..];
+            let Some(end) = after_prefix.find(" framework") else {
+                break;
+            };
+            let subject = normalized_identity_subject(&after_prefix[..end]);
+            if !subject.is_empty()
+                && subject.len() <= 80
+                && subject.chars().any(|ch| ch.is_ascii_alphabetic())
+                && !subjects.iter().any(|existing| existing == &subject)
+            {
+                subjects.push(subject);
+            }
+            let next_start = start + prefix.len() + end + " framework".len();
+            remainder = if next_start >= remainder.len() {
+                ""
+            } else {
+                &remainder[next_start..]
+            };
+        }
+    }
+    subjects
+}
+
+fn text_contains_external_framework_identity_bleed_for_host(text: &str) -> bool {
+    external_framework_subjects_from_text(text)
+        .into_iter()
+        .any(|subject| !subject.contains("infring"))
+}
+
+fn response_contains_cross_project_assimilation_bleed(
+    user_message: &str,
+    response_text: &str,
+) -> bool {
+    if !message_mentions_host_project(user_message) {
+        return false;
+    }
+    let user_lowered = clean_text(user_message, 2_000).to_ascii_lowercase();
+    let user_subject_key = normalized_identity_subject(&user_lowered);
+    external_framework_subjects_from_text(response_text)
+        .into_iter()
+        .any(|subject| {
+            !subject.contains("infring")
+                && !user_lowered.contains(&subject)
+                && !user_subject_key.contains(&subject)
+        })
+}
+
 fn contains_deprecated_workflow_ghost_phrase(text: &str) -> bool {
     let lowered = clean_text(text, 4_000).to_ascii_lowercase();
     if lowered.is_empty() {
@@ -162,6 +243,9 @@ fn passive_memory_attention_event(
     let user = clean_text(user_text, 1400);
     let assistant_raw = clean_text(assistant_text, 1400);
     if contains_deprecated_workflow_ghost_phrase(&assistant_raw) {
+        return None;
+    }
+    if response_contains_cross_project_assimilation_bleed(&user, &assistant_raw) {
         return None;
     }
     let assistant = scrub_deprecated_workflow_ghost_text(&assistant_raw);
