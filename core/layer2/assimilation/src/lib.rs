@@ -121,29 +121,33 @@ impl AssimilationKernel {
         let receipt_ir0 = build_receipt(
             &input,
             &[],
-            "safety",
-            "ir0",
-            "ingest_artifact_graph",
-            "byte_exact_observation",
-            0.98,
-            0.95,
-            vec![0.01, 0.02, 0.03],
-            vec![],
-            false,
+            ReceiptBuildSpec {
+                plane: "safety",
+                stage: "ir0",
+                action: "ingest_artifact_graph",
+                proof_type: "byte_exact_observation",
+                confidence: 0.98,
+                coverage: 0.95,
+                local_uncertainty: vec![0.01, 0.02, 0.03],
+                capability_gaps: vec![],
+                degraded: false,
+            },
         )?;
         receipts.push(receipt_ir0);
         let receipt_ir1 = build_receipt(
             &input,
             &[&receipts[0]],
-            "assimilation",
-            "ir1",
-            "commit_execution_structure",
-            "control_flow_commit",
-            0.92,
-            0.88,
-            vec![0.08, 0.09, 0.10],
-            vec![],
-            false,
+            ReceiptBuildSpec {
+                plane: "assimilation",
+                stage: "ir1",
+                action: "commit_execution_structure",
+                proof_type: "control_flow_commit",
+                confidence: 0.92,
+                coverage: 0.88,
+                local_uncertainty: vec![0.08, 0.09, 0.10],
+                capability_gaps: vec![],
+                degraded: false,
+            },
         )?;
         self.dependency_graph
             .add_dependency(&receipts[0].receipt_id, &receipt_ir1.receipt_id);
@@ -151,15 +155,17 @@ impl AssimilationKernel {
         let receipt_ir2 = build_receipt(
             &input,
             &[&receipts[1]],
-            "assimilation",
-            "ir2",
-            "semantic_lift",
-            "proof_linked_ontology",
-            0.86,
-            0.80,
-            vec![0.15, 0.16, 0.12],
-            capability_mapping.gap_report.gaps.clone(),
-            capability_mapping.degradation.degraded,
+            ReceiptBuildSpec {
+                plane: "assimilation",
+                stage: "ir2",
+                action: "semantic_lift",
+                proof_type: "proof_linked_ontology",
+                confidence: 0.86,
+                coverage: 0.80,
+                local_uncertainty: vec![0.15, 0.16, 0.12],
+                capability_gaps: capability_mapping.gap_report.gaps.clone(),
+                degraded: capability_mapping.degradation.degraded,
+            },
         )?;
         self.dependency_graph
             .add_dependency(&receipts[1].receipt_id, &receipt_ir2.receipt_id);
@@ -232,18 +238,22 @@ fn build_default_abstraction() -> Result<HierarchicalAbstraction, String> {
     Ok(abstraction)
 }
 
-fn build_receipt(
-    input: &AssimilationRunInput,
-    parents: &[&TransformationReceipt],
-    plane: &str,
-    stage: &str,
-    action: &str,
-    proof_type: &str,
+struct ReceiptBuildSpec {
+    plane: &'static str,
+    stage: &'static str,
+    action: &'static str,
+    proof_type: &'static str,
     confidence: f64,
     coverage: f64,
     local_uncertainty: Vec<f64>,
     capability_gaps: Vec<String>,
     degraded: bool,
+}
+
+fn build_receipt(
+    input: &AssimilationRunInput,
+    parents: &[&TransformationReceipt],
+    spec: ReceiptBuildSpec,
 ) -> Result<TransformationReceipt, String> {
     let parent_receipt_ids = parents
         .iter()
@@ -254,35 +264,35 @@ fn build_receipt(
             .iter()
             .map(|receipt| (*receipt).clone())
             .collect::<Vec<_>>(),
-        &local_uncertainty,
+        &spec.local_uncertainty,
     );
     let seed = format!(
         "{}:{}:{}:{}:{}:{}",
         input.ir0.artifact_hash,
-        stage,
-        action,
+        spec.stage,
+        spec.action,
         input.policy_version,
         input.assumption_set_hash,
-        degraded
+        spec.degraded
     );
     let receipt = TransformationReceipt {
         receipt_id: receipt_id(&seed),
         parent_receipt_ids,
         artifact_hash: input.ir0.artifact_hash.clone(),
-        plane: plane.to_string(),
-        stage: stage.to_string(),
-        action: action.to_string(),
+        plane: spec.plane.to_string(),
+        stage: spec.stage.to_string(),
+        action: spec.action.to_string(),
         policy_version: input.policy_version.clone(),
         toolchain_fingerprint: input.toolchain_fingerprint.clone(),
         assumption_set_hash: input.assumption_set_hash.clone(),
         equivalence_scope: input.equivalence_scope.clone(),
-        proof_type: proof_type.to_string(),
-        confidence,
-        coverage,
+        proof_type: spec.proof_type.to_string(),
+        confidence: spec.confidence,
+        coverage: spec.coverage,
         uncertainty_vector: propagated,
-        capability_gaps,
-        degraded,
-        event_id: format!("evt:{}:{}", stage, action),
+        capability_gaps: spec.capability_gaps,
+        degraded: spec.degraded,
+        event_id: format!("evt:{}:{}", spec.stage, spec.action),
     };
     receipt.validate()?;
     Ok(receipt)

@@ -64,6 +64,13 @@ fn summary_looks_like_competitive_programming_dump(text: &str) -> bool {
     marker_hits >= 3
 }
 
+fn no_results_error_code_from_summary(summary: &str) -> Option<&'static str> {
+    let lowered = clean_text(summary, 600).to_ascii_lowercase();
+    (lowered.contains("query_result_mismatch")
+        || lowered.contains("unrelated to the request intent"))
+    .then_some("query_result_mismatch")
+}
+
 fn cached_evidence_domains(evidence_refs: &Value, max_domains: usize) -> Vec<String> {
     let mut out = Vec::<String>::new();
     let mut seen = HashSet::<String>::new();

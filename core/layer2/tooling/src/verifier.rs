@@ -19,9 +19,8 @@ fn has_negative_cue(text: &str) -> bool {
 
 fn contradiction_topic_key(text: &str) -> String {
     const STOP: &[&str] = &[
-        "the", "a", "an", "is", "are", "was", "were", "to", "in", "for", "on", "and", "or",
-        "of", "by", "with", "it", "this", "that", "not", "no", "failed", "fails", "denied",
-        "missing",
+        "the", "a", "an", "is", "are", "was", "were", "to", "in", "for", "on", "and", "or", "of",
+        "by", "with", "it", "this", "that", "not", "no", "failed", "fails", "denied", "missing",
     ];
     text.split(|ch: char| !ch.is_ascii_alphanumeric())
         .filter(|row| !row.is_empty())
@@ -44,7 +43,10 @@ fn source_domain_key(source_ref: &str) -> String {
             .unwrap_or("unknown")
             .to_ascii_lowercase();
     }
-    if cleaned.starts_with("core/") || cleaned.starts_with("surface/") || cleaned.starts_with("client/") {
+    if cleaned.starts_with("core/")
+        || cleaned.starts_with("surface/")
+        || cleaned.starts_with("client/")
+    {
         return "workspace".to_string();
     }
     "local".to_string()
@@ -120,11 +122,7 @@ fn source_surface_key(source_ref: &str) -> Option<String> {
     if let Some(idx) = cleaned.find(shared_marker) {
         let tail = &cleaned[(idx + shared_marker.len())..];
         if !tail.is_empty() && !tail.contains('/') {
-            let shared_name = tail
-                .split('.')
-                .next()
-                .map(str::trim)
-                .unwrap_or_default();
+            let shared_name = tail.split('.').next().map(str::trim).unwrap_or_default();
             if !shared_name.is_empty() {
                 return Some(format!("shared/contracts/{shared_name}"));
             }
@@ -955,8 +953,7 @@ fn source_surface_key(source_ref: &str) -> Option<String> {
             .map(str::trim)
             .unwrap_or_default()
             .to_ascii_lowercase()
-            .replace('-', "_")
-            .replace('/', "_");
+            .replace(['-', '/'], "_");
         if !agent_name.is_empty() {
             return Some(format!("tooling/rtk/claude_agents_{agent_name}"));
         }
@@ -970,8 +967,7 @@ fn source_surface_key(source_ref: &str) -> Option<String> {
             .map(str::trim)
             .unwrap_or_default()
             .to_ascii_lowercase()
-            .replace('-', "_")
-            .replace('/', "_");
+            .replace(['-', '/'], "_");
         if !command_name.is_empty() {
             return Some(format!("tooling/rtk/claude_commands_{command_name}"));
         }
@@ -985,8 +981,7 @@ fn source_surface_key(source_ref: &str) -> Option<String> {
             .map(str::trim)
             .unwrap_or_default()
             .to_ascii_lowercase()
-            .replace('-', "_")
-            .replace('/', "_");
+            .replace(['-', '/'], "_");
         if !hook_name.is_empty() {
             return Some(format!("tooling/rtk/claude_hooks_{hook_name}"));
         }
@@ -1000,8 +995,7 @@ fn source_surface_key(source_ref: &str) -> Option<String> {
             .map(str::trim)
             .unwrap_or_default()
             .to_ascii_lowercase()
-            .replace('-', "_")
-            .replace('/', "_");
+            .replace(['-', '/'], "_");
         if !rule_name.is_empty() {
             return Some(format!("tooling/rtk/claude_rules_{rule_name}"));
         }
@@ -1015,8 +1009,7 @@ fn source_surface_key(source_ref: &str) -> Option<String> {
             .map(str::trim)
             .unwrap_or_default()
             .to_ascii_lowercase()
-            .replace('-', "_")
-            .replace('/', "_");
+            .replace(['-', '/'], "_");
         if !skill_name.is_empty() {
             return Some(format!("tooling/rtk/claude_skills_{skill_name}"));
         }
@@ -1036,8 +1029,7 @@ fn source_surface_key(source_ref: &str) -> Option<String> {
             .map(str::trim)
             .unwrap_or_default()
             .to_ascii_lowercase()
-            .replace('-', "_")
-            .replace('/', "_");
+            .replace(['-', '/'], "_");
         if !hook_name.is_empty() {
             return Some(format!("tooling/rtk/github_hooks_{hook_name}"));
         }
@@ -1051,8 +1043,7 @@ fn source_surface_key(source_ref: &str) -> Option<String> {
             .map(str::trim)
             .unwrap_or_default()
             .to_ascii_lowercase()
-            .replace('-', "_")
-            .replace('/', "_");
+            .replace(['-', '/'], "_");
         if !workflow_name.is_empty() {
             return Some(format!("tooling/rtk/github_workflows_{workflow_name}"));
         }
@@ -1238,8 +1229,7 @@ fn source_surface_key(source_ref: &str) -> Option<String> {
             .map(str::trim)
             .unwrap_or_default()
             .to_ascii_lowercase()
-            .replace('-', "_")
-            .replace('/', "_");
+            .replace(['-', '/'], "_");
         if !hook_name.is_empty() {
             return Some(format!("tooling/rtk/workspace_hooks_{hook_name}"));
         }
@@ -1248,16 +1238,15 @@ fn source_surface_key(source_ref: &str) -> Option<String> {
     if let Some(idx) = cleaned.find(openclaw_marker) {
         let tail = &cleaned[(idx + openclaw_marker.len())..];
         let mut openclaw_name = tail.trim().to_ascii_lowercase();
-        for suffix in [".md", ".ts", ".json", ".sh", ".txt", ".rb", ".toml", ".lock"] {
+        for suffix in [
+            ".md", ".ts", ".json", ".sh", ".txt", ".rb", ".toml", ".lock",
+        ] {
             if let Some(stripped) = openclaw_name.strip_suffix(suffix) {
                 openclaw_name = stripped.to_string();
                 break;
             }
         }
-        let openclaw_name = openclaw_name
-            .replace('-', "_")
-            .replace('/', "_")
-            .replace('.', "_");
+        let openclaw_name = openclaw_name.replace(['-', '/', '.'], "_");
         if !openclaw_name.is_empty() {
             return Some(format!("tooling/rtk/openclaw_{openclaw_name}"));
         }
@@ -1271,8 +1260,7 @@ fn source_surface_key(source_ref: &str) -> Option<String> {
             .map(str::trim)
             .unwrap_or_default()
             .to_ascii_lowercase()
-            .replace('-', "_")
-            .replace('/', "_");
+            .replace(['-', '/'], "_");
         if !script_name.is_empty() {
             return Some(format!("tooling/rtk/scripts_{script_name}"));
         }
@@ -1287,10 +1275,7 @@ fn source_surface_key(source_ref: &str) -> Option<String> {
                 break;
             }
         }
-        let fixture_name = fixture_name
-            .replace('-', "_")
-            .replace('/', "_")
-            .replace('.', "_");
+        let fixture_name = fixture_name.replace(['-', '/', '.'], "_");
         if !fixture_name.is_empty() {
             return Some(format!("tooling/rtk/tests_fixtures_{fixture_name}"));
         }
@@ -1737,16 +1722,12 @@ impl StructuredVerifier {
             .iter()
             .filter(|surface| {
                 surface.starts_with("chat/root/")
-                    && (surface.contains("error")
-                        || surface.contains("creditlimit"))
+                    && (surface.contains("error") || surface.contains("creditlimit"))
             })
             .count();
         let chat_preview_surface_count = source_surfaces
             .iter()
-            .filter(|surface| {
-                surface.starts_with("chat/root/")
-                    && surface.contains("preview")
-            })
+            .filter(|surface| surface.starts_with("chat/root/") && surface.contains("preview"))
             .count();
         let chat_interaction_surface_count = source_surfaces
             .iter()
@@ -2107,8 +2088,7 @@ impl StructuredVerifier {
         }
         if menu_surface_count == 1 && evidence_cards.len() > 1 {
             unresolved_questions.push(
-                "Menu synthesis references one surface only; add cross-menu evidence."
-                    .to_string(),
+                "Menu synthesis references one surface only; add cross-menu evidence.".to_string(),
             );
         }
         if onboarding_surface_count == 1 && evidence_cards.len() > 1 {
@@ -2131,8 +2111,7 @@ impl StructuredVerifier {
         }
         if hooks_surface_count == 1 && evidence_cards.len() > 1 {
             unresolved_questions.push(
-                "Hook synthesis references one surface only; add cross-hook evidence."
-                    .to_string(),
+                "Hook synthesis references one surface only; add cross-hook evidence.".to_string(),
             );
         }
         if root_provider_surface_count == 1 && evidence_cards.len() > 1 {
@@ -2249,10 +2228,22 @@ impl StructuredVerifier {
         } else {
             0.0
         };
-        let language_bonus = if source_language_count >= 2 { 0.03 } else { 0.0 };
+        let language_bonus = if source_language_count >= 2 {
+            0.03
+        } else {
+            0.0
+        };
         let surface_bonus = if source_surface_count >= 2 { 0.03 } else { 0.0 };
-        let provider_bonus = if provider_surface_count >= 2 { 0.02 } else { 0.0 };
-        let provider_family_bonus = if provider_family_count >= 2 { 0.02 } else { 0.0 };
+        let provider_bonus = if provider_surface_count >= 2 {
+            0.02
+        } else {
+            0.0
+        };
+        let provider_family_bonus = if provider_family_count >= 2 {
+            0.02
+        } else {
+            0.0
+        };
         let shared_contract_bonus = if shared_contract_surface_count >= 2 {
             0.02
         } else {
@@ -2383,14 +2374,22 @@ impl StructuredVerifier {
         } else {
             0.0
         };
-        let history_bonus = if history_surface_count >= 2 { 0.02 } else { 0.0 };
+        let history_bonus = if history_surface_count >= 2 {
+            0.02
+        } else {
+            0.0
+        };
         let menu_bonus = if menu_surface_count >= 2 { 0.02 } else { 0.0 };
         let onboarding_bonus = if onboarding_surface_count >= 2 {
             0.02
         } else {
             0.0
         };
-        let browser_bonus = if browser_surface_count >= 2 { 0.02 } else { 0.0 };
+        let browser_bonus = if browser_surface_count >= 2 {
+            0.02
+        } else {
+            0.0
+        };
         let settings_utils_bonus = if settings_utils_surface_count >= 2 {
             0.02
         } else {
@@ -2487,65 +2486,64 @@ impl StructuredVerifier {
         } else {
             (conflicts.len() as f64 / claims.len().max(1) as f64) * 0.2
         };
-        let coverage_score =
-            clamp_unit(
-                base_coverage
-                    + diversity_bonus
-                    + language_bonus
-                    + surface_bonus
-                    + provider_bonus
-                    + provider_family_bonus
-                    + shared_contract_bonus
-                    + shared_cline_bonus
-                    + shared_message_bonus
-                    + shared_internal_bonus
-                    + shared_service_bonus
-                    + shared_multi_root_bonus
-                    + chat_hook_bonus
-                    + chat_util_bonus
-                    + chat_message_bonus
-                    + chat_shared_bonus
-                    + chat_type_bonus
-                    + chat_view_bonus
-                    + chat_layout_bonus
-                    + chat_root_bonus
-                    + chat_output_bonus
-                    + chat_error_bonus
-                    + chat_preview_bonus
-                    + chat_interaction_bonus
-                    + chat_component_bonus
-                    + chat_task_header_bonus
-                    + chat_task_header_button_bonus
-                    + chat_auto_approve_bonus
-                    + cline_rules_bonus
-                    + common_component_bonus
-                    + common_content_bonus
-                    + common_ui_bonus
-                    + history_bonus
-                    + menu_bonus
-                    + onboarding_bonus
-                    + browser_bonus
-                    + settings_utils_bonus
-                    + hooks_bonus
-                    + root_provider_bonus
-                    + settings_component_bonus
-                    + settings_model_picker_bonus
-                    + settings_common_bonus
-                    + settings_section_bonus
-                    + settings_test_bonus
-                    + settings_control_bonus
-                    + tooling_coverage_bonus
-                    + tooling_workflow_bonus
-                    + tooling_clinerules_workflow_bonus
-                    + tooling_clinerules_doc_bonus
-                    + tooling_agent_skill_bonus
-                    + tooling_storybook_bonus
-                    + tooling_cli_bonus
-                    + tooling_contract_bonus
-                    + tooling_rtk_bonus
-                    + tooling_docs_bonus
-                    - conflict_penalty,
-            );
+        let coverage_score = clamp_unit(
+            base_coverage
+                + diversity_bonus
+                + language_bonus
+                + surface_bonus
+                + provider_bonus
+                + provider_family_bonus
+                + shared_contract_bonus
+                + shared_cline_bonus
+                + shared_message_bonus
+                + shared_internal_bonus
+                + shared_service_bonus
+                + shared_multi_root_bonus
+                + chat_hook_bonus
+                + chat_util_bonus
+                + chat_message_bonus
+                + chat_shared_bonus
+                + chat_type_bonus
+                + chat_view_bonus
+                + chat_layout_bonus
+                + chat_root_bonus
+                + chat_output_bonus
+                + chat_error_bonus
+                + chat_preview_bonus
+                + chat_interaction_bonus
+                + chat_component_bonus
+                + chat_task_header_bonus
+                + chat_task_header_button_bonus
+                + chat_auto_approve_bonus
+                + cline_rules_bonus
+                + common_component_bonus
+                + common_content_bonus
+                + common_ui_bonus
+                + history_bonus
+                + menu_bonus
+                + onboarding_bonus
+                + browser_bonus
+                + settings_utils_bonus
+                + hooks_bonus
+                + root_provider_bonus
+                + settings_component_bonus
+                + settings_model_picker_bonus
+                + settings_common_bonus
+                + settings_section_bonus
+                + settings_test_bonus
+                + settings_control_bonus
+                + tooling_coverage_bonus
+                + tooling_workflow_bonus
+                + tooling_clinerules_workflow_bonus
+                + tooling_clinerules_doc_bonus
+                + tooling_agent_skill_bonus
+                + tooling_storybook_bonus
+                + tooling_cli_bonus
+                + tooling_contract_bonus
+                + tooling_rtk_bonus
+                + tooling_docs_bonus
+                - conflict_penalty,
+        );
         let claim_ids = claims
             .iter()
             .map(|claim| claim.claim_id.clone())
@@ -2680,11 +2678,7 @@ mod tests {
         let bundle = verifier.derive_claim_bundle(
             "task-2",
             &[
-                card(
-                    "e1",
-                    "Tool route is available for workspace search",
-                    0.9,
-                ),
+                card("e1", "Tool route is available for workspace search", 0.9),
                 card(
                     "e2",
                     "Tool route is not available for workspace search",

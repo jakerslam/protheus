@@ -2,7 +2,8 @@
 use crate::backend_registry::{live_backend_registry, ToolBackendHealth};
 use crate::capability::{
     all_capabilities_for_callers, capability_probe_for, grouped_capabilities_for_callers,
-    ToolCapability, ToolCapabilityCatalogGroup, ToolCapabilityProbe, ToolReasonCode,
+    ToolCapability, ToolCapabilityCatalogGroup, ToolCapabilityProbe, ToolCapabilityStatus,
+    ToolReasonCode,
 };
 use crate::request_validation::{clean_text, repair_and_validate_args};
 use crate::schemas::{NormalizedToolMetrics, NormalizedToolResult, NormalizedToolStatus};
