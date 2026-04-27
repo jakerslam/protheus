@@ -1349,6 +1349,10 @@ fn main() {
         "srs-contract-runtime" => {
             exit_domain!(&cwd, &args, infring_ops_core_v1::srs_contract_runtime::run);
         }
+        "release-semver-contract" => {
+            let exit = infring_ops_core::infringctl::run(&cwd, &args);
+            std::process::exit(exit);
+        }
         _ => {
             print_json(&cli_error_receipt("command_not_found", 1, Some(domain), None));
             std::process::exit(1);
