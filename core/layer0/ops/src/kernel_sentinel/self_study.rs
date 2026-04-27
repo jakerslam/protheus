@@ -40,6 +40,17 @@ fn bool_at(row: &Value, path: &[&str], fallback: bool) -> bool {
     current.as_bool().unwrap_or(fallback)
 }
 
+fn string_at(row: &Value, path: &[&str], fallback: &str) -> String {
+    let mut current = row;
+    for key in path {
+        current = current.get(*key).unwrap_or(&Value::Null);
+    }
+    current
+        .as_str()
+        .map(str::to_string)
+        .unwrap_or_else(|| fallback.to_string())
+}
+
 fn severity_priority(severity: &str) -> u8 {
     match severity {
         "critical" => 0,
@@ -279,6 +290,15 @@ fn rsi_missing_condition_action(condition: &str) -> &'static str {
         "needs_nonzero_runtime_evidence" => {
             "feed Kernel Sentinel runtime evidence from local/state/kernel_sentinel/evidence/*.jsonl before promoting RSI readiness"
         }
+        "needs_fresh_deterministic_evidence" => {
+            "feed fresh deterministic Kernel evidence, not only advisory eval data, before promoting autonomous RSI readiness"
+        }
+        "needs_complete_required_evidence_coverage" => {
+            "finish required Sentinel evidence coverage before treating RSI readiness as representative of the whole Kernel"
+        }
+        "evidence_is_malformed" => {
+            "repair malformed Sentinel evidence rows before trusting Sentinel health or RSI readiness"
+        }
         "needs_at_least_three_trend_runs" => {
             "allow at least three automatic Sentinel runs so trend history can identify stability or regression"
         }
@@ -298,9 +318,41 @@ fn rsi_missing_condition_action(condition: &str) -> &'static str {
 fn rsi_readiness(report: &Value, history_len: usize, feedback_len: usize, trend_delta: &Value) -> Value {
     let mut missing = Vec::new();
     let evidence_record_count = usize_at(report, &["evidence_ingestion", "normalized_record_count"]);
+    let missing_required_source_count =
+        usize_at(report, &["evidence_ingestion", "coverage", "missing_required_source_count"]);
+    let present_required_source_count =
+        usize_at(report, &["evidence_ingestion", "coverage", "present_required_source_count"]);
+    let missing_optional_source_count =
+        usize_at(report, &["evidence_ingestion", "coverage", "missing_optional_source_count"]);
+    let evidence_observation_state =
+        string_at(report, &["evidence_ingestion", "observation_state"], "unknown");
+    let deterministic_evidence_record_count = report
+        .get("evidence_ingestion")
+        .and_then(|ingestion| ingestion.get("normalized_records"))
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter(|row| {
+                    matches!(
+                        row.get("authority_class").and_then(Value::as_str).unwrap_or(""),
+                        "DeterministicKernelAuthority" | "deterministic_kernel_authority"
+                    )
+                })
+                .count()
+        })
+        .unwrap_or(0);
     let evidence_ready = evidence_record_count > 0;
     if !evidence_ready {
         missing.push("needs_nonzero_runtime_evidence");
+    }
+    if evidence_observation_state == "malformed_evidence" {
+        missing.push("evidence_is_malformed");
+    }
+    if deterministic_evidence_record_count == 0 {
+        missing.push("needs_fresh_deterministic_evidence");
+    }
+    if missing_required_source_count > 0 {
+        missing.push("needs_complete_required_evidence_coverage");
     }
     if history_len < 3 {
         missing.push("needs_at_least_three_trend_runs");
@@ -336,16 +388,33 @@ fn rsi_readiness(report: &Value, history_len: usize, feedback_len: usize, trend_
         "trend_history_runs": history_len,
         "feedback_item_count": feedback_len,
         "evidence_record_count": evidence_record_count,
+        "deterministic_evidence_record_count": deterministic_evidence_record_count,
+        "present_required_source_count": present_required_source_count,
+        "missing_required_source_count": missing_required_source_count,
+        "missing_optional_source_count": missing_optional_source_count,
+        "required_source_coverage_ready": evidence_record_count > 0
+            && missing_required_source_count == 0
+            && evidence_observation_state != "malformed_evidence",
+        "evidence_observation_state": evidence_observation_state,
         "evidence_ready": evidence_ready,
         "evidence_contract": {
             "minimum_runtime_evidence_records": 1,
-            "empty_evidence_is_observation_only": true
+            "minimum_deterministic_evidence_records": 1,
+            "missing_required_source_count_must_be_zero": true,
+            "missing_optional_source_count_is_context_only": true,
+            "empty_evidence_is_observation_only": true,
+            "malformed_evidence_blocks_rsi": true
         },
         "operator_summary": {
             "status": if missing.is_empty() { "ready" } else { "blocked" },
             "blocker_count": missing.len(),
             "primary_blocker": missing.first().copied().unwrap_or("none"),
             "evidence_record_count": evidence_record_count,
+            "deterministic_evidence_record_count": deterministic_evidence_record_count,
+            "present_required_source_count": present_required_source_count,
+            "missing_required_source_count": missing_required_source_count,
+            "missing_optional_source_count": missing_optional_source_count,
+            "evidence_observation_state": evidence_observation_state,
             "trend_history_runs": history_len,
             "feedback_item_count": feedback_len
         },
@@ -383,6 +452,26 @@ fn write_daily_report(path: &Path, report: &Value, trend: &Value, top_holes: &Va
     body.push_str(&format!(
         "- evidence_record_count: {}\n",
         usize_at(report, &["evidence_ingestion", "normalized_record_count"])
+    ));
+    body.push_str(&format!(
+        "- present_required_source_count: {}\n",
+        usize_at(report, &["evidence_ingestion", "coverage", "present_required_source_count"])
+    ));
+    body.push_str(&format!(
+        "- missing_required_source_count: {}\n",
+        usize_at(report, &["evidence_ingestion", "coverage", "missing_required_source_count"])
+    ));
+    body.push_str(&format!(
+        "- missing_optional_source_count: {}\n",
+        usize_at(report, &["evidence_ingestion", "coverage", "missing_optional_source_count"])
+    ));
+    body.push_str(&format!(
+        "- evidence_observation_state: {}\n",
+        string_at(report, &["evidence_ingestion", "observation_state"], "unknown")
+    ));
+    body.push_str(&format!(
+        "- malformed_evidence_count: {}\n",
+        usize_at(report, &["evidence_ingestion", "malformed_record_count"])
     ));
     body.push_str(&format!(
         "- evidence_ready_for_rsi: {}\n\n",
