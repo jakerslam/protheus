@@ -1,0 +1,27 @@
+{
+  "type": "eval_issue_candidate_dedupe_policy",
+  "schema_version": 1,
+  "summary": "Threshold + signature-scope contract for the eval issue-candidate pipeline. Recurring-signature dedupe must hold MIN_RECURRENT_SIGNATURE_COUNT >= 2 unless a critical-severity bypass applies. Adding new fields here is the supported way to tune dedupe sensitivity without a Rust source change.",
+  "min_recurrent_signature_count": 2,
+  "min_recurrent_signature_count_floor": 2,
+  "critical_severity_bypass_allowed": true,
+  "signature_scope": [
+    "suspected_layer_or_component",
+    "primary_signal",
+    "normalized_failure_code",
+    "runtime_quality_signature"
+  ],
+  "guard_id": "eval_issue_candidate_dedupe_policy_declared",
+  "guard_artifact": "core/local/artifacts/tool_routing_authority_guard_current.json",
+  "consumers": {
+    "rust_module": "surface/orchestration/src/eval_learning_loop_issue_candidates.rs",
+    "rust_function": "run_eval_learning_loop_issue_candidates",
+    "rust_constant": "MIN_RECURRENT_SIGNATURE_COUNT_DEFAULT",
+    "env_override": "INFRING_EVAL_ISSUE_DEDUPE_POLICY_PATH"
+  },
+  "operational_notes": [
+    "Lowering min_recurrent_signature_count below the floor is forbidden; the guard fails closed when the policy declares any value below the floor.",
+    "Critical-severity rows bypass the dedupe threshold but still emit through the same proposal-only path.",
+    "If the dedupe needs an explicit time window, extend signature_scope with a time-bucket field rather than weakening the threshold."
+  ]
+}
