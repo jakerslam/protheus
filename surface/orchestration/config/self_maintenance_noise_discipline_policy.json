@@ -1,0 +1,17 @@
+{
+  "type": "self_maintenance_noise_discipline_policy",
+  "schema_version": 1,
+  "summary": "Self-maintenance recommendations must travel through ObserveOnly mode with signature-based dedupe and a rate-limit window at least 2x the planner's typical clarification-rate window. Floor is 30 minutes (1800000 ms). Critical severity may bypass dedupe but must still use ObserveOnly emission.",
+  "rate_limit_window_floor_ms": 1800000,
+  "rate_limit_window_multiplier_vs_planner_clarification_window": 2,
+  "required_emission_mode": "ObserveOnly",
+  "required_dedupe_scope": [
+    "component",
+    "recommendation_kind",
+    "source_observation_signature"
+  ],
+  "critical_severity_bypass_allowed": true,
+  "critical_severity_must_use_observe_only": true,
+  "guard_id": "self_maintenance_noise_discipline_declared",
+  "guard_artifact": "core/local/artifacts/tool_routing_authority_guard_current.json"
+}
