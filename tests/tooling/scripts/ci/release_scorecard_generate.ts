@@ -30,6 +30,7 @@ function parseArgs(argv: string[]) {
     ipcSoakPath: 'local/state/ops/ops_ipc_bridge_stability_soak/latest.json',
     drPath: 'local/state/ops/dr_gameday/latest.json',
     benchmarkPath: 'docs/client/reports/benchmark_matrix_run_latest.json',
+    legacyIngressBudgetPath: 'core/local/artifacts/legacy_ingress_budget_current.json',
     benchmarkBaselinePath: '',
     baselinePath: '',
     baselineTag: '',
@@ -66,6 +67,7 @@ function parseArgs(argv: string[]) {
     else if (token.startsWith('--ipc-soak=')) out.ipcSoakPath = cleanText(token.slice(11), 400);
     else if (token.startsWith('--dr=')) out.drPath = cleanText(token.slice(5), 400);
     else if (token.startsWith('--benchmark=')) out.benchmarkPath = cleanText(token.slice(12), 400);
+    else if (token.startsWith('--legacy-ingress-budget=')) out.legacyIngressBudgetPath = cleanText(token.slice(24), 400);
     else if (token.startsWith('--benchmark-baseline=')) out.benchmarkBaselinePath = cleanText(token.slice(21), 400);
     else if (token.startsWith('--baseline=')) out.baselinePath = cleanText(token.slice(11), 400);
     else if (token.startsWith('--baseline-tag=')) out.baselineTag = cleanText(token.slice(15), 400);
@@ -216,6 +218,7 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
   const ipcSoakPath = resolveMaybe(root, normalizedArgs.ipcSoakPath);
   const drPath = resolveMaybe(root, normalizedArgs.drPath);
   const benchmarkPath = resolveMaybe(root, normalizedArgs.benchmarkPath);
+  const legacyIngressBudgetPath = resolveMaybe(root, normalizedArgs.legacyIngressBudgetPath);
   const benchmarkBaselinePath = normalizedArgs.benchmarkBaselinePath
     ? resolveMaybe(root, normalizedArgs.benchmarkBaselinePath)
     : '';
@@ -239,6 +242,7 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
   const ipcSoak = readJsonFirst([ipcSoakPath, ipcSoakFallbackPath]) ?? {};
   const dr = readJsonMaybe(drPath) ?? {};
   const benchmark = readJsonMaybe(benchmarkPath) ?? {};
+  const legacyIngressBudget = readJsonMaybe(legacyIngressBudgetPath) ?? {};
   const benchmarkBaseline = benchmarkBaselinePath ? readJsonMaybe(benchmarkBaselinePath) ?? {} : null;
   const baselineScorecard = baselinePath ? readJsonMaybe(baselinePath) ?? {} : null;
   const channel = releaseChannel(semver?.release_channel);
@@ -831,6 +835,11 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
       'release_blocker_rubric_gate',
       blockers?.ok === true,
       `open_release_blockers=${Array.isArray(blockers?.open_release_blockers) ? blockers.open_release_blockers.length : 0};budget_remaining=${safeNumber(blockers?.release_blocker_budget_remaining, -1)}`
+    ),
+    gateRow(
+      'legacy_ingress_budget_gate',
+      legacyIngressBudget?.ok === true,
+      `failures=${Array.isArray(legacyIngressBudget?.failures) ? legacyIngressBudget.failures.length : 'missing'};over_budget_surfaces=${Array.isArray(legacyIngressBudget?.rows) ? legacyIngressBudget.rows.filter((row: any) => row && row.over_budget === true).map((row: any) => cleanText(row?.surface ?? 'unknown', 40)).join(',') || 'none' : 'missing'}`
     ),
     gateRow(
       'release_hardening_window_guard',
