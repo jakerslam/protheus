@@ -80,8 +80,27 @@ struct LegacyIngressAccumulator {
     ambiguity_reason_count: u32,
 }
 
+pub const LEGACY_INGRESS_BUDGET_RATCHET_SCHEDULE_PATH: &str =
+    "surface/orchestration/config/legacy_ingress_budget_ratchet_schedule.json";
+
+const LEGACY_INGRESS_BUDGET_RATCHET_SCHEDULE_PATH_ENV: &str =
+    "INFRING_LEGACY_INGRESS_RATCHET_SCHEDULE_PATH";
+const INFRING_RELEASE_TAG_ENV: &str = "INFRING_RELEASE_TAG";
+
+/// Default budget policies, optionally tightened by the active release row in
+/// the ratchet schedule.
+///
+/// Behavior:
+/// - Non-legacy adapted surfaces always stay strict-zero (they are not on
+///   any ratchet path).
+/// - The `ExplicitLegacy` surface starts at the declared baseline
+///   (`max_legacy_shim_rate=1.0`) and is overridden by the schedule entry
+///   matching `INFRING_RELEASE_TAG` if both the schedule file and the env
+///   are present.
+/// - When schedule load or release lookup fails, the baseline policies are
+///   returned unchanged. No release tightening, no panic.
 pub fn default_legacy_ingress_budget_policies() -> Vec<LegacyIngressBudgetPolicy> {
-    vec![
+    let mut policies = vec![
         strict_non_legacy_policy(LegacyIngressSurface::Sdk),
         strict_non_legacy_policy(LegacyIngressSurface::Gateway),
         strict_non_legacy_policy(LegacyIngressSurface::Dashboard),
@@ -93,7 +112,64 @@ pub fn default_legacy_ingress_budget_policies() -> Vec<LegacyIngressBudgetPolicy
             next_release_legacy_shim_rate_target: 0.75,
         },
         strict_non_legacy_policy(LegacyIngressSurface::UnknownNonLegacy),
-    ]
+    ];
+    apply_active_release_ratchet(&mut policies);
+    policies
+}
+
+fn apply_active_release_ratchet(policies: &mut [LegacyIngressBudgetPolicy]) {
+    let release = match std::env::var(INFRING_RELEASE_TAG_ENV) {
+        Ok(value) if !value.trim().is_empty() => value,
+        _ => return,
+    };
+    let schedule_path = std::env::var(LEGACY_INGRESS_BUDGET_RATCHET_SCHEDULE_PATH_ENV)
+        .unwrap_or_else(|_| LEGACY_INGRESS_BUDGET_RATCHET_SCHEDULE_PATH.to_string());
+    let raw = match std::fs::read_to_string(&schedule_path) {
+        Ok(contents) => contents,
+        Err(_) => return,
+    };
+    if let Some(entry) = lookup_ratchet_entry(&raw, &release) {
+        for policy in policies.iter_mut() {
+            if matches!(policy.surface, LegacyIngressSurface::ExplicitLegacy) {
+                policy.max_legacy_shim_rate = entry.max_legacy_shim_rate;
+                policy.max_surface_adapter_fallback_rate = entry.max_surface_adapter_fallback_rate;
+                policy.next_release_legacy_shim_rate_target =
+                    entry.next_release_legacy_shim_rate_target;
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct RatchetEntry {
+    max_legacy_shim_rate: f32,
+    max_surface_adapter_fallback_rate: f32,
+    next_release_legacy_shim_rate_target: f32,
+}
+
+fn lookup_ratchet_entry(schedule_json: &str, release: &str) -> Option<RatchetEntry> {
+    let parsed: serde_json::Value = serde_json::from_str(schedule_json).ok()?;
+    let schedule = parsed.get("schedule")?.as_array()?;
+    for row in schedule {
+        let row_release = row.get("release")?.as_str()?;
+        if row_release == release {
+            return Some(RatchetEntry {
+                max_legacy_shim_rate: row
+                    .get("max_legacy_shim_rate")
+                    .and_then(|node| node.as_f64())
+                    .unwrap_or(1.0) as f32,
+                max_surface_adapter_fallback_rate: row
+                    .get("max_surface_adapter_fallback_rate")
+                    .and_then(|node| node.as_f64())
+                    .unwrap_or(0.0) as f32,
+                next_release_legacy_shim_rate_target: row
+                    .get("next_release_legacy_shim_rate_target")
+                    .and_then(|node| node.as_f64())
+                    .unwrap_or(0.0) as f32,
+            });
+        }
+    }
+    None
 }
 
 fn strict_non_legacy_policy(surface: LegacyIngressSurface) -> LegacyIngressBudgetPolicy {
