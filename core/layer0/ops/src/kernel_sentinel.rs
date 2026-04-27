@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;
 
-mod authority; mod auto_run; mod boot_watch; mod cli_args; mod evidence; mod finding_lifecycle; mod findings_io; mod governance; mod graders; mod issue_synthesis; mod maintenance_synthesis; mod report_summary; mod rsi_handoff; mod scheduler; mod self_study; mod waivers;
+mod authority; mod auto_run; mod boot_watch; mod cli_args; mod collector; mod evidence; mod finding_lifecycle; mod findings_io; mod governance; mod graders; mod issue_synthesis; mod maintenance_synthesis; mod report_summary; mod rsi_handoff; mod scheduler; mod self_study; mod waivers;
 pub use authority::{authority_rule, kernel_sentinel_contract};
 use cli_args::{bool_flag, option_path, option_usize, state_dir_from_args};
 pub use evidence::{ingest_evidence_sources, KernelSentinelEvidenceIngestion};
@@ -155,7 +155,7 @@ pub fn build_report(root: &Path, args: &[String]) -> (Value, Value, i32) {
         .collect::<Vec<_>>();
     let truncated_finding_count = deduped.len().saturating_sub(report_findings.len());
     let critical_open_count = critical_open_count(&deduped);
-    let release_gate = governance::build_release_gate(&deduped, &malformed, &issue_synthesis, &maintenance_synthesis, &governance_preflight);
+    let release_gate = governance::build_release_gate(&deduped, &malformed, &issue_synthesis, &maintenance_synthesis, &governance_preflight, &evidence_report);
     let strict = bool_flag(args, "--strict");
     let release_gate_pass = release_gate["pass"].as_bool().unwrap_or(false);
     let release_blockers = release_blockers(critical_open_count, malformed.len(), release_gate_pass);
@@ -197,6 +197,23 @@ pub fn build_report(root: &Path, args: &[String]) -> (Value, Value, i32) {
             "reported_finding_count": report_findings.len(),
             "truncated_finding_count": truncated_finding_count,
             "release_gate_pass": release_gate_pass,
+            "observation_state": evidence_report["observation_state"],
+            "data_starved": evidence_report["data_starved"],
+            "partial_evidence": evidence_report["partial_evidence"],
+            "malformed_evidence": evidence_report["malformed_evidence"],
+            "evidence_record_count": evidence_report["normalized_record_count"],
+            "malformed_evidence_count": evidence_report["malformed_record_count"],
+            "present_source_count": evidence_report["present_source_count"],
+            "missing_source_count": evidence_report["missing_source_count"],
+            "present_required_source_count": evidence_report["present_required_source_count"],
+            "missing_required_source_count": evidence_report["missing_required_source_count"],
+            "present_optional_source_count": evidence_report["present_optional_source_count"],
+            "missing_optional_source_count": evidence_report["missing_optional_source_count"],
+            "stale_evidence": evidence_report["stale_evidence"],
+            "stale_record_count": evidence_report["stale_record_count"],
+            "freshness_observed_record_count": evidence_report["freshness_observed_record_count"],
+            "stale_evidence_seconds": evidence_report["stale_evidence_seconds"],
+            "max_evidence_age_seconds": evidence_report["max_evidence_age_seconds"],
             "release_blockers": release_blockers
         },
         "contract": kernel_sentinel_contract(),
@@ -225,13 +242,16 @@ pub fn build_report(root: &Path, args: &[String]) -> (Value, Value, i32) {
 pub fn run(root: &Path, args: &[String]) -> i32 {
     let command = args.first().map(String::as_str).unwrap_or("help");
     if command == "help" || command == "--help" || command == "-h" {
-        println!("infring-ops kernel-sentinel <run|status|report|auto|schedule|heartbeat|help> [--strict=1|0] [--state-dir=<path>|--state-root=<path>] [--findings-path=<path>] [--evidence-dir=<path>] [--require-evidence=1] [--issue-threshold=<n>] [--suggestion-threshold=<n>] [--automation-threshold=<n>] [--boot-self-check=1] [--watch-refresh=1] [--waivers-path=<path>] [--cadence=maintenance|release|heartbeat] [--auto-artifact=<path>] [--schedule-artifact=<path>] [--interval-seconds=<n>] [--stale-window-seconds=<n>] [--max-stale-minutes=<n>]");
+        println!("infring-ops kernel-sentinel <run|status|report|auto|collect|schedule|heartbeat|help> [--strict=1|0] [--state-dir=<path>|--state-root=<path>] [--findings-path=<path>] [--evidence-dir=<path>] [--collector-artifact=<path>] [--require-evidence=1] [--issue-threshold=<n>] [--suggestion-threshold=<n>] [--automation-threshold=<n>] [--boot-self-check=1] [--watch-refresh=1] [--waivers-path=<path>] [--cadence=maintenance|release|heartbeat] [--auto-artifact=<path>] [--schedule-artifact=<path>] [--interval-seconds=<n>] [--stale-window-seconds=<n>] [--max-stale-minutes=<n>]");
         println!("{}", serde_json::to_string_pretty(&kernel_sentinel_contract()).unwrap());
         return 0;
     }
     let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
     if command == "auto" {
         return auto_run::run_auto(root, &rest);
+    }
+    if command == "collect" {
+        return collector::run_collect(root, &rest);
     }
     if command == "schedule" {
         return scheduler::run_schedule(root, &rest);

@@ -357,6 +357,7 @@ pub fn build_release_gate(
     issue_synthesis: &Value,
     maintenance_synthesis: &Value,
     governance_preflight: &Value,
+    evidence_report: &Value,
 ) -> Value {
     let critical_open_count = findings
         .iter()
@@ -368,6 +369,15 @@ pub fn build_release_gate(
     let freshness_stale_count = governance_preflight["freshness_stale_count"].as_u64().unwrap_or(0);
     let grader_blocking_count = governance_preflight["grader_blocking_count"].as_u64().unwrap_or(0);
     let rsi_handoff_blocking_count = governance_preflight["rsi_handoff_blocking_count"].as_u64().unwrap_or(0);
+    let evidence_record_count = evidence_report["normalized_record_count"].as_u64().unwrap_or(0);
+    let data_starved = evidence_report["data_starved"]
+        .as_bool()
+        .unwrap_or(evidence_record_count == 0);
+    let observation_state = evidence_report["observation_state"]
+        .as_str()
+        .unwrap_or("unknown");
+    let malformed_evidence = evidence_report["malformed_evidence"].as_bool().unwrap_or(false);
+    let partial_evidence = evidence_report["partial_evidence"].as_bool().unwrap_or(false);
     let pass = critical_open_count == 0
         && malformed_findings.is_empty()
         && malformed_issue_count == 0
@@ -375,7 +385,8 @@ pub fn build_release_gate(
         && hard_fail_count == 0
         && freshness_stale_count == 0
         && grader_blocking_count == 0
-        && rsi_handoff_blocking_count == 0;
+        && rsi_handoff_blocking_count == 0
+        && !data_starved;
     json!({
         "type": "kernel_sentinel_release_gate",
         "pass": pass,
@@ -399,7 +410,12 @@ pub fn build_release_gate(
         "hard_fail_invariant_count": hard_fail_count,
         "freshness_stale_count": freshness_stale_count,
         "grader_blocking_count": grader_blocking_count,
-        "rsi_handoff_blocking_count": rsi_handoff_blocking_count
+        "rsi_handoff_blocking_count": rsi_handoff_blocking_count,
+        "data_starved": data_starved,
+        "partial_evidence": partial_evidence,
+        "malformed_evidence": malformed_evidence,
+        "evidence_record_count": evidence_record_count,
+        "observation_state": observation_state
     })
 }
 
@@ -456,9 +472,10 @@ mod tests {
         let issue = json!({"issue_drafts": []});
         let maintenance = json!({"suggestions": [], "automation_candidates": []});
         let governance = json!({"hard_fail_invariant_count": 0, "freshness_stale_count": 0});
-        let failed = build_release_gate(&[critical], &[], &issue, &maintenance, &governance);
+        let evidence = json!({"normalized_record_count": 1, "data_starved": false, "observation_state": "healthy_observation"});
+        let failed = build_release_gate(&[critical], &[], &issue, &maintenance, &governance, &evidence);
         assert_eq!(failed["pass"], false);
-        let passed = build_release_gate(&[], &[], &issue, &maintenance, &governance);
+        let passed = build_release_gate(&[], &[], &issue, &maintenance, &governance, &evidence);
         assert_eq!(passed["pass"], true);
     }
 }

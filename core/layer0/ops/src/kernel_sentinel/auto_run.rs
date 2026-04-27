@@ -178,6 +178,8 @@ pub fn build_auto_run_artifact(
             "required_for_release_verdict": true,
             "active_kernel_findings_block_release": true,
             "nonzero_runtime_evidence_required": true,
+            "required_sentinel_source_coverage_required": true,
+            "missing_optional_shell_telemetry_is_context_only": true,
             "feedback_outputs_required": true,
             "trend_outputs_required": true,
             "control_plane_eval_can_only_advise": true
@@ -223,6 +225,35 @@ mod tests {
     };
     use std::fs;
 
+    fn write_required_sentinel_evidence(root: &std::path::Path) {
+        let evidence_dir = root.join("local/state/kernel_sentinel/evidence");
+        fs::create_dir_all(&evidence_dir).unwrap();
+        for (file_name, subject, category) in [
+            ("kernel_receipts.jsonl", "receipt-1", "ReceiptIntegrity"),
+            ("runtime_observations.jsonl", "runtime-1", "RuntimeCorrectness"),
+            ("state_mutations.jsonl", "mutation-1", "StateTransition"),
+            ("scheduler_admission.jsonl", "admission-1", "CapabilityEnforcement"),
+            ("live_recovery.jsonl", "recovery-1", "RuntimeCorrectness"),
+            ("boundedness_observations.jsonl", "boundedness-1", "Boundedness"),
+            ("release_proof_packs.jsonl", "proof-pack-1", "ReleaseEvidence"),
+            ("release_repairs.jsonl", "repair-1", "ReleaseEvidence"),
+            ("gateway_health.jsonl", "gateway-1", "GatewayIsolation"),
+            ("gateway_quarantine.jsonl", "quarantine-1", "GatewayIsolation"),
+            ("gateway_recovery.jsonl", "gateway-recovery-1", "GatewayIsolation"),
+            ("gateway_isolation.jsonl", "gateway-isolation-1", "GatewayIsolation"),
+            ("queue_backpressure.jsonl", "queue-1", "QueueBackpressure"),
+            ("control_plane_eval.jsonl", "eval-1", "RuntimeCorrectness"),
+        ] {
+            fs::write(
+                evidence_dir.join(file_name),
+                format!(
+                    "{{\"id\":\"{subject}\",\"ok\":true,\"subject\":\"{subject}\",\"kind\":\"required_stream_regression\",\"category\":\"{category}\",\"evidence\":[\"fixture://{subject}\"],\"details\":{{\"source_artifact\":\"fixture://{subject}\",\"freshness_age_seconds\":0}}}}"
+                ),
+            )
+            .unwrap();
+        }
+    }
+
     #[test]
     fn auto_run_writes_freshness_artifact_for_clean_state() {
         let root = std::env::temp_dir().join(format!(
@@ -235,6 +266,7 @@ mod tests {
                     .as_nanos()
             }))
         ));
+        write_required_sentinel_evidence(&root);
         let out = root.join("auto.json");
         let args = vec![
             "--strict=1".to_string(),
