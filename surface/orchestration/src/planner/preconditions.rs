@@ -204,6 +204,27 @@ fn tool_available(request: &TypedOrchestrationRequest, capability: &Capability) 
             );
         }
     }
+    if allow_heuristic_probe_fallback(request) && !matches!(capability, Capability::ExecuteTool) {
+        let likely_tool_route = !request.tool_hints.is_empty()
+            || matches!(
+                request.resource_kind,
+                ResourceKind::Web
+                    | ResourceKind::Workspace
+                    | ResourceKind::Tooling
+                    | ResourceKind::Mixed
+            )
+            || matches!(
+                request.operation_kind,
+                OperationKind::Search
+                    | OperationKind::Fetch
+                    | OperationKind::Compare
+                    | OperationKind::InspectTooling
+            )
+            || capability.is_tool_family();
+        if likely_tool_route {
+            return (true, "heuristic.tool_hints_or_operation".to_string());
+        }
+    }
     (false, missing_probe_source(capability))
 }
 
@@ -552,7 +573,6 @@ fn can_degrade_reason(
     }
 }
 
-
 #[cfg(test)]
 mod heuristic_fallback_tests {
     use super::*;
@@ -588,15 +608,30 @@ mod heuristic_fallback_tests {
         let typed = request(RequestSurface::Sdk);
 
         let (_, legacy_policy_source) = policy_allows(&legacy, &Capability::MutateTask);
-        let (_, legacy_transport_source) = transport_available(&legacy, &Capability::WorkspaceSearch);
+        let (_, legacy_transport_source) =
+            transport_available(&legacy, &Capability::WorkspaceSearch);
         let (_, typed_policy_source) = policy_allows(&typed, &Capability::MutateTask);
         let (_, typed_transport_source) = transport_available(&typed, &Capability::WorkspaceSearch);
 
-        assert_eq!(legacy_policy_source, "heuristic.policy_scope_and_mutability");
-        assert_eq!(legacy_transport_source, "heuristic.transport_hints_or_operation");
-        assert!(typed_policy_source.starts_with("missing_probe: mutate_task.policy_allows")
-            || typed_policy_source.starts_with("probe.required_for_typed_surface.mutate_task.policy_allows"));
-        assert!(typed_transport_source.starts_with("missing_probe: workspace_search.transport_available")
-            || typed_transport_source.starts_with("probe.required_for_typed_surface.workspace_search.transport_available"));
+        assert_eq!(
+            legacy_policy_source,
+            "heuristic.policy_scope_and_mutability"
+        );
+        assert_eq!(
+            legacy_transport_source,
+            "heuristic.transport_hints_or_operation"
+        );
+        assert!(
+            typed_policy_source.starts_with("missing_probe: mutate_task.policy_allows")
+                || typed_policy_source
+                    .starts_with("probe.required_for_typed_surface.mutate_task.policy_allows")
+        );
+        assert!(
+            typed_transport_source
+                .starts_with("missing_probe: workspace_search.transport_available")
+                || typed_transport_source.starts_with(
+                    "probe.required_for_typed_surface.workspace_search.transport_available"
+                )
+        );
     }
 }

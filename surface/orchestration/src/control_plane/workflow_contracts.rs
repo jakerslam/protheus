@@ -14,6 +14,7 @@ pub const REQUIRED_TELEMETRY_STREAMS: &[&str] = &[
 ];
 pub const REQUIRED_TOOL_FAMILIES: &[&str] =
     &["workspace", "web", "memory", "agent", "shell", "browser"];
+pub const WORKFLOW_CONTRACT_SCHEMA_VERSION: &str = "typed_execution_contract_v1";
 
 const TOOL_FAMILY_SCHEMAS: &[(&str, &str, &str)] = &[
     (
@@ -145,6 +146,8 @@ pub struct RunBudgets {
 #[derive(Debug, Clone, Serialize)]
 pub struct NormalizedWorkflowGraph {
     pub workflow_id: String,
+    pub source_json_path: String,
+    pub contract_schema_version: String,
     pub workflow_type: String,
     pub workflow_role: String,
     pub subtemplate_count: usize,
@@ -241,27 +244,41 @@ fn validate_workflow_source(path: &str, raw: &str) -> WorkflowValidation {
         errors.push("missing_typed_execution_contract".to_string());
         return validation(path, false, &workflow_id, errors, None);
     };
-    let graph = compile_graph(
-        &workflow_id,
-        &workflow_type,
-        &workflow_role,
-        spec.subtemplates.len(),
+    let graph = compile_graph(WorkflowGraphCompileInput {
+        source_path: path,
+        workflow_id: &workflow_id,
+        workflow_type: &workflow_type,
+        workflow_role: &workflow_role,
+        subtemplate_count: spec.subtemplates.len(),
         stages,
         contract,
-        &mut errors,
-    );
+        errors: &mut errors,
+    });
     validation(path, errors.is_empty(), &workflow_id, errors, graph)
 }
 
-fn compile_graph(
-    workflow_id: &str,
-    workflow_type: &str,
-    workflow_role: &str,
+struct WorkflowGraphCompileInput<'a> {
+    source_path: &'a str,
+    workflow_id: &'a str,
+    workflow_type: &'a str,
+    workflow_role: &'a str,
     subtemplate_count: usize,
     stages: Vec<String>,
     contract: TypedExecutionContract,
-    errors: &mut Vec<String>,
-) -> Option<NormalizedWorkflowGraph> {
+    errors: &'a mut Vec<String>,
+}
+
+fn compile_graph(input: WorkflowGraphCompileInput<'_>) -> Option<NormalizedWorkflowGraph> {
+    let WorkflowGraphCompileInput {
+        source_path,
+        workflow_id,
+        workflow_type,
+        workflow_role,
+        subtemplate_count,
+        stages,
+        contract,
+        errors,
+    } = input;
     let stage_set: HashSet<&str> = stages.iter().map(String::as_str).collect();
     validate_contract_basics(&contract, errors);
     let terminal_states = clean_list(contract.terminal_states);
@@ -294,6 +311,8 @@ fn compile_graph(
     }
     Some(NormalizedWorkflowGraph {
         workflow_id: workflow_id.to_string(),
+        source_json_path: source_path.to_string(),
+        contract_schema_version: WORKFLOW_CONTRACT_SCHEMA_VERSION.to_string(),
         workflow_type: workflow_type.to_string(),
         workflow_role: workflow_role.to_string(),
         subtemplate_count,
@@ -389,9 +408,9 @@ fn json_nonempty_string_array(value: &Value, key: &str) -> bool {
         .and_then(Value::as_array)
         .map(|items| {
             !items.is_empty()
-                && items
-                    .iter()
-                    .all(|item| matches!(item.as_str().map(str::trim), Some(raw) if !raw.is_empty()))
+                && items.iter().all(
+                    |item| matches!(item.as_str().map(str::trim), Some(raw) if !raw.is_empty()),
+                )
         })
         .unwrap_or(false)
 }

@@ -3,6 +3,7 @@ use super::workflow_contracts::{
     registered_workflow_graphs, registered_workflow_validations, tool_contracts_cover_required,
     tool_family_contracts, NormalizedWorkflowGraph, ToolFamilyContract, WorkflowValidation,
     REQUIRED_TELEMETRY_STREAMS, REQUIRED_TERMINAL_STATES, REQUIRED_TOOL_FAMILIES,
+    WORKFLOW_CONTRACT_SCHEMA_VERSION,
 };
 use super::workflow_runtime::{run_registered_replay_fixtures, workflow_runtime_contract_ok};
 use super::workflow_runtime_types::WorkflowReplayReport;
@@ -113,6 +114,8 @@ fn build_checks(
         json!({"id": "workflow_runtime_budget_contract", "ok": replay_reports.iter().all(runtime_budget_ok), "detail": "runtime replays stay under stage/model/tool/token budgets and keep loop guard active"}),
         json!({"id": "workflow_runtime_inspector_contract", "ok": replay_reports.iter().all(runtime_inspector_ok), "detail": "workflow_state, agent_internal_notes, tool_trace, eval_trace, and final_answer are separated from visible chat"}),
         json!({"id": "workflow_runtime_graph_binding_contract", "ok": replay_reports.iter().all(|row| !row.graph_hash.is_empty() && row.inspector.selected_graph_source == "orchestration_typed_graph_v1"), "detail": "runtime selection consumes typed orchestration graph bindings"}),
+        json!({"id": "workflow_json_source_metadata_contract", "ok": graphs.iter().all(graph_json_source_metadata_ok), "detail": "typed graphs carry workflow id, source JSON path, contract schema version, and graph hash metadata"}),
+        json!({"id": "workflow_runtime_registered_json_source_contract", "ok": replay_reports.iter().all(runtime_registered_json_source_ok), "detail": "runtime telemetry exposes selected workflow id, source JSON path, contract schema version, and graph hash from a registered JSON workflow"}),
         json!({"id": "workflow_format_policy_contract", "ok": format_policy.contains("typed_execution_contract") && format_policy.contains("llm_final_only_no_system_injection"), "detail": FORMAT_POLICY_PATH}),
         json!({"id": "control_plane_parity_map_contract", "ok": all_present(&parity_map, &["OpenHands", "OpenFang", "Infring", "surface/orchestration/src", "event-sourced action/observation"]), "detail": PARITY_MAP_PATH}),
     ]
@@ -163,6 +166,30 @@ fn runtime_inspector_ok(report: &WorkflowReplayReport) -> bool {
             .events
             .iter()
             .all(|event| event.stream == "final_answer" || !event.visible_chat_eligible)
+}
+
+fn graph_json_source_metadata_ok(graph: &NormalizedWorkflowGraph) -> bool {
+    !graph.workflow_id.trim().is_empty()
+        && graph
+            .source_json_path
+            .starts_with("surface/orchestration/src/control_plane/workflows/")
+        && graph.source_json_path.ends_with(".workflow.json")
+        && graph.contract_schema_version == WORKFLOW_CONTRACT_SCHEMA_VERSION
+}
+
+fn runtime_registered_json_source_ok(report: &WorkflowReplayReport) -> bool {
+    !report.workflow_id.trim().is_empty()
+        && !report.graph_hash.trim().is_empty()
+        && report
+            .source_json_path
+            .starts_with("surface/orchestration/src/control_plane/workflows/")
+        && report.source_json_path.ends_with(".workflow.json")
+        && report.contract_schema_version == WORKFLOW_CONTRACT_SCHEMA_VERSION
+        && report.inspector.workflow_id == report.workflow_id
+        && report.inspector.graph_hash == report.graph_hash
+        && report.inspector.source_json_path == report.source_json_path
+        && report.inspector.contract_schema_version == report.contract_schema_version
+        && report.inspector.selected_graph_source == "orchestration_typed_graph_v1"
 }
 
 fn run_budget_ok(graph: &NormalizedWorkflowGraph) -> bool {

@@ -11,8 +11,7 @@ const DEFAULT_POLICY_PATH: &str =
 const DEFAULT_HISTORY_PATH: &str = "local/state/ops/eval_authority_calibration/history.jsonl";
 const DEFAULT_OUT_PATH: &str = "core/local/artifacts/eval_authority_calibration_current.json";
 const DEFAULT_LATEST_PATH: &str = "artifacts/eval_authority_calibration_latest.json";
-const DEFAULT_REPORT_PATH: &str =
-    "local/workspace/reports/EVAL_AUTHORITY_CALIBRATION_CURRENT.md";
+const DEFAULT_REPORT_PATH: &str = "local/workspace/reports/EVAL_AUTHORITY_CALIBRATION_CURRENT.md";
 
 pub fn run_eval_authority_calibration(args: &[String]) -> i32 {
     let strict = parse_bool_flag(args, "strict", false);
@@ -52,8 +51,7 @@ pub fn run_eval_authority_calibration(args: &[String]) -> i32 {
         bool_field(&thresholds, "closed_loop_autonomy_allowed", false);
     let closed_loop_change_ready =
         calibration_pass && (!requires_operator_approval || closed_loop_approved);
-    let closed_loop_auto_change_allowed =
-        closed_loop_change_ready && closed_loop_autonomy_allowed;
+    let closed_loop_auto_change_allowed = closed_loop_change_ready && closed_loop_autonomy_allowed;
     let authority_mode = if closed_loop_auto_change_allowed {
         "closed_loop_auto_change_allowed"
     } else if closed_loop_change_ready {
@@ -312,7 +310,7 @@ fn feedback_category(row: &Value) -> String {
 
 fn markdown(report: &Value) -> String {
     format!(
-        "# Eval Authority Calibration\n\n- ok: {}\n- authority_mode: {}\n- calibration_pass: {}\n- authority_allowed: {}\n- reviewed_samples: {}\n- precision: {:.3}\n- recall: {:.3}\n- false_positive_rate: {:.3}\n- false_negative_rate: {:.3}\n- consecutive_clean_windows: {}\n",
+        "# Eval Authority Calibration\n\n- ok: {}\n- authority_mode: {}\n- calibration_pass: {}\n- authority_allowed: {}\n- closed_loop_change_ready: {}\n- closed_loop_auto_change_allowed: {}\n- reviewed_samples: {}\n- precision: {:.3}\n- recall: {:.3}\n- false_positive_rate: {:.3}\n- false_negative_rate: {:.3}\n- consecutive_clean_windows: {}\n",
         report.get("ok").and_then(Value::as_bool).unwrap_or(false),
         report.get("authority_mode").and_then(Value::as_str).unwrap_or("unknown"),
         report.get("calibration_pass").and_then(Value::as_bool).unwrap_or(false),
@@ -397,13 +395,13 @@ fn now_iso_like() -> String {
 
 fn parse_flag(args: &[String], name: &str) -> Option<String> {
     let prefix = format!("--{}=", name);
-    args.iter()
-        .enumerate()
-        .find_map(|(idx, arg)| {
-            arg.strip_prefix(&prefix)
-                .map(str::to_string)
-                .or_else(|| (arg == &format!("--{name}")).then(|| args.get(idx + 1).cloned()).flatten())
+    args.iter().enumerate().find_map(|(idx, arg)| {
+        arg.strip_prefix(&prefix).map(str::to_string).or_else(|| {
+            (arg == &format!("--{name}"))
+                .then(|| args.get(idx + 1).cloned())
+                .flatten()
         })
+    })
 }
 
 fn parse_bool_flag(args: &[String], name: &str, default: bool) -> bool {

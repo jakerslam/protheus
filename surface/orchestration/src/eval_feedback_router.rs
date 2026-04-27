@@ -247,9 +247,8 @@ fn dedupe_routes(routes: Vec<Value>) -> Vec<Value> {
         }
         route["route_fingerprint"] = json!(fingerprint.clone());
         route["occurrence_count"] = json!(1);
-        route["clustered_failure_ids"] = json!([
-            str_at(&route, &["failure_id"]).unwrap_or("eval_failure")
-        ]);
+        route["clustered_failure_ids"] =
+            json!([str_at(&route, &["failure_id"]).unwrap_or("eval_failure")]);
         clustered.insert(fingerprint, route);
     }
     clustered.into_values().collect()
@@ -258,7 +257,11 @@ fn dedupe_routes(routes: Vec<Value>) -> Vec<Value> {
 fn occurrence_total(routes: &[Value]) -> u64 {
     routes
         .iter()
-        .map(|row| row.get("occurrence_count").and_then(Value::as_u64).unwrap_or(1))
+        .map(|row| {
+            row.get("occurrence_count")
+                .and_then(Value::as_u64)
+                .unwrap_or(1)
+        })
         .sum()
 }
 
@@ -293,7 +296,10 @@ fn issue_candidate_reason(route: &Value) -> &'static str {
     if occurrence_count < ISSUE_CANDIDATE_MIN_OCCURRENCES {
         return "awaiting_repeated_stable_signature";
     }
-    match (str_at(route, &["destination"]), str_at(route, &["severity"])) {
+    match (
+        str_at(route, &["destination"]),
+        str_at(route, &["severity"]),
+    ) {
         (Some("kernel_block"), _) => "repeated_kernel_block_route",
         (Some("gateway_quarantine"), _) => "repeated_gateway_quarantine_route",
         (_, Some("critical" | "release_blocking" | "high")) => "repeated_high_severity_route",
@@ -311,7 +317,7 @@ fn issue_candidate_routes(routes: &[Value]) -> Vec<Value> {
             let occurrence_count = row.get("occurrence_count").and_then(Value::as_u64).unwrap_or(1);
             let severity = str_at(row, &["severity"]).unwrap_or("unknown");
             let priority_score = severity_rank(severity) as u64 * 100 + occurrence_count;
-            json!({
+            let mut candidate = json!({
                 "issue_contract_version": 1,
                 "source_report": "eval_feedback_router",
                 "issue_lifecycle_state": "candidate_open",
@@ -355,7 +361,10 @@ fn issue_candidate_routes(routes: &[Value]) -> Vec<Value> {
                     "destination action emits the declared receipt type",
                     "same route fingerprint does not recur above threshold after fix"
                 ]
-            })
+            });
+            candidate["issue_candidate_waiting_for_recurrence"] = json!(false);
+            candidate["issue_candidate_authority"] = json!("proposal_only");
+            candidate
         })
         .collect::<Vec<_>>();
     candidates.sort_by(|left, right| {
@@ -363,7 +372,12 @@ fn issue_candidate_routes(routes: &[Value]) -> Vec<Value> {
             .get("priority_score")
             .and_then(Value::as_u64)
             .unwrap_or(0)
-            .cmp(&left.get("priority_score").and_then(Value::as_u64).unwrap_or(0))
+            .cmp(
+                &left
+                    .get("priority_score")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(0),
+            )
     });
     candidates
 }
@@ -413,8 +427,14 @@ fn issue_candidate_actionability_ok(candidate: &Value) -> bool {
             .get("safe_to_auto_apply_patch")
             .and_then(Value::as_bool)
             == Some(false)
-        && candidate.get("human_review_required").and_then(Value::as_bool) == Some(true)
-        && candidate.get("requires_operator_ack").and_then(Value::as_bool) == Some(true)
+        && candidate
+            .get("human_review_required")
+            .and_then(Value::as_bool)
+            == Some(true)
+        && candidate
+            .get("requires_operator_ack")
+            .and_then(Value::as_bool)
+            == Some(true)
         && candidate
             .get("autonomous_mitigation_allowed")
             .and_then(Value::as_bool)
@@ -465,7 +485,9 @@ fn issue_candidate_stability(occurrence_count: u64) -> &'static str {
 fn issue_candidate_operator_next_step(destination: &str) -> &'static str {
     match destination {
         "kernel_block" => "open or update a release-blocking kernel correctness issue",
-        "gateway_quarantine" => "verify gateway quarantine/recovery receipts and route around the boundary",
+        "gateway_quarantine" => {
+            "verify gateway quarantine/recovery receipts and route around the boundary"
+        }
         "control_plane_retry" => "inspect the workflow trace and tighten retry/probe selection",
         _ => "triage the eval feedback route",
     }
@@ -502,15 +524,21 @@ fn issue_candidate_release_gate_effect(destination: &str, severity: &str) -> &'s
 fn issue_candidate_closing_evidence(destination: &str) -> &'static str {
     match destination {
         "kernel_block" => "passing kernel/blocker receipt plus eval regression guard rerun",
-        "gateway_quarantine" => "gateway quarantine or recovery receipt plus repeated-failure absence",
-        "control_plane_retry" => "workflow retry trace plus stable issue-candidate count below threshold",
+        "gateway_quarantine" => {
+            "gateway quarantine or recovery receipt plus repeated-failure absence"
+        }
+        "control_plane_retry" => {
+            "workflow retry trace plus stable issue-candidate count below threshold"
+        }
         _ => "operator review with matching receipt evidence",
     }
 }
 
 fn issue_candidate_impact(destination: &str) -> &'static str {
     match destination {
-        "kernel_block" => "release/runtime correctness can be blocked until this failure class is closed",
+        "kernel_block" => {
+            "release/runtime correctness can be blocked until this failure class is closed"
+        }
         "gateway_quarantine" => "external-boundary reliability or fail-closed behavior is at risk",
         "control_plane_retry" => "operator-facing workflow quality may degrade or repeat retries",
         _ => "runtime quality needs triage before promotion",
@@ -547,7 +575,11 @@ fn severity_occurrence_total(routes: &[Value], severity: &str) -> u64 {
     routes
         .iter()
         .filter(|row| str_at(row, &["severity"]) == Some(severity))
-        .map(|row| row.get("occurrence_count").and_then(Value::as_u64).unwrap_or(1))
+        .map(|row| {
+            row.get("occurrence_count")
+                .and_then(Value::as_u64)
+                .unwrap_or(1)
+        })
         .sum()
 }
 

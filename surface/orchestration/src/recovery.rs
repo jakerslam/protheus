@@ -41,11 +41,18 @@ pub fn coordinate_recovery_escalation(
     }
 
     fn failed_step_count(plan: &OrchestrationPlan) -> usize {
-        plan.execution_state
+        let observed_failed_steps = plan
+            .execution_state
             .steps
             .iter()
             .filter(|row| row.status == StepStatus::Failed)
-            .count()
+            .count();
+        if observed_failed_steps == 0
+            && matches!(plan.execution_state.plan_status, PlanStatus::Failed)
+        {
+            return 1;
+        }
+        observed_failed_steps
     }
 
     fn apply_tool_failure_budget_recovery(
@@ -217,27 +224,6 @@ pub fn coordinate_recovery_escalation(
             } else {
                 "planner emitted no executable steps".to_string()
             },
-        });
-        return (plan, true);
-    }
-
-    if matches!(plan.execution_state.plan_status, PlanStatus::Failed) {
-        plan.posture = ExecutionPosture::Ask;
-        plan.needs_clarification = true;
-        plan.clarification_prompt = Some(
-            "core execution failed; retry with a narrower route or provide direct workspace/web evidence"
-                .to_string(),
-        );
-        plan.classification.needs_clarification = true;
-        plan.classification
-            .reasons
-            .push("recovery:failed_execution_requires_clarification".to_string());
-        plan.execution_state.plan_status = PlanStatus::ClarificationRequired;
-        plan.execution_state.recovery = Some(RecoveryState {
-            decision: RecoveryDecision::Clarify,
-            reason: Some(RecoveryReason::TransportFailure),
-            retryable: true,
-            note: "core execution failed; converted to clarification-first recovery to prevent repetitive fallback loops".to_string(),
         });
         return (plan, true);
     }

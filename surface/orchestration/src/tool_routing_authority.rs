@@ -485,11 +485,9 @@ fn prepare_context_capability_contract_declared(
                 .to_string(),
         );
     }
-    if !preconditions.contains("\"prepare_context\"") || !preconditions.contains("PrepareContext")
-    {
-        missing.push(
-            "preconditions must parse prepare_context as an explicit capability".to_string(),
-        );
+    if !preconditions.contains("\"prepare_context\"") || !preconditions.contains("PrepareContext") {
+        missing
+            .push("preconditions must parse prepare_context as an explicit capability".to_string());
     }
     if !capability_registry.contains("Capability::PrepareContext")
         || !capability_registry.contains("ContextAtomAppend")
@@ -550,7 +548,63 @@ fn planner_candidate_metadata_contract_declared(
         "planner_candidate_metadata_contract_declared",
         vec![
             "alternative plans expose stable decomposition signatures".to_string(),
-            "candidate capability metadata cannot drop injected mutating pre-step capabilities".to_string(),
+            "candidate capability metadata cannot drop injected mutating pre-step capabilities"
+                .to_string(),
+        ],
+        missing,
+    )
+}
+
+fn heuristic_probe_fallbacks_compatibility_fenced(
+    preconditions: &str,
+) -> ToolRoutingAuthorityCheck {
+    let mut missing = Vec::new();
+    for token in [
+        "allow_heuristic_probe_fallback(",
+        "RequestSurface::Legacy",
+        "heuristic.policy_scope_and_mutability",
+        "heuristic.transport_hints_or_operation",
+        "probe.required_for_typed_surface",
+    ] {
+        if !preconditions.contains(token) {
+            missing.push(format!(
+                "heuristic probe fallback fence missing token: {token}"
+            ));
+        }
+    }
+    ToolRoutingAuthorityCheck::new(
+        "heuristic_probe_fallbacks_compatibility_fenced",
+        vec![
+            "heuristic probe fallbacks remain legacy compatibility only".to_string(),
+            "typed surfaces receive missing-probe diagnostics instead of payload shortcuts"
+                .to_string(),
+        ],
+        missing,
+    )
+}
+
+fn request_surface_probe_authority_policy_declared(
+    request_surface_policy: &str,
+) -> ToolRoutingAuthorityCheck {
+    let mut missing = Vec::new();
+    for token in [
+        "\"request_surface_probe_authority_policy\"",
+        "\"sdk\"",
+        "\"gateway\"",
+        "\"dashboard\"",
+        "\"typed_cli\"",
+        "\"legacy\"",
+    ] {
+        if !request_surface_policy.contains(token) {
+            missing.push(format!("request-surface policy missing token: {token}"));
+        }
+    }
+    ToolRoutingAuthorityCheck::new(
+        "request_surface_probe_authority_policy_declared",
+        vec![
+            "request surface probe authority policy exists as an explicit config artifact"
+                .to_string(),
+            "adapted and legacy lanes are named separately".to_string(),
         ],
         missing,
     )
@@ -582,7 +636,9 @@ fn request_surface_probe_authority_policy_semantics_declared(
         "\"probe.required_for_typed_surface.<capability>.<field>\"",
     ] {
         if !request_surface_policy.contains(token) {
-            missing.push(format!("request-surface probe authority policy missing token: {token}"));
+            missing.push(format!(
+                "request-surface probe authority policy missing token: {token}"
+            ));
         }
     }
     ToolRoutingAuthorityCheck::new(
@@ -667,7 +723,9 @@ fn planner_payload_audit_scope_complete(
     }
     let non_legacy_shortcut_rows = rows
         .iter()
-        .filter(|row| row.legacy_only && row.path != "surface/orchestration/src/planner/preconditions.rs")
+        .filter(|row| {
+            row.legacy_only && row.path != "surface/orchestration/src/planner/preconditions.rs"
+        })
         .map(|row| format!("{} [{}]", row.path, row.decision_scope))
         .collect::<Vec<_>>();
     missing.extend(non_legacy_shortcut_rows.into_iter().map(|row| {
@@ -870,7 +928,8 @@ fn transient_observation_invariant_report_declared(
         vec![
             "transient execution observations expose map/heap drift as a production report"
                 .to_string(),
-            "retired observation refs are tracked so cleanup/restart drift is observable".to_string(),
+            "retired observation refs are tracked so cleanup/restart drift is observable"
+                .to_string(),
         ],
         missing,
     )

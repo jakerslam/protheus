@@ -23,6 +23,7 @@ pub mod result_packaging;
 pub mod self_maintenance;
 pub mod self_modification;
 pub mod sequencing;
+pub mod synthesis_receipt_guard;
 pub mod telemetry;
 pub mod tool_routing_authority;
 pub mod transient_context;
@@ -195,6 +196,9 @@ impl OrchestrationSurfaceRuntime {
                     decomposition_family: "transient_context_failure".to_string(),
                     capability_graph: Vec::new(),
                     contract_family: "halt_before_core_contract".to_string(),
+                    decomposition_signature:
+                        "transient_context_failure:halt_before_core_contract:none"
+                            .to_string(),
                     confidence: 0.0,
                     score: PlanScore {
                         overall: 0.0,

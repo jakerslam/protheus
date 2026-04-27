@@ -238,6 +238,19 @@ fn adapted_probe_authority_matrix_executes_50_real_cases() {
                 vec!["memory:session".to_string()],
                 vec![],
             ),
+            Capability::PrepareContext => (
+                RequestKind::Direct,
+                OperationKind::Read,
+                ResourceKind::Memory,
+                Mutability::Mutation,
+                PolicyScope::Default,
+                vec![TargetDescriptor::MemoryRef {
+                    scope: "session".to_string(),
+                    object_id: None,
+                }],
+                vec!["memory:session".to_string()],
+                vec![],
+            ),
         };
 
         TypedOrchestrationRequest {
