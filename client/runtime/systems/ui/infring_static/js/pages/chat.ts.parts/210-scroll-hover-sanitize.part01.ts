@@ -226,6 +226,9 @@
         self.syncMapSelectionToScroll(el);
       }
       this.scheduleMessageRenderWindowUpdate(el);
+      if (Number(el.scrollTop || 0) === 0 && this._hasMoreMessages && !this._olderMessagesLoading) {
+        this.loadOlderMessages();
+      }
     },
     resolveHoveredMessageDomIdFromPoint(container, clientX, clientY) {
       var host = this.resolveMessagesScroller(container || null);

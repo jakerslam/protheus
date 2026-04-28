@@ -16,12 +16,40 @@
           self.installChatInputOverlayObserver();
           self.refreshChatInputOverlayMetrics();
         });
+        var chatStore = window.InfringChatStore;
+        if (chatStore && chatStore.currentAgent) chatStore.currentAgent.set(agent || null);
       });
 
       this.$watch('messages.length', function() {
         self.$nextTick(function() {
           self.scrollToBottom({ force: false });
         });
+      });
+
+      this.$watch('messages', function(val) {
+        var chatStore = window.InfringChatStore;
+        if (!chatStore) return;
+        if (chatStore.messages) chatStore.messages.set(Array.isArray(val) ? val : []);
+        if (chatStore.filteredMessages) {
+          chatStore.filteredMessages.set(Array.isArray(self.allFilteredMessages) ? self.allFilteredMessages : []);
+        }
+      });
+
+      this.$watch('searchQuery', function() {
+        var chatStore = window.InfringChatStore;
+        if (chatStore && chatStore.filteredMessages) {
+          chatStore.filteredMessages.set(Array.isArray(self.allFilteredMessages) ? self.allFilteredMessages : []);
+        }
+      });
+
+      this.$watch('sessionLoading', function(val) {
+        var chatStore = window.InfringChatStore;
+        if (chatStore && chatStore.sessionLoading) chatStore.sessionLoading.set(!!val);
+      });
+
+      this.$watch('sending', function(val) {
+        var chatStore = window.InfringChatStore;
+        if (chatStore && chatStore.sending) chatStore.sending.set(!!val);
       });
 
       this.$watch('terminalMode', function() {
@@ -223,6 +251,17 @@
       this._telemetryAlertsTimer = setInterval(function() {
         self.fetchProactiveTelemetryAlerts(true);
       }, 15000);
+
+      (function() {
+        var chatStore = window.InfringChatStore;
+        if (!chatStore) return;
+        if (chatStore.messages) chatStore.messages.set(Array.isArray(self.messages) ? self.messages : []);
+        if (chatStore.filteredMessages) chatStore.filteredMessages.set(Array.isArray(self.allFilteredMessages) ? self.allFilteredMessages : []);
+        if (chatStore.currentAgent) chatStore.currentAgent.set(self.currentAgent || null);
+        if (chatStore.sessionLoading) chatStore.sessionLoading.set(!!self.sessionLoading);
+        if (chatStore.sending) chatStore.sending.set(!!self.sending);
+      }());
+      window.InfringChatPage = self;
     },
 
     toggleTerminalMode() {
