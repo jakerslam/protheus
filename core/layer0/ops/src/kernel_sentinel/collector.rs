@@ -10,6 +10,9 @@ use std::path::{Path, PathBuf};
 use super::cli_args::{option_path, option_usize, state_dir_from_args};
 use super::write_json;
 
+mod malformed;
+mod repair;
+
 const DEFAULT_COLLECTOR_ARTIFACT: &str = "core/local/artifacts/kernel_sentinel_collector_current.json";
 const DEFAULT_MAX_FILES_PER_PRODUCER: usize = 200;
 
@@ -410,7 +413,7 @@ fn rows_from_file(path: &Path, spec: &ProducerSpec) -> (Vec<Value>, Vec<Value>) 
     let Ok(body) = fs::read_to_string(path) else {
         return (
             Vec::new(),
-            vec![json!({"path": path, "error": "read_failed"})],
+            vec![malformed::row(path, spec, None, "read_failed")],
         );
     };
     if path.extension().and_then(|value| value.to_str()) == Some("jsonl") {
@@ -423,7 +426,25 @@ fn rows_from_file(path: &Path, spec: &ProducerSpec) -> (Vec<Value>, Vec<Value>) 
             }
             match serde_json::from_str::<Value>(trimmed) {
                 Ok(raw) => rows.push(bridge_row(path, spec, &raw, Some(idx + 1))),
-                Err(err) => malformed.push(json!({"path": path, "line": idx + 1, "error": err.to_string()})),
+                Err(err) => {
+                    if let Some((mut raw, repair_id)) =
+                        repair::repair_jsonl_line(spec.id, path, trimmed)
+                    {
+                        if let Some(object) = raw.as_object_mut() {
+                            object.insert(
+                                "collector_repair_applied".to_string(),
+                                Value::from(repair_id),
+                            );
+                            object.insert(
+                                "collector_repair_original_error".to_string(),
+                                Value::from(err.to_string()),
+                            );
+                        }
+                        rows.push(bridge_row(path, spec, &raw, Some(idx + 1)));
+                    } else {
+                        malformed.push(malformed::row(path, spec, Some(idx + 1), &err.to_string()));
+                    }
+                }
             }
         }
         return (rows, malformed);
@@ -432,7 +453,7 @@ fn rows_from_file(path: &Path, spec: &ProducerSpec) -> (Vec<Value>, Vec<Value>) 
         Ok(raw) => (vec![bridge_row(path, spec, &raw, None)], Vec::new()),
         Err(err) => (
             Vec::new(),
-            vec![json!({"path": path, "error": err.to_string()})],
+            vec![malformed::row(path, spec, None, &err.to_string())],
         ),
     }
 }
@@ -457,11 +478,14 @@ pub fn build_collector_report(root: &Path, args: &[String]) -> Result<Value, Str
     let state_dir = state_dir_from_args(root, args);
     let evidence_dir = option_path(args, "--evidence-dir", state_dir.join("evidence"));
     let max_files = option_usize(args, "--max-source-files", DEFAULT_MAX_FILES_PER_PRODUCER);
+    let max_malformed_deterministic_records =
+        option_usize(args, "--max-malformed-deterministic-records", 0);
     let mut by_stream: BTreeMap<String, Vec<Value>> = BTreeMap::new();
     let mut source_reports = Vec::new();
     let mut total_read = 0usize;
     let mut total_written = 0usize;
     let mut total_malformed = 0usize;
+    let mut all_malformed_records = Vec::new();
     let mut present_required_source_count = 0usize;
     let mut missing_required_source_count = 0usize;
     let mut present_optional_source_count = 0usize;
@@ -495,6 +519,7 @@ pub fn build_collector_report(root: &Path, args: &[String]) -> Result<Value, Str
         }
         total_read += records_read;
         total_malformed += malformed_records.len();
+        all_malformed_records.extend(malformed_records.iter().cloned());
         source_reports.push(json!({
             "producer_id": spec.id,
             "producer_path": spec.path,
@@ -505,10 +530,22 @@ pub fn build_collector_report(root: &Path, args: &[String]) -> Result<Value, Str
             "records_read": records_read,
             "records_written": records_read,
             "malformed_count": malformed_records.len(),
+            "malformed_by_file_name": malformed::count_by_key(&malformed_records, "file_name"),
+            "malformed_by_error_class": malformed::count_by_key(&malformed_records, "error_class"),
+            "malformed_remediation_hints": malformed::remediation_hints(&malformed_records),
             "skipped": files.is_empty(),
             "malformed_records": malformed_records
         }));
     }
+    let malformed_remediation_hints = malformed::remediation_hints(&all_malformed_records);
+    let malformed_deterministic_record_count =
+        malformed::deterministic_record_count(&all_malformed_records);
+    let malformed_deterministic_guard = malformed::threshold_guard(
+        &all_malformed_records,
+        max_malformed_deterministic_records,
+    );
+    let malformed_deterministic_guard_ok =
+        malformed_deterministic_record_count <= max_malformed_deterministic_records;
     let mut output_streams = Vec::new();
     for (stream, rows) in &by_stream {
         let path = evidence_dir.join(stream);
@@ -521,6 +558,7 @@ pub fn build_collector_report(root: &Path, args: &[String]) -> Result<Value, Str
         }));
     }
     let mut report = json!({
+        "ok": total_malformed == 0 && malformed_deterministic_guard_ok,
         "type": "kernel_sentinel_collector_run",
         "generated_at": crate::now_iso(),
         "evidence_dir": evidence_dir,
@@ -528,6 +566,17 @@ pub fn build_collector_report(root: &Path, args: &[String]) -> Result<Value, Str
         "records_read": total_read,
         "records_written": total_written,
         "malformed_record_count": total_malformed,
+        "malformed_deterministic_record_count": malformed_deterministic_record_count,
+        "malformed_deterministic_threshold": max_malformed_deterministic_records,
+        "malformed_deterministic_threshold_exceeded": !malformed_deterministic_guard_ok,
+        "malformed_deterministic_guard": malformed_deterministic_guard,
+        "malformed_by_producer": malformed::count_by_key(&all_malformed_records, "producer_id"),
+        "malformed_by_file_name": malformed::count_by_key(&all_malformed_records, "file_name"),
+        "malformed_by_error_class": malformed::count_by_key(&all_malformed_records, "error_class"),
+        "malformed_remediation_hints": malformed_remediation_hints,
+            "malformed_deterministic_record_count": malformed_deterministic_record_count,
+            "malformed_deterministic_threshold": max_malformed_deterministic_records,
+            "malformed_deterministic_threshold_exceeded": !malformed_deterministic_guard_ok,
         "source_count": source_reports.len(),
         "coverage": {
             "present_required_source_count": present_required_source_count,
@@ -596,6 +645,224 @@ mod tests {
         assert!(evidence.exists());
         let body = fs::read_to_string(evidence).unwrap();
         assert!(body.contains("mutation-1"));
+    }
+
+    #[test]
+    fn collector_repairs_truncated_verity_receipts_jsonl_prefix() {
+        let root = std::env::temp_dir().join(format!(
+            "kernel-sentinel-collector-verity-repair-{}",
+            crate::deterministic_receipt_hash(&json!({"test": "collector-verity-repair"}))
+        ));
+        let verity = root.join("local/state/ops/verity");
+        fs::create_dir_all(&verity).unwrap();
+        fs::write(
+            verity.join("receipts.jsonl"),
+            concat!(
+                r#"a":{"argv_len":1,"domain":"attention-queue"},"mode":"production","ok":true,"operation_hash":"op-1","operation_type":"cli_domain_invocation","receipt_hash":"rh-1","type":"verity_receipt","ts":"2026-04-08T16:01:45.410Z"}"#,
+                "\n"
+            ),
+        )
+        .unwrap();
+        let report = build_collector_report(&root, &[]).unwrap();
+        assert_eq!(report["malformed_record_count"], 0);
+        assert_eq!(report["records_written"], 1);
+        let verity_source = report["sources"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["producer_id"] == "verity_receipts")
+            .expect("verity source");
+        assert_eq!(verity_source["records_read"], 1);
+        assert_eq!(verity_source["malformed_count"], 0);
+        let evidence = root.join("local/state/kernel_sentinel/evidence/kernel_receipts.jsonl");
+        let body = fs::read_to_string(evidence).unwrap();
+        assert!(body.contains("verity_receipts_missing_metadata_prefix"));
+        assert!(body.contains("collector_repair_original_error"));
+    }
+
+    #[test]
+    fn collector_repairs_common_receipt_jsonl_line_patterns() {
+        let root = std::env::temp_dir().join(format!(
+            "kernel-sentinel-collector-common-repairs-{}",
+            crate::deterministic_receipt_hash(&json!({"test": "collector-common-repairs"}))
+        ));
+        let verity = root.join("local/state/ops/verity");
+        fs::create_dir_all(&verity).unwrap();
+        fs::write(
+            verity.join("receipts.jsonl"),
+            concat!(
+                r#"{"id":"trailing-comma","ok":true,"type":"verity_receipt"},"#,
+                "\n",
+                r#"verity-log: {"id":"leading-noise","ok":true,"type":"verity_receipt"}"#,
+                "\n",
+                r#"{"id":"missing-brace","ok":true,"type":"verity_receipt""#,
+                "\n"
+            ),
+        )
+        .unwrap();
+        let report = build_collector_report(&root, &[]).unwrap();
+        assert_eq!(report["malformed_record_count"], 0);
+        assert_eq!(report["records_written"], 3);
+        let evidence = root.join("local/state/kernel_sentinel/evidence/kernel_receipts.jsonl");
+        let body = fs::read_to_string(evidence).unwrap();
+        assert!(body.contains("receipt_line_trailing_comma"));
+        assert!(body.contains("receipt_line_leading_noise_before_object"));
+        assert!(body.contains("receipt_line_missing_closing_brace"));
+    }
+
+    #[test]
+    fn collector_reports_malformed_rows_by_producer_file_and_error_class() {
+        let root = std::env::temp_dir().join(format!(
+            "kernel-sentinel-collector-malformed-reporting-{}",
+            crate::deterministic_receipt_hash(&json!({"test": "collector-malformed-reporting"}))
+        ));
+        let verity = root.join("local/state/ops/verity");
+        let eval = root.join("local/state/ops/eval_agent_feedback");
+        fs::create_dir_all(&verity).unwrap();
+        fs::create_dir_all(&eval).unwrap();
+        fs::write(verity.join("receipts.jsonl"), "not-json\n").unwrap();
+        fs::write(eval.join("feedback.jsonl"), r#"{"id":"eval-1""#).unwrap();
+
+        let report = build_collector_report(&root, &[]).unwrap();
+
+        assert_eq!(report["malformed_record_count"], 2);
+        assert_eq!(report["malformed_by_producer"]["verity_receipts"], 1);
+        assert_eq!(report["malformed_by_producer"]["eval_agent_feedback"], 1);
+        assert_eq!(report["malformed_by_file_name"]["receipts.jsonl"], 1);
+        assert_eq!(report["malformed_by_file_name"]["feedback.jsonl"], 1);
+        assert_eq!(report["malformed_by_error_class"]["invalid_json_syntax"], 1);
+        assert_eq!(report["malformed_by_error_class"]["truncated_json"], 1);
+
+        let sources = report["sources"].as_array().unwrap();
+        let verity_source = sources
+            .iter()
+            .find(|row| row["producer_id"] == "verity_receipts")
+            .unwrap();
+        assert_eq!(verity_source["malformed_by_file_name"]["receipts.jsonl"], 1);
+        assert_eq!(
+            verity_source["malformed_by_error_class"]["invalid_json_syntax"],
+            1
+        );
+
+        let eval_source = sources
+            .iter()
+            .find(|row| row["producer_id"] == "eval_agent_feedback")
+            .unwrap();
+        assert_eq!(eval_source["malformed_by_file_name"]["feedback.jsonl"], 1);
+        assert_eq!(
+            eval_source["malformed_by_error_class"]["truncated_json"],
+            1
+        );
+    }
+
+    #[test]
+    fn collector_splits_malformed_rows_by_producer_file_and_error_class() {
+        let root = std::env::temp_dir().join(format!(
+            "kernel-sentinel-collector-malformed-split-{}",
+            crate::deterministic_receipt_hash(&json!({"test": "collector-malformed-split"}))
+        ));
+        let verity = root.join("local/state/ops/verity");
+        let eval = root.join("local/state/ops/eval_agent_feedback");
+        fs::create_dir_all(&verity).unwrap();
+        fs::create_dir_all(&eval).unwrap();
+        fs::write(verity.join("receipts.jsonl"), "not-json\n").unwrap();
+        fs::write(eval.join("feedback.jsonl"), r#"{"id":"eval-1""#).unwrap();
+
+        let report = build_collector_report(&root, &[]).unwrap();
+        assert_eq!(report["malformed_record_count"], 2);
+        assert_eq!(report["malformed_by_producer"]["verity_receipts"], 1);
+        assert_eq!(report["malformed_by_producer"]["eval_agent_feedback"], 1);
+        assert_eq!(report["malformed_by_file_name"]["receipts.jsonl"], 1);
+        assert_eq!(report["malformed_by_file_name"]["feedback.jsonl"], 1);
+        assert_eq!(report["malformed_by_error_class"]["invalid_json_syntax"], 1);
+        assert_eq!(report["malformed_by_error_class"]["truncated_json"], 1);
+        let verity_source = report["sources"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["producer_id"] == "verity_receipts")
+            .expect("verity source");
+        assert_eq!(verity_source["malformed_by_file_name"]["receipts.jsonl"], 1);
+        assert_eq!(verity_source["malformed_by_error_class"]["invalid_json_syntax"], 1);
+    }
+
+    #[test]
+    fn collector_fails_when_malformed_deterministic_evidence_exceeds_threshold() {
+        let root = std::env::temp_dir().join(format!(
+            "kernel-sentinel-collector-malformed-threshold-{}",
+            crate::deterministic_receipt_hash(&json!({"test": "collector-malformed-threshold"}))
+        ));
+        let verity = root.join("local/state/ops/verity");
+        let eval = root.join("local/state/ops/eval_agent_feedback");
+        fs::create_dir_all(&verity).unwrap();
+        fs::create_dir_all(&eval).unwrap();
+        fs::write(verity.join("receipts.jsonl"), "not-json\n").unwrap();
+        fs::write(eval.join("feedback.jsonl"), r#"{"id":"eval-1""#).unwrap();
+
+        let report = build_collector_report(&root, &[]).unwrap();
+
+        assert_eq!(report["ok"], false);
+        assert_eq!(report["malformed_record_count"], 2);
+        assert_eq!(report["malformed_deterministic_record_count"], 1);
+        assert_eq!(report["malformed_deterministic_threshold"], 0);
+        assert_eq!(report["malformed_deterministic_threshold_exceeded"], true);
+        assert_eq!(report["malformed_deterministic_guard"]["ok"], false);
+        assert_eq!(
+            report["malformed_deterministic_guard"]["failure_reason"],
+            "malformed_deterministic_evidence_exceeds_threshold"
+        );
+        assert_eq!(
+            report["malformed_deterministic_guard"]["by_producer"]["verity_receipts"],
+            1
+        );
+        assert_eq!(
+            report["malformed_deterministic_guard"]["by_error_class"]["invalid_json_syntax"],
+            1
+        );
+    }
+
+    #[test]
+    fn collector_emits_targeted_remediation_hints_for_malformed_receipt_producers() {
+        let root = std::env::temp_dir().join(format!(
+            "kernel-sentinel-collector-remediation-hints-{}",
+            crate::deterministic_receipt_hash(&json!({"test": "collector-remediation-hints"}))
+        ));
+        let verity = root.join("local/state/ops/verity");
+        let eval = root.join("local/state/ops/eval_agent_feedback");
+        fs::create_dir_all(&verity).unwrap();
+        fs::create_dir_all(&eval).unwrap();
+        fs::write(verity.join("receipts.jsonl"), "not-json\n").unwrap();
+        fs::write(eval.join("feedback.jsonl"), r#"{"id":"eval-1""#).unwrap();
+
+        let report = build_collector_report(&root, &[]).unwrap();
+
+        let hints = report["malformed_remediation_hints"].as_array().unwrap();
+        let receipt_hint = hints
+            .iter()
+            .find(|hint| hint["producer_id"] == "verity_receipts")
+            .expect("receipt remediation hint");
+        assert_eq!(receipt_hint["receipt_producer"], true);
+        assert_eq!(receipt_hint["priority"], "blocking");
+        assert_eq!(receipt_hint["error_class"], "invalid_json_syntax");
+        assert!(receipt_hint["recommended_action"]
+            .as_str()
+            .unwrap()
+            .contains("receipt JSON"));
+        assert_eq!(receipt_hint["rerun"], "infring kernel-sentinel collect --json");
+
+        let eval_hint = hints
+            .iter()
+            .find(|hint| hint["producer_id"] == "eval_agent_feedback")
+            .expect("eval remediation hint");
+        assert_eq!(eval_hint["receipt_producer"], false);
+        assert_eq!(eval_hint["priority"], "advisory");
+        let verity_source = report["sources"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["producer_id"] == "verity_receipts")
+            .expect("verity source");
+        assert_eq!(verity_source["malformed_remediation_hints"][0]["producer_id"], "verity_receipts");
     }
 
     #[test]

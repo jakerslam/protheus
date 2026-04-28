@@ -13,8 +13,9 @@ pub use evidence::{ingest_evidence_sources, KernelSentinelEvidenceIngestion};
 use finding_lifecycle::{dedupe_findings, sanitize_finding};
 use findings_io::read_jsonl_findings;
 use report_summary::{
-    count_by_category, count_by_severity, count_by_status, count_malformed_by_source,
-    count_malformed_by_source_kind, critical_open_count, release_blockers,
+    build_health_report, count_by_category, count_by_severity, count_by_status,
+    count_malformed_by_source, count_malformed_by_source_kind, critical_open_count,
+    release_blockers,
 };
 
 pub const KERNEL_SENTINEL_NAME: &str = "Kernel Sentinel";
@@ -156,18 +157,29 @@ pub fn build_report(root: &Path, args: &[String]) -> (Value, Value, i32) {
     let truncated_finding_count = deduped.len().saturating_sub(report_findings.len());
     let critical_open_count = critical_open_count(&deduped);
     let release_gate = governance::build_release_gate(&deduped, &malformed, &issue_synthesis, &maintenance_synthesis, &governance_preflight, &evidence_report);
+    let scheduler_health = scheduler::build_scheduler_health_summary(root, args);
+    let scheduler_stale = scheduler_health["stale"].as_bool().unwrap_or(true);
+    let scheduler_status = scheduler_health["status"]
+        .as_str()
+        .unwrap_or("unconfigured")
+        .to_string();
+    let scheduler_running = scheduler_health["running"].as_bool().unwrap_or(false);
     let strict = bool_flag(args, "--strict");
     let release_gate_pass = release_gate["pass"].as_bool().unwrap_or(false);
-    let release_blockers = release_blockers(critical_open_count, malformed.len(), release_gate_pass);
+    let release_blockers =
+        release_blockers(critical_open_count, malformed.len(), release_gate_pass, scheduler_stale);
     let verdict_state = if !malformed.is_empty() {
         "invalid"
-    } else if critical_open_count > 0 || !release_gate_pass {
+    } else if critical_open_count > 0 || !release_gate_pass || scheduler_stale {
         "release_fail"
     } else {
         "allow"
     };
     let verdict = json!({
-        "ok": malformed.is_empty() && critical_open_count == 0 && release_gate_pass,
+        "ok": malformed.is_empty()
+            && critical_open_count == 0
+            && release_gate_pass
+            && !scheduler_stale,
         "type": "kernel_sentinel_verdict",
         "contract_version": KERNEL_SENTINEL_CONTRACT_VERSION,
         "verdict": verdict_state,
@@ -175,6 +187,9 @@ pub fn build_report(root: &Path, args: &[String]) -> (Value, Value, i32) {
         "critical_open_count": critical_open_count,
         "malformed_finding_count": malformed.len(),
         "finding_count": deduped.len(),
+        "scheduler_stale": scheduler_stale,
+        "scheduler_running": scheduler_running,
+        "scheduler_status": scheduler_status,
         "release_blockers": release_blockers.clone(),
         "receipt_hash": null
     });
@@ -209,11 +224,27 @@ pub fn build_report(root: &Path, args: &[String]) -> (Value, Value, i32) {
             "missing_required_source_count": evidence_report["missing_required_source_count"],
             "present_optional_source_count": evidence_report["present_optional_source_count"],
             "missing_optional_source_count": evidence_report["missing_optional_source_count"],
+            "source_coverage": {
+                "required": {
+                    "present_count": evidence_report["present_required_source_count"],
+                    "missing_count": evidence_report["missing_required_source_count"],
+                    "ready": evidence_report["missing_required_source_count"].as_u64().unwrap_or(u64::MAX) == 0
+                },
+                "optional": {
+                    "present_count": evidence_report["present_optional_source_count"],
+                    "missing_count": evidence_report["missing_optional_source_count"],
+                    "fully_present": evidence_report["missing_optional_source_count"].as_u64().unwrap_or(u64::MAX) == 0
+                }
+            },
             "stale_evidence": evidence_report["stale_evidence"],
             "stale_record_count": evidence_report["stale_record_count"],
             "freshness_observed_record_count": evidence_report["freshness_observed_record_count"],
             "stale_evidence_seconds": evidence_report["stale_evidence_seconds"],
             "max_evidence_age_seconds": evidence_report["max_evidence_age_seconds"],
+            "scheduler_stale": scheduler_stale,
+            "scheduler_running": scheduler_running,
+            "scheduler_status": scheduler_status,
+            "scheduler_health": scheduler_health,
             "release_blockers": release_blockers
         },
         "contract": kernel_sentinel_contract(),
@@ -230,7 +261,12 @@ pub fn build_report(root: &Path, args: &[String]) -> (Value, Value, i32) {
         "malformed_findings": malformed,
         "verdict": verdict
     });
-    let exit = if strict && (critical_open_count > 0 || !release_gate_pass || !report["malformed_findings"].as_array().unwrap().is_empty()) {
+    let exit = if strict
+        && (critical_open_count > 0
+            || !release_gate_pass
+            || scheduler_stale
+            || !report["malformed_findings"].as_array().unwrap().is_empty())
+    {
         2
     } else {
         0
@@ -263,6 +299,7 @@ pub fn run(root: &Path, args: &[String]) -> i32 {
     let dir = state_dir_from_args(root, &rest);
     let report_path = dir.join("kernel_sentinel_report_current.json");
     let verdict_path = dir.join("kernel_sentinel_verdict.json");
+    let health_path = dir.join("kernel_sentinel_health_current.json");
     if matches!(command, "run" | "report") {
         if let Err(err) = write_json(&report_path, &report) {
             eprintln!("kernel_sentinel_write_report_failed: {err}");
@@ -270,6 +307,10 @@ pub fn run(root: &Path, args: &[String]) -> i32 {
         }
         if let Err(err) = write_json(&verdict_path, &verdict) {
             eprintln!("kernel_sentinel_write_verdict_failed: {err}");
+            return 1;
+        }
+        if let Err(err) = write_json(&health_path, &build_health_report(&report, &verdict, None)) {
+            eprintln!("kernel_sentinel_write_health_failed: {err}");
             return 1;
         }
         if let Err(err) = issue_synthesis::write_issue_drafts_jsonl(&dir.join("issues.jsonl"), &report) {

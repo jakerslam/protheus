@@ -2,12 +2,14 @@
 // Layer ownership: core/layer0/ops (authoritative)
 
 use serde_json::{json, Value};
-use std::collections::BTreeMap;
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::Path;
 
 use super::write_json;
+
+#[path = "self_study_feedback.rs"]
+mod self_study_feedback;
 
 const FEEDBACK_INBOX: &str = "feedback_inbox.jsonl";
 const TREND_HISTORY: &str = "trend_history.jsonl";
@@ -49,72 +51,6 @@ fn string_at(row: &Value, path: &[&str], fallback: &str) -> String {
         .as_str()
         .map(str::to_string)
         .unwrap_or_else(|| fallback.to_string())
-}
-
-fn severity_priority(severity: &str) -> u8 {
-    match severity {
-        "critical" => 0,
-        "high" => 1,
-        "medium" => 2,
-        "low" => 3,
-        _ => 4,
-    }
-}
-
-fn todo_priority(severity: &str, category: &str) -> &'static str {
-    match (severity, category) {
-        ("critical", _) => "P0",
-        ("high", "security_boundary" | "capability_enforcement" | "receipt_integrity") => "P0",
-        ("high", _) => "P1",
-        ("medium", _) => "P2",
-        _ => "P3",
-    }
-}
-
-fn feedback_item(finding: &Value, generated_at: &str) -> Value {
-    let severity = string_field(finding, "severity");
-    let category = string_field(finding, "category");
-    let fingerprint = string_field(finding, "fingerprint");
-    json!({
-        "type": "kernel_sentinel_feedback_item",
-        "source": "kernel_sentinel",
-        "generated_at": generated_at,
-        "status": string_field(finding, "status"),
-        "fingerprint": fingerprint,
-        "dedupe_key": format!("{category}:{fingerprint}"),
-        "severity": severity,
-        "category": category,
-        "todo_priority": todo_priority(&severity, &category),
-        "priority_rank": severity_priority(&severity),
-        "summary": string_field(finding, "summary"),
-        "recommended_action": string_field(finding, "recommended_action"),
-        "evidence": finding.get("evidence").cloned().unwrap_or_else(|| json!([])),
-        "preservation_policy": "preserve_until_resolved_or_waived_by_kernel_receipt"
-    })
-}
-
-fn build_feedback_inbox(report: &Value, generated_at: &str) -> Vec<Value> {
-    let mut by_key: BTreeMap<String, Value> = BTreeMap::new();
-    for finding in report
-        .get("findings")
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-    {
-        if string_field(finding, "status") != "open" {
-            continue;
-        }
-        let item = feedback_item(finding, generated_at);
-        let key = string_field(&item, "dedupe_key");
-        match by_key.get(&key) {
-            Some(existing)
-                if usize_at(existing, &["priority_rank"]) <= usize_at(&item, &["priority_rank"]) => {}
-            _ => {
-                by_key.insert(key, item);
-            }
-        }
-    }
-    by_key.into_values().collect()
 }
 
 fn trend_summary(report: &Value, generated_at: &str) -> Value {
@@ -198,6 +134,28 @@ fn trend_delta(previous: Option<&Value>, current: &Value) -> Value {
         "regressions": regressions,
         "improvements": improvements
     })
+}
+
+fn trend_status(history_len: usize, delta: &Value) -> &'static str {
+    let regression_count = delta
+        .get("regressions")
+        .and_then(Value::as_array)
+        .map(Vec::len)
+        .unwrap_or(0);
+    let improvement_count = delta
+        .get("improvements")
+        .and_then(Value::as_array)
+        .map(Vec::len)
+        .unwrap_or(0);
+    if history_len <= 1 {
+        "first_run"
+    } else if regression_count > 0 {
+        "regressing"
+    } else if improvement_count > 0 {
+        "improving"
+    } else {
+        "stable"
+    }
 }
 
 fn top_holes(feedback_rows: &[Value], generated_at: &str) -> Value {
@@ -546,7 +504,7 @@ pub(super) fn write_self_study_outputs(dir: &Path, report: &Value) -> Result<Val
     append_jsonl(&history_path, &current_summary)?;
     let history_len = previous_history.len() + 1;
 
-    let feedback_rows = build_feedback_inbox(report, &generated_at);
+    let feedback_rows = self_study_feedback::build_feedback_inbox(report, &generated_at);
     overwrite_jsonl(&feedback_path, &feedback_rows)?;
     let top_holes = top_holes(&feedback_rows, &generated_at);
     let readiness = rsi_readiness(report, history_len, feedback_rows.len(), &delta);
@@ -574,6 +532,8 @@ pub(super) fn write_self_study_outputs(dir: &Path, report: &Value) -> Result<Val
         "rsi_readiness_path": rsi_path,
         "feedback_item_count": feedback_rows.len(),
         "trend_history_runs": history_len,
+        "trend_status": trend_status(history_len, &trend_report["delta"]),
+        "trend_delta": trend_report["delta"].clone(),
         "regression_count": trend_report["delta"]["regressions"].as_array().map(Vec::len).unwrap_or(0),
         "improvement_count": trend_report["delta"]["improvements"].as_array().map(Vec::len).unwrap_or(0),
         "issue_candidate_count": top_holes["summary"]["issue_candidate_count"].as_u64().unwrap_or(0),
