@@ -10,6 +10,9 @@ use std::path::Path;
 #[derive(Debug, Clone)]
 struct FindingCluster {
     cluster_key: String,
+    issue_family_fingerprint: String,
+    issue_family_kind: String,
+    scenario_id: String,
     exemplar: KernelSentinelFinding,
     occurrence_count: usize,
     first_seen_index: usize,
@@ -124,6 +127,61 @@ fn cluster_fields(finding: &KernelSentinelFinding) -> (String, String, String, S
     (session, surface, receipt_type, recovery_reason)
 }
 
+fn issue_family_fingerprint(fingerprint: &str) -> String {
+    const MISTY_ROUND_PREFIX: &str = "misty_simulated_round";
+    let normalized = fingerprint.to_ascii_lowercase();
+    let Some(prefix_index) = normalized.find(MISTY_ROUND_PREFIX) else {
+        return fingerprint.to_string();
+    };
+    let suffix_index = prefix_index + MISTY_ROUND_PREFIX.len();
+    let rest = &normalized[suffix_index..];
+    let digit_count = rest.chars().take_while(|ch| ch.is_ascii_digit()).count();
+    if digit_count == 0 {
+        return fingerprint.to_string();
+    }
+    let after_digits = &rest[digit_count..];
+    if matches!(
+        after_digits,
+        "_failure" | "_failures" | "-failure" | "-failures" | ":failure" | ":failures"
+    ) {
+        "synthetic_user_chat_harness:misty_simulated_failures".to_string()
+    } else {
+        fingerprint.to_string()
+    }
+}
+
+fn synthetic_issue_scenario_id(issue_family_fingerprint: &str) -> String {
+    if issue_family_fingerprint == "synthetic_user_chat_harness:misty_simulated_failures" {
+        "misty_simulated_failures".to_string()
+    } else {
+        "none".to_string()
+    }
+}
+
+fn issue_family_kind(scenario_id: &str) -> String {
+    if scenario_id == "none" {
+        "fingerprint_cluster".to_string()
+    } else {
+        "synthetic_scenario".to_string()
+    }
+}
+
+fn issue_cluster_key(
+    issue_family_fingerprint: &str,
+    scenario_id: &str,
+    session: &str,
+    surface: &str,
+    receipt_type: &str,
+    recovery_reason: &str,
+) -> String {
+    if scenario_id != "none" {
+        return format!("scenario={scenario_id}|fingerprint={issue_family_fingerprint}");
+    }
+    format!(
+        "{issue_family_fingerprint}|session={session}|surface={surface}|receipt_type={receipt_type}|recovery={recovery_reason}"
+    )
+}
+
 fn issue_title(finding: &KernelSentinelFinding) -> String {
     format!(
         "[{:?}] Kernel Sentinel {:?}: {}",
@@ -140,7 +198,11 @@ fn issue_draft(cluster: &FindingCluster) -> Value {
         "title": issue_title(finding),
         "severity": finding.severity,
         "category": finding.category,
-        "fingerprint": finding.fingerprint,
+        "fingerprint": cluster.issue_family_fingerprint,
+        "issue_family_kind": cluster.issue_family_kind,
+        "scenario_level": cluster.scenario_id != "none",
+        "scenario_id": cluster.scenario_id,
+        "exemplar_fingerprint": finding.fingerprint,
         "cluster_key": cluster.cluster_key,
         "occurrence_count": cluster.occurrence_count,
         "first_seen_index": cluster.first_seen_index,
@@ -236,14 +298,24 @@ pub fn build_issue_synthesis(findings: &[KernelSentinelFinding], args: &[String]
             continue;
         }
         let (session, surface, receipt_type, recovery_reason) = cluster_fields(finding);
-        let cluster_key = format!(
-            "{}|session={session}|surface={surface}|receipt_type={receipt_type}|recovery={recovery_reason}",
-            finding.fingerprint
+        let issue_family_fingerprint = issue_family_fingerprint(&finding.fingerprint);
+        let scenario_id = synthetic_issue_scenario_id(&issue_family_fingerprint);
+        let issue_family_kind = issue_family_kind(&scenario_id);
+        let cluster_key = issue_cluster_key(
+            &issue_family_fingerprint,
+            &scenario_id,
+            &session,
+            &surface,
+            &receipt_type,
+            &recovery_reason,
         );
         let entry = clusters
             .entry(cluster_key.clone())
             .or_insert_with(|| FindingCluster {
                 cluster_key,
+                issue_family_fingerprint,
+                issue_family_kind,
+                scenario_id,
                 exemplar: finding.clone(),
                 occurrence_count: 0,
                 first_seen_index: index,
@@ -349,6 +421,74 @@ mod tests {
         let report = build_issue_synthesis(&[finding.clone(), finding], &[]);
         assert_eq!(report["cluster_count"], Value::from(0));
         assert_eq!(report["issue_draft_count"], Value::from(0));
+    }
+
+    #[test]
+    fn synthetic_round_failures_collapse_into_one_issue_family() {
+        let mut round_1 = repeated_finding();
+        round_1.category = KernelSentinelFindingCategory::RuntimeCorrectness;
+        round_1.fingerprint = "runtime_correctness:misty_simulated_round01_failures".to_string();
+        round_1.evidence = vec![
+            "runtime://misty;session=synthetic-user-chat;surface=chat;receipt_type=tool_route"
+                .to_string(),
+        ];
+        round_1.summary = "misty synthetic chat harness failed during simulated round 01".to_string();
+        round_1.recommended_action =
+            "collapse repeated synthetic round failures into one issue family".to_string();
+
+        let mut round_2 = round_1.clone();
+        round_2.id = "finding-2".to_string();
+        round_2.fingerprint = "runtime_correctness:misty_simulated_round02_failures".to_string();
+        round_2.summary = "misty synthetic chat harness failed during simulated round 02".to_string();
+
+        let report = build_issue_synthesis(&[round_1, round_2], &[]);
+        assert_eq!(report["cluster_count"], Value::from(1));
+        assert_eq!(report["active_issue_window_count"], Value::from(1));
+        assert_eq!(report["issue_draft_count"], Value::from(1));
+        assert_eq!(
+            report["issue_drafts"][0]["fingerprint"],
+            "synthetic_user_chat_harness:misty_simulated_failures"
+        );
+        assert_eq!(report["issue_drafts"][0]["occurrence_count"], Value::from(2));
+        assert_eq!(
+            report["issue_drafts"][0]["exemplar_fingerprint"],
+            "runtime_correctness:misty_simulated_round01_failures"
+        );
+    }
+
+    #[test]
+    fn synthetic_round_failures_collapse_across_sessions_into_scenario_issue_candidate() {
+        let mut round_1 = repeated_finding();
+        round_1.category = KernelSentinelFindingCategory::RuntimeCorrectness;
+        round_1.fingerprint = "runtime_correctness:misty_simulated_round01_failures".to_string();
+        round_1.evidence = vec![
+            "runtime://misty;session=synthetic-user-chat-a;surface=chat;receipt_type=tool_route"
+                .to_string(),
+        ];
+        round_1.summary = "misty synthetic chat harness failed during simulated round 01".to_string();
+        round_1.recommended_action =
+            "collapse repeated synthetic round failures into one scenario issue".to_string();
+
+        let mut round_2 = round_1.clone();
+        round_2.id = "finding-2".to_string();
+        round_2.fingerprint = "runtime_correctness:misty_simulated_round02_failures".to_string();
+        round_2.evidence = vec![
+            "runtime://misty;session=synthetic-user-chat-b;surface=chat;receipt_type=final_response"
+                .to_string(),
+        ];
+
+        let report = build_issue_synthesis(&[round_1, round_2], &[]);
+        let draft = &report["issue_drafts"][0];
+
+        assert_eq!(report["cluster_count"], Value::from(1));
+        assert_eq!(draft["scenario_level"], true);
+        assert_eq!(draft["issue_family_kind"], "synthetic_scenario");
+        assert_eq!(draft["scenario_id"], "misty_simulated_failures");
+        assert_eq!(
+            draft["cluster_key"],
+            "scenario=misty_simulated_failures|fingerprint=synthetic_user_chat_harness:misty_simulated_failures"
+        );
+        assert_eq!(draft["occurrence_count"], Value::from(2));
     }
 
     #[test]
