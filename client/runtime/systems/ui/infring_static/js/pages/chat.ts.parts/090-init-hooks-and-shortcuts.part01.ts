@@ -315,6 +315,12 @@
         if (chatStore.showScrollDown) chatStore.showScrollDown.set(!!self.showScrollDown);
         if (chatStore.stickToBottom) chatStore.stickToBottom.set(self._stickToBottom !== false);
         if (chatStore.mapStepIndex) chatStore.mapStepIndex.set(Number(self.mapStepIndex) || -1);
+        if (chatStore.wsConnected) {
+          chatStore.wsConnected.set(!!(
+            (appStore && appStore.wsConnected) ||
+            (typeof InfringAPI !== 'undefined' && typeof InfringAPI.isWsConnected === 'function' && InfringAPI.isWsConnected())
+          ));
+        }
         if (appStore) {
           if (chatStore.focusMode) chatStore.focusMode.set(!!appStore.focusMode);
           if (chatStore.connectionState) chatStore.connectionState.set(String(appStore.connectionState || ''));

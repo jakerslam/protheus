@@ -204,6 +204,8 @@
 
         case 'pong': break;
       }
+      var activeStore = window.InfringChatStore;
+      if (activeStore && typeof activeStore.syncMessages === 'function' && data && data.type !== 'connected' && data.type !== 'context_state' && data.type !== 'pong') activeStore.syncMessages(this.messages, this.allFilteredMessages);
       this.scheduleConversationPersist();
     },
 

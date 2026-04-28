@@ -30,7 +30,7 @@ window.InfringChatStore = (function() {
     return { subscribe: subscribe, set: set, update: update, get: get };
   }
 
-  return {
+  var store = {
     messages: writable([]),
     filteredMessages: writable([]),
     currentAgent: writable(null),
@@ -47,5 +47,23 @@ window.InfringChatStore = (function() {
     focusMode: writable(false),
     connectionState: writable(''),
     theme: writable(''),
+    sessions: writable([]),
   };
+  var queuedMessageSync = false;
+  var pendingMessages = [];
+  var pendingFilteredMessages = [];
+  store.syncMessages = function(messages, filteredMessages) {
+    pendingMessages = Array.isArray(messages) ? messages : [];
+    pendingFilteredMessages = Array.isArray(filteredMessages) ? filteredMessages : [];
+    if (queuedMessageSync) return;
+    queuedMessageSync = true;
+    var flush = function() {
+      queuedMessageSync = false;
+      store.messages.set(pendingMessages);
+      store.filteredMessages.set(pendingFilteredMessages);
+    };
+    if (typeof queueMicrotask === 'function') return queueMicrotask(flush);
+    Promise.resolve().then(flush).catch(function() { setTimeout(flush, 0); });
+  };
+  return store;
 }());
