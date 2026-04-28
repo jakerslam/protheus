@@ -136,31 +136,8 @@ fn handle_agent_scope_message_route(
             } else {
                 clear_pending_tool_confirmation(root, agent_id);
             }
-            let mut response_text = summarize_tool_payload(&tool_name, &tool_payload);
-            if response_text.trim().is_empty() {
-                response_text = if ok {
-                    format!(
-                        "I ran `{}`, but it returned no usable findings yet. Ask me to retry with a narrower input.",
-                        normalize_tool_name(&tool_name)
-                    )
-                } else {
-                    user_facing_tool_failure_summary(&tool_name, &tool_payload).unwrap_or_else(
-                        || {
-                            format!(
-                                "I couldn't complete `{}` right now.",
-                                normalize_tool_name(&tool_name)
-                            )
-                        },
-                    )
-                };
-            }
-            if ok && response_looks_like_tool_ack_without_findings(&response_text) {
-                response_text = format!(
-                    "I ran `{}`, but it returned no usable findings yet. Ask me to retry with a narrower input.",
-                    normalize_tool_name(&tool_name)
-                );
-            }
-            if !user_requested_internal_runtime_details(&message) {
+            let mut response_text = String::new();
+            if !user_requested_internal_runtime_details(&message) && !response_text.is_empty() {
                 response_text = abstract_runtime_mechanics_terms(&response_text);
             }
             response_text = strip_internal_cache_control_markup(&response_text);
@@ -179,14 +156,6 @@ fn handle_agent_scope_message_route(
                     .unwrap_or(Value::Null)
             });
             let response_tools = vec![tool_card.clone()];
-            let tool_failure_reason = response_tools_failure_reason_for_user(&response_tools, 4);
-            if !tool_failure_reason.is_empty()
-                && (response_text.trim().is_empty()
-                    || response_looks_like_tool_ack_without_findings(&response_text)
-                    || response_is_no_findings_placeholder(&response_text))
-            {
-                response_text = tool_failure_reason;
-            }
             let (finalized_response, tool_completion, finalization_seed) =
                 enforce_user_facing_finalization_contract(
                     &message,

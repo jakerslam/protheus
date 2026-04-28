@@ -13,7 +13,7 @@ fn pending_tool_request_can_execute_from_explicit_user_request(
         80,
     )
     .to_ascii_lowercase();
-    if !matches!(source.as_str(), "natural_tool_choice" | "manual_toolbox_gate") {
+    if source.as_str() != "manual_toolbox_gate" {
         return false;
     }
     let lowered = clean_text(message, 2_000).to_ascii_lowercase();
@@ -466,7 +466,7 @@ fn finalize_message_finalization_and_payload(
                 workflow_system_events.push(turn_workflow_event(
                     "manual_toolbox_pending_tool_request_executed",
                     json!({
-                        "selection_authority": "llm_natural_tool_choice",
+                        "selection_authority": "llm_submitted_menu_or_text_input",
                         "user_explicitly_requested_tool_result": true,
                         "tool_name": response_tools
                             .last()
@@ -711,6 +711,17 @@ fn finalize_message_finalization_and_payload(
                 }
             }
         }
+    }
+    if manual_toolbox_executed_pending_tool_request {
+        finalization_outcome = merge_response_outcomes(
+            "manual_toolbox_pending_tool_request_executed",
+            &finalization_outcome,
+            220,
+        );
+        response_workflow["workflow_control"]["direct_response_path"] =
+            Value::String("manual_toolbox_executed_tool_route".to_string());
+        response_workflow["tool_gate"]["needs_tool_access"] = Value::Bool(true);
+        response_workflow["tool_gate"]["should_call_tools"] = Value::Bool(true);
     }
     let tool_gate_should_call_tools = response_workflow
         .pointer("/tool_gate/should_call_tools")

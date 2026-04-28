@@ -48,68 +48,6 @@ fn simple_direct_chat_model_allows_visible_chat(model_ref: &str) -> bool {
     .any(|needle| lowered.contains(needle))
 }
 
-fn visible_response_fast_model_route(
-    root: &Path,
-    snapshot: &Value,
-    current_provider: &str,
-    current_model: &str,
-    reason: &str,
-) -> Option<(String, String, Value)> {
-    let current_provider = clean_text(current_provider, 80);
-    let current_model = clean_text(current_model, 240);
-    let reason = clean_text(reason, 120);
-    for candidate in simple_direct_chat_fast_model_candidates() {
-        let Some((provider, model)) = split_fast_chat_model_ref(&candidate) else {
-            continue;
-        };
-        if !simple_direct_chat_model_allows_visible_chat(&format!("{provider}/{model}")) {
-            continue;
-        }
-        if provider.eq_ignore_ascii_case(&current_provider) && model == current_model {
-            return None;
-        }
-        if !crate::dashboard_model_catalog::model_ref_available(root, snapshot, &provider, &model)
-        {
-            continue;
-        }
-        let route = json!({
-            "route": {
-                "provider": provider,
-                "model": model,
-                "reason": reason,
-                "source": "dashboard_agent_message_route",
-                "previous_provider": current_provider,
-                "previous_model": current_model
-            }
-        });
-        return Some((provider, model, route));
-    }
-    None
-}
-
-fn simple_direct_chat_fast_model_route(
-    root: &Path,
-    snapshot: &Value,
-    message: &str,
-    inline_tools_allowed: bool,
-    current_provider: &str,
-    current_model: &str,
-) -> Option<(String, String, Value)> {
-    if !simple_direct_chat_suppresses_passive_context(message, inline_tools_allowed)
-        || !workflow_turn_is_simple_conversation_without_tool_intent(message)
-    {
-        return None;
-    }
-
-    visible_response_fast_model_route(
-        root,
-        snapshot,
-        current_provider,
-        current_model,
-        "simple_direct_chat_fast_model",
-    )
-}
-
 fn visible_response_recovery_model(current_provider: &str, current_model: &str) -> (String, String) {
     let current_provider = clean_text(current_provider, 80);
     let current_model = clean_text(current_model, 240);

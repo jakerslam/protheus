@@ -209,7 +209,19 @@
       InfringAPI.setAuthToken('');
       localStorage.removeItem('infring-api-key');
     }
-  });
+  };
+  var appStoreBridge = infringShellAppStoreBridge();
+  if (appStoreBridge && typeof appStoreBridge.registerAlpineStore === 'function') {
+    appStoreBridge.registerAlpineStore(Alpine, 'app', appStoreDefinition);
+  } else {
+    var alpineRuntime = Alpine;
+    if (alpineRuntime && typeof alpineRuntime.store === 'function') {
+      alpineRuntime.store('app', appStoreDefinition);
+      window.InfringApp = alpineRuntime.store('app');
+    } else {
+      window.InfringApp = appStoreDefinition;
+    }
+  }
 });
 
 function infringTaskbarDockService() {

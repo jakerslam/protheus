@@ -309,8 +309,21 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
         .unwrap_or(1);
     let needs_tool_access = canonical_gate
         .get("needs_tool_access")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
+        .and_then(Value::as_bool);
+    let gate_1_submission_status = clean_text(
+        canonical_gate
+            .get("gate_1_submission_status")
+            .and_then(Value::as_str)
+            .unwrap_or("awaiting_llm_submission"),
+        40,
+    );
+    let gate_1_decision_source = clean_text(
+        canonical_gate
+            .get("gate_1_decision_source")
+            .and_then(Value::as_str)
+            .unwrap_or("pending_llm_submission"),
+        48,
+    );
     let gate_prompt = clean_text(
         canonical_gate
             .get("gate_prompt")
@@ -318,6 +331,25 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
             .unwrap_or("Need tools? Yes/No"),
         120,
     );
+    let gate_submission = canonical_gate
+        .get("gate_submission")
+        .cloned()
+        .unwrap_or_else(|| {
+            json!({
+                "gate_id": "gate_1_need_tool_access_menu",
+                "input_shape": {
+                    "type": "multiple_choice",
+                    "allowed_outputs": ["Yes", "No"]
+                },
+                "llm_submission": needs_tool_access,
+                "accepted": needs_tool_access.is_some(),
+                "resume_token": if needs_tool_access.is_some() {
+                    "gate_1_need_tool_access_menu.submitted"
+                } else {
+                    "gate_1_need_tool_access_menu.awaiting_llm_submission"
+                }
+            })
+        });
     let tool_family_menu = canonical_gate
         .get("tool_family_menu")
         .cloned()
@@ -360,6 +392,9 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
         "llm_should_answer_directly": llm_should_answer_directly,
         "should_call_tools": should_call_tools,
         "needs_tool_access": needs_tool_access,
+        "gate_1_submission_status": gate_1_submission_status,
+        "gate_1_decision_source": gate_1_decision_source,
+        "gate_submission": gate_submission.clone(),
         "gate_prompt": gate_prompt,
         "info_source": info_source,
         "selected_tool_family": selected_tool_family,
@@ -385,7 +420,10 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
                     {"option": "No", "key": "no_tools", "label": "No tools; answer directly"},
                     {"option": "Yes", "key": "use_tool", "label": "Use a tool"}
                 ],
-                "reason_code": reason_code
+                "reason_code": reason_code,
+                "submission_status": gate_1_submission_status,
+                "decision_source": gate_1_decision_source,
+                "gate_submission": gate_submission
             },
             "gate_2": {
                 "name": "tool_family_selection",
@@ -397,8 +435,8 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
             },
             "gate_3": {
                 "name": "tool_selection",
-                "wait_for_tools": needs_tool_access,
-                "skip_when_no_tools": !needs_tool_access,
+                "wait_for_tools": needs_tool_access == Some(true),
+                "skip_when_no_tools": needs_tool_access == Some(false),
                 "selection_mode": "multiple_choice",
                 "tool_menu_by_family": tool_menu_by_family
             },
@@ -859,16 +897,16 @@ fn manual_toolbox_pending_request_from_response(response: &str, message: &str) -
     let tool_label = manual_toolbox_selection_field(response, "tool:", &["request payload:", "payload:"]);
     let payload_text = manual_toolbox_selection_field(response, "request payload:", &[])
         .if_empty_then(|| manual_toolbox_selection_field(response, "payload:", &[]));
+    if family.is_empty() || tool_label.is_empty() || payload_text.trim().is_empty() {
+        return None;
+    }
     let tool_name = canonical_manual_toolbox_tool_name(&family, &tool_label);
     if tool_name.is_empty() {
         return None;
     }
-    let mut input = manual_toolbox_payload_json(&payload_text).unwrap_or_else(|| json!({}));
+    let input = manual_toolbox_payload_json(&payload_text)?;
     if !input.is_object() {
-        input = json!({});
-    }
-    if tool_name == "batch_query" && input.get("query").and_then(Value::as_str).unwrap_or("").is_empty() {
-        input["query"] = Value::String(clean_text(message, 600));
+        return None;
     }
     let receipt_binding = crate::deterministic_receipt_hash(&json!({
         "type": "manual_toolbox_pending_tool_request",

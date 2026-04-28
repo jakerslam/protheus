@@ -534,6 +534,17 @@
         "local/workspace/reports/SHELL_ALPINE_GROWTH_GUARD_CURRENT.md"
       ]
     },
+    "ops:shell:alpine-hot-path:guard": {
+      "owner": "ops",
+      "description": "Fail when active Shell UI Alpine x-for bindings render unbounded hot-path collections such as messages, agents, sessions, chat maps, or chat sidebars.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:shell:alpine-hot-path:guard",
+      "artifact_paths": [
+        "core/local/artifacts/shell_alpine_hot_path_guard_current.json",
+        "local/workspace/reports/SHELL_ALPINE_HOT_PATH_GUARD_CURRENT.md"
+      ]
+    },
     "ops:shell:alpine-ownership:guard": {
       "owner": "ops",
       "description": "Fail when remaining Shell UI Alpine usage lacks an explicit owner and Svelte/shared-service migration boundary.",
@@ -602,13 +613,35 @@
     },
     "ops:shell:simple-page-panel:guard": {
       "owner": "ops",
-      "description": "Fail when overview, agents, approvals, workflows, and settings page/tab panels are not declared as same-dashboard Svelte simple-page-panel shells backed by shared Shell metadata.",
+      "description": "Fail when same-dashboard route page/tab panels are not declared as Svelte simple-page-panel shells backed by shared Shell metadata.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "ops:shell:simple-page-panel:guard",
       "artifact_paths": [
         "core/local/artifacts/shell_simple_page_panel_ownership_guard_current.json",
         "local/workspace/reports/SHELL_SIMPLE_PAGE_PANEL_OWNERSHIP_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:shell:app-store-bridge:guard": {
+      "owner": "ops",
+      "description": "Fail when route, page, theme, or agent shell state is not exposed through the Svelte-compatible Shell app-store bridge.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:shell:app-store-bridge:guard",
+      "artifact_paths": [
+        "core/local/artifacts/shell_app_store_bridge_guard_current.json",
+        "local/workspace/reports/SHELL_APP_STORE_BRIDGE_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:shell:long-chat-ram:guard": {
+      "owner": "ops",
+      "description": "Fail when Shell long-chat projection, live memprobe instrumentation, or synthetic heap/DOM budgets allow unbounded chat-page RAM growth.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:shell:long-chat-ram:guard",
+      "artifact_paths": [
+        "core/local/artifacts/shell_long_chat_ram_regression_guard_current.json",
+        "local/workspace/reports/SHELL_LONG_CHAT_RAM_REGRESSION_GUARD_CURRENT.md"
       ]
     },
     "ops:shell:alpine-retirement:guard": {

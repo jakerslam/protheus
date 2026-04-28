@@ -1,5 +1,5 @@
     #[test]
-    fn direct_run_chat_ui_meta_diagnostic_forces_no_tool_route() {
+    fn direct_run_chat_ui_meta_diagnostic_is_telemetry_only() {
         let root = tempfile::tempdir().expect("tempdir");
         write_chat_script(
             root.path(),
@@ -51,7 +51,7 @@
                 .get("tools")
                 .and_then(Value::as_array)
                 .map(|rows| rows.len()),
-            Some(0)
+            Some(1)
         );
     }
 
@@ -96,8 +96,44 @@
             payload
                 .pointer("/response_workflow/gates/need_tool_access/required")
                 .and_then(Value::as_bool),
-            Some(true)
+            Some(false)
         );
+        assert_eq!(
+            payload
+                .pointer("/response_workflow/gates/need_tool_access/submission_status")
+                .and_then(Value::as_str),
+            Some("awaiting_llm_submission")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_workflow/gates/need_tool_access/gate_submission/gate_id")
+                .and_then(Value::as_str),
+            Some("gate_1_need_tool_access_menu")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_workflow/gates/need_tool_access/gate_submission/input_shape/type")
+                .and_then(Value::as_str),
+            Some("multiple_choice")
+        );
+        assert!(payload
+            .pointer("/response_workflow/gates/need_tool_access/gate_submission/llm_submission")
+            .is_some_and(Value::is_null));
+        assert_eq!(
+            payload
+                .pointer("/response_workflow/gates/need_tool_access/gate_submission/accepted")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_workflow/gates/need_tool_access/gate_submission/resume_token")
+                .and_then(Value::as_str),
+            Some("gate_1_need_tool_access_menu.awaiting_llm_submission")
+        );
+        assert!(payload
+            .pointer("/response_workflow/gates/need_tool_access/value")
+            .is_some_and(Value::is_null));
         assert!(payload
             .pointer("/response_workflow/trace_streams/workflow_state")
             .and_then(Value::as_array)
@@ -110,7 +146,7 @@
                     .and_then(Value::as_str)
                     .unwrap_or("")
                     .to_ascii_lowercase()
-                    .contains("searching")
+                    .contains("workflow gate presented")
             })));
         assert!(payload
             .pointer("/response_workflow/trace_streams/decision_summary")

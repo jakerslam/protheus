@@ -2,7 +2,7 @@
 // Layer ownership: core/layer0/ops (authoritative)
 
 use serde_json::{json, Value};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 fn string_field(row: &Value, key: &str) -> String {
     row.get(key)
@@ -72,6 +72,7 @@ fn feedback_item(finding: &Value, generated_at: &str) -> Value {
     let category = string_field(finding, "category");
     let fingerprint = string_field(finding, "fingerprint");
     let family_fingerprint = feedback_family_fingerprint(&fingerprint);
+    let evidence = finding.get("evidence").cloned().unwrap_or_else(|| json!([]));
     json!({
         "type": "kernel_sentinel_feedback_item",
         "source": "kernel_sentinel",
@@ -86,9 +87,49 @@ fn feedback_item(finding: &Value, generated_at: &str) -> Value {
         "priority_rank": severity_priority(&severity),
         "summary": string_field(finding, "summary"),
         "recommended_action": string_field(finding, "recommended_action"),
-        "evidence": finding.get("evidence").cloned().unwrap_or_else(|| json!([])),
+        "evidence": evidence.clone(),
+        "per_run_evidence": [{
+            "fingerprint": fingerprint,
+            "evidence": evidence
+        }],
         "preservation_policy": "preserve_until_resolved_or_waived_by_kernel_receipt"
     })
+}
+
+fn merge_feedback_evidence(target: &mut Value, incoming: &Value) {
+    let mut evidence_seen = BTreeSet::<String>::new();
+    if let Some(rows) = target.get_mut("evidence").and_then(Value::as_array_mut) {
+        for row in rows.iter() {
+            evidence_seen.insert(row.to_string());
+        }
+        for row in incoming
+            .get("evidence")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            if evidence_seen.insert(row.to_string()) {
+                rows.push(row.clone());
+            }
+        }
+    }
+
+    let mut run_seen = BTreeSet::<String>::new();
+    if let Some(rows) = target.get_mut("per_run_evidence").and_then(Value::as_array_mut) {
+        for row in rows.iter() {
+            run_seen.insert(row.to_string());
+        }
+        for row in incoming
+            .get("per_run_evidence")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            if run_seen.insert(row.to_string()) {
+                rows.push(row.clone());
+            }
+        }
+    }
 }
 
 pub(super) fn build_feedback_inbox(report: &Value, generated_at: &str) -> Vec<Value> {
@@ -104,10 +145,18 @@ pub(super) fn build_feedback_inbox(report: &Value, generated_at: &str) -> Vec<Va
         }
         let item = feedback_item(finding, generated_at);
         let key = string_field(&item, "dedupe_key");
-        match by_key.get(&key) {
+        match by_key.get_mut(&key) {
             Some(existing)
-                if usize_at(existing, &["priority_rank"]) <= usize_at(&item, &["priority_rank"]) => {}
-            _ => {
+                if usize_at(existing, &["priority_rank"]) <= usize_at(&item, &["priority_rank"]) =>
+            {
+                merge_feedback_evidence(existing, &item);
+            }
+            Some(existing) => {
+                let mut replacement = item;
+                merge_feedback_evidence(&mut replacement, existing);
+                *existing = replacement;
+            }
+            None => {
                 by_key.insert(key, item);
             }
         }
@@ -160,5 +209,10 @@ mod tests {
             rows[0]["fingerprint"],
             "synthetic_user_chat_harness:misty_simulated_round02_failures"
         );
+        assert_eq!(
+            rows[0]["evidence"],
+            json!(["synthetic://misty/round02", "synthetic://misty/round01"])
+        );
+        assert_eq!(rows[0]["per_run_evidence"].as_array().unwrap().len(), 2);
     }
 }

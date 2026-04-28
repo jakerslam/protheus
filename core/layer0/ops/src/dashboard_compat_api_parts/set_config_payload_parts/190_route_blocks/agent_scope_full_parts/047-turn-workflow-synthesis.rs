@@ -1481,7 +1481,6 @@ fn record_manual_toolbox_pending_request(workflow: &mut Value, response_text: &s
     }
     let Some(pending_request) =
         manual_toolbox_pending_request_from_response(response_text, message)
-            .or_else(|| natural_tool_choice_pending_request(response_text, message))
     else {
         return;
     };
@@ -1835,7 +1834,7 @@ fn run_turn_workflow_final_response(
                     response_is_visible_workflow_gate_choice(&retried_text)
                         || response_has_gate_choice_prefix_leakage(&retried_text);
                 let pending_tool_choice_reply =
-                    natural_tool_choice_pending_request(&retried_text, message).is_some();
+                    manual_toolbox_pending_request_from_response(&retried_text, message).is_some();
                 if manual_toolbox_gate_choice || visible_gate_choice_reply || pending_tool_choice_reply {
                     record_manual_toolbox_pending_request(&mut workflow, &retried_text, message);
                 }
@@ -2147,6 +2146,29 @@ mod workflow_fallback_tests {
                 .map(|value| !value.is_empty())
                 .unwrap_or(false)
         );
+    }
+
+    #[test]
+    fn manual_toolbox_selection_requires_explicit_payload_submission() {
+        let pending = manual_toolbox_pending_request_from_response(
+            "Yes. Tool family: Web Search / Fetch. Tool: Web search.",
+            "Compare infring to other major agentic frameworks.",
+        );
+        assert!(pending.is_none());
+    }
+
+    #[test]
+    fn natural_language_tool_preference_does_not_create_pending_request() {
+        let mut workflow = json!({
+            "workflow_control": {},
+            "system_events": []
+        });
+        record_manual_toolbox_pending_request(
+            &mut workflow,
+            "I would use web search to compare infring to other frameworks.",
+            "Compare infring to other major agentic frameworks.",
+        );
+        assert!(workflow.get("manual_toolbox_pending_tool_request").is_none());
     }
 
     #[test]

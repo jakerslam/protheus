@@ -22,12 +22,16 @@ const DEFAULT_SVELTE_SOURCES = [
   'client/runtime/systems/ui/infring_static/js/svelte/taskbar_hero_menu_shell_svelte_source.ts',
   'client/runtime/systems/ui/infring_static/js/svelte/taskbar_nav_cluster_shell_svelte_source.ts',
   'client/runtime/systems/ui/infring_static/js/svelte/taskbar_dropdown_cluster_shell_svelte_source.ts',
+  'client/runtime/systems/ui/infring_static/js/svelte/taskbar_system_items_shell_svelte_source.ts',
+  'client/runtime/systems/ui/infring_static/js/svelte/bottom_dock_shell_svelte_source.ts',
 ];
 const DEFAULT_SVELTE_BUNDLES = [
   'client/runtime/systems/ui/infring_static/js/svelte/taskbar_menu_shell.bundle.ts',
   'client/runtime/systems/ui/infring_static/js/svelte/taskbar_hero_menu_shell.bundle.ts',
   'client/runtime/systems/ui/infring_static/js/svelte/taskbar_nav_cluster_shell.bundle.ts',
   'client/runtime/systems/ui/infring_static/js/svelte/taskbar_dropdown_cluster_shell.bundle.ts',
+  'client/runtime/systems/ui/infring_static/js/svelte/taskbar_system_items_shell.bundle.ts',
+  'client/runtime/systems/ui/infring_static/js/svelte/bottom_dock_shell.bundle.ts',
 ];
 const DEFAULT_HTML_FILES = [
   'client/runtime/systems/ui/infring_static/index_body.html.parts/0001-body-part.part01a.html',
@@ -238,11 +242,35 @@ async function run(argv = process.argv.slice(2)) {
     ], 'display_part_not_delegated', 'Display background template reads/writes must delegate to the shared Shell taskbarDock service.'));
 
     for (const sourcePath of args.svelteSources) {
-      violations.push(...requireTokens(sourcePath, readText(sourcePath), [
+      const sourceText = readText(sourcePath);
+      const structuralTokens = [
         "export let shellPrimitive = 'taskbar-dock'",
         'export let parentOwnedMechanics = true',
-        '<slot />',
-      ], 'svelte_taskbar_dock_shell_missing', 'Taskbar Svelte shell seams must advertise the shared taskbarDock primitive while preserving slotted legacy markup.'));
+      ];
+      const renderTokens = sourcePath.includes('bottom_dock_shell')
+        ? [
+            'infring-bottom-dock-shell',
+            'bottomDockContainerStyle',
+            'bottomDockSlotStyle',
+            'bottomDockTileStyle',
+            'setBottomDockHover',
+            'clearBottomDockHover',
+            'startBottomDockPointerDrag',
+          ]
+        : sourcePath.includes('taskbar_system_items_shell')
+          ? [
+              'infring-taskbar-system-items-shell',
+              'normalizeTaskbarReorder',
+              'taskbarReorderItemStyle',
+              'handleTaskbarReorderDragStart',
+              'toggleNotifications',
+              'taskbarClockMainLabel',
+            ]
+          : ['<slot />'];
+      violations.push(...requireTokens(sourcePath, sourceText, [
+        ...structuralTokens,
+        ...renderTokens,
+      ], 'svelte_taskbar_dock_shell_missing', 'Taskbar Svelte shell seams must advertise the shared taskbarDock primitive while preserving slotted legacy markup or Svelte-owned rendering delegates.'));
     }
 
     for (const bundlePath of args.svelteBundles) {
@@ -267,17 +295,17 @@ async function run(argv = process.argv.slice(2)) {
       }
       if (htmlPath.includes('part02')) {
         violations.push(...requireTokens(htmlPath, html, [
+          'infring-taskbar-system-items-shell',
           'shellprimitive="taskbar-dock"',
-          'wrapperrole="taskbar-menu"',
+          'wrapperrole="taskbar-system-items"',
           'parentownedmechanics="true"',
-        ], 'taskbar_menu_html_shell_not_wired', 'Taskbar menu surfaces must declare taskbarDock shell primitive ownership.'));
+        ], 'taskbar_menu_html_shell_not_wired', 'Taskbar system items must declare taskbarDock shell primitive ownership.'));
       }
       if (htmlPath.includes('part03')) {
         violations.push(...requireTokens(htmlPath, html, [
-          'data-shell-primitive="taskbar-dock"',
-          'data-dock-containment-surface="bottom-dock"',
-          'bottomDockTaskbarContained()',
-          'bottomDockSlotStyle',
+          'infring-bottom-dock-shell',
+          'shellprimitive="taskbar-dock"',
+          'parentownedmechanics="true"',
         ], 'dock_html_shell_not_wired', 'Dock host must declare taskbarDock containment ownership while preserving existing tile mechanics.'));
       }
     }
@@ -286,6 +314,8 @@ async function run(argv = process.argv.slice(2)) {
       'js/shell/dragbar_shell_services',
       'js/shell/taskbar_dock_shell_services',
       'js/shell/message_metadata_shell_services',
+      'js/svelte/taskbar_system_items_shell.bundle',
+      'js/svelte/bottom_dock_shell.bundle',
     ], 'taskbar_dock_service_not_loaded', 'The dashboard asset router must load the shared taskbarDock service between dragbar primitives and app runtime code.'));
   }
 

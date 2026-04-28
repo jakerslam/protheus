@@ -19,7 +19,8 @@
         }
         kept.push(row);
       }
-      this.messages = kept;
+      if (typeof this.replaceActiveChatMessages === 'function') this.replaceActiveChatMessages(kept);
+      else this.messages = kept;
       if (!force && pendingAgentId && !keptPending && typeof this.ensureLiveThinkingRow === 'function') {
         var restored = this.ensureLiveThinkingRow({ agent_id: pendingAgentId, agent_name: this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '' });
         if (restored) {
@@ -325,7 +326,8 @@
         if (!agentName && this.currentAgent && this.currentAgent.name) agentName = String(this.currentAgent.name);
       }
 
-      var last = this.messages.length ? this.messages[this.messages.length - 1] : null;
+      var rows = this.ensureActiveChatMessagesArray();
+      var last = rows.length ? rows[rows.length - 1] : null;
       if (shouldAppendToLast && last && !last.thinking && last.terminal) {
         if (text) {
           if (last.text && !/\n$/.test(last.text)) last.text += '\n';
@@ -342,6 +344,7 @@
         last.ts = ts;
         if (!Array.isArray(last.tools)) last.tools = [];
         if (tools.length) last.tools = last.tools.concat(tools);
+        if (typeof this.syncActiveChatMessages === 'function') this.syncActiveChatMessages();
         return last;
       }
 
@@ -358,7 +361,7 @@
       };
       if (agentId) msg.agent_id = agentId;
       if (agentName) msg.agent_name = agentName;
-      this.messages.push(msg);
+      this.appendActiveChatMessage(msg);
       if (cwd) this.terminalCwd = cwd;
       return msg;
     },

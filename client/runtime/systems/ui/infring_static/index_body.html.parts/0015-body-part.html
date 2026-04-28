@@ -4,7 +4,7 @@
             <div class="tab" :class="{ active: tab === 'by-agent' }" @click="tab = 'by-agent'">By Agent</div>
             <div class="tab" :class="{ active: tab === 'costs' }" @click="tab = 'costs'">Costs</div>
           </div>
-          <infring-analytics-summary-tab-shell>
+          <infring-analytics-summary-tab-shell shellprimitive="simple-page-panel" pageid="analytics" tabid="summary" panelrole="analytics-tab" routecontract="analytics:summary" parentowneddata="true">
           <div x-show="tab === 'summary'">
             <div class="card mt-4">
               <div class="card-header">Runtime Telemetry</div>
@@ -30,7 +30,7 @@
             </div>
           </div>
           </infring-analytics-summary-tab-shell>
-          <infring-analytics-by-model-tab-shell>
+          <infring-analytics-by-model-tab-shell shellprimitive="simple-page-panel" pageid="analytics" tabid="by-model" panelrole="analytics-tab" routecontract="analytics:by-model" parentowneddata="true">
           <div x-show="tab === 'by-model'">
             <div class="table-wrap mt-4" x-show="byModel.length">
               <table>
@@ -52,7 +52,7 @@
             <infring-chat-stream-shell class="empty-state" x-show="!byModel.length"><p>No model usage data yet.</p></infring-chat-stream-shell>
           </div>
           </infring-analytics-by-model-tab-shell>
-          <infring-analytics-by-agent-tab-shell>
+          <infring-analytics-by-agent-tab-shell shellprimitive="simple-page-panel" pageid="analytics" tabid="by-agent" panelrole="analytics-tab" routecontract="analytics:by-agent" parentowneddata="true">
           <div x-show="tab === 'by-agent'">
             <div class="table-wrap mt-4" x-show="byAgent.length">
               <table>
@@ -73,7 +73,7 @@
           </infring-analytics-by-agent-tab-shell>
 
           <!-- Costs Tab -->
-          <infring-analytics-costs-tab-shell>
+          <infring-analytics-costs-tab-shell shellprimitive="simple-page-panel" pageid="analytics" tabid="costs" panelrole="analytics-tab" routecontract="analytics:costs" parentowneddata="true">
           <div x-show="tab === 'costs'">
 
             <!-- Cost Summary Cards -->
@@ -240,7 +240,7 @@
 
     <!-- Page: Sessions -->
     <template x-if="page === 'sessions'">
-      <infring-sessions-page-shell>
+      <infring-sessions-page-shell shellprimitive="simple-page-panel" pageid="sessions" panelrole="page" routecontract="sessions" parentowneddata="true">
       <div x-data="sessionsPage">
         <div class="page-header manage-sessions-header">
           <div class="manage-sessions-header-left">
@@ -262,7 +262,7 @@
         </div>
         <div class="page-body" x-init="loadSessions()">
           <!-- Sessions tab -->
-          <infring-sessions-conversation-tab-shell>
+          <infring-sessions-conversation-tab-shell shellprimitive="simple-page-panel" pageid="sessions" tabid="conversation" panelrole="sessions-tab" routecontract="sessions:conversation" parentowneddata="true">
           <div x-show="tab === 'sessions'">
             <div x-show="loading" class="loading-state"><div class="spinner"></div><span>Loading sessions...</span></div>
             <div x-show="!loading && loadError" class="error-state">
@@ -310,7 +310,7 @@
           </infring-sessions-conversation-tab-shell>
 
           <!-- Memory tab -->
-          <infring-sessions-memory-tab-shell>
+          <infring-sessions-memory-tab-shell shellprimitive="simple-page-panel" pageid="sessions" tabid="memory" panelrole="sessions-tab" routecontract="sessions:memory" parentowneddata="true">
           <div x-show="tab === 'memory'">
             <div class="flex justify-between items-center mb-4">
               <div class="info-card" style="flex:1;margin-bottom:0">
@@ -396,7 +396,7 @@
 
     <!-- Page: Logs -->
     <template x-if="page === 'logs'">
-      <infring-logs-page-shell>
+      <infring-logs-page-shell shellprimitive="simple-page-panel" pageid="logs" panelrole="page" routecontract="logs" parentowneddata="true">
       <div x-data="logsPage">
         <div class="page-header page-header-subtabs-center">
           <div>

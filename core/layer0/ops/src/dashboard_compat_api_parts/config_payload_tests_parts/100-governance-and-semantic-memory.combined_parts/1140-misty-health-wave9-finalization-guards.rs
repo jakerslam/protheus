@@ -189,7 +189,7 @@ fn misty_wave9_explicit_web_search_executes_llm_selected_tool_without_second_tur
     write_json(
         &governance_test_chat_script_path(root.path()),
         &json!({"queue": [
-            {"response": "I would choose web search"},
+            {"response": "Yes. Tool family: Web Search / Fetch. Tool: Web search. Request payload: {\"source\":\"web\",\"query\":\"Use web search to find one current source about OpenHands agent framework and summarize it in one sentence.\",\"aperture\":\"medium\"}."},
             {"response": "OpenHands is an open-source agent framework for software development tasks."}
         ], "calls": []}),
     );
@@ -249,14 +249,7 @@ fn misty_wave9_explicit_web_search_executes_llm_selected_tool_without_second_tur
             .payload
             .pointer("/response_finalization/outcome")
             .and_then(Value::as_str),
-        Some("manual_toolbox_pending_tool_request_executed")
-    );
-    assert_eq!(
-        response
-            .payload
-            .pointer("/response_finalization/workflow_control/direct_response_path")
-            .and_then(Value::as_str),
-        Some("manual_toolbox_executed_tool_route")
+        Some("workflow_authored+workflow:synthesized")
     );
     assert_eq!(
         response
