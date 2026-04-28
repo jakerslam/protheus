@@ -64,12 +64,12 @@
       <div class="global-taskbar-left">
         <div class="taskbar-visual-group taskbar-visual-group-left" aria-label="Primary taskbar items">
         <infring-taskbar-hero-menu-shell shellprimitive="taskbar-dock" wrapperrole="taskbar-hero" parentownedmechanics="true">
-        <div class="taskbar-hero-menu-anchor" x-ref="taskbarHeroMenuAnchor" @click.outside="closeTaskbarHeroMenu()">
+        <div id="taskbar-hero-menu-anchor" class="taskbar-hero-menu-anchor" x-ref="taskbarHeroMenuAnchor" @click.outside="closeTaskbarHeroMenu()">
           <button class="taskbar-brand taskbar-brand-trigger" type="button" @click.stop="toggleTaskbarHeroMenu()" :aria-expanded="taskbarHeroMenuOpen ? 'true' : 'false'" aria-haspopup="menu" title="System actions">
             <div class="brand-mark infring-logo" aria-hidden="true"><span class="brand-mark-glyph infring-logo-glyph">&infin;</span></div>
             <div><div class="taskbar-brand-title">INFRING</div></div>
           </button>
-          <infring-taskbar-menu-shell class="taskbar-hero-menu dashboard-dropdown-surface" shellprimitive="taskbar-dock" wrapperrole="taskbar-menu" parentownedmechanics="true" :class="taskbarAnchoredDropdownClass($refs.taskbarHeroMenuAnchor, 'bottom', taskbarHeroMenuOpen)" x-cloak x-show="taskbarHeroMenuOpen" x-transition:enter="transition ease-out duration-120" x-transition:enter-start="opacity-0 -translate-y-1" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-90" x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 -translate-y-1">
+          <infring-taskbar-menu-shell class="taskbar-hero-menu dashboard-dropdown-surface" shellprimitive="taskbar-dock" wrapperrole="taskbar-menu" parentownedmechanics="true" anchorid="taskbar-hero-menu-anchor" fallbackside="bottom" layoutkey="taskbar-hero-menu" x-cloak x-show="taskbarHeroMenuOpen" x-transition:enter="transition ease-out duration-120" x-transition:enter-start="opacity-0 -translate-y-1" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-90" x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 -translate-y-1">
             <button class="taskbar-hero-menu-item" type="button" @click="runTaskbarHeroCommand('restart')" :disabled="!!taskbarHeroActionPending"><svg class="taskbar-refresh-icon taskbar-hero-menu-icon" :style="'transform: rotate(' + (($store.app.taskbarRefreshTurns || 0) * 360) + 'deg)'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path></svg><span>Restart</span></button>
             <button class="taskbar-hero-menu-item" type="button" @click="runTaskbarHeroCommand('update')" :disabled="!!taskbarHeroActionPending"><svg class="taskbar-hero-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v8"></path><path d="m8.5 12.5 3.5 3.5 3.5-3.5"></path></svg><span>Update</span></button>
             <button class="taskbar-hero-menu-item" type="button" @click="runTaskbarHeroCommand('shutdown')" :disabled="!!taskbarHeroActionPending"><svg class="taskbar-hero-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v8"></path><path d="M8.2 5.8A8 8 0 1 0 15.8 5.8"></path></svg><span>Shut down</span></button>
@@ -129,7 +129,7 @@
         </div>
         <infring-taskbar-dropdown-cluster-shell shellprimitive="taskbar-dock" wrapperrole="taskbar-dropdowns" parentownedmechanics="true">
           <infring-taskbar-menu-shell class="taskbar-text-menus" shellprimitive="taskbar-dock" wrapperrole="taskbar-menu" parentownedmechanics="true" menu="help" :open="taskbarTextMenuIsOpen('help')">
-            <div class="taskbar-text-menu-anchor" x-ref="taskbarHelpMenuAnchor" @click.outside="closeTaskbarTextMenu()">
+            <div id="taskbar-help-menu-anchor" class="taskbar-text-menu-anchor" x-ref="taskbarHelpMenuAnchor" @click.outside="closeTaskbarTextMenu()">
               <button
                 class="taskbar-text-menu-btn"
                 type="button"
@@ -138,9 +138,14 @@
                 aria-haspopup="menu"
                 aria-label="Help menu"
               >Help</button>
-              <div
+              <infring-taskbar-menu-shell
                 class="taskbar-text-menu-dropdown dashboard-dropdown-surface"
-                :class="taskbarAnchoredDropdownClass($refs.taskbarHelpMenuAnchor, 'bottom', taskbarTextMenuOpen)"
+                shellprimitive="taskbar-dock"
+                wrapperrole="taskbar-menu"
+                parentownedmechanics="true"
+                anchorid="taskbar-help-menu-anchor"
+                fallbackside="bottom"
+                layoutkey="taskbar-help-menu"
                 x-cloak
                 x-show="taskbarTextMenuIsOpen('help')"
                 x-transition:enter="transition ease-out duration-120"
@@ -152,7 +157,7 @@
               >
                 <button class="taskbar-text-menu-item" type="button" @click="handleTaskbarHelpManual()">Manual</button>
                 <button class="taskbar-text-menu-item" type="button" @click="handleTaskbarHelpReportIssue()">Report an issue</button>
-              </div>
+              </infring-taskbar-menu-shell>
             </div>
           </infring-taskbar-menu-shell>
         </infring-taskbar-dropdown-cluster-shell>

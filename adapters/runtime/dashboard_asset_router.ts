@@ -395,6 +395,7 @@ function buildPrimaryDashboardHtml(staticDir) {
   const scripts = [
     readForkScript(staticDir, 'vendor/marked.min'),
     readForkScript(staticDir, 'vendor/chart.umd.min'),
+    readForkScript(staticDir, 'js/shell/app_store_shell_services'),
     readForkScript(staticDir, 'js/svelte/chat_bubble.bundle'),
     readForkScript(staticDir, 'js/svelte/chat_stream_shell.bundle'),
     readForkScript(staticDir, 'js/svelte/sidebar_rail_shell.bundle'),
@@ -405,6 +406,8 @@ function buildPrimaryDashboardHtml(staticDir) {
     readForkScript(staticDir, 'js/svelte/tool_card_stack_shell.bundle'),
     readForkScript(staticDir, 'js/svelte/composer_lane_shell.bundle'),
     readForkScript(staticDir, 'js/svelte/taskbar_dropdown_cluster_shell.bundle'),
+    readForkScript(staticDir, 'js/svelte/taskbar_system_items_shell.bundle'),
+    readForkScript(staticDir, 'js/svelte/bottom_dock_shell.bundle'),
     readForkScript(staticDir, 'js/svelte/workspace_panel_shell.bundle'),
     readForkScript(staticDir, 'js/svelte/prompt_queue_shell.bundle'),
     readForkScript(staticDir, 'js/svelte/prompt_suggestions_shell.bundle'),

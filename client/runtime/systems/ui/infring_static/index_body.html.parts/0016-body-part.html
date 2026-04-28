@@ -4,7 +4,7 @@
         </div>
         <div class="page-body" x-init="startStreaming()">
           <!-- Live logs tab -->
-          <infring-logs-live-tab-shell>
+          <infring-logs-live-tab-shell shellprimitive="simple-page-panel" pageid="logs" tabid="live" panelrole="logs-tab" routecontract="logs:live" parentowneddata="true">
           <div x-show="tab === 'live'">
             <div x-show="loading" class="loading-state"><div class="spinner"></div><span>Connecting to log stream...</span></div>
             <div x-show="!loading && loadError" class="error-state">
@@ -32,7 +32,7 @@
           </infring-logs-live-tab-shell>
 
           <!-- Audit trail tab -->
-          <infring-logs-audit-tab-shell>
+          <infring-logs-audit-tab-shell shellprimitive="simple-page-panel" pageid="logs" tabid="audit" panelrole="logs-tab" routecontract="logs:audit" parentowneddata="true">
           <div x-show="tab === 'audit'">
             <div x-show="auditLoading" class="loading-state"><div class="spinner"></div><span>Loading audit log...</span></div>
             <div x-show="!auditLoading && auditLoadError" class="error-state">
@@ -94,7 +94,7 @@
 
     <!-- Page: Comms -->
     <template x-if="$store.app.page === 'comms'">
-      <infring-comms-page-shell>
+      <infring-comms-page-shell shellprimitive="simple-page-panel" pageid="comms" panelrole="page" routecontract="comms" parentowneddata="true">
       <div x-data="commsPage" x-init="loadData()" @page-leave.window="stopSSE()">
         <div class="page-header">
           <h2>Agent Comms</h2>
@@ -268,7 +268,7 @@
 
     <!-- Page: Setup Wizard -->
     <template x-if="$store.app.page === 'wizard'">
-      <infring-wizard-page-shell>
+      <infring-wizard-page-shell shellprimitive="simple-page-panel" pageid="wizard" panelrole="page" routecontract="wizard" parentowneddata="true">
       <div x-data="wizardPage">
         <div class="page-header">
           <h2>Setup Wizard</h2>

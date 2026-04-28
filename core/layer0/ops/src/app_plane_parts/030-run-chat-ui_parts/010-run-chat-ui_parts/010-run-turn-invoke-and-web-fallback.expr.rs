@@ -91,19 +91,16 @@
                 });
             }
         };
-        let mut tools = response
+        let tools = response
             .get("tools")
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
-        if gate_meta_diagnostic_request && !tools.is_empty() {
-            tools.clear();
-        }
         let requires_live_web = tool_gate
             .get("requires_live_web")
             .and_then(Value::as_bool)
-            .map(|value| value && !gate_meta_diagnostic_request)
-            .unwrap_or_else(|| !gate_meta_diagnostic_request && chat_ui_requests_live_web(&message));
+            .map(|value| value)
+            .unwrap_or(false);
         let mut assistant_raw = clean(
             response
                 .get("response")

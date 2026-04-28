@@ -442,13 +442,26 @@ function renderMarkdown(text) {
   return escapeHtml(text);
 }
 
-// Alpine.js global store
+function infringShellAppStoreBridge() {
+  var services = typeof window !== 'undefined' ? window.InfringSharedShellServices : null;
+  return services && services.appStore ? services.appStore : null;
+}
+
+function infringShellAppStoreCurrent() {
+  var bridge = infringShellAppStoreBridge();
+  if (bridge && typeof bridge.current === 'function') return bridge.current();
+  return (typeof window !== 'undefined' && window.InfringApp && typeof window.InfringApp === 'object')
+    ? window.InfringApp
+    : null;
+}
+
+// Temporary Alpine compatibility registration for the canonical Shell app-store bridge.
 document.addEventListener('alpine:init', function() {
   // Restore saved API key on load
   var savedKey = localStorage.getItem('infring-api-key');
   if (savedKey) InfringAPI.setAuthToken(savedKey);
 
-  Alpine.store('app', {
+  var appStoreDefinition = {
     agents: [],
     connected: false,
     booting: true,
@@ -597,7 +610,7 @@ document.addEventListener('alpine:init', function() {
       // Alpine can invoke store methods through different call paths; guard against lost `this`.
       var store = (this && typeof this === 'object' && Object.prototype.hasOwnProperty.call(this, 'agentsHydrated'))
         ? this
-        : Alpine.store('app');
+        : infringShellAppStoreCurrent();
       if (!store) return;
       var options = opts || {};
       var force = options.force === true;
@@ -1501,7 +1514,19 @@ document.addEventListener('alpine:init', function() {
       InfringAPI.setAuthToken('');
       localStorage.removeItem('infring-api-key');
     }
-  });
+  };
+  var appStoreBridge = infringShellAppStoreBridge();
+  if (appStoreBridge && typeof appStoreBridge.registerAlpineStore === 'function') {
+    appStoreBridge.registerAlpineStore(Alpine, 'app', appStoreDefinition);
+  } else {
+    var alpineRuntime = Alpine;
+    if (alpineRuntime && typeof alpineRuntime.store === 'function') {
+      alpineRuntime.store('app', appStoreDefinition);
+      window.InfringApp = alpineRuntime.store('app');
+    } else {
+      window.InfringApp = appStoreDefinition;
+    }
+  }
 });
 
 function infringTaskbarDockService() {
@@ -7715,13 +7740,22 @@ function app() {
         }
       });
     },
+    shellAppStoreBridge() {
+      return infringShellAppStoreBridge();
+    },
+    notifyShellAppStore(reason) {
+      var bridge = this.shellAppStoreBridge();
+      if (bridge && typeof bridge.notify === 'function') bridge.notify(reason || 'shell_root_changed');
+    },
     getAppStore() {
-      try {
-        var store = Alpine && typeof Alpine.store === 'function' ? Alpine.store('app') : null;
-        return (store && typeof store === 'object') ? store : null;
-      } catch(_) {
-        return null;
+      var bridge = this.shellAppStoreBridge();
+      if (bridge && typeof bridge.current === 'function') {
+        var bridgedStore = bridge.current();
+        if (bridgedStore && typeof bridgedStore === 'object') return bridgedStore;
       }
+      return (typeof window !== 'undefined' && window.InfringApp && typeof window.InfringApp === 'object')
+        ? window.InfringApp
+        : null;
     },
     get agents() {
       var store = this.getAppStore();
@@ -7936,6 +7970,10 @@ function app() {
     showMoreChatSidebarRows() { this.scheduleSidebarScrollIndicators(); },
     init() {
       var self = this;
+      var appStoreBridge = typeof this.shellAppStoreBridge === 'function' ? this.shellAppStoreBridge() : null;
+      if (appStoreBridge && typeof appStoreBridge.registerShellRoot === 'function') {
+        appStoreBridge.registerShellRoot(this);
+      }
       this._bootSplashStartedAt = Date.now();
       this.bootSplashVisible = true;
       this.applyOverlayGlassTemplate('simple-glass', true);
@@ -7999,6 +8037,7 @@ function app() {
           self.page = hash;
           self.syncAgentChatsSectionForPage(hash);
           if (typeof self.syncPageHistory === 'function') self.syncPageHistory(hash);
+          if (typeof self.notifyShellAppStore === 'function') self.notifyShellAppStore('route_changed');
         }
       }
       window.addEventListener('hashchange', handleHash);
@@ -8222,6 +8261,7 @@ function app() {
       if (typeof this.syncAgentChatsSectionForPage === 'function') {
         this.syncAgentChatsSectionForPage(p);
       }
+      if (typeof this.notifyShellAppStore === 'function') this.notifyShellAppStore('navigate');
       window.location.hash = p;
 
       this.mobileMenuOpen = false;

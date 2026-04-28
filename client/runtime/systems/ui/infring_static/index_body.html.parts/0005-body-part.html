@@ -1,11 +1,3 @@
-              </div>
-            </div>
-            <infring-chat-archived-banner-shell>
-            <div class="chat-archived-banner chat-archived-banner-bottom-center" x-show="currentAgent && isCurrentAgentArchived && isCurrentAgentArchived()" role="status" aria-live="polite">
-              <span class="text-xs" style="margin-right:10px">Archived thread is read-only. Revive to send messages, run commands, or edit configuration.</span>
-              <button type="button" class="btn btn-primary btn-sm" @click="reviveCurrentArchivedAgent()">Revive Agent</button>
-            </div>
-            </infring-chat-archived-banner-shell>
           </div>
         </div>
     </div>
@@ -228,15 +220,4 @@
               </infring-chat-map-rail-shell>
               </div>
             </infring-chat-map-shell>
-            <!-- Input area -->
-            <infring-chat-input-footer-shell>
-            <div class="input-area" x-show="currentAgent && !(isCurrentAgentArchived && isCurrentAgentArchived())" style="position:relative" :class="{ 'terminal-mode': terminalMode }">
-              <infring-composer-lane-shell>
-              <div class="chat-input-lane">
-              <button class="chat-scroll-down" x-show="showScrollDown && currentAgent" @click="scrollToBottom({ buttonAnimated: true, force: true })" title="Scroll to latest" aria-label="Scroll to latest">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
-              </button>
-              <!-- Attachment previews -->
-              <div x-show="!terminalMode && attachments.length > 0" style="display:flex;gap:8px;flex-wrap:wrap;padding:0 0 8px 0">
-                <template x-for="(att, aidx) in attachments" :key="aidx">
-                  <div style="position:relative;border:1px solid var(--border);border-radius:6px;padding:4px;display:flex;align-items:center;gap:6px;background:var(--surface2);max-width:180px">
+            <infring-chat-input-footer-shell></infring-chat-input-footer-shell>

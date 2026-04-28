@@ -29,17 +29,12 @@
       this.$watch('messages', function(val) {
         var chatStore = window.InfringChatStore;
         if (!chatStore) return;
-        if (chatStore.messages) chatStore.messages.set(Array.isArray(val) ? val : []);
-        if (chatStore.filteredMessages) {
-          chatStore.filteredMessages.set(Array.isArray(self.allFilteredMessages) ? self.allFilteredMessages : []);
-        }
+        if (typeof chatStore.syncMessages === 'function') chatStore.syncMessages(val, self.allFilteredMessages);
       });
 
       this.$watch('searchQuery', function() {
         var chatStore = window.InfringChatStore;
-        if (chatStore && chatStore.filteredMessages) {
-          chatStore.filteredMessages.set(Array.isArray(self.allFilteredMessages) ? self.allFilteredMessages : []);
-        }
+        if (chatStore && typeof chatStore.syncMessages === 'function') chatStore.syncMessages(self.messages, self.allFilteredMessages);
       });
 
       this.$watch('sessionLoading', function(val) {
@@ -75,6 +70,7 @@
       this.$watch('mapStepIndex', function(val) {
         var chatStore = window.InfringChatStore;
         if (chatStore && chatStore.mapStepIndex) chatStore.mapStepIndex.set(Number(val) || -1);
+        if (chatStore && typeof chatStore.setThreadProjectionCenter === 'function') chatStore.setThreadProjectionCenter(val);
       });
 
       this.$watch('terminalMode', function() {
@@ -302,8 +298,7 @@
       (function() {
         var chatStore = window.InfringChatStore;
         if (!chatStore) return;
-        if (chatStore.messages) chatStore.messages.set(Array.isArray(self.messages) ? self.messages : []);
-        if (chatStore.filteredMessages) chatStore.filteredMessages.set(Array.isArray(self.allFilteredMessages) ? self.allFilteredMessages : []);
+        if (typeof chatStore.syncMessages === 'function') chatStore.syncMessages(self.messages, self.allFilteredMessages);
         if (chatStore.currentAgent) chatStore.currentAgent.set(self.currentAgent || null);
         var appStore = typeof Alpine !== 'undefined' && Alpine.store('app');
         if (chatStore.agents) chatStore.agents.set(Array.isArray(appStore && appStore.agents) ? appStore.agents : []);

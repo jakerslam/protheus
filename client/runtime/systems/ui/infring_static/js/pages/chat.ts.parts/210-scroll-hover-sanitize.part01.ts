@@ -103,6 +103,10 @@
       for (var idx = 0; idx < this.messages.length; idx++) {
         if (this.messageDomId(this.messages[idx], idx) === domId) { this.mapStepIndex = idx; break; }
       }
+      var chatStore = window.InfringChatStore;
+      if (chatStore && typeof chatStore.setThreadProjectionCenter === 'function') {
+        chatStore.setThreadProjectionCenter(this.mapStepIndex);
+      }
       this.centerChatMapOnMessage(domId, { immediate: true });
     },
 

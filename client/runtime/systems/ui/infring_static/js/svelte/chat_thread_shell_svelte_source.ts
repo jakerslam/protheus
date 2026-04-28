@@ -6,7 +6,9 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
 
   let messages = [];
   let hoveredIdx = -1;
+  let renderWindowVersion = 0;
   let unsub;
+  let unsubRenderWindow;
 
   function cp() {
     return (typeof window !== 'undefined' && window.InfringChatPage) || null;
@@ -33,6 +35,10 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
     var result = call.apply(null, arguments);
     return (result && typeof result === 'object') ? result : {};
   }
+  function shouldRenderContent(msg, idx, token) {
+    void token;
+    return callBool('shouldRenderMessageContent', msg, idx, messages);
+  }
 
   onMount(function() {
     var s = typeof window !== 'undefined' && window.InfringChatStore;
@@ -41,10 +47,16 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
         messages = Array.isArray(val) ? val : [];
       });
     }
+    if (s && s.renderWindowVersion) {
+      unsubRenderWindow = s.renderWindowVersion.subscribe(function(val) {
+        renderWindowVersion = Number(val || 0);
+      });
+    }
   });
 
   onDestroy(function() {
     if (typeof unsub === 'function') unsub();
+    if (typeof unsubRenderWindow === 'function') unsubRenderWindow();
   });
 
   function onMouseEnter(msg, idx) {
@@ -227,7 +239,7 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
           {/if}
 
           <div class={"message-bubble" + bubbleClass(msg)} style:display={bubbleVisible(msg, idx) ? '' : 'none'}>
-            {#if callBool('shouldRenderMessageContent', msg, idx, messages)}
+            {#if shouldRenderContent(msg, idx, renderWindowVersion)}
               <infring-chat-bubble-render typing={!!msg._typingVisual ? '1' : '0'} html={callStr('messageBubbleHtml', msg)} plain={String(msg.text || '')}></infring-chat-bubble-render>
             {:else}
               <infring-message-placeholder-shell>
@@ -241,7 +253,7 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
           </div>
 
           <infring-message-context-shell>
-            <div class="message-source-chips" style:display={callBool('shouldRenderMessageContent', msg, idx, messages) && callBool('messageHasSourceChips', msg) ? '' : 'none'}>
+            <div class="message-source-chips" style:display={shouldRenderContent(msg, idx, renderWindowVersion) && callBool('messageHasSourceChips', msg) ? '' : 'none'}>
               {#each callArr('messageSourceChips', msg) as chip (chip.id)}
                 <a class="message-source-chip" href={chip.url} target="_blank" rel="noopener" title={chip.url}>
                   <span class="message-source-chip-label">{chip.label}</span>
@@ -249,13 +261,13 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
                 </a>
               {/each}
             </div>
-            <div class="message-tool-trace-summary" style:display={callBool('shouldRenderMessageContent', msg, idx, messages) && callObj('messageToolTraceSummary', msg).visible ? '' : 'none'}>
+            <div class="message-tool-trace-summary" style:display={shouldRenderContent(msg, idx, renderWindowVersion) && callObj('messageToolTraceSummary', msg).visible ? '' : 'none'}>
               <span class="message-tool-trace-label">{callObj('messageToolTraceSummary', msg).label}</span>
               <span class="message-tool-trace-detail">{callObj('messageToolTraceSummary', msg).detail}</span>
             </div>
           </infring-message-context-shell>
 
-          {#if callBool('shouldRenderMessageContent', msg, idx, messages) && call('messageProgress', msg)}
+          {#if shouldRenderContent(msg, idx, renderWindowVersion) && call('messageProgress', msg)}
             <infring-message-progress-shell>
               <div class="chat-progress-wrap">
                 <div class="chat-progress-meta">
@@ -269,7 +281,7 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
             </infring-message-progress-shell>
           {/if}
 
-          {#if callBool('shouldRenderMessageContent', msg, idx, messages) && msg.file_output && msg.file_output.path}
+          {#if shouldRenderContent(msg, idx, renderWindowVersion) && msg.file_output && msg.file_output.path}
             <infring-message-artifact-shell>
               <div class="chat-artifact-card chat-file-output">
                 <div class="chat-artifact-head">
@@ -281,7 +293,7 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
             </infring-message-artifact-shell>
           {/if}
 
-          {#if callBool('shouldRenderMessageContent', msg, idx, messages) && msg.folder_output && msg.folder_output.path}
+          {#if shouldRenderContent(msg, idx, renderWindowVersion) && msg.folder_output && msg.folder_output.path}
             <infring-message-artifact-shell>
               <div class="chat-artifact-card chat-folder-output">
                 <div class="chat-artifact-head">
@@ -296,7 +308,7 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
             </infring-message-artifact-shell>
           {/if}
 
-          {#if callBool('shouldRenderMessageContent', msg, idx, messages) && msg.images && msg.images.length}
+          {#if shouldRenderContent(msg, idx, renderWindowVersion) && msg.images && msg.images.length}
             <infring-message-media-shell>
               <div style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0">
                 {#each msg.images as img (img.file_id)}
@@ -309,7 +321,7 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
           {/if}
 
           <infring-tool-card-stack-shell>
-            {#each (callBool('shouldRenderMessageContent', msg, idx, messages) ? (msg.tools || []) : []) as tool (tool.id)}
+            {#each (shouldRenderContent(msg, idx, renderWindowVersion) ? (msg.tools || []) : []) as tool (tool.id)}
               <div
                 class={"tool-card" + (tool.is_error && !callBool('isBlockedTool', tool) ? ' tool-card-error' : '') + (callBool('isBlockedTool', tool) ? ' tool-card-blocked' : '') + (callBool('isToolSuccessful', tool) ? ' tool-card-success' : '') + (callBool('isThoughtTool', tool) ? ' tool-card-thought' : '')}
                 data-tool={tool.name}

@@ -12,6 +12,9 @@ const DEFAULT_APP = 'client/runtime/systems/ui/infring_static/js/app.ts';
 const DEFAULT_PART10 = 'client/runtime/systems/ui/infring_static/js/app.ts.parts/020-nav-and-layout.part10.ts';
 const DEFAULT_PART11 = 'client/runtime/systems/ui/infring_static/js/app.ts.parts/020-nav-and-layout.part11.ts';
 const DEFAULT_PART02 = 'client/runtime/systems/ui/infring_static/js/app.ts.parts/040-events-and-actions.part02.ts';
+const DEFAULT_HTML_PART01A = 'client/runtime/systems/ui/infring_static/index_body.html.parts/0001-body-part.part01a.html';
+const DEFAULT_HTML_PART02 = 'client/runtime/systems/ui/infring_static/index_body.html.parts/0001-body-part.part02.html';
+const DEFAULT_HTML_PART03 = 'client/runtime/systems/ui/infring_static/index_body.html.parts/0001-body-part.part03.html';
 const DEFAULT_CONTRACTS = 'client/runtime/systems/ui/infring_static/js/svelte/svelte_shell_contracts.json';
 const DEFAULT_SVELTE_DIR = 'client/runtime/systems/ui/infring_static/js/svelte';
 const DEFAULT_OUT_JSON = 'core/local/artifacts/shell_popup_runtime_ownership_guard_current.json';
@@ -24,6 +27,9 @@ type Args = {
   part10Path: string;
   part11Path: string;
   part02Path: string;
+  htmlPart01aPath: string;
+  htmlPart02Path: string;
+  htmlPart03Path: string;
   contractsPath: string;
   svelteDir: string;
   outJson: string;
@@ -64,6 +70,7 @@ const SERVICE_EXPORT_TOKENS = [
 ];
 
 const REQUIRED_SVELTE_SHELLS = [
+  'infring-dashboard-popup-overlay-shell',
   'infring-popup-window-shell',
   'infring-taskbar-menu-shell',
   'infring-taskbar-dropdown-cluster-shell',
@@ -82,6 +89,9 @@ function readArgs(argv: string[]): Args {
     part10Path: cleanText(readFlag(argv, 'part10') || DEFAULT_PART10, 400),
     part11Path: cleanText(readFlag(argv, 'part11') || DEFAULT_PART11, 400),
     part02Path: cleanText(readFlag(argv, 'part02') || DEFAULT_PART02, 400),
+    htmlPart01aPath: cleanText(readFlag(argv, 'html-part01a') || DEFAULT_HTML_PART01A, 400),
+    htmlPart02Path: cleanText(readFlag(argv, 'html-part02') || DEFAULT_HTML_PART02, 400),
+    htmlPart03Path: cleanText(readFlag(argv, 'html-part03') || DEFAULT_HTML_PART03, 400),
     contractsPath: cleanText(readFlag(argv, 'contracts') || DEFAULT_CONTRACTS, 400),
     svelteDir: cleanText(readFlag(argv, 'svelte-dir') || DEFAULT_SVELTE_DIR, 400),
     outJson: cleanText(readFlag(argv, 'out-json') || common.out || DEFAULT_OUT_JSON, 400),
@@ -171,6 +181,7 @@ function validateSvelteShells(args: Args): Violation[] {
     }
   }
   const sourceMap: Record<string, string> = {
+    'infring-dashboard-popup-overlay-shell': 'dashboard_popup_overlay_shell_svelte_source.ts',
     'infring-popup-window-shell': 'popup_window_shell_svelte_source.ts',
     'infring-taskbar-menu-shell': 'taskbar_menu_shell_svelte_source.ts',
     'infring-taskbar-dropdown-cluster-shell': 'taskbar_dropdown_cluster_shell_svelte_source.ts',
@@ -187,6 +198,91 @@ function validateSvelteShells(args: Args): Violation[] {
         path,
         token: tag,
         detail: 'Popup/menu shell source must exist before Alpine behavior can retire.',
+      });
+    }
+  }
+  return violations;
+}
+
+function validateSvelteServiceCallers(args: Args): Violation[] {
+  const violations: Violation[] = [];
+  const specs = [
+    {
+      path: `${args.svelteDir}/dashboard_popup_overlay_shell_svelte_source.ts`,
+      tokens: [
+        'InfringSharedShellServices',
+        'services.popup',
+        'stateOrigin',
+        'overlayClass',
+        'overlayStyle',
+        'bottomDockPreviewVisible',
+      ],
+      detail: 'Active dashboard popup overlay rendering must be a Svelte caller of shared popup services.',
+    },
+    {
+      path: `${args.svelteDir}/taskbar_menu_shell_svelte_source.ts`,
+      tokens: [
+        'InfringSharedShellServices',
+        'services.popup',
+        'dropdownClass',
+        'anchorid',
+        'classList.toggle',
+      ],
+      detail: 'Active taskbar menu orientation must be applied by the Svelte menu shell through shared popup services.',
+    },
+  ];
+  for (const spec of specs) {
+    const source = readText(spec.path);
+    for (const token of spec.tokens) {
+      if (!source.includes(token)) {
+        violations.push({
+          kind: 'svelte_popup_service_caller_missing_token',
+          path: spec.path,
+          token,
+          detail: spec.detail,
+        });
+      }
+    }
+  }
+  return violations;
+}
+
+function validateActiveMarkup(args: Args): Violation[] {
+  const violations: Violation[] = [];
+  const part01a = readText(args.htmlPart01aPath);
+  const part02 = readText(args.htmlPart02Path);
+  const part03 = readText(args.htmlPart03Path);
+  const taskbarSystemItems = readText(`${args.svelteDir}/taskbar_system_items_shell_svelte_source.ts`);
+  const requiredTokens = [
+    { path: args.htmlPart01aPath, source: part01a, token: 'anchorid="taskbar-hero-menu-anchor"' },
+    { path: args.htmlPart01aPath, source: part01a, token: 'anchorid="taskbar-help-menu-anchor"' },
+    { path: `${args.svelteDir}/taskbar_system_items_shell_svelte_source.ts`, source: `${part02}\n${taskbarSystemItems}`, token: 'anchorid="taskbar-notification-menu-anchor"' },
+    { path: args.htmlPart03Path, source: part03, token: '<infring-dashboard-popup-overlay-shell class=' },
+  ];
+  for (const item of requiredTokens) {
+    if (!item.source.includes(item.token)) {
+      violations.push({
+        kind: 'active_popup_svelte_markup_missing',
+        path: item.path,
+        token: item.token,
+        detail: 'Active popup/dropdown markup must be wired to Svelte shell callers.',
+      });
+    }
+  }
+  const forbiddenTokens = [
+    { path: args.htmlPart01aPath, source: part01a, token: 'taskbarAnchoredDropdownClass(' },
+    { path: args.htmlPart02Path, source: part02, token: 'taskbarAnchoredDropdownClass(' },
+    { path: args.htmlPart03Path, source: part03, token: 'activeDashboardPopupOrigin(' },
+    { path: args.htmlPart03Path, source: part03, token: 'dashboardPopupOverlayClass(' },
+    { path: args.htmlPart03Path, source: part03, token: 'dashboardPopupOverlayStyle(' },
+  ];
+  for (const item of forbiddenTokens) {
+    if (item.source.includes(item.token)) {
+      violations.push({
+        kind: 'active_popup_alpine_rendering_path',
+        path: item.path,
+        token: item.token,
+        detail: 'Active popup/dropdown rendering paths must not call Alpine popup-origin or orientation helpers.',
       });
     }
   }
@@ -280,6 +376,8 @@ async function run(argv = process.argv.slice(2)) {
     ...validateSharedService(args.servicePath, serviceSource),
     ...sources.flatMap((source) => validateMethodDelegates(source)),
     ...validateSvelteShells(args),
+    ...validateSvelteServiceCallers(args),
+    ...validateActiveMarkup(args),
   ];
   const checkedMethods = sources.reduce((sum, source) => sum + Object.keys(source.methods).length, 0);
   const payload = {
@@ -289,7 +387,7 @@ async function run(argv = process.argv.slice(2)) {
     revision: currentRevision(ROOT),
     inputs: args,
     summary: {
-      checked_sources: sources.length + 1,
+      checked_sources: sources.length + 6,
       checked_methods: checkedMethods,
       svelte_shells: REQUIRED_SVELTE_SHELLS.length,
       violations: violations.length,

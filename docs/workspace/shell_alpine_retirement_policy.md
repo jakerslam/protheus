@@ -22,4 +22,6 @@ A waiver is allowed only when preserving a legacy Alpine path is safer than migr
 
 `ops:shell:alpine-growth:guard` compares current Shell UI Alpine usage against the frozen baseline and fails when any file or total pattern count grows.
 
+`ops:shell:alpine-hot-path:guard` hard-fails active `x-for` loops over unbounded Shell collections such as messages, filtered messages, agents, sessions, chat map rows, and chat sidebar rows. Disabled legacy islands under `template x-if="false"` may be reported as inactive debt, but active hot-path loops are release blockers until they move to Svelte/shared Shell services.
+
 `ops:shell:alpine-ownership:guard` publishes the living inventory for `V13-CODEX-SHELL-ALPINE-002` and fails when any remaining Alpine binding/store/helper/API family lacks an owner or Svelte/shared-service migration boundary.

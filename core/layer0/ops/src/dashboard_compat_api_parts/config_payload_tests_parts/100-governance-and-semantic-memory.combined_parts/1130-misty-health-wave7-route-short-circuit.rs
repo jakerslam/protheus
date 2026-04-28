@@ -159,7 +159,7 @@ fn misty_wave7_successful_direct_turn_exposes_visibility_stage_count() {
             .payload
             .pointer("/workflow_visibility/stage_count")
             .and_then(Value::as_u64),
-        Some(2)
+        Some(4)
     );
     assert!(
         response
@@ -235,7 +235,7 @@ fn misty_wave7_recovery_turn_uses_single_minimal_llm_finalization() {
             .payload
             .pointer("/workflow_visibility/stage_count")
             .and_then(Value::as_u64),
-        Some(2)
+        Some(4)
     );
     assert_eq!(
         response
@@ -294,14 +294,14 @@ fn misty_wave7_dry_run_no_tools_uses_minimal_no_tool_exit() {
             .payload
             .pointer("/response_workflow/selected_workflow/mode")
             .and_then(Value::as_str),
-        Some("direct_no_tool_exit")
+        Some("model_direct_answer")
     );
     assert_eq!(
         response
             .payload
             .pointer("/workflow_visibility/stage_count")
             .and_then(Value::as_u64),
-        Some(2)
+        Some(4)
     );
     assert_eq!(
         response

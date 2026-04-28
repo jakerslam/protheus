@@ -32,11 +32,25 @@ const ISLAND_SPECS = [
     filename: 'sidebar_rail_shell.svelte',
   },
   {
+    id: 'sidebar_agent_list_shell',
+    sourcePath: 'client/runtime/systems/ui/infring_static/js/svelte/sidebar_agent_list_shell_svelte_source.ts',
+    bundlePath: 'client/runtime/systems/ui/infring_static/js/svelte/sidebar_agent_list_shell.bundle.ts',
+    fallbackTag: 'infring-sidebar-agent-list-shell',
+    filename: 'sidebar_agent_list_shell.svelte',
+  },
+  {
     id: 'popup_window_shell',
     sourcePath: 'client/runtime/systems/ui/infring_static/js/svelte/popup_window_shell_svelte_source.ts',
     bundlePath: 'client/runtime/systems/ui/infring_static/js/svelte/popup_window_shell.bundle.ts',
     fallbackTag: 'infring-popup-window-shell',
     filename: 'popup_window_shell.svelte',
+  },
+  {
+    id: 'dashboard_popup_overlay_shell',
+    sourcePath: 'client/runtime/systems/ui/infring_static/js/svelte/dashboard_popup_overlay_shell_svelte_source.ts',
+    bundlePath: 'client/runtime/systems/ui/infring_static/js/svelte/dashboard_popup_overlay_shell.bundle.ts',
+    fallbackTag: 'infring-dashboard-popup-overlay-shell',
+    filename: 'dashboard_popup_overlay_shell.svelte',
   },
   {
     id: 'taskbar_menu_shell',
@@ -79,6 +93,20 @@ const ISLAND_SPECS = [
     bundlePath: 'client/runtime/systems/ui/infring_static/js/svelte/taskbar_dropdown_cluster_shell.bundle.ts',
     fallbackTag: 'infring-taskbar-dropdown-cluster-shell',
     filename: 'taskbar_dropdown_cluster_shell.svelte',
+  },
+  {
+    id: 'taskbar_system_items_shell',
+    sourcePath: 'client/runtime/systems/ui/infring_static/js/svelte/taskbar_system_items_shell_svelte_source.ts',
+    bundlePath: 'client/runtime/systems/ui/infring_static/js/svelte/taskbar_system_items_shell.bundle.ts',
+    fallbackTag: 'infring-taskbar-system-items-shell',
+    filename: 'taskbar_system_items_shell.svelte',
+  },
+  {
+    id: 'bottom_dock_shell',
+    sourcePath: 'client/runtime/systems/ui/infring_static/js/svelte/bottom_dock_shell_svelte_source.ts',
+    bundlePath: 'client/runtime/systems/ui/infring_static/js/svelte/bottom_dock_shell.bundle.ts',
+    fallbackTag: 'infring-bottom-dock-shell',
+    filename: 'bottom_dock_shell.svelte',
   },
   {
     id: 'workspace_panel_shell',

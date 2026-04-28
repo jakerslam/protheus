@@ -130,13 +130,26 @@ function renderMarkdown(text) {
   return escapeHtml(text);
 }
 
-// Alpine.js global store
+function infringShellAppStoreBridge() {
+  var services = typeof window !== 'undefined' ? window.InfringSharedShellServices : null;
+  return services && services.appStore ? services.appStore : null;
+}
+
+function infringShellAppStoreCurrent() {
+  var bridge = infringShellAppStoreBridge();
+  if (bridge && typeof bridge.current === 'function') return bridge.current();
+  return (typeof window !== 'undefined' && window.InfringApp && typeof window.InfringApp === 'object')
+    ? window.InfringApp
+    : null;
+}
+
+// Temporary Alpine compatibility registration for the canonical Shell app-store bridge.
 document.addEventListener('alpine:init', function() {
   // Restore saved API key on load
   var savedKey = localStorage.getItem('infring-api-key');
   if (savedKey) InfringAPI.setAuthToken(savedKey);
 
-  Alpine.store('app', {
+  var appStoreDefinition = {
     agents: [],
     connected: false,
     booting: true,
@@ -285,7 +298,7 @@ document.addEventListener('alpine:init', function() {
       // Alpine can invoke store methods through different call paths; guard against lost `this`.
       var store = (this && typeof this === 'object' && Object.prototype.hasOwnProperty.call(this, 'agentsHydrated'))
         ? this
-        : Alpine.store('app');
+        : infringShellAppStoreCurrent();
       if (!store) return;
       var options = opts || {};
       var force = options.force === true;

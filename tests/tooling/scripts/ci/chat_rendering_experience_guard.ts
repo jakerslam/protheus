@@ -14,6 +14,7 @@ type Check = { id: string; ok: boolean; detail?: string };
 type SourceContract = {
   path: string;
   tokens: string[];
+  forbiddenTokens?: string[];
 };
 
 const CONTRACTS: SourceContract[] = [
@@ -50,29 +51,119 @@ const CONTRACTS: SourceContract[] = [
   {
     path: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0003-body-part.html',
     tokens: [
-      '<div class="chat-message-block" :id="messageDomId(msg, idx)"',
-      'message-source-chips',
-      'messageToolTraceSummary(msg).visible',
-      'message-text-skeletonized',
-      'messageMetadataShellState(msg, idx, messages)',
-      'handleMessageMetaAction($event, msg, idx, messages)',
+      '<infring-chat-thread-shell></infring-chat-thread-shell>',
       'infring-workspace-panel-shell',
+    ],
+    forbiddenTokens: [
+      '<template x-if="false">',
+      '<template x-for="(msg, idx) in messages"',
+      'messageMetadataShellState(msg, idx, messages)',
+      'chat-agent-drawer',
+      'drawerPermissionRows()',
+    ],
+  },
+  {
+    path: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0002-body-part.html',
+    tokens: [
+      '<infring-agent-details-shell></infring-agent-details-shell>',
+    ],
+    forbiddenTokens: [
+      'x-show="showAgentDrawer"',
+      'drawerPermissionRows()',
+      'filteredDrawerEmojiCatalog()',
+      'saveDrawerAll()',
+      'uploadDrawerAvatar($event.target.files)',
+      'drawerConfigForm.',
     ],
   },
   {
     path: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0005-body-part.html',
     tokens: [
-      '<div class="chat-message-block" :id="messageDomId(msg, idx)"',
-      ':data-message-dom-id="messageDomId(msg, idx)"',
-      'message-source-chips',
-      'message-tool-trace-summary',
-      'message-text-skeletonized',
-      'messageMetadataShellState(msg, idx, filteredMessages)',
-      'handleMessageMetaAction($event, msg, idx, filteredMessages)',
+      '<infring-chat-thread-shell></infring-chat-thread-shell>',
+      '<infring-chat-input-footer-shell></infring-chat-input-footer-shell>',
       'chat-workspace-panel-section',
       'workspacePanelPayload().sources',
       'workspacePanelPayload().trace',
       'workspacePanelPayload().artifacts',
+    ],
+    forbiddenTokens: [
+      'x-model="inputText"',
+      'beginAttachPickerSession()',
+      'currentInputToggleMode()',
+      'handleAttachInputChange($event)',
+      'class="composer-shell"',
+    ],
+  },
+  {
+    path: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0004-body-part.html',
+    tokens: [
+      '<infring-chat-input-footer-shell></infring-chat-input-footer-shell>',
+    ],
+    forbiddenTokens: [
+      'x-model="inputText"',
+      'beginAttachPickerSession()',
+      'currentInputToggleMode()',
+      'handleAttachInputChange($event)',
+      'class="composer-shell"',
+    ],
+  },
+  {
+    path: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0006-body-part.html',
+    tokens: [
+      'createSidebarAgentChat()',
+      'Archive all',
+    ],
+    forbiddenTokens: [
+      'x-model="inputText"',
+      'beginAttachPickerSession()',
+      'currentInputToggleMode()',
+      'handleAttachInputChange($event)',
+      'class="composer-shell"',
+    ],
+  },
+  {
+    path: 'client/runtime/systems/ui/infring_static/js/svelte/chat_input_footer_shell_svelte_source.ts',
+    tokens: [
+      "const COMPONENT_TAG = 'infring-chat-input-footer-shell'",
+      'runSend',
+      'toggleVoice',
+      'toggleTerminal',
+      'beginAttachPicker',
+      'state.menuOpen',
+      'state.showGitTreeMenu',
+      'state.showModelSwitcher',
+      'selectGit',
+      'switchModel',
+      '<textarea',
+      'state.promptSuggestionsEnabled && state.promptSuggestions.length',
+    ],
+  },
+  {
+    path: 'client/runtime/systems/ui/infring_static/js/svelte/chat_thread_shell_svelte_source.ts',
+    tokens: [
+      '<div class="chat-message-block"',
+      'data-message-dom-id={callStr',
+      'message-source-chips',
+      'message-tool-trace-summary',
+      'messageMetadataShellState',
+      'handleMessageMetaAction',
+      'shouldRenderContent(msg, idx, renderWindowVersion)',
+    ],
+  },
+  {
+    path: 'client/runtime/systems/ui/infring_static/js/svelte/agent_details_shell_svelte_source.ts',
+    tokens: [
+      "customElement={{ tag: 'infring-agent-details-shell', shadow: 'none' }}",
+      'window.InfringChatPage',
+      'drawerPermissionRows',
+      'setDrawerPermissionState',
+      'setDrawerPermissionCategoryState',
+      'saveDrawerAll',
+      'uploadDrawerAvatar',
+      'selectDrawerEmoji',
+      'applyDrawerAvatarUrl',
+      'addDrawerFallback',
+      'removeDrawerFallback',
     ],
   },
   {
@@ -227,6 +318,9 @@ function main(): void {
     const source = existsSync(contract.path) ? readText(contract.path) : '';
     for (const token of contract.tokens) {
       checks.push(check(`source_token_present:${contract.path}:${token}`, source.includes(token), token));
+    }
+    for (const token of contract.forbiddenTokens || []) {
+      checks.push(check(`source_token_absent:${contract.path}:${token}`, !source.includes(token), token));
     }
   }
   const pass = checks.every((row) => row.ok);

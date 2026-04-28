@@ -91,6 +91,17 @@ fn session_messages(state: &Value) -> Vec<Value> {
         .unwrap_or_default()
 }
 
+fn session_messages_paged(state: &Value, limit: usize, offset: usize) -> (Vec<Value>, usize) {
+    let all = session_messages(state);
+    let total = all.len();
+    if limit == 0 {
+        return (all, total);
+    }
+    let end = total.saturating_sub(offset);
+    let start = end.saturating_sub(limit);
+    (all[start..end].to_vec(), total)
+}
+
 fn all_session_messages(state: &Value) -> Vec<Value> {
     let sessions = state
         .get("sessions")

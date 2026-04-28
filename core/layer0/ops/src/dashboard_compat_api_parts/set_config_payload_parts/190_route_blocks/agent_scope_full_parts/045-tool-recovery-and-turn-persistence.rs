@@ -22,25 +22,7 @@ fn ensure_tool_turn_response_text(response_text: &str, response_tools: &[Value])
     if !cleaned.is_empty() || response_tools.is_empty() {
         return cleaned;
     }
-    let failure_reason = clean_text(
-        &response_tools_failure_reason_for_user(response_tools, 4),
-        4_000,
-    );
-    if !failure_reason.is_empty() {
-        return failure_reason;
-    }
-    let findings = clean_text(&response_tools_summary_for_user(response_tools, 4), 4_000);
-    if !findings.is_empty() {
-        let partial = format!(
-            "I completed tool steps, but only partial recorded output is available so far: {findings}"
-        );
-        return clean_chat_text(
-            &partial,
-            32_000,
-        );
-    }
-    "I couldn't finish a readable answer from the tool steps, but the failure details were recorded in this turn."
-        .to_string()
+    String::new()
 }
 
 fn persist_last_assistant_turn_metadata(
@@ -109,4 +91,39 @@ fn persist_last_assistant_turn_metadata(
     }
     save_session_state(root, &id, &state);
     json!({"ok": true, "updated": updated, "agent_id": id})
+}
+
+#[cfg(test)]
+mod tool_turn_response_text_tests {
+    use super::*;
+
+    #[test]
+    fn tool_turn_response_text_withholds_non_llm_failure_fallback_copy() {
+        let response = ensure_tool_turn_response_text(
+            "",
+            &[json!({
+                "name": "batch_query",
+                "status": "failed",
+                "is_error": true,
+                "blocked": false,
+                "result": "query_result_mismatch"
+            })],
+        );
+        assert!(response.trim().is_empty(), "{response}");
+    }
+
+    #[test]
+    fn tool_turn_response_text_withholds_non_llm_findings_fallback_copy() {
+        let response = ensure_tool_turn_response_text(
+            "",
+            &[json!({
+                "name": "batch_query",
+                "status": "ok",
+                "is_error": false,
+                "blocked": false,
+                "result": "Key findings: OpenHands is an open-source AI software development agent platform."
+            })],
+        );
+        assert!(response.trim().is_empty(), "{response}");
+    }
 }

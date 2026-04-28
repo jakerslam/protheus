@@ -675,24 +675,6 @@
       // messages fully rendered. The user is actively watching them and any
       // visual flicker from unmount/remount destroys the live-text experience.
       if (msg && (msg.streaming || msg.thinking || msg._typingVisual || msg.thoughtStreaming)) return true;
-      // Forced hydration override only: scheduleMessageRenderWindowUpdate's
-      // forceMessageRender path keeps a message rendered for ttlMs after focus
-      // (e.g., the message just had a menu action invoked on it). This keeps
-      // explicit operator interactions from unmounting their own target.
-      //
-      // Note: we deliberately do NOT consult `messageHydration` here. That map
-      // is a 320px-viewport-buffer allowlist computed by
-      // updateMessageRenderWindow, while isMessageTextInRenderWindow uses a
-      // ±20-around-active radius. If we accept either, the gate becomes a
-      // SUPERSET of isMessageTextInRenderWindow, and the
-      // .message-text-skeletonized CSS class (which keys on
-      // isMessageTextInRenderWindow) starts firing for messages where the
-      // bubble IS mounted — producing transparent text + gray-gradient on a
-      // mounted bubble, which looks identical to the placeholder but with
-      // none of the unmount benefit. Aligning both gates to the same
-      // ±active-radius set keeps the two functions logically consistent: if
-      // shouldRenderMessageContent returns true the text is visible, if it
-      // returns false the lightweight placeholder shell renders instead.
       var domId = typeof this.messageDomId === 'function'
         ? this.messageDomId(msg, idx)
         : null;
@@ -701,6 +683,9 @@
           ? this._forcedHydrateById
           : null;
         if (forced && Number(forced[domId] || 0) > Date.now()) return true;
+        if (this.messageHydrationReady && this.messageHydration && typeof this.messageHydration === 'object') {
+          return !!this.messageHydration[domId];
+        }
       }
       // Fall through to the existing render-window logic (±messageTextRenderWindowRadius
       // around the active scroll position, default 20). Active position is
@@ -716,8 +701,9 @@
     isMessageTextInRenderWindow(msg, idx, list) {
       var rows = Array.isArray(list) ? list : this.messages, active = Number(this.mapStepIndex), selected = String(this.selectedMessageDomId || this.hoveredMessageDomId || this.directHoveredMessageDomId || '').trim(), windowRows = Number(this.messageTextRenderWindowRadius || 20);
       if (!this.isMessageVirtualizationActive(rows)) return true;
+      var domId = typeof this.messageDomId === 'function' ? this.messageDomId(msg, idx) : '';
+      if (selected && domId && selected === domId) return true;
       if (!Number.isFinite(active) || active < 0 || active >= rows.length) active = Math.max(0, rows.length - 1);
-      for (var i = 0; selected && i < rows.length; i++) if (this.messageDomId(rows[i], i) === selected) { active = i; break; }
       return Math.abs(Number(idx || 0) - active) <= (Number.isFinite(windowRows) && windowRows > 0 ? windowRows : 20) || !!(msg && (msg.streaming || msg.thinking || msg._typingVisual));
     },
     messageEstimatedLineCount(msg) {
@@ -870,4 +856,6 @@
       this._forcedHydrateById = retainedForced;
       this.messageHydration = nextHydration;
       this.messageHydrationReady = true;
+      var chatStore = window.InfringChatStore;
+      if (chatStore && typeof chatStore.bumpRenderWindowVersion === 'function') chatStore.bumpRenderWindowVersion();
     },

@@ -13,8 +13,10 @@ const DEFAULT_DRAG_PART = 'client/runtime/systems/ui/infring_static/js/app.ts.pa
 const DEFAULT_CHAT_MAP_PART = 'client/runtime/systems/ui/infring_static/js/app.ts.parts/020-nav-and-layout.part06.ts';
 const DEFAULT_SIDEBAR_PART = 'client/runtime/systems/ui/infring_static/js/app.ts.parts/020-nav-and-layout.part07.ts';
 const DEFAULT_SIDEBAR_SOURCE = 'client/runtime/systems/ui/infring_static/js/svelte/sidebar_rail_shell_svelte_source.ts';
+const DEFAULT_SIDEBAR_AGENT_LIST_SOURCE = 'client/runtime/systems/ui/infring_static/js/svelte/sidebar_agent_list_shell_svelte_source.ts';
 const DEFAULT_CHAT_MAP_SOURCE = 'client/runtime/systems/ui/infring_static/js/svelte/chat_map_shell_svelte_source.ts';
 const DEFAULT_SIDEBAR_BUNDLE = 'client/runtime/systems/ui/infring_static/js/svelte/sidebar_rail_shell.bundle.ts';
+const DEFAULT_SIDEBAR_AGENT_LIST_BUNDLE = 'client/runtime/systems/ui/infring_static/js/svelte/sidebar_agent_list_shell.bundle.ts';
 const DEFAULT_CHAT_MAP_BUNDLE = 'client/runtime/systems/ui/infring_static/js/svelte/chat_map_shell.bundle.ts';
 const DEFAULT_ROUTER = 'adapters/runtime/dashboard_asset_router.ts';
 const DEFAULT_HTML_FILES = [
@@ -35,8 +37,10 @@ type Args = {
   chatMapPartPath: string;
   sidebarPartPath: string;
   sidebarSourcePath: string;
+  sidebarAgentListSourcePath: string;
   chatMapSourcePath: string;
   sidebarBundlePath: string;
+  sidebarAgentListBundlePath: string;
   chatMapBundlePath: string;
   routerPath: string;
   htmlFiles: string[];
@@ -62,8 +66,10 @@ function readArgs(argv: string[]): Args {
     chatMapPartPath: cleanText(readFlag(argv, 'chat-map-part') || DEFAULT_CHAT_MAP_PART, 400),
     sidebarPartPath: cleanText(readFlag(argv, 'sidebar-part') || DEFAULT_SIDEBAR_PART, 400),
     sidebarSourcePath: cleanText(readFlag(argv, 'sidebar-source') || DEFAULT_SIDEBAR_SOURCE, 400),
+    sidebarAgentListSourcePath: cleanText(readFlag(argv, 'sidebar-agent-list-source') || DEFAULT_SIDEBAR_AGENT_LIST_SOURCE, 400),
     chatMapSourcePath: cleanText(readFlag(argv, 'chat-map-source') || DEFAULT_CHAT_MAP_SOURCE, 400),
     sidebarBundlePath: cleanText(readFlag(argv, 'sidebar-bundle') || DEFAULT_SIDEBAR_BUNDLE, 400),
+    sidebarAgentListBundlePath: cleanText(readFlag(argv, 'sidebar-agent-list-bundle') || DEFAULT_SIDEBAR_AGENT_LIST_BUNDLE, 400),
     chatMapBundlePath: cleanText(readFlag(argv, 'chat-map-bundle') || DEFAULT_CHAT_MAP_BUNDLE, 400),
     routerPath: cleanText(readFlag(argv, 'router') || DEFAULT_ROUTER, 400),
     htmlFiles: htmlOverride ? htmlOverride.split(',').map((value) => cleanText(value, 400)).filter(Boolean) : DEFAULT_HTML_FILES,
@@ -117,8 +123,10 @@ async function run(argv = process.argv.slice(2)) {
     args.chatMapPartPath,
     args.sidebarPartPath,
     args.sidebarSourcePath,
+    args.sidebarAgentListSourcePath,
     args.chatMapSourcePath,
     args.sidebarBundlePath,
+    args.sidebarAgentListBundlePath,
     args.chatMapBundlePath,
     args.routerPath,
     ...args.htmlFiles,
@@ -209,12 +217,29 @@ async function run(argv = process.argv.slice(2)) {
       '<slot />',
     ], 'svelte_sidebar_dragbar_shell_missing', 'Sidebar rail Svelte shell must explicitly advertise the shared dragbar primitive while preserving slotted legacy markup during migration.'));
 
+    const sidebarAgentListSource = readText(args.sidebarAgentListSourcePath);
+    violations.push(...requireTokens(args.sidebarAgentListSourcePath, sidebarAgentListSource, [
+      "COMPONENT_TAG = 'infring-sidebar-agent-list-shell'",
+      's.sidebarAgents.subscribe',
+      'selectAgentChatFromSidebar',
+      'startChatSidebarTopologyDrag',
+      'handleChatSidebarTopologyDragOver',
+      'handleChatSidebarTopologyDrop',
+      'archiveAgentFromSidebar',
+    ], 'svelte_sidebar_agent_list_shell_missing', 'Sidebar agent rows must be rendered by Svelte while delegating selection, archive, and topology drag actions back to the existing shell methods.'));
+
     const chatMapSource = readText(args.chatMapSourcePath);
     violations.push(...requireTokens(args.chatMapSourcePath, chatMapSource, [
       "export let dragbarSurface = 'chat-map'",
       'export let parentOwnedMechanics = true',
-      '<slot />',
-    ], 'svelte_chat_map_dragbar_shell_missing', 'Chat map Svelte shell must explicitly advertise the shared dragbar primitive while preserving slotted legacy markup during migration.'));
+      'let mapRows = []',
+      's.mapRows.subscribe',
+      'data-msg-dom-id={row.domId}',
+      'startChatMapPointerDrag',
+      'stepMessageMap',
+      'showMapItemPopup',
+      'jumpToMessage',
+    ], 'svelte_chat_map_dragbar_shell_missing', 'Chat map Svelte shell must advertise the shared dragbar primitive and own map-row rendering/event delegation.'));
 
     violations.push(...requireTokens(args.sidebarBundlePath, readText(args.sidebarBundlePath), [
       'dragbarSurface',
@@ -222,21 +247,40 @@ async function run(argv = process.argv.slice(2)) {
       'infring-sidebar-rail-shell',
     ], 'stale_sidebar_dragbar_bundle', 'The generated sidebar rail bundle must include the dragbar shell contract props.'));
 
+    violations.push(...requireTokens(args.sidebarAgentListBundlePath, readText(args.sidebarAgentListBundlePath), [
+      'infring-sidebar-agent-list-shell',
+      'sidebarAgents',
+      'selectAgentChatFromSidebar',
+      'startChatSidebarTopologyDrag',
+      'archiveAgentFromSidebar',
+    ], 'stale_sidebar_agent_list_bundle', 'The generated sidebar agent list bundle must include the Svelte row renderer and delegated action hooks.'));
+
     violations.push(...requireTokens(args.chatMapBundlePath, readText(args.chatMapBundlePath), [
       'dragbarSurface',
       'parentOwnedMechanics',
+      'mapRows',
+      'chat-map-surface',
       'infring-chat-map-shell',
-    ], 'stale_chat_map_dragbar_bundle', 'The generated chat map bundle must include the dragbar shell contract props.'));
+    ], 'stale_chat_map_dragbar_bundle', 'The generated chat map bundle must include the dragbar shell contract props and Svelte map renderer.'));
 
     for (const htmlPath of args.htmlFiles) {
       const html = readText(htmlPath);
       if (htmlPath.includes('0001-body-part.part01.html')) {
         violations.push(...requireTokens(htmlPath, html, [
           '<infring-sidebar-rail-shell',
+          '<infring-sidebar-agent-list-shell',
           'dragbarsurface="chat-sidebar"',
           'parentownedmechanics="true"',
           'startChatSidebarPointerDrag($event)',
         ], 'sidebar_html_dragbar_shell_not_wired', 'Sidebar host must declare the chat-sidebar dragbar shell and keep parent-owned pointer mechanics.'));
+        if (html.includes('<template x-for="agent in chatSidebarVisibleRows"')) {
+          violations.push({
+            kind: 'sidebar_legacy_alpine_loop_present',
+            path: htmlPath,
+            token: '<template x-for="agent in chatSidebarVisibleRows"',
+            detail: 'Chat sidebar agent rows must not use the retired Alpine visible-row loop.',
+          });
+        }
       }
       if (htmlPath.includes('0001-body-part.part01a.html')) {
         violations.push(...requireTokens(htmlPath, html, [
@@ -250,9 +294,15 @@ async function run(argv = process.argv.slice(2)) {
           '<infring-chat-map-shell',
           'dragbarsurface="chat-map"',
           'parentownedmechanics="true"',
-          'data-dragbar-surface="chat-map"',
-          'startChatMapPointerDrag($event)',
-        ], 'chat_map_html_dragbar_shell_not_wired', 'Chat map host must declare the chat-map dragbar shell and keep parent-owned pointer mechanics.'));
+        ], 'chat_map_html_dragbar_shell_not_wired', 'Chat map host must declare the chat-map dragbar shell while Svelte owns pointer mechanics.'));
+        if (html.includes('<template x-for="(msg, idx) in messages"')) {
+          violations.push({
+            kind: 'chat_map_legacy_alpine_loop_present',
+            path: htmlPath,
+            token: '<template x-for="(msg, idx) in messages"',
+            detail: 'Chat map rendering must not use the retired Alpine message loop.',
+          });
+        }
       }
     }
 

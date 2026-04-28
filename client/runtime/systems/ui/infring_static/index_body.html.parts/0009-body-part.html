@@ -27,7 +27,7 @@
 
     <!-- Page: Scheduler -->
     <template x-if="page === 'scheduler'">
-      <infring-scheduler-page-shell>
+      <infring-scheduler-page-shell shellprimitive="simple-page-panel" pageid="scheduler" panelrole="page" routecontract="scheduler" parentowneddata="true">
       <div x-data="schedulerPage()">
         <div class="page-header page-header-subtabs-center">
           <div class="tabs mt-3" role="tablist">
@@ -52,7 +52,7 @@
           </div>
 
           <!-- ── TAB: Scheduled Jobs ── -->
-          <infring-scheduler-jobs-tab-shell>
+          <infring-scheduler-jobs-tab-shell shellprimitive="simple-page-panel" pageid="scheduler" tabid="jobs" panelrole="scheduler-tab" routecontract="scheduler:jobs" parentowneddata="true">
           <div x-show="tab === 'jobs'">
             <div x-show="loading" class="loading-state"><div class="spinner"></div><span>Loading scheduled jobs...</span></div>
             <div x-show="!loading && loadError" class="error-state">
@@ -192,7 +192,7 @@
           </infring-scheduler-jobs-tab-shell>
 
           <!-- ── TAB: Event Triggers ── -->
-          <infring-scheduler-triggers-tab-shell>
+          <infring-scheduler-triggers-tab-shell shellprimitive="simple-page-panel" pageid="scheduler" tabid="triggers" panelrole="scheduler-tab" routecontract="scheduler:triggers" parentowneddata="true">
           <div x-show="tab === 'triggers'">
             <div x-show="trigLoading" class="loading-state"><div class="spinner"></div><span>Loading triggers...</span></div>
             <div x-show="!trigLoading && trigLoadError" class="error-state">
@@ -240,7 +240,7 @@
           </infring-scheduler-triggers-tab-shell>
 
           <!-- ── TAB: Run History ── -->
-          <infring-scheduler-history-tab-shell>
+          <infring-scheduler-history-tab-shell shellprimitive="simple-page-panel" pageid="scheduler" tabid="history" panelrole="scheduler-tab" routecontract="scheduler:history" parentowneddata="true">
           <div x-show="tab === 'history'">
             <div x-show="historyLoading" class="loading-state"><div class="spinner"></div><span>Loading run history...</span></div>
             <div x-show="!historyLoading">
@@ -281,7 +281,7 @@
 
     <!-- Page: Channels -->
     <template x-if="page === 'channels'">
-      <infring-channels-page-shell>
+      <infring-channels-page-shell shellprimitive="simple-page-panel" pageid="channels" panelrole="page" routecontract="channels" parentowneddata="true">
       <div x-data="channelsPage">
         <div class="page-header page-header-subtabs-center">
           <div class="tabs mt-3" role="tablist">

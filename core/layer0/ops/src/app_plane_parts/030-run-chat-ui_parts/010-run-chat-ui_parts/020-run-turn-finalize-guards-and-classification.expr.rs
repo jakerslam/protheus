@@ -85,9 +85,15 @@
             }
         }
         let web_search_calls = chat_ui_web_search_call_count(&tools) as i64;
-        if assistant.trim().is_empty()
-            || crate::tool_output_match_filter::matches_ack_placeholder(&assistant)
-            || crate::tool_output_match_filter::contains_forbidden_runtime_context_markers(&assistant)
+        let assistant_ack_placeholder =
+            crate::tool_output_match_filter::matches_ack_placeholder(&assistant);
+        let assistant_forbidden_runtime_markers =
+            crate::tool_output_match_filter::contains_forbidden_runtime_context_markers(&assistant);
+        if (assistant.trim().is_empty() || assistant_forbidden_runtime_markers)
+            && !hard_guard
+                .get("applied")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
         {
             let (fallback_status, fallback_error_code) = chat_ui_fallback_status_error_for_diagnostics(
                 &tool_diagnostics,
@@ -98,7 +104,8 @@
             hard_guard = json!({
                 "applied": true,
                 "status": fallback_status,
-                "error_code": fallback_error_code
+                "error_code": fallback_error_code,
+                "source": "response_reliability_guard"
             });
             if forced_web_error_code.is_empty() {
                 forced_web_error_code = fallback_error_code.to_string();
@@ -245,15 +252,25 @@
         if !classification_consistent {
             web_classification = expected_web_classification.to_string();
         }
-        let assistant_placeholder_like = assistant.trim().is_empty()
-            || crate::tool_output_match_filter::matches_ack_placeholder(&assistant)
-            || crate::tool_output_match_filter::contains_forbidden_runtime_context_markers(&assistant);
+        let assistant_placeholder_like =
+            assistant.trim().is_empty() || assistant_ack_placeholder || assistant_forbidden_runtime_markers;
         let assistant_context_mismatch = !chat_ui_response_matches_previous_message(&message, &assistant)
             || chat_ui_contains_kernel_patch_thread_dump(&message, &assistant)
             || chat_ui_contains_role_preamble_prompt_dump(&message, &assistant)
             || chat_ui_contains_competitive_programming_dump(&message, &assistant);
         let classification_findings_available = chat_ui_tools_have_valid_findings(&tools);
-        let classification_should_fail_close = requires_live_web
+        let classification_guard_relevant = requires_live_web
+            || web_search_calls > 0
+            || blocked_signal
+            || not_found_signal
+            || low_signal
+            || tool_surface_error_code.is_some();
+        let classification_requires_visible_suppression = matches!(
+            web_classification.as_str(),
+            "workflow_gate_blocked" | "policy_blocked"
+        ) || assistant.trim().is_empty()
+            || assistant_forbidden_runtime_markers;
+        let classification_should_fail_close = classification_guard_relevant
             && response_finalization_outcome != "tool_surface_error_fail_closed"
             && matches!(
                 web_classification.as_str(),
@@ -265,6 +282,7 @@
                     | "tool_not_found"
                     | "low_signal"
             )
+            && classification_requires_visible_suppression
             && (assistant_placeholder_like
                 || !classification_findings_available
                 || assistant_context_mismatch);
@@ -304,6 +322,7 @@
         }
         if !requires_live_web
             && assistant_context_mismatch
+            && (assistant.trim().is_empty() || assistant_forbidden_runtime_markers)
             && !hard_guard
                 .get("applied")
                 .and_then(Value::as_bool)
@@ -414,9 +433,7 @@
             )
             .to_string();
         }
-        if (assistant.trim().is_empty()
-            || crate::tool_output_match_filter::matches_ack_placeholder(&assistant)
-            || crate::tool_output_match_filter::contains_forbidden_runtime_context_markers(&assistant))
+        if (assistant.trim().is_empty() || assistant_forbidden_runtime_markers)
             && !hard_guard
                 .get("applied")
                 .and_then(Value::as_bool)
