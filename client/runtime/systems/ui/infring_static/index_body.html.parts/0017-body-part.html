@@ -226,7 +226,7 @@
       </infring-wizard-page-shell>
     </template>
     <template x-if="$store.app.page === 'runtime'">
-      <infring-runtime-page-shell>
+      <infring-runtime-page-shell shellprimitive="simple-page-panel" pageid="runtime" panelrole="page" routecontract="runtime" parentowneddata="true">
       <div x-data="runtimePage">
         <div class="page-header page-header-subtabs-center">
           <div>

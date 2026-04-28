@@ -407,9 +407,4 @@
           </div>
           </infring-chat-header-shell>
         </template>
-        <infring-agent-details-shell>
-        <div class="chat-agent-drawer-backdrop" x-show="showAgentDrawer" x-transition.opacity @click="closeAgentDrawer()"></div>
-        <aside class="chat-agent-drawer overlay-shared-surface" x-show="showAgentDrawer" x-transition:enter="transition ease-out duration-180" x-transition:enter-start="opacity-0 translate-x-4" x-transition:enter-end="opacity-100 translate-x-0" x-transition:leave="transition ease-in duration-140" x-transition:leave-start="opacity-100 translate-x-0" x-transition:leave-end="opacity-0 translate-x-4" @click.outside="closeAgentDrawer()">
-          <div class="chat-agent-drawer-head">
-            <div class="chat-agent-drawer-title">Agent Details</div>
-            <button class="chat-agent-drawer-close" @click="closeAgentDrawer()" aria-label="Close details">&times;</button>
+        <infring-agent-details-shell></infring-agent-details-shell>

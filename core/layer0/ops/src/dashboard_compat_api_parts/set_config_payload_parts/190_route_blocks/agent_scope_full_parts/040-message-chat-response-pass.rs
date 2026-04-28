@@ -32,17 +32,17 @@ fn handle_message_chat_response_pass(
         pre_generation_pruned,
         recent_floor_enforced,
         recent_floor_injected,
-        recent_floor_target,
-        recent_floor_missing_before,
-        recent_floor_satisfied,
-        recent_floor_coverage_before,
-        recent_floor_coverage_after,
-        recent_floor_active_missing,
-        recent_floor_active_satisfied,
-        recent_floor_active_coverage,
-        recent_floor_continuity_status,
-        recent_floor_continuity_action,
-        recent_floor_continuity_message,
+        recent_floor_target: _,
+        recent_floor_missing_before: _,
+        recent_floor_satisfied: _,
+        recent_floor_coverage_before: _,
+        recent_floor_coverage_after: _,
+        recent_floor_active_missing: _,
+        recent_floor_active_satisfied: _,
+        recent_floor_active_coverage: _,
+        recent_floor_continuity_status: _,
+        recent_floor_continuity_action: _,
+        recent_floor_continuity_message: _,
         history_trim_confirmed,
         emergency_compact,
         workspace_hints,
@@ -50,92 +50,6 @@ fn handle_message_chat_response_pass(
         inline_tools_allowed,
         system_prompt,
     } = prepared;
-    let simple_conversation_minimal_final_turn =
-        workflow_turn_is_simple_conversation_without_tool_intent(message);
-    let no_tool_minimal_final_turn = workflow_turn_is_meta_control_message(message)
-        || message_explicitly_disallows_tool_calls(message)
-        || simple_conversation_minimal_final_turn;
-    if no_tool_minimal_final_turn {
-        let runtime_summary = runtime_sync_summary(snapshot);
-        let workflow_mode = if workflow_turn_is_meta_control_message(message) {
-            "direct_conversation_recovery"
-        } else if simple_conversation_minimal_final_turn {
-            "direct_simple_conversation"
-        } else {
-            "direct_no_tool_exit"
-        };
-        let fast_model_route = simple_direct_chat_fast_model_route(
-            root,
-            snapshot,
-            message,
-            inline_tools_allowed,
-            &provider,
-            &model,
-        );
-        let (final_provider, final_model, final_auto_route, final_requested_provider, final_requested_model) =
-            if let Some((provider, model, route)) = fast_model_route {
-                (provider, model, Some(route), "auto".to_string(), String::new())
-            } else {
-                (
-                    provider.clone(),
-                    model.clone(),
-                    auto_route.clone(),
-                    requested_provider.clone(),
-                    requested_model.clone(),
-                )
-            };
-        let synthetic_result = json!({
-            "provider": final_provider,
-            "model": final_model,
-            "runtime_model": final_model,
-            "response": "",
-            "input_tokens": estimate_tokens(message),
-            "output_tokens": 0,
-            "cost_usd": 0.0,
-            "workflow_direct_no_tool_gate": true
-        });
-        return Some(finalize_message_finalization_and_payload(
-            root,
-            agent_id,
-            message,
-            &synthetic_result,
-            String::new(),
-            Vec::new(),
-            workflow_mode.to_string(),
-            Vec::new(),
-            runtime_summary,
-            state,
-            messages,
-            active_messages,
-            final_provider,
-            final_model,
-            final_requested_provider,
-            final_requested_model,
-            final_auto_route,
-            virtual_key_id,
-            virtual_key_gate,
-            fallback_window,
-            context_active_tokens,
-            context_ratio,
-            context_pressure,
-            context_pool_limit_tokens,
-            context_pool_tokens,
-            pooled_messages_len,
-            sessions_total,
-            memory_kv_entries,
-            active_context_target_tokens,
-            active_context_min_recent,
-            include_all_sessions_context,
-            pre_generation_pruned,
-            recent_floor_enforced,
-            recent_floor_injected,
-            history_trim_confirmed,
-            emergency_compact,
-            workspace_hints,
-            latent_tool_candidates,
-            inline_tools_allowed,
-        ));
-    }
     match crate::dashboard_provider_runtime::invoke_chat(
         root,
         &provider,
@@ -439,31 +353,6 @@ fn handle_message_chat_response_pass(
                 response_text = abstract_runtime_mechanics_terms(&response_text);
             }
             response_text = strip_internal_cache_control_markup(&response_text);
-            let latest_assistant_text = active_messages
-                .iter()
-                .rev()
-                .find_map(|row| {
-                    let role =
-                        clean_text(row.get("role").and_then(Value::as_str).unwrap_or(""), 24)
-                            .to_ascii_lowercase();
-                    if role != "assistant" && role != "agent" {
-                        return None;
-                    }
-                    let text = clean_chat_text(
-                        row.get("text")
-                            .or_else(|| row.get("content"))
-                            .or_else(|| row.get("message"))
-                            .and_then(Value::as_str)
-                            .unwrap_or(""),
-                        32_000,
-                    );
-                    if text.trim().is_empty() {
-                        None
-                    } else {
-                        Some(text)
-                    }
-                })
-                .unwrap_or_default();
             if response_contains_unexpected_state_retry_boilerplate(&response_text)
                 || workflow_response_repetition_breaker_active(&response_text)
             {

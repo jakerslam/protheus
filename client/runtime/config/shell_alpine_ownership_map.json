@@ -22,7 +22,12 @@
         "alpine_shorthand_events",
         "alpine_shorthand_bindings",
         "alpine_magic_store",
-        "alpine_magic_watch_next_tick"
+        "alpine_magic_watch_next_tick",
+        "alpine_x_data",
+        "alpine_x_for",
+        "alpine_x_model",
+        "alpine_x_bind",
+        "alpine_x_on"
       ],
       "notes": "Owns the remaining static template bindings until each slice is replaced by Svelte components wired through shared shell services."
     },
@@ -35,7 +40,8 @@
         "client/runtime/systems/ui/infring_static/js/api.ts"
       ],
       "applies_to_patterns": [
-        "alpine_direct_api"
+        "alpine_direct_api",
+        "alpine_store_api"
       ],
       "notes": "Bootstrap-only Alpine registrations must not grow; final removal happens when toast/error/websocket bootstraps are fully service-owned."
     },
@@ -49,7 +55,8 @@
       ],
       "applies_to_patterns": [
         "alpine_direct_api",
-        "alpine_magic_watch_next_tick"
+        "alpine_magic_watch_next_tick",
+        "alpine_store_api"
       ],
       "notes": "Covers remaining Alpine app bootstrap/page-routing hooks while the Shell root continues moving to Svelte."
     },
@@ -64,7 +71,8 @@
       "applies_to_patterns": [
         "alpine_direct_api",
         "alpine_magic_store",
-        "alpine_magic_watch_next_tick"
+        "alpine_magic_watch_next_tick",
+        "alpine_store_api"
       ],
       "notes": "Keeps agent list/detail interaction ownership explicit until the remaining Alpine store and helper usage is retired."
     },
@@ -79,7 +87,8 @@
       "applies_to_patterns": [
         "alpine_direct_api",
         "alpine_magic_store",
-        "alpine_magic_watch_next_tick"
+        "alpine_magic_watch_next_tick",
+        "alpine_store_api"
       ],
       "notes": "This is the highest-risk interactive Alpine owner because it includes session switching, render windows, scroll state, and drag behavior."
     },
@@ -98,7 +107,8 @@
       ],
       "applies_to_patterns": [
         "alpine_direct_api",
-        "alpine_magic_watch_next_tick"
+        "alpine_magic_watch_next_tick",
+        "alpine_store_api"
       ],
       "notes": "Groups low-count dashboard page Alpine calls so they have a clear migration lane without pretending they are deleted."
     },
@@ -112,7 +122,8 @@
         "client/runtime/systems/ui/infring_static/js/pages/workflow-builder.ts"
       ],
       "applies_to_patterns": [
-        "alpine_direct_api"
+        "alpine_direct_api",
+        "alpine_store_api"
       ],
       "notes": "Tracks the remaining wizard/workflow-builder Alpine calls until those pages are fully component-owned."
     }

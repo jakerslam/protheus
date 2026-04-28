@@ -3,7 +3,7 @@
           </infring-skills-clawhub-tab-shell>
 
           <!-- TAB: MCP Servers -->
-          <infring-skills-mcp-tab-shell>
+          <infring-skills-mcp-tab-shell shellprimitive="simple-page-panel" pageid="skills" tabid="mcp" panelrole="skills-tab" routecontract="skills:mcp" parentowneddata="true">
           <div x-show="tab === 'mcp'">
             <div class="info-card">
               <h4>MCP Servers (Model Context Protocol)</h4>
@@ -77,7 +77,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
           </infring-skills-mcp-tab-shell>
 
           <!-- TAB: Quick Start (Create prompt-only plugins) -->
-          <infring-skills-create-tab-shell>
+          <infring-skills-create-tab-shell shellprimitive="simple-page-panel" pageid="skills" tabid="create" panelrole="skills-tab" routecontract="skills:create" parentowneddata="true">
           <div x-show="tab === 'create'">
             <div class="info-card">
               <h4>Quick Start Plugins</h4>
@@ -168,7 +168,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
 
     <!-- Page: Hands -->
     <template x-if="page === 'hands'">
-      <infring-hands-page-shell>
+      <infring-hands-page-shell shellprimitive="simple-page-panel" pageid="hands" panelrole="page" routecontract="hands" parentowneddata="true">
       <div x-data="handsPage">
         <div class="page-header page-header-subtabs-center">
           <div class="tabs mt-3" role="tablist">
@@ -203,7 +203,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
             </div>
 
             <!-- TAB: Available Hands -->
-            <infring-hands-available-tab-shell>
+            <infring-hands-available-tab-shell shellprimitive="simple-page-panel" pageid="hands" tabid="available" panelrole="hands-tab" routecontract="hands:available" parentowneddata="true">
             <div x-show="tab === 'available'">
               <div class="card-grid" x-show="hands.length">
                 <template x-for="hand in hands" :key="hand.id">
@@ -254,7 +254,7 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "/path"]</pre>
             </infring-hands-available-tab-shell>
 
             <!-- TAB: Active Instances -->
-            <infring-hands-active-tab-shell>
+            <infring-hands-active-tab-shell shellprimitive="simple-page-panel" pageid="hands" tabid="active" panelrole="hands-tab" routecontract="hands:active" parentowneddata="true">
             <div x-show="tab === 'active'">
               <div x-show="activeLoading" class="loading-state"><div class="spinner"></div><span>Loading active hands...</span></div>
               <div class="card-grid" x-show="instances.length && !activeLoading">

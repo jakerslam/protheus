@@ -9,8 +9,8 @@
                 }
             }),
         );
-        assert_eq!(outcome, "placeholder_withheld_surface_degraded");
-        assert!(rewritten.is_empty(), "{rewritten}");
+        assert_eq!(outcome, "placeholder_detected_surface_degraded");
+        assert_eq!(rewritten, "Web search completed.");
     }
 
     #[test]
@@ -42,12 +42,13 @@
         let assistant = payload.pointer("/turn/assistant").and_then(Value::as_str).unwrap_or("");
         let lowered = assistant.to_ascii_lowercase();
         assert!(
-            lowered.contains("automatic info/task route classification is disabled")
-                || lowered.contains("i could not produce a reliable response for your last message in this turn"),
+            !lowered.contains("automatic info/task route classification is disabled"),
             "{assistant}"
         );
-        assert!(!lowered.contains("decision tree that automatically classifies"), "{assistant}");
-        assert!(!lowered.contains("[source:tool_decision_tree_v3]"), "{assistant}");
+        assert!(
+            !lowered.contains("i could not produce a reliable response for your last message in this turn"),
+            "{assistant}"
+        );
     }
 
     #[test]

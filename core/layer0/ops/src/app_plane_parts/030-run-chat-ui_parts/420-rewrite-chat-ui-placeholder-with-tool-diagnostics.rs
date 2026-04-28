@@ -25,31 +25,31 @@ fn rewrite_chat_ui_placeholder_with_tool_diagnostics(
     let has_silent_failure = errors.contains_key("web_tool_silent_failure");
 
     if has_surface_unavailable {
-        return ("".to_string(), "placeholder_withheld_surface_unavailable".to_string());
+        return (current, "placeholder_detected_surface_unavailable".to_string());
     }
     if has_surface_degraded {
-        return ("".to_string(), "placeholder_withheld_surface_degraded".to_string());
+        return (current, "placeholder_detected_surface_degraded".to_string());
     }
     if has_auth_missing {
-        return ("".to_string(), "placeholder_withheld_auth".to_string());
+        return (current, "placeholder_detected_auth".to_string());
     }
     if has_policy_blocked {
-        return ("".to_string(), "placeholder_withheld_policy".to_string());
+        return (current, "placeholder_detected_policy".to_string());
     }
     if has_invalid_response {
-        return ("".to_string(), "placeholder_withheld_invalid_response".to_string());
+        return (current, "placeholder_detected_invalid_response".to_string());
     }
     if has_not_found {
-        return ("".to_string(), "placeholder_withheld_not_found".to_string());
+        return (current, "placeholder_detected_not_found".to_string());
     }
     if has_silent_failure {
-        return ("".to_string(), "placeholder_withheld_silent_failure".to_string());
+        return (current, "placeholder_detected_silent_failure".to_string());
     }
     if has_error {
-        return ("".to_string(), "placeholder_withheld_error".to_string());
+        return (current, "placeholder_detected_error".to_string());
     }
     if total_calls > 0 {
-        return ("".to_string(), "placeholder_withheld_low_signal".to_string());
+        return (current, "placeholder_detected_low_signal".to_string());
     }
     (current, "unchanged".to_string())
 }
@@ -96,30 +96,8 @@ fn rewrite_chat_ui_legacy_route_classifier_copy(assistant: &str) -> (String, Str
     if current.is_empty() || !chat_ui_contains_legacy_route_classifier_copy(&current) {
         return (current, "unchanged".to_string());
     }
-    let mut rewritten = current;
-    for marker in [
-        "[source:workflow_gate]",
-        "[source:tool_gate]",
-        "[source:tool_decision_tree_v3]",
-        "[source:workflow_route_classification]",
-        "[source:gate_enforcement_mode]",
-        "[source:tool_decision_policy]",
-        "[source:conversation_bypass_control]",
-        "[source:agent_framework_analysis]",
-        "source:workflow_route_classification",
-        "source:gate_enforcement_mode",
-        "source:tool_decision_policy",
-        "source:conversation_bypass_control",
-        "source:agent_framework_analysis",
-    ] {
-        rewritten = rewritten.replace(marker, "");
-    }
-    let lowered = rewritten.to_ascii_lowercase();
-    if chat_ui_contains_legacy_route_classifier_copy(&lowered) {
-        return ("".to_string(), "legacy_route_classifier_copy_withheld".to_string());
-    }
     (
-        clean(&rewritten, 16_000),
-        "legacy_route_classifier_copy_stripped".to_string(),
+        current,
+        "legacy_route_classifier_copy_detected".to_string(),
     )
 }

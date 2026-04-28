@@ -20,8 +20,21 @@ pub(crate) fn chat_ui_turn_tool_decision_tree(raw_input: &str) -> Value {
     let tool_selection_authority = "llm_submitted_menu_or_text_input";
     let llm_should_answer_directly = false;
     let workflow_retry_limit = 1;
-    let needs_tool_access = false;
+    let needs_tool_access = Value::Null;
+    let gate_1_submission_status = "awaiting_llm_submission";
+    let gate_1_decision_source = "pending_llm_submission";
     let gate_prompt = "Need tools? Yes/No";
+    let gate_1_resume_token = "gate_1_need_tool_access_menu.awaiting_llm_submission";
+    let gate_1_submission = json!({
+        "gate_id": "gate_1_need_tool_access_menu",
+        "input_shape": {
+            "type": "multiple_choice",
+            "allowed_outputs": ["Yes", "No"]
+        },
+        "llm_submission": Value::Null,
+        "accepted": false,
+        "resume_token": gate_1_resume_token
+    });
     let selected_tool_family = "unselected";
     let tool_family_menu = json!([
         {
@@ -125,6 +138,9 @@ pub(crate) fn chat_ui_turn_tool_decision_tree(raw_input: &str) -> Value {
         "has_sufficient_information": has_sufficient_information,
         "should_call_tools": should_call_tools,
         "needs_tool_access": needs_tool_access,
+        "gate_1_submission_status": gate_1_submission_status,
+        "gate_1_decision_source": gate_1_decision_source,
+        "gate_submission": gate_1_submission,
         "gate_prompt": gate_prompt,
         "gate_decision_mode": "manual_need_tools_yes_no",
         "reason_code": reason_code,

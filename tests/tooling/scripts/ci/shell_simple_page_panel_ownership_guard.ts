@@ -17,12 +17,32 @@ const PAGE_SHELLS = [
   { page: 'agents', tag: 'infring-agents-page-shell', source: 'agents_page_shell_svelte_source.ts', bundle: 'agents_page_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0005-body-part.html' },
   { page: 'approvals', tag: 'infring-approvals-page-shell', source: 'approvals_page_shell_svelte_source.ts', bundle: 'approvals_page_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0008-body-part.html' },
   { page: 'workflows', tag: 'infring-workflows-page-shell', source: 'workflows_page_shell_svelte_source.ts', bundle: 'workflows_page_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0008-body-part.html' },
+  { page: 'scheduler', tag: 'infring-scheduler-page-shell', source: 'scheduler_page_shell_svelte_source.ts', bundle: 'scheduler_page_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0009-body-part.html' },
+  { page: 'channels', tag: 'infring-channels-page-shell', source: 'channels_page_shell_svelte_source.ts', bundle: 'channels_page_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0009-body-part.html' },
+  { page: 'eyes', tag: 'infring-eyes-page-shell', source: 'eyes_page_shell_svelte_source.ts', bundle: 'eyes_page_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0010-body-part.html' },
+  { page: 'skills', tag: 'infring-skills-page-shell', source: 'skills_page_shell_svelte_source.ts', bundle: 'skills_page_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0010-body-part.html' },
+  { page: 'hands', tag: 'infring-hands-page-shell', source: 'hands_page_shell_svelte_source.ts', bundle: 'hands_page_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0011-body-part.html' },
   { page: 'settings', tag: 'infring-settings-page-shell', source: 'settings_page_shell_svelte_source.ts', bundle: 'settings_page_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0013-body-part.html' },
+  { page: 'analytics', tag: 'infring-analytics-page-shell', source: 'analytics_page_shell_svelte_source.ts', bundle: 'analytics_page_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0014-body-part.html' },
+  { page: 'sessions', tag: 'infring-sessions-page-shell', source: 'sessions_page_shell_svelte_source.ts', bundle: 'sessions_page_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0015-body-part.html' },
+  { page: 'logs', tag: 'infring-logs-page-shell', source: 'logs_page_shell_svelte_source.ts', bundle: 'logs_page_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0015-body-part.html' },
+  { page: 'comms', tag: 'infring-comms-page-shell', source: 'comms_page_shell_svelte_source.ts', bundle: 'comms_page_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0016-body-part.html' },
+  { page: 'wizard', tag: 'infring-wizard-page-shell', source: 'wizard_page_shell_svelte_source.ts', bundle: 'wizard_page_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0016-body-part.html' },
+  { page: 'runtime', tag: 'infring-runtime-page-shell', source: 'runtime_page_shell_svelte_source.ts', bundle: 'runtime_page_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0017-body-part.html' },
 ];
 
 const TAB_SHELLS = [
   { page: 'workflows', tab: 'list', role: 'workflow-tab', tag: 'infring-workflows-list-tab-shell', source: 'workflows_list_tab_shell_svelte_source.ts', bundle: 'workflows_list_tab_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0008-body-part.html' },
   { page: 'workflows', tab: 'builder', role: 'workflow-tab', tag: 'infring-workflows-builder-tab-shell', source: 'workflows_builder_tab_shell_svelte_source.ts', bundle: 'workflows_builder_tab_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0008-body-part.html' },
+  { page: 'scheduler', tab: 'jobs', role: 'scheduler-tab', tag: 'infring-scheduler-jobs-tab-shell', source: 'scheduler_jobs_tab_shell_svelte_source.ts', bundle: 'scheduler_jobs_tab_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0009-body-part.html' },
+  { page: 'scheduler', tab: 'triggers', role: 'scheduler-tab', tag: 'infring-scheduler-triggers-tab-shell', source: 'scheduler_triggers_tab_shell_svelte_source.ts', bundle: 'scheduler_triggers_tab_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0009-body-part.html' },
+  { page: 'scheduler', tab: 'history', role: 'scheduler-tab', tag: 'infring-scheduler-history-tab-shell', source: 'scheduler_history_tab_shell_svelte_source.ts', bundle: 'scheduler_history_tab_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0009-body-part.html' },
+  { page: 'skills', tab: 'installed', role: 'skills-tab', tag: 'infring-skills-installed-tab-shell', source: 'skills_installed_tab_shell_svelte_source.ts', bundle: 'skills_installed_tab_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0010-body-part.html' },
+  { page: 'skills', tab: 'clawhub', role: 'skills-tab', tag: 'infring-skills-clawhub-tab-shell', source: 'skills_clawhub_tab_shell_svelte_source.ts', bundle: 'skills_clawhub_tab_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0010-body-part.html' },
+  { page: 'skills', tab: 'mcp', role: 'skills-tab', tag: 'infring-skills-mcp-tab-shell', source: 'skills_mcp_tab_shell_svelte_source.ts', bundle: 'skills_mcp_tab_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0011-body-part.html' },
+  { page: 'skills', tab: 'create', role: 'skills-tab', tag: 'infring-skills-create-tab-shell', source: 'skills_create_tab_shell_svelte_source.ts', bundle: 'skills_create_tab_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0011-body-part.html' },
+  { page: 'hands', tab: 'available', role: 'hands-tab', tag: 'infring-hands-available-tab-shell', source: 'hands_available_tab_shell_svelte_source.ts', bundle: 'hands_available_tab_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0011-body-part.html' },
+  { page: 'hands', tab: 'active', role: 'hands-tab', tag: 'infring-hands-active-tab-shell', source: 'hands_active_tab_shell_svelte_source.ts', bundle: 'hands_active_tab_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0011-body-part.html' },
   { page: 'settings', tab: 'providers', role: 'settings-tab', tag: 'infring-settings-providers-tab-shell', source: 'settings_providers_tab_shell_svelte_source.ts', bundle: 'settings_providers_tab_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0013-body-part.html' },
   { page: 'settings', tab: 'models', role: 'settings-tab', tag: 'infring-settings-models-tab-shell', source: 'settings_models_tab_shell_svelte_source.ts', bundle: 'settings_models_tab_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0013-body-part.html' },
   { page: 'settings', tab: 'tools', role: 'settings-tab', tag: 'infring-settings-tools-tab-shell', source: 'settings_tools_tab_shell_svelte_source.ts', bundle: 'settings_tools_tab_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0013-body-part.html' },
@@ -32,6 +52,14 @@ const TAB_SHELLS = [
   { page: 'settings', tab: 'network', role: 'settings-tab', tag: 'infring-settings-network-tab-shell', source: 'settings_network_tab_shell_svelte_source.ts', bundle: 'settings_network_tab_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0014-body-part.html' },
   { page: 'settings', tab: 'budget', role: 'settings-tab', tag: 'infring-settings-budget-tab-shell', source: 'settings_budget_tab_shell_svelte_source.ts', bundle: 'settings_budget_tab_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0014-body-part.html' },
   { page: 'settings', tab: 'migration', role: 'settings-tab', tag: 'infring-settings-migration-tab-shell', source: 'settings_migration_tab_shell_svelte_source.ts', bundle: 'settings_migration_tab_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0014-body-part.html' },
+  { page: 'analytics', tab: 'summary', role: 'analytics-tab', tag: 'infring-analytics-summary-tab-shell', source: 'analytics_summary_tab_shell_svelte_source.ts', bundle: 'analytics_summary_tab_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0015-body-part.html' },
+  { page: 'analytics', tab: 'by-model', role: 'analytics-tab', tag: 'infring-analytics-by-model-tab-shell', source: 'analytics_by_model_tab_shell_svelte_source.ts', bundle: 'analytics_by_model_tab_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0015-body-part.html' },
+  { page: 'analytics', tab: 'by-agent', role: 'analytics-tab', tag: 'infring-analytics-by-agent-tab-shell', source: 'analytics_by_agent_tab_shell_svelte_source.ts', bundle: 'analytics_by_agent_tab_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0015-body-part.html' },
+  { page: 'analytics', tab: 'costs', role: 'analytics-tab', tag: 'infring-analytics-costs-tab-shell', source: 'analytics_costs_tab_shell_svelte_source.ts', bundle: 'analytics_costs_tab_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0015-body-part.html' },
+  { page: 'sessions', tab: 'conversation', role: 'sessions-tab', tag: 'infring-sessions-conversation-tab-shell', source: 'sessions_conversation_tab_shell_svelte_source.ts', bundle: 'sessions_conversation_tab_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0015-body-part.html' },
+  { page: 'sessions', tab: 'memory', role: 'sessions-tab', tag: 'infring-sessions-memory-tab-shell', source: 'sessions_memory_tab_shell_svelte_source.ts', bundle: 'sessions_memory_tab_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0015-body-part.html' },
+  { page: 'logs', tab: 'live', role: 'logs-tab', tag: 'infring-logs-live-tab-shell', source: 'logs_live_tab_shell_svelte_source.ts', bundle: 'logs_live_tab_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0016-body-part.html' },
+  { page: 'logs', tab: 'audit', role: 'logs-tab', tag: 'infring-logs-audit-tab-shell', source: 'logs_audit_tab_shell_svelte_source.ts', bundle: 'logs_audit_tab_shell.bundle.ts', html: 'client/runtime/systems/ui/infring_static/index_body.html.parts/0016-body-part.html' },
 ];
 
 type Args = {
@@ -126,12 +154,16 @@ async function run(argv = process.argv.slice(2)) {
       'shellTagFor: shellTagFor',
       'isKnownPanel: isKnownPanel',
       'infring-overview-page-shell',
+      'infring-runtime-page-shell',
+      'infring-logs-audit-tab-shell',
       'infring-settings-migration-tab-shell',
     ], 'missing_simple_page_panel_service_token', 'Simple page panel route/tab metadata must be centralized in the shared Shell simplePagePanel service.'));
 
     violations.push(...requireTokens(parsed.routerPath, read(parsed.routerPath), [
       "readForkScript(staticDir, 'js/shell/simple_page_panel_shell_services')",
       "readForkScript(staticDir, 'js/svelte/overview_page_shell.bundle')",
+      "readForkScript(staticDir, 'js/svelte/runtime_page_shell.bundle')",
+      "readForkScript(staticDir, 'js/svelte/logs_audit_tab_shell.bundle')",
       "readForkScript(staticDir, 'js/svelte/settings_migration_tab_shell.bundle')",
     ], 'simple_page_panel_router_not_loaded', 'The dashboard asset router must load simple page panel service and same-dashboard Svelte page/tab bundles.'));
 

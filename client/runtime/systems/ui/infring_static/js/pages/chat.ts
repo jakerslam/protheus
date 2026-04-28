@@ -6322,17 +6322,12 @@ function chatPage() {
       this.$watch('messages', function(val) {
         var chatStore = window.InfringChatStore;
         if (!chatStore) return;
-        if (chatStore.messages) chatStore.messages.set(Array.isArray(val) ? val : []);
-        if (chatStore.filteredMessages) {
-          chatStore.filteredMessages.set(Array.isArray(self.allFilteredMessages) ? self.allFilteredMessages : []);
-        }
+        if (typeof chatStore.syncMessages === 'function') chatStore.syncMessages(val, self.allFilteredMessages);
       });
 
       this.$watch('searchQuery', function() {
         var chatStore = window.InfringChatStore;
-        if (chatStore && chatStore.filteredMessages) {
-          chatStore.filteredMessages.set(Array.isArray(self.allFilteredMessages) ? self.allFilteredMessages : []);
-        }
+        if (chatStore && typeof chatStore.syncMessages === 'function') chatStore.syncMessages(self.messages, self.allFilteredMessages);
       });
 
       this.$watch('sessionLoading', function(val) {
@@ -6368,6 +6363,7 @@ function chatPage() {
       this.$watch('mapStepIndex', function(val) {
         var chatStore = window.InfringChatStore;
         if (chatStore && chatStore.mapStepIndex) chatStore.mapStepIndex.set(Number(val) || -1);
+        if (chatStore && typeof chatStore.setThreadProjectionCenter === 'function') chatStore.setThreadProjectionCenter(val);
       });
 
       this.$watch('terminalMode', function() {
@@ -6595,8 +6591,7 @@ function chatPage() {
       (function() {
         var chatStore = window.InfringChatStore;
         if (!chatStore) return;
-        if (chatStore.messages) chatStore.messages.set(Array.isArray(self.messages) ? self.messages : []);
-        if (chatStore.filteredMessages) chatStore.filteredMessages.set(Array.isArray(self.allFilteredMessages) ? self.allFilteredMessages : []);
+        if (typeof chatStore.syncMessages === 'function') chatStore.syncMessages(self.messages, self.allFilteredMessages);
         if (chatStore.currentAgent) chatStore.currentAgent.set(self.currentAgent || null);
         var appStore = typeof Alpine !== 'undefined' && Alpine.store('app');
         if (chatStore.agents) chatStore.agents.set(Array.isArray(appStore && appStore.agents) ? appStore.agents : []);
@@ -9163,24 +9158,6 @@ function chatPage() {
       // messages fully rendered. The user is actively watching them and any
       // visual flicker from unmount/remount destroys the live-text experience.
       if (msg && (msg.streaming || msg.thinking || msg._typingVisual || msg.thoughtStreaming)) return true;
-      // Forced hydration override only: scheduleMessageRenderWindowUpdate's
-      // forceMessageRender path keeps a message rendered for ttlMs after focus
-      // (e.g., the message just had a menu action invoked on it). This keeps
-      // explicit operator interactions from unmounting their own target.
-      //
-      // Note: we deliberately do NOT consult `messageHydration` here. That map
-      // is a 320px-viewport-buffer allowlist computed by
-      // updateMessageRenderWindow, while isMessageTextInRenderWindow uses a
-      // ±20-around-active radius. If we accept either, the gate becomes a
-      // SUPERSET of isMessageTextInRenderWindow, and the
-      // .message-text-skeletonized CSS class (which keys on
-      // isMessageTextInRenderWindow) starts firing for messages where the
-      // bubble IS mounted — producing transparent text + gray-gradient on a
-      // mounted bubble, which looks identical to the placeholder but with
-      // none of the unmount benefit. Aligning both gates to the same
-      // ±active-radius set keeps the two functions logically consistent: if
-      // shouldRenderMessageContent returns true the text is visible, if it
-      // returns false the lightweight placeholder shell renders instead.
       var domId = typeof this.messageDomId === 'function'
         ? this.messageDomId(msg, idx)
         : null;
@@ -9189,6 +9166,9 @@ function chatPage() {
           ? this._forcedHydrateById
           : null;
         if (forced && Number(forced[domId] || 0) > Date.now()) return true;
+        if (this.messageHydrationReady && this.messageHydration && typeof this.messageHydration === 'object') {
+          return !!this.messageHydration[domId];
+        }
       }
       // Fall through to the existing render-window logic (±messageTextRenderWindowRadius
       // around the active scroll position, default 20). Active position is
@@ -9204,8 +9184,9 @@ function chatPage() {
     isMessageTextInRenderWindow(msg, idx, list) {
       var rows = Array.isArray(list) ? list : this.messages, active = Number(this.mapStepIndex), selected = String(this.selectedMessageDomId || this.hoveredMessageDomId || this.directHoveredMessageDomId || '').trim(), windowRows = Number(this.messageTextRenderWindowRadius || 20);
       if (!this.isMessageVirtualizationActive(rows)) return true;
+      var domId = typeof this.messageDomId === 'function' ? this.messageDomId(msg, idx) : '';
+      if (selected && domId && selected === domId) return true;
       if (!Number.isFinite(active) || active < 0 || active >= rows.length) active = Math.max(0, rows.length - 1);
-      for (var i = 0; selected && i < rows.length; i++) if (this.messageDomId(rows[i], i) === selected) { active = i; break; }
       return Math.abs(Number(idx || 0) - active) <= (Number.isFinite(windowRows) && windowRows > 0 ? windowRows : 20) || !!(msg && (msg.streaming || msg.thinking || msg._typingVisual));
     },
     messageEstimatedLineCount(msg) {
@@ -9358,6 +9339,8 @@ function chatPage() {
       this._forcedHydrateById = retainedForced;
       this.messageHydration = nextHydration;
       this.messageHydrationReady = true;
+      var chatStore = window.InfringChatStore;
+      if (chatStore && typeof chatStore.bumpRenderWindowVersion === 'function') chatStore.bumpRenderWindowVersion();
     },
 
     runSlashApiKeyDiscovery: async function(cmdArgs) {
@@ -12639,6 +12622,10 @@ function chatPage() {
       this.selectedMessageDomId = id;
       this.hoveredMessageDomId = id;
       this.mapStepIndex = idx;
+      var chatStore = window.InfringChatStore;
+      if (chatStore && typeof chatStore.setThreadProjectionCenter === 'function') {
+        chatStore.setThreadProjectionCenter(idx);
+      }
       this.centerChatMapOnMessage(id);
       var self = this;
       var attempts = 0;
@@ -12774,8 +12761,7 @@ function chatPage() {
       var dedupeWindowMs = Number(opts.dedupe_window_ms || opts.dedupeWindowMs || 70000);
       var duplicate = this.findRecentDuplicateAgentMessage(payload, dedupeWindowMs);
       if (!duplicate) {
-        this.messages.push(payload);
-        return payload;
+        return this.appendActiveChatMessage(payload);
       }
       var mergeToolCards = function(existingTools, incomingTools) {
         var base = Array.isArray(existingTools) ? existingTools.slice() : [];
@@ -12857,6 +12843,7 @@ function chatPage() {
       duplicate.ts = Number(payload.ts || Date.now());
       duplicate.agent_id = payload.agent_id || duplicate.agent_id;
       duplicate.agent_name = payload.agent_name || duplicate.agent_name;
+      if (typeof this.syncActiveChatMessages === 'function') this.syncActiveChatMessages();
       this.scheduleConversationPersist();
       return duplicate;
 
@@ -13074,6 +13061,39 @@ function chatPage() {
       }
     },
 
+    ensureActiveChatMessagesArray: function() {
+      if (!Array.isArray(this.messages)) this.messages = [];
+      return this.messages;
+    },
+
+    syncActiveChatMessages: function() {
+      var activeStore = window.InfringChatStore;
+      if (activeStore && typeof activeStore.syncMessages === 'function') {
+        activeStore.syncMessages(this.messages, this.allFilteredMessages);
+      }
+      return this.messages;
+    },
+
+    replaceActiveChatMessages: function(rows) {
+      this.messages = Array.isArray(rows) ? rows : [];
+      this.syncActiveChatMessages();
+      return this.messages;
+    },
+
+    mutateActiveChatMessages: function(mutator) {
+      var rows = this.ensureActiveChatMessagesArray();
+      var nextRows = typeof mutator === 'function' ? mutator(rows) : rows;
+      if (Array.isArray(nextRows) && nextRows !== rows) this.messages = nextRows;
+      this.syncActiveChatMessages();
+      return this.messages;
+    },
+
+    appendActiveChatMessage: function(message) {
+      this.ensureActiveChatMessagesArray().push(message);
+      this.syncActiveChatMessages();
+      return message;
+    },
+
     pushSystemMessage: function(entry) {
       var payload = entry && typeof entry === 'object' ? entry : { text: entry };
       var rawText = String(payload && payload.text ? payload.text : '');
@@ -13113,8 +13133,7 @@ function chatPage() {
       var targetRows = null;
       var targetCache = null;
       if (activeThread) {
-        if (!Array.isArray(this.messages)) this.messages = [];
-        targetRows = this.messages;
+        targetRows = this.ensureActiveChatMessagesArray();
       } else {
         if (!this.conversationCache || typeof this.conversationCache !== 'object') this.conversationCache = {};
         targetCache = this.conversationCache[targetId];
@@ -13147,8 +13166,10 @@ function chatPage() {
           row.meta = (priorMeta ? (priorMeta + ' | ') : '') + 'repeated x' + repeatCount;
           row.ts = ts;
           this._systemMessageDedupeIndex[dedupeKey] = { id: row.id, ts: ts };
-          if (activeThread) this.scheduleConversationPersist();
-          else this.persistConversationCache();
+          if (activeThread) {
+            this.syncActiveChatMessages();
+            this.scheduleConversationPersist();
+          } else this.persistConversationCache();
           return row;
         }
       }
@@ -13162,7 +13183,8 @@ function chatPage() {
         system_origin: origin,
         ts: ts
       };
-      targetRows.push(message);
+      if (activeThread) this.appendActiveChatMessage(message);
+      else targetRows.push(message);
       if (canDedupe && canonicalText) this._systemMessageDedupeIndex[dedupeKey] = { id: message.id, ts: ts };
       var store = Alpine.store('app');
       if (store && typeof store.saveAgentChatPreview === 'function') {
@@ -14590,7 +14612,8 @@ function chatPage() {
         }
         kept.push(row);
       }
-      this.messages = kept;
+      if (typeof this.replaceActiveChatMessages === 'function') this.replaceActiveChatMessages(kept);
+      else this.messages = kept;
       if (!force && pendingAgentId && !keptPending && typeof this.ensureLiveThinkingRow === 'function') {
         var restored = this.ensureLiveThinkingRow({ agent_id: pendingAgentId, agent_name: this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '' });
         if (restored) {
@@ -14896,7 +14919,8 @@ function chatPage() {
         if (!agentName && this.currentAgent && this.currentAgent.name) agentName = String(this.currentAgent.name);
       }
 
-      var last = this.messages.length ? this.messages[this.messages.length - 1] : null;
+      var rows = this.ensureActiveChatMessagesArray();
+      var last = rows.length ? rows[rows.length - 1] : null;
       if (shouldAppendToLast && last && !last.thinking && last.terminal) {
         if (text) {
           if (last.text && !/\n$/.test(last.text)) last.text += '\n';
@@ -14913,6 +14937,7 @@ function chatPage() {
         last.ts = ts;
         if (!Array.isArray(last.tools)) last.tools = [];
         if (tools.length) last.tools = last.tools.concat(tools);
+        if (typeof this.syncActiveChatMessages === 'function') this.syncActiveChatMessages();
         return last;
       }
 
@@ -14929,7 +14954,7 @@ function chatPage() {
       };
       if (agentId) msg.agent_id = agentId;
       if (agentName) msg.agent_name = agentName;
-      this.messages.push(msg);
+      this.appendActiveChatMessage(msg);
       if (cwd) this.terminalCwd = cwd;
       return msg;
     },
@@ -16771,6 +16796,10 @@ function chatPage() {
       if (String(popup.source || '').trim() !== 'chat-map') this.hoveredMessageDomId = domId;
       for (var idx = 0; idx < this.messages.length; idx++) {
         if (this.messageDomId(this.messages[idx], idx) === domId) { this.mapStepIndex = idx; break; }
+      }
+      var chatStore = window.InfringChatStore;
+      if (chatStore && typeof chatStore.setThreadProjectionCenter === 'function') {
+        chatStore.setThreadProjectionCenter(this.mapStepIndex);
       }
       this.centerChatMapOnMessage(domId, { immediate: true });
     },

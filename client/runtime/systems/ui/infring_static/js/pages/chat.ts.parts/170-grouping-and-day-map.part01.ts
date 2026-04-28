@@ -268,6 +268,10 @@
       this.selectedMessageDomId = id;
       this.hoveredMessageDomId = id;
       this.mapStepIndex = idx;
+      var chatStore = window.InfringChatStore;
+      if (chatStore && typeof chatStore.setThreadProjectionCenter === 'function') {
+        chatStore.setThreadProjectionCenter(idx);
+      }
       this.centerChatMapOnMessage(id);
       var self = this;
       var attempts = 0;
@@ -403,8 +407,7 @@
       var dedupeWindowMs = Number(opts.dedupe_window_ms || opts.dedupeWindowMs || 70000);
       var duplicate = this.findRecentDuplicateAgentMessage(payload, dedupeWindowMs);
       if (!duplicate) {
-        this.messages.push(payload);
-        return payload;
+        return this.appendActiveChatMessage(payload);
       }
       var mergeToolCards = function(existingTools, incomingTools) {
         var base = Array.isArray(existingTools) ? existingTools.slice() : [];
@@ -486,5 +489,6 @@
       duplicate.ts = Number(payload.ts || Date.now());
       duplicate.agent_id = payload.agent_id || duplicate.agent_id;
       duplicate.agent_name = payload.agent_name || duplicate.agent_name;
+      if (typeof this.syncActiveChatMessages === 'function') this.syncActiveChatMessages();
       this.scheduleConversationPersist();
       return duplicate;

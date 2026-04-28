@@ -212,6 +212,39 @@
       }
     },
 
+    ensureActiveChatMessagesArray: function() {
+      if (!Array.isArray(this.messages)) this.messages = [];
+      return this.messages;
+    },
+
+    syncActiveChatMessages: function() {
+      var activeStore = window.InfringChatStore;
+      if (activeStore && typeof activeStore.syncMessages === 'function') {
+        activeStore.syncMessages(this.messages, this.allFilteredMessages);
+      }
+      return this.messages;
+    },
+
+    replaceActiveChatMessages: function(rows) {
+      this.messages = Array.isArray(rows) ? rows : [];
+      this.syncActiveChatMessages();
+      return this.messages;
+    },
+
+    mutateActiveChatMessages: function(mutator) {
+      var rows = this.ensureActiveChatMessagesArray();
+      var nextRows = typeof mutator === 'function' ? mutator(rows) : rows;
+      if (Array.isArray(nextRows) && nextRows !== rows) this.messages = nextRows;
+      this.syncActiveChatMessages();
+      return this.messages;
+    },
+
+    appendActiveChatMessage: function(message) {
+      this.ensureActiveChatMessagesArray().push(message);
+      this.syncActiveChatMessages();
+      return message;
+    },
+
     pushSystemMessage: function(entry) {
       var payload = entry && typeof entry === 'object' ? entry : { text: entry };
       var rawText = String(payload && payload.text ? payload.text : '');
@@ -251,8 +284,7 @@
       var targetRows = null;
       var targetCache = null;
       if (activeThread) {
-        if (!Array.isArray(this.messages)) this.messages = [];
-        targetRows = this.messages;
+        targetRows = this.ensureActiveChatMessagesArray();
       } else {
         if (!this.conversationCache || typeof this.conversationCache !== 'object') this.conversationCache = {};
         targetCache = this.conversationCache[targetId];
@@ -285,8 +317,10 @@
           row.meta = (priorMeta ? (priorMeta + ' | ') : '') + 'repeated x' + repeatCount;
           row.ts = ts;
           this._systemMessageDedupeIndex[dedupeKey] = { id: row.id, ts: ts };
-          if (activeThread) this.scheduleConversationPersist();
-          else this.persistConversationCache();
+          if (activeThread) {
+            this.syncActiveChatMessages();
+            this.scheduleConversationPersist();
+          } else this.persistConversationCache();
           return row;
         }
       }
@@ -300,7 +334,8 @@
         system_origin: origin,
         ts: ts
       };
-      targetRows.push(message);
+      if (activeThread) this.appendActiveChatMessage(message);
+      else targetRows.push(message);
       if (canDedupe && canonicalText) this._systemMessageDedupeIndex[dedupeKey] = { id: message.id, ts: ts };
       var store = Alpine.store('app');
       if (store && typeof store.saveAgentChatPreview === 'function') {

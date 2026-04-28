@@ -209,9 +209,22 @@ fn handle_agent_scope_full(
         }
 
         if method == "GET" && segments.len() == 1 && segments[0] == "session" {
+            let qs = path.find('?').map(|i| &path[i + 1..]).unwrap_or("");
+            let limit = qs.split('&').find_map(|kv| {
+                let mut p = kv.splitn(2, '=');
+                if p.next()? == "limit" { p.next()?.parse::<usize>().ok() } else { None }
+            }).unwrap_or(0);
+            let offset = qs.split('&').find_map(|kv| {
+                let mut p = kv.splitn(2, '=');
+                if p.next()? == "offset" { p.next()?.parse::<usize>().ok() } else { None }
+            }).unwrap_or(0);
             return Some(CompatApiResponse {
                 status: 200,
-                payload: session_payload(root, &agent_id),
+                payload: if limit > 0 {
+                    session_payload_paged(root, &agent_id, limit, offset)
+                } else {
+                    session_payload(root, &agent_id)
+                },
             });
         }
 

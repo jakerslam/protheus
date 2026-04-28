@@ -96,7 +96,10 @@ fn process_summary_tool_gate(tool_gate: &Value) -> Value {
         "gate_prompt": clean_text(tool_gate.get("gate_prompt").and_then(Value::as_str).unwrap_or(""), 120),
         "automatic_tool_calls_allowed": tool_gate.get("automatic_tool_calls_allowed").and_then(Value::as_bool).unwrap_or(false),
         "should_call_tools": tool_gate.get("should_call_tools").and_then(Value::as_bool).unwrap_or(false),
-        "needs_tool_access": tool_gate.get("needs_tool_access").and_then(Value::as_bool).unwrap_or(false),
+        "needs_tool_access": tool_gate.get("needs_tool_access").cloned().unwrap_or(Value::Null),
+        "gate_1_submission_status": clean_text(tool_gate.get("gate_1_submission_status").and_then(Value::as_str).unwrap_or(""), 80),
+        "gate_1_decision_source": clean_text(tool_gate.get("gate_1_decision_source").and_then(Value::as_str).unwrap_or(""), 80),
+        "gate_submission": tool_gate.get("gate_submission").cloned().unwrap_or_else(|| json!({})),
         "selected_tool_family": clean_text(tool_gate.get("selected_tool_family").and_then(Value::as_str).unwrap_or(""), 60)
     })
 }

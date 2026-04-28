@@ -127,11 +127,38 @@ fn chat_ui_build_response_workflow_trace(
     guard_retry_lane: &str,
     hard_guard_applied: bool,
 ) -> Value {
-    let needs_tool_access = !tools.is_empty()
-        || tool_gate
-            .get("needs_tool_access")
-            .and_then(Value::as_bool)
-            .unwrap_or(false);
+    let gate_1_submission = tool_gate.get("needs_tool_access").and_then(Value::as_bool);
+    let gate_1_submission_status = clean(
+        tool_gate
+            .get("gate_1_submission_status")
+            .and_then(Value::as_str)
+            .unwrap_or("awaiting_llm_submission"),
+        48,
+    );
+    let gate_1_decision_source = clean(
+        tool_gate
+            .get("gate_1_decision_source")
+            .and_then(Value::as_str)
+            .unwrap_or("pending_llm_submission"),
+        64,
+    );
+    let gate_submission = tool_gate.get("gate_submission").cloned().unwrap_or_else(|| {
+        json!({
+            "gate_id": "gate_1_need_tool_access_menu",
+            "input_shape": {
+                "type": "multiple_choice",
+                "allowed_outputs": ["Yes", "No"]
+            },
+            "llm_submission": gate_1_submission,
+            "accepted": gate_1_submission.is_some(),
+            "resume_token": if gate_1_submission.is_some() {
+                "gate_1_need_tool_access_menu.submitted"
+            } else {
+                "gate_1_need_tool_access_menu.awaiting_llm_submission"
+            }
+        })
+    });
+    let needs_tool_access = !tools.is_empty() || gate_1_submission == Some(true);
     let reason_code = clean(
         tool_gate
             .get("reason_code")
@@ -170,6 +197,8 @@ fn chat_ui_build_response_workflow_trace(
         "awaiting_finish_or_another_tool_submission"
     } else if needs_tool_access {
         "awaiting_tool_submission"
+    } else if gate_1_submission.is_none() {
+        "awaiting_need_tool_access_submission"
     } else {
         "no_tool_path"
     };
@@ -177,14 +206,26 @@ fn chat_ui_build_response_workflow_trace(
         "post_tool_menu"
     } else if needs_tool_access {
         "tool_menu"
+    } else if gate_1_submission.is_none() {
+        "need_tool_access_gate"
     } else {
         "llm_final_output"
     };
     let mut workflow_state = vec![json!({
         "seq": 1,
         "stage": "need_tool_access_gate",
-        "status": if needs_tool_access { "submitted_true" } else { "submitted_false_or_not_used" },
-        "note": "presented options=Yes,No",
+        "status": if gate_1_submission == Some(true) {
+            "submitted_true"
+        } else if gate_1_submission == Some(false) {
+            "submitted_false"
+        } else if !tools.is_empty() {
+            "observed_true_without_gate_submission"
+        } else {
+            "awaiting_llm_submission"
+        },
+        "note": format!(
+            "presented options=Yes,No; submission_status={gate_1_submission_status}; decision_source={gate_1_decision_source}"
+        ),
         "ts": crate::now_iso()
     })];
     if needs_tool_access {
@@ -224,8 +265,16 @@ fn chat_ui_build_response_workflow_trace(
         workflow_state.push(json!({
             "seq": 2,
             "stage": "direct_response",
-            "status": "submitted_false_or_not_used",
-            "note": "no tool menu consumed",
+            "status": if gate_1_submission == Some(false) {
+                "submitted_false"
+            } else if assistant.trim().is_empty() {
+                "awaiting_llm_submission"
+            } else {
+                "submitted_without_gate_1_submission"
+            },
+            "note": format!(
+                "no tool menu consumed; submission_status={gate_1_submission_status}"
+            ),
             "ts": crate::now_iso()
         }));
     }
@@ -247,7 +296,11 @@ fn chat_ui_build_response_workflow_trace(
         ui_status.push(json!({
             "seq": 2,
             "ts": crate::now_iso(),
-            "message": "No tool execution recorded for this turn.",
+            "message": if gate_1_submission.is_none() {
+                "Waiting for Gate 1 submission before selecting a path."
+            } else {
+                "No tool execution recorded for this turn."
+            },
             "stage": "direct_response"
         }));
     } else if selected_tool_family == "web_tools" {
@@ -286,6 +339,8 @@ fn chat_ui_build_response_workflow_trace(
             "Post-tool gate presented: 1) finish 2) another tool."
         } else if needs_tool_access {
             "Tool request field awaiting LLM submission."
+        } else if gate_1_submission.is_none() {
+            "Need Gate 1 submission."
         } else {
             "Direct response path selected or pending."
         },
@@ -297,9 +352,15 @@ fn chat_ui_build_response_workflow_trace(
             "seq": 1,
             "ts": crate::now_iso(),
             "decision": "need_tool_access",
-            "value": needs_tool_access,
+            "value": gate_1_submission,
             "reason_code": reason_code,
-            "selection_source": "llm_submission_or_observed_tool_execution"
+            "selection_source": if gate_1_submission.is_some() {
+                "llm_submission_only"
+            } else if !tools.is_empty() {
+                "observed_tool_execution_without_gate_submission"
+            } else {
+                "pending_llm_submission"
+            }
         }),
         json!({
             "seq": 2,
@@ -327,6 +388,8 @@ fn chat_ui_build_response_workflow_trace(
         "request_payload_entry"
     } else if needs_tool_access && findings_available {
         "post_tool_gate"
+    } else if gate_1_submission.is_none() {
+        "need_tool_access_gate"
     } else {
         "llm_final_output"
     };
@@ -357,6 +420,10 @@ fn chat_ui_build_response_workflow_trace(
                 "question": "Need tools? Yes/No",
                 "required": false,
                 "reason_code": reason_code,
+                "submission_status": gate_1_submission_status,
+                "decision_source": gate_1_decision_source,
+                "gate_submission": gate_submission.clone(),
+                "value": gate_1_submission,
                 "selected_tool_family": selected_tool_family,
                 "selection_authority": "llm_submission_only",
                 "tool_family_menu": tool_family_menu,

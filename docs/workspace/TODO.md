@@ -1,20 +1,20 @@
 # TODO (SRS Execution Checklist)
 
-Updated: 2026-04-28T18:20:00.000Z
+Updated: 2026-04-28T19:19:00.000Z
 
 ## Global Rollup
-- total_rows: 3930
+- total_rows: 3933
 - queued: 58
 - in_progress: 7
-- blocked: 1
+- blocked: 2
 - blocked_external_prepared: 32
-- done: 1530
+- done: 1532
 - existing_coverage_validated: 2302
 
 ## Kernel Sentinel Audit Queue (2026-04-28)
 - status: queued
 - rollup_refresh_required: true
-- current_wave: KS-AUDIT-008, KS-AUDIT-009, KS-AUDIT-010, KS-AUDIT-011, KS-AUDIT-012
+- current_wave: KS-AUDIT-008, KS-AUDIT-009, KS-AUDIT-010, KS-AUDIT-011, KS-AUDIT-012, KS-AUDIT-013
 - [x] KS-AUDIT-001 Fix sentinel scheduler freshness.
 - [x] KS-AUDIT-002 Add a strict stale-scheduler guard so sentinel artifacts fail clearly when auto-run stops advancing.
 - [x] KS-AUDIT-003 Expose `last_run`, `last_success`, `next_due`, and stale age in one compact operator summary artifact.
@@ -27,7 +27,7 @@ Updated: 2026-04-28T18:20:00.000Z
 - [x] KS-AUDIT-010 Emit targeted remediation hints for malformed receipt producers. (2026-04-28; collector reports now publish global and per-source `malformed_remediation_hints` with receipt-producer targeting, blocking/advisory priority, error class, recommended action, and rerun command; validated with `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::collector::tests::collector_emits_targeted_remediation_hints_for_malformed_receipt_producers -- --exact` and `npm run -s ops:churn:guard`)
 - [x] KS-AUDIT-011 Tighten feedback dedupe for synthetic harness failures. (2026-04-28; extracted Kernel Sentinel feedback projection into `self_study_feedback.rs` and normalized `misty_simulated_roundNN_failures` fingerprints into one feedback-family dedupe key while preserving the concrete exemplar fingerprint; validated with `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::self_study::self_study_feedback::tests::synthetic_round_failures_collapse_to_one_feedback_item -- --exact` and `npm run -s ops:churn:guard`)
 - [x] KS-AUDIT-012 Collapse repeated `misty_simulated_round*` failures into scenario-level issue candidates. (2026-04-28; issue synthesis now clusters synthetic Misty round failures by scenario family instead of per-session/per-receipt dimensions, and issue drafts expose `scenario_level`, `scenario_id`, and `issue_family_kind` while preserving exemplar and evidence traceability; validated with `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::issue_synthesis::tests::synthetic_round_failures_collapse_across_sessions_into_scenario_issue_candidate -- --exact` and `npm run -s ops:churn:guard`)
-- [ ] KS-AUDIT-013 Preserve per-run evidence links while deduping the visible finding surface.
+- [x] KS-AUDIT-013 Preserve per-run evidence links while deduping the visible finding surface. (2026-04-28; Kernel Sentinel feedback dedupe now merges duplicate evidence refs and `per_run_evidence` rows into the winning visible feedback item, preserving forensic run links while keeping one deduped feedback surface; validated with `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::self_study::self_study_feedback::tests::synthetic_round_failures_collapse_to_one_feedback_item -- --exact` and `npm run -s ops:churn:guard`)
 - [ ] KS-AUDIT-014 Add recurrence thresholds so one-off failures stay advisory and repeated failures become issue candidates.
 - [ ] KS-AUDIT-015 Reduce duplicate suggestions and automation candidates derived from the same recurring fingerprint.
 - [ ] KS-AUDIT-016 Harden bridge/grader semantics so bridge presence is not treated as failure by itself.
@@ -95,8 +95,8 @@ Updated: 2026-04-28T18:20:00.000Z
 - [x] Test/Gate Maturity Registry Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] High-ROI Web + Installer Closure Guard Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=2, existing_coverage_validated=0
 - [x] Chat Rendering Experience Guard Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
-- [ ] Codex Shell Alpine Retirement TODO Wave (2026-04-26) — queued=0, in_progress=0, blocked=1, blocked_external_prepared=0, done=17, existing_coverage_validated=0
-- [x] Tauri Desktop App Migration + Memory Fix Wave (2026-04-27) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=4, existing_coverage_validated=0
+- [ ] Codex Shell Alpine Retirement TODO Wave (2026-04-26) — queued=0, in_progress=0, blocked=2, blocked_external_prepared=0, done=18, existing_coverage_validated=0
+- [x] Tauri Desktop App Migration + Memory Fix Wave (2026-04-27) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
 - [x] Tooling + Task Fabric Closure Guard Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Orchestration Quality Closure Guard Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Production Release Gate Closure Audit Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
@@ -902,7 +902,7 @@ Queued: 18 items. Intent: eliminate Alpine.js reactive proxy overhead from the c
 
 ## Shell Alpine Purge Wave (2026-04-28)
 
-Remaining queued: 2 of 14 items. Intent: remove Alpine.js from active shell runtime in controlled waves after the Misty long-chat memory regression showed that one remaining `x-for` over `messages` can defeat Svelte projection and push the browser heap into multi-GB territory. The migration rule is strict: Svelte owns rendering/local interaction state, shared shell services own reusable mechanics, and core/orchestration keep authority. Alpine may remain only as temporary glue until each owner is replaced.
+Remaining queued: 0 of 14 items. Intent: remove Alpine.js from active shell runtime in controlled waves after the Misty long-chat memory regression showed that one remaining `x-for` over `messages` can defeat Svelte projection and push the browser heap into multi-GB territory. The migration rule is strict: Svelte owns rendering/local interaction state, shared shell services own reusable mechanics, and core/orchestration keep authority. Alpine may remain only as temporary glue until each owner is replaced.
 
 | ID | Status | Priority | Title |
 |----|--------|----------|-------|
@@ -918,5 +918,5 @@ Remaining queued: 2 of 14 items. Intent: remove Alpine.js from active shell runt
 | ALPINE-PURGE-010 | done | 8 | Move remaining page panels to Svelte shells — expanded simple-page-panel Svelte ownership from the first overview/agents/settings/workflows slice to all remaining route page shells and their tab panels, including scheduler, channels, eyes, skills, hands, analytics, sessions, logs, comms, wizard, and runtime |
 | ALPINE-PURGE-011 | done | 8 | Replace `Alpine.store('app')` with a shell app store bridge — added `InfringSharedShellServices.appStore`, moved app-store bootstrap through the bridge, registered the shell root for route/page/theme/agent snapshots, migrated active Svelte app-store callers to the bridge, and added `ops:shell:app-store-bridge:guard` coverage |
 | ALPINE-PURGE-012 | blocked | 7 | Remove Alpine boot path — blocked until `ops:shell:alpine-retirement:guard` and `ops:shell:alpine-hot-path:guard` are green; current proof shows live Alpine bindings/API reads remain, including 7 active hot-path loops and the router's `vendor/alpine.min` loader |
-| ALPINE-PURGE-013 | queued | 8 | Add RAM regression gate for long chats — automated local check records heap/DOM counts before and after opening a large thread and fails on unbounded growth |
-| ALPINE-PURGE-014 | queued | 7 | Delete Alpine vendor/runtime artifact — remove `vendor/alpine.min.ts` and any stale docs/tests that still describe Alpine as an active shell dependency |
+| ALPINE-PURGE-013 | done | 8 | Add RAM regression gate for long chats — added `ops:shell:long-chat-ram:guard`, which validates the live `/memprobe` heap/DOM/custom-element contract, executes `InfringChatStore` against a 1,000-message synthetic thread, records before/after heap and DOM budget snapshots, and fails if projected Svelte thread rows, heavy bubble instances, estimated heap growth, or DOM counts become unbounded |
+| ALPINE-PURGE-014 | blocked | 7 | Delete Alpine vendor/runtime artifact — blocked because Alpine is still an active shell dependency: `ops:shell:alpine-retirement:guard` reports 3456 live Alpine hits plus the router's `vendor/alpine.min` loader, and `ops:shell:alpine-hot-path:guard` reports 7 active hot-path Alpine loops; deleting `vendor/alpine.min.ts` now would break the live dashboard |

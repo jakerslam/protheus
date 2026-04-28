@@ -136,7 +136,7 @@
 
     <!-- Page: Eyes -->
     <template x-if="page === 'eyes'">
-      <infring-eyes-page-shell>
+      <infring-eyes-page-shell shellprimitive="simple-page-panel" pageid="eyes" panelrole="page" routecontract="eyes" parentowneddata="true">
       <div x-data="eyesPage">
         <div class="page-header page-header-subtabs-center">
           <div class="tabs mt-3" role="tablist">
@@ -243,7 +243,7 @@
 
     <!-- Page: Apps -->
     <template x-if="page === 'skills'">
-      <infring-skills-page-shell>
+      <infring-skills-page-shell shellprimitive="simple-page-panel" pageid="skills" panelrole="page" routecontract="skills" parentowneddata="true">
       <div x-data="skillsPage">
         <div class="page-header">
           <div class="tabs mt-3" role="tablist">
@@ -282,7 +282,7 @@
           </div>
 
           <!-- TAB: Installed Plugins -->
-          <infring-skills-installed-tab-shell>
+          <infring-skills-installed-tab-shell shellprimitive="simple-page-panel" pageid="skills" tabid="installed" panelrole="skills-tab" routecontract="skills:installed" parentowneddata="true">
           <div x-show="tab === 'installed'">
             <div class="card-grid" x-show="skills.length">
               <template x-for="skill in skills" :key="skill.name">
@@ -322,7 +322,7 @@
           </infring-skills-installed-tab-shell>
 
           <!-- TAB: ClawHub (Infring Ecosystem) -->
-          <infring-skills-clawhub-tab-shell>
+          <infring-skills-clawhub-tab-shell shellprimitive="simple-page-panel" pageid="skills" tabid="clawhub" panelrole="skills-tab" routecontract="skills:clawhub" parentowneddata="true">
           <div x-show="tab === 'clawhub'">
             <!-- Search bar with live search and clear button -->
             <div class="search-input mb-4" style="position:relative">
