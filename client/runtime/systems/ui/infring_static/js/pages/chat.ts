@@ -6345,6 +6345,31 @@ function chatPage() {
         if (chatStore && chatStore.sending) chatStore.sending.set(!!val);
       });
 
+      this.$watch('tokenCount', function(val) {
+        var chatStore = window.InfringChatStore;
+        if (chatStore && chatStore.tokenCount) chatStore.tokenCount.set(Number(val) || 0);
+      });
+
+      this.$watch('inputText', function(val) {
+        var chatStore = window.InfringChatStore;
+        if (chatStore && chatStore.inputText) chatStore.inputText.set(typeof val === 'string' ? val : '');
+      });
+
+      this.$watch('showScrollDown', function(val) {
+        var chatStore = window.InfringChatStore;
+        if (chatStore && chatStore.showScrollDown) chatStore.showScrollDown.set(!!val);
+      });
+
+      this.$watch('_stickToBottom', function(val) {
+        var chatStore = window.InfringChatStore;
+        if (chatStore && chatStore.stickToBottom) chatStore.stickToBottom.set(!!val);
+      });
+
+      this.$watch('mapStepIndex', function(val) {
+        var chatStore = window.InfringChatStore;
+        if (chatStore && chatStore.mapStepIndex) chatStore.mapStepIndex.set(Number(val) || -1);
+      });
+
       this.$watch('terminalMode', function() {
         self.$nextTick(function() {
           self.refreshChatInputOverlayMetrics();
@@ -6383,10 +6408,32 @@ function chatPage() {
         }
       });
 
+      this.$watch('$store.app.chatSidebarVisibleRows', function(rows) {
+        var chatStore = window.InfringChatStore;
+        if (chatStore && chatStore.sidebarAgents) chatStore.sidebarAgents.set(Array.isArray(rows) ? rows : []);
+      });
+
+      this.$watch('$store.app.focusMode', function(val) {
+        var chatStore = window.InfringChatStore;
+        if (chatStore && chatStore.focusMode) chatStore.focusMode.set(!!val);
+      });
+
+      this.$watch('$store.app.connectionState', function(val) {
+        var chatStore = window.InfringChatStore;
+        if (chatStore && chatStore.connectionState) chatStore.connectionState.set(String(val || ''));
+      });
+
+      this.$watch('$store.app.theme', function(val) {
+        var chatStore = window.InfringChatStore;
+        if (chatStore && chatStore.theme) chatStore.theme.set(String(val || ''));
+      });
+
       // Auto-select the first available agent in chat mode.
       this.$watch('$store.app.agents', function(agents) {
         var store = Alpine.store('app');
         var rows = Array.isArray(agents) ? agents : [];
+        var chatStore = window.InfringChatStore;
+        if (chatStore && chatStore.agents) chatStore.agents.set(rows);
         self.fetchModelContextWindows();
         if (self.currentAgent && self.isSystemThreadAgent && self.isSystemThreadAgent(self.currentAgent)) {
           self._agentMissingAgentId = '';
@@ -6551,10 +6598,24 @@ function chatPage() {
         if (chatStore.messages) chatStore.messages.set(Array.isArray(self.messages) ? self.messages : []);
         if (chatStore.filteredMessages) chatStore.filteredMessages.set(Array.isArray(self.allFilteredMessages) ? self.allFilteredMessages : []);
         if (chatStore.currentAgent) chatStore.currentAgent.set(self.currentAgent || null);
+        var appStore = typeof Alpine !== 'undefined' && Alpine.store('app');
+        if (chatStore.agents) chatStore.agents.set(Array.isArray(appStore && appStore.agents) ? appStore.agents : []);
+        if (chatStore.sidebarAgents) chatStore.sidebarAgents.set(Array.isArray(appStore && appStore.chatSidebarVisibleRows) ? appStore.chatSidebarVisibleRows : []);
         if (chatStore.sessionLoading) chatStore.sessionLoading.set(!!self.sessionLoading);
         if (chatStore.sending) chatStore.sending.set(!!self.sending);
+        if (chatStore.tokenCount) chatStore.tokenCount.set(Number(self.tokenCount) || 0);
+        if (chatStore.inputText) chatStore.inputText.set(typeof self.inputText === 'string' ? self.inputText : '');
+        if (chatStore.showScrollDown) chatStore.showScrollDown.set(!!self.showScrollDown);
+        if (chatStore.stickToBottom) chatStore.stickToBottom.set(self._stickToBottom !== false);
+        if (chatStore.mapStepIndex) chatStore.mapStepIndex.set(Number(self.mapStepIndex) || -1);
+        if (appStore) {
+          if (chatStore.focusMode) chatStore.focusMode.set(!!appStore.focusMode);
+          if (chatStore.connectionState) chatStore.connectionState.set(String(appStore.connectionState || ''));
+          if (chatStore.theme) chatStore.theme.set(String(appStore.theme || ''));
+        }
       }());
       window.InfringChatPage = self;
+      if (typeof Alpine !== 'undefined' && !window.InfringApp) window.InfringApp = Alpine.store('app');
     },
 
     toggleTerminalMode() {
@@ -10398,6 +10459,7 @@ function chatPage() {
         onOpen: function() {
           if (!isLiveConnection('')) return;
           Alpine.store('app').wsConnected = true;
+          var cs = window.InfringChatStore; if (cs && cs.wsConnected) cs.wsConnected.set(true);
           self.requestContextTelemetry(true);
           if (reconnectPending) {
             reconnectPending = false;
@@ -10414,6 +10476,7 @@ function chatPage() {
         onReconnect: function() {
           if (!isLiveConnection('')) return;
           Alpine.store('app').wsConnected = false;
+          var cs = window.InfringChatStore; if (cs && cs.wsConnected) cs.wsConnected.set(false);
           reconnectPending = true;
           var pending = self._pendingWsRequest;
           if (pending && pending.agent_id) {
@@ -10424,6 +10487,7 @@ function chatPage() {
         onClose: function() {
           if (!isLiveConnection('')) return;
           Alpine.store('app').wsConnected = false;
+          var cs = window.InfringChatStore; if (cs && cs.wsConnected) cs.wsConnected.set(false);
           self._wsAgent = null;
           var pending = self._pendingWsRequest;
           if (self.sending && pending && pending.agent_id) {
@@ -10446,6 +10510,7 @@ function chatPage() {
         onError: function() {
           if (!isLiveConnection('')) return;
           Alpine.store('app').wsConnected = false;
+          var cs = window.InfringChatStore; if (cs && cs.wsConnected) cs.wsConnected.set(false);
           self._wsAgent = null;
           var pending = self._pendingWsRequest;
           if (self.sending && pending && pending.agent_id) {

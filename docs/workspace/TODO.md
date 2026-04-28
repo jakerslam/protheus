@@ -822,12 +822,12 @@ Queued: 13 items. Intent: eliminate Alpine.js reactive proxy overhead from the c
 | SVELTE-002 | done | 9 | Move `messages[]` from Alpine to Svelte store — update all write sites in `chat.ts` to call `messagesStore.set()`; Alpine reads via a thin `$messages` adapter so nothing else breaks |
 | SVELTE-003 | done | 9 | Move streaming/thinking rows to Svelte store — WS handlers (`150-ws-stream-handlers.ts`) write to the store instead of `this.messages`; `clearTransientThinkingRows` updates the store |
 | SVELTE-004 | done | 9 | Replace `x-for` message loop with Svelte `{#each}` in `chat_thread_shell` — message rendering driven directly by the Svelte store; this eliminates Alpine's proxy over the entire messages array |
-| SVELTE-005 | queued | 8 | Move `sending`, `chatInputText`, `tokenCount` to Svelte store — scoped to the send pipeline (`200-send-pipeline.part01.ts`); Alpine reads via adapter |
-| SVELTE-006 | queued | 8 | Replace Alpine input binding with `chat_input_footer_shell` Svelte component — the stub already exists; wire it to `chatStore` for two-way input binding and send dispatch |
-| SVELTE-007 | queued | 8 | Move `currentAgent`, `agents[]`, `sessionLoading`, `_sessionLoadSeq` to Svelte store — `loadSession` and `loadOlderMessages` write to the store |
-| SVELTE-008 | queued | 8 | Replace agent sidebar Alpine loop with Svelte component — agent list rendered via Svelte store; enables granular per-agent reactivity instead of full-list re-evaluation |
-| SVELTE-009 | queued | 7 | Move WS connection lifecycle to a Svelte-native module — `wsConnect`/`wsDisconnect` and event dispatch decoupled from the Alpine component object; event handlers call store setters directly |
-| SVELTE-010 | queued | 7 | Move scroll and viewport state (`_stickToBottom`, `showScrollDown`, `mapStepIndex`) to Svelte store — decouples scroll logic from Alpine reactivity cycle |
-| SVELTE-011 | queued | 6 | Replace `Alpine.store('app')` with Svelte context — global app state (model catalog, feature flags, global agent list) provided via `setContext`/`getContext` from `chat_page_shell` |
+| SVELTE-005 | done | 8 | Move `sending`, `chatInputText`, `tokenCount` to Svelte store — scoped to the send pipeline (`200-send-pipeline.part01.ts`); Alpine reads via adapter |
+| SVELTE-006 | done | 8 | Replace Alpine input binding with `chat_input_footer_shell` Svelte component — the stub already exists; wire it to `chatStore` for two-way input binding and send dispatch |
+| SVELTE-007 | done | 8 | Move `currentAgent`, `agents[]`, `sessionLoading`, `_sessionLoadSeq` to Svelte store — `loadSession` and `loadOlderMessages` write to the store |
+| SVELTE-008 | done | 8 | Replace agent sidebar Alpine loop with Svelte component — agent list rendered via Svelte store; enables granular per-agent reactivity instead of full-list re-evaluation |
+| SVELTE-009 | done | 7 | Move WS connection lifecycle to a Svelte-native module — `wsConnect`/`wsDisconnect` and event dispatch decoupled from the Alpine component object; event handlers call store setters directly |
+| SVELTE-010 | done | 7 | Move scroll and viewport state (`_stickToBottom`, `showScrollDown`, `mapStepIndex`) to Svelte store — decouples scroll logic from Alpine reactivity cycle |
+| SVELTE-011 | done | 6 | Replace `Alpine.store('app')` with Svelte context — global app state (model catalog, feature flags, global agent list) provided via `setContext`/`getContext` from `chat_page_shell` |
 | SVELTE-012 | queued | 6 | Remove `x-data="chatPage"` root binding from HTML — replace `chat-wrapper` div with `<infring-chat-page-shell>` as the Svelte root; delete `chatPage()` function from `chat.ts` |
 | SVELTE-013 | queued | 5 | Remove Alpine from the bundle — delete Alpine import from `app.ts`, remove from `package.json`; verify no remaining `x-data`/`x-bind`/`x-on` in HTML templates |

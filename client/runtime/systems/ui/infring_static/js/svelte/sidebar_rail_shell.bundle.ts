@@ -171,6 +171,16 @@
   function set_current_component(component) {
     current_component = component;
   }
+  function get_current_component() {
+    if (!current_component) throw new Error("Function called outside component initialization");
+    return current_component;
+  }
+  function onMount(fn) {
+    get_current_component().$$.on_mount.push(fn);
+  }
+  function onDestroy(fn) {
+    get_current_component().$$.on_destroy.push(fn);
+  }
 
   // node_modules/svelte/src/runtime/internal/scheduler.js
   var dirty_components = [];
@@ -762,6 +772,19 @@
     let { wall = "" } = $$props;
     let { dragging = false } = $$props;
     let { parentOwnedMechanics = true } = $$props;
+    let sidebarAgents = [];
+    let unsub;
+    onMount(function() {
+      var s = typeof window !== "undefined" && window.InfringChatStore;
+      if (s && s.sidebarAgents) {
+        unsub = s.sidebarAgents.subscribe(function(v) {
+          sidebarAgents = Array.isArray(v) ? v : [];
+        });
+      }
+    });
+    onDestroy(function() {
+      if (typeof unsub === "function") unsub();
+    });
     $$self.$$set = ($$props2) => {
       if ("dragbarSurface" in $$props2) $$invalidate(0, dragbarSurface = $$props2.dragbarSurface);
       if ("wall" in $$props2) $$invalidate(1, wall = $$props2.wall);
@@ -810,6 +833,6 @@
       flush();
     }
   };
-  customElements.define("infring-sidebar-rail-shell", create_custom_element(Sidebar_rail_shell, { "dragbarSurface": {}, "wall": {}, "dragging": { "type": "Boolean" }, "parentOwnedMechanics": { "type": "Boolean" } }, ["default"], [], true));
+  customElements.define("infring-sidebar-rail-shell", create_custom_element(Sidebar_rail_shell, { "dragbarSurface": {}, "wall": {}, "dragging": { "type": "Boolean" }, "parentOwnedMechanics": { "type": "Boolean" } }, ["default"], [], false));
   var sidebar_rail_shell_svelte_default = Sidebar_rail_shell;
 })();
