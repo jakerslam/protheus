@@ -199,6 +199,49 @@ fn malformed_evidence_reports_source_path_and_stream_counts() {
 }
 
 #[test]
+fn malformed_receipts_preserve_valid_rows_and_report_cleanly() {
+    let root = std::env::temp_dir().join(format!(
+        "kernel-sentinel-malformed-receipts-{}",
+        crate::deterministic_receipt_hash(&json!({"test": "malformed-receipts"}))
+    ));
+    write_required_sentinel_evidence(&root);
+    let evidence_dir = root.join("local/state/kernel_sentinel/evidence");
+    fs::write(
+        evidence_dir.join("kernel_receipts.jsonl"),
+        concat!(
+            r#"{"id":"receipt-valid","ok":true,"subject":"receipt-valid","kind":"receipt_check","category":"ReceiptIntegrity","evidence":["receipt://receipt-valid"],"details":{"source_artifact":"fixture://receipt-valid","freshness_age_seconds":0}}"#,
+            "\n",
+            "{not-json\n"
+        ),
+    )
+    .unwrap();
+
+    let (report, verdict, exit) = build_report(&root, &["--strict=1".to_string()]);
+    assert_eq!(exit, 2);
+    assert_eq!(verdict["verdict"], "invalid");
+    assert_eq!(report["evidence_ingestion"]["observation_state"], "malformed_evidence");
+    assert_eq!(report["evidence_ingestion"]["data_starved"], false);
+    assert_eq!(report["evidence_ingestion"]["partial_evidence"], false);
+    assert_eq!(report["evidence_ingestion"]["normalized_record_count"], 14);
+    assert_eq!(report["evidence_ingestion"]["malformed_record_count"], 1);
+    assert_eq!(
+        report["evidence_ingestion"]["malformed_by_source"]["kernel_receipt"],
+        1
+    );
+    assert_eq!(
+        report["evidence_ingestion"]["malformed_by_file_name"]["kernel_receipts.jsonl"],
+        1
+    );
+    assert_eq!(report["operator_summary"]["data_starved"], false);
+    assert_eq!(report["operator_summary"]["malformed_evidence_count"], 1);
+    assert!(report["evidence_ingestion"]["normalized_records"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|row| row["subject"] == "receipt-valid"));
+}
+
+#[test]
 fn stale_evidence_reports_age_threshold_and_blocks_fresh_readiness() {
     let root = std::env::temp_dir().join(format!(
         "kernel-sentinel-stale-evidence-{}",
@@ -225,6 +268,28 @@ fn stale_evidence_reports_age_threshold_and_blocks_fresh_readiness() {
     );
     assert_eq!(report["evidence_ingestion"]["max_evidence_age_seconds"], 7200);
     assert_eq!(report["operator_summary"]["data_starved"], false);
+}
+
+#[test]
+fn report_command_writes_sentinel_health_artifact() {
+    let root = std::env::temp_dir().join(format!(
+        "kernel-sentinel-health-report-{}",
+        crate::deterministic_receipt_hash(&json!({"test": "health-report"}))
+    ));
+    write_required_sentinel_evidence(&root);
+    let exit = run(&root, &["report".to_string()]);
+    assert_eq!(exit, 0);
+    let health_path = root.join("local/state/kernel_sentinel/kernel_sentinel_health_current.json");
+    let health: Value = serde_json::from_str(&fs::read_to_string(health_path).unwrap()).unwrap();
+    assert_eq!(health["type"], "kernel_sentinel_health_report");
+    assert_eq!(health["coverage"]["present_required_source_count"], 14);
+    assert_eq!(health["coverage"]["source_classes"]["required"]["ready"], true);
+    assert_eq!(health["coverage"]["source_classes"]["optional"]["fully_present"], false);
+    assert_eq!(health["trend"]["status"], "unavailable");
+    assert_eq!(health["trend"]["delta"]["baseline"], "unavailable");
+    assert_eq!(health["issue_synthesis"]["issue_draft_count"], 0);
+    assert_eq!(health["authority_safety"]["safe_for_observation_authority"], false);
+    assert_eq!(health["authority_safety"]["safe_for_automation_authority"], false);
 }
 
 #[test]
