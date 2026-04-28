@@ -34,7 +34,18 @@ window.InfringChatStore = (function() {
     messages: writable([]),
     filteredMessages: writable([]),
     currentAgent: writable(null),
+    agents: writable([]),
+    sidebarAgents: writable([]),
     sessionLoading: writable(false),
     sending: writable(false),
+    tokenCount: writable(0),
+    inputText: writable(''),
+    wsConnected: writable(false),
+    showScrollDown: writable(false),
+    stickToBottom: writable(true),
+    mapStepIndex: writable(-1),
+    focusMode: writable(false),
+    connectionState: writable(''),
+    theme: writable(''),
   };
 }());

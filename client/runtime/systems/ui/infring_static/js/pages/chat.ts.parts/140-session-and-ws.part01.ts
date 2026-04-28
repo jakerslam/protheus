@@ -329,6 +329,7 @@
         onOpen: function() {
           if (!isLiveConnection('')) return;
           Alpine.store('app').wsConnected = true;
+          var cs = window.InfringChatStore; if (cs && cs.wsConnected) cs.wsConnected.set(true);
           self.requestContextTelemetry(true);
           if (reconnectPending) {
             reconnectPending = false;
@@ -345,6 +346,7 @@
         onReconnect: function() {
           if (!isLiveConnection('')) return;
           Alpine.store('app').wsConnected = false;
+          var cs = window.InfringChatStore; if (cs && cs.wsConnected) cs.wsConnected.set(false);
           reconnectPending = true;
           var pending = self._pendingWsRequest;
           if (pending && pending.agent_id) {
@@ -355,6 +357,7 @@
         onClose: function() {
           if (!isLiveConnection('')) return;
           Alpine.store('app').wsConnected = false;
+          var cs = window.InfringChatStore; if (cs && cs.wsConnected) cs.wsConnected.set(false);
           self._wsAgent = null;
           var pending = self._pendingWsRequest;
           if (self.sending && pending && pending.agent_id) {
@@ -377,6 +380,7 @@
         onError: function() {
           if (!isLiveConnection('')) return;
           Alpine.store('app').wsConnected = false;
+          var cs = window.InfringChatStore; if (cs && cs.wsConnected) cs.wsConnected.set(false);
           self._wsAgent = null;
           var pending = self._pendingWsRequest;
           if (self.sending && pending && pending.agent_id) {

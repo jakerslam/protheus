@@ -171,6 +171,16 @@
   function set_current_component(component) {
     current_component = component;
   }
+  function get_current_component() {
+    if (!current_component) throw new Error("Function called outside component initialization");
+    return current_component;
+  }
+  function onMount(fn) {
+    get_current_component().$$.on_mount.push(fn);
+  }
+  function onDestroy(fn) {
+    get_current_component().$$.on_destroy.push(fn);
+  }
 
   // node_modules/svelte/src/runtime/internal/scheduler.js
   var dirty_components = [];
@@ -758,6 +768,28 @@
   }
   function instance($$self, $$props, $$invalidate) {
     let { $$slots: slots = {}, $$scope } = $$props;
+    let sending = false;
+    let inputText = "";
+    let tokenCount = 0;
+    let unsubs = [];
+    onMount(function() {
+      var s = typeof window !== "undefined" && window.InfringChatStore;
+      if (!s) return;
+      if (s.sending) unsubs.push(s.sending.subscribe(function(v) {
+        sending = !!v;
+      }));
+      if (s.inputText) unsubs.push(s.inputText.subscribe(function(v) {
+        inputText = typeof v === "string" ? v : "";
+      }));
+      if (s.tokenCount) unsubs.push(s.tokenCount.subscribe(function(v) {
+        tokenCount = Number(v) || 0;
+      }));
+    });
+    onDestroy(function() {
+      for (var i = 0; i < unsubs.length; i++) {
+        if (typeof unsubs[i] === "function") unsubs[i]();
+      }
+    });
     $$self.$$set = ($$props2) => {
       if ("$$scope" in $$props2) $$invalidate(0, $$scope = $$props2.$$scope);
     };
@@ -769,6 +801,6 @@
       init(this, options, instance, create_fragment, safe_not_equal, {});
     }
   };
-  customElements.define("infring-chat-input-footer-shell", create_custom_element(Chat_input_footer_shell, {}, ["default"], [], true));
+  customElements.define("infring-chat-input-footer-shell", create_custom_element(Chat_input_footer_shell, {}, ["default"], [], false));
   var chat_input_footer_shell_svelte_default = Chat_input_footer_shell;
 })();
