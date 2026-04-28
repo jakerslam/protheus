@@ -215,8 +215,210 @@
             }
           }).catch(function() {});
           break;
+        case '/memprobe':
+          // Heap diagnostic: snapshots the chat page's memory footprint and
+          // emits a structured report to chat + console. Run twice with an
+          // idle gap (e.g., /memprobe, wait 30s, /memprobe again) to compute
+          // a leak rate. The console output is the canonical record;
+          // pushSystemMessage gives the operator a visible ack.
+          self.runSlashMemprobe(cmdArgs);
+          break;
       }
       this.scheduleConversationPersist();
+    },
+
+    runSlashMemprobe: function(cmdArgs) {
+      var report = this.collectMemprobeReport(cmdArgs);
+      // Pretty console block first (canonical record, full detail).
+      try {
+        var label = '[memprobe ' + report.captured_at_iso + ']';
+        if (typeof console !== 'undefined' && console.group) {
+          console.group(label);
+          console.table(report.heap);
+          console.table(report.dom_counts);
+          console.table(report.custom_element_counts);
+          console.table(report.suspected_accumulators);
+          console.log('full_report:', report);
+          if (report.delta) console.log('delta_vs_previous:', report.delta);
+          console.groupEnd();
+        } else {
+          console.log(label, report);
+        }
+      } catch (_) {
+        // Console errors should never break the chat.
+      }
+      // Compact chat ack with the headline numbers; the heavy detail stays in console.
+      var heap = report.heap || {};
+      var msgIdLocal = ++msgId;
+      var heapMb = (Number(heap.used_js_heap_mb) || 0).toFixed(1);
+      var heapTotalMb = (Number(heap.total_js_heap_mb) || 0).toFixed(1);
+      var domNodes = (report.dom_counts && report.dom_counts.total_nodes) || 0;
+      var bubbles = (report.custom_element_counts && report.custom_element_counts['infring-chat-bubble-render']) || 0;
+      var placeholders = (report.custom_element_counts && report.custom_element_counts['infring-message-placeholder-shell']) || 0;
+      var messageCount = Array.isArray(this.messages) ? this.messages.length : 0;
+      var lines = [
+        '**memprobe ' + report.capture_index + '**',
+        '- heap_used: ' + heapMb + ' MB / total: ' + heapTotalMb + ' MB' + (heap.heap_unsupported ? ' (performance.memory unavailable)' : ''),
+        '- dom_nodes: ' + domNodes,
+        '- chat_bubble_render instances: ' + bubbles,
+        '- message_placeholder_shell instances: ' + placeholders,
+        '- messages: ' + messageCount,
+      ];
+      if (report.delta) {
+        var d = report.delta;
+        lines.push('- delta vs prev: heap ' + (d.used_js_heap_mb >= 0 ? '+' : '') + d.used_js_heap_mb.toFixed(1) + ' MB, dom ' + (d.total_nodes >= 0 ? '+' : '') + d.total_nodes + ' nodes, bubbles ' + (d.bubble_count >= 0 ? '+' : '') + d.bubble_count + ', elapsed ' + d.elapsed_ms + ' ms');
+      } else {
+        lines.push('- (run /memprobe again after 30s to see delta)');
+      }
+      lines.push('- full report logged to DevTools console');
+      this.pushSystemMessage({
+        id: msgIdLocal,
+        role: 'system',
+        text: lines.join('\n'),
+        meta: '',
+        tools: [],
+        system_origin: 'slash:memprobe',
+      });
+    },
+
+    collectMemprobeReport: function(cmdArgs) {
+      var now = Date.now();
+      var capturedAt = new Date(now);
+      var prev = this._lastMemprobeReport && typeof this._lastMemprobeReport === 'object'
+        ? this._lastMemprobeReport
+        : null;
+      // Heap (Chromium-only; absent in Firefox/Safari).
+      var perfMem = null;
+      try {
+        if (typeof performance !== 'undefined' && performance && performance.memory) {
+          perfMem = performance.memory;
+        }
+      } catch (_) { perfMem = null; }
+      var bytesToMb = function(n) { return Math.round((Number(n) || 0) / 1024 / 1024 * 100) / 100; };
+      var heap = perfMem
+        ? {
+            heap_unsupported: false,
+            used_js_heap_mb: bytesToMb(perfMem.usedJSHeapSize),
+            total_js_heap_mb: bytesToMb(perfMem.totalJSHeapSize),
+            jsheap_size_limit_mb: bytesToMb(perfMem.jsHeapSizeLimit),
+            used_js_heap_bytes: Number(perfMem.usedJSHeapSize) || 0,
+            total_js_heap_bytes: Number(perfMem.totalJSHeapSize) || 0,
+          }
+        : { heap_unsupported: true };
+      // DOM counts.
+      var domCounts = { total_nodes: 0, scripts: 0, styles: 0, divs: 0 };
+      try {
+        domCounts.total_nodes = document.querySelectorAll('*').length;
+        domCounts.scripts = document.querySelectorAll('script').length;
+        domCounts.styles = document.querySelectorAll('style,link[rel="stylesheet"]').length;
+        domCounts.divs = document.querySelectorAll('div').length;
+      } catch (_) {}
+      // Custom element instance counts. The ones that follow are the per-message
+      // Svelte islands plus the bubble itself; if any of these grow without
+      // bound while messages stays roughly flat, the unmount path is leaking.
+      var customElementTags = [
+        'infring-chat-bubble-render',
+        'infring-message-placeholder-shell',
+        'infring-message-context-shell',
+        'infring-message-meta-shell',
+        'infring-message-artifact-shell',
+        'infring-message-media-shell',
+        'infring-message-progress-shell',
+        'infring-message-terminal-shell',
+        'infring-chat-divider-shell',
+        'infring-chat-thread-shell',
+        'infring-chat-stream-shell',
+        'infring-messages-surface-shell',
+        'infring-chat-map-shell',
+      ];
+      var customElementCounts = {};
+      try {
+        for (var i = 0; i < customElementTags.length; i++) {
+          var tag = customElementTags[i];
+          customElementCounts[tag] = document.querySelectorAll(tag).length;
+        }
+      } catch (_) {}
+      // Suspected accumulators: sizes of fields known to potentially retain payload data.
+      var jsonByteSize = function(value) {
+        try {
+          if (value == null) return 0;
+          return JSON.stringify(value).length;
+        } catch (_) { return -1; }
+      };
+      var messages = Array.isArray(this.messages) ? this.messages : [];
+      var totalMessageTextBytes = 0;
+      var totalMessageStreamBufferBytes = 0;
+      var maxMessageStreamBufferBytes = 0;
+      try {
+        for (var m = 0; m < messages.length; m++) {
+          var msg = messages[m];
+          if (!msg || typeof msg !== 'object') continue;
+          totalMessageTextBytes += String(msg.text || '').length;
+          var streamBuf = String(msg._streamRawText || '').length
+            + String(msg._cleanText || '').length
+            + String(msg._thoughtText || '').length
+            + String(msg._typewriterFinalText || '').length
+            + String(msg._typingVisualHtml || '').length;
+          totalMessageStreamBufferBytes += streamBuf;
+          if (streamBuf > maxMessageStreamBufferBytes) maxMessageStreamBufferBytes = streamBuf;
+        }
+      } catch (_) {}
+      var suspectedAccumulators = {
+        message_count: messages.length,
+        message_text_total_bytes: totalMessageTextBytes,
+        message_text_total_kb: Math.round(totalMessageTextBytes / 1024),
+        message_stream_buffer_total_bytes: totalMessageStreamBufferBytes,
+        message_stream_buffer_total_kb: Math.round(totalMessageStreamBufferBytes / 1024),
+        message_stream_buffer_max_bytes: maxMessageStreamBufferBytes,
+        telemetry_snapshot_bytes: jsonByteSize(this._telemetrySnapshot),
+        continuity_snapshot_bytes: jsonByteSize(this._continuitySnapshot),
+        message_hydration_keys: this.messageHydration && typeof this.messageHydration === 'object'
+          ? Object.keys(this.messageHydration).length
+          : 0,
+        forced_hydrate_keys: this._forcedHydrateById && typeof this._forcedHydrateById === 'object'
+          ? Object.keys(this._forcedHydrateById).length
+          : 0,
+        message_line_expand_state_keys: this.messageLineExpandState && typeof this.messageLineExpandState === 'object'
+          ? Object.keys(this.messageLineExpandState).length
+          : 0,
+        sessions_last_loaded_keys: this._sessionsLastLoadedAtByAgent && typeof this._sessionsLastLoadedAtByAgent === 'object'
+          ? Object.keys(this._sessionsLastLoadedAtByAgent).length
+          : 0,
+      };
+      var captureIndex = Number((this._memprobeCaptureCount || 0) + 1) || 1;
+      this._memprobeCaptureCount = captureIndex;
+      var report = {
+        type: 'chat_memprobe_report',
+        capture_index: captureIndex,
+        captured_at_ms: now,
+        captured_at_iso: capturedAt.toISOString(),
+        args: String(cmdArgs == null ? '' : cmdArgs),
+        heap: heap,
+        dom_counts: domCounts,
+        custom_element_counts: customElementCounts,
+        suspected_accumulators: suspectedAccumulators,
+        page_visible: typeof document !== 'undefined' && document && document.visibilityState ? document.visibilityState : 'unknown',
+      };
+      // Delta vs previous capture (if any).
+      if (prev && prev.captured_at_ms) {
+        var prevHeapMb = Number((prev.heap && prev.heap.used_js_heap_mb) || 0);
+        var nextHeapMb = Number(heap.used_js_heap_mb || 0);
+        var prevNodes = Number((prev.dom_counts && prev.dom_counts.total_nodes) || 0);
+        var nextNodes = Number(domCounts.total_nodes || 0);
+        var prevBubbles = Number((prev.custom_element_counts && prev.custom_element_counts['infring-chat-bubble-render']) || 0);
+        var nextBubbles = Number(customElementCounts['infring-chat-bubble-render'] || 0);
+        report.delta = {
+          elapsed_ms: now - Number(prev.captured_at_ms),
+          used_js_heap_mb: Math.round((nextHeapMb - prevHeapMb) * 100) / 100,
+          total_nodes: nextNodes - prevNodes,
+          bubble_count: nextBubbles - prevBubbles,
+          message_count: messages.length - Number(prev.suspected_accumulators && prev.suspected_accumulators.message_count || 0),
+        };
+      }
+      this._lastMemprobeReport = report;
+      // Also expose the latest report via window for ad-hoc devtools access.
+      try { if (typeof window !== 'undefined') window.__infringMemprobe = report; } catch (_) {}
+      return report;
     },
     maybeDiscardPendingFreshAgent: function(nextAgentId) {
       var store = Alpine.store('app');

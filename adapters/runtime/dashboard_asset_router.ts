@@ -492,6 +492,7 @@ function buildPrimaryDashboardHtml(staticDir) {
     readForkScript(staticDir, 'js/shell/message_metadata_shell_services'),
     readForkScript(staticDir, 'js/api'),
     readForkScript(staticDir, 'js/app'),
+    readForkScript(staticDir, 'js/chat_store'),
     PAGE_SCRIPTS.map((name) => readForkScript(staticDir, `js/pages/${name}`)).filter(Boolean).join('\n'),
   ].filter(Boolean).join('\n');
   const alpine = readForkScript(staticDir, 'vendor/alpine.min');

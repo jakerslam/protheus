@@ -1,2 +1,784 @@
 /* generated: dashboard svelte island bundle (chat_bubble) */
-(()=>{var rt=Object.defineProperty;var ot=(e,t,n)=>t in e?rt(e,t,{enumerable:!0,configurable:!0,writable:!0,value:n}):e[t]=n;var u=(e,t,n)=>ot(e,typeof t!="symbol"?t+"":t,n);function a(){}function T(e){return e()}function S(){return Object.create(null)}function p(e){e.forEach(T)}function O(e){return typeof e=="function"}function B(e,t){return e!=e?t==t:e!==t||e&&typeof e=="object"||typeof e=="function"}function q(e){return Object.keys(e).length===0}var N=typeof window<"u"?window:typeof globalThis<"u"?globalThis:global;var M=class e{constructor(t){u(this,"_listeners","WeakMap"in N?new WeakMap:void 0);u(this,"_observer");u(this,"options");this.options=t}observe(t,n){return this._listeners.set(t,n),this._getObserver().observe(t,this.options),()=>{this._listeners.delete(t),this._observer.unobserve(t)}}_getObserver(){return this._observer??(this._observer=new ResizeObserver(t=>{for(let n of t)e.entries.set(n.target,n),this._listeners.get(n.target)?.(n)}))}};M.entries="WeakMap"in N?new WeakMap:void 0;var z=!1;function G(){z=!0}function H(){z=!1}function x(e,t,n){e.insertBefore(t,n||null)}function d(e){e.parentNode&&e.parentNode.removeChild(e)}function v(e){return document.createElement(e)}function ct(e){return document.createTextNode(e)}function W(){return ct("")}function y(e,t,n){n==null?e.removeAttribute(t):e.getAttribute(t)!==n&&e.setAttribute(t,n)}function V(e){return Array.from(e.childNodes)}function U(e){let t={};return e.childNodes.forEach(n=>{t[n.slot||"default"]=!0}),t}var g;function _(e){g=e}var $=[];var X=[],w=[],K=[],dt=Promise.resolve(),L=!1;function Y(){L||(L=!0,dt.then(m))}function F(e){w.push(e)}var j=new Set,b=0;function m(){if(b!==0)return;let e=g;do{try{for(;b<$.length;){let t=$[b];b++,_(t),_t(t.$$)}}catch(t){throw $.length=0,b=0,t}for(_(null),$.length=0,b=0;X.length;)X.pop()();for(let t=0;t<w.length;t+=1){let n=w[t];j.has(n)||(j.add(n),n())}w.length=0}while($.length);for(;K.length;)K.pop()();L=!1,j.clear(),_(e)}function _t(e){if(e.fragment!==null){e.update(),p(e.before_update);let t=e.dirty;e.dirty=[-1],e.fragment&&e.fragment.p(e.ctx,t),e.after_update.forEach(F)}}function Q(e){let t=[],n=[];w.forEach(o=>e.indexOf(o)===-1?t.push(o):n.push(o)),n.forEach(o=>o()),w=t}var ht=new Set;function A(e,t){e&&e.i&&(ht.delete(e),e.i(t))}var xt=["allowfullscreen","allowpaymentrequest","async","autofocus","autoplay","checked","controls","default","defer","disabled","formnovalidate","hidden","inert","ismap","loop","multiple","muted","nomodule","novalidate","open","playsinline","readonly","required","reversed","selected"],$t=new Set([...xt]);function bt(e,t,n){let{fragment:o,after_update:i}=e.$$;o&&o.m(t,n),F(()=>{let r=e.$$.on_mount.map(T).filter(O);e.$$.on_destroy?e.$$.on_destroy.push(...r):p(r),e.$$.on_mount=[]}),i.forEach(F)}function wt(e,t){let n=e.$$;n.fragment!==null&&(Q(n.after_update),p(n.on_destroy),n.fragment&&n.fragment.d(t),n.on_destroy=n.fragment=null,n.ctx=[])}function vt(e,t){e.$$.dirty[0]===-1&&($.push(e),Y(),e.$$.dirty.fill(0)),e.$$.dirty[t/31|0]|=1<<t%31}function Z(e,t,n,o,i,r,s=null,c=[-1]){let f=g;_(e);let l=e.$$={fragment:null,ctx:[],props:r,update:a,not_equal:i,bound:S(),on_mount:[],on_destroy:[],on_disconnect:[],before_update:[],after_update:[],context:new Map(t.context||(f?f.$$.context:[])),callbacks:S(),dirty:c,skip_bound:!1,root:t.target||f.$$.root};s&&s(l.root);let E=!1;if(l.ctx=n?n(e,t.props||{},(h,P,...R)=>{let I=R.length?R[0]:P;return l.ctx&&i(l.ctx[h],l.ctx[h]=I)&&(!l.skip_bound&&l.bound[h]&&l.bound[h](I),E&&vt(e,h)),P}):[],l.update(),E=!0,p(l.before_update),l.fragment=o?o(l.ctx):!1,t.target){if(t.hydrate){G();let h=V(t.target);l.fragment&&l.fragment.l(h),h.forEach(d)}else l.fragment&&l.fragment.c();t.intro&&A(e.$$.fragment),bt(e,t.target,t.anchor),H(),m()}_(f)}var tt;typeof HTMLElement=="function"&&(tt=class extends HTMLElement{constructor(t,n,o){super();u(this,"$$ctor");u(this,"$$s");u(this,"$$c");u(this,"$$cn",!1);u(this,"$$d",{});u(this,"$$r",!1);u(this,"$$p_d",{});u(this,"$$l",{});u(this,"$$l_u",new Map);this.$$ctor=t,this.$$s=n,o&&this.attachShadow({mode:"open"})}addEventListener(t,n,o){if(this.$$l[t]=this.$$l[t]||[],this.$$l[t].push(n),this.$$c){let i=this.$$c.$on(t,n);this.$$l_u.set(n,i)}super.addEventListener(t,n,o)}removeEventListener(t,n,o){if(super.removeEventListener(t,n,o),this.$$c){let i=this.$$l_u.get(n);i&&(i(),this.$$l_u.delete(n))}if(this.$$l[t]){let i=this.$$l[t].indexOf(n);i>=0&&this.$$l[t].splice(i,1)}}async connectedCallback(){if(this.$$cn=!0,!this.$$c){let t=function(r){return()=>{let s;return{c:function(){s=v("slot"),r!=="default"&&y(s,"name",r)},m:function(l,E){x(l,s,E)},d:function(l){l&&d(s)}}}};if(await Promise.resolve(),!this.$$cn||this.$$c)return;let n={},o=U(this);for(let r of this.$$s)r in o&&(n[r]=[t(r)]);for(let r of this.attributes){let s=this.$$g_p(r.name);s in this.$$d||(this.$$d[s]=C(s,r.value,this.$$p_d,"toProp"))}for(let r in this.$$p_d)!(r in this.$$d)&&this[r]!==void 0&&(this.$$d[r]=this[r],delete this[r]);this.$$c=new this.$$ctor({target:this.shadowRoot||this,props:{...this.$$d,$$slots:n,$$scope:{ctx:[]}}});let i=()=>{this.$$r=!0;for(let r in this.$$p_d)if(this.$$d[r]=this.$$c.$$.ctx[this.$$c.$$.props[r]],this.$$p_d[r].reflect){let s=C(r,this.$$d[r],this.$$p_d,"toAttribute");s==null?this.removeAttribute(this.$$p_d[r].attribute||r):this.setAttribute(this.$$p_d[r].attribute||r,s)}this.$$r=!1};this.$$c.$$.after_update.push(i),i();for(let r in this.$$l)for(let s of this.$$l[r]){let c=this.$$c.$on(r,s);this.$$l_u.set(s,c)}this.$$l={}}}attributeChangedCallback(t,n,o){this.$$r||(t=this.$$g_p(t),this.$$d[t]=C(t,o,this.$$p_d,"toProp"),this.$$c?.$set({[t]:this.$$d[t]}))}disconnectedCallback(){this.$$cn=!1,Promise.resolve().then(()=>{!this.$$cn&&this.$$c&&(this.$$c.$destroy(),this.$$c=void 0)})}$$g_p(t){return Object.keys(this.$$p_d).find(n=>this.$$p_d[n].attribute===t||!this.$$p_d[n].attribute&&n.toLowerCase()===t)||t}});function C(e,t,n,o){let i=n[e]?.type;if(t=i==="Boolean"&&typeof t!="boolean"?t!=null:t,!o||!n[e])return t;if(o==="toAttribute")switch(i){case"Object":case"Array":return t==null?null:JSON.stringify(t);case"Boolean":return t?"":null;case"Number":return t??null;default:return t}else switch(i){case"Object":case"Array":return t&&JSON.parse(t);case"Boolean":return t;case"Number":return t!=null?+t:t;default:return t}}function et(e,t,n,o,i,r){let s=class extends tt{constructor(){super(e,n,i),this.$$p_d=t}static get observedAttributes(){return Object.keys(t).map(c=>(t[c].attribute||c).toLowerCase())}};return Object.keys(t).forEach(c=>{Object.defineProperty(s.prototype,c,{get(){return this.$$c&&c in this.$$c?this.$$c[c]:this.$$d[c]},set(f){f=C(c,f,t),this.$$d[c]=f,this.$$c?.$set({[c]:f})}})}),o.forEach(c=>{Object.defineProperty(s.prototype,c,{get(){return this.$$c?.[c]}})}),r&&(s=r(s)),e.element=s,s}var k=class{constructor(){u(this,"$$");u(this,"$$set")}$destroy(){wt(this,1),this.$destroy=a}$on(t,n){if(!O(n))return a;let o=this.$$.callbacks[t]||(this.$$.callbacks[t]=[]);return o.push(n),()=>{let i=o.indexOf(n);i!==-1&&o.splice(i,1)}}$set(t){this.$$set&&!q(t)&&(this.$$.skip_bound=!0,this.$$set(t),this.$$.skip_bound=!1)}};var nt="4";typeof window<"u"&&(window.__svelte||(window.__svelte={v:new Set})).v.add(nt);function Ft(e){let t;return{c(){t=v("div"),y(t,"class","message-bubble-content")},m(n,o){x(n,t,o),t.innerHTML=e[0]},p(n,o){o&1&&(t.innerHTML=n[0])},d(n){n&&d(t)}}}function kt(e){let t,n=(e[0]||e[1])+"";return{c(){t=v("div"),y(t,"class","message-bubble-content message-bubble-content-typing")},m(o,i){x(o,t,i),t.innerHTML=n},p(o,i){i&3&&n!==(n=(o[0]||o[1])+"")&&(t.innerHTML=n)},d(o){o&&d(t)}}}function Et(e){let t;function n(r,s){return r[2]?kt:Ft}let o=n(e,-1),i=o(e);return{c(){i.c(),t=W()},m(r,s){i.m(r,s),x(r,t,s)},p(r,[s]){o===(o=n(r,s))&&i?i.p(r,s):(i.d(1),i=o(r),i&&(i.c(),i.m(t.parentNode,t)))},i:a,o:a,d(r){r&&d(t),i.d(r)}}}function St(e){if(e===!0||e===!1)return e;var t=String(e??"").trim().toLowerCase();return t==="1"||t==="true"||t==="yes"||t==="on"}function Ot(e,t,n){let o,{html:i=""}=t,{plain:r=""}=t,{typing:s="0"}=t;return e.$$set=c=>{"html"in c&&n(0,i=c.html),"plain"in c&&n(1,r=c.plain),"typing"in c&&n(3,s=c.typing)},e.$$.update=()=>{e.$$.dirty&8&&n(2,o=St(s))},[i,r,o,s]}var D=class extends k{constructor(t){super(),Z(this,t,Ot,Et,B,{html:0,plain:1,typing:3})}get html(){return this.$$.ctx[0]}set html(t){this.$$set({html:t}),m()}get plain(){return this.$$.ctx[1]}set plain(t){this.$$set({plain:t}),m()}get typing(){return this.$$.ctx[3]}set typing(t){this.$$set({typing:t}),m()}};customElements.define("infring-chat-bubble-render",et(D,{html:{},plain:{},typing:{}},[],[],!1));var kn=D;})();
+(() => {
+  var __defProp = Object.defineProperty;
+  var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+  var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
+
+  // node_modules/svelte/src/runtime/internal/utils.js
+  function noop() {
+  }
+  function run(fn) {
+    return fn();
+  }
+  function blank_object() {
+    return /* @__PURE__ */ Object.create(null);
+  }
+  function run_all(fns) {
+    fns.forEach(run);
+  }
+  function is_function(thing) {
+    return typeof thing === "function";
+  }
+  function safe_not_equal(a, b) {
+    return a != a ? b == b : a !== b || a && typeof a === "object" || typeof a === "function";
+  }
+  function is_empty(obj) {
+    return Object.keys(obj).length === 0;
+  }
+
+  // node_modules/svelte/src/runtime/internal/globals.js
+  var globals = typeof window !== "undefined" ? window : typeof globalThis !== "undefined" ? globalThis : (
+    // @ts-ignore Node typings have this
+    global
+  );
+
+  // node_modules/svelte/src/runtime/internal/ResizeObserverSingleton.js
+  var ResizeObserverSingleton = class _ResizeObserverSingleton {
+    /** @param {ResizeObserverOptions} options */
+    constructor(options) {
+      /**
+       * @private
+       * @readonly
+       * @type {WeakMap<Element, import('./private.js').Listener>}
+       */
+      __publicField(this, "_listeners", "WeakMap" in globals ? /* @__PURE__ */ new WeakMap() : void 0);
+      /**
+       * @private
+       * @type {ResizeObserver}
+       */
+      __publicField(this, "_observer");
+      /** @type {ResizeObserverOptions} */
+      __publicField(this, "options");
+      this.options = options;
+    }
+    /**
+     * @param {Element} element
+     * @param {import('./private.js').Listener} listener
+     * @returns {() => void}
+     */
+    observe(element2, listener) {
+      this._listeners.set(element2, listener);
+      this._getObserver().observe(element2, this.options);
+      return () => {
+        this._listeners.delete(element2);
+        this._observer.unobserve(element2);
+      };
+    }
+    /**
+     * @private
+     */
+    _getObserver() {
+      return this._observer ?? (this._observer = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          _ResizeObserverSingleton.entries.set(entry.target, entry);
+          this._listeners.get(entry.target)?.(entry);
+        }
+      }));
+    }
+  };
+  ResizeObserverSingleton.entries = "WeakMap" in globals ? /* @__PURE__ */ new WeakMap() : void 0;
+
+  // node_modules/svelte/src/runtime/internal/dom.js
+  var is_hydrating = false;
+  function start_hydrating() {
+    is_hydrating = true;
+  }
+  function end_hydrating() {
+    is_hydrating = false;
+  }
+  function insert(target, node, anchor) {
+    target.insertBefore(node, anchor || null);
+  }
+  function detach(node) {
+    if (node.parentNode) {
+      node.parentNode.removeChild(node);
+    }
+  }
+  function element(name) {
+    return document.createElement(name);
+  }
+  function text(data) {
+    return document.createTextNode(data);
+  }
+  function empty() {
+    return text("");
+  }
+  function attr(node, attribute, value) {
+    if (value == null) node.removeAttribute(attribute);
+    else if (node.getAttribute(attribute) !== value) node.setAttribute(attribute, value);
+  }
+  function children(element2) {
+    return Array.from(element2.childNodes);
+  }
+  function get_custom_elements_slots(element2) {
+    const result = {};
+    element2.childNodes.forEach(
+      /** @param {Element} node */
+      (node) => {
+        result[node.slot || "default"] = true;
+      }
+    );
+    return result;
+  }
+
+  // node_modules/svelte/src/runtime/internal/lifecycle.js
+  var current_component;
+  function set_current_component(component) {
+    current_component = component;
+  }
+
+  // node_modules/svelte/src/runtime/internal/scheduler.js
+  var dirty_components = [];
+  var binding_callbacks = [];
+  var render_callbacks = [];
+  var flush_callbacks = [];
+  var resolved_promise = /* @__PURE__ */ Promise.resolve();
+  var update_scheduled = false;
+  function schedule_update() {
+    if (!update_scheduled) {
+      update_scheduled = true;
+      resolved_promise.then(flush);
+    }
+  }
+  function add_render_callback(fn) {
+    render_callbacks.push(fn);
+  }
+  var seen_callbacks = /* @__PURE__ */ new Set();
+  var flushidx = 0;
+  function flush() {
+    if (flushidx !== 0) {
+      return;
+    }
+    const saved_component = current_component;
+    do {
+      try {
+        while (flushidx < dirty_components.length) {
+          const component = dirty_components[flushidx];
+          flushidx++;
+          set_current_component(component);
+          update(component.$$);
+        }
+      } catch (e) {
+        dirty_components.length = 0;
+        flushidx = 0;
+        throw e;
+      }
+      set_current_component(null);
+      dirty_components.length = 0;
+      flushidx = 0;
+      while (binding_callbacks.length) binding_callbacks.pop()();
+      for (let i = 0; i < render_callbacks.length; i += 1) {
+        const callback = render_callbacks[i];
+        if (!seen_callbacks.has(callback)) {
+          seen_callbacks.add(callback);
+          callback();
+        }
+      }
+      render_callbacks.length = 0;
+    } while (dirty_components.length);
+    while (flush_callbacks.length) {
+      flush_callbacks.pop()();
+    }
+    update_scheduled = false;
+    seen_callbacks.clear();
+    set_current_component(saved_component);
+  }
+  function update($$) {
+    if ($$.fragment !== null) {
+      $$.update();
+      run_all($$.before_update);
+      const dirty = $$.dirty;
+      $$.dirty = [-1];
+      $$.fragment && $$.fragment.p($$.ctx, dirty);
+      $$.after_update.forEach(add_render_callback);
+    }
+  }
+  function flush_render_callbacks(fns) {
+    const filtered = [];
+    const targets = [];
+    render_callbacks.forEach((c) => fns.indexOf(c) === -1 ? filtered.push(c) : targets.push(c));
+    targets.forEach((c) => c());
+    render_callbacks = filtered;
+  }
+
+  // node_modules/svelte/src/runtime/internal/transitions.js
+  var outroing = /* @__PURE__ */ new Set();
+  function transition_in(block, local) {
+    if (block && block.i) {
+      outroing.delete(block);
+      block.i(local);
+    }
+  }
+
+  // node_modules/svelte/src/shared/boolean_attributes.js
+  var _boolean_attributes = (
+    /** @type {const} */
+    [
+      "allowfullscreen",
+      "allowpaymentrequest",
+      "async",
+      "autofocus",
+      "autoplay",
+      "checked",
+      "controls",
+      "default",
+      "defer",
+      "disabled",
+      "formnovalidate",
+      "hidden",
+      "inert",
+      "ismap",
+      "loop",
+      "multiple",
+      "muted",
+      "nomodule",
+      "novalidate",
+      "open",
+      "playsinline",
+      "readonly",
+      "required",
+      "reversed",
+      "selected"
+    ]
+  );
+  var boolean_attributes = /* @__PURE__ */ new Set([..._boolean_attributes]);
+
+  // node_modules/svelte/src/runtime/internal/Component.js
+  function mount_component(component, target, anchor) {
+    const { fragment, after_update } = component.$$;
+    fragment && fragment.m(target, anchor);
+    add_render_callback(() => {
+      const new_on_destroy = component.$$.on_mount.map(run).filter(is_function);
+      if (component.$$.on_destroy) {
+        component.$$.on_destroy.push(...new_on_destroy);
+      } else {
+        run_all(new_on_destroy);
+      }
+      component.$$.on_mount = [];
+    });
+    after_update.forEach(add_render_callback);
+  }
+  function destroy_component(component, detaching) {
+    const $$ = component.$$;
+    if ($$.fragment !== null) {
+      flush_render_callbacks($$.after_update);
+      run_all($$.on_destroy);
+      $$.fragment && $$.fragment.d(detaching);
+      $$.on_destroy = $$.fragment = null;
+      $$.ctx = [];
+    }
+  }
+  function make_dirty(component, i) {
+    if (component.$$.dirty[0] === -1) {
+      dirty_components.push(component);
+      schedule_update();
+      component.$$.dirty.fill(0);
+    }
+    component.$$.dirty[i / 31 | 0] |= 1 << i % 31;
+  }
+  function init(component, options, instance2, create_fragment2, not_equal, props, append_styles = null, dirty = [-1]) {
+    const parent_component = current_component;
+    set_current_component(component);
+    const $$ = component.$$ = {
+      fragment: null,
+      ctx: [],
+      // state
+      props,
+      update: noop,
+      not_equal,
+      bound: blank_object(),
+      // lifecycle
+      on_mount: [],
+      on_destroy: [],
+      on_disconnect: [],
+      before_update: [],
+      after_update: [],
+      context: new Map(options.context || (parent_component ? parent_component.$$.context : [])),
+      // everything else
+      callbacks: blank_object(),
+      dirty,
+      skip_bound: false,
+      root: options.target || parent_component.$$.root
+    };
+    append_styles && append_styles($$.root);
+    let ready = false;
+    $$.ctx = instance2 ? instance2(component, options.props || {}, (i, ret, ...rest) => {
+      const value = rest.length ? rest[0] : ret;
+      if ($$.ctx && not_equal($$.ctx[i], $$.ctx[i] = value)) {
+        if (!$$.skip_bound && $$.bound[i]) $$.bound[i](value);
+        if (ready) make_dirty(component, i);
+      }
+      return ret;
+    }) : [];
+    $$.update();
+    ready = true;
+    run_all($$.before_update);
+    $$.fragment = create_fragment2 ? create_fragment2($$.ctx) : false;
+    if (options.target) {
+      if (options.hydrate) {
+        start_hydrating();
+        const nodes = children(options.target);
+        $$.fragment && $$.fragment.l(nodes);
+        nodes.forEach(detach);
+      } else {
+        $$.fragment && $$.fragment.c();
+      }
+      if (options.intro) transition_in(component.$$.fragment);
+      mount_component(component, options.target, options.anchor);
+      end_hydrating();
+      flush();
+    }
+    set_current_component(parent_component);
+  }
+  var SvelteElement;
+  if (typeof HTMLElement === "function") {
+    SvelteElement = class extends HTMLElement {
+      constructor($$componentCtor, $$slots, use_shadow_dom) {
+        super();
+        /** The Svelte component constructor */
+        __publicField(this, "$$ctor");
+        /** Slots */
+        __publicField(this, "$$s");
+        /** The Svelte component instance */
+        __publicField(this, "$$c");
+        /** Whether or not the custom element is connected */
+        __publicField(this, "$$cn", false);
+        /** Component props data */
+        __publicField(this, "$$d", {});
+        /** `true` if currently in the process of reflecting component props back to attributes */
+        __publicField(this, "$$r", false);
+        /** @type {Record<string, CustomElementPropDefinition>} Props definition (name, reflected, type etc) */
+        __publicField(this, "$$p_d", {});
+        /** @type {Record<string, Function[]>} Event listeners */
+        __publicField(this, "$$l", {});
+        /** @type {Map<Function, Function>} Event listener unsubscribe functions */
+        __publicField(this, "$$l_u", /* @__PURE__ */ new Map());
+        this.$$ctor = $$componentCtor;
+        this.$$s = $$slots;
+        if (use_shadow_dom) {
+          this.attachShadow({ mode: "open" });
+        }
+      }
+      addEventListener(type, listener, options) {
+        this.$$l[type] = this.$$l[type] || [];
+        this.$$l[type].push(listener);
+        if (this.$$c) {
+          const unsub = this.$$c.$on(type, listener);
+          this.$$l_u.set(listener, unsub);
+        }
+        super.addEventListener(type, listener, options);
+      }
+      removeEventListener(type, listener, options) {
+        super.removeEventListener(type, listener, options);
+        if (this.$$c) {
+          const unsub = this.$$l_u.get(listener);
+          if (unsub) {
+            unsub();
+            this.$$l_u.delete(listener);
+          }
+        }
+        if (this.$$l[type]) {
+          const idx = this.$$l[type].indexOf(listener);
+          if (idx >= 0) {
+            this.$$l[type].splice(idx, 1);
+          }
+        }
+      }
+      async connectedCallback() {
+        this.$$cn = true;
+        if (!this.$$c) {
+          let create_slot = function(name) {
+            return () => {
+              let node;
+              const obj = {
+                c: function create() {
+                  node = element("slot");
+                  if (name !== "default") {
+                    attr(node, "name", name);
+                  }
+                },
+                /**
+                 * @param {HTMLElement} target
+                 * @param {HTMLElement} [anchor]
+                 */
+                m: function mount(target, anchor) {
+                  insert(target, node, anchor);
+                },
+                d: function destroy(detaching) {
+                  if (detaching) {
+                    detach(node);
+                  }
+                }
+              };
+              return obj;
+            };
+          };
+          await Promise.resolve();
+          if (!this.$$cn || this.$$c) {
+            return;
+          }
+          const $$slots = {};
+          const existing_slots = get_custom_elements_slots(this);
+          for (const name of this.$$s) {
+            if (name in existing_slots) {
+              $$slots[name] = [create_slot(name)];
+            }
+          }
+          for (const attribute of this.attributes) {
+            const name = this.$$g_p(attribute.name);
+            if (!(name in this.$$d)) {
+              this.$$d[name] = get_custom_element_value(name, attribute.value, this.$$p_d, "toProp");
+            }
+          }
+          for (const key in this.$$p_d) {
+            if (!(key in this.$$d) && this[key] !== void 0) {
+              this.$$d[key] = this[key];
+              delete this[key];
+            }
+          }
+          this.$$c = new this.$$ctor({
+            target: this.shadowRoot || this,
+            props: {
+              ...this.$$d,
+              $$slots,
+              $$scope: {
+                ctx: []
+              }
+            }
+          });
+          const reflect_attributes = () => {
+            this.$$r = true;
+            for (const key in this.$$p_d) {
+              this.$$d[key] = this.$$c.$$.ctx[this.$$c.$$.props[key]];
+              if (this.$$p_d[key].reflect) {
+                const attribute_value = get_custom_element_value(
+                  key,
+                  this.$$d[key],
+                  this.$$p_d,
+                  "toAttribute"
+                );
+                if (attribute_value == null) {
+                  this.removeAttribute(this.$$p_d[key].attribute || key);
+                } else {
+                  this.setAttribute(this.$$p_d[key].attribute || key, attribute_value);
+                }
+              }
+            }
+            this.$$r = false;
+          };
+          this.$$c.$$.after_update.push(reflect_attributes);
+          reflect_attributes();
+          for (const type in this.$$l) {
+            for (const listener of this.$$l[type]) {
+              const unsub = this.$$c.$on(type, listener);
+              this.$$l_u.set(listener, unsub);
+            }
+          }
+          this.$$l = {};
+        }
+      }
+      // We don't need this when working within Svelte code, but for compatibility of people using this outside of Svelte
+      // and setting attributes through setAttribute etc, this is helpful
+      attributeChangedCallback(attr2, _oldValue, newValue) {
+        if (this.$$r) return;
+        attr2 = this.$$g_p(attr2);
+        this.$$d[attr2] = get_custom_element_value(attr2, newValue, this.$$p_d, "toProp");
+        this.$$c?.$set({ [attr2]: this.$$d[attr2] });
+      }
+      disconnectedCallback() {
+        this.$$cn = false;
+        Promise.resolve().then(() => {
+          if (!this.$$cn && this.$$c) {
+            this.$$c.$destroy();
+            this.$$c = void 0;
+          }
+        });
+      }
+      $$g_p(attribute_name) {
+        return Object.keys(this.$$p_d).find(
+          (key) => this.$$p_d[key].attribute === attribute_name || !this.$$p_d[key].attribute && key.toLowerCase() === attribute_name
+        ) || attribute_name;
+      }
+    };
+  }
+  function get_custom_element_value(prop, value, props_definition, transform) {
+    const type = props_definition[prop]?.type;
+    value = type === "Boolean" && typeof value !== "boolean" ? value != null : value;
+    if (!transform || !props_definition[prop]) {
+      return value;
+    } else if (transform === "toAttribute") {
+      switch (type) {
+        case "Object":
+        case "Array":
+          return value == null ? null : JSON.stringify(value);
+        case "Boolean":
+          return value ? "" : null;
+        case "Number":
+          return value == null ? null : value;
+        default:
+          return value;
+      }
+    } else {
+      switch (type) {
+        case "Object":
+        case "Array":
+          return value && JSON.parse(value);
+        case "Boolean":
+          return value;
+        case "Number":
+          return value != null ? +value : value;
+        default:
+          return value;
+      }
+    }
+  }
+  function create_custom_element(Component, props_definition, slots, accessors, use_shadow_dom, extend) {
+    let Class = class extends SvelteElement {
+      constructor() {
+        super(Component, slots, use_shadow_dom);
+        this.$$p_d = props_definition;
+      }
+      static get observedAttributes() {
+        return Object.keys(props_definition).map(
+          (key) => (props_definition[key].attribute || key).toLowerCase()
+        );
+      }
+    };
+    Object.keys(props_definition).forEach((prop) => {
+      Object.defineProperty(Class.prototype, prop, {
+        get() {
+          return this.$$c && prop in this.$$c ? this.$$c[prop] : this.$$d[prop];
+        },
+        set(value) {
+          value = get_custom_element_value(prop, value, props_definition);
+          this.$$d[prop] = value;
+          this.$$c?.$set({ [prop]: value });
+        }
+      });
+    });
+    accessors.forEach((accessor) => {
+      Object.defineProperty(Class.prototype, accessor, {
+        get() {
+          return this.$$c?.[accessor];
+        }
+      });
+    });
+    if (extend) {
+      Class = extend(Class);
+    }
+    Component.element = /** @type {any} */
+    Class;
+    return Class;
+  }
+  var SvelteComponent = class {
+    constructor() {
+      /**
+       * ### PRIVATE API
+       *
+       * Do not use, may change at any time
+       *
+       * @type {any}
+       */
+      __publicField(this, "$$");
+      /**
+       * ### PRIVATE API
+       *
+       * Do not use, may change at any time
+       *
+       * @type {any}
+       */
+      __publicField(this, "$$set");
+    }
+    /** @returns {void} */
+    $destroy() {
+      destroy_component(this, 1);
+      this.$destroy = noop;
+    }
+    /**
+     * @template {Extract<keyof Events, string>} K
+     * @param {K} type
+     * @param {((e: Events[K]) => void) | null | undefined} callback
+     * @returns {() => void}
+     */
+    $on(type, callback) {
+      if (!is_function(callback)) {
+        return noop;
+      }
+      const callbacks = this.$$.callbacks[type] || (this.$$.callbacks[type] = []);
+      callbacks.push(callback);
+      return () => {
+        const index = callbacks.indexOf(callback);
+        if (index !== -1) callbacks.splice(index, 1);
+      };
+    }
+    /**
+     * @param {Partial<Props>} props
+     * @returns {void}
+     */
+    $set(props) {
+      if (this.$$set && !is_empty(props)) {
+        this.$$.skip_bound = true;
+        this.$$set(props);
+        this.$$.skip_bound = false;
+      }
+    }
+  };
+
+  // node_modules/svelte/src/shared/version.js
+  var PUBLIC_VERSION = "4";
+
+  // node_modules/svelte/src/runtime/internal/disclose-version/index.js
+  if (typeof window !== "undefined")
+    (window.__svelte || (window.__svelte = { v: /* @__PURE__ */ new Set() })).v.add(PUBLIC_VERSION);
+
+  // chat_bubble.svelte.js
+  function create_else_block(ctx) {
+    let div;
+    return {
+      c() {
+        div = element("div");
+        attr(div, "class", "message-bubble-content");
+      },
+      m(target, anchor) {
+        insert(target, div, anchor);
+        div.innerHTML = /*html*/
+        ctx[0];
+      },
+      p(ctx2, dirty) {
+        if (dirty & /*html*/
+        1) div.innerHTML = /*html*/
+        ctx2[0];
+        ;
+      },
+      d(detaching) {
+        if (detaching) {
+          detach(div);
+        }
+      }
+    };
+  }
+  function create_if_block(ctx) {
+    let div;
+    let raw_value = (
+      /*html*/
+      (ctx[0] || /*plain*/
+      ctx[1]) + ""
+    );
+    return {
+      c() {
+        div = element("div");
+        attr(div, "class", "message-bubble-content message-bubble-content-typing");
+      },
+      m(target, anchor) {
+        insert(target, div, anchor);
+        div.innerHTML = raw_value;
+      },
+      p(ctx2, dirty) {
+        if (dirty & /*html, plain*/
+        3 && raw_value !== (raw_value = /*html*/
+        (ctx2[0] || /*plain*/
+        ctx2[1]) + "")) div.innerHTML = raw_value;
+        ;
+      },
+      d(detaching) {
+        if (detaching) {
+          detach(div);
+        }
+      }
+    };
+  }
+  function create_fragment(ctx) {
+    let if_block_anchor;
+    function select_block_type(ctx2, dirty) {
+      if (
+        /*isTyping*/
+        ctx2[2]
+      ) return create_if_block;
+      return create_else_block;
+    }
+    let current_block_type = select_block_type(ctx, -1);
+    let if_block = current_block_type(ctx);
+    return {
+      c() {
+        if_block.c();
+        if_block_anchor = empty();
+      },
+      m(target, anchor) {
+        if_block.m(target, anchor);
+        insert(target, if_block_anchor, anchor);
+      },
+      p(ctx2, [dirty]) {
+        if (current_block_type === (current_block_type = select_block_type(ctx2, dirty)) && if_block) {
+          if_block.p(ctx2, dirty);
+        } else {
+          if_block.d(1);
+          if_block = current_block_type(ctx2);
+          if (if_block) {
+            if_block.c();
+            if_block.m(if_block_anchor.parentNode, if_block_anchor);
+          }
+        }
+      },
+      i: noop,
+      o: noop,
+      d(detaching) {
+        if (detaching) {
+          detach(if_block_anchor);
+        }
+        if_block.d(detaching);
+      }
+    };
+  }
+  function asBoolean(value) {
+    if (value === true || value === false) return value;
+    var text2 = String(value == null ? "" : value).trim().toLowerCase();
+    return text2 === "1" || text2 === "true" || text2 === "yes" || text2 === "on";
+  }
+  function instance($$self, $$props, $$invalidate) {
+    let isTyping;
+    let { html = "" } = $$props;
+    let { plain = "" } = $$props;
+    let { typing = "0" } = $$props;
+    $$self.$$set = ($$props2) => {
+      if ("html" in $$props2) $$invalidate(0, html = $$props2.html);
+      if ("plain" in $$props2) $$invalidate(1, plain = $$props2.plain);
+      if ("typing" in $$props2) $$invalidate(3, typing = $$props2.typing);
+    };
+    $$self.$$.update = () => {
+      if ($$self.$$.dirty & /*typing*/
+      8) {
+        $: $$invalidate(2, isTyping = asBoolean(typing));
+      }
+    };
+    return [html, plain, isTyping, typing];
+  }
+  var Chat_bubble = class extends SvelteComponent {
+    constructor(options) {
+      super();
+      init(this, options, instance, create_fragment, safe_not_equal, { html: 0, plain: 1, typing: 3 });
+    }
+    get html() {
+      return this.$$.ctx[0];
+    }
+    set html(html) {
+      this.$$set({ html });
+      flush();
+    }
+    get plain() {
+      return this.$$.ctx[1];
+    }
+    set plain(plain) {
+      this.$$set({ plain });
+      flush();
+    }
+    get typing() {
+      return this.$$.ctx[3];
+    }
+    set typing(typing) {
+      this.$$set({ typing });
+      flush();
+    }
+  };
+  customElements.define("infring-chat-bubble-render", create_custom_element(Chat_bubble, { "html": {}, "plain": {}, "typing": {} }, [], [], false));
+  var chat_bubble_svelte_default = Chat_bubble;
+})();
