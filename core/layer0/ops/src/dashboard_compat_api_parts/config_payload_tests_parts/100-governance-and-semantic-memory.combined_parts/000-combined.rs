@@ -604,6 +604,46 @@ fn workflow_decision_tree_explicit_file_tool_access_uses_task_tool_gate() {
             .and_then(Value::as_bool),
         Some(false)
     );
+    assert!(decision.get("needs_tool_access").is_some_and(Value::is_null));
+    assert_eq!(
+        decision
+            .get("gate_1_submission_status")
+            .and_then(Value::as_str),
+        Some("awaiting_llm_submission")
+    );
+    assert_eq!(
+        decision
+            .get("gate_1_decision_source")
+            .and_then(Value::as_str),
+        Some("pending_llm_submission")
+    );
+    assert_eq!(
+        decision
+            .pointer("/gate_submission/gate_id")
+            .and_then(Value::as_str),
+        Some("gate_1_need_tool_access_menu")
+    );
+    assert_eq!(
+        decision
+            .pointer("/gate_submission/input_shape/type")
+            .and_then(Value::as_str),
+        Some("multiple_choice")
+    );
+    assert!(decision
+        .pointer("/gate_submission/llm_submission")
+        .is_some_and(Value::is_null));
+    assert_eq!(
+        decision
+            .pointer("/gate_submission/accepted")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        decision
+            .pointer("/gate_submission/resume_token")
+            .and_then(Value::as_str),
+        Some("gate_1_need_tool_access_menu.awaiting_llm_submission")
+    );
     assert_eq!(
         decision.get("reason_code").and_then(Value::as_str),
         Some("manual_menu_presented")
@@ -628,6 +668,236 @@ fn workflow_decision_tree_blocks_status_check_turns_from_tool_calls() {
             .get("requires_live_web")
             .and_then(Value::as_bool),
         Some(false)
+    );
+}
+
+#[test]
+fn workflow_decision_tree_break_workflow_turn_still_enters_gate_1() {
+    let decision = workflow_turn_tool_decision_tree("break the workflow and respond directly");
+    assert_eq!(
+        decision.get("gate_decision_mode").and_then(Value::as_str),
+        Some("manual_need_tools_yes_no")
+    );
+    assert_eq!(
+        decision.get("should_call_tools").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert!(decision.get("needs_tool_access").is_some_and(Value::is_null));
+    assert_eq!(
+        decision
+            .get("gate_1_submission_status")
+            .and_then(Value::as_str),
+        Some("awaiting_llm_submission")
+    );
+    assert_eq!(
+        decision
+            .pointer("/gate_submission/gate_id")
+            .and_then(Value::as_str),
+        Some("gate_1_need_tool_access_menu")
+    );
+}
+
+#[test]
+fn workflow_decision_tree_explicit_web_request_still_enters_gate_1() {
+    let decision = workflow_turn_tool_decision_tree(
+        "search the web for current top agent frameworks and summarize them",
+    );
+    assert_eq!(
+        decision.get("gate_decision_mode").and_then(Value::as_str),
+        Some("manual_need_tools_yes_no")
+    );
+    assert_eq!(
+        decision.get("should_call_tools").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        decision
+            .get("requires_live_web")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert!(decision.get("needs_tool_access").is_some_and(Value::is_null));
+    assert_eq!(
+        decision
+            .pointer("/gate_submission/gate_id")
+            .and_then(Value::as_str),
+        Some("gate_1_need_tool_access_menu")
+    );
+}
+
+#[test]
+fn workflow_decision_tree_file_read_request_still_enters_gate_1() {
+    let decision = workflow_turn_tool_decision_tree("read this file: core/layer0/ops/src/main.rs");
+    assert_eq!(
+        decision.get("gate_decision_mode").and_then(Value::as_str),
+        Some("manual_need_tools_yes_no")
+    );
+    assert_eq!(
+        decision.get("should_call_tools").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert!(decision.get("needs_tool_access").is_some_and(Value::is_null));
+    assert_eq!(
+        decision
+            .get("gate_1_submission_status")
+            .and_then(Value::as_str),
+        Some("awaiting_llm_submission")
+    );
+    assert_eq!(
+        decision
+            .pointer("/gate_submission/resume_token")
+            .and_then(Value::as_str),
+        Some("gate_1_need_tool_access_menu.awaiting_llm_submission")
+    );
+}
+
+#[test]
+fn workflow_decision_tree_latest_keyword_does_not_auto_enable_web() {
+    let decision =
+        workflow_turn_tool_decision_tree("what are the latest agent framework changes this week?");
+    assert_eq!(
+        decision.get("gate_decision_mode").and_then(Value::as_str),
+        Some("manual_need_tools_yes_no")
+    );
+    assert_eq!(
+        decision.get("should_call_tools").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        decision
+            .get("requires_live_web")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert!(decision.get("needs_tool_access").is_some_and(Value::is_null));
+    assert_eq!(
+        decision
+            .pointer("/gate_submission/gate_id")
+            .and_then(Value::as_str),
+        Some("gate_1_need_tool_access_menu")
+    );
+}
+
+#[test]
+fn workflow_decision_tree_search_keyword_does_not_auto_enable_web() {
+    let decision =
+        workflow_turn_tool_decision_tree("search current framework docs and tell me what changed");
+    assert_eq!(
+        decision.get("gate_decision_mode").and_then(Value::as_str),
+        Some("manual_need_tools_yes_no")
+    );
+    assert_eq!(
+        decision.get("should_call_tools").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        decision
+            .get("requires_live_web")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert!(decision.get("needs_tool_access").is_some_and(Value::is_null));
+    assert_eq!(
+        decision
+            .get("gate_1_submission_status")
+            .and_then(Value::as_str),
+        Some("awaiting_llm_submission")
+    );
+}
+
+#[test]
+fn workflow_decision_tree_update_keyword_does_not_auto_enable_web() {
+    let decision = workflow_turn_tool_decision_tree(
+        "give me an update on the top framework releases and ecosystem shifts",
+    );
+    assert_eq!(
+        decision.get("gate_decision_mode").and_then(Value::as_str),
+        Some("manual_need_tools_yes_no")
+    );
+    assert_eq!(
+        decision.get("should_call_tools").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        decision
+            .get("requires_live_web")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert!(decision.get("needs_tool_access").is_some_and(Value::is_null));
+    assert_eq!(
+        decision
+            .pointer("/gate_submission/resume_token")
+            .and_then(Value::as_str),
+        Some("gate_1_need_tool_access_menu.awaiting_llm_submission")
+    );
+}
+
+#[test]
+fn workflow_decision_tree_diagnostic_phrase_does_not_trigger_hidden_route_change() {
+    let decision = workflow_turn_tool_decision_tree(
+        "what's going on? are you stuck in a workflow fallback loop again?",
+    );
+    assert_eq!(
+        decision.get("gate_decision_mode").and_then(Value::as_str),
+        Some("manual_need_tools_yes_no")
+    );
+    assert_eq!(
+        decision.get("should_call_tools").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        decision
+            .get("requires_live_web")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert!(decision.get("needs_tool_access").is_some_and(Value::is_null));
+    assert_eq!(
+        decision
+            .get("gate_1_submission_status")
+            .and_then(Value::as_str),
+        Some("awaiting_llm_submission")
+    );
+    assert_eq!(
+        decision
+            .pointer("/gate_submission/gate_id")
+            .and_then(Value::as_str),
+        Some("gate_1_need_tool_access_menu")
+    );
+}
+
+#[test]
+fn workflow_decision_tree_legacy_route_copy_phrase_does_not_suppress_tools_or_reroute() {
+    let decision = workflow_turn_tool_decision_tree(
+        "the first gate is still classifying this as an info route instead of a task route",
+    );
+    assert_eq!(
+        decision.get("gate_decision_mode").and_then(Value::as_str),
+        Some("manual_need_tools_yes_no")
+    );
+    assert_eq!(
+        decision.get("should_call_tools").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        decision
+            .get("requires_live_web")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert!(decision.get("needs_tool_access").is_some_and(Value::is_null));
+    assert_eq!(
+        decision
+            .get("gate_1_decision_source")
+            .and_then(Value::as_str),
+        Some("pending_llm_submission")
+    );
+    assert_eq!(
+        decision
+            .pointer("/gate_submission/resume_token")
+            .and_then(Value::as_str),
+        Some("gate_1_need_tool_access_menu.awaiting_llm_submission")
     );
 }
 
