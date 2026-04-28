@@ -170,6 +170,8 @@
         ) {
           row.thinking_status = incomingStatus;
         }
+        var activeStore = window.InfringChatStore;
+        if (activeStore && typeof activeStore.syncMessages === 'function') activeStore.syncMessages(this.messages, this.allFilteredMessages);
         return row;
       }
       row = {
@@ -188,6 +190,8 @@
         agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
       };
       this.messages.push(row);
+      var chatStore = window.InfringChatStore;
+      if (chatStore && typeof chatStore.syncMessages === 'function') chatStore.syncMessages(this.messages, this.allFilteredMessages);
       return row;
     },
 
@@ -298,6 +302,8 @@
           if (nextStatus && pendingRow.thinking_status !== nextStatus) pendingRow.thinking_status = nextStatus;
           pendingRow._stream_updated_at = Date.now();
         }
+        var chatStore = window.InfringChatStore;
+        if (chatStore && typeof chatStore.syncMessages === 'function') chatStore.syncMessages(self.messages, self.allFilteredMessages);
       };
       var syncPendingAfterReconnect = function(reason) {
         if (reconnectSyncInFlight) return;
