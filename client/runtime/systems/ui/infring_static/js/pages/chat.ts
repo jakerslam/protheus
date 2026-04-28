@@ -6608,6 +6608,7 @@ function chatPage() {
         if (chatStore.showScrollDown) chatStore.showScrollDown.set(!!self.showScrollDown);
         if (chatStore.stickToBottom) chatStore.stickToBottom.set(self._stickToBottom !== false);
         if (chatStore.mapStepIndex) chatStore.mapStepIndex.set(Number(self.mapStepIndex) || -1);
+        if (chatStore.wsConnected) chatStore.wsConnected.set(!!((appStore && appStore.wsConnected) || (typeof InfringAPI !== 'undefined' && typeof InfringAPI.isWsConnected === 'function' && InfringAPI.isWsConnected())));
         if (appStore) {
           if (chatStore.focusMode) chatStore.focusMode.set(!!appStore.focusMode);
           if (chatStore.connectionState) chatStore.connectionState.set(String(appStore.connectionState || ''));
@@ -6617,7 +6618,6 @@ function chatPage() {
       window.InfringChatPage = self;
       if (typeof Alpine !== 'undefined' && !window.InfringApp) window.InfringApp = Alpine.store('app');
     },
-
     toggleTerminalMode() {
       var self = this;
       if (this.isSystemThreadAgent && this.isSystemThreadAgent(this.currentAgent)) {
@@ -10274,7 +10274,6 @@ function chatPage() {
       }
       return false;
     },
-
     ensureLiveThinkingRow: function(data) {
       var incomingStatus = String(
         data && (data.thinking_status || data.status_text) ? (data.thinking_status || data.status_text) : ''
@@ -10300,6 +10299,7 @@ function chatPage() {
         ) {
           row.thinking_status = incomingStatus;
         }
+        var activeStore = window.InfringChatStore; if (activeStore && typeof activeStore.syncMessages === 'function') activeStore.syncMessages(this.messages, this.allFilteredMessages);
         return row;
       }
       row = {
@@ -10318,9 +10318,9 @@ function chatPage() {
         agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
       };
       this.messages.push(row);
+      var chatStore = window.InfringChatStore; if (chatStore && typeof chatStore.syncMessages === 'function') chatStore.syncMessages(this.messages, this.allFilteredMessages);
       return row;
     },
-
     // Multi-session: load session list for current agent
     async loadSessions(agentId) {
       try {
@@ -10428,6 +10428,7 @@ function chatPage() {
           if (nextStatus && pendingRow.thinking_status !== nextStatus) pendingRow.thinking_status = nextStatus;
           pendingRow._stream_updated_at = Date.now();
         }
+        var chatStore = window.InfringChatStore; if (chatStore && typeof chatStore.syncMessages === 'function') chatStore.syncMessages(self.messages, self.allFilteredMessages);
       };
       var syncPendingAfterReconnect = function(reason) {
         if (reconnectSyncInFlight) return;
@@ -11539,7 +11540,6 @@ function chatPage() {
           this.scrollToBottom();
           this.$nextTick(() => this._processQueue());
           break;
-
         case 'canvas':
           // Agent presented an interactive canvas — render it in an iframe sandbox
           var canvasHtml = '<div class="canvas-panel" style="border:1px solid var(--border);border-radius:8px;margin:8px 0;overflow:hidden;">';
@@ -11551,9 +11551,9 @@ function chatPage() {
           this.messages.push({ id: ++msgId, role: 'agent', text: canvasHtml, meta: 'canvas', isHtml: true, tools: [] });
           this.scrollToBottom();
           break;
-
         case 'pong': break;
       }
+      var activeStore = window.InfringChatStore; if (activeStore && typeof activeStore.syncMessages === 'function' && data && data.type !== 'connected' && data.type !== 'context_state' && data.type !== 'pong') activeStore.syncMessages(this.messages, this.allFilteredMessages);
       this.scheduleConversationPersist();
     },
 
