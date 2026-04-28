@@ -21,7 +21,7 @@
       };
       try {
         var preserveFreshInit = self.isFreshInitInProgressFor(agentId);
-        var data = await InfringAPI.get('/api/agents/' + agentId + '/session');
+        var data = await InfringAPI.get('/api/agents/' + agentId + '/session?limit=80');
         if (!loadStillCurrent()) return;
         self.rebuildInputHistoryFromSessionPayload(data);
         if (self.currentAgent && String(self.currentAgent.id || '') === String(agentId || '')) {
@@ -57,6 +57,8 @@
           if (shouldApplyAuthoritativeMessages) {
             // Always prefer server-authoritative session state over potentially stale cache.
             self.messages = normalized;
+            self._hasMoreMessages = !!(data && data.has_more);
+            self._messagePageOffset = normalized.length;
             self.clearHoveredMessageHard();
             self.recomputeContextEstimate();
             self.cacheAgentConversation(agentId);

@@ -45,6 +45,35 @@
       }
     },
 
+    async loadOlderMessages() {
+      var self = this;
+      if (!self._hasMoreMessages || self._olderMessagesLoading) return;
+      var agentId = self.currentAgent && self.currentAgent.id;
+      if (!agentId) return;
+      self._olderMessagesLoading = true;
+      try {
+        var offset = Number(self._messagePageOffset || 0);
+        var data = await InfringAPI.get('/api/agents/' + agentId + '/session?limit=80&offset=' + offset);
+        if (!data || !data.ok) return;
+        var older = self.normalizeSessionMessages(data);
+        if (!older.length) {
+          self._hasMoreMessages = false;
+          return;
+        }
+        self._hasMoreMessages = !!(data.has_more);
+        self._messagePageOffset = offset + older.length;
+        var el = self.resolveMessagesScroller(null);
+        var prevScrollHeight = el ? el.scrollHeight : 0;
+        self.messages = older.concat(Array.isArray(self.messages) ? self.messages : []);
+        self.$nextTick(function() {
+          if (el) el.scrollTop += (el.scrollHeight - prevScrollHeight);
+        });
+      } catch(_) {
+      } finally {
+        self._olderMessagesLoading = false;
+      }
+    },
+
     waitForAnimationFrame() {
       return new Promise(function(resolve) {
         if (typeof requestAnimationFrame === 'function') {
