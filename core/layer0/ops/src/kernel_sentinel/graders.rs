@@ -68,6 +68,13 @@ fn regression_detail(record: &Value, key: &str) -> bool {
             .unwrap_or(false)
 }
 
+fn explicit_failure_status(status: &str) -> bool {
+    matches!(
+        status.trim().to_lowercase().as_str(),
+        "fail" | "failed" | "failure" | "error" | "critical"
+    )
+}
+
 fn evidence(record: &Value, fallback: &str) -> Vec<String> {
     record
         .get("evidence")
@@ -187,7 +194,7 @@ fn canary_failure_count(records: &[Value]) -> usize {
         .filter(|record| {
             bool_detail(record, "canary_failed")
                 || (text(record, "kind", "") == "sentinel_canary"
-                    && str_detail(record, "canary_status", "pass") != "pass")
+                    && explicit_failure_status(&str_detail(record, "canary_status", "pass")))
         })
         .count()
 }
@@ -199,10 +206,13 @@ fn canary_case_rows(records: &[Value]) -> Vec<Value> {
         .map(|record| {
             let subject = subject(record);
             let case = str_detail(record, "canary_case", &subject);
+            let raw_status = str_detail(record, "canary_status", "pass");
             let status = if bool_detail(record, "canary_failed") {
                 "fail".to_string()
+            } else if explicit_failure_status(&raw_status) {
+                raw_status
             } else {
-                str_detail(record, "canary_status", "pass")
+                "pass".to_string()
             };
             json!({
                 "case": case,
@@ -278,6 +288,7 @@ pub fn build_grader_stack(
             true,
             json!({
                 "source": "sentinel_canary",
+                "bridge_presence_policy": "observed_without_explicit_failure_signal_is_non_failure",
                 "case_count": canary_cases.len(),
                 "cases": canary_cases
             }),
@@ -373,5 +384,26 @@ mod tests {
         assert_eq!(report["graders"][4]["failure_count"], Value::from(0));
         assert_eq!(report["graders"][4]["blocks_release"], false);
         assert_eq!(report["graders"][4]["notes"]["cases"][0]["case"], Value::from("reordered_trace"));
+    }
+
+    #[test]
+    fn observed_canary_bridge_presence_does_not_fail_grader() {
+        let records = vec![json!({
+            "subject": "bridge-present-canary",
+            "kind": "sentinel_canary",
+            "details": {
+                "canary_case": "bridge_presence",
+                "canary_status": "observed"
+            }
+        })];
+        let (report, findings) = build_grader_stack(&[], &records);
+        assert!(findings.is_empty());
+        assert_eq!(report["graders"][4]["failure_count"], Value::from(0));
+        assert_eq!(report["graders"][4]["blocks_release"], false);
+        assert_eq!(
+            report["graders"][4]["notes"]["bridge_presence_policy"],
+            "observed_without_explicit_failure_signal_is_non_failure"
+        );
+        assert_eq!(report["graders"][4]["notes"]["cases"][0]["status"], "pass");
     }
 }

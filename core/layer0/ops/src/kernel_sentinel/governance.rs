@@ -3,6 +3,7 @@
 
 use super::graders::build_grader_stack;
 use super::rsi_handoff::build_rsi_handoff_report;
+use super::release_gate_synthesis::release_gate_synthesis_status;
 use super::{
     KernelSentinelFinding, KernelSentinelFindingCategory, KernelSentinelSeverity,
     KERNEL_SENTINEL_FINDING_SCHEMA_VERSION,
@@ -354,6 +355,7 @@ fn malformed_maintenance_count(maintenance_synthesis: &Value) -> usize {
 pub fn build_release_gate(
     findings: &[KernelSentinelFinding],
     malformed_findings: &[Value],
+    architectural_incident_report: &Value,
     issue_synthesis: &Value,
     maintenance_synthesis: &Value,
     governance_preflight: &Value,
@@ -378,6 +380,12 @@ pub fn build_release_gate(
         .unwrap_or("unknown");
     let malformed_evidence = evidence_report["malformed_evidence"].as_bool().unwrap_or(false);
     let partial_evidence = evidence_report["partial_evidence"].as_bool().unwrap_or(false);
+    let (
+        multi_layer_incident_count,
+        missing_architectural_synthesis_count,
+        missing_remediation_classification_count,
+        incident_synthesis_guard_pass,
+    ) = release_gate_synthesis_status(architectural_incident_report);
     let pass = critical_open_count == 0
         && malformed_findings.is_empty()
         && malformed_issue_count == 0
@@ -386,12 +394,14 @@ pub fn build_release_gate(
         && freshness_stale_count == 0
         && grader_blocking_count == 0
         && rsi_handoff_blocking_count == 0
+        && incident_synthesis_guard_pass
         && !data_starved;
     json!({
         "type": "kernel_sentinel_release_gate",
         "pass": pass,
         "required_artifacts": [
             "kernel_sentinel_report_current.json",
+            "architectural_incident_report_current.json",
             "kernel_sentinel_verdict.json",
             "issues.jsonl",
             "suggestions.jsonl",
@@ -401,6 +411,7 @@ pub fn build_release_gate(
         ],
         "proof_pack_manifest_required_artifacts": [
             "kernel_sentinel_report_current.json",
+            "architectural_incident_report_current.json",
             "kernel_sentinel_verdict.json"
         ],
         "critical_open_count": critical_open_count,
@@ -411,6 +422,10 @@ pub fn build_release_gate(
         "freshness_stale_count": freshness_stale_count,
         "grader_blocking_count": grader_blocking_count,
         "rsi_handoff_blocking_count": rsi_handoff_blocking_count,
+        "multi_layer_incident_count": multi_layer_incident_count,
+        "missing_architectural_synthesis_count": missing_architectural_synthesis_count,
+        "missing_remediation_classification_count": missing_remediation_classification_count,
+        "incident_synthesis_guard_pass": incident_synthesis_guard_pass,
         "data_starved": data_starved,
         "partial_evidence": partial_evidence,
         "malformed_evidence": malformed_evidence,
@@ -420,62 +435,5 @@ pub fn build_release_gate(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn finding_with(category: KernelSentinelFindingCategory, fingerprint: &str) -> KernelSentinelFinding {
-        KernelSentinelFinding {
-            schema_version: KERNEL_SENTINEL_FINDING_SCHEMA_VERSION,
-            id: "finding-1".to_string(),
-            severity: KernelSentinelSeverity::Critical,
-            category,
-            fingerprint: fingerprint.to_string(),
-            evidence: vec!["receipt://one".to_string()],
-            summary: fingerprint.to_string(),
-            recommended_action: "restore Kernel invariant".to_string(),
-            status: "open".to_string(),
-        }
-    }
-
-    #[test]
-    fn hard_fail_preflight_detects_required_proof_pack_gaps() {
-        let evidence_report = json!({"normalized_records": [{
-            "source": "release_proof_pack",
-            "subject": "rc-pack",
-            "kind": "proof_pack",
-            "evidence": ["proof://rc-pack"],
-            "details": {"required_missing": 1}
-        }]});
-        let (report, findings) = build_governance_preflight(&[], &evidence_report, &[]);
-        assert_eq!(report["hard_fail_invariant_count"], Value::from(1));
-        assert!(findings.iter().any(|f| f.fingerprint == "hard_fail:missing_proof_pack_required_artifact:rc-pack"));
-    }
-
-    #[test]
-    fn stale_freshness_record_creates_release_blocking_finding() {
-        let evidence_report = json!({"normalized_records": [{
-            "source": "runtime_observation",
-            "subject": "watch",
-            "kind": "background_watch",
-            "evidence": ["freshness://watch"],
-            "details": {"freshness_age_seconds": 7200}
-        }]});
-        let args = vec!["--freshness-window-seconds=60".to_string()];
-        let (report, findings) = build_governance_preflight(&[], &evidence_report, &args);
-        assert_eq!(report["freshness_stale_count"], Value::from(1));
-        assert!(findings.iter().any(|f| f.fingerprint == "sentinel_freshness_stale:background_watch:watch"));
-    }
-
-    #[test]
-    fn release_gate_fails_on_critical_and_passes_on_clean_inputs() {
-        let critical = finding_with(KernelSentinelFindingCategory::ReceiptIntegrity, "receipt_forgery:demo");
-        let issue = json!({"issue_drafts": []});
-        let maintenance = json!({"suggestions": [], "automation_candidates": []});
-        let governance = json!({"hard_fail_invariant_count": 0, "freshness_stale_count": 0});
-        let evidence = json!({"normalized_record_count": 1, "data_starved": false, "observation_state": "healthy_observation"});
-        let failed = build_release_gate(&[critical], &[], &issue, &maintenance, &governance, &evidence);
-        assert_eq!(failed["pass"], false);
-        let passed = build_release_gate(&[], &[], &issue, &maintenance, &governance, &evidence);
-        assert_eq!(passed["pass"], true);
-    }
-}
+#[path = "governance_tests.rs"]
+mod tests;
