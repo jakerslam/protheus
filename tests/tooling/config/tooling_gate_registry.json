@@ -633,6 +633,28 @@
         "local/workspace/reports/SHELL_APP_STORE_BRIDGE_GUARD_CURRENT.md"
       ]
     },
+    "ops:shell:app-ownership:guard": {
+      "owner": "ops",
+      "description": "Fail when app.ts and app.ts.parts/** are not explicitly classified as one logical Shell surface with app.ts as the canonical runtime entry.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:shell:app-ownership:guard",
+      "artifact_paths": [
+        "core/local/artifacts/shell_app_surface_ownership_guard_current.json",
+        "local/workspace/reports/SHELL_APP_SURFACE_OWNERSHIP_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:shell:chat-ownership:guard": {
+      "owner": "ops",
+      "description": "Fail when chat.ts and chat.ts.parts/** are not explicitly classified as one logical Shell surface with chat.ts as the canonical runtime entry.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:shell:chat-ownership:guard",
+      "artifact_paths": [
+        "core/local/artifacts/shell_chat_surface_ownership_guard_current.json",
+        "local/workspace/reports/SHELL_CHAT_SURFACE_OWNERSHIP_GUARD_CURRENT.md"
+      ]
+    },
     "ops:shell:long-chat-ram:guard": {
       "owner": "ops",
       "description": "Fail when Shell long-chat projection, live memprobe instrumentation, or synthetic heap/DOM budgets allow unbounded chat-page RAM growth.",

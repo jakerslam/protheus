@@ -171,3 +171,23 @@ var InfringSharedShellServices = (function(existing) {
 if (typeof window !== 'undefined') {
   window.InfringSharedShellServices = InfringSharedShellServices;
 }
+
+function infringEnsureShellAppStoreBridge() {
+  if (typeof window === 'undefined') return null;
+  var services = window.InfringSharedShellServices && typeof window.InfringSharedShellServices === 'object'
+    ? window.InfringSharedShellServices
+    : (typeof InfringSharedShellServices === 'object' ? InfringSharedShellServices : null);
+  return services && services.appStore ? services.appStore : null;
+}
+
+function infringShellAppStoreBridge() {
+  return infringEnsureShellAppStoreBridge();
+}
+
+function infringShellAppStoreCurrent() {
+  var bridge = infringShellAppStoreBridge();
+  if (bridge && typeof bridge.current === 'function') return bridge.current();
+  return (typeof window !== 'undefined' && window.InfringApp && typeof window.InfringApp === 'object')
+    ? window.InfringApp
+    : null;
+}
