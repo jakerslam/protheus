@@ -1,459 +1,12 @@
+// Canonical Shell source-of-truth: assembled runtime app surface.
+// Decomposition debt lives under ./app.ts.parts/** and must not count as additive production source.
 // Shared rendering helpers split out to keep dashboard part files under size caps.
 
-// Render LaTeX math in the chat message container using KaTeX auto-render.
-// Call this after new messages are inserted into the DOM.
-function renderLatex(el) {
-  if (typeof renderMathInElement !== 'function') return;
-  var target = el || document.getElementById('messages');
-  if (!target) return;
-  try {
-    renderMathInElement(target, {
-      delimiters: [
-        { left: '$$', right: '$$', display: true },
-        { left: '\\[', right: '\\]', display: true },
-        { left: '$', right: '$', display: false },
-        { left: '\\(', right: '\\)', display: false }
-      ],
-      throwOnError: false,
-      trust: false
-    });
-  } catch (e) { /* KaTeX render error — ignore gracefully */ }
-}
-
-function cloneDashboardConfigObject(value) {
-  if (typeof structuredClone === 'function') return structuredClone(value);
-  return JSON.parse(JSON.stringify(value));
-}
-
-function normalizeDashboardOptionalString(value) {
-  var text = String(value == null ? '' : value).trim();
-  return text || '';
-}
-
-var DASHBOARD_FORBIDDEN_CONFIG_KEYS = { '__proto__': true, 'prototype': true, 'constructor': true };
-
-function resolveDashboardConfigPathContainer(obj, path, createMissing) {
-  if (!obj || !Array.isArray(path) || !path.length) return null;
-  var current = obj;
-  for (var i = 0; i < path.length - 1; i += 1) {
-    var key = path[i];
-    if (typeof key === 'string' && DASHBOARD_FORBIDDEN_CONFIG_KEYS[key]) return null;
-    var nextKey = path[i + 1];
-    if (typeof key === 'number') {
-      if (!Array.isArray(current)) return null;
-      if (current[key] == null) {
-        if (!createMissing) return null;
-        current[key] = typeof nextKey === 'number' ? [] : {};
-      }
-      current = current[key];
-      continue;
-    }
-    if (!current || typeof current !== 'object') return null;
-    if (current[key] == null) {
-      if (!createMissing) return null;
-      current[key] = typeof nextKey === 'number' ? [] : {};
-    }
-    current = current[key];
-  }
-  return { current: current, lastKey: path[path.length - 1] };
-}
-
-function setDashboardConfigPathValue(obj, path, value) {
-  var container = resolveDashboardConfigPathContainer(obj, path, true);
-  if (!container) return;
-  if (typeof container.lastKey === 'number') {
-    if (Array.isArray(container.current)) container.current[container.lastKey] = value;
-    return;
-  }
-  if (typeof container.lastKey === 'string' && DASHBOARD_FORBIDDEN_CONFIG_KEYS[container.lastKey]) return;
-  if (container.current && typeof container.current === 'object') container.current[container.lastKey] = value;
-}
-
-function removeDashboardConfigPathValue(obj, path) {
-  var container = resolveDashboardConfigPathContainer(obj, path, false);
-  if (!container) return;
-  if (typeof container.lastKey === 'number') {
-    if (Array.isArray(container.current)) container.current.splice(container.lastKey, 1);
-    return;
-  }
-  if (typeof container.lastKey === 'string' && DASHBOARD_FORBIDDEN_CONFIG_KEYS[container.lastKey]) return;
-  if (container.current && typeof container.current === 'object') delete container.current[container.lastKey];
-}
-
-function normalizeDashboardAgentLabel(agent, agentIdentity) {
-  var identityName = normalizeDashboardOptionalString(agentIdentity && agentIdentity.name);
-  if (identityName) return identityName;
-  var agentName = normalizeDashboardOptionalString(agent && agent.name);
-  if (agentName) return agentName;
-  var nestedName = normalizeDashboardOptionalString(agent && agent.identity && agent.identity.name);
-  if (nestedName) return nestedName;
-  return normalizeDashboardOptionalString(agent && agent.id) || 'agent';
-}
-
-function resolveDashboardAgentAvatar(agent, agentIdentity) {
-  var values = [
-    normalizeDashboardOptionalString(agentIdentity && agentIdentity.avatar),
-    normalizeDashboardOptionalString(agent && agent.identity && agent.identity.avatar_url),
-    normalizeDashboardOptionalString(agent && agent.identity && agent.identity.avatar),
-    normalizeDashboardOptionalString(agent && agent.avatar_url)
-  ];
-  for (var i = 0; i < values.length; i += 1) {
-    if (/^(https?:\/\/|data:image\/|\/)/i.test(values[i])) return values[i];
-  }
-  return '';
-}
-
-function resolveDashboardAgentEmoji(agent, agentIdentity) {
-  var values = [
-    normalizeDashboardOptionalString(agentIdentity && agentIdentity.emoji),
-    normalizeDashboardOptionalString(agent && agent.identity && agent.identity.emoji),
-    normalizeDashboardOptionalString(agent && agent.identity && agent.identity.avatar),
-    normalizeDashboardOptionalString(agent && agent.avatar)
-  ];
-  for (var i = 0; i < values.length; i += 1) {
-    var value = values[i];
-    if (!value || value.length > 16) continue;
-    if (/[A-Za-z0-9]/.test(value) && value.charCodeAt(0) < 128) continue;
-    if (value.indexOf('://') >= 0 || value.indexOf('/') >= 0 || value.indexOf('.') >= 0) continue;
-    return value;
-  }
-  return '';
-}
-
-function copyCode(btn) {
-  var code = null;
-  if (btn && typeof btn.closest === 'function') {
-    var block = btn.closest('.chat-codeblock');
-    if (block && typeof block.querySelector === 'function') {
-      code = block.querySelector('pre > code');
-    }
-  }
-  if (!code && btn && btn.parentElement && btn.parentElement.tagName === 'PRE') {
-    code = btn.parentElement.querySelector('code');
-  }
-  if (!code && btn) {
-    var next = btn.nextElementSibling;
-    if (next && next.tagName === 'CODE') code = next;
-  }
-  if (!code) return;
-  var setCopyState = function(copied) {
-    if (!btn) return;
-    var copyIcon = btn.querySelector('.copy-icon');
-    var copiedIcon = btn.querySelector('.copied-icon');
-    if (copyIcon && copiedIcon) {
-      copyIcon.style.display = copied ? 'none' : '';
-      copiedIcon.style.display = copied ? '' : 'none';
-    }
-    btn.classList.toggle('copied', !!copied);
-    btn.setAttribute('title', copied ? 'Copied' : 'Copy code');
-    btn.setAttribute('aria-label', copied ? 'Copied' : 'Copy code');
-  };
-  navigator.clipboard.writeText(code.textContent).then(function() {
-    if (btn._copyResetTimer) clearTimeout(btn._copyResetTimer);
-    setCopyState(true);
-    btn._copyResetTimer = setTimeout(function() {
-      setCopyState(false);
-      btn._copyResetTimer = null;
-    }, 1500);
-  });
-}
-
-function dashboardExtractCodeLanguage(codeAttrs) {
-  var attrs = String(codeAttrs || '');
-  if (!attrs) return '';
-  var classMatch = attrs.match(/\bclass\s*=\s*"([^"]*)"/i) || attrs.match(/\bclass\s*=\s*'([^']*)'/i);
-  var classText = classMatch ? String(classMatch[1] || '') : '';
-  if (classText) {
-    var classes = classText.split(/\s+/).filter(Boolean);
-    for (var i = 0; i < classes.length; i += 1) {
-      var cls = String(classes[i] || '').trim().toLowerCase();
-      if (!cls) continue;
-      if (cls.indexOf('language-') === 0) return cls.slice('language-'.length);
-      if (cls.indexOf('lang-') === 0) return cls.slice('lang-'.length);
-    }
-  }
-  var directMatch = attrs.match(/\blanguage-([a-z0-9_+-]+)/i) || attrs.match(/\blang-([a-z0-9_+-]+)/i);
-  return directMatch ? String(directMatch[1] || '').trim().toLowerCase() : '';
-}
-
-function dashboardFormatCodeLanguageLabel(languageKey) {
-  var key = String(languageKey || '').trim().toLowerCase();
-  if (!key) return 'Code';
-  var labels = {
-    js: 'JavaScript',
-    jsx: 'JSX',
-    ts: 'TypeScript',
-    tsx: 'TSX',
-    py: 'Python',
-    rs: 'Rust',
-    sh: 'Shell',
-    bash: 'Bash',
-    zsh: 'Zsh',
-    ps1: 'PowerShell',
-    yml: 'YAML',
-    md: 'Markdown',
-    html: 'HTML',
-    css: 'CSS',
-    json: 'JSON',
-    toml: 'TOML',
-    sql: 'SQL',
-    xml: 'XML'
-  };
-  return labels[key] || (key.charAt(0).toUpperCase() + key.slice(1));
-}
-
-function dashboardEscapeInlineHtmlText(value) {
-  var raw = String(value == null ? '' : value);
-  if (typeof escapeHtml === 'function') return escapeHtml(raw);
-  return raw
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function dashboardWrapMarkdownCodeBlocks(html) {
-  var input = String(html || '');
-  if (!input) return '';
-  return input.replace(/<pre><code([^>]*)>([\s\S]*?)<\/code><\/pre>/g, function(_, attrs, body) {
-    var codeAttrs = attrs || '';
-    var languageKey = dashboardExtractCodeLanguage(codeAttrs);
-    var languageLabel = dashboardFormatCodeLanguageLabel(languageKey);
-    var bodyText = String(body || '');
-    var lineCount = bodyText ? bodyText.split('\n').length : 0;
-    var collapsible = lineCount > 30;
-    var collapsedClass = collapsible ? ' chat-codeblock-collapsible is-collapsed' : '';
-    var toggleBtn = collapsible
-      ? (
-        '<button class="message-stat-btn chat-codeblock-toggle" type="button" onclick="toggleCodeFold(this)" title="Expand code" aria-label="Expand code" aria-expanded="false">' +
-          'Expand' +
-        '</button>'
-      )
-      : '';
-    return (
-      '<div class="chat-codeblock' + collapsedClass + '" data-code-language="' + dashboardEscapeInlineHtmlText(languageKey || 'code') + '">' +
-        '<div class="chat-codeblock-toolbar">' +
-          '<span class="chat-codeblock-language">' + dashboardEscapeInlineHtmlText(languageLabel) + '</span>' +
-          '<span class="chat-codeblock-toolbar-actions">' +
-            toggleBtn +
-            '<button class="message-stat-btn chat-codeblock-copy" type="button" onclick="copyCode(this)" title="Copy code" aria-label="Copy code">' +
-              '<svg class="copy-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>' +
-              '<svg class="copied-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M20 6L9 17l-5-5"></path></svg>' +
-            '</button>' +
-          '</span>' +
-        '</div>' +
-        '<pre><code' + codeAttrs + '>' + body + '</code></pre>' +
-      '</div>'
-    );
-  });
-}
-
-function dashboardWrapMarkdownTables(html) {
-  var input = String(html || '');
-  if (!input) return '';
-  return input.replace(/<table>([\s\S]*?)<\/table>/g, function(_, inner) {
-    return '<div class="chat-table-wrap"><table>' + String(inner || '') + '</table></div>';
-  });
-}
-
-function toggleCodeFold(btn) {
-  if (!btn || typeof btn.closest !== 'function') return;
-  var block = btn.closest('.chat-codeblock');
-  if (!block) return;
-  var nextCollapsed = !block.classList.contains('is-collapsed');
-  block.classList.toggle('is-collapsed', nextCollapsed);
-  btn.textContent = nextCollapsed ? 'Expand' : 'Collapse';
-  btn.setAttribute('aria-expanded', nextCollapsed ? 'false' : 'true');
-  btn.setAttribute('title', nextCollapsed ? 'Expand code' : 'Collapse code');
-  btn.setAttribute('aria-label', nextCollapsed ? 'Expand code' : 'Collapse code');
-}
-
-// Tool category icon SVGs — returns inline SVG for each tool category.
-function toolIcon(toolName) {
-  if (!toolName) return '';
-  var n = toolName.toLowerCase();
-  var s = 'width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
-  if (n.indexOf('file_') === 0 || n.indexOf('directory_') === 0) {
-    return '<svg ' + s + '><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>';
-  }
-  if (n.indexOf('web_') === 0 || n.indexOf('link_') === 0) {
-    return '<svg ' + s + '><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10z"/></svg>';
-  }
-  if (n.indexOf('shell') === 0 || n.indexOf('exec_') === 0) {
-    return '<svg ' + s + '><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>';
-  }
-  if (n.indexOf('agent_') === 0) {
-    return '<svg ' + s + '><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
-  }
-  if (n.indexOf('memory_') === 0 || n.indexOf('knowledge_') === 0) {
-    return '<svg ' + s + '><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>';
-  }
-  if (n.indexOf('cron_') === 0 || n.indexOf('schedule_') === 0) {
-    return '<svg ' + s + '><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
-  }
-  if (n.indexOf('browser_') === 0 || n.indexOf('playwright_') === 0) {
-    return '<svg ' + s + '><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>';
-  }
-  if (n.indexOf('container_') === 0 || n.indexOf('docker_') === 0) {
-    return '<svg ' + s + '><path d="M22 12H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>';
-  }
-  if (n.indexOf('image_') === 0 || n.indexOf('tts_') === 0) {
-    return '<svg ' + s + '><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
-  }
-  if (n.indexOf('hand_') === 0) {
-    return '<svg ' + s + '><path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v6"/><path d="M10 10.5V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-5.7-2.4L3.4 16a2 2 0 0 1 3.2-2.4L8 15"/></svg>';
-  }
-  if (n.indexOf('task_') === 0) {
-    return '<svg ' + s + '><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>';
-  }
-  return '<svg ' + s + '><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>';
-}
 
 // Infring App — Alpine.js init, hash router, global store
 'use strict';
 
-// Marked.js configuration
-if (typeof marked !== 'undefined') {
-  marked.setOptions({
-    breaks: true,
-    gfm: true,
-    highlight: function(code, lang) {
-      if (typeof hljs !== 'undefined' && lang && hljs.getLanguage(lang)) {
-        try { return hljs.highlight(code, { language: lang }).value; } catch(e) {}
-      }
-      return code;
-    }
-  });
-}
 
-function escapeHtml(text) {
-  var div = document.createElement('div');
-  div.textContent = text || '';
-  return div.innerHTML;
-}
-
-function normalizeChatMarkdownListBreaks(text) {
-  var source = String(text || '');
-  if (!source) return '';
-  var normalized = source.replace(/\r\n/g, '\n');
-  normalized = normalized.replace(/[ \t]+•[ \t]+/g, '\n- ');
-  normalized = normalized.replace(/(:\s+)(\*\*[^*\n]{1,120}\*\*:)/g, function(_match, prefix, marker) {
-    return prefix.replace(/\s+$/, '') + '\n' + marker;
-  });
-  normalized = normalized.replace(/([.!?])\s+(\*\*[^*\n]{1,120}\*\*:)/g, function(_match, punctuation, marker) {
-    return punctuation + '\n' + marker;
-  });
-  normalized = normalized.replace(/(:\n)(\*\*[^*\n]{1,120}\*\*:)/, '$1- $2');
-  var out = '';
-  var i = 0;
-  var inCodeFence = false;
-  var atLineStart = true;
-  var lineHasContent = false;
-  var isLikelyListMarkerAt = function(value, index) {
-    var tail = String(value || '').slice(index);
-    var match = tail.match(/^(\*\*\d{1,3}[.)]\s+[^*\n]+\*\*|\d{1,3}[.)]\s+|[*+-]\s+)/);
-    if (!match) return null;
-    var marker = String(match[1] || '');
-    if (/^[*+-]\s+$/.test(marker)) {
-      var nextChar = tail.charAt(marker.length);
-      if (!nextChar || /\s/.test(nextChar)) return null;
-    }
-    if (/^\d/.test(marker)) {
-      var prev = index > 0 ? value.charAt(index - 1) : '';
-      if (/\d/.test(prev)) return null;
-    }
-    return marker;
-  };
-  while (i < normalized.length) {
-    if ((i === 0 || normalized.charAt(i - 1) === '\n') && normalized.slice(i, i + 3) === '```') {
-      inCodeFence = !inCodeFence;
-    }
-    if (!inCodeFence && !atLineStart) {
-      var marker = isLikelyListMarkerAt(normalized, i);
-      if (marker && lineHasContent) {
-        var prevChar = out.length ? out.charAt(out.length - 1) : '';
-        if (prevChar !== '\n') out += '\n';
-        atLineStart = true;
-        lineHasContent = false;
-      }
-    }
-    var ch = normalized.charAt(i);
-    out += ch;
-    if (ch === '\n') {
-      atLineStart = true;
-      lineHasContent = false;
-    } else {
-      if (!/\s/.test(ch)) lineHasContent = true;
-      atLineStart = false;
-    }
-    i += 1;
-  }
-  return out.replace(/\n{3,}/g, '\n\n');
-}
-
-function renderMarkdown(text) {
-  if (!text) return '';
-  if (typeof marked !== 'undefined') {
-    // Protect LaTeX blocks from marked.js mangling (underscores, backslashes, etc.)
-    var latexBlocks = [];
-    var protected_ = normalizeChatMarkdownListBreaks(text);
-    // Protect display math $$...$$ first (greedy across lines)
-    protected_ = protected_.replace(/\$\$([\s\S]+?)\$\$/g, function(match) {
-      var idx = latexBlocks.length;
-      latexBlocks.push(match);
-      return '\x00LATEX' + idx + '\x00';
-    });
-    // Protect inline math $...$ (single line, not empty, not starting/ending with space)
-    protected_ = protected_.replace(/\$([^\s$](?:[^$]*[^\s$])?)\$/g, function(match) {
-      var idx = latexBlocks.length;
-      latexBlocks.push(match);
-      return '\x00LATEX' + idx + '\x00';
-    });
-    // Protect \[...\] display math
-    protected_ = protected_.replace(/\\\[([\s\S]+?)\\\]/g, function(match) {
-      var idx = latexBlocks.length;
-      latexBlocks.push(match);
-      return '\x00LATEX' + idx + '\x00';
-    });
-    // Protect \(...\) inline math
-    protected_ = protected_.replace(/\\\(([\s\S]+?)\\\)/g, function(match) {
-      var idx = latexBlocks.length;
-      latexBlocks.push(match);
-      return '\x00LATEX' + idx + '\x00';
-    });
-
-    var html = marked.parse(protected_);
-    // Restore LaTeX blocks
-    for (var i = 0; i < latexBlocks.length; i++) {
-      html = html.replace('\x00LATEX' + i + '\x00', latexBlocks[i]);
-    }
-    // Upgrade markdown render cards for richer code/table ergonomics.
-    if (typeof dashboardWrapMarkdownCodeBlocks === 'function') {
-      html = dashboardWrapMarkdownCodeBlocks(html);
-    }
-    if (typeof dashboardWrapMarkdownTables === 'function') {
-      html = dashboardWrapMarkdownTables(html);
-    }
-    // Open external links in new tab
-    html = html.replace(/<a\s+href="(https?:\/\/[^"]*)"(?![^>]*target=)([^>]*)>/gi, '<a href="$1" target="_blank" rel="noopener"$2>');
-    return html;
-  }
-  return escapeHtml(text);
-}
-
-function infringShellAppStoreBridge() {
-  var services = typeof window !== 'undefined' ? window.InfringSharedShellServices : null;
-  return services && services.appStore ? services.appStore : null;
-}
-
-function infringShellAppStoreCurrent() {
-  var bridge = infringShellAppStoreBridge();
-  if (bridge && typeof bridge.current === 'function') return bridge.current();
-  return (typeof window !== 'undefined' && window.InfringApp && typeof window.InfringApp === 'object')
-    ? window.InfringApp
-    : null;
-}
 
 // Temporary Alpine compatibility registration for the canonical Shell app-store bridge.
 document.addEventListener('alpine:init', function() {
@@ -551,968 +104,161 @@ document.addEventListener('alpine:init', function() {
     },
 
     isArchivedLikeAgent(agent) {
-      if (!agent || typeof agent !== 'object') return false;
-      var truthy = function(value) {
-        if (value === true || value === 1) return true;
-        var text = String(value || '').trim().toLowerCase();
-        return text === 'true' || text === '1' || text === 'yes';
-      };
-      if (truthy(agent.archived) || truthy(agent.sidebar_archived)) return true;
-      if (truthy(agent.contract_terminated) || truthy(agent.revive_recommended)) return true;
-      if (truthy(agent.is_terminated) || truthy(agent.terminated) || truthy(agent.is_archived) || truthy(agent.inactive)) return true;
-      var hardInactivePattern = /\b(archived|inactive|terminated|termed|contract[_\s-]*terminated|expired|revoked|timed[_\s-]*out|timeout|stopped|killed|dead)\b/;
-      var lifecycleText = [
-        agent.status,
-        agent.state,
-        agent.lifecycle_state,
-        agent.agent_state,
-        agent.runtime_state
-      ]
-        .map(function(value) { return String(value || '').trim().toLowerCase(); })
-        .filter(Boolean)
-        .join(' ');
-      var hasLiveActiveSignal = /\b(active|running|ready|connected)\b/.test(lifecycleText);
-      var hasLiveInactiveSignal = hardInactivePattern.test(lifecycleText);
-      if (hasLiveInactiveSignal && !hasLiveActiveSignal) return true;
-      var reasonText = [
-        agent.termination_reason,
-        agent.archive_reason,
-        agent.inactive_reason
-      ]
-        .map(function(value) { return String(value || '').trim().toLowerCase(); })
-        .filter(Boolean)
-        .join(' ');
-      if (hardInactivePattern.test(reasonText)) return true;
-      var contract = agent.contract && typeof agent.contract === 'object' ? agent.contract : null;
-      var contractStatus = String(contract && (contract.status || contract.state) ? (contract.status || contract.state) : '').trim().toLowerCase();
-      if (hardInactivePattern.test(contractStatus)) return true;
-      var contractRemaining = Number(
-        (contract && (contract.remaining_ms != null ? contract.remaining_ms : contract.contract_remaining_ms)) != null
-          ? (contract.remaining_ms != null ? contract.remaining_ms : contract.contract_remaining_ms)
-          : (agent.contract_remaining_ms != null ? agent.contract_remaining_ms : NaN)
-      );
-      var contractFiniteExpiry = (contract && contract.finite_expiry != null)
-        ? truthy(contract.finite_expiry)
-        : truthy(agent.contract_finite_expiry);
-      if (contractFiniteExpiry && Number.isFinite(contractRemaining) && contractRemaining <= 0) return true;
-      return false;
+      return infringIsArchivedLikeAgent(agent);
     },
 
     markAgentPreviewUnread(agentId, unread) {
-      var id = String(agentId || '').trim();
-      if (!id) return;
-      if (!this.agentChatPreviews) this.agentChatPreviews = {};
-      if (!this.agentChatPreviews[id]) this.agentChatPreviews[id] = { text: '', ts: Date.now(), role: 'agent' };
-      this.agentChatPreviews[id].unread_response = unread !== false;
+      infringMarkAgentPreviewUnread(this, agentId, unread);
     },
 
     async refreshAgents(opts) {
-      // Alpine can invoke store methods through different call paths; guard against lost `this`.
-      var store = (this && typeof this === 'object' && Object.prototype.hasOwnProperty.call(this, 'agentsHydrated'))
-        ? this
-        : infringShellAppStoreCurrent();
-      if (!store) return;
-      var options = opts || {};
-      var force = options.force === true;
-      var now = Date.now();
-      if (!force && store._lastAgentsRefreshAt && (now - store._lastAgentsRefreshAt) < 1200) {
-        return;
-      }
-      if (store._refreshAgentsInFlight) {
-        return store._refreshAgentsInFlight;
-      }
-      store._refreshAgentsInFlight = (async () => {
-        if (!store.agentsHydrated) store.agentsLoading = true;
-        store.agentsFetchAttempts = Number(store.agentsFetchAttempts || 0) + 1;
-        var agents = null;
-        var fetchError = '';
-        try {
-          agents = await InfringAPI.get('/api/agents?view=sidebar&authority=runtime');
-        } catch(e) {
-          fetchError = (e && e.message) ? String(e.message) : 'agent_fetch_failed';
-          try {
-            await new Promise(function(resolve) { setTimeout(resolve, 250); });
-            agents = await InfringAPI.get('/api/agents?view=sidebar&authority=runtime');
-          } catch(_) {
-            agents = null;
-          }
-        }
-        if (Array.isArray(agents)) {
-          var priorAgents = Array.isArray(store.agents) ? store.agents.slice() : [];
-          var hadPriorAgents = priorAgents.length > 0;
-          var holdMs = Number(store.agentTransientHoldMs || 0);
-          var statusAgentCountHint = Number(store.agentCount || 0);
-          if (!Number.isFinite(statusAgentCountHint) || statusAgentCountHint < 0) {
-            statusAgentCountHint = 0;
-          }
-          var connectionState = String(store.connectionState || '').toLowerCase();
-          if (agents.length === 0 && hadPriorAgents && store.connectionState !== 'disconnected') {
-            // Strict runtime authority can momentarily return an empty roster when
-            // collab dashboard polling times out. Preserve known-good rows while
-            // status still reports active agents so the sidebar/chat selection
-            // does not flap to zero.
-            if (statusAgentCountHint > 0 || connectionState === 'connecting' || connectionState === 'reconnecting') {
-              store.agentsHydrated = true;
-              store.agentsLoading = false;
-              store.agentsLastError = fetchError || 'strict_roster_transient_empty';
-              store.agentCount = Math.max(priorAgents.length, statusAgentCountHint);
-              return;
-            }
-            store.agentsEmptyResponseStreak = Number(store.agentsEmptyResponseStreak || 0) + 1;
-            var lastNonEmptyAt = Number(store.agentsLastNonEmptyAt || 0);
-            var withinHoldWindow = lastNonEmptyAt > 0 && (Date.now() - lastNonEmptyAt) < holdMs;
-            // Buffer transient empty responses so chat selection doesn't flap/reset.
-            if (withinHoldWindow || store.agentsEmptyResponseStreak < 3) {
-              store.agentsHydrated = true;
-              store.agentsLoading = false;
-              store.agentCount = priorAgents.length;
-              return;
-            }
-          } else if (agents.length > 0) {
-            store.agentsEmptyResponseStreak = 0;
-            store.agentsLastNonEmptyAt = Date.now();
-          } else {
-            store.agentsEmptyResponseStreak = 0;
-          }
-
-          // First-load protection: do not finalize empty roster until repeated confirms.
-          if (agents.length === 0 && !store.agentsHydrated) {
-            var attempts = Number(store.agentsFetchAttempts || 0);
-            if (statusAgentCountHint > 0) {
-              store.agentsLoading = true;
-              store.agentCount = statusAgentCountHint;
-              store.agentsLastError = fetchError || 'strict_roster_waiting_for_directory';
-              return;
-            }
-            if (connectionState !== 'connected' || attempts < 3) {
-              store.agentsLoading = true;
-              store.agentCount = 0;
-              return;
-            }
-          }
-
-          var isSidebarArchivedRow = function(row) {
-            if (!row || typeof row !== 'object') return false;
-            return typeof store.isArchivedLikeAgent === 'function' ? store.isArchivedLikeAgent(row) : false;
-          };
-          var nextAgents = (Array.isArray(agents) ? agents : []).filter(function(row) {
-            if (!row || !row.id) return false;
-            return !isSidebarArchivedRow(row);
-          });
-          store.agents = nextAgents;
-          store.agentsHydrated = true;
-          store.agentsLoading = false;
-          store.agentsLastError = '';
-          var keep = {};
-          for (var ai = 0; ai < nextAgents.length; ai++) {
-            var row = nextAgents[ai];
-            if (row && row.id) keep[String(row.id)] = true;
-          }
-          var nextActivity = {};
-          var now = Date.now();
-          var srcActivity = store.agentLiveActivity || {};
-          keep.system = true;
-          Object.keys(srcActivity).forEach(function(id) {
-            var entry = srcActivity[id];
-            if (!keep[id] || !entry) return;
-            var state = String(entry.state || '').toLowerCase();
-            var ts = Number(entry.ts || 0);
-            var busyState = state.indexOf('typing') >= 0 || state.indexOf('working') >= 0 || state.indexOf('processing') >= 0;
-            var ttlMs = busyState ? 180000 : 20000;
-            if (!Number.isFinite(ts) || (now - ts) > ttlMs) return;
-            nextActivity[id] = entry;
-          });
-          store.agentLiveActivity = nextActivity;
-          if (store.activeAgentId) {
-            var activeId = String(store.activeAgentId || '');
-            var pendingFreshId = String(store.pendingFreshAgentId || '');
-            var stillActive = activeId === 'system' || nextAgents.some(function(agent) {
-              return agent && agent.id === store.activeAgentId;
-            });
-            if (!stillActive && pendingFreshId && activeId && pendingFreshId === activeId) {
-              stillActive = true;
-            }
-            if (!stillActive) {
-              store.setActiveAgentId(null);
-            }
-          }
-          store.agentCount = nextAgents.length;
-        } else if (!store.agentsHydrated) {
-          store.agentsLoading = true;
-          store.agentsLastError = fetchError || 'agent_fetch_failed';
-        }
-        store._lastAgentsRefreshAt = Date.now();
-      })();
-      try {
-        await store._refreshAgentsInFlight;
-      } finally {
-        store._refreshAgentsInFlight = null;
-      }
+      await infringRefreshAgents(this, opts);
     },
 
     async checkStatus() {
-      if (this.booting || this.connectionState === 'disconnected') {
-        this.connectionState = 'connecting';
-      }
-      try {
-        var startedAt = Date.now();
-        var results = await Promise.all([
-          InfringAPI.get('/api/status'),
-          InfringAPI.get('/api/version').catch(function() { return null; })
-        ]);
-        var latencyMs = Math.max(0, Date.now() - startedAt);
-        var s = results[0];
-        var versionPayload = results[1];
-        var statusObj = (s && typeof s === 'object') ? s : {};
-        var versionObj = (versionPayload && typeof versionPayload === 'object') ? versionPayload : {};
-        var stateRaw = String(
-          statusObj.connection_state ||
-          statusObj.state ||
-          (statusObj.connected === false ? 'disconnected' : 'connected')
-        ).toLowerCase();
-        var connectedState = stateRaw === 'connected';
-        var degraded = !!statusObj.degraded || !!statusObj.warning || statusObj.ok === false;
-        var bootStage = String(statusObj.boot_stage || statusObj.last_stage || (connectedState ? 'ready' : 'connecting')).trim();
-        if (!connectedState) {
-          throw new Error(String(statusObj.error || 'status_unavailable'));
-        }
-        this.connected = true;
-        this.booting = false;
-        this.statusFailureStreak = 0;
-        this.connectionState = 'connected';
-        this.statusDegraded = degraded;
-        this.bootStage = bootStage || 'ready';
-        this.lastStatusLatencyMs = latencyMs;
-        this.lastStatusAt = new Date().toISOString();
-        this.lastError = degraded ? String(statusObj.error || statusObj.warning || '') : '';
-        this.lastErrorCode = normalizeDashboardOptionalString(statusObj.error_code || statusObj.warning_code || '');
-        var liveVersion = String(versionObj.version || versionObj.tag || '').trim().replace(/^[vV]/, '');
-        this.version = liveVersion || statusObj.version || this.version || window.__INFRING_APP_VERSION || '0.0.0';
-        this.gitBranch = statusObj.git_branch ? String(statusObj.git_branch) : (this.gitBranch || '');
-        this.agentCount = statusObj.agent_count || 0;
-        this.runtimeSync = (statusObj.runtime_sync && typeof statusObj.runtime_sync === 'object') ? statusObj.runtime_sync : null;
-        if (typeof this.applyBootstrapRuntimeState === 'function') {
-          this.applyBootstrapRuntimeState(statusObj, versionObj);
-        }
-        await this.pollSessionActivity(false);
-      } catch(e) {
-        var streak = Number(this.statusFailureStreak || 0) + 1;
-        this.connected = false;
-        this.booting = false;
-        this.statusFailureStreak = streak;
-        this.statusDegraded = false;
-        this.connectionState = streak >= 3 ? 'disconnected' : 'reconnecting';
-        this.bootStage = streak >= 3 ? 'status_unreachable' : 'status_retrying';
-        this.lastStatusLatencyMs = 0;
-        this.lastStatusAt = new Date().toISOString();
-        this.lastError = e.message || 'Unknown error';
-        this.lastErrorCode = normalizeDashboardOptionalString((e && (e.code || e.name)) || '');
-        this.runtimeSync = null;
-        console.warn('[Infring] Status check failed:', e.message);
-      }
+      await infringCheckStatus(this);
     },
 
     async pollSessionActivity(force) {
-      var now = Date.now();
-      if (!force && this._lastSessionActivityPollAt && (now - Number(this._lastSessionActivityPollAt || 0)) < 8000) {
-        return;
-      }
-      this._lastSessionActivityPollAt = now;
-      try {
-        var payload = await InfringAPI.get('/api/sessions');
-        var rows = Array.isArray(payload && payload.sessions)
-          ? payload.sessions
-          : (Array.isArray(payload && payload.rows) ? payload.rows : []);
-        var priorMap = this._sessionActivityByAgent && typeof this._sessionActivityByAgent === 'object'
-          ? this._sessionActivityByAgent
-          : {};
-        var nextMap = {};
-        var activeId = String(this.activeAgentId || '').trim();
-        var noticesEmitted = 0;
-        for (var i = 0; i < rows.length; i++) {
-          var row = rows[i] && typeof rows[i] === 'object' ? rows[i] : null;
-          if (!row) continue;
-          var agentId = String(row.agent_id || '').trim();
-          if (!agentId) continue;
-          var messageCount = Number(row.message_count || 0);
-          if (!Number.isFinite(messageCount) || messageCount < 0) messageCount = 0;
-          var updatedAt = String(row.updated_at || '').trim();
-          nextMap[agentId] = {
-            message_count: messageCount,
-            updated_at: updatedAt
-          };
-          if (!this._sessionActivityBootstrapped) continue;
-          if (noticesEmitted >= 8) continue;
-          var prior = priorMap[agentId];
-          if (!prior || typeof prior !== 'object') continue;
-          var priorCount = Number(prior.message_count || 0);
-          if (!Number.isFinite(priorCount) || priorCount < 0) priorCount = 0;
-          var priorUpdated = String(prior.updated_at || '').trim();
-          var countIncreased = messageCount > priorCount;
-          var updatedChanged = !!updatedAt && updatedAt !== priorUpdated;
-          if (!countIncreased && !updatedChanged) continue;
-          if (agentId === activeId) continue;
-
-          if (typeof this.addNotification !== 'function') continue;
-
-          var label = agentId === 'system' ? 'System' : ('Agent ' + agentId);
-          var agent = null;
-          if (Array.isArray(this.agents)) {
-            agent = this.agents.find(function(entry) {
-              return entry && String(entry.id || '').trim() === agentId;
-            });
-            if (agent) {
-              var agentName = String(agent.name || '').trim();
-              if (agentName) label = agentName;
-            }
-          }
-          var serverPreview = agent && agent.sidebar_preview && typeof agent.sidebar_preview === 'object'
-            ? agent.sidebar_preview
-            : null;
-          var preview = this.agentChatPreviews && this.agentChatPreviews[agentId]
-            ? this.agentChatPreviews[agentId]
-            : null;
-          var previewText = '';
-          if (serverPreview && typeof serverPreview.text === 'string') {
-            previewText = serverPreview.text.replace(/\s+/g, ' ').trim();
-          }
-          if (!previewText && preview && typeof preview.text === 'string') {
-            previewText = preview.text.replace(/\s+/g, ' ').trim();
-          }
-          if (previewText.length > 120) previewText = previewText.slice(0, 117) + '...';
-          var summary = previewText || 'posted a new update.';
-          var message = previewText ? (label + ': ' + previewText) : (label + ' posted a new update.');
-
-          this.addNotification({
-            type: agentId === 'system' ? 'warn' : 'info',
-            message: message,
-            ts: now + noticesEmitted,
-            source: 'session_activity',
-            page: 'chat',
-            agent_id: agentId,
-            summary: summary
-          });
-          noticesEmitted += 1;
-        }
-        this._sessionActivityByAgent = nextMap;
-        this._sessionActivityBootstrapped = true;
-      } catch(_) {}
+      await infringPollSessionActivity(this, force);
     },
 
     normalizeDashboardAssistantIdentity(payload) {
-      var source = payload && typeof payload === 'object' ? payload : {};
-      var name = normalizeDashboardOptionalString(
-        source.name ||
-        source.assistant_name ||
-        source.display_name ||
-        source.label
-      );
-      var avatar = normalizeDashboardOptionalString(
-        source.avatar ||
-        source.avatar_url ||
-        source.assistant_avatar
-      );
-      var agentId = normalizeDashboardOptionalString(
-        source.agent_id ||
-        source.assistant_agent_id ||
-        source.id
-      );
-      return {
-        name: name || 'Assistant',
-        avatar: avatar || '',
-        agentId: agentId || ''
-      };
+      return infringNormalizeDashboardAssistantIdentity(payload);
     },
 
     applyBootstrapRuntimeState(statusObj, versionObj) {
-      var status = statusObj && typeof statusObj === 'object' ? statusObj : {};
-      var version = versionObj && typeof versionObj === 'object' ? versionObj : {};
-      var assistantPayload =
-        (status.assistant_identity && typeof status.assistant_identity === 'object' && status.assistant_identity) ||
-        (status.assistant && typeof status.assistant === 'object' && status.assistant) ||
-        (version.assistant_identity && typeof version.assistant_identity === 'object' && version.assistant_identity) ||
-        (version.assistant && typeof version.assistant === 'object' && version.assistant) ||
-        {
-          name: status.assistant_name || version.assistant_name || '',
-          avatar: status.assistant_avatar || version.assistant_avatar || '',
-          agent_id: status.assistant_agent_id || version.assistant_agent_id || ''
-        };
-      var assistantIdentity = this.normalizeDashboardAssistantIdentity(assistantPayload);
-      this.assistantName = assistantIdentity.name || this.assistantName || 'Assistant';
-      this.assistantAvatar = assistantIdentity.avatar || this.assistantAvatar || null;
-      this.assistantAgentId = assistantIdentity.agentId || this.assistantAgentId || null;
-
-      var serverVersion = normalizeDashboardOptionalString(version.version || version.tag || status.version).replace(/^[vV]/, '');
-      if (serverVersion) this.serverVersion = serverVersion;
-
-      var previewRoots = status.local_media_preview_roots || version.local_media_preview_roots;
-      if (!Array.isArray(previewRoots) && status.media && typeof status.media === 'object') {
-        previewRoots = status.media.local_preview_roots;
-      }
-      if (!Array.isArray(previewRoots) && version.media && typeof version.media === 'object') {
-        previewRoots = version.media.local_preview_roots;
-      }
-      if (Array.isArray(previewRoots)) {
-        this.localMediaPreviewRoots = previewRoots
-          .map(function(root) { return normalizeDashboardOptionalString(root); })
-          .filter(function(root) { return !!root; });
-      }
-
-      var sandboxMode = normalizeDashboardOptionalString(
-        status.embed_sandbox_mode ||
-        (status.embed && status.embed.sandbox_mode) ||
-        version.embed_sandbox_mode ||
-        (version.embed && version.embed.sandbox_mode)
-      );
-      if (sandboxMode) this.embedSandboxMode = sandboxMode;
-
-      var allowExternal = status.allow_external_embed_urls;
-      if (typeof allowExternal !== 'boolean' && status.embed && typeof status.embed === 'object') {
-        allowExternal = status.embed.allow_external_urls;
-      }
-      if (typeof allowExternal !== 'boolean') {
-        allowExternal = version.allow_external_embed_urls;
-      }
-      if (typeof allowExternal !== 'boolean' && version.embed && typeof version.embed === 'object') {
-        allowExternal = version.embed.allow_external_urls;
-      }
-      if (typeof allowExternal === 'boolean') this.allowExternalEmbedUrls = allowExternal;
+      infringApplyBootstrapRuntimeState(this, statusObj, versionObj);
     },
 
     focusTaskbarSearchInput() {
-      var self = this;
-      if (this._taskbarSearchFocusTimer) {
-        clearTimeout(this._taskbarSearchFocusTimer);
-        this._taskbarSearchFocusTimer = 0;
-      }
-      this._taskbarSearchFocusTimer = window.setTimeout(function() {
-        var input = document.getElementById('taskbar-search-input');
-        if (input && typeof input.focus === 'function') {
-          input.focus({ preventScroll: true });
-          if (typeof input.select === 'function') input.select();
-        }
-        self._taskbarSearchFocusTimer = 0;
-      }, 40);
+      infringFocusTaskbarSearchInput(this);
     },
 
     openTaskbarSearch() {
-      this.taskbarSearchOpen = false;
+      infringOpenTaskbarSearch(this);
     },
 
     closeTaskbarSearch() {
-      this.taskbarSearchOpen = false;
-      if (this._taskbarSearchFocusTimer) {
-        clearTimeout(this._taskbarSearchFocusTimer);
-        this._taskbarSearchFocusTimer = 0;
-      }
+      infringCloseTaskbarSearch(this);
     },
 
     toggleTaskbarSearch() {
-      this.taskbarSearchOpen = false;
+      infringToggleTaskbarSearch(this);
     },
 
     async checkOnboarding() {
-      if (localStorage.getItem('infring-onboarded')) return;
-      try {
-        var config = await InfringAPI.get('/api/config');
-        var apiKey = config && config.api_key;
-        var noKey = !apiKey || apiKey === 'not set' || apiKey === '';
-        if (noKey && this.agentCount === 0) {
-          this.showOnboarding = true;
-        }
-      } catch(e) {
-        // If config endpoint fails, still show onboarding if no agents
-        if (this.agentCount === 0) this.showOnboarding = true;
-      }
+      await infringCheckOnboarding(this);
     },
 
     dismissOnboarding() {
-      this.showOnboarding = false;
-      localStorage.setItem('infring-onboarded', 'true');
+      infringDismissOnboarding(this);
     },
 
     async checkAuth() {
-      try {
-        // First check if session-based auth is configured
-        var authInfo = await InfringAPI.get('/api/auth/check');
-        if (authInfo.mode === 'none') {
-          // No session auth — fall back to API key detection
-          this.authMode = 'apikey';
-          this.sessionUser = null;
-        } else if (authInfo.mode === 'session') {
-          this.authMode = 'session';
-          if (authInfo.authenticated) {
-            this.sessionUser = authInfo.username;
-            this.showAuthPrompt = false;
-            return;
-          }
-          // Session auth enabled but not authenticated — show login prompt
-          this.showAuthPrompt = true;
-          return;
-        }
-      } catch(e) { /* ignore — fall through to API key check */ }
-
-
-      // API key mode detection
-      try {
-        await InfringAPI.get('/api/tools');
-        this.showAuthPrompt = false;
-      } catch(e) {
-        if (e.message && (e.message.indexOf('Not authorized') >= 0 || e.message.indexOf('401') >= 0 || e.message.indexOf('Missing Authorization') >= 0 || e.message.indexOf('Unauthorized') >= 0)) {
-          var saved = localStorage.getItem('infring-api-key');
-          if (saved) {
-            InfringAPI.setAuthToken('');
-            localStorage.removeItem('infring-api-key');
-          }
-          this.showAuthPrompt = true;
-        }
-      }
+      await infringCheckAuth(this);
     },
 
     submitApiKey(key) {
-      if (!key || !key.trim()) return;
-      InfringAPI.setAuthToken(key.trim());
-      localStorage.setItem('infring-api-key', key.trim());
-      this.showAuthPrompt = false;
-      this.refreshAgents();
+      infringSubmitApiKey(this, key);
     },
 
     async sessionLogin(username, password) {
-      try {
-        var result = await InfringAPI.post('/api/auth/login', { username: username, password: password });
-        if (result.status === 'ok') {
-          this.sessionUser = result.username;
-          this.showAuthPrompt = false;
-          this.refreshAgents();
-        } else {
-          InfringToast.error(result.error || 'Login failed');
-        }
-      } catch(e) {
-        InfringToast.error(e.message || 'Login failed');
-      }
+      await infringSessionLogin(this, username, password);
     },
 
     async sessionLogout() {
-      try {
-        await InfringAPI.post('/api/auth/logout');
-      } catch(e) { /* ignore */ }
-      this.sessionUser = null;
-      this.showAuthPrompt = true;
+      await infringSessionLogout(this);
     },
 
     normalizeNotificationType(rawType, message) {
-      var value = String(rawType || '').trim().toLowerCase();
-      if (!value) {
-        var text = String(message || '').toLowerCase();
-        if (/(completed|complete|done|success|succeeded|finished|resolved)/.test(text)) {
-          value = 'completed';
-        } else if (/(error|failed|failure|aborted|abort|exception|crash|denied|timeout)/.test(text)) {
-          value = 'error';
-        } else {
-          value = 'info';
-        }
-      }
-      if (['completed', 'complete', 'done', 'success', 'ok', 'resolved', 'action_completed', 'task_completed'].indexOf(value) >= 0) {
-        return 'completed';
-      }
-      if (['error', 'failed', 'failure', 'fatal', 'critical', 'danger', 'exception', 'aborted', 'abort', 'timeout'].indexOf(value) >= 0) {
-        return 'error';
-      }
-      return 'info';
+      return infringNormalizeNotificationType(rawType, message);
     },
 
     addNotification(payload) {
-      var p = payload || {};
-      var noteTs = Number(p.ts || Date.now());
-      if (!Number.isFinite(noteTs) || noteTs <= 0) noteTs = Date.now();
-      var noteMessage = String(p.message || '');
-      var noteType = this.normalizeNotificationType(p.type, noteMessage);
-      var noteAgentId = String(p.agent_id || p.agentId || '').trim();
-      if (this.notifications && this.notifications.length) {
-        var prior = this.notifications[0] || null;
-        if (
-          prior &&
-          String(prior.message || '') === noteMessage &&
-          String(prior.type || '') === noteType &&
-          String(prior.agent_id || '') === noteAgentId &&
-          Math.abs(noteTs - Number(prior.ts || 0)) <= 2200
-        ) {
-          return;
-        }
-      }
-      var note = {
-        id: p.id || ('notif-' + (++this._notificationSeq) + '-' + Date.now()),
-        message: noteMessage,
-        type: noteType,
-        ts: noteTs,
-        read: !!this.notificationsOpen,
-        page: String(p.page || '').trim(),
-        agent_id: noteAgentId,
-        source: String(p.source || '').trim()
-      };
-      this.notifications.unshift(note);
-      if (this.notifications.length > 150) this.notifications = this.notifications.slice(0, 150);
-      this.unreadNotifications = this.notifications.filter(function(n) { return !n.read; }).length;
-      this.ringNotificationBell();
-      this.showNotificationBubble(note);
+      infringAddNotification(this, payload);
     },
     ringNotificationBell() {
-      var self = this, seq = Number(this._notificationBellPulseSeq || 0) + 1;
-      this._notificationBellPulseSeq = seq;
-      this.notificationBellPulse = false;
-      if (this._notificationBellPulseTimer) {
-        clearTimeout(this._notificationBellPulseTimer);
-        this._notificationBellPulseTimer = null;
-      }
-      var arm = function() {
-        if (self._notificationBellPulseSeq !== seq) return;
-        self.notificationBellPulse = true;
-        self._notificationBellPulseTimer = setTimeout(function() {
-          if (self._notificationBellPulseSeq !== seq) return;
-          self.notificationBellPulse = false;
-          self._notificationBellPulseTimer = null;
-        }, 760);
-      };
-      if (typeof requestAnimationFrame === 'function') {
-        requestAnimationFrame(arm);
-      } else {
-        setTimeout(arm, 0);
-      }
+      infringRingNotificationBell(this);
     },
     showNotificationBubble(note) {
-      var n = note || null;
-      if (!n) return;
-      this.notificationBubble = {
-        id: n.id,
-        message: n.message,
-        type: n.type,
-        ts: n.ts,
-      };
-      if (this._notificationBubbleTimer) clearTimeout(this._notificationBubbleTimer);
-      var self = this;
-      this._notificationBubbleTimer = setTimeout(function() {
-        self.notificationBubble = null;
-      }, 5200);
+      infringShowNotificationBubble(this, note);
     },
 
     toggleNotifications() {
-      this.notificationsOpen = !this.notificationsOpen;
-      if (this.notificationsOpen) this.markAllNotificationsRead();
+      infringToggleNotifications(this);
     },
 
     markNotificationRead(id) {
-      this.notifications = this.notifications.map(function(n) {
-        if (n.id === id) n.read = true;
-        return n;
-      });
-      this.unreadNotifications = this.notifications.filter(function(n) { return !n.read; }).length;
+      infringMarkNotificationRead(this, id);
     },
 
     markAllNotificationsRead() {
-      this.notifications = this.notifications.map(function(n) {
-        n.read = true;
-        return n;
-      });
-      this.unreadNotifications = 0;
+      infringMarkAllNotificationsRead(this);
     },
 
     dismissNotification(id) {
-      var targetId = String(id || '').trim();
-      if (!targetId) return;
-      this.notifications = this.notifications.filter(function(n) {
-        return String(n && n.id ? n.id : '') !== targetId;
-      });
-      this.unreadNotifications = this.notifications.filter(function(n) { return !n.read; }).length;
-      if (this.notificationBubble && String(this.notificationBubble.id || '') === targetId) {
-        this.dismissNotificationBubble();
-      }
+      infringDismissNotification(this, id);
     },
 
     clearNotifications() {
-      this.notifications = [];
-      this.notificationsOpen = false;
-      this.unreadNotifications = 0;
-      this.notificationBubble = null;
-      this.notificationBellPulse = false;
-      this._notificationBellPulseSeq = 0;
-      if (this._notificationBellPulseTimer) {
-        clearTimeout(this._notificationBellPulseTimer);
-        this._notificationBellPulseTimer = null;
-      }
-      if (this._notificationBubbleTimer) {
-        clearTimeout(this._notificationBubbleTimer);
-        this._notificationBubbleTimer = null;
-      }
+      infringClearNotifications(this);
     },
 
     reopenNotification(note) {
-      if (!note) return;
-      this.markNotificationRead(note.id);
-      this.showNotificationBubble(note);
-      this.notificationsOpen = false;
-      var targetAgentId = String(note.agent_id || '').trim();
-      var targetPage = String(note.page || '').trim();
-      if (targetAgentId) {
-        if (typeof this.setActiveAgentId === 'function') {
-          this.setActiveAgentId(targetAgentId);
-        } else {
-          this.activeAgentId = targetAgentId;
-        }
-      }
-      if (targetPage) {
-        window.location.hash = targetPage;
-      } else if (targetAgentId) {
-        window.location.hash = 'chat';
-      }
+      infringReopenNotification(this, note);
     },
 
     dismissNotificationBubble() {
-      this.notificationBubble = null;
-      if (this._notificationBubbleTimer) {
-        clearTimeout(this._notificationBubbleTimer);
-        this._notificationBubbleTimer = null;
-      }
+      infringDismissNotificationBubble(this);
     },
 
     saveAgentChatPreview(agentId, messages) {
-      if (!agentId) return;
-      var list = Array.isArray(messages) ? messages : [];
-      var previewKey = String(agentId);
-      var existingPreview = this.agentChatPreviews && this.agentChatPreviews[previewKey]
-        ? this.agentChatPreviews[previewKey]
-        : null;
-      var preview = {
-        text: '',
-        ts: Date.now(),
-        role: 'agent',
-        has_tools: false,
-        tool_state: '',
-        tool_label: '',
-        unread_response: !!(existingPreview && existingPreview.unread_response)
-      };
-      var toolStateRank = { success: 1, warning: 2, error: 3 };
-      var classifyTool = function(tool) {
-        if (!tool) return '';
-        if (tool.running) return 'warning';
-        var status = String(tool.status || '').toLowerCase();
-        var result = String(tool.result || '').toLowerCase();
-        var blocked = tool.blocked === true || status === 'blocked' ||
-          result.indexOf('blocked') >= 0 ||
-          result.indexOf('policy') >= 0 ||
-          result.indexOf('denied') >= 0 ||
-          result.indexOf('not allowed') >= 0 ||
-          result.indexOf('forbidden') >= 0 ||
-
-          result.indexOf('approval') >= 0 ||
-          result.indexOf('permission') >= 0 ||
-          result.indexOf('fail-closed') >= 0;
-        if (blocked) return 'warning';
-        if (tool.is_error) return 'error';
-        return 'success';
-      };
-      var summarizeTools = function(tools) {
-        if (!Array.isArray(tools) || !tools.length) return { has_tools: false, tool_state: '', tool_label: '' };
-        var state = 'success';
-        for (var ti = 0; ti < tools.length; ti++) {
-          var s = classifyTool(tools[ti]) || 'success';
-          if ((toolStateRank[s] || 0) > (toolStateRank[state] || 0)) state = s;
-        }
-        var label = state === 'error'
-          ? 'Tool error'
-          : (state === 'warning' ? 'Tool warning' : 'Tool success');
-        return { has_tools: true, tool_state: state, tool_label: label };
-      };
-      for (var i = list.length - 1; i >= 0; i--) {
-        var msg = list[i] || {};
-        var text = '';
-        var toolInfo = summarizeTools(msg.tools);
-        if (typeof msg.text === 'string' && msg.text.trim()) {
-          text = msg.text.replace(/\s+/g, ' ').trim();
-        } else if (Array.isArray(msg.tools) && msg.tools.length) {
-          text = '[Processes] ' + msg.tools.map(function(tool) {
-            return tool && tool.name ? tool.name : 'tool';
-          }).join(', ');
-        }
-        if (text) {
-          preview.text = text;
-          preview.ts = Number(msg.ts || Date.now());
-          preview.role = String(msg.role || 'agent');
-          preview.has_tools = !!toolInfo.has_tools;
-          preview.tool_state = toolInfo.tool_state || '';
-          preview.tool_label = toolInfo.tool_label || '';
-          break;
-        }
-      }
-      if (preview.role === 'agent') {
-        preview.unread_response = String(this.activeAgentId || '') !== previewKey;
-      } else if (String(this.activeAgentId || '') === previewKey) {
-        preview.unread_response = false;
-      }
-      var previewChanged = !!existingPreview && (
-        Number(preview.ts || 0) > Number(existingPreview.ts || 0) ||
-        String(preview.text || '') !== String(existingPreview.text || '') ||
-        String(preview.role || '') !== String(existingPreview.role || '') ||
-        String(preview.tool_state || '') !== String(existingPreview.tool_state || '')
-      );
-      var inactiveAgent = String(this.activeAgentId || '') !== previewKey;
-      if (previewChanged && inactiveAgent && preview.role === 'agent' && String(preview.text || '').trim()) {
-        var label = 'Agent';
-        if (Array.isArray(this.agents)) {
-          var found = this.agents.find(function(row) {
-            return row && String(row.id || '') === previewKey;
-          });
-          if (found) {
-            var foundName = String(found.name || '').trim();
-            if (foundName) label = foundName;
-          }
-        }
-        var compact = String(preview.text || '').replace(/\s+/g, ' ').trim();
-        if (compact.length > 120) compact = compact.slice(0, 117) + '...';
-        this.addNotification({
-          type: 'info',
-          message: label + ': ' + compact,
-          agent_id: previewKey,
-          page: 'chat',
-          source: 'agent_preview',
-          ts: Number(preview.ts || Date.now())
-        });
-      }
-      this.agentChatPreviews[previewKey] = preview;
+      infringSaveAgentChatPreview(this, agentId, messages);
     },
 
     getAgentChatPreview(agentId) {
-      if (!agentId) return null;
-      return this.agentChatPreviews[String(agentId)] || null;
+      return infringGetAgentChatPreview(this, agentId);
     },
 
     coerceAgentTimestamp(value) {
-      if (value === null || typeof value === 'undefined' || value === '') return 0;
-      if (typeof value === 'number') {
-        if (!Number.isFinite(value)) return 0;
-        return value < 1e12 ? Math.round(value * 1000) : Math.round(value);
-      }
-      var asNum = Number(value);
-      if (Number.isFinite(asNum) && String(value).trim() !== '') {
-        return asNum < 1e12 ? Math.round(asNum * 1000) : Math.round(asNum);
-      }
-      var asDate = Number(new Date(value).getTime());
-      return Number.isFinite(asDate) ? asDate : 0;
+      return infringCoerceAgentTimestamp(value);
     },
 
     agentLastActivityTs(agent) {
-      if (!agent) return 0;
-      var latest = 0;
-      var keys = ['last_active_at', 'last_activity_at', 'last_message_at', 'last_seen_at', 'updated_at'];
-      for (var i = 0; i < keys.length; i++) {
-        var ts = this.coerceAgentTimestamp(agent[keys[i]]);
-        if (ts > latest) latest = ts;
-      }
-      if (agent.id) {
-        var preview = this.getAgentChatPreview(agent.id);
-        var previewTs = this.coerceAgentTimestamp(preview && preview.ts);
-        if (previewTs > latest) latest = previewTs;
-      }
-      return latest;
+      return infringAgentLastActivityTs(this, agent);
     },
 
     agentStatusFreshness(agent) {
-      var raw = agent && agent.sidebar_status_freshness && typeof agent.sidebar_status_freshness === 'object'
-        ? agent.sidebar_status_freshness
-        : {};
-      var source = String((raw.source || (agent && agent.sidebar_status_source) || '')).trim();
-      var sourceSequence = String((raw.source_sequence || (agent && agent.sidebar_status_source_sequence) || '')).trim();
-      var ageRaw = Number(
-        typeof raw.age_seconds !== 'undefined'
-          ? raw.age_seconds
-          : (agent && agent.sidebar_status_age_seconds)
-      );
-      var ageSeconds = Number.isFinite(ageRaw) && ageRaw >= 0 ? ageRaw : 0;
-      var staleRaw = raw.stale;
-      if (typeof staleRaw !== 'boolean' && agent && typeof agent.sidebar_status_stale === 'boolean') {
-        staleRaw = agent.sidebar_status_stale;
-      }
-      var stale = staleRaw === true;
-      return {
-        source: source,
-        source_sequence: sourceSequence,
-        age_seconds: ageSeconds,
-        stale: stale
-      };
+      return infringAgentStatusFreshness(agent);
     },
 
     agentStatusState(agent) {
-      if (!agent) return 'offline';
-      var rawServerState = (typeof agent.sidebar_status_state === 'string')
-        ? agent.sidebar_status_state
-        : '';
-      var serverState = String(rawServerState).trim().toLowerCase();
-      if (serverState === 'active' || serverState === 'idle' || serverState === 'offline') return serverState;
-      var freshness = this.agentStatusFreshness(agent);
-      if (freshness.stale) return 'offline';
-      return 'offline';
+      return infringAgentStatusState(agent);
     },
 
     agentStatusLabel(agent) {
-      var rawServerLabel = (agent && typeof agent.sidebar_status_label === 'string')
-        ? agent.sidebar_status_label
-        : '';
-      var serverLabel = String(rawServerLabel).trim().toLowerCase();
-      if (serverLabel === 'active' || serverLabel === 'idle' || serverLabel === 'offline') return serverLabel;
-      var rawServerState = (agent && typeof agent.sidebar_status_state === 'string')
-        ? agent.sidebar_status_state
-        : '';
-      var serverState = String(rawServerState).trim().toLowerCase();
-      if (serverState === 'active' || serverState === 'idle' || serverState === 'offline') return serverState;
-      var freshness = this.agentStatusFreshness(agent);
-      if (freshness.stale) return 'offline';
-      return 'offline';
+      return infringAgentStatusLabel(agent);
     },
 
     setAgentLiveActivity(agentId, state) {
-      var id = String(agentId || '').trim();
-      if (!id) return;
-      var normalized = String(state || '').trim().toLowerCase();
-      if (!normalized || normalized === 'idle' || normalized === 'done' || normalized === 'stop' || normalized === 'stopped') {
-        if (this.agentLiveActivity && Object.prototype.hasOwnProperty.call(this.agentLiveActivity, id)) {
-          delete this.agentLiveActivity[id];
-          this.agentLiveActivity = Object.assign({}, this.agentLiveActivity);
-        }
-        return;
-      }
-      this.agentLiveActivity = Object.assign({}, this.agentLiveActivity || {}, {
-        [id]: { state: normalized, ts: Date.now() }
-      });
+      infringSetAgentLiveActivity(this, agentId, state);
     },
 
     clearAgentLiveActivity(agentId) {
-      this.setAgentLiveActivity(agentId, 'idle');
+      infringClearAgentLiveActivity(this, agentId);
     },
 
     isAgentLiveBusy(agent) {
-      if (!agent || !agent.id) return false;
-      var id = String(agent.id);
-      var entry = this.agentLiveActivity ? this.agentLiveActivity[id] : null;
-      if (entry) {
-        var state = String(entry.state || '').toLowerCase();
-        var ts = Number(entry.ts || 0);
-        var busyState = state.indexOf('typing') >= 0 || state.indexOf('working') >= 0 || state.indexOf('processing') >= 0;
-        // Allow longer-lived busy windows so long tool/reasoning phases keep
-        // the avatar pulse visible until completion events clear the state.
-        if (busyState && Number.isFinite(ts) && (Date.now() - ts) <= 180000) return true;
-      }
-      return false;
+      return infringIsAgentLiveBusy(this, agent);
     },
 
     formatNotificationTime(ts) {
-      if (!ts) return '';
-      var d = new Date(ts);
-      if (Number.isNaN(d.getTime())) return '';
-      return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      return infringFormatNotificationTime(ts);
     },
 
     clearApiKey() {
-      InfringAPI.setAuthToken('');
-      localStorage.removeItem('infring-api-key');
+      infringClearApiKey();
     }
   };
   var appStoreBridge = infringShellAppStoreBridge();
@@ -1528,162 +274,6 @@ document.addEventListener('alpine:init', function() {
     }
   }
 });
-
-function infringTaskbarDockService() {
-  var services = typeof window !== 'undefined' ? window.InfringSharedShellServices : null;
-  return services && services.taskbarDock ? services.taskbarDock : null;
-}
-
-function infringShellLayoutDefaultProfile() {
-  var service = infringTaskbarDockService();
-  if (service && typeof service.defaultProfile === 'function') return service.defaultProfile();
-  var raw = '';
-  try {
-    raw = String((navigator && (navigator.userAgent || navigator.platform)) || '').toLowerCase();
-  } catch(_) {}
-  if (raw.indexOf('mac') >= 0 || raw.indexOf('darwin') >= 0) return 'mac';
-  if (raw.indexOf('win') >= 0) return 'windows';
-  if (raw.indexOf('linux') >= 0 || raw.indexOf('x11') >= 0) return 'linux';
-  return 'other';
-}
-
-function infringShellLayoutDefaultConfig() {
-  var service = infringTaskbarDockService();
-  if (service && typeof service.defaultLayoutConfig === 'function') return service.defaultLayoutConfig();
-  var profile = infringShellLayoutDefaultProfile();
-  var macLike = profile === 'mac';
-  return {
-    version: 1,
-    profile: profile,
-    dock: {
-      placement: 'center',
-      wallLock: macLike ? '' : 'bottom',
-      order: ['chat', 'overview', 'agents', 'scheduler', 'skills', 'runtime', 'settings']
-    },
-    taskbar: {
-      edge: macLike ? 'top' : 'bottom',
-      orderLeft: ['nav_cluster'],
-      orderRight: ['connectivity', 'theme', 'notifications', 'search', 'auth']
-    },
-    chatMap: { placementX: 1, placementY: 0.38, wallLock: 'right' },
-    chatBar: { placementX: 1, placementY: 0.5, placementTopPx: null, wallLock: 'right' }
-  };
-}
-
-function infringLocalStorageHasAny(keys) {
-  var service = infringTaskbarDockService();
-  if (service && typeof service.hasAnyStorage === 'function') return service.hasAnyStorage(keys);
-  try {
-    for (var i = 0; i < keys.length; i += 1) {
-      if (localStorage.getItem(keys[i]) !== null) return true;
-    }
-  } catch(_) {}
-  return false;
-}
-
-function infringReadShellLayoutConfig() {
-  var service = infringTaskbarDockService();
-  if (service && typeof service.readLayoutConfig === 'function') return service.readLayoutConfig();
-  var key = 'infring-shell-layout-config';
-  var config = null;
-  try {
-    var raw = localStorage.getItem(key);
-    config = raw ? JSON.parse(raw) : null;
-  } catch(_) {
-    config = null;
-  }
-  if (!config || typeof config !== 'object') config = infringShellLayoutDefaultConfig();
-  var defaults = infringShellLayoutDefaultConfig();
-  config.dock = config.dock && typeof config.dock === 'object' ? config.dock : {};
-  config.taskbar = config.taskbar && typeof config.taskbar === 'object' ? config.taskbar : {};
-  config.chatMap = config.chatMap && typeof config.chatMap === 'object' ? config.chatMap : {};
-  config.chatBar = config.chatBar && typeof config.chatBar === 'object' ? config.chatBar : {};
-  config.dock.placement = String(config.dock.placement || defaults.dock.placement);
-  config.dock.wallLock = String(config.dock.wallLock || defaults.dock.wallLock || '');
-  config.taskbar.edge = String(config.taskbar.edge || defaults.taskbar.edge);
-  config.chatMap.placementX = Number.isFinite(Number(config.chatMap.placementX)) ? Number(config.chatMap.placementX) : defaults.chatMap.placementX;
-  config.chatMap.placementY = Number.isFinite(Number(config.chatMap.placementY)) ? Number(config.chatMap.placementY) : defaults.chatMap.placementY;
-  config.chatMap.wallLock = String(config.chatMap.wallLock || defaults.chatMap.wallLock || '');
-  config.chatBar.placementX = Number.isFinite(Number(config.chatBar.placementX)) ? Number(config.chatBar.placementX) : defaults.chatBar.placementX;
-  config.chatBar.placementY = Number.isFinite(Number(config.chatBar.placementY)) ? Number(config.chatBar.placementY) : defaults.chatBar.placementY;
-  config.chatBar.placementTopPx = Number.isFinite(Number(config.chatBar.placementTopPx)) ? Number(config.chatBar.placementTopPx) : null;
-  config.chatBar.wallLock = String(config.chatBar.wallLock || defaults.chatBar.wallLock || '');
-  if (!Array.isArray(config.dock.order)) config.dock.order = defaults.dock.order.slice();
-  if (!Array.isArray(config.taskbar.orderLeft)) config.taskbar.orderLeft = defaults.taskbar.orderLeft.slice();
-  if (!Array.isArray(config.taskbar.orderRight)) config.taskbar.orderRight = defaults.taskbar.orderRight.slice();
-  return config;
-}
-
-function infringWriteShellLayoutConfig(config) {
-  var service = infringTaskbarDockService();
-  if (service && typeof service.writeLayoutConfig === 'function') {
-    service.writeLayoutConfig(config);
-    return;
-  }
-  try {
-    localStorage.setItem('infring-shell-layout-config', JSON.stringify(config));
-  } catch(_) {}
-}
-
-function infringUpdateShellLayoutConfig(mutator) {
-  var service = infringTaskbarDockService();
-  if (service && typeof service.updateLayoutConfig === 'function') {
-    infringShellLayoutConfig = service.updateLayoutConfig(mutator);
-    return;
-  }
-  var config = infringReadShellLayoutConfig();
-  try { mutator(config); } catch(_) {}
-  infringShellLayoutConfig = config;
-  infringWriteShellLayoutConfig(config);
-}
-
-function infringSeedShellLayoutConfig() {
-  var service = infringTaskbarDockService();
-  if (service && typeof service.seedLayoutConfig === 'function') return service.seedLayoutConfig();
-  var config = infringReadShellLayoutConfig();
-  var existed = false;
-  try { existed = localStorage.getItem('infring-shell-layout-config') !== null; } catch(_) {}
-  if (!existed) {
-    var dockKeys = ['infring-bottom-dock-placement', 'infring-bottom-dock-wall-lock', 'infring-bottom-dock-order'];
-    var taskbarKeys = ['infring-taskbar-dock-edge', 'infring-taskbar-order-left', 'infring-taskbar-order-right'];
-    var chatMapKeys = ['infring-chat-map-placement-x', 'infring-chat-map-placement-y', 'infring-chat-map-wall-lock'];
-    var chatBarKeys = ['infring-chat-sidebar-placement-x', 'infring-chat-sidebar-placement-y', 'infring-chat-sidebar-placement-top-px', 'infring-chat-sidebar-wall-lock'];
-    try {
-      if (localStorage.getItem(dockKeys[0])) config.dock.placement = localStorage.getItem(dockKeys[0]);
-      if (localStorage.getItem(dockKeys[1])) config.dock.wallLock = localStorage.getItem(dockKeys[1]);
-      if (localStorage.getItem(dockKeys[2])) config.dock.order = JSON.parse(localStorage.getItem(dockKeys[2]) || '[]');
-      if (localStorage.getItem(taskbarKeys[0])) config.taskbar.edge = localStorage.getItem(taskbarKeys[0]);
-      if (localStorage.getItem(taskbarKeys[1])) config.taskbar.orderLeft = JSON.parse(localStorage.getItem(taskbarKeys[1]) || '[]');
-      if (localStorage.getItem(taskbarKeys[2])) config.taskbar.orderRight = JSON.parse(localStorage.getItem(taskbarKeys[2]) || '[]');
-      if (localStorage.getItem(chatMapKeys[0])) config.chatMap.placementX = Number(localStorage.getItem(chatMapKeys[0]));
-      if (localStorage.getItem(chatMapKeys[1])) config.chatMap.placementY = Number(localStorage.getItem(chatMapKeys[1]));
-      if (localStorage.getItem(chatMapKeys[2])) config.chatMap.wallLock = localStorage.getItem(chatMapKeys[2]);
-      if (localStorage.getItem(chatBarKeys[0])) config.chatBar.placementX = Number(localStorage.getItem(chatBarKeys[0]));
-      if (localStorage.getItem(chatBarKeys[1])) config.chatBar.placementY = Number(localStorage.getItem(chatBarKeys[1]));
-      if (localStorage.getItem(chatBarKeys[2])) config.chatBar.placementTopPx = Number(localStorage.getItem(chatBarKeys[2]));
-      if (localStorage.getItem(chatBarKeys[3])) config.chatBar.wallLock = localStorage.getItem(chatBarKeys[3]);
-    } catch(_) {}
-  }
-  try {
-    if (!infringLocalStorageHasAny(['infring-bottom-dock-placement'])) localStorage.setItem('infring-bottom-dock-placement', String(config.dock.placement || 'center'));
-    if (!infringLocalStorageHasAny(['infring-bottom-dock-wall-lock', 'infring-bottom-dock-smash-wall']) && config.dock.wallLock) localStorage.setItem('infring-bottom-dock-wall-lock', String(config.dock.wallLock));
-    if (!infringLocalStorageHasAny(['infring-bottom-dock-order'])) localStorage.setItem('infring-bottom-dock-order', JSON.stringify(config.dock.order || []));
-    if (!infringLocalStorageHasAny(['infring-taskbar-dock-edge'])) localStorage.setItem('infring-taskbar-dock-edge', String(config.taskbar.edge || 'top'));
-    if (!infringLocalStorageHasAny(['infring-taskbar-order-left'])) localStorage.setItem('infring-taskbar-order-left', JSON.stringify(config.taskbar.orderLeft || []));
-    if (!infringLocalStorageHasAny(['infring-taskbar-order-right'])) localStorage.setItem('infring-taskbar-order-right', JSON.stringify(config.taskbar.orderRight || []));
-    if (!infringLocalStorageHasAny(['infring-chat-map-placement-x'])) localStorage.setItem('infring-chat-map-placement-x', String(config.chatMap.placementX));
-    if (!infringLocalStorageHasAny(['infring-chat-map-placement-y'])) localStorage.setItem('infring-chat-map-placement-y', String(config.chatMap.placementY));
-    if (!infringLocalStorageHasAny(['infring-chat-map-wall-lock', 'infring-chat-map-smash-wall']) && config.chatMap.wallLock) localStorage.setItem('infring-chat-map-wall-lock', String(config.chatMap.wallLock));
-    if (!infringLocalStorageHasAny(['infring-chat-sidebar-placement-x'])) localStorage.setItem('infring-chat-sidebar-placement-x', String(config.chatBar.placementX));
-    if (!infringLocalStorageHasAny(['infring-chat-sidebar-placement-y'])) localStorage.setItem('infring-chat-sidebar-placement-y', String(config.chatBar.placementY));
-    if (!infringLocalStorageHasAny(['infring-chat-sidebar-placement-top-px']) && Number.isFinite(Number(config.chatBar.placementTopPx))) localStorage.setItem('infring-chat-sidebar-placement-top-px', String(config.chatBar.placementTopPx));
-    if (!infringLocalStorageHasAny(['infring-chat-sidebar-wall-lock', 'infring-chat-sidebar-smash-wall']) && config.chatBar.wallLock) localStorage.setItem('infring-chat-sidebar-wall-lock', String(config.chatBar.wallLock));
-  } catch(_) {}
-  infringWriteShellLayoutConfig(config);
-  return config;
-}
-
-var infringShellLayoutConfig = infringSeedShellLayoutConfig();
 
 // Main app component
 function app() {
@@ -2059,133 +649,27 @@ function app() {
     },
 
     chatSidebarFlipDurationMs() {
-      var raw = Number(this._chatSidebarFlipDurationMs || 240);
-      if (!Number.isFinite(raw)) raw = 240;
-      return Math.max(120, Math.min(420, Math.round(raw)));
+      return infringChatSidebarFlipDurationMs(this);
     },
 
     readChatSidebarSnapshot() {
-      var refs = this.$refs || {};
-      var nav = refs.sidebarNav;
-      if (!nav || typeof nav.querySelectorAll !== 'function') return null;
-      var nodes = nav.querySelectorAll('.nav-agent-row[data-agent-id]');
-      var rects = {};
-      var ids = [];
-      for (var i = 0; i < nodes.length; i += 1) {
-        var node = nodes[i];
-        if (!node) continue;
-        var id = String(node.getAttribute('data-agent-id') || '').trim();
-        if (!id || Object.prototype.hasOwnProperty.call(rects, id)) continue;
-        var rect = node.getBoundingClientRect();
-        rects[id] = {
-          left: Number(rect.left || 0),
-          top: Number(rect.top || 0)
-        };
-        ids.push(id);
-      }
-      return {
-        order: ids.join('|'),
-        scrollTop: Number(nav.scrollTop || 0),
-        rects: rects
-      };
+      return infringReadChatSidebarSnapshot(this);
     },
 
     animateChatSidebarFromSnapshot(snapshot) {
-      if (!snapshot || typeof snapshot !== 'object') return;
-      if (typeof requestAnimationFrame !== 'function') return;
-      var refs = this.$refs || {};
-      var nav = refs.sidebarNav;
-      if (!nav || typeof nav.querySelectorAll !== 'function') return;
-      var durationMs = this.chatSidebarFlipDurationMs();
-      requestAnimationFrame(function() {
-        var nodes = nav.querySelectorAll('.nav-agent-row[data-agent-id]');
-        for (var i = 0; i < nodes.length; i += 1) {
-          var node = nodes[i];
-          if (!node || (node.classList && node.classList.contains('dragging'))) continue;
-          var id = String(node.getAttribute('data-agent-id') || '').trim();
-          if (!id || !Object.prototype.hasOwnProperty.call(snapshot.rects || {}, id)) continue;
-          var from = snapshot.rects[id] || {};
-          var rect = node.getBoundingClientRect();
-          var dx = Number(from.left || 0) - Number(rect.left || 0);
-          var dy = Number(from.top || 0) - Number(rect.top || 0);
-          if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue;
-          node.style.transition = 'none';
-          node.style.transform = 'translate(' + Math.round(dx) + 'px,' + Math.round(dy) + 'px)';
-          void node.offsetHeight;
-          node.style.transition = 'transform ' + durationMs + 'ms var(--ease-smooth)';
-          node.style.transform = 'translate(0px, 0px)';
-          (function(el) {
-            window.setTimeout(function() {
-              if (!el.classList.contains('dragging')) {
-                el.style.transform = '';
-              }
-              el.style.transition = '';
-            }, durationMs + 24);
-          })(node);
-        }
-      });
+      infringAnimateChatSidebarFromSnapshot(this, snapshot);
     },
 
     maybeAnimateChatSidebarRows() {
-      if (String(this.chatSidebarDragAgentId || '').trim()) {
-        this._chatSidebarLastSnapshot = this.readChatSidebarSnapshot();
-        return;
-      }
-      if (this._chatSidebarFlipRaf) return;
-      var self = this;
-      this._chatSidebarFlipRaf = requestAnimationFrame(function() {
-        self._chatSidebarFlipRaf = 0;
-        var current = self.readChatSidebarSnapshot();
-        if (!current) {
-          self._chatSidebarLastSnapshot = null;
-          return;
-        }
-        var previous = self._chatSidebarLastSnapshot;
-        self._chatSidebarLastSnapshot = current;
-        if (!previous) return;
-        if (Math.abs(Number(current.scrollTop || 0) - Number(previous.scrollTop || 0)) > 1) return;
-        if (String(current.order || '') === String(previous.order || '')) return;
-        self.animateChatSidebarFromSnapshot(previous);
-      });
+      infringMaybeAnimateChatSidebarRows(this);
     },
 
     cleanupBottomDockDragGhost() {
-      if (this._bottomDockGhostRaf && typeof cancelAnimationFrame === 'function') {
-        try { cancelAnimationFrame(this._bottomDockGhostRaf); } catch(_) {}
-      }
-      if (this._bottomDockGhostCleanupTimer) {
-        try { clearTimeout(this._bottomDockGhostCleanupTimer); } catch(_) {}
-      }
-      this._bottomDockGhostRaf = 0;
-      this._bottomDockGhostCleanupTimer = 0;
-      this._bottomDockGhostTargetX = 0;
-      this._bottomDockGhostTargetY = 0;
-      this._bottomDockGhostCurrentX = 0;
-      this._bottomDockGhostCurrentY = 0;
-      this._bottomDockDragBoundaries = [];
-      this._bottomDockLastInsertionIndex = -1;
-      this._bottomDockReorderLockUntil = 0;
-      var node = this._bottomDockDragGhostEl;
-      if (node && node.parentNode) {
-        try { node.parentNode.removeChild(node); } catch(_) {}
-      }
-      this._bottomDockDragGhostEl = null;
-      this._bottomDockRevealTargetDuringSettle = false;
+      infringCleanupBottomDockDragGhost(this);
     },
 
     setBottomDockGhostTarget(x, y) {
-      var nextX = Number(x || 0);
-      var nextY = Number(y || 0);
-      var targetX = Number.isFinite(nextX) ? nextX : 0;
-      var targetY = Number.isFinite(nextY) ? nextY : 0;
-      this._bottomDockGhostTargetX = targetX;
-      this._bottomDockGhostTargetY = targetY;
-      this._bottomDockGhostCurrentX = targetX;
-      this._bottomDockGhostCurrentY = targetY;
-      var ghost = this._bottomDockDragGhostEl;
-      if (!ghost) return;
-      ghost.style.left = Math.round(targetX) + 'px';
-      ghost.style.top = Math.round(targetY) + 'px';
+      infringSetBottomDockGhostTarget(this, x, y);
     },
 
     dragbarService() {
@@ -2199,165 +683,42 @@ function app() {
     },
 
     dragSurfaceMoveDurationMs(rawValue, fallbackMs) {
-      var service = this.dragbarService();
-      if (service && typeof service.moveDurationMs === 'function') {
-        return service.moveDurationMs(rawValue, fallbackMs);
-      }
-      var fallback = Number(fallbackMs || 280);
-      if (!Number.isFinite(fallback)) fallback = 280;
-      fallback = Math.max(80, Math.round(fallback));
-      var raw = Number(rawValue);
-      if (!Number.isFinite(raw)) raw = fallback;
-      return Math.max(80, Math.round(raw));
+      return infringDragSurfaceMoveDurationMs(this, rawValue, fallbackMs);
     },
 
     readBottomDockScale(el) {
-      if (!el || typeof window === 'undefined' || typeof window.getComputedStyle !== 'function') {
-        return 0.95;
-      }
-      try {
-        var transform = String(window.getComputedStyle(el).transform || '').trim();
-        if (!transform || transform === 'none') return 0.95;
-        var matrix2d = transform.match(/^matrix\(([^)]+)\)$/);
-        if (matrix2d && matrix2d[1]) {
-          var parts2d = matrix2d[1].split(',').map(function(v) { return Number(String(v || '').trim()); });
-          if (parts2d.length >= 2 && Number.isFinite(parts2d[0]) && Number.isFinite(parts2d[1])) {
-            var scale2d = Math.sqrt((parts2d[0] * parts2d[0]) + (parts2d[1] * parts2d[1]));
-            if (Number.isFinite(scale2d) && scale2d > 0.01) return scale2d;
-          }
-        }
-        var matrix3d = transform.match(/^matrix3d\(([^)]+)\)$/);
-        if (matrix3d && matrix3d[1]) {
-          var parts3d = matrix3d[1].split(',').map(function(v) { return Number(String(v || '').trim()); });
-          if (parts3d.length >= 1 && Number.isFinite(parts3d[0]) && parts3d[0] > 0.01) return parts3d[0];
-        }
-      } catch(_) {}
-      return 0.95;
+      return infringReadBottomDockScale(el);
     },
 
     bootProgressClamped(rawPercent) {
-      var next = Number(rawPercent);
-      if (!Number.isFinite(next)) next = 0;
-      return Math.max(0, Math.min(100, Math.round(next)));
+      return infringBootProgressClamped(rawPercent);
     },
 
     resetBootProgress() {
-      this.bootProgressPercent = 6;
-      this.bootProgressEvent = 'splash_visible';
-      this._bootProgressUpdatedAt = Date.now();
+      infringResetBootProgress(this);
     },
 
     bootProgressFromBootStage(rawStage) {
-      var stage = String(rawStage || '').trim().toLowerCase();
-      if (!stage) return 38;
-      if (
-        stage === 'ready' ||
-        stage === 'connected' ||
-        stage === 'boot_complete' ||
-        stage === 'runtime_ready'
-      ) {
-        return 70;
-      }
-      if (stage.indexOf('agent') >= 0) return 66;
-      if (stage.indexOf('connect') >= 0) return 28;
-      var isRecoveringStage = stage.indexOf('retry') >= 0; if (isRecoveringStage) return 24;
-      if (stage.indexOf('unreachable') >= 0 || stage.indexOf('disconnected') >= 0) return 20;
-      if (stage.indexOf('start') >= 0 || stage.indexOf('init') >= 0 || stage.indexOf('boot') >= 0) return 16;
-      return 42;
+      return infringBootProgressFromBootStage(rawStage);
     },
 
     setBootProgressPercent(rawPercent, opts) {
-      var options = opts && typeof opts === 'object' ? opts : {};
-      var next = this.bootProgressClamped(rawPercent);
-      var current = this.bootProgressClamped(this.bootProgressPercent);
-      var allowDecrease = options.allowDecrease === true;
-      if (!allowDecrease && next < current) next = current;
-      if (next === current) return;
-      this.bootProgressPercent = next;
-      this._bootProgressUpdatedAt = Date.now();
+      infringSetBootProgressPercent(this, rawPercent, opts);
     },
 
     setBootProgressEvent(eventName, meta) {
-      var event = String(eventName || '').trim().toLowerCase();
-      if (!event) return;
-      var target = 0;
-      if (event === 'splash_visible') target = 6;
-      else if (event === 'status_requesting') target = 18;
-      else if (event === 'status_connected') target = 42;
-      else if (event === 'status_retrying') target = 24;
-      else if (event === 'agents_refresh_started') target = 56;
-      else if (event === 'agents_hydrated') target = 76;
-      else if (event === 'selection_applied') target = 90;
-      else if (event === 'releasing') target = 97;
-      else if (event === 'complete') target = 100;
-      else target = 12;
-
-      var stageTarget = this.bootProgressFromBootStage(meta && meta.bootStage);
-      if (event === 'status_connected' || event === 'status_retrying') {
-        target = Math.max(target, stageTarget);
-      }
-      if (event === 'complete') {
-        this.setBootProgressPercent(100, { allowDecrease: true });
-      } else {
-        this.setBootProgressPercent(target);
-      }
-      this.bootProgressEvent = event;
+      infringSetBootProgressEvent(this, eventName, meta);
     },
     normalizeConnectionIndicatorState(state) {
-      var raw = String(state || '').trim().toLowerCase();
-      if (raw === 'connected') return 'connected';
-      if (raw === 'disconnected') return 'disconnected';
-      return 'connecting';
+      return infringNormalizeConnectionIndicatorState(state);
     },
 
     queueConnectionIndicatorState(state) {
-      var next = this.normalizeConnectionIndicatorState(state);
-      var now = Date.now();
-      var minIntervalMs = next === 'connecting' ? 1200 : 250;
-      if (next !== 'connecting') {
-        this.connectionIndicatorState = next;
-        this._lastConnectionIndicatorAt = now;
-        this._pendingConnectionIndicatorState = '';
-        if (this._connectionIndicatorTimer) {
-          clearTimeout(this._connectionIndicatorTimer);
-          this._connectionIndicatorTimer = null;
-        }
-        return;
-      }
-      if (!this._lastConnectionIndicatorAt || (now - this._lastConnectionIndicatorAt) >= minIntervalMs) {
-        this.connectionIndicatorState = next;
-        this._lastConnectionIndicatorAt = now;
-        this._pendingConnectionIndicatorState = '';
-        if (this._connectionIndicatorTimer) {
-          clearTimeout(this._connectionIndicatorTimer);
-          this._connectionIndicatorTimer = null;
-        }
-        return;
-      }
-      this._pendingConnectionIndicatorState = next;
-      if (this._connectionIndicatorTimer) return;
-      var delay = Math.max(0, minIntervalMs - (now - this._lastConnectionIndicatorAt));
-      var self = this;
-      this._connectionIndicatorTimer = setTimeout(function() {
-        self._connectionIndicatorTimer = null;
-        var pending = self._pendingConnectionIndicatorState || next;
-        self._pendingConnectionIndicatorState = '';
-        self.connectionIndicatorState = self.normalizeConnectionIndicatorState(pending);
-        self._lastConnectionIndicatorAt = Date.now();
-      }, delay);
+      infringQueueConnectionIndicatorState(this, state);
     },
 
     _computeScrollHintState(el) {
-      if (!el) return { above: false, below: false };
-      var scrollHeight = Number(el.scrollHeight || 0);
-      var clientHeight = Number(el.clientHeight || 0);
-      var scrollTop = Math.max(0, Number(el.scrollTop || 0));
-      var maxScroll = Math.max(0, scrollHeight - clientHeight);
-      if (maxScroll <= 2) return { above: false, below: false };
-      return {
-        above: scrollTop > 2,
-        below: (maxScroll - scrollTop) > 2
-      };
+      return infringComputeScrollHintState(el);
     },
 
     bottomDockOrder: (() => {
@@ -2528,384 +889,127 @@ function app() {
     _bottomDockContainerSettleTimer: 0,
 
     bottomDockMoveDurationMs() {
-      return this.dragSurfaceMoveDurationMs(this._bottomDockMoveDurationMs, 360);
+      return infringBottomDockMoveDurationMs(this);
     },
 
     bottomDockExpandedScale() {
-      var raw = Number(this._bottomDockExpandedScale || 1.54);
-      if (!Number.isFinite(raw) || raw <= 1) raw = 1.54;
-      return raw;
+      return infringBottomDockExpandedScale(this);
     },
 
     bottomDockReadViewportSize() {
-      var width = 0;
-      var height = 0;
-      try {
-        width = Number(window && window.innerWidth || 0);
-        height = Number(window && window.innerHeight || 0);
-      } catch(_) {
-        width = 0;
-        height = 0;
-      }
-      if (!Number.isFinite(width) || width <= 0) {
-        width = Number(document && document.documentElement && document.documentElement.clientWidth || 1440);
-      }
-      if (!Number.isFinite(height) || height <= 0) {
-        height = Number(document && document.documentElement && document.documentElement.clientHeight || 900);
-      }
-      if (!Number.isFinite(width) || width <= 0) width = 1440;
-      if (!Number.isFinite(height) || height <= 0) height = 900;
-      return { width: width, height: height };
+      return infringBottomDockReadViewportSize();
     },
 
     bottomDockReadBaseSize() {
-      var width = 0;
-      var height = 0;
-      try {
-        var node = document && typeof document.querySelector === 'function'
-          ? document.querySelector('.bottom-dock')
-          : null;
-        if (node) {
-          width = Number(node.offsetWidth || 0);
-          height = Number(node.offsetHeight || 0);
-        }
-      } catch(_) {
-        width = 0;
-        height = 0;
-      }
-      if (!Number.isFinite(width) || width <= 0) width = 420;
-      if (!Number.isFinite(height) || height <= 0) height = 54;
-      return { width: width, height: height };
+      return infringBottomDockReadBaseSize();
     },
 
     bottomDockNormalizeSide(side) {
-      var key = String(side || '').trim().toLowerCase();
-      if (key === 'top' || key === 'left' || key === 'right') return key;
-      return 'bottom';
+      return infringBottomDockNormalizeSide(side);
     },
 
     bottomDockIsVerticalSide(side) {
-      var key = this.bottomDockNormalizeSide(side);
-      return key === 'left' || key === 'right';
+      return infringBottomDockIsVerticalSide(side);
     },
 
     bottomDockRotationDegForSide(side) {
-      var key = this.bottomDockNormalizeSide(side);
-      if (key === 'left') return -90;
-      if (key === 'right') return 90;
-      return 0;
+      return infringBottomDockRotationDegForSide(side);
     },
 
     bottomDockIconRotationDegForSide(side) {
-      var key = this.bottomDockNormalizeSide(side);
-      if (key === 'left') return 90;
-      if (key === 'right') return -90;
-      return 0;
+      return infringBottomDockIconRotationDegForSide(side);
     },
 
     bottomDockUpDegForSide(side) {
-      var key = this.bottomDockNormalizeSide(side);
-      if (key === 'left' || key === 'right' || key === 'top' || key === 'bottom') return 0;
-      return 0;
+      return infringBottomDockUpDegForSide(side);
     },
 
     bottomDockOrientation(sideHint) {
-      var side = this.bottomDockNormalizeSide(sideHint || this.bottomDockActiveSide());
-      var horizontal = !this.bottomDockIsVerticalSide(side);
-      var axis = horizontal ? 'x' : 'y';
-      return {
-        side: side,
-        horizontal: horizontal,
-        axis: axis,
-        primarySign: 1,
-        upDeg: Number(this.bottomDockUpDegForSide(side) || 0)
-      };
+      return infringBottomDockOrientation(this, sideHint);
     },
 
     bottomDockOppositeSide(sideHint) {
-      var side = this.bottomDockNormalizeSide(sideHint);
-      if (side === 'left') return 'right';
-      if (side === 'right') return 'left';
-      if (side === 'top') return 'bottom';
-      return 'top';
+      return infringBottomDockOppositeSide(sideHint);
     },
 
     bottomDockWallSide() {
-      return this.bottomDockNormalizeSide(this.bottomDockActiveSide());
+      return infringBottomDockWallSide(this);
     },
 
     bottomDockOpenSide() {
-      return this.bottomDockOppositeSide(this.bottomDockWallSide());
+      return infringBottomDockOpenSide(this);
     },
 
     bottomDockRotationDegResolved(sideHint) {
-      var side = this.bottomDockNormalizeSide(sideHint || this.bottomDockActiveSide());
-      var rotationDeg = Number(this.bottomDockRotationDeg);
-      if (!Number.isFinite(rotationDeg)) {
-        rotationDeg = Number(this.bottomDockRotationDegForSide(side));
-      }
-      return Number(this.bottomDockNormalizeRotationDeg(rotationDeg) || 0);
+      return infringBottomDockRotationDegResolved(this, sideHint);
     },
 
     bottomDockScreenDeltaToLocal(dx, dy, sideHint) {
-      var screenDx = Number(dx || 0);
-      var screenDy = Number(dy || 0);
-      var rotationDeg = this.bottomDockRotationDegResolved(sideHint);
-      var theta = (rotationDeg * Math.PI) / 180;
-      var cos = Math.cos(theta);
-      var sin = Math.sin(theta);
-      return {
-        x: (screenDx * cos) + (screenDy * sin),
-        y: (-screenDx * sin) + (screenDy * cos)
-      };
+      return infringBottomDockScreenDeltaToLocal(this, dx, dy, sideHint);
     },
 
     bottomDockCanonicalRotationCandidatesForSide(side) {
-      var key = this.bottomDockNormalizeSide(side);
-      if (key === 'left' || key === 'right') return [90, -90];
-      return [0];
+      return infringBottomDockCanonicalRotationCandidatesForSide(side);
     },
 
     bottomDockNormalizeRotationDeg(value) {
-      var raw = Number(value);
-      var canonical = [-90, 0, 90];
-      if (!Number.isFinite(raw)) return 0;
-      var best = canonical[0];
-      var bestDist = Number.POSITIVE_INFINITY;
-      for (var i = 0; i < canonical.length; i += 1) {
-        var candidate = canonical[i];
-        var dist = Math.abs(raw - candidate);
-        if (dist < bestDist) {
-          bestDist = dist;
-          best = candidate;
-        }
-      }
-      return best;
+      return infringBottomDockNormalizeRotationDeg(value);
     },
 
     bottomDockResolveShortestRotationDeg(currentDeg, targetDeg) {
-      var current = Number(currentDeg);
-      var target = Number(targetDeg);
-      if (!Number.isFinite(target)) target = 0;
-      if (!Number.isFinite(current)) return target;
-      var best = target;
-      var bestDelta = Number.POSITIVE_INFINITY;
-      for (var k = -2; k <= 2; k += 1) {
-        var candidate = target + (k * 360);
-        var delta = Math.abs(candidate - current);
-        if (delta < bestDelta) {
-          bestDelta = delta;
-          best = candidate;
-        }
-      }
-      return best;
+      return infringBottomDockResolveShortestRotationDeg(currentDeg, targetDeg);
     },
 
     bottomDockPreferredRotationDirectionForAnchor(anchorX, anchorY) {
-      var view = this.bottomDockReadViewportSize();
-      var x = Number(anchorX);
-      var y = Number(anchorY);
-      if (!Number.isFinite(x)) x = Number(view.width || 0) * 0.5;
-      if (!Number.isFinite(y)) y = Number(view.height || 0) * 0.5;
-      var left = x < (Number(view.width || 0) * 0.5);
-      var top = y < (Number(view.height || 0) * 0.5);
-      // TL + BR => counterclockwise. TR + BL => clockwise.
-      return (left === top) ? 'ccw' : 'cw';
+      return infringBottomDockPreferredRotationDirectionForAnchor(anchorX, anchorY);
     },
 
     bottomDockResolveDirectionalRotationDeg(currentDeg, targetDeg, direction) {
-      var current = Number(currentDeg);
-      var target = Number(targetDeg);
-      var dir = String(direction || '').trim().toLowerCase();
-      if (!Number.isFinite(target)) target = 0;
-      if (!Number.isFinite(current)) return target;
-      if (dir !== 'cw' && dir !== 'ccw') {
-        return this.bottomDockResolveShortestRotationDeg(current, target);
-      }
-      var best = null;
-      var bestAbs = Number.POSITIVE_INFINITY;
-      for (var k = -2; k <= 2; k += 1) {
-        var candidate = target + (k * 360);
-        var delta = candidate - current;
-        if (dir === 'cw' && delta < 0) continue;
-        if (dir === 'ccw' && delta > 0) continue;
-        var absDelta = Math.abs(delta);
-        if (absDelta < bestAbs) {
-          bestAbs = absDelta;
-          best = candidate;
-        }
-      }
-      if (best === null) {
-        return this.bottomDockResolveShortestRotationDeg(current, target);
-      }
-      return best;
+      return infringBottomDockResolveDirectionalRotationDeg(currentDeg, targetDeg, direction);
     },
 
     bottomDockResolveRotationForSide(side, anchorX, anchorY) {
-      var current = this.bottomDockNormalizeRotationDeg(this.bottomDockRotationDeg);
-      var dir = this.bottomDockPreferredRotationDirectionForAnchor(anchorX, anchorY);
-      var candidates = this.bottomDockCanonicalRotationCandidatesForSide(side);
-      if (!Array.isArray(candidates) || !candidates.length) return current;
-      var best = Number(candidates[0] || 0);
-      var bestScore = Number.POSITIVE_INFINITY;
-      var bestDeltaAbs = Number.POSITIVE_INFINITY;
-      for (var i = 0; i < candidates.length; i += 1) {
-        var target = Number(candidates[i] || 0);
-        var delta = target - current;
-        var deltaAbs = Math.abs(delta);
-        var directionPenalty = 0;
-        if (dir === 'cw' && delta < 0) directionPenalty = 0.35;
-        if (dir === 'ccw' && delta > 0) directionPenalty = 0.35;
-        var score = deltaAbs + directionPenalty;
-        if (score < bestScore || (score === bestScore && deltaAbs < bestDeltaAbs)) {
-          best = target;
-          bestScore = score;
-          bestDeltaAbs = deltaAbs;
-        }
-      }
-      var chosenDelta = best - current;
-      if (Math.abs(chosenDelta) > 90) {
-        if (dir === 'cw') return current + 90;
-        if (dir === 'ccw') return current - 90;
-        return current + (chosenDelta > 0 ? 90 : -90);
-      }
-      return best;
+      return infringBottomDockResolveRotationForSide(this, side, anchorX, anchorY);
     },
 
     bottomDockSnapDefinitions() {
-      var source = Array.isArray(this.bottomDockSnapPoints) ? this.bottomDockSnapPoints : [];
-      var out = [];
-      var seen = {};
-      for (var i = 0; i < source.length; i += 1) {
-        var row = source[i];
-        if (!row || typeof row !== 'object') continue;
-        var id = String(row.id || '').trim().toLowerCase();
-        if (!id || seen[id]) continue;
-        var nx = Number(row.x);
-        var ny = Number(row.y);
-        var side = this.bottomDockNormalizeSide(row.side);
-        if (!Number.isFinite(nx)) nx = 0.5;
-        if (!Number.isFinite(ny)) ny = 0.995;
-        nx = Math.max(0, Math.min(1, nx));
-        ny = Math.max(0, Math.min(1, ny));
-        seen[id] = true;
-        out.push({ id: id, x: nx, y: ny, side: side });
-      }
-      if (!out.length) {
-        out.push({ id: 'center', x: 0.5, y: 0.995, side: 'bottom' });
-      }
-      return out;
+      return infringBottomDockSnapDefinitions(this);
     },
 
     bottomDockSnapDefinitionById(id) {
-      var key = String(id || '').trim().toLowerCase();
-      var defs = this.bottomDockSnapDefinitions();
-      if (!defs.length) return null;
-      for (var i = 0; i < defs.length; i += 1) {
-        if (defs[i] && defs[i].id === key) return defs[i];
-      }
-      for (var j = 0; j < defs.length; j += 1) {
-        if (defs[j] && defs[j].id === 'center') return defs[j];
-      }
-      return defs[0] || null;
+      return infringBottomDockSnapDefinitionById(this, id);
     },
 
     bottomDockSideForSnapId(id) {
-      var snap = this.bottomDockSnapDefinitionById(id);
-      return this.bottomDockNormalizeSide(snap && snap.side || 'bottom');
+      return infringBottomDockSideForSnapId(this, id);
     },
 
     bottomDockActiveSnapId() {
-      if (this.bottomDockContainerDragActive) {
-        var anchor = this.bottomDockClampDragAnchor(this.bottomDockContainerDragX, this.bottomDockContainerDragY);
-        return this.bottomDockNearestSnapId(anchor.x, anchor.y);
-      }
-      var snap = this.bottomDockSnapDefinitionById(this.bottomDockPlacementId);
-      return String(snap && snap.id || 'center');
+      return infringBottomDockActiveSnapId(this);
     },
 
     bottomDockActiveSide() {
-      return this.bottomDockSideForSnapId(this.bottomDockActiveSnapId());
+      return infringBottomDockActiveSide(this);
     },
 
     bottomDockWallLockNormalized() {
-      return this.dragSurfaceNormalizeWall(this.bottomDockContainerWallLock);
+      return infringBottomDockWallLockNormalized(this);
     },
 
     bottomDockTaskbarContained() {
-      var service = this.taskbarDockService();
-      if (service && typeof service.dockTaskbarContained === 'function') {
-        return service.dockTaskbarContained(
-          this.bottomDockWallLockNormalized(),
-          this.taskbarDockEdge,
-          this.taskbarDockDragActive,
-          this._taskbarDockDraggingContainedBottomDock
-        );
-      }
-      var wall = this.bottomDockWallLockNormalized();
-      if (wall !== 'top' && wall !== 'bottom') return false;
-      if (this.taskbarDockDragActive && String(this._taskbarDockDraggingContainedBottomDock || '') === wall) return true;
-      return wall === this.taskbarDockEdgeNormalized(this.taskbarDockEdge);
+      return infringBottomDockTaskbarContained(this);
     },
 
     bottomDockHoverExpansionDisabled() {
-      return this.bottomDockTaskbarContained();
+      return infringBottomDockHoverExpansionDisabled(this);
     },
 
     bottomDockTaskbarContainedAnchorX(sideHint) {
-      var side = this.bottomDockNormalizeSide(sideHint || this.bottomDockActiveSide());
-      var view = this.bottomDockReadViewportSize();
-      var size = this.bottomDockVisualSizeForSide(side);
-      var dockWidth = Math.max(1, Number(size && size.width || 1));
-      var left = 16;
-      try {
-        var textMenu = document.querySelector('.global-taskbar .taskbar-text-menus');
-        var rect = textMenu && typeof textMenu.getBoundingClientRect === 'function' ? textMenu.getBoundingClientRect() : null;
-        if (rect && Number.isFinite(Number(rect.right))) left = Number(rect.right) + 8;
-      } catch(_) {}
-      var service = this.taskbarDockService();
-      if (service && typeof service.dockTaskbarContainedAnchorX === 'function') {
-        return service.dockTaskbarContainedAnchorX({
-          side: side,
-          viewportWidth: Number(view.width || 0),
-          dockWidth: dockWidth,
-          leftAnchor: left
-        });
-      }
-      var minX = dockWidth / 2;
-      var maxX = Math.max(minX, Number(view.width || 0) - minX - 10);
-      return Math.max(minX, Math.min(maxX, left + (dockWidth / 2)));
+      return infringBottomDockTaskbarContainedAnchorX(this, sideHint);
     },
 
     bottomDockTaskbarContainedMetrics() {
-      var edge = this.taskbarDockEdgeNormalized(this.taskbarDockEdge);
-      var height = 32;
-      var centerY = edge === 'bottom' ? this.taskbarReadViewportHeight() - 23 : 23;
-      try {
-        var group = document.querySelector('.global-taskbar .taskbar-visual-group-left');
-        var rect = group && typeof group.getBoundingClientRect === 'function' ? group.getBoundingClientRect() : null;
-        if (rect && Number.isFinite(Number(rect.height)) && Number(rect.height) > 0) {
-          height = Number(rect.height);
-          centerY = Number(rect.top || 0) + (height / 2);
-        }
-      } catch(_) {}
-      if (this.taskbarDockDragActive && String(this._taskbarDockDraggingContainedBottomDock || '')) {
-        centerY = this.taskbarClampDragY(this.taskbarDockDragY) + (this.taskbarReadHeight() / 2);
-      }
-      var service = this.taskbarDockService();
-      if (service && typeof service.dockTaskbarContainedMetrics === 'function') {
-        return service.dockTaskbarContainedMetrics({
-          edge: edge,
-          viewportHeight: this.taskbarReadViewportHeight(),
-          fallbackHeight: 32,
-          groupHeight: height,
-          groupTop: centerY - (height / 2),
-          dragging: this.taskbarDockDragActive && String(this._taskbarDockDraggingContainedBottomDock || ''),
-          dragY: this.taskbarClampDragY(this.taskbarDockDragY),
-          taskbarHeight: this.taskbarReadHeight()
-        });
-      }
-      return { height: height, centerY: centerY };
+      return infringBottomDockTaskbarContainedMetrics(this);
     },
 
     bottomDockSetWallLock(wallRaw) {
@@ -2921,161 +1025,48 @@ function app() {
     },
 
     bottomDockBoundsScaleForSide(sideHint) {
-      var side = this.bottomDockNormalizeSide(sideHint || this.bottomDockActiveSide());
-      if (this.bottomDockTaskbarContained()) return 1;
-      if (side === 'left' || side === 'right') return 1;
-      var expandedScale = this.bottomDockExpandedScale();
-      var baseScale = 0.95;
-      var dragging = !!this.bottomDockContainerDragActive
-        || !!this.bottomDockContainerSettling
-        || !!String(this.bottomDockDragId || '').trim();
-      var hovering = !!String(this.bottomDockHoverId || '').trim();
-      if (this.bottomDockHoverExpansionDisabled()) hovering = false;
-      if (dragging || hovering) baseScale = expandedScale;
-      if (!Number.isFinite(baseScale) || baseScale <= 0.01) baseScale = 0.95;
-      return baseScale;
+      return infringBottomDockBoundsScaleForSide(this, sideHint);
     },
 
     bottomDockVisualSizeForSide(sideHint) {
-      var side = this.bottomDockNormalizeSide(sideHint || this.bottomDockActiveSide());
-      var dock = this.bottomDockReadBaseSize();
-      var scale = this.bottomDockBoundsScaleForSide(side);
-      var baseWidth = Math.max(20, Number(dock.width || 0) * scale);
-      var baseHeight = Math.max(20, Number(dock.height || 0) * scale);
-      var visualWidth = this.bottomDockIsVerticalSide(side) ? baseHeight : baseWidth;
-      var visualHeight = this.bottomDockIsVerticalSide(side) ? baseWidth : baseHeight;
-      return { side: side, width: visualWidth, height: visualHeight };
+      return infringBottomDockVisualSizeForSide(this, sideHint);
     },
 
     bottomDockHardBoundsForSide(sideHint) {
-      var size = this.bottomDockVisualSizeForSide(sideHint);
-      var view = this.bottomDockReadViewportSize();
-      var width = Number(size && size.width || 0);
-      var height = Number(size && size.height || 0);
-      if (!Number.isFinite(width) || width < 1) width = 1;
-      if (!Number.isFinite(height) || height < 1) height = 1;
-      var viewportWidth = Number(view && view.width || 0);
-      var viewportHeight = Number(view && view.height || 0);
-      if (!Number.isFinite(viewportWidth) || viewportWidth <= 0) viewportWidth = 1440;
-      if (!Number.isFinite(viewportHeight) || viewportHeight <= 0) viewportHeight = 900;
-      return {
-        minLeft: 0,
-        maxLeft: Math.max(0, viewportWidth - width),
-        minTop: 0,
-        maxTop: Math.max(0, viewportHeight - height)
-      };
+      return infringBottomDockHardBoundsForSide(this, sideHint);
     },
 
     bottomDockTopLeftFromAnchor(anchorX, anchorY, sideHint) {
-      var size = this.bottomDockVisualSizeForSide(sideHint);
-      var x = Number(anchorX);
-      var y = Number(anchorY);
-      if (!Number.isFinite(x)) x = Number(this.bottomDockReadViewportSize().width || 0) * 0.5;
-      if (!Number.isFinite(y)) y = Number(this.bottomDockReadViewportSize().height || 0) * 0.5;
-      var side = this.bottomDockNormalizeSide(size && size.side);
-      var top = y - (Number(size.height || 0) / 2);
-      if (side === 'top') top = y;
-      else if (side === 'bottom') top = y - Number(size.height || 0);
-      return {
-        left: x - (Number(size.width || 0) / 2),
-        top: top,
-        side: side
-      };
+      return infringBottomDockTopLeftFromAnchor(this, anchorX, anchorY, sideHint);
     },
 
     bottomDockAnchorFromTopLeft(leftRaw, topRaw, sideHint) {
-      var size = this.bottomDockVisualSizeForSide(sideHint);
-      var left = Number(leftRaw);
-      var top = Number(topRaw);
-      if (!Number.isFinite(left)) left = Number(size.width || 0) / -2;
-      if (!Number.isFinite(top)) top = Number(size.height || 0) / -2;
-      var side = this.bottomDockNormalizeSide(size && size.side);
-      var y = top + (Number(size.height || 0) / 2);
-      if (side === 'top') y = top;
-      else if (side === 'bottom') y = top + Number(size.height || 0);
-      return {
-        x: left + (Number(size.width || 0) / 2),
-        y: y,
-        side: side
-      };
+      return infringBottomDockAnchorFromTopLeft(this, leftRaw, topRaw, sideHint);
     },
 
     bottomDockLocalWallForRotation(wallRaw, rotationDegRaw) {
-      var wall = this.dragSurfaceNormalizeWall(wallRaw);
-      if (!wall) return '';
-      var rotationDeg = Number(rotationDegRaw);
-      if (!Number.isFinite(rotationDeg)) rotationDeg = 0;
-      var theta = (this.bottomDockNormalizeRotationDeg(rotationDeg) * Math.PI) / 180;
-      var vx = 0;
-      var vy = 0;
-      if (wall === 'left') vx = -1;
-      else if (wall === 'right') vx = 1;
-      else if (wall === 'top') vy = -1;
-      else vy = 1;
-      var localX = (vx * Math.cos(theta)) + (vy * Math.sin(theta));
-      var localY = (-vx * Math.sin(theta)) + (vy * Math.cos(theta));
-      if (Math.abs(localX) >= Math.abs(localY)) {
-        return localX >= 0 ? 'right' : 'left';
-      }
-      return localY >= 0 ? 'bottom' : 'top';
+      return infringBottomDockLocalWallForRotation(this, wallRaw, rotationDegRaw);
     },
 
     bottomDockLockRadiusCssVars(wallRaw, rotationDegRaw) {
-      var wall = this.dragSurfaceNormalizeWall(wallRaw);
-      if (!wall) return '';
-      var localWall = this.bottomDockLocalWallForRotation(wall, rotationDegRaw);
-      return '--bottom-dock-radius-override:' + this.dragSurfaceRadiusByWall(localWall) + ';';
+      return infringBottomDockLockRadiusCssVars(this, wallRaw, rotationDegRaw);
     },
 
     bottomDockClampDragAnchor(anchorX, anchorY) {
-      var view = this.bottomDockReadViewportSize();
-      var margin = 8;
-      var minX = margin;
-      var maxX = Number(view.width || 0) - margin;
-      var minY = margin;
-      var maxY = Number(view.height || 0) - margin;
-      var x = Number(anchorX);
-      var y = Number(anchorY);
-      if (!Number.isFinite(x)) x = Number(view.width || 0) * 0.5;
-      if (!Number.isFinite(y)) y = Number(view.height || 0) * 0.5;
-      x = Math.max(minX, Math.min(maxX, x));
-      y = Math.max(minY, Math.min(maxY, y));
-      return { x: x, y: y };
+      return infringBottomDockClampDragAnchor(anchorX, anchorY);
     },
 
     bottomDockClampAnchor(anchorX, anchorY, sideOverride) {
       void sideOverride;
-      return this.bottomDockClampDragAnchor(anchorX, anchorY);
+      return infringBottomDockClampDragAnchor(anchorX, anchorY);
     },
 
     bottomDockAnchorForSnapId(id) {
-      var snap = this.bottomDockSnapDefinitionById(id);
-      var view = this.bottomDockReadViewportSize();
-      var x = Number(view.width || 0) * Number(snap && snap.x || 0.5);
-      var y = Number(view.height || 0) * Number(snap && snap.y || 0.995);
-      var side = this.bottomDockNormalizeSide(snap && snap.side || 'bottom');
-      return this.bottomDockClampAnchor(x, y, side);
+      return infringBottomDockAnchorForSnapId(this, id);
     },
 
     bottomDockNearestSnapId(anchorX, anchorY) {
-      var defs = this.bottomDockSnapDefinitions();
-      if (!defs.length) return 'center';
-      var anchor = this.bottomDockClampDragAnchor(anchorX, anchorY);
-      var bestId = defs[0].id;
-      var bestDist = Number.POSITIVE_INFINITY;
-      for (var i = 0; i < defs.length; i += 1) {
-        var row = defs[i];
-        if (!row) continue;
-        var snapAnchor = this.bottomDockAnchorForSnapId(row.id);
-        var dx = Number(anchor.x || 0) - Number(snapAnchor.x || 0);
-        var dy = Number(anchor.y || 0) - Number(snapAnchor.y || 0);
-        var dist = (dx * dx) + (dy * dy);
-        if (!Number.isFinite(dist)) continue;
-        if (dist >= bestDist) continue;
-        bestDist = dist;
-        bestId = row.id;
-      }
-      return String(bestId || 'center');
+      return infringBottomDockNearestSnapId(this, anchorX, anchorY);
     },
 
     persistBottomDockPlacement() {
@@ -3089,2709 +1080,565 @@ function app() {
     },
 
     syncDragWallCapHostNode(node, wallRaw) {
-      if (!node || !node.classList) return;
-      var wall = this.dragSurfaceNormalizeWall(wallRaw);
-      node.classList.add('drag-wall-cap-host');
-      node.classList.remove('wall-lock-left', 'wall-lock-right', 'wall-lock-top', 'wall-lock-bottom');
-      if (wall) node.classList.add('wall-lock-' + wall);
-      var capA = null;
-      var capB = null;
-      var kids = node.children || [];
-      for (var i = 0; i < kids.length; i += 1) {
-        var child = kids[i];
-        if (!child || !child.classList) continue;
-        if (child.classList.contains('drag-bar-wall-cap--a')) capA = child;
-        if (child.classList.contains('drag-bar-wall-cap--b')) capB = child;
-      }
-      if (!capA) {
-        capA = document.createElement('span');
-        capA.className = 'drag-bar-wall-cap drag-bar-wall-cap--a';
-        capA.setAttribute('aria-hidden', 'true');
-        node.appendChild(capA);
-      }
-      if (!capB) {
-        capB = document.createElement('span');
-        capB.className = 'drag-bar-wall-cap drag-bar-wall-cap--b';
-        capB.setAttribute('aria-hidden', 'true');
-        node.appendChild(capB);
-      }
+      infringSyncDragWallCapHostNode(this, node, wallRaw);
     },
 
     syncDragWallCaps() {
-      if (typeof document === 'undefined') return;
-      var sidebarNode = null;
-      var chatMapSurfaceNode = null;
-      var dockNode = null;
-      try { sidebarNode = document.querySelector('.sidebar.drag-bar'); } catch(_) {}
-      try { chatMapSurfaceNode = document.querySelector('.chat-map .chat-map-surface.drag-bar'); } catch(_) {}
-      try { dockNode = document.querySelector('.bottom-dock.drag-bar'); } catch(_) {}
-      this.syncDragWallCapHostNode(sidebarNode, this.page === 'chat' ? this.chatSidebarWallLockNormalized() : '');
-      this.syncDragWallCapHostNode(chatMapSurfaceNode, this.chatMapPlacementEnabled() ? this.chatMapWallLockNormalized() : '');
-      this.syncDragWallCapHostNode(dockNode, this.bottomDockTaskbarContained() ? '' : this.bottomDockWallLockNormalized());
+      infringSyncDragWallCaps(this);
     },
 
     bottomDockContainerStyle() {
-      this.syncDragWallCaps();
-      var lockWall = this.bottomDockWallLockNormalized();
-      var taskbarContained = this.bottomDockTaskbarContained();
-      var activeSnapId = this.bottomDockContainerDragActive
-        ? this.bottomDockNearestSnapId(this.bottomDockContainerDragX, this.bottomDockContainerDragY)
-        : this.bottomDockPlacementId;
-      var side = this.bottomDockSideForSnapId(activeSnapId);
-      if (lockWall) side = lockWall;
-      var anchor = this.bottomDockContainerDragActive
-        ? this.bottomDockClampDragAnchor(this.bottomDockContainerDragX, this.bottomDockContainerDragY)
-        : this.bottomDockAnchorForSnapId(this.bottomDockPlacementId);
-      if (lockWall) {
-        var topLeft = this.bottomDockTopLeftFromAnchor(anchor.x, anchor.y, side);
-        var hardBounds = this.bottomDockHardBoundsForSide(side);
-        var snapped = this.dragSurfaceApplyWallLock(hardBounds, topLeft.left, topLeft.top, lockWall);
-        var lockedAnchor = this.bottomDockAnchorFromTopLeft(snapped.left, snapped.top, side);
-        anchor = { x: Number(lockedAnchor.x || 0), y: Number(lockedAnchor.y || 0) };
-      }
-      if (taskbarContained) {
-        var taskbarContainedMetrics = this.bottomDockTaskbarContainedMetrics();
-        anchor.x = this.bottomDockTaskbarContainedAnchorX(side);
-        anchor.y = Number(taskbarContainedMetrics.centerY || anchor.y || 0);
-      }
-      var rotationDeg = Number(this.bottomDockRotationDeg);
-      if (!Number.isFinite(rotationDeg)) {
-        rotationDeg = this.bottomDockResolveRotationForSide(side, anchor.x, anchor.y);
-        this.bottomDockRotationDeg = rotationDeg;
-      }
-      var upDeg = Number(this.bottomDockUpDegForSide(side) || 0);
-      var tileRotationDeg = upDeg - Number(rotationDeg || 0);
-      var iconRotationDeg = 0;
-      var carriedByTaskbar = taskbarContained && this.taskbarDockDragActive;
-      var durationMs = (this.bottomDockContainerDragActive || carriedByTaskbar) ? 0 : this.bottomDockMoveDurationMs();
-      var localLockWall = lockWall && !taskbarContained ? this.bottomDockLocalWallForRotation(lockWall, rotationDeg) : '';
-      var lockCss = this.dragSurfaceLockVisualCssVars('bottom-dock', localLockWall, {
-        transformMs: this._dragSurfaceLockTransformMs
-      });
-      return (
-        lockCss +
-        '--bottom-dock-anchor-x:' + Math.round(Number(anchor.x || 0)) + 'px;' +
-        '--bottom-dock-anchor-y:' + Math.round(Number(anchor.y || 0)) + 'px;' +
-        '--bottom-dock-taskbar-contained-height:' + Math.round(Number((taskbarContainedMetrics && taskbarContainedMetrics.height) || 32)) + 'px;' +
-        '--bottom-dock-taskbar-contained-tile-size:' + Math.max(18, Math.round(Number((taskbarContainedMetrics && taskbarContainedMetrics.height) || 32) - 10)) + 'px;' +
-        '--bottom-dock-position-transition:' + Math.max(0, Math.round(Number(durationMs || 0))) + 'ms;' +
-        '--bottom-dock-up-deg:' + Math.round(Number(upDeg || 0)) + 'deg;' +
-        '--bottom-dock-rotation-deg:' + Math.round(Number(rotationDeg || 0)) + 'deg;' +
-        '--bottom-dock-tile-rotation-deg:' + Math.round(Number(tileRotationDeg || 0)) + 'deg;' +
-        '--bottom-dock-icon-rotation-deg:' + Math.round(Number(iconRotationDeg || 0)) + 'deg;'
-      );
+      return infringBottomDockContainerStyle(this);
     },
 
     bindBottomDockContainerPointerListeners() {
-      if (this._bottomDockContainerPointerMoveHandler || this._bottomDockContainerPointerUpHandler) return;
-      var self = this;
-      this._bottomDockContainerPointerMoveHandler = function(ev) { self.handleBottomDockContainerPointerMove(ev); };
-      this._bottomDockContainerPointerUpHandler = function(ev) { self.endBottomDockContainerPointerDrag(ev); };
-      window.addEventListener('pointermove', this._bottomDockContainerPointerMoveHandler, true);
-      window.addEventListener('pointerup', this._bottomDockContainerPointerUpHandler, true);
-      window.addEventListener('pointercancel', this._bottomDockContainerPointerUpHandler, true);
-      window.addEventListener('mousemove', this._bottomDockContainerPointerMoveHandler, true);
-      window.addEventListener('mouseup', this._bottomDockContainerPointerUpHandler, true);
+      infringBindBottomDockContainerPointerListeners(this);
     },
 
     unbindBottomDockContainerPointerListeners() {
-      if (this._bottomDockContainerPointerMoveHandler) {
-        try { window.removeEventListener('pointermove', this._bottomDockContainerPointerMoveHandler, true); } catch(_) {}
-        try { window.removeEventListener('mousemove', this._bottomDockContainerPointerMoveHandler, true); } catch(_) {}
-      }
-      if (this._bottomDockContainerPointerUpHandler) {
-        try { window.removeEventListener('pointerup', this._bottomDockContainerPointerUpHandler, true); } catch(_) {}
-        try { window.removeEventListener('pointercancel', this._bottomDockContainerPointerUpHandler, true); } catch(_) {}
-        try { window.removeEventListener('mouseup', this._bottomDockContainerPointerUpHandler, true); } catch(_) {}
-      }
-      this._bottomDockContainerPointerMoveHandler = null;
-      this._bottomDockContainerPointerUpHandler = null;
+      infringUnbindBottomDockContainerPointerListeners(this);
     },
 
     startBottomDockContainerPointerDrag(ev) {
-      if (!ev || Number(ev.button) !== 0) return;
-      if (String(this.bottomDockDragId || '').trim()) return;
-      var target = ev && ev.target ? ev.target : null;
-      if (target && typeof target.closest === 'function') {
-        var tileNode = target.closest('.bottom-dock-btn[data-dock-id]');
-        if (tileNode) return;
-      }
-      if (this._bottomDockContainerSettleTimer) {
-        try { clearTimeout(this._bottomDockContainerSettleTimer); } catch(_) {}
-      }
-      this._bottomDockContainerSettleTimer = 0;
-      this.bottomDockContainerSettling = false;
-      var anchor = this.bottomDockAnchorForSnapId(this.bottomDockPlacementId);
-      this._bottomDockContainerPointerActive = true;
-      this._bottomDockContainerPointerMoved = false;
-      this._bottomDockContainerPointerStartX = Number(ev.clientX || 0);
-      this._bottomDockContainerPointerStartY = Number(ev.clientY || 0);
-      this._bottomDockContainerPointerLastX = Number(ev.clientX || 0);
-      this._bottomDockContainerPointerLastY = Number(ev.clientY || 0);
-      this._bottomDockContainerOriginX = Number(anchor.x || 0);
-      this._bottomDockContainerOriginY = Number(anchor.y || 0);
-      this.bottomDockContainerDragX = Number(anchor.x || 0);
-      this.bottomDockContainerDragY = Number(anchor.y || 0);
-      this._bottomDockContainerDragWallLock = this.bottomDockWallLockNormalized();
-      this.bindBottomDockContainerPointerListeners();
-      try {
-        if (ev.currentTarget && typeof ev.currentTarget.setPointerCapture === 'function' && Number.isFinite(ev.pointerId)) {
-          ev.currentTarget.setPointerCapture(ev.pointerId);
-        }
-      } catch(_) {}
-      if (ev.cancelable && typeof ev.preventDefault === 'function') ev.preventDefault();
+      infringStartBottomDockContainerPointerDrag(this, ev);
     },
 
     handleBottomDockContainerPointerMove(ev) {
-      if (!this._bottomDockContainerPointerActive) return;
-      var nextX = Number(ev.clientX || 0);
-      var nextY = Number(ev.clientY || 0);
-      this._bottomDockContainerPointerLastX = nextX;
-      this._bottomDockContainerPointerLastY = nextY;
-      var movedX = Math.abs(nextX - Number(this._bottomDockContainerPointerStartX || 0));
-      var movedY = Math.abs(nextY - Number(this._bottomDockContainerPointerStartY || 0));
-      if (!this._bottomDockContainerPointerMoved) {
-        if (movedX < 4 && movedY < 4) return;
-        this._bottomDockContainerPointerMoved = true;
-        this.bottomDockContainerDragActive = true;
-        this.bottomDockHoverId = '';
-        this.bottomDockHoverWeightById = {};
-        this.bottomDockPointerX = 0;
-        this.bottomDockPointerY = 0;
-        this.bottomDockPreviewVisible = false;
-        this.bottomDockPreviewText = '';
-        this.bottomDockPreviewMorphFromText = '';
-        this.bottomDockPreviewLabelMorphing = false;
-        this.bottomDockPreviewWidth = 0;
-        this.cancelBottomDockPreviewReflow();
-      }
-      var candidateX = Number(this._bottomDockContainerOriginX || 0) + (nextX - Number(this._bottomDockContainerPointerStartX || 0));
-      var candidateY = Number(this._bottomDockContainerOriginY || 0) + (nextY - Number(this._bottomDockContainerPointerStartY || 0));
-      var lockedWall = this.dragSurfaceNormalizeWall(this._bottomDockContainerDragWallLock || this.bottomDockWallLockNormalized());
-      if (lockedWall) {
-        var lockedTopLeft = this.bottomDockTopLeftFromAnchor(candidateX, candidateY, lockedWall);
-        var lockedHardBounds = this.bottomDockHardBoundsForSide(lockedWall);
-        var unlockDistance = this.dragSurfaceDistanceFromWall(
-          lockedHardBounds,
-          lockedTopLeft.left,
-          lockedTopLeft.top,
-          lockedWall
-        );
-        if (unlockDistance >= this.dragSurfaceWallUnlockDistanceThreshold()) {
-          lockedWall = '';
-          this._bottomDockContainerDragWallLock = '';
-          this.bottomDockSetWallLock('');
-        } else {
-          var holdTopLeft = this.bottomDockTopLeftFromAnchor(
-            this.bottomDockContainerDragX,
-            this.bottomDockContainerDragY,
-            lockedWall
-          );
-          var holdLocked = this.dragSurfaceApplyWallLock(
-            lockedHardBounds,
-            holdTopLeft.left,
-            holdTopLeft.top,
-            lockedWall
-          );
-          var holdAnchor = this.bottomDockAnchorFromTopLeft(holdLocked.left, holdLocked.top, lockedWall);
-          this.bottomDockContainerDragX = Number(holdAnchor.x || 0);
-          this.bottomDockContainerDragY = Number(holdAnchor.y || 0);
-          this.bottomDockRotationDeg = this.bottomDockResolveRotationForSide(
-            lockedWall,
-            this.bottomDockContainerDragX,
-            this.bottomDockContainerDragY
-          );
-          if (ev.cancelable && typeof ev.preventDefault === 'function') ev.preventDefault();
-          return;
-        }
-      }
-      var anchor = this.bottomDockClampDragAnchor(candidateX, candidateY);
-      var nearestId = this.bottomDockNearestSnapId(anchor.x, anchor.y);
-      var side = this.bottomDockSideForSnapId(nearestId);
-      var candidateTopLeft = this.bottomDockTopLeftFromAnchor(anchor.x, anchor.y, side);
-      var hardBounds = this.bottomDockHardBoundsForSide(side);
-      var clampedTopLeft = this.dragSurfaceClampWithBounds(hardBounds, candidateTopLeft.left, candidateTopLeft.top);
-      var nearestWall = this.dragSurfaceNearestWall(hardBounds, clampedTopLeft.left, clampedTopLeft.top);
-      var lockWall = this.dragSurfaceResolveWallLock(
-        hardBounds,
-        candidateTopLeft.left,
-        candidateTopLeft.top,
-        nearestWall,
-        nextX - Number(this._bottomDockContainerPointerStartX || 0),
-        nextY - Number(this._bottomDockContainerPointerStartY || 0)
-      );
-      if (lockWall) {
-        this._bottomDockContainerDragWallLock = this.bottomDockSetWallLock(lockWall);
-        var lockTopLeft = this.bottomDockTopLeftFromAnchor(anchor.x, anchor.y, lockWall);
-        var lockHardBounds = this.bottomDockHardBoundsForSide(lockWall);
-        var lockClamped = this.dragSurfaceClampWithBounds(lockHardBounds, lockTopLeft.left, lockTopLeft.top);
-        var snapped = this.dragSurfaceApplyWallLock(lockHardBounds, lockClamped.left, lockClamped.top, lockWall);
-        var snappedAnchor = this.bottomDockAnchorFromTopLeft(snapped.left, snapped.top, lockWall);
-        this.bottomDockContainerDragX = Number(snappedAnchor.x || 0);
-        this.bottomDockContainerDragY = Number(snappedAnchor.y || 0);
-        side = lockWall;
-      } else {
-        var freeAnchor = this.bottomDockAnchorFromTopLeft(clampedTopLeft.left, clampedTopLeft.top, side);
-        this.bottomDockContainerDragX = Number(freeAnchor.x || 0);
-        this.bottomDockContainerDragY = Number(freeAnchor.y || 0);
-      }
-      this.bottomDockRotationDeg = this.bottomDockResolveRotationForSide(
-        side,
-        this.bottomDockContainerDragX,
-        this.bottomDockContainerDragY
-      );
-      if (ev.cancelable && typeof ev.preventDefault === 'function') ev.preventDefault();
+      infringHandleBottomDockContainerPointerMove(this, ev);
     },
 
     endBottomDockContainerPointerDrag() {
-      if (!this._bottomDockContainerPointerActive) return;
-      this._bottomDockContainerPointerActive = false;
-      this.unbindBottomDockContainerPointerListeners();
-      if (!this._bottomDockContainerPointerMoved) {
-        this.bottomDockContainerDragActive = false;
-        this._bottomDockContainerPointerMoved = false;
-        this._bottomDockContainerDragWallLock = '';
-        return;
-      }
-      var lockWall = this.dragSurfaceNormalizeWall(this._bottomDockContainerDragWallLock || this.bottomDockWallLockNormalized());
-      var anchor = this.bottomDockClampDragAnchor(this.bottomDockContainerDragX, this.bottomDockContainerDragY);
-      if (!lockWall) {
-        var freeNearest = this.bottomDockNearestSnapId(anchor.x, anchor.y);
-        var freeSide = this.bottomDockSideForSnapId(freeNearest);
-        var freeTopLeft = this.bottomDockTopLeftFromAnchor(anchor.x, anchor.y, freeSide);
-        var freeHardBounds = this.bottomDockHardBoundsForSide(freeSide);
-        var freeNearestWall = this.dragSurfaceNearestWall(freeHardBounds, freeTopLeft.left, freeTopLeft.top);
-        if (Number(freeNearestWall.distance || 0) <= this.dragSurfaceWallLockDistanceThreshold()) {
-          lockWall = this.bottomDockSetWallLock(freeNearestWall.wall);
-          this._bottomDockContainerDragWallLock = lockWall;
-        }
-      }
-      if (lockWall) {
-        var lockedTopLeft = this.bottomDockTopLeftFromAnchor(anchor.x, anchor.y, lockWall);
-        var lockedHardBounds = this.bottomDockHardBoundsForSide(lockWall);
-        var finalLocked = this.dragSurfaceApplyWallLock(
-          lockedHardBounds,
-          lockedTopLeft.left,
-          lockedTopLeft.top,
-          lockWall
-        );
-        var finalAnchor = this.bottomDockAnchorFromTopLeft(finalLocked.left, finalLocked.top, lockWall);
-        anchor = { x: Number(finalAnchor.x || 0), y: Number(finalAnchor.y || 0) };
-      }
-      var nearestId = this.bottomDockNearestSnapId(anchor.x, anchor.y);
-      this.bottomDockPlacementId = nearestId;
-      this.bottomDockRotationDeg = this.bottomDockResolveRotationForSide(this.bottomDockSideForSnapId(nearestId), anchor.x, anchor.y);
-      this.persistBottomDockPlacement();
-      this.bottomDockContainerDragActive = false;
-      this.bottomDockContainerSettling = true;
-      this._bottomDockContainerPointerMoved = false;
-      this._bottomDockContainerDragWallLock = '';
-      if (this._bottomDockContainerSettleTimer) {
-        try { clearTimeout(this._bottomDockContainerSettleTimer); } catch(_) {}
-      }
-      var self = this;
-      var settleMs = this.bottomDockMoveDurationMs() + 36;
-      this._bottomDockContainerSettleTimer = window.setTimeout(function() {
-        self._bottomDockContainerSettleTimer = 0;
-        self.bottomDockContainerSettling = false;
-      }, settleMs);
+      infringEndBottomDockContainerPointerDrag(this);
     },
 
     settleBottomDockDragGhost(dragId, done) {
-      var finish = typeof done === 'function' ? done : function() {};
-      var ghost = this._bottomDockDragGhostEl;
-      if (!ghost || !document) {
-        this.cleanupBottomDockDragGhost();
-        finish();
-        return;
-      }
-      var key = String(dragId || '').trim();
-      if (!key) {
-        this.cleanupBottomDockDragGhost();
-        finish();
-        return;
-      }
-      var slot = document.querySelector('.bottom-dock-btn[data-dock-id="' + key + '"]');
-      if (!slot || typeof slot.getBoundingClientRect !== 'function') {
-        this.cleanupBottomDockDragGhost();
-        finish();
-        return;
-      }
-      var rect = slot.getBoundingClientRect();
-      var durationMs = this.bottomDockMoveDurationMs();
-      var targetWidth = Number(rect && rect.width ? rect.width : 0);
-      var targetHeight = Number(rect && rect.height ? rect.height : 0);
-      var slotStyle = null;
-      if (!Number.isFinite(targetWidth) || targetWidth <= 0) {
-        targetWidth = Number(ghost.offsetWidth || 32);
-      }
-      if (!Number.isFinite(targetHeight) || targetHeight <= 0) {
-        targetHeight = Number(ghost.offsetHeight || 32);
-      }
-      var slotRadiusPx = 0;
-      try {
-        if (typeof window !== 'undefined' && typeof window.getComputedStyle === 'function') {
-          slotStyle = window.getComputedStyle(slot);
-        }
-        var rawRadius = slotStyle ? String(slotStyle.borderTopLeftRadius || slotStyle.borderRadius || '') : '';
-        var rawWidth = slotStyle ? String(slotStyle.width || '') : '';
-        var parsedRadius = parseFloat(rawRadius);
-        var parsedWidth = parseFloat(rawWidth);
-        if (Number.isFinite(parsedRadius) && parsedRadius >= 0) {
-          if (Number.isFinite(parsedWidth) && parsedWidth > 0) {
-            slotRadiusPx = (parsedRadius / parsedWidth) * targetWidth;
-          } else {
-            slotRadiusPx = parsedRadius;
-          }
-        }
-      } catch(_) {}
-      if (!slotRadiusPx) {
-        slotRadiusPx = Math.round((targetWidth / 32) * 11);
-      }
-      ghost.style.transition =
-        'left ' + durationMs + 'ms var(--ease-smooth), ' +
-        'top ' + durationMs + 'ms var(--ease-smooth), ' +
-        'width ' + durationMs + 'ms var(--ease-smooth), ' +
-        'height ' + durationMs + 'ms var(--ease-smooth), ' +
-        'border-radius ' + durationMs + 'ms var(--ease-smooth), ' +
-        'opacity ' + durationMs + 'ms var(--ease-smooth)';
-      var targetX = Number(rect.left || 0) + ((Number(rect.width || 0) - targetWidth) / 2);
-      var targetY = Number(rect.top || 0) + ((Number(rect.height || 0) - targetHeight) / 2);
-      var self = this;
-      var moveGhost = function() {
-        if (slotStyle) {
-          ghost.style.background = String(slotStyle.background || ghost.style.background || '');
-          ghost.style.border = String(slotStyle.border || ghost.style.border || '');
-          ghost.style.borderWidth = String(slotStyle.borderTopWidth || ghost.style.borderWidth || '');
-          ghost.style.borderStyle = String(slotStyle.borderTopStyle || ghost.style.borderStyle || '');
-          ghost.style.borderColor = String(slotStyle.borderColor || ghost.style.borderColor || '');
-          ghost.style.boxShadow = String(slotStyle.boxShadow || ghost.style.boxShadow || '');
-          ghost.style.color = String(slotStyle.color || ghost.style.color || '');
-        }
-        ghost.style.left = targetX + 'px';
-        ghost.style.top = targetY + 'px';
-        ghost.style.width = targetWidth + 'px';
-        ghost.style.height = targetHeight + 'px';
-        ghost.style.borderRadius = slotRadiusPx + 'px';
-        ghost.style.setProperty(
-          '--dock-ghost-scale',
-          String(Math.max(0.8, Math.min(4, targetWidth / 32)))
-        );
-        ghost.style.opacity = '1';
-      };
-      if (typeof requestAnimationFrame === 'function') requestAnimationFrame(moveGhost);
-      else moveGhost();
-      if (this._bottomDockGhostCleanupTimer) {
-        try { clearTimeout(this._bottomDockGhostCleanupTimer); } catch(_) {}
-      }
-      this._bottomDockGhostCleanupTimer = window.setTimeout(function() {
-        self._bottomDockRevealTargetDuringSettle = true;
-        var settleHoldMs = 54;
-        var completeSettle = function() {
-          self._bottomDockGhostCleanupTimer = 0;
-          finish();
-          if (typeof requestAnimationFrame !== 'function') {
-            self.cleanupBottomDockDragGhost();
-            return;
-          }
-          requestAnimationFrame(function() {
-            requestAnimationFrame(function() {
-              self.cleanupBottomDockDragGhost();
-            });
-          });
-        };
-        self._bottomDockGhostCleanupTimer = window.setTimeout(completeSettle, settleHoldMs);
-      }, durationMs + 40);
+      infringSettleBottomDockDragGhost(this, dragId, done);
     },
 
     taskbarDockEdgeNormalized(raw) {
-      var service = this.taskbarDockService();
-      if (service && typeof service.normalizeTaskbarEdge === 'function') return service.normalizeTaskbarEdge(raw);
-      var key = String(raw || '').trim().toLowerCase();
-      return key === 'bottom' ? 'bottom' : 'top';
+      return infringTaskbarDockEdgeNormalized(this, raw);
     },
 
     taskbarPersistDockEdge() {
-      this.taskbarDockEdge = this.taskbarDockEdgeNormalized(this.taskbarDockEdge);
-      try {
-        localStorage.setItem('infring-taskbar-dock-edge', this.taskbarDockEdge);
-      } catch(_) {}
-      infringUpdateShellLayoutConfig(function(config) {
-        config.taskbar.edge = this.taskbarDockEdge;
-      }.bind(this));
+      infringTaskbarPersistDockEdge(this);
     },
 
     taskbarReadHeight() {
-      if (typeof document === 'undefined') return 46;
-      try {
-        var node = document.querySelector('.global-taskbar');
-        var height = Number(node && node.offsetHeight || 0);
-        if (Number.isFinite(height) && height > 0) return height;
-      } catch(_) {}
-      return 46;
+      return infringTaskbarReadHeight();
     },
 
     taskbarReadViewportHeight() {
-      var h = 0;
-      try { h = Number(window && window.innerHeight || 0); } catch(_) { h = 0; }
-      if (!Number.isFinite(h) || h <= 0) {
-        h = Number(document && document.documentElement && document.documentElement.clientHeight || 900);
-      }
-      if (!Number.isFinite(h) || h <= 0) h = 900;
-      return h;
+      return infringTaskbarReadViewportHeight();
     },
 
     chatOverlayViewportWidth() {
-      var w = 0;
-      try { w = Number(window && window.innerWidth || 0); } catch(_) { w = 0; }
-      if (!Number.isFinite(w) || w <= 0) {
-        w = Number(document && document.documentElement && document.documentElement.clientWidth || 1440);
-      }
-      if (!Number.isFinite(w) || w <= 0) w = 1440;
-      return w;
+      return infringChatOverlayViewportWidth();
     },
 
     taskbarAnchorForDockEdge(edgeRaw) {
-      var service = this.taskbarDockService();
-      if (service && typeof service.normalizeTaskbarEdge === 'function') {
-        var edgeFromService = service.normalizeTaskbarEdge(edgeRaw);
-        if (edgeFromService === 'bottom') return Math.max(0, this.taskbarReadViewportHeight() - this.taskbarReadHeight());
-        return 0;
-      }
-      var edge = this.taskbarDockEdgeNormalized(edgeRaw);
-      if (edge === 'bottom') {
-        return Math.max(0, this.taskbarReadViewportHeight() - this.taskbarReadHeight());
-      }
-      return 0;
+      return infringTaskbarAnchorForDockEdge(this, edgeRaw);
     },
 
     taskbarClampDragY(yRaw) {
-      var service = this.taskbarDockService();
-      if (service && typeof service.normalizeTaskbarEdge === 'function') {
-        var yFromService = Number(yRaw);
-        if (!Number.isFinite(yFromService)) yFromService = this.taskbarAnchorForDockEdge(this.taskbarDockEdge);
-        var maxFromService = Math.max(0, this.taskbarReadViewportHeight() - this.taskbarReadHeight());
-        return Math.max(0, Math.min(maxFromService, yFromService));
-      }
-      var y = Number(yRaw);
-      if (!Number.isFinite(y)) y = this.taskbarAnchorForDockEdge(this.taskbarDockEdge);
-      var maxY = Math.max(0, this.taskbarReadViewportHeight() - this.taskbarReadHeight());
-      return Math.max(0, Math.min(maxY, y));
+      return infringTaskbarClampDragY(this, yRaw);
     },
 
     taskbarNearestDockEdge(yRaw) {
-      var service = this.taskbarDockService();
-      if (service && typeof service.normalizeTaskbarEdge === 'function') {
-        var yFromService = this.taskbarClampDragY(yRaw);
-        var topYFromService = this.taskbarAnchorForDockEdge('top');
-        var bottomYFromService = this.taskbarAnchorForDockEdge('bottom');
-        return Math.abs(yFromService - bottomYFromService) < Math.abs(yFromService - topYFromService) ? 'bottom' : 'top';
-      }
-      var y = this.taskbarClampDragY(yRaw);
-      var topY = this.taskbarAnchorForDockEdge('top');
-      var bottomY = this.taskbarAnchorForDockEdge('bottom');
-      var topDist = Math.abs(y - topY);
-      var bottomDist = Math.abs(y - bottomY);
-      return bottomDist < topDist ? 'bottom' : 'top';
+      return infringTaskbarNearestDockEdge(this, yRaw);
     },
 
     taskbarContainerStyle() {
-      var service = this.taskbarDockService();
-      if (service && typeof service.taskbarContainerStyle === 'function') {
-        return service.taskbarContainerStyle({
-          page: this.page,
-          edge: this.taskbarDockEdge,
-          dragging: this.taskbarDockDragActive,
-          dragY: this.taskbarClampDragY(this.taskbarDockDragY),
-          transitionMs: 220
-        });
-      }
-      var styles = [];
-      if (this.page !== 'chat') {
-        styles.push('background:transparent;border-bottom:none;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;');
-      }
-      var transitionMs = this.taskbarDockDragActive ? 0 : 220;
-      styles.push('--taskbar-dock-transition:' + Math.max(0, Math.round(Number(transitionMs || 0))) + 'ms;');
-      if (this.taskbarDockDragActive) {
-        var y = this.taskbarClampDragY(this.taskbarDockDragY);
-        styles.push('top:' + Math.round(Number(y || 0)) + 'px;bottom:auto;');
-      } else if (this.taskbarDockEdgeNormalized(this.taskbarDockEdge) === 'bottom') {
-        styles.push('top:auto;bottom:0;');
-      } else {
-        styles.push('top:0;bottom:auto;');
-      }
-      return styles.join('');
+      return infringTaskbarContainerStyle(this);
     },
 
     shouldIgnoreTaskbarDockDragTarget(target) {
-      var service = this.dragbarService();
-      if (service && typeof service.shouldIgnoreTarget === 'function') {
-        return service.shouldIgnoreTarget(target, {
-          ignoreSelector: 'button, a, input, textarea, select, [role="button"], [draggable="true"], .taskbar-reorder-item, .taskbar-hero-menu-anchor, .taskbar-hero-menu, .theme-switcher, .notif-wrap, .taskbar-search-popup, .taskbar-search-popup-anchor, .taskbar-clock'
-        });
-      }
-      if (!target || typeof target.closest !== 'function') return false;
-      return Boolean(
-        target.closest(
-          'button, a, input, textarea, select, [role="button"], [draggable="true"], .taskbar-reorder-item, .taskbar-hero-menu-anchor, .taskbar-hero-menu, .theme-switcher, .notif-wrap, .taskbar-search-popup, .taskbar-search-popup-anchor, .taskbar-clock'
-        )
-      );
+      return infringShouldIgnoreTaskbarDockDragTarget(this, target);
     },
 
     bindTaskbarDockPointerListeners() {
-      if (this._taskbarDockPointerMoveHandler || this._taskbarDockPointerUpHandler) return;
-      var self = this;
-      this._taskbarDockPointerMoveHandler = function(ev) { self.handleTaskbarDockPointerMove(ev); };
-      this._taskbarDockPointerUpHandler = function(ev) { self.endTaskbarDockPointerDrag(ev); };
-      window.addEventListener('pointermove', this._taskbarDockPointerMoveHandler, true);
-      window.addEventListener('pointerup', this._taskbarDockPointerUpHandler, true);
-      window.addEventListener('pointercancel', this._taskbarDockPointerUpHandler, true);
-      window.addEventListener('mousemove', this._taskbarDockPointerMoveHandler, true);
-      window.addEventListener('mouseup', this._taskbarDockPointerUpHandler, true);
+      infringBindTaskbarDockPointerListeners(this);
     },
 
     unbindTaskbarDockPointerListeners() {
-      if (this._taskbarDockPointerMoveHandler) {
-        try { window.removeEventListener('pointermove', this._taskbarDockPointerMoveHandler, true); } catch(_) {}
-        try { window.removeEventListener('mousemove', this._taskbarDockPointerMoveHandler, true); } catch(_) {}
-      }
-      if (this._taskbarDockPointerUpHandler) {
-        try { window.removeEventListener('pointerup', this._taskbarDockPointerUpHandler, true); } catch(_) {}
-        try { window.removeEventListener('pointercancel', this._taskbarDockPointerUpHandler, true); } catch(_) {}
-        try { window.removeEventListener('mouseup', this._taskbarDockPointerUpHandler, true); } catch(_) {}
-      }
-      this._taskbarDockPointerMoveHandler = null;
-      this._taskbarDockPointerUpHandler = null;
+      infringUnbindTaskbarDockPointerListeners(this);
     },
 
     startTaskbarDockPointerDrag(ev) {
-      if (!ev || Number(ev.button) !== 0) return;
-      if (String(this.taskbarDragGroup || '').trim()) return;
-      var target = ev && ev.target ? ev.target : null;
-      if (this.shouldIgnoreTaskbarDockDragTarget(target)) return;
-      this._taskbarDockDraggingContainedBottomDock = this.bottomDockTaskbarContained()
-        ? this.bottomDockWallLockNormalized()
-        : '';
-      this._taskbarDockPointerActive = true;
-      this._taskbarDockPointerMoved = false;
-      this._taskbarDockPointerStartX = Number(ev.clientX || 0);
-      this._taskbarDockPointerStartY = Number(ev.clientY || 0);
-      this._taskbarDockOriginY = this.taskbarAnchorForDockEdge(this.taskbarDockEdge);
-      this.taskbarDockDragY = this._taskbarDockOriginY;
-      this.bindTaskbarDockPointerListeners();
-      try {
-        if (ev.currentTarget && typeof ev.currentTarget.setPointerCapture === 'function' && Number.isFinite(ev.pointerId)) {
-          ev.currentTarget.setPointerCapture(ev.pointerId);
-        }
-      } catch(_) {}
-      if (ev.cancelable && typeof ev.preventDefault === 'function') ev.preventDefault();
+      infringStartTaskbarDockPointerDrag(this, ev);
     },
 
     handleTaskbarDockPointerMove(ev) {
-      if (!this._taskbarDockPointerActive) return;
-      var x = Number(ev.clientX || 0);
-      var y = Number(ev.clientY || 0);
-      var movedX = Math.abs(x - Number(this._taskbarDockPointerStartX || 0));
-      var movedY = Math.abs(y - Number(this._taskbarDockPointerStartY || 0));
-      if (!this._taskbarDockPointerMoved) {
-        if (movedX < 4 && movedY < 4) return;
-        this._taskbarDockPointerMoved = true;
-        this.taskbarDockDragActive = true;
-      }
-      var candidateY = Number(this._taskbarDockOriginY || 0) + (y - Number(this._taskbarDockPointerStartY || 0));
-      this.taskbarDockDragY = this.taskbarClampDragY(candidateY);
-      if (ev.cancelable && typeof ev.preventDefault === 'function') ev.preventDefault();
+      infringHandleTaskbarDockPointerMove(this, ev);
     },
 
     endTaskbarDockPointerDrag() {
-      if (!this._taskbarDockPointerActive) return;
-      this._taskbarDockPointerActive = false;
-      this.unbindTaskbarDockPointerListeners();
-      if (!this._taskbarDockPointerMoved) {
-        this.taskbarDockDragActive = false;
-        this._taskbarDockDraggingContainedBottomDock = '';
-        return;
-      }
-      this._taskbarDockPointerMoved = false;
-      this.taskbarDockEdge = this.taskbarNearestDockEdge(this.taskbarDockDragY);
-      var carriedBottomDock = String(this._taskbarDockDraggingContainedBottomDock || '');
-      if (carriedBottomDock) {
-        this.bottomDockSetWallLock(this.taskbarDockEdge);
-        this.taskbarDockDragY = this.taskbarAnchorForDockEdge(this.taskbarDockEdge);
-        this.taskbarPersistDockEdge();
-        var self = this;
-        window.requestAnimationFrame(function() {
-          self._taskbarDockDraggingContainedBottomDock = '';
-          self.taskbarDockDragActive = false;
-        });
-        return;
-      }
-      this._taskbarDockDraggingContainedBottomDock = '';
-      this.taskbarDockDragActive = false;
-      this.taskbarPersistDockEdge();
+      infringEndTaskbarDockPointerDrag(this);
     },
 
     overlayWallGapPx() {
-      var fallback = 16;
-      if (typeof window !== 'undefined' && typeof window.getComputedStyle === 'function' && document && document.documentElement) {
-        try {
-          var raw = String(window.getComputedStyle(document.documentElement).getPropertyValue('--overlay-wall-gap') || '').trim();
-          var parsed = parseFloat(raw);
-          if (Number.isFinite(parsed) && parsed >= 0) fallback = parsed;
-        } catch(_) {}
-      }
-      return Math.max(0, Math.round(fallback));
+      return infringOverlayWallGapPx();
     },
 
     chatOverlayVerticalBounds() {
-      var viewportHeight = this.taskbarReadViewportHeight();
-      var wallGap = this.overlayWallGapPx();
-      var edge = this.taskbarDockEdgeNormalized(this.taskbarDockEdge);
-      var taskbarH = this.taskbarReadHeight();
-      var topInset = edge === 'top' ? taskbarH : 0;
-      var bottomInset = edge === 'bottom' ? taskbarH : 0;
-      return {
-        minTop: topInset + wallGap,
-        maxBottom: viewportHeight - bottomInset - wallGap,
-        viewportHeight: viewportHeight,
-        wallGap: wallGap
-      };
+      return infringChatOverlayVerticalBounds(this);
     },
 
     dragSurfaceHardBounds(widthRaw, heightRaw, ignoreTaskbarBoundaryRaw) {
-      var width = Number(widthRaw || 0);
-      var height = Number(heightRaw || 0);
-      if (!Number.isFinite(width) || width < 1) width = 1;
-      if (!Number.isFinite(height) || height < 1) height = 1;
-      var ignoreTaskbarBoundary = true;
-      if (typeof ignoreTaskbarBoundaryRaw === 'boolean') {
-        ignoreTaskbarBoundary = ignoreTaskbarBoundaryRaw;
-      } else if (ignoreTaskbarBoundaryRaw && typeof ignoreTaskbarBoundaryRaw === 'object') {
-        if (Object.prototype.hasOwnProperty.call(ignoreTaskbarBoundaryRaw, 'ignoreTaskbarBoundary')) {
-          ignoreTaskbarBoundary = Boolean(ignoreTaskbarBoundaryRaw.ignoreTaskbarBoundary);
-        }
-      }
-      var viewportWidth = this.chatOverlayViewportWidth();
-      var viewportHeight = this.taskbarReadViewportHeight();
-      var minTop = 0;
-      var maxBottom = viewportHeight;
-      if (!ignoreTaskbarBoundary) {
-        var edge = this.taskbarDockEdgeNormalized(this.taskbarDockEdge);
-        var taskbarH = this.taskbarReadHeight();
-        minTop = edge === 'top' ? taskbarH : 0;
-        maxBottom = viewportHeight - (edge === 'bottom' ? taskbarH : 0);
-      }
-      var service = this.dragbarService();
-      if (service && typeof service.hardBounds === 'function') {
-        return service.hardBounds({
-          width: width,
-          height: height,
-          viewportWidth: viewportWidth,
-          viewportHeight: viewportHeight,
-          minTop: minTop,
-          maxBottom: maxBottom
-        });
-      }
-      return {
-        minLeft: 0,
-        maxLeft: Math.max(0, viewportWidth - width),
-        minTop: minTop,
-        maxTop: Math.max(minTop, maxBottom - height)
-      };
+      return infringDragSurfaceHardBounds(this, widthRaw, heightRaw, ignoreTaskbarBoundaryRaw);
     },
 
     dragSurfaceSoftBounds(widthRaw, heightRaw) {
-      var width = Number(widthRaw || 0);
-      var height = Number(heightRaw || 0);
-      if (!Number.isFinite(width) || width < 1) width = 1;
-      if (!Number.isFinite(height) || height < 1) height = 1;
-      var vertical = this.chatOverlayVerticalBounds();
-      var wallGap = this.overlayWallGapPx();
-      var minLeft = wallGap;
-      var maxLeft = Math.max(minLeft, this.chatOverlayViewportWidth() - wallGap - width);
-      var minTop = Number(vertical.minTop || 0);
-      var maxTop = Math.max(minTop, Number(vertical.maxBottom || 0) - height);
-      var service = this.dragbarService();
-      if (service && typeof service.softBounds === 'function') {
-        return service.softBounds({
-          width: width,
-          height: height,
-          wallGap: wallGap,
-          viewportWidth: this.chatOverlayViewportWidth(),
-          minTop: minTop,
-          maxBottom: Number(vertical.maxBottom || 0)
-        });
-      }
-      return { minLeft: minLeft, maxLeft: maxLeft, minTop: minTop, maxTop: maxTop };
+      return infringDragSurfaceSoftBounds(this, widthRaw, heightRaw);
     },
 
     dragSurfaceClampWithBounds(bounds, leftRaw, topRaw) {
-      var service = this.dragbarService();
-      if (service && typeof service.clampWithBounds === 'function') {
-        return service.clampWithBounds(bounds, leftRaw, topRaw);
-      }
-      var box = bounds && typeof bounds === 'object' ? bounds : { minLeft: 0, maxLeft: 0, minTop: 0, maxTop: 0 };
-      var left = Number(leftRaw); if (!Number.isFinite(left)) left = Number(box.minLeft || 0);
-      var top = Number(topRaw); if (!Number.isFinite(top)) top = Number(box.minTop || 0);
-      return {
-        left: Math.max(Number(box.minLeft || 0), Math.min(Number(box.maxLeft || 0), left)),
-        top: Math.max(Number(box.minTop || 0), Math.min(Number(box.maxTop || 0), top))
-      };
+      return infringDragSurfaceClampWithBounds(this, bounds, leftRaw, topRaw);
     },
 
     dragSurfaceNearestWall(bounds, leftRaw, topRaw) {
-      var service = this.dragbarService();
-      if (service && typeof service.nearestWall === 'function') {
-        return service.nearestWall(bounds, leftRaw, topRaw);
-      }
-      var clamped = this.dragSurfaceClampWithBounds(bounds, leftRaw, topRaw);
-      var distances = {
-        left: Math.max(0, clamped.left - Number(bounds.minLeft || 0)),
-        right: Math.max(0, Number(bounds.maxLeft || 0) - clamped.left),
-        top: Math.max(0, clamped.top - Number(bounds.minTop || 0)),
-        bottom: Math.max(0, Number(bounds.maxTop || 0) - clamped.top)
-      };
-      var wall = 'left';
-      var distance = Number(distances.left || 0);
-      ['right', 'top', 'bottom'].forEach(function(key) {
-        var next = Number(distances[key] || 0);
-        if (next < distance) { wall = key; distance = next; }
-      });
-      return { wall: wall, distance: Math.max(0, distance), distances: distances, left: clamped.left, top: clamped.top };
+      return infringDragSurfaceNearestWall(this, bounds, leftRaw, topRaw);
     },
 
     dragSurfaceNormalizeWall(wallRaw) {
-      var service = this.dragbarService();
-      if (service && typeof service.normalizeWall === 'function') {
-        return service.normalizeWall(wallRaw);
-      }
-      var wall = String(wallRaw || '').trim().toLowerCase();
-      if (wall === 'left' || wall === 'right' || wall === 'top' || wall === 'bottom') return wall;
-      return '';
+      return infringDragSurfaceNormalizeWall(this, wallRaw);
     },
 
     dragSurfaceApplyWallLock(bounds, leftRaw, topRaw, wallRaw) {
-      var service = this.dragbarService();
-      if (service && typeof service.applyWallLock === 'function') {
-        return service.applyWallLock(bounds, leftRaw, topRaw, wallRaw);
-      }
-      var wall = this.dragSurfaceNormalizeWall(wallRaw);
-      var clamped = this.dragSurfaceClampWithBounds(bounds, leftRaw, topRaw);
-      if (!wall) return { left: clamped.left, top: clamped.top, wall: '' };
-      if (wall === 'left') clamped.left = Number(bounds.minLeft || 0);
-      else if (wall === 'right') clamped.left = Number(bounds.maxLeft || 0);
-      else if (wall === 'top') clamped.top = Number(bounds.minTop || 0);
-      else if (wall === 'bottom') clamped.top = Number(bounds.maxTop || 0);
-      return { left: clamped.left, top: clamped.top, wall: wall };
+      return infringDragSurfaceApplyWallLock(this, bounds, leftRaw, topRaw, wallRaw);
     },
 
     dragSurfaceDistanceFromWall(bounds, leftRaw, topRaw, wallRaw) {
-      var service = this.dragbarService();
-      if (service && typeof service.distanceFromWall === 'function') {
-        return service.distanceFromWall(bounds, leftRaw, topRaw, wallRaw);
-      }
-      var wall = this.dragSurfaceNormalizeWall(wallRaw);
-      if (!wall) return Number.POSITIVE_INFINITY;
-      var clamped = this.dragSurfaceClampWithBounds(bounds, leftRaw, topRaw);
-      if (wall === 'left') return Math.max(0, clamped.left - Number(bounds.minLeft || 0));
-      if (wall === 'right') return Math.max(0, Number(bounds.maxLeft || 0) - clamped.left);
-      if (wall === 'top') return Math.max(0, clamped.top - Number(bounds.minTop || 0));
-      return Math.max(0, Number(bounds.maxTop || 0) - clamped.top);
+      return infringDragSurfaceDistanceFromWall(this, bounds, leftRaw, topRaw, wallRaw);
     },
 
     dragSurfaceWallLockOvershoot(bounds, leftRaw, topRaw, wallRaw) {
-      var service = this.dragbarService();
-      if (service && typeof service.wallLockOvershoot === 'function') {
-        return service.wallLockOvershoot(bounds, leftRaw, topRaw, wallRaw);
-      }
-      var wall = this.dragSurfaceNormalizeWall(wallRaw);
-      if (!wall) return 0;
-      var left = Number(leftRaw);
-      var top = Number(topRaw);
-      if (!Number.isFinite(left)) left = Number(bounds.minLeft || 0);
-      if (!Number.isFinite(top)) top = Number(bounds.minTop || 0);
-      if (wall === 'left') return Math.max(0, Number(bounds.minLeft || 0) - left);
-      if (wall === 'right') return Math.max(0, left - Number(bounds.maxLeft || 0));
-      if (wall === 'top') return Math.max(0, Number(bounds.minTop || 0) - top);
-      return Math.max(0, top - Number(bounds.maxTop || 0));
+      return infringDragSurfaceWallLockOvershoot(this, bounds, leftRaw, topRaw, wallRaw);
     },
 
     dragSurfaceCenteredPoint(bounds) {
-      var service = this.dragbarService();
-      if (service && typeof service.centeredPoint === 'function') {
-        return service.centeredPoint(bounds);
-      }
-      var box = bounds && typeof bounds === 'object' ? bounds : { minLeft: 0, maxLeft: 0, minTop: 0, maxTop: 0 };
-      var left = Number(box.minLeft || 0) + ((Number(box.maxLeft || 0) - Number(box.minLeft || 0)) * 0.5);
-      var top = Number(box.minTop || 0) + ((Number(box.maxTop || 0) - Number(box.minTop || 0)) * 0.5);
-      return { left: left, top: top };
+      return infringDragSurfaceCenteredPoint(this, bounds);
     },
 
     dragSurfaceWallLockContactThreshold() {
-      var service = this.dragbarService();
-      if (service && typeof service.wallLockThresholds === 'function') return service.wallLockThresholds(this.overlayWallGapPx()).contact;
-      return Math.max(2, Math.round(this.overlayWallGapPx() * 0.12));
+      return infringDragSurfaceWallLockContactThreshold(this);
     },
     dragSurfaceWallLockDistanceThreshold() {
-      var service = this.dragbarService();
-      if (service && typeof service.wallLockThresholds === 'function') return service.wallLockThresholds(this.overlayWallGapPx()).distance;
-      return Math.max(8, Math.round(this.overlayWallGapPx() * 0.7));
+      return infringDragSurfaceWallLockDistanceThreshold(this);
     },
     dragSurfaceWallUnlockDistanceThreshold() {
-      var service = this.dragbarService();
-      if (service && typeof service.wallLockThresholds === 'function') return service.wallLockThresholds(this.overlayWallGapPx()).unlock;
-      return Math.max(42, Math.round(this.overlayWallGapPx() * 2.6));
+      return infringDragSurfaceWallUnlockDistanceThreshold(this);
     },
     dragSurfaceWallLockOvershootThreshold() {
-      var service = this.dragbarService();
-      if (service && typeof service.wallLockThresholds === 'function') return service.wallLockThresholds(this.overlayWallGapPx()).overshoot;
-      return Math.max(5, Math.round(this.overlayWallGapPx() * 0.34));
+      return infringDragSurfaceWallLockOvershootThreshold(this);
     },
     dragSurfaceResolveWallLock(bounds, candidateLeft, candidateTop, nearest, motionDxRaw, motionDyRaw) {
-      var service = this.dragbarService();
-      if (service && typeof service.resolveWallLock === 'function') {
-        return service.resolveWallLock(bounds, candidateLeft, candidateTop, nearest, motionDxRaw, motionDyRaw, {
-          wallGap: this.overlayWallGapPx()
-        });
-      }
-      var walls = ['left', 'right', 'top', 'bottom'];
-      var overshootThreshold = this.dragSurfaceWallLockOvershootThreshold();
-      var contactThreshold = this.dragSurfaceWallLockContactThreshold();
-      var distanceThreshold = this.dragSurfaceWallLockDistanceThreshold();
-
-      var overshootWall = '';
-      var overshootValue = 0;
-      for (var i = 0; i < walls.length; i += 1) {
-        var wall = walls[i];
-        var overshoot = this.dragSurfaceWallLockOvershoot(bounds, candidateLeft, candidateTop, wall);
-        if (overshoot >= overshootThreshold && overshoot > overshootValue) {
-          overshootValue = overshoot;
-          overshootWall = wall;
-        }
-      }
-      if (overshootWall) return overshootWall;
-
-      var clamped = this.dragSurfaceClampWithBounds(bounds, candidateLeft, candidateTop);
-      var touchedWalls = [];
-      if (Math.abs(clamped.left - Number(bounds.minLeft || 0)) <= contactThreshold) touchedWalls.push('left');
-      if (Math.abs(Number(bounds.maxLeft || 0) - clamped.left) <= contactThreshold) touchedWalls.push('right');
-      if (Math.abs(clamped.top - Number(bounds.minTop || 0)) <= contactThreshold) touchedWalls.push('top');
-      if (Math.abs(Number(bounds.maxTop || 0) - clamped.top) <= contactThreshold) touchedWalls.push('bottom');
-
-      if (touchedWalls.length === 1) return touchedWalls[0];
-      if (touchedWalls.length > 1) {
-        var motionDx = Number(motionDxRaw || 0);
-        var motionDy = Number(motionDyRaw || 0);
-        var absDx = Math.abs(motionDx);
-        var absDy = Math.abs(motionDy);
-        if (absDx > absDy + 0.25) {
-          if (motionDx >= 0 && touchedWalls.indexOf('right') >= 0) return 'right';
-          if (motionDx < 0 && touchedWalls.indexOf('left') >= 0) return 'left';
-        } else if (absDy > absDx + 0.25) {
-          if (motionDy >= 0 && touchedWalls.indexOf('bottom') >= 0) return 'bottom';
-          if (motionDy < 0 && touchedWalls.indexOf('top') >= 0) return 'top';
-        }
-        var nearestWall = nearest && typeof nearest.wall === 'string' ? this.dragSurfaceNormalizeWall(nearest.wall) : '';
-        if (nearestWall && touchedWalls.indexOf(nearestWall) >= 0) return nearestWall;
-        return touchedWalls[0];
-      }
-
-      var edgeDistance = nearest && Number.isFinite(Number(nearest.distance)) ? Number(nearest.distance) : Number.POSITIVE_INFINITY;
-      if (!Number.isFinite(edgeDistance) || edgeDistance > distanceThreshold) return '';
-      return this.dragSurfaceNormalizeWall(nearest && nearest.wall ? nearest.wall : '');
+      return infringDragSurfaceResolveWallLock(this, bounds, candidateLeft, candidateTop, nearest, motionDxRaw, motionDyRaw);
     },
 
     dragSurfaceRadiusByWall(wallRaw) {
-      var service = this.dragbarService();
-      if (service && typeof service.radiusByWall === 'function') {
-        return service.radiusByWall(wallRaw);
-      }
-      var r = 'var(--overlay-shared-surface-radius, var(--overlay-surface-radius, 18px))';
-      var wall = this.dragSurfaceNormalizeWall(wallRaw);
-      if (wall === 'left') return '0 ' + r + ' ' + r + ' 0';
-      if (wall === 'right') return r + ' 0 0 ' + r;
-      if (wall === 'top') return '0 0 ' + r + ' ' + r;
-      if (wall === 'bottom') return r + ' ' + r + ' 0 0';
-      return r;
+      return infringDragSurfaceRadiusByWall(this, wallRaw);
     },
 
     dragSurfaceLockTransformTimeMs(rawValue) {
-      var service = this.dragbarService();
-      if (service && typeof service.lockTransformTimeMs === 'function') {
-        return service.lockTransformTimeMs(rawValue, this._dragSurfaceLockTransformMs || 500);
-      }
-      var fallback = Number(this._dragSurfaceLockTransformMs || 500);
-      if (!Number.isFinite(fallback)) fallback = 500;
-      var raw = Number(rawValue);
-      if (!Number.isFinite(raw)) raw = fallback;
-      return Math.max(120, Math.round(raw));
+      return infringDragSurfaceLockTransformTimeMs(this, rawValue);
     },
 
     dragSurfaceLockBorderFadeDurationMs(transformMsRaw) {
-      var service = this.dragbarService();
-      if (service && typeof service.lockBorderFadeDurationMs === 'function') {
-        return service.lockBorderFadeDurationMs(transformMsRaw);
-      }
-      var transformMs = this.dragSurfaceLockTransformTimeMs(transformMsRaw);
-      return Math.max(80, Math.round(transformMs * 0.24));
+      return infringDragSurfaceLockBorderFadeDurationMs(this, transformMsRaw);
     },
 
     dragSurfaceVisualStateStore() {
-      if (!this._dragSurfaceVisualStates || typeof this._dragSurfaceVisualStates !== 'object') {
-        this._dragSurfaceVisualStates = {};
-      }
-      return this._dragSurfaceVisualStates;
+      return infringDragSurfaceVisualStateStore(this);
     },
 
     dragSurfaceLockVisualCssVars(surfaceKeyRaw, wallRaw, optionsRaw) {
-      var service = this.dragbarService();
-      if (service && typeof service.lockVisualCssVars === 'function') {
-        return service.lockVisualCssVars(surfaceKeyRaw, wallRaw, optionsRaw, this.dragSurfaceVisualStateStore());
-      }
-      var key = String(surfaceKeyRaw || 'drag-surface').trim().toLowerCase(); if (!key) key = 'drag-surface';
-      var wall = this.dragSurfaceNormalizeWall(wallRaw);
-      var options = optionsRaw && typeof optionsRaw === 'object' ? optionsRaw : {};
-      var transformMs = this.dragSurfaceLockTransformTimeMs(options.transformMs);
-      var fadeMs = this.dragSurfaceLockBorderFadeDurationMs(transformMs);
-      var delayMs = 0; var durationMs = 0;
-      var store = this.dragSurfaceVisualStateStore();
-      var prev = store[key] && typeof store[key] === 'object' ? store[key] : { initialized: false, wall: wall };
-      var initialized = prev.initialized === true;
-      var previousWall = this.dragSurfaceNormalizeWall(prev.wall); if (!initialized) previousWall = wall;
-      var wallChanged = previousWall !== wall;
-      if (wall && wallChanged) { delayMs = transformMs; durationMs = fadeMs; }
-      store[key] = { initialized: true, wall: wall };
-      var baseBorder = 'var(--drag-bar-border)';
-      var borderTop = baseBorder; var borderRight = baseBorder; var borderBottom = baseBorder; var borderLeft = baseBorder;
-      if (wall === 'left') borderLeft = 'transparent';
-      else if (wall === 'right') borderRight = 'transparent';
-      else if (wall === 'top') borderTop = 'transparent';
-      else if (wall === 'bottom') borderBottom = 'transparent';
-
-      var shellPaddingInline = Object.prototype.hasOwnProperty.call(options, 'shellPaddingInline') ? String(options.shellPaddingInline || '') : '';
-      var shellPaddingInlineLocked = Object.prototype.hasOwnProperty.call(options, 'shellPaddingInlineLocked') ? String(options.shellPaddingInlineLocked || '') : '';
-      var shellPaddingBlock = Object.prototype.hasOwnProperty.call(options, 'shellPaddingBlock') ? String(options.shellPaddingBlock || '') : '';
-      var shellPaddingBlockLocked = Object.prototype.hasOwnProperty.call(options, 'shellPaddingBlockLocked') ? String(options.shellPaddingBlockLocked || '') : '';
-      var shellAlignItems = Object.prototype.hasOwnProperty.call(options, 'shellAlignItems') ? String(options.shellAlignItems || '') : '';
-      var shellAlignItemsLocked = shellAlignItems;
-      if (wall === 'left' && Object.prototype.hasOwnProperty.call(options, 'shellAlignItemsLeft')) shellAlignItemsLocked = String(options.shellAlignItemsLeft || shellAlignItemsLocked || '');
-      else if (wall === 'right' && Object.prototype.hasOwnProperty.call(options, 'shellAlignItemsRight')) shellAlignItemsLocked = String(options.shellAlignItemsRight || shellAlignItemsLocked || '');
-      else if (wall === 'top' && Object.prototype.hasOwnProperty.call(options, 'shellAlignItemsTop')) shellAlignItemsLocked = String(options.shellAlignItemsTop || shellAlignItemsLocked || '');
-      else if (wall === 'bottom' && Object.prototype.hasOwnProperty.call(options, 'shellAlignItemsBottom')) shellAlignItemsLocked = String(options.shellAlignItemsBottom || shellAlignItemsLocked || '');
-
-      var surfaceMarginInline = Object.prototype.hasOwnProperty.call(options, 'surfaceMarginInline') ? String(options.surfaceMarginInline || '') : '';
-      var surfaceMarginInlineLocked = Object.prototype.hasOwnProperty.call(options, 'surfaceMarginInlineLocked') ? String(options.surfaceMarginInlineLocked || '') : '';
-      var resolvedSurfaceMarginInline = wall ? (surfaceMarginInlineLocked || surfaceMarginInline) : surfaceMarginInline;
-
-      var radius = this.dragSurfaceRadiusByWall(wall);
-      var css = '';
-      css += '--drag-bar-lock-wall:' + (wall || 'none') + ';';
-      css += '--drag-bar-lock-state:' + (wall ? '1' : '0') + ';';
-      css += '--drag-bar-transform-time:' + transformMs + 'ms;';
-      css += '--drag-bar-radius-transition:' + transformMs + 'ms var(--ease-smooth);';
-      css += '--drag-bar-radius-override:' + radius + ';';
-      css += '--drag-bar-border-top-color:' + borderTop + ';';
-      css += '--drag-bar-border-right-color:' + borderRight + ';';
-      css += '--drag-bar-border-bottom-color:' + borderBottom + ';';
-      css += '--drag-bar-border-left-color:' + borderLeft + ';';
-      css += '--drag-bar-border-transition-duration:' + Math.max(0, Math.round(durationMs)) + 'ms;';
-      css += '--drag-bar-border-transition-delay:' + Math.max(0, Math.round(delayMs)) + 'ms;';
-      if (shellPaddingInline || shellPaddingInlineLocked) {
-        css += '--drag-bar-shell-padding-inline:' + (wall ? (shellPaddingInlineLocked || shellPaddingInline || '0px') : (shellPaddingInline || '0px')) + ';';
-      }
-      if (shellPaddingBlock || shellPaddingBlockLocked) {
-        css += '--drag-bar-shell-padding-block:' + (wall ? (shellPaddingBlockLocked || shellPaddingBlock || '0px') : (shellPaddingBlock || '0px')) + ';';
-      }
-      if (shellAlignItems || shellAlignItemsLocked) {
-        css += '--drag-bar-shell-align-items:' + (wall ? (shellAlignItemsLocked || shellAlignItems || 'stretch') : (shellAlignItems || 'stretch')) + ';';
-      }
-      if (resolvedSurfaceMarginInline) {
-        css += '--drag-bar-surface-margin-inline:' + resolvedSurfaceMarginInline + ';';
-      }
-      return css;
+      return infringDragSurfaceLockVisualCssVars(this, surfaceKeyRaw, wallRaw, optionsRaw);
     },
 
     dragSurfaceLockRadiusCssVars(wallRaw) {
-      var service = this.dragbarService();
-      if (service && typeof service.lockRadiusCssVars === 'function') {
-        return service.lockRadiusCssVars(wallRaw);
-      }
-      var wall = this.dragSurfaceNormalizeWall(wallRaw);
-      if (!wall) return '';
-      var radius = this.dragSurfaceRadiusByWall(wall);
-      return '--drag-bar-radius-override:' + radius + ';';
+      return infringDragSurfaceLockRadiusCssVars(this, wallRaw);
     },
 
     readChatMapElement() {
-      if (typeof document === 'undefined' || typeof document.querySelector !== 'function') return null;
-      try { return document.querySelector('.chat-map'); } catch(_) {}
-      return null;
+      return infringReadChatMapElement();
     },
 
     readChatMapHeight() {
-      var node = this.readChatMapElement();
-      var height = Number(node && node.offsetHeight || 0);
-      if (!Number.isFinite(height) || height <= 0) {
-        height = Math.max(180, this.taskbarReadViewportHeight() - 276);
-      }
-      return height;
+      return infringReadChatMapHeight(this);
     },
 
     chatMapPlacementEnabled() {
-      return this.page === 'chat' || (this.page === 'agents' && !!this.activeChatAgent);
+      return infringChatMapPlacementEnabled(this);
     },
 
     chatMapClampTop(topRaw) {
-      var bounds = this.chatOverlayVerticalBounds();
-      var height = this.readChatMapHeight();
-      var minTop = Number(bounds.minTop || 0);
-      var maxTop = Number(bounds.maxBottom || 0) - height;
-      if (!Number.isFinite(maxTop) || maxTop < minTop) maxTop = minTop;
-      var top = Number(topRaw);
-      if (!Number.isFinite(top)) top = minTop + ((maxTop - minTop) * 0.38);
-      return Math.max(minTop, Math.min(maxTop, top));
+      return infringChatMapClampTop(this, topRaw);
     },
 
     chatMapPersistPlacementFromTop(topRaw) {
-      var bounds = this.chatOverlayVerticalBounds();
-      var height = this.readChatMapHeight();
-      var minTop = Number(bounds.minTop || 0);
-      var maxTop = Number(bounds.maxBottom || 0) - height;
-      if (!Number.isFinite(maxTop) || maxTop < minTop) maxTop = minTop;
-      var top = this.chatMapClampTop(topRaw);
-      var ratio = maxTop > minTop ? (top - minTop) / (maxTop - minTop) : 0.38;
-      ratio = Math.max(0, Math.min(1, ratio));
-      this.chatMapPlacementY = ratio;
-      try {
-        localStorage.setItem('infring-chat-map-placement-y', String(ratio));
-      } catch(_) {}
-      infringUpdateShellLayoutConfig(function(config) {
-        config.chatMap.placementY = ratio;
-      });
+      infringChatMapPersistPlacementFromTop(this, topRaw);
     },
 
     shouldIgnoreChatMapDragTarget(target) {
-      var service = this.dragbarService();
-      if (service && typeof service.shouldIgnoreTarget === 'function') {
-        return service.shouldIgnoreTarget(target, {
-          ignoreSelector: 'button, a, input, textarea, select, [role="button"], [contenteditable="true"], .chat-map-item, .chat-map-day, .chat-map-jump'
-        });
-      }
-      var node = target;
-      if (node && typeof node.closest !== 'function' && node.parentElement) {
-        node = node.parentElement;
-      }
-      if (!node || typeof node.closest !== 'function') return false;
-      return Boolean(
-        node.closest(
-          'button, a, input, textarea, select, [role="button"], [contenteditable="true"], .chat-map-item, .chat-map-day, .chat-map-jump'
-        )
-      );
+      return infringShouldIgnoreChatMapDragTarget(this, target);
     },
 
     bindChatMapPointerListeners() {
-      if (this._chatMapPointerMoveHandler || this._chatMapPointerUpHandler) return;
-      var self = this;
-      this._chatMapPointerMoveHandler = function(ev) { self.handleChatMapPointerMove(ev); };
-      this._chatMapPointerUpHandler = function() { self.endChatMapPointerDrag(); };
-      window.addEventListener('pointermove', this._chatMapPointerMoveHandler, true);
-      window.addEventListener('pointerup', this._chatMapPointerUpHandler, true);
-      window.addEventListener('pointercancel', this._chatMapPointerUpHandler, true);
-      window.addEventListener('mousemove', this._chatMapPointerMoveHandler, true);
-      window.addEventListener('mouseup', this._chatMapPointerUpHandler, true);
+      infringBindChatMapPointerListeners(this);
     },
 
     unbindChatMapPointerListeners() {
-      if (this._chatMapPointerMoveHandler) {
-        try { window.removeEventListener('pointermove', this._chatMapPointerMoveHandler, true); } catch(_) {}
-        try { window.removeEventListener('mousemove', this._chatMapPointerMoveHandler, true); } catch(_) {}
-      }
-      if (this._chatMapPointerUpHandler) {
-        try { window.removeEventListener('pointerup', this._chatMapPointerUpHandler, true); } catch(_) {}
-        try { window.removeEventListener('pointercancel', this._chatMapPointerUpHandler, true); } catch(_) {}
-        try { window.removeEventListener('mouseup', this._chatMapPointerUpHandler, true); } catch(_) {}
-      }
-      this._chatMapPointerMoveHandler = null;
-      this._chatMapPointerUpHandler = null;
+      infringUnbindChatMapPointerListeners(this);
     },
 
     taskbarReorderDefaults(group) {
-      var service = this.taskbarDockService();
-      if (service && typeof service.taskbarOrderDefaults === 'function') return service.taskbarOrderDefaults(group);
-      var key = String(group || '').trim().toLowerCase();
-      if (key === 'right') return ['connectivity', 'theme', 'notifications', 'search', 'auth'];
-      return ['nav_cluster'];
+      return infringTaskbarReorderDefaults(this, group);
     },
-
     taskbarReorderStorageKey(group) {
-      var service = this.taskbarDockService();
-      if (service && typeof service.taskbarStorageKey === 'function') return service.taskbarStorageKey(group);
-      var key = String(group || '').trim().toLowerCase();
-      return key === 'right' ? 'infring-taskbar-order-right' : 'infring-taskbar-order-left';
+      return infringTaskbarReorderStorageKey(this, group);
     },
-
     taskbarReorderOrderForGroup(group) {
-      var key = String(group || '').trim().toLowerCase();
-      return key === 'right' ? this.taskbarReorderRight : this.taskbarReorderLeft;
+      return infringTaskbarReorderOrderForGroup(this, group);
     },
-
     setTaskbarReorderOrderForGroup(group, nextOrder) {
-      var key = String(group || '').trim().toLowerCase();
-      if (key === 'right') {
-        this.taskbarReorderRight = nextOrder;
-        return;
-      }
-      this.taskbarReorderLeft = nextOrder;
+      infringSetTaskbarReorderOrderForGroup(this, group, nextOrder);
     },
-
     normalizeTaskbarReorder(group, rawOrder) {
-      var service = this.taskbarDockService();
-      if (service && typeof service.normalizeOrder === 'function') return service.normalizeOrder(rawOrder, this.taskbarReorderDefaults(group));
-      var defaults = this.taskbarReorderDefaults(group);
-      var source = Array.isArray(rawOrder) ? rawOrder : [];
-      var seen = {};
-      var ordered = [];
-      for (var i = 0; i < source.length; i += 1) {
-        var id = String(source[i] || '').trim();
-        if (!id || seen[id] || defaults.indexOf(id) < 0) continue;
-        seen[id] = true;
-        ordered.push(id);
-      }
-      for (var j = 0; j < defaults.length; j += 1) {
-        var fallbackId = defaults[j];
-        if (seen[fallbackId]) continue;
-        seen[fallbackId] = true;
-        ordered.push(fallbackId);
-      }
-      return ordered;
+      return infringNormalizeTaskbarReorder(this, group, rawOrder);
     },
-
     persistTaskbarReorder(group) {
-      var key = String(group || '').trim().toLowerCase();
-      if (key !== 'right') key = 'left';
-      var normalized = this.normalizeTaskbarReorder(key, this.taskbarReorderOrderForGroup(key));
-      this.setTaskbarReorderOrderForGroup(key, normalized);
-      try {
-        var service = this.taskbarDockService();
-        if (service && typeof service.persistTaskbarOrder === 'function') normalized = service.persistTaskbarOrder(key, normalized);
-        else localStorage.setItem(this.taskbarReorderStorageKey(key), JSON.stringify(normalized));
-      } catch(_) {}
-      infringUpdateShellLayoutConfig(function(config) {
-        if (key === 'right') config.taskbar.orderRight = normalized.slice();
-        else config.taskbar.orderLeft = normalized.slice();
-      });
+      infringPersistTaskbarReorder(this, group);
     },
-
     taskbarReorderOrderIndex(group, item) {
-      var key = String(group || '').trim().toLowerCase();
-      if (key !== 'right') key = 'left';
-      var itemId = String(item || '').trim();
-      if (!itemId) return 999;
-      var service = this.taskbarDockService();
-      if (service && typeof service.orderIndex === 'function') {
-        return service.orderIndex(itemId, this.taskbarReorderOrderForGroup(key), this.taskbarReorderDefaults(key));
-      }
-      var order = this.normalizeTaskbarReorder(key, this.taskbarReorderOrderForGroup(key));
-      var idx = order.indexOf(itemId);
-      if (idx >= 0) return idx;
-      var fallback = this.taskbarReorderDefaults(key).indexOf(itemId);
-      return fallback >= 0 ? fallback : 999;
+      return infringTaskbarReorderOrderIndex(this, group, item);
     },
-
     taskbarReorderItemStyle(group, item) {
-      return 'order:' + this.taskbarReorderOrderIndex(group, item);
+      return infringTaskbarReorderItemStyle(this, group, item);
     },
-
     taskbarReorderItemRects(group) {
-      if (typeof document === 'undefined') return {};
-      var key = String(group || '').trim().toLowerCase();
-      if (key !== 'right') key = 'left';
-      var out = {};
-      var box = null;
-      try {
-        box = document.querySelector('.taskbar-reorder-box-' + key);
-      } catch(_) {
-        box = null;
-      }
-      if (!box || typeof box.querySelectorAll !== 'function') return out;
-      var nodes = box.querySelectorAll('.taskbar-reorder-item[data-taskbar-item]');
-      for (var i = 0; i < nodes.length; i += 1) {
-        var node = nodes[i];
-        if (!node || typeof node.getBoundingClientRect !== 'function') continue;
-        var id = String(node.getAttribute('data-taskbar-item') || '').trim();
-        if (!id || Object.prototype.hasOwnProperty.call(out, id)) continue;
-        var rect = node.getBoundingClientRect();
-        out[id] = { left: Number(rect.left || 0), top: Number(rect.top || 0) };
-      }
-      return out;
+      return infringTaskbarReorderItemRects(group);
     },
-
     animateTaskbarReorderFromRects(group, beforeRects) {
-      if (!beforeRects || typeof beforeRects !== 'object') return;
-      if (typeof requestAnimationFrame !== 'function' || typeof document === 'undefined') return;
-      var key = String(group || '').trim().toLowerCase();
-      if (key !== 'right') key = 'left';
-      requestAnimationFrame(function() {
-        var box = null;
-        try {
-          box = document.querySelector('.taskbar-reorder-box-' + key);
-        } catch(_) {
-          box = null;
-        }
-        if (!box || typeof box.querySelectorAll !== 'function') return;
-        var nodes = box.querySelectorAll('.taskbar-reorder-item[data-taskbar-item]');
-        for (var i = 0; i < nodes.length; i += 1) {
-          var node = nodes[i];
-          if (!node || node.classList.contains('dragging')) continue;
-          var id = String(node.getAttribute('data-taskbar-item') || '').trim();
-          if (!id || !Object.prototype.hasOwnProperty.call(beforeRects, id)) continue;
-          var from = beforeRects[id] || {};
-          var rect = node.getBoundingClientRect();
-          var dx = Number(from.left || 0) - Number(rect.left || 0);
-          var dy = Number(from.top || 0) - Number(rect.top || 0);
-          if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue;
-          node.style.transition = 'none';
-          node.style.transform = 'translate(' + Math.round(dx) + 'px,' + Math.round(dy) + 'px)';
-          void node.offsetHeight;
-          node.style.transition = 'transform 220ms var(--ease-smooth)';
-          node.style.transform = 'translate(0px, 0px)';
-          (function(el) {
-            window.setTimeout(function() {
-              if (!el.classList.contains('dragging')) el.style.transform = '';
-              el.style.transition = '';
-            }, 250);
-          })(node);
-        }
-      });
+      infringAnimateTaskbarReorderFromRects(group, beforeRects);
     },
-
     applyTaskbarReorder(group, dragItem, targetItem, preferAfter, animate) {
-      var key = String(group || '').trim().toLowerCase();
-      if (key !== 'right') key = 'left';
-      var dragId = String(dragItem || '').trim();
-      var targetId = String(targetItem || '').trim();
-      if (!dragId || !targetId || dragId === targetId) return false;
-      var current = this.normalizeTaskbarReorder(key, this.taskbarReorderOrderForGroup(key));
-      var fromIndex = current.indexOf(dragId);
-      var toIndex = current.indexOf(targetId);
-      if (fromIndex < 0 || toIndex < 0) return false;
-      var next = current.slice();
-      next.splice(fromIndex, 1);
-      if (fromIndex < toIndex) toIndex -= 1;
-      if (Boolean(preferAfter)) toIndex += 1;
-      if (toIndex < 0) toIndex = 0;
-      if (toIndex > next.length) toIndex = next.length;
-      next.splice(toIndex, 0, dragId);
-      if (JSON.stringify(next) === JSON.stringify(current)) return false;
-      var beforeRects = Boolean(animate) ? this.taskbarReorderItemRects(key) : null;
-      this.setTaskbarReorderOrderForGroup(key, next);
-      if (beforeRects) this.animateTaskbarReorderFromRects(key, beforeRects);
-      return true;
+      return infringApplyTaskbarReorder(this, group, dragItem, targetItem, preferAfter, animate);
     },
     handleTaskbarReorderPointerDown(group, ev) {
-      if (String(this.taskbarDragGroup || '').trim()) return;
-      if (!ev || Number(ev.button) !== 0) return;
-      var key = String(group || '').trim().toLowerCase();
-      if (key !== 'right') key = 'left';
-      var target = ev && ev.target && typeof ev.target.closest === 'function'
-        ? ev.target.closest('.taskbar-reorder-item[data-taskbar-item]')
-        : null;
-      var item = target ? String(target.getAttribute('data-taskbar-item') || '').trim() : '';
-      if (!item) return;
-      this.cancelTaskbarDragHold();
-      this._taskbarDragHoldGroup = key;
-      this._taskbarDragHoldItem = item;
-      var self = this;
-      if (typeof window !== 'undefined' && typeof window.setTimeout === 'function') {
-        this._taskbarDragHoldTimer = window.setTimeout(function() {
-          self._taskbarDragHoldTimer = 0;
-          self._taskbarDragArmedGroup = key;
-          self._taskbarDragArmedItem = item;
-        }, 180);
-      }
+      infringHandleTaskbarReorderPointerDown(this, group, ev);
     },
     cancelTaskbarDragHold() {
-      if (this._taskbarDragHoldTimer) {
-        try { clearTimeout(this._taskbarDragHoldTimer); } catch(_) {}
-      }
-      this._taskbarDragHoldTimer = 0;
-      this._taskbarDragHoldGroup = '';
-      this._taskbarDragHoldItem = '';
-      if (!String(this.taskbarDragGroup || '').trim()) {
-        this._taskbarDragArmedGroup = '';
-        this._taskbarDragArmedItem = '';
-      }
+      infringCancelTaskbarDragHold(this);
     },
     forceTaskbarMoveDragEffect(ev) {
-      if (!ev || !ev.dataTransfer) return;
-      try { ev.dataTransfer.effectAllowed = 'move'; } catch(_) {}
-      try { ev.dataTransfer.dropEffect = 'move'; } catch(_) {}
+      infringForceTaskbarMoveDragEffect(ev);
     },
     setTaskbarDragBodyActive(active) {
-      if (typeof document === 'undefined' || !document.body || !document.body.classList) return;
-      if (active) {
-        document.body.classList.add('taskbar-drag-active');
-      } else {
-        document.body.classList.remove('taskbar-drag-active');
-      }
+      infringSetTaskbarDragBodyActive(active);
     },
     handleTaskbarReorderDragStart(group, ev) {
-      var key = String(group || '').trim().toLowerCase();
-      if (key !== 'right') key = 'left';
-      var target = ev && ev.target && typeof ev.target.closest === 'function'
-        ? ev.target.closest('.taskbar-reorder-item[data-taskbar-item]')
-        : null;
-      var item = target ? String(target.getAttribute('data-taskbar-item') || '').trim() : '';
-      if (!item || this._taskbarDragArmedGroup !== key || this._taskbarDragArmedItem !== item) {
-        if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
-        return;
-      }
-      this.taskbarDragGroup = key;
-      this.taskbarDragItem = item;
-      this.taskbarDragStartOrder = this.normalizeTaskbarReorder(key, this.taskbarReorderOrderForGroup(key));
-      this._taskbarDragArmedGroup = '';
-      this._taskbarDragArmedItem = '';
-      this.cancelTaskbarDragHold();
-      if (ev && ev.dataTransfer) {
-        this.forceTaskbarMoveDragEffect(ev);
-        try { ev.dataTransfer.setData('application/x-infring-taskbar', key + ':' + item); } catch(_) {}
-        try { ev.dataTransfer.setData('text/plain', key + ':' + item); } catch(_) {}
-        try {
-          if (
-            typeof document !== 'undefined' &&
-            document.body &&
-            typeof ev.dataTransfer.setDragImage === 'function'
-          ) {
-            var ghost = target && typeof target.cloneNode === 'function'
-              ? target.cloneNode(true)
-              : document.createElement('span');
-            ghost.style.position = 'fixed';
-            ghost.style.left = '-9999px';
-            ghost.style.top = '-9999px';
-            ghost.style.margin = '0';
-            ghost.style.pointerEvents = 'none';
-            ghost.style.transform = 'none';
-            ghost.style.opacity = '1';
-            if (ghost.classList && ghost.classList.contains('dragging')) {
-              ghost.classList.remove('dragging');
-            }
-            var rect = target && typeof target.getBoundingClientRect === 'function'
-              ? target.getBoundingClientRect()
-              : null;
-            var offsetX = 0;
-            var offsetY = 0;
-            if (rect) {
-              var width = Math.max(1, Math.round(Number(rect.width || 0)));
-              var height = Math.max(1, Math.round(Number(rect.height || 0)));
-              ghost.style.width = width + 'px';
-              ghost.style.height = height + 'px';
-              ghost.style.boxSizing = 'border-box';
-              if (typeof ev.clientX === 'number') {
-                offsetX = Math.round(Math.max(0, Math.min(width, ev.clientX - rect.left)));
-              }
-              if (typeof ev.clientY === 'number') {
-                offsetY = Math.round(Math.max(0, Math.min(height, ev.clientY - rect.top)));
-              }
-            } else {
-              ghost.style.width = '1px';
-              ghost.style.height = '1px';
-            }
-            document.body.appendChild(ghost);
-            ev.dataTransfer.setDragImage(ghost, offsetX, offsetY);
-            window.setTimeout(function() {
-              if (ghost.parentNode) ghost.parentNode.removeChild(ghost);
-            }, 0);
-          }
-        } catch(_) {}
-      }
-      if (target && target.classList) target.classList.add('dragging');
-      this.setTaskbarDragBodyActive(true);
+      infringHandleTaskbarReorderDragStart(this, group, ev);
     },
     handleTaskbarReorderDragMove(ev) {
-      this.forceTaskbarMoveDragEffect(ev);
+      infringHandleTaskbarReorderDragMove(this, ev);
     },
     handleTaskbarReorderDragEnter(group, ev) {
-      var key = String(group || '').trim().toLowerCase();
-      if (key !== 'right') key = 'left';
-      if (String(this.taskbarDragGroup || '').trim() !== key) return;
-      if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
-      this.forceTaskbarMoveDragEffect(ev);
+      infringHandleTaskbarReorderDragEnter(this, group, ev);
     },
     handleTaskbarReorderDragOver(group, ev) {
-      var key = String(group || '').trim().toLowerCase();
-      if (key !== 'right') key = 'left';
-      if (String(this.taskbarDragGroup || '').trim() !== key) return;
-      if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
-      this.forceTaskbarMoveDragEffect(ev);
-      var dragItem = String(this.taskbarDragItem || '').trim();
-      if (!dragItem) return;
-      var target = ev && ev.target && typeof ev.target.closest === 'function'
-        ? ev.target.closest('.taskbar-reorder-item[data-taskbar-item]')
-        : null;
-      var targetItem = target ? String(target.getAttribute('data-taskbar-item') || '').trim() : '';
-      if (!targetItem || targetItem === dragItem) return;
-      var preferAfter = false;
-      if (target && typeof target.getBoundingClientRect === 'function') {
-        var rect = target.getBoundingClientRect();
-        var midX = Number(rect.left || 0) + (Number(rect.width || 0) / 2);
-        preferAfter = Number(ev && ev.clientX || 0) >= midX;
-      }
-      this.applyTaskbarReorder(key, dragItem, targetItem, preferAfter, true);
+      infringHandleTaskbarReorderDragOver(this, group, ev);
     },
     clearTaskbarReorderDraggingClass() {
-      if (typeof document === 'undefined') return;
-      try {
-        var draggingNodes = document.querySelectorAll('.taskbar-reorder-item.dragging');
-        for (var i = 0; i < draggingNodes.length; i += 1) {
-          draggingNodes[i].classList.remove('dragging');
-        }
-      } catch(_) {}
+      infringClearTaskbarReorderDraggingClass();
     },
     handleTaskbarReorderDrop(group, ev) {
-      var key = String(group || '').trim().toLowerCase();
-      if (key !== 'right') key = 'left';
-      if (String(this.taskbarDragGroup || '').trim() !== key) return;
-      if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
-      this.persistTaskbarReorder(key);
-      this.taskbarDragGroup = '';
-      this.taskbarDragItem = '';
-      this.taskbarDragStartOrder = [];
-      this.cancelTaskbarDragHold();
-      this.setTaskbarDragBodyActive(false);
-      this.clearTaskbarReorderDraggingClass();
+      infringHandleTaskbarReorderDrop(this, group, ev);
     },
     handleTaskbarDragEnd() {
-      var key = String(this.taskbarDragGroup || '').trim();
-      if (key) this.persistTaskbarReorder(key);
-      this.taskbarDragGroup = '';
-      this.taskbarDragItem = '';
-      this.taskbarDragStartOrder = [];
-      this.cancelTaskbarDragHold();
-      this.setTaskbarDragBodyActive(false);
-      this.clearTaskbarReorderDraggingClass();
+      infringHandleTaskbarDragEnd(this);
     },
     chatSidebarSnapDefinitions() {
-      return [
-        { id: 'left-top', x: 0, y: 0 },
-        { id: 'left-middle', x: 0, y: 0.5 },
-        { id: 'left-bottom', x: 0, y: 1 }
-      ];
+      return infringChatSidebarSnapDefinitions();
     },
     chatSidebarSnapDefinitionById(id) {
-      var key = String(id || '').trim().toLowerCase();
-      var defs = this.chatSidebarSnapDefinitions();
-      for (var i = 0; i < defs.length; i += 1) {
-        var row = defs[i];
-        if (!row || row.id !== key) continue;
-        return row;
-      }
-      return defs[1] || defs[0] || { id: 'left-middle', x: 0, y: 0.5 };
+      return infringChatSidebarSnapDefinitionById(this, id);
     },
     chatSidebarAnchorForSnapId(id) {
-      var snap = this.chatSidebarSnapDefinitionById(id);
-      var wallGap = this.overlayWallGapPx();
-      var minLeft = wallGap;
-      var maxLeft = this.chatOverlayViewportWidth() - wallGap - this.readChatSidebarWidth() - this.readChatSidebarPulltabWidth();
-      if (!Number.isFinite(maxLeft) || maxLeft < minLeft) maxLeft = minLeft;
-      var bounds = this.chatOverlayVerticalBounds();
-      var height = this.readChatSidebarHeight();
-      var minTop = Number(bounds.minTop || 0);
-      var maxTop = Number(bounds.maxBottom || 0) - height;
-      if (!Number.isFinite(maxTop) || maxTop < minTop) maxTop = minTop;
-      var nx = Number(snap && snap.x);
-      var ny = Number(snap && snap.y);
-      if (!Number.isFinite(nx)) nx = 0;
-      if (!Number.isFinite(ny)) ny = 0.5;
-      nx = Math.max(0, Math.min(1, nx));
-      ny = Math.max(0, Math.min(1, ny));
-      return {
-        id: String(snap && snap.id || 'left-middle'),
-        left: this.chatSidebarClampLeft(minLeft + ((maxLeft - minLeft) * nx)),
-        top: this.chatSidebarClampTop(minTop + ((maxTop - minTop) * ny))
-      };
+      return infringChatSidebarAnchorForSnapId(this, id);
     },
     chatSidebarNearestSnapId(leftRaw, topRaw) {
-      var defs = this.chatSidebarSnapDefinitions();
-      if (!defs.length) return 'left-middle';
-      var left = this.chatSidebarClampLeft(leftRaw);
-      var top = this.chatSidebarClampTop(topRaw);
-      var bestId = String(defs[0].id || 'left-middle');
-      var bestDist = Number.POSITIVE_INFINITY;
-      for (var i = 0; i < defs.length; i += 1) {
-        var row = defs[i];
-        if (!row) continue;
-        var anchor = this.chatSidebarAnchorForSnapId(row.id);
-        var dx = Number(left || 0) - Number(anchor.left || 0);
-        var dy = Number(top || 0) - Number(anchor.top || 0);
-        var dist = (dx * dx) + (dy * dy);
-        if (!Number.isFinite(dist) || dist >= bestDist) continue;
-        bestDist = dist;
-        bestId = String(row.id || bestId);
-      }
-      return bestId || 'left-middle';
+      return infringChatSidebarNearestSnapId(this, leftRaw, topRaw);
     },
     chatSidebarResolvedLeftFromRatio() {
-      var ratio = 0;
-      try {
-        var raw = Number(localStorage.getItem('infring-chat-sidebar-placement-x'));
-        if (Number.isFinite(raw)) ratio = Math.max(0, Math.min(1, raw));
-      } catch(_) {}
-      if (Number.isFinite(this.chatSidebarPlacementX)) ratio = Math.max(0, Math.min(1, Number(this.chatSidebarPlacementX)));
-      var wallGap = this.overlayWallGapPx();
-      var minLeft = wallGap;
-      var maxLeft = this.chatOverlayViewportWidth() - wallGap - this.readChatSidebarWidth() - this.readChatSidebarPulltabWidth();
-      if (!Number.isFinite(maxLeft) || maxLeft < minLeft) maxLeft = minLeft;
-      return this.chatSidebarClampLeft(minLeft + ((maxLeft - minLeft) * ratio));
+      return infringChatSidebarResolvedLeftFromRatio(this);
     },
     chatSidebarResolvedTopFromRatio() {
-      var topPx = Number(this.chatSidebarPlacementTopPx);
-      if (!Number.isFinite(topPx)) {
-        try {
-          var rawTop = Number(localStorage.getItem('infring-chat-sidebar-placement-top-px'));
-          if (Number.isFinite(rawTop)) topPx = rawTop;
-        } catch(_) {}
-      }
-      if (Number.isFinite(topPx)) {
-        return this.chatSidebarClampTop(topPx);
-      }
-      var bounds = this.chatOverlayVerticalBounds();
-      var height = this.readChatSidebarHeight();
-      var minTop = Number(bounds.minTop || 0);
-      var maxTop = Number(bounds.maxBottom || 0) - height;
-      if (!Number.isFinite(maxTop) || maxTop < minTop) maxTop = minTop;
-      var ratio = Number(this.chatSidebarPlacementY);
-      if (!Number.isFinite(ratio)) ratio = 0.5;
-      ratio = Math.max(0, Math.min(1, ratio));
-      return this.chatSidebarClampTop(minTop + ((maxTop - minTop) * ratio));
+      return infringChatSidebarResolvedTopFromRatio(this);
     },
     chatSidebarActiveSnapId() {
-      if (this.chatSidebarDragActive) {
-        return this.chatSidebarNearestSnapId(this.chatSidebarDragLeft, this.chatSidebarDragTop);
-      }
-      var storedId = String(this.chatSidebarPlacementAnchorId || '').trim().toLowerCase();
-      if (!storedId) {
-        try {
-          var raw = String(localStorage.getItem('infring-chat-sidebar-placement-anchor') || '').trim().toLowerCase();
-          if (raw) storedId = raw;
-        } catch(_) {}
-      }
-      if (storedId) return this.chatSidebarSnapDefinitionById(storedId).id;
-      var fallbackLeft = this.chatSidebarClampLeft(this.chatSidebarResolvedLeftFromRatio());
-      var fallbackTop = this.chatSidebarClampTop(this.chatSidebarResolvedTopFromRatio());
-      return this.chatSidebarNearestSnapId(fallbackLeft, fallbackTop);
+      return infringChatSidebarActiveSnapId(this);
     },
     chatSidebarPersistSnapId(id) {
-      var snap = this.chatSidebarSnapDefinitionById(id);
-      this.chatSidebarPlacementAnchorId = String(snap && snap.id || 'left-middle');
-      try {
-        localStorage.setItem('infring-chat-sidebar-placement-anchor', this.chatSidebarPlacementAnchorId);
-      } catch(_) {}
+      infringChatSidebarPersistSnapId(this, id);
     },
     readChatMapWidth() {
-      var lockedWall = this.chatMapWallLockNormalized();
-      if (lockedWall) {
-        var surface = null;
-        if (typeof document !== 'undefined' && typeof document.querySelector === 'function') {
-          try { surface = document.querySelector('.chat-map .chat-map-surface'); } catch(_) {}
-        }
-        var lockedWidth = Number(surface && surface.offsetWidth || 0);
-        if (Number.isFinite(lockedWidth) && lockedWidth > 0) return lockedWidth;
-        return 60;
-      }
-      var node = this.readChatMapElement();
-      var width = Number(node && node.offsetWidth || 0);
-      if (Number.isFinite(width) && width > 0) return width;
-      return 76;
+      return infringReadChatMapWidth(this);
     },
     chatMapSnapDefinitions() {
-      return [
-        { id: 'right-top', x: 1, y: 0 },
-        { id: 'right-middle', x: 1, y: 0.5 },
-        { id: 'right-bottom', x: 1, y: 1 }
-      ];
+      return infringChatMapSnapDefinitions();
     },
     chatMapSnapDefinitionById(id) {
-      var key = String(id || '').trim().toLowerCase();
-      var defs = this.chatMapSnapDefinitions();
-      for (var i = 0; i < defs.length; i += 1) {
-        var row = defs[i];
-        if (!row || row.id !== key) continue;
-        return row;
-      }
-      return defs[1] || defs[0] || { id: 'right-middle', x: 1, y: 0.5 };
+      return infringChatMapSnapDefinitionById(this, id);
     },
     chatMapAnchorForSnapId(id) {
-      var snap = this.chatMapSnapDefinitionById(id);
-      var wallGap = this.overlayWallGapPx();
-      var minLeft = wallGap;
-      var maxLeft = this.chatOverlayViewportWidth() - wallGap - this.readChatMapWidth();
-      if (!Number.isFinite(maxLeft) || maxLeft < minLeft) maxLeft = minLeft;
-      var bounds = this.chatOverlayVerticalBounds();
-      var height = this.readChatMapHeight();
-      var minTop = Number(bounds.minTop || 0);
-      var maxTop = Number(bounds.maxBottom || 0) - height;
-      if (!Number.isFinite(maxTop) || maxTop < minTop) maxTop = minTop;
-      var nx = Number(snap && snap.x);
-      var ny = Number(snap && snap.y);
-      if (!Number.isFinite(nx)) nx = 1;
-      if (!Number.isFinite(ny)) ny = 0.5;
-      nx = Math.max(0, Math.min(1, nx));
-      ny = Math.max(0, Math.min(1, ny));
-      return {
-        id: String(snap && snap.id || 'right-middle'),
-        left: this.chatMapClampLeft(minLeft + ((maxLeft - minLeft) * nx)),
-        top: this.chatMapClampTop(minTop + ((maxTop - minTop) * ny))
-      };
+      return infringChatMapAnchorForSnapId(this, id);
     },
     chatMapNearestSnapId(leftRaw, topRaw) {
-      var defs = this.chatMapSnapDefinitions();
-      if (!defs.length) return 'right-middle';
-      var left = this.chatMapClampLeft(leftRaw);
-      var top = this.chatMapClampTop(topRaw);
-      var bestId = String(defs[0].id || 'right-middle');
-      var bestDist = Number.POSITIVE_INFINITY;
-      for (var i = 0; i < defs.length; i += 1) {
-        var row = defs[i];
-        if (!row) continue;
-        var anchor = this.chatMapAnchorForSnapId(row.id);
-        var dx = Number(left || 0) - Number(anchor.left || 0);
-        var dy = Number(top || 0) - Number(anchor.top || 0);
-        var dist = (dx * dx) + (dy * dy);
-        if (!Number.isFinite(dist) || dist >= bestDist) continue;
-        bestDist = dist;
-        bestId = String(row.id || bestId);
-      }
-      return bestId || 'right-middle';
+      return infringChatMapNearestSnapId(this, leftRaw, topRaw);
     },
     chatMapResolvedLeftFromRatio() {
-      var ratio = 1;
-      try {
-        var raw = Number(localStorage.getItem('infring-chat-map-placement-x'));
-        if (Number.isFinite(raw)) ratio = Math.max(0, Math.min(1, raw));
-      } catch(_) {}
-      if (Number.isFinite(this.chatMapPlacementX)) ratio = Math.max(0, Math.min(1, Number(this.chatMapPlacementX)));
-      var wallGap = this.overlayWallGapPx();
-      var minLeft = wallGap;
-      var maxLeft = this.chatOverlayViewportWidth() - wallGap - this.readChatMapWidth();
-      if (!Number.isFinite(maxLeft) || maxLeft < minLeft) maxLeft = minLeft;
-      return this.chatMapClampLeft(minLeft + ((maxLeft - minLeft) * ratio));
+      return infringChatMapResolvedLeftFromRatio(this);
     },
     chatMapResolvedTopFromRatio() {
-      var bounds = this.chatOverlayVerticalBounds();
-      var height = this.readChatMapHeight();
-      var minTop = Number(bounds.minTop || 0);
-      var maxTop = Number(bounds.maxBottom || 0) - height;
-      if (!Number.isFinite(maxTop) || maxTop < minTop) maxTop = minTop;
-      var ratio = Number(this.chatMapPlacementY);
-      if (!Number.isFinite(ratio)) ratio = 0.38;
-      ratio = Math.max(0, Math.min(1, ratio));
-      return this.chatMapClampTop(minTop + ((maxTop - minTop) * ratio));
+      return infringChatMapResolvedTopFromRatio(this);
     },
     chatMapActiveSnapId() {
-      if (this.chatMapDragActive) {
-        return this.chatMapNearestSnapId(this.chatMapDragLeft, this.chatMapDragTop);
-      }
-      var storedId = String(this.chatMapPlacementAnchorId || '').trim().toLowerCase();
-      if (!storedId) {
-        try {
-          var raw = String(localStorage.getItem('infring-chat-map-placement-anchor') || '').trim().toLowerCase();
-          if (raw) storedId = raw;
-        } catch(_) {}
-      }
-      if (storedId) return this.chatMapSnapDefinitionById(storedId).id;
-      var fallbackLeft = this.chatMapClampLeft(this.chatMapResolvedLeftFromRatio());
-      var fallbackTop = this.chatMapClampTop(this.chatMapResolvedTopFromRatio());
-      return this.chatMapNearestSnapId(fallbackLeft, fallbackTop);
+      return infringChatMapActiveSnapId(this);
     },
     chatMapPersistSnapId(id) {
-      var snap = this.chatMapSnapDefinitionById(id);
-      this.chatMapPlacementAnchorId = String(snap && snap.id || 'right-middle');
-      try {
-        localStorage.setItem('infring-chat-map-placement-anchor', this.chatMapPlacementAnchorId);
-      } catch(_) {}
+      infringChatMapPersistSnapId(this, id);
     },
     chatMapClampLeft(leftRaw) {
-      var wallGap = this.overlayWallGapPx();
-      var minLeft = wallGap;
-      var maxLeft = this.chatOverlayViewportWidth() - wallGap - this.readChatMapWidth();
-      if (!Number.isFinite(maxLeft) || maxLeft < minLeft) maxLeft = minLeft;
-      var left = Number(leftRaw);
-      if (!Number.isFinite(left)) left = maxLeft;
-      return Math.max(minLeft, Math.min(maxLeft, left));
+      return infringChatMapClampLeft(this, leftRaw);
     },
     chatMapHardBounds() {
-      return this.dragSurfaceHardBounds(this.readChatMapWidth(), this.readChatMapHeight());
+      return infringChatMapHardBounds(this);
     },
     chatMapWallLockNormalized() {
-      var wall = this.dragSurfaceNormalizeWall(this.chatMapWallLock);
-      return wall === 'left' || wall === 'right' ? wall : '';
+      return infringChatMapWallLockNormalized(this);
     },
     chatMapSetWallLock(wallRaw) {
-      var wall = this.dragSurfaceNormalizeWall(wallRaw);
-      if (wall !== 'left' && wall !== 'right') wall = '';
-      this.chatMapWallLock = wall;
-      try {
-        if (wall) localStorage.setItem('infring-chat-map-wall-lock', wall);
-        else localStorage.removeItem('infring-chat-map-wall-lock');
-        localStorage.removeItem('infring-chat-map-smash-wall');
-      } catch(_) {}
-      infringUpdateShellLayoutConfig(function(config) {
-        config.chatMap.wallLock = wall;
-      });
-      return wall;
+      return infringChatMapSetWallLock(this, wallRaw);
     },
     chatMapResolvedLeft() {
-      if (this.chatMapDragActive) return Number(this.chatMapDragLeft || 0);
-      var left = this.chatMapClampLeft(this.chatMapResolvedLeftFromRatio());
-      var top = this.chatMapClampTop(this.chatMapResolvedTopFromRatio());
-      var wall = this.chatMapWallLockNormalized();
-      if (!wall) return left;
-      return this.dragSurfaceApplyWallLock(this.chatMapHardBounds(), left, top, wall).left;
+      return infringChatMapResolvedLeft(this);
     },
     chatMapResolvedTop() {
-      if (this.chatMapDragActive) return Number(this.chatMapDragTop || 0);
-      var left = this.chatMapClampLeft(this.chatMapResolvedLeftFromRatio());
-      var top = this.chatMapClampTop(this.chatMapResolvedTopFromRatio());
-      var wall = this.chatMapWallLockNormalized();
-      if (!wall) return top;
-      return this.dragSurfaceApplyWallLock(this.chatMapHardBounds(), left, top, wall).top;
+      return infringChatMapResolvedTop(this);
     },
     chatMapPersistPlacementFromLeft(leftRaw) {
-      var wallGap = this.overlayWallGapPx();
-      var minLeft = wallGap;
-      var maxLeft = this.chatOverlayViewportWidth() - wallGap - this.readChatMapWidth();
-      if (!Number.isFinite(maxLeft) || maxLeft < minLeft) maxLeft = minLeft;
-      var left = this.chatMapClampLeft(leftRaw);
-      var ratio = maxLeft > minLeft ? (left - minLeft) / (maxLeft - minLeft) : 1;
-      ratio = Math.max(0, Math.min(1, ratio));
-      this.chatMapPlacementX = ratio;
-      try {
-        localStorage.setItem('infring-chat-map-placement-x', String(ratio));
-      } catch(_) {}
-      infringUpdateShellLayoutConfig(function(config) {
-        config.chatMap.placementX = ratio;
-      });
+      infringChatMapPersistPlacementFromLeft(this, leftRaw);
     },
     chatMapContainerStyle() {
-      if (!this.chatMapPlacementEnabled()) return '';
-      var top = this.chatMapResolvedTop();
-      var left = this.chatMapResolvedLeft();
-      var height = this.readChatMapHeight();
-      var durationMs = this.chatMapDragActive ? 0 : this.dragSurfaceMoveDurationMs(this._chatMapMoveDurationMs, 280);
-      var wall = this.chatMapWallLockNormalized();
-      var lockCss = this.dragSurfaceLockVisualCssVars('chat-map', wall, {
-        transformMs: this._dragSurfaceLockTransformMs,
-        shellPaddingInline: '8px',
-        shellPaddingInlineLocked: '0px',
-        shellPaddingBlock: '2px',
-        shellPaddingBlockLocked: '0px',
-        shellAlignItems: 'flex-end',
-        shellAlignItemsLeft: 'flex-start',
-        shellAlignItemsRight: 'flex-end',
-        surfaceMarginInline: 'auto',
-        surfaceMarginInlineLocked: '0'
-      });
-      return (
-        'left:' + Math.round(left) + 'px;' +
-        'top:' + Math.round(top) + 'px;' +
-        'right:auto;' +
-        'bottom:auto;' +
-        'height:' + Math.round(height) + 'px;' +
-        lockCss +
-        'transition:top ' + Math.max(0, Math.round(durationMs)) + 'ms var(--ease-smooth), left ' + Math.max(0, Math.round(durationMs)) + 'ms var(--ease-smooth);'
-      );
+      return infringChatMapContainerStyle(this);
     },
     startChatMapPointerDrag(ev) {
-      if (!ev || !this.chatMapPlacementEnabled()) return;
-      var button = Number(ev.button);
-      if (Number.isFinite(button) && button > 0) return;
-      var target = ev && ev.target ? ev.target : null;
-      if (this.shouldIgnoreChatMapDragTarget(target)) return;
-      this._chatMapPointerActive = true;
-      this._chatMapPointerMoved = false;
-      this._chatMapPointerStartX = Number(ev.clientX || 0);
-      this._chatMapPointerStartY = Number(ev.clientY || 0);
-      this._chatMapPointerOriginLeft = this.chatMapResolvedLeft();
-      this._chatMapPointerOriginTop = this.chatMapResolvedTop();
-      this._chatMapPointerLastX = this._chatMapPointerStartX;
-      this._chatMapPointerLastY = this._chatMapPointerStartY;
-      this._chatMapPointerLastAt = Date.now();
-      this._chatMapPointerVelocity = 0;
-      this.chatMapDragLeft = this._chatMapPointerOriginLeft;
-      this.chatMapDragTop = this._chatMapPointerOriginTop;
-      this.bindChatMapPointerListeners();
-      try {
-        if (ev.currentTarget && typeof ev.currentTarget.setPointerCapture === 'function' && Number.isFinite(ev.pointerId)) {
-          ev.currentTarget.setPointerCapture(ev.pointerId);
-        }
-      } catch(_) {}
+      infringStartChatMapPointerDrag(this, ev);
     },
     handleChatMapPointerMove(ev) {
-      if (!this._chatMapPointerActive || !this.chatMapPlacementEnabled()) return;
-      var nextX = Number(ev.clientX || 0);
-      var nextY = Number(ev.clientY || 0);
-      var now = Date.now();
-      var prevX = Number(this._chatMapPointerLastX || nextX);
-      var prevY = Number(this._chatMapPointerLastY || nextY);
-      var prevAt = Number(this._chatMapPointerLastAt || now);
-      var dt = Math.max(1, now - prevAt);
-      var stepDx = nextX - prevX;
-      var stepDy = nextY - prevY;
-      this._chatMapPointerVelocity = Math.sqrt((stepDx * stepDx) + (stepDy * stepDy)) / dt;
-      this._chatMapPointerLastX = nextX;
-      this._chatMapPointerLastY = nextY;
-      this._chatMapPointerLastAt = now;
-      var movedX = Math.abs(nextX - Number(this._chatMapPointerStartX || 0));
-      var movedY = Math.abs(nextY - Number(this._chatMapPointerStartY || 0));
-      if (!this._chatMapPointerMoved) {
-        if (movedX < 4 && movedY < 4) return;
-        this._chatMapPointerMoved = true;
-        this.chatMapDragActive = true;
-        this.hideDashboardPopupBySource('chat-map');
-      }
-      var dragDx = nextX - Number(this._chatMapPointerStartX || 0);
-      var dragDy = nextY - Number(this._chatMapPointerStartY || 0);
-      var candidateLeft = Number(this._chatMapPointerOriginLeft || 0) + dragDx;
-      var candidateTop = Number(this._chatMapPointerOriginTop || 0) + dragDy;
-      var hardBounds = this.chatMapHardBounds();
-      var lockedWall = this.chatMapWallLockNormalized();
-      if (lockedWall) {
-        var unlockDistance = this.dragSurfaceDistanceFromWall(hardBounds, candidateLeft, candidateTop, lockedWall);
-        if (unlockDistance >= this.dragSurfaceWallUnlockDistanceThreshold()) {
-          lockedWall = this.chatMapSetWallLock('');
-        } else {
-          var holdLeft = Number.isFinite(Number(this.chatMapDragLeft))
-            ? Number(this.chatMapDragLeft)
-            : Number(this._chatMapPointerOriginLeft || 0);
-          var holdTop = Number.isFinite(Number(this.chatMapDragTop))
-            ? Number(this.chatMapDragTop)
-            : Number(this._chatMapPointerOriginTop || 0);
-          var stayLocked = this.dragSurfaceApplyWallLock(hardBounds, holdLeft, holdTop, lockedWall);
-          this.chatMapDragLeft = stayLocked.left;
-          this.chatMapDragTop = stayLocked.top;
-          if (ev.cancelable && typeof ev.preventDefault === 'function') ev.preventDefault();
-          return;
-        }
-      }
-      var clamped = this.dragSurfaceClampWithBounds(hardBounds, candidateLeft, candidateTop);
-      var nearest = this.dragSurfaceNearestWall(hardBounds, clamped.left, clamped.top);
-      var lockWall = this.dragSurfaceResolveWallLock(
-        hardBounds,
-        candidateLeft,
-        candidateTop,
-        nearest,
-        dragDx,
-        dragDy
-      );
-      if (lockWall) {
-        var persistedLockWall = this.chatMapSetWallLock(lockWall);
-        var snapped = this.dragSurfaceApplyWallLock(hardBounds, clamped.left, clamped.top, persistedLockWall);
-        this.chatMapDragLeft = snapped.left;
-        this.chatMapDragTop = snapped.top;
-      } else {
-        this.chatMapDragLeft = clamped.left;
-        this.chatMapDragTop = clamped.top;
-      }
-      if (ev.cancelable && typeof ev.preventDefault === 'function') ev.preventDefault();
+      infringHandleChatMapPointerMove(this, ev);
     },
     endChatMapPointerDrag() {
-      if (!this._chatMapPointerActive) return;
-      this._chatMapPointerActive = false;
-      this.unbindChatMapPointerListeners();
-      if (!this._chatMapPointerMoved) {
-        this.chatMapDragActive = false;
-        return;
-      }
-      this._chatMapPointerMoved = false;
-      var hardBounds = this.chatMapHardBounds();
-      var lockedWall = this.chatMapWallLockNormalized();
-      var final;
-      if (lockedWall) {
-        final = this.dragSurfaceApplyWallLock(hardBounds, this.chatMapDragLeft, this.chatMapDragTop, lockedWall);
-        this.chatMapPlacementAnchorId = '';
-        try { localStorage.removeItem('infring-chat-map-placement-anchor'); } catch(_) {}
-      } else {
-        var clamped = this.dragSurfaceClampWithBounds(hardBounds, this.chatMapDragLeft, this.chatMapDragTop);
-        var snapId = this.chatMapNearestSnapId(clamped.left, clamped.top);
-        var snap = this.chatMapAnchorForSnapId(snapId);
-        final = this.dragSurfaceClampWithBounds(hardBounds, snap.left, snap.top);
-        this.chatMapPersistSnapId(snapId);
-      }
-      this.chatMapDragLeft = final.left;
-      this.chatMapDragTop = final.top;
-      this.chatMapPersistPlacementFromLeft(this.chatMapDragLeft);
-      this.chatMapPersistPlacementFromTop(this.chatMapDragTop);
-      this.chatMapDragActive = false;
+      infringEndChatMapPointerDrag(this);
     },
 
     readChatSidebarElement() {
-      if (typeof document === 'undefined' || typeof document.querySelector !== 'function') return null;
-      try { return document.querySelector('.sidebar'); } catch(_) {}
-      return null;
+      return infringReadChatSidebarElement();
     },
     readChatSidebarHeight() {
-      var node = this.readChatSidebarElement();
-      var height = Number(node && node.offsetHeight || 0);
-      if (!Number.isFinite(height) || height <= 0) {
-        height = Math.max(180, Math.round(this.taskbarReadViewportHeight() * 0.52));
-      }
-      return height;
+      return infringReadChatSidebarHeight(this);
     },
     readChatSidebarWidth() {
-      var node = this.readChatSidebarElement();
-      var width = Number(node && node.offsetWidth || 0);
-      if (Number.isFinite(width) && width > 0) return width;
-      var fallback = this.sidebarCollapsed ? 72 : 248;
-      if (typeof window !== 'undefined' && typeof window.getComputedStyle === 'function' && document && document.documentElement) {
-        try {
-          var key = this.sidebarCollapsed ? '--sidebar-collapsed' : '--sidebar-width';
-          var raw = String(window.getComputedStyle(document.documentElement).getPropertyValue(key) || '').trim();
-          var parsed = parseFloat(raw);
-          if (Number.isFinite(parsed) && parsed > 0) fallback = parsed;
-        } catch(_) {}
-      }
-      return Math.max(1, Math.round(fallback));
+      return infringReadChatSidebarWidth(this);
     },
     readChatSidebarPulltabWidth() {
-      var fallback = 22;
-      if (typeof window !== 'undefined' && typeof window.getComputedStyle === 'function' && document && document.documentElement) {
-        try {
-          var raw = String(window.getComputedStyle(document.documentElement).getPropertyValue('--sidebar-pulltab-width') || '').trim();
-          var parsed = parseFloat(raw);
-          if (Number.isFinite(parsed) && parsed > 0) fallback = parsed;
-        } catch(_) {}
-      }
-      return Math.max(1, Math.round(fallback));
+      return infringReadChatSidebarPulltabWidth();
     },
     chatSidebarClampLeft(leftRaw) {
-      var wallGap = this.overlayWallGapPx();
-      var minLeft = wallGap;
-      var maxLeft = this.chatOverlayViewportWidth() - wallGap - this.readChatSidebarWidth() - this.readChatSidebarPulltabWidth();
-      if (!Number.isFinite(maxLeft) || maxLeft < minLeft) maxLeft = minLeft;
-      var left = Number(leftRaw);
-      if (!Number.isFinite(left)) left = minLeft;
-      return Math.max(minLeft, Math.min(maxLeft, left));
+      return infringChatSidebarClampLeft(this, leftRaw);
     },
     chatSidebarHardBounds() {
-      return this.dragSurfaceHardBounds(this.readChatSidebarWidth(), this.readChatSidebarHeight());
+      return infringChatSidebarHardBounds(this);
     },
     chatSidebarWallLockNormalized() {
-      var wall = this.dragSurfaceNormalizeWall(this.chatSidebarWallLock);
-      return wall === 'left' || wall === 'right' ? wall : '';
+      return infringChatSidebarWallLockNormalized(this);
     },
     chatSidebarSetWallLock(wallRaw) {
-      var wall = this.dragSurfaceNormalizeWall(wallRaw);
-      if (wall !== 'left' && wall !== 'right') wall = '';
-      this.chatSidebarWallLock = wall;
-      try {
-        if (wall) localStorage.setItem('infring-chat-sidebar-wall-lock', wall);
-        else localStorage.removeItem('infring-chat-sidebar-wall-lock');
-        localStorage.removeItem('infring-chat-sidebar-smash-wall');
-      } catch(_) {}
-      infringUpdateShellLayoutConfig(function(config) {
-        config.chatBar.wallLock = wall;
-      });
-      return wall;
+      return infringChatSidebarSetWallLock(this, wallRaw);
     },
     chatSidebarResolvedLeft() {
-      if (this.chatSidebarDragActive) return Number(this.chatSidebarDragLeft || 0);
-      var left = this.chatSidebarClampLeft(this.chatSidebarResolvedLeftFromRatio());
-      var top = this.chatSidebarClampTop(this.chatSidebarResolvedTopFromRatio());
-      var wall = this.chatSidebarWallLockNormalized();
-      if (!wall) return left;
-      return this.dragSurfaceApplyWallLock(this.chatSidebarHardBounds(), left, top, wall).left;
+      return infringChatSidebarResolvedLeft(this);
     },
     chatSidebarPersistPlacementFromLeft(leftRaw) {
-      var wallGap = this.overlayWallGapPx();
-      var minLeft = wallGap;
-      var maxLeft = this.chatOverlayViewportWidth() - wallGap - this.readChatSidebarWidth() - this.readChatSidebarPulltabWidth();
-      if (!Number.isFinite(maxLeft) || maxLeft < minLeft) maxLeft = minLeft;
-      var left = this.chatSidebarClampLeft(leftRaw);
-      var ratio = maxLeft > minLeft ? (left - minLeft) / (maxLeft - minLeft) : 0;
-      ratio = Math.max(0, Math.min(1, ratio));
-      this.chatSidebarPlacementX = ratio;
-      try {
-        localStorage.setItem('infring-chat-sidebar-placement-x', String(ratio));
-      } catch(_) {}
-      infringUpdateShellLayoutConfig(function(config) {
-        config.chatBar.placementX = ratio;
-      });
+      infringChatSidebarPersistPlacementFromLeft(this, leftRaw);
     },
     chatSidebarClampTop(topRaw) {
-      var bounds = this.chatOverlayVerticalBounds();
-      var height = this.readChatSidebarHeight();
-      var minTop = Number(bounds.minTop || 0);
-      var maxTop = Number(bounds.maxBottom || 0) - height;
-      if (!Number.isFinite(maxTop) || maxTop < minTop) maxTop = minTop;
-      var top = Number(topRaw);
-      if (!Number.isFinite(top)) top = minTop + ((maxTop - minTop) * 0.5);
-      return Math.max(minTop, Math.min(maxTop, top));
+      return infringChatSidebarClampTop(this, topRaw);
     },
     chatSidebarResolvedTop() {
-      if (this.chatSidebarDragActive) return Number(this.chatSidebarDragTop || 0);
-      var left = this.chatSidebarClampLeft(this.chatSidebarResolvedLeftFromRatio());
-      var top = this.chatSidebarClampTop(this.chatSidebarResolvedTopFromRatio());
-      var wall = this.chatSidebarWallLockNormalized();
-      if (!wall) return top;
-      return this.dragSurfaceApplyWallLock(this.chatSidebarHardBounds(), left, top, wall).top;
+      return infringChatSidebarResolvedTop(this);
     },
     chatSidebarPersistPlacementFromTop(topRaw) {
-      var bounds = this.chatOverlayVerticalBounds();
-      var height = this.readChatSidebarHeight();
-      var minTop = Number(bounds.minTop || 0);
-      var maxTop = Number(bounds.maxBottom || 0) - height;
-      if (!Number.isFinite(maxTop) || maxTop < minTop) maxTop = minTop;
-      var top = this.chatSidebarClampTop(topRaw);
-      this.chatSidebarPlacementTopPx = top;
-      try {
-        localStorage.setItem('infring-chat-sidebar-placement-top-px', String(top));
-      } catch(_) {}
-      var ratio = maxTop > minTop ? (top - minTop) / (maxTop - minTop) : 0.5;
-      ratio = Math.max(0, Math.min(1, ratio));
-      this.chatSidebarPlacementY = ratio;
-      try {
-        localStorage.setItem('infring-chat-sidebar-placement-y', String(ratio));
-      } catch(_) {}
-      infringUpdateShellLayoutConfig(function(config) {
-        config.chatBar.placementTopPx = top;
-        config.chatBar.placementY = ratio;
-      });
+      infringChatSidebarPersistPlacementFromTop(this, topRaw);
     },
     chatSidebarContainerStyle() {
-      if (this.page !== 'chat') return '';
-      var top = this.chatSidebarResolvedTop();
-      var left = this.chatSidebarResolvedLeft();
-      var durationMs = this.chatSidebarDragActive ? 0 : this.dragSurfaceMoveDurationMs(this._chatSidebarMoveDurationMs, 280);
-      var wall = this.chatSidebarWallLockNormalized();
-      var lockCss = this.dragSurfaceLockVisualCssVars('chat-sidebar', wall, {
-        transformMs: this._dragSurfaceLockTransformMs
-      });
-      return (
-        'position:fixed;' +
-        'left:' + Math.round(left) + 'px;' +
-        'top:' + Math.round(top) + 'px;' +
-        'bottom:auto;' +
-        'height:fit-content;' +
-        'min-height:calc(56px * 3);' +
-        'max-height:80vh;' +
-        'transform:none;' +
-        '--sidebar-position-transition:' + Math.max(0, Math.round(durationMs)) + 'ms;' +
-        lockCss
-      );
+      return infringChatSidebarContainerStyle(this);
     },
     chatSidebarNavShellStyle() {
-      return this.page === 'chat'
-        ? 'flex:0 1 auto;min-height:0;max-height:calc(80vh - 16px);'
-        : '';
+      return infringChatSidebarNavShellStyle(this);
     },
     chatSidebarNavStyle() {
-      return this.page === 'chat'
-        ? 'height:auto;flex:0 1 auto;max-height:calc(80vh - 16px);'
-        : '';
+      return infringChatSidebarNavStyle(this);
     },
     chatSidebarPulltabStyle() {
-      if (this.page !== 'chat') return '';
-      var durationMs = this.chatSidebarDragActive ? 0 : this.dragSurfaceMoveDurationMs(this._chatSidebarMoveDurationMs, 280);
-      var wall = this.chatSidebarWallLockNormalized();
-      var service = this.dragbarService();
-      if (service && typeof service.pulltabStyle === 'function') {
-        return service.pulltabStyle({
-          active: this.page === 'chat',
-          dragging: this.chatSidebarDragActive,
-          durationMs: durationMs,
-          fallbackMs: 280,
-          transitionVar: '--sidebar-position-transition',
-          wall: wall
-        });
-      }
-      var dockRight = wall === 'right';
-      return [
-        'position:absolute;',
-        'left:' + (dockRight ? 'auto' : '100%') + ';',
-        'right:' + (dockRight ? '100%' : 'auto') + ';',
-        'top:50%;',
-        'transform:translateY(-50%);',
-        '--sidebar-position-transition:' + Math.max(0, Math.round(durationMs)) + 'ms;'
-      ].join('');
+      return infringChatSidebarPulltabStyle(this);
     },
     shouldIgnoreChatSidebarDragTarget(target) {
-      var service = this.dragbarService();
-      if (service && typeof service.shouldIgnoreTarget === 'function') {
-        return service.shouldIgnoreTarget(target, {
-          ignoreSelector: 'input,textarea,select,[contenteditable="true"],button,a,[role="button"],.sidebar-pulltab,.nav-item,.nav-agent-row,[data-agent-id]'
-        });
-      }
-      var node = target;
-      if (node && typeof node.closest !== 'function' && node.parentElement) {
-        node = node.parentElement;
-      }
-      if (!node || typeof node.closest !== 'function') return false;
-      if (node.closest('.sidebar-pulltab')) return true;
-      return Boolean(
-        node.closest(
-          'input,textarea,select,[contenteditable="true"],button,a,[role="button"],.nav-item,.nav-agent-row,[data-agent-id]'
-        )
-      );
+      return infringShouldIgnoreChatSidebarDragTarget(this, target);
     },
 
     bindChatSidebarPointerListeners() {
-      if (this._chatSidebarPointerMoveHandler || this._chatSidebarPointerUpHandler) return;
-      var self = this;
-      this._chatSidebarPointerMoveHandler = function(ev) { self.handleChatSidebarPointerMove(ev); };
-      this._chatSidebarPointerUpHandler = function() { self.endChatSidebarPointerDrag(); };
-      var supportsPointer = typeof window !== 'undefined' && ('PointerEvent' in window);
-      if (supportsPointer) {
-        window.addEventListener('pointermove', this._chatSidebarPointerMoveHandler, true);
-        window.addEventListener('pointerup', this._chatSidebarPointerUpHandler, true);
-        window.addEventListener('pointercancel', this._chatSidebarPointerUpHandler, true);
-      } else {
-        window.addEventListener('mousemove', this._chatSidebarPointerMoveHandler, true);
-        window.addEventListener('mouseup', this._chatSidebarPointerUpHandler, true);
-      }
+      infringBindChatSidebarPointerListeners(this);
     },
 
     unbindChatSidebarPointerListeners() {
-      if (this._chatSidebarPointerMoveHandler) {
-        try { window.removeEventListener('pointermove', this._chatSidebarPointerMoveHandler, true); } catch(_) {}
-        try { window.removeEventListener('mousemove', this._chatSidebarPointerMoveHandler, true); } catch(_) {}
-      }
-      if (this._chatSidebarPointerUpHandler) {
-        try { window.removeEventListener('pointerup', this._chatSidebarPointerUpHandler, true); } catch(_) {}
-        try { window.removeEventListener('pointercancel', this._chatSidebarPointerUpHandler, true); } catch(_) {}
-        try { window.removeEventListener('mouseup', this._chatSidebarPointerUpHandler, true); } catch(_) {}
-      }
-      this._chatSidebarPointerMoveHandler = null;
-      this._chatSidebarPointerUpHandler = null;
+      infringUnbindChatSidebarPointerListeners(this);
     },
 
     startChatSidebarPointerDrag(ev) {
-      if (!ev || this.page !== 'chat') return;
-      if (this._chatSidebarPointerActive) return;
-      var button = Number(ev.button);
-      if (Number.isFinite(button) && button !== 0) return;
-      var target = ev && ev.target ? ev.target : null;
-      if (this.shouldIgnoreChatSidebarDragTarget(target)) return;
-      this._chatSidebarPointerActive = true;
-      this._chatSidebarPointerMoved = false;
-      this._chatSidebarPointerStartX = Number(ev.clientX || 0);
-      this._chatSidebarPointerStartY = Number(ev.clientY || 0);
-      this._chatSidebarPointerOriginLeft = this.chatSidebarResolvedLeft();
-      this._chatSidebarPointerOriginTop = this.chatSidebarResolvedTop();
-      this._chatSidebarPointerLastX = this._chatSidebarPointerStartX;
-      this._chatSidebarPointerLastY = this._chatSidebarPointerStartY;
-      this._chatSidebarPointerLastAt = Date.now();
-      this._chatSidebarPointerVelocity = 0;
-      this.chatSidebarDragLeft = this._chatSidebarPointerOriginLeft;
-      this.chatSidebarDragTop = this._chatSidebarPointerOriginTop;
-      this.bindChatSidebarPointerListeners();
-      try {
-        if (ev.currentTarget && typeof ev.currentTarget.setPointerCapture === 'function' && Number.isFinite(ev.pointerId)) {
-          ev.currentTarget.setPointerCapture(ev.pointerId);
-        }
-      } catch(_) {}
+      infringStartChatSidebarPointerDrag(this, ev);
     },
 
     handleChatSidebarPointerMove(ev) {
-      if (!this._chatSidebarPointerActive || this.page !== 'chat') return;
-      var nextX = Number(ev.clientX || 0);
-      var nextY = Number(ev.clientY || 0);
-      var now = Date.now();
-      var prevX = Number(this._chatSidebarPointerLastX || nextX);
-      var prevY = Number(this._chatSidebarPointerLastY || nextY);
-      var prevAt = Number(this._chatSidebarPointerLastAt || now);
-      var dt = Math.max(1, now - prevAt);
-      var stepDx = nextX - prevX;
-      var stepDy = nextY - prevY;
-      this._chatSidebarPointerVelocity = Math.sqrt((stepDx * stepDx) + (stepDy * stepDy)) / dt;
-      this._chatSidebarPointerLastX = nextX;
-      this._chatSidebarPointerLastY = nextY;
-      this._chatSidebarPointerLastAt = now;
-      var movedX = Math.abs(nextX - Number(this._chatSidebarPointerStartX || 0));
-      var movedY = Math.abs(nextY - Number(this._chatSidebarPointerStartY || 0));
-      if (!this._chatSidebarPointerMoved) {
-        if (movedX < 4 && movedY < 4) return;
-        this._chatSidebarPointerMoved = true;
-        this.chatSidebarDragActive = true;
-        this.hideDashboardPopupBySource('sidebar');
-      }
-      var dragDx = nextX - Number(this._chatSidebarPointerStartX || 0);
-      var dragDy = nextY - Number(this._chatSidebarPointerStartY || 0);
-      var candidateLeft = Number(this._chatSidebarPointerOriginLeft || 0) + dragDx;
-      var candidateTop = Number(this._chatSidebarPointerOriginTop || 0) + dragDy;
-      var hardBounds = this.chatSidebarHardBounds();
-      var lockedWall = this.chatSidebarWallLockNormalized();
-      if (lockedWall) {
-        var unlockDistance = this.dragSurfaceDistanceFromWall(hardBounds, candidateLeft, candidateTop, lockedWall);
-        if (unlockDistance >= this.dragSurfaceWallUnlockDistanceThreshold()) {
-          lockedWall = this.chatSidebarSetWallLock('');
-        } else {
-          var holdLeft = Number.isFinite(Number(this.chatSidebarDragLeft))
-            ? Number(this.chatSidebarDragLeft)
-            : Number(this._chatSidebarPointerOriginLeft || 0);
-          var holdTop = Number.isFinite(Number(this.chatSidebarDragTop))
-            ? Number(this.chatSidebarDragTop)
-            : Number(this._chatSidebarPointerOriginTop || 0);
-          var stayLocked = this.dragSurfaceApplyWallLock(hardBounds, holdLeft, holdTop, lockedWall);
-          this.chatSidebarDragLeft = stayLocked.left;
-          this.chatSidebarDragTop = stayLocked.top;
-          if (ev.cancelable && typeof ev.preventDefault === 'function') ev.preventDefault();
-          return;
-        }
-      }
-      var clamped = this.dragSurfaceClampWithBounds(hardBounds, candidateLeft, candidateTop);
-      var nearest = this.dragSurfaceNearestWall(hardBounds, clamped.left, clamped.top);
-      var lockWall = this.dragSurfaceResolveWallLock(
-        hardBounds,
-        candidateLeft,
-        candidateTop,
-        nearest,
-        dragDx,
-        dragDy
-      );
-      if (lockWall) {
-        var persistedLockWall = this.chatSidebarSetWallLock(lockWall);
-        var snapped = this.dragSurfaceApplyWallLock(hardBounds, clamped.left, clamped.top, persistedLockWall);
-        this.chatSidebarDragLeft = snapped.left;
-        this.chatSidebarDragTop = snapped.top;
-      } else {
-        this.chatSidebarDragLeft = clamped.left;
-        this.chatSidebarDragTop = clamped.top;
-      }
-      if (ev.cancelable && typeof ev.preventDefault === 'function') ev.preventDefault();
+      infringHandleChatSidebarPointerMove(this, ev);
     },
 
     endChatSidebarPointerDrag() {
-      if (!this._chatSidebarPointerActive) return;
-      this._chatSidebarPointerActive = false;
-      this.unbindChatSidebarPointerListeners();
-      if (!this._chatSidebarPointerMoved) {
-        this.chatSidebarDragActive = false;
-        this._chatSidebarDragRowsCache = null;
-        return;
-      }
-      this._chatSidebarPointerMoved = false;
-      var hardBounds = this.chatSidebarHardBounds();
-      var lockedWall = this.chatSidebarWallLockNormalized();
-      var final;
-      if (lockedWall) {
-        final = this.dragSurfaceApplyWallLock(hardBounds, this.chatSidebarDragLeft, this.chatSidebarDragTop, lockedWall);
-      } else {
-        final = this.dragSurfaceClampWithBounds(hardBounds, this.chatSidebarDragLeft, this.chatSidebarDragTop);
-      }
-      this.chatSidebarPlacementAnchorId = '';
-      try { localStorage.removeItem('infring-chat-sidebar-placement-anchor'); } catch(_) {}
-      this.chatSidebarDragLeft = final.left;
-      this.chatSidebarDragTop = final.top;
-      this.chatSidebarPersistPlacementFromLeft(this.chatSidebarDragLeft);
-      this.chatSidebarPersistPlacementFromTop(this.chatSidebarDragTop);
-      this.chatSidebarDragActive = false;
-      this._chatSidebarDragRowsCache = null;
-      this._sidebarToggleSuppressUntil = Date.now() + 260;
+      infringEndChatSidebarPointerDrag(this);
     },
 
     shouldSuppressSidebarToggle() {
-      var until = Number(this._sidebarToggleSuppressUntil || 0);
-      return Number.isFinite(until) && until > Date.now();
+      return infringShouldSuppressSidebarToggle(this);
     },
 
     popupWindowStorageKey(kind, axis) {
-      var key = String(kind || '').trim().toLowerCase();
-      var lane = String(axis || '').trim().toLowerCase() === 'top' ? 'top' : 'left';
-      return 'infring-popup-window-' + (key || 'manual') + '-' + lane;
+      return infringPopupWindowStorageKey(kind, axis);
     },
     popupWindowWallLockStorageKey(kind) {
-      var key = String(kind || '').trim().toLowerCase() || 'manual';
-      return 'infring-popup-window-' + key + '-wall-lock';
+      return infringPopupWindowWallLockStorageKey(kind);
     },
     popupWindowWallLock(kind) {
-      void kind;
-      return '';
+      return infringPopupWindowWallLock(kind);
     },
     popupWindowSetWallLock(kind, wallRaw) {
-      var key = String(kind || '').trim().toLowerCase();
-      void wallRaw;
-      if (!key) return '';
-      if (!this.popupWindowWallLocks || typeof this.popupWindowWallLocks !== 'object') {
-        this.popupWindowWallLocks = {};
-      }
-      this.popupWindowWallLocks[key] = '';
-      try {
-        localStorage.removeItem(this.popupWindowWallLockStorageKey(key));
-        localStorage.removeItem('infring-popup-window-' + key + '-smash-wall');
-      } catch(_) {}
-      return '';
+      return infringPopupWindowSetWallLock(this, kind, wallRaw);
     },
 
     popupWindowOpenState(kind) {
-      var key = String(kind || '').trim().toLowerCase();
-      if (key === 'report') return !!this.reportIssueWindowOpen;
-      return !!this.helpManualWindowOpen;
+      return infringPopupWindowOpenState(this, kind);
     },
 
     popupWindowSetOpenState(kind, open) {
-      var key = String(kind || '').trim().toLowerCase();
-      var nextOpen = open !== false;
-      if (key === 'report') {
-        this.reportIssueWindowOpen = nextOpen;
-        return;
-      }
-      this.helpManualWindowOpen = nextOpen;
+      infringPopupWindowSetOpenState(this, kind, open);
     },
 
     readPopupWindowElement(kind) {
-      if (typeof document === 'undefined' || typeof document.querySelector !== 'function') return null;
-      var key = String(kind || '').trim().toLowerCase();
-      if (!key) return null;
-      try {
-        return document.querySelector('.popup-window[data-popup-window-kind="' + key + '"]');
-      } catch(_) {}
-      return null;
+      return infringReadPopupWindowElement(kind);
     },
 
     popupWindowDefaultSize(kind) {
-      var key = String(kind || '').trim().toLowerCase();
-      if (key === 'report') return { width: 540, height: 360 };
-      return { width: 760, height: 560 };
+      return infringPopupWindowDefaultSize(kind);
     },
 
     readPopupWindowSize(kind) {
-      var node = this.readPopupWindowElement(kind);
-      var fallback = this.popupWindowDefaultSize(kind);
-      var width = Number(node && node.offsetWidth || 0);
-      var height = Number(node && node.offsetHeight || 0);
-      if (!Number.isFinite(width) || width <= 0) width = Number(fallback.width || 640);
-      if (!Number.isFinite(height) || height <= 0) height = Number(fallback.height || 420);
-      return {
-        width: Math.max(280, Math.round(width)),
-        height: Math.max(180, Math.round(height))
-      };
+      return infringReadPopupWindowSize(this, kind);
     },
 
     popupWindowBounds(kind, widthRaw, heightRaw) {
-      void kind;
-      var wallGap = this.overlayWallGapPx();
-      var width = Number(widthRaw || 0);
-      var height = Number(heightRaw || 0);
-      if (!Number.isFinite(width) || width <= 0) width = 640;
-      if (!Number.isFinite(height) || height <= 0) height = 420;
-      var minLeft = wallGap;
-      var maxLeft = this.chatOverlayViewportWidth() - wallGap - width;
-      if (!Number.isFinite(maxLeft) || maxLeft < minLeft) maxLeft = minLeft;
-      var vertical = this.chatOverlayVerticalBounds();
-      var minTop = Number(vertical && vertical.minTop || wallGap) + 2;
-      var maxTop = Number(vertical && vertical.maxBottom || this.taskbarReadViewportHeight()) - wallGap - height;
-      if (!Number.isFinite(maxTop) || maxTop < minTop) maxTop = minTop;
-      return {
-        minLeft: minLeft,
-        maxLeft: maxLeft,
-        minTop: minTop,
-        maxTop: maxTop
-      };
+      return infringPopupWindowBounds(this, kind, widthRaw, heightRaw);
     },
 
     popupWindowClampPlacement(kind, leftRaw, topRaw) {
-      var size = this.readPopupWindowSize(kind);
-      var bounds = this.popupWindowBounds(kind, size.width, size.height);
-      var left = Number(leftRaw);
-      var top = Number(topRaw);
-      if (!Number.isFinite(left)) left = bounds.minLeft + ((bounds.maxLeft - bounds.minLeft) * 0.5);
-      if (!Number.isFinite(top)) top = bounds.minTop + ((bounds.maxTop - bounds.minTop) * 0.48);
-      return {
-        left: Math.max(bounds.minLeft, Math.min(bounds.maxLeft, left)),
-        top: Math.max(bounds.minTop, Math.min(bounds.maxTop, top))
-      };
+      return infringPopupWindowClampPlacement(this, kind, leftRaw, topRaw);
     },
     popupWindowHardBounds(kind) {
-      var size = this.readPopupWindowSize(kind);
-      return this.dragSurfaceHardBounds(size.width, size.height);
+      return infringPopupWindowHardBounds(this, kind);
     },
 
     popupWindowEnsurePlacement(kind, forceCenter) {
-      var key = String(kind || '').trim().toLowerCase();
-      if (!key) return { left: 0, top: 0 };
-      if (forceCenter) {
-        var centerSize = this.readPopupWindowSize(key);
-        var centerBounds = this.popupWindowBounds(key, centerSize.width, centerSize.height);
-        var centerPoint = this.dragSurfaceCenteredPoint(centerBounds);
-        var centered = this.popupWindowClampPlacement(key, centerPoint.left, centerPoint.top);
-        if (!this.popupWindowPlacements || typeof this.popupWindowPlacements !== 'object') {
-          this.popupWindowPlacements = {};
-        }
-        this.popupWindowPlacements[key] = { left: centered.left, top: centered.top };
-        return centered;
-      }
-      var map = (this.popupWindowPlacements && typeof this.popupWindowPlacements === 'object')
-        ? this.popupWindowPlacements
-        : {};
-      var row = map[key] && typeof map[key] === 'object' ? map[key] : { left: null, top: null };
-      var left = Number(row.left);
-      var top = Number(row.top);
-      var hasStored = Number.isFinite(left) && Number.isFinite(top);
-      if (!hasStored) {
-        try {
-          left = Number(localStorage.getItem(this.popupWindowStorageKey(key, 'left')));
-          top = Number(localStorage.getItem(this.popupWindowStorageKey(key, 'top')));
-        } catch(_) {}
-      }
-      if (!Number.isFinite(left) || !Number.isFinite(top)) {
-        var size = this.readPopupWindowSize(key);
-        var bounds = this.popupWindowBounds(key, size.width, size.height);
-        left = bounds.minLeft + ((bounds.maxLeft - bounds.minLeft) * 0.5);
-        top = bounds.minTop + ((bounds.maxTop - bounds.minTop) * (key === 'report' ? 0.56 : 0.44));
-      }
-      var clamped = this.popupWindowClampPlacement(key, left, top);
-      if (!this.popupWindowPlacements || typeof this.popupWindowPlacements !== 'object') {
-        this.popupWindowPlacements = {};
-      }
-      this.popupWindowPlacements[key] = { left: clamped.left, top: clamped.top };
-      return clamped;
+      return infringPopupWindowEnsurePlacement(this, kind, forceCenter);
     },
 
     popupWindowPersistPlacement(kind, leftRaw, topRaw) {
-      var key = String(kind || '').trim().toLowerCase();
-      if (!key) return;
-      var clamped = this.popupWindowClampPlacement(key, leftRaw, topRaw);
-      if (!this.popupWindowPlacements || typeof this.popupWindowPlacements !== 'object') {
-        this.popupWindowPlacements = {};
-      }
-      this.popupWindowPlacements[key] = { left: clamped.left, top: clamped.top };
-      try {
-        localStorage.setItem(this.popupWindowStorageKey(key, 'left'), String(clamped.left));
-        localStorage.setItem(this.popupWindowStorageKey(key, 'top'), String(clamped.top));
-      } catch(_) {}
+      infringPopupWindowPersistPlacement(this, kind, leftRaw, topRaw);
     },
 
     popupWindowResolvedLeft(kind) {
-      var key = String(kind || '').trim().toLowerCase();
-      if (!key) return this.overlayWallGapPx();
-      if (this.popupWindowDragActive && this.popupWindowDragKind === key) {
-        return Number(this.popupWindowDragLeft || 0);
-      }
-      var base = this.popupWindowEnsurePlacement(key);
-      return this.popupWindowClampPlacement(key, base.left, base.top).left;
+      return infringPopupWindowResolvedLeft(this, kind);
     },
 
     popupWindowResolvedTop(kind) {
-      var key = String(kind || '').trim().toLowerCase();
-      if (!key) return this.overlayWallGapPx();
-      if (this.popupWindowDragActive && this.popupWindowDragKind === key) {
-        return Number(this.popupWindowDragTop || 0);
-      }
-      var base = this.popupWindowEnsurePlacement(key);
-      return this.popupWindowClampPlacement(key, base.left, base.top).top;
+      return infringPopupWindowResolvedTop(this, kind);
     },
 
     popupWindowStyle(kind) {
-      var key = String(kind || '').trim().toLowerCase();
-      if (!key || !this.popupWindowOpenState(key)) return 'display:none;';
-      var left = this.popupWindowResolvedLeft(key);
-      var top = this.popupWindowResolvedTop(key);
-      var durationMs = (this.popupWindowDragActive && this.popupWindowDragKind === key)
-        ? 0
-        : this.dragSurfaceMoveDurationMs(this._popupWindowMoveDurationMs, 260);
-      return (
-        'left:' + Math.round(left) + 'px;' +
-        'top:' + Math.round(top) + 'px;' +
-        'transition:left ' + Math.max(0, Math.round(durationMs)) + 'ms var(--ease-smooth), top ' + Math.max(0, Math.round(durationMs)) + 'ms var(--ease-smooth);'
-      );
+      return infringPopupWindowStyle(this, kind);
     },
 
     openPopupWindow(kind) {
-      var key = String(kind || '').trim().toLowerCase();
-      if (!key) return;
-      this.popupWindowSetOpenState(key, true);
-      this.popupWindowSetWallLock(key, '');
-      this.popupWindowEnsurePlacement(key, true);
-      var self = this;
-      this.$nextTick(function() {
-        self.popupWindowEnsurePlacement(key, true);
-      });
+      infringOpenPopupWindow(this, kind);
     },
 
     closePopupWindow(kind) {
-      var key = String(kind || '').trim().toLowerCase();
-      if (!key) return;
-      if (this._popupWindowPointerActive && this.popupWindowDragKind === key) {
-        this.endPopupWindowPointerDrag();
-      }
-      this.popupWindowSetOpenState(key, false);
+      infringClosePopupWindow(this, kind);
     },
 
     bindPopupWindowPointerListeners() {
-      if (this._popupWindowPointerMoveHandler || this._popupWindowPointerUpHandler) return;
-      var self = this;
-      this._popupWindowPointerMoveHandler = function(ev) { self.handlePopupWindowPointerMove(ev); };
-      this._popupWindowPointerUpHandler = function() { self.endPopupWindowPointerDrag(); };
-      window.addEventListener('pointermove', this._popupWindowPointerMoveHandler, true);
-      window.addEventListener('pointerup', this._popupWindowPointerUpHandler, true);
-      window.addEventListener('pointercancel', this._popupWindowPointerUpHandler, true);
-      window.addEventListener('mousemove', this._popupWindowPointerMoveHandler, true);
-      window.addEventListener('mouseup', this._popupWindowPointerUpHandler, true);
+      infringBindPopupWindowPointerListeners(this);
     },
 
     unbindPopupWindowPointerListeners() {
-      if (this._popupWindowPointerMoveHandler) {
-        try { window.removeEventListener('pointermove', this._popupWindowPointerMoveHandler, true); } catch(_) {}
-        try { window.removeEventListener('mousemove', this._popupWindowPointerMoveHandler, true); } catch(_) {}
-      }
-      if (this._popupWindowPointerUpHandler) {
-        try { window.removeEventListener('pointerup', this._popupWindowPointerUpHandler, true); } catch(_) {}
-        try { window.removeEventListener('pointercancel', this._popupWindowPointerUpHandler, true); } catch(_) {}
-        try { window.removeEventListener('mouseup', this._popupWindowPointerUpHandler, true); } catch(_) {}
-      }
-      this._popupWindowPointerMoveHandler = null;
-      this._popupWindowPointerUpHandler = null;
+      infringUnbindPopupWindowPointerListeners(this);
     },
 
     startPopupWindowPointerDrag(kind, ev) {
-      var key = String(kind || '').trim().toLowerCase();
-      if (!ev || !key || !this.popupWindowOpenState(key)) return;
-      var button = Number(ev.button);
-      if (Number.isFinite(button) && button !== 0) return;
-      var target = ev && ev.target ? ev.target : null;
-      if (target && typeof target.closest === 'function') {
-        if (target.closest('button, input, textarea, select, a, [contenteditable="true"]')) return;
-      }
-      this._popupWindowPointerActive = true;
-      this._popupWindowPointerMoved = false;
-      this.popupWindowDragKind = key;
-      this._popupWindowPointerStartX = Number(ev.clientX || 0);
-      this._popupWindowPointerStartY = Number(ev.clientY || 0);
-      this._popupWindowPointerOriginLeft = this.popupWindowResolvedLeft(key);
-      this._popupWindowPointerOriginTop = this.popupWindowResolvedTop(key);
-      this._popupWindowPointerLastX = this._popupWindowPointerStartX;
-      this._popupWindowPointerLastY = this._popupWindowPointerStartY;
-      this._popupWindowPointerLastAt = Date.now();
-      this._popupWindowPointerVelocity = 0;
-      this.popupWindowDragLeft = this._popupWindowPointerOriginLeft;
-      this.popupWindowDragTop = this._popupWindowPointerOriginTop;
-      this.popupWindowDragWallLock = '';
-      this.bindPopupWindowPointerListeners();
-      try {
-        if (ev.currentTarget && typeof ev.currentTarget.setPointerCapture === 'function' && Number.isFinite(ev.pointerId)) {
-          ev.currentTarget.setPointerCapture(ev.pointerId);
-        }
-      } catch(_) {}
+      infringStartPopupWindowPointerDrag(this, kind, ev);
     },
 
     handlePopupWindowPointerMove(ev) {
-      if (!this._popupWindowPointerActive) return;
-      var key = String(this.popupWindowDragKind || '').trim().toLowerCase();
-      if (!key || !this.popupWindowOpenState(key)) return;
-      var nextX = Number(ev.clientX || 0);
-      var nextY = Number(ev.clientY || 0);
-      var now = Date.now();
-      var prevX = Number(this._popupWindowPointerLastX || nextX);
-      var prevY = Number(this._popupWindowPointerLastY || nextY);
-      var prevAt = Number(this._popupWindowPointerLastAt || now);
-      var dt = Math.max(1, now - prevAt);
-      var stepDx = nextX - prevX;
-      var stepDy = nextY - prevY;
-      this._popupWindowPointerVelocity = Math.sqrt((stepDx * stepDx) + (stepDy * stepDy)) / dt;
-      this._popupWindowPointerLastX = nextX;
-      this._popupWindowPointerLastY = nextY;
-      this._popupWindowPointerLastAt = now;
-      var movedX = Math.abs(nextX - Number(this._popupWindowPointerStartX || 0));
-      var movedY = Math.abs(nextY - Number(this._popupWindowPointerStartY || 0));
-      if (!this._popupWindowPointerMoved) {
-        if (movedX < 4 && movedY < 4) return;
-        this._popupWindowPointerMoved = true;
-        this.popupWindowDragActive = true;
-      }
-      var dragDx = nextX - Number(this._popupWindowPointerStartX || 0);
-      var dragDy = nextY - Number(this._popupWindowPointerStartY || 0);
-      var candidateLeft = Number(this._popupWindowPointerOriginLeft || 0) + dragDx;
-      var candidateTop = Number(this._popupWindowPointerOriginTop || 0) + dragDy;
-      var hardBounds = this.popupWindowHardBounds(key);
-      var clamped = this.dragSurfaceClampWithBounds(hardBounds, candidateLeft, candidateTop);
-      this.popupWindowDragLeft = clamped.left;
-      this.popupWindowDragTop = clamped.top;
-      if (ev.cancelable && typeof ev.preventDefault === 'function') ev.preventDefault();
+      infringHandlePopupWindowPointerMove(this, ev);
     },
 
     endPopupWindowPointerDrag() {
-      if (!this._popupWindowPointerActive) return;
-      var key = String(this.popupWindowDragKind || '').trim().toLowerCase();
-      var moved = !!this._popupWindowPointerMoved;
-      this._popupWindowPointerActive = false;
-      this._popupWindowPointerMoved = false;
-      this.unbindPopupWindowPointerListeners();
-      if (key && moved) {
-        var hardBounds = this.popupWindowHardBounds(key);
-        var finalPlacement = this.dragSurfaceClampWithBounds(hardBounds, this.popupWindowDragLeft, this.popupWindowDragTop);
-        this.popupWindowDragLeft = finalPlacement.left;
-        this.popupWindowDragTop = finalPlacement.top;
-        this.popupWindowPersistPlacement(key, this.popupWindowDragLeft, this.popupWindowDragTop);
-      }
-      this.popupWindowDragActive = false;
-      this.popupWindowDragWallLock = '';
-      this.popupWindowDragKind = '';
+      infringEndPopupWindowPointerDrag(this);
     },
 
     bottomDockDefaultOrder() {
-      var service = this.taskbarDockService();
-      if (service && typeof service.dockDefaultOrder === 'function') return service.dockDefaultOrder(this.bottomDockTileConfig);
-      var registry = (this.bottomDockTileConfig && typeof this.bottomDockTileConfig === 'object')
-        ? this.bottomDockTileConfig
-        : null;
-      if (registry) {
-        var ids = Object.keys(registry);
-        if (ids.length) return ids;
-      }
-      return ['chat', 'overview', 'agents', 'scheduler', 'skills', 'runtime', 'settings'];
+      return infringBottomDockDefaultOrder(this);
     },
 
     bottomDockTileConfigById(id) {
-      var key = String(id || '').trim();
-      if (!key) return null;
-      var registry = (this.bottomDockTileConfig && typeof this.bottomDockTileConfig === 'object')
-        ? this.bottomDockTileConfig
-        : null;
-      var tile = registry && Object.prototype.hasOwnProperty.call(registry, key) ? registry[key] : null;
-      return tile && typeof tile === 'object' ? tile : null;
+      return infringBottomDockTileConfigById(this, id);
     },
 
     bottomDockTileData(id, field, fallback) {
-      var key = String(field || '').trim();
-      var tile = this.bottomDockTileConfigById(id);
-      var value = (key && tile && Object.prototype.hasOwnProperty.call(tile, key)) ? tile[key] : fallback;
-      return (value === undefined || value === null) ? String(fallback || '') : String(value);
+      return infringBottomDockTileData(this, id, field, fallback);
     },
 
     bottomDockTileAnimationName(id) {
-      var tile = this.bottomDockTileConfigById(id);
-      var animation = tile && Array.isArray(tile.animation) ? tile.animation : null;
-      var name = animation ? String(animation[0] || '').trim() : '';
-      return name || 'none';
+      return infringBottomDockTileAnimationName(this, id);
     },
 
     bottomDockTileAnimationDurationAttr(id) {
-      var tile = this.bottomDockTileConfigById(id);
-      var animation = tile && Array.isArray(tile.animation) ? tile.animation : null;
-      if (!animation) return null;
-      var durationMs = Number(animation[1]);
-      if (!Number.isFinite(durationMs) || durationMs < 120) return null;
-      return String(Math.round(durationMs));
+      return infringBottomDockTileAnimationDurationAttr(this, id);
     },
 
     bottomDockSlotStyle(id) {
-      var key = String(id || '').trim();
-      var weight = this.bottomDockHoverWeight(key);
-      var service = this.taskbarDockService();
-      if (service && typeof service.dockSlotStyle === 'function') {
-        return service.dockSlotStyle(key, this.bottomDockOrder, weight, this.bottomDockTileConfig);
-      }
-      var order = key ? this.bottomDockOrderIndex(key) : 999;
-      if (!Number.isFinite(weight) || weight < 0) weight = 0;
-      if (weight > 1) weight = 1;
-      return 'order:' + order + ';--bottom-dock-hover-weight:' + weight.toFixed(4);
+      return infringBottomDockSlotStyle(this, id);
     },
 
     bottomDockTileStyle(id) {
-      var key = String(id || '').trim();
-      var tile = this.bottomDockTileConfigById(key);
-      var style = tile && typeof tile.style === 'string' ? String(tile.style || '').trim() : '';
-      return style || '';
+      return infringBottomDockTileStyle(this, id);
     },
 
     normalizeBottomDockOrder(rawOrder) {
@@ -9627,7 +5474,9 @@ function app() {
           );
         }
         var shouldHydrateHealth = force || store.connectionState !== 'connected' || !store.runtimeSync;
-        if (shouldHydrateHealth) await self.loadDashboardHealthSummary(store.connectionState !== 'connected');
+        if (shouldHydrateHealth) {
+          Promise.resolve(self.loadDashboardHealthSummary(store.connectionState !== 'connected')).catch(function() {});
+        }
         var now = Date.now();
         var shouldRefreshAgents =
           force ||

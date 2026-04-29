@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 // SRS evidence anchor: V10-DASH-004.24
+// Shell source-of-truth policy: docs/workspace/shell_source_of_truth_policy.md
 const fs = require('node:fs');
 const path = require('node:path');
 const esbuild = require('esbuild');
