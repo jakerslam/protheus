@@ -226,14 +226,29 @@ async function run(argv = process.argv.slice(2)) {
       'service.burnLabelText',
       'service.visible',
     ], 'chat_metadata_wrapper_not_delegated', 'Runtime chat compatibility methods must delegate metadata truth to shared shell services.'));
-    violations.push(...forbidTokens(args.chatPath, chat, [
+    const metadataActionBlock = sourceBetween(
+      chat,
+      'handleMessageMetaAction: function(event, msg, idx, rows) {',
+      '\n\n    deriveUserFacingFromThought: function(thoughtText)'
+    );
+    if (!metadataActionBlock) {
+      violations.push({
+        kind: 'chat_metadata_action_block_missing',
+        path: args.chatPath,
+        detail: 'Message metadata action helpers must remain grouped so Shell authority checks can audit them precisely.',
+      });
+    } else {
+      violations.push(...forbidTokens(args.chatPath, metadataActionBlock, [
       '_forkAgentRequestedName',
       'new_name: requestedName',
       'messageRetrySource',
       'retry_from_meta',
       'Reply to: "',
       '_pendingReplyFromMeta',
-    ], 'chat_metadata_action_shell_fork_naming', 'Message meta fork actions must submit the fork request and let the backend assign clone name and identity.'));
+      "Alpine.store('app')",
+      'requestedName || forkedAgentId',
+      ], 'chat_metadata_action_shell_fork_naming', 'Message meta actions must not reconstruct prompts, assign fork identity, or bypass the app-store bridge.'));
+    }
     const workspaceProjectionBlock = sourceBetween(
       chat,
       '_messageTextPreviewForWorkspace: function(msg) {',
@@ -280,6 +295,8 @@ async function run(argv = process.argv.slice(2)) {
       'this._sendPayload(text',
       'Reply to: "',
       '_pendingReplyFromMeta',
+      "Alpine.store('app')",
+      'requestedName || forkedAgentId',
     ], 'chat_part_metadata_action_shell_authority', 'Segmented chat metadata part must not reconstruct retry prompts or assign fork identity in Shell.'));
     violations.push(...requireTokens(args.statsPartPath, statsPart, ['service.responseTimeText', 'service.burnLabelText'], 'stats_part_metadata_not_delegated', 'Metadata indicator text must delegate to shared shell services.'));
     violations.push(...requireTokens(args.hoverPartPath, hoverPart, ['service.visible'], 'hover_part_metadata_not_delegated', 'Metadata visibility must delegate to shared shell services.'));
