@@ -120,6 +120,8 @@ For external systems, agents should run probes where possible instead of relying
 
 For InfRing, the dossier should use built-in traces, receipts, Sentinel evidence, gateway lifecycle data, orchestration traces, and Kernel artifacts.
 
+Assurance Plane evidence is the preferred source for internal runtime understanding. Controlled Validation artifacts show how the system behaves under known checks; Observability artifacts show how it behaves while alive; Governance artifacts show confidence, gates, scorecards, and issue-candidate posture.
+
 Required fields:
 
 ```yaml
@@ -342,6 +344,10 @@ External target probes may include:
 Internal InfRing probes may include:
 
 - Kernel Sentinel reports
+- Assurance Plane evidence envelopes
+- Validation scorecards and controlled proof artifacts
+- Observability telemetry, health, traces, and runtime findings
+- Governance release gates and readiness verdicts
 - lifecycle receipts
 - gateway/watchdog state
 - orchestration decision traces
@@ -369,6 +375,10 @@ When triggered, produce an architectural incident synthesis before further code 
 ## Relationship To Sentinel
 
 Kernel Sentinel should use this policy as the framework for big-picture incident synthesis.
+
+Within the Assurance Plane, Sentinel is a privileged Observability resident. It watches deterministic runtime and authority evidence first, consumes controlled eval evidence only by authority class, and emits findings, architectural incidents, issue candidates, self-understanding artifacts, and RSI readiness blockers.
+
+Sentinel is not the whole Validation system. Controlled eval definitions, benchmark definitions, regression suites, and conformance guards belong to Validation; Sentinel may consume their outputs as evidence.
 
 Sentinel should classify failures by level:
 
