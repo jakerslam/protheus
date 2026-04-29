@@ -1,0 +1,37 @@
+{
+  "fixture_id": "kernel_sentinel_authority_shape_residue_regression_v1",
+  "required_signals": [
+    "removed_authority_syntax_retained_authority_shape",
+    "data_shape_authority_payload",
+    "lifecycle_affordance_restart_path",
+    "legacy_fallback_path",
+    "compatibility_shim_authority_residue"
+  ],
+  "events": [
+    {
+      "schema_version": 1,
+      "id": "authority-shape-residue-gateway-payload",
+      "evidence_level": "policy",
+      "observed_at": "2026-04-29T12:00:00Z",
+      "source": "kernel_sentinel_authority_shape_residue_golden",
+      "affected_layer": "gateway",
+      "component": "dashboard_host",
+      "boundary": "shell_gateway_lifecycle",
+      "policy": "runtime_state_authority",
+      "architecture_scope": "authority_residue_regression",
+      "self_model_scope": "sentinel_architectural_understanding",
+      "invariant_id": "removed_authority_syntax_must_not_leave_authority_shape_residue",
+      "failure_level": "L3_policy_truth_failure",
+      "route_family": "gateway_startup",
+      "process_identity": "dashboard:4173",
+      "lifecycle_state": "authority_shape_residue",
+      "evidence_refs": [
+        "shape://gateway/data_shape=authority_payload",
+        "shape://shell/lifecycle_affordance=restart_affordance",
+        "route://gateway/fallback_path=legacy_fallback_used",
+        "shim://orchestration/compatibility_shim=legacy_intent_compatibility_shim"
+      ],
+      "summary": "removed_authority_syntax_retained_authority_shape: authority syntax was removed but authority-shaped data, lifecycle affordances, fallback paths, and compatibility shims still allowed truth leakage to re-emerge"
+    }
+  ]
+}
