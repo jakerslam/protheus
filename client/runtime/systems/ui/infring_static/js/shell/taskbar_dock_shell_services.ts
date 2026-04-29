@@ -373,3 +373,55 @@ var InfringSharedShellServices = (function(existing) {
 if (typeof window !== 'undefined') {
   window.InfringSharedShellServices = InfringSharedShellServices;
 }
+
+function infringTaskbarDockService() {
+  var services = typeof window !== 'undefined' ? window.InfringSharedShellServices : null;
+  return services && services.taskbarDock ? services.taskbarDock : null;
+}
+
+function infringShellLayoutDefaultProfile() {
+  var service = infringTaskbarDockService();
+  return service && typeof service.defaultProfile === 'function' ? service.defaultProfile() : 'other';
+}
+
+function infringShellLayoutDefaultConfig() {
+  var service = infringTaskbarDockService();
+  return service && typeof service.defaultLayoutConfig === 'function'
+    ? service.defaultLayoutConfig()
+    : { version: 1, profile: infringShellLayoutDefaultProfile(), dock: {}, taskbar: {}, chatMap: {}, chatBar: {} };
+}
+
+function infringLocalStorageHasAny(keys) {
+  var service = infringTaskbarDockService();
+  return service && typeof service.hasAnyStorage === 'function' ? service.hasAnyStorage(keys) : false;
+}
+
+function infringReadShellLayoutConfig() {
+  var service = infringTaskbarDockService();
+  return service && typeof service.readLayoutConfig === 'function'
+    ? service.readLayoutConfig()
+    : infringShellLayoutDefaultConfig();
+}
+
+function infringWriteShellLayoutConfig(config) {
+  var service = infringTaskbarDockService();
+  if (service && typeof service.writeLayoutConfig === 'function') service.writeLayoutConfig(config);
+}
+
+function infringUpdateShellLayoutConfig(mutator) {
+  var service = infringTaskbarDockService();
+  if (service && typeof service.updateLayoutConfig === 'function') {
+    infringShellLayoutConfig = service.updateLayoutConfig(mutator);
+    return;
+  }
+  infringShellLayoutConfig = infringReadShellLayoutConfig();
+}
+
+function infringSeedShellLayoutConfig() {
+  var service = infringTaskbarDockService();
+  return service && typeof service.seedLayoutConfig === 'function'
+    ? service.seedLayoutConfig()
+    : infringShellLayoutDefaultConfig();
+}
+
+var infringShellLayoutConfig = infringSeedShellLayoutConfig();

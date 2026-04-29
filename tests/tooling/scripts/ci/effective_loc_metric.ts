@@ -36,6 +36,8 @@ const EXCLUDE_PATHSPECS = [
   ':(exclude)**/*_test.*',
   ':(exclude)**/*.test.*',
   ':(exclude)**/*.spec.*',
+  ':(exclude)client/runtime/systems/ui/infring_static/**/*.parts/**',
+  ':(exclude)client/runtime/systems/ui/infring_static/js/svelte/**/*.bundle.ts',
 ];
 
 function shellQuote(raw: string): string {
@@ -101,6 +103,20 @@ function isEffectiveProductionSource(relPath: string): boolean {
     lower.includes('/test/') ||
     lower.includes('/__tests__/') ||
     lower.includes('/vendor/')
+  ) {
+    return false;
+  }
+
+  if (
+    lower.startsWith('client/runtime/systems/ui/infring_static/') &&
+    lower.includes('.parts/')
+  ) {
+    return false;
+  }
+
+  if (
+    lower.startsWith('client/runtime/systems/ui/infring_static/js/svelte/') &&
+    lower.endsWith('.bundle.ts')
   ) {
     return false;
   }
@@ -249,6 +265,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       include_extensions: ['.rs', '.ts', '.tsx'],
       line_type: 'nonblank',
       include_tracked_only: true,
+      source_of_truth_policy: 'docs/workspace/shell_source_of_truth_policy.md',
       exclude_pathspecs: EXCLUDE_PATHSPECS,
     },
     counts,
