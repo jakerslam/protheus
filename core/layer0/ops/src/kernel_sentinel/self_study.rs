@@ -10,6 +10,8 @@ use super::write_json;
 
 #[path = "self_study_feedback.rs"]
 mod self_study_feedback;
+#[path = "self_study_top_holes.rs"]
+mod self_study_top_holes;
 
 const FEEDBACK_INBOX: &str = "feedback_inbox.jsonl";
 const TREND_HISTORY: &str = "trend_history.jsonl";
@@ -156,100 +158,6 @@ fn trend_status(history_len: usize, delta: &Value) -> &'static str {
     } else {
         "stable"
     }
-}
-
-fn top_holes(feedback_rows: &[Value], generated_at: &str) -> Value {
-    let mut rows = feedback_rows.to_vec();
-    rows.sort_by_key(|row| {
-        (
-            usize_at(row, &["priority_rank"]),
-            string_field(row, "category"),
-            string_field(row, "fingerprint"),
-        )
-    });
-    let holes = rows.into_iter().take(10).collect::<Vec<_>>();
-    let issue_candidates = holes
-        .iter()
-        .filter(|row| {
-            bool_at(row, &["issue_candidate_ready"], false)
-                || usize_at(row, &["recurrence_count"]) >= 2
-        })
-        .map(|row| {
-            let category = string_field(row, "category");
-            let fingerprint = string_field(row, "fingerprint");
-            json!({
-                "type": "kernel_sentinel_issue_candidate",
-                "schema_version": 1,
-                "generated_at": generated_at,
-                "status": "candidate",
-                "source": "kernel_sentinel_feedback_inbox",
-                "fingerprint": format!("kernel_sentinel:{category}:{fingerprint}"),
-                "dedupe_key": format!("kernel_sentinel:{category}:{fingerprint}"),
-                "owner": "core/layer0/kernel_sentinel",
-                "route_to": "kernel_sentinel_issue_backlog",
-                "labels": ["kernel-sentinel", "self-study", category.clone()],
-                "title": string_field(row, "summary"),
-                "severity": string_field(row, "severity"),
-                "failure_level": string_field(row, "failure_level"),
-                "root_frame": string_field(row, "root_frame"),
-                "remediation_level": string_field(row, "remediation_level"),
-                "recurrence_count": usize_at(row, &["recurrence_count"]),
-                "recurrence_threshold": usize_at(row, &["recurrence_threshold"]),
-                "priority_rank": usize_at(row, &["priority_rank"]),
-                "todo_priority": string_field(row, "todo_priority"),
-                "category": category.clone(),
-                "recommended_action": string_field(row, "recommended_action"),
-                "evidence": row.get("evidence").cloned().unwrap_or_else(|| json!([])),
-                "source_artifacts": [
-                    "local/state/kernel_sentinel/feedback_inbox.jsonl",
-                    "local/state/kernel_sentinel/top_system_holes_current.json"
-                ],
-                "source_feedback_dedupe_key": string_field(row, "dedupe_key"),
-                "triage": {
-                    "state": "ready_for_issue_synthesis",
-                    "safe_to_auto_file_issue": true,
-                    "safe_to_auto_apply_patch": false,
-                    "requires_kernel_receipt_to_close": true
-                },
-                "automation_policy": {
-                    "mode": "proposal_only",
-                    "failure_priority": 1,
-                    "optimization_priority": 2,
-                    "automation_priority": 3,
-                    "requires_operator_or_kernel_receipt_before_apply": true
-                },
-                "acceptance_criteria": [
-                    "finding is resolved or explicitly waived by Kernel Sentinel policy",
-                    "feedback inbox no longer contains this dedupe key",
-                    "Kernel Sentinel release gate remains passing after resolution"
-                ]
-            })
-        })
-        .collect::<Vec<_>>();
-    json!({
-        "type": "kernel_sentinel_top_system_holes",
-        "summary": {
-            "hole_count": holes.len(),
-            "issue_candidate_count": issue_candidates.len(),
-            "source": "kernel_sentinel_feedback_inbox",
-            "candidate_contract_version": 1
-        },
-        "issue_candidate_contract": {
-            "required_fields": [
-                "fingerprint",
-                "dedupe_key",
-                "owner",
-                "route_to",
-                "severity",
-                "recommended_action",
-                "acceptance_criteria"
-            ],
-            "safe_to_auto_file_issue": true,
-            "safe_to_auto_apply_patch": false
-        },
-        "holes": holes,
-        "issue_candidates": issue_candidates
-    })
 }
 
 fn rsi_missing_condition_action(condition: &str) -> &'static str {
@@ -495,6 +403,20 @@ fn write_daily_report(path: &Path, report: &Value, trend: &Value, top_holes: &Va
             string_field(row, "summary")
         ));
     }
+    body.push_str("\n## Recurring Failure Families\n\n");
+    for row in top_holes
+        .get("recurring_failure_families")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        body.push_str(&format!(
+            "- [{}x] {} — {}\n",
+            usize_at(row, &["recurrence_count"]),
+            string_field(row, "category"),
+            string_field(row, "exemplar_summary")
+        ));
+    }
     fs::write(path, body).map_err(|err| err.to_string())
 }
 
@@ -515,7 +437,7 @@ pub(super) fn write_self_study_outputs(dir: &Path, report: &Value) -> Result<Val
 
     let feedback_rows = self_study_feedback::build_feedback_inbox(report, &generated_at);
     overwrite_jsonl(&feedback_path, &feedback_rows)?;
-    let top_holes = top_holes(&feedback_rows, &generated_at);
+    let top_holes = self_study_top_holes::top_holes(&feedback_rows, &generated_at);
     let readiness = rsi_readiness(report, history_len, feedback_rows.len(), &delta);
     let trend_report = json!({
         "type": "kernel_sentinel_trend_report",
@@ -546,66 +468,11 @@ pub(super) fn write_self_study_outputs(dir: &Path, report: &Value) -> Result<Val
         "regression_count": trend_report["delta"]["regressions"].as_array().map(Vec::len).unwrap_or(0),
         "improvement_count": trend_report["delta"]["improvements"].as_array().map(Vec::len).unwrap_or(0),
         "issue_candidate_count": top_holes["summary"]["issue_candidate_count"].as_u64().unwrap_or(0),
+        "recurring_failure_family_count": top_holes["summary"]["recurring_failure_family_count"].as_u64().unwrap_or(0),
         "rsi_operator_summary": readiness["operator_summary"].clone(),
         "rsi_next_action_count": readiness["next_actions"].as_array().map(Vec::len).unwrap_or(0),
         "rsi_readiness": readiness
     });
     manifest["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&manifest));
     Ok(manifest)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn feedback_row(fingerprint: &str, recurrence_count: usize) -> Value {
-        json!({
-            "dedupe_key": format!("correctness:{fingerprint}"),
-            "fingerprint": fingerprint,
-            "severity": "high",
-            "category": "correctness",
-            "failure_level": "L2_boundary_contract_breach",
-            "root_frame": "cross_boundary_contract",
-            "remediation_level": "boundary_repair",
-            "todo_priority": "P1",
-            "priority_rank": 1,
-            "summary": format!("{fingerprint} observed"),
-            "recommended_action": "inspect the repeated Sentinel failure family",
-            "evidence": [format!("runtime://{fingerprint}")],
-            "recurrence_count": recurrence_count,
-            "recurrence_threshold": 2,
-            "issue_candidate_ready": recurrence_count >= 2
-        })
-    }
-
-    #[test]
-    fn top_holes_keeps_singletons_advisory_until_recurrence_threshold() {
-        let top = top_holes(
-            &[
-                feedback_row("one_off_failure", 1),
-                feedback_row("repeated_failure", 2),
-            ],
-            "2026-04-28T00:00:00Z",
-        );
-
-        assert_eq!(top["summary"]["hole_count"], 2);
-        assert_eq!(top["summary"]["issue_candidate_count"], 1);
-        assert_eq!(
-            top["issue_candidates"][0]["fingerprint"],
-            "kernel_sentinel:correctness:repeated_failure"
-        );
-        assert_eq!(top["issue_candidates"][0]["recurrence_count"], 2);
-        assert_eq!(
-            top["issue_candidates"][0]["failure_level"],
-            "L2_boundary_contract_breach"
-        );
-        assert_eq!(
-            top["issue_candidates"][0]["root_frame"],
-            "cross_boundary_contract"
-        );
-        assert_eq!(
-            top["issue_candidates"][0]["remediation_level"],
-            "boundary_repair"
-        );
-    }
 }
