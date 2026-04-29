@@ -477,12 +477,6 @@
       if (typeof handler === 'function') return handler();
     },
 
-    messageRetrySource: function(msg, idx, rows) {
-      var service = this.messageMetadataService();
-      var list = Array.isArray(rows) ? rows : (Array.isArray(this.messages) ? this.messages : []);
-      return service && typeof service.retrySource === 'function' ? service.retrySource(msg, idx, list) : null;
-    },
-
     messageCanRetryFromMeta: function(msg, idx, rows) {
       var service = this.messageMetadataService();
       var list = Array.isArray(rows) ? rows : (Array.isArray(this.messages) ? this.messages : []);
@@ -508,34 +502,10 @@
     },
 
     replyToMessageFromMeta: function(msg, idx, rows) {
-      var list = Array.isArray(rows) ? rows : (Array.isArray(this.messages) ? this.messages : []);
-      if (!list.length) return;
-      var resolvedIndex = this._resolveMessageIndexFromMeta(msg, idx, list);
-      if (resolvedIndex < 0) return;
-      var row = list[resolvedIndex];
-      if (!row || row.is_notice) return;
-      var rowText = String(row.text || '').replace(/\s+/g, ' ').trim();
-      if (!rowText) return;
-      var shortText = rowText.length > 140 ? (rowText.slice(0, 137).trimEnd() + '...') : rowText;
-      var replySeed = 'Reply to: "' + shortText + '"\n';
-      var currentText = String(this.inputText || '');
-      this.inputText = currentText.trim() ? (replySeed + currentText) : replySeed;
-      this._pendingReplyFromMeta = {
-        message_id: String(row.id || '').trim(),
-        message_index: resolvedIndex,
-        created_at: Date.now()
-      };
-      if (typeof this.autoResizeChatInput === 'function') {
-        try { this.autoResizeChatInput(); } catch(_) {}
-      }
-      if (typeof this.$nextTick === 'function') {
-        this.$nextTick(function() {
-          try {
-            var input = document.getElementById('msg-input');
-            if (input && typeof input.focus === 'function') input.focus();
-          } catch(_) {}
-        });
-      }
+      void msg;
+      void idx;
+      void rows;
+      if (typeof InfringToast !== 'undefined') InfringToast.info('Reply requires a backend quote-by-reference contract.');
     },
 
     messageCanForkFromMeta: function(msg) {
@@ -543,33 +513,14 @@
       return !!(service && typeof service.canFork === 'function' && service.canFork(msg, this.currentAgent));
     },
 
-    _forkAgentRequestedName: function(sourceName) {
-      var base = String(sourceName || '').trim();
-      if (!base) base = 'agent';
-      var requested = base + '-fork';
-      if (requested.length > 120) requested = requested.slice(0, 120).trim();
-      if (!requested) requested = 'agent-fork';
-      return requested;
-    },
-
     retryMessageFromMeta: async function(msg, idx, rows) {
       if (this.sending) return;
       var allowed = this.messageCanRetryFromMeta(msg, idx, rows);
       if (!allowed) return;
-      var source = this.messageRetrySource(msg, idx, rows);
-      if (!source) {
-        if (typeof InfringToast !== 'undefined') InfringToast.info('No prior user prompt was found for resend.');
-        return;
-      }
-      var text = String(source.text || '').trim();
-      if (!text) {
-        if (typeof InfringToast !== 'undefined') InfringToast.info('Resend source is empty.');
-        return;
-      }
-      await this._sendPayload(text, [], [], {
-        agent_id: this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '',
-        retry_from_meta: true
-      });
+      void msg;
+      void idx;
+      void rows;
+      if (typeof InfringToast !== 'undefined') InfringToast.info('Retry requires a backend replay contract.');
     },
 
     forkMessageFromMeta: async function(msg, idx, rows) {
@@ -580,15 +531,11 @@
       var sourceAgent = this.currentAgent && typeof this.currentAgent === 'object' ? this.currentAgent : {};
       var sourceAgentId = String(sourceAgent.id || '').trim();
       if (!sourceAgentId) return;
-      var sourceAgentName = String(sourceAgent.name || sourceAgentId).trim();
-      var requestedName = typeof this._forkAgentRequestedName === 'function'
-        ? this._forkAgentRequestedName(sourceAgentName)
-        : (sourceAgentName + '-fork');
       try {
         this.cacheCurrentConversation();
         var created = await InfringAPI.post(
           '/api/agents/' + encodeURIComponent(sourceAgentId) + '/clone',
-          { new_name: requestedName }
+          {}
         );
         var forkedAgentId = String(
           (created && (created.agent_id || created.id)) ||

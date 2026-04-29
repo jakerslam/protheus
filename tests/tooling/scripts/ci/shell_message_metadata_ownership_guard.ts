@@ -10,6 +10,7 @@ const ROOT = process.cwd();
 const DEFAULT_SERVICE = 'client/runtime/systems/ui/infring_static/js/shell/message_metadata_shell_services.ts';
 const DEFAULT_SVELTE_SOURCE = 'client/runtime/systems/ui/infring_static/js/svelte/message_meta_shell_svelte_source.ts';
 const DEFAULT_SVELTE_BUNDLE = 'client/runtime/systems/ui/infring_static/js/svelte/message_meta_shell.bundle.ts';
+const DEFAULT_CHAT_THREAD_SOURCE = 'client/runtime/systems/ui/infring_static/js/svelte/chat_thread_shell_svelte_source.ts';
 const DEFAULT_CHAT = 'client/runtime/systems/ui/infring_static/js/pages/chat.ts';
 const DEFAULT_STATS_PART = 'client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/160-runtime-events-and-render.part02.ts';
 const DEFAULT_HOVER_PART = 'client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/210-scroll-hover-sanitize.part01.ts';
@@ -31,6 +32,7 @@ type Args = {
   servicePath: string;
   svelteSourcePath: string;
   svelteBundlePath: string;
+  chatThreadSourcePath: string;
   chatPath: string;
   statsPartPath: string;
   hoverPartPath: string;
@@ -58,6 +60,7 @@ function readArgs(argv: string[]): Args {
     servicePath: cleanText(readFlag(argv, 'service') || DEFAULT_SERVICE, 400),
     svelteSourcePath: cleanText(readFlag(argv, 'svelte-source') || DEFAULT_SVELTE_SOURCE, 400),
     svelteBundlePath: cleanText(readFlag(argv, 'svelte-bundle') || DEFAULT_SVELTE_BUNDLE, 400),
+    chatThreadSourcePath: cleanText(readFlag(argv, 'chat-thread-source') || DEFAULT_CHAT_THREAD_SOURCE, 400),
     chatPath: cleanText(readFlag(argv, 'chat') || DEFAULT_CHAT, 400),
     statsPartPath: cleanText(readFlag(argv, 'stats-part') || DEFAULT_STATS_PART, 400),
     hoverPartPath: cleanText(readFlag(argv, 'hover-part') || DEFAULT_HOVER_PART, 400),
@@ -91,6 +94,14 @@ function forbidTokens(path: string, source: string, tokens: string[], kind: stri
     .map((token) => ({ kind, path, token, detail }));
 }
 
+function sourceBetween(source: string, startToken: string, endToken: string): string {
+  const start = source.indexOf(startToken);
+  if (start < 0) return '';
+  const end = source.indexOf(endToken, start + startToken.length);
+  if (end <= start) return '';
+  return source.slice(start, end);
+}
+
 function markdown(payload: any): string {
   const lines: string[] = [];
   lines.push('# Shell Message Metadata Ownership Guard');
@@ -119,6 +130,7 @@ async function run(argv = process.argv.slice(2)) {
     args.servicePath,
     args.svelteSourcePath,
     args.svelteBundlePath,
+    args.chatThreadSourcePath,
     args.chatPath,
     args.statsPartPath,
     args.hoverPartPath,
@@ -135,7 +147,6 @@ async function run(argv = process.argv.slice(2)) {
     violations.push(...requireTokens(args.servicePath, service, [
       'services.messageMeta',
       'resolveIndex: resolveIndex',
-      'retrySource: retrySource',
       'isLatestAgent: isLatestAgent',
       'canRetry: canRetry',
       'canReply: canReply',
@@ -168,14 +179,23 @@ async function run(argv = process.argv.slice(2)) {
       'infring-message-meta-shell',
     ], 'stale_message_metadata_bundle', 'The generated metadata shell bundle must contain the compiled metadata renderer.'));
 
+    const chatThreadSource = readText(args.chatThreadSourcePath);
+    violations.push(...requireTokens(args.chatThreadSourcePath, chatThreadSource, [
+      '<infring-message-meta-shell',
+      "state={callStr('messageMetadataShellState', msg, idx, messages)}",
+      'on:message-meta-action={e => onMetaAction(e, msg, idx)}',
+      'p.handleMessageMetaAction(e, msg, idx, messages);',
+    ], 'chat_thread_metadata_shell_not_wired', 'Chat thread Svelte shell must invoke the metadata shell with service-backed state and actions.'));
+
     for (const htmlPath of args.htmlFiles) {
       const html = readText(htmlPath);
       violations.push(...requireTokens(htmlPath, html, [
+        '<infring-chat-thread-shell></infring-chat-thread-shell>',
+      ], 'html_chat_thread_shell_not_wired', 'Chat templates must mount the Svelte chat thread shell; metadata controls live inside that shell.'));
+      violations.push(...forbidTokens(htmlPath, html, [
         '<infring-message-meta-shell',
         'messageMetadataShellState(msg, idx,',
         'handleMessageMetaAction($event, msg, idx,',
-      ], 'html_metadata_shell_not_wired', 'Chat templates must invoke the Svelte metadata shell with a service-backed state model.'));
-      violations.push(...forbidTokens(htmlPath, html, [
         'messageCanReportIssueFromMeta',
         'messageCanRetryFromMeta',
         'messageCanReplyFromMeta',
@@ -198,7 +218,6 @@ async function run(argv = process.argv.slice(2)) {
       'messageMetadataShellState',
       'handleMessageMetaAction',
       'service.viewModel',
-      'service.retrySource',
       'service.canRetry',
       'service.canReply',
       'service.canFork',
@@ -207,16 +226,61 @@ async function run(argv = process.argv.slice(2)) {
       'service.burnLabelText',
       'service.visible',
     ], 'chat_metadata_wrapper_not_delegated', 'Runtime chat compatibility methods must delegate metadata truth to shared shell services.'));
+    violations.push(...forbidTokens(args.chatPath, chat, [
+      '_forkAgentRequestedName',
+      'new_name: requestedName',
+      'messageRetrySource',
+      'retry_from_meta',
+      'Reply to: "',
+      '_pendingReplyFromMeta',
+    ], 'chat_metadata_action_shell_fork_naming', 'Message meta fork actions must submit the fork request and let the backend assign clone name and identity.'));
+    const workspaceProjectionBlock = sourceBetween(
+      chat,
+      '_messageTextPreviewForWorkspace: function(msg) {',
+      '\n\n    messageMetadataService: function()'
+    );
+    if (!workspaceProjectionBlock) {
+      violations.push({
+        kind: 'workspace_projection_block_missing',
+        path: args.chatPath,
+        detail: 'Workspace panel projection helpers must remain grouped before message metadata service wiring.',
+      });
+    } else {
+      violations.push(...requireTokens(args.chatPath, workspaceProjectionBlock, [
+        '_messageTextPreviewForWorkspace',
+        '_messageArtifactsForWorkspace',
+        'openWorkspacePanelForMessage',
+        'workspacePanelPayload',
+        'this.messageToolTraceRows(row)',
+        'this.messageSourceChips(row)',
+      ], 'workspace_projection_token_missing', 'Workspace panel helpers must stay projection-only and source their rows from existing message display helpers.'));
+      violations.push(...forbidTokens(args.chatPath, workspaceProjectionBlock, [
+        'InfringAPI.',
+        'normalizeSessionMessages',
+        'restoreAgentConversation',
+        'loadSession',
+        'fetch(',
+        'localStorage',
+      ], 'workspace_projection_gained_authority', 'Workspace panel helpers must not fetch, rebuild session truth, or read durable local state.'));
+    }
     violations.push(...requireTokens(args.metaPartPath, metaPart, [
       'messageMetadataService',
       'messageMetadataShellState',
       'handleMessageMetaAction',
       'service.viewModel',
-      'service.retrySource',
       'service.canRetry',
       'service.canReply',
       'service.canFork',
     ], 'chat_part_metadata_wrapper_not_delegated', 'Segmented chat metadata part must mirror service-backed ownership.'));
+    violations.push(...forbidTokens(args.metaPartPath, metaPart, [
+      '_forkAgentRequestedName',
+      'new_name: requestedName',
+      'messageRetrySource',
+      'retry_from_meta',
+      'this._sendPayload(text',
+      'Reply to: "',
+      '_pendingReplyFromMeta',
+    ], 'chat_part_metadata_action_shell_authority', 'Segmented chat metadata part must not reconstruct retry prompts or assign fork identity in Shell.'));
     violations.push(...requireTokens(args.statsPartPath, statsPart, ['service.responseTimeText', 'service.burnLabelText'], 'stats_part_metadata_not_delegated', 'Metadata indicator text must delegate to shared shell services.'));
     violations.push(...requireTokens(args.hoverPartPath, hoverPart, ['service.visible'], 'hover_part_metadata_not_delegated', 'Metadata visibility must delegate to shared shell services.'));
     violations.push(...requireTokens(args.reportPartPath, reportPart, ['service.canReportIssue'], 'report_part_metadata_not_delegated', 'Report issue eligibility must delegate to shared shell services.'));
