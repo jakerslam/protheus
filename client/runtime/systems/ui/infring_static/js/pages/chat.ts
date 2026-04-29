@@ -815,9 +815,14 @@ function chatPage() {
           }
         );
         this.applyAgentGitTreeState(this.currentAgent, result && result.current ? result.current : {});
-        var store = Alpine.store('app');
-        if (store && typeof store.refreshAgents === 'function') {
-          await store.refreshAgents({ force: true });
+        var appStoreBridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+          ? InfringSharedShellServices.appStore
+          : null;
+        var refreshAgents = appStoreBridge && typeof appStoreBridge.method === 'function'
+          ? appStoreBridge.method('refreshAgents')
+          : null;
+        if (typeof refreshAgents === 'function') {
+          await refreshAgents({ force: true });
         }
         await this.refreshGitTreeMenu(true);
         this.closeGitTreeMenu();
@@ -17232,9 +17237,14 @@ function chatPage() {
           throw new Error('agent_clone_failed');
         }
         var forkedAgentName = String((created && created.name) || forkedAgentId).trim();
-        var store = Alpine.store('app');
-        if (store && typeof store.refreshAgents === 'function') {
-          await store.refreshAgents({ force: true });
+        var appStoreBridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+          ? InfringSharedShellServices.appStore
+          : null;
+        var refreshAgents = appStoreBridge && typeof appStoreBridge.method === 'function'
+          ? appStoreBridge.method('refreshAgents')
+          : null;
+        if (typeof refreshAgents === 'function') {
+          await refreshAgents({ force: true });
         }
         var resolvedForkedAgent = this.resolveAgent(forkedAgentId);
         if (!resolvedForkedAgent) {
