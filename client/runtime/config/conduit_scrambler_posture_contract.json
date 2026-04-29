@@ -10,6 +10,7 @@
   ],
   "policy_doc_required_tokens": [
     "Every Conduit route declares its security posture.",
+    "single explicit A-to-B connection point inside a Nexus",
     "`strong_scrambler` is required when a route could expose or help reconstruct authority surfaces.",
     "`quantum_resistant_scrambler` is reserved for a future security milestone.",
     "Enforcement command: `npm run -s ops:conduit:scrambler-posture:guard`."

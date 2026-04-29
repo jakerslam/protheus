@@ -31,6 +31,7 @@ type Contract = {
   policy_doc_path: string;
   related_policy_paths?: string[];
   policy_doc_required_tokens?: string[];
+  required_enforcement_responsibilities?: string[];
   required_route_classes?: string[];
   route_classes?: RouteClass[];
   forbidden_route_shapes?: string[];
@@ -57,6 +58,21 @@ const REQUIRED_ROUTE_CLASSES = [
   'health_status',
   'detail_fetch',
   'bounded_search_query',
+];
+
+const REQUIRED_ENFORCEMENT_RESPONSIBILITIES = [
+  'authentication',
+  'authorization',
+  'payload_limits',
+  'projection_shaping',
+  'rate_limits',
+  'capability_checks',
+  'mutation_approval_checks',
+  'audit_receipts',
+  'route_policy',
+  'shell_isolation',
+  'lazy_detail_access',
+  'issue_eval_submission_controls',
 ];
 
 const ALLOWED_DIRECTIONS = new Set([
@@ -107,6 +123,7 @@ function cloneContract(contract: Contract): Contract {
 function applyControlledViolation(contract: Contract): Contract {
   const copy = cloneContract(contract);
   copy.required_route_classes = (copy.required_route_classes || []).filter((name) => name !== 'health_status');
+  copy.required_enforcement_responsibilities = (copy.required_enforcement_responsibilities || []).filter((name) => name !== 'authentication');
   const ingress = (copy.route_classes || []).find((row) => row.name === 'request_ingress');
   if (ingress) {
     ingress.payload_class = 'full_state';
@@ -120,6 +137,11 @@ function applyControlledViolation(contract: Contract): Contract {
     detail.nexus_checkpoint = false;
   }
   return copy;
+}
+
+function responsibilityText(name: string): string {
+  if (name === 'issue_eval_submission_controls') return 'issue and eval submission controls';
+  return name.replace(/_/g, ' ');
 }
 
 function validateDocs(contract: Contract, contractPath: string, violations: Violation[]): void {
@@ -152,6 +174,31 @@ function validateRouteClassList(contract: Contract, violations: Violation[]): vo
   }
   for (const duplicate of duplicateValues(routeNames)) {
     violations.push({ kind: 'gateway_duplicate_route_class', detail: `Duplicate route class ${duplicate}.` });
+  }
+}
+
+function validateGatewayResponsibilities(contract: Contract, violations: Violation[]): void {
+  const declared = new Set(contract.required_enforcement_responsibilities || []);
+  for (const responsibility of REQUIRED_ENFORCEMENT_RESPONSIBILITIES) {
+    if (!declared.has(responsibility)) {
+      violations.push({
+        kind: 'gateway_enforcement_responsibility_missing',
+        detail: `Gateway contract is missing required enforcement responsibility ${responsibility}.`,
+      });
+    }
+  }
+  if (contract.policy_doc_path && exists(contract.policy_doc_path)) {
+    const policy = readText(contract.policy_doc_path).toLowerCase();
+    for (const responsibility of REQUIRED_ENFORCEMENT_RESPONSIBILITIES) {
+      const text = responsibilityText(responsibility);
+      if (!policy.includes(text)) {
+        violations.push({
+          kind: 'gateway_enforcement_responsibility_policy_missing',
+          path: contract.policy_doc_path,
+          detail: `Gateway policy is missing required enforcement responsibility text: ${text}.`,
+        });
+      }
+    }
   }
 }
 
@@ -219,6 +266,7 @@ async function run(argv = process.argv.slice(2)) {
 
   validateDocs(contract, args.contractPath, violations);
   validateRouteClassList(contract, violations);
+  validateGatewayResponsibilities(contract, violations);
   validateRoutes(contract, violations);
 
   const payload = {
@@ -231,6 +279,7 @@ async function run(argv = process.argv.slice(2)) {
     controlled_violation: args.includeControlledViolation,
     summary: {
       required_route_classes: (contract.required_route_classes || []).length,
+      required_enforcement_responsibilities: (contract.required_enforcement_responsibilities || []).length,
       route_classes: (contract.route_classes || []).length,
       forbidden_route_shapes: (contract.forbidden_route_shapes || []).length,
       forbidden_default_payload_fields: (contract.forbidden_default_payload_fields || []).length,

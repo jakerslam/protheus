@@ -1,5 +1,7 @@
 # Conduit/Scrambler Posture Policy
 
+Canonical terminology: **Nexus/Nexi** for the multi-file/multi-surface connection structure; **Conduit** for a single explicit A-to-B connection point inside a Nexus.
+
 Status: Canonical architecture policy
 Owner: Jay
 Scope: Core, Orchestration Surface, Shell, Gateways, Apps, Packages, and Tests
@@ -7,7 +9,7 @@ Effective: April 2026
 
 ## Purpose
 
-Conduit makes cross-boundary traffic visible, leased, lifecycle-gated, and receipt-trackable.
+Conduits make A-to-B cross-boundary connection points visible, leased, lifecycle-gated, and receipt-trackable.
 
 Scrambler defines the security posture of that traffic when the route shape itself could expose authority, policy structure, capability schema, or sensitive runtime internals.
 
@@ -15,7 +17,7 @@ This policy prevents "plain transport by accident" while avoiding false claims t
 
 ## Core Axiom
 
-Every cross-boundary route uses Conduit.
+Every cross-boundary route uses Nexus files/surfaces and at least one explicit Conduit connection point.
 
 Every Conduit route declares its security posture.
 
@@ -29,7 +31,7 @@ No route may silently downgrade its posture because a caller, Shell surface, ada
 
 ### Standard Conduit
 
-`standard_conduit` is the baseline for cross-boundary traffic.
+`standard_conduit` is the baseline posture for a low-sensitivity A-to-B Conduit.
 
 It requires:
 
@@ -41,7 +43,7 @@ It requires:
 - deterministic receipt or auditable receipt reference;
 - fail-closed handling for missing policy, lease, lifecycle, or receipt context.
 
-Standard Conduit is not "raw transport." It is the ordinary governed route for bounded low-sensitivity projections and control-plane metadata.
+Standard Conduit is not "raw transport." It is the ordinary governed connection point for bounded low-sensitivity projections and control-plane metadata.
 
 ### Strong Scrambler
 
@@ -126,7 +128,7 @@ The following are allowed:
 
 ## Relationship To Other Policies
 
-The Nexus-Conduit-Checkpoint policy defines where routes enter and exit.
+The Nexus-Conduit-Checkpoint policy defines where routes enter and exit and how individual A-to-B Conduits fit into the larger Nexus structure.
 
 The Gateway Ingress/Egress Interface policy defines route classes for ingress, egress, status, detail fetch, and bounded search/query.
 
@@ -134,7 +136,7 @@ The Interface Payload Budget policy defines default payload ceilings.
 
 The Shell UI Projection and Message Detail policies define what the Shell may receive by default and what must be fetched lazily by ref.
 
-This policy defines how sensitive Conduit routes declare and enforce their security posture.
+This policy defines how sensitive Conduits declare and enforce their security posture.
 
 ## Version Posture
 
