@@ -1642,991 +1642,163 @@ function app() {
     },
 
     normalizeBottomDockOrder(rawOrder) {
-      var service = this.taskbarDockService();
-      if (service && typeof service.normalizeOrder === 'function') return service.normalizeOrder(rawOrder, this.bottomDockDefaultOrder());
-      var defaults = this.bottomDockDefaultOrder();
-      var source = Array.isArray(rawOrder) ? rawOrder : [];
-      var seen = {};
-      var ordered = [];
-      for (var i = 0; i < source.length; i++) {
-        var id = String(source[i] || '').trim();
-        if (!id || seen[id] || defaults.indexOf(id) < 0) continue;
-        seen[id] = true;
-        ordered.push(id);
-      }
-      for (var j = 0; j < defaults.length; j++) {
-        var fallbackId = defaults[j];
-        if (seen[fallbackId]) continue;
-        seen[fallbackId] = true;
-        ordered.push(fallbackId);
-      }
-      return ordered;
+      return infringNormalizeBottomDockOrder(this, rawOrder);
     },
 
     persistBottomDockOrder() {
-      this.bottomDockOrder = this.normalizeBottomDockOrder(this.bottomDockOrder);
-      try {
-        var service = this.taskbarDockService();
-        if (service && typeof service.persistDockOrder === 'function') this.bottomDockOrder = service.persistDockOrder(this.bottomDockOrder, this.bottomDockTileConfig);
-        else localStorage.setItem('infring-bottom-dock-order', JSON.stringify(this.bottomDockOrder));
-      } catch(_) {}
-      infringUpdateShellLayoutConfig(function(config) {
-        config.dock.order = this.bottomDockOrder.slice();
-      }.bind(this));
+      infringPersistBottomDockOrder(this);
     },
 
     bottomDockOrderIndex(id) {
-      var key = String(id || '').trim();
-      if (!key) return 999;
-      var service = this.taskbarDockService();
-      if (service && typeof service.orderIndex === 'function') {
-        return service.orderIndex(key, this.bottomDockOrder, this.bottomDockDefaultOrder());
-      }
-      var order = this.normalizeBottomDockOrder(this.bottomDockOrder);
-      var idx = order.indexOf(key);
-      if (idx >= 0) return idx;
-      var fallback = this.bottomDockDefaultOrder().indexOf(key);
-      return fallback >= 0 ? fallback : 999;
+      return infringBottomDockOrderIndex(this, id);
     },
 
     bottomDockAxisBasis(sideHint) {
-      var rotationDeg = this.bottomDockRotationDegResolved(sideHint);
-      var theta = (Number(rotationDeg || 0) * Math.PI) / 180;
-      var ux = Math.cos(theta);
-      var uy = Math.sin(theta);
-      if (Math.abs(ux) < 0.0001) ux = 0;
-      if (Math.abs(uy) < 0.0001) uy = 0;
-      return { ux: ux, uy: uy, vx: -uy, vy: ux };
+      return infringBottomDockAxisBasis(this, sideHint);
     },
 
     bottomDockProjectPointToAxis(x, y, basis) {
-      var axis = basis && typeof basis === 'object'
-        ? basis
-        : this.bottomDockAxisBasis();
-      var ux = Number(axis.ux || 0);
-      var uy = Number(axis.uy || 0);
-      var vx = Number(axis.vx || (-uy));
-      var vy = Number(axis.vy || ux);
-      var px = Number(x || 0);
-      var py = Number(y || 0);
-      return {
-        primary: (px * ux) + (py * uy),
-        secondary: (px * vx) + (py * vy)
-      };
+      return infringBottomDockProjectPointToAxis(this, x, y, basis);
     },
 
     bottomDockAxisHalfExtent(width, height, basis) {
-      var axis = basis && typeof basis === 'object'
-        ? basis
-        : this.bottomDockAxisBasis();
-      var w = Number(width || 0);
-      var h = Number(height || 0);
-      if (!Number.isFinite(w) || w < 0) w = 0;
-      if (!Number.isFinite(h) || h < 0) h = 0;
-      var ux = Math.abs(Number(axis.ux || 0));
-      var uy = Math.abs(Number(axis.uy || 0));
-      var vx = Math.abs(Number(axis.vx || 0));
-      var vy = Math.abs(Number(axis.vy || 0));
-      return {
-        primary: ((ux * w) + (uy * h)) / 2,
-        secondary: ((vx * w) + (vy * h)) / 2
-      };
+      return infringBottomDockAxisHalfExtent(this, width, height, basis);
     },
 
     bottomDockProjectedRectBounds(rect, basis) {
-      if (!rect) return null;
-      var axis = basis && typeof basis === 'object'
-        ? basis
-        : this.bottomDockAxisBasis();
-      var left = Number(rect.left || 0);
-      var top = Number(rect.top || 0);
-      var right = Number(rect.right || left);
-      var bottom = Number(rect.bottom || top);
-      var p1 = this.bottomDockProjectPointToAxis(left, top, axis);
-      var p2 = this.bottomDockProjectPointToAxis(right, top, axis);
-      var p3 = this.bottomDockProjectPointToAxis(left, bottom, axis);
-      var p4 = this.bottomDockProjectPointToAxis(right, bottom, axis);
-      var primaryMin = Math.min(p1.primary, p2.primary, p3.primary, p4.primary);
-      var primaryMax = Math.max(p1.primary, p2.primary, p3.primary, p4.primary);
-      var secondaryMin = Math.min(p1.secondary, p2.secondary, p3.secondary, p4.secondary);
-      var secondaryMax = Math.max(p1.secondary, p2.secondary, p3.secondary, p4.secondary);
-      return {
-        primaryMin: primaryMin,
-        primaryMax: primaryMax,
-        secondaryMin: secondaryMin,
-        secondaryMax: secondaryMax
-      };
+      return infringBottomDockProjectedRectBounds(this, rect, basis);
     },
 
     bottomDockButtonRects() {
-      var out = {};
-      var root = document.querySelector('.bottom-dock');
-      if (!root) return out;
-      var nodes = root.querySelectorAll('.bottom-dock-btn[data-dock-id]');
-      for (var i = 0; i < nodes.length; i++) {
-        var node = nodes[i];
-        if (!node) continue;
-        var id = String(node.getAttribute('data-dock-id') || '').trim();
-        if (!id) continue;
-        var rect = node.getBoundingClientRect();
-        var width = Number(rect.width || 0);
-        var height = Number(rect.height || 0);
-        var left = Number(rect.left || 0);
-        var top = Number(rect.top || 0);
-        out[id] = {
-          left: left,
-          top: top,
-          width: width,
-          height: height,
-          cx: left + (width / 2),
-          cy: top + (height / 2)
-        };
-      }
-      return out;
+      return infringBottomDockButtonRects();
     },
 
     animateBottomDockFromRects(beforeRects) {
-      if (!beforeRects || typeof beforeRects !== 'object') return;
-      if (typeof requestAnimationFrame !== 'function') return;
-      var durationMs = this.bottomDockMoveDurationMs();
-      var self = this;
-      requestAnimationFrame(function() {
-        var root = document.querySelector('.bottom-dock');
-        if (!root) return;
-        var rootScale = self.readBottomDockScale(root);
-        if (!Number.isFinite(rootScale) || rootScale <= 0.01) rootScale = 1;
-        var side = self.bottomDockActiveSide();
-        var nodes = root.querySelectorAll('.bottom-dock-btn[data-dock-id]');
-        for (var i = 0; i < nodes.length; i++) {
-          var node = nodes[i];
-          if (!node || node.classList.contains('dragging')) continue;
-          var id = String(node.getAttribute('data-dock-id') || '').trim();
-          if (!id || !Object.prototype.hasOwnProperty.call(beforeRects, id)) continue;
-          var from = beforeRects[id] || {};
-          var rect = node.getBoundingClientRect();
-          var fromCx = Number(from.cx);
-          var fromCy = Number(from.cy);
-          if (!Number.isFinite(fromCx)) fromCx = Number(from.left || 0) + (Number(from.width || 0) / 2);
-          if (!Number.isFinite(fromCy)) fromCy = Number(from.top || 0) + (Number(from.height || 0) / 2);
-          var toCx = Number(rect.left || 0) + (Number(rect.width || 0) / 2);
-          var toCy = Number(rect.top || 0) + (Number(rect.height || 0) / 2);
-          var screenDx = Number(fromCx || 0) - Number(toCx || 0);
-          var screenDy = Number(fromCy || 0) - Number(toCy || 0);
-          if (Math.abs(screenDx) < 0.5 && Math.abs(screenDy) < 0.5) continue;
-          var localDelta = self.bottomDockScreenDeltaToLocal(screenDx, screenDy, side);
-          var tx = Number(localDelta.x || 0) / rootScale;
-          var ty = Number(localDelta.y || 0) / rootScale;
-          if (Math.abs(tx) < 0.25 && Math.abs(ty) < 0.25) continue;
-          node.style.setProperty('--dock-reorder-transition', '0ms');
-          node.style.setProperty('--dock-reorder-translate-x', Math.round(tx) + 'px');
-          node.style.setProperty('--dock-reorder-translate-y', Math.round(ty) + 'px');
-          void node.offsetHeight;
-          node.style.setProperty('--dock-reorder-transition', Math.max(0, Math.round(durationMs)) + 'ms');
-          node.style.setProperty('--dock-reorder-translate-x', '0px');
-          node.style.setProperty('--dock-reorder-translate-y', '0px');
-          (function(el) {
-            window.setTimeout(function() {
-              if (
-                !el.classList.contains('dragging') &&
-                !el.classList.contains('hovered') &&
-                !el.classList.contains('neighbor-hover') &&
-                !el.classList.contains('second-neighbor-hover')
-              ) {
-                el.style.removeProperty('--dock-reorder-translate-x');
-                el.style.removeProperty('--dock-reorder-translate-y');
-              }
-              el.style.removeProperty('--dock-reorder-transition');
-            }, durationMs + 30);
-          })(node);
-        }
-      });
+      infringAnimateBottomDockFromRects(this, beforeRects);
     },
 
     setBottomDockHover(id, ev) {
-      if (String(this.bottomDockDragId || '').trim()) return;
-      if (this.bottomDockContainerDragActive || this._bottomDockContainerPointerActive) return;
-      var key = String(id || '').trim();
-      this.bottomDockHoverId = key;
-      if (ev) {
-        var evX = Number(ev.clientX || 0);
-        var evY = Number(ev.clientY || 0);
-        if (Number.isFinite(evX) && evX > 0) this.bottomDockPointerX = evX;
-        if (Number.isFinite(evY) && evY > 0) this.bottomDockPointerY = evY;
-      }
-      if (this._bottomDockPreviewHideTimer) {
-        try { clearTimeout(this._bottomDockPreviewHideTimer); } catch(_) {}
-        this._bottomDockPreviewHideTimer = 0;
-      }
-      if (!Number.isFinite(this.bottomDockPointerX) || this.bottomDockPointerX <= 0) {
-        try {
-          var slot = document.querySelector('.bottom-dock .dock-tile-slot[data-dock-slot-id="' + key + '"]');
-          if (slot && typeof slot.getBoundingClientRect === 'function') {
-            var slotRect = slot.getBoundingClientRect();
-            this.bottomDockPointerX = Number(slotRect.left || 0) + (Number(slotRect.width || 0) / 2);
-            this.bottomDockPointerY = Number(slotRect.top || 0) + (Number(slotRect.height || 0) / 2);
-          }
-        } catch(_) {}
-      }
-      this.refreshBottomDockHoverWeights();
-      this.syncBottomDockPreview();
-      this.scheduleBottomDockPreviewReflow();
+      infringSetBottomDockHover(this, id, ev);
     },
 
     clearBottomDockHover(id) {
-      if (id) return;
-      this.bottomDockHoverId = '';
-      if (!this.bottomDockHoverId) {
-        this.bottomDockHoverWeightById = {};
-        this.bottomDockPointerX = 0;
-        this.bottomDockPointerY = 0;
-        this.cancelBottomDockPreviewReflow();
-        var self = this;
-        if (this._bottomDockPreviewHideTimer) {
-          try { clearTimeout(this._bottomDockPreviewHideTimer); } catch(_) {}
-        }
-        this._bottomDockPreviewHideTimer = window.setTimeout(function() {
-          self._bottomDockPreviewHideTimer = 0;
-          if (!String(self.bottomDockHoverId || '').trim()) {
-            self.bottomDockPreviewVisible = false;
-            self.bottomDockPreviewText = '';
-            self.bottomDockPreviewMorphFromText = '';
-            self.bottomDockPreviewLabelMorphing = false;
-            self.bottomDockPreviewWidth = 0;
-          }
-        }, 40);
-        return;
-      }
-      this.syncBottomDockPreview();
+      infringClearBottomDockHover(this, id);
     },
 
     readBottomDockSlotCenters() {
-      var out = [];
-      if (typeof document === 'undefined') return out;
-      var root = document.querySelector('.bottom-dock');
-      if (!root || typeof root.querySelectorAll !== 'function') return out;
-      var nodes = root.querySelectorAll('.dock-tile-slot[data-dock-slot-id]');
-      for (var i = 0; i < nodes.length; i += 1) {
-        var node = nodes[i];
-        if (!node || typeof node.getAttribute !== 'function' || typeof node.getBoundingClientRect !== 'function') continue;
-        var id = String(node.getAttribute('data-dock-slot-id') || '').trim();
-        if (!id) continue;
-        var rect = node.getBoundingClientRect();
-        var centerX = Number(rect.left || 0) + (Number(rect.width || 0) / 2);
-        var centerY = Number(rect.top || 0) + (Number(rect.height || 0) / 2);
-        if (!Number.isFinite(centerX) || !Number.isFinite(centerY)) continue;
-        out.push({ id: id, centerX: centerX, centerY: centerY });
-      }
-      return out;
+      return infringReadBottomDockSlotCenters();
     },
 
     bottomDockWeightForDistance(distancePx) {
-      var d = Math.abs(Number(distancePx || 0));
-      if (!Number.isFinite(d)) return 0;
-      var sigma = 52;
-      var exponent = -((d * d) / (2 * sigma * sigma));
-      var weight = Math.exp(exponent);
-      if (!Number.isFinite(weight) || weight < 0.008) return 0;
-      if (weight > 1) return 1;
-      return weight;
+      return infringBottomDockWeightForDistance(distancePx);
     },
 
     refreshBottomDockHoverWeights() {
-      var side = this.bottomDockActiveSide();
-      var vertical = this.bottomDockIsVerticalSide(side);
-      var primaryPointer = vertical
-        ? Number(this.bottomDockPointerY || 0)
-        : Number(this.bottomDockPointerX || 0);
-      if (!Number.isFinite(primaryPointer) || primaryPointer <= 0) {
-        this.bottomDockHoverWeightById = {};
-        return;
-      }
-      var centers = this.readBottomDockSlotCenters();
-      if (!centers.length) {
-        this.bottomDockHoverWeightById = {};
-        return;
-      }
-      var nearestId = '';
-      var nearestDistance = Number.POSITIVE_INFINITY;
-      var weights = {};
-      for (var i = 0; i < centers.length; i += 1) {
-        var item = centers[i];
-        if (!item || !item.id) continue;
-        var anchor = vertical ? Number(item.centerY || 0) : Number(item.centerX || 0);
-        var dist = Math.abs(primaryPointer - anchor);
-        if (!Number.isFinite(dist)) continue;
-        if (dist < nearestDistance) {
-          nearestDistance = dist;
-          nearestId = item.id;
-        }
-        weights[item.id] = this.bottomDockWeightForDistance(dist);
-      }
-      this.bottomDockHoverWeightById = weights;
-      if (nearestId) this.bottomDockHoverId = nearestId;
+      infringRefreshBottomDockHoverWeights(this);
     },
 
     updateBottomDockPointer(ev) {
-      if (!ev) return;
-      if (String(this.bottomDockDragId || '').trim()) return;
-      if (this.bottomDockContainerDragActive || this._bottomDockContainerPointerActive) return;
-      var x = Number(ev.clientX || 0);
-      var y = Number(ev.clientY || 0);
-      if (!Number.isFinite(x) || x <= 0) return;
-      this.bottomDockPointerX = x;
-      if (Number.isFinite(y) && y > 0) this.bottomDockPointerY = y;
-      this.refreshBottomDockHoverWeights();
-      this.syncBottomDockPreview();
+      infringUpdateBottomDockPointer(this, ev);
     },
 
     reviveBottomDockHoverFromPoint(clientX, clientY) {
-      if (String(this.bottomDockDragId || '').trim()) return;
-      if (this.bottomDockContainerDragActive || this._bottomDockContainerPointerActive) return;
-      var x = Number(clientX || 0);
-      var y = Number(clientY || 0);
-      if (!Number.isFinite(x) || !Number.isFinite(y) || x <= 0 || y <= 0) return;
-      var root = document.querySelector('.bottom-dock');
-      if (!root || typeof root.getBoundingClientRect !== 'function') return;
-      var rect = root.getBoundingClientRect();
-      var withinX = x >= (Number(rect.left || 0) - 16) && x <= (Number(rect.right || 0) + 16);
-      var withinY = y >= (Number(rect.top || 0) - 18) && y <= (Number(rect.bottom || 0) + 18);
-      if (!withinX || !withinY) return;
-      this.bottomDockPointerX = x;
-      this.bottomDockPointerY = y;
-      this.refreshBottomDockHoverWeights();
-      this.syncBottomDockPreview();
-      this.scheduleBottomDockPreviewReflow();
+      infringReviveBottomDockHoverFromPoint(this, clientX, clientY);
     },
 
     scheduleBottomDockPreviewReflow() {
-      this.cancelBottomDockPreviewReflow();
-      var self = this;
-      this._bottomDockPreviewReflowFrames = 10;
-      var step = function() {
-        if (!String(self.bottomDockHoverId || '').trim()) {
-          self._bottomDockPreviewReflowRaf = 0;
-          self._bottomDockPreviewReflowFrames = 0;
-          return;
-        }
-        self.syncBottomDockPreview();
-        self._bottomDockPreviewReflowFrames = Math.max(0, Number(self._bottomDockPreviewReflowFrames || 0) - 1);
-        if (self._bottomDockPreviewReflowFrames <= 0) {
-          self._bottomDockPreviewReflowRaf = 0;
-          return;
-        }
-        self._bottomDockPreviewReflowRaf = requestAnimationFrame(step);
-      };
-      this._bottomDockPreviewReflowRaf = requestAnimationFrame(step);
+      infringScheduleBottomDockPreviewReflow(this);
     },
 
     cancelBottomDockPreviewReflow() {
-      if (this._bottomDockPreviewReflowRaf && typeof cancelAnimationFrame === 'function') {
-        try { cancelAnimationFrame(this._bottomDockPreviewReflowRaf); } catch(_) {}
-      }
-      this._bottomDockPreviewReflowRaf = 0;
-      this._bottomDockPreviewReflowFrames = 0;
+      infringCancelBottomDockPreviewReflow(this);
     },
 
     syncBottomDockPreview() {
-      var key = String(this.bottomDockHoverId || '').trim();
-      if (!key) {
-        this.bottomDockPreviewVisible = false;
-        this.bottomDockPreviewText = '';
-        this.bottomDockPreviewMorphFromText = '';
-        this.bottomDockPreviewHoverKey = '';
-        this.bottomDockPreviewLabelMorphing = false;
-        this.bottomDockPreviewWidth = 0;
-        this.bottomDockPreviewLabelFxReady = true;
-        return;
-      }
-      var text = this.bottomDockTileData(key, 'tooltip', '');
-      var label = String(text || '').trim();
-      if (!label) {
-        this.bottomDockPreviewVisible = false;
-        this.bottomDockPreviewText = '';
-        this.bottomDockPreviewMorphFromText = '';
-        this.bottomDockPreviewHoverKey = '';
-        this.bottomDockPreviewLabelMorphing = false;
-        this.bottomDockPreviewWidth = 0;
-        this.bottomDockPreviewLabelFxReady = true;
-        return;
-      }
-      var root = document.querySelector('.bottom-dock');
-      var slot = document.querySelector('.bottom-dock .dock-tile-slot[data-dock-slot-id="' + key + '"]');
-      if (!root || !slot) {
-        this.bottomDockPreviewVisible = false;
-        this.bottomDockPreviewText = '';
-        this.bottomDockPreviewMorphFromText = '';
-        this.bottomDockPreviewHoverKey = '';
-        this.bottomDockPreviewLabelMorphing = false;
-        this.bottomDockPreviewWidth = 0;
-        this.bottomDockPreviewLabelFxReady = true;
-        return;
-      }
-      var centerX = 0;
-      var centerY = 0;
-      var anchorY = 0;
-      var anchorX = 0;
-      var wallSide = this.bottomDockWallSide();
-      var openSide = this.bottomDockOpenSide();
-      var vertical = this.bottomDockIsVerticalSide(wallSide);
-      var dockRect = (typeof root.getBoundingClientRect === 'function')
-        ? root.getBoundingClientRect()
-        : null;
-      if (typeof slot.getBoundingClientRect === 'function' && dockRect) {
-        var slotRect = slot.getBoundingClientRect();
-        centerX = Number(slotRect.left || 0) + (Number(slotRect.width || 0) / 2);
-        centerY = Number(slotRect.top || 0) + (Number(slotRect.height || 0) / 2);
-        if (openSide === 'top') {
-          anchorY = Number(dockRect.top || 0) - 8;
-        } else if (openSide === 'bottom') {
-          anchorY = Number(dockRect.bottom || 0) + 8;
-        } else if (openSide === 'left') {
-          anchorX = Number(dockRect.left || 0) - 8;
-        } else {
-          anchorX = Number(dockRect.right || 0) + 8;
-        }
-      } else if (slot.offsetParent === root) {
-        var rootRect = root.getBoundingClientRect();
-        centerX = Number(rootRect.left || 0) + Number(slot.offsetLeft || 0) + (Number(slot.offsetWidth || 0) / 2);
-        centerY = Number(rootRect.top || 0) + Number(slot.offsetTop || 0) + (Number(slot.offsetHeight || 0) / 2);
-        if (openSide === 'top') {
-          anchorY = Number(rootRect.top || 0) - 8;
-        } else if (openSide === 'bottom') {
-          anchorY = Number(rootRect.bottom || 0) + 8;
-        } else if (openSide === 'left') {
-          anchorX = Number(rootRect.left || 0) - 8;
-        } else {
-          anchorX = Number(rootRect.right || 0) + 8;
-        }
-      }
-      var pointerX = Number(this.bottomDockPointerX || 0);
-      var pointerY = Number(this.bottomDockPointerY || 0);
-      if (!vertical && Number.isFinite(pointerX) && pointerX > 0) {
-        if (dockRect) {
-          var minX = Number(dockRect.left || 0);
-          var maxX = Number(dockRect.right || 0);
-          if (Number.isFinite(minX) && Number.isFinite(maxX) && maxX > minX) {
-            pointerX = Math.max(minX, Math.min(maxX, pointerX));
-          }
-        }
-        centerX = pointerX;
-      }
-      if (vertical && Number.isFinite(pointerY) && pointerY > 0) {
-        if (dockRect) {
-          var minY = Number(dockRect.top || 0);
-          var maxY = Number(dockRect.bottom || 0);
-          if (Number.isFinite(minY) && Number.isFinite(maxY) && maxY > minY) {
-            pointerY = Math.max(minY, Math.min(maxY, pointerY));
-          }
-        }
-        centerY = pointerY;
-      }
-      if (!Number.isFinite(centerX)) centerX = 0;
-      if (!Number.isFinite(centerY)) centerY = 0;
-      if (!Number.isFinite(anchorX)) anchorX = 0;
-      if (!Number.isFinite(anchorY)) anchorY = 0;
-      this.bottomDockPreviewX = vertical ? anchorX : centerX;
-      this.bottomDockPreviewY = vertical ? centerY : anchorY;
-      this.bottomDockPreviewHoverKey = key;
-      this.bottomDockPreviewVisible = true;
-      this.bottomDockPreviewText = label;
-      this.bottomDockPreviewMorphFromText = '';
-      this.bottomDockPreviewLabelMorphing = false;
-      this.bottomDockPreviewWidth = 0;
-      this.bottomDockPreviewLabelFxReady = true;
+      infringSyncBottomDockPreview(this);
     },
 
     bindBottomDockPointerListeners() {
-      if (this._bottomDockPointerMoveHandler || this._bottomDockPointerUpHandler) return;
-      var self = this;
-      this._bottomDockPointerMoveHandler = function(ev) { self.handleBottomDockPointerMove(ev); };
-      this._bottomDockPointerUpHandler = function(ev) { self.endBottomDockPointerDrag(ev); };
-      window.addEventListener('pointermove', this._bottomDockPointerMoveHandler, true);
-      window.addEventListener('pointerup', this._bottomDockPointerUpHandler, true);
-      window.addEventListener('pointercancel', this._bottomDockPointerUpHandler, true);
-      window.addEventListener('mousemove', this._bottomDockPointerMoveHandler, true);
-      window.addEventListener('mouseup', this._bottomDockPointerUpHandler, true);
+      infringBindBottomDockPointerListeners(this);
     },
 
     unbindBottomDockPointerListeners() {
-      if (this._bottomDockPointerMoveHandler) {
-        try { window.removeEventListener('pointermove', this._bottomDockPointerMoveHandler, true); } catch(_) {}
-        try { window.removeEventListener('mousemove', this._bottomDockPointerMoveHandler, true); } catch(_) {}
-      }
-      if (this._bottomDockPointerUpHandler) {
-        try { window.removeEventListener('pointerup', this._bottomDockPointerUpHandler, true); } catch(_) {}
-        try { window.removeEventListener('pointercancel', this._bottomDockPointerUpHandler, true); } catch(_) {}
-        try { window.removeEventListener('mouseup', this._bottomDockPointerUpHandler, true); } catch(_) {}
-      }
-      this._bottomDockPointerMoveHandler = null;
-      this._bottomDockPointerUpHandler = null;
+      infringUnbindBottomDockPointerListeners(this);
     },
 
     startBottomDockPointerDrag(id, ev) {
-      if (!ev || Number(ev.button) !== 0) return;
-      if (this.bottomDockContainerDragActive || this._bottomDockContainerPointerActive) return;
-      var key = String(id || '').trim();
-      if (!key) return;
-      var hostEl = ev && ev.currentTarget ? ev.currentTarget : null;
-      if (hostEl && typeof hostEl.getBoundingClientRect === 'function') {
-        try {
-          var rect = hostEl.getBoundingClientRect();
-          var width = Number(rect.width || 32);
-          var height = Number(rect.height || 32);
-          var baseWidth = Number(hostEl && hostEl.offsetWidth ? hostEl.offsetWidth : width || 32);
-          var baseHeight = Number(hostEl && hostEl.offsetHeight ? hostEl.offsetHeight : height || 32);
-          if (!Number.isFinite(width) || width <= 0) width = 32;
-          if (!Number.isFinite(height) || height <= 0) height = 32;
-          if (!Number.isFinite(baseWidth) || baseWidth <= 0) baseWidth = width;
-          if (!Number.isFinite(baseHeight) || baseHeight <= 0) baseHeight = height;
-          var expandedScale = this.bottomDockExpandedScale();
-          var expandedWidth = baseWidth * expandedScale;
-          var expandedHeight = baseHeight * expandedScale;
-          this._bottomDockDragGhostWidth = Math.max(20, Math.min(112, Math.max(width, expandedWidth)));
-          this._bottomDockDragGhostHeight = Math.max(20, Math.min(112, Math.max(height, expandedHeight)));
-          var offsetX = Number(ev.clientX || 0) - Number(rect.left || 0);
-          var offsetY = Number(ev.clientY || 0) - Number(rect.top || 0);
-          var relX = Number.isFinite(offsetX) && width > 0 ? (offsetX / width) : 0.5;
-          var relY = Number.isFinite(offsetY) && height > 0 ? (offsetY / height) : 0.5;
-          relX = Math.max(0, Math.min(1, relX));
-          relY = Math.max(0, Math.min(1, relY));
-          this._bottomDockPointerGrabOffsetX = relX * this._bottomDockDragGhostWidth;
-          this._bottomDockPointerGrabOffsetY = relY * this._bottomDockDragGhostHeight;
-        } catch(_) {
-          this._bottomDockPointerGrabOffsetX = 16;
-          this._bottomDockPointerGrabOffsetY = 16;
-          this._bottomDockDragGhostWidth = 32;
-          this._bottomDockDragGhostHeight = 32;
-        }
-      } else {
-        this._bottomDockPointerGrabOffsetX = 16;
-        this._bottomDockPointerGrabOffsetY = 16;
-        this._bottomDockDragGhostWidth = 32;
-        this._bottomDockDragGhostHeight = 32;
-      }
-      try {
-        if (hostEl && typeof hostEl.setPointerCapture === 'function' && Number.isFinite(ev.pointerId)) {
-          hostEl.setPointerCapture(ev.pointerId);
-        }
-      } catch(_) {}
-      this._bottomDockPointerActive = true;
-      this._bottomDockPointerMoved = false;
-      this._bottomDockPointerCandidateId = key;
-      this._bottomDockPointerStartX = Number(ev.clientX || 0);
-      this._bottomDockPointerStartY = Number(ev.clientY || 0);
-      this._bottomDockPointerLastX = Number(ev.clientX || 0);
-      this._bottomDockPointerLastY = Number(ev.clientY || 0);
-      this._bottomDockReorderLockUntil = 0;
-      this.bindBottomDockPointerListeners();
+      infringStartBottomDockPointerDrag(this, id, ev);
     },
 
     activateBottomDockPointerDrag(ev) {
-      if (this._bottomDockPointerMoved) return;
-      var dragId = String(this._bottomDockPointerCandidateId || '').trim();
-      if (!dragId) return;
-      this._bottomDockPointerMoved = true;
-      this.bottomDockHoverId = '';
-      this.bottomDockHoverWeightById = {};
-      this.bottomDockPointerX = 0;
-      this.bottomDockPointerY = 0;
-      this.bottomDockPreviewVisible = false;
-      this.bottomDockPreviewText = '';
-      this.bottomDockPreviewMorphFromText = '';
-      this.bottomDockPreviewLabelMorphing = false;
-      this.bottomDockPreviewWidth = 0;
-      this.cancelBottomDockPreviewReflow();
-      this._bottomDockRevealTargetDuringSettle = false;
-      this.bottomDockDragId = dragId;
-      this.bottomDockDragCommitted = false;
-      this.bottomDockDragStartOrder = this.normalizeBottomDockOrder(this.bottomDockOrder);
-      this.cleanupBottomDockDragGhost();
-      this.captureBottomDockDragBoundaries(dragId);
-      var originNode = document.querySelector('.bottom-dock-btn[data-dock-id="' + dragId + '"]');
-      if (!originNode || !document || !document.body) return;
-      var dockEl = document.querySelector('.bottom-dock');
-      if (dockEl && dockEl.style && typeof dockEl.style.setProperty === 'function') {
-        dockEl.style.setProperty('--bottom-dock-drag-scale', String(this.readBottomDockScale(dockEl)));
-      }
-      var ghost = document.createElement('div');
-      ghost.className = 'bottom-dock-drag-ghost bottom-dock-btn dock-tile';
-      var tone = '';
-      var iconKind = '';
-      try {
-        tone = String(originNode.getAttribute('data-dock-tone') || '').trim();
-        iconKind = String(originNode.getAttribute('data-dock-icon') || '').trim();
-      } catch(_) {
-        tone = '';
-        iconKind = '';
-      }
-      if (tone) ghost.setAttribute('data-dock-tone', tone);
-      if (iconKind) ghost.setAttribute('data-dock-icon', iconKind);
-      if (originNode.classList && typeof originNode.classList.contains === 'function') {
-        if (originNode.classList.contains('active')) ghost.classList.add('active');
-      }
-      ghost.setAttribute('aria-hidden', 'true');
-      ghost.innerHTML = String(originNode.innerHTML || '');
-      ghost.style.position = 'fixed';
-      ghost.style.width = Math.round(Number(this._bottomDockDragGhostWidth || 32)) + 'px';
-      ghost.style.height = Math.round(Number(this._bottomDockDragGhostHeight || 32)) + 'px';
-      ghost.style.borderRadius = Math.round((Number(this._bottomDockDragGhostWidth || 32) / 32) * 11) + 'px';
-      ghost.style.setProperty(
-        '--dock-ghost-scale',
-        String(Math.max(0.8, Math.min(4, Number(this._bottomDockDragGhostWidth || 32) / 32)))
-      );
-      var ghostUpDeg = Number(this.bottomDockUpDegForSide(this.bottomDockActiveSide()) || 0);
-      var ghostTileRotation = Math.round(ghostUpDeg) + 'deg';
-      var ghostIconRotation = '0deg';
-      ghost.style.setProperty('--bottom-dock-tile-rotation-deg', ghostTileRotation);
-      ghost.style.setProperty('--bottom-dock-icon-rotation-deg', ghostIconRotation);
-      var ghostX = Number(ev.clientX || 0) - Number(this._bottomDockPointerGrabOffsetX || 16);
-      var ghostY = Number(ev.clientY || 0) - Number(this._bottomDockPointerGrabOffsetY || 16);
-      this._bottomDockGhostCurrentX = ghostX;
-      this._bottomDockGhostCurrentY = ghostY;
-      ghost.style.left = Math.round(ghostX) + 'px';
-      ghost.style.top = Math.round(ghostY) + 'px';
-      ghost.style.margin = '0';
-      ghost.style.pointerEvents = 'none';
-      ghost.style.opacity = '1';
-      document.body.appendChild(ghost);
-      this._bottomDockDragGhostEl = ghost;
-      this.setBottomDockGhostTarget(ghostX, ghostY);
+      infringActivateBottomDockPointerDrag(this, ev);
     },
 
     handleBottomDockPointerMove(ev) {
-      if (!this._bottomDockPointerActive) return;
-      this._bottomDockPointerLastX = Number(ev.clientX || 0);
-      this._bottomDockPointerLastY = Number(ev.clientY || 0);
-      var movedX = Math.abs(Number(ev.clientX || 0) - Number(this._bottomDockPointerStartX || 0));
-      var movedY = Math.abs(Number(ev.clientY || 0) - Number(this._bottomDockPointerStartY || 0));
-      if (!this._bottomDockPointerMoved) {
-        if (movedX < 5 && movedY < 5) return;
-        this.activateBottomDockPointerDrag(ev);
-      }
-      if (!this._bottomDockPointerMoved) return;
-      if (ev && typeof ev.preventDefault === 'function' && ev.cancelable) ev.preventDefault();
-      var ghost = this._bottomDockDragGhostEl;
-      if (ghost) {
-        this.setBottomDockGhostTarget(
-          Number(ev.clientX || 0) - Number(this._bottomDockPointerGrabOffsetX || 16),
-          Number(ev.clientY || 0) - Number(this._bottomDockPointerGrabOffsetY || 16)
-        );
-      }
-      var dragId = String(this.bottomDockDragId || '').trim();
-      if (!dragId) return;
-      var insertionIndex = this.bottomDockInsertionIndexFromPointer(dragId, ev);
-      if (Number.isFinite(insertionIndex)) {
-        var normalizedIndex = Math.max(0, Math.round(Number(insertionIndex || 0)));
-        var nowMs = Date.now();
-        var lockUntil = Number(this._bottomDockReorderLockUntil || 0);
-        if (
-          normalizedIndex !== Number(this._bottomDockLastInsertionIndex || -1) &&
-          (!Number.isFinite(lockUntil) || lockUntil <= nowMs)
-        ) {
-          var changed = this.applyBottomDockReorderByIndex(dragId, normalizedIndex, true);
-          this._bottomDockLastInsertionIndex = normalizedIndex;
-          if (changed) {
-            var moveDuration = this.bottomDockMoveDurationMs();
-            var lockMs = Math.max(220, Math.min(420, Math.round(moveDuration * 0.55)));
-            this._bottomDockReorderLockUntil = nowMs + lockMs;
-          }
-        }
-        return;
-      }
-      var targetId = '';
-      var targetEl = null;
-      try {
-        var pointerEl = typeof document !== 'undefined' && typeof document.elementFromPoint === 'function'
-          ? document.elementFromPoint(Number(ev.clientX || 0), Number(ev.clientY || 0))
-          : null;
-        targetEl = pointerEl && typeof pointerEl.closest === 'function'
-          ? pointerEl.closest('.bottom-dock-btn[data-dock-id]')
-          : null;
-        targetId = targetEl ? String(targetEl.getAttribute('data-dock-id') || '').trim() : '';
-      } catch(_) {}
-      if (targetId && targetId !== dragId) {
-        this._bottomDockLastInsertionIndex = -1;
-        var preferAfter = this.bottomDockShouldInsertAfter(targetId, ev, targetEl);
-        this.handleBottomDockDragOver(targetId, ev, preferAfter);
-        return;
-      }
-      if (!this.bottomDockShouldAppendFromPointer(dragId, ev)) return;
-      var appendTargetId = this.bottomDockAppendTargetId(dragId);
-      if (!appendTargetId) return;
-      this._bottomDockLastInsertionIndex = -1;
-      this.handleBottomDockDragOver(appendTargetId, ev, true);
+      infringHandleBottomDockPointerMove(this, ev);
     },
 
     endBottomDockPointerDrag() {
-      if (!this._bottomDockPointerActive) return;
-      this._bottomDockPointerActive = false;
-      this.unbindBottomDockPointerListeners();
-      if (!this._bottomDockPointerMoved) {
-        this._bottomDockPointerCandidateId = '';
-        return;
-      }
-      var dragId = String(this.bottomDockDragId || this._bottomDockPointerCandidateId || '').trim();
-      if (dragId) {
-        var finalPointerEvent = {
-          clientX: Number(this._bottomDockPointerLastX || 0),
-          clientY: Number(this._bottomDockPointerLastY || 0)
-        };
-        var finalInsertionIndex = this.bottomDockInsertionIndexFromPointer(dragId, finalPointerEvent);
-        if (Number.isFinite(finalInsertionIndex)) {
-          this.applyBottomDockReorderByIndex(dragId, finalInsertionIndex, false);
-        } else if (this.bottomDockShouldAppendFromPointer(dragId, finalPointerEvent)) {
-          var appendTargetId = this.bottomDockAppendTargetId(dragId);
-          if (appendTargetId) {
-            this.handleBottomDockDragOver(appendTargetId, finalPointerEvent, true);
-          }
-        }
-      }
-      var current = this.normalizeBottomDockOrder(this.bottomDockOrder);
-      var start = this.normalizeBottomDockOrder(this.bottomDockDragStartOrder);
-      if (JSON.stringify(current) !== JSON.stringify(start)) {
-        this.bottomDockOrder = current;
-        this.persistBottomDockOrder();
-        this.bottomDockDragCommitted = true;
-      }
-      this._bottomDockSuppressClickUntil = Date.now() + 220;
-      var self = this;
-      var finalizeDrag = function() {
-        var dockEl = document.querySelector('.bottom-dock');
-        if (dockEl && dockEl.style && typeof dockEl.style.removeProperty === 'function') {
-          dockEl.style.removeProperty('--bottom-dock-drag-scale');
-        }
-        var dropX = Number(self._bottomDockPointerLastX || 0);
-        var dropY = Number(self._bottomDockPointerLastY || 0);
-        self.bottomDockDragId = '';
-        self.bottomDockHoverId = '';
-        self.bottomDockDragStartOrder = [];
-        self._bottomDockPointerGrabOffsetX = 16;
-        self._bottomDockPointerGrabOffsetY = 16;
-        self._bottomDockDragGhostWidth = 32;
-        self._bottomDockDragGhostHeight = 32;
-        self._bottomDockPointerCandidateId = '';
-        self._bottomDockPointerMoved = false;
-        self._bottomDockDragBoundaries = [];
-        self._bottomDockLastInsertionIndex = -1;
-        self.reviveBottomDockHoverFromPoint(dropX, dropY);
-        self._bottomDockPointerLastX = 0;
-        self._bottomDockPointerLastY = 0;
-      };
-      this.settleBottomDockDragGhost(dragId, finalizeDrag);
+      infringEndBottomDockPointerDrag(this);
     },
 
     shouldSuppressBottomDockClick() {
-      var until = Number(this._bottomDockSuppressClickUntil || 0);
-      return Number.isFinite(until) && until > Date.now();
+      return infringShouldSuppressBottomDockClick(this);
     },
 
     clearBottomDockClickAnimation() {
-      if (this._bottomDockClickAnimTimer) {
-        try { clearTimeout(this._bottomDockClickAnimTimer); } catch(_) {}
-      }
-      this._bottomDockClickAnimTimer = 0;
-      this.bottomDockClickAnimId = '';
+      infringClearBottomDockClickAnimation(this);
     },
 
     triggerBottomDockClickAnimation(id, durationOverrideMs) {
-      var key = String(id || '').trim();
-      if (!key || typeof window === 'undefined' || typeof window.setTimeout !== 'function') return;
-      this.clearBottomDockClickAnimation();
-      this.bottomDockClickAnimId = key;
-      var self = this;
-      var durationMs = Number(durationOverrideMs);
-      if (!Number.isFinite(durationMs) || durationMs < 120) {
-        durationMs = Number(self._bottomDockClickAnimDurationMs || 980);
-      }
-      if (!Number.isFinite(durationMs) || durationMs < 120) durationMs = 980;
-      if (typeof document !== 'undefined') {
-        try {
-          var tileNode = document.querySelector('.bottom-dock-btn[data-dock-id="' + key + '"]');
-          if (tileNode && tileNode.style && typeof tileNode.style.setProperty === 'function') {
-            tileNode.style.setProperty('--dock-click-duration', Math.round(durationMs) + 'ms');
-          }
-        } catch(_) {}
-      }
-      self._bottomDockClickAnimTimer = window.setTimeout(function() {
-        if (typeof document !== 'undefined') {
-          try {
-            var activeNode = document.querySelector('.bottom-dock-btn[data-dock-id="' + key + '"]');
-            if (activeNode && activeNode.style && typeof activeNode.style.removeProperty === 'function') {
-              activeNode.style.removeProperty('--dock-click-duration');
-            }
-          } catch(_) {}
-        }
-        self._bottomDockClickAnimTimer = 0;
-        self.bottomDockClickAnimId = '';
-      }, durationMs);
+      infringTriggerBottomDockClickAnimation(this, id, durationOverrideMs);
     },
 
     bottomDockIsClickAnimating(id) {
-      var key = String(id || '').trim();
-      if (!key) return false;
-      return String(this.bottomDockClickAnimId || '').trim() === key;
+      return infringBottomDockIsClickAnimating(this, id);
     },
 
     handleBottomDockTileClick(id, targetPage, ev) {
-      if (this.shouldSuppressBottomDockClick()) return;
-      var key = String(id || '').trim();
-      var pageKey = String(targetPage || '').trim();
-      var clickAnimation = '';
-      var clickDurationMs = 0;
-      try {
-        var triggerEl = ev && ev.currentTarget ? ev.currentTarget : null;
-        clickAnimation = String(
-          triggerEl && typeof triggerEl.getAttribute === 'function'
-            ? (triggerEl.getAttribute('data-dock-click-animation') || '')
-            : ''
-        ).trim();
-        clickDurationMs = Number(
-          triggerEl && typeof triggerEl.getAttribute === 'function'
-            ? (triggerEl.getAttribute('data-dock-click-duration-ms') || '')
-            : ''
-        );
-      } catch(_) {
-        clickAnimation = '';
-        clickDurationMs = 0;
-      }
-      if (!Number.isFinite(clickDurationMs) || clickDurationMs < 120) clickDurationMs = 0;
-      if (key && clickAnimation && clickAnimation !== 'none') {
-        this.triggerBottomDockClickAnimation(key, clickDurationMs);
-      }
-      if (pageKey) this.navigate(pageKey);
+      infringHandleBottomDockTileClick(this, id, targetPage, ev);
     },
 
     normalizeSidebarPopupText(rawText) {
-      var text = String(rawText || '').trim();
-      if (!text) return '';
-      if (this.isSidebarPopupPlaceholderText(text)) return '';
-      return text;
+      return infringNormalizeSidebarPopupText(this, rawText);
     },
 
     isSidebarPopupPlaceholderText(text) {
-      var normalized = String(text || '').trim().toLowerCase();
-      return normalized === 'no messages yet'
-        || normalized === 'system events and terminal output'
-        || normalized === 'no matching text'
-        || normalized === 'agent';
+      return infringIsSidebarPopupPlaceholderText(text);
     },
 
     sidebarPopupMetaOrigin(preview, fallbackLabel) {
-      var role = String(preview && preview.role || '').trim().toLowerCase();
-      if (role === 'user') return 'User';
-      if (role === 'assistant' || role === 'agent') return 'Agent';
-      if (role) return role.charAt(0).toUpperCase() + role.slice(1);
-      return String(fallbackLabel || 'Sidebar').trim() || 'Sidebar';
+      return infringSidebarPopupMetaOrigin(preview, fallbackLabel);
     },
 
     hideDashboardPopupBySource(source) {
-      var expected = String(source || '').trim();
-      if (!expected) return;
-      var popup = this.dashboardPopup || {};
-      var currentSource = String(popup.source || '').trim();
-      if (currentSource !== expected) return;
-      this.hideDashboardPopup(String(popup.id || '').trim());
+      infringHideDashboardPopupBySource(this, source);
     },
 
     showCollapsedSidebarAgentPopup(agent, ev) {
-      if (!this.sidebarCollapsed || !agent) {
-        this.hideDashboardPopupBySource('sidebar');
-        return;
-      }
-      var rawId = String(agent.id || '').trim();
-      var rawIdLower = rawId.toLowerCase();
-      var isSystemThread = (typeof this.isSystemSidebarThread === 'function')
-        ? this.isSystemSidebarThread(agent)
-        : (agent.is_system_thread === true || rawIdLower === 'system');
-      if (isSystemThread || rawIdLower === 'settings') {
-        this.hideDashboardPopupBySource('sidebar');
-        return;
-      }
-      var preview = this.chatSidebarPreview(agent) || {};
-      var previewText = this.normalizeSidebarPopupText(preview.text || '');
-      var title = String(agent.name || rawId).trim();
-      if (!rawId || !title || !previewText) {
-        this.hideDashboardPopupBySource('sidebar');
-        return;
-      }
-      this.showDashboardPopup('sidebar-agent:' + rawId, title, ev, {
-        source: 'sidebar',
-        side: 'right',
-        body: previewText,
-        meta_origin: this.sidebarPopupMetaOrigin(preview, 'Agent'),
-        meta_time: typeof this.formatChatSidebarTime === 'function'
-          ? String(this.formatChatSidebarTime(preview.ts) || '').trim()
-          : '',
-        unread: !!preview.unread_response
-      });
+      infringShowCollapsedSidebarAgentPopup(this, agent, ev);
     },
 
     showCollapsedSidebarNavPopup(label, ev) {
-      if (!this.sidebarCollapsed) {
-        this.hideDashboardPopupBySource('sidebar');
-        return;
-      }
-      var navLabel = String(label || '').trim();
-      var navLabelLower = navLabel.toLowerCase();
-      if (!navLabel || navLabelLower === 'system' || navLabelLower === 'settings') {
-        this.hideDashboardPopupBySource('sidebar');
-        return;
-      }
-      this.showDashboardPopup('sidebar-nav:' + navLabelLower.replace(/[^a-z0-9_-]+/g, '-'), navLabel, ev, {
-        source: 'sidebar',
-        side: 'right',
-        meta_origin: 'Sidebar'
-      });
+      infringShowCollapsedSidebarNavPopup(this, label, ev);
     },
 
     dashboardPopupService() {
-      var root = typeof window !== 'undefined' ? window : {};
-      var services = root && root.InfringSharedShellServices;
-      return services && services.popup ? services.popup : null;
+      return infringDashboardPopupService();
     },
 
     clearDashboardPopupState() {
-      var service = this.dashboardPopupService();
-      this.dashboardPopup = service && typeof service.emptyState === 'function'
-        ? service.emptyState()
-        : {
-          id: '',
-          active: false,
-          source: '',
-          title: '',
-          body: '',
-          meta_origin: '',
-          meta_time: '',
-          unread: false,
-          left: 0,
-          top: 0,
-          side: 'bottom',
-          inline_away: 'right',
-          block_away: 'bottom',
-          compact: false
-        };
+      infringClearDashboardPopupState(this);
     },
 
     normalizeDashboardPopupSide(sideValue, fallbackSide) {
-      var service = this.dashboardPopupService();
-      if (service && typeof service.normalizeSide === 'function') {
-        return service.normalizeSide(sideValue, fallbackSide);
-      }
-      var fallback = String(fallbackSide || 'bottom').trim().toLowerCase();
-      if (fallback !== 'top' && fallback !== 'left' && fallback !== 'right') fallback = 'bottom';
-      var side = String(sideValue || fallback).trim().toLowerCase();
-      if (side !== 'top' && side !== 'left' && side !== 'right') side = 'bottom';
-      return side;
+      return infringNormalizeDashboardPopupSide(this, sideValue, fallbackSide);
     },
 
     dashboardOppositeSide(sideValue) {
-      var service = this.dashboardPopupService();
-      if (service && typeof service.oppositeSide === 'function') {
-        return service.oppositeSide(sideValue);
-      }
-      var side = this.normalizeDashboardPopupSide(sideValue, 'bottom');
-      if (side === 'top') return 'bottom';
-      if (side === 'left') return 'right';
-      if (side === 'right') return 'left';
-      return 'top';
+      return infringDashboardOppositeSide(this, sideValue);
     },
 
     dashboardPopupWallAffinity(rect) {
@@ -2634,937 +1806,165 @@ function app() {
       if (service && typeof service.wallAffinity === 'function') {
         return service.wallAffinity(rect);
       }
-      if (!rect || typeof window === 'undefined') return null;
-      var viewportWidth = Number(window.innerWidth || 0);
-      var viewportHeight = Number(window.innerHeight || 0);
-      if (!Number.isFinite(viewportWidth) || viewportWidth <= 0) viewportWidth = 1;
-      if (!Number.isFinite(viewportHeight) || viewportHeight <= 0) viewportHeight = 1;
-      var left = Number(rect.left || 0);
-      var right = Number(rect.right || 0);
-      var top = Number(rect.top || 0);
-      var bottom = Number(rect.bottom || 0);
-      if (!Number.isFinite(left) || !Number.isFinite(right) || !Number.isFinite(top) || !Number.isFinite(bottom)) {
-        return null;
-      }
-      var width = Math.max(1, Math.abs(right - left));
-      var height = Math.max(1, Math.abs(bottom - top));
-      var distanceToLeft = Math.max(0, left);
-      var distanceToRight = Math.max(0, viewportWidth - right);
-      var distanceToTop = Math.max(0, top);
-      var distanceToBottom = Math.max(0, viewportHeight - bottom);
-      var proximityScore = function(distance) {
-        var normalized = Number(distance || 0);
-        if (!Number.isFinite(normalized) || normalized < 0) normalized = 0;
-        return 1 / (1 + normalized);
-      };
-      return {
-        scores: {
-          top: width * proximityScore(distanceToTop),
-          bottom: width * proximityScore(distanceToBottom),
-          left: height * proximityScore(distanceToLeft),
-          right: height * proximityScore(distanceToRight)
-        },
-        distances: {
-          top: distanceToTop,
-          bottom: distanceToBottom,
-          left: distanceToLeft,
-          right: distanceToRight
-        }
-      };
+      return infringDashboardPopupWallAffinity(rect);
     },
 
     dashboardPopupWallAnchorNode(node) {
-      if (!node || typeof node.closest !== 'function') return null;
-      try {
-        return node.closest(
-          '[data-popup-wall-anchor], .global-taskbar, .sidebar, .bottom-dock, .doc-window, .chat-window'
-        );
-      } catch(_) {
-        return null;
-      }
+      return infringDashboardPopupWallAnchorNode(node);
     },
 
     dashboardPopupWallRectForNode(node) {
-      var anchor = this.dashboardPopupWallAnchorNode(node);
-      if (!anchor || typeof anchor.getBoundingClientRect !== 'function') return null;
-      try {
-        return anchor.getBoundingClientRect();
-      } catch(_) {
-        return null;
-      }
+      return infringDashboardPopupWallRectForNode(this, node);
     },
 
     dashboardPopupUsableAnchorRect(node) {
-      if (!node || typeof node.getBoundingClientRect !== 'function') return null;
-      var rect = null;
-      try {
-        rect = node.getBoundingClientRect();
-      } catch(_) {
-        rect = null;
-      }
-      var width = rect ? Math.abs(Number(rect.right || 0) - Number(rect.left || 0)) : 0;
-      var height = rect ? Math.abs(Number(rect.bottom || 0) - Number(rect.top || 0)) : 0;
-      if (rect && width > 0 && height > 0) return rect;
-      if (node && typeof node.closest === 'function') {
-        try {
-          var fallback = node.closest('[data-popup-origin-anchor], .composer-menu-pill, .composer-input-pill, .taskbar-text-menu-anchor, .taskbar-hero-menu-anchor, .notif-wrap');
-          if (fallback && fallback !== node && typeof fallback.getBoundingClientRect === 'function') {
-            rect = fallback.getBoundingClientRect();
-            width = rect ? Math.abs(Number(rect.right || 0) - Number(rect.left || 0)) : 0;
-            height = rect ? Math.abs(Number(rect.bottom || 0) - Number(rect.top || 0)) : 0;
-            if (rect && width > 0 && height > 0) return rect;
-          }
-        } catch(_) {}
-      }
-      return null;
+      return infringDashboardPopupUsableAnchorRect(node);
     },
 
     dashboardPopupSideAwayFromNearestWall(rect, fallbackSide) {
-      var service = this.dashboardPopupService();
-      if (service && typeof service.sideAwayFromNearestWall === 'function') {
-        return service.sideAwayFromNearestWall(rect, fallbackSide);
-      }
-      var fallback = this.normalizeDashboardPopupSide('', fallbackSide);
-      var affinity = this.dashboardPopupWallAffinity(rect);
-      if (!affinity || !affinity.scores || !affinity.distances) return fallback;
-      var scores = affinity.scores;
-      var distances = affinity.distances;
-      var walls = ['top', 'bottom', 'left', 'right'];
-      var fallbackWall = this.dashboardOppositeSide(fallback);
-      var winner = walls[0];
-      var winnerScore = Number(scores[winner] || 0);
-      var epsilon = 0.000001;
-      var i;
-      for (i = 1; i < walls.length; i += 1) {
-        var wall = walls[i];
-        var score = Number(scores[wall] || 0);
-        if (score > winnerScore + epsilon) {
-          winner = wall;
-          winnerScore = score;
-          continue;
-        }
-        if (Math.abs(score - winnerScore) <= epsilon) {
-          if (wall === fallbackWall && winner !== fallbackWall) {
-            winner = wall;
-            winnerScore = score;
-            continue;
-          }
-          var wallDistance = Number(distances[wall] || 0);
-          var winnerDistance = Number(distances[winner] || 0);
-          if (wallDistance < winnerDistance) {
-            winner = wall;
-            winnerScore = score;
-          }
-        }
-      }
-      return this.dashboardOppositeSide(winner);
+      return infringDashboardPopupSideAwayFromNearestWall(this, rect, fallbackSide);
     },
 
     dashboardPopupHorizontalAwayFromNearestWall(rect, fallbackSide) {
-      var service = this.dashboardPopupService();
-      if (service && typeof service.horizontalAwayFromNearestWall === 'function') {
-        return service.horizontalAwayFromNearestWall(rect, fallbackSide);
-      }
-      var fallback = String(fallbackSide || 'right').trim().toLowerCase();
-      if (fallback !== 'left') fallback = 'right';
-      var affinity = this.dashboardPopupWallAffinity(rect);
-      if (!affinity || !affinity.distances) return fallback;
-      var distances = affinity.distances;
-      var nearest = Number(distances.left || 0) <= Number(distances.right || 0)
-        ? 'left'
-        : 'right';
-      return nearest === 'left' ? 'right' : 'left';
+      return infringDashboardPopupHorizontalAwayFromNearestWall(this, rect, fallbackSide);
     },
 
     dashboardPopupVerticalAwayFromNearestWall(rect, fallbackSide) {
-      var service = this.dashboardPopupService();
-      if (service && typeof service.verticalAwayFromNearestWall === 'function') {
-        return service.verticalAwayFromNearestWall(rect, fallbackSide);
-      }
-      var fallback = String(fallbackSide || 'bottom').trim().toLowerCase();
-      if (fallback !== 'top') fallback = 'bottom';
-      var affinity = this.dashboardPopupWallAffinity(rect);
-      if (!affinity || !affinity.distances) return fallback;
-      var distances = affinity.distances;
-      var nearest = Number(distances.top || 0) <= Number(distances.bottom || 0)
-        ? 'top'
-        : 'bottom';
-      return nearest === 'top' ? 'bottom' : 'top';
+      return infringDashboardPopupVerticalAwayFromNearestWall(this, rect, fallbackSide);
     },
 
     dashboardPopupAxisAwareSideAway(rect, fallbackSide) {
-      var service = this.dashboardPopupService();
-      if (service && typeof service.axisAwareSideAway === 'function') {
-        return service.axisAwareSideAway(rect, fallbackSide);
-      }
-      var fallback = this.normalizeDashboardPopupSide('', fallbackSide || 'bottom');
-      if (fallback === 'left' || fallback === 'right') {
-        return this.dashboardPopupHorizontalAwayFromNearestWall(rect, fallback);
-      }
-      return this.dashboardPopupVerticalAwayFromNearestWall(rect, fallback);
+      return infringDashboardPopupAxisAwareSideAway(this, rect, fallbackSide);
     },
 
     taskbarAnchoredDropdownClass(anchorNode, fallbackSide, layoutKey) {
-      var fallback = this.normalizeDashboardPopupSide('', fallbackSide || 'bottom');
-      var anchorRect = anchorNode && typeof anchorNode.getBoundingClientRect === 'function'
-        ? this.dashboardPopupUsableAnchorRect(anchorNode)
-        : null;
-      var service = this.dashboardPopupService();
-      if (service && typeof service.dropdownClass === 'function') {
-        return service.dropdownClass(anchorRect, fallback, layoutKey);
-      }
-      String(layoutKey == null ? '' : layoutKey);
-      var side = fallback;
-      var inlineAway = 'right';
-      var blockAway = 'bottom';
-      if (anchorRect) {
-        side = this.dashboardPopupAxisAwareSideAway(anchorRect, fallback);
-        inlineAway = this.dashboardPopupHorizontalAwayFromNearestWall(anchorRect, 'right');
-        blockAway = this.dashboardPopupVerticalAwayFromNearestWall(anchorRect, 'bottom');
-      }
-      return {
-        'taskbar-anchored-dropdown': true,
-        'is-side-top': side === 'top',
-        'is-side-bottom': side === 'bottom',
-        'is-side-left': side === 'left',
-        'is-side-right': side === 'right',
-        'is-inline-away-left': inlineAway === 'left',
-        'is-inline-away-right': inlineAway === 'right',
-        'is-block-away-top': blockAway === 'top',
-        'is-block-away-bottom': blockAway === 'bottom'
-      };
+      return infringTaskbarAnchoredDropdownClass(this, anchorNode, fallbackSide, layoutKey);
     },
 
     dashboardPopupAnchorPoint(ev, sideOverride) {
-      var preferredSide = this.normalizeDashboardPopupSide(sideOverride, 'bottom');
-      var node = ev && ev.currentTarget ? ev.currentTarget : null;
-      if (!node && ev && ev.target && typeof ev.target.closest === 'function') {
-        try {
-          node = ev.target.closest('button,[role="button"],.taskbar-reorder-item');
-        } catch(_) {
-          node = null;
-        }
-      }
-      if (!node || typeof node.getBoundingClientRect !== 'function') {
-        return { left: 0, top: 0, side: preferredSide, inline_away: 'right', block_away: 'bottom' };
-      }
-      var rect = node.getBoundingClientRect();
-      var service = this.dashboardPopupService();
-      if (service && typeof service.anchorPoint === 'function') {
-        return service.anchorPoint(rect, preferredSide);
-      }
-      var side = this.dashboardPopupAxisAwareSideAway(rect, preferredSide);
-      var inlineAway = this.dashboardPopupHorizontalAwayFromNearestWall(rect, 'right');
-      var blockAway = this.dashboardPopupVerticalAwayFromNearestWall(rect, 'bottom');
-      var left = Math.round(Number(rect.left || 0));
-      var top = Math.round(Number(rect.bottom || 0));
-      if (side === 'top') {
-        left = inlineAway === 'left'
-          ? Math.round(Number(rect.right || 0))
-          : Math.round(Number(rect.left || 0));
-        top = Math.round(Number(rect.top || 0));
-      } else if (side === 'bottom') {
-        left = inlineAway === 'left'
-          ? Math.round(Number(rect.right || 0))
-          : Math.round(Number(rect.left || 0));
-        top = Math.round(Number(rect.bottom || 0));
-      } else if (side === 'left') {
-        left = Math.round(Number(rect.left || 0));
-        top = blockAway === 'top'
-          ? Math.round(Number(rect.bottom || 0))
-          : Math.round(Number(rect.top || 0));
-      } else if (side === 'right') {
-        left = Math.round(Number(rect.right || 0));
-        top = blockAway === 'top'
-          ? Math.round(Number(rect.bottom || 0))
-          : Math.round(Number(rect.top || 0));
-      }
-      return {
-        left: left,
-        top: top,
-        side: side,
-        inline_away: inlineAway === 'left' ? 'left' : 'right',
-        block_away: blockAway === 'top' ? 'top' : 'bottom'
-      };
+      return infringDashboardPopupAnchorPoint(this, ev, sideOverride);
     },
 
     showDashboardPopup(id, label, ev, overrides) {
-      var popupId = String(id || '').trim();
-      var title = String(label || '').trim();
-      if (!popupId || !title) {
-        this.hideDashboardPopup();
-        return;
-      }
-      var eventType = String((ev && ev.type) || '').toLowerCase();
-      if (
-        eventType === 'mouseleave' ||
-        eventType === 'pointerleave' ||
-        eventType === 'blur' ||
-        eventType === 'focusout'
-      ) {
-        this.hideDashboardPopup(popupId);
-        return;
-      }
-      if (ev && ev.isTrusted === false) return;
-      var config = overrides && typeof overrides === 'object' ? overrides : {};
-      var anchor = this.dashboardPopupAnchorPoint(ev, config.side);
-      var service = this.dashboardPopupService();
-      this.dashboardPopup = service && typeof service.openState === 'function'
-        ? service.openState(popupId, title, config, anchor)
-        : {
-          id: popupId,
-          active: true,
-          source: String(config.source || '').trim(),
-          title: title,
-          body: String(config.body || '').trim(),
-          meta_origin: String(config.meta_origin || 'Taskbar').trim(),
-          meta_time: String(config.meta_time || '').trim(),
-          unread: !!config.unread,
-          left: anchor.left,
-          top: anchor.top,
-          side: anchor.side,
-          inline_away: anchor.inline_away === 'left' ? 'left' : 'right',
-          block_away: anchor.block_away === 'top' ? 'top' : 'bottom',
-          compact: false
-        };
+      infringShowDashboardPopup(this, id, label, ev, overrides);
     },
 
     showTaskbarNavPopup(label, ev) {
-      var navLabel = String(label || '').trim();
-      if (!navLabel) {
-        this.hideDashboardPopup();
-        return;
-      }
-      var navKey = navLabel.toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
-      var body = navKey === 'back'
-        ? (this.canNavigateBack() ? 'Go to the previous page in this session' : 'No earlier page in this session')
-        : (this.canNavigateForward() ? 'Go to the next page in this session' : 'No later page in this session');
-      this.showDashboardPopup('taskbar-nav:' + navKey, navLabel, ev, {
-        source: 'taskbar',
-        side: 'bottom',
-        compact: false,
-        body: body,
-        meta_origin: 'Chat nav'
-      });
+      infringShowTaskbarNavPopup(this, label, ev);
     },
 
     showTaskbarUtilityPopup(label, body, ev) {
-      var utilityLabel = String(label || '').trim();
-      if (!utilityLabel) {
-        this.hideDashboardPopup();
-        return;
-      }
-      this.showDashboardPopup(
-        'taskbar-utility:' + utilityLabel.toLowerCase().replace(/[^a-z0-9_-]+/g, '-'),
-        utilityLabel,
-        ev,
-        {
-          source: 'taskbar',
-          side: 'bottom',
-          compact: false,
-          body: String(body || '').trim(),
-          meta_origin: 'Taskbar'
-        }
-      );
+      infringShowTaskbarUtilityPopup(this, label, body, ev);
     },
 
     hideDashboardPopup(rawId) {
-      var service = this.dashboardPopupService();
-      if (service && typeof service.closeState === 'function') {
-        this.dashboardPopup = service.closeState(this.dashboardPopup, rawId);
-        return;
-      }
-      var popupId = String(rawId || '').trim();
-      var currentId = String(this.dashboardPopup && this.dashboardPopup.id || '').trim();
-      if (popupId && currentId && popupId !== currentId) return;
-      this.clearDashboardPopupState();
+      infringHideDashboardPopup(this, rawId);
     },
 
     bottomDockIsDraggingVisual(id) {
-      var key = String(id || '').trim();
-      if (!key) return false;
-      if (this._bottomDockRevealTargetDuringSettle) return false;
-      return String(this.bottomDockDragId || '').trim() === key;
+      return infringBottomDockIsDraggingVisual(this, id);
     },
 
     bottomDockIsNeighbor(id) {
-      var hoverId = String(this.bottomDockHoverId || '').trim();
-      var key = String(id || '').trim();
-      if (!hoverId || !key || hoverId === key) return false;
-      return Math.abs(this.bottomDockOrderIndex(hoverId) - this.bottomDockOrderIndex(key)) === 1;
+      return infringBottomDockIsNeighbor(this, id);
     },
 
     bottomDockIsSecondNeighbor(id) {
-      var hoverId = String(this.bottomDockHoverId || '').trim();
-      var key = String(id || '').trim();
-      if (!hoverId || !key || hoverId === key) return false;
-      return Math.abs(this.bottomDockOrderIndex(hoverId) - this.bottomDockOrderIndex(key)) === 2;
+      return infringBottomDockIsSecondNeighbor(this, id);
     },
 
     bottomDockHoverWeight(id) {
-      var key = String(id || '').trim();
-      if (!key) return 0;
-      var weights = this.bottomDockHoverWeightById && typeof this.bottomDockHoverWeightById === 'object'
-        ? this.bottomDockHoverWeightById
-        : null;
-      if (weights && Object.prototype.hasOwnProperty.call(weights, key)) {
-        var exact = Number(weights[key] || 0);
-        if (Number.isFinite(exact)) return Math.max(0, Math.min(1, exact));
-      }
-      if (key === String(this.bottomDockHoverId || '').trim()) return 1;
-      if (this.bottomDockIsNeighbor(key)) return 0.33;
-      if (this.bottomDockIsSecondNeighbor(key)) return 0.11;
-      return 0;
+      return infringBottomDockHoverWeight(this, id);
     },
 
     startBottomDockDrag(id, ev) {
-      var key = String(id || '').trim();
-      if (!key) return;
-      this.cleanupBottomDockDragGhost();
-      this.bottomDockHoverId = '';
-      this.bottomDockHoverWeightById = {};
-      this.bottomDockPointerX = 0;
-      this.bottomDockPointerY = 0;
-      this.bottomDockPreviewVisible = false;
-      this.bottomDockPreviewText = '';
-      this.bottomDockPreviewMorphFromText = '';
-      this.bottomDockPreviewLabelMorphing = false;
-      this.bottomDockPreviewWidth = 0;
-      this.cancelBottomDockPreviewReflow();
-      this.bottomDockDragId = key;
-      this.bottomDockDragCommitted = false;
-      this.bottomDockDragStartOrder = this.normalizeBottomDockOrder(this.bottomDockOrder);
-      this._bottomDockReorderLockUntil = 0;
-      this.captureBottomDockDragBoundaries(key);
-      if (ev && ev.dataTransfer) {
-        try { ev.dataTransfer.effectAllowed = 'move'; } catch(_) {}
-        try { ev.dataTransfer.dropEffect = 'move'; } catch(_) {}
-        try {
-          var dragNode = ev.currentTarget;
-          if (dragNode && typeof ev.dataTransfer.setDragImage === 'function') {
-            var rect = dragNode.getBoundingClientRect();
-            var ghost = dragNode.cloneNode(true);
-            if (ghost && document && document.body) {
-              ghost.classList.add('bottom-dock-drag-ghost');
-              ghost.style.position = 'fixed';
-              ghost.style.left = '-9999px';
-              ghost.style.top = '-9999px';
-              ghost.style.margin = '0';
-              ghost.style.transform = 'none';
-              ghost.style.pointerEvents = 'none';
-              ghost.style.opacity = '1';
-              document.body.appendChild(ghost);
-              this._bottomDockDragGhostEl = ghost;
-              ev.dataTransfer.setDragImage(
-                ghost,
-                Math.max(0, Math.round(Number(rect.width || 0) / 2)),
-                Math.max(0, Math.round(Number(rect.height || 0) / 2))
-              );
-            } else {
-              ev.dataTransfer.setDragImage(
-                dragNode,
-                Math.max(0, Math.round(Number(rect.width || 0) / 2)),
-                Math.max(0, Math.round(Number(rect.height || 0) / 2))
-              );
-            }
-          }
-        } catch(_) {}
-        try { ev.dataTransfer.setData('application/x-infring-dock', key); } catch(_) {}
-        try { ev.dataTransfer.setData('text/plain', key); } catch(_) {}
-      }
+      infringStartBottomDockDrag(this, id, ev);
     },
 
     bottomDockShouldInsertAfter(targetId, ev, targetEl) {
-      var key = String(targetId || '').trim();
-      if (!key) return false;
-      if (!ev) return false;
-      var clientX = Number(ev.clientX || 0);
-      var clientY = Number(ev.clientY || 0);
-      if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return false;
-      var node = targetEl || null;
-      if (!node && typeof document !== 'undefined') {
-        try {
-          node = document.querySelector('.bottom-dock-btn[data-dock-id="' + key + '"]');
-        } catch(_) {
-          node = null;
-        }
-      }
-      if (!node || typeof node.getBoundingClientRect !== 'function') return false;
-      var rect = node.getBoundingClientRect();
-      var width = Number(rect.width || 0);
-      var height = Number(rect.height || 0);
-      if (!Number.isFinite(width) || width <= 0) return false;
-      if (!Number.isFinite(height) || height <= 0) return false;
-      var basis = this.bottomDockAxisBasis();
-      var centerX = Number(rect.left || 0) + (width / 2);
-      var centerY = Number(rect.top || 0) + (height / 2);
-      var centerProj = this.bottomDockProjectPointToAxis(centerX, centerY, basis);
-      var pointerProj = this.bottomDockProjectPointToAxis(clientX, clientY, basis);
-      var half = this.bottomDockAxisHalfExtent(width, height, basis).primary;
-      if (!Number.isFinite(half) || half <= 0) half = Math.max(width, height) / 2;
-      if (!Number.isFinite(half) || half <= 0) return false;
-      var ratio = (pointerProj.primary - (centerProj.primary - half)) / (half * 2);
-      return ratio >= 0.5;
+      return infringBottomDockShouldInsertAfter(this, targetId, ev, targetEl);
     },
 
     captureBottomDockDragBoundaries(dragId) {
-      var key = String(dragId || '').trim();
-      if (!key || typeof document === 'undefined') {
-        this._bottomDockDragBoundaries = [];
-        this._bottomDockLastInsertionIndex = -1;
-        return [];
-      }
-      var dock = null;
-      try {
-        dock = document.querySelector('.bottom-dock');
-      } catch(_) {
-        dock = null;
-      }
-      if (!dock) {
-        this._bottomDockDragBoundaries = [];
-        this._bottomDockLastInsertionIndex = -1;
-        return [];
-      }
-      var centers = [];
-      var basis = this.bottomDockAxisBasis();
-      try {
-        var nodes = dock.querySelectorAll('.bottom-dock-btn[data-dock-id]');
-        for (var i = 0; i < nodes.length; i += 1) {
-          var node = nodes[i];
-          if (!node || typeof node.getAttribute !== 'function') continue;
-          var id = String(node.getAttribute('data-dock-id') || '').trim();
-          if (!id || id === key || typeof node.getBoundingClientRect !== 'function') continue;
-          var rect = node.getBoundingClientRect();
-          var width = Number(rect.width || 0);
-          var height = Number(rect.height || 0);
-          if (!Number.isFinite(width) || width <= 0) continue;
-          if (!Number.isFinite(height) || height <= 0) continue;
-          var centerX = Number(rect.left || 0) + (width / 2);
-          var centerY = Number(rect.top || 0) + (height / 2);
-          centers.push(this.bottomDockProjectPointToAxis(centerX, centerY, basis).primary);
-        }
-      } catch(_) {}
-      centers.sort(function(a, b) { return a - b; });
-      this._bottomDockDragBoundaries = centers;
-      this._bottomDockLastInsertionIndex = -1;
-      return centers;
+      return infringCaptureBottomDockDragBoundaries(this, dragId);
     },
 
     bottomDockAppendTargetId(dragId) {
-      var key = String(dragId || '').trim();
-      if (!key) return '';
-      var order = this.normalizeBottomDockOrder(this.bottomDockOrder);
-      var filtered = [];
-      for (var i = 0; i < order.length; i += 1) {
-        var id = String(order[i] || '').trim();
-        if (!id || id === key) continue;
-        filtered.push(id);
-      }
-      if (!filtered.length) return '';
-      return String(filtered[filtered.length - 1] || '').trim();
+      return infringBottomDockAppendTargetId(this, dragId);
     },
 
     bottomDockShouldAppendFromPointer(dragId, ev) {
-      var key = String(dragId || '').trim();
-      if (!key || !ev || typeof document === 'undefined') return false;
-      var clientX = Number(ev.clientX || 0);
-      var clientY = Number(ev.clientY || 0);
-      if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return false;
-      var appendTargetId = this.bottomDockAppendTargetId(key);
-      if (!appendTargetId) return false;
-      var node = null;
-      try {
-        node = document.querySelector('.bottom-dock-btn[data-dock-id="' + appendTargetId + '"]');
-      } catch(_) {
-        node = null;
-      }
-      if (!node || typeof node.getBoundingClientRect !== 'function') return false;
-      var rect = node.getBoundingClientRect();
-      var width = Number(rect.width || 0);
-      var height = Number(rect.height || 0);
-      if (!Number.isFinite(width) || width <= 0) return false;
-      if (!Number.isFinite(height) || height <= 0) return false;
-      var basis = this.bottomDockAxisBasis();
-      var centerX = Number(rect.left || 0) + (width / 2);
-      var centerY = Number(rect.top || 0) + (height / 2);
-      var centerProj = this.bottomDockProjectPointToAxis(centerX, centerY, basis);
-      var pointerProj = this.bottomDockProjectPointToAxis(clientX, clientY, basis);
-      var extent = this.bottomDockAxisHalfExtent(width, height, basis);
-      var halfPrimary = Number(extent.primary || 0);
-      var halfSecondary = Number(extent.secondary || 0);
-      if (!Number.isFinite(halfPrimary) || halfPrimary <= 0) halfPrimary = Math.max(width, height) / 2;
-      if (!Number.isFinite(halfSecondary) || halfSecondary <= 0) halfSecondary = Math.min(width, height) / 2;
-      var secondaryPad = Math.max(18, halfSecondary * 0.75);
-      if (Math.abs(pointerProj.secondary - centerProj.secondary) > (halfSecondary + secondaryPad)) return false;
-      var threshold = centerProj.primary + halfPrimary - Math.min(18, halfPrimary * 0.7);
-      return pointerProj.primary >= threshold;
+      return infringBottomDockShouldAppendFromPointer(this, dragId, ev);
     },
 
     bottomDockInsertionIndexFromCoords(dragId, clientXRaw, clientYRaw) {
-      var key = String(dragId || '').trim();
-      if (!key || typeof document === 'undefined') return null;
-      var clientX = Number(clientXRaw || 0);
-      var clientY = Number(clientYRaw || 0);
-      if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return null;
-      var dock = null;
-      try {
-        dock = document.querySelector('.bottom-dock');
-      } catch(_) {
-        dock = null;
-      }
-      if (!dock || typeof dock.getBoundingClientRect !== 'function') return null;
-      var dockRect = dock.getBoundingClientRect();
-      var basis = this.bottomDockAxisBasis();
-      var pointerProj = this.bottomDockProjectPointToAxis(clientX, clientY, basis);
-      var dockBounds = this.bottomDockProjectedRectBounds(dockRect, basis);
-      if (!dockBounds) return null;
-      if (
-        pointerProj.secondary < (Number(dockBounds.secondaryMin || 0) - 24) ||
-        pointerProj.secondary > (Number(dockBounds.secondaryMax || 0) + 24)
-      ) return null;
-      var centers = this.captureBottomDockDragBoundaries(key);
-      if (centers.length === 0) return null;
-      var insertionIndex = 0;
-      for (var c = 0; c < centers.length; c += 1) {
-        if (pointerProj.primary >= centers[c]) insertionIndex += 1;
-      }
-      insertionIndex = Math.max(0, Math.min(centers.length, insertionIndex));
-      return insertionIndex;
+      return infringBottomDockInsertionIndexFromCoords(this, dragId, clientXRaw, clientYRaw);
     },
 
     bottomDockGhostCenterPoint() {
-      var x = Number(this._bottomDockGhostTargetX || this._bottomDockGhostCurrentX || 0);
-      var y = Number(this._bottomDockGhostTargetY || this._bottomDockGhostCurrentY || 0);
-      var width = Number(this._bottomDockDragGhostWidth || 0);
-      var height = Number(this._bottomDockDragGhostHeight || 0);
-      if (!Number.isFinite(width) || width <= 0) width = 32;
-      if (!Number.isFinite(height) || height <= 0) height = 32;
-      return {
-        x: x + (width / 2),
-        y: y + (height / 2)
-      };
+      return infringBottomDockGhostCenterPoint(this);
     },
 
     bottomDockInsertionIndexFromPointer(dragId, ev) {
-      var key = String(dragId || '').trim();
-      if (!key || !ev) return null;
-      var center = this.bottomDockGhostCenterPoint();
-      return this.bottomDockInsertionIndexFromCoords(key, center.x, center.y);
+      return infringBottomDockInsertionIndexFromPointer(this, dragId, ev);
     },
 
     applyBottomDockReorderByIndex(dragId, insertionIndex, animate) {
-      var key = String(dragId || '').trim();
-      if (!key) return false;
-      var current = this.normalizeBottomDockOrder(this.bottomDockOrder);
-      var fromIndex = current.indexOf(key);
-      if (fromIndex < 0) return false;
-      var next = current.slice();
-      next.splice(fromIndex, 1);
-      var idx = Number(insertionIndex);
-      if (!Number.isFinite(idx)) return false;
-      idx = Math.max(0, Math.min(next.length, Math.round(idx)));
-      next.splice(idx, 0, key);
-      if (JSON.stringify(next) === JSON.stringify(current)) return false;
-      var doAnimate = Boolean(animate);
-      var beforeRects = doAnimate ? this.bottomDockButtonRects() : null;
-      this.bottomDockOrder = next;
-      if (doAnimate && beforeRects) this.animateBottomDockFromRects(beforeRects);
-      return true;
+      return infringApplyBottomDockReorderByIndex(this, dragId, insertionIndex, animate);
     },
     persistBottomDockOrderIfChangedFromDragStart() {
-      var current = this.normalizeBottomDockOrder(this.bottomDockOrder);
-      var start = this.normalizeBottomDockOrder(this.bottomDockDragStartOrder);
-      if (JSON.stringify(current) !== JSON.stringify(start)) {
-        this.bottomDockOrder = current;
-        this.persistBottomDockOrder();
-        this.bottomDockDragCommitted = true;
-      }
+      infringPersistBottomDockOrderIfChangedFromDragStart(this);
     },
     completeBottomDockDropCleanup(ev) {
-      this.bottomDockDragId = '';
-      this.bottomDockDragStartOrder = [];
-      this._bottomDockSuppressClickUntil = Date.now() + 220;
-      this.cleanupBottomDockDragGhost();
-      this.reviveBottomDockHoverFromPoint(
-        Number(ev && ev.clientX || 0),
-        Number(ev && ev.clientY || 0)
-      );
-      if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
+      infringCompleteBottomDockDropCleanup(this, ev);
     },
 
     handleBottomDockContainerDragOver(ev) {
-      if (ev && ev.dataTransfer) {
-        try { ev.dataTransfer.dropEffect = 'move'; } catch(_) {}
-      }
-      var dragId = String(this.bottomDockDragId || '').trim();
-      if (!dragId) return;
-      var targetId = '';
-      var targetEl = null;
-      try {
-        targetEl = ev && ev.target && typeof ev.target.closest === 'function'
-          ? ev.target.closest('.bottom-dock-btn[data-dock-id]')
-          : null;
-        targetId = targetEl ? String(targetEl.getAttribute('data-dock-id') || '').trim() : '';
-      } catch(_) {}
-      if (targetId && targetId !== dragId) {
-        this._bottomDockLastInsertionIndex = -1;
-        var preferAfter = this.bottomDockShouldInsertAfter(targetId, ev, targetEl);
-        this.handleBottomDockDragOver(targetId, ev, preferAfter);
-        return;
-      }
-      if (!this.bottomDockShouldAppendFromPointer(dragId, ev)) return;
-      var appendTargetId = this.bottomDockAppendTargetId(dragId);
-      if (!appendTargetId) return;
-      this._bottomDockLastInsertionIndex = -1;
-      this.handleBottomDockDragOver(appendTargetId, ev, true);
+      infringHandleBottomDockContainerDragOver(this, ev);
     },
 
     handleBottomDockContainerDrop(ev) {
-      var dragId = String(this.bottomDockDragId || '').trim();
-      if (!dragId) return;
-      var targetId = '';
-      var targetEl = null;
-      try {
-        targetEl = ev && ev.target && typeof ev.target.closest === 'function'
-          ? ev.target.closest('.bottom-dock-btn[data-dock-id]')
-          : null;
-        targetId = targetEl ? String(targetEl.getAttribute('data-dock-id') || '').trim() : '';
-      } catch(_) {}
-      if (targetId) {
-        var preferAfter = this.bottomDockShouldInsertAfter(targetId, ev, targetEl);
-        this.handleBottomDockDrop(targetId, ev, preferAfter);
-        return;
-      }
-      if (this.bottomDockShouldAppendFromPointer(dragId, ev)) {
-        var appendTargetId = this.bottomDockAppendTargetId(dragId);
-        if (appendTargetId) {
-          this.handleBottomDockDrop(appendTargetId, ev, true);
-          return;
-        }
-      }
-      this.persistBottomDockOrderIfChangedFromDragStart();
-      this.completeBottomDockDropCleanup(ev);
+      infringHandleBottomDockContainerDrop(this, ev);
     },
 
     handleBottomDockDragOver(id, ev, preferAfter) {
-      var targetId = String(id || '').trim();
-      var dragId = String(this.bottomDockDragId || '').trim();
-      if (!targetId || !dragId || targetId === dragId) return;
-      var nowMs = Date.now();
-      var lockUntil = Number(this._bottomDockReorderLockUntil || 0);
-      if (Number.isFinite(lockUntil) && lockUntil > nowMs) return;
-      if (ev && ev.dataTransfer) {
-        try { ev.dataTransfer.dropEffect = 'move'; } catch(_) {}
-      }
-      var placeAfter = Boolean(preferAfter);
-      var current = this.normalizeBottomDockOrder(this.bottomDockOrder);
-      var next = current.slice();
-      var fromIndex = next.indexOf(dragId);
-      var toIndex = next.indexOf(targetId);
-      if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return;
-      next.splice(fromIndex, 1);
-      if (fromIndex < toIndex) toIndex -= 1;
-      if (placeAfter) toIndex += 1;
-      if (toIndex < 0) toIndex = 0;
-      if (toIndex > next.length) toIndex = next.length;
-      next.splice(toIndex, 0, dragId);
-      if (JSON.stringify(next) === JSON.stringify(current)) return;
-      var beforeRects = this.bottomDockButtonRects();
-      this.bottomDockOrder = next;
-      this.animateBottomDockFromRects(beforeRects);
-      var moveDuration = this.bottomDockMoveDurationMs();
-      var lockMs = Math.max(320, Math.min(520, Math.round(moveDuration + 60)));
-      this._bottomDockReorderLockUntil = nowMs + lockMs;
+      infringHandleBottomDockDragOver(this, id, ev, preferAfter);
     },
 
     handleBottomDockDrop(id, ev, preferAfter) {
-      var targetId = String(id || '').trim();
-      var dragId = String(this.bottomDockDragId || '').trim();
-      if (!targetId || !dragId) {
-        this._bottomDockSuppressClickUntil = Date.now() + 220;
-        this.cleanupBottomDockDragGhost();
-        this.bottomDockDragId = '';
-        this.bottomDockDragStartOrder = [];
-        this.bottomDockDragCommitted = false;
-        this.reviveBottomDockHoverFromPoint(
-          Number(ev && ev.clientX || 0),
-          Number(ev && ev.clientY || 0)
-        );
-        return;
-      }
-      if (targetId === dragId) {
-        this.persistBottomDockOrderIfChangedFromDragStart();
-        this.completeBottomDockDropCleanup(ev);
-        return;
-      }
-      var next = this.normalizeBottomDockOrder(this.bottomDockOrder);
-      var fromIndex = next.indexOf(dragId);
-      var toIndex = next.indexOf(targetId);
-      var placeAfter = Boolean(preferAfter);
-      if (fromIndex < 0 || toIndex < 0) {
-        this.bottomDockDragId = '';
-        this.bottomDockDragStartOrder = [];
-        this.bottomDockDragCommitted = false;
-        this.reviveBottomDockHoverFromPoint(
-          Number(ev && ev.clientX || 0),
-          Number(ev && ev.clientY || 0)
-        );
-        return;
-      }
-      next.splice(fromIndex, 1);
-      if (fromIndex < toIndex) toIndex -= 1;
-      if (placeAfter) toIndex += 1;
-      if (toIndex < 0) toIndex = 0;
-      if (toIndex > next.length) toIndex = next.length;
-      next.splice(toIndex, 0, dragId);
-      this.bottomDockOrder = next;
-      this.persistBottomDockOrder();
-      this.bottomDockDragCommitted = true;
-      this.completeBottomDockDropCleanup(ev);
+      infringHandleBottomDockDrop(this, id, ev, preferAfter);
     },
 
     endBottomDockDrag() {
-      if (!this.bottomDockDragCommitted && Array.isArray(this.bottomDockDragStartOrder) && this.bottomDockDragStartOrder.length) {
-        var current = this.normalizeBottomDockOrder(this.bottomDockOrder);
-        var start = this.normalizeBottomDockOrder(this.bottomDockDragStartOrder);
-        if (JSON.stringify(current) !== JSON.stringify(start)) {
-          this.bottomDockOrder = current;
-          this.persistBottomDockOrder();
-          this.bottomDockDragCommitted = true;
-        } else {
-          var beforeRects = this.bottomDockButtonRects();
-          this.bottomDockOrder = start;
-          this.animateBottomDockFromRects(beforeRects);
-        }
-      }
-      this.bottomDockDragId = '';
-      this.bottomDockHoverId = '';
-      this.bottomDockDragStartOrder = [];
-      this.bottomDockDragCommitted = false;
-      this._bottomDockSuppressClickUntil = Date.now() + 220;
-      this.cleanupBottomDockDragGhost();
+      infringEndBottomDockDrag(this);
     },
 
     dashboardPopupOrigin(overrides) {
-      var service = this.dashboardPopupService();
-      if (service && typeof service.origin === 'function') {
-        return service.origin(overrides);
-      }
-      return Object.assign({
-        source: '',
-        active: false,
-        ready: false,
-        side: 'top',
-        inline_away: 'right',
-        block_away: 'bottom',
-        left: 0,
-        top: 0,
-        compact: false,
-        title: '',
-        body: '',
-        meta_origin: '',
-        meta_time: '',
-        unread: false
-      }, overrides || {});
+      return infringDashboardPopupOrigin(this, overrides);
     },
 
     bottomDockPopupOrigin() {
-      var label = String(this.bottomDockPreviewText || '').trim();
-      var left = Math.round(Number(this.bottomDockPreviewX || 0));
-      var top = Math.round(Number(this.bottomDockPreviewY || 0));
-      if (!this.bottomDockPreviewVisible || !label) return this.dashboardPopupOrigin();
-      return this.dashboardPopupOrigin({
-        source: 'bottom_dock',
-        active: true,
-        ready: left > 0 && top > 0,
-        side: this.bottomDockOpenSide(),
-        inline_away: 'center',
-        block_away: 'center',
-        left: left,
-        top: top,
-        compact: false,
-        title: label
-      });
+      return infringBottomDockPopupOrigin(this);
     },
 
     dashboardPopupStateOrigin() {
-      var service = this.dashboardPopupService();
-      if (service && typeof service.stateOrigin === 'function') {
-        return service.stateOrigin(this.dashboardPopup);
-      }
-      var popup = this.dashboardPopup || {};
-      var title = String(popup.title || '').trim();
-      var body = String(popup.body || '').trim();
-      var left = Math.round(Number(popup.left || 0));
-      var top = Math.round(Number(popup.top || 0));
-      var side = String(popup.side || 'bottom').trim().toLowerCase();
-      var inlineAway = String(popup.inline_away || 'right').trim().toLowerCase();
-      var blockAway = String(popup.block_away || 'bottom').trim().toLowerCase();
-      if (side !== 'top' && side !== 'left' && side !== 'right') side = 'bottom';
-      if (inlineAway !== 'left' && inlineAway !== 'right') inlineAway = 'center';
-      if (blockAway !== 'top' && blockAway !== 'bottom') blockAway = 'center';
-      if (!popup.active || !title) return this.dashboardPopupOrigin();
-      return this.dashboardPopupOrigin({
-        source: String(popup.source || 'ui').trim(),
-        active: true,
-        ready: left > 0 && top > 0,
-        side: side,
-        inline_away: inlineAway,
-        block_away: blockAway,
-        left: left,
-        top: top,
-        compact: false,
-        title: title,
-        body: body,
-        meta_origin: String(popup.meta_origin || '').trim(),
-        meta_time: String(popup.meta_time || '').trim(),
-        unread: !!popup.unread
-      });
+      return infringDashboardPopupStateOrigin(this);
     },
 
     activeDashboardPopupOrigin() {
-      var sharedPopup = this.dashboardPopupStateOrigin();
-      if (sharedPopup.active && sharedPopup.ready) return sharedPopup;
-      var dockPopup = this.bottomDockPopupOrigin();
-      if (dockPopup.active && dockPopup.ready) return dockPopup;
-      return this.dashboardPopupOrigin();
+      return infringActiveDashboardPopupOrigin(this);
     },
 
     isDashboardPopupVisible() {
-      var popup = this.activeDashboardPopupOrigin();
-      return !!(popup.active && popup.ready && popup.title);
+      return infringIsDashboardPopupVisible(this);
     },
 
     dashboardPopupOverlayClass() {
-      var popup = this.activeDashboardPopupOrigin();
-      var service = this.dashboardPopupService();
-      if (service && typeof service.overlayClass === 'function') {
-        return service.overlayClass(popup, 'fogged-glass');
-      }
-      return {
-        'is-visible': !!(popup.active && popup.ready && popup.title),
-        'is-side-top': popup.side === 'top',
-        'is-side-bottom': popup.side === 'bottom',
-        'is-side-left': popup.side === 'left',
-        'is-side-right': popup.side === 'right',
-        'is-inline-away-left': popup.inline_away === 'left',
-        'is-inline-away-right': popup.inline_away === 'right',
-        'is-inline-away-center': popup.inline_away !== 'left' && popup.inline_away !== 'right',
-        'is-block-away-top': popup.block_away === 'top',
-        'is-block-away-bottom': popup.block_away === 'bottom',
-        'is-block-away-center': popup.block_away !== 'top' && popup.block_away !== 'bottom',
-        'is-unread': !!popup.unread
-      };
+      return infringDashboardPopupOverlayClass(this);
     },
 
     dashboardPopupOverlayStyle() {
-      var popup = this.activeDashboardPopupOrigin();
-      var service = this.dashboardPopupService();
-      if (service && typeof service.overlayStyle === 'function') {
-        return service.overlayStyle(popup);
-      }
-      if (!popup.active || !popup.ready) return 'left:-9999px;top:-9999px;';
-      return 'left:' + Math.round(Number(popup.left || 0)) + 'px;top:' + Math.round(Number(popup.top || 0)) + 'px;';
+      return infringDashboardPopupOverlayStyle(this);
     },
 
     updateSidebarScrollIndicators() {
@@ -3609,199 +2009,49 @@ function app() {
       return store && Array.isArray(store.agents) ? store.agents : [];
     },
     isSystemSidebarThread(agent) {
-      if (!agent || typeof agent !== 'object') return false;
-      if (agent.is_system_thread === true) return true;
-      var id = String(agent.id || '').trim().toLowerCase();
-      if (id === 'system') return true;
-      var role = String(agent.role || '').trim().toLowerCase();
-      return role === 'system';
+      return infringIsSystemSidebarThread(this, agent);
     },
     isSidebarArchivedAgent(agent) {
-      if (!agent || typeof agent !== 'object') return false;
-      var store = this.getAppStore();
-      if (store && typeof store.isArchivedLikeAgent === 'function') return store.isArchivedLikeAgent(agent);
-      if (Object.prototype.hasOwnProperty.call(agent, 'sidebar_archived')) return !!agent.sidebar_archived;
-      return !!agent.archived;
+      return infringIsSidebarArchivedAgent(this, agent);
     },
     isReservedSystemEmoji(rawEmoji) {
-      var normalized = String(rawEmoji || '').replace(/\uFE0F/g, '').trim();
-      return normalized === '⚙';
+      return infringIsReservedSystemEmoji(rawEmoji);
     },
     sanitizeSidebarAgentRow(agent) {
-      if (!agent || typeof agent !== 'object') return agent;
-      var row = Object.assign({}, agent);
-      var identity = Object.assign({}, (row.identity && typeof row.identity === 'object') ? row.identity : {});
-      if (this.isSystemSidebarThread(row)) {
-        row.id = 'system';
-        row.name = 'System';
-        row.is_system_thread = true;
-        row.role = 'system';
-        identity.emoji = '\u2699\ufe0f';
-        row.identity = identity;
-        return row;
-      }
-      if (this.isReservedSystemEmoji(identity.emoji)) {
-        identity.emoji = '';
-      }
-      row.identity = identity;
-      return row;
+      return infringSanitizeSidebarAgentRow(this, agent);
     },
     persistChatSidebarTopologyOrder() {
-      var seen = {};
-      var out = [];
-      (this.chatSidebarTopologyOrder || []).forEach(function(id) {
-        var key = String(id || '').trim();
-        if (!key || seen[key]) return;
-        seen[key] = true;
-        out.push(key);
-      });
-      this.chatSidebarTopologyOrder = out;
-      try {
-        localStorage.setItem('infring-chat-sidebar-topology-order', JSON.stringify(out));
-      } catch(_) {}
+      return infringPersistChatSidebarTopologyOrder(this);
     },
     chatSidebarCanReorderTopology() {
-      return String(this.chatSidebarSortMode || '').toLowerCase() === 'topology';
+      return infringChatSidebarCanReorderTopology(this);
     },
     startChatSidebarTopologyDrag(agent, ev) {
-      if (!this.chatSidebarCanReorderTopology() || !agent || !agent.id) return;
-      this.syncChatSidebarTopologyOrderFromAgents();
-      this.chatSidebarDragAgentId = String(agent.id);
-      this.chatSidebarDropTargetId = '';
-      this.chatSidebarDropAfter = false;
-      if (ev && ev.dataTransfer) {
-        ev.dataTransfer.effectAllowed = 'move';
-        ev.dataTransfer.setData('text/plain', this.chatSidebarDragAgentId);
-      }
+      return infringStartChatSidebarTopologyDrag(this, agent, ev);
     },
     handleChatSidebarTopologyDragOver(agent, ev) {
-      if (!this.chatSidebarCanReorderTopology() || !this.chatSidebarDragAgentId || !agent || !agent.id) return;
-      if (ev) {
-        ev.preventDefault();
-        if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'move';
-      }
-      var targetId = String(agent.id);
-      var dropAfter = false;
-      if (ev && ev.currentTarget && typeof ev.clientY === 'number' && typeof ev.currentTarget.getBoundingClientRect === 'function') {
-        var rect = ev.currentTarget.getBoundingClientRect();
-        dropAfter = ev.clientY > (rect.top + (rect.height / 2));
-      }
-      this.chatSidebarDropAfter = !!dropAfter;
-      this.chatSidebarDropTargetId = targetId === this.chatSidebarDragAgentId ? '' : targetId;
+      return infringHandleChatSidebarTopologyDragOver(this, agent, ev);
     },
     handleChatSidebarTopologyDrop(agent, ev) {
-      if (ev) ev.preventDefault();
-      if (!this.chatSidebarCanReorderTopology() || !agent || !agent.id) return this.endChatSidebarTopologyDrag();
-      var dragId = String(this.chatSidebarDragAgentId || '').trim();
-      if (!dragId && ev && ev.dataTransfer) dragId = String(ev.dataTransfer.getData('text/plain') || '').trim();
-      var targetId = String(agent.id).trim();
-      if (!dragId || !targetId || dragId === targetId) return this.endChatSidebarTopologyDrag();
-      this.syncChatSidebarTopologyOrderFromAgents();
-      var order = (this.chatSidebarTopologyOrder || []).slice();
-      var fromIndex = order.indexOf(dragId);
-      var targetIndex = order.indexOf(targetId);
-      if (fromIndex < 0 || targetIndex < 0) return this.endChatSidebarTopologyDrag();
-      var dropAfter = false;
-      if (ev && ev.currentTarget && typeof ev.clientY === 'number' && typeof ev.currentTarget.getBoundingClientRect === 'function') {
-        var rect = ev.currentTarget.getBoundingClientRect();
-        dropAfter = ev.clientY > (rect.top + (rect.height / 2));
-      }
-      order.splice(fromIndex, 1);
-      if (fromIndex < targetIndex) targetIndex -= 1;
-      if (dropAfter) targetIndex += 1;
-      if (targetIndex < 0) targetIndex = 0;
-      if (targetIndex > order.length) targetIndex = order.length;
-      order.splice(targetIndex, 0, dragId);
-      this.chatSidebarTopologyOrder = order;
-      this.persistChatSidebarTopologyOrder();
-      this.endChatSidebarTopologyDrag();
-      this.scheduleSidebarScrollIndicators();
+      return infringHandleChatSidebarTopologyDrop(this, agent, ev);
     },
     endChatSidebarTopologyDrag() {
-      this.chatSidebarDragAgentId = '';
-      this.chatSidebarDropTargetId = '';
-      this.chatSidebarDropAfter = false;
+      return infringEndChatSidebarTopologyDrag(this);
     },
     get chatSidebarAgents() {
-      var list = (this.agents || []).slice();
-      var self = this;
-      var pendingFreshId = String((this.getAppStore() && this.getAppStore().pendingFreshAgentId) || '').trim();
-      list = list.filter(function(agent) {
-        if (!agent || !agent.id) return false;
-        if (pendingFreshId && String(agent.id || '') === pendingFreshId) return false;
-        if (self.isSidebarArchivedAgent(agent)) return false;
-        return true;
-      });
-      list.sort(function(a, b) {
-        return self.chatSidebarSortComparator(a, b);
-      });
-      if (this.chatSidebarCanReorderTopology() && Array.isArray(this.chatSidebarTopologyOrder) && this.chatSidebarTopologyOrder.length) {
-        var rank = {};
-        this.chatSidebarTopologyOrder.forEach(function(id, idx) {
-          var key = String(id || '').trim();
-          if (!key || rank[key] != null) return;
-          rank[key] = idx;
-        });
-        list.sort(function(a, b) {
-          var aId = String((a && a.id) || '');
-          var bId = String((b && b.id) || '');
-          var hasA = Object.prototype.hasOwnProperty.call(rank, aId);
-          var hasB = Object.prototype.hasOwnProperty.call(rank, bId);
-          if (hasA && hasB && rank[aId] !== rank[bId]) return rank[aId] - rank[bId];
-          if (hasA && !hasB) return -1;
-          if (!hasA && hasB) return 1;
-          return self.chatSidebarSortComparator(a, b);
-        });
-      }
-      return list.map(function(agent) {
-        return self.sanitizeSidebarAgentRow(agent);
-      });
+      return infringChatSidebarAgents(this);
     },
     get chatSidebarRows() {
-      if (this.chatSidebarDragActive && Array.isArray(this._chatSidebarDragRowsCache)) {
-        return this._chatSidebarDragRowsCache;
-      }
-      var query = String(this.chatSidebarQuery || '').trim();
-      var rows;
-      if (!query) rows = this.chatSidebarAgents || [];
-      else if (Array.isArray(this.chatSidebarSearchResults) && this.chatSidebarSearchResults.length) rows = this.chatSidebarSearchResults;
-      else rows = [];
-      if (this.chatSidebarDragActive) {
-        this._chatSidebarDragRowsCache = Array.isArray(rows) ? rows.slice() : [];
-      } else {
-        this._chatSidebarDragRowsCache = null;
-      }
-      return rows;
+      return infringChatSidebarRows(this);
     },
     chatSidebarDragRenderWindow(rows) {
-      var sourceRows = Array.isArray(rows) ? rows : [];
-      var total = sourceRows.length;
-      var maxRows = Math.max(1, Math.floor(Number(this._chatSidebarDragRenderMaxRows || 10)));
-      if (!this.chatSidebarDragActive || total <= maxRows) {
-        return { virtualized: false, start: 0, end: total, padTop: 0, padBottom: 0 };
-      }
-      var refs = this.$refs || {};
-      var nav = refs.sidebarNav || null;
-      var rowHeight = Math.max(1, Math.floor(Number(this._chatSidebarDragRenderRowHeight || 56)));
-      var scrollTop = nav ? Math.max(0, Number(nav.scrollTop || 0)) : 0;
-      var start = Math.max(0, Math.floor(scrollTop / rowHeight));
-      if (start > (total - maxRows)) start = Math.max(0, total - maxRows);
-      var end = Math.min(total, start + maxRows);
-      return {
-        virtualized: true,
-        start: start,
-        end: end,
-        padTop: start * rowHeight,
-        padBottom: Math.max(0, (total - end) * rowHeight)
-      };
+      return infringChatSidebarDragRenderWindow(this, rows);
     },
     get chatSidebarVirtualized() {
-      var rows = Array.isArray(this.chatSidebarRows) ? this.chatSidebarRows : [];
-      return this.chatSidebarDragRenderWindow(rows).virtualized;
+      return infringChatSidebarVirtualized(this);
     },
     get chatSidebarVirtualPadTop() {
-      var rows = Array.isArray(this.chatSidebarRows) ? this.chatSidebarRows : [];
-      return this.chatSidebarDragRenderWindow(rows).padTop;
+      return infringChatSidebarVirtualPadTop(this);
     },
     get chatSidebarVirtualPadBottom() {
       var rows = Array.isArray(this.chatSidebarRows) ? this.chatSidebarRows : [];
@@ -3987,131 +2237,28 @@ function app() {
       }, hideDelayMs);
     },
     normalizeNavigablePage(pageId) {
-      var raw = String(pageId || '').trim().toLowerCase();
-      if (!raw) return 'chat';
-      var aliases = {
-        'automation': 'scheduler',
-        'templates': 'agents',
-        'triggers': 'workflows',
-        'cron': 'scheduler',
-        'schedules': 'scheduler',
-        'memory': 'sessions',
-        'audit': 'logs',
-        'security': 'settings',
-        'peers': 'settings',
-        'migration': 'settings',
-        'usage': 'analytics',
-        'approval': 'approvals'
-      };
-      return aliases[raw] || raw;
+      return infringNormalizeNavigablePage(pageId);
     },
     isKnownNavigablePage(pageId) {
-      var normalized = this.normalizeNavigablePage(pageId);
-      return ['chat','agents','sessions','approvals','comms','workflows','scheduler','channels','eyes','skills','hands','overview','analytics','logs','runtime','settings','wizard']
-        .indexOf(normalized) >= 0;
+      return infringIsKnownNavigablePage(this, pageId);
     },
     syncPageHistory(nextPage) {
-      var next = this.normalizeNavigablePage(nextPage);
-      if (!this.isKnownNavigablePage(next)) return;
-      var current = this.normalizeNavigablePage(this._navCurrentPage || this.page || '');
-      var action = String(this._navHistoryAction || '').trim().toLowerCase();
-      var back = Array.isArray(this.navBackStack) ? this.navBackStack.slice() : [];
-      var forward = Array.isArray(this.navForwardStack) ? this.navForwardStack.slice() : [];
-      var cap = Number(this._navHistoryCap || 48);
-      if (!Number.isFinite(cap) || cap < 8) cap = 48;
-      var trim = function(list) {
-        return list.length > cap ? list.slice(list.length - cap) : list;
-      };
-      if (!current || !this.isKnownNavigablePage(current)) {
-        this._navCurrentPage = next;
-        this._navHistoryAction = '';
-        return;
-      }
-      if (next === current) {
-        this._navCurrentPage = next;
-        this._navHistoryAction = '';
-        return;
-      }
-      if (action === 'back') {
-        if (forward.length === 0 || forward[forward.length - 1] !== current) forward.push(current);
-      } else if (action === 'forward') {
-        if (back.length === 0 || back[back.length - 1] !== current) back.push(current);
-      } else if (back.length > 0 && back[back.length - 1] === next) {
-        back.pop();
-        if (forward.length === 0 || forward[forward.length - 1] !== current) forward.push(current);
-      } else if (forward.length > 0 && forward[forward.length - 1] === next) {
-        forward.pop();
-        if (back.length === 0 || back[back.length - 1] !== current) back.push(current);
-      } else {
-        if (back.length === 0 || back[back.length - 1] !== current) back.push(current);
-        forward = [];
-      }
-      this.navBackStack = trim(back);
-      this.navForwardStack = trim(forward);
-      this._navCurrentPage = next;
-      this._navHistoryAction = '';
+      return infringSyncPageHistory(this, nextPage);
     },
     canNavigateBack() {
-      return Array.isArray(this.navBackStack) && this.navBackStack.length > 0;
+      return infringCanNavigateBack(this);
     },
     canNavigateForward() {
-      return Array.isArray(this.navForwardStack) && this.navForwardStack.length > 0;
+      return infringCanNavigateForward(this);
     },
     navigateBackPage() {
-      if (!this.canNavigateBack()) return;
-      var back = this.navBackStack.slice();
-      var target = this.normalizeNavigablePage(back.pop());
-      this.navBackStack = back;
-      this._navHistoryAction = 'back';
-      if (!target || target === this.normalizeNavigablePage(this.page)) {
-        this._navHistoryAction = '';
-        return;
-      }
-      this.navigate(target);
+      return infringNavigateBackPage(this);
     },
     navigateForwardPage() {
-      if (!this.canNavigateForward()) return;
-      var forward = this.navForwardStack.slice();
-      var target = this.normalizeNavigablePage(forward.pop());
-      this.navForwardStack = forward;
-      this._navHistoryAction = 'forward';
-      if (!target || target === this.normalizeNavigablePage(this.page)) {
-        this._navHistoryAction = '';
-        return;
-      }
-      this.navigate(target);
+      return infringNavigateForwardPage(this);
     },
     navigate(p) {
-      if (typeof this.hideDashboardPopupBySource === 'function') this.hideDashboardPopupBySource('sidebar');
-      if (String(p || '') !== 'chat') {
-        var store = this.getAppStore();
-        var pendingId = String((store && store.pendingFreshAgentId) || '').trim();
-        var activeId = String((store && store.activeAgentId) || '').trim();
-        if (pendingId) {
-          if (store) {
-            store.pendingFreshAgentId = null;
-            store.pendingAgent = null;
-            if (pendingId === activeId) {
-              if (typeof store.setActiveAgentId === 'function') store.setActiveAgentId(null);
-              else store.activeAgentId = null;
-            }
-          }
-          this.chatSidebarTopologyOrder = (this.chatSidebarTopologyOrder || []).filter(function(id) {
-            return String(id || '').trim() !== pendingId;
-          });
-          this.persistChatSidebarTopologyOrder();
-          InfringAPI.del('/api/agents/' + encodeURIComponent(pendingId)).catch(function() {});
-          if (store && typeof store.refreshAgents === 'function') setTimeout(function() { store.refreshAgents({ force: true }).catch(function() {}); }, 0);
-        }
-      }
-      this.page = p;
-      if (typeof this.syncAgentChatsSectionForPage === 'function') {
-        this.syncAgentChatsSectionForPage(p);
-      }
-      if (typeof this.notifyShellAppStore === 'function') this.notifyShellAppStore('navigate');
-      window.location.hash = p;
-
-      this.mobileMenuOpen = false;
+      return infringNavigate(this, p);
     },
     setTheme(mode) {
       this.beginInstantThemeFlip();
@@ -4124,78 +2271,19 @@ function app() {
       }
     },
     isChatSidebarSearchActive() {
-      return String(this.chatSidebarQuery || '').trim().length > 0;
+      return infringIsChatSidebarSearchActive(this);
     },
     clearChatSidebarSearch() {
-      if (this._chatSidebarSearchTimer) { clearTimeout(this._chatSidebarSearchTimer); this._chatSidebarSearchTimer = 0; }
-      this.chatSidebarSearchSeq = Number(this.chatSidebarSearchSeq || 0) + 1;
-      this.chatSidebarSearchLoading = false;
-      this.chatSidebarSearchError = '';
-      this.chatSidebarSearchResults = [];
-      this.scheduleSidebarScrollIndicators();
+      return infringClearChatSidebarSearch(this);
     },
     onChatSidebarQueryInput(value) {
-      this.chatSidebarQuery = String(value || '');
-      this.chatSidebarVisibleCount = Math.max(1, Math.floor(Number(this.chatSidebarVisibleBase || 7)));
-      var query = String(this.chatSidebarQuery || '').trim();
-      if (!query) {
-        this.clearChatSidebarSearch();
-        return;
-      }
-      this.scheduleChatSidebarSearch();
+      return infringOnChatSidebarQueryInput(this, value);
     },
     scheduleChatSidebarSearch() {
-      var query = String(this.chatSidebarQuery || '').trim();
-      if (!query) { this.clearChatSidebarSearch(); return; }
-      if (this._chatSidebarSearchTimer) { clearTimeout(this._chatSidebarSearchTimer); this._chatSidebarSearchTimer = 0; }
-      var self = this;
-      var seq = Number(this.chatSidebarSearchSeq || 0) + 1;
-      this.chatSidebarSearchSeq = seq;
-      this.chatSidebarSearchLoading = true;
-      this.chatSidebarSearchError = '';
-      this._chatSidebarSearchTimer = setTimeout(function() { self._chatSidebarSearchTimer = 0; self.runChatSidebarSearch(seq); }, 140);
+      return infringScheduleChatSidebarSearch(this);
     },
     async runChatSidebarSearch(seq) {
-      var token = Number(seq || 0);
-      var currentToken = Number(this.chatSidebarSearchSeq || 0);
-      if (token !== currentToken) return;
-      var query = String(this.chatSidebarQuery || '').trim();
-      if (!query) {
-        this.clearChatSidebarSearch();
-        return;
-      }
-      try {
-        var path = '/api/search/conversations?q=' + encodeURIComponent(query) + '&limit=80';
-        var payload = await InfringAPI.get(path);
-        if (token !== Number(this.chatSidebarSearchSeq || 0)) return;
-        var self = this;
-        var serverRows = payload && Array.isArray(payload.sidebar_rows) ? payload.sidebar_rows : null;
-        if (serverRows && serverRows.length) {
-          this.chatSidebarSearchResults = serverRows.filter(function(agent) {
-            return !self.isSidebarArchivedAgent(agent);
-          }).map(function(agent) {
-            return self.sanitizeSidebarAgentRow(agent);
-          });
-          this.chatSidebarSearchError = '';
-          return;
-        }
-        var quickRows = payload && Array.isArray(payload.quick_actions) ? payload.quick_actions : [];
-        this.chatSidebarSearchResults = quickRows.filter(function(agent) {
-          return !self.isSidebarArchivedAgent(agent);
-        }).map(function(agent) {
-          return self.sanitizeSidebarAgentRow(agent);
-        });
-        this.chatSidebarSearchError = '';
-      } catch (e) {
-        if (token !== Number(this.chatSidebarSearchSeq || 0)) return;
-        this.chatSidebarSearchResults = [];
-        this.chatSidebarSearchError = String(e && e.message ? e.message : 'search_failed');
-      } finally {
-        if (token === Number(this.chatSidebarSearchSeq || 0)) {
-          this.chatSidebarSearchLoading = false;
-        }
-        this.scheduleSidebarScrollIndicators();
-      }
+      return infringRunChatSidebarSearch(this, seq);
     },
     overlayGlassTemplateNormalized(modeRaw) {
       var mode = String(modeRaw || '').trim().toLowerCase();
@@ -4274,71 +2362,7 @@ function app() {
       this.setTheme(next);
     },
     toggleSidebar() {
-      if (typeof this.shouldSuppressSidebarToggle === 'function' && this.shouldSuppressSidebarToggle()) return;
-      var nextCollapsed = !this.sidebarCollapsed;
-      var resolveMessagesHost = function() {
-        var nodes = document.querySelectorAll('#messages');
-        for (var ni = 0; ni < nodes.length; ni++) if (nodes[ni] && nodes[ni].offsetParent !== null) return nodes[ni];
-        return nodes && nodes.length ? nodes[0] : null;
-      };
-      var captureMessageBottomAnchor = function() {
-        var host = resolveMessagesHost();
-        if (!host || host.offsetParent === null) return null;
-        var hostRect = host.getBoundingClientRect();
-        var input = document.getElementById('msg-input');
-        var alignY = hostRect.bottom;
-        if (input && input.offsetParent !== null) {
-          var inputRect = input.getBoundingClientRect();
-          if (inputRect.top > hostRect.top && inputRect.top < (hostRect.bottom + 140)) alignY = inputRect.top;
-        }
-        var rows = host.querySelectorAll('.chat-message-block[id], .chat-message-block .message[id]');
-        var best = null;
-        var bestDiff = Number.POSITIVE_INFINITY;
-        for (var i = 0; i < rows.length; i++) {
-          var row = rows[i];
-          if (!row || row.offsetParent === null) continue;
-          var rect = row.getBoundingClientRect();
-          if (rect.bottom < (hostRect.top - 40) || rect.top > (hostRect.bottom + 40)) continue;
-          var diff = Math.abs(rect.bottom - alignY);
-          if (diff < bestDiff) { bestDiff = diff; best = row; }
-        }
-        return best && best.id ? { id: String(best.id) } : null;
-      };
-      if (nextCollapsed) this._sidebarChatAnchorForExpand = captureMessageBottomAnchor();
-      this.sidebarCollapsed = nextCollapsed;
-      localStorage.setItem('infring-sidebar', this.sidebarCollapsed ? 'collapsed' : 'expanded');
-      // Always clear stale sidebar popup when toggling sidebar state.
-      this.hideDashboardPopupBySource('sidebar');
-      if (!nextCollapsed) {
-        var anchor = (this._sidebarChatAnchorForExpand && this._sidebarChatAnchorForExpand.id)
-          ? this._sidebarChatAnchorForExpand
-          : captureMessageBottomAnchor();
-        this._sidebarChatAnchorForExpand = null;
-        var passes = 4;
-        var restoreAnchor = function() {
-          var host = resolveMessagesHost();
-          if (!host || host.offsetParent === null || !anchor || !anchor.id) return;
-          var row = document.getElementById(anchor.id);
-          if (!row || !host.contains(row) || row.offsetParent === null) return;
-          var hostRect = host.getBoundingClientRect();
-          var input = document.getElementById('msg-input');
-          var alignY = hostRect.bottom;
-          if (input && input.offsetParent !== null) {
-            var inputRect = input.getBoundingClientRect();
-            if (inputRect.top > hostRect.top && inputRect.top < (hostRect.bottom + 140)) alignY = inputRect.top;
-          }
-          var alignOffset = Math.max(0, Math.min(Math.max(0, Number(host.clientHeight || 0)), Math.round(alignY - hostRect.top)));
-          var rowBottom = Number(row.offsetTop || 0) + Math.max(0, Number(row.offsetHeight || 0));
-          var maxTop = Math.max(0, Number(host.scrollHeight || 0) - Math.max(0, Number(host.clientHeight || 0)));
-          var nextTop = Math.max(0, Math.min(maxTop, Math.round(rowBottom - alignOffset)));
-          host.scrollTop = nextTop;
-          if (passes-- > 1 && typeof requestAnimationFrame === 'function') requestAnimationFrame(restoreAnchor);
-          try { host.dispatchEvent(new Event('scroll')); } catch (_) {}
-        };
-        if (typeof requestAnimationFrame === 'function') requestAnimationFrame(restoreAnchor);
-        else setTimeout(restoreAnchor, 0);
-      }
-      this.scheduleSidebarScrollIndicators();
+      return infringToggleSidebar(this);
     },
     runtimeFacadeHealthSummary() {
       var summary = this.healthSummary && typeof this.healthSummary === 'object' ? this.healthSummary : null;
@@ -5035,88 +3059,6 @@ function app() {
       var label = this.expiryCountdownLabel(agent);
       if (label) return 'Time remaining: ' + label;
       return 'Time limit active';
-    },
-
-    showDashboardPopup(id, label, ev, overrides) {
-      var popupId = String(id || '').trim();
-      var title = String(label || '').trim();
-      if (!popupId || !title) {
-        if (typeof this.hideDashboardPopup === 'function') this.hideDashboardPopup();
-        return;
-      }
-      var eventType = String((ev && ev.type) || '').toLowerCase();
-      if (
-        eventType === 'mouseleave' ||
-        eventType === 'pointerleave' ||
-        eventType === 'blur' ||
-        eventType === 'focusout'
-      ) {
-        if (typeof this.hideDashboardPopup === 'function') this.hideDashboardPopup(popupId);
-        return;
-      }
-      if (ev && ev.isTrusted === false) return;
-      var config = overrides && typeof overrides === 'object' ? overrides : {};
-      var anchor = typeof this.dashboardPopupAnchorPoint === 'function'
-        ? this.dashboardPopupAnchorPoint(ev, config.side)
-        : { left: 0, top: 0, side: String(config.side || 'bottom'), inline_away: 'right', block_away: 'bottom' };
-      var service = typeof this.dashboardPopupService === 'function' ? this.dashboardPopupService() : null;
-      this.dashboardPopup = service && typeof service.openState === 'function'
-        ? service.openState(popupId, title, config, anchor)
-        : {
-          id: popupId,
-          active: true,
-          source: String(config.source || '').trim(),
-          title: title,
-          body: String(config.body || '').trim(),
-          meta_origin: String(config.meta_origin || 'Taskbar').trim(),
-          meta_time: String(config.meta_time || '').trim(),
-          unread: !!config.unread,
-          left: anchor.left,
-          top: anchor.top,
-          side: anchor.side,
-          inline_away: anchor.inline_away === 'left' ? 'left' : 'right',
-          block_away: anchor.block_away === 'top' ? 'top' : 'bottom',
-          compact: false
-        };
-    },
-
-    hideDashboardPopup(rawId) {
-      var service = typeof this.dashboardPopupService === 'function' ? this.dashboardPopupService() : null;
-      if (service && typeof service.closeState === 'function') {
-        this.dashboardPopup = service.closeState(this.dashboardPopup, rawId);
-        return;
-      }
-      var popupId = String(rawId || '').trim();
-      var currentId = String((this.dashboardPopup && this.dashboardPopup.id) || '').trim();
-      if (popupId && currentId && popupId !== currentId) return;
-      if (typeof this.clearDashboardPopupState === 'function') {
-        this.clearDashboardPopupState();
-        return;
-      }
-      this.dashboardPopup = {
-        id: '',
-        active: false,
-        source: '',
-        title: '',
-        body: '',
-        meta_origin: '',
-        meta_time: '',
-        unread: false,
-        left: 0,
-        top: 0,
-        side: 'bottom',
-        inline_away: 'right',
-        block_away: 'bottom',
-        compact: false
-      };
-    },
-
-    hideDashboardPopupBySource(source) {
-      var popupSource = String(source || '').trim();
-      if (!popupSource) return;
-      var popup = this.dashboardPopup || {};
-      if (String(popup.source || '').trim() !== popupSource) return;
-      this.hideDashboardPopup(String(popup.id || '').trim());
     },
 
     closeTaskbarHeroMenu() {
