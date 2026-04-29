@@ -1,20 +1,20 @@
 # TODO (SRS Execution Checklist)
 
-Updated: 2026-04-28T19:19:00.000Z
+Updated: 2026-04-29T01:16:51.000Z
 
 ## Global Rollup
-- total_rows: 3933
+- total_rows: 3950
 - queued: 58
-- in_progress: 7
+- in_progress: 10
 - blocked: 2
 - blocked_external_prepared: 32
-- done: 1532
+- done: 1546
 - existing_coverage_validated: 2302
 
 ## Kernel Sentinel Audit Queue (2026-04-28)
 - status: queued
 - rollup_refresh_required: true
-- current_wave: KS-AUDIT-008, KS-AUDIT-009, KS-AUDIT-010, KS-AUDIT-011, KS-AUDIT-012, KS-AUDIT-013
+- current_wave: KS-AUDIT-008, KS-AUDIT-009, KS-AUDIT-010, KS-AUDIT-011, KS-AUDIT-012, KS-AUDIT-013, KS-AUDIT-014, KS-AUDIT-015, KS-AUDIT-016
 - [x] KS-AUDIT-001 Fix sentinel scheduler freshness.
 - [x] KS-AUDIT-002 Add a strict stale-scheduler guard so sentinel artifacts fail clearly when auto-run stops advancing.
 - [x] KS-AUDIT-003 Expose `last_run`, `last_success`, `next_due`, and stale age in one compact operator summary artifact.
@@ -28,10 +28,10 @@ Updated: 2026-04-28T19:19:00.000Z
 - [x] KS-AUDIT-011 Tighten feedback dedupe for synthetic harness failures. (2026-04-28; extracted Kernel Sentinel feedback projection into `self_study_feedback.rs` and normalized `misty_simulated_roundNN_failures` fingerprints into one feedback-family dedupe key while preserving the concrete exemplar fingerprint; validated with `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::self_study::self_study_feedback::tests::synthetic_round_failures_collapse_to_one_feedback_item -- --exact` and `npm run -s ops:churn:guard`)
 - [x] KS-AUDIT-012 Collapse repeated `misty_simulated_round*` failures into scenario-level issue candidates. (2026-04-28; issue synthesis now clusters synthetic Misty round failures by scenario family instead of per-session/per-receipt dimensions, and issue drafts expose `scenario_level`, `scenario_id`, and `issue_family_kind` while preserving exemplar and evidence traceability; validated with `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::issue_synthesis::tests::synthetic_round_failures_collapse_across_sessions_into_scenario_issue_candidate -- --exact` and `npm run -s ops:churn:guard`)
 - [x] KS-AUDIT-013 Preserve per-run evidence links while deduping the visible finding surface. (2026-04-28; Kernel Sentinel feedback dedupe now merges duplicate evidence refs and `per_run_evidence` rows into the winning visible feedback item, preserving forensic run links while keeping one deduped feedback surface; validated with `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::self_study::self_study_feedback::tests::synthetic_round_failures_collapse_to_one_feedback_item -- --exact` and `npm run -s ops:churn:guard`)
-- [ ] KS-AUDIT-014 Add recurrence thresholds so one-off failures stay advisory and repeated failures become issue candidates.
-- [ ] KS-AUDIT-015 Reduce duplicate suggestions and automation candidates derived from the same recurring fingerprint.
-- [ ] KS-AUDIT-016 Harden bridge/grader semantics so bridge presence is not treated as failure by itself.
-- [ ] KS-AUDIT-017 Require explicit failure signals from source artifacts before the sentinel opens a finding.
+- [x] KS-AUDIT-014 Add recurrence thresholds so one-off failures stay advisory and repeated failures become issue candidates. (2026-04-28; feedback rows now carry `recurrence_count`, `recurrence_threshold`, and `issue_candidate_ready`, and `top_system_holes` only emits issue candidates for repeated families while preserving one-off holes as advisory/operator context; validated with `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::self_study -- --nocapture` and `npm run -s ops:churn:guard`)
+- [ ] KS-AUDIT-015 Reduce duplicate suggestions and automation candidates derived from the same recurring fingerprint. (in progress; 2026-04-28; implemented recurring maintenance-family clustering in `core/layer0/ops/src/kernel_sentinel/maintenance_synthesis.rs` so round-specific `misty_simulated_roundNN` fingerprints collapse into one suggestion/automation family while preserving exemplar fingerprints and evidence; validated with `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::maintenance_synthesis::tests::recurring_round_fingerprints_collapse_into_one_suggestion_family -- --exact` and `git diff --check -- core/layer0/ops/src/kernel_sentinel/maintenance_synthesis.rs`; DoD closure is still blocked because `npm run -s ops:churn:guard` currently fails on unrelated duplicate dashboard hosts and pre-existing Shell/client dirty files, with no likely unstaged moves reported.)
+- [ ] KS-AUDIT-016 Harden bridge/grader semantics so bridge presence is not treated as failure by itself. (in progress; 2026-04-28; updated `core/layer0/ops/src/kernel_sentinel/graders.rs` so Sentinel canary/bridge observations require an explicit failure status before incrementing grader failures, and plain `observed` bridge presence normalizes to a passing case with a published `bridge_presence_policy`; validated with `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::graders::tests::observed_canary_bridge_presence_does_not_fail_grader -- --exact`, `git diff --check -- core/layer0/ops/src/kernel_sentinel/graders.rs`, and file size check showing 409 lines; DoD closure is still blocked because `npm run -s ops:churn:guard` currently fails on unrelated duplicate dashboard hosts and pre-existing Shell/client dirty files, with no likely unstaged moves reported.)
+- [ ] KS-AUDIT-017 Require explicit failure signals from source artifacts before the sentinel opens a finding. (in progress; 2026-04-28; updated core/layer0/ops/src/kernel_sentinel/evidence.rs so source ingestion opens findings only for explicit failure signals (ok=false, failing status, or pass=false) rather than severity metadata alone; extracted evidence helper parsing/arg logic into core/layer0/ops/src/kernel_sentinel/evidence/helpers.rs to keep evidence.rs under the Kernel 500-line cap; validated with cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::evidence::tests::severity_without_explicit_failure_signal_does_not_open_finding -- --exact, npm run -s metrics:effective-loc, git diff --check, and file size check showing evidence.rs 499 lines/helpers.rs 102/tests.rs 92; DoD closure blocked because npm run -s ops:churn:guard fails on unrelated duplicate_dashboard_hosts plus pre-existing Shell/client/adapters dirty files; likely_unstaged_moves=0.)
 - [ ] KS-AUDIT-018 Separate `artifact observed`, `artifact malformed`, and `artifact failed` into distinct evidence states.
 - [ ] KS-AUDIT-019 Downgrade bridge-only observations to informational/advisory unless corroborated.
 - [ ] KS-AUDIT-020 Add regression tests for false-positive bridge findings.
@@ -96,7 +96,8 @@ Updated: 2026-04-28T19:19:00.000Z
 - [x] High-ROI Web + Installer Closure Guard Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=2, existing_coverage_validated=0
 - [x] Chat Rendering Experience Guard Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [ ] Codex Shell Alpine Retirement TODO Wave (2026-04-26) — queued=0, in_progress=0, blocked=2, blocked_external_prepared=0, done=18, existing_coverage_validated=0
-- [x] Tauri Desktop App Migration + Memory Fix Wave (2026-04-27) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=5, existing_coverage_validated=0
+- [ ] Tauri Desktop App Migration + Memory Fix Wave (2026-04-27) — queued=0, in_progress=3, blocked=0, blocked_external_prepared=0, done=6, existing_coverage_validated=0
+- [x] Architecture Policy Refinement Queue (2026-04-29) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=13, existing_coverage_validated=0
 - [x] Tooling + Task Fabric Closure Guard Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Orchestration Quality Closure Guard Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
 - [x] Production Release Gate Closure Audit Increment (2026-04-24) — queued=0, in_progress=0, blocked=0, blocked_external_prepared=0, done=1, existing_coverage_validated=0
@@ -920,3 +921,52 @@ Remaining queued: 0 of 14 items. Intent: remove Alpine.js from active shell runt
 | ALPINE-PURGE-012 | blocked | 7 | Remove Alpine boot path — blocked until `ops:shell:alpine-retirement:guard` and `ops:shell:alpine-hot-path:guard` are green; current proof shows live Alpine bindings/API reads remain, including 7 active hot-path loops and the router's `vendor/alpine.min` loader |
 | ALPINE-PURGE-013 | done | 8 | Add RAM regression gate for long chats — added `ops:shell:long-chat-ram:guard`, which validates the live `/memprobe` heap/DOM/custom-element contract, executes `InfringChatStore` against a 1,000-message synthetic thread, records before/after heap and DOM budget snapshots, and fails if projected Svelte thread rows, heavy bubble instances, estimated heap growth, or DOM counts become unbounded |
 | ALPINE-PURGE-014 | blocked | 7 | Delete Alpine vendor/runtime artifact — blocked because Alpine is still an active shell dependency: `ops:shell:alpine-retirement:guard` reports 3456 live Alpine hits plus the router's `vendor/alpine.min` loader, and `ops:shell:alpine-hot-path:guard` reports 7 active hot-path Alpine loops; deleting `vendor/alpine.min.ts` now would break the live dashboard |
+
+## Shell Cleanup Wave (2026-04-28)
+
+Queued: 14 items. Intent: reduce shell TS ballooning by eliminating duplicate tracked representations, clarifying source-of-truth rules, hardening metrics/guards, and shrinking shell-local runtime sprawl after the effective-LoC audit showed `client/runtime/systems/ui/infring_static/**` dominates TS growth.
+
+| ID | Status | Priority | Title |
+|----|--------|----------|-------|
+| SHELL-CLEANUP-001 | queued | 10 | Inventory duplicate TS representations — map assembled shell files to matching `.parts/**`, `*.bundle.ts`, and `*_svelte_source.ts` counterparts with duplicate LoC totals |
+| SHELL-CLEANUP-002 | queued | 10 | Define shell source-of-truth policy — classify shell files as canonical source, generated build artifact, or decomposition-only artifact and link the policy from shell docs/guards |
+| SHELL-CLEANUP-003 | queued | 10 | Remove `.parts/**` from effective LoC when they are decomposition-only — count one side of each pair, not both |
+| SHELL-CLEANUP-004 | queued | 9 | Remove tracked generated shell artifacts from effective LoC when they are build outputs — likely targets include `*.bundle.ts` |
+| SHELL-CLEANUP-005 | queued | 10 | Normalize `chat.ts` ownership — eliminate double-counting between `chat.ts` and `chat.ts.parts/**` by choosing one canonical representation |
+| SHELL-CLEANUP-006 | queued | 10 | Normalize `app.ts` ownership — eliminate double-counting between `app.ts` and `app.ts.parts/**` by choosing one canonical representation |
+| SHELL-CLEANUP-007 | queued | 9 | Break `infring_static/js/pages/chat.ts` into real modules — split rendering, streaming, slash commands, grouping, metadata, and scroll state into canonical files instead of mirrored segmentation artifacts |
+| SHELL-CLEANUP-008 | queued | 9 | Break `infring_static/js/app.ts` into real runtime modules — split nav/layout, global state, agent list runtime, and event wiring into canonical files instead of mirrored segmentation artifacts |
+| SHELL-CLEANUP-009 | queued | 8 | Audit tracked Svelte shell files — classify every file in `client/runtime/systems/ui/infring_static/js/svelte/**` as canonical source, generated artifact, or obsolete duplicate |
+| SHELL-CLEANUP-010 | queued | 8 | Delete obsolete tracked shell duplicates — remove dead tracked source/build pairs once ownership and runtime need are proven |
+| SHELL-CLEANUP-011 | queued | 9 | Tighten shell metrics and guards — fail CI when assembled files and mirrored `.parts/**` are both treated as canonical source or when generated shell artifacts are tracked without policy allowance |
+| SHELL-CLEANUP-012 | queued | 8 | Produce a deduped shell size report — publish current TS LoC, deduped TS LoC, shell UI LoC, and avoidable duplicate LoC |
+| SHELL-CLEANUP-013 | queued | 7 | Rank top shell simplification targets — produce a burn-reduction order for files such as `chat.ts`, `app.ts`, and major `infring_static/js/svelte/**` surfaces |
+| SHELL-CLEANUP-014 | queued | 9 | Move remaining shell authority out of UI runtime — keep shell focused on presentation, interaction, and local state only |
+
+## Nexus Checkpoint Policy Closure (2026-04-28)
+
+Intent: keep the Nexus/Conduit/checkpoint doctrine canonical and guardable so it cannot silently drift back into scattered documentation or false done evidence.
+
+| ID | Status | Priority | Title |
+|----|--------|----------|-------|
+| V13-ARCH-NEXUS-CHECKPOINT-001 | done | 10 | Canonical Nexus-Conduit-Checkpoint policy and guard — added `docs/workspace/nexus_conduit_checkpoint_policy.md`, linked it from enforcement/layering docs, added `ops:nexus:checkpoint-policy:guard`, wired it into `ops:nexus:governance`, and corrected stale `V6-ARCH-004` done evidence |
+| V6-ARCH-004 | done | 10 | Layered Nexus Federation closure — retired the old exact three-domain federation runtime shape behind the canonical `core/layer2/nexus` primitive plus explicit Nexus checkpoint, Conduit, lease/capability, lifecycle, posture, and receipt guards |
+
+## Policy Refinement Queue (2026-04-28)
+
+Intent: sharpen the policies adjacent to the Nexus-Conduit-Checkpoint doctrine so Shell, interface, gateway, security-posture, and federation boundaries cannot drift back into implicit or browser-owned authority.
+
+| ID | Status | Priority | Title |
+|----|--------|----------|-------|
+| POLICY-REFINE-001 | done | 10 | Define Shell UI Projection Policy — added `docs/workspace/shell_ui_projection_policy.md` as the canonical "projection, not mirror" contract and linked it from enforcement, ownership, layer, architecture, and Nexus checkpoint docs |
+| POLICY-REFINE-002 | done | 10 | Add Shell projection guard — added `ops:shell:projection:guard`, removed raw/root app-store event retention, stopped default Shell search from stringifying raw tool input/results, and bounded remaining legacy cache/tool-detail debt with expiring allowances |
+| POLICY-REFINE-003 | done | 10 | Define minimal UI message/detail contract — added the canonical message/detail contract, structured projection/detail JSON, and `ops:shell:ui-message-contract:guard` so default Shell chat/session rows stay lightweight and heavy details require bounded audited lazy routes |
+| POLICY-REFINE-004 | done | 9 | Define Gateway ingress/egress interface policy — added the canonical Gateway route-class policy, structured ingress/egress contract, and `ops:gateway:interface:guard` so request ingress, event/output egress, health/status, detail fetch, and bounded search/query stay separated |
+| POLICY-REFINE-005 | done | 9 | Add interface payload budget guard — added `docs/workspace/interface_payload_budget_policy.md`, `client/runtime/config/interface_payload_budget_contract.json`, and `ops:interface:payload-budget:guard` so default Shell-facing endpoint projections declare byte, array, depth, string, cursor, detail-ref, audit, and Nexus ceilings |
+| POLICY-REFINE-006 | done | 10 | Define Shell-independent operation policy — added `docs/workspace/shell_independent_operation_policy.md` so Core, Orchestration Surface, CLI, and Gateway status must build and operate without browser Shell assets; executable deletion proof remains scoped to `POLICY-REFINE-007` |
+| POLICY-REFINE-007 | done | 9 | Add Shell amputation regression guard — added `ops:shell:amputation:guard`, which builds a disposable no-browser-Shell fixture, runs Core/Orchestration/CLI/Gateway smoke checks from that fixture, and fails on non-UI runtime imports/reads/embeds/execs of browser Shell assets |
+| POLICY-REFINE-008 | done | 8 | Define Conduit/Scrambler posture policy — added `docs/workspace/conduit_scrambler_posture_policy.md` documenting standard Conduit, strong Scrambler, reserved quantum-resistant posture, route classes, mandatory posture declarations, downgrade rules, and v1/v2 deferral notes |
+| POLICY-REFINE-009 | done | 8 | Add scrambler posture audit — added `ops:conduit:scrambler-posture:guard` and `client/runtime/config/conduit_scrambler_posture_contract.json` so sensitive Core/Orchestration routes must declare `strong_scrambler`, route checkpoints, lease/capability, lifecycle gate, receipt requirements, and explicit downgrade metadata |
+| POLICY-REFINE-010 | done | 10 | Resolve Layered Nexus Federation policy — added `docs/workspace/layered_nexus_federation_resolution_policy.md`, retired the old exact three-domain federation runtime shape, and made Layer 2 Nexus plus checkpoint/Conduit guards the canonical closure path |
+| POLICY-REFINE-011 | done | 9 | Add cross-domain Nexus route inventory — added `docs/workspace/cross_domain_nexus_route_inventory.md`, `client/runtime/config/cross_domain_nexus_route_inventory.json`, and `ops:nexus:route-inventory:guard` covering required domains, route classes, checkpoint paths, Conduit posture, lease/capability, lifecycle, and receipt declarations |
+| POLICY-REFINE-012 | done | 9 | Promote policy refinements into governance — added `ops:policy-refinement:governance`, wired it into `ops:arch:governance`, and wired `ops:nexus:route-inventory:guard` into `ops:nexus:governance` so Shell projection, message/detail, Gateway interface, payload budget, Shell amputation, Scrambler posture, and route-inventory guards run as an architecture policy suite |

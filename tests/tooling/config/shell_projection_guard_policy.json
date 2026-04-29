@@ -1,0 +1,177 @@
+{
+  "version": "2026-04-28",
+  "policy_doc_path": "docs/workspace/shell_ui_projection_policy.md",
+  "policy_doc_required_tokens": [
+    "The Shell is a lens, not a mirror.",
+    "The Shell default data shape is a projection, not a runtime object.",
+    "raw tool inputs, raw tool outputs, trace bodies, plan graphs, or eval payloads",
+    "Shell event payloads must be minimal and serializable"
+  ],
+  "scan_roots": [
+    "client/runtime/systems/ui/infring_static/js/chat_store.ts",
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts",
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/040-models-and-cache.part02.ts",
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/050-conversation-cache.ts",
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/080-normalize-and-context.part02.ts",
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/090-init-hooks-and-shortcuts.part01.ts",
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/110-failover-and-health.part01.ts",
+    "client/runtime/systems/ui/infring_static/js/shell/app_store_shell_services.ts",
+    "client/runtime/systems/ui/infring_static/js/svelte/chat_thread_shell_svelte_source.ts"
+  ],
+  "scan_extensions": [".ts", ".tsx", ".html", ".css"],
+  "ignore_path_contains": [".bundle.ts", "/vendor/"],
+  "forbidden_patterns": [
+    {
+      "id": "shell_app_store_raw_or_root_event_reference",
+      "description": "Shell app-store snapshots/events must not retain raw/root store references.",
+      "regex": "\\b(?:raw\\s*:\\s*store|root\\s*:\\s*rootState)\\b"
+    },
+    {
+      "id": "shell_default_search_raw_tool_payload",
+      "description": "Shell search must not stringify raw tool inputs/results.",
+      "regex": "String\\(tool\\.(?:input|result)\\)"
+    },
+    {
+      "id": "shell_chat_store_full_filtered_source_retention",
+      "description": "The Svelte chat store must not retain the full filtered message source as Shell-owned state.",
+      "regex": "lastFilteredMessageSource\\s*=\\s*Array\\.isArray\\(filteredMessages\\)\\s*\\?\\s*filteredMessages"
+    },
+    {
+      "id": "shell_conversation_cache_deep_clone",
+      "description": "Conversation cache sanitization must not deep-clone full message objects.",
+      "regex": "JSON\\.parse\\(JSON\\.stringify\\(msg\\)\\)"
+    },
+    {
+      "id": "shell_conversation_cache_full_state_persist",
+      "description": "Shell localStorage must not persist the full conversation cache object.",
+      "regex": "localStorage\\.setItem\\(this\\.conversationCacheKey,\\s*JSON\\.stringify\\(this\\.conversationCache\\s*\\|\\|\\s*\\{\\}\\)\\)"
+    },
+    {
+      "id": "shell_window_full_cache_mirror",
+      "description": "Window globals must not mirror full conversation cache state.",
+      "regex": "window\\.__infringChatCache\\s*=\\s*this\\.conversationCache"
+    },
+    {
+      "id": "shell_normalized_full_messages_cache",
+      "description": "Shell session cache must not store JSON-cloned normalized full message arrays.",
+      "regex": "messages:\\s*JSON\\.parse\\(JSON\\.stringify\\(normalized\\s*\\|\\|\\s*\\[\\]\\)\\)"
+    },
+    {
+      "id": "shell_tool_raw_payload_row_retention",
+      "description": "Default message rows must not retain raw tool input/result fields.",
+      "regex": "\\b(?:input|result):\\s*t\\.(?:input|result)\\s*\\|\\|\\s*''"
+    },
+    {
+      "id": "shell_tool_expanded_raw_payload_render",
+      "description": "Collapsed default tool cards must move raw input/result rendering behind lazy detail fetches.",
+      "regex": "tool\\.(?:input|result)"
+    }
+  ],
+  "allowed_legacy_occurrences": {
+    "shell_chat_store_full_filtered_source_retention": [
+      {
+        "path": "client/runtime/systems/ui/infring_static/js/chat_store.ts",
+        "max": 1,
+        "expires": "2026-05-12",
+        "reason": "Known Svelte projection bridge debt while visible-window ownership is being moved out of Shell state.",
+        "replacement_plan": "Replace full filtered source retention with backend/window cursor detail loading under POLICY-REFINE-003/005."
+      }
+    ],
+    "shell_conversation_cache_deep_clone": [
+      {
+        "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts",
+        "max": 1,
+        "expires": "2026-05-12",
+        "reason": "Legacy assembled dashboard cache path still mirrors the parts source.",
+        "replacement_plan": "Convert conversation cache to bounded preview-only rows."
+      },
+      {
+        "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/040-models-and-cache.part02.ts",
+        "max": 1,
+        "expires": "2026-05-12",
+        "reason": "Legacy cache sanitizer still clones full messages before stripping streaming fields.",
+        "replacement_plan": "Replace with preview projection cache that never clones full messages."
+      }
+    ],
+    "shell_conversation_cache_full_state_persist": [
+      {
+        "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts",
+        "max": 1,
+        "expires": "2026-05-12",
+        "reason": "Legacy assembled dashboard cache persistence mirrors the parts source.",
+        "replacement_plan": "Persist preview cache only."
+      },
+      {
+        "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/050-conversation-cache.ts",
+        "max": 1,
+        "expires": "2026-05-12",
+        "reason": "Legacy cache persistence predates Shell projection policy.",
+        "replacement_plan": "Persist preview cache only."
+      }
+    ],
+    "shell_window_full_cache_mirror": [
+      {
+        "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts",
+        "max": 1,
+        "expires": "2026-05-12",
+        "reason": "Legacy assembled dashboard global cache mirror remains during Alpine/Svelte transition.",
+        "replacement_plan": "Remove window global cache mirror when preview cache lands."
+      },
+      {
+        "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/090-init-hooks-and-shortcuts.part01.ts",
+        "max": 1,
+        "expires": "2026-05-12",
+        "reason": "Legacy runtime cache bridge remains during Alpine/Svelte transition.",
+        "replacement_plan": "Replace with bounded app-store preview projection."
+      }
+    ],
+    "shell_normalized_full_messages_cache": [
+      {
+        "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts",
+        "max": 1,
+        "expires": "2026-05-12",
+        "reason": "Legacy assembled dashboard normalized cache path mirrors the parts source.",
+        "replacement_plan": "Cache message previews and fetch message details by ID."
+      },
+      {
+        "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/110-failover-and-health.part01.ts",
+        "max": 1,
+        "expires": "2026-05-12",
+        "reason": "Legacy session-load cache path still stores cloned normalized messages.",
+        "replacement_plan": "Cache message previews and fetch message details by ID."
+      }
+    ],
+    "shell_tool_raw_payload_row_retention": [
+      {
+        "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts",
+        "max": 2,
+        "expires": "2026-05-12",
+        "reason": "Legacy assembled dashboard normalizer keeps raw tool fields for expanded cards.",
+        "replacement_plan": "Replace raw fields with input_ref/result_ref and lazy detail fetch."
+      },
+      {
+        "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/080-normalize-and-context.part02.ts",
+        "max": 2,
+        "expires": "2026-05-12",
+        "reason": "Legacy normalizer keeps raw tool fields for expanded cards.",
+        "replacement_plan": "Replace raw fields with input_ref/result_ref and lazy detail fetch."
+      }
+    ],
+    "shell_tool_expanded_raw_payload_render": [
+      {
+        "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts",
+        "max": 23,
+        "expires": "2026-05-12",
+        "reason": "Legacy assembled dashboard still contains tool input/result display and formatting paths.",
+        "replacement_plan": "Move tool display details behind input_ref/result_ref detail fetch routes and rebuild the assembled dashboard source."
+      },
+      {
+        "path": "client/runtime/systems/ui/infring_static/js/svelte/chat_thread_shell_svelte_source.ts",
+        "max": 11,
+        "expires": "2026-05-12",
+        "reason": "Current tool-card expansion still renders raw input/result fields from the default row.",
+        "replacement_plan": "Move expanded tool cards to get_tool_result/tool detail references."
+      }
+    ]
+  }
+}

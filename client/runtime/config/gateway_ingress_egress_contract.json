@@ -1,0 +1,196 @@
+{
+  "version": "2026-04-28",
+  "policy_doc_path": "docs/workspace/gateway_ingress_egress_policy.md",
+  "related_policy_paths": [
+    "docs/workspace/nexus_conduit_checkpoint_policy.md",
+    "docs/workspace/shell_ui_projection_policy.md",
+    "docs/workspace/shell_ui_message_detail_contract.md"
+  ],
+  "policy_doc_required_tokens": [
+    "Gateways are boundary surfaces, not authority mirrors.",
+    "Ingress asks for work.",
+    "Egress reports bounded display output.",
+    "No Gateway route may return the whole system state just because one consumer might need a subset.",
+    "Enforcement command: `npm run -s ops:gateway:interface:guard`."
+  ],
+  "required_route_classes": [
+    "request_ingress",
+    "event_output_egress",
+    "health_status",
+    "detail_fetch",
+    "bounded_search_query"
+  ],
+  "route_classes": [
+    {
+      "name": "request_ingress",
+      "direction": "consumer_to_authority",
+      "source_domain": "shell_cli_sdk_adapter",
+      "target_domain": "gateway_authority_owner",
+      "owner_of_truth": "core_or_orchestration",
+      "payload_class": "bounded_request",
+      "allowed_payload_fields": [
+        "request_id",
+        "actor_id",
+        "session_id",
+        "command",
+        "intent",
+        "selected_refs",
+        "typed_input",
+        "capability_context",
+        "lease_context",
+        "idempotency_key",
+        "correlation_id"
+      ],
+      "returns": [
+        "accepted",
+        "rejected",
+        "receipt_ref",
+        "correlation_id",
+        "follow_up_ref"
+      ],
+      "bounded_response": true,
+      "capability_or_lease_required": true,
+      "audit_receipt": true,
+      "nexus_checkpoint": true
+    },
+    {
+      "name": "event_output_egress",
+      "direction": "authority_to_consumer",
+      "source_domain": "gateway_authority_owner",
+      "target_domain": "shell_cli_sdk_adapter",
+      "owner_of_truth": "core_or_orchestration",
+      "payload_class": "bounded_projection_event",
+      "allowed_payload_fields": [
+        "event_id",
+        "event_kind",
+        "display_projection",
+        "status_label",
+        "cursor_refs",
+        "detail_refs",
+        "receipt_refs",
+        "correlation_id"
+      ],
+      "returns": [
+        "display_projection",
+        "cursor_refs",
+        "detail_refs",
+        "receipt_refs"
+      ],
+      "bounded_response": true,
+      "capability_or_lease_required": true,
+      "audit_receipt": true,
+      "nexus_checkpoint": true
+    },
+    {
+      "name": "health_status",
+      "direction": "authority_to_consumer",
+      "source_domain": "gateway_authority_owner",
+      "target_domain": "shell_cli_sdk_adapter",
+      "owner_of_truth": "core_or_orchestration",
+      "payload_class": "bounded_status_projection",
+      "allowed_payload_fields": [
+        "state",
+        "label",
+        "source",
+        "source_sequence",
+        "age_seconds",
+        "stale",
+        "degraded_reason",
+        "next_retry_hint"
+      ],
+      "returns": [
+        "state",
+        "label",
+        "source",
+        "source_sequence",
+        "age_seconds",
+        "stale"
+      ],
+      "bounded_response": true,
+      "capability_or_lease_required": true,
+      "audit_receipt": true,
+      "nexus_checkpoint": true
+    },
+    {
+      "name": "detail_fetch",
+      "direction": "consumer_to_authority_to_consumer",
+      "source_domain": "shell_cli_sdk_adapter",
+      "target_domain": "gateway_authority_owner",
+      "owner_of_truth": "core_or_orchestration",
+      "payload_class": "bounded_detail_projection",
+      "allowed_payload_fields": [
+        "detail_id",
+        "detail_kind",
+        "requested_view",
+        "capability_scope",
+        "size_bound",
+        "window_bound",
+        "receipt_context",
+        "correlation_id"
+      ],
+      "returns": [
+        "detail_projection",
+        "size_bound",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "bounded_response": true,
+      "capability_or_lease_required": true,
+      "audit_receipt": true,
+      "nexus_checkpoint": true
+    },
+    {
+      "name": "bounded_search_query",
+      "direction": "consumer_to_authority_to_consumer",
+      "source_domain": "shell_cli_sdk_adapter",
+      "target_domain": "gateway_authority_owner",
+      "owner_of_truth": "core_or_orchestration",
+      "payload_class": "bounded_search_projection",
+      "allowed_payload_fields": [
+        "query",
+        "scope_refs",
+        "cursor",
+        "window_bound",
+        "result_limit",
+        "capability_context",
+        "correlation_id"
+      ],
+      "returns": [
+        "hit_ids",
+        "snippets",
+        "labels",
+        "counts",
+        "detail_refs",
+        "next_cursor"
+      ],
+      "bounded_response": true,
+      "capability_or_lease_required": true,
+      "audit_receipt": true,
+      "nexus_checkpoint": true
+    }
+  ],
+  "forbidden_route_shapes": [
+    "full_state",
+    "all_state",
+    "mirror_state",
+    "raw_runtime_state",
+    "request_plus_full_result",
+    "health_plus_state_dump",
+    "search_plus_raw_payloads",
+    "event_plus_trace_body"
+  ],
+  "forbidden_default_payload_fields": [
+    "raw",
+    "root",
+    "full_state",
+    "all_messages",
+    "conversation_tree",
+    "raw_tool_result",
+    "trace_body",
+    "plan_graph",
+    "workflow_graph",
+    "execution_observation",
+    "authorization_state",
+    "policy_decision"
+  ]
+}

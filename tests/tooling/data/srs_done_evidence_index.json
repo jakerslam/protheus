@@ -81,14 +81,6 @@
       ]
     },
     {
-      "id": "V6-ARCH-004",
-      "proofRefs": [
-        "core/layer0/nexus/src/federation.rs",
-        "core/layer0/nexus/tests/layered_federation.rs",
-        "tests/tooling/scripts/ci/architecture_boundary_audit.ts"
-      ]
-    },
-    {
       "id": "V6-SWARM-040",
       "proofRefs": [
         "adapters/runtime/swarm_bridge_modules.ts",

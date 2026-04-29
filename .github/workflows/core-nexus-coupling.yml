@@ -24,5 +24,5 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run kernel nexus coupling guard
-        run: npm run -s ops:nexus:kernel-coupling:guard
+      - name: Run Nexus governance guards
+        run: npm run -s ops:nexus:governance

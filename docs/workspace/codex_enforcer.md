@@ -149,6 +149,23 @@ Completion requires all of the following:
   - Orchestration decides what should happen next.
   - Shell decides how it is shown and collected.
 - Canonical ownership rulebook: `docs/workspace/orchestration_ownership_policy.md`.
+- Canonical Nexus-Conduit-Checkpoint policy: `docs/workspace/nexus_conduit_checkpoint_policy.md`.
+- Canonical Layered Nexus Federation Resolution policy: `docs/workspace/layered_nexus_federation_resolution_policy.md`.
+- Canonical Cross-Domain Nexus Route Inventory: `docs/workspace/cross_domain_nexus_route_inventory.md`.
+- Canonical Conduit/Scrambler Posture policy: `docs/workspace/conduit_scrambler_posture_policy.md`.
+- Canonical Gateway Ingress/Egress Interface policy: `docs/workspace/gateway_ingress_egress_policy.md`.
+- Canonical Interface Payload Budget policy: `docs/workspace/interface_payload_budget_policy.md`.
+- Canonical Shell-Independent Operation policy: `docs/workspace/shell_independent_operation_policy.md`.
+- Canonical Shell UI Projection policy: `docs/workspace/shell_ui_projection_policy.md`.
+- Canonical Shell UI Message Detail contract: `docs/workspace/shell_ui_message_detail_contract.md`.
+- Cross-boundary path rule:
+  - Any module/domain boundary crossing must enter and exit through an explicit Nexus checkpoint surface.
+  - Cross-boundary traffic must use Conduit with lease/capability, lifecycle, policy, and receipt context.
+  - Cross-boundary routes must declare Conduit/Scrambler security posture; sensitive Core/Orchestration authority routes must not silently downgrade below strong Scrambler posture.
+  - Direct code-file-to-code-file cross-module paths are migration debt unless explicitly exempted with owner, expiry, and replacement Nexus checkpoint plan.
+- Architecture policy governance rule:
+  - `ops:policy-refinement:governance` is the aggregate gate for the Shell projection, Shell UI message/detail, Gateway interface, Interface Payload Budget, Shell amputation, Conduit/Scrambler posture, and cross-domain Nexus route inventory guards.
+  - `ops:arch:governance` must run `ops:policy-refinement:governance` before broader architecture boundary checks.
 - Placement decision rule:
   - system authority/runtime path => Kernel authority (`core/**` compatibility path)
   - control-plane coordination path (non-authoritative) => `surface/orchestration/**`

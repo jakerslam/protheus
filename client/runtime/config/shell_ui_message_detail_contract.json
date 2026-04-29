@@ -1,0 +1,189 @@
+{
+  "version": "2026-04-28",
+  "policy_doc_path": "docs/workspace/shell_ui_message_detail_contract.md",
+  "source_projection_policy_path": "docs/workspace/shell_ui_projection_policy.md",
+  "policy_doc_required_tokens": [
+    "Default Shell payloads are for display.",
+    "Detail payloads are for explicit expansion.",
+    "Default Shell rows must not include fields named or shaped like:",
+    "Enforcement command: `npm run -s ops:shell:ui-message-contract:guard`."
+  ],
+  "default_projection_contracts": [
+    {
+      "name": "shell_chat_message_projection",
+      "description": "Default chat message rows sent to or retained by the Shell.",
+      "required_fields": [
+        "id",
+        "conversation_id",
+        "origin_kind",
+        "origin_display_name",
+        "timestamp",
+        "status",
+        "content_preview",
+        "line_count",
+        "detail_ref",
+        "allowed_display_actions"
+      ],
+      "optional_fields": [
+        "origin_agent_id",
+        "content_window",
+        "tool_summary_count",
+        "artifact_summary_count",
+        "workflow_stage_label",
+        "workflow_thought_preview"
+      ],
+      "max_preview_chars": 12000,
+      "max_summary_items": 20,
+      "max_display_actions": 12
+    },
+    {
+      "name": "shell_session_projection",
+      "description": "Default conversation/session rows sent to or retained by the Shell.",
+      "required_fields": [
+        "id",
+        "title",
+        "active_agent_id",
+        "active_agent_name",
+        "status",
+        "last_message_preview",
+        "last_message_at",
+        "message_count",
+        "detail_ref"
+      ],
+      "optional_fields": [
+        "unread_count",
+        "pinned"
+      ],
+      "max_preview_chars": 4000,
+      "max_summary_items": 0,
+      "max_display_actions": 0
+    }
+  ],
+  "prohibited_default_fields": [
+    "raw",
+    "root",
+    "full_message",
+    "raw_payload",
+    "tool_input",
+    "tool_result",
+    "tool_result_body",
+    "trace_body",
+    "decision_trace",
+    "plan_graph",
+    "execution_observation",
+    "runtime_quality",
+    "eval_payload",
+    "workflow_graph",
+    "artifact_body",
+    "file_output",
+    "folder_tree",
+    "policy_decision",
+    "authorization_state"
+  ],
+  "lazy_detail_classes": [
+    {
+      "name": "message_detail",
+      "id_field": "message_id",
+      "covers": [
+        "full_message_context",
+        "expanded_message_text"
+      ]
+    },
+    {
+      "name": "tool_result_detail",
+      "id_field": "tool_result_id",
+      "covers": [
+        "tool_input",
+        "tool_result",
+        "tool_result_body"
+      ]
+    },
+    {
+      "name": "artifact_detail",
+      "id_field": "artifact_id",
+      "covers": [
+        "artifact_body",
+        "file_output",
+        "folder_tree"
+      ]
+    },
+    {
+      "name": "trace_detail",
+      "id_field": "trace_id",
+      "covers": [
+        "trace_body",
+        "decision_trace",
+        "plan_graph",
+        "execution_observation",
+        "runtime_quality",
+        "eval_payload"
+      ]
+    },
+    {
+      "name": "workflow_detail",
+      "id_field": "workflow_id",
+      "covers": [
+        "workflow_graph",
+        "workflow_inner_dialog",
+        "workflow_stage_history"
+      ]
+    }
+  ],
+  "detail_routes": [
+    {
+      "name": "message_detail",
+      "route_kind": "detail_fetch",
+      "id_field": "message_id",
+      "capability_scope": "shell.message.detail.read",
+      "bounded_response": true,
+      "audit_receipt": true,
+      "nexus_checkpoint": true
+    },
+    {
+      "name": "tool_result_detail",
+      "route_kind": "detail_fetch",
+      "id_field": "tool_result_id",
+      "capability_scope": "shell.tool.detail.read",
+      "bounded_response": true,
+      "audit_receipt": true,
+      "nexus_checkpoint": true
+    },
+    {
+      "name": "artifact_detail",
+      "route_kind": "detail_fetch",
+      "id_field": "artifact_id",
+      "capability_scope": "shell.artifact.detail.read",
+      "bounded_response": true,
+      "audit_receipt": true,
+      "nexus_checkpoint": true
+    },
+    {
+      "name": "trace_detail",
+      "route_kind": "detail_fetch",
+      "id_field": "trace_id",
+      "capability_scope": "shell.trace.detail.read",
+      "bounded_response": true,
+      "audit_receipt": true,
+      "nexus_checkpoint": true
+    },
+    {
+      "name": "workflow_detail",
+      "route_kind": "detail_fetch",
+      "id_field": "workflow_id",
+      "capability_scope": "shell.workflow.detail.read",
+      "bounded_response": true,
+      "audit_receipt": true,
+      "nexus_checkpoint": true
+    }
+  ],
+  "history_windowing": {
+    "default_payload_requires_cursor": true,
+    "default_payload_forbids_complete_message_array": true,
+    "cursor_fields": [
+      "before_cursor",
+      "after_cursor",
+      "window_start_id",
+      "window_end_id"
+    ]
+  }
+}

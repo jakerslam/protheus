@@ -1,0 +1,266 @@
+{
+  "version": "2026-04-28",
+  "policy_doc_path": "docs/workspace/interface_payload_budget_policy.md",
+  "gateway_contract_path": "client/runtime/config/gateway_ingress_egress_contract.json",
+  "shell_message_contract_path": "client/runtime/config/shell_ui_message_detail_contract.json",
+  "related_policy_paths": [
+    "docs/workspace/gateway_ingress_egress_policy.md",
+    "docs/workspace/shell_ui_projection_policy.md",
+    "docs/workspace/shell_ui_message_detail_contract.md",
+    "docs/workspace/nexus_conduit_checkpoint_policy.md"
+  ],
+  "policy_doc_required_tokens": [
+    "Default Shell-facing endpoints must be budgeted before they can be used.",
+    "A payload budget is a ceiling, not a target.",
+    "Heavy data escapes the default path only through detail refs.",
+    "Enforcement command: `npm run -s ops:interface:payload-budget:guard`."
+  ],
+  "global_default_payload_budget": {
+    "max_response_bytes": 65536,
+    "max_array_items": 100,
+    "max_object_depth": 4,
+    "max_string_chars": 12000,
+    "max_nested_collection_items": 20,
+    "max_top_level_fields": 32,
+    "max_endpoint_patterns": 4
+  },
+  "required_endpoint_budgets": [
+    "health_status_projection",
+    "agent_sidebar_projection",
+    "session_list_projection",
+    "chat_message_window_projection",
+    "runtime_event_projection"
+  ],
+  "forbidden_default_payload_fields": [
+    "raw",
+    "root",
+    "full_state",
+    "all_messages",
+    "conversation_tree",
+    "raw_payload",
+    "tool_input",
+    "tool_result",
+    "tool_result_body",
+    "trace_body",
+    "decision_trace",
+    "plan_graph",
+    "workflow_graph",
+    "execution_observation",
+    "runtime_quality",
+    "eval_payload",
+    "artifact_body",
+    "file_output",
+    "folder_tree",
+    "policy_decision",
+    "authorization_state"
+  ],
+  "default_endpoint_budgets": [
+    {
+      "name": "health_status_projection",
+      "surface": "shell_cli_sdk_adapter",
+      "route_class": "health_status",
+      "payload_kind": "bounded_status_projection",
+      "default_payload": true,
+      "endpoint_patterns": [
+        "/api/status",
+        "/api/health"
+      ],
+      "max_response_bytes": 8192,
+      "max_array_items": 20,
+      "max_object_depth": 3,
+      "max_string_chars": 2000,
+      "max_nested_collection_items": 10,
+      "max_top_level_fields": 16,
+      "allowed_top_level_fields": [
+        "state",
+        "label",
+        "source",
+        "source_sequence",
+        "age_seconds",
+        "stale",
+        "degraded_reason",
+        "next_retry_hint",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "requires_cursor": false,
+      "cursor_fields": [],
+      "requires_detail_refs": false,
+      "required_ref_fields": [
+        "receipt_ref"
+      ],
+      "overflow_strategy": "omit",
+      "capability_or_lease_required": true,
+      "audit_receipt": true,
+      "nexus_checkpoint": true
+    },
+    {
+      "name": "agent_sidebar_projection",
+      "surface": "shell_cli_sdk_adapter",
+      "route_class": "bounded_search_query",
+      "payload_kind": "bounded_agent_list_projection",
+      "default_payload": true,
+      "endpoint_patterns": [
+        "/api/agents?view=sidebar&authority=runtime&compact=1"
+      ],
+      "max_response_bytes": 32768,
+      "max_array_items": 100,
+      "max_object_depth": 4,
+      "max_string_chars": 4000,
+      "max_nested_collection_items": 20,
+      "max_top_level_fields": 24,
+      "allowed_top_level_fields": [
+        "agents",
+        "agent_ids",
+        "active_agent_id",
+        "labels",
+        "status_counts",
+        "last_activity_preview",
+        "next_cursor",
+        "detail_refs",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "requires_cursor": true,
+      "cursor_fields": [
+        "next_cursor"
+      ],
+      "requires_detail_refs": true,
+      "required_ref_fields": [
+        "detail_refs",
+        "receipt_ref"
+      ],
+      "overflow_strategy": "cursor_or_detail_ref",
+      "capability_or_lease_required": true,
+      "audit_receipt": true,
+      "nexus_checkpoint": true
+    },
+    {
+      "name": "session_list_projection",
+      "surface": "shell_cli_sdk_adapter",
+      "route_class": "bounded_search_query",
+      "payload_kind": "bounded_session_list_projection",
+      "default_payload": true,
+      "endpoint_patterns": [
+        "/api/sessions"
+      ],
+      "max_response_bytes": 32768,
+      "max_array_items": 100,
+      "max_object_depth": 4,
+      "max_string_chars": 4000,
+      "max_nested_collection_items": 20,
+      "max_top_level_fields": 24,
+      "allowed_top_level_fields": [
+        "sessions",
+        "session_ids",
+        "active_session_id",
+        "last_message_previews",
+        "message_counts",
+        "next_cursor",
+        "detail_refs",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "requires_cursor": true,
+      "cursor_fields": [
+        "next_cursor"
+      ],
+      "requires_detail_refs": true,
+      "required_ref_fields": [
+        "detail_refs",
+        "receipt_ref"
+      ],
+      "overflow_strategy": "cursor_or_detail_ref",
+      "capability_or_lease_required": true,
+      "audit_receipt": true,
+      "nexus_checkpoint": true
+    },
+    {
+      "name": "chat_message_window_projection",
+      "surface": "shell_cli_sdk_adapter",
+      "route_class": "event_output_egress",
+      "payload_kind": "bounded_chat_message_window_projection",
+      "default_payload": true,
+      "endpoint_patterns": [
+        "/api/agents/:agent_id/session",
+        "/api/agents/:agent_id/messages"
+      ],
+      "max_response_bytes": 65536,
+      "max_array_items": 80,
+      "max_object_depth": 4,
+      "max_string_chars": 12000,
+      "max_nested_collection_items": 20,
+      "max_top_level_fields": 32,
+      "allowed_top_level_fields": [
+        "messages",
+        "message_ids",
+        "window_start_id",
+        "window_end_id",
+        "before_cursor",
+        "after_cursor",
+        "message_count",
+        "detail_refs",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "requires_cursor": true,
+      "cursor_fields": [
+        "window_start_id",
+        "window_end_id",
+        "before_cursor",
+        "after_cursor"
+      ],
+      "requires_detail_refs": true,
+      "required_ref_fields": [
+        "detail_refs",
+        "receipt_ref"
+      ],
+      "overflow_strategy": "cursor_or_detail_ref",
+      "capability_or_lease_required": true,
+      "audit_receipt": true,
+      "nexus_checkpoint": true
+    },
+    {
+      "name": "runtime_event_projection",
+      "surface": "shell_cli_sdk_adapter",
+      "route_class": "event_output_egress",
+      "payload_kind": "bounded_runtime_event_projection",
+      "default_payload": true,
+      "endpoint_patterns": [
+        "/api/agents/:agent_id/ws",
+        "/api/events"
+      ],
+      "max_response_bytes": 32768,
+      "max_array_items": 40,
+      "max_object_depth": 4,
+      "max_string_chars": 8000,
+      "max_nested_collection_items": 20,
+      "max_top_level_fields": 24,
+      "allowed_top_level_fields": [
+        "event_id",
+        "event_kind",
+        "agent_id",
+        "session_id",
+        "display_projection",
+        "status_label",
+        "cursor_refs",
+        "detail_refs",
+        "receipt_refs",
+        "correlation_id"
+      ],
+      "requires_cursor": true,
+      "cursor_fields": [
+        "cursor_refs"
+      ],
+      "requires_detail_refs": true,
+      "required_ref_fields": [
+        "detail_refs",
+        "receipt_refs"
+      ],
+      "overflow_strategy": "cursor_or_detail_ref",
+      "capability_or_lease_required": true,
+      "audit_receipt": true,
+      "nexus_checkpoint": true
+    }
+  ]
+}
