@@ -1,15 +1,48 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: core/layer0/ops (authoritative)
 
-use serde::{Deserialize, Serialize};
+use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;
 
-mod authority; mod auto_run; mod boot_watch; mod cli_args; mod collector; mod evidence; mod finding_lifecycle; mod findings_io; mod governance; mod graders; mod issue_synthesis; mod maintenance_synthesis; mod report_summary; mod rsi_handoff; mod scheduler; mod self_study; mod waivers;
+mod authority; mod auto_run; mod boot_watch; mod cli_args; mod collector; mod evidence; mod failure_level; mod finding_lifecycle; mod findings_io; mod governance; mod graders; mod incident_clustering; mod incident_event; mod incident_report; mod incident_synthesis; mod invariant_registry; mod issue_cluster_semantics; mod issue_synthesis; mod maintenance_synthesis; mod release_gate_synthesis; mod report_summary; mod rsi_handoff; mod scheduler; mod self_dossier; mod self_dossier_markdown; mod self_study; mod system_understanding_dossier; mod waivers;
 pub use authority::{authority_rule, kernel_sentinel_contract};
 use cli_args::{bool_flag, option_path, option_usize, state_dir_from_args};
 pub use evidence::{ingest_evidence_sources, KernelSentinelEvidenceIngestion};
+pub use failure_level::{
+    kernel_sentinel_failure_level_for_finding, kernel_sentinel_failure_level_for_parts,
+    kernel_sentinel_failure_level_taxonomy, kernel_sentinel_root_frame_for_finding,
+    kernel_sentinel_semantic_frame_for_finding, kernel_sentinel_semantic_frame_for_parts,
+    KernelSentinelFailureLevel, KERNEL_SENTINEL_FAILURE_LEVELS,
+};
+pub use invariant_registry::{
+    kernel_sentinel_invariant_by_id, kernel_sentinel_invariant_registry,
+    kernel_sentinel_invariant_registry_report, KernelSentinelInvariant,
+    KERNEL_SENTINEL_INVARIANTS,
+};
+pub use incident_event::{
+    kernel_sentinel_incident_event_model, validate_kernel_sentinel_incident_event,
+    KernelSentinelIncidentEvent, KernelSentinelIncidentEvidenceLevel,
+    KERNEL_SENTINEL_INCIDENT_EVENT_SCHEMA_VERSION,
+};
+pub use incident_clustering::{
+    cluster_kernel_sentinel_incident_events, KernelSentinelIncidentCluster,
+    KernelSentinelIncidentClusterKey,
+};
+pub use incident_synthesis::{
+    kernel_sentinel_architectural_issue_template,
+    synthesize_kernel_sentinel_architectural_incidents,
+    KernelSentinelArchitecturalIncident,
+};
+pub use system_understanding_dossier::{
+    kernel_system_understanding_dossier_model, validate_system_understanding_dossier,
+    SystemUnderstandingCapabilityKind, SystemUnderstandingCapabilityRow,
+    SystemUnderstandingCapabilityValue, SystemUnderstandingDossier,
+    SystemUnderstandingDossierStatus, SystemUnderstandingDossierTargetMode,
+    SystemUnderstandingTransferTarget, SYSTEM_UNDERSTANDING_DOSSIER_SCHEMA_VERSION,
+};
+pub use incident_report::kernel_sentinel_architectural_incident_report_section;
 use finding_lifecycle::{dedupe_findings, sanitize_finding};
 use findings_io::read_jsonl_findings;
 use report_summary::{
@@ -84,7 +117,7 @@ pub enum KernelSentinelFindingCategory {
     AutomationCandidate,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct KernelSentinelFinding {
     pub schema_version: u32,
     pub id: String,
@@ -95,6 +128,30 @@ pub struct KernelSentinelFinding {
     pub summary: String,
     pub recommended_action: String,
     pub status: String,
+}
+
+impl Serialize for KernelSentinelFinding {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let failure_level = kernel_sentinel_failure_level_for_finding(self);
+        let root_frame = kernel_sentinel_root_frame_for_finding(self);
+        let mut state = serializer.serialize_struct("KernelSentinelFinding", 12)?;
+        state.serialize_field("schema_version", &self.schema_version)?;
+        state.serialize_field("id", &self.id)?;
+        state.serialize_field("severity", &self.severity)?;
+        state.serialize_field("category", &self.category)?;
+        state.serialize_field("fingerprint", &self.fingerprint)?;
+        state.serialize_field("evidence", &self.evidence)?;
+        state.serialize_field("summary", &self.summary)?;
+        state.serialize_field("recommended_action", &self.recommended_action)?;
+        state.serialize_field("status", &self.status)?;
+        state.serialize_field("failure_level", failure_level.code())?;
+        state.serialize_field("root_frame", root_frame)?;
+        state.serialize_field("remediation_level", failure_level.remediation_level())?;
+        state.end()
+    }
 }
 
 pub fn validate_finding(finding: &KernelSentinelFinding) -> Result<(), String> {
@@ -144,6 +201,8 @@ pub fn build_report(root: &Path, args: &[String]) -> (Value, Value, i32) {
     let (governance_preflight, governance_findings) =
         governance::build_governance_preflight(&findings, &evidence_report, args);
     findings.extend(governance_findings);
+    let architectural_incident_report =
+        incident_report::kernel_sentinel_architectural_incident_report_section(&findings);
     let issue_synthesis = issue_synthesis::build_issue_synthesis(&findings, args);
     let maintenance_synthesis = maintenance_synthesis::build_maintenance_synthesis(&findings, args);
     let deduped = dedupe_findings(findings);
@@ -156,7 +215,15 @@ pub fn build_report(root: &Path, args: &[String]) -> (Value, Value, i32) {
         .collect::<Vec<_>>();
     let truncated_finding_count = deduped.len().saturating_sub(report_findings.len());
     let critical_open_count = critical_open_count(&deduped);
-    let release_gate = governance::build_release_gate(&deduped, &malformed, &issue_synthesis, &maintenance_synthesis, &governance_preflight, &evidence_report);
+    let release_gate = governance::build_release_gate(
+        &deduped,
+        &malformed,
+        &architectural_incident_report,
+        &issue_synthesis,
+        &maintenance_synthesis,
+        &governance_preflight,
+        &evidence_report,
+    );
     let scheduler_health = scheduler::build_scheduler_health_summary(root, args);
     let scheduler_stale = scheduler_health["stale"].as_bool().unwrap_or(true);
     let scheduler_status = scheduler_health["status"]
@@ -253,6 +320,7 @@ pub fn build_report(root: &Path, args: &[String]) -> (Value, Value, i32) {
         "evidence_ingestion": evidence_report,
         "boot_watch": boot_watch_report,
         "governance_preflight": governance_preflight,
+        "architectural_incident_report": architectural_incident_report,
         "waivers": waiver_report,
         "release_gate": release_gate,
         "issue_synthesis": issue_synthesis,

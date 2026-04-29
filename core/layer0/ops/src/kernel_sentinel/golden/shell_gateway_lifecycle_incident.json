@@ -1,0 +1,153 @@
+{
+  "fixture_id": "kernel_sentinel_shell_gateway_lifecycle_regression_v1",
+  "description": "Golden Shell/Gateway lifecycle regression: escaped chat metadata, offline taskbar, hanging oversized /api/agents, dropped query semantics, false restart success, and stale duplicate dashboard hosts must remain one architectural incident.",
+  "required_signals": [
+    "escaped_chat_metadata_outside_bubble",
+    "offline_taskbar_connectivity_indicator",
+    "hanging_oversized_api_agents",
+    "dropped_query_semantics",
+    "false_restart_success",
+    "stale_duplicate_dashboard_hosts"
+  ],
+  "events": [
+    {
+      "schema_version": 1,
+      "id": "shell-gateway-lifecycle-escaped-chat-metadata",
+      "evidence_level": "architecture",
+      "observed_at": "2026-04-29T06:57:00Z",
+      "source": "kernel_sentinel_shell_gateway_lifecycle_golden",
+      "affected_layer": "gateway",
+      "component": "dashboard_host",
+      "boundary": "shell_gateway_lifecycle",
+      "policy": "runtime_state_authority",
+      "architecture_scope": "shell_gateway_lifecycle_regression",
+      "self_model_scope": "sentinel_architectural_understanding",
+      "invariant_id": "shell_gateway_lifecycle_authority_regression",
+      "failure_level": "L4_architectural_misalignment",
+      "route_family": "gateway_startup",
+      "process_identity": "dashboard:4173",
+      "lifecycle_state": "stale_duplicate_after_restart",
+      "evidence_refs": [
+        "layer://shell/chat_metadata_escape",
+        "shell://chat/tool_box_and_metadata_rendered_outside_bubble"
+      ],
+      "summary": "escaped_chat_metadata_outside_bubble: tool call boxes, chat title, and metadata appeared outside the chat bubble, showing Shell projection shape retained authority residue"
+    },
+    {
+      "schema_version": 1,
+      "id": "shell-gateway-lifecycle-offline-taskbar",
+      "evidence_level": "architecture",
+      "observed_at": "2026-04-29T06:57:01Z",
+      "source": "kernel_sentinel_shell_gateway_lifecycle_golden",
+      "affected_layer": "gateway",
+      "component": "dashboard_host",
+      "boundary": "shell_gateway_lifecycle",
+      "policy": "runtime_state_authority",
+      "architecture_scope": "shell_gateway_lifecycle_regression",
+      "self_model_scope": "sentinel_architectural_understanding",
+      "invariant_id": "shell_gateway_lifecycle_authority_regression",
+      "failure_level": "L4_architectural_misalignment",
+      "route_family": "gateway_startup",
+      "process_identity": "dashboard:4173",
+      "lifecycle_state": "stale_duplicate_after_restart",
+      "evidence_refs": [
+        "layer://shell/taskbar_offline_indicator",
+        "shell://taskbar/connectivity_indicator_offline_while_gateway_claimed_active"
+      ],
+      "summary": "offline_taskbar_connectivity_indicator: Shell showed connectivity offline while gateway commands suggested runtime availability"
+    },
+    {
+      "schema_version": 1,
+      "id": "shell-gateway-lifecycle-api-agents-hang",
+      "evidence_level": "architecture",
+      "observed_at": "2026-04-29T06:57:02Z",
+      "source": "kernel_sentinel_shell_gateway_lifecycle_golden",
+      "affected_layer": "gateway",
+      "component": "dashboard_host",
+      "boundary": "shell_gateway_lifecycle",
+      "policy": "runtime_state_authority",
+      "architecture_scope": "shell_gateway_lifecycle_regression",
+      "self_model_scope": "sentinel_architectural_understanding",
+      "invariant_id": "shell_gateway_lifecycle_authority_regression",
+      "failure_level": "L4_architectural_misalignment",
+      "route_family": "gateway_startup",
+      "process_identity": "dashboard:4173",
+      "lifecycle_state": "stale_duplicate_after_restart",
+      "evidence_refs": [
+        "gateway://api/agents?hanging=true&oversized=true",
+        "route://api/agents/unbounded_roster_scan"
+      ],
+      "summary": "hanging_oversized_api_agents: /api/agents hung or returned oversized payloads during startup, making the route boot-critical and unbounded"
+    },
+    {
+      "schema_version": 1,
+      "id": "shell-gateway-lifecycle-dropped-query-semantics",
+      "evidence_level": "architecture",
+      "observed_at": "2026-04-29T06:57:03Z",
+      "source": "kernel_sentinel_shell_gateway_lifecycle_golden",
+      "affected_layer": "gateway",
+      "component": "dashboard_host",
+      "boundary": "shell_gateway_lifecycle",
+      "policy": "runtime_state_authority",
+      "architecture_scope": "shell_gateway_lifecycle_regression",
+      "self_model_scope": "sentinel_architectural_understanding",
+      "invariant_id": "shell_gateway_lifecycle_authority_regression",
+      "failure_level": "L4_architectural_misalignment",
+      "route_family": "gateway_startup",
+      "process_identity": "dashboard:4173",
+      "lifecycle_state": "stale_duplicate_after_restart",
+      "evidence_refs": [
+        "gateway://api/query_semantics_dropped",
+        "route://rust_compatibility/query_string_missing"
+      ],
+      "summary": "dropped_query_semantics: compatibility routing dropped query string semantics, so the request shape reaching runtime no longer matched operator intent"
+    },
+    {
+      "schema_version": 1,
+      "id": "shell-gateway-lifecycle-false-restart-success",
+      "evidence_level": "architecture",
+      "observed_at": "2026-04-29T06:57:04Z",
+      "source": "kernel_sentinel_shell_gateway_lifecycle_golden",
+      "affected_layer": "gateway",
+      "component": "dashboard_host",
+      "boundary": "shell_gateway_lifecycle",
+      "policy": "runtime_state_authority",
+      "architecture_scope": "shell_gateway_lifecycle_regression",
+      "self_model_scope": "sentinel_architectural_understanding",
+      "invariant_id": "shell_gateway_lifecycle_authority_regression",
+      "failure_level": "L4_architectural_misalignment",
+      "route_family": "gateway_startup",
+      "process_identity": "dashboard:4173",
+      "lifecycle_state": "stale_duplicate_after_restart",
+      "evidence_refs": [
+        "command_output_contradicts_runtime://infring_gateway_restart_reported_success_without_listener",
+        "gateway://healthz_not_ready_after_success"
+      ],
+      "summary": "false_restart_success: command output reported gateway restart success while runtime health and listener probes still showed unavailable"
+    },
+    {
+      "schema_version": 1,
+      "id": "shell-gateway-lifecycle-stale-duplicate-dashboard-hosts",
+      "evidence_level": "architecture",
+      "observed_at": "2026-04-29T06:57:05Z",
+      "source": "kernel_sentinel_shell_gateway_lifecycle_golden",
+      "affected_layer": "gateway",
+      "component": "dashboard_host",
+      "boundary": "shell_gateway_lifecycle",
+      "policy": "runtime_state_authority",
+      "architecture_scope": "shell_gateway_lifecycle_regression",
+      "self_model_scope": "sentinel_architectural_understanding",
+      "invariant_id": "shell_gateway_lifecycle_authority_regression",
+      "failure_level": "L4_architectural_misalignment",
+      "route_family": "gateway_startup",
+      "process_identity": "dashboard:4173",
+      "lifecycle_state": "stale_duplicate_after_restart",
+      "evidence_refs": [
+        "layer://kernel/watchdog_state",
+        "process://dashboard_host/duplicate_count=3",
+        "local_fix_failed://restart_did_not_clean_stale_duplicate_hosts"
+      ],
+      "summary": "stale_duplicate_dashboard_hosts: duplicate dashboard hosts remained after restart, proving process ownership and stale cleanup were not authoritative"
+    }
+  ]
+}

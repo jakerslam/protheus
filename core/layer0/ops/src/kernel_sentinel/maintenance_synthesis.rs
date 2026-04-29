@@ -2,6 +2,7 @@
 // Layer ownership: core/layer0/ops (authoritative)
 
 use super::{
+    kernel_sentinel_semantic_frame_for_finding,
     KernelSentinelFinding, KernelSentinelFindingCategory, KernelSentinelSeverity,
 };
 use serde_json::{json, Value};
@@ -11,8 +12,10 @@ use std::path::Path;
 
 #[derive(Debug, Clone)]
 struct MaintenanceCluster {
+    family_fingerprint: String,
     exemplar: KernelSentinelFinding,
     occurrence_count: usize,
+    exemplar_fingerprints: BTreeSet<String>,
     evidence: BTreeSet<String>,
 }
 
@@ -36,6 +39,37 @@ fn raw_source_fingerprint(fingerprint: &str) -> bool {
     .any(|prefix| fingerprint.starts_with(prefix))
 }
 
+fn severity_rank(severity: KernelSentinelSeverity) -> usize {
+    match severity {
+        KernelSentinelSeverity::Critical => 4,
+        KernelSentinelSeverity::High => 3,
+        KernelSentinelSeverity::Medium => 2,
+        KernelSentinelSeverity::Low => 1,
+    }
+}
+
+fn recurring_family_fingerprint(fingerprint: &str) -> String {
+    let marker = "misty_simulated_round";
+    let Some(index) = fingerprint.find(marker) else {
+        return fingerprint.to_string();
+    };
+    let marker_end = index + marker.len();
+    let digit_bytes = fingerprint[marker_end..]
+        .chars()
+        .take_while(|ch| ch.is_ascii_digit())
+        .map(char::len_utf8)
+        .sum::<usize>();
+    if digit_bytes == 0 {
+        return fingerprint.to_string();
+    }
+    format!(
+        "{}{}NN{}",
+        &fingerprint[..index],
+        marker,
+        &fingerprint[marker_end + digit_bytes..]
+    )
+}
+
 fn suggestion_label(category: KernelSentinelFindingCategory) -> &'static str {
     match category {
         KernelSentinelFindingCategory::PerformanceRegression
@@ -52,15 +86,15 @@ fn suggestion_action(cluster: &MaintenanceCluster) -> String {
     match suggestion_label(cluster.exemplar.category) {
         "optimization" => format!(
             "tune thresholds or shed earlier for repeated `{}` evidence",
-            cluster.exemplar.fingerprint
+            cluster.family_fingerprint
         ),
         "cleanup" => format!(
             "consolidate duplicate checks or stale remediation loops for `{}`",
-            cluster.exemplar.fingerprint
+            cluster.family_fingerprint
         ),
         _ => format!(
             "strengthen Kernel proof burden and regression coverage for `{}`",
-            cluster.exemplar.fingerprint
+            cluster.family_fingerprint
         ),
     }
 }
@@ -81,27 +115,40 @@ fn build_clusters(findings: &[KernelSentinelFinding]) -> BTreeMap<String, Mainte
         if raw_source_fingerprint(&finding.fingerprint) {
             continue;
         }
+        let family_fingerprint = recurring_family_fingerprint(&finding.fingerprint);
         let entry = clusters
-            .entry(finding.fingerprint.clone())
+            .entry(family_fingerprint.clone())
             .or_insert_with(|| MaintenanceCluster {
+                family_fingerprint,
                 exemplar: finding.clone(),
                 occurrence_count: 0,
+                exemplar_fingerprints: BTreeSet::new(),
                 evidence: BTreeSet::new(),
             });
         entry.occurrence_count += 1;
+        entry.exemplar_fingerprints.insert(finding.fingerprint.clone());
         entry.evidence.extend(finding.evidence.iter().cloned());
+        if severity_rank(finding.severity) > severity_rank(entry.exemplar.severity) {
+            entry.exemplar = finding.clone();
+        }
     }
     clusters
 }
 
 fn suggestion(cluster: &MaintenanceCluster) -> Value {
+    let semantic_frame = kernel_sentinel_semantic_frame_for_finding(&cluster.exemplar);
     json!({
         "type": "kernel_sentinel_suggestion",
         "status": "nonblocking",
         "label": suggestion_label(cluster.exemplar.category),
-        "fingerprint": cluster.exemplar.fingerprint,
+        "family_fingerprint": cluster.family_fingerprint,
+        "exemplar_fingerprint": cluster.exemplar.fingerprint,
+        "exemplar_fingerprints": cluster.exemplar_fingerprints.iter().cloned().collect::<Vec<_>>(),
         "severity": cluster.exemplar.severity,
         "category": cluster.exemplar.category,
+        "failure_level": semantic_frame["failure_level"].clone(),
+        "root_frame": semantic_frame["root_frame"].clone(),
+        "remediation_level": semantic_frame["remediation_level"].clone(),
         "occurrence_count": cluster.occurrence_count,
         "evidence": cluster.evidence.iter().cloned().collect::<Vec<_>>(),
         "suggested_change": suggestion_action(cluster),
@@ -111,10 +158,16 @@ fn suggestion(cluster: &MaintenanceCluster) -> Value {
 }
 
 fn automation_candidate(cluster: &MaintenanceCluster) -> Value {
+    let semantic_frame = kernel_sentinel_semantic_frame_for_finding(&cluster.exemplar);
     json!({
         "type": "kernel_sentinel_automation_candidate",
-        "fingerprint": cluster.exemplar.fingerprint,
+        "family_fingerprint": cluster.family_fingerprint,
+        "exemplar_fingerprint": cluster.exemplar.fingerprint,
+        "exemplar_fingerprints": cluster.exemplar_fingerprints.iter().cloned().collect::<Vec<_>>(),
         "state": automation_state(cluster),
+        "failure_level": semantic_frame["failure_level"].clone(),
+        "root_frame": semantic_frame["root_frame"].clone(),
+        "remediation_level": semantic_frame["remediation_level"].clone(),
         "occurrence_count": cluster.occurrence_count,
         "v1_max_state": "suggest_patch",
         "allowed_apply": false,
@@ -184,12 +237,19 @@ mod tests {
     use crate::kernel_sentinel::KERNEL_SENTINEL_FINDING_SCHEMA_VERSION;
 
     fn finding(severity: KernelSentinelSeverity) -> KernelSentinelFinding {
+        finding_with_fingerprint("boundedness:queue_depth:ops", severity)
+    }
+
+    fn finding_with_fingerprint(
+        fingerprint: &str,
+        severity: KernelSentinelSeverity,
+    ) -> KernelSentinelFinding {
         KernelSentinelFinding {
             schema_version: KERNEL_SENTINEL_FINDING_SCHEMA_VERSION,
             id: "finding-1".to_string(),
             severity,
             category: KernelSentinelFindingCategory::QueueBackpressure,
-            fingerprint: "boundedness:queue_depth:ops".to_string(),
+            fingerprint: fingerprint.to_string(),
             evidence: vec!["queue://ops/depth".to_string()],
             summary: "queue depth exceeded budget".to_string(),
             recommended_action: "shed earlier under pressure".to_string(),
@@ -203,6 +263,18 @@ mod tests {
         assert_eq!(report["suggestion_count"], Value::from(1));
         assert_eq!(report["suggestions"][0]["label"], "optimization");
         assert_eq!(report["suggestions"][0]["blocks_release"], false);
+        assert_eq!(
+            report["suggestions"][0]["failure_level"],
+            "L1_component_regression"
+        );
+        assert_eq!(
+            report["suggestions"][0]["root_frame"],
+            "component_runtime_regression"
+        );
+        assert_eq!(
+            report["suggestions"][0]["remediation_level"],
+            "component_fix"
+        );
     }
 
     #[test]
@@ -217,7 +289,45 @@ mod tests {
         );
         assert_eq!(report["automation_candidate_count"], Value::from(1));
         assert_eq!(report["automation_candidates"][0]["state"], "issue_draft");
+        assert_eq!(
+            report["automation_candidates"][0]["failure_level"],
+            "L1_component_regression"
+        );
         assert_eq!(report["automation_candidates"][0]["allowed_apply"], false);
         assert_eq!(report["automation_candidates"][0]["may_waive_findings"], false);
+    }
+
+    #[test]
+    fn recurring_round_fingerprints_collapse_into_one_suggestion_family() {
+        let report = build_maintenance_synthesis(
+            &[
+                finding_with_fingerprint(
+                    "synthetic_user_chat_harness:misty_simulated_round01_failures",
+                    KernelSentinelSeverity::Medium,
+                ),
+                finding_with_fingerprint(
+                    "synthetic_user_chat_harness:misty_simulated_round02_failures",
+                    KernelSentinelSeverity::Medium,
+                ),
+                finding_with_fingerprint(
+                    "synthetic_user_chat_harness:misty_simulated_round03_failures",
+                    KernelSentinelSeverity::High,
+                ),
+            ],
+            &[],
+        );
+        assert_eq!(report["suggestion_count"], Value::from(1));
+        assert_eq!(report["automation_candidate_count"], Value::from(1));
+        assert_eq!(
+            report["suggestions"][0]["family_fingerprint"],
+            "synthetic_user_chat_harness:misty_simulated_roundNN_failures"
+        );
+        assert_eq!(report["suggestions"][0]["severity"], "high");
+        assert_eq!(
+            report["suggestions"][0]["exemplar_fingerprints"]
+                .as_array()
+                .map(Vec::len),
+            Some(3)
+        );
     }
 }
