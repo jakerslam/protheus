@@ -17,6 +17,26 @@ Core decides what is true and allowed. (compatibility alias for Kernel)
 Orchestration decides what should happen next.  
 Shell decides how it is shown and collected.
 
+Canonical Nexus-Conduit-Checkpoint policy lives in `docs/workspace/nexus_conduit_checkpoint_policy.md`.
+
+Canonical Layered Nexus Federation Resolution policy lives in `docs/workspace/layered_nexus_federation_resolution_policy.md`.
+
+Canonical Cross-Domain Nexus Route Inventory lives in `docs/workspace/cross_domain_nexus_route_inventory.md`.
+
+Canonical Conduit/Scrambler Posture policy lives in `docs/workspace/conduit_scrambler_posture_policy.md`.
+
+Canonical Gateway Ingress/Egress Interface policy lives in `docs/workspace/gateway_ingress_egress_policy.md`.
+
+Canonical Interface Payload Budget policy lives in `docs/workspace/interface_payload_budget_policy.md`.
+
+Canonical Shell-Independent Operation policy lives in `docs/workspace/shell_independent_operation_policy.md`.
+
+Canonical Shell UI Projection policy lives in `docs/workspace/shell_ui_projection_policy.md`.
+
+Canonical Shell UI Message Detail contract lives in `docs/workspace/shell_ui_message_detail_contract.md`.
+
+Every cross-module or cross-domain route must enter and exit through explicit Nexus checkpoint surfaces, travel over Conduit, declare Conduit/Scrambler security posture, and carry lease/capability, lifecycle, policy, and receipt context. Direct code-file-to-code-file cross-module paths are migration debt unless they are explicitly exempted with owner, expiry, and a replacement Nexus checkpoint plan.
+
 ## Kernel
 
 ### Mission
@@ -75,11 +95,13 @@ Is this deciding control-plane flow (what should run next) rather than deciding 
 
 Render outputs, collect input, and manage presentation-local UX state.
 
+The Shell is a projection lens, not a runtime mirror. Default Shell-facing payloads must be bounded presentation projections with explicit byte, depth, array, string, cursor, detail-ref, audit, and Nexus budgets; details such as traces, raw tool results, workflow internals, and execution observations are fetched lazily by reference through the proper gateway/conduit path. Core, Orchestration Surface, CLI, and Gateway status must build and operate without browser Shell assets.
+
 ### Shell Owns
 
 - Rendering and interaction flows.
 - Input capture and UX shells.
-- Presentation-local state and caches.
+- Presentation-local state and bounded preview caches.
 
 ### Shell Must Not Own
 
@@ -87,10 +109,13 @@ Render outputs, collect input, and manage presentation-local UX state.
 - Authoritative health/readiness inference.
 - Workflow decomposition and retry authority.
 - Queue truth, lane truth, or adapter truth.
+- Full runtime objects, raw tool payloads, traces, workflow truth, execution observations, or durable full-state conversation caches.
 
 ### Placement Test
 
 If this UI were replaced with another shell, would this logic still be needed?
+
+Projection test: is this field required to display the current view, or can Shell keep an ID/preview and fetch details on demand?
 
 ## Gateways (compat alias: Adapters)
 
@@ -163,6 +188,7 @@ Core coupling governance is enforced by policy + CI:
 
 - Policy: `tests/tooling/config/kernel_nexus_coupling_policy.json`
 - Guard: `tests/tooling/scripts/ci/kernel_nexus_coupling_guard.ts`
+- Canonical policy: `docs/workspace/nexus_conduit_checkpoint_policy.md`
 - Command: `npm run -s ops:nexus:kernel-coupling:guard`
 - CI workflow: `.github/workflows/core-nexus-coupling.yml`
 
@@ -170,4 +196,5 @@ Rule intent:
 
 - Non-nexus core modules must not directly couple to other non-nexus core modules in enforced scope.
 - Cross-module connectivity should route through nexus contracts.
+- Cross-boundary routes should be represented by explicit Nexus checkpoint surfaces rather than private implementation imports.
 - Temporary exemptions are explicit, dated, and fail-closed on expiry.

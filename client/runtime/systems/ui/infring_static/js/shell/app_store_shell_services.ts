@@ -33,6 +33,12 @@ var InfringSharedShellServices = (function(existing) {
     return shellRoot && typeof shellRoot === 'object' ? shellRoot : null;
   }
 
+  function legacySource() {
+    if (sourceStore && typeof sourceStore === 'object') return sourceStore;
+    if (typeof window !== 'undefined' && window.InfringApp && typeof window.InfringApp === 'object') return window.InfringApp;
+    return null;
+  }
+
   function agentsFrom(source) {
     return source && Array.isArray(source.agents) ? source.agents : [];
   }
@@ -40,7 +46,9 @@ var InfringSharedShellServices = (function(existing) {
   function snapshot() {
     var store = current() || {};
     var rootState = root() || {};
+    var legacy = legacySource() || {};
     var agents = agentsFrom(store);
+    if (!agents.length) agents = agentsFrom(legacy);
     var page = clean(rootState.page || store.page || currentHashPage() || 'chat').toLowerCase();
     var theme = clean(rootState.theme || store.theme);
     var themeMode = clean(rootState.themeMode || store.themeMode || theme);
@@ -51,17 +59,15 @@ var InfringSharedShellServices = (function(existing) {
       theme: theme,
       themeMode: themeMode,
       agents: agents,
-      agentCount: Number(store.agentCount || agents.length || 0) || 0,
-      activeAgentId: clean(store.activeAgentId),
-      pendingFreshAgentId: clean(store.pendingFreshAgentId),
+      agentCount: Number(store.agentCount || legacy.agentCount || agents.length || 0) || 0,
+      activeAgentId: clean(store.activeAgentId || legacy.activeAgentId),
+      pendingFreshAgentId: clean(store.pendingFreshAgentId || legacy.pendingFreshAgentId),
       focusMode: !!store.focusMode,
-      connected: !!store.connected,
-      wsConnected: !!store.wsConnected,
-      connectionState: clean(store.connectionState || (store.connected ? 'connected' : 'disconnected')),
-      notifications: Array.isArray(store.notifications) ? store.notifications : [],
-      unreadNotifications: Number(store.unreadNotifications || 0) || 0,
-      raw: store,
-      root: rootState
+      connected: !!(store.connected || legacy.connected),
+      wsConnected: !!(store.wsConnected || legacy.wsConnected),
+      connectionState: clean(store.connectionState || legacy.connectionState || (store.connected || legacy.connected ? 'connected' : 'disconnected')),
+      notifications: Array.isArray(store.notifications) ? store.notifications : (Array.isArray(legacy.notifications) ? legacy.notifications : []),
+      unreadNotifications: Number(store.unreadNotifications || legacy.unreadNotifications || 0) || 0
     };
   }
 
@@ -116,17 +122,21 @@ var InfringSharedShellServices = (function(existing) {
   }
 
   function set(key, value) {
-    var store = current();
+    var store = current() || root();
+    var legacy = legacySource();
     if (!store || !key) return store;
     store[key] = value;
+    if (legacy && legacy !== store) legacy[key] = value;
     emit('set:' + key);
     return store;
   }
 
   function assign(values) {
-    var store = current();
+    var store = current() || root();
+    var legacy = legacySource();
     if (!store || !values || typeof values !== 'object') return store;
     Object.assign(store, values);
+    if (legacy && legacy !== store) Object.assign(legacy, values);
     emit('assign');
     return store;
   }

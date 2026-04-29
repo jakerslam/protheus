@@ -5957,8 +5957,6 @@ function chatPage() {
         for (var i = 0; i < msg.tools.length; i += 1) {
           var tool = msg.tools[i] || {};
           if (tool.name) parts.push(String(tool.name));
-          if (tool.input) parts.push(String(tool.input));
-          if (tool.result) parts.push(String(tool.result));
         }
       }
       return parts.join('\n').toLowerCase().indexOf(normalizedQuery) >= 0;
