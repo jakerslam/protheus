@@ -9,7 +9,7 @@ Effective: April 2026
 
 This inventory makes the current cross-domain Nexus routes explicit enough to audit.
 
-It answers the practical question left after the Layered Nexus Federation resolution: which cross-domain route classes currently exist, where do they enter, where do they exit, what Conduit carries them, what posture protects them, and what proof hooks keep them governable?
+It answers the practical question left after the Layered Nexus Federation resolution: which cross-domain route classes currently exist, where do they enter, where do they exit, what Conduit carries each A-to-B connection, what posture protects it, and what proof hooks keep it governable?
 
 ## Core Rule
 

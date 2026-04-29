@@ -158,9 +158,10 @@ Completion requires all of the following:
 - Canonical Shell-Independent Operation policy: `docs/workspace/shell_independent_operation_policy.md`.
 - Canonical Shell UI Projection policy: `docs/workspace/shell_ui_projection_policy.md`.
 - Canonical Shell UI Message Detail contract: `docs/workspace/shell_ui_message_detail_contract.md`.
+- Canonical System Understanding Dossier policy: `docs/workspace/system_understanding_dossier_policy.md`.
 - Cross-boundary path rule:
   - Any module/domain boundary crossing must enter and exit through an explicit Nexus checkpoint surface.
-  - Cross-boundary traffic must use Conduit with lease/capability, lifecycle, policy, and receipt context.
+  - Cross-boundary traffic must use Nexus files/surfaces, with each A-to-B edge represented as a Conduit carrying lease/capability, lifecycle, policy, and receipt context.
   - Cross-boundary routes must declare Conduit/Scrambler security posture; sensitive Core/Orchestration authority routes must not silently downgrade below strong Scrambler posture.
   - Direct code-file-to-code-file cross-module paths are migration debt unless explicitly exempted with owner, expiry, and replacement Nexus checkpoint plan.
 - Architecture policy governance rule:

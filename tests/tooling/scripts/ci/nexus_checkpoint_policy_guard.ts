@@ -12,15 +12,15 @@ const POLICY_PATH = 'docs/workspace/nexus_conduit_checkpoint_policy.md';
 const FEDERATION_RESOLUTION_POLICY_PATH = 'docs/workspace/layered_nexus_federation_resolution_policy.md';
 
 const REQUIRED_POLICY_PHRASES = [
-  'Nexus-Conduit-Checkpoint Policy',
+  'Nexus Checkpoint Policy',
   'Modules do work.',
-  'Nexuses manage relationships.',
-  'Conduits carry traffic.',
+  'Nexi structure relationships among multiple files, module surfaces, and domains.',
+  'Conduits are single A-to-B connection points inside Nexi.',
   'Kernel policy decides what is allowed.',
   'Receipts prove what happened.',
   'Nexus checkpoint surface',
   'No direct cross-module code path may bypass a Nexus checkpoint surface.',
-  'No cross-boundary traffic may bypass Conduit.',
+  'No A-to-B cross-boundary connection may bypass an explicit Conduit inside a Nexus.',
   'route lease',
   'Scrambler',
   'Shell shows and collects',

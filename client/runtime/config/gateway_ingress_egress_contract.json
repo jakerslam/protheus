@@ -8,10 +8,26 @@
   ],
   "policy_doc_required_tokens": [
     "Gateways are boundary surfaces, not authority mirrors.",
+    "The Gateway is the external ambiguity firewall.",
+    "Gateway enforces external ambiguity at the boundary.",
     "Ingress asks for work.",
     "Egress reports bounded display output.",
     "No Gateway route may return the whole system state just because one consumer might need a subset.",
     "Enforcement command: `npm run -s ops:gateway:interface:guard`."
+  ],
+  "required_enforcement_responsibilities": [
+    "authentication",
+    "authorization",
+    "payload_limits",
+    "projection_shaping",
+    "rate_limits",
+    "capability_checks",
+    "mutation_approval_checks",
+    "audit_receipts",
+    "route_policy",
+    "shell_isolation",
+    "lazy_detail_access",
+    "issue_eval_submission_controls"
   ],
   "required_route_classes": [
     "request_ingress",

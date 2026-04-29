@@ -11,6 +11,8 @@ Gateways are boundary surfaces, not authority mirrors.
 
 This policy separates Gateway traffic into explicit route classes so the Shell cannot become a full-state mirror, an authority relay, or a hidden runtime owner. The Gateway may accept bounded requests, emit bounded projections, report health/status, and fetch explicit details by ID. It must not collapse those responsibilities into one full-state endpoint.
 
+The Gateway is the external ambiguity firewall. It is where ambiguous, untrusted, user-facing, Shell-facing, CLI-facing, SDK-facing, app-facing, package-facing, plugin-facing, and external-agent-facing traffic becomes typed, bounded, leased, auditable traffic before it can touch Core or Orchestration.
+
 ## Core Axiom
 
 Ingress asks for work.
@@ -21,6 +23,8 @@ Health/status reports bounded readiness truth from the owner.
 
 Detail fetch expands one referenced object.
 
+Gateway enforces external ambiguity at the boundary.
+
 No Gateway route may return the whole system state just because one consumer might need a subset.
 
 Default route payloads must also satisfy the Interface Payload Budget policy in `docs/workspace/interface_payload_budget_policy.md`.
@@ -28,6 +32,42 @@ Default route payloads must also satisfy the Interface Payload Budget policy in 
 Conduit route posture must satisfy the Conduit/Scrambler Posture policy in `docs/workspace/conduit_scrambler_posture_policy.md`.
 
 Cross-domain route inventory must satisfy `docs/workspace/cross_domain_nexus_route_inventory.md`.
+
+Gateway itself is a Nexus boundary participant. Ingress and egress both enter and exit through Nexi, and each A-to-B edge is a Conduit; no Gateway route is exempt from Nexus checkpointing just because Gateway is the external ambiguity boundary.
+
+## Gateway Enforcement Responsibilities
+
+Gateway owns enforcement at the point where external ambiguity enters or leaves the system. It must enforce:
+
+- authentication;
+- authorization;
+- payload limits;
+- projection shaping;
+- rate limits;
+- capability checks;
+- mutation approval checks;
+- audit receipts;
+- route policy;
+- Shell isolation;
+- lazy detail access;
+- issue and eval submission controls.
+
+These are boundary enforcement duties, not truth ownership duties. Gateway may verify, shape, deny, admit, rate-limit, and receipt traffic, but it must not become the canonical source of policy truth, permission truth, workflow truth, execution truth, memory truth, or runtime state.
+
+When Gateway needs a truth-bearing answer, it must ask the owner through a Nexus checkpoint and Conduit. Gateway may cache bounded refs, receipts, and short-lived projection metadata only when the route contract and payload budget permit it.
+
+## Gateway Non-Authority Rule
+
+Gateway must not:
+
+- infer user intent beyond route classification and typed request shaping;
+- plan workflows;
+- decide canonical permission truth;
+- decide canonical policy truth;
+- own durable runtime state;
+- store full Shell/session/conversation mirrors;
+- expose full Core, Orchestration, trace, tool, eval, memory, or policy objects by default;
+- allow the Shell to use Gateway transport behavior as hidden readiness, retry, or admission authority.
 
 ## Required Route Classes
 
@@ -48,6 +88,8 @@ Request ingress may carry:
 
 Request ingress should return an acknowledgement, receipt, accepted/rejected status, and follow-up refs. It must not return full conversation history, full tool results, full traces, full workflow graphs, or raw runtime state.
 
+Request ingress must apply authentication, authorization, payload limits, rate limits, capability checks, mutation approval checks, route policy, and audit receipts before forwarding any accepted request through the target Nexus checkpoint and Conduit.
+
 ### Event Output Egress
 
 Event/output egress routes carry bounded system output projections back to the Shell or another presentation surface.
@@ -63,6 +105,8 @@ Event/output egress may carry:
 - receipt refs.
 
 Event/output egress must not carry raw Core, Orchestration, planner, tool, trace, artifact, or eval envelopes by default.
+
+Event/output egress must apply projection shaping, Shell isolation, payload budgets, and audit receipt linkage before any data enters Shell-facing state.
 
 ### Health And Status
 
@@ -95,6 +139,8 @@ Detail fetch may carry:
 
 Detail fetch may return richer data than default projections, but it must be bounded, capability-scoped, audited, revocable, and Nexus-checkpointed.
 
+Detail fetch is lazy by default. Raw traces, tool outputs, artifacts, workflow details, eval details, execution observations, and diagnostics must be fetched by stable detail ref, not bundled into default Gateway responses.
+
 ### Bounded Search/Query
 
 Search/query routes return bounded result projections, not raw corpus mirrors.
@@ -108,6 +154,8 @@ Search/query may carry:
 - capability context.
 
 Search/query must return hit ids, snippets, labels, counts, and detail refs. Deep payload search belongs behind the Gateway owner, not inside Shell memory.
+
+Search/query must never require the Shell to retain or stringify full payloads in order to search.
 
 ## Prohibited Mixed Routes
 
@@ -143,7 +191,7 @@ Each route must declare:
 
 Shell-facing route ownership is presentation-boundary ownership only. The route may collect input or display output, but truth and admission remain behind Core/Orchestration owners.
 
-Gateway routes that carry sensitive detail fetches, authority-bearing request ingress, external agent/plugin ingress, recovery actions, policy/permission data, trace bodies, tool results, or execution observations must declare `strong_scrambler` posture rather than defaulting to standard transport.
+Gateway routes that carry sensitive detail fetches, authority-bearing request ingress, external agent/plugin ingress, recovery actions, policy/permission data, trace bodies, tool results, or execution observations must declare `strong_scrambler` Conduit posture rather than defaulting to standard transport.
 
 ## Gateway And Shell Relationship
 
@@ -153,6 +201,8 @@ The Shell may keep refs, cursors, previews, and display-local state. It must not
 
 Default Shell-facing Gateway responses must declare byte, array, depth, string, cursor, detail-ref, audit, and Nexus budgets before they are accepted as default routes.
 
+Issue-reporting and eval-submission routes are request ingress routes with additional controls. Taskbar issue submission may target external issue creation only through an approved Gateway route; chat-local report/eval submission may trigger internal eval only through a bounded Gateway route. Neither path may be implemented as Shell-owned policy, Shell-owned mutation, or raw context upload.
+
 ## Enforcement
 
 Enforcement command: `npm run -s ops:gateway:interface:guard`.
@@ -161,4 +211,4 @@ Payload budget command: `npm run -s ops:interface:payload-budget:guard`.
 
 Route inventory command: `npm run -s ops:nexus:route-inventory:guard`.
 
-The guard validates `client/runtime/config/gateway_ingress_egress_contract.json`, verifies this policy document contains the canonical route-class language, and fails closed if required route classes are missing, if a route class allows full-state/default raw payloads, or if detail/search/status classes lack bounded/capability/audit/Nexus constraints.
+The guard validates `client/runtime/config/gateway_ingress_egress_contract.json`, verifies this policy document contains the canonical route-class and external ambiguity firewall language, and fails closed if required route classes are missing, if required Gateway enforcement responsibilities are missing, if a route class allows full-state/default raw payloads, or if detail/search/status classes lack bounded/capability/audit/Nexus constraints.

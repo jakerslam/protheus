@@ -19,12 +19,24 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
   function app() {
     try {
       var service = appStoreService();
-      return service && typeof service.current === 'function' ? service.current() : null;
+      if (service && typeof service.current === 'function') {
+        var current = service.current();
+        if (current) return current;
+      }
+      return service && typeof service.root === 'function' ? service.root() : null;
     } catch (_e) {
       return null;
     }
   }
   function call(fn) {
+    var service = appStoreService();
+    if (service && typeof service.method === 'function') {
+      var method = service.method(fn);
+      if (method) {
+        var methodArgs = Array.prototype.slice.call(arguments, 1);
+        try { return method.apply(null, methodArgs); } catch (_e) { return undefined; }
+      }
+    }
     var s = app();
     if (!s || typeof s[fn] !== 'function') return undefined;
     var args = Array.prototype.slice.call(arguments, 1);
@@ -64,7 +76,7 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
   function notificationsOpen(_tick) {
     return !!((app() || {}).notificationsOpen);
   }
-  function classFromCall(fn) {
+  function classFromCall(fn, _tick) {
     return String(call(fn) || '');
   }
   function showUtility(title, body, event) {
@@ -161,9 +173,9 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
       <div class="taskbar-reorder-item" data-taskbar-item={item} style={itemStyle(item, uiTick)} draggable="true">
         {#if item === 'connectivity'}
           <div class="global-taskbar-controls">
-            <button class={"health-indicator taskbar-agent-indicator " + classFromCall('runtimeFacadeClass')} type="button" on:click={() => { location.hash = 'agents'; bump(); }} title={call('runtimeFacadeTitle') || ''} aria-label="Open agents">
+            <button class={"health-indicator taskbar-agent-indicator " + classFromCall('runtimeFacadeClass', uiTick)} type="button" on:click={() => { location.hash = 'agents'; bump(); }} title={call('runtimeFacadeTitle', uiTick) || ''} aria-label="Open agents">
               <span class="taskbar-agent-indicator-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
-              <span class="taskbar-agent-indicator-text">{call('runtimeFacadeDisplayLabel') || ''}</span>
+              <span class="taskbar-agent-indicator-text">{call('runtimeFacadeDisplayLabel', uiTick) || ''}</span>
             </button>
           </div>
         {:else if item === 'theme'}
@@ -209,9 +221,9 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
       </div>
     {/each}
   </div>
-  <div class="taskbar-clock" title={call('taskbarClockLabel') || ''} aria-label="System clock">
-    <span class="taskbar-clock-main">{call('taskbarClockMainLabel') || ''}</span>
-    <span class="taskbar-clock-meridiem">{call('taskbarClockMeridiemLabel') || ''}</span>
+  <div class="taskbar-clock" title={call('taskbarClockLabel', uiTick) || ''} aria-label="System clock">
+    <span class="taskbar-clock-main">{call('taskbarClockMainLabel', uiTick) || ''}</span>
+    <span class="taskbar-clock-meridiem">{call('taskbarClockMeridiemLabel', uiTick) || ''}</span>
   </div>
 </div>
 `;
