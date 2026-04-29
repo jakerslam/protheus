@@ -2,6 +2,8 @@
 // Layer ownership: core/layer0/ops (authoritative)
 
 use super::{
+    kernel_sentinel_failure_level_taxonomy, kernel_sentinel_incident_event_model,
+    kernel_system_understanding_dossier_model,
     KernelSentinelAuthorityClass, KernelSentinelAuthorityRule, KernelSentinelEvidenceSource,
     KERNEL_SENTINEL_CLI_DOMAIN, KERNEL_SENTINEL_CONTRACT_VERSION, KERNEL_SENTINEL_MODULE_ID,
     KERNEL_SENTINEL_NAME,
@@ -80,7 +82,15 @@ pub fn kernel_sentinel_contract() -> Value {
             "may_waive_sentinel_finding": false,
             "promotion_requires_deterministic_kernel_rule": true
         },
-        "authority_rules": authority_rules
+        "system_understanding_role": {
+            "role": "kernel_owned_shared_schema_for_sentinel_rsi_and_external_assimilation",
+            "policy_ref": "docs/workspace/system_understanding_dossier_policy.md",
+            "implementation_without_dossier_is_disallowed_when_confidence_thresholds_are_unmet": true
+        },
+        "authority_rules": authority_rules,
+        "failure_level_taxonomy": kernel_sentinel_failure_level_taxonomy(),
+        "incident_event_model": kernel_sentinel_incident_event_model(),
+        "system_understanding_dossier_model": kernel_system_understanding_dossier_model()
     });
     let receipt_hash = crate::deterministic_receipt_hash(&payload);
     payload["receipt_hash"] = Value::String(receipt_hash);

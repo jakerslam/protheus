@@ -49,6 +49,30 @@
     }
 
     #[test]
+    fn kernel_sentinel_contract_exposes_failure_level_taxonomy() {
+        let contract = kernel_sentinel_contract();
+        let taxonomy = contract["failure_level_taxonomy"].as_array().unwrap();
+        let codes = taxonomy
+            .iter()
+            .map(|entry| entry["code"].as_str().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            codes,
+            vec![
+                "L0_local_defect",
+                "L1_component_regression",
+                "L2_boundary_contract_breach",
+                "L3_policy_truth_failure",
+                "L4_architectural_misalignment",
+                "L5_self_model_failure",
+            ]
+        );
+        assert_eq!(taxonomy[3]["remediation_level"], "policy_realignment");
+        assert_eq!(taxonomy[4]["remediation_level"], "architectural_refactor");
+        assert_eq!(taxonomy[5]["remediation_level"], "self_model_repair");
+    }
+
+    #[test]
     fn control_plane_eval_cannot_write_or_waive_sentinel_verdicts() {
         let rule = authority_rule(KernelSentinelEvidenceSource::ControlPlaneEval);
         assert_eq!(
@@ -92,6 +116,10 @@
             status: "open".to_string(),
         };
         assert!(validate_finding(&valid).is_ok());
+        let serialized = serde_json::to_value(&valid).unwrap();
+        assert_eq!(serialized["failure_level"], "L3_policy_truth_failure");
+        assert_eq!(serialized["root_frame"], "policy_truth_contradiction");
+        assert_eq!(serialized["remediation_level"], "policy_realignment");
         valid.evidence.clear();
         assert_eq!(validate_finding(&valid), Err("missing_evidence".to_string()));
         valid.evidence.push("receipt://tool-attempt/1".to_string());

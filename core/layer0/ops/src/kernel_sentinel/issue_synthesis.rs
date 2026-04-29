@@ -1,28 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: core/layer0/ops (authoritative)
 
-use super::{KernelSentinelFinding, KernelSentinelSeverity};
+use super::{
+    incident_report::violated_invariants,
+    kernel_sentinel_semantic_frame_for_finding,
+    issue_cluster_semantics::{
+        cluster_fields, issue_cluster_key, issue_family_fingerprint, issue_family_kind,
+        issue_title, severity_rank, synthetic_issue_scenario_id, FindingCluster,
+    },
+    KernelSentinelFinding, KernelSentinelSeverity,
+};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::Path;
-
-#[derive(Debug, Clone)]
-struct FindingCluster {
-    cluster_key: String,
-    issue_family_fingerprint: String,
-    issue_family_kind: String,
-    scenario_id: String,
-    exemplar: KernelSentinelFinding,
-    occurrence_count: usize,
-    first_seen_index: usize,
-    last_seen_index: usize,
-    session: String,
-    surface: String,
-    receipt_type: String,
-    recovery_reason: String,
-    evidence: BTreeSet<String>,
-}
 
 fn option_usize(args: &[String], name: &str, fallback: usize) -> usize {
     let prefix = format!("{name}=");
@@ -61,143 +52,20 @@ fn redacted_evidence(rows: &BTreeSet<String>) -> Vec<String> {
         .collect()
 }
 
-fn severity_rank(severity: KernelSentinelSeverity) -> u8 {
-    match severity {
-        KernelSentinelSeverity::Critical => 0,
-        KernelSentinelSeverity::High => 1,
-        KernelSentinelSeverity::Medium => 2,
-        KernelSentinelSeverity::Low => 3,
-    }
-}
-
-fn evidence_token(rows: &[String], key: &str) -> Option<String> {
-    let needle = format!("{key}=");
-    rows.iter().find_map(|row| {
-        let start = row.find(&needle)? + needle.len();
-        let value = row[start..]
-            .split(|ch: char| matches!(ch, ';' | ',' | '|' | '&' | ' ' | '#'))
-            .next()
-            .unwrap_or("")
-            .trim();
-        (!value.is_empty()).then(|| value.to_string())
-    })
-}
-
-fn evidence_scheme(rows: &[String], scheme: &str) -> Option<String> {
-    let prefix = format!("{scheme}://");
-    rows.iter().find_map(|row| {
-        let value = row.strip_prefix(&prefix)?;
-        let value = value
-            .split(|ch: char| matches!(ch, '/' | ';' | ',' | '|' | '&' | ' ' | '#'))
-            .next()
-            .unwrap_or("")
-            .trim();
-        (!value.is_empty()).then(|| value.to_string())
-    })
-}
-
-fn recovery_reason(finding: &KernelSentinelFinding) -> String {
-    let text = format!("{} {}", finding.summary, finding.recommended_action).to_lowercase();
-    if text.contains("quarantine") {
-        "quarantine".to_string()
-    } else if text.contains("rollback") {
-        "rollback".to_string()
-    } else if text.contains("shed") || text.contains("backpressure") {
-        "shed_or_defer".to_string()
-    } else if text.contains("receipt") {
-        "restore_receipt".to_string()
-    } else if text.contains("grant") || text.contains("capability") {
-        "restore_capability_grant".to_string()
-    } else {
-        "inspect_kernel_evidence".to_string()
-    }
-}
-
-fn cluster_fields(finding: &KernelSentinelFinding) -> (String, String, String, String) {
-    let session = evidence_token(&finding.evidence, "session")
-        .or_else(|| evidence_scheme(&finding.evidence, "session"))
-        .unwrap_or_else(|| "unknown_session".to_string());
-    let surface = evidence_token(&finding.evidence, "surface")
-        .or_else(|| evidence_scheme(&finding.evidence, "surface"))
-        .unwrap_or_else(|| format!("{:?}", finding.category).to_lowercase());
-    let receipt_type = evidence_token(&finding.evidence, "receipt_type")
-        .or_else(|| evidence_scheme(&finding.evidence, "receipt"))
-        .unwrap_or_else(|| "unspecified_receipt".to_string());
-    let recovery_reason = recovery_reason(finding);
-    (session, surface, receipt_type, recovery_reason)
-}
-
-fn issue_family_fingerprint(fingerprint: &str) -> String {
-    const MISTY_ROUND_PREFIX: &str = "misty_simulated_round";
-    let normalized = fingerprint.to_ascii_lowercase();
-    let Some(prefix_index) = normalized.find(MISTY_ROUND_PREFIX) else {
-        return fingerprint.to_string();
-    };
-    let suffix_index = prefix_index + MISTY_ROUND_PREFIX.len();
-    let rest = &normalized[suffix_index..];
-    let digit_count = rest.chars().take_while(|ch| ch.is_ascii_digit()).count();
-    if digit_count == 0 {
-        return fingerprint.to_string();
-    }
-    let after_digits = &rest[digit_count..];
-    if matches!(
-        after_digits,
-        "_failure" | "_failures" | "-failure" | "-failures" | ":failure" | ":failures"
-    ) {
-        "synthetic_user_chat_harness:misty_simulated_failures".to_string()
-    } else {
-        fingerprint.to_string()
-    }
-}
-
-fn synthetic_issue_scenario_id(issue_family_fingerprint: &str) -> String {
-    if issue_family_fingerprint == "synthetic_user_chat_harness:misty_simulated_failures" {
-        "misty_simulated_failures".to_string()
-    } else {
-        "none".to_string()
-    }
-}
-
-fn issue_family_kind(scenario_id: &str) -> String {
-    if scenario_id == "none" {
-        "fingerprint_cluster".to_string()
-    } else {
-        "synthetic_scenario".to_string()
-    }
-}
-
-fn issue_cluster_key(
-    issue_family_fingerprint: &str,
-    scenario_id: &str,
-    session: &str,
-    surface: &str,
-    receipt_type: &str,
-    recovery_reason: &str,
-) -> String {
-    if scenario_id != "none" {
-        return format!("scenario={scenario_id}|fingerprint={issue_family_fingerprint}");
-    }
-    format!(
-        "{issue_family_fingerprint}|session={session}|surface={surface}|receipt_type={receipt_type}|recovery={recovery_reason}"
-    )
-}
-
-fn issue_title(finding: &KernelSentinelFinding) -> String {
-    format!(
-        "[{:?}] Kernel Sentinel {:?}: {}",
-        finding.severity, finding.category, finding.summary
-    )
-}
-
 fn issue_draft(cluster: &FindingCluster) -> Value {
     let finding = &cluster.exemplar;
     let evidence = redacted_evidence(&cluster.evidence);
+    let semantic_frame = kernel_sentinel_semantic_frame_for_finding(finding);
     json!({
         "type": "kernel_sentinel_issue_draft",
         "status": "draft",
         "title": issue_title(finding),
         "severity": finding.severity,
         "category": finding.category,
+        "failure_level": semantic_frame["failure_level"].clone(),
+        "root_frame": semantic_frame["root_frame"].clone(),
+        "remediation_level": semantic_frame["remediation_level"].clone(),
+        "violated_invariants": cluster.violated_invariants,
         "fingerprint": cluster.issue_family_fingerprint,
         "issue_family_kind": cluster.issue_family_kind,
         "scenario_level": cluster.scenario_id != "none",
@@ -275,6 +143,12 @@ fn issue_quality_failures(drafts: &[Value]) -> Vec<Value> {
         if acceptance_count < 3 {
             reasons.push("insufficient_acceptance_criteria");
         }
+        for required in ["failure_level", "root_frame", "remediation_level"] {
+            if draft.get(required).and_then(Value::as_str).unwrap_or("").trim().is_empty() {
+                reasons.push("missing_semantic_frame");
+                break;
+            }
+        }
         if !reasons.is_empty() {
             failures.push(json!({
                 "fingerprint": fingerprint,
@@ -301,13 +175,12 @@ pub fn build_issue_synthesis(findings: &[KernelSentinelFinding], args: &[String]
         let issue_family_fingerprint = issue_family_fingerprint(&finding.fingerprint);
         let scenario_id = synthetic_issue_scenario_id(&issue_family_fingerprint);
         let issue_family_kind = issue_family_kind(&scenario_id);
+        let violated_invariants = violated_invariants(finding);
         let cluster_key = issue_cluster_key(
             &issue_family_fingerprint,
             &scenario_id,
-            &session,
-            &surface,
-            &receipt_type,
-            &recovery_reason,
+            finding,
+            &violated_invariants,
         );
         let entry = clusters
             .entry(cluster_key.clone())
@@ -316,6 +189,7 @@ pub fn build_issue_synthesis(findings: &[KernelSentinelFinding], args: &[String]
                 issue_family_fingerprint,
                 issue_family_kind,
                 scenario_id,
+                violated_invariants,
                 exemplar: finding.clone(),
                 occurrence_count: 0,
                 first_seen_index: index,
@@ -352,7 +226,7 @@ pub fn build_issue_synthesis(findings: &[KernelSentinelFinding], args: &[String]
         "cluster_count": clusters.len(),
         "active_issue_window_count": active_issue_window_count,
         "rate_limited_cluster_count": rate_limited_cluster_count,
-        "cluster_dimensions": ["fingerprint", "session", "surface", "receipt_type", "recovery_reason"],
+        "cluster_dimensions": ["root_frame", "violated_invariants"],
         "issue_draft_count": issue_drafts.len(),
         "issue_quality": {
             "ok": issue_quality_failures.is_empty(),
@@ -405,6 +279,18 @@ mod tests {
         let report = build_issue_synthesis(&[finding.clone(), finding], &[]);
         assert_eq!(report["active_issue_window_count"], Value::from(1));
         assert_eq!(report["issue_drafts"][0]["occurrence_count"], Value::from(2));
+        assert_eq!(
+            report["issue_drafts"][0]["failure_level"],
+            "L2_boundary_contract_breach"
+        );
+        assert_eq!(
+            report["issue_drafts"][0]["root_frame"],
+            "cross_boundary_contract"
+        );
+        assert_eq!(
+            report["issue_drafts"][0]["remediation_level"],
+            "boundary_repair"
+        );
     }
 
     #[test]
@@ -492,15 +378,19 @@ mod tests {
     }
 
     #[test]
-    fn cluster_key_separates_sessions_and_preserves_rate_limit() {
+    fn cluster_key_collapses_sessions_when_root_frame_and_invariant_match() {
         let mut first = repeated_finding();
         first.evidence = vec!["gateway://ollama/flap;session=a;surface=gateway;receipt_type=quarantine".to_string()];
         let mut second = first.clone();
         second.evidence = vec!["gateway://ollama/flap;session=b;surface=gateway;receipt_type=quarantine".to_string()];
         let report = build_issue_synthesis(&[first, second], &[]);
-        assert_eq!(report["cluster_count"], Value::from(2));
-        assert_eq!(report["active_issue_window_count"], Value::from(0));
-        assert_eq!(report["rate_limited_cluster_count"], Value::from(2));
+        assert_eq!(report["cluster_count"], Value::from(1));
+        assert_eq!(report["active_issue_window_count"], Value::from(1));
+        assert_eq!(report["rate_limited_cluster_count"], Value::from(0));
+        assert_eq!(
+            report["issue_drafts"][0]["cluster_key"],
+            "root_frame=cross_boundary_contract|violated_invariants=unknown_invariant"
+        );
     }
 
     #[test]

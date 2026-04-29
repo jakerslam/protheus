@@ -170,6 +170,10 @@ fn top_holes(feedback_rows: &[Value], generated_at: &str) -> Value {
     let holes = rows.into_iter().take(10).collect::<Vec<_>>();
     let issue_candidates = holes
         .iter()
+        .filter(|row| {
+            bool_at(row, &["issue_candidate_ready"], false)
+                || usize_at(row, &["recurrence_count"]) >= 2
+        })
         .map(|row| {
             let category = string_field(row, "category");
             let fingerprint = string_field(row, "fingerprint");
@@ -186,6 +190,11 @@ fn top_holes(feedback_rows: &[Value], generated_at: &str) -> Value {
                 "labels": ["kernel-sentinel", "self-study", category.clone()],
                 "title": string_field(row, "summary"),
                 "severity": string_field(row, "severity"),
+                "failure_level": string_field(row, "failure_level"),
+                "root_frame": string_field(row, "root_frame"),
+                "remediation_level": string_field(row, "remediation_level"),
+                "recurrence_count": usize_at(row, &["recurrence_count"]),
+                "recurrence_threshold": usize_at(row, &["recurrence_threshold"]),
                 "priority_rank": usize_at(row, &["priority_rank"]),
                 "todo_priority": string_field(row, "todo_priority"),
                 "category": category.clone(),
@@ -543,4 +552,60 @@ pub(super) fn write_self_study_outputs(dir: &Path, report: &Value) -> Result<Val
     });
     manifest["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&manifest));
     Ok(manifest)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn feedback_row(fingerprint: &str, recurrence_count: usize) -> Value {
+        json!({
+            "dedupe_key": format!("correctness:{fingerprint}"),
+            "fingerprint": fingerprint,
+            "severity": "high",
+            "category": "correctness",
+            "failure_level": "L2_boundary_contract_breach",
+            "root_frame": "cross_boundary_contract",
+            "remediation_level": "boundary_repair",
+            "todo_priority": "P1",
+            "priority_rank": 1,
+            "summary": format!("{fingerprint} observed"),
+            "recommended_action": "inspect the repeated Sentinel failure family",
+            "evidence": [format!("runtime://{fingerprint}")],
+            "recurrence_count": recurrence_count,
+            "recurrence_threshold": 2,
+            "issue_candidate_ready": recurrence_count >= 2
+        })
+    }
+
+    #[test]
+    fn top_holes_keeps_singletons_advisory_until_recurrence_threshold() {
+        let top = top_holes(
+            &[
+                feedback_row("one_off_failure", 1),
+                feedback_row("repeated_failure", 2),
+            ],
+            "2026-04-28T00:00:00Z",
+        );
+
+        assert_eq!(top["summary"]["hole_count"], 2);
+        assert_eq!(top["summary"]["issue_candidate_count"], 1);
+        assert_eq!(
+            top["issue_candidates"][0]["fingerprint"],
+            "kernel_sentinel:correctness:repeated_failure"
+        );
+        assert_eq!(top["issue_candidates"][0]["recurrence_count"], 2);
+        assert_eq!(
+            top["issue_candidates"][0]["failure_level"],
+            "L2_boundary_contract_breach"
+        );
+        assert_eq!(
+            top["issue_candidates"][0]["root_frame"],
+            "cross_boundary_contract"
+        );
+        assert_eq!(
+            top["issue_candidates"][0]["remediation_level"],
+            "boundary_repair"
+        );
+    }
 }

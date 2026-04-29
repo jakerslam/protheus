@@ -31,6 +31,21 @@ fn control_plane_eval_is_advisory_even_when_reported_critical() {
 }
 
 #[test]
+fn severity_without_explicit_failure_signal_does_not_open_finding() {
+    let dir = std::env::temp_dir().join("kernel-sentinel-evidence-severity-observed");
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(
+        dir.join("runtime_observations.jsonl"),
+        r#"{"id":"obs-1","ok":true,"severity":"critical","subject":"runtime","kind":"bridge_presence","summary":"runtime bridge observed","evidence":["runtime://obs/1"]}"#,
+    )
+    .unwrap();
+    let args = vec![format!("--evidence-dir={}", dir.display())];
+    let ingestion = ingest_evidence_sources(&dir, &args);
+    assert!(ingestion.findings.is_empty());
+    assert_eq!(ingestion.report["normalized_records"][0]["severity"], "critical");
+}
+
+#[test]
 fn runtime_collector_catalog_ingests_scheduler_and_boundedness_files() {
     let dir = std::env::temp_dir().join("kernel-sentinel-runtime-collector-catalog");
     fs::create_dir_all(&dir).unwrap();

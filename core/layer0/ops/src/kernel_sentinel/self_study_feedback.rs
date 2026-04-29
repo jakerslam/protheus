@@ -4,6 +4,8 @@
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
+use crate::kernel_sentinel::kernel_sentinel_semantic_frame_for_parts;
+
 fn string_field(row: &Value, key: &str) -> String {
     row.get(key)
         .and_then(Value::as_str)
@@ -73,6 +75,13 @@ fn feedback_item(finding: &Value, generated_at: &str) -> Value {
     let fingerprint = string_field(finding, "fingerprint");
     let family_fingerprint = feedback_family_fingerprint(&fingerprint);
     let evidence = finding.get("evidence").cloned().unwrap_or_else(|| json!([]));
+    let semantic_frame = kernel_sentinel_semantic_frame_for_parts(
+        &category,
+        &severity,
+        &fingerprint,
+        &string_field(finding, "summary"),
+        &string_field(finding, "recommended_action"),
+    );
     json!({
         "type": "kernel_sentinel_feedback_item",
         "source": "kernel_sentinel",
@@ -83,6 +92,9 @@ fn feedback_item(finding: &Value, generated_at: &str) -> Value {
         "dedupe_key": format!("{category}:{family_fingerprint}"),
         "severity": severity,
         "category": category,
+        "failure_level": semantic_frame["failure_level"].clone(),
+        "root_frame": semantic_frame["root_frame"].clone(),
+        "remediation_level": semantic_frame["remediation_level"].clone(),
         "todo_priority": todo_priority(&severity, &category),
         "priority_rank": severity_priority(&severity),
         "summary": string_field(finding, "summary"),
@@ -92,6 +104,9 @@ fn feedback_item(finding: &Value, generated_at: &str) -> Value {
             "fingerprint": fingerprint,
             "evidence": evidence
         }],
+        "recurrence_count": 1,
+        "recurrence_threshold": 2,
+        "issue_candidate_ready": false,
         "preservation_policy": "preserve_until_resolved_or_waived_by_kernel_receipt"
     })
 }
@@ -129,6 +144,10 @@ fn merge_feedback_evidence(target: &mut Value, incoming: &Value) {
                 rows.push(row.clone());
             }
         }
+        let recurrence_count = rows.len();
+        target["recurrence_count"] = json!(recurrence_count);
+        target["recurrence_threshold"] = json!(2);
+        target["issue_candidate_ready"] = json!(recurrence_count >= 2);
     }
 }
 
@@ -175,7 +194,7 @@ mod tests {
                 {
                     "status": "open",
                     "severity": "medium",
-                    "category": "correctness",
+                    "category": "runtime_correctness",
                     "fingerprint": "synthetic_user_chat_harness:misty_simulated_round01_failures",
                     "summary": "round 01 synthetic chat failure",
                     "recommended_action": "inspect synthetic chat harness output",
@@ -184,7 +203,7 @@ mod tests {
                 {
                     "status": "open",
                     "severity": "high",
-                    "category": "correctness",
+                    "category": "runtime_correctness",
                     "fingerprint": "synthetic_user_chat_harness:misty_simulated_round02_failures",
                     "summary": "round 02 synthetic chat failure",
                     "recommended_action": "inspect synthetic chat harness output",
@@ -202,9 +221,12 @@ mod tests {
         );
         assert_eq!(
             rows[0]["dedupe_key"],
-            "correctness:synthetic_user_chat_harness:misty_simulated_failures"
+            "runtime_correctness:synthetic_user_chat_harness:misty_simulated_failures"
         );
         assert_eq!(rows[0]["severity"], "high");
+        assert_eq!(rows[0]["failure_level"], "L2_boundary_contract_breach");
+        assert_eq!(rows[0]["root_frame"], "cross_boundary_contract");
+        assert_eq!(rows[0]["remediation_level"], "boundary_repair");
         assert_eq!(
             rows[0]["fingerprint"],
             "synthetic_user_chat_harness:misty_simulated_round02_failures"
@@ -214,5 +236,8 @@ mod tests {
             json!(["synthetic://misty/round02", "synthetic://misty/round01"])
         );
         assert_eq!(rows[0]["per_run_evidence"].as_array().unwrap().len(), 2);
+        assert_eq!(rows[0]["recurrence_count"], 2);
+        assert_eq!(rows[0]["recurrence_threshold"], 2);
+        assert_eq!(rows[0]["issue_candidate_ready"], true);
     }
 }
