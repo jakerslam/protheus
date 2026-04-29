@@ -6,7 +6,9 @@ Updated: 2026-04-26
 
 ## What the pipeline does
 
-Kernel Sentinel is the Kernel-side self-study mechanism. It should watch deterministic runtime evidence first, use control-plane eval as advisory input second, and produce issue/suggestion/automation candidates only after evidence is normalized.
+Kernel Sentinel is the Kernel-side self-study mechanism and a privileged Observability resident inside the Assurance Plane. It should watch deterministic runtime evidence first, use control-plane eval as advisory input second, and produce issue/suggestion/automation candidates only after evidence is normalized.
+
+Sentinel is not the whole Validation system. Tests, eval definitions, benchmarks, conformance guards, regression suites, release gates, and scorecards are owned by the Assurance Plane's Validation and Governance domains. Sentinel consumes their evidence only through declared authority classes.
 
 The pipeline has four steps:
 
@@ -14,6 +16,7 @@ The pipeline has four steps:
 2. `kernel-sentinel collect` bridges that telemetry into `local/state/kernel_sentinel/evidence/*.jsonl`.
 3. `kernel-sentinel run` or `kernel-sentinel auto` ingests those streams and writes Sentinel reports.
 4. Self-study outputs turn open findings into feedback inbox rows, top holes, daily report, and RSI readiness state.
+5. Governance consumes Sentinel outputs alongside controlled Validation evidence to derive release posture, scorecards, and issue-candidate priority.
 
 ## Important paths
 
@@ -28,6 +31,8 @@ The pipeline has four steps:
 | `local/state/kernel_sentinel/rsi_readiness_summary_current.json` | RSI readiness summary. |
 | `local/state/kernel_sentinel/feedback_inbox.jsonl` | Deduped Sentinel feedback items. |
 | `local/state/kernel_sentinel/top_system_holes_current.json` | Highest-priority Sentinel holes and issue candidates. |
+| `docs/workspace/assurance_plane_policy.md` | Canonical Assurance boundary and domain policy. |
+| `docs/workspace/assurance_plane_execution_plan.md` | Execution plan for migrating checks, observations, gates, and scorecards into the Assurance Plane. |
 
 ## Operator commands
 
@@ -78,6 +83,8 @@ When the state is `stale_evidence`, inspect `evidence_ingestion.max_evidence_age
 Deterministic Kernel evidence can open release-blocking findings. This includes receipt, runtime, state mutation, scheduler admission, recovery, boundedness, release proof, gateway, and queue evidence.
 
 Control-plane eval evidence is advisory. It can open findings and issues, but it cannot write Sentinel verdicts, waive findings, or directly block release as Kernel authority.
+
+Validation evidence remains controlled proof. Observability evidence remains live runtime awareness. Governance is the only Assurance domain that should combine both into release gates, scorecards, and readiness verdicts.
 
 Shell telemetry must remain presentation-only. It can help explain what users saw, but it cannot become canonical truth.
 
