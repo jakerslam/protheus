@@ -72,18 +72,6 @@ var InfringSharedShellServices = (function(existing) {
     return -1;
   }
 
-  function retrySource(row, index, rows) {
-    var list = Array.isArray(rows) ? rows : [];
-    var resolved = resolveIndex(row, index, list);
-    if (resolved < 0) return null;
-    for (var i = resolved; i >= 0; i -= 1) {
-      var candidate = list[i];
-      if (!candidate || candidate.is_notice || !isHumanAuthored(candidate)) continue;
-      if (trimString(candidate.text)) return candidate;
-    }
-    return null;
-  }
-
   function isLatestAgent(row, index, rows) {
     var list = Array.isArray(rows) ? rows : [];
     var resolved = resolveIndex(row, index, list);
@@ -98,17 +86,16 @@ var InfringSharedShellServices = (function(existing) {
 
   function canRetry(row, index, rows) {
     if (!isAgentAuthored(row)) return false;
-    if (!isLatestAgent(row, index, rows)) return false;
-    return !!retrySource(row, index, rows);
+    void index;
+    void rows;
+    return false;
   }
 
   function canReply(row, index, rows) {
-    var list = Array.isArray(rows) ? rows : [];
-    var resolved = resolveIndex(row, index, list);
-    if (resolved < 0) return false;
-    var source = list[resolved];
-    if (!source || source.is_notice || isHumanAuthored(source)) return false;
-    return !!trimString(source.text);
+    void index;
+    void rows;
+    if (!row || row.is_notice || isHumanAuthored(row)) return false;
+    return false;
   }
 
   function canFork(row, agent) {
@@ -181,7 +168,6 @@ var InfringSharedShellServices = (function(existing) {
 
   services.messageMeta = Object.assign({}, services.messageMeta || {}, {
     resolveIndex: resolveIndex,
-    retrySource: retrySource,
     isLatestAgent: isLatestAgent,
     canRetry: canRetry,
     canReply: canReply,

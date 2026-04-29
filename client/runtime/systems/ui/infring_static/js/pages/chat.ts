@@ -1,3 +1,5 @@
+// Canonical Shell source-of-truth: assembled runtime chat surface.
+// Decomposition debt lives under ./chat.ts.parts/** and must not count as additive production source.
 // Infring Chat Page — Agent chat with markdown + streaming
 'use strict';
 
@@ -885,256 +887,69 @@ function chatPage() {
     },
 
     inputHistoryMode: function(explicitMode) {
-      var mode = String(explicitMode || (this.terminalMode ? 'terminal' : 'chat')).trim().toLowerCase();
-      return mode === 'terminal' ? 'terminal' : 'chat';
+      return chatInputHistoryMode(this, explicitMode);
     },
 
     inputHistoryLimit: function() {
-      var maxEntries = Number(this.inputHistoryMaxEntries || 0);
-      if (!Number.isFinite(maxEntries) || maxEntries < 20) maxEntries = 120;
-      if (maxEntries > 500) maxEntries = 500;
-      return maxEntries;
+      return chatInputHistoryLimit(this);
     },
 
     normalizeInputHistoryEntry: function(value) {
-      return String(value == null ? '' : value).trim();
+      return chatNormalizeInputHistoryEntry(value);
     },
 
     normalizeInputHistoryRows: function(rows) {
-      var source = Array.isArray(rows) ? rows : [];
-      var clean = [];
-      for (var i = 0; i < source.length; i += 1) {
-        var item = this.normalizeInputHistoryEntry(source[i]);
-        if (!item) continue;
-        if (clean.length && clean[clean.length - 1] === item) continue;
-        clean.push(item);
-      }
-      var maxEntries = this.inputHistoryLimit();
-      if (clean.length > maxEntries) clean = clean.slice(clean.length - maxEntries);
-      return clean;
+      return chatNormalizeInputHistoryRows(this, rows);
     },
 
     inputHistoryLegacyAgentKey: function(explicitAgentId) {
-      var direct = String(explicitAgentId || '').trim();
-      if (direct) return direct;
-      var active = this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : '';
-      return String(active || '').trim();
+      return chatInputHistoryLegacyAgentKey(this, explicitAgentId);
     },
 
     inputHistorySessionScopeKey: function(explicitAgentId) {
-      var agentId = this.inputHistoryLegacyAgentKey(explicitAgentId);
-      if (!agentId) return '';
-      var scopeKey = '';
-      if (typeof this.resolveConversationCacheScopeKey === 'function') {
-        try {
-          scopeKey = String(this.resolveConversationCacheScopeKey(agentId) || '').trim();
-        } catch (_) {
-          scopeKey = '';
-        }
-      }
-      if (!scopeKey) scopeKey = agentId + '|main';
-      var prefix = String(this.inputHistorySessionScopePrefix || 'session:').trim() || 'session:';
-      return prefix + scopeKey;
+      return chatInputHistorySessionScopeKey(this, explicitAgentId);
     },
 
     inputHistoryAgentKey: function(explicitAgentId) {
-      var scoped = this.inputHistorySessionScopeKey(explicitAgentId);
-      if (scoped) return scoped;
-      return this.inputHistoryLegacyAgentKey(explicitAgentId);
+      return chatInputHistoryAgentKey(this, explicitAgentId);
     },
 
     inputHistoryBucketRows: function(cache, agentKey, legacyKey, mode) {
-      var buckets = [];
-      if (cache && agentKey && cache[agentKey] && typeof cache[agentKey] === 'object') {
-        buckets.push(cache[agentKey]);
-      }
-      if (
-        cache &&
-        legacyKey &&
-        legacyKey !== agentKey &&
-        (!buckets.length || !Array.isArray(mode === 'terminal' ? buckets[0].terminal : buckets[0].chat) || !(mode === 'terminal' ? buckets[0].terminal : buckets[0].chat).length) &&
-        cache[legacyKey] &&
-        typeof cache[legacyKey] === 'object'
-      ) {
-        buckets.push(cache[legacyKey]);
-      }
-      for (var i = 0; i < buckets.length; i += 1) {
-        var bucket = buckets[i];
-        var rows = mode === 'terminal' ? bucket.terminal : bucket.chat;
-        if (Array.isArray(rows) && rows.length) return this.normalizeInputHistoryRows(rows);
-      }
-      return [];
+      return chatInputHistoryBucketRows(this, cache, agentKey, legacyKey, mode);
     },
 
     loadInputHistoryCache: function() {
-      var empty = {};
-      try {
-        var raw = localStorage.getItem(this.inputHistoryCacheKey);
-        if (!raw) {
-          this._inputHistoryByAgent = empty;
-          return;
-        }
-        var parsed = JSON.parse(raw);
-        var next = parsed && typeof parsed === 'object' ? parsed : empty;
-        var normalized = {};
-        var keys = Object.keys(next);
-        for (var i = 0; i < keys.length; i += 1) {
-          var key = String(keys[i] || '').trim();
-          if (!key) continue;
-          var bucket = next[key];
-          if (!bucket || typeof bucket !== 'object') continue;
-          normalized[key] = {
-            chat: this.normalizeInputHistoryRows(bucket.chat),
-            terminal: this.normalizeInputHistoryRows(bucket.terminal),
-            updated_at: Number(bucket.updated_at || 0) || 0,
-          };
-        }
-        this._inputHistoryByAgent = normalized;
-      } catch (_) {
-        this._inputHistoryByAgent = empty;
-      }
+      chatLoadInputHistoryCache(this);
     },
 
     persistInputHistoryCache: function() {
-      try {
-        var payload = this._inputHistoryByAgent && typeof this._inputHistoryByAgent === 'object'
-          ? this._inputHistoryByAgent
-          : {};
-        localStorage.setItem(this.inputHistoryCacheKey, JSON.stringify(payload));
-      } catch (_) {}
+      chatPersistInputHistoryCache(this);
     },
 
 
     hydrateInputHistoryFromCache: function(explicitMode, explicitAgentId) {
-      var mode = this.inputHistoryMode(explicitMode);
-      var rows = this.inputHistoryEntries(mode);
-      if (!Array.isArray(rows)) return;
-      var agentKey = this.inputHistoryAgentKey(explicitAgentId);
-      if (!agentKey) return;
-      var legacyKey = this.inputHistoryLegacyAgentKey(explicitAgentId);
-      var cache = this._inputHistoryByAgent && typeof this._inputHistoryByAgent === 'object'
-        ? this._inputHistoryByAgent
-        : {};
-      var cachedRows = this.inputHistoryBucketRows(cache, agentKey, legacyKey, mode);
-      if (!Array.isArray(cachedRows) || !cachedRows.length) return;
-      var merged = this.normalizeInputHistoryRows(rows.concat(cachedRows));
-      if (mode === 'terminal') this.terminalInputHistory = merged;
-      else this.chatInputHistory = merged;
+      chatHydrateInputHistoryFromCache(this, explicitMode, explicitAgentId);
     },
 
     syncInputHistoryToCache: function(explicitMode, explicitAgentId) {
-      var mode = this.inputHistoryMode(explicitMode);
-      var rows = this.inputHistoryEntries(mode);
-      if (!Array.isArray(rows)) return;
-      var agentKey = this.inputHistoryAgentKey(explicitAgentId);
-      if (!agentKey) return;
-      if (!this._inputHistoryByAgent || typeof this._inputHistoryByAgent !== 'object') {
-        this._inputHistoryByAgent = {};
-      }
-      var bucket = this._inputHistoryByAgent[agentKey] && typeof this._inputHistoryByAgent[agentKey] === 'object'
-        ? this._inputHistoryByAgent[agentKey]
-        : {};
-      var cleanRows = this.normalizeInputHistoryRows(rows);
-      if (mode === 'terminal') bucket.terminal = cleanRows;
-      else bucket.chat = cleanRows;
-      bucket.updated_at = Date.now();
-      this._inputHistoryByAgent[agentKey] = bucket;
-      this.persistInputHistoryCache();
+      chatSyncInputHistoryToCache(this, explicitMode, explicitAgentId);
     },
 
     inputHistoryEntries: function(explicitMode) {
-      var mode = this.inputHistoryMode(explicitMode);
-      return mode === 'terminal' ? this.terminalInputHistory : this.chatInputHistory;
+      return chatInputHistoryEntries(this, explicitMode);
     },
 
 
     resetInputHistoryNavigation: function(explicitMode) {
-      var mode = this.inputHistoryMode(explicitMode);
-      if (mode === 'terminal') {
-        this.terminalInputHistoryCursor = -1;
-        this.terminalInputHistoryDraft = '';
-        return;
-      }
-      this.chatInputHistoryCursor = -1;
-      this.chatInputHistoryDraft = '';
+      chatResetInputHistoryNavigation(this, explicitMode);
     },
 
     pushInputHistoryEntry: function(explicitMode, rawText) {
-      var text = this.normalizeInputHistoryEntry(rawText);
-      if (!text) return;
-      var mode = this.inputHistoryMode(explicitMode);
-      var rows = this.inputHistoryEntries(mode);
-      if (!Array.isArray(rows)) return;
-      if (rows.length && String(rows[rows.length - 1] || '') === text) {
-        this.resetInputHistoryNavigation(mode);
-        return;
-      }
-      var nextRows = this.normalizeInputHistoryRows(rows.concat([text]));
-      rows.splice(0, rows.length);
-      for (var i = 0; i < nextRows.length; i += 1) rows.push(nextRows[i]);
-      this.syncInputHistoryToCache(mode);
-      this.resetInputHistoryNavigation(mode);
+      chatPushInputHistoryEntry(this, explicitMode, rawText);
     },
 
     navigateInputHistory: function(direction, event) {
-      var step = Number(direction || 0);
-      if (!Number.isFinite(step) || step === 0) return false;
-      var mode = this.inputHistoryMode();
-      var rows = this.inputHistoryEntries(mode);
-      if (!Array.isArray(rows) || !rows.length) return false;
-      var cursor = mode === 'terminal' ? Number(this.terminalInputHistoryCursor || -1) : Number(this.chatInputHistoryCursor || -1);
-      if (!Number.isFinite(cursor)) cursor = -1;
-      var draft = mode === 'terminal'
-        ? String(this.terminalInputHistoryDraft || '')
-        : String(this.chatInputHistoryDraft || '');
-
-      var nextText = '';
-      if (step < 0) {
-        if (cursor < 0) {
-          draft = String(this.inputText || '');
-          cursor = rows.length - 1;
-        } else {
-          cursor = Math.max(0, cursor - 1);
-        }
-        nextText = String(rows[cursor] || '');
-      } else {
-        if (cursor < 0) {
-          return false;
-        } else if (cursor >= rows.length - 1) {
-          cursor = -1;
-          nextText = draft;
-        } else {
-          cursor += 1;
-          nextText = String(rows[cursor] || '');
-        }
-      }
-
-      if (mode === 'terminal') {
-        this.terminalInputHistoryCursor = cursor;
-        this.terminalInputHistoryDraft = draft;
-      } else {
-        this.chatInputHistoryCursor = cursor;
-        this.chatInputHistoryDraft = draft;
-      }
-
-      this._inputHistoryApplying = true;
-      this.inputText = nextText;
-      var self = this;
-      this.$nextTick(function() {
-        var el = document.getElementById('msg-input');
-        if (el) {
-          var pos = String(self.inputText || '').length;
-          if (typeof el.setSelectionRange === 'function') {
-            try { el.setSelectionRange(pos, pos); } catch(_) {}
-          }
-          el.style.height = 'auto';
-          el.style.height = Math.min(el.scrollHeight, 150) + 'px';
-        }
-        if (self.terminalMode) self.updateTerminalCursor({ target: el });
-        self._inputHistoryApplying = false;
-      });
-      if (event && typeof event.preventDefault === 'function') event.preventDefault();
-      return true;
+      return chatNavigateInputHistory(this, direction, event);
     },
 
     freshInitOtherInputPlaceholder: function() {
@@ -2572,199 +2387,55 @@ function chatPage() {
     },
 
     resolveConversationInputMode(agentId) {
-      var key = String(agentId || '').trim();
-      if (!key) return 'chat';
-      if (this.isSystemThreadId(key)) return 'terminal';
-      var cached = this.conversationCache && this.conversationCache[key];
-      return cached && cached.default_terminal === true ? 'terminal' : 'chat';
+      return chatResolveConversationInputMode(this, agentId);
     },
 
     currentConversationInputMode(agentId) {
-      if (this.isSystemThreadId(agentId)) return 'terminal';
-      return this.terminalMode ? 'terminal' : 'chat';
+      return chatCurrentConversationInputMode(this, agentId);
     },
 
     applyConversationInputMode(agentId, options) {
-      var opts = options && typeof options === 'object' ? options : {};
-      var hasForced = Object.prototype.hasOwnProperty.call(opts, 'force_terminal');
-      var mode = this.resolveConversationInputMode(agentId);
-      if (hasForced) mode = opts.force_terminal === true ? 'terminal' : 'chat';
-      if (this.isSystemThreadId(agentId)) mode = 'terminal';
-      this.terminalMode = mode === 'terminal';
-      this.showSlashMenu = false;
-      this.showModelPicker = false;
-      this.showModelSwitcher = false;
-      this.terminalCursorFocused = false;
-      if (!this.terminalMode) this.terminalSelectionStart = 0;
-      if (this.terminalMode && !this.terminalCwd) this.terminalCwd = '/workspace';
-      return mode;
+      return chatApplyConversationInputMode(this, agentId, options);
     },
 
     sanitizeConversationDraftText(rawText) {
-      var text = String(rawText == null ? '' : rawText);
-      if (!text) return '';
-      if (text.length > 12000) text = text.slice(0, 12000);
-      var trimmed = text.trim();
-      if (!trimmed) return '';
-      if (/^message\s+.+\.\.\.(?:\s+\(\/\s*for commands\))?$/i.test(trimmed)) return '';
-      if (/^tell\s+.+\.\.\.$/i.test(trimmed)) return '';
-      return text;
+      return chatSanitizeConversationDraftText(rawText);
     },
 
     conversationCacheMaxEntries: function() {
-      return 20;
+      return chatConversationCacheMaxEntries();
     },
 
     pruneConversationCacheEntries: function() {
-      if (!this.conversationCache || typeof this.conversationCache !== 'object') return;
-      var keys = Object.keys(this.conversationCache || {});
-      var maxEntries = Number(this.conversationCacheMaxEntries ? this.conversationCacheMaxEntries() : 20);
-      if (!Number.isFinite(maxEntries) || maxEntries < 1) maxEntries = 20;
-      if (keys.length <= maxEntries) return;
-      keys.sort((left, right) => {
-        var a = this.conversationCache[left] && typeof this.conversationCache[left] === 'object'
-          ? Number(this.conversationCache[left].saved_at || 0)
-          : 0;
-        var b = this.conversationCache[right] && typeof this.conversationCache[right] === 'object'
-          ? Number(this.conversationCache[right].saved_at || 0)
-          : 0;
-        return b - a;
-      });
-      var next = {};
-      for (var i = 0; i < keys.length && i < maxEntries; i += 1) {
-        next[keys[i]] = this.conversationCache[keys[i]];
-      }
-      this.conversationCache = next;
+      chatPruneConversationCacheEntries(this);
     },
 
     touchConversationCacheEntry: function(agentId, patch) {
-      var key = String(agentId || '').trim();
-      if (!key) return null;
-      if (!this.conversationCache || typeof this.conversationCache !== 'object') this.conversationCache = {};
-      var prior = this.conversationCache[key] && typeof this.conversationCache[key] === 'object'
-        ? this.conversationCache[key]
-        : {};
-      var next = Object.assign({}, prior, patch || {}, { saved_at: Date.now() });
-      this.conversationCache[key] = next;
-      this.pruneConversationCacheEntries();
-      return this.conversationCache[key];
+      return chatTouchConversationCacheEntry(this, agentId, patch);
     },
 
     captureConversationDraft(agentId, explicitMode) {
-      var key = String(agentId || '').trim();
-      if (!key) return;
-      if (!this.conversationCache) this.conversationCache = {};
-      var mode = String(explicitMode || this.currentConversationInputMode(key) || 'chat').trim().toLowerCase();
-      if (mode !== 'terminal') mode = 'chat';
-      var next = this.touchConversationCacheEntry(key) || {};
-      var scopeKey = typeof this.resolveConversationCacheScopeKey === 'function'
-        ? this.resolveConversationCacheScopeKey(key)
-        : key;
-      next.session_scope_key = scopeKey;
-      var sanitized = this.sanitizeConversationDraftText(this.inputText);
-      if (mode === 'terminal') next.draft_terminal = sanitized;
-      else next.draft_chat = sanitized;
-      this.conversationCache[key] = next;
-      this.persistConversationCache();
+      chatCaptureConversationDraft(this, agentId, explicitMode);
     },
 
     restoreConversationDraft(agentId, explicitMode) {
-      var key = String(agentId || '').trim();
-      if (!key || !this.conversationCache) {
-        this.inputText = '';
-        return '';
-      }
-      var cached = this.conversationCache[key];
-      if (!cached || typeof cached !== 'object') {
-        this.inputText = '';
-        return '';
-      }
-      var scopeKey = typeof this.resolveConversationCacheScopeKey === 'function'
-        ? this.resolveConversationCacheScopeKey(key)
-        : key;
-      var cachedScopeKey = String(cached.session_scope_key || '').trim();
-      if (scopeKey && cachedScopeKey && scopeKey !== cachedScopeKey) {
-        this.inputText = '';
-        return '';
-      }
-      var mode = String(explicitMode || this.currentConversationInputMode(key) || 'chat').trim().toLowerCase();
-      if (mode !== 'terminal') mode = 'chat';
-      var raw = mode === 'terminal' ? cached.draft_terminal : cached.draft_chat;
-      var nextText = this.sanitizeConversationDraftText(raw);
-      this.touchConversationCacheEntry(key);
-      this.inputText = nextText;
-      var self = this;
-      this.$nextTick(function() {
-        var el = document.getElementById('msg-input');
-        if (!el) return;
-        el.style.height = 'auto';
-        el.style.height = Math.min(el.scrollHeight, 150) + 'px';
-        if (self.terminalMode) self.updateTerminalCursor({ target: el });
-      });
-      return nextText;
+      return chatRestoreConversationDraft(this, agentId, explicitMode);
     },
 
     cacheAgentConversation(agentId) {
-      if (!agentId) return;
-      if (!this.conversationCache) this.conversationCache = {};
-      try {
-        var key = String(agentId);
-        var scopeKey = typeof this.resolveConversationCacheScopeKey === 'function'
-          ? this.resolveConversationCacheScopeKey(agentId)
-          : key;
-        var currentSessionRow = typeof this.resolveCurrentSessionRow === 'function'
-          ? this.resolveCurrentSessionRow(agentId)
-          : null;
-        var cachedMessages = this.sanitizeConversationForCache(this.messages || []);
-        var next = Object.assign(
-          {},
-          this.touchConversationCacheEntry(key),
-          {
-          saved_at: Date.now(),
-          session_scope_key: scopeKey,
-          session_label: typeof this.resolveSessionRowLabel === 'function'
-            ? this.resolveSessionRowLabel(currentSessionRow, agentId)
-            : '',
-          token_count: this.tokenCount || 0,
-          default_terminal: this.currentConversationInputMode(agentId) === 'terminal',
-          messages: cachedMessages,
-          }
-        );
-        var mode = this.currentConversationInputMode(agentId);
-        var draft = this.sanitizeConversationDraftText(this.inputText);
-        if (mode === 'terminal') next.draft_terminal = draft;
-        else next.draft_chat = draft;
-        this.conversationCache[key] = next;
-        var appStore = Alpine.store('app');
-        if (appStore && typeof appStore.saveAgentChatPreview === 'function') {
-          appStore.saveAgentChatPreview(agentId, this.conversationCache[key].messages);
-        }
-        this.persistConversationCache();
-      } catch {}
+      chatCacheAgentConversation(this, agentId);
     },
 
     cacheCurrentConversation() {
-      if (!this.currentAgent || !this.currentAgent.id) return;
-      this.cacheAgentConversation(this.currentAgent.id);
+      chatCacheCurrentConversation(this);
     },
 
     scheduleConversationPersist() {
-
-      var self = this;
-      if (this._persistTimer) clearTimeout(this._persistTimer);
-      this._persistTimer = setTimeout(function() {
-        self.cacheCurrentConversation();
-      }, 80);
+      chatScheduleConversationPersist(this);
     },
 
     countAvailableModelRows: function(rows) {
-      var list = Array.isArray(rows) ? rows : [];
-      var count = 0;
-      for (var i = 0; i < list.length; i += 1) {
-        var row = list[i] || {};
-        if (row.available !== false) count += 1;
-      }
-      return count;
+      return chatCountAvailableModelRows(rows);
     },
 
     // Backward-compat shim for legacy callers during naming migration.
@@ -2773,217 +2444,27 @@ function chatPage() {
     },
 
     providerPayloadToModelCatalogRows: function(payload) {
-      var providers = payload && Array.isArray(payload.providers) ? payload.providers : [];
-      var out = [];
-      for (var i = 0; i < providers.length; i += 1) {
-        var providerRow = providers[i] && typeof providers[i] === 'object' ? providers[i] : {};
-        var provider = String(providerRow.id || '').trim().toLowerCase();
-        if (!provider || provider === 'auto') continue;
-        var isLocal = providerRow.is_local === true;
-        var reachable = providerRow.reachable === true;
-        var supportsChat = providerRow.supports_chat !== false;
-        var needsKey = providerRow.needs_key === true;
-        var authStatus = String(providerRow.auth_status || '').trim().toLowerCase();
-        var authConfigured = authStatus === 'configured' || authStatus === 'set' || authStatus === 'ok';
-        var profiles = providerRow.model_profiles && typeof providerRow.model_profiles === 'object'
-          ? providerRow.model_profiles
-          : {};
-        var names = Object.keys(profiles);
-        for (var j = 0; j < names.length; j += 1) {
-          var modelName = String(names[j] || '').trim();
-          if (!modelName) continue;
-          var modelRef = provider + '/' + modelName;
-          if (this.isPlaceholderModelRef(modelRef)) continue;
-          var profile = profiles[modelName] && typeof profiles[modelName] === 'object' ? profiles[modelName] : {};
-          var deployment = String(profile.deployment_kind || '').trim().toLowerCase();
-          var rowLocal = isLocal || deployment === 'local' || deployment === 'ollama';
-          var available = supportsChat && (rowLocal ? reachable : (!needsKey || authConfigured || reachable));
-          out.push({
-            id: modelRef,
-            provider: provider,
-            model: modelName,
-            model_name: modelName,
-            runtime_model: modelName,
-            display_name: String(profile.display_name || modelName).trim() || modelName,
-            available: !!available,
-            reachable: !!reachable,
-            supports_chat: supportsChat,
-            needs_key: !!needsKey,
-            auth_status: authStatus || 'unknown',
-            is_local: rowLocal,
-            deployment_kind: deployment || (rowLocal ? 'local' : 'api'),
-            context_window: Number(profile.context_window || profile.context_size || profile.context_tokens || 0) || 0,
-            context_window_tokens: Number(profile.context_window || profile.context_size || profile.context_tokens || 0) || 0,
-            power_rating: Number(profile.power_rating || 3) || 3,
-            cost_rating: Number(profile.cost_rating || (rowLocal ? 1 : 3)) || (rowLocal ? 1 : 3),
-            specialty: String(profile.specialty || 'general').trim().toLowerCase() || 'general',
-            specialty_tags: Array.isArray(profile.specialty_tags) ? profile.specialty_tags : ['general'],
-            param_count_billion: Number(profile.param_count_billion || 0) || 0,
-            download_available: profile.download_available === true || rowLocal,
-            local_download_path: String(profile.local_download_path || '').trim(),
-            max_output_tokens: Number(profile.max_output_tokens || 0) || 0,
-          });
-        }
-      }
-      return out;
+      return chatProviderPayloadToModelCatalogRows(this, payload);
     },
 
     mergeModelCatalogRows: function(primaryRows, fallbackRows) {
-      var merged = [];
-      var seen = {};
-      var add = function(row) {
-        var id = String(row && row.id ? row.id : '').trim();
-        if (!id) return;
-        var key = id.toLowerCase();
-        if (seen[key]) return;
-        seen[key] = true;
-        merged.push(row);
-      };
-      var primary = Array.isArray(primaryRows) ? primaryRows : [];
-      var fallback = Array.isArray(fallbackRows) ? fallbackRows : [];
-      for (var i = 0; i < primary.length; i += 1) add(primary[i]);
-      for (var j = 0; j < fallback.length; j += 1) add(fallback[j]);
-      return merged;
+      return chatMergeModelCatalogRows(primaryRows, fallbackRows);
     },
 
     modelCatalogRows: function(rows) {
-      var list = Array.isArray(rows) && rows.length
-        ? rows
-        : (
-          Array.isArray(this.modelPickerList) && this.modelPickerList.length
-            ? this.modelPickerList
-            : (Array.isArray(this._modelCache) ? this._modelCache : [])
-        );
-      return this.sanitizeModelCatalogRows(list);
+      return chatModelCatalogRows(this, rows);
     },
 
     resolveModelCatalogOption: function(value, providerHint, rows) {
-      var list = this.modelCatalogRows(rows);
-      var raw = value && typeof value === 'object'
-        ? String(value.id || value.model || value.model_name || value.runtime_model || '').trim()
-        : String(value || '').trim();
-      var provider = value && typeof value === 'object'
-        ? String(value.provider || value.model_provider || providerHint || '').trim().toLowerCase()
-        : String(providerHint || '').trim().toLowerCase();
-      if (!raw || this.isPlaceholderModelRef(raw)) return null;
-
-      var candidates = [];
-      var seen = {};
-      var addCandidate = function(candidate) {
-        var next = String(candidate || '').trim();
-        if (!next) return;
-        var key = next.toLowerCase();
-        if (seen[key]) return;
-        seen[key] = true;
-        candidates.push(next);
-      };
-      addCandidate(raw);
-      if (provider && raw.indexOf('/') < 0) addCandidate(provider + '/' + raw);
-      if (raw.indexOf('/') >= 0) addCandidate(raw.split('/').slice(-1)[0]);
-
-      var fallbackMatches = [];
-      for (var i = 0; i < list.length; i += 1) {
-        var row = list[i] || {};
-        var rowId = String(row.id || '').trim();
-        var rowProvider = String(row.provider || row.model_provider || '').trim().toLowerCase();
-        var rowModel = String(row.model || row.model_name || row.runtime_model || '').trim();
-        var rowDisplay = String(row.display_name || '').trim();
-        for (var j = 0; j < candidates.length; j += 1) {
-          var candidate = candidates[j];
-          var candidateLower = candidate.toLowerCase();
-          if (rowId && rowId.toLowerCase() === candidateLower) return row;
-          if (rowModel && rowModel.toLowerCase() === candidateLower) {
-            if (!provider || rowProvider === provider) return row;
-            fallbackMatches.push(row);
-          }
-          if (rowDisplay && rowDisplay.toLowerCase() === candidateLower) {
-            if (!provider || rowProvider === provider) return row;
-            fallbackMatches.push(row);
-          }
-        }
-      }
-      if (provider) {
-        for (var k = 0; k < fallbackMatches.length; k += 1) {
-          var fallback = fallbackMatches[k] || {};
-          if (String(fallback.provider || fallback.model_provider || '').trim().toLowerCase() === provider) {
-            return fallback;
-          }
-        }
-      }
-      return fallbackMatches.length ? fallbackMatches[0] : null;
+      return chatResolveModelCatalogOption(this, value, providerHint, rows);
     },
 
     resolveProviderScopedModelCatalogOption: function(providerValue, modelValue, rows) {
-      var provider = String(providerValue || '').trim().toLowerCase();
-      var list = this.modelCatalogRows(rows);
-      if (!provider) return this.resolveModelCatalogOption(modelValue, '', list);
-      var resolved = this.resolveModelCatalogOption(modelValue, provider, list);
-      if (resolved && String(resolved.provider || resolved.model_provider || '').trim().toLowerCase() === provider) {
-        return resolved;
-      }
-      var rawModel = String(modelValue || '').trim();
-      var targetModel = rawModel.indexOf('/') >= 0 ? rawModel.split('/').slice(-1)[0] : rawModel;
-      var matches = [];
-      for (var i = 0; i < list.length; i += 1) {
-        var row = list[i] || {};
-        var rowProvider = String(row.provider || row.model_provider || '').trim().toLowerCase();
-        if (rowProvider !== provider) continue;
-        if (!targetModel) {
-          matches.push(row);
-          continue;
-        }
-        var rowModel = String(row.model || row.model_name || row.runtime_model || '').trim();
-        var rowId = String(row.id || '').trim();
-        var exactId = rowId && rowId.toLowerCase() === (provider + '/' + targetModel).toLowerCase();
-        var exactModel = rowModel && rowModel.toLowerCase() === targetModel.toLowerCase();
-        if (exactId || exactModel) return row;
-        matches.push(row);
-      }
-      if (!matches.length) return resolved || null;
-      for (var j = 0; j < matches.length; j += 1) {
-        if (matches[j] && matches[j].available !== false) return matches[j];
-      }
-      return matches[0];
+      return chatResolveProviderScopedModelCatalogOption(this, providerValue, modelValue, rows);
     },
 
     dedupeFallbackModelList: function(entries, options) {
-      var list = Array.isArray(entries) ? entries : [];
-      var opts = options && typeof options === 'object' ? options : {};
-      var rows = this.modelCatalogRows(opts.rows);
-      var primary = this.resolveModelCatalogOption(opts.primary_id || '', opts.primary_provider || '', rows);
-      var primaryId = String(primary && primary.id ? primary.id : '').trim().toLowerCase();
-      var out = [];
-      var seen = {};
-      for (var i = 0; i < list.length; i += 1) {
-        var entry = list[i];
-        var raw = entry && typeof entry === 'object' ? entry : { model: entry };
-        var provider = String(raw.provider || raw.model_provider || '').trim();
-        var model = String(raw.model || raw.model_name || raw.runtime_model || raw.id || '').trim();
-        if (!model || this.isPlaceholderModelRef(model)) continue;
-        var resolved = provider
-          ? this.resolveProviderScopedModelCatalogOption(provider, model, rows)
-          : this.resolveModelCatalogOption(model, '', rows);
-        var normalizedProvider = String(
-          (resolved && (resolved.provider || resolved.model_provider)) || provider || ''
-        ).trim();
-        var normalizedModel = String(
-          (resolved && (resolved.model || resolved.model_name || resolved.runtime_model)) || model
-        ).trim();
-        var normalizedId = String(
-          (resolved && resolved.id) ||
-          (normalizedProvider && normalizedModel ? (normalizedProvider + '/' + normalizedModel) : normalizedModel)
-        ).trim();
-        if (!normalizedId || this.isPlaceholderModelRef(normalizedId)) continue;
-        var dedupeKey = normalizedId.toLowerCase();
-        if (primaryId && dedupeKey === primaryId) continue;
-        if (seen[dedupeKey]) continue;
-        seen[dedupeKey] = true;
-        out.push({
-          provider: normalizedProvider || String(provider || '').trim(),
-          model: normalizedModel
-        });
-      }
-      return out;
+      return chatDedupeFallbackModelList(this, entries, options);
     },
 
     noModelsGuidanceText: function() {
@@ -3219,6 +2700,9 @@ function chatPage() {
     },
     restoreAgentConversation(agentId) {
       if (!agentId || !this.conversationCache) return false;
+      if (!(typeof this.isSystemThreadId === 'function' && this.isSystemThreadId(agentId))) {
+        return false;
+      }
       const cached = this.conversationCache[String(agentId)];
       if (!cached || !Array.isArray(cached.messages)) return false;
       var scopeKey = typeof this.resolveConversationCacheScopeKey === 'function'
@@ -3236,10 +2720,7 @@ function chatPage() {
         } catch(_) {
           cacheChanged = sanitized.length !== rawCachedMessages.length;
         }
-        this.messages = this.mergeModelNoticesForAgent(
-          agentId,
-          this.normalizeSessionMessages({ messages: sanitized })
-        );
+        this.messages = JSON.parse(JSON.stringify(sanitized || []));
         this.tokenCount = Number(cached.token_count || 0);
         this.sending = false;
         this._responseStartedAt = 0;
@@ -3286,71 +2767,31 @@ function chatPage() {
     },
 
     sessionNoticeMemoryStorageKey(scopeKey) {
-      var normalized = String(scopeKey || '').trim();
-      if (!normalized) return '';
-      return 'of-chat-session-notices-v1:' + normalized;
+      return chatSessionNoticeMemoryStorageKey(scopeKey);
     },
 
     loadSessionNoticeMemory(scopeKey) {
-      var storageKey = this.sessionNoticeMemoryStorageKey(scopeKey);
-      if (!storageKey) return {};
-      try {
-        var raw = localStorage.getItem(storageKey);
-        if (!raw) return {};
-        var parsed = JSON.parse(raw);
-        if (!Array.isArray(parsed)) return {};
-        var next = {};
-        for (var i = 0; i < parsed.length; i++) {
-          var key = String(parsed[i] || '').trim();
-          if (key) next[key] = true;
-        }
-        return next;
-      } catch (_) {
-        return {};
-      }
+      return chatLoadSessionNoticeMemory(scopeKey);
     },
 
     saveSessionNoticeMemory(scopeKey, nextMemory) {
-      var storageKey = this.sessionNoticeMemoryStorageKey(scopeKey);
-      if (!storageKey) return;
-      var rows = Object.keys(nextMemory || {}).filter(function(key) {
-        return !!nextMemory[key];
-      });
-      try {
-        if (!rows.length) {
-          localStorage.removeItem(storageKey);
-          return;
-        }
-        localStorage.setItem(storageKey, JSON.stringify(rows));
-      } catch (_) {}
+      chatSaveSessionNoticeMemory(scopeKey, nextMemory);
     },
 
     hasSeenSessionNotice(scopeKey, noticeKey) {
-      var normalizedNoticeKey = String(noticeKey || '').trim();
-      if (!normalizedNoticeKey) return false;
-      var memory = this.loadSessionNoticeMemory(scopeKey);
-      return memory[normalizedNoticeKey] === true;
+      return chatHasSeenSessionNotice(scopeKey, noticeKey);
     },
 
     markSeenSessionNotice(scopeKey, noticeKey) {
-      var normalizedNoticeKey = String(noticeKey || '').trim();
-      if (!normalizedNoticeKey) return;
-      var memory = this.loadSessionNoticeMemory(scopeKey);
-      memory[normalizedNoticeKey] = true;
-      this.saveSessionNoticeMemory(scopeKey, memory);
+      chatMarkSeenSessionNotice(scopeKey, noticeKey);
     },
 
     clearSeenSessionNotice(scopeKey, noticeKey) {
-      var normalizedNoticeKey = String(noticeKey || '').trim();
-      if (!normalizedNoticeKey) return;
-      var memory = this.loadSessionNoticeMemory(scopeKey);
-      if (!memory[normalizedNoticeKey]) return;
-      delete memory[normalizedNoticeKey];
-      this.saveSessionNoticeMemory(scopeKey, memory);
+      chatClearSeenSessionNotice(scopeKey, noticeKey);
     },
 
     estimateTokenCountFromText(text) {
-      return Math.max(0, Math.round(String(text || '').length / 4));
+      return chatEstimateTokenCountFromText(text);
     },
 
     // Backward-compat shim for legacy callers during naming migration.
@@ -3359,32 +2800,11 @@ function chatPage() {
     },
 
     shouldConvertLargePasteToAttachment(rawText) {
-      if (!this.pasteToMarkdownEnabled) return false;
-      var text = String(rawText == null ? '' : rawText);
-      if (!text.trim()) return false;
-      var chars = text.trim().length;
-      var lines = text.split(/\r?\n/g).length;
-      var charThreshold = Number(this.pasteToMarkdownCharThreshold || 2000);
-      var lineThreshold = Number(this.pasteToMarkdownLineThreshold || 40);
-      if (!Number.isFinite(charThreshold) || charThreshold < 256) charThreshold = 2000;
-      if (!Number.isFinite(lineThreshold) || lineThreshold < 8) lineThreshold = 40;
-      return chars >= charThreshold || lines >= lineThreshold;
+      return chatShouldConvertLargePasteToAttachment(this, rawText);
     },
 
     buildLargePasteMarkdownAttachment(rawText) {
-      if (typeof File !== 'function') return null;
-      var text = String(rawText == null ? '' : rawText);
-      if (!text.trim()) return null;
-      var normalized = text.replace(/\r\n?/g, '\n');
-      try {
-        var file = new File([normalized], 'Pasted markdown.md', {
-          type: 'text/markdown;charset=utf-8',
-          lastModified: Date.now()
-        });
-        return { file: file, preview: '', uploading: false, pasted_markdown: true };
-      } catch (_) {
-        return null;
-      }
+      return chatBuildLargePasteMarkdownAttachment(rawText);
     },
 
     recomputeContextEstimate() {
@@ -3544,55 +2964,6 @@ function chatPage() {
       return route;
     },
 
-    async fetchAutoRoutePreflight(message, uploadedFiles) {
-      if (!this.currentAgent || !this.isAutoModelSelected()) return null;
-      var text = String(message || '').trim();
-      if (!text) return null;
-      var files = Array.isArray(uploadedFiles) ? uploadedFiles : [];
-      var hasVision = files.some(function(f) {
-        return String(f && f.content_type ? f.content_type : '').toLowerCase().indexOf('image/') === 0;
-      });
-      try {
-        var result = await InfringAPI.post('/api/route/auto', {
-          agent_id: this.currentAgent.id,
-          message: text,
-          token_count: this.estimateTokenCountFromText(text),
-          has_vision: hasVision,
-          attachments: files,
-        });
-        if (result && result.route && typeof result.route === 'object') return result.route;
-        if (result && (result.selected_model || result.selected_provider)) return result;
-      } catch (_) {}
-      return null;
-    },
-
-    inferContextWindowFromModelId(modelId) {
-      var value = String(modelId || '').toLowerCase();
-      if (!value) return 0;
-      var explicitK = value.match(/(?:^|[^0-9])([0-9]{2,4})k(?:[^a-z0-9]|$)/);
-      if (explicitK && explicitK[1]) {
-        var parsedK = Number(explicitK[1]);
-        if (Number.isFinite(parsedK) && parsedK > 0) return parsedK * 1000;
-      }
-      var explicitM = value.match(/(?:^|[^0-9])([0-9]{1,3})m(?:[^a-z0-9]|$)/);
-      if (explicitM && explicitM[1]) {
-        var parsedM = Number(explicitM[1]);
-        if (Number.isFinite(parsedM) && parsedM > 0) return parsedM * 1000000;
-      }
-      if (value.indexOf('qwen2.5') >= 0 || value.indexOf('qwen3') >= 0) return 131072;
-      if (value.indexOf('kimi') >= 0 || value.indexOf('moonshot') >= 0) return 262144;
-      if (value.indexOf('llama-3.3') >= 0 || value.indexOf('llama3.3') >= 0) return 131072;
-      if (value.indexOf('llama-3.2') >= 0 || value.indexOf('llama3.2') >= 0) return 128000;
-      if (value.indexOf('mistral-nemo') >= 0 || value.indexOf('mixtral') >= 0) return 32000;
-      return 0;
-    },
-
-    contextWindowNeedsFloor(modelId) {
-      var value = String(modelId || '').toLowerCase();
-      if (!value) return false;
-      return value.indexOf('kimi') >= 0 || value.indexOf('moonshot') >= 0;
-    },
-
     collectContextWindowCandidatesFromAgent(agent) {
       var row = agent && typeof agent === 'object' ? agent : {};
       var provider = String(row.model_provider || row.provider || '').trim().toLowerCase();
@@ -3636,9 +3007,6 @@ function chatPage() {
         if (!id) continue;
         var provider = String(row.provider || row.model_provider || '').trim().toLowerCase();
         var windowSize = Number(row.context_window || row.context_window_tokens || 0);
-        if (!Number.isFinite(windowSize) || windowSize <= 0) {
-          windowSize = this.inferContextWindowFromModelId(id);
-        }
         if (Number.isFinite(windowSize) && windowSize > 0) {
           var normalized = Math.round(windowSize);
           var keys = [id];
@@ -3663,22 +3031,9 @@ function chatPage() {
       var direct = Number(agent.context_window || agent.context_window_tokens || 0);
       var candidates = this.collectContextWindowCandidatesFromAgent(agent);
       var fromMap = this.resolveBestContextWindowFromMap(candidates);
-      var inferred = 0;
-      var needsFloor = false;
-      for (var i = 0; i < candidates.length; i += 1) {
-        var key = String(candidates[i] || '').trim();
-        if (!key) continue;
-        if (this.contextWindowNeedsFloor(key)) needsFloor = true;
-        var guess = Number(this.inferContextWindowFromModelId(key) || 0);
-        if (Number.isFinite(guess) && guess > inferred) inferred = guess;
-      }
       var best = 0;
       if (Number.isFinite(direct) && direct > 0) best = direct;
       if (Number.isFinite(fromMap) && fromMap > best) best = fromMap;
-      if (Number.isFinite(inferred) && inferred > 0) {
-        if (needsFloor) best = Math.max(best, inferred);
-        else if (best <= 0) best = inferred;
-      }
       if (!Number.isFinite(best) || best <= 0) best = 128000;
       this.contextWindow = Math.round(best);
       this.refreshContextPressure();
@@ -3888,120 +3243,6 @@ function chatPage() {
       return out;
     },
 
-    derivePromptSuggestionFallback(agent, hint, gateContext) {
-      var context = this.buildPromptSuggestionContextSnapshot();
-      var typedHistory = (Array.isArray(context.history) ? context.history : [])
-        .map(function(entry, index) {
-          var role = String((entry && entry.role) || 'agent').trim().toLowerCase();
-          if (role === 'assistant') role = 'agent';
-          return {
-            key: 'fallback:' + String(index),
-            kind: role === 'user' || role === 'agent' ? 'message' : 'synthetic',
-            role: role,
-            text: String((entry && entry.text) || '').trim()
-          };
-        })
-        .filter(function(entry) {
-          return entry.kind === 'message' && !!entry.text;
-        });
-      var corpus = [
-        String(hint || ''),
-        String(gateContext || ''),
-        String(context.lastUser || ''),
-        String(context.lastAgent || ''),
-        typedHistory.slice(-3).map(function(entry) { return entry.role + ':' + entry.text; }).join(' || ')
-      ].join(' || ').toLowerCase();
-      var out = [];
-      var add = function(value) {
-        var text = String(value || '').trim();
-        if (text) out.push(text);
-      };
-      if (/(connect|pair|token|auth|unauthorized|secure context|device identity|gateway|fetch failed)/.test(corpus)) {
-        add('Summarize the fastest recovery step for this connection error');
-        add('/apikey');
-        add('/help');
-      }
-      if (/(model|provider|fallback|failover|slow|thinking|reasoning)/.test(corpus)) {
-        add('/model');
-        add('Continue from the last successful step with a safer model');
-      }
-      if (/(voice|audio|microphone|dictat|record)/.test(corpus) || this.recording) {
-        add('Turn the latest voice note into a concise prompt');
-        add('Summarize this chat into a one-line handoff note');
-      }
-      if (/(agent|session|chat|thread|roster|branch)/.test(corpus) || !typedHistory.length) {
-        add('/agents');
-        add('/new');
-      }
-      if (!out.length) {
-        add('Give me the next best action from this conversation');
-        add('/help');
-        add('/model');
-      }
-      return this.normalizePromptSuggestions(
-        out,
-        String(gateContext || context.signature || '').trim(),
-        this.recentUserSuggestionSamples()
-      );
-    },
-
-    buildPromptSuggestionContextSnapshot() {
-      var out = { lastUser: '', lastAgent: '', history: [], signature: '' };
-      var history = Array.isArray(this.messages) ? this.messages : [];
-      var compact = function(value, maxLen) {
-        var cap = Number(maxLen || 240);
-        var text = String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
-        if (!text) return '';
-        if (text.length > cap) return text.substring(0, Math.max(8, cap - 3)) + '...';
-        return text;
-      };
-	      for (var i = history.length - 1; i >= 0; i--) {
-	        var row = history[i];
-	        if (!row || row.thinking || row.streaming || row.terminal || row.is_notice) continue;
-	        var normalizedRole = compact(row.role || '', 16).toLowerCase();
-	        if (!normalizedRole) {
-	          normalizedRole = row.user ? 'user' : row.assistant ? 'agent' : 'agent';
-	        }
-	        if (normalizedRole === 'system') continue;
-	        var text = compact(row.text, 240);
-	        if (!text) continue;
-	        if (/^\[runtime-task\]/i.test(text)) continue;
-	        if (/task accepted\.\s*report findings in this thread with receipt-backed evidence/i.test(text)) continue;
-	        if (/the user wants exactly 3 actionable next user prompts/i.test(text)) continue;
-	        if (String(text || '').toLowerCase() === 'heartbeat_ok') continue;
-	        if (out.history.length < 7) {
-	          out.history.unshift({
-	            role: normalizedRole,
-	            text: text
-	          });
-	        }
-	        if (!out.lastUser && normalizedRole === 'user') {
-	          out.lastUser = text;
-	          continue;
-	        }
-	        if (!out.lastAgent && (normalizedRole === 'agent' || normalizedRole === 'assistant')) {
-	          out.lastAgent = text;
-	        }
-	        if (out.lastUser && out.lastAgent && out.history.length >= 7) break;
-	      }
-      if (out.history.length > 7) out.history = out.history.slice(-7);
-      out.signature = compact(
-        out.history
-          .map(function(entry) {
-            return compact(entry.role || 'agent', 20) + ':' + compact(entry.text || '', 180);
-          })
-          .join(' || ') ||
-          (String(out.lastUser || '') + '|' + String(out.lastAgent || '')),
-        1200
-      );
-      return out;
-    },
-
-    // Backward-compat shim for legacy callers during naming migration.
-    collectPromptSuggestionContext() {
-      return this.buildPromptSuggestionContextSnapshot();
-    },
-
     recentUserSuggestionSamples() {
       var history = Array.isArray(this.messages) ? this.messages : [];
       var out = [];
@@ -4015,13 +3256,6 @@ function chatPage() {
         if (out.length >= 7) break;
       }
       return out;
-    },
-
-    hasConversationSuggestionSeed() {
-      if (this.isSystemThreadAgent && this.isSystemThreadAgent(this.currentAgent)) return false;
-      var context = this.buildPromptSuggestionContextSnapshot();
-      var count = Array.isArray(context && context.history) ? context.history.length : 0;
-      return count >= 7;
     },
 
     nextPromptQueueId() {
@@ -4442,11 +3676,6 @@ function chatPage() {
         this.suggestionsLoading = false;
         return;
       }
-      if (!this.hasConversationSuggestionSeed()) {
-        this.promptSuggestions = [];
-        this.suggestionsLoading = false;
-        return;
-      }
       var now = Date.now();
       var agentId = String(agent.id);
       var suggestionScopeKey = agentId + '|main';
@@ -4469,24 +3698,13 @@ function chatPage() {
       this.suggestionsLoading = true;
 	      try {
 	        var payload = {};
-	        var context = this.collectPromptSuggestionContext();
-	        if (context.signature) payload.recent_context = String(context.signature).trim();
           if (suggestionScopeKey) payload.session_scope_key = suggestionScopeKey;
 	        var result = await InfringAPI.post('/api/agents/' + encodeURIComponent(agentId) + '/suggestions', payload);
 	        if (this._suggestionFetchSeq !== seq) return;
-	        var freshContext = this.collectPromptSuggestionContext();
-	        var freshHistoryCount = Array.isArray(freshContext.history) ? freshContext.history.length : 0;
-	        if (freshHistoryCount < 7) {
-	          this.promptSuggestions = [];
-	          this._lastSuggestionsAt = Date.now();
-	          this._lastSuggestionsAgentId = suggestionScopeKey;
-	          return;
-	        }
-	        var gatingContext = String(context.signature || '');
 	        var baseSuggestions = result && result.suggestions ? result.suggestions : [];
 	        var suggestions = this.normalizePromptSuggestions(
 	          Array.isArray(baseSuggestions) ? baseSuggestions : [],
-	          gatingContext,
+	          '',
 	          this.recentUserSuggestionSamples()
 	        );
         this.promptSuggestions = suggestions;
@@ -4494,15 +3712,7 @@ function chatPage() {
         this._lastSuggestionsAgentId = suggestionScopeKey;
 	      } catch (_) {
 		        if (this._suggestionFetchSeq === seq) {
-		          var fallbackContext = this.collectPromptSuggestionContext();
-		          var fallbackHistoryCount = Array.isArray(fallbackContext.history) ? fallbackContext.history.length : 0;
-		          if (fallbackHistoryCount < 7) {
-		            this.promptSuggestions = [];
-		            this._lastSuggestionsAt = Date.now();
-		            this._lastSuggestionsAgentId = suggestionScopeKey;
-		            return;
-		          }
-		          this.promptSuggestions = this.derivePromptSuggestionFallback(agent, hint, String(fallbackContext.signature || ''));
+		          this.promptSuggestions = [];
           this._lastSuggestionsAt = Date.now();
           this._lastSuggestionsAgentId = suggestionScopeKey;
         }
@@ -5966,19 +5176,6 @@ function chatPage() {
       var source = [];
       if (data && Array.isArray(data.messages)) {
         source = data.messages;
-      } else if (data && Array.isArray(data.turns)) {
-        var turns = data.turns;
-        var turnRows = [];
-        turns.forEach(function(turn) {
-          var ts = turn && turn.ts ? turn.ts : Date.now();
-          if (turn && typeof turn.user === 'string' && turn.user.trim()) {
-            turnRows.push({ role: 'User', content: turn.user, ts: ts });
-          }
-          if (turn && typeof turn.assistant === 'string' && turn.assistant.trim()) {
-            turnRows.push({ role: 'Agent', content: turn.assistant, ts: ts });
-          }
-        });
-        source = turnRows;
       } else {
         source = [];
       }
@@ -6032,23 +5229,6 @@ function chatPage() {
                 is_error: !!t.is_error
               };
             }));
-        if (role === 'agent' && !isTerminal) {
-          var repairedToolText = '';
-          var needsRepair =
-            !String(text || '').trim() ||
-            (typeof self.textLooksNoFindingsPlaceholder === 'function' && self.textLooksNoFindingsPlaceholder(text)) ||
-            (typeof self.textLooksToolAckWithoutFindings === 'function' && self.textLooksToolAckWithoutFindings(text));
-          if (needsRepair && typeof self.fallbackAssistantTextFromPayload === 'function') {
-            repairedToolText = String(self.fallbackAssistantTextFromPayload(m, tools) || '').trim();
-          }
-          if (
-            repairedToolText &&
-            repairedToolText !== String(text || '').trim() &&
-            !(typeof self.textLooksNoFindingsPlaceholder === 'function' && self.textLooksNoFindingsPlaceholder(repairedToolText))
-          ) {
-            text = repairedToolText;
-          }
-        }
         var messageMetadata = typeof self.assistantTurnMetadataFromPayload === 'function'
           ? self.assistantTurnMetadataFromPayload(m, tools)
           : {};
@@ -7067,30 +6247,15 @@ function chatPage() {
         }
       }
       var bestFromMap = 0;
-      var bestInferred = 0;
-      var needsFloor = false;
       for (var i = 0; i < candidates.length; i++) {
         var candidate = String(candidates[i] || '').trim();
         if (!candidate) continue;
-        if (typeof this.contextWindowNeedsFloor === 'function' && this.contextWindowNeedsFloor(candidate)) {
-          needsFloor = true;
-        }
         var fromMap = Number(map[candidate] || 0);
         if (Number.isFinite(fromMap) && fromMap > bestFromMap) {
           bestFromMap = Math.round(fromMap);
         }
-        var inferred = this.inferContextWindowFromModelId(
-          candidate.indexOf('/') >= 0 ? candidate.split('/').slice(-1)[0] : candidate
-        );
-        if (Number.isFinite(inferred) && inferred > bestInferred) {
-          bestInferred = Math.round(inferred);
-        }
-      }
-      if (needsFloor && bestInferred > 0) {
-        return Math.max(bestFromMap, bestInferred);
       }
       if (bestFromMap > 0) return bestFromMap;
-      if (bestInferred > 0) return bestInferred;
       return 0;
     },
 
@@ -8719,6 +7884,40 @@ function chatPage() {
       this.scheduleConversationPersist();
     },
 
+    isShellOwnedSlashCommand: function(cmd) {
+      var normalized = String(cmd || '').trim().toLowerCase();
+      if (!normalized) return false;
+      switch (normalized) {
+        case '/help':
+        case '/agents':
+        case '/new':
+        case '/compact':
+        case '/model':
+        case '/apikey':
+        case '/stop':
+        case '/usage':
+        case '/think':
+        case '/context':
+        case '/verbose':
+        case '/queue':
+        case '/status':
+        case '/alerts':
+        case '/next':
+        case '/continuity':
+        case '/aliases':
+        case '/alias':
+        case '/opt':
+        case '/clear':
+        case '/exit':
+        case '/budget':
+        case '/peers':
+        case '/a2a':
+          return true;
+        default:
+          return false;
+      }
+    },
+
     runSlashMemprobe: function(cmdArgs) {
       var report = this.collectMemprobeReport(cmdArgs);
       try {
@@ -10112,13 +9311,7 @@ function chatPage() {
         }
       } catch(e) {
         if (!loadStillCurrent()) return;
-        var restoredFromCache = false;
-        try {
-          restoredFromCache = self.restoreAgentConversation(agentId);
-        } catch(_) {
-          restoredFromCache = false;
-        }
-        if (!restoredFromCache && !keepCurrent && (!Array.isArray(self.messages) || !self.messages.length)) {
+        if (!keepCurrent && (!Array.isArray(self.messages) || !self.messages.length)) {
           var errText = String(e && e.message ? e.message : 'session_load_failed').trim();
           self.messages = [{
             id: ++msgId,
@@ -11072,28 +10265,8 @@ function chatPage() {
           if (typeof this.isThinkingPlaceholderText === 'function' && this.isThinkingPlaceholderText(compactFinal)) maybePlaceholder = true;
           if (maybePlaceholder) finalText = '';
           if (collapsedThought && !streamedTools.some(function(tool) { return !!(tool && String(tool.name || '').toLowerCase() === 'thought_process'); })) streamedTools.unshift(this.makeThoughtToolCard(collapsedThought, wsDurationMs));
-          var usedFallback = false;
-          var toolFailureSummary = messageMetadata && typeof messageMetadata.tool_failure_summary === 'string' ? String(messageMetadata.tool_failure_summary || '').trim() : '';
-          var toolOnlySummary = responseHasToolCompletion && typeof this.completedToolOnlySummary === 'function'
-            ? String(this.completedToolOnlySummary(streamedTools) || '').trim()
-            : '';
-          var workflowFallbackSummary = typeof this.fallbackAssistantTextFromPayload === 'function'
-            ? String(this.fallbackAssistantTextFromPayload(data, streamedTools) || '').trim()
-            : '';
-          var replaceableFinalText =
-            !!compactFinal &&
-            (
-              (typeof this.textLooksNoFindingsPlaceholder === 'function' && this.textLooksNoFindingsPlaceholder(compactFinal)) ||
-              (typeof this.textLooksToolAckWithoutFindings === 'function' && this.textLooksToolAckWithoutFindings(compactFinal))
-            );
-          if (replaceableFinalText && workflowFallbackSummary && workflowFallbackSummary !== compactFinal) {
-            finalText = workflowFallbackSummary;
-            compactFinal = String(finalText || '').replace(/\s+/g, ' ').trim();
-            usedFallback = true;
-          }
           if (!finalText.trim()) {
             // Policy: do not inject system-authored fallback text into chat.
-            usedFallback = false;
           }
           var finalMessage = Object.assign({
             id: ++msgId,
@@ -11103,13 +10276,12 @@ function chatPage() {
             tools: streamedTools,
             ts: Date.now(),
             _turn_started_at: responseTurnStartedAt,
-            _auto_fallback: usedFallback,
             agent_id: data && data.agent_id ? String(data.agent_id) : (this.currentAgent && this.currentAgent.id ? String(this.currentAgent.id) : ''),
             agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
           }, messageMetadata || {});
           var renderedFinalMessage = finalMessage;
           var lastStable = this.messages.length ? this.messages[this.messages.length - 1] : null;
-          if (!usedFallback && lastStable && lastStable.role === 'agent' && lastStable._auto_fallback) {
+          if (lastStable && lastStable.role === 'agent' && lastStable._auto_fallback) {
             this.messages[this.messages.length - 1] = finalMessage;
             renderedFinalMessage = finalMessage;
           } else {
@@ -12828,10 +12000,6 @@ function chatPage() {
       }
       if (String(payload.tool_failure_summary || '').trim()) {
         duplicate.tool_failure_summary = String(payload.tool_failure_summary || '').trim();
-      }
-      if (!String(duplicate.text || '').trim() && typeof this.fallbackAssistantTextFromPayload === 'function') {
-        var repairedDuplicateText = String(this.fallbackAssistantTextFromPayload(duplicate, duplicate.tools || []) || '').trim();
-        if (repairedDuplicateText) duplicate.text = repairedDuplicateText;
       }
       var nextMeta = String(payload.meta || '').trim();
       if (nextMeta) {
@@ -16038,12 +15206,6 @@ function chatPage() {
       }
       return '';
     },
-    fallbackAssistantTextFromPayload: function(payload, tools) {
-      var data = payload && typeof payload === 'object' ? payload : {};
-      var workflowText = this.workflowResponseTextFromPayload(data);
-      if (workflowText) return workflowText;
-      return '';
-    },
     assistantTurnMetadataFromPayload: function(payload, tools) {
       var data = payload && typeof payload === 'object' ? payload : {};
       var out = {};
@@ -16236,7 +15398,7 @@ function chatPage() {
         var routedCmd = String(aliasResolution && aliasResolution.cmd ? aliasResolution.cmd : cmd).toLowerCase();
         var routedArgs = String(aliasResolution && typeof aliasResolution.args === 'string' ? aliasResolution.args : cmdArgs).trim();
         var matched = this.slashCommands.find(function(c) { return c.cmd === routedCmd; });
-        if (matched) {
+        if (matched && this.isShellOwnedSlashCommand(matched.cmd)) {
           this.executeSlashCommand(matched.cmd, routedArgs);
           return;
         }
@@ -16418,9 +15580,7 @@ function chatPage() {
         this._inflightPayload.retry_started_at = Date.now();
       }
       this._pendingAutoModelSwitchBaseline = this.captureAutoModelSwitchBaseline();
-      var preflightRoute = await this.fetchAutoRoutePreflight(finalText, uploadedFiles);
-      var preflightMeta = this.formatAutoRouteMeta(preflightRoute);
-      if (preflightRoute) this.applyAutoRouteTelemetry({ auto_route: preflightRoute });
+      var preflightMeta = '';
       if (!InfringAPI.isWsConnected() || String(this._wsAgent || '') !== targetAgentId) {
         this.connectWs(targetAgentId);
         var waitStarted = Date.now();
@@ -16480,7 +15640,7 @@ function chatPage() {
         var httpDurationMs = Math.max(0, Date.now() - httpStartedAt);
         var httpDuration = this.formatResponseDuration(httpDurationMs);
         if (httpDuration) httpMeta += ' | ' + httpDuration;
-        var httpRouteMeta = this.formatAutoRouteMeta(httpRoute || preflightRoute);
+        var httpRouteMeta = this.formatAutoRouteMeta(httpRoute);
         if (httpRouteMeta) httpMeta += ' | ' + httpRouteMeta;
         var httpTools = typeof this.responseToolRowsFromPayload === 'function'
           ? this.responseToolRowsFromPayload(res, 'http-tool')
@@ -16506,23 +15666,6 @@ function chatPage() {
           this.isThinkingPlaceholderText(httpCompact)
         ) {
           httpText = '';
-        }
-        var httpToolFailureSummary = httpMessageMetadata && typeof httpMessageMetadata.tool_failure_summary === 'string' ? String(httpMessageMetadata.tool_failure_summary || '').trim() : '';
-        var httpToolSummary = httpHasToolCompletion && typeof this.completedToolOnlySummary === 'function'
-          ? String(this.completedToolOnlySummary(httpTools) || '').trim()
-          : '';
-        var httpWorkflowFallbackSummary = typeof this.fallbackAssistantTextFromPayload === 'function'
-          ? String(this.fallbackAssistantTextFromPayload(res, httpTools) || '').trim()
-          : '';
-        var httpReplaceableFinalText =
-          !!httpCompact &&
-          (
-            (typeof this.textLooksNoFindingsPlaceholder === 'function' && this.textLooksNoFindingsPlaceholder(httpCompact)) ||
-            (typeof this.textLooksToolAckWithoutFindings === 'function' && this.textLooksToolAckWithoutFindings(httpCompact))
-          );
-        if (httpReplaceableFinalText && httpWorkflowFallbackSummary && httpWorkflowFallbackSummary !== httpCompact) {
-          httpText = httpWorkflowFallbackSummary;
-          httpCompact = String(httpText || '').replace(/\s+/g, ' ').trim();
         }
         if (!String(httpText || '').trim()) {
           // Policy: do not inject system-authored fallback text into chat.
@@ -17997,12 +17140,6 @@ function chatPage() {
       if (typeof handler === 'function') return handler();
     },
 
-    messageRetrySource: function(msg, idx, rows) {
-      var service = this.messageMetadataService();
-      var list = Array.isArray(rows) ? rows : (Array.isArray(this.messages) ? this.messages : []);
-      return service && typeof service.retrySource === 'function' ? service.retrySource(msg, idx, list) : null;
-    },
-
     messageCanRetryFromMeta: function(msg, idx, rows) {
       var service = this.messageMetadataService();
       var list = Array.isArray(rows) ? rows : (Array.isArray(this.messages) ? this.messages : []);
@@ -18028,34 +17165,10 @@ function chatPage() {
     },
 
     replyToMessageFromMeta: function(msg, idx, rows) {
-      var list = Array.isArray(rows) ? rows : (Array.isArray(this.messages) ? this.messages : []);
-      if (!list.length) return;
-      var resolvedIndex = this._resolveMessageIndexFromMeta(msg, idx, list);
-      if (resolvedIndex < 0) return;
-      var row = list[resolvedIndex];
-      if (!row || row.is_notice) return;
-      var rowText = String(row.text || '').replace(/\s+/g, ' ').trim();
-      if (!rowText) return;
-      var shortText = rowText.length > 140 ? (rowText.slice(0, 137).trimEnd() + '...') : rowText;
-      var replySeed = 'Reply to: "' + shortText + '"\n';
-      var currentText = String(this.inputText || '');
-      this.inputText = currentText.trim() ? (replySeed + currentText) : replySeed;
-      this._pendingReplyFromMeta = {
-        message_id: String(row.id || '').trim(),
-        message_index: resolvedIndex,
-        created_at: Date.now()
-      };
-      if (typeof this.autoResizeChatInput === 'function') {
-        try { this.autoResizeChatInput(); } catch(_) {}
-      }
-      if (typeof this.$nextTick === 'function') {
-        this.$nextTick(function() {
-          try {
-            var input = document.getElementById('msg-input');
-            if (input && typeof input.focus === 'function') input.focus();
-          } catch(_) {}
-        });
-      }
+      void msg;
+      void idx;
+      void rows;
+      if (typeof InfringToast !== 'undefined') InfringToast.info('Reply requires a backend quote-by-reference contract.');
     },
 
     messageCanForkFromMeta: function(msg) {
@@ -18087,33 +17200,14 @@ function chatPage() {
       }
     },
 
-    _forkAgentRequestedName: function(sourceName) {
-      var base = String(sourceName || '').trim();
-      if (!base) base = 'agent';
-      var requested = base + '-fork';
-      if (requested.length > 120) requested = requested.slice(0, 120).trim();
-      if (!requested) requested = 'agent-fork';
-      return requested;
-    },
-
     retryMessageFromMeta: async function(msg, idx, rows) {
       if (this.sending) return;
       var allowed = this.messageCanRetryFromMeta(msg, idx, rows);
       if (!allowed) return;
-      var source = this.messageRetrySource(msg, idx, rows);
-      if (!source) {
-        if (typeof InfringToast !== 'undefined') InfringToast.info('No prior user prompt was found for resend.');
-        return;
-      }
-      var text = String(source.text || '').trim();
-      if (!text) {
-        if (typeof InfringToast !== 'undefined') InfringToast.info('Resend source is empty.');
-        return;
-      }
-      await this._sendPayload(text, [], [], {
-        agent_id: this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '',
-        retry_from_meta: true
-      });
+      void msg;
+      void idx;
+      void rows;
+      if (typeof InfringToast !== 'undefined') InfringToast.info('Retry requires a backend replay contract.');
     },
 
     forkMessageFromMeta: async function(msg, idx, rows) {
@@ -18124,15 +17218,11 @@ function chatPage() {
       var sourceAgent = this.currentAgent && typeof this.currentAgent === 'object' ? this.currentAgent : {};
       var sourceAgentId = String(sourceAgent.id || '').trim();
       if (!sourceAgentId) return;
-      var sourceAgentName = String(sourceAgent.name || sourceAgentId).trim();
-      var requestedName = typeof this._forkAgentRequestedName === 'function'
-        ? this._forkAgentRequestedName(sourceAgentName)
-        : (sourceAgentName + '-fork');
       try {
         this.cacheCurrentConversation();
         var created = await InfringAPI.post(
           '/api/agents/' + encodeURIComponent(sourceAgentId) + '/clone',
-          { new_name: requestedName }
+          {}
         );
         var forkedAgentId = String(
           (created && (created.agent_id || created.id)) ||
@@ -18141,7 +17231,7 @@ function chatPage() {
         if (!forkedAgentId) {
           throw new Error('agent_clone_failed');
         }
-        var forkedAgentName = String((created && created.name) || requestedName || forkedAgentId).trim();
+        var forkedAgentName = String((created && created.name) || forkedAgentId).trim();
         var store = Alpine.store('app');
         if (store && typeof store.refreshAgents === 'function') {
           await store.refreshAgents({ force: true });
@@ -18438,19 +17528,7 @@ function chatPage() {
     },
 
     messageDisplayScopeKey: function() {
-      var agentId = String((this.currentAgent && this.currentAgent.id) || '').trim();
-      var sessionId = '';
-      if (Array.isArray(this.sessions)) {
-        for (var i = 0; i < this.sessions.length; i += 1) {
-          var row = this.sessions[i];
-          if (row && row.active) {
-            sessionId = String((row.session_id || row.id || '')).trim();
-            break;
-          }
-        }
-      }
-      var search = String(this.searchQuery || '').trim().toLowerCase();
-      return agentId + '|' + sessionId + '|' + search;
+      return chatMessageDisplayScopeKey(this);
     },
 
     // Backward-compat shim for legacy callers during naming migration.
@@ -18459,76 +17537,29 @@ function chatPage() {
     },
 
     ensureMessageDisplayWindow: function(totalCount) {
-      var total = Number(totalCount || 0);
-      if (!Number.isFinite(total) || total < 0) total = 0;
-      var key = this.messageDisplayScopeKey();
-      if (String(this._messageDisplayKey || '') !== key) {
-        this._messageDisplayKey = key;
-        this.messageDisplayCount = Number(this.messageDisplayInitialLimit || 10);
-      }
-      var rawQuery = String(this.searchQuery || '').trim();
-      if (!rawQuery) {
-        // Normal chat mode should keep full history visible; virtualization handles perf.
-        this.messageDisplayCount = total;
-        return;
-      }
-      var base = Number(this.messageDisplayInitialLimit || 10);
-      if (!Number.isFinite(base) || base < 1) base = 10;
-      if (!Number.isFinite(Number(this.messageDisplayCount))) {
-        this.messageDisplayCount = base;
-      }
-      if (this.messageDisplayCount < base) this.messageDisplayCount = base;
-      if (this.messageDisplayCount > total) this.messageDisplayCount = total;
+      chatEnsureMessageDisplayWindow(this, totalCount);
     },
 
     get canExpandDisplayedMessages() {
-      var total = Array.isArray(this.allFilteredMessages) ? this.allFilteredMessages.length : 0;
-      this.ensureMessageDisplayWindow(total);
-      return total > Number(this.messageDisplayCount || 0);
+      return chatCanExpandDisplayedMessages(this);
     },
 
     get expandRemainingCount() {
-      var total = Array.isArray(this.allFilteredMessages) ? this.allFilteredMessages.length : 0;
-      var visible = Number(this.messageDisplayCount || 0);
-      if (!Number.isFinite(visible)) visible = 0;
-      return Math.max(0, total - visible);
+      return chatExpandRemainingCount(this);
     },
 
     expandDisplayedMessages: function() {
-      var total = Array.isArray(this.allFilteredMessages) ? this.allFilteredMessages.length : 0;
-      this.ensureMessageDisplayWindow(total);
-      if (total <= Number(this.messageDisplayCount || 0)) return;
-      var step = Number(this.messageDisplayStep || 5);
-      if (!Number.isFinite(step) || step < 1) step = 5;
-      this.messageDisplayCount = Math.min(total, Number(this.messageDisplayCount || 0) + step);
+      chatExpandDisplayedMessages(this);
     },
 
     // Search: full filtered message set before display-window capping.
     get allFilteredMessages() {
-      var query = String(this.searchQuery || '').trim();
-      if (!query) return this.messages;
-      var self = this;
-      var filtered = this.messages.filter(function(m) {
-        if (typeof self.messageMatchesSearchQuery === 'function') return self.messageMatchesSearchQuery(m, query);
-        var text = typeof (m && m.text) === 'string' ? m.text : String((m && m.text) || '');
-        return text.toLowerCase().indexOf(query.toLowerCase()) !== -1;
-      });
-      if (filtered.length > 0) return filtered;
-      // Avoid "blank thread" states from stale hidden query filters.
-      if (!this.searchOpen && Array.isArray(this.messages) && this.messages.length > 0) {
-        return this.messages;
-      }
-      return filtered;
+      return chatAllFilteredMessages(this);
     },
 
     // Search: filter messages by query + apply incremental display capping.
     get filteredMessages() {
-      var all = Array.isArray(this.allFilteredMessages) ? this.allFilteredMessages : [];
-      this.ensureMessageDisplayWindow(all.length);
-      if (!all.length) return all;
-      var visible = Number(this.messageDisplayCount || 0);
-      if (!Number.isFinite(visible) || visible < 1 || visible >= all.length) return all;
-      return all.slice(Math.max(0, all.length - visible));
+      return chatFilteredMessages(this);
     },
 
     // Search: highlight matched text in a string
@@ -18607,208 +17638,4 @@ function chatPage() {
     renderMarkdown: renderMarkdown,
     escapeHtml: escapeHtml
   };
-}
-
-function cancelPinToLatestOnOpenJob(page) {
-  if (!page || typeof page !== 'object') return;
-  if (page._openPinRaf && typeof cancelAnimationFrame === 'function') {
-    cancelAnimationFrame(page._openPinRaf);
-  }
-  if (page._openPinTimer) {
-    clearTimeout(page._openPinTimer);
-  }
-  page._openPinRaf = 0;
-  page._openPinTimer = 0;
-}
-
-function runPinToLatestOnOpenJob(page, container, options) {
-  if (!page || typeof page !== 'object') return;
-  var opts = options || {};
-  var maxFrames = Number(opts.maxFrames || 18);
-  if (!Number.isFinite(maxFrames) || maxFrames < 4) maxFrames = 18;
-  if (maxFrames > 64) maxFrames = 64;
-  var stableFramesNeeded = Number(opts.stableFrames || 2);
-  if (!Number.isFinite(stableFramesNeeded) || stableFramesNeeded < 1) stableFramesNeeded = 2;
-  if (stableFramesNeeded > 6) stableFramesNeeded = 6;
-  var token = Number(page._openPinToken || 0) + 1;
-  var frame = 0;
-  var stable = 0;
-  var lastTop = -1;
-  var lastHeight = -1;
-  var lastClient = -1;
-  var target = container || null;
-  page._openPinToken = token;
-  cancelPinToLatestOnOpenJob(page);
-  var schedule = function() {
-    if (Number(page._openPinToken || 0) !== token) return;
-    if (typeof requestAnimationFrame === 'function') {
-      page._openPinRaf = requestAnimationFrame(tick);
-    } else {
-      page._openPinTimer = setTimeout(tick, 16);
-    }
-  };
-  var tick = function() {
-    if (Number(page._openPinToken || 0) !== token) return;
-    page._openPinRaf = 0;
-    page._openPinTimer = 0;
-    var el = typeof page.resolveMessagesScroller === 'function'
-      ? page.resolveMessagesScroller(target)
-      : null;
-    if (el) {
-      var scrollHeight = Math.max(0, Number(el.scrollHeight || 0));
-      var clientHeight = Math.max(0, Number(el.clientHeight || 0));
-      var targetTop = resolveLatestMessageScrollTop(page, el);
-      el.scrollTop = targetTop;
-      if (typeof page.syncGridBackgroundOffset === 'function') page.syncGridBackgroundOffset(el);
-      page.showScrollDown = false;
-      if (typeof page.syncMapSelectionToScroll === 'function') page.syncMapSelectionToScroll(el);
-      if (typeof page.scheduleMessageRenderWindowUpdate === 'function') page.scheduleMessageRenderWindowUpdate(el);
-      var top = Math.round(Number(el.scrollTop || 0));
-      var height = Math.round(scrollHeight);
-      var client = Math.round(clientHeight);
-      var nearBottom = Math.abs(top - targetTop) <= 2 || height <= (client + 2);
-      if (nearBottom && top === lastTop && height === lastHeight && client === lastClient) {
-        stable += 1;
-      } else if (nearBottom) {
-        stable = 1;
-      } else {
-        stable = 0;
-
-      }
-      lastTop = top;
-      lastHeight = height;
-      lastClient = client;
-    } else {
-      stable = 0;
-    }
-    frame += 1;
-    if (stable >= stableFramesNeeded || frame >= maxFrames) {
-      cancelPinToLatestOnOpenJob(page);
-      if (typeof page.scrollToBottomImmediate === 'function') page.scrollToBottomImmediate();
-      return;
-    }
-    schedule();
-  };
-  schedule();
-}
-
-function resolveBottomFollowTolerancePx(page, overridePx) {
-  var raw = Number(overridePx);
-  if (!Number.isFinite(raw) || raw < 1) raw = Number(page && page.scrollBottomFollowTolerancePx);
-  if (!Number.isFinite(raw) || raw < 1) raw = 32;
-  if (raw > 160) raw = 160;
-  return raw;
-}
-
-function extractChatMarkdownText(message) {
-  var row = message && typeof message === 'object' ? message : {};
-  var text = String(row.text || '').trim();
-  if (!text && row.file_output && row.file_output.content) {
-    text = String(row.file_output.content || '').trim();
-  }
-  if (!text && row.folder_output && row.folder_output.tree) {
-    text = String(row.folder_output.tree || '').trim();
-  }
-  return text;
-}
-
-function buildChatMarkdown(messages, assistantName) {
-  var rows = Array.isArray(messages) ? messages : [];
-  if (!rows.length) return '';
-  var assistantLabel = String(assistantName || 'Assistant').trim() || 'Assistant';
-  var lines = ['# Chat with ' + assistantLabel, ''];
-  for (var i = 0; i < rows.length; i++) {
-    var row = rows[i] && typeof rows[i] === 'object' ? rows[i] : {};
-    var role = String(row.role || '').toLowerCase();
-    var label = role === 'user'
-      ? 'You'
-      : (role === 'agent'
-        ? assistantLabel
-        : (role === 'system' ? 'System' : 'Tool'));
-    var content = extractChatMarkdownText(row);
-    if (!content) continue;
-    var ts = Number(row.ts || row.timestamp || 0);
-    var tsLabel = Number.isFinite(ts) && ts > 0 ? (' (' + new Date(ts).toISOString() + ')') : '';
-    lines.push('## ' + label + tsLabel, '', content, '');
-  }
-  return lines.join('\n').trim();
-}
-
-function exportChatMarkdown(messages, assistantName) {
-  var markdown = buildChatMarkdown(messages, assistantName);
-  if (!markdown) return false;
-  var blob = new Blob([markdown + '\n'], { type: 'text/markdown' });
-  var url = URL.createObjectURL(blob);
-  var anchor = document.createElement('a');
-  var label = String(assistantName || 'chat').trim().replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'chat';
-  anchor.href = url;
-  anchor.download = 'chat-' + label + '-' + Date.now() + '.md';
-  anchor.click();
-  URL.revokeObjectURL(url);
-  return true;
-}
-
-function resolveDistanceFromLatestMessageBottom(page, el) {
-  var host = el || (page && typeof page.resolveMessagesScroller === 'function' ? page.resolveMessagesScroller() : null);
-  if (!host) return Number.POSITIVE_INFINITY;
-  var targetTop = resolveLatestMessageScrollTop(page, host);
-  var top = Math.max(0, Number(host.scrollTop || 0));
-  return Math.max(0, targetTop - top);
-}
-
-function syncLatestMessageBottomState(page, el, tolerancePx) {
-  if (!page || typeof page !== 'object') return;
-  var host = el || (typeof page.resolveMessagesScroller === 'function' ? page.resolveMessagesScroller() : null);
-  if (!host) return;
-  var hiddenBottom = resolveDistanceFromLatestMessageBottom(page, host);
-  page._stickToBottom = hiddenBottom <= resolveBottomFollowTolerancePx(page, tolerancePx);
-  page.showScrollDown = hiddenBottom > 120;
-}
-
-function isNearLatestMessageBottom(page, el, tolerancePx) {
-  var host = el || (page && typeof page.resolveMessagesScroller === 'function' ? page.resolveMessagesScroller() : null);
-  if (!host) return false;
-  return resolveDistanceFromLatestMessageBottom(page, host) <= resolveBottomFollowTolerancePx(page, tolerancePx);
-}
-
-function clampScrollToLatestMessageBottom(page, el) {
-  var host = el || (page && typeof page.resolveMessagesScroller === 'function' ? page.resolveMessagesScroller() : null);
-  if (!host) return 0;
-  var targetTop = resolveLatestMessageScrollTop(page, host);
-  if ((page && page.showFreshArchetypeTiles) || !host.querySelector('.chat-message-block[data-msg-idx], .chat-message-block')) return targetTop;
-  var top = Number(host.scrollTop || 0), clientHeight = Math.max(0, Number(host.clientHeight || 0));
-  var maxTop = Math.max(0, Number(host.scrollHeight || 0) - clientHeight);
-  var hardCapTop = Math.min(maxTop, targetTop);
-  var slack = Number(page && page.scrollBottomClampSlackPx);
-  if (!Number.isFinite(slack) || slack < 0) slack = 16;
-  if (top > (hardCapTop + slack)) {
-    var wheelAt = Number(page && page._lastMessagesWheelAt || 0), recentWheel = wheelAt > 0 && ((Date.now() - wheelAt) < 120);
-    if (!recentWheel) setTimeout(function() { host.scrollTop = Math.min(Number(host.scrollTop || 0), resolveLatestMessageScrollTop(page, host)); }, 24);
-  }
-  return hardCapTop;
-}
-function scheduleBottomHardCapClamp(page, el, targetTop, delayMs) {
-  if (!page || typeof page !== 'object') return;
-  if (page._bottomClampTimer) clearTimeout(page._bottomClampTimer);
-  var host = el || (typeof page.resolveMessagesScroller === 'function' ? page.resolveMessagesScroller() : null);
-  if (!host) return;
-  var hardCapTop = Number(targetTop), delay = Number(delayMs);
-  if (!Number.isFinite(hardCapTop)) hardCapTop = resolveLatestMessageScrollTop(page, host);
-  if (!Number.isFinite(delay) || delay < 24) delay = 120;
-  page._bottomClampTimer = setTimeout(function() {
-    page._bottomClampTimer = 0;
-    var now = Date.now(), recentAt = Math.max(Number(page._lastMessagesWheelAt || 0), Number(page._lastMessagesScrollAt || 0));
-    if (recentAt > 0 && (now - recentAt) < 96) return scheduleBottomHardCapClamp(page, host, hardCapTop, 72);
-    clampScrollToLatestMessageBottom(page, host);
-    if (typeof page.syncGridBackgroundOffset === 'function') page.syncGridBackgroundOffset(host);
-    syncLatestMessageBottomState(page, host);
-  }, delay);
-}
-function resolveLatestMessageScrollTop(page, el) {
-  var host = el || (page && typeof page.resolveMessagesScroller === 'function' ? page.resolveMessagesScroller() : null);
-  if (!host) return 0;
-  var clientHeight = Math.max(0, Number(host.clientHeight || 0));
-  var maxTop = Math.max(0, Number(host.scrollHeight || 0) - clientHeight);
-  void page;
-  return maxTop;
 }
