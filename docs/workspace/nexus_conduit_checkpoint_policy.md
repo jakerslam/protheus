@@ -1,4 +1,7 @@
-# Nexus-Conduit-Checkpoint Policy
+# Nexus Checkpoint Policy
+
+Legacy document name: `nexus_conduit_checkpoint_policy.md`.
+Canonical terminology: **Nexus** for the multi-file/multi-surface connection structure; **Nexi** for multiple connection structures; **Conduit** for a single explicit A-to-B connection point inside a Nexus.
 
 Status: Canonical architecture policy
 Owner: Jay
@@ -7,9 +10,9 @@ Effective: April 2026
 
 ## Purpose
 
-The Nexus-Conduit-Checkpoint policy makes every cross-boundary relationship visible, governable, detachable, and auditable.
+The Nexus Checkpoint policy makes every cross-boundary relationship visible, governable, detachable, and auditable.
 
-The system must not grow hidden code-to-code dependency webs. When one subsystem talks to another subsystem, that relationship must pass through an explicit Nexus checkpoint surface, travel over Conduit, and carry policy, lease, lifecycle, and receipt context.
+The system must not grow hidden code-to-code dependency webs. When one subsystem talks to another subsystem, that relationship must pass through explicit Nexus files/surfaces in both directions, use an explicit Conduit for each A-to-B edge, and carry policy, lease, lifecycle, and receipt context.
 
 This policy is the repo source of truth for the architecture previously described as the hierarchical Nexus routing system, breaker-box routing, Nexus domains, and conduit-backed checkpoints.
 
@@ -17,9 +20,11 @@ This policy is the repo source of truth for the architecture previously describe
 
 Modules do work.
 
-Nexuses manage relationships.
+Nexi structure relationships among multiple files, module surfaces, and domains.
 
-Conduits carry traffic.
+Conduits are single A-to-B connection points inside Nexi.
+
+Nexi and Conduits do not do business work; they only connect, gate, route, lifecycle-check, and receipt-track cross-boundary relationships.
 
 Kernel policy decides what is allowed.
 
@@ -53,9 +58,13 @@ Examples include Kernel primitives, memory, execution, web, task fabric, orchest
 
 ### Nexus
 
-A Nexus is a logic-light connection surface. It owns cross-boundary relationship metadata, route registration, route eligibility, lifecycle state, lease validation, and receipt emission.
+A Nexus is a logic-light connection structure made of one or more explicit connection files or surfaces. Its job is to connect multiple files, module surfaces, or domains through explicit, auditable routes.
+
+A Nexus may own cross-boundary relationship metadata, route registration, route eligibility, lifecycle state, lease validation, and receipt emission because those are connection duties.
 
 A Nexus must not own business logic, truth-bearing state, semantic payload interpretation, workflow planning, prompt logic, or payload transformation.
+
+Nexi is the short plural form for multiple Nexus files/surfaces.
 
 ### Nexus Checkpoint Surface
 
@@ -67,7 +76,11 @@ For code placement, "checkpoint file" means the module-local Nexus-facing file o
 
 ### Conduit
 
-Conduit is the sole transport primitive for authorized cross-boundary traffic. Thin wrappers may exist, but they must delegate to Conduit rather than invent a second transport abstraction.
+Conduit is a single explicit A-to-B connection point inside a Nexus.
+
+A Conduit can be a file, function surface, endpoint contract, manifest row, or route declaration, but it must connect one source checkpoint to one target checkpoint and carry lease, lifecycle, posture, and receipt context.
+
+Thin wrappers may exist, but they must delegate to the Nexus/Conduit checkpoint system rather than invent a second transport abstraction.
 
 ### Route Lease
 
@@ -75,14 +88,14 @@ A route lease is the only authorization mechanism for cross-module delivery. A l
 
 ### Scrambler
 
-Scrambler is the security posture applied to sensitive conduit paths. Strong Scrambler is required for authority-bearing Core or Kernel to Orchestration Surface routes and for sensitive detail, recovery, policy, permission, execution, trace, tool, and external-agent ingress routes. The future quantum-resistant Scrambler is deferred until an explicit v1/v2 security milestone; the architecture still reserves that slot without claiming implementation.
+Scrambler is the security posture applied to sensitive Conduits. Strong Scrambler is required for authority-bearing Core or Kernel to Orchestration Surface routes and for sensitive detail, recovery, policy, permission, execution, trace, tool, and external-agent ingress routes. The future quantum-resistant Scrambler is deferred until an explicit v1/v2 security milestone; the architecture still reserves that slot without claiming implementation.
 
 The canonical posture vocabulary, route classes, downgrade rules, and quantum-resistance deferral notes live in `docs/workspace/conduit_scrambler_posture_policy.md`.
 
 ## Non-Negotiable Rules
 
 1. No direct cross-module code path may bypass a Nexus checkpoint surface.
-2. No cross-boundary traffic may bypass Conduit.
+2. No A-to-B cross-boundary connection may bypass an explicit Conduit inside a Nexus.
 3. No Shell path may become authority for policy, permission, truth, execution admission, durable runtime state, or receipt authority.
 4. No Orchestration Surface path may become authority for canonical truth, final execution admission, or receipt authority.
 5. No Nexus may interpret payload meaning, infer user intent, plan workflows, transform truth-bearing content, or act as a broker brain.
