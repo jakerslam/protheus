@@ -15,6 +15,7 @@ Readable control-plane flow maps live in `docs/workspace/orchestration_workflow_
 Kernel decides what is true and allowed.  
 Core decides what is true and allowed. (compatibility alias for Kernel)  
 Orchestration decides what should happen next.  
+Assurance proves, observes, scores, gates, and explains the work.
 Shell decides how it is shown and collected.
 
 Canonical Nexus-Conduit-Checkpoint policy lives in `docs/workspace/nexus_conduit_checkpoint_policy.md`.
@@ -34,6 +35,8 @@ Canonical Shell-Independent Operation policy lives in `docs/workspace/shell_inde
 Canonical Shell UI Projection policy lives in `docs/workspace/shell_ui_projection_policy.md`.
 
 Canonical Shell UI Message Detail contract lives in `docs/workspace/shell_ui_message_detail_contract.md`.
+
+Canonical Assurance Plane policy lives in `docs/workspace/assurance_plane_policy.md`.
 
 Every cross-module or cross-domain route must enter and exit through explicit Nexus checkpoint surfaces, travel over Conduit, declare Conduit/Scrambler security posture, and carry lease/capability, lifecycle, policy, and receipt context. Direct code-file-to-code-file cross-module paths are migration debt unless they are explicitly exempted with owner, expiry, and a replacement Nexus checkpoint plan.
 
@@ -140,6 +143,30 @@ Enforce controlled external-system boundaries without becoming authority on trut
 
 If this code were removed, would core safety/truth still be intact while only external connectivity is reduced?
 
+## Assurance Plane
+
+### Mission
+
+Produce confidence about the system without becoming the system's actor, planner, or presentation layer.
+
+### Assurance Owns
+
+- Controlled validation: tests, evals, benchmarks, conformance guards, regression suites, and replay proof.
+- Live observability: telemetry, health, traces, runtime findings, Sentinel evidence, and freshness coverage.
+- Governance: release gates, scorecards, readiness verdicts, signal classification, issue-candidate thresholds, and trend deltas.
+
+### Assurance Must Not Own
+
+- Canonical policy truth or execution permission.
+- Workflow planning or adaptive action selection.
+- Shell rendering or operator-input UX.
+- External boundary protocol ownership.
+- Silent code mutation or self-modification.
+
+### Placement Test
+
+Is this judging, observing, scoring, gating, or explaining behavior rather than doing the behavior?
+
 ## Move Guidance
 
 Move logic into `surface/orchestration/` when it does non-canonical coordination:
@@ -171,14 +198,17 @@ Keep logic in `core/` when it is authoritative kernel logic:
 - Policy evaluation and enforcement.
 - Deterministic receipt binding.
 
+Place logic in the Assurance Plane when it is controlled proof, live observation, scoring, release gating, trend analysis, issue-candidate governance, or confidence reporting. Harnesses may remain in `tests/**`, but the source of assurance truth must be explicit and evidence-backed.
+
 ## Review Rubric
 
 For each function/file:
 
 1. Is it authoritative truth or enforcement? -> `core/`
 2. Is it workflow coordination? -> `surface/orchestration/`
-3. Is it presentation/input UX? -> shell path `client/`
-4. Is it external boundary integration/bridge logic? -> `adapters/` (Gateway layer)
+3. Is it validation, live observation, scoring, gating, or confidence reporting? -> Assurance Plane
+4. Is it presentation/input UX? -> shell path `client/`
+5. Is it external boundary integration/bridge logic? -> `adapters/` (Gateway layer)
 
 If code appears to satisfy multiple categories, split responsibilities.
 

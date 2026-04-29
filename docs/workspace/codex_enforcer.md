@@ -147,6 +147,7 @@ Completion requires all of the following:
 - Ownership boundary axiom:
   - Kernel decides what is true and allowed.
   - Orchestration decides what should happen next.
+  - Assurance proves, observes, scores, gates, and explains the work.
   - Shell decides how it is shown and collected.
 - Canonical ownership rulebook: `docs/workspace/orchestration_ownership_policy.md`.
 - Canonical Nexus-Conduit-Checkpoint policy: `docs/workspace/nexus_conduit_checkpoint_policy.md`.
@@ -159,6 +160,7 @@ Completion requires all of the following:
 - Canonical Shell UI Projection policy: `docs/workspace/shell_ui_projection_policy.md`.
 - Canonical Shell UI Message Detail contract: `docs/workspace/shell_ui_message_detail_contract.md`.
 - Canonical System Understanding Dossier policy: `docs/workspace/system_understanding_dossier_policy.md`.
+- Canonical Assurance Plane policy: `docs/workspace/assurance_plane_policy.md`.
 - Cross-boundary path rule:
   - Any module/domain boundary crossing must enter and exit through an explicit Nexus checkpoint surface.
   - Cross-boundary traffic must use Nexus files/surfaces, with each A-to-B edge represented as a Conduit carrying lease/capability, lifecycle, policy, and receipt context.
