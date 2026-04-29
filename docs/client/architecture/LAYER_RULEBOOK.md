@@ -64,6 +64,26 @@ Shell code must be limited to:
 
 Safety, policy, receipts, and system-truth authority remain in core.
 
+Canonical Shell projection policy: `docs/workspace/shell_ui_projection_policy.md`.
+
+Canonical Shell message/detail contract: `docs/workspace/shell_ui_message_detail_contract.md`.
+
+Canonical Layered Nexus Federation Resolution policy: `docs/workspace/layered_nexus_federation_resolution_policy.md`.
+
+Canonical Cross-Domain Nexus Route Inventory: `docs/workspace/cross_domain_nexus_route_inventory.md`.
+
+Canonical Gateway ingress/egress interface policy: `docs/workspace/gateway_ingress_egress_policy.md`.
+
+Canonical Interface Payload Budget policy: `docs/workspace/interface_payload_budget_policy.md`.
+
+Canonical Shell-Independent Operation policy: `docs/workspace/shell_independent_operation_policy.md`.
+
+Canonical Conduit/Scrambler Posture policy: `docs/workspace/conduit_scrambler_posture_policy.md`.
+
+Shell UI/default API payloads must be bounded projections. Full runtime envelopes, raw tool payloads, traces, execution observations, workflow truth, policy decisions, and full-state durable caches are prohibited in default Shell rows.
+
+Core, Orchestration Surface, CLI, and Gateway status must not require browser Shell assets such as dashboard HTML/CSS, Svelte bundles, browser static assets, DOM state, localStorage, or UI cache hydration.
+
 ### 2.3 Packages Scope Contract
 Packages are the public distribution layer for InfRing-facing SDKs and starter surfaces.
 
@@ -121,10 +141,17 @@ Apps and gateways should build against the contract, not against private impleme
 - Primary path is Shell -> Orchestration Surface -> Kernel for user-driven execution flows.
 - Shell <-> core communication is conduit + scrambler only when explicitly approved ingress requires it.
 - Orchestration Surface <-> core communication is conduit + scrambler + lease/policy validation.
+- Nexus-Conduit-Checkpoint policy is canonical at `docs/workspace/nexus_conduit_checkpoint_policy.md`.
+- Layered Nexus Federation is resolved by `docs/workspace/layered_nexus_federation_resolution_policy.md`; the old exact three-domain federation runtime shape is retired in favor of Layer 2 Nexus primitives plus checkpoint/Conduit/lease/lifecycle/receipt guards.
+- Cross-domain route inventory is canonical at `docs/workspace/cross_domain_nexus_route_inventory.md`; new domain routes must be inventoried with source checkpoint, target checkpoint, Conduit path, posture, lease/capability, lifecycle gate, receipt requirement, and owner-of-truth declaration.
+- Conduit/Scrambler Posture policy is canonical at `docs/workspace/conduit_scrambler_posture_policy.md`; sensitive authority-bearing routes must declare strong Scrambler posture and must not silently downgrade.
+- Shell UI Projection policy is canonical at `docs/workspace/shell_ui_projection_policy.md`.
+- Any module/domain boundary crossing must enter and exit through explicit Nexus checkpoint surfaces.
 - Packages <-> core communication flows through public client/package contracts, never private authority backdoors.
 - No direct client-side policy authority over core decisions.
 - Apps/gateways must reach authority through platform contracts, not by importing private core internals.
 - No direct back-channels, raw state bypasses, or legacy bridges around conduit.
+- No direct code-file-to-code-file cross-module path may bypass its Nexus checkpoint surface unless tracked as a dated migration exemption with a replacement Nexus plan.
 - Layer flow is upward-only:
   `Layer -1 -> Layer 0 -> Layer 1 -> Layer 2 -> Layer 3 -> Cognition`.
 

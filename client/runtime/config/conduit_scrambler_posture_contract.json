@@ -1,0 +1,162 @@
+{
+  "version": "2026-04-29",
+  "policy_doc_path": "docs/workspace/conduit_scrambler_posture_policy.md",
+  "gateway_contract_path": "client/runtime/config/gateway_ingress_egress_contract.json",
+  "related_policy_paths": [
+    "docs/workspace/nexus_conduit_checkpoint_policy.md",
+    "docs/workspace/gateway_ingress_egress_policy.md",
+    "docs/workspace/interface_payload_budget_policy.md",
+    "docs/workspace/shell_ui_projection_policy.md"
+  ],
+  "policy_doc_required_tokens": [
+    "Every Conduit route declares its security posture.",
+    "`strong_scrambler` is required when a route could expose or help reconstruct authority surfaces.",
+    "`quantum_resistant_scrambler` is reserved for a future security milestone.",
+    "Enforcement command: `npm run -s ops:conduit:scrambler-posture:guard`."
+  ],
+  "allowed_postures": [
+    "standard_conduit",
+    "strong_scrambler"
+  ],
+  "forbidden_postures": [
+    "plain_transport",
+    "raw_transport",
+    "none",
+    "direct_transport"
+  ],
+  "quantum_resistant_posture": {
+    "name": "quantum_resistant_scrambler",
+    "implemented": false,
+    "reserved_marker": "quantum_resistant_reserved"
+  },
+  "minimum_posture_by_route_class": {
+    "display_projection": "standard_conduit",
+    "health_status": "standard_conduit",
+    "bounded_search_query": "standard_conduit",
+    "request_ingress": "standard_conduit",
+    "control_plane_coordination": "strong_scrambler",
+    "kernel_authority": "strong_scrambler",
+    "detail_fetch_sensitive": "strong_scrambler",
+    "external_agent_or_plugin_ingress": "strong_scrambler",
+    "emergency_recovery": "strong_scrambler",
+    "reserved_quantum_security": "strong_scrambler"
+  },
+  "required_sensitive_routes": [
+    "orchestration_contract_to_core_conduit",
+    "tool_routing_authority_to_web_conduit",
+    "eval_feedback_to_core_eval_plane",
+    "gateway_sensitive_detail_fetch",
+    "external_agent_agency_ingress",
+    "daemon_control_emergency_recovery"
+  ],
+  "route_declarations": [
+    {
+      "route_id": "orchestration_contract_to_core_conduit",
+      "route_class": "control_plane_coordination",
+      "source_domain": "orchestration_surface",
+      "target_domain": "kernel_core",
+      "source_checkpoint": "surface/orchestration/src/contracts.rs",
+      "target_checkpoint": "core/layer2/conduit/src/lib.rs",
+      "conduit_path": "core/layer2/nexus/src/conduit_manager.rs",
+      "conduit_security_posture": "strong_scrambler",
+      "lease_or_capability_required": true,
+      "lifecycle_gate": true,
+      "receipt_required": true,
+      "downgrade_allowed": false,
+      "downgrade_owner": "",
+      "downgrade_expiry": "",
+      "downgrade_replacement_plan": "",
+      "quantum_resistant_reserved": false
+    },
+    {
+      "route_id": "tool_routing_authority_to_web_conduit",
+      "route_class": "kernel_authority",
+      "source_domain": "orchestration_surface",
+      "target_domain": "kernel_core",
+      "source_checkpoint": "surface/orchestration/src/tool_routing_authority.rs",
+      "target_checkpoint": "core/layer0/ops/src/web_conduit.rs",
+      "conduit_path": "core/layer2/conduit/src/lib.rs",
+      "conduit_security_posture": "strong_scrambler",
+      "lease_or_capability_required": true,
+      "lifecycle_gate": true,
+      "receipt_required": true,
+      "downgrade_allowed": false,
+      "downgrade_owner": "",
+      "downgrade_expiry": "",
+      "downgrade_replacement_plan": "",
+      "quantum_resistant_reserved": false
+    },
+    {
+      "route_id": "eval_feedback_to_core_eval_plane",
+      "route_class": "control_plane_coordination",
+      "source_domain": "orchestration_surface",
+      "target_domain": "kernel_core",
+      "source_checkpoint": "surface/orchestration/src/eval_feedback_router.rs",
+      "target_checkpoint": "core/layer0/ops/src/eval_plane.combined_parts/010-prelude-and-shared.rs",
+      "conduit_path": "core/layer2/conduit/src/lib.rs",
+      "conduit_security_posture": "strong_scrambler",
+      "lease_or_capability_required": true,
+      "lifecycle_gate": true,
+      "receipt_required": true,
+      "downgrade_allowed": false,
+      "downgrade_owner": "",
+      "downgrade_expiry": "",
+      "downgrade_replacement_plan": "",
+      "quantum_resistant_reserved": false
+    },
+    {
+      "route_id": "gateway_sensitive_detail_fetch",
+      "route_class": "detail_fetch_sensitive",
+      "source_domain": "gateway",
+      "target_domain": "kernel_core",
+      "source_checkpoint": "client/runtime/config/gateway_ingress_egress_contract.json",
+      "target_checkpoint": "core/layer0/ops/src/dashboard_compat_api.rs",
+      "conduit_path": "core/layer2/nexus/src/conduit_manager.rs",
+      "conduit_security_posture": "strong_scrambler",
+      "lease_or_capability_required": true,
+      "lifecycle_gate": true,
+      "receipt_required": true,
+      "downgrade_allowed": false,
+      "downgrade_owner": "",
+      "downgrade_expiry": "",
+      "downgrade_replacement_plan": "",
+      "quantum_resistant_reserved": false
+    },
+    {
+      "route_id": "external_agent_agency_ingress",
+      "route_class": "external_agent_or_plugin_ingress",
+      "source_domain": "external_agent_or_plugin",
+      "target_domain": "kernel_core",
+      "source_checkpoint": "adapters/README.md",
+      "target_checkpoint": "core/layer0/ops/src/agency_plane_parts/020-state-env-to-validate-contract.rs",
+      "conduit_path": "core/layer2/conduit/src/lib.rs",
+      "conduit_security_posture": "strong_scrambler",
+      "lease_or_capability_required": true,
+      "lifecycle_gate": true,
+      "receipt_required": true,
+      "downgrade_allowed": false,
+      "downgrade_owner": "",
+      "downgrade_expiry": "",
+      "downgrade_replacement_plan": "",
+      "quantum_resistant_reserved": false
+    },
+    {
+      "route_id": "daemon_control_emergency_recovery",
+      "route_class": "emergency_recovery",
+      "source_domain": "cli_gateway_operator",
+      "target_domain": "kernel_core",
+      "source_checkpoint": "core/layer0/ops/src/daemon_control.rs",
+      "target_checkpoint": "core/layer0/ops/src/v8_kernel_parts/001-part.rs",
+      "conduit_path": "core/layer2/nexus/src/route_lease.rs",
+      "conduit_security_posture": "strong_scrambler",
+      "lease_or_capability_required": true,
+      "lifecycle_gate": true,
+      "receipt_required": true,
+      "downgrade_allowed": false,
+      "downgrade_owner": "",
+      "downgrade_expiry": "",
+      "downgrade_replacement_plan": "",
+      "quantum_resistant_reserved": false
+    }
+  ]
+}
