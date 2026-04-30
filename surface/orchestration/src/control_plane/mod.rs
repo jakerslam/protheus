@@ -1,4 +1,5 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
+pub mod agent_lifecycle_coordination;
 pub mod chat_visibility;
 pub mod command_dispatch;
 pub mod decomposition_planning;
@@ -270,6 +271,13 @@ pub fn subdomain_trace_contracts() -> Vec<SubdomainTraceContract> {
     ];
     vec![
         SubdomainTraceContract {
+            trace_id: "agent_lifecycle_coordination.trace",
+            subdomain_id: "agent_lifecycle_coordination",
+            stage: WorkflowStage::CoordinationSequencing,
+            required_decision_fields: REQUIRED_DECISION_FIELDS,
+            receipt_metadata_sources: RECEIPT_METADATA_SOURCES,
+        },
+        SubdomainTraceContract {
             trace_id: "chat_visibility.trace",
             subdomain_id: "chat_visibility",
             stage: WorkflowStage::ResultPackaging,
@@ -411,6 +419,7 @@ pub fn assert_decision_trace_contract(
 
 pub fn subdomain_boundaries() -> Vec<SubdomainBoundary> {
     vec![
+        agent_lifecycle_coordination::boundary(),
         chat_visibility::boundary(),
         intake_normalization::boundary(),
         command_dispatch::boundary(),

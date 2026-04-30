@@ -258,7 +258,7 @@ Progress:
 
 ### SHP-AUTH-008 - Agent lifecycle/archive operations are coordinated in shell
 
-Status: queued
+Status: in_progress
 Priority: P1
 Current files:
 - `client/runtime/systems/ui/infring_static/js/pages/agents_lifecycle_archive_helpers.ts`
@@ -281,6 +281,13 @@ Acceptance:
 - Shell cannot decide agent lifecycle truth or perform multi-agent state transitions locally.
 - Rebind behavior comes from backend receipt/plan.
 - Regression covers missing agent, archived agent, revive, and batch archive flows.
+
+Progress:
+- 2026-04-30: Added Rust control-plane agent lifecycle coordination primitives in `surface/orchestration/src/control_plane/agent_lifecycle_coordination.rs`.
+- `coordinate_agent_lifecycle` now owns non-authoritative recommendations for select, stop, archive, batch archive, delete archived, revive, and rebind intents.
+- Missing/archived/terminated lifecycle states now route to clarification or backend rebind recommendations instead of shell inference.
+- Core/runtime remains the intended authority for lifecycle state, mutation admission, and receipts; shell should transition to lifecycle action requests and receipt/projection rendering.
+- Regression tests cover missing agent, archived selection rebind, revive archived, revive active rejection, and batch archive flows.
 
 ### SHP-AUTH-009 - Model/provider configuration and guidance are partly shell-owned
 
