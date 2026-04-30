@@ -18,7 +18,7 @@ const OUT_MD = 'local/workspace/reports/BENCHMARK_PUBLIC_AUDIT_CURRENT.md';
 const README_PATH = 'README.md';
 const COMPETITIVE_MATRIX_README_PATH = 'benchmarks/competitive_matrix/README.md';
 const PUBLIC_BENCHMARKS_PATH = 'docs/client/PUBLIC_BENCHMARKS.md';
-const CANONICAL_REPORT_PATH = 'docs/client/reports/benchmark_matrix_run_latest.json';
+const CANONICAL_REPORT_PATH = 'validation/reports/client_archive/benchmark_matrix_run_latest.json';
 const RELEASE_WORKFLOW_PATH = '.github/workflows/release.yml';
 
 const REQUIRED_REPRO_COMMAND = 'npm run -s ops:benchmark:repro';

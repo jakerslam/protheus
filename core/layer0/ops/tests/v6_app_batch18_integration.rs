@@ -108,7 +108,7 @@ fn v6_app_batch18_snowball_governance_lanes_are_receipted() {
     let root = fixture.path();
     let workspace = workspace_root();
     let benchmark_report =
-        workspace.join("docs/client/reports/benchmark_matrix_run_2026-03-06.json");
+        workspace.join("validation/reports/client_archive/benchmark_matrix_run_2026-03-06.json");
     let benchmark_json = read_json(&benchmark_report);
     let readme_path = root.join("README.md");
     fs::write(

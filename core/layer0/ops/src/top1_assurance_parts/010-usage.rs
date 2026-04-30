@@ -317,7 +317,7 @@ fn default_policy() -> Top1Policy {
             sample_ms: 800,
         },
         comparison: ComparisonMatrixPolicy {
-            snapshot_path: "client/runtime/config/competitive_benchmark_snapshot_2026_02.json"
+            snapshot_path: "validation/benchmarks/fixtures/competitive_benchmark_snapshot_2026_02.json"
                 .to_string(),
             output_path: "docs/comparison/infring_vs_x.md".to_string(),
         },

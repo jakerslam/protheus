@@ -7,7 +7,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 const DEFAULT_POLICY_REL: &str =
-    "client/runtime/config/observability_slo_runbook_closure_policy.json";
+    "observability/health/observability_slo_runbook_closure_policy.json";
 const DEFAULT_SLO_MAP_REL: &str = "config/autonomy_slo_runbook_map.json";
 const DEFAULT_RUNBOOK_REL: &str = "docs/OPERATOR_RUNBOOK.md";
 const DEFAULT_LATEST_REL: &str = "local/state/ops/observability_slo_runbook_closure/latest.json";

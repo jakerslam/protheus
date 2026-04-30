@@ -6,7 +6,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 const DEFAULT_REVIEWED_PATH: &str = "artifacts/eval_learning_loop_reviewed_examples_latest.json";
 const DEFAULT_HOLDOUT_PATH: &str =
-    "surface/orchestration/fixtures/eval/eval_learning_loop_policy_holdout.json";
+    "validation/evals/fixtures/eval_learning_loop_policy_holdout.json";
 const DEFAULT_OUT_PATH: &str =
     "core/local/artifacts/eval_learning_loop_policy_promotion_current.json";
 const DEFAULT_OUT_LATEST_PATH: &str = "artifacts/eval_learning_loop_policy_promotion_latest.json";

@@ -149,7 +149,7 @@ pub fn build_tool_routing_authority_report(root: impl AsRef<Path>) -> ToolRoutin
     );
     let eval_issue_candidate_dedupe_policy = read_text(
         root,
-        "surface/orchestration/config/eval_issue_candidate_dedupe_policy.json",
+        "validation/evals/policies/eval_issue_candidate_dedupe_policy.json",
     );
     let eval_issue_candidates_source = read_text(
         root,

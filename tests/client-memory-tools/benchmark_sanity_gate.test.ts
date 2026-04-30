@@ -35,8 +35,8 @@ fs.writeFileSync(
   `${JSON.stringify(
     {
       schema_version: '1.0',
-      report_path: 'docs/client/reports/benchmark_matrix_stabilized_2026-03-18.json',
-      runtime_source_report_path: 'docs/client/reports/benchmark_matrix_run_2026-03-06.json',
+      report_path: 'validation/reports/client_archive/benchmark_matrix_stabilized_2026-03-18.json',
+      runtime_source_report_path: 'validation/reports/client_archive/benchmark_matrix_run_2026-03-06.json',
       state_path: statePath,
       required_projects: ['InfRing (rich)', 'InfRing (pure)', 'InfRing (tiny-max)'],
       required_metrics: ['cold_start_ms', 'idle_memory_mb', 'install_size_mb', 'tasks_per_sec'],
@@ -78,12 +78,12 @@ assert.strictEqual(payload.summary.measured_rows, 12);
 const state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
 assert.strictEqual(
   state.source_report,
-  'docs/client/reports/benchmark_matrix_stabilized_2026-03-18.json',
+  'validation/reports/client_archive/benchmark_matrix_stabilized_2026-03-18.json',
   'expected stabilized report as primary source',
 );
 assert.strictEqual(
   state.runtime_source_report,
-  'docs/client/reports/benchmark_matrix_run_2026-03-06.json',
+  'validation/reports/client_archive/benchmark_matrix_run_2026-03-06.json',
   'expected runtime source to remain the live report',
 );
 assert.strictEqual(state.report_type, 'competitive_benchmark_matrix_stabilized');

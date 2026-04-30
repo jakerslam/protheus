@@ -11,7 +11,7 @@ const DEFAULT_MONITOR_PATH: &str = "local/state/ops/eval_agent_chat_monitor/late
 const DEFAULT_PHASE_TRACE_PATH: &str =
     "local/state/ops/orchestration/workflow_phase_trace_latest.json";
 const DEFAULT_TAXONOMY_PATH: &str =
-    "surface/orchestration/fixtures/eval/eval_issue_taxonomy_v1.json";
+    "validation/evals/fixtures/eval_issue_taxonomy_v1.json";
 const DEFAULT_OUT_PATH: &str = "core/local/artifacts/eval_judge_lane_current.json";
 const DEFAULT_OUT_LATEST_PATH: &str = "artifacts/eval_judge_lane_latest.json";
 const DEFAULT_MIN_CONFIDENCE: f64 = 0.80;

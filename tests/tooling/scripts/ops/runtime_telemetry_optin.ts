@@ -14,7 +14,7 @@ type ParsedArgs = {
 };
 
 const ROOT = path.resolve(__dirname, '..', '..', '..', '..');
-const POLICY_PATH = path.join(ROOT, 'client/runtime/config/runtime_telemetry_policy.json');
+const POLICY_PATH = path.join(ROOT, 'observability/telemetry/runtime_telemetry_policy.json');
 
 function clean(value: unknown, max = 240): string {
   return String(value == null ? '' : value).trim().slice(0, max);

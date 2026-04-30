@@ -351,7 +351,7 @@ mod tests {
         let root = tempfile::tempdir().expect("tempdir");
         let report_path = root
             .path()
-            .join("docs/client/reports/benchmark_matrix_run_2026-03-06.json");
+            .join("validation/reports/client_archive/benchmark_matrix_run_2026-03-06.json");
         let report = json!({
             "infring_measured": {"cold_start_ms": 5.0, "idle_memory_mb": 9.0, "install_size_mb": 10.0, "tasks_per_sec": 10000.0, "security_systems": 83.0, "channel_adapters": 6.0, "llm_providers": 3.0},
             "pure_workspace_measured": {"cold_start_ms": 4.0, "idle_memory_mb": 1.4, "install_size_mb": 0.7, "tasks_per_sec": 12000.0, "security_systems": 83.0, "channel_adapters": 0.0, "llm_providers": 0.0},

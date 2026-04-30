@@ -17,7 +17,7 @@ const STATE_ENV: &str = "SNOWBALL_PLANE_STATE_ROOT";
 const STATE_SCOPE: &str = "snowball_plane";
 const CONTRACT_PATH: &str = "planes/contracts/apps/snowball_engine_contract_v1.json";
 const DEFAULT_BENCHMARK_REPORT_PATH: &str =
-    "docs/client/reports/benchmark_matrix_run_2026-03-06.json";
+    "validation/reports/client_archive/benchmark_matrix_run_2026-03-06.json";
 
 fn usage() {
     println!("Usage:");
@@ -177,7 +177,7 @@ fn benchmark_report_path(root: &Path, parsed: &crate::ParsedArgs) -> PathBuf {
         root,
         parsed.flags.get("benchmark-report"),
         DEFAULT_BENCHMARK_REPORT_PATH,
-        "docs/client/reports",
+        "validation/reports/client_archive",
     )
 }
 

@@ -704,7 +704,7 @@
       "wave": "BL"
     },
     {
-      "acceptance": "`client/runtime/systems/personas/cli.ts` now separates bootstrap context from dynamic memory context, enforces configurable pre-invocation context budget (default `2000`) with trim/reject modes, logs over-budget violations to `personas/organization/telemetry.jsonl` and persona correspondence, and emits structured `context_budget` metadata. Loop hooks now pass explicit budget flags in `client/runtime/systems/autonomy/inversion_controller.ts` and `client/cognition/adaptive/rsi/rsi_bootstrap.ts`. Regression + sovereignty checks: `tests/client-memory-tools/personas_context_budget_guard.test.ts`, `tests/client-memory-tools/personas_lens_cli.test.ts`, `tests/client-memory-tools/execution_security_gate_integration.test.ts`.",
+      "acceptance": "`client/runtime/systems/personas/cli.ts` now separates bootstrap context from dynamic memory context, enforces configurable pre-invocation context budget (default `2000`) with trim/reject modes, logs over-budget violations to `observability/telemetry/persona_telemetry.jsonl` and persona correspondence, and emits structured `context_budget` metadata. Loop hooks now pass explicit budget flags in `client/runtime/systems/autonomy/inversion_controller.ts` and `client/cognition/adaptive/rsi/rsi_bootstrap.ts`. Regression + sovereignty checks: `tests/client-memory-tools/personas_context_budget_guard.test.ts`, `tests/client-memory-tools/personas_lens_cli.test.ts`, `tests/client-memory-tools/execution_security_gate_integration.test.ts`.",
       "class": "backlog",
       "dependencies": [],
       "id": "BL-072",
@@ -5044,7 +5044,7 @@
       "wave": "V3"
     },
     {
-      "acceptance": "Added `client/runtime/systems/assimilation/world_model_freshness.ts` + policy (`client/runtime/config/world_model_freshness_policy.json`) for bounded low-power profile freshness scans with stale/warning thresholds, client/legal/auth/rate-limit surface validation, freshness SLO scoring, and deterministic receipts. Stale profiles now emit normalized compiler deltas into queue artifacts (`compiler_queue.jsonl`) for downstream profile-compiler/assimilation lanes, with optional apply-mode freshness patching, docs in `docs/client/WORLD_MODEL_FRESHNESS.md`, and regression coverage in `tests/client-memory-tools/world_model_freshness.test.ts`. / 7 / 1/2/client/adapter",
+      "acceptance": "Added `client/runtime/systems/assimilation/world_model_freshness.ts` + policy (`observability/freshness/world_model_freshness_policy.json`) for bounded low-power profile freshness scans with stale/warning thresholds, client/legal/auth/rate-limit surface validation, freshness SLO scoring, and deterministic receipts. Stale profiles now emit normalized compiler deltas into queue artifacts (`compiler_queue.jsonl`) for downstream profile-compiler/assimilation lanes, with optional apply-mode freshness patching, docs in `docs/client/WORLD_MODEL_FRESHNESS.md`, and regression coverage in `tests/client-memory-tools/world_model_freshness.test.ts`. / 7 / 1/2/client/adapter",
       "class": "backlog",
       "dependencies": [],
       "id": "V3-060",
@@ -7344,7 +7344,7 @@
       "wave": "V3"
     },
     {
-      "acceptance": "Added `client/runtime/systems/sensory/gold_eval_blind_scoring_lane.{ts,js}` + `client/runtime/config/gold_eval_blind_scoring_policy.json` to run deterministic blind-ordered scoring on labeled eval packs with precision/recall/F1/Brier outputs and promotion gate receipts under `state/sensory/analysis/gold_eval_blind/`; regression coverage in `tests/client-memory-tools/gold_eval_blind_scoring_lane.test.ts`. / V3-RACE-081, V3-RACE-082 / 7 / 1/2/client/adapter",
+      "acceptance": "Added `client/runtime/systems/sensory/gold_eval_blind_scoring_lane.{ts,js}` + `validation/evals/policies/gold_eval_blind_scoring_policy.json` to run deterministic blind-ordered scoring on labeled eval packs with precision/recall/F1/Brier outputs and promotion gate receipts under `state/sensory/analysis/gold_eval_blind/`; regression coverage in `tests/client-memory-tools/gold_eval_blind_scoring_lane.test.ts`. / V3-RACE-081, V3-RACE-082 / 7 / 1/2/client/adapter",
       "class": "backlog",
       "dependencies": [],
       "id": "V3-RACE-086",
@@ -8224,7 +8224,7 @@
       "wave": "V3"
     },
     {
-      "acceptance": "Implement `client/runtime/systems/ops/competitive_observability_benchmark_pack.{ts,js}` + policy `client/runtime/config/competitive_observability_benchmark_policy.json`; user-specific benchmark preferences remain in with adaptive scenario weighting in `client/cognition/adaptive/ops/benchmarks/`; permanent benchmark scenarios, trace/eval collectors, and parity report generators remain in `client/runtime/systems/ops/` + `client/runtime/config/`; outputs deterministic parity scorecards for Letta/Mastra/Workflow Graph/Infring lanes without storing user-private contents in benchmark fixtures. Verify via npm run -s lane:v3-race-174:run and npm run -s test:lane:v3-race-174; receipt must be present in state artifacts. Rollback via git revert of completion commit or canonical status reset to queued if regression is detected. Evidence: `client/runtime/systems/ops/competitive_observability_benchmark_pack.ts`, `client/runtime/systems/ops`, `config`. / RM-122, RM-123, V3-RACE-041, V3-RACE-168 / 7 / 1/2/client/adapter",
+      "acceptance": "Implement `client/runtime/systems/ops/competitive_observability_benchmark_pack.{ts,js}` + policy `validation/benchmarks/policies/competitive_observability_benchmark_policy.json`; user-specific benchmark preferences remain in with adaptive scenario weighting in `client/cognition/adaptive/ops/benchmarks/`; permanent benchmark scenarios, trace/eval collectors, and parity report generators remain in `client/runtime/systems/ops/` + `client/runtime/config/`; outputs deterministic parity scorecards for Letta/Mastra/Workflow Graph/Infring lanes without storing user-private contents in benchmark fixtures. Verify via npm run -s lane:v3-race-174:run and npm run -s test:lane:v3-race-174; receipt must be present in state artifacts. Rollback via git revert of completion commit or canonical status reset to queued if regression is detected. Evidence: `client/runtime/systems/ops/competitive_observability_benchmark_pack.ts`, `client/runtime/systems/ops`, `config`. / RM-122, RM-123, V3-RACE-041, V3-RACE-168 / 7 / 1/2/client/adapter",
       "class": "backlog",
       "dependencies": [],
       "id": "V3-RACE-174",
@@ -12584,7 +12584,7 @@
       "wave": "V6"
     },
     {
-      "acceptance": "Implemented `REQ-13-002` lane `client/runtime/systems/ops/competitive_benchmark_matrix.{ts,js}`, policy `client/runtime/config/competitive_benchmark_matrix_policy.json`, benchmark harness docs/scripts under `benchmarks/competitive_matrix/`, and regression test `tests/client-memory-tools/competitive_benchmark_matrix.test.ts` (pass). Receipts now emit deterministic metric snapshots (`cold_start_ms`, `idle_memory_mb`, `install_size_mb`, `evidence_verify_latency_ms`).",
+      "acceptance": "Implemented `REQ-13-002` lane `client/runtime/systems/ops/competitive_benchmark_matrix.{ts,js}`, policy `validation/benchmarks/policies/competitive_benchmark_matrix_policy.json`, benchmark harness docs/scripts under `benchmarks/competitive_matrix/`, and regression test `tests/client-memory-tools/competitive_benchmark_matrix.test.ts` (pass). Receipts now emit deterministic metric snapshots (`cold_start_ms`, `idle_memory_mb`, `install_size_mb`, `evidence_verify_latency_ms`).",
       "class": "backlog",
       "dependencies": [],
       "id": "V6-COMP-001",
@@ -13614,7 +13614,7 @@
       "wave": "V6"
     },
     {
-      "acceptance": "Added `client/runtime/config/runtime_telemetry_policy.json` + `client/runtime/systems/observability/runtime_telemetry_optin.ts` for anonymous opt-in usage/crash/perf events with disable-by-default behavior; validated by `runtime_telemetry_optin.test.ts` proving no emissions while disabled.",
+      "acceptance": "Added `observability/telemetry/runtime_telemetry_policy.json` + `client/runtime/systems/observability/runtime_telemetry_optin.ts` for anonymous opt-in usage/crash/perf events with disable-by-default behavior; validated by `runtime_telemetry_optin.test.ts` proving no emissions while disabled.",
       "class": "backlog",
       "dependencies": [],
       "id": "V6-F100-A-015",
@@ -14454,7 +14454,7 @@
       "wave": "V6"
     },
     {
-      "acceptance": "`contract_check` scoped execution for `primitive_ts_wrapper_contract` (`--rust-contract-check-ids=primitive_ts_wrapper_contract`) is now green (21/21 token-compliant entries). Closure evidence: `docs/client/reports/primitive_ts_logic_audit_2026-03-10_closure.md`, `core/local/artifacts/primitive_ts_logic_audit_2026-03-10_closure.json`. / REQ-08-002, REQ-08-004 / 6 / 1/2/client",
+      "acceptance": "`contract_check` scoped execution for `primitive_ts_wrapper_contract` (`--rust-contract-check-ids=primitive_ts_wrapper_contract`) is now green (21/21 token-compliant entries). Closure evidence: `validation/reports/client_archive/primitive_ts_logic_audit_2026-03-10_closure.md`, `core/local/artifacts/primitive_ts_logic_audit_2026-03-10_closure.json`. / REQ-08-002, REQ-08-004 / 6 / 1/2/client",
       "class": "backlog",
       "dependencies": [],
       "id": "V6-PRIM-008",
@@ -14464,7 +14464,7 @@
       "wave": "V6"
     },
     {
-      "acceptance": "Published closure update in `docs/client/reports/primitive_ts_logic_audit_2026-03-10_closure.md` with machine artifact `core/local/artifacts/primitive_ts_logic_audit_2026-03-10_closure.json` (contract residuals: 0, primitive TS non-wrapper residuals: 0). / REQ-08-005 / 6 / 1/2/client",
+      "acceptance": "Published closure update in `validation/reports/client_archive/primitive_ts_logic_audit_2026-03-10_closure.md` with machine artifact `core/local/artifacts/primitive_ts_logic_audit_2026-03-10_closure.json` (contract residuals: 0, primitive TS non-wrapper residuals: 0). / REQ-08-005 / 6 / 1/2/client",
       "class": "backlog",
       "dependencies": [],
       "id": "V6-PRIM-009",

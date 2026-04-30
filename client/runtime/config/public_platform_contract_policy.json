@@ -6,8 +6,7 @@
   ],
   "allowed_client_prefixes": [
     "client/cli/",
-    "client/lib/",
-    "client/observability/"
+    "client/lib/"
   ],
   "forbidden_prefixes": [
     "core/",

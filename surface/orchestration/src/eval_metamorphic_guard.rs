@@ -5,7 +5,7 @@ use std::io::{self, Write};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const DEFAULT_CASES_PATH: &str = "surface/orchestration/fixtures/eval/eval_metamorphic_cases.json";
+const DEFAULT_CASES_PATH: &str = "validation/evals/fixtures/eval_metamorphic_cases.json";
 const DEFAULT_OUT_PATH: &str = "core/local/artifacts/eval_metamorphic_guard_current.json";
 const DEFAULT_OUT_LATEST_PATH: &str = "artifacts/eval_metamorphic_guard_latest.json";
 const DEFAULT_MARKDOWN_PATH: &str = "local/workspace/reports/EVAL_METAMORPHIC_GUARD_CURRENT.md";

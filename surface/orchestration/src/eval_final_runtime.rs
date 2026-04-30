@@ -13,10 +13,10 @@ const DEFAULT_PHASE_TRACE_HISTORY: &str =
 const DEFAULT_PHASE_TRACE_ARTIFACT: &str =
     "core/local/artifacts/eval_phase_trace_persist_current.json";
 const DEFAULT_ADVERSARIAL_CASES: &str =
-    "surface/orchestration/fixtures/eval/eval_adversarial_routing_cases.json";
+    "validation/evals/fixtures/eval_adversarial_routing_cases.json";
 const DEFAULT_ADVERSARIAL_OUT: &str = "core/local/artifacts/eval_adversarial_routing_current.json";
 const DEFAULT_WORKFLOW_CASES: &str =
-    "surface/orchestration/fixtures/eval/eval_workflow_selection_cases.json";
+    "validation/evals/fixtures/eval_workflow_selection_cases.json";
 const DEFAULT_WORKFLOW_OUT: &str = "core/local/artifacts/eval_workflow_selection_current.json";
 const DEFAULT_OWNERSHIP_OUT: &str = "core/local/artifacts/eval_runtime_ownership_current.json";
 

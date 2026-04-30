@@ -378,7 +378,7 @@ mod tests {
             "2026-03-13T00:00:00Z",
             &projects,
             "local/state/ops/top1_assurance/benchmark_latest.json",
-            "client/runtime/config/competitive_benchmark_snapshot_2026_02.json",
+            "validation/benchmarks/fixtures/competitive_benchmark_snapshot_2026_02.json",
         );
         assert!(md.contains("# Infring vs X (CI Generated)"));
         assert!(md.contains("| Infring |"));

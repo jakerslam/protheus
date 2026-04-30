@@ -222,7 +222,7 @@ export function renderBenchmarkSnapshotMarkdown(report: any): string {
   lines.push('');
   lines.push('Latest benchmark source:');
   lines.push('');
-  lines.push('- [`docs/client/reports/benchmark_matrix_run_latest.json`](docs/client/reports/benchmark_matrix_run_latest.json)');
+  lines.push('- [`validation/reports/client_archive/benchmark_matrix_run_latest.json`](validation/reports/client_archive/benchmark_matrix_run_latest.json)');
   lines.push('');
   lines.push(`Canonical throughput metric (kernel/shared workload): \`${CANONICAL_THROUGHPUT_METRIC}\``);
   lines.push(`Rich end-to-end command-path throughput metric: \`${RICH_E2E_THROUGHPUT_METRIC}\``);
@@ -248,7 +248,7 @@ export function renderBenchmarkSnapshotMarkdown(report: any): string {
   lines.push('');
   lines.push('### Competitor Comparison (Latest Matrix)');
   lines.push('');
-  lines.push('Source: [`docs/client/reports/benchmark_matrix_run_latest.json`](docs/client/reports/benchmark_matrix_run_latest.json)');
+  lines.push('Source: [`validation/reports/client_archive/benchmark_matrix_run_latest.json`](validation/reports/client_archive/benchmark_matrix_run_latest.json)');
   lines.push('');
   lines.push(...comparisonRows);
   lines.push('');

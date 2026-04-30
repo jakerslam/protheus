@@ -4,8 +4,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
 const ROOT = resolve(__dirname, '..', '..', '..', '..');
-const DEFAULT_CURRENT_REPORT = 'docs/client/reports/benchmark_matrix_run_latest.json';
-const DEFAULT_BASELINE_REPORT = 'docs/client/reports/benchmark_matrix_run_2026-03-06.json';
+const DEFAULT_CURRENT_REPORT = 'validation/reports/client_archive/benchmark_matrix_run_latest.json';
+const DEFAULT_BASELINE_REPORT = 'validation/reports/client_archive/benchmark_matrix_run_2026-03-06.json';
 const DEFAULT_OUT_JSON = 'core/local/artifacts/benchmark_class_trends_current.json';
 const DEFAULT_OUT_MARKDOWN = 'local/workspace/reports/BENCHMARK_CLASS_TRENDS_CURRENT.md';
 

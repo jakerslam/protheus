@@ -164,7 +164,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       !(
         evidenceArtifact.startsWith('core/local/artifacts/') ||
         evidenceArtifact.startsWith('local/workspace/reports/') ||
-        evidenceArtifact.startsWith('releases/proof-packs/')
+        evidenceArtifact.startsWith('validation/release_gates/proof_packs/')
       )
     ) {
       failures.push({

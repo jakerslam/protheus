@@ -1,0 +1,14 @@
+{
+  "type": "validation_tests_compatibility_mirrors",
+  "schema_version": 1,
+  "status": "retired",
+  "owner": "validation/tests",
+  "canonical_owner": "assurance.validation.tests",
+  "canonical_root": "validation/tests",
+  "purpose": "Retired compatibility mirror registry for test lifecycle metadata; canonical lifecycle ownership is now fully under validation/tests.",
+  "burn_down_required": false,
+  "burn_down_todo": null,
+  "mirrors": [],
+  "retired_at": "2026-04-30",
+  "retired_reason": "ASSURANCE-DEBT-034 removed the legacy tooling mirror and migrated consumers to the Validation-owned lifecycle registry."
+}

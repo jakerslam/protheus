@@ -63,7 +63,7 @@ What is true in this repository today:
 - Runtime proof verify now publishes split artifact streams (`runtime_proof_synthetic_canary_current.json` and `runtime_proof_empirical_release_evidence_current.json`) plus empirical trend deltas (`runtime_proof_empirical_trends_current.json`).
 - Gateway release readiness includes manifest-backed graduation checks (hooks + chaos scenarios) plus staged roadmap-gateway tracking under the same graduation manifest.
 - Layer2 parity guard requires every listed lane to be explicitly marked `complete`; provisional lanes are release blockers.
-- Release proof packs are assembled as grouped, checksummed artifacts under `releases/proof-packs/<version>/`.
+- Release proof packs are assembled as grouped, checksummed artifacts under `validation/release_gates/proof_packs/<version>/`.
 - Dashboard runtime blocks now carry explicit freshness metadata fields (`source`, `source_sequence`, `age_seconds`, `stale`) and are guarded by the dashboard surface authority contract.
 - Critical operator-path Node dependency is now inventoried as a first-class artifact (`ops:node-critical-path:inventory`) with non-regression checks.
 - Rust-native agent surfaces are now guarded by a support-level status manifest (`ops:agent-surface:status:guard`) so release-required vs experimental lanes stay explicit.

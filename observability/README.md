@@ -17,6 +17,7 @@ Kernel Sentinel is a privileged resident of Observability. It synthesizes findin
 
 ## Subdomains
 
+- `contracts/` live observability plane contracts and migrated observability SRS contract records.
 - `telemetry/` live telemetry stream contracts and envelopes.
 - `health/` health source contracts and status projection metadata.
 - `traces/` runtime trace source maps and trace schemas.
@@ -26,6 +27,18 @@ Kernel Sentinel is a privileged resident of Observability. It synthesizes findin
 - `freshness/` freshness budgets, stale-source policy, and timestamp contracts.
 - `source_coverage/` required/optional source coverage definitions.
 
+- `benchmarks/` observability benchmark outputs and runtime measurement reports.
+
+- `dashboards/` dashboard-facing metrics specifications and display contracts.
+
+- `reports/` durable observability reports and audits.
+
+- `research/` observability research notes, findings, and archived investigations.
+
+- `runbooks/` incident command, postmortem, and deployment-safety runbooks.
+
+- `deploy/` Observability stack deployment defaults and compose fixtures.
+
 ## Migration Rule
 
-Existing Sentinel and telemetry code may keep compatibility locations while migration is active, but new live-evidence contracts should land here unless explicitly marked compatibility debt. Compatibility mirrors are declared in `observability/compatibility_mirrors.json`.
+Legacy Observability compatibility locations are retired. New live-evidence contracts, reports, runbooks, dashboard specs, and observability research should land under `observability/**`; compatibility mirrors are declared in `observability/compatibility_mirrors.json` only when an explicit burn-down path exists.

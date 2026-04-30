@@ -51,7 +51,7 @@ function parseArgs(argv: string[]) {
       400,
     ),
     benchmarkPath: cleanText(
-      readFlag(argv, 'benchmark') || 'docs/client/reports/benchmark_matrix_run_latest.json',
+      readFlag(argv, 'benchmark') || 'validation/reports/client_archive/benchmark_matrix_run_latest.json',
       400,
     ),
     queuePolicyPath: cleanText(

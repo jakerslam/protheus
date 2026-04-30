@@ -17,8 +17,8 @@ use sysinfo::System;
 use walkdir::WalkDir;
 
 const LANE_ID: &str = "benchmark_matrix";
-const DEFAULT_SNAPSHOT_REL: &str = "client/runtime/config/competitive_benchmark_snapshot_2026_02.json";
-const TOP1_BENCHMARK_SNAPSHOT_REL: &str = "docs/client/reports/runtime_snapshots/ops/proof_pack/top1_benchmark_snapshot.json";
+const DEFAULT_SNAPSHOT_REL: &str = "validation/benchmarks/fixtures/competitive_benchmark_snapshot_2026_02.json";
+const TOP1_BENCHMARK_SNAPSHOT_REL: &str = "validation/reports/client_archive/runtime_snapshots/ops/proof_pack/top1_benchmark_snapshot.json";
 const STATE_LATEST_REL: &str = "local/state/ops/competitive_benchmark_matrix/latest.json";
 const STATE_HISTORY_REL: &str = "local/state/ops/competitive_benchmark_matrix/history.jsonl";
 const MIN_BAR_WIDTH: usize = 10;
