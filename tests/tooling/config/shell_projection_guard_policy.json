@@ -85,6 +85,14 @@
       "id": "shell_agent_activity_literal_transition",
       "description": "Shell must not author agent activity truth from literal working/typing/idle transitions; it should render backend/core activity projections or explicitly optimistic state.",
       "regex": "setAgentLiveActivity\\([^\\n]*(?:'working'|'typing'|'idle')\\)"
+    },
+    {
+      "id": "shell_live_activity_missing_projection_metadata",
+      "description": "Shell live activity rows must preserve source/optimistic projection metadata instead of anonymous state/timestamp objects.",
+      "regex": "agentLiveActivity\\s*=\\s*Object\\.assign\\([^\\n]*\\n\\s*\\[id\\]:\\s*\\{\\s*\\n\\s*state:\\s*normalized,\\s*\\n\\s*ts:\\s*(?:Date\\.now\\(\\)|ts)\\s*\\n\\s*\\}",
+      "scan_roots": [
+        "client/runtime/systems/ui/infring_static/js/app_agent_preview_helpers.ts"
+      ]
     }
   ],
   "allowed_legacy_occurrences": {
