@@ -300,6 +300,7 @@ async function run(argv = process.argv.slice(2)) {
         "this.messages.push({ role: 'system', text: 'shell-authored visible chat text' });",
         "var statusText = String(opts.status_text || 'Waiting for workflow completion...').trim();",
         "var phaseDetailText = String(data && data.detail ? data.detail : '').trim();",
+        "var phaseStatusCandidate = String(data.status_text || phaseDetailText || '').trim();",
         "this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'working');",
         "target.agentLiveActivity = Object.assign({}, target.agentLiveActivity || {}, {\n  [id]: {\n    state: normalized,\n    ts: Date.now()\n  }\n});",
       ].join('\n');
