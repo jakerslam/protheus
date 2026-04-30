@@ -1,4 +1,5 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
+pub mod chat_visibility;
 pub mod command_dispatch;
 pub mod decomposition_planning;
 pub mod intake_normalization;
@@ -268,6 +269,13 @@ pub fn subdomain_trace_contracts() -> Vec<SubdomainTraceContract> {
     ];
     vec![
         SubdomainTraceContract {
+            trace_id: "chat_visibility.trace",
+            subdomain_id: "chat_visibility",
+            stage: WorkflowStage::ResultPackaging,
+            required_decision_fields: REQUIRED_DECISION_FIELDS,
+            receipt_metadata_sources: RECEIPT_METADATA_SOURCES,
+        },
+        SubdomainTraceContract {
             trace_id: "intake_normalization.trace",
             subdomain_id: "intake_normalization",
             stage: WorkflowStage::IntakeNormalization,
@@ -395,6 +403,7 @@ pub fn assert_decision_trace_contract(
 
 pub fn subdomain_boundaries() -> Vec<SubdomainBoundary> {
     vec![
+        chat_visibility::boundary(),
         intake_normalization::boundary(),
         command_dispatch::boundary(),
         decomposition_planning::boundary(),
