@@ -434,6 +434,7 @@ Progress:
 - 2026-04-30: Locked status projection envelope enum serialization to stable snake_case values (`core_runtime`, `orchestration`, `working`, etc.) so shell adapters can consume projection metadata without variant-name coupling.
 - 2026-04-30: Added Rust status-label selection that accepts projection fields (`display_label`, `status_text`, `thinking_status`, stage/phase) and rejects `detail`-only status inference.
 - 2026-04-30: Added a projection-guard ratchet for the exact `phaseDetailText` status-candidate fallback so raw websocket detail text cannot spread as user-visible status truth.
+- 2026-04-30: Split status projection envelope/type definitions into `status_phase_projection_types.rs` and re-exported them from the projection module to keep the control-plane contract readable without breaking callers.
 
 ## Execution Notes
 
