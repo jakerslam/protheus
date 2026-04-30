@@ -1,7 +1,8 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 use super::{SubdomainBoundary, SubdomainContract};
+use serde::Serialize;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum StatusEventKind {
     WorkflowPhase,
     AgentActivity,
@@ -9,14 +10,14 @@ pub enum StatusEventKind {
     ContextWarning,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum StatusSourceAuthority {
     CoreRuntime,
     Orchestration,
     ShellOptimistic,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum AgentActivityState {
     Idle,
     Working,
@@ -61,6 +62,18 @@ pub struct StatusEventEnvelope {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StatusProjectionPlan {
     pub action: StatusProjectionAction,
+    pub telemetry_note: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ShellStatusProjection {
+    pub projection_type: &'static str,
+    pub display_label: String,
+    pub status_text: String,
+    pub source: StatusSourceAuthority,
+    pub activity: Option<AgentActivityState>,
+    pub backend_event_id: Option<String>,
+    pub optimistic: bool,
     pub telemetry_note: String,
 }
 
@@ -159,6 +172,60 @@ pub fn project_status_event(event: &StatusEventEnvelope) -> StatusProjectionPlan
     }
 }
 
+pub fn project_status_event_for_shell(
+    event: &StatusEventEnvelope,
+) -> Result<ShellStatusProjection, String> {
+    let plan = project_status_event(event);
+    match &plan.action {
+        StatusProjectionAction::ProjectPhase {
+            display_label,
+            source,
+        } => Ok(shell_projection(
+            "status_phase_projection",
+            display_label,
+            source,
+            None,
+            event,
+            &plan.telemetry_note,
+        )),
+        StatusProjectionAction::ProjectActivity {
+            activity,
+            display_label,
+            source,
+        } => Ok(shell_projection(
+            "agent_activity_projection",
+            display_label,
+            source,
+            Some(activity.clone()),
+            event,
+            &plan.telemetry_note,
+        )),
+        StatusProjectionAction::ProjectThinkingBubble {
+            display_label,
+            source,
+        } => Ok(shell_projection(
+            "thinking_bubble_projection",
+            display_label,
+            source,
+            None,
+            event,
+            &plan.telemetry_note,
+        )),
+        StatusProjectionAction::ProjectContextWarning {
+            display_label,
+            source,
+        } => Ok(shell_projection(
+            "context_warning_projection",
+            display_label,
+            source,
+            None,
+            event,
+            &plan.telemetry_note,
+        )),
+        StatusProjectionAction::RejectShellAuthoredInference { reason } => Err(reason.clone()),
+    }
+}
+
 fn project_shell_optimistic(event: &StatusEventEnvelope) -> StatusProjectionPlan {
     if !event.optimistic {
         return reject("shell-origin status labels must be explicitly marked optimistic");
@@ -192,6 +259,26 @@ fn project_shell_optimistic(event: &StatusEventEnvelope) -> StatusProjectionPlan
             }
         }
         StatusEventKind::ContextWarning => unreachable!("context warnings rejected above"),
+    }
+}
+
+fn shell_projection(
+    projection_type: &'static str,
+    display_label: &str,
+    source: &StatusSourceAuthority,
+    activity: Option<AgentActivityState>,
+    event: &StatusEventEnvelope,
+    telemetry_note: &str,
+) -> ShellStatusProjection {
+    ShellStatusProjection {
+        projection_type,
+        display_label: display_label.to_string(),
+        status_text: display_label.to_string(),
+        source: source.clone(),
+        activity,
+        backend_event_id: event.backend_event_id.clone(),
+        optimistic: event.optimistic,
+        telemetry_note: telemetry_note.to_string(),
     }
 }
 
@@ -310,6 +397,33 @@ mod tests {
             StatusProjectionAction::RejectShellAuthoredInference {
                 reason: "backend status projections require a backend event id".to_string()
             }
+        );
+    }
+
+    #[test]
+    fn backend_phase_exports_shell_ready_projection_envelope() {
+        let event = backend_event(StatusEventKind::WorkflowPhase, "Coordinating tools");
+
+        let projection =
+            project_status_event_for_shell(&event).expect("phase projection should be shell ready");
+
+        assert_eq!(projection.projection_type, "status_phase_projection");
+        assert_eq!(projection.display_label, "Coordinating tools");
+        assert_eq!(projection.status_text, "Coordinating tools");
+        assert_eq!(projection.source, StatusSourceAuthority::Orchestration);
+        assert_eq!(projection.activity, None);
+        assert_eq!(projection.backend_event_id.as_deref(), Some("evt_123"));
+        assert!(!projection.optimistic);
+    }
+
+    #[test]
+    fn shell_rejections_do_not_export_visible_projection_envelopes() {
+        let mut event = backend_event(StatusEventKind::WorkflowPhase, "Planning");
+        event.backend_event_id = None;
+
+        assert_eq!(
+            project_status_event_for_shell(&event),
+            Err("backend status projections require a backend event id".to_string())
         );
     }
 }
