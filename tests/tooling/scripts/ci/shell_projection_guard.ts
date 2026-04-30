@@ -205,6 +205,39 @@ function validatePolicyDoc(policy: Policy, violations: Violation[]): void {
   }
 }
 
+function sourceWindow(lines: string[], index: number, before = 8, after = 12): string {
+  const start = Math.max(0, index - before);
+  const end = Math.min(lines.length, index + after + 1);
+  return lines.slice(start, end).join('\n');
+}
+
+function validateNoVisibleSystemChatInjection(file: string, source: string, violations: Violation[]): number {
+  const lines = source.split(/\r?\n/);
+  let count = 0;
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (!/\brole\s*:\s*['"]system['"]/.test(line)) continue;
+    const context = sourceWindow(lines, index);
+    const mutatesChat =
+      /\b(?:this|self)?\.?messages\.push\s*\(/.test(context) ||
+      /\b(?:this|self)\.messages\s*=\s*\[/.test(context) ||
+      /\bpushSystemMessage\s*\(/.test(context);
+    if (!mutatesChat) continue;
+    const isNoticeProjection =
+      /\bis_notice\s*:\s*true\b/.test(context) ||
+      /\bnotice_label\s*:/.test(context);
+    if (isNoticeProjection) continue;
+    count += 1;
+    violations.push({
+      kind: 'shell_visible_system_chat_injection',
+      pattern_id: 'shell_visible_system_chat_injection',
+      path: file,
+      detail: `System-role chat mutation at line ${index + 1} must be telemetry/notice projection or final LLM output, not shell-authored visible chat text.`,
+    });
+  }
+  return count;
+}
+
 function markdown(payload: any): string {
   const lines: string[] = [];
   lines.push('# Shell Projection Guard');
@@ -217,6 +250,7 @@ function markdown(payload: any): string {
   lines.push('## Summary');
   lines.push(`- scanned_files: ${payload.summary.scanned_files}`);
   lines.push(`- forbidden_pattern_count: ${payload.summary.forbidden_pattern_count}`);
+  lines.push(`- system_chat_injection_violations: ${payload.summary.system_chat_injection_violations}`);
   lines.push(`- strict_violations: ${payload.summary.strict_violations}`);
   lines.push(`- known_debt_matches: ${payload.summary.known_debt_matches}`);
   lines.push('');
@@ -246,7 +280,10 @@ async function run(argv = process.argv.slice(2)) {
   const virtualSources: Record<string, string> = {};
   if (args.includeControlledViolation) {
     virtualSources['local/workspace/shadow/controlled-shell-projection-violation.ts'] =
-      'const snapshot = { raw: store, root: rootState }; String(tool.result);';
+      [
+        'const snapshot = { raw: store, root: rootState }; String(tool.result);',
+        "this.messages.push({ role: 'system', text: 'shell-authored visible chat text' });",
+      ].join('\n');
   }
 
   for (const pattern of policy.forbidden_patterns || []) {
@@ -271,6 +308,11 @@ async function run(argv = process.argv.slice(2)) {
       }
     }
   }
+  let systemChatInjectionViolations = 0;
+  for (const file of [...files, ...Object.keys(virtualSources)]) {
+    const source = virtualSources[file] == null ? readText(file) : virtualSources[file];
+    systemChatInjectionViolations += validateNoVisibleSystemChatInjection(file, source, violations);
+  }
 
   const payload = {
     ok: violations.length === 0,
@@ -282,6 +324,7 @@ async function run(argv = process.argv.slice(2)) {
     summary: {
       scanned_files: files.length,
       forbidden_pattern_count: (policy.forbidden_patterns || []).length,
+      system_chat_injection_violations: systemChatInjectionViolations,
       pattern_hits: hits.length,
       strict_violations: violations.length,
       known_debt_matches: knownDebt.reduce((sum, hit) => sum + hit.matches, 0),
