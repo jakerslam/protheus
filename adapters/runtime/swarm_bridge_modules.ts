@@ -364,9 +364,9 @@ function createSwarmOrchestrationRuntimeModule(options = {}) {
     process.stdout.write(
       [
         'Usage:',
-        '  node surface/orchestration/scripts/swarm_orchestration_runtime.ts run [--objective=<name>] [--team_size=<n>] [--token-budget=<n>] [--token-warning-at=<0..1>] [--on-budget-exhausted=<fail|warn|compact>] [--adaptive-complexity=1|0] [--state-path=<path>]',
-        '  node surface/orchestration/scripts/swarm_orchestration_runtime.ts test --id=<2|3|6|all> [flags]',
-        '  node surface/orchestration/scripts/swarm_orchestration_runtime.ts status [--state-path=<path>]',
+        '  node orchestration/scripts/swarm_orchestration_runtime.ts run [--objective=<name>] [--team_size=<n>] [--token-budget=<n>] [--token-warning-at=<0..1>] [--on-budget-exhausted=<fail|warn|compact>] [--adaptive-complexity=1|0] [--state-path=<path>]',
+        '  node orchestration/scripts/swarm_orchestration_runtime.ts test --id=<2|3|6|all> [flags]',
+        '  node orchestration/scripts/swarm_orchestration_runtime.ts status [--state-path=<path>]',
         '',
         'Test IDs:',
         '  2 -> recursive decomposition',

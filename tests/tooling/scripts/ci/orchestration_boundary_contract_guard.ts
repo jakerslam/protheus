@@ -161,7 +161,7 @@ function run(): number {
     detail: `${args.outJson}|${args.outMd}`,
   });
 
-  const controlPlaneModPath = resolve('surface/orchestration/src/control_plane/mod.rs');
+  const controlPlaneModPath = resolve('orchestration/src/control_plane/mod.rs');
   const controlPlaneModPathCanonical = rel(controlPlaneModPath);
   const controlPlaneModExists = safeIsFile(controlPlaneModPath);
   const controlPlaneModSource = controlPlaneModExists
@@ -237,7 +237,7 @@ function run(): number {
     detail: `rows=${boundaryRowCount};required=${REQUIRED_CONTROL_PLANE_MODULES.length}`,
   });
 
-  const surfaceRoot = resolve('surface/orchestration/src');
+  const surfaceRoot = resolve('orchestration/src');
   const clientRoot = resolve('client');
   const adaptersRoot = resolve('adapters');
   const surfaceRootExists = safeIsDirectory(surfaceRoot);

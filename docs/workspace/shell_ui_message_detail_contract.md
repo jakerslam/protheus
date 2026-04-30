@@ -17,7 +17,7 @@ Default Shell payloads are for display.
 
 Detail payloads are for explicit expansion.
 
-Runtime truth remains behind Core, Orchestration Surface, Gateway, Nexus, and Conduit checkpoints.
+Runtime truth remains behind Core, Orchestration, Gateway, Nexus, and Conduit checkpoints.
 
 ## Default Message Projection
 

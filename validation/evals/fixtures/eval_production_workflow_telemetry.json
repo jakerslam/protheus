@@ -30,7 +30,7 @@
     {
       "event_id": "local-file-web-misroute-001",
       "workflow": "local_file_tooling",
-      "component": "surface/orchestration/tool_route",
+      "component": "orchestration/tool_route",
       "failure_class": "wrong_tool_route",
       "normalized_failure_code": "local_file_intent_routed_to_web",
       "severity": "high",
@@ -44,7 +44,7 @@
     {
       "event_id": "workflow-selection-boilerplate-001",
       "workflow": "workflow_selection",
-      "component": "surface/orchestration/workflow_finalization",
+      "component": "orchestration/workflow_finalization",
       "failure_class": "repeated_boilerplate_response",
       "normalized_failure_code": "workflow_gate_unexpected_final_state",
       "severity": "medium",
@@ -57,7 +57,7 @@
     {
       "event_id": "issue-synthesis-non-actionable-001",
       "workflow": "issue_synthesis",
-      "component": "surface/orchestration/eval_issue_runtime",
+      "component": "orchestration/eval_issue_runtime",
       "failure_class": "non_actionable_issue_feedback",
       "normalized_failure_code": "issue_draft_missing_acceptance_criteria",
       "severity": "medium",
@@ -70,7 +70,7 @@
     {
       "event_id": "eval-escalation-weak-calibration-001",
       "workflow": "eval_escalation",
-      "component": "surface/orchestration/eval_runtime",
+      "component": "orchestration/eval_runtime",
       "failure_class": "weak_eval_calibration",
       "normalized_failure_code": "statistical_promotion_blocked",
       "severity": "high",

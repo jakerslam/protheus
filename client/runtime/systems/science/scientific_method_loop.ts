@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 'use strict';
 // TypeScript compatibility shim only.
-// Layer ownership: surface/orchestration; this file is a thin CLI bridge.
+// Layer ownership: orchestration; this file is a thin CLI bridge.
 
 const { createCompatTargetBridge } = require('../../lib/compat_target_bridge.ts');
 const bridge = createCompatTargetBridge({
   scriptDir: __dirname,
-  targetRelativePath: '../../../../surface/orchestration/scripts/scientific_method_loop.ts',
+  targetRelativePath: '../../../../orchestration/scripts/scientific_method_loop.ts',
   loadError: 'scientific_method_loop_target_load_failed',
   unavailableError: 'scientific_method_loop_target_unavailable',
   missingRunError: 'scientific_method_loop_target_missing_run',

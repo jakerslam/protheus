@@ -6,11 +6,11 @@ Distinguish probe-authoritative request surfaces from legacy compatibility surfa
 
 ## Canonical Machine-Readable Form
 
-`surface/orchestration/config/request_surface_probe_authority_policy.json` is the source of truth. This document is a human-readable mirror; if the two diverge, the JSON wins.
+`orchestration/config/request_surface_probe_authority_policy.json` is the source of truth. This document is a human-readable mirror; if the two diverge, the JSON wins.
 
 ## Scope
 
-Applies to every planning decision in `surface/orchestration/src/planner/**` and `surface/orchestration/src/sequencing.rs` that depends on capability availability, transport availability, or policy admission.
+Applies to every planning decision in `orchestration/src/planner/**` and `orchestration/src/sequencing.rs` that depends on capability availability, transport availability, or policy admission.
 
 ## Two-Tier Contract
 
@@ -34,7 +34,7 @@ Applies to every planning decision in `surface/orchestration/src/planner/**` and
 
 | Concern | Anchor |
 |---|---|
-| Surface-tier classifier (single source of truth) | `allow_payload_probe_shortcuts(request)` and `allow_heuristic_probe_fallback(request)` in `surface/orchestration/src/planner/preconditions.rs` (lines 16–22). Both return `true` only for `RequestSurface::Legacy`. |
+| Surface-tier classifier (single source of truth) | `allow_payload_probe_shortcuts(request)` and `allow_heuristic_probe_fallback(request)` in `orchestration/src/planner/preconditions.rs` (lines 16–22). Both return `true` only for `RequestSurface::Legacy`. |
 | Probe-envelope read | `envelope_probe_bool(request, capability, field)` in `preconditions.rs` (lines 46–78). |
 | Heuristic source label | `heuristic.transport_hints_or_operation` (legacy-only). |
 | Missing-probe diagnostic source | `missing_probe: <capability>.<field>` (typed-surface refusal). |
@@ -52,7 +52,7 @@ A planning decision is not admissible when:
 
 ## CI Guard Contract
 
-Two coordinated guards live in `surface/orchestration/src/tool_routing_authority.rs`:
+Two coordinated guards live in `orchestration/src/tool_routing_authority.rs`:
 
 - `planner_payload_decision_audit_enforced` (line 977) — counts `request.payload` reads in each planner/sequencing source file. Non-legacy files must have zero. Covers `plan_candidates.rs`, `plan_candidates/common.rs`, `plan_candidates/chain.rs`, `plan_candidates/strategy.rs`, and `sequencing.rs`. `preconditions.rs` is allowed reads behind the legacy gate.
 - `heuristic_probe_fallbacks_compatibility_fenced` (line 558) — asserts the heuristic fallback function exists, gates on `RequestSurface::Legacy`, and that the heuristic source labels (`heuristic.policy_scope_and_mutability`, `heuristic.transport_hints_or_operation`) appear only inside the legacy fence.

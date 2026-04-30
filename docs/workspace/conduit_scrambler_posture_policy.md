@@ -4,7 +4,7 @@ Canonical terminology: **Nexus/Nexi** for the multi-file/multi-surface connectio
 
 Status: Canonical architecture policy
 Owner: Jay
-Scope: Core, Orchestration Surface, Shell, Gateways, Apps, Packages, and Tests
+Scope: Core, Orchestration, Shell, Gateways, Apps, Packages, and Tests
 Effective: April 2026
 
 ## Purpose
@@ -84,7 +84,7 @@ Until then, routes that would eventually require quantum-resistant posture must 
 | `health_status` | `standard_conduit` | Readiness projections from the owner of truth; must not expose raw runtime state. |
 | `bounded_search_query` | `standard_conduit` | Search over previews, snippets, counts, and refs. Sensitive scopes upgrade to `strong_scrambler`. |
 | `request_ingress` | `standard_conduit` | Shell, CLI, SDK, or adapter request intake. Upgrade to `strong_scrambler` before authority-bearing Core or Orchestration admission. |
-| `control_plane_coordination` | `strong_scrambler` | Orchestration Surface to Core/Kernel coordination, sequencing, recovery, tool routing, and workflow stage exchange. |
+| `control_plane_coordination` | `strong_scrambler` | Orchestration to Core/Kernel coordination, sequencing, recovery, tool routing, and workflow stage exchange. |
 | `kernel_authority` | `strong_scrambler` | Policy, permission, execution admission, receipt authority, scheduler truth, queue truth, memory authority, and safety transitions. |
 | `detail_fetch_sensitive` | `strong_scrambler` | Trace, tool result, artifact body, workflow detail, execution observation, eval detail, or raw diagnostic expansion by ID. |
 | `external_agent_or_plugin_ingress` | `strong_scrambler` | Third-party agent, plugin, app, package, or adapter traffic entering authority-bearing routes. |

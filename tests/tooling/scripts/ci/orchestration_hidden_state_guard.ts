@@ -40,9 +40,9 @@ const FORBIDDEN_SELF_MAINTENANCE_PATTERNS: Array<{ re: RegExp; detail: string }>
 ];
 
 const PRESENTATION_FILES = new Set([
-  'surface/orchestration/src/clarification.rs',
-  'surface/orchestration/src/progress.rs',
-  'surface/orchestration/src/result_packaging.rs',
+  'orchestration/src/clarification.rs',
+  'orchestration/src/progress.rs',
+  'orchestration/src/result_packaging.rs',
 ]);
 
 const REQUIRED_TRANSIENT_CONTEXT_PATTERNS: Array<{ re: RegExp; detail: string }> = [
@@ -96,7 +96,7 @@ function walkRustFiles(base: string): string[] {
 
 function isEphemeralContainerAllowed(file: string, source: string): boolean {
   const normalized = rel(file);
-  if (normalized !== 'surface/orchestration/src/transient_context.rs') return false;
+  if (normalized !== 'orchestration/src/transient_context.rs') return false;
   return (
     source.includes('EphemeralMemoryHeap') &&
     source.includes('write_ephemeral') &&
@@ -105,7 +105,7 @@ function isEphemeralContainerAllowed(file: string, source: string): boolean {
 }
 
 function run(args: Args): number {
-  const files = walkRustFiles(path.resolve(ROOT, 'surface/orchestration/src'));
+  const files = walkRustFiles(path.resolve(ROOT, 'orchestration/src'));
   const violations: Violation[] = [];
   for (const file of files) {
     const source = fs.readFileSync(file, 'utf8');
@@ -130,7 +130,7 @@ function run(args: Args): number {
       });
     }
 
-    if (normalized.startsWith('surface/orchestration/src/planner/')) {
+    if (normalized.startsWith('orchestration/src/planner/')) {
       if (
         /\btransient_context\b|\bTransientContextStore\b|\bself_maintenance\b/.test(source)
       ) {
@@ -154,7 +154,7 @@ function run(args: Args): number {
       }
     }
 
-    if (normalized === 'surface/orchestration/src/transient_context.rs') {
+    if (normalized === 'orchestration/src/transient_context.rs') {
       if (/\bcrate::planner\b|\bcrate::self_maintenance\b/.test(source)) {
         violations.push({
           file: normalized,
@@ -172,7 +172,7 @@ function run(args: Args): number {
       }
     }
 
-    if (normalized.startsWith('surface/orchestration/src/self_maintenance/')) {
+    if (normalized.startsWith('orchestration/src/self_maintenance/')) {
       for (const pattern of FORBIDDEN_SELF_MAINTENANCE_PATTERNS) {
         if (!pattern.re.test(source)) continue;
         violations.push({

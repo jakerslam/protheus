@@ -1,7 +1,7 @@
 {
   "version": "v1",
   "kind": "orchestration_workflow_phase_trace_contract",
-  "owner": "surface/orchestration",
+  "owner": "orchestration",
   "canonical_output": "local/state/ops/orchestration/workflow_phase_trace_latest.json",
   "schema": {
     "type": "orchestration_workflow_phase_trace",

@@ -2,14 +2,14 @@
 
 Status: Canonical architecture resolution
 Owner: Jay
-Scope: Core, Orchestration Surface, Shell, Gateway, Apps, Packages, and Tests
+Scope: Core, Orchestration, Shell, Gateway, Apps, Packages, and Tests
 Effective: April 2026
 
 ## Purpose
 
 This policy resolves the old Layered Nexus Federation ambiguity.
 
-Earlier architecture notes described a three-domain federation runtime with separate Core, Orchestration Surface, and Shell federation authority. The current repository does not implement that exact runtime shape, and it must not be treated as required architecture or cited as completed evidence.
+Earlier architecture notes described a three-domain federation runtime with separate Core, Orchestration, and Shell federation authority. The current repository does not implement that exact runtime shape, and it must not be treated as required architecture or cited as completed evidence.
 
 The canonical path is now:
 
@@ -37,7 +37,7 @@ The phrase "Layered Nexus Federation" may remain in historical rows and architec
 
 When used in new documentation, it means:
 
-- Core, Orchestration Surface, Shell, Gateway, Apps, and Packages have explicit boundary routes.
+- Core, Orchestration, Shell, Gateway, Apps, and Packages have explicit boundary routes.
 - Each cross-domain route declares source checkpoint, target checkpoint, Conduit path, posture, lease/capability, lifecycle gate, and receipt trail.
 - Default Shell-facing routes expose bounded projections, not full runtime mirrors.
 - Heavy details travel by reference through explicit detail routes.

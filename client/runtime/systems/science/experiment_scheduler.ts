@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 'use strict';
 // TypeScript compatibility shim only.
-// Layer ownership: surface/orchestration; this file is a thin CLI bridge.
+// Layer ownership: orchestration; this file is a thin CLI bridge.
 
 const { createCompatTargetBridge } = require('../../lib/compat_target_bridge.ts');
 const bridge = createCompatTargetBridge({
   scriptDir: __dirname,
-  targetRelativePath: '../../../../surface/orchestration/scripts/experiment_scheduler.ts',
+  targetRelativePath: '../../../../orchestration/scripts/experiment_scheduler.ts',
   loadError: 'experiment_scheduler_target_load_failed',
   unavailableError: 'experiment_scheduler_target_unavailable',
   missingRunError: 'experiment_scheduler_target_missing_run',

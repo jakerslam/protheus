@@ -66,9 +66,9 @@ function parseArgs(argv: string[]) {
       readFlag(argv, 'fixture') || 'tests/tooling/fixtures/tool_route_misdirection_matrix.json',
       400,
     ),
-    ingressPath: cleanText(readFlag(argv, 'ingress') || 'surface/orchestration/src/ingress.rs', 400),
+    ingressPath: cleanText(readFlag(argv, 'ingress') || 'orchestration/src/ingress.rs', 400),
     classifierPath: cleanText(
-      readFlag(argv, 'classifier') || 'surface/orchestration/src/request_classifier.rs',
+      readFlag(argv, 'classifier') || 'orchestration/src/request_classifier.rs',
       400,
     ),
   };
@@ -229,16 +229,16 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       detail: `markdown path contract drift: ${args.markdownPath}`,
     });
   }
-  if (!isCanonicalRelativePath(args.ingressPath, 'surface/orchestration/src/')) {
+  if (!isCanonicalRelativePath(args.ingressPath, 'orchestration/src/')) {
     failures.push({
       id: 'ingress_path_not_canonical',
-      detail: 'ingress path must be canonical under surface/orchestration/src/',
+      detail: 'ingress path must be canonical under orchestration/src/',
     });
   }
-  if (!isCanonicalRelativePath(args.classifierPath, 'surface/orchestration/src/')) {
+  if (!isCanonicalRelativePath(args.classifierPath, 'orchestration/src/')) {
     failures.push({
       id: 'classifier_path_not_canonical',
-      detail: 'classifier path must be canonical under surface/orchestration/src/',
+      detail: 'classifier path must be canonical under orchestration/src/',
     });
   }
   if (!fs.existsSync(fixtureAbs)) {

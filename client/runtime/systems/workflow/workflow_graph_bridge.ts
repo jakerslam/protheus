@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 // TypeScript compatibility shim only.
-// Layer ownership: surface/orchestration (workflow coordination); this file is a thin CLI bridge.
+// Layer ownership: orchestration (workflow coordination); this file is a thin CLI bridge.
 
 const { createCompatWorkflowExportBridge } = require('../../lib/compat_target_bridge.ts');
 const bridge = createCompatWorkflowExportBridge({
@@ -11,7 +11,7 @@ const bridge = createCompatWorkflowExportBridge({
   invalidError: 'workflow_graph_bridge_target_invalid',
   framework: 'workflow_graph',
   bridgePath: 'client/runtime/lib/workflow_graph_bridge.ts',
-  bridgeTarget: 'surface/orchestration/scripts/workflow_graph_bridge.ts',
+  bridgeTarget: 'orchestration/scripts/workflow_graph_bridge.ts',
 });
 bridge.exitIfMain(module);
 

@@ -75,8 +75,8 @@ function main() {
   };
   const policyPath = path.resolve(ROOT, args.policy);
   const policy = JSON.parse(fs.readFileSync(policyPath, 'utf8')) as Policy;
-  const surfaceRoot = path.resolve(ROOT, cleanText(policy.surface_root || 'surface/orchestration', 400));
-  const scriptRoot = path.resolve(ROOT, cleanText(policy.script_root || 'surface/orchestration/scripts', 400));
+  const surfaceRoot = path.resolve(ROOT, cleanText(policy.surface_root || 'orchestration', 400));
+  const scriptRoot = path.resolve(ROOT, cleanText(policy.script_root || 'orchestration/scripts', 400));
   const requiredMarkers = Array.isArray(policy.required_markers)
     ? policy.required_markers.map((value) => String(value))
     : [];

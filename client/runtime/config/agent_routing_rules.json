@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "canonical_path": "surface/orchestration/config/agent_routing_rules.json",
-  "canonical_owner": "surface/orchestration",
+  "canonical_path": "orchestration/config/agent_routing_rules.json",
+  "canonical_owner": "orchestration",
   "compatibility_mirror": true,
   "routing": {
     "default_slot": "master",

@@ -77,8 +77,8 @@ function toMarkdown(payload: any): string {
 function run(argv: string[]): number {
   const args = parseArgs(argv);
 
-  const parserPath = 'surface/orchestration/src/ingress/parser.rs';
-  const classifierPath = 'surface/orchestration/src/ingress/classifier.rs';
+  const parserPath = 'orchestration/src/ingress/parser.rs';
+  const classifierPath = 'orchestration/src/ingress/classifier.rs';
   const fileReadRoutesPath =
     'core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/080-file-read-routes.rs';
   const fileReadContractTestsPath =
@@ -136,8 +136,8 @@ function run(argv: string[]): number {
   checks.push({
     id: 'file_read_reliability_guard_source_paths_canonical',
     ok:
-      isCanonicalRelativePath(parserPath, 'surface/orchestration/src/ingress/')
-      && isCanonicalRelativePath(classifierPath, 'surface/orchestration/src/ingress/')
+      isCanonicalRelativePath(parserPath, 'orchestration/src/ingress/')
+      && isCanonicalRelativePath(classifierPath, 'orchestration/src/ingress/')
       && isCanonicalRelativePath(fileReadRoutesPath, 'core/layer0/ops/src/')
       && isCanonicalRelativePath(fileReadContractTestsPath, 'core/layer0/ops/src/'),
     detail: 'parser/classifier/routes/tests source paths must remain canonical and rooted in expected subsystems',

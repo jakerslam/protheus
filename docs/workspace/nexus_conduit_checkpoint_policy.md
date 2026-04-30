@@ -5,7 +5,7 @@ Canonical terminology: **Nexus** for the multi-file/multi-surface connection str
 
 Status: Canonical architecture policy
 Owner: Jay
-Scope: Core, Orchestration Surface, Shell, Gateways, Apps, Packages, and Tests
+Scope: Core, Orchestration, Shell, Gateways, Apps, Packages, and Tests
 Effective: April 2026
 
 ## Purpose
@@ -88,7 +88,7 @@ A route lease is the only authorization mechanism for cross-module delivery. A l
 
 ### Scrambler
 
-Scrambler is the security posture applied to sensitive Conduits. Strong Scrambler is required for authority-bearing Core or Kernel to Orchestration Surface routes and for sensitive detail, recovery, policy, permission, execution, trace, tool, and external-agent ingress routes. The future quantum-resistant Scrambler is deferred until an explicit v1/v2 security milestone; the architecture still reserves that slot without claiming implementation.
+Scrambler is the security posture applied to sensitive Conduits. Strong Scrambler is required for authority-bearing Core or Kernel to Orchestration routes and for sensitive detail, recovery, policy, permission, execution, trace, tool, and external-agent ingress routes. The future quantum-resistant Scrambler is deferred until an explicit v1/v2 security milestone; the architecture still reserves that slot without claiming implementation.
 
 The canonical posture vocabulary, route classes, downgrade rules, and quantum-resistance deferral notes live in `docs/workspace/conduit_scrambler_posture_policy.md`.
 
@@ -97,7 +97,7 @@ The canonical posture vocabulary, route classes, downgrade rules, and quantum-re
 1. No direct cross-module code path may bypass a Nexus checkpoint surface.
 2. No A-to-B cross-boundary connection may bypass an explicit Conduit inside a Nexus.
 3. No Shell path may become authority for policy, permission, truth, execution admission, durable runtime state, or receipt authority.
-4. No Orchestration Surface path may become authority for canonical truth, final execution admission, or receipt authority.
+4. No Orchestration path may become authority for canonical truth, final execution admission, or receipt authority.
 5. No Nexus may interpret payload meaning, infer user intent, plan workflows, transform truth-bearing content, or act as a broker brain.
 6. No main or central Nexus may relay raw payloads as a payload transport. It may authorize direct delivery, issue leases, and emit receipts.
 7. Every cross-boundary route must be revocable through lifecycle or policy state.
@@ -133,7 +133,7 @@ The Conduit segment must declare whether the route uses `standard_conduit`, `str
 The system has three top-level authority domains:
 
 - Kernel or Core domain: truth, permission, canonical state, execution admission, and receipts.
-- Orchestration Surface domain: non-canonical coordination, sequencing, clarification, recovery, and packaging.
+- Orchestration domain: non-canonical coordination, sequencing, clarification, recovery, and packaging.
 - Shell domain: presentation, input collection, local UX state, and user-visible controls.
 
 Cross-domain routing must go through the central Nexus checkpoint surfaces for those domains. Direct Shell to Core paths are prohibited unless an explicitly approved ingress contract exists, and even then the path must be conduit-backed, lease-checked, and receipt-trackable.
@@ -142,7 +142,7 @@ Shell-facing routes must expose bounded projections by default. Detail fetches f
 
 Default cross-boundary responses must declare bounded byte, array, depth, string, cursor, detail-ref, audit, and Nexus ceilings before they enter Shell-facing state.
 
-Core, Orchestration Surface, CLI, and Gateway status must not require browser Shell assets to build or operate.
+Core, Orchestration, CLI, and Gateway status must not require browser Shell assets to build or operate.
 
 Sensitive Core/Orchestration and Gateway detail routes must declare `strong_scrambler` posture unless a dated migration exception explicitly documents owner, expiry, replacement plan, and receipt trail.
 

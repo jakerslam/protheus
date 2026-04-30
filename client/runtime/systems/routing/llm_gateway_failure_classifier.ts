@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 'use strict';
 // TypeScript compatibility shim only.
-// Layer ownership: surface/orchestration (routing coordination); this file is a thin CLI bridge.
+// Layer ownership: orchestration (routing coordination); this file is a thin CLI bridge.
 
-const impl = require('../../../../surface/orchestration/scripts/llm_gateway_failure_classifier.ts');
+const impl = require('../../../../orchestration/scripts/llm_gateway_failure_classifier.ts');
 const BRIDGE_PATH = 'client/runtime/systems/routing/llm_gateway_failure_classifier.ts';
-const ORCHESTRATION_SCRIPT = 'surface/orchestration/scripts/llm_gateway_failure_classifier.ts';
+const ORCHESTRATION_SCRIPT = 'orchestration/scripts/llm_gateway_failure_classifier.ts';
 const MODULE_KEY = 'llm_gateway_failure_classifier';
 
 function normalizeArgs(args = []) {

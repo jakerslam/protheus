@@ -67,7 +67,7 @@ function changedFiles(baseRef: string): string[] {
 function mapZone(file: string): Zone {
   const normalized = file.replace(/\\/g, '/');
   if (normalized.startsWith('core/')) return 'core';
-  if (normalized.startsWith('surface/orchestration/')) return 'control-plane';
+  if (normalized.startsWith('orchestration/')) return 'control-plane';
   if (normalized.startsWith('client/')) return 'shell';
   if (normalized.startsWith('adapters/')) return 'gateway';
   if (normalized.startsWith('apps/')) return 'apps';

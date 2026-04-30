@@ -2,7 +2,7 @@
 
 Status: Canonical architecture inventory
 Owner: Jay
-Scope: Core, Orchestration Surface, Shell, Gateway, Apps, Packages, and external-agent/plugin boundaries
+Scope: Core, Orchestration, Shell, Gateway, Apps, Packages, and external-agent/plugin boundaries
 Effective: April 2026
 
 ## Purpose

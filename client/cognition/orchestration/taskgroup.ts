@@ -2,10 +2,10 @@
 'use strict';
 
 // TypeScript compatibility shim only.
-// Layer ownership: surface/orchestration (control-plane cognition); this file is a thin bridge.
+// Layer ownership: orchestration (control-plane cognition); this file is a thin bridge.
 const path = require('node:path');
 const impl = require(
-  path.join(__dirname, '..', '..', '..', 'surface', 'orchestration', 'scripts', 'cognition', 'taskgroup.ts'),
+  path.join(__dirname, '..', '..', '..', 'orchestration', 'scripts', 'cognition', 'taskgroup.ts'),
 );
 
 module.exports = impl;

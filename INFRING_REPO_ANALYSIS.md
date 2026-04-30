@@ -13,7 +13,7 @@ The repo is dual-licensed (`LICENSE_SCOPE.md` + `LICENSE_MATRIX.json`): the kern
 The architecture is documented authoritatively in `ARCHITECTURE.md`, `planes/README.md`, and `docs/SYSTEM-ARCHITECTURE-SPECS.md`. The three planes are:
 
 - **Safety plane** — deterministic authority, fail-closed. Implemented in `core/`.
-- **Cognition plane** — coordination + presentation. Implemented in `surface/orchestration/` (Rust-first, ≥95% Rust by tracked SLOC) and `client/` (TypeScript shell).
+- **Cognition plane** — coordination + presentation. Implemented in `orchestration/` (Rust-first, ≥95% Rust by tracked SLOC) and `client/` (TypeScript shell).
 - **Substrate plane** — descriptors and degradation contracts for CPU/MCU/GPU/NPU/QPU/neural backends; template adapters live in `core/layer_minus_one/`.
 
 The **boundary axiom** is stated three ways across the docs: kernel decides what is true and allowed; orchestration decides what should happen next; shell decides how it is shown and collected. Every cross-boundary call must traverse the **conduit + scrambler** (`core/layer2/conduit`, `core/layer2/conduit-security`). There is no policy authority in TS shells — they're explicitly described as "thin" presentation/wrapper code.
@@ -31,7 +31,7 @@ Layer  2  (scheduling + execution)           core/layer2/        ← conduit, ex
    ↓
 Layer  3  (OS personality template)          core/layer3/
    ↓
-Cognition (never root-of-correctness)        surface/orchestration/, client/
+Cognition (never root-of-correctness)        orchestration/, client/
 ```
 
 Layer 0 is sacred/immutable and proof-preserving; Layer -1 normalizes exotic substrates into a standard envelope; Layer 3 is where a more traditional OS surface (processes, VFS, drivers, syscalls, namespaces) is allowed to grow. Cognition is explicitly _outside_ the numbered kernel stack.
@@ -51,7 +51,7 @@ The npm side is a single root `package.json` (no `workspaces` field) with TypeSc
 
 Top-level source roots beyond `core/`:
 
-- **`surface/orchestration/`** — Rust-authoritative orchestration control plane (decomposition, sequencing, recovery, packaging). The doc tracks an explicit Rust SLOC ratio for this folder.
+- **`orchestration/`** — Rust-authoritative orchestration control plane (decomposition, sequencing, recovery, packaging). The doc tracks an explicit Rust SLOC ratio for this folder.
 - **`client/`** — the presentation shell: `cli/` (operator entrypoints), `runtime/` (systems, lib, config, observability), `cognition/` (reflexes, sensors, adaptive surfaces), plus `instinct/`, `memory/`, `skills/`, `pure-workspace/`, `types/`.
 - **`adapters/`** — gateway layer (`cognition/`, `economy/`, `importers/`, `polyglot/`, `protocol/`, `runtime/`, `skills/`).
 - **`apps/`** — 22 thin "first-party" surfaces over Rust app-planes: `chat_starter`, `chat_ui`, `code_engineer`, `intelligence-nexus`, `local-rag`, `local-research-agent`, `personas`, `snowball_engine`, `sovereign-memory-os`, `video-ad-factory`, etc. These are explicitly described as thin shells; the substantive logic lives in core.

@@ -4,11 +4,11 @@
 [![Architecture](https://img.shields.io/badge/architecture-three--plane%20metakernel-0A7A5E)](planes/README.md)
 ![Coverage](docs/client/badges/coverage.svg)
 
-InfRing is a deterministic, receipt-first autonomous runtime built on a three-plane metakernel.  
+InfRing is a deterministic, receipt-first autonomous runtime built on a three-plane metakernel.
 It is designed for verifiable execution, fail-closed safety, and reproducible operator workflows.
 
-Kernel authority is Rust-first (`core/**`).  
-Orchestration coordination lives in `surface/orchestration/**` (non-canonical, contract-driven).  
+Kernel authority is Rust-first (`core/**`).
+Orchestration coordination lives in `orchestration/**` (non-canonical, contract-driven).
 Shell/runtime surfaces remain thin presentation wrappers around policy-governed kernel lanes.
 
 ## Canonical Terminology (Enforced)
@@ -40,7 +40,7 @@ Shell/runtime surfaces remain thin presentation wrappers around policy-governed 
 Runtime split inside cognition:
 
 - Authoritative Kernel: `core/**`
-- Orchestration Surface: `surface/orchestration/**`
+- Orchestration: `orchestration/**`
 - Presentation Shell: `client/**`
 - Gateway Layer: `adapters/**`
 
@@ -594,5 +594,5 @@ InfRing uses dual licensing:
 - Apache-2.0 for open Kernel scope: [LICENSE-APACHE-2.0](LICENSE-APACHE-2.0)
 - LicenseRef-InfRing-NC-1.0 for default NC scope: [LICENSE-INFRING-NC-1.0](LICENSE-INFRING-NC-1.0)
 
-Canonical SPDX matrix: [LICENSE_MATRIX.json](LICENSE_MATRIX.json)  
+Canonical SPDX matrix: [LICENSE_MATRIX.json](LICENSE_MATRIX.json)
 Human-readable path scope: [LICENSE_SCOPE.md](LICENSE_SCOPE.md)

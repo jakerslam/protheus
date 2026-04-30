@@ -9,8 +9,8 @@ const DEFAULT_OUT_PATH = 'core/local/artifacts/eval_runtime_authority_guard_curr
 const DEFAULT_MARKDOWN_PATH = 'local/workspace/reports/EVAL_RUNTIME_AUTHORITY_GUARD_CURRENT.md';
 
 const RUNTIME_AUTHORITY_FILES = [
-  'surface/orchestration/src/eval.rs',
-  'surface/orchestration/src/bin/eval_runtime.rs',
+  'orchestration/src/eval.rs',
+  'orchestration/src/bin/eval_runtime.rs',
 ];
 
 const WRAPPER_FILES = [
@@ -68,16 +68,16 @@ function run(argv: string[] = process.argv.slice(2)): number {
     });
   }
 
-  const runtimeEvalSource = readText(path.resolve(root, 'surface/orchestration/src/eval.rs'));
+  const runtimeEvalSource = readText(path.resolve(root, 'orchestration/src/eval.rs'));
   checks.push({
     id: 'runtime_exports_quality_gate_eval_contract',
     ok: runtimeEvalSource.includes('pub fn evaluate_quality_gate('),
-    detail: 'surface/orchestration/src/eval.rs::evaluate_quality_gate',
+    detail: 'orchestration/src/eval.rs::evaluate_quality_gate',
   });
   checks.push({
     id: 'runtime_exports_judge_human_eval_contract',
     ok: runtimeEvalSource.includes('pub fn evaluate_judge_human_agreement('),
-    detail: 'surface/orchestration/src/eval.rs::evaluate_judge_human_agreement',
+    detail: 'orchestration/src/eval.rs::evaluate_judge_human_agreement',
   });
 
   for (const rel of WRAPPER_FILES) {

@@ -9,8 +9,8 @@ import { emitStructuredResult } from '../../lib/result.ts';
 const ROOT = process.cwd();
 const DEFAULT_OUT = 'core/local/artifacts/nexus_import_export_boundary_audit_current.json';
 const NEXUS_SRC = path.resolve(ROOT, 'core/layer2/nexus/src');
-const FORBIDDEN_IMPORT_MARKERS = ['surface/orchestration', 'infring_orchestration_surface', 'client/runtime/systems'];
-const REQUIRED_FORBIDDEN_IMPORT_MARKERS = ['surface/orchestration', 'infring_orchestration_surface', 'client/runtime/systems'];
+const FORBIDDEN_IMPORT_MARKERS = ['orchestration', 'infring_orchestration_surface', 'client/runtime/systems'];
+const REQUIRED_FORBIDDEN_IMPORT_MARKERS = ['orchestration', 'infring_orchestration_surface', 'client/runtime/systems'];
 const EXPECTED_PUBLIC_MODULES = ['conduit_manager', 'main_nexus', 'policy', 'registry', 'route_lease', 'sub_nexus', 'template'];
 const REQUIRED_BASELINE_MODULES = ['main_nexus', 'policy', 'registry', 'sub_nexus'];
 

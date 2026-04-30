@@ -42,7 +42,7 @@ function run(argv: string[] = process.argv.slice(2)): number {
     'run',
     '--quiet',
     '--manifest-path',
-    'surface/orchestration/Cargo.toml',
+    'orchestration/Cargo.toml',
     '--bin',
     'eval_runtime',
     '--',

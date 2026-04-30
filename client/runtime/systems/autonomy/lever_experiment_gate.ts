@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 // TypeScript compatibility shim only.
-// Layer ownership: surface/orchestration (autonomy coordination); this file is a thin CLI bridge.
+// Layer ownership: orchestration (autonomy coordination); this file is a thin CLI bridge.
 
-const impl = require('../../../../surface/orchestration/scripts/lever_experiment_gate.ts');
+const impl = require('../../../../orchestration/scripts/lever_experiment_gate.ts');
 const FORBIDDEN_RUNTIME_CONTEXT_MARKERS = [
   'You are an expert Python programmer.',
   '[PATCH v2',
