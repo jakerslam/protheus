@@ -420,6 +420,9 @@ Progress:
 - Context warnings are rejected when shell-authored, preserving backend event payloads as the source of warning text.
 - Regression tests cover workflow phase events, thinking-bubble labels, idle activity transitions, backend event id enforcement, optimistic shell labels, and context warning rejection.
 - Remaining shell transition: consume the status/phase projection envelope from backend events and remove local status/context label inference from chat helpers.
+- 2026-04-30: Tightened `tests/tooling/config/shell_projection_guard_policy.json` to scan websocket/status/context helper paths for shell-authored workflow fallback labels and raw phase-detail label inference.
+- Existing fallback/status-detail inference is now recorded as time-bounded known debt; new occurrences fail `ops:shell:projection:guard`.
+- The visible system-chat injection detector is now allowance-aware, allowing the legacy websocket/session path to be scanned with an explicit capped expiry instead of staying outside the guard.
 
 ## Execution Notes
 
