@@ -15,6 +15,10 @@
     "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/080-normalize-and-context.part02.ts",
     "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/090-init-hooks-and-shortcuts.part01.ts",
     "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/110-failover-and-health.part01.ts",
+    "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/140-session-and-ws.part01.ts",
+    "client/runtime/systems/ui/infring_static/js/pages/chat_context_helpers.ts",
+    "client/runtime/systems/ui/infring_static/js/pages/chat_thinking_display_helpers.ts",
+    "client/runtime/systems/ui/infring_static/js/pages/chat_ws_phase_event_helpers.ts",
     "client/runtime/systems/ui/infring_static/js/shell/app_store_shell_services.ts",
     "client/runtime/systems/ui/infring_static/js/svelte/chat_thread_shell_svelte_source.ts"
   ],
@@ -65,6 +69,16 @@
       "id": "shell_tool_expanded_raw_payload_render",
       "description": "Collapsed default tool cards must move raw input/result rendering behind lazy detail fetches.",
       "regex": "tool\\.(?:input|result)"
+    },
+    {
+      "id": "shell_phase_status_fallback_text",
+      "description": "Shell must not author fallback workflow status text; backend/orchestration status projections must supply display labels.",
+      "regex": "Waiting for workflow completion\\.\\.\\."
+    },
+    {
+      "id": "shell_phase_detail_label_inference",
+      "description": "Shell must not infer workflow phase labels from raw detail fields; it should render backend/orchestration status projection labels.",
+      "regex": "var\\s+phaseDetailText\\s*=\\s*String\\(data\\s*&&\\s*data\\.detail\\s*\\?\\s*data\\.detail\\s*:\\s*''\\)\\.trim\\(\\)"
     }
   ],
   "allowed_legacy_occurrences": {
@@ -171,6 +185,40 @@
         "expires": "2026-05-12",
         "reason": "Current tool-card expansion still renders raw input/result fields from the default row.",
         "replacement_plan": "Move expanded tool cards to get_tool_result/tool detail references."
+      }
+    ],
+    "shell_phase_status_fallback_text": [
+      {
+        "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/110-failover-and-health.part01.ts",
+        "max": 3,
+        "expires": "2026-05-12",
+        "reason": "Legacy websocket pending-row path still authors a generic workflow status while status_phase_projection rollout is landing.",
+        "replacement_plan": "Consume backend/orchestration status_phase_projection display_label and remove shell-authored fallback text."
+      }
+    ],
+    "shell_phase_detail_label_inference": [
+      {
+        "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/140-session-and-ws.part01.ts",
+        "max": 1,
+        "expires": "2026-05-12",
+        "reason": "Legacy websocket phase handler still derives progress text from raw detail fields.",
+        "replacement_plan": "Render the status_phase_projection envelope display_label/status_text emitted by orchestration."
+      },
+      {
+        "path": "client/runtime/systems/ui/infring_static/js/pages/chat_ws_phase_event_helpers.ts",
+        "max": 1,
+        "expires": "2026-05-12",
+        "reason": "Legacy extracted phase helper mirrors the assembled websocket phase handler during shell split.",
+        "replacement_plan": "Render the status_phase_projection envelope display_label/status_text emitted by orchestration and regenerate assembled sources."
+      }
+    ],
+    "shell_visible_system_chat_injection": [
+      {
+        "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/140-session-and-ws.part01.ts",
+        "max": 3,
+        "expires": "2026-05-12",
+        "reason": "Legacy websocket/session path still contains system-role chat mutations while chat visibility/status projection migration is landing.",
+        "replacement_plan": "Route these rows through notice/telemetry projections or final LLM output only, then remove the allowance."
       }
     ]
   }

@@ -211,9 +211,10 @@ function sourceWindow(lines: string[], index: number, before = 8, after = 12): s
   return lines.slice(start, end).join('\n');
 }
 
-function validateNoVisibleSystemChatInjection(file: string, source: string, violations: Violation[]): number {
+function validateNoVisibleSystemChatInjection(policy: Policy, file: string, source: string, violations: Violation[]): number {
   const lines = source.split(/\r?\n/);
   let count = 0;
+  const lineNumbers: number[] = [];
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
     if (!/\brole\s*:\s*['"]system['"]/.test(line)) continue;
@@ -228,11 +229,24 @@ function validateNoVisibleSystemChatInjection(file: string, source: string, viol
       /\bnotice_label\s*:/.test(context);
     if (isNoticeProjection) continue;
     count += 1;
+    lineNumbers.push(index + 1);
+  }
+  if (!count) return 0;
+
+  const pattern = {
+    id: 'shell_visible_system_chat_injection',
+    description: 'System-role chat mutations must be telemetry/notice projection or final LLM output, not shell-authored visible chat text.',
+    regex: '',
+  };
+  const allowance = findAllowance(policy, pattern.id, file);
+  if (validateAllowance(pattern, allowance, count, violations)) return count;
+
+  for (const lineNumber of lineNumbers) {
     violations.push({
       kind: 'shell_visible_system_chat_injection',
       pattern_id: 'shell_visible_system_chat_injection',
       path: file,
-      detail: `System-role chat mutation at line ${index + 1} must be telemetry/notice projection or final LLM output, not shell-authored visible chat text.`,
+      detail: `System-role chat mutation at line ${lineNumber} must be telemetry/notice projection or final LLM output, not shell-authored visible chat text.`,
     });
   }
   return count;
@@ -283,6 +297,8 @@ async function run(argv = process.argv.slice(2)) {
       [
         'const snapshot = { raw: store, root: rootState }; String(tool.result);',
         "this.messages.push({ role: 'system', text: 'shell-authored visible chat text' });",
+        "var statusText = String(opts.status_text || 'Waiting for workflow completion...').trim();",
+        "var phaseDetailText = String(data && data.detail ? data.detail : '').trim();",
       ].join('\n');
   }
 
@@ -311,7 +327,7 @@ async function run(argv = process.argv.slice(2)) {
   let systemChatInjectionViolations = 0;
   for (const file of [...files, ...Object.keys(virtualSources)]) {
     const source = virtualSources[file] == null ? readText(file) : virtualSources[file];
-    systemChatInjectionViolations += validateNoVisibleSystemChatInjection(file, source, violations);
+    systemChatInjectionViolations += validateNoVisibleSystemChatInjection(policy, file, source, violations);
   }
 
   const payload = {
