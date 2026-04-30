@@ -48,6 +48,12 @@ Acceptance:
 - Visible chat text is not system-injected during recovery.
 - Regression covers backend failure -> orchestration recovery plan -> shell telemetry projection.
 
+Progress:
+- 2026-04-30: Added Rust control-plane chat recovery primitives in `surface/orchestration/src/control_plane/recovery_escalation.rs`.
+- `classify_chat_backend_failure` now owns backend-failure marker interpretation in orchestration.
+- `recommend_chat_failover` now owns first non-active candidate selection and escalation when no admissible target exists.
+- Regression tests cover backend outage classification, provider-sync failover selection, and no-candidate escalation.
+
 ### SHP-AUTH-002 - Shell slash commands directly route tool and system actions
 
 Status: queued
