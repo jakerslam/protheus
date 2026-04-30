@@ -1,7 +1,7 @@
 // Layer ownership: orchestration (non-canonical orchestration coordination only).
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 pub const REQUIRED_TERMINAL_STATES: &[&str] =
     &["completed", "needs_input", "blocked", "failed", "aborted"];
@@ -47,38 +47,44 @@ const TOOL_FAMILY_SCHEMAS: &[(&str, &str, &str)] = &[
 
 const WORKFLOW_SOURCES: &[(&str, &str)] = &[
     (
-        "orchestration/src/control_plane/workflows/clarify_then_coordinate.workflow.json",
-        include_str!("workflows/clarify_then_coordinate.workflow.json"),
+        "orchestration/src/control_plane/workflows/official/clarify_then_coordinate.workflow.json",
+        include_str!("workflows/official/clarify_then_coordinate.workflow.json"),
     ),
     (
-        "orchestration/src/control_plane/workflows/research_synthesize_verify.workflow.json",
-        include_str!("workflows/research_synthesize_verify.workflow.json"),
+        "orchestration/src/control_plane/workflows/official/research_synthesize_verify.workflow.json",
+        include_str!("workflows/official/research_synthesize_verify.workflow.json"),
     ),
     (
-        "orchestration/src/control_plane/workflows/plan_execute_review.workflow.json",
-        include_str!("workflows/plan_execute_review.workflow.json"),
+        "orchestration/src/control_plane/workflows/official/plan_execute_review.workflow.json",
+        include_str!("workflows/official/plan_execute_review.workflow.json"),
     ),
     (
-        "orchestration/src/control_plane/workflows/diagnose_retry_escalate.workflow.json",
-        include_str!("workflows/diagnose_retry_escalate.workflow.json"),
+        "orchestration/src/control_plane/workflows/official/diagnose_retry_escalate.workflow.json",
+        include_str!("workflows/official/diagnose_retry_escalate.workflow.json"),
     ),
     (
-        "orchestration/src/control_plane/workflows/codex_tooling_synthesis.workflow.json",
-        include_str!("workflows/codex_tooling_synthesis.workflow.json"),
+        "orchestration/src/control_plane/workflows/lab/frameworks/codex/codex_tooling_synthesis.workflow.json",
+        include_str!("workflows/lab/frameworks/codex/codex_tooling_synthesis.workflow.json"),
     ),
     (
-        "orchestration/src/control_plane/workflows/forgecode_agent_composition.workflow.json",
-        include_str!("workflows/forgecode_agent_composition.workflow.json"),
+        "orchestration/src/control_plane/workflows/lab/frameworks/forgecode/forgecode_agent_composition.workflow.json",
+        include_str!("workflows/lab/frameworks/forgecode/forgecode_agent_composition.workflow.json"),
     ),
     (
-        "orchestration/src/control_plane/workflows/forgecode_raw_capability_assimilation.workflow.json",
-        include_str!("workflows/forgecode_raw_capability_assimilation.workflow.json"),
+        "orchestration/src/control_plane/workflows/lab/frameworks/forgecode/forgecode_raw_capability_assimilation.workflow.json",
+        include_str!(
+            "workflows/lab/frameworks/forgecode/forgecode_raw_capability_assimilation.workflow.json"
+        ),
     ),
     (
-        "orchestration/src/control_plane/workflows/openhands_control_plane_assimilation.workflow.json",
-        include_str!("workflows/openhands_control_plane_assimilation.workflow.json"),
+        "orchestration/src/control_plane/workflows/lab/frameworks/openhands/openhands_control_plane_assimilation.workflow.json",
+        include_str!(
+            "workflows/lab/frameworks/openhands/openhands_control_plane_assimilation.workflow.json"
+        ),
     ),
 ];
+
+const WORKFLOW_REGISTRY_RAW: &str = include_str!("workflows/workflow_registry.json");
 
 #[derive(Debug, Clone, Deserialize)]
 struct WorkflowSpec {
@@ -95,6 +101,32 @@ struct WorkflowSpec {
     #[serde(default)]
     subtemplates: Vec<Value>,
     typed_execution_contract: Option<TypedExecutionContract>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct WorkflowRegistry {
+    #[serde(default)]
+    schema_version: String,
+    #[serde(default)]
+    default_workflow_id: String,
+    #[serde(default)]
+    promotion_lifecycle: Vec<String>,
+    #[serde(default)]
+    workflows: Vec<WorkflowRegistryEntry>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct WorkflowRegistryEntry {
+    pub workflow_id: String,
+    pub tier: String,
+    pub source_framework: String,
+    pub source_path: String,
+    pub runtime_selectable: bool,
+    pub promotion_status: String,
+    #[serde(default)]
+    pub test_scenarios: Vec<String>,
+    #[serde(default)]
+    pub promotion_requirements: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -148,6 +180,10 @@ pub struct NormalizedWorkflowGraph {
     pub workflow_id: String,
     pub source_json_path: String,
     pub contract_schema_version: String,
+    pub workflow_tier: String,
+    pub source_framework: String,
+    pub runtime_selectable: bool,
+    pub promotion_status: String,
     pub workflow_type: String,
     pub workflow_role: String,
     pub subtemplate_count: usize,
@@ -191,10 +227,17 @@ pub struct WorkflowValidation {
 }
 
 pub fn registered_workflow_validations() -> Vec<WorkflowValidation> {
+    let registry = workflow_registry_by_path();
     WORKFLOW_SOURCES
         .iter()
-        .map(|(path, raw)| validate_workflow_source(path, raw))
+        .map(|(path, raw)| validate_workflow_source(path, raw, registry.get(*path)))
         .collect()
+}
+
+pub fn registered_workflow_registry() -> Vec<WorkflowRegistryEntry> {
+    parse_workflow_registry()
+        .map(|registry| registry.workflows)
+        .unwrap_or_default()
 }
 
 pub fn registered_workflow_graphs() -> Vec<NormalizedWorkflowGraph> {
@@ -204,7 +247,11 @@ pub fn registered_workflow_graphs() -> Vec<NormalizedWorkflowGraph> {
         .collect()
 }
 
-fn validate_workflow_source(path: &str, raw: &str) -> WorkflowValidation {
+fn validate_workflow_source(
+    path: &str,
+    raw: &str,
+    registry_entry: Option<&WorkflowRegistryEntry>,
+) -> WorkflowValidation {
     let parsed = serde_json::from_str::<WorkflowSpec>(raw);
     let Ok(spec) = parsed else {
         return validation(
@@ -218,6 +265,11 @@ fn validate_workflow_source(path: &str, raw: &str) -> WorkflowValidation {
     let workflow_id = normalized_id(&spec);
     let stages = clean_list(spec.stages);
     let mut errors = Vec::new();
+    let Some(registry_entry) = registry_entry else {
+        errors.push("missing_workflow_registry_entry".to_string());
+        return validation(path, false, &workflow_id, errors, None);
+    };
+    validate_registry_entry(path, &workflow_id, registry_entry, &mut errors);
     if workflow_id.is_empty() {
         errors.push("missing_workflow_id".to_string());
     }
@@ -249,6 +301,7 @@ fn validate_workflow_source(path: &str, raw: &str) -> WorkflowValidation {
         workflow_id: &workflow_id,
         workflow_type: &workflow_type,
         workflow_role: &workflow_role,
+        registry_entry,
         subtemplate_count: spec.subtemplates.len(),
         stages,
         contract,
@@ -262,6 +315,7 @@ struct WorkflowGraphCompileInput<'a> {
     workflow_id: &'a str,
     workflow_type: &'a str,
     workflow_role: &'a str,
+    registry_entry: &'a WorkflowRegistryEntry,
     subtemplate_count: usize,
     stages: Vec<String>,
     contract: TypedExecutionContract,
@@ -274,6 +328,7 @@ fn compile_graph(input: WorkflowGraphCompileInput<'_>) -> Option<NormalizedWorkf
         workflow_id,
         workflow_type,
         workflow_role,
+        registry_entry,
         subtemplate_count,
         stages,
         contract,
@@ -313,6 +368,10 @@ fn compile_graph(input: WorkflowGraphCompileInput<'_>) -> Option<NormalizedWorkf
         workflow_id: workflow_id.to_string(),
         source_json_path: source_path.to_string(),
         contract_schema_version: WORKFLOW_CONTRACT_SCHEMA_VERSION.to_string(),
+        workflow_tier: registry_entry.tier.clone(),
+        source_framework: registry_entry.source_framework.clone(),
+        runtime_selectable: registry_entry.runtime_selectable,
+        promotion_status: registry_entry.promotion_status.clone(),
         workflow_type: workflow_type.to_string(),
         workflow_role: workflow_role.to_string(),
         subtemplate_count,
@@ -331,6 +390,114 @@ fn compile_graph(input: WorkflowGraphCompileInput<'_>) -> Option<NormalizedWorkf
         visible_chat_policy: contract.visible_chat_policy,
         run_budgets: contract.run_budgets,
     })
+}
+
+fn parse_workflow_registry() -> Option<WorkflowRegistry> {
+    serde_json::from_str(WORKFLOW_REGISTRY_RAW).ok()
+}
+
+fn workflow_registry_by_path() -> HashMap<String, WorkflowRegistryEntry> {
+    registered_workflow_registry()
+        .into_iter()
+        .map(|entry| (entry.source_path.clone(), entry))
+        .collect()
+}
+
+pub fn workflow_registry_contract_ok() -> bool {
+    let Some(registry) = parse_workflow_registry() else {
+        return false;
+    };
+    if registry.schema_version != "workflow_registry_v1"
+        || registry.default_workflow_id.trim().is_empty()
+        || !registry.promotion_lifecycle.iter().any(|row| row == "lab")
+        || !registry
+            .promotion_lifecycle
+            .iter()
+            .any(|row| row == "official")
+    {
+        return false;
+    }
+    let known_paths: HashSet<&str> = WORKFLOW_SOURCES.iter().map(|(path, _)| *path).collect();
+    let mut ids = HashSet::new();
+    let mut paths = HashSet::new();
+    let mut official_count = 0usize;
+    let mut lab_count = 0usize;
+    for entry in &registry.workflows {
+        if entry.workflow_id.trim().is_empty()
+            || entry.source_path.trim().is_empty()
+            || entry.source_framework.trim().is_empty()
+            || entry.promotion_status.trim().is_empty()
+            || !known_paths.contains(entry.source_path.as_str())
+            || !ids.insert(entry.workflow_id.as_str())
+            || !paths.insert(entry.source_path.as_str())
+            || entry.test_scenarios.is_empty()
+            || entry.promotion_requirements.is_empty()
+        {
+            return false;
+        }
+        match entry.tier.as_str() {
+            "official" => {
+                official_count += 1;
+                if !entry.runtime_selectable
+                    || entry.promotion_status != "official"
+                    || !entry
+                        .source_path
+                        .starts_with("orchestration/src/control_plane/workflows/official/")
+                {
+                    return false;
+                }
+            }
+            "lab" => {
+                lab_count += 1;
+                if entry.runtime_selectable
+                    || entry.promotion_status != "lab"
+                    || !entry
+                        .source_path
+                        .starts_with("orchestration/src/control_plane/workflows/lab/frameworks/")
+                {
+                    return false;
+                }
+            }
+            _ => return false,
+        }
+    }
+    official_count > 0
+        && lab_count > 0
+        && registry.workflows.len() == WORKFLOW_SOURCES.len()
+        && ids.contains(registry.default_workflow_id.as_str())
+}
+
+fn validate_registry_entry(
+    source_path: &str,
+    workflow_id: &str,
+    entry: &WorkflowRegistryEntry,
+    errors: &mut Vec<String>,
+) {
+    if entry.workflow_id != workflow_id {
+        errors.push("workflow_registry_id_mismatch".to_string());
+    }
+    if entry.source_path != source_path {
+        errors.push("workflow_registry_source_path_mismatch".to_string());
+    }
+    match entry.tier.as_str() {
+        "official" => {
+            if !entry.runtime_selectable {
+                errors.push("official_workflow_not_runtime_selectable".to_string());
+            }
+            if !source_path.starts_with("orchestration/src/control_plane/workflows/official/") {
+                errors.push("official_workflow_outside_official_dir".to_string());
+            }
+        }
+        "lab" => {
+            if entry.runtime_selectable {
+                errors.push("lab_workflow_runtime_selectable".to_string());
+            }
+            if !source_path.starts_with("orchestration/src/control_plane/workflows/lab/") {
+                errors.push("lab_workflow_outside_lab_dir".to_string());
+            }
+        }
+        _ => errors.push("invalid_workflow_registry_tier".to_string()),
+    }
 }
 
 fn validate_contract_basics(contract: &TypedExecutionContract, errors: &mut Vec<String>) {

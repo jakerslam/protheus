@@ -1,9 +1,9 @@
 // Layer ownership: orchestration (non-canonical orchestration coordination only).
 use super::workflow_contracts::{
     registered_workflow_graphs, registered_workflow_validations, tool_contracts_cover_required,
-    tool_family_contracts, NormalizedWorkflowGraph, ToolFamilyContract, WorkflowValidation,
-    REQUIRED_TELEMETRY_STREAMS, REQUIRED_TERMINAL_STATES, REQUIRED_TOOL_FAMILIES,
-    WORKFLOW_CONTRACT_SCHEMA_VERSION,
+    tool_family_contracts, workflow_registry_contract_ok, NormalizedWorkflowGraph,
+    ToolFamilyContract, WorkflowValidation, REQUIRED_TELEMETRY_STREAMS, REQUIRED_TERMINAL_STATES,
+    REQUIRED_TOOL_FAMILIES, WORKFLOW_CONTRACT_SCHEMA_VERSION,
 };
 use super::workflow_runtime::{run_registered_replay_fixtures, workflow_runtime_contract_ok};
 use super::workflow_runtime_types::WorkflowReplayReport;
@@ -61,6 +61,8 @@ pub fn run_workflow_contract_guard(args: &[String]) -> i32 {
             "assimilation_subtemplates": graphs.iter().map(|row| row.subtemplate_count).sum::<usize>(),
             "tool_family_contracts": REQUIRED_TOOL_FAMILIES.len(),
             "runtime_replay_fixtures": replay_reports.len(),
+            "official_workflows": graphs.iter().filter(|row| row.workflow_tier == "official").count(),
+            "lab_workflows": graphs.iter().filter(|row| row.workflow_tier == "lab").count(),
             "system_chat_injection_allowed": false,
             "graph_artifact_path": graph_out,
         },
@@ -101,6 +103,7 @@ fn build_checks(
     let parity_map = read_text(PARITY_MAP_PATH);
     vec![
         json!({"id": "workflow_json_compiles_to_typed_graphs", "ok": !graphs.is_empty() && validations.iter().all(|row| row.ok), "detail": format!("graphs={};workflows={}", graphs.len(), validations.len())}),
+        json!({"id": "workflow_registry_tier_contract", "ok": workflow_registry_contract_ok() && graphs.iter().all(workflow_registry_graph_ok), "detail": "official workflows are runtime-selectable; lab/framework workflows are parseable comparison profiles only"}),
         json!({"id": "workflow_role_typing_contract", "ok": graphs.iter().all(workflow_role_ok), "detail": "workflow_role must be assistant_response_workflow or assimilation_workflow_template"}),
         json!({"id": "assistant_workflow_presence_contract", "ok": graphs.iter().any(|row| row.workflow_role == "assistant_response_workflow"), "detail": "at least one assistant-response workflow must remain available"}),
         json!({"id": "assimilation_template_role_contract", "ok": graphs.iter().filter(|row| row.workflow_id.contains("assimilation") || row.workflow_id.contains("codex") || row.workflow_id.contains("forgecode") || row.workflow_id.contains("openhands")).all(|row| row.workflow_role == "assimilation_workflow_template"), "detail": "assimilation/codex/forgecode/openhands workflow specs must not masquerade as normal assistant response workflows"}),
@@ -136,6 +139,26 @@ fn workflow_role_ok(graph: &NormalizedWorkflowGraph) -> bool {
         } else {
             !graph.workflow_id.contains("assimilation")
         }
+}
+
+fn workflow_registry_graph_ok(graph: &NormalizedWorkflowGraph) -> bool {
+    match graph.workflow_tier.as_str() {
+        "official" => {
+            graph.runtime_selectable
+                && graph.promotion_status == "official"
+                && graph
+                    .source_json_path
+                    .starts_with("orchestration/src/control_plane/workflows/official/")
+        }
+        "lab" => {
+            !graph.runtime_selectable
+                && graph.promotion_status == "lab"
+                && graph
+                    .source_json_path
+                    .starts_with("orchestration/src/control_plane/workflows/lab/")
+        }
+        _ => false,
+    }
 }
 
 fn assimilation_template_structure_ok(graph: &NormalizedWorkflowGraph) -> bool {
