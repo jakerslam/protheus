@@ -25,7 +25,7 @@ const API_CLI_REGISTRY_PATH = 'client/runtime/config/api_cli_contract_registry.j
 const TOOLING_GATE_REGISTRY_PATH = 'tests/tooling/config/tooling_gate_registry.json';
 const VERIFY_PROFILES_PATH = 'tests/tooling/config/verify_profiles.json';
 const RELEASE_WORKFLOW_PATH = '.github/workflows/release.yml';
-const RELEASE_PROOF_PACK_MANIFEST_PATH = 'tests/tooling/config/release_proof_pack_manifest.json';
+const RELEASE_PROOF_PACK_MANIFEST_PATH = 'validation/release_gates/contracts/release_proof_pack_manifest.json';
 const WRAPPER_FILES = [
   'client/runtime/systems/autonomy/self_improvement_cadence_orchestrator.ts',
   'client/runtime/systems/memory/causal_temporal_graph.ts',
@@ -154,10 +154,10 @@ function releaseContractPathAndConstantChecks(args: ReturnType<typeof parseArgs>
     {
       id: 'release_contract_proof_pack_manifest_path_canonical_contract',
       ok:
-        RELEASE_PROOF_PACK_MANIFEST_PATH === 'tests/tooling/config/release_proof_pack_manifest.json'
+        RELEASE_PROOF_PACK_MANIFEST_PATH === 'validation/release_gates/contracts/release_proof_pack_manifest.json'
         && isCanonicalRelativePathToken(
           RELEASE_PROOF_PACK_MANIFEST_PATH,
-          'tests/tooling/config/',
+          'validation/release_gates/contracts/',
           '.json',
         ),
       detail: RELEASE_PROOF_PACK_MANIFEST_PATH,

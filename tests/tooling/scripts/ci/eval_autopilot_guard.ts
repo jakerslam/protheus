@@ -14,7 +14,7 @@ const DEFAULT_ISSUE_RESOLUTION_PATH = 'artifacts/eval_issue_resolution_latest.js
 const DEFAULT_QUALITY_GATE_PATH = 'artifacts/eval_quality_gate_v1_latest.json';
 const DEFAULT_REVIEWER_PATH = 'artifacts/eval_reviewer_feedback_weekly_latest.json';
 const DEFAULT_JUDGE_HUMAN_PATH = 'artifacts/eval_judge_human_agreement_latest.json';
-const DEFAULT_THRESHOLDS_PATH = 'tests/tooling/config/eval_quality_thresholds.json';
+const DEFAULT_THRESHOLDS_PATH = 'validation/evals/config/eval_quality_thresholds.json';
 
 const DEFAULT_OUT_PATH = 'core/local/artifacts/eval_autopilot_guard_current.json';
 const DEFAULT_OUT_LATEST_PATH = 'artifacts/eval_autopilot_guard_latest.json';

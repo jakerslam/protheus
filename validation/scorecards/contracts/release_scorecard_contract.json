@@ -1,0 +1,37 @@
+{
+  "type": "validation_release_scorecard_contract",
+  "schema_version": 1,
+  "updated_at": "2026-04-29",
+  "owner": "validation/scorecards",
+  "scorecard_id": "release_scorecard",
+  "output_artifact": "client/runtime/local/state/release/scorecard/release_scorecard.json",
+  "scorecard_is_derived": true,
+  "scorecard_may_introduce_truth": false,
+  "required_source_domains": [
+    "validation",
+    "observability",
+    "governance"
+  ],
+  "required_evidence_inputs": [
+    "core/local/artifacts/release_blocker_rubric_current.json",
+    "core/local/artifacts/runtime_boundedness_release_gate_current.json",
+    "core/local/artifacts/release_verdict_current.json",
+    "validation/release_gates/config/release_gates.yaml",
+    "validation/release_gates/contracts/release_proof_pack_manifest.json",
+    "validation/benchmarks/policies/benchmark_regression_budgets.json",
+    "validation/benchmarks/policies/runtime_boundedness_budgets.json",
+    "validation/regression/policies/runtime_empirical_coverage_policy.json",
+    "validation/regression/policies/runtime_soak_scenarios_policy.json"
+  ],
+  "stage_contract": {
+    "prebundle_scorecard_stage": "prebundle",
+    "final_closure_stage": "final",
+    "scorecard_precedes_final_closure": true
+  },
+  "compatibility_outputs": [
+    {
+      "path": "client/runtime/local/state/release/scorecard/release_scorecard.json",
+      "reason": "runtime local state remains the generated artifact destination; Validation owns the derivation contract, not the mutable artifact cache"
+    }
+  ]
+}

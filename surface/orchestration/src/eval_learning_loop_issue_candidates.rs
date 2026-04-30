@@ -22,7 +22,7 @@ pub const MIN_RECURRENT_SIGNATURE_COUNT_FLOOR: usize = 2;
 pub const MIN_RECURRENT_SIGNATURE_COUNT_DEFAULT: usize = 2;
 
 const EVAL_ISSUE_CANDIDATE_DEDUPE_POLICY_PATH: &str =
-    "surface/orchestration/config/eval_issue_candidate_dedupe_policy.json";
+    "validation/evals/policies/eval_issue_candidate_dedupe_policy.json";
 
 const EVAL_ISSUE_DEDUPE_POLICY_PATH_ENV: &str = "INFRING_EVAL_ISSUE_DEDUPE_POLICY_PATH";
 

@@ -40,7 +40,7 @@ function parseArgs(argv: string[]) {
       400,
     ),
     policyPath: cleanText(
-      readFlag(argv, 'policy') || 'tests/tooling/config/runtime_empirical_coverage_policy.json',
+      readFlag(argv, 'policy') || 'validation/regression/policies/runtime_empirical_coverage_policy.json',
       400,
     ),
     syntheticPath: cleanText(

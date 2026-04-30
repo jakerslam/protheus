@@ -8,6 +8,8 @@ Depends on: `docs/workspace/assurance_plane_policy.md`
 
 Create a first-class Assurance Plane that unifies controlled validation, live observability, and governance verdicts without polluting Kernel authority, Orchestration planning, or Shell presentation.
 
+Policy completion and physical migration are separate milestones. The architecture policy is the source of ownership truth; `docs/workspace/assurance_physical_domain_migration_status.md` records which definitions have physically moved into `validation/**` and `observability/**`, which compatibility mirrors remain, and which support paths are harness-only.
+
 ## Execution Waves
 
 ### Wave 1: Policy And Inventory
@@ -97,6 +99,17 @@ The first implementation milestone is complete when:
 - scorecards and release gates point to evidence artifacts;
 - Shell displays Assurance state only by projection/detail ref;
 - Orchestration consumes Assurance results without owning eval definitions or gates.
+
+## Physical Migration Success Criteria
+
+The physical-domain migration is complete only when:
+
+- Validation and Observability domain manifests and required subdomains exist;
+- canonical eval, release-gate, scorecard, benchmark, regression, telemetry, health, trace, runtime-finding, and Sentinel source definitions live under `validation/**` or `observability/**`;
+- active commands and tooling registry rows point at canonical definition paths;
+- compatibility wrappers are declared as migration debt through `compatibility_mirrors.json`;
+- time-bounded exemptions live in `validation/conformance/contracts/assurance_physical_domain_placement_exemptions.json`;
+- the physical-domain placement guard passes.
 
 ## Non-Goals
 

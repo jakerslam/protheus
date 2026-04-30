@@ -1,0 +1,28 @@
+{
+  "type": "validation_release_gate_compatibility_mirrors",
+  "schema_version": 1,
+  "updated_at": "2026-04-29",
+  "owner": "validation/release_gates",
+  "burn_down_required": true,
+  "burn_down_todo": "ASSURANCE-MIGRATE-010",
+  "mirrors": [
+    {
+      "legacy_path": "tests/tooling/config/release_gates.yaml",
+      "canonical_path": "validation/release_gates/config/release_gates.yaml",
+      "reason": "existing release-gate harnesses and historical docs still reference the old tooling config path",
+      "removal_target": "after ASSURANCE-MIGRATE-007 migrates command registry/package callers"
+    },
+    {
+      "legacy_path": "tests/tooling/config/release_proof_pack_manifest.json",
+      "canonical_path": "validation/release_gates/contracts/release_proof_pack_manifest.json",
+      "reason": "existing proof-pack callers may still pass --manifest with the old tooling config path",
+      "removal_target": "after ASSURANCE-MIGRATE-007 migrates command registry/package callers"
+    },
+    {
+      "legacy_path": "client/runtime/config/release_blocker_rubric.json",
+      "canonical_path": "validation/release_gates/policies/release_blocker_rubric.json",
+      "reason": "support-bundle and release-blocker command compatibility while Validation becomes the owner of release blocker rubric truth",
+      "removal_target": "after ASSURANCE-MIGRATE-007 migrates command registry/package callers"
+    }
+  ]
+}

@@ -1,0 +1,147 @@
+{
+  "ok": false,
+  "type": "eval_regression_guard",
+  "generated_at": "2026-04-24T18:33:10.322Z",
+  "artifact_root": "/Users/jay/.openclaw/workspace",
+  "summary": {
+    "required_artifacts": 11,
+    "passing_artifacts": 10,
+    "failing_artifacts": 1,
+    "eval_release_gate": "fail"
+  },
+  "artifacts": [
+    {
+      "id": "eval_agent_chat_monitor_guard",
+      "path": "core/local/artifacts/eval_agent_chat_monitor_guard_current.json",
+      "exists": true,
+      "payload_object": true,
+      "ok": true,
+      "threshold_violations": 0,
+      "regression_violations": 0,
+      "failure_count": 0,
+      "pass": true
+    },
+    {
+      "id": "eval_monitor_slo",
+      "path": "core/local/artifacts/eval_monitor_slo_current.json",
+      "exists": true,
+      "payload_object": true,
+      "ok": true,
+      "threshold_violations": 0,
+      "regression_violations": 0,
+      "failure_count": 0,
+      "pass": true
+    },
+    {
+      "id": "eval_quality_metrics",
+      "path": "core/local/artifacts/eval_quality_metrics_current.json",
+      "exists": true,
+      "payload_object": true,
+      "ok": true,
+      "threshold_violations": 0,
+      "regression_violations": 0,
+      "failure_count": 0,
+      "pass": true
+    },
+    {
+      "id": "eval_reviewer_feedback_weekly",
+      "path": "core/local/artifacts/eval_reviewer_feedback_weekly_current.json",
+      "exists": true,
+      "payload_object": true,
+      "ok": true,
+      "threshold_violations": 0,
+      "regression_violations": 0,
+      "failure_count": 0,
+      "pass": true
+    },
+    {
+      "id": "eval_judge_human_agreement",
+      "path": "core/local/artifacts/eval_judge_human_agreement_current.json",
+      "exists": true,
+      "payload_object": true,
+      "ok": true,
+      "threshold_violations": 0,
+      "regression_violations": 0,
+      "failure_count": 0,
+      "pass": true
+    },
+    {
+      "id": "eval_adversarial_guard",
+      "path": "core/local/artifacts/eval_adversarial_guard_current.json",
+      "exists": true,
+      "payload_object": true,
+      "ok": true,
+      "threshold_violations": 0,
+      "regression_violations": 0,
+      "failure_count": 0,
+      "pass": true
+    },
+    {
+      "id": "eval_issue_filing_guard",
+      "path": "core/local/artifacts/eval_issue_filing_guard_current.json",
+      "exists": true,
+      "payload_object": true,
+      "ok": true,
+      "threshold_violations": 0,
+      "regression_violations": 0,
+      "failure_count": 0,
+      "pass": true
+    },
+    {
+      "id": "eval_issue_resolution",
+      "path": "core/local/artifacts/eval_issue_resolution_current.json",
+      "exists": true,
+      "payload_object": true,
+      "ok": true,
+      "threshold_violations": 0,
+      "regression_violations": 0,
+      "failure_count": 0,
+      "pass": true
+    },
+    {
+      "id": "eval_quality_gate_v1",
+      "path": "core/local/artifacts/eval_quality_gate_v1_current.json",
+      "exists": true,
+      "payload_object": true,
+      "ok": false,
+      "threshold_violations": 0,
+      "regression_violations": 0,
+      "failure_count": 0,
+      "pass": false
+    },
+    {
+      "id": "eval_runtime_authority_guard",
+      "path": "core/local/artifacts/eval_runtime_authority_guard_current.json",
+      "exists": true,
+      "payload_object": true,
+      "ok": true,
+      "threshold_violations": 0,
+      "regression_violations": 0,
+      "failure_count": 0,
+      "pass": true
+    },
+    {
+      "id": "eval_autopilot_guard",
+      "path": "core/local/artifacts/eval_autopilot_guard_current.json",
+      "exists": true,
+      "payload_object": true,
+      "ok": true,
+      "threshold_violations": 0,
+      "regression_violations": 0,
+      "failure_count": 0,
+      "pass": true
+    }
+  ],
+  "failures": [
+    {
+      "id": "eval_release_artifact_not_passing",
+      "artifact": "eval_quality_gate_v1",
+      "detail": "core/local/artifacts/eval_quality_gate_v1_current.json: exists=true;payload_object=true;ok=false;threshold_violations=0;regression_violations=0;failures=0"
+    }
+  ],
+  "artifact_paths": [
+    "core/local/artifacts/eval_regression_guard_current.json",
+    "artifacts/eval_regression_guard_latest.json",
+    "local/workspace/reports/EVAL_REGRESSION_GUARD_CURRENT.md"
+  ]
+}

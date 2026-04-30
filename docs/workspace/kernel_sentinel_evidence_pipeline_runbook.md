@@ -33,6 +33,7 @@ The pipeline has four steps:
 | `local/state/kernel_sentinel/top_system_holes_current.json` | Highest-priority Sentinel holes and issue candidates. |
 | `docs/workspace/assurance_plane_policy.md` | Canonical Assurance boundary and domain policy. |
 | `docs/workspace/assurance_plane_execution_plan.md` | Execution plan for migrating checks, observations, gates, and scorecards into the Assurance Plane. |
+| `docs/workspace/assurance_physical_domain_migration_status.md` | Current policy-complete vs physical-domain migration status, including compatibility mirrors and exemption debt. |
 
 ## Operator commands
 
@@ -129,3 +130,13 @@ Patch missing streams in this order:
 5. Gateway quarantine/recovery/isolation streams.
 6. Queue and boundedness streams.
 7. Shell telemetry as observation-only context.
+
+## Assurance Observability Alignment
+
+The canonical Observability source registry is `observability/source_coverage/assurance_observability_registry.json`.
+
+Sentinel should use that registry as the source-class inventory for required coverage, freshness posture, and Shell telemetry authority limits.
+
+Sentinel-facing source coverage, freshness, health, trace maps, runtime finding schemas, evidence envelope normalization, and the resident-observer contract are physically owned by `observability/**`. Legacy paths are compatibility mirrors only and are listed in `observability/compatibility_mirrors.json` or the physical-domain exemption registry.
+
+Shell telemetry is presentation-only context. It can make issues clearer, but it cannot open findings, block release, waive findings, or write Sentinel verdicts unless Governance corroborates it with deterministic or advisory evidence.

@@ -1,0 +1,22 @@
+{
+  "type": "validation_benchmark_compatibility_mirrors",
+  "schema_version": 1,
+  "updated_at": "2026-04-29",
+  "owner": "validation/benchmarks",
+  "burn_down_required": true,
+  "burn_down_todo": "ASSURANCE-MIGRATE-010",
+  "mirrors": [
+    {
+      "legacy_path": "tests/tooling/config/runtime_boundedness_budgets.json",
+      "canonical_path": "validation/benchmarks/policies/runtime_boundedness_budgets.json",
+      "reason": "boundedness release-gate callers may still pass the old tooling config path while Validation becomes owner of performance budgets",
+      "removal_target": "after ASSURANCE-MIGRATE-007 migrates command registry/package callers"
+    }
+  ],
+  "generated_artifact_destinations": [
+    {
+      "path": "core/local/artifacts/runtime_boundedness_release_gate_current.json",
+      "reason": "runtime-local artifact destination remains a generated evidence cache; Validation owns the budget policy"
+    }
+  ]
+}
