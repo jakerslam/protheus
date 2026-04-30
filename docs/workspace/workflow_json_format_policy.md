@@ -23,6 +23,9 @@ Orchestration workflow template directory:
 Example template:
 `docs/workspace/templates/workflow/workflow_template.workflow.json`
 
+Tool menu interface example template:
+`docs/workspace/templates/workflow/tool_menu_interface_v1.workflow.json`
+
 ## Format Contract
 
 All workflow specs must be JSON objects.
@@ -131,10 +134,47 @@ Canonical stage vocabulary:
 2. `gate_2_tool_family_menu`
 3. `gate_3_tool_menu`
 4. `gate_4_request_payload_input`
-5. `gate_5_post_tool_menu`
-6. `gate_6_llm_final_output`
+5. `gate_4b_tool_confirmation_menu`
+6. `gate_5_post_tool_menu`
+7. `gate_6_llm_final_output`
 
 Direct conversation is represented by `No` at `gate_1_need_tool_access_menu`, not by a separate automatic bypass classifier.
+
+## Tool Menu Interface Contract
+
+Assistant-response workflows using `gate_contract: "tool_menu_interface_v1"` must declare a `tool_menu_interface_contract` object. This keeps the human/LLM-readable JSON as the source of workflow shape instead of leaving important behavior implicit in Rust.
+
+Required fields:
+
+1. `version`: `tool_menu_interface_v1`
+2. `visible_chat_policy`: `llm_final_only_no_system_injection`
+3. `system_injected_chat_text_allowed`: `false`
+4. `gate_shapes_allowed`: only `multiple_choice` and `text_input`
+5. `gate_order`: ordered gate ids for the workflow
+6. `gates`: gate definitions keyed by canonical gate id
+7. `private_tokens`: private menu tokens that must never be emitted as visible chat
+8. `terminal_states`: terminal state names
+9. `declared_loopbacks`: explicit loopback transitions
+
+Required gate semantics:
+
+1. `gate_1_need_tool_access_menu` asks exactly `Need tools? Yes/No`.
+2. The `No` option is a private token (`private_token: true`, `visible_chat: false`) and transitions directly to `gate_6_llm_final_output`.
+3. `gate_2_tool_family_menu` is multiple choice.
+4. `gate_3_tool_menu` is multiple choice.
+5. `gate_4_request_payload_input` is text input.
+6. `gate_4b_tool_confirmation_menu` is multiple choice and contains `confirm` and `cancel`.
+7. `cancel` is a formal terminal state transition to `cancelled`; it is not an emergent runtime convention.
+8. `gate_5_post_tool_menu` is multiple choice and contains `finish` and `another_tool`.
+9. `another_tool` must declare an explicit loopback to `gate_2_tool_family_menu`.
+10. `gate_6_llm_final_output` is LLM-only final-authority text input.
+
+Visibility rule:
+
+1. `No`, `Yes`, `confirm`, and `cancel` are private workflow tokens by default.
+2. Private workflow tokens may be stored in telemetry and diagnostics.
+3. Private workflow tokens must not be rendered as assistant-visible chat.
+4. The final chat box receives only the LLM-authored answer from `gate_6_llm_final_output`.
 
 ## Registration Rule (Required)
 
@@ -150,6 +190,7 @@ It must be wired in `046a-workflow-reader.rs`:
 Before opening a PR for a new workflow:
 
 1. Start from `docs/workspace/templates/workflow/workflow_template.workflow.json`.
+   For assistant toolbox workflows, start from `docs/workspace/templates/workflow/tool_menu_interface_v1.workflow.json`.
 2. Keep `name` unique and versioned (example: `_v1`, `_v2`).
 3. Set `workflow_type` to `control_plane_orchestration_workflow`.
 4. Set `workflow_role` to either `assistant_response_workflow` or `assimilation_workflow_template`.

@@ -1,8 +1,8 @@
 {
-  "name": "complex_prompt_chain_v1",
+  "name": "example_tool_menu_interface_v1",
   "workflow_type": "hard_agent_workflow",
   "default": false,
-  "description": "Default menu-only tool interface. The workflow presents one multiple-choice menu or one request payload field at a time; it never recommends, classifies, or authors visible chat text.",
+  "description": "Example assistant toolbox workflow. The workflow only presents menus or payload fields; final chat text is authored by the LLM.",
   "stages": [
     "gate_1_need_tool_access_menu",
     "gate_2_tool_family_menu",
