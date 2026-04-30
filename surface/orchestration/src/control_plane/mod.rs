@@ -1,5 +1,6 @@
 // Layer ownership: surface/orchestration (non-canonical orchestration coordination only).
 pub mod decomposition_planning;
+pub mod command_dispatch;
 pub mod intake_normalization;
 pub mod lifecycle;
 pub mod recovery_escalation;
@@ -271,6 +272,13 @@ pub fn subdomain_trace_contracts() -> Vec<SubdomainTraceContract> {
             receipt_metadata_sources: RECEIPT_METADATA_SOURCES,
         },
         SubdomainTraceContract {
+            trace_id: "command_dispatch.trace",
+            subdomain_id: "command_dispatch",
+            stage: WorkflowStage::IntakeNormalization,
+            required_decision_fields: REQUIRED_DECISION_FIELDS,
+            receipt_metadata_sources: RECEIPT_METADATA_SOURCES,
+        },
+        SubdomainTraceContract {
             trace_id: "decomposition_planning.trace",
             subdomain_id: "decomposition_planning",
             stage: WorkflowStage::DecompositionPlanning,
@@ -364,6 +372,7 @@ pub fn assert_decision_trace_contract(
 pub fn subdomain_boundaries() -> Vec<SubdomainBoundary> {
     vec![
         intake_normalization::boundary(),
+        command_dispatch::boundary(),
         decomposition_planning::boundary(),
         workflow_graph_dependency::boundary(),
         recovery_escalation::boundary(),

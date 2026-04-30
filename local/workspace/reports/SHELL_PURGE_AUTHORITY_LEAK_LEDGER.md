@@ -56,7 +56,7 @@ Progress:
 
 ### SHP-AUTH-002 - Shell slash commands directly route tool and system actions
 
-Status: queued
+Status: in_progress
 Priority: P0
 Current files:
 - `client/runtime/systems/ui/infring_static/js/pages/chat_slash_command_helpers.ts`
@@ -80,6 +80,12 @@ Acceptance:
 - No direct `/file`, `/folder`, `/budget`, `/peers`, `/a2a`, `/compact`, or `/model` execution logic remains in shell.
 - Slash commands that produce content return structured receipts.
 - Shell renders receipts without adding assistant/system prose.
+
+Progress:
+- 2026-04-30: Added Rust control-plane command dispatch primitives in `surface/orchestration/src/control_plane/command_dispatch.rs`.
+- `dispatch_shell_command` classifies slash commands into navigation, session control, workspace tooling, runtime status, network status, model/provider, telemetry, diagnostics, or clarification.
+- Workspace `/file` and `/folder` commands now have an orchestration-owned target tool family contract (`workspace_read`, `workspace_export`) for shell replacement.
+- Regression tests cover workspace routing, missing workspace target clarification, model/provider workflow routing, and unknown command clarification.
 
 ### SHP-AUTH-003 - Prompt queue truth is owned by the shell
 
