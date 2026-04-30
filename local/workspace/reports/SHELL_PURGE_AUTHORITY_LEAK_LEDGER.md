@@ -226,7 +226,7 @@ Progress:
 
 ### SHP-AUTH-007 - Workflow builder compiles and persists executable workflow semantics in shell
 
-Status: queued
+Status: in_progress
 Priority: P1
 Current files:
 - `client/runtime/systems/ui/infring_static/js/pages/workflow-builder.ts`
@@ -248,6 +248,13 @@ Acceptance:
 - Shell no longer generates executable workflow steps or TOML.
 - Invalid graph returns structured validation errors from orchestration.
 - Regression covers graph compile for sequential, conditional, fan-out, loop, and collect nodes.
+
+Progress:
+- 2026-04-30: Added Rust control-plane workflow graph compilation primitives in `surface/orchestration/src/control_plane/workflow_graph_compilation.rs`.
+- `compile_workflow_graph` now owns non-authoritative validation and compiled preview semantics for graph nodes, connections, step modes, and ordered next targets.
+- Structured validation errors cover missing workflow name, missing start/end nodes, duplicate/empty node ids, and dangling connections.
+- Core/runtime remains the intended authority for persistence/admission of executable workflows; shell should transition to graph JSON submission and compiled preview rendering.
+- Regression tests cover sequential, conditional, fan-out, loop, collect, and invalid graph cases.
 
 ### SHP-AUTH-008 - Agent lifecycle/archive operations are coordinated in shell
 

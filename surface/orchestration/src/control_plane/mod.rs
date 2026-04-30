@@ -12,6 +12,7 @@ pub mod terminal_coordination;
 pub mod tool_result_packaging;
 pub mod workflow_contract_guard;
 pub mod workflow_contracts;
+pub mod workflow_graph_compilation;
 pub mod workflow_graph_dependency;
 pub mod workflow_runtime;
 pub mod workflow_runtime_fixtures;
@@ -304,6 +305,13 @@ pub fn subdomain_trace_contracts() -> Vec<SubdomainTraceContract> {
             receipt_metadata_sources: RECEIPT_METADATA_SOURCES,
         },
         SubdomainTraceContract {
+            trace_id: "workflow_graph_compilation.trace",
+            subdomain_id: "workflow_graph_compilation",
+            stage: WorkflowStage::DecompositionPlanning,
+            required_decision_fields: REQUIRED_DECISION_FIELDS,
+            receipt_metadata_sources: RECEIPT_METADATA_SOURCES,
+        },
+        SubdomainTraceContract {
             trace_id: "queue_coordination.trace",
             subdomain_id: "queue_coordination",
             stage: WorkflowStage::CoordinationSequencing,
@@ -407,6 +415,7 @@ pub fn subdomain_boundaries() -> Vec<SubdomainBoundary> {
         intake_normalization::boundary(),
         command_dispatch::boundary(),
         decomposition_planning::boundary(),
+        workflow_graph_compilation::boundary(),
         workflow_graph_dependency::boundary(),
         queue_coordination::boundary(),
         recovery_escalation::boundary(),
