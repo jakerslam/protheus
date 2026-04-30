@@ -121,7 +121,7 @@ Progress:
 
 ### SHP-AUTH-004 - Terminal execution path performs coordination and recovery hints in shell
 
-Status: queued
+Status: in_progress
 Priority: P0
 Current files:
 - `client/runtime/systems/ui/infring_static/js/pages/chat_terminal_session_helpers.ts`
@@ -144,6 +144,13 @@ Acceptance:
 - Shell no longer retries terminal sessions or interprets permission gates.
 - Terminal errors do not generate system-authored chat text.
 - Regression covers user command, agent command, blocked command, and low-signal recovery telemetry.
+
+Progress:
+- 2026-04-30: Added Rust control-plane terminal coordination primitives in `surface/orchestration/src/control_plane/terminal_coordination.rs`.
+- `coordinate_terminal_intent` now owns non-authoritative recommendations for user commands, agent commands, session start/retry intent, and transport-route requests.
+- `package_terminal_receipt` normalizes success/error/blocked/low-signal terminal receipt packaging without shell permission-gate interpretation.
+- Core/runtime remains the intended authority for command admission, terminal session truth, permission gates, and execution receipts; shell should transition to terminal-intent submission and receipt projection.
+- Regression tests cover user command routing, missing agent target clarification, active-send hold, blocked receipt packaging, and low-signal recovery telemetry.
 
 ### SHP-AUTH-005 - Tool completion and result truth are inferred in shell
 

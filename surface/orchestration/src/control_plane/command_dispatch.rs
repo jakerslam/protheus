@@ -133,8 +133,9 @@ pub fn dispatch_shell_command(input: &str) -> ShellCommandDispatch {
             args,
             ShellCommandFamily::Unknown,
             ShellCommandAction::Clarify {
-                prompt: "unknown slash command; choose a registered command or submit as normal text"
-                    .to_string(),
+                prompt:
+                    "unknown slash command; choose a registered command or submit as normal text"
+                        .to_string(),
             },
         ),
     }
@@ -234,6 +235,9 @@ mod tests {
         let dispatch = dispatch_shell_command("/definitely-not-a-command");
 
         assert_eq!(dispatch.family, ShellCommandFamily::Unknown);
-        assert!(matches!(dispatch.action, ShellCommandAction::Clarify { .. }));
+        assert!(matches!(
+            dispatch.action,
+            ShellCommandAction::Clarify { .. }
+        ));
     }
 }
