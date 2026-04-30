@@ -12,6 +12,7 @@ pub mod recovery_escalation;
 pub mod result_shaping_packaging;
 pub mod security_network_migration;
 pub mod status_phase_projection;
+pub mod status_phase_projection_types;
 pub mod templates;
 pub mod terminal_coordination;
 pub mod tool_result_packaging;
