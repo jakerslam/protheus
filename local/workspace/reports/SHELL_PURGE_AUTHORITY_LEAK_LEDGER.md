@@ -324,7 +324,7 @@ Progress:
 
 ### SHP-AUTH-010 - Settings security/network/migration page holds authority-shaped logic
 
-Status: queued
+Status: in_progress
 Priority: P1
 Current files:
 - `client/runtime/systems/ui/infring_static/js/pages/settings_security_network_helpers.ts`
@@ -347,6 +347,13 @@ Acceptance:
 - Shell no longer infers protection active/default state when data is missing.
 - Migration runs return receipts and progress events.
 - Regression covers missing security data, audit verification, peer polling, migration scan, and dry run.
+
+Progress:
+- 2026-04-30: Added Rust control-plane security/network/migration primitives in `surface/orchestration/src/control_plane/security_network_migration.rs`.
+- `project_security_posture` now projects missing backend security data as `Unknown` instead of shell-defaulting protections to active.
+- `project_audit_verification`, `coordinate_peer_polling`, and `coordinate_migration` now own non-authoritative projections/recommendations for audit receipts, peer snapshot cadence, migration scans, and dry-run/run jobs.
+- Core/runtime remains the intended authority for security posture, audit chain verification, peer truth, migration admission, and migration receipts; shell should transition to receipt/progress display only.
+- Regression tests cover missing security data, audit verification, peer polling, migration scan source validation, and dry-run job requests.
 
 ### SHP-AUTH-011 - Hands activation/install/dependency coordination is shell-owned
 
