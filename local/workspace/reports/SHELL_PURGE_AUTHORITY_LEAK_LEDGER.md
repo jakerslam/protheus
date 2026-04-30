@@ -187,6 +187,7 @@ Progress:
 - `pushSystemMessage` now records diagnostics to `systemTelemetry` only and no longer supports visible chat injection.
 - First direct visible system-message sites were converted to notice/telemetry projection in chat recovery, slash, prompt queue, context warning, session load, fresh-init, lifecycle, and voice-transcription helpers.
 - Added Rust orchestration packaging primitives in `surface/orchestration/src/control_plane/result_shaping_packaging.rs`: runtime diagnostics package as telemetry-only by default, and only final LLM output packages as chat-visible.
+- Added a Shell projection guard semantic check: direct shell mutations that create visible `role: system` chat text now fail `ops:shell:projection:guard`; controlled violation mode proves the tripwire catches regressions.
 
 ### SHP-AUTH-007 - Workflow builder compiles and persists executable workflow semantics in shell
 
