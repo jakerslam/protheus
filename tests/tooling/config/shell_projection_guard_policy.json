@@ -187,15 +187,6 @@
         "replacement_plan": "Move expanded tool cards to get_tool_result/tool detail references."
       }
     ],
-    "shell_phase_status_fallback_text": [
-      {
-        "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/110-failover-and-health.part01.ts",
-        "max": 3,
-        "expires": "2026-05-12",
-        "reason": "Legacy websocket pending-row path still authors a generic workflow status while status_phase_projection rollout is landing.",
-        "replacement_plan": "Consume backend/orchestration status_phase_projection display_label and remove shell-authored fallback text."
-      }
-    ],
     "shell_phase_detail_label_inference": [
       {
         "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/140-session-and-ws.part01.ts",
