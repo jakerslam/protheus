@@ -59,23 +59,23 @@ Cognition Plane (Orchestration Control Plane + Presentation Shell)
 - Growth layer for process model, VFS/filesystems, driver contracts, syscall surfaces, memory management, namespaces, networking stack, userland isolation, and windowing.
 - Must consume lower-layer contracts; never bypass them.
 
-### Cognition Plane (`surface/orchestration/` + `client/` shell path)
-- Orchestration Control Plane (`surface/orchestration/`) owns decomposition, coordination, sequencing, recovery, and result shaping/packaging (among other things in non-canonical coordination).
+### Cognition Plane (`orchestration/` + `client/` shell path)
+- Orchestration Control Plane (`orchestration/`) owns decomposition, coordination, sequencing, recovery, and result shaping/packaging (among other things in non-canonical coordination).
 - Presentation Shell (compat alias: Client, repo path `client/`) owns rendering, input, shell UX, and presentation-local state.
 - Cognition can propose/assist; cannot become root-of-correctness.
 - Kernel boundary crossing remains contract-driven through conduit + scrambler.
 - Nexus-Conduit-Checkpoint boundary policy is canonical at `docs/workspace/nexus_conduit_checkpoint_policy.md`.
 - Layered Nexus Federation is resolved by `docs/workspace/layered_nexus_federation_resolution_policy.md`; the old exact Core/Orchestration/Shell federation runtime shape is retired, and current closure flows through Layer 2 Nexus primitives plus explicit checkpoint, Conduit, lease, lifecycle, posture, and receipt guards.
-- Cross-Domain Nexus Route Inventory is canonical at `docs/workspace/cross_domain_nexus_route_inventory.md`; declared Core, Orchestration Surface, Shell, Gateway, app, package, external-agent/plugin, and operator routes must name source checkpoint, target checkpoint, Conduit path, posture, lease/capability, lifecycle, receipt, and owner-of-truth fields.
+- Cross-Domain Nexus Route Inventory is canonical at `docs/workspace/cross_domain_nexus_route_inventory.md`; declared Core, Orchestration, Shell, Gateway, app, package, external-agent/plugin, and operator routes must name source checkpoint, target checkpoint, Conduit path, posture, lease/capability, lifecycle, receipt, and owner-of-truth fields.
 - Conduit/Scrambler Posture policy is canonical at `docs/workspace/conduit_scrambler_posture_policy.md`; standard Conduit is the baseline, strong Scrambler is required for sensitive authority-bearing routes, and quantum-resistant Scrambler is reserved for a future v1/v2 security milestone.
 - Gateway Ingress/Egress Interface policy is canonical at `docs/workspace/gateway_ingress_egress_policy.md`; request ingress, event/output egress, health/status, detail fetch, and bounded search/query routes stay separated.
 - Interface Payload Budget policy is canonical at `docs/workspace/interface_payload_budget_policy.md`; default Shell-facing endpoint responses must declare byte, array, depth, string, cursor, detail-ref, audit, and Nexus ceilings.
-- Shell-Independent Operation policy is canonical at `docs/workspace/shell_independent_operation_policy.md`; Core, Orchestration Surface, CLI, and Gateway status must build and operate without browser Shell assets.
+- Shell-Independent Operation policy is canonical at `docs/workspace/shell_independent_operation_policy.md`; Core, Orchestration, CLI, and Gateway status must build and operate without browser Shell assets.
 - Shell UI Projection policy is canonical at `docs/workspace/shell_ui_projection_policy.md`; default Shell payloads are bounded display projections, not full runtime mirrors.
 - Shell UI Message Detail contract is canonical at `docs/workspace/shell_ui_message_detail_contract.md`; heavy details are fetched lazily by ID, not hydrated in default Shell rows.
 
 Transition note:
-- This document now uses Control Plane terminology for `surface/orchestration/`.
+- This document now uses Control Plane terminology for `orchestration/`.
 - Internal naming migration is incremental; existing `orchestration` identifiers remain compatibility aliases until transition completion.
 
 ## 5. Interface Contracts (Generation Targets)

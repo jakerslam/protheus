@@ -120,7 +120,7 @@
       "approved_at": "2026-02-14",
       "note": "Agent slots inventory (control plane) - tiered model routing + token caps"
     },
-    "${WORKSPACE_ROOT}/surface/orchestration/config/agent_routing_rules.json": {
+    "${WORKSPACE_ROOT}/orchestration/config/agent_routing_rules.json": {
       "sha256": "74c5b05c7db6d7967d184d0c524d981bc2cb5525e42cc9d7240d2bd372cc7c9e",
       "approved_by": "local-operator",
       "approved_at": "2026-02-14",

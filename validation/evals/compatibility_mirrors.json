@@ -1,31 +1,11 @@
 {
   "type": "validation_eval_compatibility_mirrors",
   "schema_version": 1,
-  "status": "migration_compatibility",
+  "status": "retired",
   "canonical_owner": "assurance.validation.evals",
   "canonical_root": "validation/evals",
-  "mirrors": [
-    {
-      "legacy_path": "tests/tooling/config/eval_quality_thresholds.json",
-      "canonical_path": "validation/evals/config/eval_quality_thresholds.json",
-      "reason": "temporary compatibility for existing tooling invocations during Validation domain migration"
-    },
-    {
-      "legacy_path": "surface/orchestration/config/eval_issue_candidate_dedupe_policy.json",
-      "canonical_path": "validation/evals/policies/eval_issue_candidate_dedupe_policy.json",
-      "reason": "temporary compatibility for existing orchestration eval issue-candidate tooling during Validation domain migration"
-    },
-    {
-      "legacy_path": "surface/orchestration/fixtures/eval/eval_gold_dataset_v1.jsonl",
-      "canonical_path": "validation/evals/fixtures/eval_gold_dataset_v1.jsonl",
-      "reason": "temporary compatibility for existing eval fixture callers during Validation domain migration"
-    },
-    {
-      "legacy_path": "surface/orchestration/fixtures/eval/eval_learning_loop_review_labels.jsonl",
-      "canonical_path": "validation/evals/fixtures/eval_learning_loop_review_labels.jsonl",
-      "reason": "temporary compatibility for existing eval learning-loop review callers during Validation domain migration"
-    }
-  ],
-  "burn_down_required": true,
-  "burn_down_todo": "ASSURANCE-MIGRATE-010"
+  "mirrors": [],
+  "burn_down_required": false,
+  "retired_at": "2026-04-30",
+  "retired_reason": "All Validation eval compatibility mirrors have been burned down; active eval consumers read validation/evals/** directly."
 }

@@ -12,13 +12,13 @@ Canonical format: JSON (`*.workflow.json`)
 Reader implementation: `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/046a-workflow-reader.rs`
 
 Orchestration template reader implementation:
-`surface/orchestration/src/control_plane/templates.rs`
+`orchestration/src/control_plane/templates.rs`
 
 Current workflow spec directory:
 `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/workflows/`
 
 Orchestration workflow template directory:
-`surface/orchestration/src/control_plane/workflows/`
+`orchestration/src/control_plane/workflows/`
 
 Example template:
 `docs/workspace/templates/workflow/workflow_template.workflow.json`
@@ -70,7 +70,7 @@ Allowed roles:
 
 Assimilation workflow templates must declare at least one `subtemplates` row. Each subtemplate must include non-empty `id`, `description`, `required_signals`, `required_gates`, and `source_refs` fields so assimilation can be audited as capability transfer instead of ledger burn-down.
 
-Subtemplate `id` values must be unique within the workflow, no longer than 120 characters, and limited to lowercase ASCII letters, digits, `_`, and `-`. Subtemplate `required_signals`, `required_gates`, and `source_refs` must not contain duplicate values. `source_refs` must be repo-relative or local-assimilation paths under approved roots such as `local/workspace/assimilations/`, `local/workspace/vendor/`, `surface/orchestration/`, `docs/workspace/`, `tests/tooling/`, `core/`, or `adapters/`; absolute paths, URL refs, and `..` traversal are invalid.
+Subtemplate `id` values must be unique within the workflow, no longer than 120 characters, and limited to lowercase ASCII letters, digits, `_`, and `-`. Subtemplate `required_signals`, `required_gates`, and `source_refs` must not contain duplicate values. `source_refs` must be repo-relative or local-assimilation paths under approved roots such as `local/workspace/assimilations/`, `local/workspace/vendor/`, `orchestration/`, `docs/workspace/`, `tests/tooling/`, `core/`, or `adapters/`; absolute paths, URL refs, and `..` traversal are invalid.
 
 Assistant-response workflows must not declare `subtemplates`; if a normal response path needs reusable sequencing, promote it into stages/contracts rather than embedding assimilation doctrine.
 
@@ -163,8 +163,8 @@ Suggested test commands:
 1. `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib workflow_reader_loads_external_specs -- --nocapture`
 2. `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib workflow_reader_enforces_single_default -- --nocapture`
 3. `cargo test --manifest-path core/layer0/ops/Cargo.toml --lib workflow_reader_sources_current_workflows_from_json_specs -- --nocapture`
-4. `cargo test --manifest-path surface/orchestration/Cargo.toml workflow_contract -- --nocapture`
-5. `cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin workflow_contract_guard -- --strict=1`
+4. `cargo test --manifest-path orchestration/Cargo.toml workflow_contract -- --nocapture`
+5. `cargo run --quiet --manifest-path orchestration/Cargo.toml --bin workflow_contract_guard -- --strict=1`
 
 ## Policy Guardrail
 

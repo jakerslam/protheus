@@ -21,7 +21,7 @@ This subdomain owns controlled eval definitions, scoring rubrics, reviewer label
 
 ## Compatibility rule
 
-Runtime commands and tests may keep compatibility wrappers while callers migrate, but canonical eval definitions should live in this subdomain. New eval rubrics, datasets, labels, and scoring policies should not be added under `surface/orchestration/**` or `tests/tooling/config/**` unless explicitly marked as harness-only compatibility debt.
+Runtime commands and tests may keep compatibility wrappers while callers migrate, but canonical eval definitions should live in this subdomain. New eval rubrics, datasets, labels, and scoring policies should not be added under `orchestration/**` or `tests/tooling/config/**` unless explicitly marked as harness-only compatibility debt.
 
 Current compatibility mirrors are tracked in `compatibility_mirrors.json` and should be burned down by the physical-domain placement guard work.
 

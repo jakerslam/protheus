@@ -30,7 +30,7 @@
   ],
   "required_rust_files": [
     {
-      "path": "surface/orchestration/src/control_plane/lifecycle.rs",
+      "path": "orchestration/src/control_plane/lifecycle.rs",
       "required_phrases": [
         "pub fn select_workflow_template(",
         "pub fn build_lifecycle_state(",
@@ -42,7 +42,7 @@
       ]
     },
     {
-      "path": "surface/orchestration/src/sequencing.rs",
+      "path": "orchestration/src/sequencing.rs",
       "required_phrases": [
         "pub fn apply_retry_reroute_feedback(",
         "feedback_reroute:",
@@ -52,7 +52,7 @@
       ]
     },
     {
-      "path": "surface/orchestration/src/contracts.rs",
+      "path": "orchestration/src/contracts.rs",
       "required_phrases": [
         "pub enum WorkflowTemplate",
         "pub enum WorkflowStage",
@@ -64,7 +64,7 @@
       ]
     },
     {
-      "path": "surface/orchestration/src/control_plane/templates.rs",
+      "path": "orchestration/src/control_plane/templates.rs",
       "required_phrases": [
         "pub struct WorkflowSubtemplate",
         "pub struct WorkflowTemplateDefinition",

@@ -75,9 +75,9 @@
     {
       "id": "V6-ARCH-003",
       "proofRefs": [
-        "surface/orchestration/src/contracts.rs",
-        "surface/orchestration/src/ingress.rs",
-        "surface/orchestration/tests/conformance.rs"
+        "orchestration/src/contracts.rs",
+        "orchestration/src/ingress.rs",
+        "orchestration/tests/conformance.rs"
       ]
     },
     {

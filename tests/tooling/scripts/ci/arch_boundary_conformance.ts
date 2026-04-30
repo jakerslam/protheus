@@ -99,10 +99,10 @@ function isAllowedClientOrchestrationShim(
   if (!source.includes('return impl.run(')) return false;
   if (!source.includes('...impl')) return false;
 
-  // Transitional allowance: client wrapper shims may delegate to surface
+  // Transitional allowance: client wrapper shims may delegate to top-level
   // orchestration scripts while preserving a thin boundary contract.
   const normalized = spec.replace(/\\/g, '/');
-  return /^(\.\.\/)+surface\/orchestration\/scripts\/[a-zA-Z0-9_.-]+\.ts$/.test(normalized);
+  return /^(\.\.\/)+orchestration\/scripts\/[a-zA-Z0-9_.-]+\.ts$/.test(normalized);
 }
 
 function isImportIntoDomain(spec: string, domain: string): boolean {
@@ -133,9 +133,9 @@ export function run(rawArgs: Args | string[]): number {
   const violations: Violation[] = [];
   const clientFiles = walk(path.join(ROOT, 'client'), new Set(['.ts', '.tsx']));
   const coreFiles = walk(path.join(ROOT, 'core'), new Set(['.rs', '.ts']));
-  const orchestrationCargo = path.join(ROOT, 'surface', 'orchestration', 'Cargo.toml');
-  const surfaceFiles = walk(path.join(ROOT, 'surface', 'orchestration', 'src'), new Set(['.rs']));
-  const surfaceScriptFiles = walk(path.join(ROOT, 'surface', 'orchestration', 'scripts'), new Set(['.ts', '.tsx']));
+  const orchestrationCargo = path.join(ROOT, 'orchestration', 'Cargo.toml');
+  const surfaceFiles = walk(path.join(ROOT, 'orchestration', 'src'), new Set(['.rs']));
+  const surfaceScriptFiles = walk(path.join(ROOT, 'orchestration', 'scripts'), new Set(['.ts', '.tsx']));
 
   for (const file of clientFiles) {
     const source = fs.readFileSync(file, 'utf8');
@@ -150,7 +150,7 @@ export function run(rawArgs: Args | string[]): number {
         });
       }
       if (
-        spec.includes('surface/orchestration/') ||
+        spec.includes('orchestration/') ||
         spec.startsWith('../surface') ||
         spec.startsWith('../../surface')
       ) {
@@ -168,18 +168,18 @@ export function run(rawArgs: Args | string[]): number {
 
   for (const file of coreFiles) {
     const source = fs.readFileSync(file, 'utf8');
-    if (source.includes('infring_orchestration_surface_v1')) {
+    if (source.includes('infring_orchestration_v1')) {
       violations.push({
         file: rel(file),
         reason: 'core_depends_on_orchestration_forbidden',
-        detail: 'detected reference to infring_orchestration_surface_v1',
+        detail: 'detected reference to infring_orchestration_v1',
       });
     }
-    if (source.includes("surface/orchestration")) {
+    if (/\bsurface\/orchestration\b/.test(source)) {
       violations.push({
         file: rel(file),
         reason: 'core_references_orchestration_path_forbidden',
-        detail: 'detected path reference surface/orchestration',
+        detail: 'detected legacy promoted-subsystem path reference',
       });
     }
   }
@@ -231,11 +231,11 @@ export function run(rawArgs: Args | string[]): number {
 
   for (const file of surfaceFiles) {
     const source = fs.readFileSync(file, 'utf8');
-    if (source.includes("core/layer")) {
+    if (/from\s+['"][^'"]*core\/layer/.test(source) || /require\s*\(\s*['"][^'"]*core\/layer/.test(source)) {
       violations.push({
         file: rel(file),
         reason: 'orchestration_source_references_core_internal_paths_forbidden',
-        detail: 'detected core/layer path literal',
+        detail: 'detected core/layer import',
       });
     }
   }

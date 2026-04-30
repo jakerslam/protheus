@@ -1,8 +1,8 @@
 {
   "include_prefixes": [
-    "surface/orchestration/src",
-    "surface/orchestration/tests",
-    "surface/orchestration/scripts"
+    "orchestration/src",
+    "orchestration/tests",
+    "orchestration/scripts"
   ],
   "allowed_uppercase_filenames": [
     "README.md",

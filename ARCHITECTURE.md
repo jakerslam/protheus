@@ -2,7 +2,7 @@
 
 InfRing is built as a Rust-first deterministic Kernel runtime with an explicit split between:
 - Authoritative Kernel (`core/**`)
-- Orchestration Control Plane (`surface/orchestration/**`)
+- Orchestration Control Plane (`orchestration/**`)
 - Presentation Shell (repo path `client/**`)
 
 Canonical architecture contract:
@@ -26,7 +26,7 @@ InfRing is the target operating model: a portable autonomous substrate that runs
 - Rust kernel remains the single source of truth.
 - Conduit is the only TS <-> Rust bridge.
 - TS is reserved for flexible surfaces (UI, marketplace, extensions, experimentation).
-- Orchestration Control Plane authority is Rust-first (`surface/orchestration/src/**`); `surface/orchestration/**` must remain at least `95%` Rust by tracked source lines, and TypeScript under `surface/orchestration/scripts/**` is adapter-only and must stay minimal.
+- Orchestration Control Plane authority is Rust-first (`orchestration/src/**`); `orchestration/**` must remain at least `95%` Rust by tracked source lines, and TypeScript under `orchestration/scripts/**` is adapter-only and must stay minimal.
 
 ## Three-Plane Metakernel
 
@@ -38,7 +38,7 @@ InfRing is explicitly modeled as a substrate-independent metakernel with three p
    - `core/layer1/` - Policy Engine + deterministic receipts
    - `core/layer2/` - Scheduling + execution orchestration
    - `core/layer3/` - OS Personality Template (traditional OS growth layer)
-2. Cognition plane (`planes/cognition`, implemented across `surface/orchestration/` and `client/`):
+2. Cognition plane (`planes/cognition`, implemented across `orchestration/` and `client/`):
    - Orchestration Control Plane: decomposition, coordination, sequencing, recovery, and result shaping/packaging (among other things in non-canonical coordination).
    - Presentation Shell: rendering, input, UX shells, and presentation-local state.
 3. Substrate plane (`planes/substrate`): runtime/backend descriptors for CPU/MCU/GPU/NPU/QPU/neural channels with explicit degradation contracts and fallback declarations.
@@ -67,7 +67,7 @@ The deterministic Kernel stack is now explicitly layered and growth-safe:
 Driver analogy:
 
 - `core/` is the drivetrain, brakes, and stability control.
-- `surface/orchestration/` is the driving control plane (decomposition + pacing + recovery + packaging).
+- `orchestration/` is the driving control plane (decomposition + pacing + recovery + packaging).
 - `client/` is the shell surface (steering wheel, dashboard, and infotainment).
 - Conduit is the harness between orchestration and Kernel boundaries.
 
@@ -95,12 +95,12 @@ Migration note:
 | Plane | Contract Location | Implementation Location | Mutable Runtime Location |
 |---|---|---|---|
 | Safety | `planes/safety/` | `core/layer_minus_one/`, `core/layer0/`, `core/layer1/`, `core/layer2/`, `core/layer3/` | `core/local/` |
-| Cognition | `planes/cognition/` | `surface/orchestration/` (coordination) + `client/` (shell runtime path: `systems`, `lib`, `config`, `packages`, `tools`, `tests`, `observability`, `apps`, `developer`) | `client/runtime/local/` + `core/local/` (receipted orchestration artifacts) |
+| Cognition | `planes/cognition/` | `orchestration/` (coordination) + `client/` (shell runtime path: `systems`, `lib`, `config`, `packages`, `tools`, `tests`, `observability`, `apps`, `developer`) | `client/runtime/local/` + `core/local/` (receipted orchestration artifacts) |
 | Substrate | `planes/substrate/` | Template gateways in `core/layer_minus_one/` + capability descriptors under `planes/substrate/` | `core/local/` + `client/runtime/local/` |
 
 Additional split rules:
 
-- Source of truth code: `core/`, `surface/orchestration/`, and the shell path `client/`.
+- Source of truth code: `core/`, `orchestration/`, and the shell path `client/`.
 - Runtime/user/device/instance data: shell runtime path `client/runtime/local/` and `core/local/` only.
 - Legacy compatibility links are disabled by default. Canonical runtime roots are direct:
   - `client/runtime/local/*` for shell runtime data

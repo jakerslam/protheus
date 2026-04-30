@@ -1,7 +1,7 @@
 # Control Plane API Contract
 
 Status: active (2026-04-20)  
-Scope: `surface/orchestration/**` control-plane boundaries
+Scope: `orchestration/**` control-plane boundaries
 
 ## Purpose
 
@@ -134,6 +134,6 @@ Control-plane sequencing must actively attempt reroute/retry when selected plans
 
 ## Enforcement
 
-- Source contract implementation: `surface/orchestration/src/control_plane/**`
-- Conformance tests: `surface/orchestration/tests/control_plane_subdomains.rs`
+- Source contract implementation: `orchestration/src/control_plane/**`
+- Conformance tests: `orchestration/tests/control_plane_subdomains.rs`
 - Ownership policy reference: `docs/workspace/orchestration_ownership_policy.md`

@@ -669,14 +669,14 @@ function buildCandidateSelectionDiagnostics(
     {
       cause_id: 'classifier_zero_executable_candidate_path',
       layer: 'control_plane_classifier',
-      source_file: 'surface/orchestration/src/request_classifier.rs',
+      source_file: 'orchestration/src/request_classifier.rs',
       trigger: (zeroExecutableRate ?? 0) > 0 || relevantFailures.some((row) => row.includes('zero_executable')),
       evidence: relevantFailures.filter((row) => row.includes('zero_executable')),
     },
     {
       cause_id: 'precondition_capability_probe_denial',
       layer: 'control_plane_preconditions',
-      source_file: 'surface/orchestration/src/ingress/preconditions.rs',
+      source_file: 'orchestration/src/ingress/preconditions.rs',
       trigger: relevantFailures.some((row) => row.includes('missing_metric') || row.includes('inconsistent')),
       evidence: relevantFailures.filter(
         (row) => row.includes('missing_metric') || row.includes('inconsistent'),
@@ -685,7 +685,7 @@ function buildCandidateSelectionDiagnostics(
     {
       cause_id: 'planner_candidate_pool_degradation',
       layer: 'control_plane_planner',
-      source_file: 'surface/orchestration/src/plan_candidates.rs',
+      source_file: 'orchestration/src/plan_candidates.rs',
       trigger: relevantFailures.some(
         (row) =>
           row.includes('all_candidates_degraded')
@@ -714,8 +714,8 @@ function buildCandidateSelectionDiagnostics(
     zero_executable_incident_detected: zeroExecutableIncidentDetected,
     matched_failure_count: relevantFailures.length,
     matched_failures: relevantFailures,
-    classifier_sources: ['surface/orchestration/src/request_classifier.rs'],
-    precondition_sources: ['surface/orchestration/src/ingress/preconditions.rs'],
+    classifier_sources: ['orchestration/src/request_classifier.rs'],
+    precondition_sources: ['orchestration/src/ingress/preconditions.rs'],
     candidate_selection_causes: causeRows,
     recovery_actions: [
       'tighten candidate eligibility in classifier before route selection',
@@ -815,7 +815,7 @@ function run(argv: string[]): number {
     'cargo',
     'test',
     '--manifest-path',
-    'surface/orchestration/Cargo.toml',
+    'orchestration/Cargo.toml',
     TEST_NAME,
     '--',
     '--exact',

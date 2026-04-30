@@ -22,7 +22,7 @@
   "consumers": [
     {
       "id": "consumer.orchestration",
-      "domain": "surface/orchestration",
+      "domain": "orchestration",
       "allowed_actions": [
         "request_validation_run",
         "consume_verdict_summary",

@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 // TypeScript compatibility shim only.
-// Layer ownership: surface/orchestration (planning coordination); this file is a thin CLI bridge.
+// Layer ownership: orchestration (planning coordination); this file is a thin CLI bridge.
 
-const impl = require('../../../../surface/orchestration/scripts/value_of_information_collection_planner.ts');
+const impl = require('../../../../orchestration/scripts/value_of_information_collection_planner.ts');
 const FORBIDDEN_RUNTIME_CONTEXT_MARKERS = [
   'You are an expert Python programmer.',
   '[PATCH v2',

@@ -30,7 +30,7 @@ The physical migration status is tracked in `docs/workspace/assurance_physical_d
 | Package test scripts | `package.json` scripts beginning with `test:*` | validation | Controlled TypeScript/Vitest/client-memory suites. |
 | Package guard/gate scripts | `package.json` scripts containing `guard`, `gate`, `conformance`, `proof`, or `regression` | validation | Conformance and regression checks; later waves should register lifecycle and signal class. |
 | Rust unit and integration tests | `core/**/tests`, crate-local Rust `#[test]` modules | validation | Controlled Kernel/Core proof. Harness remains Rust test runner; evidence should map into Validation envelopes when promoted. |
-| Orchestration eval binaries | `surface/orchestration` eval binaries invoked by `ops:eval:*` scripts | validation | Eval definitions and scoring belong to Validation even when implementation currently lives near Orchestration. Orchestration may consume results, not own eval truth. |
+| Orchestration eval binaries | `orchestration` eval binaries invoked by `ops:eval:*` scripts | validation | Eval definitions and scoring belong to Validation even when implementation currently lives near Orchestration. Orchestration may consume results, not own eval truth. |
 | Eval policy/config files | `tests/tooling/config/eval_*.json`, `tests/tooling/fixtures/eval_*`, `tests/tooling/schemas/eval_*` | validation | Gold datasets, adversarial matrices, quality thresholds, issue taxonomies, and schema definitions. |
 | Release proof-pack assembly | `ops:release:proof-pack`, `tests/tooling/scripts/ci/release_proof_pack_assemble.ts` | validation | Controlled artifact assembly. Governance consumes the result for release posture. |
 | Runtime proof gates | `ops:runtime-proof:*`, `ops:v8:runtime-proof:gate`, `TODO_RUNTIME_PROOF_BACKLOG.md` | validation | Controlled proof families that should emit Assurance evidence envelopes. |
@@ -63,7 +63,7 @@ The physical migration status is tracked in `docs/workspace/assurance_physical_d
 | Family | Classification | Evidence source |
 |---|---|---|
 | Tests and regression suites | `validation` | `package.json`, `tests/client-memory-tools/**`, Rust crate tests. |
-| Evals and judge lanes | `validation` for definitions and scoring; `observability` for live feedback rows | `ops:eval:*`, `surface/orchestration` eval binaries, `local/state/ops/eval_*`. |
+| Evals and judge lanes | `validation` for definitions and scoring; `observability` for live feedback rows | `ops:eval:*`, `orchestration` eval binaries, `local/state/ops/eval_*`. |
 | Benchmarks | `validation` for benchmark definitions; `governance` when consumed as budgets/trends | `benchmarks/**`, `ops:benchmark:*`. |
 | Conformance guards | `validation` | `ops:*:guard`, `ops:*:gate`, tooling registry entries. |
 | Release gates | `governance` for verdicts; `validation` for controlled proof that feeds them | `ops:release:*`, `ops:production-closure:*`, release proof pack artifacts. |
@@ -79,7 +79,7 @@ These flags are not defects by themselves. They are migration targets for the ne
 
 | Flag | Current shape | Risk | Follow-up |
 |---|---|---|---|
-| Eval runtime lives near Orchestration | Several `ops:eval:*` scripts run `surface/orchestration` binaries. | Orchestration can look like planner plus judge if definitions, scoring, feedback routing, and consumption stay co-located. | Move eval definition/score ownership into Validation while preserving Orchestration as a consumer/trigger. |
+| Eval runtime lives near Orchestration | Several `ops:eval:*` scripts run `orchestration` binaries. | Orchestration can look like planner plus judge if definitions, scoring, feedback routing, and consumption stay co-located. | Move eval definition/score ownership into Validation while preserving Orchestration as a consumer/trigger. |
 | Release scorecard script is tooling-local | `ops:release:scorecard:gate` writes a scorecard from a TS CI script. | Scorecards can become manually curated summaries unless every row points back to evidence artifacts. | Add scorecard derivation guard in `ASSURANCE-027`. |
 | Sentinel currently spans observation and governance outputs | Sentinel emits findings, issue candidates, readiness, verdict, trends, and top holes. | Sentinel can be mistaken for all Validation rather than privileged Observability plus governance feed. | Keep Sentinel as Observability resident; route verdict/scorecard authority through Governance contracts. |
 | Shell guards are numerous and shell-adjacent | Many `ops:shell:*` guards validate projection behavior from tooling. | Shell could appear to own health/readiness if display contracts are not separated from Assurance truth. | Add Shell truth-leak guard for Assurance state in `ASSURANCE-028`. |

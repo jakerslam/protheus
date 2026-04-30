@@ -8,7 +8,7 @@ This policy fixes a quantitative discipline so the noise-amplifier failure mode 
 
 ## Canonical Machine-Readable Form
 
-`surface/orchestration/config/self_maintenance_noise_discipline_policy.json` is the source of truth. This document mirrors it.
+`orchestration/config/self_maintenance_noise_discipline_policy.json` is the source of truth. This document mirrors it.
 
 ## Discipline (Quantitative)
 
@@ -40,9 +40,9 @@ is not admissible.
 
 ## CI Guard Contract
 
-`surface/orchestration/src/tool_routing_authority.rs::self_maintenance_noise_discipline_declared` (added alongside this policy) reads:
+`orchestration/src/tool_routing_authority.rs::self_maintenance_noise_discipline_declared` (added alongside this policy) reads:
 
-- the source of `surface/orchestration/src/self_maintenance/executor.rs` and asserts the `ObserveOnly` discriminant + the 30-minute window constant remain present,
+- the source of `orchestration/src/self_maintenance/executor.rs` and asserts the `ObserveOnly` discriminant + the 30-minute window constant remain present,
 - the source of this policy file and the JSON config file and asserts both exist with the discipline tokens declared.
 
 The guard appends a row to the existing `tool_routing_authority_guard_current.json` artifact under the standard checks vec. Any drift (window shortened below floor, dedupe removed, mode lowered to `Active`) fails the guard.

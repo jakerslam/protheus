@@ -39,7 +39,7 @@
         "tsx",
         "sh"
       ],
-      "notes": "Orchestration Surface is non-canonical coordination. Durable truth remains in core contracts."
+      "notes": "Orchestration is non-canonical coordination. Durable truth remains in core contracts."
     },
     "client": {
       "target_extensions": [

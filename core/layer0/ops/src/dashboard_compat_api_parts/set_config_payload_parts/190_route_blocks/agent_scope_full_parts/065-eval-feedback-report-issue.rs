@@ -17,7 +17,7 @@ fn write_eval_report_transport_request(root: &Path, agent_id: &str, request: &Va
 
 fn trigger_orchestration_eval_chat_report(root: &Path, agent_id: &str, request: &Value) -> Value {
     let request_path = write_eval_report_transport_request(root, agent_id, request);
-    let manifest_path = root.join("surface/orchestration/Cargo.toml");
+    let manifest_path = root.join("orchestration/Cargo.toml");
     let output = std::process::Command::new("cargo")
         .arg("run")
         .arg("--quiet")

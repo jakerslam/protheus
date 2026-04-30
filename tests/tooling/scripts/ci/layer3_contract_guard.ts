@@ -214,7 +214,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const forbiddenDependencyPrefixes =
     Array.isArray(policy.forbidden_dependency_prefixes) && policy.forbidden_dependency_prefixes.length > 0
       ? policy.forbidden_dependency_prefixes.map((value) => cleanText(String(value || ''), 200)).filter(Boolean)
-      : ['adapters/', 'surface/orchestration/', 'client/'];
+      : ['adapters/', 'orchestration/', 'client/'];
   const failures: Array<{ id: string; detail: string }> = [];
 
   if (!isCanonicalRelativePath(args.policyPath)) {

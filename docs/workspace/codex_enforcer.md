@@ -49,10 +49,10 @@ Required execution behavior:
 - Terminology transition rule:
   - Canonical presentation term is `Shell`.
   - Repository path remains `client/**` until an explicit migration program is approved.
-- Orchestration Surface (Control Plane) is Rust-first by policy:
-  - New control-plane authority and coordination logic must land in `surface/orchestration/src/**` (`.rs`).
-  - `surface/orchestration/**` must remain at least `95%` Rust by tracked source lines.
-  - TypeScript in `surface/orchestration/scripts/**` is adapter-only and must remain minimal delegation code.
+- Orchestration (Control Plane) is Rust-first by policy:
+  - New control-plane authority and coordination logic must land in `orchestration/src/**` (`.rs`).
+  - `orchestration/**` must remain at least `95%` Rust by tracked source lines.
+  - TypeScript in `orchestration/scripts/**` is adapter-only and must remain minimal delegation code.
   - If control-plane logic requires TypeScript beyond adapter scope, stop with:
     - `BLOCKED — control-plane authority must be Rust; TS allowed only for minimal gateways`
 - Any net-new functionality must be paired with a canonical SRS row update in `docs/workspace/SRS.md` before it can be considered complete (`done`), including acceptance criteria and regression-proof references.
@@ -161,6 +161,7 @@ Completion requires all of the following:
 - Canonical Shell UI Message Detail contract: `docs/workspace/shell_ui_message_detail_contract.md`.
 - Canonical System Understanding Dossier policy: `docs/workspace/system_understanding_dossier_policy.md`.
 - Canonical Assurance Plane policy: `docs/workspace/assurance_plane_policy.md`.
+- Canonical Universal Trace Substrate policy: `docs/workspace/universal_trace_substrate_policy.md`.
 - Cross-boundary path rule:
   - Any module/domain boundary crossing must enter and exit through an explicit Nexus checkpoint surface.
   - Cross-boundary traffic must use Nexus files/surfaces, with each A-to-B edge represented as a Conduit carrying lease/capability, lifecycle, policy, and receipt context.
@@ -171,10 +172,10 @@ Completion requires all of the following:
   - `ops:arch:governance` must run `ops:policy-refinement:governance` before broader architecture boundary checks.
 - Placement decision rule:
   - system authority/runtime path => Kernel authority (`core/**` compatibility path)
-  - control-plane coordination path (non-authoritative) => `surface/orchestration/**`
+  - control-plane coordination path (non-authoritative) => `orchestration/**`
   - shell runtime wrappers/UX path => `client/runtime/systems/**` (thin runtime/shell surface only)
   - system authority/runtime path => Kernel authority (`core/**` compatibility path) (or `client/runtime/systems/**` only as thin runtime/shell surface)
-  - control-plane coordination path (non-canonical decomposition/coordination/sequencing/recovery/packaging) => `surface/orchestration/**`
+  - control-plane coordination path (non-canonical decomposition/coordination/sequencing/recovery/packaging) => `orchestration/**`
   - developer/user operational scripts => shell path `client/`
   - test/CI tooling => `tests/`
   - integration bridges for external software => `adapters/`

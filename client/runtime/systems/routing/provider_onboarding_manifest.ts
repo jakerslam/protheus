@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 'use strict';
 // TypeScript compatibility shim only.
-// Layer ownership: surface/orchestration (routing coordination); this file is a thin CLI bridge.
+// Layer ownership: orchestration (routing coordination); this file is a thin CLI bridge.
 
-const impl = require('../../../../surface/orchestration/scripts/provider_onboarding_manifest.ts');
+const impl = require('../../../../orchestration/scripts/provider_onboarding_manifest.ts');
 const BRIDGE_PATH = 'client/runtime/systems/routing/provider_onboarding_manifest.ts';
-const ORCHESTRATION_SCRIPT = 'surface/orchestration/scripts/provider_onboarding_manifest.ts';
+const ORCHESTRATION_SCRIPT = 'orchestration/scripts/provider_onboarding_manifest.ts';
 const MODULE_KEY = 'provider_onboarding_manifest';
 
 function normalizeArgs(args = []) {

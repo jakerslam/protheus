@@ -96,14 +96,14 @@ function hasCaseInsensitiveSuffix(value: string, suffix: string): boolean {
 
 function run(): number {
   const args = parseArgs(process.argv);
-  const classifierPath = resolve('surface/orchestration/src/ingress/classifier.rs');
-  const preconditionsPath = resolve('surface/orchestration/src/planner/preconditions.rs');
-  const contractsPath = resolve('surface/orchestration/src/contracts.rs');
-  const ingressPath = resolve('surface/orchestration/src/ingress.rs');
-  const parserPath = resolve('surface/orchestration/src/ingress/parser.rs');
-  const probeMatrixPath = resolve('surface/orchestration/tests/conformance/probe_matrix.rs');
+  const classifierPath = resolve('orchestration/src/ingress/classifier.rs');
+  const preconditionsPath = resolve('orchestration/src/planner/preconditions.rs');
+  const contractsPath = resolve('orchestration/src/contracts.rs');
+  const ingressPath = resolve('orchestration/src/ingress.rs');
+  const parserPath = resolve('orchestration/src/ingress/parser.rs');
+  const probeMatrixPath = resolve('orchestration/tests/conformance/probe_matrix.rs');
   const adapterProbePath = resolve(
-    'surface/orchestration/tests/conformance/adapter_contracts_probe_enforcement.rs',
+    'orchestration/tests/conformance/adapter_contracts_probe_enforcement.rs',
   );
 
   const classifierSource = readFileSync(classifierPath, 'utf8');
@@ -200,7 +200,7 @@ function run(): number {
     }
   });
   const sourcePathsUnderOrchestration = sourcePathRel.every((entry) =>
-    entry.startsWith('surface/orchestration/'),
+    entry.startsWith('orchestration/'),
   );
   const sourcePathsRustExtension = sourcePathRel.every((entry) => entry.endsWith('.rs'));
   const sourcePathsNoWhitespace = sourcePathRel.every((entry) => !/\s/.test(entry));

@@ -13,9 +13,9 @@ Current enforcement mode: **Yellow Flag (advisory)**.
 
 The guard applies to:
 
-- `surface/orchestration/src/**`
-- `surface/orchestration/tests/**`
-- `surface/orchestration/scripts/**`
+- `orchestration/src/**`
+- `orchestration/tests/**`
+- `orchestration/scripts/**`
 
 ## Rules
 

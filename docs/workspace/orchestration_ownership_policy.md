@@ -2,12 +2,12 @@
 
 ## Purpose
 
-Define a hard operating split between `core/`, `surface/orchestration/`, and the shell path `client/` so placement decisions are predictable and enforceable.
+Define a hard operating split between `core/`, `orchestration/`, and the shell path `client/` so placement decisions are predictable and enforceable.
 
 ## Transition Status
 
-Documentation now defines `surface/orchestration/` as the Cognition Control Plane.
-Internal naming and placement cleanup is an incremental transition: existing `orchestration` path/module names remain valid compatibility surfaces until the internal migration closes.
+Documentation now defines `orchestration/` as the first-class Orchestration subsystem and its Control Plane.
+Internal naming and placement cleanup is an incremental transition: existing compatibility module names remain valid bridge surfaces until the internal migration closes.
 Readable control-plane flow maps live in `docs/workspace/orchestration_workflow_maps.md`.
 
 ## Boundary Axiom
@@ -66,7 +66,7 @@ Own canonical truth, permission, and enforcement even if orchestration and shell
 
 If orchestration vanished and a typed request hit conduit directly, would this still be required for correctness and safety?
 
-## Control Plane (Orchestration Surface)
+## Control Plane (Orchestration)
 
 ### Mission
 
@@ -100,7 +100,7 @@ Is this deciding control-plane flow (what should run next) rather than deciding 
 
 Render outputs, collect input, and manage presentation-local UX state.
 
-The Shell is a projection lens, not a runtime mirror. Default Shell-facing payloads must be bounded presentation projections with explicit byte, depth, array, string, cursor, detail-ref, audit, and Nexus budgets; details such as traces, raw tool results, workflow internals, and execution observations are fetched lazily by reference through the proper gateway/conduit path. Core, Orchestration Surface, CLI, and Gateway status must build and operate without browser Shell assets.
+The Shell is a projection lens, not a runtime mirror. Default Shell-facing payloads must be bounded presentation projections with explicit byte, depth, array, string, cursor, detail-ref, audit, and Nexus budgets; details such as traces, raw tool results, workflow internals, and execution observations are fetched lazily by reference through the proper gateway/conduit path. Core, Orchestration, CLI, and Gateway status must build and operate without browser Shell assets.
 
 ### Shell Owns
 
@@ -171,7 +171,7 @@ Is this judging, observing, scoring, gating, or explaining behavior rather than 
 
 ## Move Guidance
 
-Move logic into `surface/orchestration/` when it does non-canonical coordination:
+Move logic into `orchestration/` when it does non-canonical coordination:
 
 - Decomposition.
 - Coordination.
@@ -184,13 +184,13 @@ Move logic into `surface/orchestration/` when it does non-canonical coordination
 Control-plane wrapper lock (transition phase):
 
 - `client/cognition/orchestration/{cli_shared,core_bridge,coordinator,coordinator_cli,checkpoint,completion,partial,schema_runtime,scope,scratchpad,taskgroup,taskgroup_cli}.ts` are compatibility bridges only.
-- Those files must delegate to `surface/orchestration/scripts/cognition/**` and must not embed coordination logic.
-- `surface/orchestration/scripts/cognition/**` are shell-compatible shims only and must delegate to `adapters/runtime/orchestration_cognition_impl/**`.
-- Control-plane authority and coordination decisions must be implemented in Rust (`surface/orchestration/src/**`), not TypeScript.
+- Those files must delegate to `orchestration/scripts/cognition/**` and must not embed coordination logic.
+- `orchestration/scripts/cognition/**` are shell-compatible shims only and must delegate to `adapters/runtime/orchestration_cognition_impl/**`.
+- Control-plane authority and coordination decisions must be implemented in Rust (`orchestration/src/**`), not TypeScript.
 - `adapters/runtime/orchestration_cognition_impl/**` must remain Rust-facing transport glue (`orchestration invoke` op bridges), not a second coordination authority.
 - Delegate target should match file identity (`foo.ts` bridge delegates to `surface/.../foo.ts`) to avoid wrapper drift.
-- Shell and surface cognition trees are parity-governed: relative file paths must match, and mirrored schema assets (for example `schemas/*.json`) must stay byte-identical.
-- New decomposition/coordination/sequencing/recovery/packaging logic in shell/client wrappers is prohibited; implement under `surface/orchestration/**` and bridge from shell.
+- Shell and orchestration cognition bridge trees are parity-governed: relative file paths must match, and mirrored schema assets (for example `schemas/*.json`) must stay byte-identical.
+- New decomposition/coordination/sequencing/recovery/packaging logic in shell/client wrappers is prohibited; implement under `orchestration/**` and bridge from shell.
 
 Keep logic in `core/` when it is authoritative kernel logic:
 
@@ -209,7 +209,7 @@ For Assurance definitions, physical placement matters: controlled definitions sh
 For each function/file:
 
 1. Is it authoritative truth or enforcement? -> `core/`
-2. Is it workflow coordination? -> `surface/orchestration/`
+2. Is it workflow coordination? -> `orchestration/`
 3. Is it validation, live observation, scoring, gating, or confidence reporting? -> Assurance Plane
 4. Is it presentation/input UX? -> shell path `client/`
 5. Is it external boundary integration/bridge logic? -> `adapters/` (Gateway layer)

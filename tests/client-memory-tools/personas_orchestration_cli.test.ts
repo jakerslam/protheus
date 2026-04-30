@@ -9,7 +9,7 @@ const { spawnSync } = require('node:child_process');
 const ROOT = path.resolve(__dirname, '..', '..');
 const ENTRYPOINT = path.join(ROOT, 'client/runtime/lib/ts_entrypoint.ts');
 const CLIENT_WRAPPER = path.join(ROOT, 'client/runtime/systems/personas/orchestration.ts');
-const SURFACE_WRAPPER = path.join(ROOT, 'surface/orchestration/scripts/personas_orchestration.ts');
+const SURFACE_WRAPPER = path.join(ROOT, 'orchestration/scripts/personas_orchestration.ts');
 
 function parseJsonOutput(text) {
   const trimmed = String(text || '').trim();

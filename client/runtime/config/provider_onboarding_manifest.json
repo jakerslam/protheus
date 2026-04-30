@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "canonical_path": "surface/orchestration/config/provider_onboarding_manifest.json",
-  "canonical_owner": "surface/orchestration",
+  "canonical_path": "orchestration/config/provider_onboarding_manifest.json",
+  "canonical_owner": "orchestration",
   "compatibility_mirror": true,
   "providers": {
     "openai_gpt5_cloud": {

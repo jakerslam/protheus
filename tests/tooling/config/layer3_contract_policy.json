@@ -69,7 +69,7 @@
   ],
   "forbidden_dependency_prefixes": [
     "adapters/",
-    "surface/orchestration/",
+    "orchestration/",
     "client/"
   ],
   "fail_on_unmapped_source_file": true,

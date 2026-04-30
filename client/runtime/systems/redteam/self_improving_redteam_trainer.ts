@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 // TypeScript compatibility shim only.
-// Layer ownership: surface/orchestration (redteam coordination); this file is a thin CLI bridge.
+// Layer ownership: orchestration (redteam coordination); this file is a thin CLI bridge.
 
-const impl = require('../../../../surface/orchestration/scripts/self_improving_redteam_trainer.ts');
+const impl = require('../../../../orchestration/scripts/self_improving_redteam_trainer.ts');
 
 function run(args = process.argv.slice(2)) {
   return impl.run(args);

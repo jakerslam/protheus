@@ -48,13 +48,13 @@ describe('conduit primitive wrapper contract', () => {
       source.includes('ts_bootstrap.ts') && source.includes('bootstrap(__filename, module)');
     const hasRustLaneBridge = source.includes('createOpsLaneBridge');
     const hasSurfaceOrchestrationShim =
-      source.includes('surface/orchestration/scripts/') && source.includes('thin CLI bridge');
+      source.includes('orchestration/scripts/') && source.includes('thin CLI bridge');
     expect(hasBootstrapEntrypoint || hasRustLaneBridge || hasSurfaceOrchestrationShim).toBe(true);
     expect(source.includes('legacy_retired_lane_bridge')).toBe(false);
   });
 
-  test('surface orchestration scripts remain adapter-only shims', () => {
-    const surfaceScripts = collectFilesUnder('surface/orchestration/scripts', '.ts');
+  test('orchestration scripts remain adapter-only shims', () => {
+    const surfaceScripts = collectFilesUnder('orchestration/scripts', '.ts');
     expect(surfaceScripts.length).toBeGreaterThan(0);
     for (const relativePath of surfaceScripts) {
       const source = fs.readFileSync(path.join(ROOT, relativePath), 'utf8');

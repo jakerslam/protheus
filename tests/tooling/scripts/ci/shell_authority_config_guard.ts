@@ -16,9 +16,9 @@ const MIRROR_CONFIGS = [
   ['client/runtime/config/state_tier_manifest.json', 'core/layer0/ops/config/state_tier_manifest.json', 'core/layer0/ops'],
   ['client/runtime/config/egress_gateway_policy.json', 'core/layer0/ops/config/egress_gateway_policy.json', 'core/layer0/ops'],
   ['client/runtime/config/abac_policy_plane.json', 'core/layer1/security/config/abac_policy_plane.json', 'core/layer1/security'],
-  ['client/runtime/config/agent_routing_rules.json', 'surface/orchestration/config/agent_routing_rules.json', 'surface/orchestration'],
-  ['client/runtime/config/workflow_executor_policy.json', 'surface/orchestration/config/workflow_executor_policy.json', 'surface/orchestration'],
-  ['client/runtime/config/provider_onboarding_manifest.json', 'surface/orchestration/config/provider_onboarding_manifest.json', 'surface/orchestration'],
+  ['client/runtime/config/agent_routing_rules.json', 'orchestration/config/agent_routing_rules.json', 'orchestration'],
+  ['client/runtime/config/workflow_executor_policy.json', 'orchestration/config/workflow_executor_policy.json', 'orchestration'],
+  ['client/runtime/config/provider_onboarding_manifest.json', 'orchestration/config/provider_onboarding_manifest.json', 'orchestration'],
 ];
 
 function readArg(name: string, fallback = ''): string {
