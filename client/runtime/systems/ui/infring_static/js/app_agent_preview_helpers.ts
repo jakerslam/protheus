@@ -169,10 +169,11 @@ function infringAgentStatusLabel(agent) {
   return 'offline';
 }
 
-function infringSetAgentLiveActivity(page, agentId, state) {
+function infringSetAgentLiveActivity(page, agentId, state, options) {
   var target = page && typeof page === 'object' ? page : {};
   var id = String(agentId || '').trim();
   if (!id) return;
+  var opts = options && typeof options === 'object' ? options : {};
   var normalized = String(state || '').trim().toLowerCase();
   if (!normalized || normalized === 'idle' || normalized === 'done' || normalized === 'stop' || normalized === 'stopped') {
     if (target.agentLiveActivity && Object.prototype.hasOwnProperty.call(target.agentLiveActivity, id)) {
@@ -181,7 +182,15 @@ function infringSetAgentLiveActivity(page, agentId, state) {
     }
     return;
   }
-  target.agentLiveActivity = Object.assign({}, target.agentLiveActivity || {}, { [id]: { state: normalized, ts: Date.now() } });
+  var source = String(opts.source || 'shell_optimistic').trim() || 'shell_optimistic';
+  target.agentLiveActivity = Object.assign({}, target.agentLiveActivity || {}, {
+    [id]: {
+      state: normalized,
+      ts: Date.now(),
+      source: source,
+      optimistic: source === 'shell_optimistic' || opts.optimistic === true
+    }
+  });
 }
 
 function infringClearAgentLiveActivity(page, agentId) {
