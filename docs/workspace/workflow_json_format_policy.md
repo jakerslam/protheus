@@ -17,8 +17,14 @@ Orchestration template reader implementation:
 Current workflow spec directory:
 `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/workflows/`
 
-Orchestration workflow template directory:
-`orchestration/src/control_plane/workflows/`
+Orchestration workflow template directories:
+
+1. Official/tested workflows: `orchestration/src/control_plane/workflows/official/`
+2. Experimental lab workflows: `orchestration/src/control_plane/workflows/lab/`
+3. Framework comparison profiles: `orchestration/src/control_plane/workflows/lab/frameworks/`
+
+Workflow registry:
+`orchestration/src/control_plane/workflows/workflow_registry.json`
 
 Example template:
 `docs/workspace/templates/workflow/workflow_template.workflow.json`
@@ -76,6 +82,27 @@ Assimilation workflow templates must declare at least one `subtemplates` row. Ea
 Subtemplate `id` values must be unique within the workflow, no longer than 120 characters, and limited to lowercase ASCII letters, digits, `_`, and `-`. Subtemplate `required_signals`, `required_gates`, and `source_refs` must not contain duplicate values. `source_refs` must be repo-relative or local-assimilation paths under approved roots such as `local/workspace/assimilations/`, `local/workspace/vendor/`, `orchestration/`, `docs/workspace/`, `tests/tooling/`, `core/`, or `adapters/`; absolute paths, URL refs, and `..` traversal are invalid.
 
 Assistant-response workflows must not declare `subtemplates`; if a normal response path needs reusable sequencing, promote it into stages/contracts rather than embedding assimilation doctrine.
+
+## Official vs Lab Workflow Rule
+
+Workflow specs are separated by lifecycle tier so framework experiments cannot leak into the runtime default path.
+
+Official workflows:
+
+1. Live under `orchestration/src/control_plane/workflows/official/`.
+2. May be runtime-selectable.
+3. Must be listed in `workflow_registry.json` with `tier: "official"`, `runtime_selectable: true`, and `promotion_status: "official"`.
+4. Must pass schema validation, no-chat-injection checks, runtime replay, trace stream checks, cancellation behavior, and relevant self-play/eval smoke.
+
+Lab workflows:
+
+1. Live under `orchestration/src/control_plane/workflows/lab/`.
+2. Include framework-specific profiles under `orchestration/src/control_plane/workflows/lab/frameworks/<framework>/`.
+3. Must be listed in `workflow_registry.json` with `tier: "lab"`, `runtime_selectable: false`, and `promotion_status: "lab"`.
+4. May be used for comparison, assimilation study, and scorecards.
+5. Must not become runtime defaults until promoted through `lab -> candidate -> official -> default`.
+
+Promotion requires an explicit registry change, passing contract guard output, and an SRS update explaining why the workflow belongs in the supported runtime set.
 
 ## Sanitization + Length Limits
 
@@ -179,11 +206,13 @@ Visibility rule:
 ## Registration Rule (Required)
 
 A valid JSON file is not loaded automatically just by existing in the folder.
-It must be wired in `046a-workflow-reader.rs`:
+Assistant response workflows used by the dashboard route must be wired in `046a-workflow-reader.rs`:
 
 1. Add an `include_str!(...)` constant for the file.
 2. Add `(source_path, constant)` entry to `WORKFLOW_SPEC_SOURCES`.
 3. Ensure the workflow appears in the library catalog tests if applicable.
+
+Orchestration Control Plane workflows must be wired in `orchestration/src/control_plane/workflow_contracts.rs` and `orchestration/src/control_plane/templates.rs`, then listed in `orchestration/src/control_plane/workflows/workflow_registry.json`.
 
 ## Authoring Checklist
 

@@ -1,0 +1,150 @@
+{
+  "schema_version": "workflow_registry_v1",
+  "default_workflow_id": "clarify_then_coordinate",
+  "promotion_lifecycle": [
+    "lab",
+    "candidate",
+    "official",
+    "default",
+    "deprecated"
+  ],
+  "workflows": [
+    {
+      "workflow_id": "clarify_then_coordinate",
+      "tier": "official",
+      "source_framework": "infring",
+      "source_path": "orchestration/src/control_plane/workflows/official/clarify_then_coordinate.workflow.json",
+      "runtime_selectable": true,
+      "promotion_status": "official",
+      "test_scenarios": [
+        "direct_conversation",
+        "user_aborted"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "no_chat_injection",
+        "runtime_replay_passes",
+        "trace_streams_present"
+      ]
+    },
+    {
+      "workflow_id": "research_synthesize_verify",
+      "tier": "official",
+      "source_framework": "infring",
+      "source_path": "orchestration/src/control_plane/workflows/official/research_synthesize_verify.workflow.json",
+      "runtime_selectable": true,
+      "promotion_status": "official",
+      "test_scenarios": [
+        "web_search"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "no_chat_injection",
+        "runtime_replay_passes",
+        "trace_streams_present"
+      ]
+    },
+    {
+      "workflow_id": "plan_execute_review",
+      "tier": "official",
+      "source_framework": "infring",
+      "source_path": "orchestration/src/control_plane/workflows/official/plan_execute_review.workflow.json",
+      "runtime_selectable": true,
+      "promotion_status": "official",
+      "test_scenarios": [
+        "workspace_search"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "no_chat_injection",
+        "runtime_replay_passes",
+        "trace_streams_present"
+      ]
+    },
+    {
+      "workflow_id": "diagnose_retry_escalate",
+      "tier": "official",
+      "source_framework": "infring",
+      "source_path": "orchestration/src/control_plane/workflows/official/diagnose_retry_escalate.workflow.json",
+      "runtime_selectable": true,
+      "promotion_status": "official",
+      "test_scenarios": [
+        "failed_tool_retry"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "no_chat_injection",
+        "runtime_replay_passes",
+        "trace_streams_present"
+      ]
+    },
+    {
+      "workflow_id": "codex_tooling_synthesis",
+      "tier": "lab",
+      "source_framework": "codex",
+      "source_path": "orchestration/src/control_plane/workflows/lab/frameworks/codex/codex_tooling_synthesis.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "framework_comparison"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "framework_assumption_reviewed",
+        "parity_scorecard_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "forgecode_agent_composition",
+      "tier": "lab",
+      "source_framework": "forgecode",
+      "source_path": "orchestration/src/control_plane/workflows/lab/frameworks/forgecode/forgecode_agent_composition.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "framework_comparison"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "framework_assumption_reviewed",
+        "parity_scorecard_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "forgecode_raw_capability_assimilation",
+      "tier": "lab",
+      "source_framework": "forgecode",
+      "source_path": "orchestration/src/control_plane/workflows/lab/frameworks/forgecode/forgecode_raw_capability_assimilation.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "framework_comparison"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "framework_assumption_reviewed",
+        "parity_scorecard_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "openhands_control_plane_assimilation",
+      "tier": "lab",
+      "source_framework": "openhands",
+      "source_path": "orchestration/src/control_plane/workflows/lab/frameworks/openhands/openhands_control_plane_assimilation.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "framework_comparison"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "framework_assumption_reviewed",
+        "parity_scorecard_passes",
+        "operator_promotion_approval"
+      ]
+    }
+  ]
+}

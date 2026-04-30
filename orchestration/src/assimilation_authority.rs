@@ -13,9 +13,9 @@ const TEMPLATE_REGISTRY_PATH: &str = "orchestration/src/control_plane/templates.
 const LIFECYCLE_PATH: &str = "orchestration/src/control_plane/lifecycle.rs";
 
 const WORKFLOW_PATHS: &[&str] = &[
-    "orchestration/src/control_plane/workflows/codex_tooling_synthesis.workflow.json",
-    "orchestration/src/control_plane/workflows/forgecode_agent_composition.workflow.json",
-    "orchestration/src/control_plane/workflows/forgecode_raw_capability_assimilation.workflow.json",
+    "orchestration/src/control_plane/workflows/lab/frameworks/codex/codex_tooling_synthesis.workflow.json",
+    "orchestration/src/control_plane/workflows/lab/frameworks/forgecode/forgecode_agent_composition.workflow.json",
+    "orchestration/src/control_plane/workflows/lab/frameworks/forgecode/forgecode_raw_capability_assimilation.workflow.json",
 ];
 
 #[derive(Debug, Clone, Serialize)]
@@ -180,6 +180,7 @@ fn build_checks(
             &[
                 "Raw system capability/mechanics belong in Rust authority paths",
                 "Workflow structure belongs in JSON workflow specs",
+                "Official vs Lab Workflow Rule",
                 "sequencing/flow shape only",
             ],
         ),
@@ -445,8 +446,8 @@ mod tests {
         let checks = build_checks(
             "Assimilation Map Priority Ledger Active Queue source-burn-down.tsv decisions-log.md dossier_capability_id no file-level assimilation row may move to `status=burned_down` without a non-empty `dossier_capability_id` burn-down stays subordinate to system understanding",
             "source-burn-down.tsv burned_down 4-8 unique dossier_capability_id",
-            "Raw system capability/mechanics belong in Rust authority paths Workflow structure belongs in JSON workflow specs sequencing/flow shape only",
-            "workflows/codex_tooling_synthesis.workflow.json workflows/forgecode_agent_composition.workflow.json workflows/forgecode_raw_capability_assimilation.workflow.json",
+            "Raw system capability/mechanics belong in Rust authority paths Workflow structure belongs in JSON workflow specs Official vs Lab Workflow Rule sequencing/flow shape only",
+            "workflows/lab/frameworks/codex/codex_tooling_synthesis.workflow.json workflows/lab/frameworks/forgecode/forgecode_agent_composition.workflow.json workflows/lab/frameworks/forgecode/forgecode_raw_capability_assimilation.workflow.json",
             "ForgeCodeRawCapabilityAssimilation ForgeCodeAgentComposition raw capability no workflow wrapper",
             &workflows,
         );
