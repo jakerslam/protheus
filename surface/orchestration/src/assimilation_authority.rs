@@ -151,9 +151,27 @@ fn build_checks(
         "assimilation_burn_down_runbook_contract",
         all_present(
             runbook,
-            &["source-burn-down.tsv", "burned_down", "4-8", "unique"],
+            &[
+                "source-burn-down.tsv",
+                "burned_down",
+                "4-8",
+                "unique",
+                "dossier_capability_id",
+            ],
         ),
-        "wave runbook must require source-file burn-down and disjoint wave rows",
+        "wave runbook must require source-file burn-down, dossier capability IDs, and disjoint wave rows",
+    ));
+    checks.push(check(
+        "assimilation_burn_down_capability_reference_contract",
+        all_present(
+            manual_template,
+            &[
+                "dossier_capability_id",
+                "no file-level assimilation row may move to `status=burned_down` without a non-empty `dossier_capability_id`",
+                "burn-down stays subordinate to system understanding",
+            ],
+        ),
+        "manual template must require dossier capability IDs before file-level assimilation can be marked complete",
     ));
     checks.push(check(
         "workflow_raw_capability_boundary_contract",
@@ -425,8 +443,8 @@ mod tests {
             },
         ];
         let checks = build_checks(
-            "Assimilation Map Priority Ledger Active Queue source-burn-down.tsv decisions-log.md",
-            "source-burn-down.tsv burned_down 4-8 unique",
+            "Assimilation Map Priority Ledger Active Queue source-burn-down.tsv decisions-log.md dossier_capability_id no file-level assimilation row may move to `status=burned_down` without a non-empty `dossier_capability_id` burn-down stays subordinate to system understanding",
+            "source-burn-down.tsv burned_down 4-8 unique dossier_capability_id",
             "Raw system capability/mechanics belong in Rust authority paths Workflow structure belongs in JSON workflow specs sequencing/flow shape only",
             "workflows/codex_tooling_synthesis.workflow.json workflows/forgecode_agent_composition.workflow.json workflows/forgecode_raw_capability_assimilation.workflow.json",
             "ForgeCodeRawCapabilityAssimilation ForgeCodeAgentComposition raw capability no workflow wrapper",

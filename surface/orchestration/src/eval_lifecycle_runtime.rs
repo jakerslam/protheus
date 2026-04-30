@@ -8,9 +8,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 const DEFAULT_ISSUE_DRAFTS_PATH: &str = "artifacts/eval_issue_drafts_latest.json";
 const DEFAULT_REPLAY_PATH: &str = "artifacts/eval_replay_runner_latest.json";
 const DEFAULT_FIX_BEFORE_PATH: &str =
-    "surface/orchestration/fixtures/eval/eval_fix_verification_before.json";
+    "validation/evals/fixtures/eval_fix_verification_before.json";
 const DEFAULT_FIX_AFTER_PATH: &str =
-    "surface/orchestration/fixtures/eval/eval_fix_verification_after.json";
+    "validation/evals/fixtures/eval_fix_verification_after.json";
 const DEFAULT_FIX_OUT_PATH: &str = "core/local/artifacts/eval_fix_verification_current.json";
 const DEFAULT_FIX_OUT_LATEST_PATH: &str = "artifacts/eval_fix_verification_latest.json";
 const DEFAULT_FIX_MARKDOWN_PATH: &str = "local/workspace/reports/EVAL_FIX_VERIFICATION_CURRENT.md";

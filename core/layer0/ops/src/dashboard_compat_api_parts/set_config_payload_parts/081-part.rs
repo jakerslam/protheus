@@ -97,7 +97,7 @@ fn live_eval_monitor_enabled(root: &Path) -> bool {
     }
     for rel in [
         "local/state/ops/eval_live_monitor/config.json",
-        "core/layer0/ops/config/live_eval_monitor_policy.json",
+        "validation/evals/policies/live_eval_monitor_policy.json",
     ] {
         if let Some(config) = read_json(&root.join(rel)) {
             if let Some(enabled) = config.get("enabled").and_then(Value::as_bool) {

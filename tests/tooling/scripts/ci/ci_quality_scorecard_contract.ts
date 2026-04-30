@@ -10,7 +10,7 @@ import { executeGate } from '../../lib/runner.ts';
 const ROOT = process.cwd();
 const DEFAULT_OUT_JSON = 'core/local/artifacts/ci_quality_scorecard_current.json';
 const DEFAULT_OUT_MD = 'local/workspace/reports/CI_QUALITY_SCORECARD_CURRENT.md';
-const DEFAULT_POLICY = 'client/runtime/config/ci_quality_scorecard_policy.json';
+const DEFAULT_POLICY = 'validation/scorecards/policies/ci_quality_scorecard_policy.json';
 
 type ScriptArgs = {
   strict: boolean;

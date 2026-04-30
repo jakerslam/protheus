@@ -85,6 +85,6 @@
   "paths": {
     "latest_path": "client/runtime/local/state/ops/formal_proof_runtime_gate/latest.json",
     "receipts_path": "client/runtime/local/state/ops/formal_proof_runtime_gate/receipts.jsonl",
-    "proof_pack_dir": "docs/client/reports/runtime_snapshots/ops/proof_pack"
+    "proof_pack_dir": "validation/reports/client_archive/runtime_snapshots/ops/proof_pack"
   }
 }

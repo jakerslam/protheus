@@ -65,6 +65,6 @@
   "paths": {
     "latest_path": "client/runtime/local/state/ops/proof_pack_threshold_gate/latest.json",
     "receipts_path": "client/runtime/local/state/ops/proof_pack_threshold_gate/receipts.jsonl",
-    "proof_pack_dir": "docs/client/reports/runtime_snapshots/ops/proof_pack"
+    "proof_pack_dir": "validation/reports/client_archive/runtime_snapshots/ops/proof_pack"
   }
 }

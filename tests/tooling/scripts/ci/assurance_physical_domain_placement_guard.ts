@@ -18,10 +18,14 @@ const CANONICAL_PREFIXES = [
 
 const HARNESS_EXEMPT_PATHS = new Set([
   'tests/tooling/config/tooling_gate_registry.json',
-  'tests/tooling/config/test_maturity_registry.json',
-  'tests/tooling/config/assurance_governance_registry.json',
-  'tests/tooling/schemas/assurance_governance_registry.schema.json',
 ]);
+
+const CI_WORKFLOW_HARNESS_COMMANDS: Record<string, string[]> = {
+  '.github/workflows/f100-a-plus-scorecard.yml': ['npm run -s ops:f100-a-plus:run'],
+};
+
+const INLINE_ASSURANCE_DEFINITION_PATTERN =
+  /canonical_definition_paths|scorecard_derivation_rules|release_gate_thresholds|benchmark_regression_budgets|runtime_soak_scenarios|assurance_validation_registry/i;
 
 const HARNESS_EXEMPT_PREFIXES = [
   'tests/tooling/scripts/',
@@ -30,7 +34,12 @@ const HARNESS_EXEMPT_PREFIXES = [
   'tests/client-memory-tools/',
 ];
 
+const RETIRED_GOVERNED_PREFIXES: Array<{ category: string; prefix: string }> = [
+  { category: 'release_gate_definition', prefix: 'releases/proof-packs/' },
+];
+
 const GOVERNED_PATTERNS: Array<{ category: string; pattern: RegExp }> = [
+  { category: 'test_lifecycle_definition', pattern: /test[_-]?maturity|test[_-]?lifecycle|temporary[_-]?test|unregistered[_-]?test/i },
   { category: 'eval_definition', pattern: /(^|[/_.-])eval(s|_|-|\.|$)|gold_dataset|review_labels|judge_human/i },
   { category: 'scorecard_definition', pattern: /scorecard/i },
   { category: 'release_gate_definition', pattern: /release[_-]?gate|release[_-]?proof[_-]?pack|release[_-]?blocker|release[_-]?verdict/i },
@@ -66,6 +75,9 @@ function isDefinitionExtension(file: string): boolean {
 function governedCategory(file: string): string | null {
   if (!isDefinitionExtension(file)) return null;
   const lower = file.toLowerCase();
+  for (const { category, prefix } of RETIRED_GOVERNED_PREFIXES) {
+    if (lower.startsWith(prefix)) return category;
+  }
   for (const { category, pattern } of GOVERNED_PATTERNS) {
     if (pattern.test(lower)) return category;
   }
@@ -77,7 +89,8 @@ function trackedFiles(): string[] {
     return execFileSync('git', ['ls-files'], { cwd: ROOT, encoding: 'utf8' })
       .split(/\r?\n/)
       .map(normalizePath)
-      .filter(Boolean);
+      .filter(Boolean)
+      .filter((file) => fs.existsSync(path.resolve(ROOT, file)));
   } catch {
     return [];
   }
@@ -108,10 +121,20 @@ function collectMirrorPaths(): Set<string> {
   return allowed;
 }
 
+function isCiWorkflowHarnessOnly(file: string): boolean {
+  const requiredCommands = CI_WORKFLOW_HARNESS_COMMANDS[file];
+  if (!requiredCommands) return false;
+  if (!/^\.github\/workflows\/[^/]+\.ya?ml$/i.test(file)) return false;
+  const text = fs.readFileSync(path.resolve(ROOT, file), 'utf8');
+  if (INLINE_ASSURANCE_DEFINITION_PATTERN.test(text)) return false;
+  return requiredCommands.every((command) => text.includes(`run: ${command}`));
+}
+
 function isAllowedDefinitionPath(file: string, mirrorPaths: Set<string>): boolean {
   if (CANONICAL_PREFIXES.some((prefix) => file.startsWith(prefix))) return true;
   if (mirrorPaths.has(file)) return true;
   if (HARNESS_EXEMPT_PATHS.has(file)) return true;
+  if (isCiWorkflowHarnessOnly(file)) return true;
   return HARNESS_EXEMPT_PREFIXES.some((prefix) => file.startsWith(prefix));
 }
 

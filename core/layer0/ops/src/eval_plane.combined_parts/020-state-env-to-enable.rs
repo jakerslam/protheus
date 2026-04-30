@@ -1,7 +1,7 @@
 
 const STATE_ENV: &str = "EVAL_PLANE_STATE_ROOT";
 const STATE_SCOPE: &str = "eval_plane";
-const CONTRACT_PATH: &str = "planes/contracts/eval/eval_loop_contract_v1.json";
+const CONTRACT_PATH: &str = "validation/evals/contracts/eval_loop_contract_v1.json";
 
 fn usage() {
     println!("Usage:");

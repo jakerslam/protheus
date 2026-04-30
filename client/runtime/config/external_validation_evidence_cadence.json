@@ -14,7 +14,7 @@
       "cadence_days": 7,
       "command_id": "ops:benchmark:public-audit",
       "evidence_artifact": "core/local/artifacts/benchmark_public_audit_current.json",
-      "publication_surface": "releases/proof-packs/main-current"
+      "publication_surface": "validation/release_gates/proof_packs/main-current"
     },
     {
       "id": "proof_pack_threshold_gate",

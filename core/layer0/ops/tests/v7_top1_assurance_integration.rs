@@ -47,7 +47,7 @@ fn stage_top1_fixture() -> tempfile::TempDir {
                 "sample_ms": 200
             },
             "comparison": {
-                "snapshot_path": "client/runtime/config/competitive_benchmark_snapshot_2026_02.json",
+                "snapshot_path": "validation/benchmarks/fixtures/competitive_benchmark_snapshot_2026_02.json",
                 "output_path": "docs/comparison/infring_vs_x.md"
             },
             "outputs": {
@@ -136,7 +136,7 @@ fn stage_top1_fixture() -> tempfile::TempDir {
     }
 
     write_json(
-        &root.join("client/runtime/config/competitive_benchmark_snapshot_2026_02.json"),
+        &root.join("validation/benchmarks/fixtures/competitive_benchmark_snapshot_2026_02.json"),
         &json!({
             "version": "2026.02",
             "projects": {

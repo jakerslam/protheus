@@ -180,6 +180,8 @@ function isCurrentEvidencePath(relPath: string): boolean {
   const normalized = cleanText(relPath, 400);
   if (normalized.startsWith('releases/proof-packs/')) return false;
   if (normalized.includes('/releases/proof-packs/')) return false;
+  if (normalized.startsWith('validation/release_gates/proof_packs/')) return false;
+  if (normalized.includes('/validation/release_gates/proof_packs/')) return false;
   return CURRENT_EVIDENCE_ALLOWED_SUFFIXES.some((suffix) => normalized.endsWith(suffix));
 }
 
@@ -521,6 +523,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     .map((row) => ({
       path: row.path,
       failure: row.path.includes('releases/proof-packs/')
+        || row.path.includes('validation/release_gates/proof_packs/')
         ? 'historical_snapshot_path_used_as_current_evidence'
         : 'not_current_or_latest_evidence_path',
     }));

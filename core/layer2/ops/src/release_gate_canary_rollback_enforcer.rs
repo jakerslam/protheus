@@ -7,7 +7,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 const DEFAULT_POLICY_REL: &str =
-    "client/runtime/config/release_gate_canary_rollback_enforcer_policy.json";
+    "validation/release_gates/policies/release_gate_canary_rollback_enforcer_policy.json";
 const DEFAULT_LATEST_REL: &str =
     "local/state/ops/release_gate_canary_rollback_enforcer/latest.json";
 const DEFAULT_HISTORY_REL: &str =

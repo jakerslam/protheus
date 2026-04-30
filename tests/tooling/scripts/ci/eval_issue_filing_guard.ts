@@ -6,7 +6,7 @@ import { cleanText, parseStrictOutArgs, readFlag } from '../../lib/cli.ts';
 import { emitStructuredResult, writeJsonArtifact, writeTextArtifact } from '../../lib/result.ts';
 
 const DEFAULT_MONITOR_PATH = 'local/state/ops/eval_agent_chat_monitor/latest.json';
-const DEFAULT_POLICY_PATH = 'tests/tooling/config/eval_issue_filing_policy.json';
+const DEFAULT_POLICY_PATH = 'validation/evals/policies/eval_issue_filing_policy.json';
 const DEFAULT_APPROVALS_PATH = 'local/state/ops/eval_agent_chat_monitor/issue_filing_approvals.json';
 const DEFAULT_OUT_PATH = 'core/local/artifacts/eval_issue_filing_guard_current.json';
 const DEFAULT_OUT_LATEST_PATH = 'artifacts/eval_issue_filing_guard_latest.json';

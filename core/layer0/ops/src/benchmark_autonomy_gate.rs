@@ -13,7 +13,7 @@ use std::time::Duration;
 use crate::contract_lane_utils as lane_utils;
 use crate::now_iso;
 
-const POLICY_REL: &str = "client/runtime/config/benchmark_autonomy_gate_policy.json";
+const POLICY_REL: &str = "validation/benchmarks/policies/benchmark_autonomy_gate_policy.json";
 const LATEST_REL: &str = "local/state/ops/benchmark_autonomy_gate/latest.json";
 const RECEIPTS_REL: &str = "local/state/ops/benchmark_autonomy_gate/receipts.jsonl";
 

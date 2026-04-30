@@ -14,13 +14,13 @@ const STATE_ENV: &str = "OBSERVABILITY_PLANE_STATE_ROOT";
 const STATE_SCOPE: &str = "observability_plane";
 
 const MONITORING_CONTRACT_PATH: &str =
-    "planes/contracts/observability/realtime_monitoring_contract_v1.json";
+    "observability/contracts/realtime_monitoring_contract_v1.json";
 const WORKFLOW_CONTRACT_PATH: &str =
-    "planes/contracts/observability/workflow_editor_contract_v1.json";
+    "observability/contracts/workflow_editor_contract_v1.json";
 const INCIDENT_CONTRACT_PATH: &str =
-    "planes/contracts/observability/incident_response_contract_v1.json";
+    "observability/contracts/incident_response_contract_v1.json";
 const SELFHOST_CONTRACT_PATH: &str =
-    "planes/contracts/observability/self_hosted_deploy_contract_v1.json";
+    "observability/contracts/self_hosted_deploy_contract_v1.json";
 const ACP_PROVENANCE_CONTRACT_PATH: &str =
     "planes/contracts/observability/acp_provenance_contract_v1.json";
 

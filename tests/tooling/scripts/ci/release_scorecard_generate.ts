@@ -31,7 +31,7 @@ function parseArgs(argv: string[]) {
     benchmarkBudgetPolicyPath: 'validation/benchmarks/policies/benchmark_regression_budgets.json',
     ipcSoakPath: 'local/state/ops/ops_ipc_bridge_stability_soak/latest.json',
     drPath: 'local/state/ops/dr_gameday/latest.json',
-    benchmarkPath: 'docs/client/reports/benchmark_matrix_run_latest.json',
+    benchmarkPath: 'validation/reports/client_archive/benchmark_matrix_run_latest.json',
     legacyIngressBudgetPath: 'core/local/artifacts/legacy_ingress_budget_current.json',
     benchmarkBaselinePath: '',
     baselinePath: '',

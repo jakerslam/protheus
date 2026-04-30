@@ -5,9 +5,9 @@ use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const DEFAULT_POLICY_PATH: &str =
-    "surface/orchestration/fixtures/eval/eval_rsi_promotion_ladder.json";
+    "validation/evals/fixtures/eval_rsi_promotion_ladder.json";
 const DEFAULT_REDTEAM_PATH: &str =
-    "surface/orchestration/fixtures/eval/eval_holdout_red_team_cases.json";
+    "validation/evals/fixtures/eval_holdout_red_team_cases.json";
 const DEFAULT_OUT_PATH: &str = "core/local/artifacts/eval_rsi_promotion_ladder_current.json";
 const DEFAULT_OUT_LATEST_PATH: &str = "artifacts/eval_rsi_promotion_ladder_latest.json";
 const DEFAULT_MARKDOWN_PATH: &str = "local/workspace/reports/EVAL_RSI_PROMOTION_LADDER_CURRENT.md";

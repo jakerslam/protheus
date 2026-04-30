@@ -63,7 +63,7 @@ jobs:
             core/local/artifacts/gateway_support_levels_current.json
             core/local/artifacts/srs_todo_section_guard_current.json
             core/local/artifacts/release_proof_pack_current.json
-            releases/proof-packs/main-current/**
+            validation/release_gates/proof_packs/main-current/**
             core/local/state/ops/top1_assurance/latest.json
             core/local/state/ops/top1_assurance/history.jsonl
             core/local/state/ops/top1_assurance/benchmark_latest.json

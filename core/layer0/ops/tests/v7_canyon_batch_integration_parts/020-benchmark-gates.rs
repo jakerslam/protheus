@@ -84,7 +84,7 @@ fn v7_canyon_benchmark_gate_prefers_real_binary_and_materializes_missing_enterpr
 
     write_json(
         root,
-        "docs/client/reports/runtime_snapshots/ops/proof_pack/top1_benchmark_snapshot.json",
+        "validation/reports/client_archive/runtime_snapshots/ops/proof_pack/top1_benchmark_snapshot.json",
         &serde_json::json!({
             "metrics": {
                 "cold_start_ms": 74.5,

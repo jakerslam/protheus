@@ -15,7 +15,7 @@ The older `tests/tooling/**` registry and schema paths are compatibility mirrors
 This registry does not replace the existing tooling gate registry or test maturity registry. It sits above them:
 
 - `tooling_gate_registry.json` says how to run registered tooling.
-- `test_maturity_registry.json` classifies temporary scaffolding and runtime crutches.
+- `validation/tests/contracts/validation_test_lifecycle_registry.json` classifies temporary scaffolding and runtime crutches.
 - `assurance_validation_registry.json` says what Validation owns as controlled proof, how mature each proof family is, and whether it is behavioral truth or harness-only plumbing.
 
 ## Lifecycle States

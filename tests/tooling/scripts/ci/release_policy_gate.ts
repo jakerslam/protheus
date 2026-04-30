@@ -1430,7 +1430,7 @@ function checkReleaseWorkflowProofPackUploadContract(root: string): GateCheck {
     'Upload release proof-pack evidence',
     'name: release-proof-pack-${{ steps.semver.outputs.tag }}',
     'core/local/artifacts/release_proof_pack_current.json',
-    'releases/proof-packs/${{ steps.semver.outputs.tag }}/**',
+    'validation/release_gates/proof_packs/${{ steps.semver.outputs.tag }}/**',
   ]);
 }
 
@@ -1761,7 +1761,7 @@ function checkReleaseWorkflowProofPackUploadTagPathContract(root: string): GateC
   return checkWorkflowNeedleSet(root, 'release_workflow_proof_pack_upload_tag_path_contract', [
     'Upload release proof-pack evidence',
     'name: release-proof-pack-${{ steps.semver.outputs.tag }}',
-    'releases/proof-packs/${{ steps.semver.outputs.tag }}/**',
+    'validation/release_gates/proof_packs/${{ steps.semver.outputs.tag }}/**',
     'if-no-files-found: error',
   ]);
 }

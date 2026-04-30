@@ -1746,6 +1746,10 @@
       "artifact_paths": [
         "core/local/artifacts/public_benchmark_harness_current.json",
         "local/workspace/reports/PUBLIC_BENCHMARK_HARNESS_CURRENT.md"
+      ],
+      "canonical_definition_paths": [
+        "validation/benchmarks/fixtures/public_harness_workloads.json",
+        "validation/benchmarks/policies/benchmark_regression_budgets.json"
       ]
     },
     "ops:incident-governance:gate": {
@@ -2325,6 +2329,12 @@
         "client/runtime/lib/ts_entrypoint.ts",
         "tests/tooling/scripts/ci/test_maturity_registry_guard.ts",
         "--strict=1",
+        "--registry=validation/tests/contracts/validation_test_lifecycle_registry.json",
+        "--suite-manifest=validation/tests/contracts/test_suite_lifecycle_manifests.json",
+        "--artifact-envelope-contract=validation/tests/contracts/test_lifecycle_artifact_envelope_contract.json",
+        "--temporary-test-contract=validation/tests/contracts/temporary_test_lifecycle_contract.json",
+        "--physical-placement-policy=validation/tests/contracts/test_lifecycle_physical_placement_policy.json",
+        "--unregistered-test-policy=validation/tests/contracts/unregistered_test_policy.json",
         "--out-json=core/local/artifacts/test_maturity_registry_current.json",
         "--out-markdown=local/workspace/reports/TEST_MATURITY_REGISTRY_CURRENT.md"
       ],

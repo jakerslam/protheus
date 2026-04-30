@@ -9,7 +9,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 const DEFAULT_DATASET_PATH: &str = "validation/evals/fixtures/eval_gold_dataset_v1.jsonl";
 const DEFAULT_TAXONOMY_PATH: &str =
-    "surface/orchestration/fixtures/eval/eval_issue_taxonomy_v1.json";
+    "validation/evals/fixtures/eval_issue_taxonomy_v1.json";
 const DEFAULT_OUT_PATH: &str = "core/local/artifacts/eval_gold_dataset_schema_guard_current.json";
 const DEFAULT_OUT_LATEST_PATH: &str = "artifacts/eval_gold_dataset_schema_guard_latest.json";
 

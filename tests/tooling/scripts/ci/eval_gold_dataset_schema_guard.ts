@@ -10,9 +10,9 @@ type Taxonomy = {
   severity_scale?: string[];
 };
 
-const DEFAULT_DATASET_PATH = 'tests/tooling/fixtures/eval_gold_dataset_seed.jsonl';
-const DEFAULT_SCHEMA_PATH = 'tests/tooling/schemas/eval_gold_dataset.schema.json';
-const DEFAULT_TAXONOMY_PATH = 'tests/tooling/config/eval_issue_taxonomy.json';
+const DEFAULT_DATASET_PATH = 'validation/evals/fixtures/eval_gold_dataset_seed.jsonl';
+const DEFAULT_SCHEMA_PATH = 'validation/evals/schemas/eval_gold_dataset.schema.json';
+const DEFAULT_TAXONOMY_PATH = 'validation/evals/contracts/eval_issue_taxonomy.json';
 const DEFAULT_OUT_PATH = 'core/local/artifacts/eval_gold_dataset_schema_guard_current.json';
 const DEFAULT_OUT_LATEST_PATH = 'artifacts/eval_gold_dataset_schema_guard_latest.json';
 const DEFAULT_MARKDOWN_PATH = 'local/workspace/reports/EVAL_GOLD_DATASET_SCHEMA_GUARD_CURRENT.md';

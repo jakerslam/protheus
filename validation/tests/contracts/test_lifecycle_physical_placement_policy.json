@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "owner": "validation/tests",
+  "purpose": "Enforce that lifecycle definitions for tests, evals, benchmarks, conformance checks, regression suites, release gates, and scorecards live under Validation while tests/tooling remains harness-only execution infrastructure.",
+  "canonical_definition_prefixes": [
+    "validation/tests/",
+    "validation/evals/",
+    "validation/benchmarks/",
+    "validation/conformance/",
+    "validation/regression/",
+    "validation/release_gates/",
+    "validation/scorecards/"
+  ],
+  "harness_only_prefixes": [
+    "tests/tooling/scripts/",
+    "tests/tooling/config/tooling_gate_registry.json",
+    "tests/tooling/config/verify_profiles.json"
+  ],
+  "compatibility_mirrors": [],
+  "required_validation_owned_inputs": [
+    "registry",
+    "suite_manifest",
+    "artifact_envelope_contract",
+    "temporary_test_contract",
+    "physical_placement_policy"
+  ],
+  "forbidden_canonical_prefixes": [
+    "tests/tooling/config/test_",
+    "tests/tooling/config/eval_",
+    "tests/tooling/config/release_",
+    "tests/tooling/config/runtime_"
+  ]
+}

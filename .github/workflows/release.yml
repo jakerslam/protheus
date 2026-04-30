@@ -337,7 +337,7 @@ jobs:
           name: release-proof-pack-${{ steps.semver.outputs.tag }}
           path: |
             core/local/artifacts/release_proof_pack_current.json
-            releases/proof-packs/${{ steps.semver.outputs.tag }}/**
+            validation/release_gates/proof_packs/${{ steps.semver.outputs.tag }}/**
           if-no-files-found: error
 
       - name: Benchmark public artifact gate

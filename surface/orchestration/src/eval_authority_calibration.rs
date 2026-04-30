@@ -7,7 +7,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 const DEFAULT_FEEDBACK_PATH: &str =
     "local/state/ops/eval_agent_chat_monitor/reviewer_feedback.jsonl";
 const DEFAULT_POLICY_PATH: &str =
-    "surface/orchestration/config/eval_authority_calibration_policy.json";
+    "validation/evals/policies/eval_authority_calibration_policy.json";
 const DEFAULT_HISTORY_PATH: &str = "local/state/ops/eval_authority_calibration/history.jsonl";
 const DEFAULT_OUT_PATH: &str = "core/local/artifacts/eval_authority_calibration_current.json";
 const DEFAULT_LATEST_PATH: &str = "artifacts/eval_authority_calibration_latest.json";

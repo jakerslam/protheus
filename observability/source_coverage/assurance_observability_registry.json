@@ -3,7 +3,7 @@
   "schema_version": 1,
   "owner": "kernel/assurance/observability",
   "status": "initial_seed",
-  "updated_at": "2026-04-29",
+  "updated_at": "2026-04-30",
   "policy_refs": [
     "docs/workspace/assurance_plane_policy.md",
     "docs/workspace/assurance_evidence_envelope_contract.md",
@@ -57,8 +57,12 @@
       "authority_class": "deterministic_kernel_authority",
       "default_signal_class": "hard_gate",
       "owner_of_truth": "Kernel receipt authority",
-      "source_refs": ["local/state/ops/verity/**"],
-      "evidence_streams": ["local/state/kernel_sentinel/evidence/kernel_receipts.jsonl"],
+      "source_refs": [
+        "local/state/ops/verity/**"
+      ],
+      "evidence_streams": [
+        "local/state/kernel_sentinel/evidence/kernel_receipts.jsonl"
+      ],
       "freshness_required": true,
       "coverage_required": true,
       "can_open_finding": true,
@@ -72,8 +76,13 @@
       "authority_class": "deterministic_kernel_authority",
       "default_signal_class": "hard_gate",
       "owner_of_truth": "Kernel/runtime observation producers",
-      "source_refs": ["local/state/ops/system_health_audit/**", "core/local/artifacts/*runtime*"],
-      "evidence_streams": ["local/state/kernel_sentinel/evidence/runtime_observations.jsonl"],
+      "source_refs": [
+        "local/state/ops/system_health_audit/**",
+        "core/local/artifacts/*runtime*"
+      ],
+      "evidence_streams": [
+        "local/state/kernel_sentinel/evidence/runtime_observations.jsonl"
+      ],
       "freshness_required": true,
       "coverage_required": true,
       "can_open_finding": true,
@@ -87,8 +96,14 @@
       "authority_class": "deterministic_kernel_authority",
       "default_signal_class": "hard_gate",
       "owner_of_truth": "Kernel mutation and rollback authorities",
-      "source_refs": ["core/local/artifacts/*stateful*", "core/local/artifacts/*rollback*", "core/local/artifacts/*upgrade*"],
-      "evidence_streams": ["local/state/kernel_sentinel/evidence/state_mutations.jsonl"],
+      "source_refs": [
+        "core/local/artifacts/*stateful*",
+        "core/local/artifacts/*rollback*",
+        "core/local/artifacts/*upgrade*"
+      ],
+      "evidence_streams": [
+        "local/state/kernel_sentinel/evidence/state_mutations.jsonl"
+      ],
       "freshness_required": true,
       "coverage_required": true,
       "can_open_finding": true,
@@ -101,8 +116,15 @@
       "authority_class": "deterministic_kernel_authority",
       "default_signal_class": "hard_gate",
       "owner_of_truth": "Scheduler/admission/capability authorities",
-      "source_refs": ["core/local/artifacts/*scheduler*", "core/local/artifacts/*schedule*", "core/local/artifacts/*admission*", "core/local/artifacts/*layer3_contract*"],
-      "evidence_streams": ["local/state/kernel_sentinel/evidence/scheduler_admission.jsonl"],
+      "source_refs": [
+        "core/local/artifacts/*scheduler*",
+        "core/local/artifacts/*schedule*",
+        "core/local/artifacts/*admission*",
+        "core/local/artifacts/*layer3_contract*"
+      ],
+      "evidence_streams": [
+        "local/state/kernel_sentinel/evidence/scheduler_admission.jsonl"
+      ],
       "freshness_required": true,
       "coverage_required": true,
       "can_open_finding": true,
@@ -115,8 +137,15 @@
       "authority_class": "deterministic_kernel_authority",
       "default_signal_class": "hard_gate",
       "owner_of_truth": "Recovery, rollback, retry, and auto-heal authorities",
-      "source_refs": ["core/local/artifacts/*recovery*", "core/local/artifacts/*auto_heal*", "core/local/artifacts/*retry*", "core/local/artifacts/*rollback*"],
-      "evidence_streams": ["local/state/kernel_sentinel/evidence/live_recovery.jsonl"],
+      "source_refs": [
+        "core/local/artifacts/*recovery*",
+        "core/local/artifacts/*auto_heal*",
+        "core/local/artifacts/*retry*",
+        "core/local/artifacts/*rollback*"
+      ],
+      "evidence_streams": [
+        "local/state/kernel_sentinel/evidence/live_recovery.jsonl"
+      ],
       "freshness_required": true,
       "coverage_required": true,
       "can_open_finding": true,
@@ -129,8 +158,12 @@
       "authority_class": "deterministic_kernel_authority",
       "default_signal_class": "hard_gate",
       "owner_of_truth": "Runtime boundedness producers",
-      "source_refs": ["core/local/artifacts/*boundedness*"],
-      "evidence_streams": ["local/state/kernel_sentinel/evidence/boundedness_observations.jsonl"],
+      "source_refs": [
+        "core/local/artifacts/*boundedness*"
+      ],
+      "evidence_streams": [
+        "local/state/kernel_sentinel/evidence/boundedness_observations.jsonl"
+      ],
       "freshness_required": true,
       "coverage_required": true,
       "can_open_finding": true,
@@ -143,8 +176,14 @@
       "authority_class": "deterministic_kernel_authority",
       "default_signal_class": "hard_gate",
       "owner_of_truth": "Release proof-pack producers",
-      "source_refs": ["core/local/artifacts/*proof*", "core/local/artifacts/*release*"],
-      "evidence_streams": ["local/state/kernel_sentinel/evidence/release_proof_packs.jsonl", "local/state/kernel_sentinel/evidence/release_repairs.jsonl"],
+      "source_refs": [
+        "core/local/artifacts/*proof*",
+        "core/local/artifacts/*release*"
+      ],
+      "evidence_streams": [
+        "local/state/kernel_sentinel/evidence/release_proof_packs.jsonl",
+        "local/state/kernel_sentinel/evidence/release_repairs.jsonl"
+      ],
       "freshness_required": true,
       "coverage_required": true,
       "can_open_finding": true,
@@ -157,8 +196,15 @@
       "authority_class": "deterministic_kernel_authority",
       "default_signal_class": "hard_gate",
       "owner_of_truth": "Gateway boundary and conduit authorities",
-      "source_refs": ["core/local/artifacts/*gateway*"],
-      "evidence_streams": ["local/state/kernel_sentinel/evidence/gateway_health.jsonl", "local/state/kernel_sentinel/evidence/gateway_quarantine.jsonl", "local/state/kernel_sentinel/evidence/gateway_recovery.jsonl", "local/state/kernel_sentinel/evidence/gateway_isolation.jsonl"],
+      "source_refs": [
+        "core/local/artifacts/*gateway*"
+      ],
+      "evidence_streams": [
+        "local/state/kernel_sentinel/evidence/gateway_health.jsonl",
+        "local/state/kernel_sentinel/evidence/gateway_quarantine.jsonl",
+        "local/state/kernel_sentinel/evidence/gateway_recovery.jsonl",
+        "local/state/kernel_sentinel/evidence/gateway_isolation.jsonl"
+      ],
       "freshness_required": true,
       "coverage_required": true,
       "can_open_finding": true,
@@ -171,8 +217,13 @@
       "authority_class": "deterministic_kernel_authority",
       "default_signal_class": "hard_gate",
       "owner_of_truth": "Queue/backpressure authorities",
-      "source_refs": ["core/local/artifacts/*queue*", "core/local/artifacts/*backpressure*"],
-      "evidence_streams": ["local/state/kernel_sentinel/evidence/queue_backpressure.jsonl"],
+      "source_refs": [
+        "core/local/artifacts/*queue*",
+        "core/local/artifacts/*backpressure*"
+      ],
+      "evidence_streams": [
+        "local/state/kernel_sentinel/evidence/queue_backpressure.jsonl"
+      ],
       "freshness_required": true,
       "coverage_required": true,
       "can_open_finding": true,
@@ -185,8 +236,14 @@
       "authority_class": "advisory_workflow_quality",
       "default_signal_class": "advisory",
       "owner_of_truth": "Assurance Validation eval outputs and control-plane feedback producers",
-      "source_refs": ["local/state/ops/eval_agent_feedback/**", "local/state/ops/eval_learning_loop/**", "local/state/ops/synthetic_user_chat_harness/**"],
-      "evidence_streams": ["local/state/kernel_sentinel/evidence/control_plane_eval.jsonl"],
+      "source_refs": [
+        "local/state/ops/eval_agent_feedback/**",
+        "local/state/ops/eval_learning_loop/**",
+        "local/state/ops/synthetic_user_chat_harness/**"
+      ],
+      "evidence_streams": [
+        "local/state/kernel_sentinel/evidence/control_plane_eval.jsonl"
+      ],
       "freshness_required": true,
       "coverage_required": true,
       "can_open_finding": true,
@@ -200,8 +257,32 @@
       "authority_class": "presentation_telemetry_only",
       "default_signal_class": "advisory",
       "owner_of_truth": "Shell projection surfaces only for user-visible context",
-      "source_refs": ["local/state/ops/shell_telemetry/**", "local/state/ops/runtime_telemetry/**", "core/local/artifacts/*shell*", "core/local/artifacts/*dashboard*"],
-      "evidence_streams": ["local/state/kernel_sentinel/evidence/shell_telemetry.jsonl"],
+      "source_refs": [
+        "core/local/artifacts/*dashboard*",
+        "core/local/artifacts/*shell*",
+        "local/state/ops/runtime_telemetry/**",
+        "local/state/ops/shell_telemetry/**",
+        "observability/dashboards/enterprise_slo_observability_dashboard_policy.json",
+        "observability/dashboards/metrics-spec.json",
+        "observability/deploy/defaults.json",
+        "observability/deploy/docker-compose.yml",
+        "observability/evidence_normalization/deny_telemetry_normalizer_policy.json",
+        "observability/freshness/memory_index_freshness_policy.json",
+        "observability/freshness/surface_embodiment_freshness_policy.json",
+        "observability/freshness/world_model_freshness_policy.json",
+        "observability/health/observability_slo_runbook_closure_policy.json",
+        "observability/health/sre_observability_contract.json",
+        "observability/telemetry/competitive_benchmark_adaptive_index.json",
+        "observability/telemetry/observability_deployment_defaults_policy.json",
+        "observability/telemetry/observability_policy.json",
+        "observability/telemetry/persona_telemetry.jsonl",
+        "observability/telemetry/persona_telemetry_policy.json",
+        "observability/telemetry/runtime_telemetry_policy.json",
+        "observability/telemetry/rust_observability_parity_contract.json"
+      ],
+      "evidence_streams": [
+        "local/state/kernel_sentinel/evidence/shell_telemetry.jsonl"
+      ],
       "freshness_required": false,
       "coverage_required": false,
       "can_open_finding": false,
@@ -216,7 +297,12 @@
       "authority_class": "deterministic_kernel_authority",
       "default_signal_class": "diagnostic",
       "owner_of_truth": "Kernel Sentinel self-study",
-      "source_refs": ["local/state/kernel_sentinel/kernel_sentinel_report_current.json", "local/state/kernel_sentinel/feedback_inbox.jsonl", "local/state/kernel_sentinel/top_system_holes_current.json", "local/state/kernel_sentinel/rsi_readiness_summary_current.json"],
+      "source_refs": [
+        "local/state/kernel_sentinel/kernel_sentinel_report_current.json",
+        "local/state/kernel_sentinel/feedback_inbox.jsonl",
+        "local/state/kernel_sentinel/top_system_holes_current.json",
+        "local/state/kernel_sentinel/rsi_readiness_summary_current.json"
+      ],
       "evidence_streams": [],
       "freshness_required": true,
       "coverage_required": false,

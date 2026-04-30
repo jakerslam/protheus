@@ -78,7 +78,7 @@ The README's "Current State (April 2026)" section sets the production support co
 
 A few things stand out as defining decisions, beyond the obvious "Rust kernel + thin shell":
 
-**Receipt-first execution.** Layer 1 is named "Policy + Deterministic Receipts," the release pipeline now produces split synthetic-canary vs. empirical-live runtime-proof artifacts (`runtime_proof_synthetic_canary_current.json`, `runtime_proof_empirical_release_evidence_current.json`, `runtime_proof_empirical_trends_current.json`), and release proof packs are assembled as grouped checksummed artifacts under `releases/proof-packs/<version>/`. This is an evidence-heavy release model.
+**Receipt-first execution.** Layer 1 is named "Policy + Deterministic Receipts," the release pipeline now produces split synthetic-canary vs. empirical-live runtime-proof artifacts (`runtime_proof_synthetic_canary_current.json`, `runtime_proof_empirical_release_evidence_current.json`, `runtime_proof_empirical_trends_current.json`), and release proof packs are assembled as grouped checksummed artifacts under `validation/release_gates/proof_packs/<version>/`. This is an evidence-heavy release model.
 
 **Cognition is gated behind "REQ-27" attention/initiative authority.** Importance scoring lives in `core/layer0/ops/src/importance.rs`, priority queues in `core/layer0/ops/src/attention_queue.rs`, and there is an explicit regression guard (`client/runtime/systems/ops/subconscious_boundary_guard.ts`) whose job is to prevent the shell from accumulating subconscious authority. The architecture goes out of its way to mechanize the rule that the shell can never become root-of-correctness.
 
@@ -115,7 +115,7 @@ The last 15 commits on `main` are all hardening/retirement work — gateway star
 - "How does a request actually flow through?" → `core/layer2/conduit/src/` and `core/layer2/conduit-security/`, plus the client-side caller in `client/runtime/lib/runtime_path_registry.ts`.
 - "What's the kernel actually authoritative about?" → `core/layer0/ops/`, `core/layer1/primitives/`, `core/layer1/provenance/`.
 - "How does the agent/cognition stack work?" → `core/layer0/swarm*`, `core/layer0/persona_dispatch_security_gate`, `client/cognition/`, `apps/intelligence-nexus`.
-- "What's the production gate?" → `npm run -s ops:status:production` is named in the README as the single operator truth command, plus `releases/proof-packs/<version>/` for the evidence artifacts.
+- "What's the production gate?" → `npm run -s ops:status:production` is named in the README as the single operator truth command, plus `validation/release_gates/proof_packs/<version>/` for the evidence artifacts.
 - "What's about to be deleted?" → `adapters/runtime/dev_only/`, the alpine retirement work in `client/`, anything tagged `provisional` in the Layer 2 parity manifest.
 
 ## Bottom line

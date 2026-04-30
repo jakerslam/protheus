@@ -195,8 +195,8 @@ mod tests {
                         "target_mtta_minutes": 5,
                         "target_mttr_minutes": 30,
                         "required_docs": [
-                            "docs/observability/runbooks/INCIDENT_COMMAND.md",
-                            "docs/observability/runbooks/POSTMORTEM_TEMPLATE.md"
+                            "observability/runbooks/INCIDENT_COMMAND.md",
+                            "observability/runbooks/POSTMORTEM_TEMPLATE.md"
                         ]
                     }
                 }
@@ -374,12 +374,12 @@ mod tests {
         );
         write_text(
             &tmp.path()
-                .join("docs/observability/runbooks/INCIDENT_COMMAND.md"),
+                .join("observability/runbooks/INCIDENT_COMMAND.md"),
             "runbook\n",
         );
         write_text(
             &tmp.path()
-                .join("docs/observability/runbooks/POSTMORTEM_TEMPLATE.md"),
+                .join("observability/runbooks/POSTMORTEM_TEMPLATE.md"),
             "runbook\n",
         );
         let code = run(

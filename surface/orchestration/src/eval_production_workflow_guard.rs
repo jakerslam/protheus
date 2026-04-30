@@ -6,7 +6,7 @@ use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const DEFAULT_TELEMETRY_PATH: &str =
-    "surface/orchestration/fixtures/eval/eval_production_workflow_telemetry.json";
+    "validation/evals/fixtures/eval_production_workflow_telemetry.json";
 const DEFAULT_OUT_PATH: &str = "core/local/artifacts/eval_production_workflow_guard_current.json";
 const DEFAULT_OUT_LATEST_PATH: &str = "artifacts/eval_production_workflow_guard_latest.json";
 const DEFAULT_REPLAY_PATH: &str =

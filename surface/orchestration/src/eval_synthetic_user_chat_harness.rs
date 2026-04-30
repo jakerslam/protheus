@@ -8,7 +8,7 @@ mod eval_synthetic_user_chat_harness_utils;
 use eval_synthetic_user_chat_harness_utils::*;
 
 const DEFAULT_CASES_PATH: &str =
-    "surface/orchestration/fixtures/eval/synthetic_user_chat_harness_cases.json";
+    "validation/evals/fixtures/synthetic_user_chat_harness_cases.json";
 const DEFAULT_OUT_PATH: &str = "core/local/artifacts/synthetic_user_chat_harness_current.json";
 const DEFAULT_OUT_LATEST_PATH: &str = "artifacts/synthetic_user_chat_harness_latest.json";
 const DEFAULT_MARKDOWN_PATH: &str =
