@@ -145,6 +145,11 @@ fn executable_contract_enforcement_accepts_declared_tokens() {
         "result_package_projection"
     )
     .is_ok());
+    assert!(enforce_subdomain_kernel_output(
+        "status_phase_projection",
+        "thinking_bubble_projection"
+    )
+    .is_ok());
     assert!(enforce_subdomain_message_boundary(
         "decomposition_planning",
         "planning_to_graph_boundary"

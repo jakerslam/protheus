@@ -31,6 +31,7 @@ pub fn boundary() -> SubdomainBoundary {
         allowed_kernel_outputs: &[
             "status_phase_projection",
             "agent_activity_projection",
+            "thinking_bubble_projection",
             "context_warning_projection",
         ],
         message_boundaries: &[
