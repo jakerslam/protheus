@@ -8,6 +8,7 @@ pub mod recovery_escalation;
 pub mod result_shaping_packaging;
 pub mod templates;
 pub mod terminal_coordination;
+pub mod tool_result_packaging;
 pub mod workflow_contract_guard;
 pub mod workflow_contracts;
 pub mod workflow_graph_dependency;
@@ -323,6 +324,13 @@ pub fn subdomain_trace_contracts() -> Vec<SubdomainTraceContract> {
             receipt_metadata_sources: RECEIPT_METADATA_SOURCES,
         },
         SubdomainTraceContract {
+            trace_id: "tool_result_packaging.trace",
+            subdomain_id: "tool_result_packaging",
+            stage: WorkflowStage::ResultPackaging,
+            required_decision_fields: REQUIRED_DECISION_FIELDS,
+            receipt_metadata_sources: RECEIPT_METADATA_SOURCES,
+        },
+        SubdomainTraceContract {
             trace_id: "verification_closure.trace",
             subdomain_id: "result_shaping_packaging",
             stage: WorkflowStage::VerificationClosure,
@@ -395,6 +403,7 @@ pub fn subdomain_boundaries() -> Vec<SubdomainBoundary> {
         recovery_escalation::boundary(),
         terminal_coordination::boundary(),
         result_shaping_packaging::boundary(),
+        tool_result_packaging::boundary(),
     ]
 }
 
