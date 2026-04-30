@@ -423,6 +423,8 @@ Progress:
 - 2026-04-30: Tightened `tests/tooling/config/shell_projection_guard_policy.json` to scan websocket/status/context helper paths for shell-authored workflow fallback labels and raw phase-detail label inference.
 - Existing fallback/status-detail inference is now recorded as time-bounded known debt; new occurrences fail `ops:shell:projection:guard`.
 - The visible system-chat injection detector is now allowance-aware, allowing the legacy websocket/session path to be scanned with an explicit capped expiry instead of staying outside the guard.
+- 2026-04-30: Removed the shell-authored `Waiting for workflow completion...` pending websocket status fallback from `chat.ts.parts/110-failover-and-health.part01.ts`; pending rows now stay alive without inventing status text when backend/orchestration does not supply one.
+- Removed the matching known-debt allowance from the shell projection guard so any reintroduction of that fallback text fails immediately.
 
 ## Execution Notes
 
