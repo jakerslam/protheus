@@ -3,6 +3,7 @@ use super::{SubdomainBoundary, SubdomainContract};
 use serde::Serialize;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum StatusEventKind {
     WorkflowPhase,
     AgentActivity,
@@ -11,6 +12,7 @@ pub enum StatusEventKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum StatusSourceAuthority {
     CoreRuntime,
     Orchestration,
@@ -18,6 +20,7 @@ pub enum StatusSourceAuthority {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum AgentActivityState {
     Idle,
     Working,
@@ -425,5 +428,21 @@ mod tests {
             project_status_event_for_shell(&event),
             Err("backend status projections require a backend event id".to_string())
         );
+    }
+
+    #[test]
+    fn shell_projection_serializes_stable_snake_case_values() {
+        let mut event = backend_event(StatusEventKind::AgentActivity, "Working");
+        event.source = StatusSourceAuthority::CoreRuntime;
+        event.activity = Some(AgentActivityState::Working);
+
+        let projection = project_status_event_for_shell(&event)
+            .expect("activity projection should be shell ready");
+        let value = serde_json::to_value(projection).expect("projection envelope should serialize");
+
+        assert_eq!(value["projection_type"], "agent_activity_projection");
+        assert_eq!(value["source"], "core_runtime");
+        assert_eq!(value["activity"], "working");
+        assert_eq!(value["status_text"], "Working");
     }
 }
