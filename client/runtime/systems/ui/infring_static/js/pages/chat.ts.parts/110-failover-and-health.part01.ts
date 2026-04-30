@@ -540,7 +540,7 @@
         : null;
       var pendingStatusText = pending && String(pending.status_text || '').trim()
         ? String(pending.status_text || '').trim()
-        : 'Waiting for workflow completion...';
+        : '';
       var rows = Array.isArray(this.messages) ? this.messages : [];
       var hasVisiblePending = false;
       var now = Date.now();
@@ -678,8 +678,7 @@
       var opts = options && typeof options === 'object' ? options : {};
       var startedAt = Number(opts.started_at || 0);
       if (!Number.isFinite(startedAt) || startedAt <= 0) startedAt = Date.now();
-      var statusText = String(opts.status_text || 'Waiting for workflow completion...').trim();
-      if (!statusText) statusText = 'Waiting for workflow completion...';
+      var statusText = String(opts.status_text || '').trim();
       this._pendingWsRequest = {
         agent_id: id,
         message_text: String(messageText || '').trim(),
@@ -722,10 +721,16 @@
       var id = String(agentId || '').trim();
       if (!id) return;
       try {
-        var store = Alpine.store('app');
+        var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+          ? InfringSharedShellServices.appStore
+          : null;
+        var store = bridge && typeof bridge.current === 'function' ? bridge.current() : null;
         if (!store) return;
-        if (typeof store.markAgentPreviewUnread === 'function') {
-          store.markAgentPreviewUnread(id, unread !== false);
+        var markAgentPreviewUnread = bridge && typeof bridge.method === 'function'
+          ? bridge.method('markAgentPreviewUnread')
+          : null;
+        if (typeof markAgentPreviewUnread === 'function') {
+          markAgentPreviewUnread(id, unread !== false);
         } else if (store.agentChatPreviews && store.agentChatPreviews[id]) {
           store.agentChatPreviews[id].unread_response = unread !== false;
         }
@@ -839,10 +844,13 @@
             messages: JSON.parse(JSON.stringify(normalized || [])),
           };
           try {
-            var appStore = Alpine.store('app');
-            if (appStore && typeof appStore.saveAgentChatPreview === 'function') {
-              appStore.saveAgentChatPreview(agentId, this.conversationCache[String(agentId)].messages);
-            }
+            var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+              ? InfringSharedShellServices.appStore
+              : null;
+            var saveAgentChatPreview = bridge && typeof bridge.method === 'function'
+              ? bridge.method('saveAgentChatPreview')
+              : null;
+            if (typeof saveAgentChatPreview === 'function') saveAgentChatPreview(agentId, this.conversationCache[String(agentId)].messages);
           } catch(_) {}
           var isActive = !!(this.currentAgent && String(this.currentAgent.id || '') === agentId);
           if (isActive) {
