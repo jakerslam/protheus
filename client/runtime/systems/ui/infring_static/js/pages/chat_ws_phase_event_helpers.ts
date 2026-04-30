@@ -17,6 +17,12 @@ function infringChatWebSocketPhaseEventMethods() {
       // Show tool/phase progress so the user sees the agent is working.
       var phaseMsg = this.ensureLiveThinkingRow(data);
       if (phaseMsg && (phaseMsg.thinking || phaseMsg.streaming)) {
+        if (data && data.workflow_visibility && typeof data.workflow_visibility === 'object') {
+          phaseMsg.workflow_visibility = data.workflow_visibility;
+          phaseMsg.workflow_trace = data.workflow_visibility.workflow_trace || data.workflow_trace || null;
+        } else if (data && data.workflow_trace && typeof data.workflow_trace === 'object') {
+          phaseMsg.workflow_trace = data.workflow_trace;
+        }
         var statusProjection = data && (
           data.status_phase_projection ||
           data.thinking_bubble_projection ||

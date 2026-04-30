@@ -19,7 +19,12 @@ fn workflow_self_play_agent(root: &Path, snapshot: &Value, name: &str) -> String
     )
 }
 
-fn workflow_self_play_message(root: &Path, snapshot: &Value, agent_id: &str, message: &str) -> CompatApiResponse {
+fn workflow_self_play_message(
+    root: &Path,
+    snapshot: &Value,
+    agent_id: &str,
+    message: &str,
+) -> CompatApiResponse {
     handle(
         root,
         "POST",
@@ -54,7 +59,8 @@ fn assert_workflow_self_play_clean(payload: &Value, ghost: &str) {
 fn workflow_scripted_agent_self_play_can_exit_no_tools_directly() {
     let root = governance_temp_root();
     let snapshot = governance_ok_snapshot();
-    let agent_id = workflow_self_play_agent(root.path(), &snapshot, "workflow-self-play-no-tools-agent");
+    let agent_id =
+        workflow_self_play_agent(root.path(), &snapshot, "workflow-self-play-no-tools-agent");
     assert!(!agent_id.is_empty());
 
     let ghost = "GHOST NO-TOOLS SECOND PASS SHOULD NEVER APPEAR";
@@ -75,13 +81,45 @@ fn workflow_scripted_agent_self_play_can_exit_no_tools_directly() {
         response.payload.get("response").and_then(Value::as_str),
         Some("Hello from the direct no-tool self-play path.")
     );
-    assert!(response.payload.get("pending_tool_request").is_none(), "{}", response.payload);
+    assert!(
+        response.payload.get("pending_tool_request").is_none(),
+        "{}",
+        response.payload
+    );
     assert_eq!(
         response
             .payload
             .pointer("/response_workflow/final_llm_response/status")
             .and_then(Value::as_str),
         Some("skipped_not_required")
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/workflow_visibility/workflow_trace/gate_id")
+            .and_then(Value::as_str),
+        Some("gate_1_need_tool_access_menu")
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/workflow_visibility/workflow_trace/input_kind")
+            .and_then(Value::as_str),
+        Some("multiple_choice")
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/workflow_visibility/workflow_trace/selected_option")
+            .and_then(Value::as_str),
+        Some("No")
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/workflow_visibility/workflow_trace/final_authority")
+            .and_then(Value::as_str),
+        Some("llm_only")
     );
     assert_workflow_self_play_clean(&response.payload, ghost);
 }
@@ -139,7 +177,24 @@ fn workflow_scripted_agent_self_play_can_choose_web_confirm_and_synthesize() {
         "{}",
         choose_tool.payload
     );
-    assert_eq!(choose_tool.payload.get("response").and_then(Value::as_str), Some(""));
+    assert_eq!(
+        choose_tool.payload.get("response").and_then(Value::as_str),
+        Some("")
+    );
+    assert_eq!(
+        choose_tool
+            .payload
+            .pointer("/workflow_visibility/workflow_trace/tool_name")
+            .and_then(Value::as_str),
+        Some("batch_query")
+    );
+    assert_eq!(
+        choose_tool
+            .payload
+            .pointer("/workflow_visibility/workflow_trace/confirmation_state")
+            .and_then(Value::as_str),
+        Some("pending_confirmation")
+    );
     assert_workflow_self_play_clean(&choose_tool.payload, ghost);
 
     let confirmed = workflow_self_play_message(root.path(), &snapshot, &agent_id, "yes");
@@ -174,7 +229,8 @@ fn workflow_scripted_agent_self_play_can_choose_web_confirm_and_synthesize() {
 fn workflow_scripted_agent_self_play_surfaces_failed_tool_for_llm_recovery() {
     let root = governance_temp_root();
     let snapshot = governance_ok_snapshot();
-    let agent_id = workflow_self_play_agent(root.path(), &snapshot, "workflow-self-play-failure-agent");
+    let agent_id =
+        workflow_self_play_agent(root.path(), &snapshot, "workflow-self-play-failure-agent");
     assert!(!agent_id.is_empty());
 
     let ghost = "GHOST FAILURE THIRD PASS SHOULD NEVER APPEAR";
@@ -209,7 +265,12 @@ fn workflow_scripted_agent_self_play_surfaces_failed_tool_for_llm_recovery() {
         }),
     );
 
-    let choose_tool = workflow_self_play_message(root.path(), &snapshot, &agent_id, "Read the missing file if needed.");
+    let choose_tool = workflow_self_play_message(
+        root.path(),
+        &snapshot,
+        &agent_id,
+        "Read the missing file if needed.",
+    );
     assert_eq!(
         choose_tool
             .payload
@@ -248,7 +309,8 @@ fn workflow_scripted_agent_self_play_surfaces_failed_tool_for_llm_recovery() {
 fn workflow_scripted_agent_self_play_can_cancel_pending_tool_without_execution() {
     let root = governance_temp_root();
     let snapshot = governance_ok_snapshot();
-    let agent_id = workflow_self_play_agent(root.path(), &snapshot, "workflow-self-play-cancel-agent");
+    let agent_id =
+        workflow_self_play_agent(root.path(), &snapshot, "workflow-self-play-cancel-agent");
     assert!(!agent_id.is_empty());
 
     let ghost = "GHOST CANCEL THIRD PASS SHOULD NEVER APPEAR";
@@ -270,7 +332,8 @@ fn workflow_scripted_agent_self_play_can_cancel_pending_tool_without_execution()
         &json!({"queue": [], "calls": []}),
     );
 
-    let choose_tool = workflow_self_play_message(root.path(), &snapshot, &agent_id, "Prepare to read a file.");
+    let choose_tool =
+        workflow_self_play_message(root.path(), &snapshot, &agent_id, "Prepare to read a file.");
     assert_eq!(
         choose_tool
             .payload
@@ -286,8 +349,13 @@ fn workflow_scripted_agent_self_play_can_cancel_pending_tool_without_execution()
         "{}",
         cancelled.payload
     );
-    assert!(cancelled.payload.get("pending_tool_request").is_none(), "{}", cancelled.payload);
-    let tool_script = read_json(&governance_test_tool_script_path(root.path())).expect("tool script");
+    assert!(
+        cancelled.payload.get("pending_tool_request").is_none(),
+        "{}",
+        cancelled.payload
+    );
+    let tool_script =
+        read_json(&governance_test_tool_script_path(root.path())).expect("tool script");
     assert_eq!(
         tool_script
             .get("calls")
@@ -307,7 +375,8 @@ fn workflow_scripted_agent_self_play_can_loop_back_for_another_tool() {
     std::fs::write(root.path().join("notes/loop.txt"), "LOOPBACK_FILE_OK").expect("fixture");
 
     let snapshot = governance_ok_snapshot();
-    let agent_id = workflow_self_play_agent(root.path(), &snapshot, "workflow-self-play-loopback-agent");
+    let agent_id =
+        workflow_self_play_agent(root.path(), &snapshot, "workflow-self-play-loopback-agent");
     assert!(!agent_id.is_empty());
 
     let ghost = "GHOST LOOPBACK FIFTH PASS SHOULD NEVER APPEAR";
@@ -347,7 +416,12 @@ fn workflow_scripted_agent_self_play_can_loop_back_for_another_tool() {
         }),
     );
 
-    let choose_file = workflow_self_play_message(root.path(), &snapshot, &agent_id, "Start with the local file.");
+    let choose_file = workflow_self_play_message(
+        root.path(),
+        &snapshot,
+        &agent_id,
+        "Start with the local file.",
+    );
     assert_eq!(
         choose_file
             .payload
@@ -367,7 +441,8 @@ fn workflow_scripted_agent_self_play_can_loop_back_for_another_tool() {
         file_done.payload
     );
 
-    let choose_web = workflow_self_play_message(root.path(), &snapshot, &agent_id, "Run another tool.");
+    let choose_web =
+        workflow_self_play_message(root.path(), &snapshot, &agent_id, "Run another tool.");
     assert_eq!(
         choose_web
             .payload
