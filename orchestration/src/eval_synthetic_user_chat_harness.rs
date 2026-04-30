@@ -398,6 +398,13 @@ fn evaluate_turn(input: TurnEvaluation<'_>) -> Vec<String> {
     {
         failures.push("visible_workflow_gate_choice_leakage".to_string());
     }
+    failures.extend(workflow_eval_failure_modes(
+        response_text,
+        previous_response,
+        payload,
+        latency_ms,
+        thresholds,
+    ));
     let has_tool_progress = payload_has_tool_progress(payload);
     if bool_at(turn, &["expect", "require_tool_progress"], false) && !has_tool_progress {
         failures.push("missing_tool_progress_evidence".to_string());
@@ -469,6 +476,48 @@ fn evaluate_turn(input: TurnEvaluation<'_>) -> Vec<String> {
     failures
 }
 
+fn workflow_eval_failure_modes(
+    response_text: &str,
+    previous_response: &str,
+    payload: &Value,
+    latency_ms: u64,
+    thresholds: &Value,
+) -> Vec<String> {
+    let mut failures = Vec::new();
+    let normalized = normalize_for_compare(response_text);
+    let pending_tool = payload_has_pending_tool(payload);
+    if normalized.is_empty() && !pending_tool {
+        failures.push("empty_direct_reply".to_string());
+    }
+    if normalized.matches("need tools? yes/no").count() > 1 {
+        failures.push("repeated_gate_prompt".to_string());
+    }
+    if visible_workflow_gate_choice_leakage(response_text, payload) {
+        failures.push("gate_token_leakage".to_string());
+    }
+    if hidden_second_pass_suspected(payload) {
+        failures.push("hidden_second_pass_call".to_string());
+    }
+    let pending_limit = u64_at(thresholds, &["pending_tool_stuck_max_latency_ms"], 30_000);
+    if pending_tool && pending_limit > 0 && latency_ms > pending_limit {
+        failures.push(format!(
+            "pending_tool_stuck_too_long:{latency_ms}>{pending_limit}"
+        ));
+    }
+    if payload_has_tool_result_without_synthesis(payload, response_text) {
+        failures.push("tool_result_without_synthesis".to_string());
+    }
+    if !previous_response.trim().is_empty()
+        && normalize_for_compare(previous_response) == normalized
+        && normalized.contains("need tools? yes/no")
+    {
+        failures.push("repeated_gate_prompt".to_string());
+    }
+    failures.sort();
+    failures.dedup();
+    failures
+}
+
 fn payload_has_tool_progress(payload: &Value) -> bool {
     payload
         .get("tools")
@@ -504,6 +553,54 @@ fn payload_has_tool_progress(payload: &Value) -> bool {
             .and_then(Value::as_array)
             .map(|rows| !rows.is_empty())
             .unwrap_or(false)
+}
+
+fn payload_has_pending_tool(payload: &Value) -> bool {
+    [
+        "/pending_tool_request/status",
+        "/response_workflow/pending_tool_request/status",
+        "/response_workflow/manual_toolbox_pending_tool_request/status",
+        "/response_finalization/pending_tool_request/status",
+    ]
+    .iter()
+    .any(|pointer| payload.pointer(pointer).and_then(Value::as_str) == Some("pending_confirmation"))
+}
+
+fn hidden_second_pass_suspected(payload: &Value) -> bool {
+    payload
+        .pointer("/response_finalization/workflow_system_fallback_used")
+        .and_then(Value::as_bool)
+        == Some(true)
+        || payload
+            .pointer("/response_workflow/final_llm_response/attempt_count")
+            .and_then(Value::as_u64)
+            .unwrap_or(1)
+            > 1
+        || payload
+            .pointer("/response_workflow/final_llm_response/fallback_guard_multi_stage")
+            .and_then(Value::as_bool)
+            == Some(true)
+}
+
+fn payload_has_tool_result_without_synthesis(payload: &Value, response_text: &str) -> bool {
+    let has_tool_result = payload
+        .get("tools")
+        .and_then(Value::as_array)
+        .map(|rows| !rows.is_empty())
+        .unwrap_or(false)
+        || payload
+            .pointer("/response_finalization/tool_completion/tool_attempts")
+            .and_then(Value::as_array)
+            .map(|rows| !rows.is_empty())
+            .unwrap_or(false);
+    if !has_tool_result {
+        return false;
+    }
+    let synthesized = payload
+        .pointer("/response_workflow/final_llm_response/status")
+        .and_then(Value::as_str)
+        == Some("synthesized");
+    !synthesized || response_text.trim().is_empty()
 }
 
 fn response_exposes_unresolved_tool_need(response_text: &str) -> bool {
@@ -576,6 +673,9 @@ fn visible_workflow_gate_choice_leakage(response_text: &str, payload: &Value) ->
     }
     let normalized = normalize_for_compare(response_text);
     let normalized = normalized.trim();
+    if normalized.contains("need tools? yes/no") {
+        return true;
+    }
     if normalized.starts_with("yes. tool family:")
         || normalized.starts_with("yes. tool:")
         || (normalized.starts_with("yes. ")

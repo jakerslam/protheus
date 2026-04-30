@@ -203,6 +203,89 @@ fn synthetic_user_harness_flags_visible_gate_choice_leakage() {
 }
 
 #[test]
+fn synthetic_user_harness_flags_workflow_infra_failure_modes() {
+    let turn = json!({
+        "user_message": "hey",
+        "expect": {}
+    });
+    let thresholds = json!({"pending_tool_stuck_max_latency_ms": 10});
+    let payload = json!({
+        "response": "Need tools? Yes/No Need tools? Yes/No",
+        "response_finalization": {
+            "workflow_system_fallback_used": true,
+            "pending_tool_request": {"status": "pending_confirmation"},
+            "tool_completion": {
+                "tool_attempts": [{"name": "batch_query", "status": "ok"}]
+            }
+        },
+        "response_workflow": {
+            "final_llm_response": {
+                "status": "skipped",
+                "attempt_count": 2,
+                "fallback_guard_multi_stage": true
+            },
+            "stage_statuses": [{"stage": "gate_1_need_tool_access_menu"}]
+        },
+        "tools": [{"name": "batch_query"}],
+        "live_eval_monitor": {"chat_injection_allowed": false}
+    });
+
+    let failures = evaluate_turn(TurnEvaluation {
+        live: false,
+        turn: &turn,
+        thresholds: &thresholds,
+        user_message: "hey",
+        response_text: "Need tools? Yes/No Need tools? Yes/No",
+        previous_response: "Need tools? Yes/No Need tools? Yes/No",
+        payload: &payload,
+        route_error_code: None,
+        latency_ms: 20,
+        response_token_count: 4,
+        workflow_stage_count: 1,
+    });
+
+    for expected in [
+        "gate_token_leakage",
+        "hidden_second_pass_call",
+        "repeated_gate_prompt",
+        "tool_result_without_synthesis",
+    ] {
+        assert!(
+            failures.iter().any(|row| row == expected),
+            "missing {expected}: {failures:?}"
+        );
+    }
+    assert!(
+        failures
+            .iter()
+            .any(|row| row.starts_with("pending_tool_stuck_too_long")),
+        "{failures:?}"
+    );
+}
+
+#[test]
+fn synthetic_user_harness_flags_empty_direct_reply() {
+    let turn = json!({"user_message": "hey", "expect": {}});
+    let failures = evaluate_turn(TurnEvaluation {
+        live: false,
+        turn: &turn,
+        thresholds: &json!({}),
+        user_message: "hey",
+        response_text: "",
+        previous_response: "",
+        payload: &json!({"response": "", "response_workflow": {}, "live_eval_monitor": {"chat_injection_allowed": false}}),
+        route_error_code: None,
+        latency_ms: 1,
+        response_token_count: 0,
+        workflow_stage_count: 0,
+    });
+    assert!(
+        failures.iter().any(|row| row == "empty_direct_reply"),
+        "{failures:?}"
+    );
+}
+
+#[test]
 fn synthetic_user_harness_requires_real_work_tool_progress() {
     let turn = json!({
         "user_message": "Use web search to compare infring to other major agentic frameworks in April 2026.",

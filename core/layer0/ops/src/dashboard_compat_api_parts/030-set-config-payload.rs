@@ -11,6 +11,8 @@ include_parts!(
     "set_config_payload_parts/070-part.rs",
     "set_config_payload_parts/080-part.rs",
     "set_config_payload_parts/081-part.rs",
+    "set_config_payload_parts/081b-live-eval-monitor-core.rs",
+    "set_config_payload_parts/081a-live-eval-workflow-issue-flags.rs",
     "set_config_payload_parts/090-part.rs",
     "set_config_payload_parts/100-part.rs",
     "set_config_payload_parts/110-part.rs",

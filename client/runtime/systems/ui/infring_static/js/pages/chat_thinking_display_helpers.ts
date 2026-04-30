@@ -171,6 +171,15 @@ function infringChatThinkingDisplayMethods() {
 
     thinkingTraceSummary: function(msg) {
       if (!msg || !msg.thinking) return '';
+      var workflowTrace = msg.workflow_trace || (msg.workflow_visibility && msg.workflow_visibility.workflow_trace);
+      if (workflowTrace && typeof workflowTrace === 'object') {
+        var traceParts = [];
+        if (workflowTrace.gate_id) traceParts.push(String(workflowTrace.gate_id).replace(/^gate_\d+[a-z]?_/, '').replace(/_/g, ' '));
+        if (workflowTrace.selected_option) traceParts.push('choice ' + String(workflowTrace.selected_option));
+        if (workflowTrace.tool_name) traceParts.push(String(workflowTrace.tool_name).replace(/_/g, ' '));
+        if (workflowTrace.confirmation_state && String(workflowTrace.confirmation_state) !== 'none') traceParts.push(String(workflowTrace.confirmation_state).replace(/_/g, ' '));
+        if (traceParts.length) return traceParts.slice(0, 4).join(' · ');
+      }
       var rows = this.messageToolTraceRows(msg);
       if (!rows.length) return '';
       var running = rows.filter(function(row) { return row.state === 'running'; });
