@@ -89,7 +89,7 @@ Progress:
 
 ### SHP-AUTH-003 - Prompt queue truth is owned by the shell
 
-Status: queued
+Status: in_progress
 Priority: P0
 Current files:
 - `client/runtime/systems/ui/infring_static/js/pages/chat_prompt_queue_helpers.ts`
@@ -112,6 +112,12 @@ Acceptance:
 - Shell queue rows carry backend IDs only.
 - Shell cannot execute queued prompt/steer work directly.
 - Regression covers queue reorder, steer injection, and failure requeue through backend receipts.
+
+Progress:
+- 2026-04-30: Added Rust control-plane queue coordination primitives in `surface/orchestration/src/control_plane/queue_coordination.rs`.
+- `coordinate_queue_intent` now owns non-authoritative sequencing recommendations for dispatch, steer, enqueue, remove, and reorder.
+- Core/runtime remains the intended authority for queue IDs and admission; shell should transition to backend queue mutation requests and projection rendering.
+- Regression tests cover holding dispatch while sending/failover, backend dispatch recommendation, steer requiring an active agent, and reorder as backend mutation.
 
 ### SHP-AUTH-004 - Terminal execution path performs coordination and recovery hints in shell
 
