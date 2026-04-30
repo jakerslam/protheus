@@ -1,0 +1,30 @@
+{
+  "type": "observability_sentinel_resident_observer_contract",
+  "schema_version": 1,
+  "owner": "assurance.observability",
+  "updated_at": "2026-04-29",
+  "resident": "kernel_sentinel",
+  "implementation_owner": "core/layer0/ops",
+  "definition_owner": "observability",
+  "source_registry": "observability/source_coverage/assurance_observability_registry.json",
+  "evidence_source_map": "observability/traces/sentinel_trace_source_map.json",
+  "freshness_policy": "observability/freshness/evidence_freshness_policy.json",
+  "runtime_finding_schema": "observability/runtime_findings/runtime_finding.schema.json",
+  "allowed_roles": [
+    "evidence_normalization",
+    "source_freshness_reporting",
+    "coverage_reporting",
+    "finding_synthesis",
+    "architectural_incident_synthesis",
+    "issue_candidate_evidence_preparation",
+    "self_study_output_projection"
+  ],
+  "forbidden_roles": [
+    "controlled_eval_definition_ownership",
+    "benchmark_definition_ownership",
+    "release_scorecard_truth_ownership",
+    "shell_readiness_inference",
+    "direct_code_mutation"
+  ],
+  "recursive_input_rule": "Sentinel self-study outputs may inform Governance and operator review, but they are not primary evidence streams for Sentinel ingestion."
+}

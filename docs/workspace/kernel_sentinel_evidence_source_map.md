@@ -73,3 +73,11 @@ This map identifies current telemetry producers, their authority class, and the 
 | 4 | proof-pack artifacts -> `release_proof_packs.jsonl` | Catches release-governance regressions. |
 | 5 | gateway/queue/boundedness artifacts -> dedicated streams | Completes runtime closure coverage. |
 | 6 | Shell telemetry -> `shell_telemetry.jsonl` | Gives Sentinel user-visible symptom context without granting Shell authority. |
+
+## Assurance Observability Registry Alignment
+
+This source map is now paired with `observability/source_coverage/assurance_observability_registry.json` and the machine-readable trace map at `observability/traces/sentinel_trace_source_map.json`.
+
+The source map explains producer-to-stream routing. The Observability registry explains source class, authority class, signal class, freshness requirement, coverage requirement, and whether a source can open findings or block release.
+
+Shell telemetry remains optional presentation context. It must not be counted as required deterministic coverage and must not open release-blocking findings without corroboration.

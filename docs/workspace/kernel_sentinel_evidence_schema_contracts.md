@@ -100,3 +100,18 @@ Freshness reporting is explicit: `freshness_observed_record_count` counts rows t
 Malformed evidence reports must include `malformed_by_source`, `malformed_by_path`, and `malformed_by_file_name` so operators can repair the exact broken producer instead of chasing a global count.
 
 Freshness reports include `stale_record_count`, `stale_evidence_seconds`, and `max_evidence_age_seconds`. Operators can tighten the threshold with `--stale-evidence-seconds=<seconds>` for release or RSI gates.
+
+## Assurance Envelope Projection
+
+Kernel Sentinel evidence streams are Observability inputs to the Assurance Plane.
+
+Each Sentinel row must be projectable into the shared Assurance evidence envelope defined in `docs/workspace/assurance_evidence_envelope_contract.md`.
+
+Projection rules:
+
+- preserve the stream-derived `authority_class` exactly;
+- project Sentinel stream name to `source_kind: sentinel_stream`;
+- use `domain: observability` for raw Sentinel evidence rows;
+- set `signal_class` from the stream mapping in the Assurance envelope contract;
+- keep Shell telemetry `presentation_telemetry_only` and never promote it to `hard_gate` without corroborating deterministic evidence;
+- keep control-plane eval `advisory_workflow_quality` and route promotion only through Governance recurrence/corroboration policy.

@@ -38,6 +38,8 @@ Canonical Shell UI Message Detail contract lives in `docs/workspace/shell_ui_mes
 
 Canonical Assurance Plane policy lives in `docs/workspace/assurance_plane_policy.md`.
 
+Canonical Assurance physical-domain migration status lives in `docs/workspace/assurance_physical_domain_migration_status.md`.
+
 Every cross-module or cross-domain route must enter and exit through explicit Nexus checkpoint surfaces, travel over Conduit, declare Conduit/Scrambler security posture, and carry lease/capability, lifecycle, policy, and receipt context. Direct code-file-to-code-file cross-module paths are migration debt unless they are explicitly exempted with owner, expiry, and a replacement Nexus checkpoint plan.
 
 ## Kernel
@@ -199,6 +201,8 @@ Keep logic in `core/` when it is authoritative kernel logic:
 - Deterministic receipt binding.
 
 Place logic in the Assurance Plane when it is controlled proof, live observation, scoring, release gating, trend analysis, issue-candidate governance, or confidence reporting. Harnesses may remain in `tests/**`, but the source of assurance truth must be explicit and evidence-backed.
+
+For Assurance definitions, physical placement matters: controlled definitions should live under `validation/**`, live evidence/source contracts should live under `observability/**`, and old tooling or shell paths must be compatibility mirrors, harness-only wrappers, or time-bounded exemptions. The placement guard `ops:assurance:physical-domain-placement:guard` enforces that split for definition-shaped files.
 
 ## Review Rubric
 

@@ -30,6 +30,8 @@ Assurance proves, observes, scores, gates, and explains the work.
 
 Assurance is an umbrella with three sibling domains.
 
+The policy is complete when these ownership boundaries are defined. The physical repo migration is tracked separately in `docs/workspace/assurance_physical_domain_migration_status.md`, because a domain can be policy-complete while compatibility mirrors and harness-only support paths still exist.
+
 ### Validation
 
 Validation answers: "Does this system behave correctly under controlled checks?"
@@ -173,3 +175,39 @@ Both directions should feed the System Understanding Dossier before implementati
 ## One-Line Rule
 
 Assurance does not do the work. Assurance proves, observes, scores, gates, and explains the work.
+
+## Canonical Evidence Contract
+
+The shared Assurance evidence envelope is defined in `docs/workspace/assurance_evidence_envelope_contract.md` and machine-readable schema `observability/evidence_normalization/assurance_evidence_envelope.schema.json`.
+
+All new Validation, Observability, and Governance artifacts should either emit that envelope directly or provide a deterministic projection into it.
+
+## Validation Registry
+
+The Validation registry lives at `validation/conformance/contracts/assurance_validation_registry.json`, with human-readable guidance in `docs/workspace/assurance_validation_registry.md`.
+
+The registry distinguishes self-enforcing controlled proof from harness-only execution plumbing, assigns lifecycle state, and requires retirement criteria for scaffolding or temporary monitors.
+
+## Observability Registry
+
+The Observability registry lives at `observability/source_coverage/assurance_observability_registry.json`, with human-readable guidance in `docs/workspace/assurance_observability_registry.md`.
+
+The registry defines live source classes, authority classes, default signal classes, source freshness requirements, source coverage requirements, Sentinel's privileged Observability role, and the rule that Shell telemetry remains presentation-only unless corroborated.
+
+## Governance Registry
+
+The Governance registry lives at `tests/tooling/config/assurance_governance_registry.json`, with human-readable guidance in `docs/workspace/assurance_governance_registry.md`.
+
+The registry defines verdict inputs, verdict outputs, scorecard derivation rules, advisory-to-hard-gate promotion rules, and repeated-failure issue-candidate routing. Governance may block release or produce issue candidates from evidence, but it may not auto-apply patches.
+
+Governance is currently policy-complete but not physically migrated into its own root domain. Until that migration happens, the active registry remains a controlled tooling location, while scorecard derivation contracts consumed by Validation guards live under `validation/scorecards/contracts/`. This is tracked as explicit migration debt in `docs/workspace/assurance_physical_domain_migration_status.md`.
+
+## Consumer Boundary Contract
+
+The consumer boundary contract lives at `validation/conformance/contracts/assurance_consumer_boundary_contract.json`, with human-readable guidance in `docs/workspace/assurance_consumer_boundary_contract.md`.
+
+The physical-domain placement guard is `ops:assurance:physical-domain-placement:guard`. It fails when definition-shaped eval, scorecard, release-gate, benchmark, telemetry, or Sentinel source-registry files appear outside `validation/**` or `observability/**` without an explicit compatibility mirror or harness-only exemption.
+
+The contract defines how Orchestration, Shell, Gateway, and Kernel consume Assurance without owning Assurance. Consumers may use bounded Assurance projections and detail refs, but they must not recompute verdicts, waive gates, or auto-apply patches.
+
+The migration-debt markers for compatibility wrappers are the `compatibility_mirrors.json` files under `validation/**` and `observability/**`, plus the time-bounded exemption registry at `validation/conformance/contracts/assurance_physical_domain_placement_exemptions.json`.

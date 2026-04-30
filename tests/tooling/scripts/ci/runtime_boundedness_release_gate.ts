@@ -65,7 +65,7 @@ function parseArgs(argv: string[]) {
     ),
     boundednessBudgetPolicyPath: cleanText(
       readFlag(argv, 'boundedness-budget-policy') ||
-        'tests/tooling/config/runtime_boundedness_budgets.json',
+        'validation/benchmarks/policies/runtime_boundedness_budgets.json',
       400,
     ),
     boundednessRegressionTolerancePct: Number(

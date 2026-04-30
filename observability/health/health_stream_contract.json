@@ -1,0 +1,56 @@
+{
+  "type": "observability_health_stream_contract",
+  "schema_version": 1,
+  "owner": "assurance.observability",
+  "updated_at": "2026-04-29",
+  "source_registry": "observability/source_coverage/assurance_observability_registry.json",
+  "streams": [
+    {
+      "id": "health.runtime_observations",
+      "source_class": "runtime_observation_stream",
+      "evidence_stream": "local/state/kernel_sentinel/evidence/runtime_observations.jsonl",
+      "authority_class": "deterministic_kernel_authority",
+      "can_open_finding": true,
+      "can_block_release": true
+    },
+    {
+      "id": "health.gateway_boundaries",
+      "source_class": "gateway_boundary_stream",
+      "evidence_stream": "local/state/kernel_sentinel/evidence/gateway_health.jsonl",
+      "authority_class": "deterministic_kernel_authority",
+      "can_open_finding": true,
+      "can_block_release": true
+    },
+    {
+      "id": "health.boundedness",
+      "source_class": "boundedness_stream",
+      "evidence_stream": "local/state/kernel_sentinel/evidence/boundedness_observations.jsonl",
+      "authority_class": "deterministic_kernel_authority",
+      "can_open_finding": true,
+      "can_block_release": true
+    },
+    {
+      "id": "health.shell_telemetry_context",
+      "source_class": "presentation_telemetry_stream",
+      "evidence_stream": "local/state/kernel_sentinel/evidence/shell_telemetry.jsonl",
+      "authority_class": "presentation_telemetry_only",
+      "can_open_finding": false,
+      "can_block_release": false,
+      "corroboration_required_for_finding": true
+    }
+  ],
+  "required_row_fields": [
+    "id",
+    "kind",
+    "subject",
+    "category",
+    "evidence",
+    "details.source_artifact"
+  ],
+  "status_fields": [
+    "ok",
+    "status",
+    "severity"
+  ],
+  "freshness_policy": "observability/freshness/evidence_freshness_policy.json"
+}

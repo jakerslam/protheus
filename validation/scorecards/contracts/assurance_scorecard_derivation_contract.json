@@ -1,0 +1,49 @@
+{
+  "type": "validation_scorecard_derivation_contract",
+  "schema_version": 1,
+  "owner": "validation/scorecards",
+  "updated_at": "2026-04-29",
+  "scorecard_id": "release_scorecard",
+  "scorecards_are_derived": true,
+  "scorecards_must_reference_evidence": true,
+  "scorecards_may_introduce_manual_truth": false,
+  "scorecard_output": {
+    "id": "output.release_scorecard",
+    "output_kind": "scorecard",
+    "artifact_paths": [
+      "client/runtime/local/state/release/scorecard/release_scorecard.json"
+    ],
+    "allowed_verdicts": ["allow", "block", "warn", "needs_more_evidence"],
+    "must_reference_evidence": true,
+    "may_block_release": false,
+    "may_apply_patch": false
+  },
+  "scorecard_derivation_rules": [
+    {
+      "id": "scorecard.rows_reference_evidence",
+      "description": "Every scorecard row must reference at least one source evidence artifact or Assurance envelope projection.",
+      "required": true
+    },
+    {
+      "id": "scorecard.no_manual_truth",
+      "description": "Scorecards summarize evidence and may not introduce manually curated pass/fail truth absent source artifacts.",
+      "required": true
+    },
+    {
+      "id": "scorecard.domain_breakdown_required",
+      "description": "Scorecards should group or tag inputs by Validation, Observability, and Governance source domain.",
+      "required": true
+    },
+    {
+      "id": "scorecard.stale_or_missing_evidence_visible",
+      "description": "Scorecards must surface stale, missing, malformed, or partial evidence as diagnostic rows instead of hiding them.",
+      "required": true
+    }
+  ],
+  "source_contracts": [
+    "validation/scorecards/contracts/release_scorecard_contract.json",
+    "validation/conformance/contracts/assurance_validation_registry.json",
+    "observability/source_coverage/assurance_observability_registry.json"
+  ],
+  "compatibility_source": "tests/tooling/config/assurance_governance_registry.json"
+}

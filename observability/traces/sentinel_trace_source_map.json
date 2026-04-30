@@ -1,0 +1,52 @@
+{
+  "type": "observability_sentinel_trace_source_map",
+  "schema_version": 1,
+  "owner": "assurance.observability",
+  "updated_at": "2026-04-29",
+  "human_source_map": "docs/workspace/kernel_sentinel_evidence_source_map.md",
+  "source_registry": "observability/source_coverage/assurance_observability_registry.json",
+  "targets": [
+    {
+      "stream": "kernel_receipts.jsonl",
+      "authority_class": "deterministic_kernel_authority",
+      "producer_refs": ["local/state/ops/verity/**"]
+    },
+    {
+      "stream": "runtime_observations.jsonl",
+      "authority_class": "deterministic_kernel_authority",
+      "producer_refs": ["local/state/ops/system_health_audit/**", "local/state/ops/synthetic_user_chat_harness/**"]
+    },
+    {
+      "stream": "control_plane_eval.jsonl",
+      "authority_class": "advisory_workflow_quality",
+      "producer_refs": ["local/state/ops/eval_agent_feedback/**", "local/state/ops/eval_learning_loop/**", "local/state/ops/synthetic_user_chat_harness/**"]
+    },
+    {
+      "stream": "release_proof_packs.jsonl",
+      "authority_class": "deterministic_kernel_authority",
+      "producer_refs": ["core/local/artifacts/*proof*", "core/local/artifacts/*release*"]
+    },
+    {
+      "stream": "gateway_health.jsonl",
+      "authority_class": "deterministic_kernel_authority",
+      "producer_refs": ["core/local/artifacts/*gateway*"]
+    },
+    {
+      "stream": "queue_backpressure.jsonl",
+      "authority_class": "deterministic_kernel_authority",
+      "producer_refs": ["core/local/artifacts/*queue*", "core/local/artifacts/*backpressure*"]
+    },
+    {
+      "stream": "shell_telemetry.jsonl",
+      "authority_class": "presentation_telemetry_only",
+      "producer_refs": ["local/state/ops/shell_telemetry/**", "local/state/ops/runtime_telemetry/**", "core/local/artifacts/*shell*", "core/local/artifacts/*dashboard*"],
+      "can_open_finding": false
+    }
+  ],
+  "collector_rules": [
+    "collector_writes_only_local_state_kernel_sentinel_evidence_jsonl",
+    "every_row_preserves_source_artifact_or_evidence_ref",
+    "missing_producers_are_reported_not_silent",
+    "malformed_rows_are_counted_separately_from_missing_streams"
+  ]
+}

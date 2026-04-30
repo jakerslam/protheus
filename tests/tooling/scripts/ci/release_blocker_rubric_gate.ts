@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const ROOT = process.cwd();
-const POLICY_PATH = path.join(ROOT, 'client/runtime/config/release_blocker_rubric.json');
+const POLICY_PATH = path.join(ROOT, 'validation/release_gates/policies/release_blocker_rubric.json');
 const DEFAULT_OUT = path.join(ROOT, 'core/local/artifacts/release_blocker_rubric_current.json');
 const REQUIRED_CLASSIFICATIONS = ['release_blocker', 'post_release_improvement', 'experimental_only'];
 const REQUIRED_STATUSES = ['open', 'mitigated', 'accepted_risk', 'done'];

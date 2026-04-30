@@ -65,7 +65,7 @@ function parseArgs(argv: string[]) {
     strict: common.strict,
     outPath: cleanText(readFlag(argv, 'out') || common.out || '', 400),
     manifestPath: cleanText(
-      readFlag(argv, 'manifest') || 'tests/tooling/config/release_proof_pack_manifest.json',
+      readFlag(argv, 'manifest') || 'validation/release_gates/contracts/release_proof_pack_manifest.json',
       400,
     ),
     version: cleanText(readFlag(argv, 'version') || new Date().toISOString().slice(0, 10), 120),

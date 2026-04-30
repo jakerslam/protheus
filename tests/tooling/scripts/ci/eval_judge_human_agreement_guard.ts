@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { cleanText, parseStrictOutArgs, readFlag } from '../../lib/cli.ts';
 
 const DEFAULT_FEEDBACK_PATH = 'surface/orchestration/fixtures/eval/eval_reviewer_feedback_sample.jsonl';
-const DEFAULT_THRESHOLDS_PATH = 'tests/tooling/config/eval_quality_thresholds.json';
+const DEFAULT_THRESHOLDS_PATH = 'validation/evals/config/eval_quality_thresholds.json';
 const DEFAULT_OUT_PATH = 'core/local/artifacts/eval_judge_human_agreement_current.json';
 const DEFAULT_OUT_LATEST_PATH = 'artifacts/eval_judge_human_agreement_latest.json';
 const DEFAULT_MARKDOWN_PATH = 'local/workspace/reports/EVAL_JUDGE_HUMAN_AGREEMENT_CURRENT.md';

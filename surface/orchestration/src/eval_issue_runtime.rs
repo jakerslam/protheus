@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const DEFAULT_ISSUE_SOURCE_PATH: &str =
-    "surface/orchestration/fixtures/eval/eval_gold_dataset_v1.jsonl";
+    "validation/evals/fixtures/eval_gold_dataset_v1.jsonl";
 const DEFAULT_ISSUE_OUT_PATH: &str = "core/local/artifacts/eval_issue_drafts_current.json";
 const DEFAULT_ISSUE_OUT_LATEST_PATH: &str = "artifacts/eval_issue_drafts_latest.json";
 const DEFAULT_ISSUE_MARKDOWN_PATH: &str = "local/workspace/reports/EVAL_ISSUE_DRAFTS_CURRENT.md";

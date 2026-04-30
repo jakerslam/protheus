@@ -44,7 +44,7 @@ function parseArgs(argv: string[]) {
     strict: common.strict,
     profile,
     outPath: cleanText(readFlag(argv, 'out') || common.out || '', 400),
-    policyPath: cleanText(readFlag(argv, 'policy') || 'tests/tooling/config/release_gates.yaml', 400),
+    policyPath: cleanText(readFlag(argv, 'policy') || 'validation/release_gates/config/release_gates.yaml', 400),
     metricsPath: cleanText(
       readFlag(argv, 'metrics') ||
         `core/local/artifacts/runtime_proof_release_gate_${profileSuffix}_current.json`,
