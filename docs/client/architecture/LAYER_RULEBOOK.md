@@ -1,5 +1,5 @@
 # InfRing Layer Rulebook — Strict Enforcement Policy
-**Version 1.3** — April 2026  
+**Version 1.3** — April 2026
 **This is the source of truth for file placement, language boundaries, and layer ownership. No deviations without explicit user approval.**
 
 ### 1. Directory Split (Enforced)
@@ -20,7 +20,7 @@ Allowed root-level exceptions (metadata/infrastructure): `.github/`, `.githooks/
 Placement is decided by authority before language.
 
 - If a surface decides, enforces, records, budgets, schedules, or guards system truth, it belongs in `core`.
-- If a surface performs non-canonical orchestration coordination (classification, clarification, sequencing, progress/recovery packaging), it belongs in `surface/orchestration`.
+- If a surface performs non-canonical orchestration coordination (classification, clarification, sequencing, progress/recovery packaging), it belongs in `orchestration`.
 - If a surface exists to help developers call, inspect, visualize, package, or extend the system, it belongs in the shell path `client`.
 - If a surface exists to ship the public SDK/package layer to developers, it belongs in `packages`.
 - If a surface is an opinionated workflow/product on top of the platform, it belongs in `apps`.
@@ -28,32 +28,32 @@ Placement is decided by authority before language.
 - If a surface exists only to verify behavior, it belongs in `tests` or adjacent unit-test locations.
 
 ### 2. Layer Definitions (Strict)
-- **Layer -1 (Exotic Hardware Template)** — `/core/layer_minus_one/`  
+- **Layer -1 (Exotic Hardware Template)** — `/core/layer_minus_one/`
   Thin adapter contract for exotic substrates; capability + fallback declarations only.
 
-- **Layer 0 (Safety Plane / Immutable Origin)** — `/core/layer0/`  
+- **Layer 0 (Safety Plane / Immutable Origin)** — `/core/layer0/`
   Constitution, deterministic receipts, invariant enforcement, security gates, and root safety authority.
 
-- **Layer 1 (Policy + Deterministic Receipts)** — `/core/layer1/`  
+- **Layer 1 (Policy + Deterministic Receipts)** — `/core/layer1/`
   Deterministic policy interpretation and receipt shaping.
 
-- **Layer 2 (Scheduling + Execution)** — `/core/layer2/`  
+- **Layer 2 (Scheduling + Execution)** — `/core/layer2/`
   Execution orchestration, deterministic scheduling, queue/runtime coordination.
 
-- **Layer 3 (OS Personality Template)** — `/core/layer3/`  
+- **Layer 3 (OS Personality Template)** — `/core/layer3/`
   Traditional OS growth surface (process/VFS/drivers/syscalls/namespaces/network/userland isolation).
 
-- **Cognition Plane (Unnumbered)** — `/surface/orchestration/` + `/client/`  
-  Orchestration Surface in `surface/orchestration/` for non-canonical execution coordination; Presentation Shell (compat alias: Client) in `client/` for UX and interaction shells.
+- **Cognition Plane (Unnumbered)** — `/orchestration/` + `/client/`
+  Orchestration in `orchestration/` for non-canonical execution coordination; Presentation Shell (compat alias: Client) in `client/` for UX and interaction shells.
 
-### 2.1 Orchestration Surface Contract
-Orchestration Surface code must be limited to:
+### 2.1 Orchestration Contract
+Orchestration code must be limited to:
 1. Request normalization/classification and clarification policy.
 2. Execution posture, sequencing, progress, retry/fallback, and result packaging.
 3. Contract-bound calls into core authority paths (Tool Broker, Unified Memory, Task Fabric, Assimilation).
 4. Transient sweepable orchestration context only.
 
-Orchestration Surface must not canonize truth, persist private durable workflow state, or bypass core ingress contracts.
+Orchestration must not canonize truth, persist private durable workflow state, or bypass core ingress contracts.
 
 ### 2.2 Shell Scope Contract (Developer-Only Surface, repo path `client/`)
 Shell code must be limited to:
@@ -82,7 +82,7 @@ Canonical Conduit/Scrambler Posture policy: `docs/workspace/conduit_scrambler_po
 
 Shell UI/default API payloads must be bounded projections. Full runtime envelopes, raw tool payloads, traces, execution observations, workflow truth, policy decisions, and full-state durable caches are prohibited in default Shell rows.
 
-Core, Orchestration Surface, CLI, and Gateway status must not require browser Shell assets such as dashboard HTML/CSS, Svelte bundles, browser static assets, DOM state, localStorage, or UI cache hydration.
+Core, Orchestration, CLI, and Gateway status must not require browser Shell assets such as dashboard HTML/CSS, Svelte bundles, browser static assets, DOM state, localStorage, or UI cache hydration.
 
 ### 2.3 Packages Scope Contract
 Packages are the public distribution layer for InfRing-facing SDKs and starter surfaces.
@@ -138,9 +138,9 @@ The extension boundary for apps and adapters is:
 Apps and gateways should build against the contract, not against private implementation files.
 
 ### 4. Boundary Rules (Enforced)
-- Primary path is Shell -> Orchestration Surface -> Kernel for user-driven execution flows.
+- Primary path is Shell -> Orchestration -> Kernel for user-driven execution flows.
 - Shell <-> core communication is conduit + scrambler only when explicitly approved ingress requires it.
-- Orchestration Surface <-> core communication is conduit + scrambler + lease/policy validation.
+- Orchestration <-> core communication is conduit + scrambler + lease/policy validation.
 - Nexus-Conduit-Checkpoint policy is canonical at `docs/workspace/nexus_conduit_checkpoint_policy.md`.
 - Layered Nexus Federation is resolved by `docs/workspace/layered_nexus_federation_resolution_policy.md`; the old exact three-domain federation runtime shape is retired in favor of Layer 2 Nexus primitives plus checkpoint/Conduit/lease/lifecycle/receipt guards.
 - Cross-domain route inventory is canonical at `docs/workspace/cross_domain_nexus_route_inventory.md`; new domain routes must be inventoried with source checkpoint, target checkpoint, Conduit path, posture, lease/capability, lifecycle gate, receipt requirement, and owner-of-truth declaration.

@@ -174,7 +174,7 @@
       "summary": "Native runtime now exposes orchestration contract health plus a bounded recent receipt stream with task, trace, evidence, claim, and core-correlation counts for operator follow-through.",
       "planned_batch_date": "2026-04-20",
       "paths": [
-        "surface/orchestration/src",
+        "orchestration/src",
         "adapters/runtime/infring_dashboard.ts",
         "client/runtime/systems/ui/infring_static"
       ]

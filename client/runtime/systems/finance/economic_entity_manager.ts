@@ -5,7 +5,7 @@
 const { createCompatTargetBridge } = require('../../lib/compat_target_bridge.ts');
 const bridge = createCompatTargetBridge({
   scriptDir: __dirname,
-  targetRelativePath: '../../../../surface/orchestration/scripts/economic_entity_manager.ts',
+  targetRelativePath: '../../../../orchestration/scripts/economic_entity_manager.ts',
   loadError: 'economic_entity_manager_target_load_failed',
   unavailableError: 'economic_entity_manager_target_unavailable',
   missingRunError: 'economic_entity_manager_target_missing_run',

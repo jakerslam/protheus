@@ -33,8 +33,8 @@ type ControlPlaneContractAudit = {
 };
 
 const ROOT = process.cwd();
-const CONTROL_PLANE_MODULE_PATH = 'surface/orchestration/src/control_plane/mod.rs';
-const CONTROL_PLANE_TEST_PATH = 'surface/orchestration/tests/control_plane_subdomains.rs';
+const CONTROL_PLANE_MODULE_PATH = 'orchestration/src/control_plane/mod.rs';
+const CONTROL_PLANE_TEST_PATH = 'orchestration/tests/control_plane_subdomains.rs';
 const REQUIRED_CONTROL_PLANE_SUBDOMAINS: ControlPlaneSubdomainSpec[] = [
   { id: 'intake_normalization', module: 'intake_normalization' },
   { id: 'decomposition_planning', module: 'decomposition_planning' },
@@ -102,7 +102,7 @@ function wrapperContractViolations(binding: Binding, source: string): string[] {
   if (!normalizedSource.includes('TypeScript compatibility shim only.')) {
     violations.push('missing_shim_marker');
   }
-  if (!normalizedSource.includes('surface/orchestration')) {
+  if (!normalizedSource.includes('orchestration')) {
     violations.push('missing_layer_ownership_marker');
   }
   if (!normalizedSource.includes(expectedSpec)) {
@@ -125,7 +125,7 @@ function wrapperTemplate(binding: Binding): string {
   return `#!/usr/bin/env node
 'use strict';
 // TypeScript compatibility shim only.
-// Layer ownership: surface/orchestration (${binding.ownership}); this file is a thin CLI bridge.
+// Layer ownership: orchestration (${binding.ownership}); this file is a thin CLI bridge.
 
 const impl = require('${normalizedSpec}');
 
@@ -159,7 +159,7 @@ function scanClientSurfaceShims(): string[] {
       }
       if (!entry.isFile() || !entry.name.endsWith('.ts')) continue;
       const source = fs.readFileSync(abs, 'utf8');
-      if (source.includes('surface/orchestration/scripts/')) {
+      if (source.includes('orchestration/scripts/')) {
         out.push(rel(abs));
       }
     }

@@ -2,7 +2,7 @@
 
 Status: Canonical architecture policy
 Owner: Jay
-Scope: Shell UI, Shell SDK/UI-facing gateways, Orchestration Surface output packaging, and Core-facing presentation contracts
+Scope: Shell UI, Shell SDK/UI-facing gateways, Orchestration output packaging, and Core-facing presentation contracts
 Effective: April 2026
 
 ## Purpose
@@ -25,7 +25,7 @@ Shell shows, collects, and requests details by reference.
 
 The Shell default data shape is a projection, not a runtime object.
 
-Shell-independent operation is canonicalized in `docs/workspace/shell_independent_operation_policy.md`; Core, Orchestration Surface, CLI, and Gateway status must build and operate without browser Shell assets.
+Shell-independent operation is canonicalized in `docs/workspace/shell_independent_operation_policy.md`; Core, Orchestration, CLI, and Gateway status must build and operate without browser Shell assets.
 
 ## What The Shell May Own
 

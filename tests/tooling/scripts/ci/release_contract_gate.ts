@@ -1146,7 +1146,7 @@ function wrapperContractCheck(): Check {
       source.includes('ts_bootstrap.ts') && source.includes('bootstrap(__filename, module)');
     const hasRustLaneBridge = source.includes('createOpsLaneBridge');
     const hasSurfaceShim =
-      source.includes('surface/orchestration/scripts/') && source.includes('thin CLI bridge');
+      source.includes('orchestration/scripts/') && source.includes('thin CLI bridge');
     if (!(hasBootstrapEntrypoint || hasRustLaneBridge || hasSurfaceShim)) violations.push(`${rel}:missing_contract`);
     if (source.includes('legacy_retired_lane_bridge')) violations.push(`${rel}:legacy_retired_lane_bridge`);
   }

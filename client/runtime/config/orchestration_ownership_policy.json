@@ -38,10 +38,10 @@
     ],
     "required_markers": [
       "TypeScript compatibility shim only.",
-      "Layer ownership: surface/orchestration (control-plane cognition); this file is a thin bridge."
+      "Layer ownership: orchestration (control-plane cognition); this file is a thin bridge."
     ],
     "required_delegate_markers_any": [
-      "surface', 'orchestration', 'scripts', 'cognition'"
+      "'orchestration', 'scripts', 'cognition'"
     ],
     "require_self_filename_delegate_marker": true,
     "forbidden_markers": [
@@ -58,7 +58,7 @@
   },
   "cognition_surface_parity_contract": {
     "client_root": "client/cognition/orchestration",
-    "surface_root": "surface/orchestration/scripts/cognition",
+    "surface_root": "orchestration/scripts/cognition",
     "extensions": [
       ".ts",
       ".json"
@@ -70,7 +70,7 @@
     ]
   },
   "surface_script_import_boundary": {
-    "scan_root": "surface/orchestration/scripts",
+    "scan_root": "orchestration/scripts",
     "extensions": [
       ".ts"
     ],

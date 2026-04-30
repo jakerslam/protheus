@@ -153,16 +153,16 @@ function main() {
   const dashboardIngressAuth = read(
     'core/layer0/ops/src/dashboard_tool_turn_loop_parts/030-authorize-client-ingress-route-with-nexus-inner-to-input-confirmed.rs',
   );
-  const orchestrationLib = read('surface/orchestration/src/lib.rs');
-  const orchestrationSeq = read('surface/orchestration/src/sequencing.rs');
-  const orchestrationContracts = read('surface/orchestration/src/contracts.rs');
-  const orchestrationTransient = read('surface/orchestration/src/transient_context.rs');
+  const orchestrationLib = read('orchestration/src/lib.rs');
+  const orchestrationSeq = read('orchestration/src/sequencing.rs');
+  const orchestrationContracts = read('orchestration/src/contracts.rs');
+  const orchestrationTransient = read('orchestration/src/transient_context.rs');
   const rootSurfaceContract = JSON.parse(read('client/runtime/config/root_surface_contract.json'));
   const repoSurfacePolicy = JSON.parse(read('client/runtime/config/repo_surface_policy.json'));
   const clientSwarmWrapper = read('client/runtime/systems/autonomy/swarm_orchestration_runtime.ts');
-  const surfaceSwarmRuntime = read('surface/orchestration/scripts/swarm_orchestration_runtime.ts');
+  const surfaceSwarmRuntime = read('orchestration/scripts/swarm_orchestration_runtime.ts');
   const clientSelfImproveWrapper = read('client/runtime/systems/autonomy/self_improvement_cadence_orchestrator.ts');
-  const surfaceSelfImproveRuntime = read('surface/orchestration/scripts/self_improvement_cadence_orchestrator.ts');
+  const surfaceSelfImproveRuntime = read('orchestration/scripts/self_improvement_cadence_orchestrator.ts');
   const clientRouteTaskWrapper = read('client/runtime/systems/routing/route_task.ts');
   const clientRouteExecuteWrapper = read('client/runtime/systems/routing/route_execute.ts');
   const clientProviderOnboardingWrapper = read('client/runtime/systems/routing/provider_onboarding_manifest.ts');
@@ -183,26 +183,26 @@ function main() {
   const clientModelCatalogWrapper = read('client/runtime/systems/autonomy/model_catalog_loop.ts');
   const clientProactiveT1Wrapper = read('client/runtime/systems/autonomy/proactive_t1_initiative_engine.ts');
   const clientZeroPermissionWrapper = read('client/runtime/systems/autonomy/zero_permission_conversational_layer.ts');
-  const surfaceRouteTaskRuntime = read('surface/orchestration/scripts/route_task.ts');
-  const surfaceRouteExecuteRuntime = read('surface/orchestration/scripts/route_execute.ts');
-  const surfaceProviderOnboardingRuntime = read('surface/orchestration/scripts/provider_onboarding_manifest.ts');
-  const surfaceGatewayFailureClassifierRuntime = read('surface/orchestration/scripts/llm_gateway_failure_classifier.ts');
-  const surfaceMorphPlannerRuntime = read('surface/orchestration/scripts/morph_planner.ts');
-  const surfaceValueOfInformationPlannerRuntime = read('surface/orchestration/scripts/value_of_information_collection_planner.ts');
-  const surfaceTaskDecompositionRuntime = read('surface/orchestration/scripts/task_decomposition_primitive.ts');
-  const surfaceLearningConduitRuntime = read('surface/orchestration/scripts/learning_conduit.ts');
-  const surfaceRelationshipManagerRuntime = read('surface/orchestration/scripts/client_relationship_manager.ts');
-  const surfaceUniversalOutreachRuntime = read('surface/orchestration/scripts/universal_outreach_primitive.ts');
-  const surfacePaymentSkillsRuntime = read('surface/orchestration/scripts/payment_skills_bridge.ts');
-  const surfaceGatedAccountCreationRuntime = read('surface/orchestration/scripts/gated_account_creation_organ.ts');
-  const surfaceGatedSelfImprovementRuntime = read('surface/orchestration/scripts/gated_self_improvement_loop.ts');
-  const surfaceHoldRemediationRuntime = read('surface/orchestration/scripts/hold_remediation_engine.ts');
-  const surfaceLeverExperimentRuntime = read('surface/orchestration/scripts/lever_experiment_gate.ts');
-  const surfaceModelCatalogRuntime = read('surface/orchestration/scripts/model_catalog_loop.ts');
-  const surfaceProactiveT1Runtime = read('surface/orchestration/scripts/proactive_t1_initiative_engine.ts');
-  const surfaceZeroPermissionRuntime = read('surface/orchestration/scripts/zero_permission_conversational_layer.ts');
+  const surfaceRouteTaskRuntime = read('orchestration/scripts/route_task.ts');
+  const surfaceRouteExecuteRuntime = read('orchestration/scripts/route_execute.ts');
+  const surfaceProviderOnboardingRuntime = read('orchestration/scripts/provider_onboarding_manifest.ts');
+  const surfaceGatewayFailureClassifierRuntime = read('orchestration/scripts/llm_gateway_failure_classifier.ts');
+  const surfaceMorphPlannerRuntime = read('orchestration/scripts/morph_planner.ts');
+  const surfaceValueOfInformationPlannerRuntime = read('orchestration/scripts/value_of_information_collection_planner.ts');
+  const surfaceTaskDecompositionRuntime = read('orchestration/scripts/task_decomposition_primitive.ts');
+  const surfaceLearningConduitRuntime = read('orchestration/scripts/learning_conduit.ts');
+  const surfaceRelationshipManagerRuntime = read('orchestration/scripts/client_relationship_manager.ts');
+  const surfaceUniversalOutreachRuntime = read('orchestration/scripts/universal_outreach_primitive.ts');
+  const surfacePaymentSkillsRuntime = read('orchestration/scripts/payment_skills_bridge.ts');
+  const surfaceGatedAccountCreationRuntime = read('orchestration/scripts/gated_account_creation_organ.ts');
+  const surfaceGatedSelfImprovementRuntime = read('orchestration/scripts/gated_self_improvement_loop.ts');
+  const surfaceHoldRemediationRuntime = read('orchestration/scripts/hold_remediation_engine.ts');
+  const surfaceLeverExperimentRuntime = read('orchestration/scripts/lever_experiment_gate.ts');
+  const surfaceModelCatalogRuntime = read('orchestration/scripts/model_catalog_loop.ts');
+  const surfaceProactiveT1Runtime = read('orchestration/scripts/proactive_t1_initiative_engine.ts');
+  const surfaceZeroPermissionRuntime = read('orchestration/scripts/zero_permission_conversational_layer.ts');
   const clientPersonaWrapper = read('client/runtime/systems/personas/orchestration.ts');
-  const surfacePersonaRuntime = read('surface/orchestration/scripts/personas_orchestration.ts');
+  const surfacePersonaRuntime = read('orchestration/scripts/personas_orchestration.ts');
   const orchestrationSurfaceRegistry = read('adapters/runtime/orchestration_surface_modules.ts');
   const orchestrationSurfaceRegistryBindings = parseOrchestrationRegistryBindings(orchestrationSurfaceRegistry);
   const nonSwarmRegistryBindings = orchestrationSurfaceRegistryBindings.filter((row) => row.kind !== 'swarm');
@@ -253,8 +253,8 @@ function main() {
   const missingOrchestrationRegistryKeys = auditedOrchestrationModuleKeys.filter(
     (key) => !orchestrationRegistryHasKey(orchestrationSurfaceRegistry, key),
   );
-  const orchestrationShimBindings = parseOrchestrationShimBindings('surface/orchestration/scripts');
-  const orchestrationShimKeys = parseOrchestrationShimKeys('surface/orchestration/scripts');
+  const orchestrationShimBindings = parseOrchestrationShimBindings('orchestration/scripts');
+  const orchestrationShimKeys = parseOrchestrationShimKeys('orchestration/scripts');
   const duplicateOrchestrationShimKeyBindings = Array.from(
     orchestrationShimBindings.reduce((acc, row) => {
       const scripts = acc.get(row.key) ?? [];
@@ -453,7 +453,7 @@ function main() {
   const registryScriptBindingRows = orchestrationSurfaceRegistryBindings
     .filter((row) => row.kind !== 'swarm' && row.scriptName.length > 0)
     .map((row) => {
-      const scriptPath = join('surface/orchestration/scripts', `${row.scriptName}.ts`);
+      const scriptPath = join('orchestration/scripts', `${row.scriptName}.ts`);
       const scriptExists = existsSync(scriptPath);
       const keyBindingMatches = scriptExists ? isOrchestrationSurfaceShim(read(scriptPath), row.key) : false;
       return {
@@ -1015,107 +1015,107 @@ function main() {
   const auditedClientWrapperBindings = [
     {
       key: 'client_relationship_manager',
-      expectedSurfaceScript: 'surface/orchestration/scripts/client_relationship_manager.ts',
+      expectedSurfaceScript: 'orchestration/scripts/client_relationship_manager.ts',
       source: clientRelationshipManagerWrapper,
     },
     {
       key: 'gated_account_creation_organ',
-      expectedSurfaceScript: 'surface/orchestration/scripts/gated_account_creation_organ.ts',
+      expectedSurfaceScript: 'orchestration/scripts/gated_account_creation_organ.ts',
       source: clientGatedAccountCreationWrapper,
     },
     {
       key: 'gated_self_improvement_loop',
-      expectedSurfaceScript: 'surface/orchestration/scripts/gated_self_improvement_loop.ts',
+      expectedSurfaceScript: 'orchestration/scripts/gated_self_improvement_loop.ts',
       source: clientGatedSelfImprovementWrapper,
     },
     {
       key: 'hold_remediation_engine',
-      expectedSurfaceScript: 'surface/orchestration/scripts/hold_remediation_engine.ts',
+      expectedSurfaceScript: 'orchestration/scripts/hold_remediation_engine.ts',
       source: clientHoldRemediationWrapper,
     },
     {
       key: 'learning_conduit',
-      expectedSurfaceScript: 'surface/orchestration/scripts/learning_conduit.ts',
+      expectedSurfaceScript: 'orchestration/scripts/learning_conduit.ts',
       source: clientLearningConduitWrapper,
     },
     {
       key: 'lever_experiment_gate',
-      expectedSurfaceScript: 'surface/orchestration/scripts/lever_experiment_gate.ts',
+      expectedSurfaceScript: 'orchestration/scripts/lever_experiment_gate.ts',
       source: clientLeverExperimentWrapper,
     },
     {
       key: 'llm_gateway_failure_classifier',
-      expectedSurfaceScript: 'surface/orchestration/scripts/llm_gateway_failure_classifier.ts',
+      expectedSurfaceScript: 'orchestration/scripts/llm_gateway_failure_classifier.ts',
       source: clientGatewayFailureClassifierWrapper,
     },
     {
       key: 'model_catalog_loop',
-      expectedSurfaceScript: 'surface/orchestration/scripts/model_catalog_loop.ts',
+      expectedSurfaceScript: 'orchestration/scripts/model_catalog_loop.ts',
       source: clientModelCatalogWrapper,
     },
     {
       key: 'morph_planner',
-      expectedSurfaceScript: 'surface/orchestration/scripts/morph_planner.ts',
+      expectedSurfaceScript: 'orchestration/scripts/morph_planner.ts',
       source: clientMorphPlannerWrapper,
     },
     {
       key: 'payment_skills_bridge',
-      expectedSurfaceScript: 'surface/orchestration/scripts/payment_skills_bridge.ts',
+      expectedSurfaceScript: 'orchestration/scripts/payment_skills_bridge.ts',
       source: clientPaymentSkillsWrapper,
     },
     {
       key: 'personas_orchestration',
-      expectedSurfaceScript: 'surface/orchestration/scripts/personas_orchestration.ts',
+      expectedSurfaceScript: 'orchestration/scripts/personas_orchestration.ts',
       source: clientPersonaWrapper,
     },
     {
       key: 'proactive_t1_initiative_engine',
-      expectedSurfaceScript: 'surface/orchestration/scripts/proactive_t1_initiative_engine.ts',
+      expectedSurfaceScript: 'orchestration/scripts/proactive_t1_initiative_engine.ts',
       source: clientProactiveT1Wrapper,
     },
     {
       key: 'provider_onboarding_manifest',
-      expectedSurfaceScript: 'surface/orchestration/scripts/provider_onboarding_manifest.ts',
+      expectedSurfaceScript: 'orchestration/scripts/provider_onboarding_manifest.ts',
       source: clientProviderOnboardingWrapper,
     },
     {
       key: 'route_execute',
-      expectedSurfaceScript: 'surface/orchestration/scripts/route_execute.ts',
+      expectedSurfaceScript: 'orchestration/scripts/route_execute.ts',
       source: clientRouteExecuteWrapper,
     },
     {
       key: 'route_task',
-      expectedSurfaceScript: 'surface/orchestration/scripts/route_task.ts',
+      expectedSurfaceScript: 'orchestration/scripts/route_task.ts',
       source: clientRouteTaskWrapper,
     },
     {
       key: 'self_improvement_cadence_orchestrator',
-      expectedSurfaceScript: 'surface/orchestration/scripts/self_improvement_cadence_orchestrator.ts',
+      expectedSurfaceScript: 'orchestration/scripts/self_improvement_cadence_orchestrator.ts',
       source: clientSelfImproveWrapper,
     },
     {
       key: 'swarm_orchestration_runtime',
-      expectedSurfaceScript: 'surface/orchestration/scripts/swarm_orchestration_runtime.ts',
+      expectedSurfaceScript: 'orchestration/scripts/swarm_orchestration_runtime.ts',
       source: clientSwarmWrapper,
     },
     {
       key: 'task_decomposition_primitive',
-      expectedSurfaceScript: 'surface/orchestration/scripts/task_decomposition_primitive.ts',
+      expectedSurfaceScript: 'orchestration/scripts/task_decomposition_primitive.ts',
       source: clientTaskDecompositionWrapper,
     },
     {
       key: 'universal_outreach_primitive',
-      expectedSurfaceScript: 'surface/orchestration/scripts/universal_outreach_primitive.ts',
+      expectedSurfaceScript: 'orchestration/scripts/universal_outreach_primitive.ts',
       source: clientUniversalOutreachWrapper,
     },
     {
       key: 'value_of_information_collection_planner',
-      expectedSurfaceScript: 'surface/orchestration/scripts/value_of_information_collection_planner.ts',
+      expectedSurfaceScript: 'orchestration/scripts/value_of_information_collection_planner.ts',
       source: clientValueOfInformationPlannerWrapper,
     },
     {
       key: 'zero_permission_conversational_layer',
-      expectedSurfaceScript: 'surface/orchestration/scripts/zero_permission_conversational_layer.ts',
+      expectedSurfaceScript: 'orchestration/scripts/zero_permission_conversational_layer.ts',
       source: clientZeroPermissionWrapper,
     },
   ];
@@ -1245,13 +1245,13 @@ function main() {
   const checks: CheckResult[] = [
     {
       id: 'core_must_not_depend_on_orchestration_surface',
-      ok: !coreLib.includes('infring_orchestration_surface_v1'),
+      ok: !coreLib.includes('infring_orchestration_v1'),
       detail: 'core/layer2/nexus does not import orchestration crate',
     },
     {
       id: 'orchestration_surface_must_not_depend_on_client',
       ok: !orchestrationLib.includes('client::') && !orchestrationLib.includes('client/runtime'),
-      detail: 'surface/orchestration has no client-layer dependency',
+      detail: 'orchestration has no client-layer dependency',
     },
     {
       id: 'client_ingress_routes_authorized_via_nexus',
@@ -2209,7 +2209,7 @@ function main() {
       detail:
         orchestrationShimBindings.length > 0
           ? `orchestration_shim_binding_count=${orchestrationShimBindings.length}`
-          : 'surface/orchestration shim bindings missing',
+          : 'orchestration shim bindings missing',
     },
     {
       id: 'orchestration_audited_module_keys_present',
@@ -2341,7 +2341,7 @@ function main() {
       ok: clientWrapperExpectedSurfaceScriptsWithInvalidPathFormat.length === 0,
       detail:
         clientWrapperExpectedSurfaceScriptsWithInvalidPathFormat.length === 0
-          ? 'client wrapper expected surface paths use canonical surface/orchestration/scripts/<token>.ts format'
+          ? 'client wrapper expected surface paths use canonical orchestration/scripts/<token>.ts format'
           : `client_wrapper_expected_surface_paths_with_invalid_format=${clientWrapperExpectedSurfaceScriptsWithInvalidPathFormat.join(',')}`,
     },
     {
@@ -2523,35 +2523,35 @@ function main() {
       id: 'orchestration_surface_shim_keys_are_unique',
       ok: duplicateOrchestrationShimKeyBindings.length === 0,
       detail: duplicateOrchestrationShimKeyBindings.length === 0
-        ? 'surface orchestration shim key bindings are unique per script entrypoint'
+        ? 'orchestration shim key bindings are unique per script entrypoint'
         : `duplicate shim key bindings: ${duplicateOrchestrationShimKeyBindings.join(', ')}`,
     },
     {
       id: 'orchestration_surface_shim_keys_are_sorted',
       ok: outOfOrderOrchestrationShimKeys.length === 0,
       detail: outOfOrderOrchestrationShimKeys.length === 0
-        ? 'surface orchestration shim keys are lexicographically sorted for deterministic review diffs'
+        ? 'orchestration shim keys are lexicographically sorted for deterministic review diffs'
         : `out_of_order_shim_key_pairs=${outOfOrderOrchestrationShimKeys.join(',')}`,
     },
     {
       id: 'orchestration_surface_shim_script_files_are_unique',
       ok: duplicateOrchestrationShimScriptFiles.length === 0,
       detail: duplicateOrchestrationShimScriptFiles.length === 0
-        ? 'surface orchestration shim script file bindings are unique'
+        ? 'orchestration shim script file bindings are unique'
         : `duplicate_shim_script_files=${duplicateOrchestrationShimScriptFiles.join(',')}`,
     },
     {
       id: 'orchestration_surface_shim_script_names_match_registry_bindings',
       ok: shimScriptNameMismatches.length === 0,
       detail: shimScriptNameMismatches.length === 0
-        ? 'surface orchestration shim file names align with adapter registry scriptName bindings'
+        ? 'orchestration shim file names align with adapter registry scriptName bindings'
         : `shim_script_name_mismatches=${shimScriptNameMismatches.join(',')}`,
     },
     {
       id: 'orchestration_surface_registry_script_files_exist_for_non_swarm_bindings',
       ok: missingRegistryScriptFiles.length === 0,
       detail: missingRegistryScriptFiles.length === 0
-        ? 'all non-swarm orchestration registry bindings resolve to concrete surface/orchestration script files'
+        ? 'all non-swarm orchestration registry bindings resolve to concrete orchestration script files'
         : `missing_registry_script_files=${missingRegistryScriptFiles.join(',')}`,
     },
     {
@@ -2564,19 +2564,19 @@ function main() {
     {
       id: 'client_swarm_orchestration_is_wrapper_only',
       ok: clientSwarmWrapper.includes('TypeScript compatibility shim only.') &&
-        clientSwarmWrapper.includes('surface/orchestration/scripts/swarm_orchestration_runtime.ts'),
-      detail: 'client swarm orchestration entrypoint remains thin and delegates to surface/orchestration',
+        clientSwarmWrapper.includes('orchestration/scripts/swarm_orchestration_runtime.ts'),
+      detail: 'client swarm orchestration entrypoint remains thin and delegates to orchestration',
     },
     {
       id: 'orchestration_runtime_lives_under_surface',
       ok: isOrchestrationSurfaceShim(surfaceSwarmRuntime, 'swarm_orchestration_runtime'),
-      detail: 'swarm orchestration coordination implementation is hosted in surface/orchestration',
+      detail: 'swarm orchestration coordination implementation is hosted in orchestration',
     },
     {
       id: 'client_self_improvement_orchestration_is_wrapper_only',
       ok: clientSelfImproveWrapper.includes('TypeScript compatibility shim only.') &&
-        clientSelfImproveWrapper.includes('surface/orchestration/scripts/self_improvement_cadence_orchestrator.ts'),
-      detail: 'client self-improvement orchestration entrypoint remains thin and delegates to surface/orchestration',
+        clientSelfImproveWrapper.includes('orchestration/scripts/self_improvement_cadence_orchestrator.ts'),
+      detail: 'client self-improvement orchestration entrypoint remains thin and delegates to orchestration',
     },
     {
       id: 'self_improvement_orchestration_runtime_lives_under_surface',
@@ -2584,35 +2584,35 @@ function main() {
         surfaceSelfImproveRuntime,
         'self_improvement_cadence_orchestrator',
       ),
-      detail: 'self-improvement cadence orchestration coordination implementation is hosted in surface/orchestration',
+      detail: 'self-improvement cadence orchestration coordination implementation is hosted in orchestration',
     },
     {
       id: 'client_route_task_is_wrapper_only',
       ok: clientRouteTaskWrapper.includes('TypeScript compatibility shim only.') &&
-        clientRouteTaskWrapper.includes('surface/orchestration/scripts/route_task.ts'),
-      detail: 'client route_task entrypoint remains thin and delegates to surface/orchestration',
+        clientRouteTaskWrapper.includes('orchestration/scripts/route_task.ts'),
+      detail: 'client route_task entrypoint remains thin and delegates to orchestration',
     },
     {
       id: 'route_task_runtime_lives_under_surface',
       ok: isOrchestrationSurfaceShim(surfaceRouteTaskRuntime, 'route_task'),
-      detail: 'route_task orchestration coordination implementation is hosted in surface/orchestration',
+      detail: 'route_task orchestration coordination implementation is hosted in orchestration',
     },
     {
       id: 'client_route_execute_is_wrapper_only',
       ok: clientRouteExecuteWrapper.includes('TypeScript compatibility shim only.') &&
-        clientRouteExecuteWrapper.includes('surface/orchestration/scripts/route_execute.ts'),
-      detail: 'client route_execute entrypoint remains thin and delegates to surface/orchestration',
+        clientRouteExecuteWrapper.includes('orchestration/scripts/route_execute.ts'),
+      detail: 'client route_execute entrypoint remains thin and delegates to orchestration',
     },
     {
       id: 'route_execute_runtime_lives_under_surface',
       ok: isOrchestrationSurfaceShim(surfaceRouteExecuteRuntime, 'route_execute'),
-      detail: 'route_execute orchestration coordination implementation is hosted in surface/orchestration',
+      detail: 'route_execute orchestration coordination implementation is hosted in orchestration',
     },
     {
       id: 'client_provider_onboarding_manifest_is_wrapper_only',
       ok: clientProviderOnboardingWrapper.includes('TypeScript compatibility shim only.') &&
-        clientProviderOnboardingWrapper.includes('surface/orchestration/scripts/provider_onboarding_manifest.ts'),
-      detail: 'client provider_onboarding_manifest entrypoint remains thin and delegates to surface/orchestration',
+        clientProviderOnboardingWrapper.includes('orchestration/scripts/provider_onboarding_manifest.ts'),
+      detail: 'client provider_onboarding_manifest entrypoint remains thin and delegates to orchestration',
     },
     {
       id: 'provider_onboarding_manifest_runtime_lives_under_surface',
@@ -2620,13 +2620,13 @@ function main() {
         surfaceProviderOnboardingRuntime,
         'provider_onboarding_manifest',
       ),
-      detail: 'provider_onboarding_manifest orchestration coordination implementation is hosted in surface/orchestration',
+      detail: 'provider_onboarding_manifest orchestration coordination implementation is hosted in orchestration',
     },
     {
       id: 'client_gateway_failure_classifier_is_wrapper_only',
       ok: clientGatewayFailureClassifierWrapper.includes('TypeScript compatibility shim only.') &&
-        clientGatewayFailureClassifierWrapper.includes('surface/orchestration/scripts/llm_gateway_failure_classifier.ts'),
-      detail: 'client llm_gateway_failure_classifier entrypoint remains thin and delegates to surface/orchestration',
+        clientGatewayFailureClassifierWrapper.includes('orchestration/scripts/llm_gateway_failure_classifier.ts'),
+      detail: 'client llm_gateway_failure_classifier entrypoint remains thin and delegates to orchestration',
     },
     {
       id: 'gateway_failure_classifier_runtime_lives_under_surface',
@@ -2634,24 +2634,24 @@ function main() {
         surfaceGatewayFailureClassifierRuntime,
         'llm_gateway_failure_classifier',
       ),
-      detail: 'llm_gateway_failure_classifier orchestration coordination implementation is hosted in surface/orchestration',
+      detail: 'llm_gateway_failure_classifier orchestration coordination implementation is hosted in orchestration',
     },
     {
       id: 'client_morph_planner_is_wrapper_only',
       ok: clientMorphPlannerWrapper.includes('TypeScript compatibility shim only.') &&
-        clientMorphPlannerWrapper.includes('surface/orchestration/scripts/morph_planner.ts'),
-      detail: 'client morph_planner entrypoint remains thin and delegates to surface/orchestration',
+        clientMorphPlannerWrapper.includes('orchestration/scripts/morph_planner.ts'),
+      detail: 'client morph_planner entrypoint remains thin and delegates to orchestration',
     },
     {
       id: 'morph_planner_runtime_lives_under_surface',
       ok: isOrchestrationSurfaceShim(surfaceMorphPlannerRuntime, 'morph_planner'),
-      detail: 'morph_planner coordination implementation is hosted in surface/orchestration',
+      detail: 'morph_planner coordination implementation is hosted in orchestration',
     },
     {
       id: 'client_value_of_information_planner_is_wrapper_only',
       ok: clientValueOfInformationPlannerWrapper.includes('TypeScript compatibility shim only.') &&
-        clientValueOfInformationPlannerWrapper.includes('surface/orchestration/scripts/value_of_information_collection_planner.ts'),
-      detail: 'client value_of_information_collection_planner entrypoint remains thin and delegates to surface/orchestration',
+        clientValueOfInformationPlannerWrapper.includes('orchestration/scripts/value_of_information_collection_planner.ts'),
+      detail: 'client value_of_information_collection_planner entrypoint remains thin and delegates to orchestration',
     },
     {
       id: 'value_of_information_planner_runtime_lives_under_surface',
@@ -2659,35 +2659,35 @@ function main() {
         surfaceValueOfInformationPlannerRuntime,
         'value_of_information_collection_planner',
       ),
-      detail: 'value_of_information_collection_planner coordination implementation is hosted in surface/orchestration',
+      detail: 'value_of_information_collection_planner coordination implementation is hosted in orchestration',
     },
     {
       id: 'client_task_decomposition_is_wrapper_only',
       ok: clientTaskDecompositionWrapper.includes('TypeScript compatibility shim only.') &&
-        clientTaskDecompositionWrapper.includes('surface/orchestration/scripts/task_decomposition_primitive.ts'),
-      detail: 'client task_decomposition_primitive entrypoint remains thin and delegates to surface/orchestration',
+        clientTaskDecompositionWrapper.includes('orchestration/scripts/task_decomposition_primitive.ts'),
+      detail: 'client task_decomposition_primitive entrypoint remains thin and delegates to orchestration',
     },
     {
       id: 'task_decomposition_runtime_lives_under_surface',
       ok: isOrchestrationSurfaceShim(surfaceTaskDecompositionRuntime, 'task_decomposition_primitive'),
-      detail: 'task_decomposition_primitive coordination implementation is hosted in surface/orchestration',
+      detail: 'task_decomposition_primitive coordination implementation is hosted in orchestration',
     },
     {
       id: 'client_learning_conduit_is_wrapper_only',
       ok: clientLearningConduitWrapper.includes('TypeScript compatibility shim only.') &&
-        clientLearningConduitWrapper.includes('surface/orchestration/scripts/learning_conduit.ts'),
-      detail: 'client learning_conduit entrypoint remains thin and delegates to surface/orchestration',
+        clientLearningConduitWrapper.includes('orchestration/scripts/learning_conduit.ts'),
+      detail: 'client learning_conduit entrypoint remains thin and delegates to orchestration',
     },
     {
       id: 'learning_conduit_runtime_lives_under_surface',
       ok: isOrchestrationSurfaceShim(surfaceLearningConduitRuntime, 'learning_conduit'),
-      detail: 'learning_conduit coordination implementation is hosted in surface/orchestration',
+      detail: 'learning_conduit coordination implementation is hosted in orchestration',
     },
     {
       id: 'client_relationship_manager_is_wrapper_only',
       ok: clientRelationshipManagerWrapper.includes('TypeScript compatibility shim only.') &&
-        clientRelationshipManagerWrapper.includes('surface/orchestration/scripts/client_relationship_manager.ts'),
-      detail: 'client client_relationship_manager entrypoint remains thin and delegates to surface/orchestration',
+        clientRelationshipManagerWrapper.includes('orchestration/scripts/client_relationship_manager.ts'),
+      detail: 'client client_relationship_manager entrypoint remains thin and delegates to orchestration',
     },
     {
       id: 'relationship_manager_runtime_lives_under_surface',
@@ -2695,13 +2695,13 @@ function main() {
         surfaceRelationshipManagerRuntime,
         'client_relationship_manager',
       ),
-      detail: 'client_relationship_manager coordination implementation is hosted in surface/orchestration',
+      detail: 'client_relationship_manager coordination implementation is hosted in orchestration',
     },
     {
       id: 'client_universal_outreach_is_wrapper_only',
       ok: clientUniversalOutreachWrapper.includes('TypeScript compatibility shim only.') &&
-        clientUniversalOutreachWrapper.includes('surface/orchestration/scripts/universal_outreach_primitive.ts'),
-      detail: 'client universal_outreach_primitive entrypoint remains thin and delegates to surface/orchestration',
+        clientUniversalOutreachWrapper.includes('orchestration/scripts/universal_outreach_primitive.ts'),
+      detail: 'client universal_outreach_primitive entrypoint remains thin and delegates to orchestration',
     },
     {
       id: 'universal_outreach_runtime_lives_under_surface',
@@ -2709,24 +2709,24 @@ function main() {
         surfaceUniversalOutreachRuntime,
         'universal_outreach_primitive',
       ),
-      detail: 'universal_outreach_primitive coordination implementation is hosted in surface/orchestration',
+      detail: 'universal_outreach_primitive coordination implementation is hosted in orchestration',
     },
     {
       id: 'client_payment_skills_is_wrapper_only',
       ok: clientPaymentSkillsWrapper.includes('TypeScript compatibility shim only.') &&
-        clientPaymentSkillsWrapper.includes('surface/orchestration/scripts/payment_skills_bridge.ts'),
-      detail: 'client payment_skills_bridge entrypoint remains thin and delegates to surface/orchestration',
+        clientPaymentSkillsWrapper.includes('orchestration/scripts/payment_skills_bridge.ts'),
+      detail: 'client payment_skills_bridge entrypoint remains thin and delegates to orchestration',
     },
     {
       id: 'payment_skills_runtime_lives_under_surface',
       ok: isOrchestrationSurfaceShim(surfacePaymentSkillsRuntime, 'payment_skills_bridge'),
-      detail: 'payment_skills_bridge coordination implementation is hosted in surface/orchestration',
+      detail: 'payment_skills_bridge coordination implementation is hosted in orchestration',
     },
     {
       id: 'client_gated_account_creation_is_wrapper_only',
       ok: clientGatedAccountCreationWrapper.includes('TypeScript compatibility shim only.') &&
-        clientGatedAccountCreationWrapper.includes('surface/orchestration/scripts/gated_account_creation_organ.ts'),
-      detail: 'client gated_account_creation_organ entrypoint remains thin and delegates to surface/orchestration',
+        clientGatedAccountCreationWrapper.includes('orchestration/scripts/gated_account_creation_organ.ts'),
+      detail: 'client gated_account_creation_organ entrypoint remains thin and delegates to orchestration',
     },
     {
       id: 'gated_account_creation_runtime_lives_under_surface',
@@ -2734,13 +2734,13 @@ function main() {
         surfaceGatedAccountCreationRuntime,
         'gated_account_creation_organ',
       ),
-      detail: 'gated_account_creation_organ coordination implementation is hosted in surface/orchestration',
+      detail: 'gated_account_creation_organ coordination implementation is hosted in orchestration',
     },
     {
       id: 'client_gated_self_improvement_is_wrapper_only',
       ok: clientGatedSelfImprovementWrapper.includes('TypeScript compatibility shim only.') &&
-        clientGatedSelfImprovementWrapper.includes('surface/orchestration/scripts/gated_self_improvement_loop.ts'),
-      detail: 'client gated_self_improvement_loop entrypoint remains thin and delegates to surface/orchestration',
+        clientGatedSelfImprovementWrapper.includes('orchestration/scripts/gated_self_improvement_loop.ts'),
+      detail: 'client gated_self_improvement_loop entrypoint remains thin and delegates to orchestration',
     },
     {
       id: 'gated_self_improvement_runtime_lives_under_surface',
@@ -2748,46 +2748,46 @@ function main() {
         surfaceGatedSelfImprovementRuntime,
         'gated_self_improvement_loop',
       ),
-      detail: 'gated_self_improvement_loop coordination implementation is hosted in surface/orchestration',
+      detail: 'gated_self_improvement_loop coordination implementation is hosted in orchestration',
     },
     {
       id: 'client_hold_remediation_is_wrapper_only',
       ok: clientHoldRemediationWrapper.includes('TypeScript compatibility shim only.') &&
-        clientHoldRemediationWrapper.includes('surface/orchestration/scripts/hold_remediation_engine.ts'),
-      detail: 'client hold_remediation_engine entrypoint remains thin and delegates to surface/orchestration',
+        clientHoldRemediationWrapper.includes('orchestration/scripts/hold_remediation_engine.ts'),
+      detail: 'client hold_remediation_engine entrypoint remains thin and delegates to orchestration',
     },
     {
       id: 'hold_remediation_runtime_lives_under_surface',
       ok: isOrchestrationSurfaceShim(surfaceHoldRemediationRuntime, 'hold_remediation_engine'),
-      detail: 'hold_remediation_engine coordination implementation is hosted in surface/orchestration',
+      detail: 'hold_remediation_engine coordination implementation is hosted in orchestration',
     },
     {
       id: 'client_lever_experiment_is_wrapper_only',
       ok: clientLeverExperimentWrapper.includes('TypeScript compatibility shim only.') &&
-        clientLeverExperimentWrapper.includes('surface/orchestration/scripts/lever_experiment_gate.ts'),
-      detail: 'client lever_experiment_gate entrypoint remains thin and delegates to surface/orchestration',
+        clientLeverExperimentWrapper.includes('orchestration/scripts/lever_experiment_gate.ts'),
+      detail: 'client lever_experiment_gate entrypoint remains thin and delegates to orchestration',
     },
     {
       id: 'lever_experiment_runtime_lives_under_surface',
       ok: isOrchestrationSurfaceShim(surfaceLeverExperimentRuntime, 'lever_experiment_gate'),
-      detail: 'lever_experiment_gate coordination implementation is hosted in surface/orchestration',
+      detail: 'lever_experiment_gate coordination implementation is hosted in orchestration',
     },
     {
       id: 'client_model_catalog_is_wrapper_only',
       ok: clientModelCatalogWrapper.includes('TypeScript compatibility shim only.') &&
-        clientModelCatalogWrapper.includes('surface/orchestration/scripts/model_catalog_loop.ts'),
-      detail: 'client model_catalog_loop entrypoint remains thin and delegates to surface/orchestration',
+        clientModelCatalogWrapper.includes('orchestration/scripts/model_catalog_loop.ts'),
+      detail: 'client model_catalog_loop entrypoint remains thin and delegates to orchestration',
     },
     {
       id: 'model_catalog_runtime_lives_under_surface',
       ok: isOrchestrationSurfaceShim(surfaceModelCatalogRuntime, 'model_catalog_loop'),
-      detail: 'model_catalog_loop coordination implementation is hosted in surface/orchestration',
+      detail: 'model_catalog_loop coordination implementation is hosted in orchestration',
     },
     {
       id: 'client_proactive_t1_is_wrapper_only',
       ok: clientProactiveT1Wrapper.includes('TypeScript compatibility shim only.') &&
-        clientProactiveT1Wrapper.includes('surface/orchestration/scripts/proactive_t1_initiative_engine.ts'),
-      detail: 'client proactive_t1_initiative_engine entrypoint remains thin and delegates to surface/orchestration',
+        clientProactiveT1Wrapper.includes('orchestration/scripts/proactive_t1_initiative_engine.ts'),
+      detail: 'client proactive_t1_initiative_engine entrypoint remains thin and delegates to orchestration',
     },
     {
       id: 'proactive_t1_runtime_lives_under_surface',
@@ -2795,13 +2795,13 @@ function main() {
         surfaceProactiveT1Runtime,
         'proactive_t1_initiative_engine',
       ),
-      detail: 'proactive_t1_initiative_engine coordination implementation is hosted in surface/orchestration',
+      detail: 'proactive_t1_initiative_engine coordination implementation is hosted in orchestration',
     },
     {
       id: 'client_zero_permission_is_wrapper_only',
       ok: clientZeroPermissionWrapper.includes('TypeScript compatibility shim only.') &&
-        clientZeroPermissionWrapper.includes('surface/orchestration/scripts/zero_permission_conversational_layer.ts'),
-      detail: 'client zero_permission_conversational_layer entrypoint remains thin and delegates to surface/orchestration',
+        clientZeroPermissionWrapper.includes('orchestration/scripts/zero_permission_conversational_layer.ts'),
+      detail: 'client zero_permission_conversational_layer entrypoint remains thin and delegates to orchestration',
     },
     {
       id: 'zero_permission_runtime_lives_under_surface',
@@ -2809,18 +2809,18 @@ function main() {
         surfaceZeroPermissionRuntime,
         'zero_permission_conversational_layer',
       ),
-      detail: 'zero_permission_conversational_layer coordination implementation is hosted in surface/orchestration',
+      detail: 'zero_permission_conversational_layer coordination implementation is hosted in orchestration',
     },
     {
       id: 'client_persona_orchestration_is_wrapper_only',
       ok: clientPersonaWrapper.includes('TypeScript compatibility shim only.') &&
-        clientPersonaWrapper.includes('surface/orchestration/scripts/personas_orchestration.ts'),
-      detail: 'client persona orchestration entrypoint remains thin and delegates to surface/orchestration',
+        clientPersonaWrapper.includes('orchestration/scripts/personas_orchestration.ts'),
+      detail: 'client persona orchestration entrypoint remains thin and delegates to orchestration',
     },
     {
       id: 'persona_orchestration_runtime_lives_under_surface',
       ok: isOrchestrationSurfaceShim(surfacePersonaRuntime, 'personas_orchestration'),
-      detail: 'persona orchestration coordination implementation is hosted in surface/orchestration',
+      detail: 'persona orchestration coordination implementation is hosted in orchestration',
     },
     {
       id: 'orchestration_surface_registry_is_adapter_boundary_only',
@@ -2934,7 +2934,7 @@ function main() {
       ok: missingRegistryKeysForShims.length === 0,
       detail:
         missingRegistryKeysForShims.length === 0
-          ? 'every surface/orchestration script shim is backed by an adapter registry key'
+          ? 'every orchestration script shim is backed by an adapter registry key'
           : `missing_registry_keys_for_shims=${missingRegistryKeysForShims.join(',')}`,
     },
     {
@@ -2942,7 +2942,7 @@ function main() {
       ok: missingRegistryScriptFiles.length === 0,
       detail:
         missingRegistryScriptFiles.length === 0
-          ? 'every non-swarm registry binding points to an existing surface/orchestration script file'
+          ? 'every non-swarm registry binding points to an existing orchestration script file'
           : `missing_registry_script_files=${missingRegistryScriptFiles.join(',')}`,
     },
     {
@@ -2958,7 +2958,7 @@ function main() {
       ok: missingShimKeysForAuditedModules.length === 0,
       detail:
         missingShimKeysForAuditedModules.length === 0
-          ? 'all audited orchestration modules have a surface/orchestration shim entrypoint'
+          ? 'all audited orchestration modules have a orchestration shim entrypoint'
           : `missing_shim_keys_for_audited_modules=${missingShimKeysForAuditedModules.join(',')}`,
     },
     {
@@ -2998,7 +2998,7 @@ function main() {
       ok: clientWrapperRowsMissingExpectedSurfaceDelegation.length === 0,
       detail:
         clientWrapperRowsMissingExpectedSurfaceDelegation.length === 0
-          ? 'all client compatibility wrappers delegate to expected surface/orchestration scripts'
+          ? 'all client compatibility wrappers delegate to expected orchestration scripts'
           : `client_wrappers_missing_expected_surface_delegation=${clientWrapperRowsMissingExpectedSurfaceDelegation.join(',')}`,
     },
     {
@@ -3006,7 +3006,7 @@ function main() {
       ok: clientWrapperRowsWithNonDeterministicDelegationCount.length === 0,
       detail:
         clientWrapperRowsWithNonDeterministicDelegationCount.length === 0
-          ? 'all client compatibility wrappers reference exactly one surface/orchestration delegate script path'
+          ? 'all client compatibility wrappers reference exactly one orchestration delegate script path'
           : `client_wrappers_with_nondeterministic_delegate_path_count=${clientWrapperRowsWithNonDeterministicDelegationCount.join(',')}`,
     },
     {
@@ -3030,7 +3030,7 @@ function main() {
       ok: invalidOrchestrationShimKeyFormats.length === 0,
       detail:
         invalidOrchestrationShimKeyFormats.length === 0
-          ? 'surface/orchestration shim keys use canonical [a-z0-9_]+ token format'
+          ? 'orchestration shim keys use canonical [a-z0-9_]+ token format'
           : `invalid_orchestration_shim_keys=${invalidOrchestrationShimKeyFormats.join(',')}`,
     },
     {
@@ -3038,7 +3038,7 @@ function main() {
       ok: invalidOrchestrationShimScriptFileFormats.length === 0,
       detail:
         invalidOrchestrationShimScriptFileFormats.length === 0
-          ? 'surface/orchestration shim script filenames use canonical [a-z0-9_]+.ts format'
+          ? 'orchestration shim script filenames use canonical [a-z0-9_]+.ts format'
           : `invalid_orchestration_shim_script_filenames=${invalidOrchestrationShimScriptFileFormats.join(',')}`,
     },
     {
@@ -3046,7 +3046,7 @@ function main() {
       ok: orchestrationShimScriptFileKeyMismatches.length === 0,
       detail:
         orchestrationShimScriptFileKeyMismatches.length === 0
-          ? 'surface/orchestration shim script filenames align with bound module keys'
+          ? 'orchestration shim script filenames align with bound module keys'
           : `orchestration_shim_script_filename_key_mismatches=${orchestrationShimScriptFileKeyMismatches.join(',')}`,
     },
     {
@@ -3054,7 +3054,7 @@ function main() {
       ok: orchestrationShimRowsMissingBindCall.length === 0,
       detail:
         orchestrationShimRowsMissingBindCall.length === 0
-          ? 'surface/orchestration shim scripts include canonical bindOrchestrationSurfaceModule contract call'
+          ? 'orchestration shim scripts include canonical bindOrchestrationSurfaceModule contract call'
           : `orchestration_shims_missing_bind_contract=${orchestrationShimRowsMissingBindCall.join(',')}`,
     },
     {
@@ -3062,7 +3062,7 @@ function main() {
       ok: orchestrationShimRowsWithClientRuntimeImport.length === 0,
       detail:
         orchestrationShimRowsWithClientRuntimeImport.length === 0
-          ? 'surface/orchestration shim scripts do not import client/runtime layers'
+          ? 'orchestration shim scripts do not import client/runtime layers'
           : `orchestration_shims_with_client_runtime_import=${orchestrationShimRowsWithClientRuntimeImport.join(',')}`,
     },
     {
@@ -3070,7 +3070,7 @@ function main() {
       ok: orchestrationShimRowsWithSpawnTokens.length === 0,
       detail:
         orchestrationShimRowsWithSpawnTokens.length === 0
-          ? 'surface/orchestration shim scripts do not spawn subprocesses'
+          ? 'orchestration shim scripts do not spawn subprocesses'
           : `orchestration_shims_with_spawn_tokens=${orchestrationShimRowsWithSpawnTokens.join(',')}`,
     },
     {

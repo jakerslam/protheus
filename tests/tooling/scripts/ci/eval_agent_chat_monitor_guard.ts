@@ -131,7 +131,7 @@ const HALLUCINATION_UNSUPPORTED_CLAIM_PATTERNS = [
 const ISSUE_METADATA_BY_ID: Record<string, IssueMetadata> = {
   workflow_retry_macro_template_detected: {
     owner_component: 'control_plane.finalization',
-    owner_path: 'surface/orchestration/',
+    owner_path: 'orchestration/',
     acceptance_criteria: [
       'Assistant finalization no longer emits retry-template boilerplate in user-visible replies.',
       'When workflow state is degraded, response falls back to one concise diagnosis plus bounded next step.',
@@ -140,7 +140,7 @@ const ISSUE_METADATA_BY_ID: Record<string, IssueMetadata> = {
   },
   workflow_route_automation_claim_detected: {
     owner_component: 'control_plane.route_contract',
-    owner_path: 'surface/orchestration/',
+    owner_path: 'orchestration/',
     acceptance_criteria: [
       'User-visible replies describe tool-gate state as advisory-only when applicable.',
       'Legacy workflow route automation-claim language is absent from final responses.',
@@ -149,7 +149,7 @@ const ISSUE_METADATA_BY_ID: Record<string, IssueMetadata> = {
   },
   auto_tool_selection_claim_detected: {
     owner_component: 'control_plane.tool_authority',
-    owner_path: 'surface/orchestration/',
+    owner_path: 'orchestration/',
     acceptance_criteria: [
       'Assistant responses preserve explicit LLM tool-selection authority language.',
       'Architecture mismatch claims about automatic backend tool control are removed from final responses.',
@@ -158,7 +158,7 @@ const ISSUE_METADATA_BY_ID: Record<string, IssueMetadata> = {
   },
   policy_block_template_detected: {
     owner_component: 'control_plane.policy_block_messaging',
-    owner_path: 'surface/orchestration/',
+    owner_path: 'orchestration/',
     acceptance_criteria: [
       'Policy block responses include concise remediation framing.',
       'Raw gate diagnostics are not repeated verbatim in user-facing message bodies.',
@@ -167,7 +167,7 @@ const ISSUE_METADATA_BY_ID: Record<string, IssueMetadata> = {
   },
   file_tool_route_misdirection_detected: {
     owner_component: 'control_plane.workspace_route',
-    owner_path: 'surface/orchestration/',
+    owner_path: 'orchestration/',
     acceptance_criteria: [
       'Local file/workspace intents prioritize workspace tooling routes over web routes.',
       'Web card output is suppressed for file-tool intents unless user explicitly requests web search.',
@@ -176,7 +176,7 @@ const ISSUE_METADATA_BY_ID: Record<string, IssueMetadata> = {
   },
   repeated_response_loop_detected: {
     owner_component: 'control_plane.loop_breaker',
-    owner_path: 'surface/orchestration/',
+    owner_path: 'orchestration/',
     acceptance_criteria: [
       'Loop breaker triggers at repetition threshold and emits one-shot degraded diagnosis.',
       'Repeated identical assistant responses are prevented in subsequent turns.',
@@ -185,7 +185,7 @@ const ISSUE_METADATA_BY_ID: Record<string, IssueMetadata> = {
   },
   unsupported_claim_detected: {
     owner_component: 'control_plane.evidence_synthesis',
-    owner_path: 'surface/orchestration/',
+    owner_path: 'orchestration/',
     acceptance_criteria: [
       'Strong factual claims include evidence links or explicit bounded uncertainty.',
       'Date-context claims do not misclassify present/past dates as future-facing without evidence.',
@@ -194,7 +194,7 @@ const ISSUE_METADATA_BY_ID: Record<string, IssueMetadata> = {
   },
   wrong_tool_selection_detected: {
     owner_component: 'control_plane.tool_route',
-    owner_path: 'surface/orchestration/',
+    owner_path: 'orchestration/',
     acceptance_criteria: [
       'Tool family selection aligns with user intent class (workspace, web, or tool-route).',
       'Mismatch reason IDs are emitted for every tool-route mismatch detection.',
@@ -203,7 +203,7 @@ const ISSUE_METADATA_BY_ID: Record<string, IssueMetadata> = {
   },
   no_response_detected: {
     owner_component: 'control_plane.finalization',
-    owner_path: 'surface/orchestration/',
+    owner_path: 'orchestration/',
     acceptance_criteria: [
       'User-visible responses contain substantive answer content for answerable prompts.',
       'Safe LLM-authored drafts are preserved instead of cleared into empty chat turns.',
@@ -212,7 +212,7 @@ const ISSUE_METADATA_BY_ID: Record<string, IssueMetadata> = {
   },
   orchestration_phase_trace_issue_signal_detected: {
     owner_component: 'control_plane.phase_trace',
-    owner_path: 'surface/orchestration/',
+    owner_path: 'orchestration/',
     acceptance_criteria: [
       'Eval consumes the orchestration-owned phase trace before falling back to raw collector inference.',
       'High or medium severity phase-trace issue signals include owner, phase, and remediation context.',
@@ -226,7 +226,7 @@ function getIssueMetadata(issueId: string): IssueMetadata {
     ISSUE_METADATA_BY_ID[issueId]
     || {
       owner_component: 'control_plane.unknown',
-      owner_path: 'surface/orchestration/',
+      owner_path: 'orchestration/',
       acceptance_criteria: ['Add explicit acceptance criteria for this issue class.'],
       base_confidence: 0.7,
     }

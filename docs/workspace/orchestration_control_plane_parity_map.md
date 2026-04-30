@@ -1,7 +1,7 @@
 # Orchestration Control-Plane Parity Map
 
 Status: active transition map
-Owner: surface/orchestration
+Owner: orchestration
 Purpose: keep the Infring control plane understandable against OpenHands and OpenFang while preventing coordination authority from scattering into Shell/Core.
 
 ## Boundary Rule
@@ -171,7 +171,7 @@ OpenFang separates Kernel, Runtime, Memory, Hands, API, Channels, Extensions, an
 
 Infring mapping:
 
-- OpenFang workflow engine -> `surface/orchestration/src/control_plane/**` workflow selection, typed graph compilation, sequencing, and recovery.
+- OpenFang workflow engine -> `orchestration/src/control_plane/**` workflow selection, typed graph compilation, sequencing, and recovery.
 - OpenFang capability manifests -> future Infring orchestration-managed agent capability manifests, while Core retains enforcement.
 - OpenFang agent loop -> Infring final LLM stage plus tool observation loop.
 - OpenFang scheduler/metering -> Core truth; Orchestration may propose budgets and termination limits but does not enforce canonical quotas.
@@ -185,7 +185,7 @@ Parity requirement:
 
 ## Infring Control-Plane Responsibilities
 
-Canonical Rust home: `surface/orchestration/src/**`
+Canonical Rust home: `orchestration/src/**`
 
 Current required control-plane concerns:
 
@@ -210,7 +210,7 @@ Forbidden leakage:
 
 The active guard is:
 
-`cargo run --quiet --manifest-path surface/orchestration/Cargo.toml --bin workflow_contract_guard -- --strict=1`
+`cargo run --quiet --manifest-path orchestration/Cargo.toml --bin workflow_contract_guard -- --strict=1`
 
 It checks that workflow JSON compiles into typed graphs, structured gates expose only multiple-choice/text-input shapes, tool families have request/observation/receipt contracts, run budgets and terminal states exist, telemetry streams are separate, and visible chat remains LLM-final-only.
 

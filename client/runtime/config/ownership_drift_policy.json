@@ -21,18 +21,18 @@
         ".rs"
       ],
       "forbidden_import_patterns": [
-        "surface/orchestration/src/",
-        "surface/orchestration/lib_parts/"
+        "orchestration/src/",
+        "orchestration/lib_parts/"
       ],
       "allow_import_patterns": [
-        "surface/orchestration/contracts/",
-        "surface/orchestration/public_contracts/"
+        "orchestration/contracts/",
+        "orchestration/public_contracts/"
       ]
     },
     {
       "id": "orchestration_forbidden_shell_internal_import",
       "scan_roots": [
-        "surface/orchestration/src"
+        "orchestration/src"
       ],
       "extensions": [
         ".rs",
@@ -49,7 +49,7 @@
     {
       "id": "orchestration_forbidden_kernel_policy_authority_import",
       "scan_roots": [
-        "surface/orchestration/src"
+        "orchestration/src"
       ],
       "extensions": [
         ".rs",
@@ -84,7 +84,7 @@
     {
       "id": "control_plane_authority_symbol_drift",
       "scan_roots": [
-        "surface/orchestration/src"
+        "orchestration/src"
       ],
       "extensions": [
         ".rs"
@@ -148,7 +148,7 @@
     {
       "id": "control_plane_policy_authority_path_drift",
       "scan_roots": [
-        "surface/orchestration/src"
+        "orchestration/src"
       ],
       "extensions": [
         ".rs",

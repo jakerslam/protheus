@@ -39,7 +39,7 @@ function main() {
         item_id: 'V6-MEMORY-013',
         severity: 'medium',
         status: 'open',
-        location: 'surface/orchestration/scripts/personas_orchestration.ts:10',
+        location: 'orchestration/scripts/personas_orchestration.ts:10',
         evidence: [{ type: 'receipt', value: 'out-of-scope' }],
         timestamp: new Date('2026-03-15T00:00:01Z').toISOString()
       },
@@ -66,7 +66,7 @@ function main() {
   assert.notStrictEqual(out.notification, null);
   assert.strictEqual(out.notification.status, 'done');
   assert.strictEqual(out.report.findings[0].location, 'core/layer0/ops/src/orchestration_parts/070-run-coordinator.rs:10');
-  assert.strictEqual(out.scope_violations[0].location, 'surface/orchestration/scripts/personas_orchestration.ts:10');
+  assert.strictEqual(out.scope_violations[0].location, 'orchestration/scripts/personas_orchestration.ts:10');
   assert.strictEqual(out.scope_violations[1].location, 'core/layer0/ops/src/orchestration_parts/030-detect-scope-overlaps.rs:20');
   assert.strictEqual(out.checkpoint.ok, true);
   assert.strictEqual(out.checkpoint.checkpoint_written, true);

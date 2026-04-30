@@ -5,7 +5,7 @@
 const { createCompatTargetBridge } = require('../../lib/compat_target_bridge.ts');
 const bridge = createCompatTargetBridge({
   scriptDir: __dirname,
-  targetRelativePath: '../../../../surface/orchestration/scripts/morph_planner.ts',
+  targetRelativePath: '../../../../orchestration/scripts/morph_planner.ts',
   loadError: 'morph_planner_target_load_failed',
   unavailableError: 'morph_planner_target_unavailable',
   missingRunError: 'morph_planner_target_missing_run',

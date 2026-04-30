@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 // TypeScript compatibility shim only.
-// Layer ownership: surface/orchestration (persona orchestration coordination); this file is a thin CLI bridge.
+// Layer ownership: orchestration (persona orchestration coordination); this file is a thin CLI bridge.
 
-const impl = require('../../../../surface/orchestration/scripts/personas_orchestration.ts');
+const impl = require('../../../../orchestration/scripts/personas_orchestration.ts');
 
 function run(args = process.argv.slice(2)) {
   return impl.run(args);

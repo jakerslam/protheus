@@ -5,7 +5,7 @@
   "canonical_slice": {
     "name": "runtime_ingress_to_assimilation_kernel",
     "ingress": "runtime-systems execute assimilation protocol contract",
-    "orchestration_boundary": "surface/orchestration proposal-only coordination",
+    "orchestration_boundary": "orchestration proposal-only coordination",
     "authoritative_kernel": "core/layer2/assimilation",
     "supported_components": [
       "source_attestation_extension",

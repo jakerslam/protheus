@@ -9,7 +9,7 @@ import { emitStructuredResult, writeTextArtifact } from '../../lib/result.ts';
 const ROOT = process.cwd();
 const DEFAULT_OUT_JSON = 'core/local/artifacts/cross_layer_import_guard_current.json';
 const DEFAULT_OUT_MARKDOWN = 'local/workspace/reports/CROSS_LAYER_IMPORT_GUARD_CURRENT.md';
-const SCAN_ROOTS = ['client', 'surface/orchestration', 'adapters'];
+const SCAN_ROOTS = ['client', 'orchestration', 'adapters'];
 const EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.mjs', '.cjs']);
 const ROOT_SPEC_PREFIXES = ['client/', 'core/', 'surface/', 'adapters/', 'tests/'];
 const BOUNDARY_RULES = [
@@ -17,7 +17,7 @@ const BOUNDARY_RULES = [
     rule_id: 'client_orchestration_internal_import_forbidden',
     reason_id: 'shell_to_control_plane_internal_contract_violation',
     source_layer: 'shell',
-    blocked_target: 'surface/orchestration internals',
+    blocked_target: 'orchestration internals',
     policy_reference: 'docs/workspace/orchestration_ownership_policy.md#shell',
   },
   {
@@ -191,17 +191,17 @@ function resolveImportTarget(fromFile: string, spec: string): string | null {
 
 function isOrchestrationContractPath(target: string): boolean {
   return (
-    target === 'surface/orchestration/src/contracts.rs' ||
-    target.startsWith('surface/orchestration/contracts/') ||
-    target.startsWith('surface/orchestration/scripts/')
+    target === 'orchestration/src/contracts.rs' ||
+    target.startsWith('orchestration/contracts/') ||
+    target.startsWith('orchestration/scripts/')
   );
 }
 
 function isClientImportingOrchestrationInternals(source: string, target: string): boolean {
   if (!source.startsWith('client/')) return false;
-  if (!target.startsWith('surface/orchestration/')) return false;
+  if (!target.startsWith('orchestration/')) return false;
   if (isOrchestrationContractPath(target)) return false;
-  return target.startsWith('surface/orchestration/src/') || target.startsWith('surface/orchestration/tests/');
+  return target.startsWith('orchestration/src/') || target.startsWith('orchestration/tests/');
 }
 
 function isKernelPolicyAuthorityPath(target: string): boolean {
@@ -220,13 +220,13 @@ function isKernelPolicyAuthorityPath(target: string): boolean {
 }
 
 function isOrchestrationImportingKernelPolicyAuthority(source: string, target: string): boolean {
-  if (!source.startsWith('surface/orchestration/')) return false;
+  if (!source.startsWith('orchestration/')) return false;
   return isKernelPolicyAuthorityPath(target);
 }
 
 function isAdaptersImportingSchedulerAdmissionAuthority(source: string, target: string): boolean {
   if (!source.startsWith('adapters/')) return false;
-  if (!(target.startsWith('core/') || target.startsWith('surface/orchestration/src/'))) return false;
+  if (!(target.startsWith('core/') || target.startsWith('orchestration/src/'))) return false;
   const lower = target.toLowerCase();
   return (
     lower.includes('/scheduler') ||
@@ -238,7 +238,7 @@ function isAdaptersImportingSchedulerAdmissionAuthority(source: string, target: 
 
 function mapOwnershipLayer(filePath: string): string {
   if (filePath.startsWith('client/')) return 'shell';
-  if (filePath.startsWith('surface/orchestration/')) return 'control_plane';
+  if (filePath.startsWith('orchestration/')) return 'control_plane';
   if (filePath.startsWith('core/')) return 'kernel';
   if (filePath.startsWith('adapters/')) return 'gateway';
   return 'other';
@@ -407,7 +407,7 @@ function main(): number {
   const scanRootsExpectedOrder =
     SCAN_ROOTS.length === 3 &&
     SCAN_ROOTS[0] === 'client' &&
-    SCAN_ROOTS[1] === 'surface/orchestration' &&
+    SCAN_ROOTS[1] === 'orchestration' &&
     SCAN_ROOTS[2] === 'adapters';
   const scanRootsExist = SCAN_ROOTS.every((root) => fs.existsSync(path.resolve(ROOT, root)));
   const rootSpecPrefixesCoverScanRoots = SCAN_ROOTS.every((root) =>

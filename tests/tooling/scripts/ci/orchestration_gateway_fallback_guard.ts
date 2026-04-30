@@ -393,7 +393,7 @@ function run(argv: string[]): number {
       'cargo',
       'test',
       '--manifest-path',
-      'surface/orchestration/Cargo.toml',
+      'orchestration/Cargo.toml',
       name,
       '--',
       '--exact',

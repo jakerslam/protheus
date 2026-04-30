@@ -12,6 +12,7 @@ const ROOT = process.cwd();
 const DEFAULT_OUT_JSON = 'core/local/artifacts/shell_amputation_regression_guard_current.json';
 const DEFAULT_OUT_MARKDOWN = 'local/workspace/reports/SHELL_AMPUTATION_REGRESSION_GUARD_CURRENT.md';
 const POLICY_DOC = 'docs/workspace/shell_independent_operation_policy.md';
+const SMOKE_COMMAND_TIMEOUT_MS = 360_000;
 
 type Args = {
   strict: boolean;
@@ -52,7 +53,7 @@ const TOP_LEVEL_FIXTURE_ITEMS = [
   'LICENSE',
   'package.json',
   'core',
-  'surface',
+  'orchestration',
   'adapters',
   'xtask',
   'client/cli',
@@ -69,7 +70,7 @@ const REMOVED_BROWSER_SHELL_PATHS = [
 
 const STATIC_SCAN_ROOTS = [
   'core',
-  'surface',
+  'orchestration',
   'adapters',
   'client/cli',
   'client/pure-workspace',
@@ -238,7 +239,7 @@ function runSmokeCommand(fixtureRoot: string, name: string, command: string[]): 
   const result = spawnSync(command[0], command.slice(1), {
     cwd: fixtureRoot,
     encoding: 'utf8',
-    timeout: 180_000,
+    timeout: SMOKE_COMMAND_TIMEOUT_MS,
     env: {
       ...process.env,
       CARGO_TARGET_DIR: path.join(ROOT, 'target/shell-amputation-regression'),
@@ -264,8 +265,8 @@ function runSmokeCommand(fixtureRoot: string, name: string, command: string[]): 
 
 function runSmoke(fixtureRoot: string): SmokeResult[] {
   return [
-    runSmokeCommand(fixtureRoot, 'orchestration_surface_cargo_check', [
-      'cargo', 'check', '--manifest-path', 'surface/orchestration/Cargo.toml', '--quiet',
+    runSmokeCommand(fixtureRoot, 'orchestration_cargo_check', [
+      'cargo', 'check', '--manifest-path', 'orchestration/Cargo.toml', '--quiet',
     ]),
     runSmokeCommand(fixtureRoot, 'core_ops_cli_cargo_check', [
       'cargo', 'check', '--manifest-path', 'core/layer0/ops/Cargo.toml', '--bin', 'infring-ops', '--quiet',

@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 'use strict';
 // TypeScript compatibility shim only.
-// Layer ownership: surface/orchestration; this file is a thin CLI bridge.
+// Layer ownership: orchestration; this file is a thin CLI bridge.
 
 const { createCompatTargetBridge } = require('../../lib/compat_target_bridge.ts');
 const MAX_ARGS = 64;
 const MAX_ARG_LEN = 512;
 const bridge = createCompatTargetBridge({
   scriptDir: __dirname,
-  targetRelativePath: '../../../../surface/orchestration/scripts/client_relationship_manager.ts',
+  targetRelativePath: '../../../../orchestration/scripts/client_relationship_manager.ts',
   loadError: 'client_relationship_manager_target_load_failed',
   unavailableError: 'client_relationship_manager_target_unavailable',
   missingRunError: 'client_relationship_manager_target_missing_run',

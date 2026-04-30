@@ -12,7 +12,7 @@ Applies to any change that adds, modifies, or extends quality-signal fields surf
 
 ### Generic Tier — `RuntimeQualitySignals`
 
-Anchor: `surface/orchestration/src/contracts.rs::RuntimeQualitySignals` (lines 623-645).
+Anchor: `orchestration/src/contracts.rs::RuntimeQualitySignals` (lines 623-645).
 
 Allowed fields concern only workflow-agnostic orchestration quality:
 
@@ -31,7 +31,7 @@ Forbidden in `RuntimeQualitySignals`:
 
 ### Workflow Tier — `WorkflowQualitySignals`
 
-Anchor: `surface/orchestration/src/contracts.rs::WorkflowQualitySignals` (lines 676-680).
+Anchor: `orchestration/src/contracts.rs::WorkflowQualitySignals` (lines 676-680).
 
 Each workflow family lives behind its own enum variant:
 
@@ -61,7 +61,7 @@ is not admissible. Workflow-specific doctrine MUST land as a new (or extended) `
 1. Add a new variant to `WorkflowQualitySignals` with a snake_case tag (matches the `WorkflowTemplate` discriminant where reasonable).
 2. Define a sibling struct `<Family>WorkflowQualitySignals` next to `ForgeCodeWorkflowQualitySignals`.
 3. In `result_packaging.rs`, emit the new variant ONLY when the workflow template matches the family. Preserve the rule that `workflow_quality` is `None` for non-matching templates.
-4. Add conformance tests in `surface/orchestration/tests/conformance/lifecycle_feedback.rs` mirroring the existing ForgeCode shape: at least one assertion per new variant verifying the variant is emitted and the generic tier remains family-free.
+4. Add conformance tests in `orchestration/tests/conformance/lifecycle_feedback.rs` mirroring the existing ForgeCode shape: at least one assertion per new variant verifying the variant is emitted and the generic tier remains family-free.
 5. Mention the new family in this policy doc's "Variants" section below.
 
 ## Variants
@@ -74,7 +74,7 @@ Add a row each time a new family lands.
 
 ## CI Guard Contract
 
-Required guard (recommended location: extend `surface/orchestration/src/tool_routing_authority.rs` with a `runtime_quality_schema_workflow_clean()` check):
+Required guard (recommended location: extend `orchestration/src/tool_routing_authority.rs` with a `runtime_quality_schema_workflow_clean()` check):
 
 - Read the body of the `RuntimeQualitySignals` struct definition from `contracts.rs`.
 - Assert no field name matches a workflow-family-specific token regex: `forgecode|openhands|forge_|sage_|muse_|mcp_|subagent_|codex_|assimilation_(?!ingest)|step_checkpoint|completion_hygiene|parallel_independent_tool_calls`.

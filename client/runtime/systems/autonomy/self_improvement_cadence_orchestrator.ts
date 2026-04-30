@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 // TypeScript compatibility shim only.
-// Layer ownership: surface/orchestration (self-improvement cadence orchestration); this file is a thin CLI bridge.
+// Layer ownership: orchestration (self-improvement cadence orchestration); this file is a thin CLI bridge.
 
-const impl = require('../../../../surface/orchestration/scripts/self_improvement_cadence_orchestrator.ts');
+const impl = require('../../../../orchestration/scripts/self_improvement_cadence_orchestrator.ts');
 const FORBIDDEN_RUNTIME_CONTEXT_MARKERS = [
   'You are an expert Python programmer.',
   '[PATCH v2',

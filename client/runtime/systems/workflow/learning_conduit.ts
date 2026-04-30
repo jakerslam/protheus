@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 // TypeScript compatibility shim only.
-// Layer ownership: surface/orchestration (workflow coordination); this file is a thin CLI bridge.
+// Layer ownership: orchestration (workflow coordination); this file is a thin CLI bridge.
 
-const impl = require('../../../../surface/orchestration/scripts/learning_conduit.ts');
+const impl = require('../../../../orchestration/scripts/learning_conduit.ts');
 
 function run(args = process.argv.slice(2)) {
   return impl.run(args);

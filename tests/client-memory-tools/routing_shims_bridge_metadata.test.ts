@@ -28,12 +28,12 @@ function run() {
   const provider = require('../../client/runtime/systems/routing/provider_onboarding_manifest.ts');
 
   assert.equal(llm.BRIDGE_PATH, 'client/runtime/systems/routing/llm_gateway_failure_classifier.ts');
-  assert.equal(llm.ORCHESTRATION_SCRIPT, 'surface/orchestration/scripts/llm_gateway_failure_classifier.ts');
+  assert.equal(llm.ORCHESTRATION_SCRIPT, 'orchestration/scripts/llm_gateway_failure_classifier.ts');
   assert.equal(llm.MODULE_KEY, 'llm_gateway_failure_classifier');
   assert.deepEqual(llm.normalizeArgs(['--strict', 1, true]), ['--strict', '1', 'true']);
 
   assert.equal(provider.BRIDGE_PATH, 'client/runtime/systems/routing/provider_onboarding_manifest.ts');
-  assert.equal(provider.ORCHESTRATION_SCRIPT, 'surface/orchestration/scripts/provider_onboarding_manifest.ts');
+  assert.equal(provider.ORCHESTRATION_SCRIPT, 'orchestration/scripts/provider_onboarding_manifest.ts');
   assert.equal(provider.MODULE_KEY, 'provider_onboarding_manifest');
   assert.deepEqual(provider.normalizeArgs(['--apply', false, 7]), ['--apply', 'false', '7']);
 

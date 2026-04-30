@@ -6,12 +6,12 @@
   "blocked_prefixes": [
     "client/runtime/systems/ui/",
     "client/runtime/systems/ui/infring_static/",
-    "surface/orchestration/scripts/"
+    "orchestration/scripts/"
   ],
   "blocked_added_file_prefixes": [
     "core/",
-    "surface/orchestration/src/",
-    "surface/orchestration/scripts/"
+    "orchestration/src/",
+    "orchestration/scripts/"
   ],
   "block_new_package_scripts": true,
   "allowed_new_package_scripts": [
