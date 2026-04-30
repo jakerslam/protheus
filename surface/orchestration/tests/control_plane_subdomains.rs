@@ -12,6 +12,7 @@ use infring_orchestration_surface_v1::control_plane::{
 use infring_orchestration_surface_v1::control_plane::{
     decomposition_planning::DecompositionPlanningContract,
     recovery_escalation::RecoveryEscalationContract,
+    status_phase_projection::emitted_shell_projection_types,
 };
 
 fn require_domain(id: &str) -> infring_orchestration_surface_v1::control_plane::SubdomainBoundary {
@@ -150,6 +151,12 @@ fn executable_contract_enforcement_accepts_declared_tokens() {
         "thinking_bubble_projection"
     )
     .is_ok());
+    for output in emitted_shell_projection_types() {
+        assert!(
+            enforce_subdomain_kernel_output("status_phase_projection", output).is_ok(),
+            "status projection output {output} must be accepted by subdomain and global contract"
+        );
+    }
     assert!(enforce_subdomain_message_boundary(
         "decomposition_planning",
         "planning_to_graph_boundary"
