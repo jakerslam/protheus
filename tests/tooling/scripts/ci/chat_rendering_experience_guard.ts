@@ -3,7 +3,7 @@ import { dirname } from 'path';
 
 const SRS_ID = 'V12-CHAT-UX-CLOSURE-001';
 const LEGACY_SRS_ID = 'V11-CHAT-UX-004';
-const MANIFEST = 'tests/tooling/config/release_proof_pack_manifest.json';
+const MANIFEST = 'validation/release_gates/contracts/release_proof_pack_manifest.json';
 const REGISTRY = 'tests/tooling/config/tooling_gate_registry.json';
 const OUT_JSON = 'core/local/artifacts/chat_rendering_experience_guard_current.json';
 const OUT_MARKDOWN = 'local/workspace/reports/CHAT_RENDERING_EXPERIENCE_GUARD_CURRENT.md';

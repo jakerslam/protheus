@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-mod blob;
-mod typed_channels;
-mod handoff_contract;
 mod a2a_v1;
+mod blob;
+mod handoff_contract;
+mod typed_channels;
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -11,13 +11,15 @@ use std::collections::{BTreeMap, BTreeSet};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
+pub use a2a_v1::{
+    a2a_receipt, a2a_receipt_json, A2AEnvelope, A2AIntent, A2AReceipt, A2A_V1_PROTOCOL,
+};
 pub use blob::{
     decode_manifest, fold_blob, generate_manifest, load_embedded_swarm_strategy,
     SwarmStrategyProfile, SWARM_STRATEGY_BLOB_ID,
 };
-pub use typed_channels::{SwarmMessage, TypedChannel, TypedChannelCatalog, TypedHandoffEnvelope};
 pub use handoff_contract::{HandoffContract, HandoffError, HandoffToken};
-pub use a2a_v1::{a2a_receipt, a2a_receipt_json, A2AEnvelope, A2AIntent, A2AReceipt, A2A_V1_PROTOCOL};
+pub use typed_channels::{SwarmMessage, TypedChannel, TypedChannelCatalog, TypedHandoffEnvelope};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SwarmAgent {

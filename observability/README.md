@@ -5,11 +5,17 @@ Status: physical domain anchor
 
 Observability owns live evidence: telemetry, health, traces, Sentinel evidence streams, runtime findings, evidence normalization, freshness, and source coverage.
 
+Observability also owns the universal trace substrate. Fragmented observability, where each subsystem emits isolated local traces without a shared causal envelope, is an architecture smell and a system-understanding failure.
+
+The trace substrate has a hard identity rule: one `trace_id` is minted at the initial user request and flows unchanged through every workflow, orchestration decision, tool call, Gateway/Conduit boundary, Kernel receipt, Validation span, Shell projection, Sentinel observation, and final response. Child work receives new `span_id` values, not new root trace IDs. No component may remint, replace, drop, or fork the trace ID.
+
+Citation: `Machine Learning Systems, Volume 1`, Chapter 5 `AI Workflow`, frames production AI systems around workflow feedback loops, distributed monitoring, degradation prevention, and system-level behavior. That is the external reference for treating fragmented observability as a negative architecture state: https://mlsysbook.ai/vol1/assets/downloads/Machine-Learning-Systems-Vol1.pdf
+
 Observability answers: "What is happening while the system runs?"
 
 ## Authority Boundary
 
-Observability may define live evidence envelopes, health stream contracts, trace source maps, runtime finding schemas, Sentinel source contracts, freshness rules, and source coverage metadata.
+Observability may define live evidence envelopes, health stream contracts, trace envelopes, trace source maps, runtime finding schemas, Sentinel source contracts, freshness rules, and source coverage metadata.
 
 Observability must not own controlled eval scoring, release scorecard verdicts, Kernel policy truth, Orchestration planning, Shell readiness inference, or direct code mutation.
 

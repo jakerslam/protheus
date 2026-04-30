@@ -18,7 +18,7 @@ const LEGACY_SRS_IDS = [
 
 const REGISTRY = 'tests/tooling/config/tooling_gate_registry.json';
 const PROFILES = 'tests/tooling/config/verify_profiles.json';
-const MANIFEST = 'tests/tooling/config/release_proof_pack_manifest.json';
+const MANIFEST = 'validation/release_gates/contracts/release_proof_pack_manifest.json';
 const PACKAGE_JSON = 'package.json';
 const SRS = 'docs/workspace/SRS.md';
 const TODO = 'docs/workspace/TODO.md';

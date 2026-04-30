@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://infring.local/schemas/validation/assurance_governance_registry.schema.json",
+  "title": "Assurance Governance Registry",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "type",
+    "schema_version",
+    "owner",
+    "governance_policy",
+    "verdict_inputs",
+    "verdict_outputs",
+    "scorecard_derivation_rules",
+    "promotion_rules",
+    "issue_candidate_routing"
+  ],
+  "properties": {
+    "type": {
+      "const": "assurance_governance_registry"
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "governance_policy": {
+      "type": "object",
+      "required": [
+        "allowed_verdicts",
+        "allowed_input_domains",
+        "scorecards_are_derived",
+        "scorecards_must_reference_evidence",
+        "no_direct_mutation",
+        "promotion_requires",
+        "issue_candidates_require"
+      ]
+    },
+    "verdict_inputs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "domain",
+          "source_refs",
+          "accepted_signal_classes",
+          "required_evidence_refs"
+        ],
+        "properties": {
+          "domain": {
+            "enum": [
+              "validation",
+              "observability",
+              "governance"
+            ]
+          },
+          "required_evidence_refs": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "verdict_outputs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "output_kind",
+          "artifact_paths",
+          "allowed_verdicts",
+          "must_reference_evidence",
+          "may_block_release",
+          "may_apply_patch"
+        ],
+        "properties": {
+          "must_reference_evidence": {
+            "type": "boolean"
+          },
+          "may_apply_patch": {
+            "const": false
+          }
+        }
+      }
+    },
+    "scorecard_derivation_rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "description",
+          "required"
+        ],
+        "properties": {
+          "required": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "promotion_rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "from_signal_class",
+          "to_signal_class",
+          "allowed_when",
+          "minimum_occurrences"
+        ]
+      }
+    },
+    "issue_candidate_routing": {
+      "type": "object",
+      "required": [
+        "minimum_occurrences",
+        "dedupe_key_fields",
+        "required_flags",
+        "routes"
+      ]
+    }
+  }
+}

@@ -359,11 +359,89 @@ fn session_backed_agents_drive_roster_sessions_and_usage() {
     assert_eq!(
         session
             .payload
-            .get("messages")
+            .pointer("/message_window/rows")
             .and_then(Value::as_array)
             .map(|rows| rows.len()),
         Some(2)
     );
+    assert!(session.payload.get("messages").is_none());
+    assert!(session.payload.pointer("/session/sessions/0/messages").is_none());
+    assert_eq!(
+        session
+            .payload
+            .pointer("/message_window/total_count")
+            .and_then(Value::as_i64),
+        Some(2)
+    );
+    assert!(
+        session
+            .payload
+            .pointer("/message_window/window_start_id")
+            .and_then(Value::as_str)
+            .is_some()
+    );
+    assert!(
+        session
+            .payload
+            .pointer("/message_window/window_end_id")
+            .and_then(Value::as_str)
+            .is_some()
+    );
+    let message_id = session
+        .payload
+        .pointer("/message_window/rows/0/id")
+        .and_then(Value::as_str)
+        .unwrap_or("message-0")
+        .to_string();
+    let detail = handle(
+        root.path(),
+        "GET",
+        &format!("/api/agents/chat-ui-default-agent/details/message/{message_id}"),
+        &[],
+        &terminated_ok_snapshot(),
+    )
+    .expect("message detail");
+    assert_eq!(detail.payload.get("ok").and_then(Value::as_bool), Some(true));
+    assert_eq!(
+        detail.payload.get("capability_scope").and_then(Value::as_str),
+        Some("shell.message.detail.read")
+    );
+    assert_eq!(
+        detail.payload.pointer("/size_bound/max_response_bytes").and_then(Value::as_i64),
+        Some(65536)
+    );
+    assert_eq!(
+        detail.payload.get("audit_receipt").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        detail.payload.get("nexus_checkpoint").and_then(Value::as_bool),
+        Some(true)
+    );
+    for (kind, scope) in [
+        ("tool-result", "shell.tool.detail.read"),
+        ("artifact", "shell.artifact.detail.read"),
+        ("trace", "shell.trace.detail.read"),
+        ("workflow", "shell.workflow.detail.read"),
+    ] {
+        let payload = handle(
+            root.path(),
+            "GET",
+            &format!("/api/agents/chat-ui-default-agent/details/{kind}/missing-detail"),
+            &[],
+            &terminated_ok_snapshot(),
+        )
+        .expect("bounded missing detail")
+        .payload;
+        assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(payload.get("capability_scope").and_then(Value::as_str), Some(scope));
+        assert_eq!(payload.get("audit_receipt").and_then(Value::as_bool), Some(true));
+        assert_eq!(payload.get("nexus_checkpoint").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            payload.pointer("/size_bound/max_string_chars").and_then(Value::as_i64),
+            Some(12000)
+        );
+    }
 
     let summaries = handle(
         root.path(),

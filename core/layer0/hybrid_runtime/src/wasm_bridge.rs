@@ -148,7 +148,10 @@ mod tests {
         let out = validate_manifest_detailed(&m);
         assert_eq!(out.ok, false);
         assert!(out.errors.contains(&"adapter_prefix_invalid".to_string()));
-        assert_eq!(out.normalized.exports, vec!["merge".to_string(), "query".to_string()]);
+        assert_eq!(
+            out.normalized.exports,
+            vec!["merge".to_string(), "query".to_string()]
+        );
     }
 
     #[test]

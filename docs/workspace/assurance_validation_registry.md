@@ -42,7 +42,7 @@ A harness can run a proof, but it is not the proof.
 | `validation.eval_quality` | `eval_suite` | `release_gate` | `hard_gate` | false | Assurance Validation eval definitions |
 | `validation.public_benchmark_harness` | `benchmark` | `advisory` | `advisory` | false | `benchmarks/public_harness` |
 | `validation.architecture_conformance` | `conformance_guard` | `release_gate` | `hard_gate` | false | architecture policy guards |
-| `validation.shell_projection_conformance` | `conformance_guard` | `release_gate` | `hard_gate` | false | Shell projection policies and guards |
+| `validation.shell_projection_conformance` | `conformance_guard` | `release_gate` | `hard_gate` | false | Shell projection and long-chat memory policies and guards |
 | `validation.gateway_boundary_conformance` | `conformance_guard` | `release_gate` | `hard_gate` | false | Gateway and Conduit boundary policies |
 | `validation.release_proof_pack` | `release_proof_check` | `release_gate` | `hard_gate` | false | release proof-pack assembly |
 | `validation.temporary_scaffolding_maturity` | `conformance_guard` | `retirement_candidate` | `advisory` | false | test maturity registry |

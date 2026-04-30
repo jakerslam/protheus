@@ -759,7 +759,7 @@
     },
     "ops:shell:long-chat-ram:guard": {
       "owner": "ops",
-      "description": "Fail when Shell long-chat projection, live memprobe instrumentation, or synthetic heap/DOM budgets allow unbounded chat-page RAM growth.",
+      "description": "Release-blocking Shell long-chat memory guard for bounded projection, heap, DOM, storage, scroll, search, detail expansion, session switch, and cleanup behavior.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "ops:shell:long-chat-ram:guard",
@@ -821,6 +821,28 @@
       "artifact_paths": [
         "core/local/artifacts/tech_debt_report_current.json",
         "local/workspace/reports/TECH_DEBT_REPORT_CURRENT.md"
+      ]
+    },
+    "ops:representation-collapse:guard": {
+      "owner": "validation",
+      "description": "Non-regression guard for representation-collapse budgets with controlled negative proof.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:representation-collapse:guard",
+      "artifact_paths": [
+        "core/local/artifacts/representation_collapse_guard_current.json",
+        "local/workspace/reports/REPRESENTATION_COLLAPSE_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:representation-collapse:report": {
+      "owner": "validation",
+      "description": "Observational report for duplicate truth representations and raw runtime payloads in projection/cache surfaces.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:representation-collapse:report",
+      "artifact_paths": [
+        "core/local/artifacts/representation_collapse_report_current.json",
+        "local/workspace/reports/REPRESENTATION_COLLAPSE_REPORT_CURRENT.md"
       ]
     },
     "ops:policy-debt:summary": {
@@ -1796,6 +1818,17 @@
       "artifact_paths": [
         "core/local/artifacts/shell_truth_leak_guard_current.json",
         "local/workspace/reports/SHELL_TRUTH_LEAK_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:shell:amputation:guard": {
+      "owner": "ops",
+      "description": "Shell amputation regression guard proving Core, Orchestration, CLI command registry, Gateway status/health, and policy surfaces operate without browser Shell assets.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 420,
+      "script": "ops:shell:amputation:guard",
+      "artifact_paths": [
+        "core/local/artifacts/shell_amputation_regression_guard_current.json",
+        "local/workspace/reports/SHELL_AMPUTATION_REGRESSION_GUARD_CURRENT.md"
       ]
     },
     "ops:shell-transition:tracker": {

@@ -24,7 +24,7 @@
 
     syncDetailAgentFromStore() {
       var detailId = this.activeDetailAgentId();
-      var store = Alpine.store('app');
+      var store = this.shellAppStore();
       var agents = Array.isArray(store && store.agents) ? store.agents : [];
       for (var i = 0; i < agents.length; i += 1) {
         if (String((agents[i] && agents[i].id) || '').trim() !== detailId) continue;
@@ -126,7 +126,7 @@
       try {
         await InfringAPI.patch('/api/agents/' + agentId + '/config', this.configForm);
         InfringToast.success('Config updated');
-        await Alpine.store('app').refreshAgents();
+        await this.refreshAgentsViaShellStore();
         await this.loadLifecycle();
         this.syncDetailAgentFromStore();
       } catch(e) {
@@ -142,7 +142,7 @@
         var res = await InfringAPI.post('/api/agents/' + agent.id + '/clone', { new_name: newName });
         if (res.agent_id) {
           InfringToast.success('Cloned as "' + res.name + '"');
-          await Alpine.store('app').refreshAgents();
+          await this.refreshAgentsViaShellStore();
           await this.loadLifecycle();
           this.showDetailModal = false;
         }
@@ -164,7 +164,7 @@
             var launchedName = String((res && (res.name || res.agent_id)) || name || 'agent').trim() || 'agent';
             var launchedRole = String(name || 'agent').trim() || 'agent';
             InfringToast.success('Launched ' + launchedName + ' as ' + launchedRole);
-            await Alpine.store('app').refreshAgents();
+            await this.refreshAgentsViaShellStore();
             await this.loadLifecycle();
             this.chatWithAgent({ id: res.agent_id, name: res.name || name, model_provider: '?', model_name: '?' });
           }
@@ -197,7 +197,7 @@
         var providerInfo = (resp && resp.provider) ? ' (provider: ' + resp.provider + ')' : '';
         InfringToast.success('Model changed' + providerInfo + ' (memory reset)');
         this.editingModel = false;
-        await Alpine.store('app').refreshAgents();
+        await this.refreshAgentsViaShellStore();
         await this.loadLifecycle();
         this.syncDetailAgentFromStore();
       } catch(e) {
@@ -216,7 +216,7 @@
         var resp = await InfringAPI.put('/api/agents/' + agentId + '/model', { model: combined });
         InfringToast.success('Provider changed to ' + (resp && resp.provider ? resp.provider : this.newProviderValue.trim()));
         this.editingProvider = false;
-        await Alpine.store('app').refreshAgents();
+        await this.refreshAgentsViaShellStore();
         await this.loadLifecycle();
         this.syncDetailAgentFromStore();
       } catch(e) {
@@ -415,7 +415,7 @@
           var builtinName = String((res && (res.name || res.agent_id)) || t.name || 'agent').trim() || 'agent';
           var builtinRole = String((t && (t.profile || t.name)) || 'agent').trim() || 'agent';
           InfringToast.success('Launched ' + builtinName + ' as ' + builtinRole);
-          await Alpine.store('app').refreshAgents();
+          await this.refreshAgentsViaShellStore();
           await this.loadLifecycle();
           this.chatWithAgent({ id: res.agent_id, name: t.name, model_provider: t.provider, model_name: t.model });
         }

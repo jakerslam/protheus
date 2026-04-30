@@ -381,7 +381,10 @@ mod tests {
     #[test]
     fn recall_execution_receipt_is_stable() {
         assert_eq!(normalize_recall_execution_status("ok"), "success");
-        assert_eq!(normalize_recall_execution_status("rate_limited"), "throttled");
+        assert_eq!(
+            normalize_recall_execution_status("rate_limited"),
+            "throttled"
+        );
         assert_eq!(normalize_recall_execution_status("timed-out"), "timeout");
         assert_eq!(normalize_recall_execution_status("unknown"), "error");
 

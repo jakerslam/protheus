@@ -116,4 +116,3 @@ pub fn mcp_handshake_receipt(
         "detail": detail.unwrap_or(""),
     })
 }
-

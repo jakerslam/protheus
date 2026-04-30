@@ -131,102 +131,6 @@ fn write_fresh_scheduler_state(root: &std::path::Path) {
 }
 
 #[test]
-fn auto_run_writes_freshness_artifact_for_clean_state() {
-    let root = std::env::temp_dir().join(format!(
-        "kernel-sentinel-auto-clean-{}",
-        crate::deterministic_receipt_hash(&json!({
-            "test": "auto-clean",
-            "nonce": std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        }))
-    ));
-    write_required_sentinel_evidence(&root);
-    write_fresh_scheduler_state(&root);
-    let out = root.join("auto.json");
-    let args = vec![
-        "--strict=1".to_string(),
-        "--cadence=maintenance".to_string(),
-        format!("--auto-artifact={}", out.display()),
-    ];
-    let exit = run_auto(&root, &args);
-    assert_eq!(exit, 0);
-    let artifact: Value = serde_json::from_str(&fs::read_to_string(out).unwrap()).unwrap();
-    assert_eq!(artifact["type"], "kernel_sentinel_auto_run");
-    assert_eq!(artifact["automatic"], true);
-    assert_eq!(artifact["release_gate_contract"]["required_for_release_verdict"], true);
-    assert_eq!(artifact["release_gate_contract"]["architectural_synthesis_required"], true);
-    assert!(
-        artifact["output_artifacts"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|row| row.as_str() == Some("architectural_incident_report_current.json"))
-    );
-    assert_eq!(artifact["self_study_outputs"]["type"], "kernel_sentinel_self_study_outputs");
-    assert_eq!(artifact["self_study_outputs"]["trend_history_runs"], 1);
-    assert_eq!(artifact["scheduler_status"], "fresh");
-    assert_eq!(artifact["ok"], true);
-    let health_path = root.join("local/state/kernel_sentinel/kernel_sentinel_health_current.json");
-    let health: Value = serde_json::from_str(&fs::read_to_string(health_path).unwrap()).unwrap();
-    let architectural_incident_report: Value = serde_json::from_str(
-        &fs::read_to_string(
-            root.join("local/state/kernel_sentinel/architectural_incident_report_current.json"),
-        )
-        .unwrap(),
-    )
-    .unwrap();
-    let dossier: SystemUnderstandingDossier = serde_json::from_str(
-        &fs::read_to_string(root.join("local/state/system_understanding/infring_dossier.json"))
-            .unwrap(),
-    )
-    .unwrap();
-    let dossier_markdown = fs::read_to_string(
-        root.join("docs/workspace/system_understanding/infring_dossier.md"),
-    )
-    .unwrap();
-    assert_eq!(health["type"], "kernel_sentinel_health_report");
-    assert_eq!(
-        architectural_incident_report["type"],
-        "kernel_sentinel_architectural_incident_report_section"
-    );
-    assert!(validate_system_understanding_dossier(&dossier).is_ok());
-    assert_eq!(dossier.target_system, "InfRing");
-    assert!(dossier_markdown.contains("# InfRing System Understanding Dossier"));
-    assert!(dossier_markdown.contains("## Runtime Behavior"));
-    assert!(dossier_markdown.contains("## Authority / Truth Model"));
-    assert_eq!(
-        artifact["system_understanding_dossier_path"],
-        root.join("local/state/system_understanding/infring_dossier.json")
-            .display()
-            .to_string()
-    );
-    assert!(
-        artifact["output_artifacts"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|row| row.as_str() == Some("system_understanding/infring_dossier.json"))
-    );
-    assert!(
-        artifact["output_artifacts"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|row| row.as_str() == Some("docs/workspace/system_understanding/infring_dossier.md"))
-    );
-    assert_eq!(health["freshness"]["scheduler_status"], "fresh");
-    assert_eq!(health["coverage"]["present_required_source_count"], 14);
-    assert_eq!(health["trend"]["status"], "first_run");
-    assert_eq!(health["trend"]["history_run_count"], 1);
-    assert_eq!(health["trend"]["regression_count"], 0);
-    assert_eq!(health["trend"]["improvement_count"], 0);
-    assert_eq!(health["authority_safety"]["safe_for_observation_authority"], true);
-    assert_eq!(health["authority_safety"]["safe_for_automation_authority"], false);
-}
-
-#[test]
 fn auto_run_strict_fails_closed_on_open_critical_findings() {
     let root = std::env::temp_dir().join(format!(
         "kernel-sentinel-auto-critical-{}",
@@ -381,6 +285,7 @@ fn auto_run_end_to_end_outputs_stay_consistent() {
         .unwrap_or(0);
     if issue_draft_count > 0 {
         assert!(issues_body.contains("kernel_sentinel_issue_draft"));
+        assert!(issues_body.contains("diagnostic_run_artifact_path"));
     } else {
         assert!(issues_body.trim().is_empty());
     }
@@ -484,3 +389,6 @@ fn collector_then_auto_run_outputs_stay_consistent() {
     assert!(issues_body.contains("gateway_isolation:collector:auto:e2e"));
     assert!(feedback_body.contains("kernel_sentinel_feedback_item"));
 }
+
+#[path = "auto_run_persistence_tests.rs"]
+mod auto_run_persistence_tests;

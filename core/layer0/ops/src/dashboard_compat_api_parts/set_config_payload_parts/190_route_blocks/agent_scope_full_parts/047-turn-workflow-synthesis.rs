@@ -794,6 +794,7 @@ fn sanitize_skipped_final_response_fallback_response(
     } else {
         latest_assistant_fallback
     };
+    fallback_response = strip_no_tool_gate_prefix_from_visible_response(&fallback_response);
     let mut sanitized_retry_loop = false;
     if response_contains_unexpected_state_retry_boilerplate(&fallback_response) {
         fallback_response.clear();
@@ -832,6 +833,29 @@ fn sanitize_skipped_final_response_fallback_response(
         fallback_source = "empty";
     }
     (fallback_response, sanitized_retry_loop, fallback_source)
+}
+
+fn strip_no_tool_gate_prefix_from_visible_response(response: &str) -> String {
+    let cleaned = clean_text(response, 8_000);
+    if cleaned.is_empty() || !response_is_visible_workflow_gate_choice(&cleaned) {
+        return cleaned;
+    }
+    let lowered = cleaned.to_ascii_lowercase();
+    let trimmed = lowered.trim_start();
+    if !(trimmed.starts_with("no.") || trimmed.starts_with("no,") || trimmed.starts_with("no ")) {
+        return cleaned;
+    }
+    let leading_ws = lowered.len().saturating_sub(trimmed.len());
+    let token_len = if trimmed.starts_with("no.") || trimmed.starts_with("no,") { 3 } else { 2 };
+    let rest_start = leading_ws + token_len;
+    let rest = cleaned.get(rest_start..).unwrap_or("").trim_start();
+    let direct_rest = rest
+        .strip_prefix("I can answer directly:")
+        .or_else(|| rest.strip_prefix("I can answer directly."))
+        .or_else(|| rest.strip_prefix("I can answer directly"))
+        .unwrap_or(rest)
+        .trim_start();
+    clean_text(direct_rest, 8_000)
 }
 
 fn apply_skipped_final_response_fallback(
@@ -1521,6 +1545,33 @@ fn run_turn_workflow_final_response(
         draft_response,
         message,
     );
+    if response_tools.is_empty()
+        && (response_is_manual_toolbox_gate_choice(draft_response)
+            || response_is_visible_workflow_gate_choice(draft_response)
+            || response_has_gate_choice_prefix_leakage(draft_response))
+    {
+        record_manual_toolbox_pending_request(&mut workflow, draft_response, message);
+        if workflow
+            .get("manual_toolbox_pending_tool_request")
+            .filter(|value| value.is_object())
+            .is_some()
+        {
+            workflow["response"] = Value::String(String::new());
+            workflow["final_llm_response"]["required"] = Value::Bool(false);
+            workflow["final_llm_response"]["attempted"] = Value::Bool(false);
+            workflow["final_llm_response"]["used"] = Value::Bool(false);
+            workflow["final_llm_response"]["status"] =
+                Value::String("skipped_pending_tool_confirmation".to_string());
+            workflow["final_llm_response"]["fallback_from_existing_draft"] = Value::Bool(false);
+            workflow["final_llm_response"]["fallback_source"] =
+                Value::String("manual_toolbox_gate_submission".to_string());
+            set_turn_workflow_final_stage_status(
+                &mut workflow,
+                "skipped_pending_tool_confirmation",
+            );
+            return workflow;
+        }
+    }
     let required = workflow
         .pointer("/final_llm_response/required")
         .and_then(Value::as_bool)
@@ -1607,7 +1658,7 @@ fn run_turn_workflow_final_response(
         && enriched_workflow_events.iter().any(|event| {
             matches!(
                 event.get("kind").and_then(Value::as_str).unwrap_or(""),
-                "manual_toolbox_candidate_menu" | "empty_final_response_menu_recovery"
+                "manual_toolbox_candidate_menu"
             )
         });
     let direct_gate_recovery_turn = response_tools.is_empty()
@@ -1711,7 +1762,7 @@ fn run_turn_workflow_final_response(
         .rev()
         .collect::<Vec<_>>()
         .join("\n");
-    let max_attempts: u64 = if direct_simple_conversation_turn { 1 } else { 2 };
+    let max_attempts: u64 = 1;
     let mut last_error = String::new();
     let mut last_invalid_excerpt = String::new();
     let mut last_reject_reason = String::new();
@@ -1774,36 +1825,15 @@ fn run_turn_workflow_final_response(
         json!(coherence_window_messages);
     for attempt in 1..=max_attempts {
         workflow["final_llm_response"]["attempt_count"] = json!(attempt);
-        let attempt_user_prompt = if attempt > 1 {
-            clean_text(
-                &format!(
-                    "{}\n\nCorrection for attempt {} of {}: your previous answer did not complete the workflow because it tried to start another search, deferred the answer, exposed a raw workflow gate choice, emitted inline tool markup, claimed missing results without tool evidence, or drifted away from the latest user request. Do not write `Yes.`, `No.`, `Tool family:`, `Tool:`, or `Request payload:` as visible chat. Do not ask to retry, rerun, narrow the query, fetch another source, or emit `<function=...>` calls. If a tool is needed, answer naturally with `I would choose web search` or `I would choose workspace search` as appropriate so a pending request can be recorded. Using only recorded tool outcomes and workflow events, answer naturally and tell the user what the tool actually returned when recorded evidence exists.",
-                    user_prompt, attempt, max_attempts
-                ),
-                20_000,
-            )
-        } else {
-            user_prompt.clone()
-        };
-        let (attempt_provider, attempt_model, recovery_attempt) = if attempt > 1 {
-            let (recovery_provider, recovery_model) =
-                visible_response_recovery_model(&cleaned_provider, &cleaned_model);
-            (recovery_provider, recovery_model, true)
-        } else {
-            (cleaned_provider.clone(), cleaned_model.clone(), false)
-        };
+        let attempt_user_prompt = user_prompt.clone();
+        let attempt_provider = cleaned_provider.clone();
+        let attempt_model = cleaned_model.clone();
         workflow["final_llm_response"]["current_attempt"] = json!({
             "attempt": attempt,
             "provider": attempt_provider,
             "model": attempt_model,
-            "recovery_attempt": recovery_attempt
+            "recovery_attempt": false
         });
-        if recovery_attempt {
-            workflow["final_llm_response"]["recovery_model"] = json!({
-                "provider": attempt_provider.clone(),
-                "model": attempt_model.clone()
-            });
-        }
         match crate::dashboard_provider_runtime::invoke_chat(
             root,
             &attempt_provider,

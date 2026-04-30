@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "owner": "validation/tests",
+  "purpose": "Standard envelope shape for lifecycle-managed tests, gates, evals, benchmarks, conformance checks, and release checks.",
+  "required_fields": [
+    "ok",
+    "test_id",
+    "classification",
+    "invariant",
+    "runtime_owner",
+    "failure_signature",
+    "strengthen_signal"
+  ],
+  "field_contract": {
+    "ok": "boolean lifecycle health for the managed check in the current lifecycle artifact",
+    "test_id": "stable gate, suite, or test identifier",
+    "classification": "one of the Validation lifecycle classifications",
+    "invariant": "human-readable invariant protected by the check",
+    "runtime_owner": "runtime subsystem that should become stronger if this check remains necessary or fails repeatedly",
+    "failure_signature": "stable failure signature when the lifecycle artifact sees a failure or null when healthy",
+    "strengthen_signal": "what persistent failure says about the system that needs strengthening"
+  },
+  "null_allowed": [
+    "failure_signature"
+  ],
+  "canonical_emitter": "ops:test-maturity:registry:guard",
+  "canonical_output_field": "lifecycle_artifact_envelopes"
+}

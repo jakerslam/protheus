@@ -70,7 +70,11 @@ fn parse_numeric_token(raw: &str) -> Option<f64> {
         return None;
     }
     if let Some(stripped) = token.strip_suffix('%') {
-        return stripped.trim().parse::<f64>().ok().map(|value| clamp01(value / 100.0));
+        return stripped
+            .trim()
+            .parse::<f64>()
+            .ok()
+            .map(|value| clamp01(value / 100.0));
     }
     token.parse::<f64>().ok().map(clamp01)
 }
@@ -439,7 +443,10 @@ mod tests {
         }"#;
         let out = evaluate_importance_json(payload).unwrap();
         let parsed: Value = serde_json::from_str(&out).unwrap();
-        assert_eq!(parsed.get("front_jump").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            parsed.get("front_jump").and_then(Value::as_bool),
+            Some(true)
+        );
         assert!(parsed.get("score").and_then(Value::as_f64).unwrap_or(0.0) >= 0.6);
     }
 

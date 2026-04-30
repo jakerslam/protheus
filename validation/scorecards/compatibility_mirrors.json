@@ -2,16 +2,12 @@
   "type": "validation_scorecard_compatibility_mirrors",
   "schema_version": 1,
   "owner": "validation/scorecards",
-  "updated_at": "2026-04-29",
+  "updated_at": "2026-04-30",
   "canonical_domain": "validation",
-  "burn_down_required": true,
+  "burn_down_required": false,
   "burn_down_todo": "ASSURANCE-MIGRATE-010",
-  "mirrors": [
-    {
-      "legacy_path": "tests/tooling/config/assurance_governance_registry.json",
-      "canonical_path": "validation/scorecards/contracts/assurance_scorecard_derivation_contract.json",
-      "status": "partial_contract_extraction",
-      "reason": "scorecard derivation rules moved into Validation; broader Governance verdict/promotion registry remains compatibility debt until Governance gets a physical domain"
-    }
-  ]
+  "mirrors": [],
+  "status": "retired",
+  "retired_at": "2026-04-30",
+  "retired_reason": "The Assurance Governance registry is now physically owned by validation/governance/** and scorecard derivation remains under validation/scorecards/**."
 }

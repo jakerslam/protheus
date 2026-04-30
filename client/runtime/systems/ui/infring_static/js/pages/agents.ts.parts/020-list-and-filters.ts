@@ -88,7 +88,7 @@
           role: row.role || 'analyst'
         });
         InfringToast.success('Revived ' + agentId);
-        await Alpine.store('app').refreshAgents();
+        await this.refreshAgentsViaShellStore();
         await this.loadLifecycle();
       } catch (e) {
         InfringToast.error('Failed to revive ' + agentId + ': ' + (e && e.message ? e.message : 'unknown_error'));
@@ -99,8 +99,6 @@
       var row = entry && typeof entry === 'object' ? entry : {};
       var agentId = String(row.agent_id || '').trim();
       if (!agentId) return;
-      var store = Alpine.store('app');
-      if (!store) return;
       var pendingAgent = typeof this.normalizePendingAgent === 'function'
         ? this.normalizePendingAgent({
           id: agentId,
@@ -118,16 +116,17 @@
           archived: true,
           role: String(row.role || 'analyst')
         };
-      store.pendingAgent = pendingAgent || {
+      this.assignShellAppStore({
+        pendingAgent: pendingAgent || {
         id: agentId,
         name: agentId,
         state: 'archived',
         archived: true,
         role: String(row.role || 'analyst')
-      };
-      store.pendingFreshAgentId = null;
-      if (typeof store.setActiveAgentId === 'function') store.setActiveAgentId(agentId);
-      else store.activeAgentId = agentId;
+        },
+        pendingFreshAgentId: null
+      });
+      this.setActiveAgentIdViaShellStore(agentId);
       window.location.hash = 'chat';
     },
 
@@ -144,12 +143,12 @@
         var removed = Number(result && result.removed_history_entries || 0);
         var label = removed > 0 ? (' and ' + removed + ' archived record(s)') : '';
         InfringToast.success('Permanently deleted ' + agentId + label);
-        await Alpine.store('app').refreshAgents();
+        await this.refreshAgentsViaShellStore();
         await this.loadLifecycle();
       } catch (e) {
         if (this.isAgentMissingError(e)) {
           InfringToast.success('Removed stale archived agent ' + agentId);
-          await Alpine.store('app').refreshAgents();
+          await this.refreshAgentsViaShellStore();
           await this.loadLifecycle();
           return;
         }
@@ -168,7 +167,7 @@
             var result = await InfringAPI.del('/api/agents/terminated?all=1');
             var removed = Number(result && result.deleted_archived_agents || 0);
             InfringToast.success('Deleted ' + removed + ' archived agent(s).');
-            await Alpine.store('app').refreshAgents();
+            await self.refreshAgentsViaShellStore();
             await self.loadLifecycle();
           } catch (e) {
             InfringToast.error('Failed to delete archived agents: ' + (e && e.message ? e.message : 'unknown_error'));
@@ -189,16 +188,13 @@
         'Archive All Agents',
         'Archive ' + targetIds.length + ' active agent(s)?',
         async function() {
-          var store = Alpine.store('app');
           var failures = [];
           try {
             await InfringAPI.post('/api/agents/archive-all', { reason: 'user_archive_all' });
           } catch (_) {
             // Fallback path below will sweep survivors one-by-one.
           }
-          if (store && typeof store.refreshAgents === 'function') {
-            await store.refreshAgents({ force: true });
-          }
+          await self.refreshAgentsViaShellStore({ force: true });
           await self.loadLifecycle();
 
           var survivors = targetIds.filter(function(id) {
@@ -215,9 +211,7 @@
                 if (!self.isAgentMissingError(e)) failures.push(survivorId);
               }
             }
-            if (store && typeof store.refreshAgents === 'function') {
-              await store.refreshAgents({ force: true });
-            }
+            await self.refreshAgentsViaShellStore({ force: true });
             await self.loadLifecycle();
           }
 
@@ -246,7 +240,7 @@
       this.confirmDeleteAllArchived = false;
       this.confirmArchiveAllAgents = false;
       try {
-        await Alpine.store('app').refreshAgents();
+        await this.refreshAgentsViaShellStore();
         await this.loadLifecycle();
       } catch(e) {
         this.loadError = e.message || 'Could not load agents. Is the daemon running?';
@@ -260,20 +254,16 @@
 
       // If a pending agent was set (e.g. from wizard or redirect), route to
       // the primary chat page so we keep one authoritative chat render path.
-      var store = Alpine.store('app');
+      var store = this.shellAppStore();
       var pendingFreshId = String(store && store.pendingFreshAgentId ? store.pendingFreshAgentId : '').trim();
       if (pendingFreshId) {
-        store.pendingFreshAgentId = null;
-        store.pendingAgent = null;
+        this.assignShellAppStore({ pendingFreshAgentId: null, pendingAgent: null });
         if (String(store.activeAgentId || '').trim() === pendingFreshId) {
-          if (typeof store.setActiveAgentId === 'function') store.setActiveAgentId(null);
-          else store.activeAgentId = null;
+          this.setActiveAgentIdViaShellStore(null);
         }
         InfringAPI.del('/api/agents/' + encodeURIComponent(pendingFreshId)).catch(function() {});
-        if (typeof store.refreshAgents === 'function') {
-          setTimeout(function() { store.refreshAgents({ force: true }).catch(function() {}); }, 0);
-        }
-      } else if (store.pendingAgent) {
+        setTimeout(function() { self.refreshAgentsViaShellStore({ force: true }).catch(function() {}); }, 0);
+      } else if (store && store.pendingAgent) {
         this.chatWithAgent(store.pendingAgent);
       }
       // Watch for future pendingAgent changes
@@ -289,7 +279,7 @@
       this.loading = true;
       this.loadError = '';
       try {
-        await Alpine.store('app').refreshAgents();
+        await this.refreshAgentsViaShellStore();
         await this.loadLifecycle();
       } catch(e) {
         this.loadError = e.message || 'Could not load agents.';
@@ -316,12 +306,10 @@
 
     chatWithAgent(agent) {
       if (!agent) return;
-      var store = Alpine.store('app');
       var pendingAgent = typeof this.normalizePendingAgent === 'function' ? this.normalizePendingAgent(agent) : agent;
       if (!pendingAgent) return;
-      store.pendingAgent = pendingAgent;
-      if (typeof store.setActiveAgentId === 'function') store.setActiveAgentId(pendingAgent.id || null);
-      else store.activeAgentId = pendingAgent.id || null;
+      this.assignShellAppStore({ pendingAgent: pendingAgent });
+      this.setActiveAgentIdViaShellStore(pendingAgent.id || null);
       this.activeChatAgent = null;
       window.location.hash = 'chat';
     },
@@ -366,13 +354,13 @@
           await InfringAPI.del('/api/agents/' + agent.id);
           InfringToast.success('Agent "' + agent.name + '" stopped');
           self.showDetailModal = false;
-          await Alpine.store('app').refreshAgents();
+          await self.refreshAgentsViaShellStore();
           await self.loadLifecycle();
         } catch(e) {
           if (self.isAgentMissingError(e)) {
             InfringToast.success('Removed stale agent "' + (agent.name || agent.id) + '"');
             self.showDetailModal = false;
-            await Alpine.store('app').refreshAgents();
+            await self.refreshAgentsViaShellStore();
             await self.loadLifecycle();
             return;
           }
@@ -394,7 +382,7 @@
             if (!self.isAgentMissingError(e)) errors.push(list[i].name + ': ' + e.message);
           }
         }
-        await Alpine.store('app').refreshAgents();
+        await self.refreshAgentsViaShellStore();
         await self.loadLifecycle();
         if (errors.length) {
           InfringToast.error('Some agents failed to stop: ' + errors.join(', '));
@@ -409,7 +397,7 @@
         await InfringAPI.put('/api/agents/' + agent.id + '/mode', { mode: mode });
         agent.mode = mode;
         InfringToast.success('Mode set to ' + mode);
-        await Alpine.store('app').refreshAgents();
+        await this.refreshAgentsViaShellStore();
         await this.loadLifecycle();
       } catch(e) {
         InfringToast.error('Failed to set mode: ' + e.message);

@@ -5,7 +5,13 @@
 - **Layer 0**: Deterministic safety and policy authority (fail-closed control plane).
 - **Layer 1**: Governance, contract schemas, policy composition, and guarantees.
 - **Layer 2**: Execution intelligence and orchestration primitives.
-- **Layer 3**: Optional higher-order workflows and app-plane composition.
+- **Layer 3**: Kernel OS Personality Template for process, service, VFS, driver, syscall, namespace, networking, and userland-isolation growth without bypassing Layer 2 scheduling/admission authority.
+- **Kernel**: Canonical authority/truth owner. `core/**` is the implementation path and `Core` is compatibility wording only.
+- **Orchestration Control Plane**: Canonical coordination owner for decomposition, sequencing, recovery, clarification, and result packaging. `Tower` is rejected as an active architecture term.
+- **Shell**: Canonical presentation owner. `client/**` is the implementation path and `Client` is compatibility wording only.
+- **Gateways**: Canonical external membrane. `adapters/**` is the implementation path and `Adapters` is compatibility wording only.
+- **Assurance**: Umbrella for Validation, Observability, and Governance. Validation judges controlled behavior; Observability watches live behavior; Governance derives gates, scorecards, verdicts, and issue-candidate thresholds.
+- **Cognition Plane**: Historical broad metakernel plane label for non-authoritative coordination and presentation. Active ownership should be named Orchestration Control Plane or Shell.
 
 ## Runtime Primitives
 - **Conduit**: The governed action bus; all authoritative operations route through it.

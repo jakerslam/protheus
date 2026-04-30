@@ -139,9 +139,84 @@ pub(super) fn issue_cluster_key(
     )
 }
 
+fn compact_issue_text(raw: &str, fallback: &str, max_chars: usize) -> String {
+    let compacted = raw
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .trim_matches(|ch: char| matches!(ch, '.' | ':' | ';' | ',' | '-' | '_'))
+        .to_string();
+    let source = if compacted.is_empty() {
+        fallback.to_string()
+    } else {
+        compacted
+    };
+    if source.chars().count() <= max_chars {
+        return source;
+    }
+    let mut shortened = source.chars().take(max_chars.saturating_sub(1)).collect::<String>();
+    shortened = shortened.trim_end().to_string();
+    format!("{shortened}...")
+}
+
 pub(super) fn issue_title(finding: &KernelSentinelFinding) -> String {
+    let subject = compact_issue_text(&finding.summary, &finding.fingerprint, 96);
     format!(
-        "[{:?}] Kernel Sentinel {:?}: {}",
-        finding.severity, finding.category, finding.summary
+        "[Kernel Sentinel][{:?}/{:?}] {}",
+        finding.severity, finding.category, subject
     )
+}
+
+pub(super) fn issue_summary(
+    finding: &KernelSentinelFinding,
+    occurrence_count: usize,
+    recovery_reason: &str,
+) -> String {
+    let subject = compact_issue_text(&finding.summary, &finding.fingerprint, 140);
+    format!(
+        "Kernel Sentinel observed {occurrence_count} occurrence(s) of {:?} evidence for `{}`; recovery path `{}`. Exemplar: {}",
+        finding.category, finding.fingerprint, recovery_reason, subject
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::kernel_sentinel::{
+        KernelSentinelFindingCategory, KERNEL_SENTINEL_FINDING_SCHEMA_VERSION,
+    };
+
+    fn finding(summary: &str) -> KernelSentinelFinding {
+        KernelSentinelFinding {
+            schema_version: KERNEL_SENTINEL_FINDING_SCHEMA_VERSION,
+            id: "finding-title".to_string(),
+            severity: KernelSentinelSeverity::Critical,
+            category: KernelSentinelFindingCategory::RuntimeCorrectness,
+            fingerprint: "runtime_correctness:empty_final_response".to_string(),
+            evidence: vec!["check://chat/final_response=empty".to_string()],
+            summary: summary.to_string(),
+            recommended_action: "repair final response synthesis".to_string(),
+            status: "open".to_string(),
+        }
+    }
+
+    #[test]
+    fn issue_title_is_github_ready_and_bounded() {
+        let title = issue_title(&finding(
+            "assistant emitted an empty final response after tool execution\nwith leaked metadata",
+        ));
+        assert!(title.starts_with("[Kernel Sentinel][Critical/RuntimeCorrectness]"));
+        assert!(title.contains("assistant emitted an empty final response"));
+        assert!(!title.contains('\n'));
+        assert!(title.len() <= 150);
+    }
+
+    #[test]
+    fn issue_summary_includes_occurrence_recovery_and_exemplar() {
+        let summary = issue_summary(&finding("receipt truth diverged"), 3, "restore_receipt");
+        assert!(summary.contains("3 occurrence"));
+        assert!(summary.contains("restore_receipt"));
+        assert!(summary.contains("runtime_correctness:empty_final_response"));
+        assert!(summary.contains("receipt truth diverged"));
+    }
 }

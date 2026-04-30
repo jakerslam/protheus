@@ -225,8 +225,14 @@ mod tests {
             None,
             Some(&parent),
         );
-        assert_eq!(permission_for(&manifest, "web.search"), PermissionTrit::Allow);
-        assert_eq!(permission_for(&manifest, "memory.write"), PermissionTrit::Ask);
+        assert_eq!(
+            permission_for(&manifest, "web.search"),
+            PermissionTrit::Allow
+        );
+        assert_eq!(
+            permission_for(&manifest, "memory.write"),
+            PermissionTrit::Ask
+        );
         assert_eq!(
             permission_for(&manifest, "github.issue.create"),
             PermissionTrit::Allow
@@ -243,7 +249,10 @@ mod tests {
         })));
         let manifest =
             permission_manifest_from_value_with_inheritance(None, Some("parent"), Some(&parent));
-        assert_eq!(permission_for(&manifest, "memory.read"), PermissionTrit::Allow);
+        assert_eq!(
+            permission_for(&manifest, "memory.read"),
+            PermissionTrit::Allow
+        );
         assert_eq!(
             permission_for(&manifest, "voice.realtime"),
             PermissionTrit::Allow

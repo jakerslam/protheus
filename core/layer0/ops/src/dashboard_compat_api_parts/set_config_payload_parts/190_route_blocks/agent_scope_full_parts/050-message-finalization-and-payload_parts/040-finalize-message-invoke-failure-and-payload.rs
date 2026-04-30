@@ -60,19 +60,15 @@ fn finalize_message_invoke_failure_and_payload(
             220,
         );
     }
-    let (repaired_response, repair_outcome, _, comparative_repair_used) =
-        repair_visible_response_after_workflow(
-            message,
-            &response_text,
-            &response_text,
-            &latest_assistant_text,
-            &[],
-            true,
-            None,
-        );
     let (finalized_response, tool_completion, contract_outcome) =
-        enforce_user_facing_finalization_contract(message, repaired_response, &[]);
-    finalization_outcome = merge_response_outcomes(&finalization_outcome, &repair_outcome, 220);
+        enforce_user_facing_finalization_contract(message, response_text.clone(), &[]);
+    if finalized_response.trim().is_empty() {
+        finalization_outcome = merge_response_outcomes(
+            &finalization_outcome,
+            "empty_initial_invoke_failure_response_no_system_retry",
+            220,
+        );
+    }
     finalization_outcome = merge_response_outcomes(&finalization_outcome, &contract_outcome, 220);
     let response_quality_telemetry = json!({});
     let tooling_invariant = json!({
@@ -102,9 +98,9 @@ fn finalize_message_invoke_failure_and_payload(
         response_looks_like_tool_ack_without_findings(&finalized_response),
         &tool_completion,
         false,
-        comparative_repair_used,
         false,
-        repair_outcome != "unchanged",
+        false,
+        false,
         &response_quality_telemetry,
         &tooling_invariant,
         &web_invariant,
@@ -121,7 +117,7 @@ fn finalize_message_invoke_failure_and_payload(
     let visible_response_source = visible_response_source_for_turn(
         &finalized_response,
         workflow_used,
-        repair_outcome != "unchanged",
+        false,
         &finalization_outcome,
     );
     apply_visible_response_provenance(
@@ -129,17 +125,6 @@ fn finalize_message_invoke_failure_and_payload(
         &mut response_finalization,
         visible_response_source,
     );
-    if finalized_response.trim().is_empty() {
-        return final_response_empty_message_response(
-            root,
-            agent_id,
-            message,
-            provider,
-            model,
-            workspace_hints,
-            latent_tool_candidates,
-        );
-    }
     let process_summary =
         build_turn_process_summary(message, &[], &response_workflow, &response_finalization);
     let workflow_visibility = workflow_visibility_payload(&response_workflow, &response_finalization);

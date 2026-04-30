@@ -3,7 +3,7 @@ import { dirname } from 'path';
 
 const SRS_ID = 'V12-TOOL-TASK-FABRIC-CLOSURE-001';
 const LEGACY_SRS_ID = 'V11-TOOL-006';
-const MANIFEST = 'tests/tooling/config/release_proof_pack_manifest.json';
+const MANIFEST = 'validation/release_gates/contracts/release_proof_pack_manifest.json';
 const REGISTRY = 'tests/tooling/config/tooling_gate_registry.json';
 const OUT_JSON = 'core/local/artifacts/tooling_task_fabric_closure_guard_current.json';
 const OUT_MARKDOWN = 'local/workspace/reports/TOOLING_TASK_FABRIC_CLOSURE_GUARD_CURRENT.md';

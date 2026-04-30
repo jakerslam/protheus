@@ -18,3 +18,9 @@ include!(
 include!(
     "100-governance-and-semantic-memory.combined_parts/1120-misty-health-wave5-feedback-loop.rs"
 );
+include!(
+    "100-governance-and-semantic-memory.combined_parts/1180-workflow-ghost-interference-simulation.rs"
+);
+include!(
+    "100-governance-and-semantic-memory.combined_parts/1190-workflow-self-play-coverage.rs"
+);

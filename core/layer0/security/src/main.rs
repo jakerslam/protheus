@@ -279,12 +279,7 @@ fn main() {
         }
         _ => {
             usage();
-            emit_error(
-                "dispatch",
-                &command,
-                "unsupported_command",
-                1,
-            );
+            emit_error("dispatch", &command, "unsupported_command", 1);
         }
     }
 }

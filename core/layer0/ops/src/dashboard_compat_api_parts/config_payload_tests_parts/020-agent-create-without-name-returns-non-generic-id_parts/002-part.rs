@@ -72,7 +72,7 @@ fn agent_init_config_treats_default_name_as_blank_for_auto_name_and_analyst_intr
     .expect("session");
     let messages = session
         .payload
-        .pointer("/session/sessions/0/messages")
+        .pointer("/message_window/rows")
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();

@@ -223,10 +223,9 @@ function assertInterfaceSafetyGuards() {
     '_sidebar_quick_action',
     'chat sidebar search must expose quick action rows for navigation and connection recovery'
   );
-  assertContains(
-    chatSource,
-    'derivePromptSuggestionFallback(agent, hint, gateContext)',
-    'chat prompt suggestion fallback helper missing'
+  assert.ok(
+    !chatSource.includes('derivePromptSuggestionFallback(agent, hint, gateContext)'),
+    'chat prompt suggestions should not synthesize shell-authored fallback prompts when backend suggestions fail'
   );
   assertContains(
     chatSource,

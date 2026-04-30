@@ -672,7 +672,7 @@ fn turn_workflow_direct_response_path(workflow_mode: &str, workflow_events: &[Va
     let has_manual_toolbox_menu = workflow_events.iter().any(|event| {
         matches!(
             event.get("kind").and_then(Value::as_str).unwrap_or(""),
-            "manual_toolbox_candidate_menu" | "empty_final_response_menu_recovery"
+                "manual_toolbox_candidate_menu"
         )
     });
     if has_manual_toolbox_menu {

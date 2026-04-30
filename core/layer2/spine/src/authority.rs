@@ -112,9 +112,9 @@ fn resolve_path(root: &Path, raw: Option<&Value>, default_rel: &str) -> PathBuf 
                     root.join(default_rel)
                 };
             }
-            let safe_rel = as_path.components().all(|component| {
-                matches!(component, Component::Normal(_) | Component::CurDir)
-            });
+            let safe_rel = as_path
+                .components()
+                .all(|component| matches!(component, Component::Normal(_) | Component::CurDir));
             if safe_rel {
                 return root.join(as_path);
             }

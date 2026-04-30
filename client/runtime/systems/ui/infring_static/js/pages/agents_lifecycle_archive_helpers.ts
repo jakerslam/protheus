@@ -1,0 +1,302 @@
+// Agents page lifecycle, archive, and template-loading helpers.
+'use strict';
+
+function infringAgentsLifecycleArchiveMethods() {
+  return {
+    setConfigFormPath(path, value) {
+      var draft = cloneDashboardConfigObject(this.configForm && typeof this.configForm === 'object' ? this.configForm : {});
+      setDashboardConfigPathValue(draft, path, value);
+      this.configForm = draft;
+      return this.configForm;
+    },
+
+    removeConfigFormPath(path) {
+      var draft = cloneDashboardConfigObject(this.configForm && typeof this.configForm === 'object' ? this.configForm : {});
+      removeDashboardConfigPathValue(draft, path);
+      this.configForm = draft;
+      return this.configForm;
+    },
+
+    async loadLifecycle() {
+      var firstLoad = !this.terminatedHydrated;
+      var now = Date.now();
+      var recentlyLoaded = Number(this._lifecycleLoadedAt || 0);
+      if (!firstLoad && (now - recentlyLoaded) < 1200) return;
+      var seq = Number(this._lifecycleLoadSeq || 0) + 1;
+      this._lifecycleLoadSeq = seq;
+      this.lifecycleLoading = true;
+      if (firstLoad) this.terminatedLoading = true;
+      try {
+        var snapshot = await InfringAPI.getDashboardSnapshot(this._dashboardSnapshotHash || '');
+        if (seq !== Number(this._lifecycleLoadSeq || 0)) return;
+        var snapshotHash = String(
+          (snapshot && snapshot.sync && snapshot.sync.composite_checksum)
+            || (snapshot && snapshot.sync && snapshot.sync.previous_composite_checksum)
+            || ''
+        ).trim();
+        if (snapshotHash) this._dashboardSnapshotHash = snapshotHash;
+        var lifecycle = snapshot && snapshot.agent_lifecycle && typeof snapshot.agent_lifecycle === 'object'
+          ? snapshot.agent_lifecycle
+          : null;
+        if (lifecycle) {
+          this.agentLifecycle = lifecycle;
+          if (typeof this.rememberAgentIdentity === 'function') {
+            var lifecycleRows = [];
+            if (Array.isArray(lifecycle.active_agents)) lifecycleRows = lifecycleRows.concat(lifecycle.active_agents);
+            if (Array.isArray(lifecycle.terminated_recent)) lifecycleRows = lifecycleRows.concat(lifecycle.terminated_recent);
+            for (var i = 0; i < lifecycleRows.length; i += 1) this.rememberAgentIdentity(lifecycleRows[i], lifecycleRows[i]);
+          }
+        }
+        if (!lifecycle || !Array.isArray(lifecycle.terminated_recent) || lifecycle.terminated_recent.length === 0) {
+          var terminated = await InfringAPI.get('/api/agents/terminated');
+          if (seq !== Number(this._lifecycleLoadSeq || 0)) return;
+          if (terminated && Array.isArray(terminated.entries)) {
+            this.agentLifecycle = {
+              ...(this.agentLifecycle || {}),
+              terminated_recent: terminated.entries,
+            };
+            if (typeof this.rememberAgentIdentity === 'function') {
+              for (var ti = 0; ti < terminated.entries.length; ti += 1) {
+                this.rememberAgentIdentity(terminated.entries[ti], terminated.entries[ti]);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // keep last-known lifecycle state to avoid UI flicker
+      } finally {
+        if (seq !== Number(this._lifecycleLoadSeq || 0)) return;
+        this._lifecycleLoadedAt = Date.now();
+        this.terminatedHydrated = true;
+        this.terminatedLoading = false;
+        this.lifecycleLoading = false;
+      }
+    },
+
+    async reviveTerminated(entry) {
+      var row = entry && typeof entry === 'object' ? entry : {};
+      var agentId = String(row.agent_id || '').trim();
+      if (!agentId) return;
+      try {
+        await InfringAPI.post('/api/agents/' + encodeURIComponent(agentId) + '/revive', {
+          role: row.role || 'analyst'
+        });
+        InfringToast.success('Revived ' + agentId);
+        await this.refreshAgentsViaShellStore();
+        await this.loadLifecycle();
+      } catch (e) {
+        InfringToast.error('Failed to revive ' + agentId + ': ' + (e && e.message ? e.message : 'unknown_error'));
+      }
+    },
+
+    viewTerminated(entry) {
+      var row = entry && typeof entry === 'object' ? entry : {};
+      var agentId = String(row.agent_id || '').trim();
+      if (!agentId) return;
+      var pendingAgent = typeof this.normalizePendingAgent === 'function'
+        ? this.normalizePendingAgent({
+          id: agentId,
+          agent_id: agentId,
+          name: row.agent_name || row.name || agentId,
+          agent_name: row.agent_name || row.name || agentId,
+          state: 'archived',
+          archived: true,
+          role: String(row.role || 'analyst')
+        })
+        : {
+          id: agentId,
+          name: String(row.agent_name || row.name || agentId).trim() || agentId,
+          state: 'archived',
+          archived: true,
+          role: String(row.role || 'analyst')
+        };
+      this.assignShellAppStore({
+        pendingAgent: pendingAgent || {
+        id: agentId,
+        name: agentId,
+        state: 'archived',
+        archived: true,
+        role: String(row.role || 'analyst')
+        },
+        pendingFreshAgentId: null
+      });
+      this.setActiveAgentIdViaShellStore(agentId);
+      window.location.hash = 'chat';
+    },
+
+    async deleteTerminated(entry) {
+      var row = entry && typeof entry === 'object' ? entry : {};
+      var agentId = String(row.agent_id || '').trim();
+      var contractId = String(row.contract_id || '').trim();
+      if (!agentId) return;
+      this.confirmDeleteTerminatedKey = '';
+      try {
+        var suffix = '/api/agents/terminated/' + encodeURIComponent(agentId);
+        if (contractId) suffix += '?contract_id=' + encodeURIComponent(contractId);
+        var result = await InfringAPI.del(suffix);
+        var removed = Number(result && result.removed_history_entries || 0);
+        var label = removed > 0 ? (' and ' + removed + ' archived record(s)') : '';
+        InfringToast.success('Permanently deleted ' + agentId + label);
+        await this.refreshAgentsViaShellStore();
+        await this.loadLifecycle();
+      } catch (e) {
+        if (this.isAgentMissingError(e)) {
+          InfringToast.success('Removed stale archived agent ' + agentId);
+          await this.refreshAgentsViaShellStore();
+          await this.loadLifecycle();
+          return;
+        }
+        InfringToast.error('Failed to delete archived agent: ' + (e && e.message ? e.message : 'unknown_error'));
+      }
+    },
+
+    async deleteAllArchived() {
+      this.confirmDeleteAllArchived = false;
+      var self = this;
+      InfringToast.confirm(
+        'Delete Archived Agents',
+        'Permanently delete all archived agents? This cannot be undone.',
+        async function() {
+          try {
+            var result = await InfringAPI.del('/api/agents/terminated?all=1');
+            var removed = Number(result && result.deleted_archived_agents || 0);
+            InfringToast.success('Deleted ' + removed + ' archived agent(s).');
+            await self.refreshAgentsViaShellStore();
+            await self.loadLifecycle();
+          } catch (e) {
+            InfringToast.error('Failed to delete archived agents: ' + (e && e.message ? e.message : 'unknown_error'));
+          }
+        }
+      );
+    },
+
+    async archiveAllAgents() {
+      this.confirmArchiveAllAgents = false;
+      var rows = Array.isArray(this.agents) ? this.agents.slice() : [];
+      var targetIds = rows
+        .map(function(row) { return String((row && row.id) || '').trim(); })
+        .filter(function(id) { return !!id && id.toLowerCase() !== 'system'; });
+      if (!targetIds.length) return;
+      var self = this;
+      InfringToast.confirm(
+        'Archive All Agents',
+        'Archive ' + targetIds.length + ' active agent(s)?',
+        async function() {
+          var failures = [];
+          try {
+            await InfringAPI.post('/api/agents/archive-all', { reason: 'user_archive_all' });
+          } catch (_) {
+            // Fallback path below will sweep survivors one-by-one.
+          }
+          await self.refreshAgentsViaShellStore({ force: true });
+          await self.loadLifecycle();
+
+          var survivors = targetIds.filter(function(id) {
+            return Array.isArray(self.agents) && self.agents.some(function(row) {
+              return String((row && row.id) || '').trim() === id;
+            });
+          });
+          if (survivors.length) {
+            for (var idx = 0; idx < survivors.length; idx += 1) {
+              var survivorId = survivors[idx];
+              try {
+                await InfringAPI.del('/api/agents/' + encodeURIComponent(survivorId));
+              } catch (e) {
+                if (!self.isAgentMissingError(e)) failures.push(survivorId);
+              }
+            }
+            await self.refreshAgentsViaShellStore({ force: true });
+            await self.loadLifecycle();
+          }
+
+          var unresolved = targetIds.filter(function(id) {
+            return Array.isArray(self.agents) && self.agents.some(function(row) {
+              return String((row && row.id) || '').trim() === id;
+            });
+          });
+          for (var fi = 0; fi < failures.length; fi += 1) {
+            if (unresolved.indexOf(failures[fi]) === -1) unresolved.push(failures[fi]);
+          }
+          if (unresolved.length) {
+            InfringToast.error('Failed to archive: ' + unresolved.join(', '));
+            return;
+          }
+          InfringToast.success('Archived ' + targetIds.length + ' agent(s).');
+        }
+      );
+    },
+
+    async init() {
+      var self = this;
+      this.loading = true;
+      this.loadError = '';
+      this.confirmDeleteTerminatedKey = '';
+      this.confirmDeleteAllArchived = false;
+      this.confirmArchiveAllAgents = false;
+      try {
+        await this.refreshAgentsViaShellStore();
+        await this.loadLifecycle();
+      } catch(e) {
+        this.loadError = e.message || 'Could not load agents. Is the daemon running?';
+      }
+      this.loading = false;
+
+      if (this._lifecycleTimer) clearInterval(this._lifecycleTimer);
+      this._lifecycleTimer = setInterval(function() {
+        self.loadLifecycle();
+      }, 4000);
+
+      // If a pending agent was set (e.g. from wizard or redirect), route to
+      // the primary chat page so we keep one authoritative chat render path.
+      var store = this.shellAppStore();
+      var pendingFreshId = String(store && store.pendingFreshAgentId ? store.pendingFreshAgentId : '').trim();
+      if (pendingFreshId) {
+        this.assignShellAppStore({ pendingFreshAgentId: null, pendingAgent: null });
+        if (String(store.activeAgentId || '').trim() === pendingFreshId) {
+          this.setActiveAgentIdViaShellStore(null);
+        }
+        InfringAPI.del('/api/agents/' + encodeURIComponent(pendingFreshId)).catch(function() {});
+        setTimeout(function() { self.refreshAgentsViaShellStore({ force: true }).catch(function() {}); }, 0);
+      } else if (store && store.pendingAgent) {
+        this.chatWithAgent(store.pendingAgent);
+      }
+      // Watch for future pendingAgent changes
+      this.$watch('$store.app.pendingAgent', function(agent) {
+        var pendingId = String(store && store.pendingFreshAgentId ? store.pendingFreshAgentId : '').trim();
+        if (!pendingId && agent) {
+          self.chatWithAgent(agent);
+        }
+      });
+    },
+
+    async loadData() {
+      this.loading = true;
+      this.loadError = '';
+      try {
+        await this.refreshAgentsViaShellStore();
+        await this.loadLifecycle();
+      } catch(e) {
+        this.loadError = e.message || 'Could not load agents.';
+      }
+      this.loading = false;
+    },
+
+    async loadTemplates() {
+      this.tplLoading = true;
+      this.tplLoadError = '';
+      try {
+        var results = await Promise.all([
+          InfringAPI.get('/api/templates'),
+          InfringAPI.get('/api/providers').catch(function() { return { providers: [] }; })
+        ]);
+        this.tplTemplates = results[0].templates || [];
+        this.tplProviders = results[1].providers || [];
+      } catch(e) {
+        this.tplTemplates = [];
+        this.tplLoadError = e.message || 'Could not load templates.';
+      }
+      this.tplLoading = false;
+    },
+
+  };
+}

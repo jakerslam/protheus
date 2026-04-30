@@ -151,8 +151,9 @@ fn main() {
             if let Some(obj) = report.as_object_mut() {
                 obj.insert(
                     "root_resolution".to_string(),
-                    serde_json::to_value(root)
-                        .unwrap_or_else(|_| json!({"accepted": false, "reason": "root_serialize_failed"})),
+                    serde_json::to_value(root).unwrap_or_else(
+                        |_| json!({"accepted": false, "reason": "root_serialize_failed"}),
+                    ),
                 );
             }
             report
@@ -188,7 +189,9 @@ fn main() {
             let completed = parse_usize(parse_arg(&args, "completed"), 9);
             hybrid_envelope::build_envelope(within_target, completed)
         }
-        _ => json!({"ok": false, "error": "unknown_command", "command": raw_cmd, "normalized_command": cmd}),
+        _ => {
+            json!({"ok": false, "error": "unknown_command", "command": raw_cmd, "normalized_command": cmd})
+        }
     };
     let out = wrap_command_receipt(&cmd, payload, started);
 

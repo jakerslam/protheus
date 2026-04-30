@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "owner": "validation/tests",
+  "purpose": "Mandatory contract for temporary lifecycle checks so scaffolds, monitors, crutches, and one-time closure guards have explicit weakness signals and exit criteria.",
+  "temporary_classifications": [
+    "temporary_scaffold",
+    "temporary_monitor",
+    "runtime_crutch",
+    "one_time_closure_guard"
+  ],
+  "required_fields": [
+    "why_it_exists",
+    "runtime_weakness_signal",
+    "target_runtime_owner",
+    "expires_after",
+    "migration_target",
+    "delete_when",
+    "success_criteria"
+  ],
+  "required_success_criteria_fields": [
+    "minimum_runs",
+    "success_rate_required",
+    "observation_window_days",
+    "consecutive_passes_required",
+    "max_regressions_allowed"
+  ],
+  "field_contract": {
+    "why_it_exists": "why the temporary check exists now instead of permanent runtime self-enforcement",
+    "runtime_weakness_signal": "what persistent need for this check says about the subsystem that must become stronger",
+    "target_runtime_owner": "runtime subsystem responsible for absorbing the check before retirement",
+    "expires_after": "YYYY-MM-DD review deadline; expiry without success means strengthen runtime rather than silently extending",
+    "migration_target": "permanent validator, runtime invariant, or owning subsystem that should absorb the temporary check",
+    "delete_when": "operator-readable delete-or-merge condition",
+    "success_criteria": "minimum empirical run window required before retirement backlog creation"
+  }
+}

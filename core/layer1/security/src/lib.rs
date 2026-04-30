@@ -6,8 +6,8 @@ include!("lib_parts/040-run-capability-lease.rs");
 include!("lib_parts/050-run-startup-attestation.rs");
 include!("lib_parts/060-web-conduit-policy.rs");
 
-pub mod kernel_capabilities;
 pub mod agent_permission_contract;
+pub mod kernel_capabilities;
 
 pub fn normalize_security_conduit_mode(raw: &str) -> String {
     let mut collapsed = String::new();
@@ -106,7 +106,10 @@ mod assim120_security_lib_tests {
 
     #[test]
     fn conduit_mode_aliases_normalize() {
-        assert_eq!(normalize_security_conduit_mode("Trusted-Env Proxy"), "trusted_env_proxy");
+        assert_eq!(
+            normalize_security_conduit_mode("Trusted-Env Proxy"),
+            "trusted_env_proxy"
+        );
         assert!(security_conduit_mode_is_trusted("trusted-env-proxy"));
         assert!(!security_conduit_mode_is_trusted("strict"));
     }

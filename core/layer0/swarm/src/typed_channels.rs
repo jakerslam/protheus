@@ -138,7 +138,8 @@ fn envelope_digest<T: SwarmMessage>(
     payload: &T,
     created_unix_ms: u64,
 ) -> Result<String, String> {
-    let payload_json = serde_json::to_string(payload).map_err(|e| format!("payload_encode_failed:{e}"))?;
+    let payload_json =
+        serde_json::to_string(payload).map_err(|e| format!("payload_encode_failed:{e}"))?;
     let mut hasher = Sha256::new();
     hasher.update(channel_id.as_bytes());
     hasher.update(contract_id.as_bytes());

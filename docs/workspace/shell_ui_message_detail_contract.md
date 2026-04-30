@@ -92,13 +92,14 @@ If a display needs one of these, the default row must carry a stable detail refe
 
 Heavy data must be fetched through explicit detail routes:
 
-- `message_detail` by `message_id`
-- `tool_result_detail` by `tool_result_id`
-- `artifact_detail` by `artifact_id`
-- `trace_detail` by `trace_id`
-- `workflow_detail` by `workflow_id`
+- `message_detail` by `message_id` at `/api/agents/:agent_id/details/message/:message_id`
+- `tool_result_detail` by `tool_result_id` at `/api/agents/:agent_id/details/tool-result/:tool_result_id`
+- `artifact_detail` by `artifact_id` at `/api/agents/:agent_id/details/artifact/:artifact_id`
+- `trace_detail` by `trace_id` at `/api/agents/:agent_id/details/trace/:trace_id`
+- `workflow_detail` by `workflow_id` at `/api/agents/:agent_id/details/workflow/:workflow_id`
 
 Each route must be bounded, capability scoped, auditable, and checkpointed through Nexus/Conduit. Detail routes may return richer payloads, but they must still enforce size limits and receipt context.
+Each detail route response must expose a bounded envelope with `detail_projection`, `size_bound`, `window_bound`, `receipt_ref`, and `correlation_id`; route-specific raw bodies must stay inside `detail_projection` and remain capped by the declared budgets.
 
 Gateway route classes for detail fetch, request ingress, event/output egress, health/status, and bounded search/query are canonicalized in `docs/workspace/gateway_ingress_egress_policy.md`.
 

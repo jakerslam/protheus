@@ -213,7 +213,10 @@ mod tests {
         let registration = tracker
             .register_unit(
                 "lane_worker_alpha",
-                vec!["layer2_execution".to_string(), "layer2_receipts".to_string()],
+                vec![
+                    "layer2_execution".to_string(),
+                    "layer2_receipts".to_string(),
+                ],
                 ExecutionUnitBudget {
                     cpu_millis: 2_000,
                     memory_bytes: 8 * 1024 * 1024,
@@ -256,7 +259,11 @@ mod tests {
     fn execution_unit_tracker_rejects_transition_after_termination() {
         let mut tracker = ExecutionUnitTracker::default();
         tracker
-            .register_unit("lane_worker_beta", Vec::new(), ExecutionUnitBudget::default())
+            .register_unit(
+                "lane_worker_beta",
+                Vec::new(),
+                ExecutionUnitBudget::default(),
+            )
             .expect("register");
         tracker
             .transition_unit_state(

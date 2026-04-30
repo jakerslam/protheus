@@ -79,7 +79,7 @@ fn control_plane_eval_authority_claim_opens_advisory_bridge_finding() {
     fs::create_dir_all(&dir).unwrap();
     fs::write(
         dir.join("control_plane_eval.jsonl"),
-        r#"{"id":"eval-claim","ok":true,"subject":"workflow","kind":"eval_summary","may_block_release":true,"may_write_verdict":true,"evidence":["eval://claim"]}"#,
+        r#"{"id":"eval-claim","ok":true,"subject":"workflow","kind":"eval_summary","may_block_release":true,"may_write_verdict":true,"evidence":["eval://claim","receipt://kernel/verdict/1"]}"#,
     )
     .unwrap();
     let args = vec![format!("--evidence-dir={}", dir.display())];
@@ -89,4 +89,206 @@ fn control_plane_eval_authority_claim_opens_advisory_bridge_finding() {
         finding.category == KernelSentinelFindingCategory::SecurityBoundary
             && finding.fingerprint == "advisory_bridge:authority_claim:workflow"
     }));
+}
+
+#[test]
+fn bridge_only_authority_claim_stays_advisory_without_corroboration() {
+    let dir = std::env::temp_dir().join("kernel-sentinel-evidence-bridge-only-advisory");
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(
+        dir.join("control_plane_eval.jsonl"),
+        r#"{"id":"eval-claim","ok":true,"subject":"workflow","kind":"eval_summary","may_block_release":true,"may_write_verdict":true,"evidence":["eval://claim"]}"#,
+    )
+    .unwrap();
+    let args = vec![format!("--evidence-dir={}", dir.display())];
+    let ingestion = ingest_evidence_sources(&dir, &args);
+    assert_eq!(ingestion.report["advisory_bridge"]["authority_claim_count"], Value::from(1));
+    assert_eq!(ingestion.report["advisory_bridge"]["advisory_only_count"], Value::from(1));
+    assert!(
+        !ingestion.findings.iter().any(|finding| {
+            finding.fingerprint == "advisory_bridge:authority_claim:workflow"
+        })
+    );
+}
+
+#[test]
+fn bridge_only_missing_source_reference_stays_advisory_without_corroboration() {
+    let records = vec![json!({
+        "id": "eval-source-ref",
+        "ok": true,
+        "source": "control_plane_eval",
+        "subject": "workflow",
+        "kind": "eval_summary",
+        "may_write_verdict": false
+    })];
+    let (report, findings) = build_advisory_bridge_report(&records);
+    assert_eq!(
+        report["missing_source_reference_count"],
+        Value::from(1)
+    );
+    assert_eq!(report["advisory_only_count"], Value::from(1));
+    assert!(
+        !findings.iter().any(|finding| {
+            finding.fingerprint == "advisory_bridge:missing_source_reference:workflow"
+        })
+    );
+}
+
+#[test]
+fn source_reports_distinguish_observed_malformed_and_failed_artifact_states() {
+    let dir = std::env::temp_dir().join("kernel-sentinel-evidence-artifact-states");
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(
+        dir.join("runtime_observations.jsonl"),
+        r#"{"id":"obs-1","ok":true,"subject":"runtime","kind":"bridge_presence","summary":"runtime bridge observed","evidence":["runtime://obs/1"]}"#,
+    )
+    .unwrap();
+    fs::write(
+        dir.join("gateway_health.jsonl"),
+        r#"{"id":"gw-1","ok":false,"subject":"gateway","kind":"healthz","summary":"gateway failed","evidence":["gateway://health/1"]}"#,
+    )
+    .unwrap();
+    fs::write(dir.join("control_plane_eval.jsonl"), r#"{"id":"bad-json""#).unwrap();
+    let args = vec![format!("--evidence-dir={}", dir.display())];
+    let ingestion = ingest_evidence_sources(&dir, &args);
+    let sources = ingestion.report["sources"].as_array().unwrap();
+    let runtime = sources
+        .iter()
+        .find(|row| row["file_name"] == "runtime_observations.jsonl")
+        .unwrap();
+    let gateway = sources
+        .iter()
+        .find(|row| row["file_name"] == "gateway_health.jsonl")
+        .unwrap();
+    let eval = sources
+        .iter()
+        .find(|row| row["file_name"] == "control_plane_eval.jsonl")
+        .unwrap();
+    assert_eq!(runtime["artifact_state"], "artifact_observed");
+    assert_eq!(gateway["artifact_state"], "artifact_failed");
+    assert_eq!(eval["artifact_state"], "artifact_malformed");
+    assert_eq!(
+        ingestion.report["artifact_state_counts"]["artifact_observed"],
+        Value::from(1)
+    );
+    assert_eq!(
+        ingestion.report["artifact_state_counts"]["artifact_failed"],
+        Value::from(1)
+    );
+    assert_eq!(
+        ingestion.report["artifact_state_counts"]["artifact_malformed"],
+        Value::from(1)
+    );
+}
+
+#[test]
+fn authoritative_guard_pass_with_matching_failure_is_reported_as_contradiction() {
+    let dir = std::env::temp_dir().join("kernel-sentinel-evidence-guard-consistency");
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(
+        dir.join("gateway_health.jsonl"),
+        r#"{"id":"gateway-pass","ok":true,"status":"passed","subject":"gateway","kind":"healthz","pass":true,"evidence":["gateway://health/1"]}"#,
+    )
+    .unwrap();
+    fs::write(
+        dir.join("runtime_observations.jsonl"),
+        r#"{"id":"runtime-fail","ok":false,"subject":"gateway","kind":"listener_missing","summary":"listener missing while upstream health guard passed","evidence":["gateway://health/1"]}"#,
+    )
+    .unwrap();
+    let args = vec![format!("--evidence-dir={}", dir.display())];
+    let ingestion = ingest_evidence_sources(&dir, &args);
+    assert_eq!(
+        ingestion.report["guard_consistency"]["checked_count"],
+        Value::from(1)
+    );
+    assert_eq!(
+        ingestion.report["guard_consistency"]["contradiction_count"],
+        Value::from(1)
+    );
+    assert_eq!(ingestion.report["guard_consistency"]["ok"], Value::Bool(false));
+    assert_eq!(
+        ingestion.report["guard_consistency"]["contradictions"][0]["record_id"],
+        "gateway-pass"
+    );
+}
+
+#[test]
+fn authoritative_guard_pass_caps_uncorroborated_critical_finding_to_high() {
+    let dir = std::env::temp_dir().join("kernel-sentinel-evidence-guard-cap");
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(
+        dir.join("gateway_health.jsonl"),
+        r#"{"id":"gateway-pass","ok":true,"status":"passed","subject":"gateway","kind":"healthz","pass":true,"evidence":["gateway://health/1"]}"#,
+    )
+    .unwrap();
+    fs::write(
+        dir.join("release_proof_packs.jsonl"),
+        r#"{"id":"release-fail","ok":false,"severity":"critical","subject":"gateway","kind":"release_guard_failed","summary":"release guard failed despite upstream pass","evidence":["gateway://health/1"]}"#,
+    )
+    .unwrap();
+    let args = vec![format!("--evidence-dir={}", dir.display())];
+    let ingestion = ingest_evidence_sources(&dir, &args);
+    let finding = ingestion
+        .findings
+        .iter()
+        .find(|finding| finding.id == "release-fail")
+        .unwrap();
+    assert_eq!(finding.severity, KernelSentinelSeverity::High);
+    assert_eq!(
+        ingestion.report["guard_consistency"]["contradictions"][0]["matching_findings"][0]["severity"],
+        "high"
+    );
+}
+
+#[test]
+fn sentinel_finding_cites_exact_failing_fields_from_upstream_artifact() {
+    let dir = std::env::temp_dir().join("kernel-sentinel-evidence-failure-citations");
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(
+        dir.join("release_proof_packs.jsonl"),
+        r#"{"id":"release-fail","ok":false,"status":"error","pass":false,"subject":"release","kind":"release_guard","summary":"release guard failed","evidence":["release://proof/1"],"failing_check":"boundedness_budget"}"#,
+    )
+    .unwrap();
+    let args = vec![format!("--evidence-dir={}", dir.display())];
+    let ingestion = ingest_evidence_sources(&dir, &args);
+    let finding = ingestion
+        .findings
+        .iter()
+        .find(|finding| finding.id == "release-fail")
+        .unwrap();
+    assert!(finding.evidence.iter().any(|row| row == "field://release_proof_pack/release-fail/ok=false"));
+    assert!(finding.evidence.iter().any(|row| row == "field://release_proof_pack/release-fail/status=error"));
+    assert!(finding.evidence.iter().any(|row| row == "field://release_proof_pack/release-fail/pass=false"));
+    assert!(finding.evidence.iter().any(|row| row == "check://release_proof_pack/release-fail/failing_check=boundedness_budget"));
+}
+
+#[test]
+fn cross_artifact_truth_consistency_reports_authoritative_artifact_disagreement() {
+    let dir = std::env::temp_dir().join("kernel-sentinel-evidence-cross-artifact-truth");
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(
+        dir.join("gateway_health.jsonl"),
+        r#"{"id":"gateway-pass","ok":true,"status":"passed","subject":"gateway","kind":"healthz","pass":true,"evidence":["gateway://health/1"]}"#,
+    )
+    .unwrap();
+    fs::write(
+        dir.join("runtime_observations.jsonl"),
+        r#"{"id":"runtime-fail","ok":false,"status":"failed","subject":"gateway","kind":"listener_missing","summary":"runtime listener missing","evidence":["gateway://health/1"]}"#,
+    )
+    .unwrap();
+    let args = vec![format!("--evidence-dir={}", dir.display())];
+    let ingestion = ingest_evidence_sources(&dir, &args);
+    assert_eq!(
+        ingestion.report["guard_consistency"]["cross_artifact_contradiction_count"],
+        Value::from(1)
+    );
+    assert_eq!(ingestion.report["guard_consistency"]["ok"], Value::Bool(false));
+    assert_eq!(
+        ingestion.report["guard_consistency"]["cross_artifact_contradictions"][0]["pass_record"]["record_id"],
+        "gateway-pass"
+    );
+    assert_eq!(
+        ingestion.report["guard_consistency"]["cross_artifact_contradictions"][0]["failed_record"]["record_id"],
+        "runtime-fail"
+    );
 }

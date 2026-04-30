@@ -61,6 +61,22 @@
       "notes": "Covers remaining Alpine app bootstrap/page-routing hooks while the Shell root continues moving to Svelte."
     },
     {
+      "id": "shell_app_helper_glue",
+      "owner_feature": "shell app helper glue for layout, popup, sidebar, and startup callbacks",
+      "target_replacement": "shared shell services plus Svelte shell root lifecycle hooks",
+      "migration_class": "interactive",
+      "path_prefixes": [
+        "client/runtime/systems/ui/infring_static/js/app_"
+      ],
+      "applies_to_patterns": [
+        "alpine_direct_api",
+        "alpine_magic_store",
+        "alpine_magic_watch_next_tick",
+        "alpine_store_api"
+      ],
+      "notes": "Owns decomposed app helper files that still receive Alpine component objects for transition callbacks until those callbacks are moved to shared shell services."
+    },
+    {
       "id": "agent_directory_surface",
       "owner_feature": "agent directory, agent details, filters, and permissions UI",
       "target_replacement": "Svelte agent directory and agent details components backed by shared shell agent services",
@@ -77,6 +93,22 @@
       "notes": "Keeps agent list/detail interaction ownership explicit until the remaining Alpine store and helper usage is retired."
     },
     {
+      "id": "agent_directory_helper_glue",
+      "owner_feature": "agent directory decomposed helper glue",
+      "target_replacement": "Svelte agent directory components backed by shared shell agent services",
+      "migration_class": "interactive",
+      "path_prefixes": [
+        "client/runtime/systems/ui/infring_static/js/pages/agents_"
+      ],
+      "applies_to_patterns": [
+        "alpine_direct_api",
+        "alpine_magic_store",
+        "alpine_magic_watch_next_tick",
+        "alpine_store_api"
+      ],
+      "notes": "Owns extracted agents-page helper files while pending-agent watches and post-lifecycle next-tick refreshes are migrated out of Alpine."
+    },
+    {
       "id": "chat_runtime_surface",
       "owner_feature": "chat runtime, message rendering, drag bars, chat map, and session websocket UI",
       "target_replacement": "Svelte chat shell components and shared shell chat services for runtime/session state",
@@ -91,6 +123,22 @@
         "alpine_store_api"
       ],
       "notes": "This is the highest-risk interactive Alpine owner because it includes session switching, render windows, scroll state, and drag behavior."
+    },
+    {
+      "id": "chat_runtime_helper_glue",
+      "owner_feature": "chat runtime decomposed helper glue",
+      "target_replacement": "Svelte chat shell components and shared shell chat services for runtime/session state",
+      "migration_class": "interactive",
+      "path_prefixes": [
+        "client/runtime/systems/ui/infring_static/js/pages/chat_"
+      ],
+      "applies_to_patterns": [
+        "alpine_direct_api",
+        "alpine_magic_store",
+        "alpine_magic_watch_next_tick",
+        "alpine_store_api"
+      ],
+      "notes": "Owns extracted chat helper files that still rely on Alpine watches/nextTick during the shell runtime migration."
     },
     {
       "id": "simple_dashboard_pages",

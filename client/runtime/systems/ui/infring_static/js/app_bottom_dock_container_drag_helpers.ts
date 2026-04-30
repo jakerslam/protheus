@@ -11,6 +11,30 @@ function infringBindBottomDockContainerPointerListeners(page) {
   window.addEventListener('mouseup', target._bottomDockContainerPointerUpHandler, true);
 }
 
+function infringBottomDockSetWallLock(page, wallRaw) {
+  var target = page && typeof page === 'object' ? page : {};
+  var wall = target.dragSurfaceNormalizeWall(wallRaw);
+  target.bottomDockContainerWallLock = wall;
+  try {
+    if (wall) localStorage.setItem('infring-bottom-dock-wall-lock', wall);
+    else localStorage.removeItem('infring-bottom-dock-wall-lock');
+    localStorage.removeItem('infring-bottom-dock-smash-wall');
+    infringUpdateShellLayoutConfig(function(config) { config.dock.wallLock = wall; });
+  } catch(_) {}
+  return wall;
+}
+
+function infringPersistBottomDockPlacement(page) {
+  var target = page && typeof page === 'object' ? page : {};
+  var key = String(target.bottomDockPlacementId || '').trim().toLowerCase();
+  var snap = target.bottomDockSnapDefinitionById(key);
+  target.bottomDockPlacementId = String(snap && snap.id || 'center');
+  try {
+    localStorage.setItem('infring-bottom-dock-placement', target.bottomDockPlacementId);
+    infringUpdateShellLayoutConfig(function(config) { config.dock.placement = target.bottomDockPlacementId; });
+  } catch(_) {}
+}
+
 function infringUnbindBottomDockContainerPointerListeners(page) {
   var target = page && typeof page === 'object' ? page : {};
   if (typeof window === 'undefined') return;

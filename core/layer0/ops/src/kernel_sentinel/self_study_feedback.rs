@@ -42,6 +42,185 @@ fn todo_priority(severity: &str, category: &str) -> &'static str {
     }
 }
 
+fn evidence_signal_counts(item: &Value) -> (usize, usize, usize) {
+    let evidence = item
+        .get("evidence")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .collect::<Vec<_>>();
+    let field_citations = evidence.iter().filter(|row| row.starts_with("field://")).count();
+    let check_citations = evidence.iter().filter(|row| row.starts_with("check://")).count();
+    (evidence.len(), field_citations, check_citations)
+}
+
+fn contains_any(haystack: &str, needles: &[&str]) -> bool {
+    needles.iter().any(|needle| haystack.contains(needle))
+}
+
+fn operator_value_tier(item: &Value) -> &'static str {
+    let category = string_field(item, "category").to_ascii_lowercase();
+    if contains_any(
+        &category,
+        &[
+            "correctness",
+            "receipt_integrity",
+            "invariant",
+            "truth",
+            "contract",
+        ],
+    ) {
+        return "correctness";
+    }
+    if contains_any(
+        &category,
+        &[
+            "security",
+            "capability",
+            "permission",
+            "auth",
+            "sandbox",
+            "secret",
+        ],
+    ) {
+        return "security";
+    }
+    if contains_any(&category, &["release", "gate", "blocking", "proof", "ci"]) {
+        return "release_blocking";
+    }
+    if contains_any(
+        &category,
+        &["optimization", "performance", "latency", "cleanup", "churn"],
+    ) {
+        return "optimization";
+    }
+
+    let semantic_context = format!(
+        "{} {} {} {}",
+        string_field(item, "root_frame"),
+        string_field(item, "failure_level"),
+        string_field(item, "summary"),
+        string_field(item, "recommended_action")
+    )
+    .to_ascii_lowercase();
+    if contains_any(
+        &semantic_context,
+        &["correctness", "invariant", "truth", "contract", "receipt"],
+    ) {
+        "correctness"
+    } else if contains_any(
+        &semantic_context,
+        &["security", "capability", "permission", "auth", "sandbox", "secret"],
+    ) {
+        "security"
+    } else if contains_any(
+        &semantic_context,
+        &["release", "gate", "blocking", "proof", "ci"],
+    ) {
+        "release_blocking"
+    } else if contains_any(
+        &semantic_context,
+        &["optimization", "performance", "latency", "cleanup", "churn"],
+    ) {
+        "optimization"
+    } else {
+        "general"
+    }
+}
+
+fn operator_value_priority(tier: &str) -> u8 {
+    match tier {
+        "correctness" => 0,
+        "security" => 1,
+        "release_blocking" => 2,
+        "optimization" => 3,
+        _ => 4,
+    }
+}
+
+fn feedback_search_text(item: &Value) -> String {
+    let mut parts = vec![
+        string_field(item, "category"),
+        string_field(item, "fingerprint"),
+        string_field(item, "feedback_family_fingerprint"),
+        string_field(item, "summary"),
+        string_field(item, "recommended_action"),
+    ];
+    if let Some(evidence) = item.get("evidence").and_then(Value::as_array) {
+        parts.extend(evidence.iter().filter_map(Value::as_str).map(str::to_string));
+    }
+    parts.join(" ").to_ascii_lowercase()
+}
+
+fn is_empty_response_variant(item: &Value) -> bool {
+    contains_any(
+        &feedback_search_text(item),
+        &[
+            "empty response",
+            "empty_response",
+            "blank response",
+            "blank_response",
+            "no response",
+            "no_response",
+            "non-response",
+            "zero response",
+            "final_response=empty",
+            "final_response_length=0",
+        ],
+    )
+}
+
+fn item_issue_candidate_ready(item: &Value) -> bool {
+    item["issue_candidate_ready"].as_bool().unwrap_or(false)
+}
+
+fn annotate_empty_response_parent_downrank(rows: &mut [Value]) {
+    let parent_exists = rows
+        .iter()
+        .any(|row| is_empty_response_variant(row) && item_issue_candidate_ready(row));
+    for row in rows {
+        let is_empty_variant = is_empty_response_variant(row);
+        let downrank = parent_exists && is_empty_variant && !item_issue_candidate_ready(row);
+        row["empty_response_variant"] = json!(is_empty_variant);
+        row["empty_response_parent_issue_exists"] = json!(parent_exists && is_empty_variant);
+        row["downranked_by_parent_issue"] = json!(downrank);
+        row["duplicate_family_rank"] = json!(usize::from(downrank));
+    }
+}
+
+fn feedback_quality_score(item: &Value) -> usize {
+    let (evidence_count, field_citations, check_citations) = evidence_signal_counts(item);
+    let recurrence_bonus = usize_at(item, &["recurrence_count"]).saturating_sub(1).min(5) * 3;
+    let actionable_bonus = usize::from(string_field(item, "recommended_action") != "unknown") * 5;
+    let semantic_bonus = usize::from(string_field(item, "failure_level") != "unknown") * 5;
+    evidence_count.min(6) * 2
+        + field_citations * 4
+        + check_citations * 5
+        + recurrence_bonus
+        + actionable_bonus
+        + semantic_bonus
+        + usize::from(item["issue_candidate_ready"].as_bool().unwrap_or(false)) * 4
+}
+
+fn refresh_feedback_quality(item: &mut Value) {
+    let (evidence_count, field_citations, check_citations) = evidence_signal_counts(item);
+    let operator_value_tier = operator_value_tier(item);
+    item["operator_value_tier"] = json!(operator_value_tier);
+    item["operator_value_rank"] = json!(operator_value_priority(operator_value_tier));
+    item["feedback_quality_score"] = json!(feedback_quality_score(item));
+    item["quality_signals"] = json!({
+        "evidence_count": evidence_count,
+        "field_citation_count": field_citations,
+        "check_citation_count": check_citations,
+        "operator_value_tier": operator_value_tier,
+        "operator_value_rank": operator_value_priority(operator_value_tier),
+        "recurrence_count": usize_at(item, &["recurrence_count"]),
+        "actionable_recommendation": string_field(item, "recommended_action") != "unknown",
+        "semantic_frame_present": string_field(item, "failure_level") != "unknown"
+    });
+}
+
 fn synthetic_harness_failure_family(fingerprint: &str) -> Option<&'static str> {
     const MISTY_ROUND_PREFIX: &str = "misty_simulated_round";
     let normalized = fingerprint.to_ascii_lowercase();
@@ -82,7 +261,7 @@ fn feedback_item(finding: &Value, generated_at: &str) -> Value {
         &string_field(finding, "summary"),
         &string_field(finding, "recommended_action"),
     );
-    json!({
+    let mut item = json!({
         "type": "kernel_sentinel_feedback_item",
         "source": "kernel_sentinel",
         "generated_at": generated_at,
@@ -108,7 +287,9 @@ fn feedback_item(finding: &Value, generated_at: &str) -> Value {
         "recurrence_threshold": 2,
         "issue_candidate_ready": false,
         "preservation_policy": "preserve_until_resolved_or_waived_by_kernel_receipt"
-    })
+    });
+    refresh_feedback_quality(&mut item);
+    item
 }
 
 fn merge_feedback_evidence(target: &mut Value, incoming: &Value) {
@@ -148,6 +329,7 @@ fn merge_feedback_evidence(target: &mut Value, incoming: &Value) {
         target["recurrence_count"] = json!(recurrence_count);
         target["recurrence_threshold"] = json!(2);
         target["issue_candidate_ready"] = json!(recurrence_count >= 2);
+        refresh_feedback_quality(target);
     }
 }
 
@@ -180,64 +362,33 @@ pub(super) fn build_feedback_inbox(report: &Value, generated_at: &str) -> Vec<Va
             }
         }
     }
-    by_key.into_values().collect()
+    let mut rows = by_key.into_values().collect::<Vec<_>>();
+    for row in &mut rows {
+        refresh_feedback_quality(row);
+    }
+    annotate_empty_response_parent_downrank(&mut rows);
+    rows.sort_by(|left, right| {
+        usize_at(left, &["duplicate_family_rank"])
+            .cmp(&usize_at(right, &["duplicate_family_rank"]))
+            .then_with(|| {
+                usize_at(left, &["operator_value_rank"])
+            .cmp(&usize_at(right, &["operator_value_rank"]))
+            })
+            .then_with(|| {
+                usize_at(left, &["priority_rank"]).cmp(&usize_at(right, &["priority_rank"]))
+            })
+            .then_with(|| {
+                usize_at(right, &["feedback_quality_score"])
+                    .cmp(&usize_at(left, &["feedback_quality_score"]))
+            })
+            .then_with(|| string_field(left, "dedupe_key").cmp(&string_field(right, "dedupe_key")))
+    });
+    for (index, row) in rows.iter_mut().enumerate() {
+        row["feedback_quality_rank"] = json!(index + 1);
+    }
+    rows
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn synthetic_round_failures_collapse_to_one_feedback_item() {
-        let report = json!({
-            "findings": [
-                {
-                    "status": "open",
-                    "severity": "medium",
-                    "category": "runtime_correctness",
-                    "fingerprint": "synthetic_user_chat_harness:misty_simulated_round01_failures",
-                    "summary": "round 01 synthetic chat failure",
-                    "recommended_action": "inspect synthetic chat harness output",
-                    "evidence": ["synthetic://misty/round01"]
-                },
-                {
-                    "status": "open",
-                    "severity": "high",
-                    "category": "runtime_correctness",
-                    "fingerprint": "synthetic_user_chat_harness:misty_simulated_round02_failures",
-                    "summary": "round 02 synthetic chat failure",
-                    "recommended_action": "inspect synthetic chat harness output",
-                    "evidence": ["synthetic://misty/round02"]
-                }
-            ]
-        });
-
-        let rows = build_feedback_inbox(&report, "2026-04-28T00:00:00Z");
-
-        assert_eq!(rows.len(), 1);
-        assert_eq!(
-            rows[0]["feedback_family_fingerprint"],
-            "synthetic_user_chat_harness:misty_simulated_failures"
-        );
-        assert_eq!(
-            rows[0]["dedupe_key"],
-            "runtime_correctness:synthetic_user_chat_harness:misty_simulated_failures"
-        );
-        assert_eq!(rows[0]["severity"], "high");
-        assert_eq!(rows[0]["failure_level"], "L2_boundary_contract_breach");
-        assert_eq!(rows[0]["root_frame"], "cross_boundary_contract");
-        assert_eq!(rows[0]["remediation_level"], "boundary_repair");
-        assert_eq!(
-            rows[0]["fingerprint"],
-            "synthetic_user_chat_harness:misty_simulated_round02_failures"
-        );
-        assert_eq!(
-            rows[0]["evidence"],
-            json!(["synthetic://misty/round02", "synthetic://misty/round01"])
-        );
-        assert_eq!(rows[0]["per_run_evidence"].as_array().unwrap().len(), 2);
-        assert_eq!(rows[0]["recurrence_count"], 2);
-        assert_eq!(rows[0]["recurrence_threshold"], 2);
-        assert_eq!(rows[0]["issue_candidate_ready"], true);
-    }
-}
+#[path = "self_study_feedback_tests.rs"]
+mod self_study_feedback_tests;

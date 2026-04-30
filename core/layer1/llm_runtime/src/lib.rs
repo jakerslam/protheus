@@ -330,7 +330,8 @@ mod tests {
 
     #[test]
     fn routing_tie_break_prefers_local_and_stable_id_ordering() {
-        let mut cloud = ModelMetadata::new("z-cloud", "cloud", "cloud-fast", ModelRuntimeKind::CloudApi);
+        let mut cloud =
+            ModelMetadata::new("z-cloud", "cloud", "cloud-fast", ModelRuntimeKind::CloudApi);
         cloud.context_tokens = Some(32000);
         cloud.specialties = vec![ModelSpecialty::Coding];
         cloud.power_score_1_to_5 = 4;

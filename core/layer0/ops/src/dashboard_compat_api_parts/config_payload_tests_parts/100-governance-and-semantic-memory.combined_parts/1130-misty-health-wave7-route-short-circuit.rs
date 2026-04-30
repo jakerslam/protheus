@@ -441,7 +441,7 @@ fn misty_wave7_finalization_edge_fails_closed_without_system_chat_injection() {
     assert_eq!(session.status, 200);
     let messages = session
         .payload
-        .get("messages")
+        .pointer("/message_window/rows")
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
@@ -554,7 +554,7 @@ fn misty_wave8_tool_success_claim_without_evidence_fails_closed() {
     .expect("session response");
     let messages = session
         .payload
-        .get("messages")
+        .pointer("/message_window/rows")
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
@@ -680,7 +680,7 @@ fn misty_wave7_empty_initial_tool_request_can_finish_with_llm_menu_selection() {
 }
 
 #[test]
-fn misty_wave7_empty_finalization_recovers_with_llm_menu_choice() {
+fn misty_wave7_empty_finalization_records_telemetry_without_system_retry() {
     let root = governance_temp_root();
     let snapshot = governance_ok_snapshot();
     let created = handle(
@@ -724,7 +724,7 @@ fn misty_wave7_empty_finalization_recovers_with_llm_menu_choice() {
         .get("response")
         .and_then(Value::as_str)
         .unwrap_or("");
-    assert!(response_text.to_ascii_lowercase().contains("web search"), "{response_text}");
+    assert_eq!(response_text, "");
     assert!(!response_text.contains("Request payload"), "{response_text}");
     assert!(!response_text.starts_with("Yes."), "{response_text}");
     assert_eq!(
@@ -748,6 +748,17 @@ fn misty_wave7_empty_finalization_recovers_with_llm_menu_choice() {
             .and_then(Value::as_str),
         Some("batch_query")
     );
+    let finalization_outcome = response
+        .payload
+        .pointer("/response_finalization/outcome")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    assert!(
+        finalization_outcome.contains("withheld_empty_final_response")
+            || finalization_outcome.contains("empty_final_response_no_system_retry")
+            || finalization_outcome.contains("final_response_guard"),
+        "{finalization_outcome}"
+    );
     let event_kinds = response
         .payload
         .pointer("/response_workflow/system_events")
@@ -760,8 +771,7 @@ fn misty_wave7_empty_finalization_recovers_with_llm_menu_choice() {
         })
         .unwrap_or_default();
     assert!(
-        event_kinds.contains(&"draft_response_invalid")
-            || event_kinds.contains(&"empty_final_response_menu_recovery"),
+        event_kinds.iter().all(|kind| !kind.contains("recovery")),
         "{event_kinds:?}"
     );
 }

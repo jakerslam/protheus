@@ -82,7 +82,11 @@ fn resolve_safe_override(base: &Path, raw: Option<String>, fallback: PathBuf) ->
         return fallback;
     }
     if path.is_absolute() {
-        if path.starts_with(base) { path } else { fallback }
+        if path.starts_with(base) {
+            path
+        } else {
+            fallback
+        }
     } else {
         base.join(path)
     }

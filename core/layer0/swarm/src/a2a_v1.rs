@@ -96,7 +96,9 @@ pub fn a2a_receipt<T: SwarmMessage>(
     A2AReceipt {
         protocol_version: A2A_V1_PROTOCOL.to_string(),
         status: status.trim().to_ascii_lowercase(),
-        error: error.map(|value| value.trim().to_string()).filter(|value| !value.is_empty()),
+        error: error
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty()),
         trace_id: envelope.trace_id.clone(),
         contract_id: envelope.contract_id.clone(),
         from_agent: envelope.from_agent.clone(),
@@ -167,7 +169,10 @@ mod tests {
                 .expect("envelope");
         assert_eq!(envelope.protocol_version, A2A_V1_PROTOCOL);
         let receipt = a2a_receipt_json(&envelope, "ok", None);
-        assert_eq!(receipt.get("type").and_then(Value::as_str), Some("a2a_receipt"));
+        assert_eq!(
+            receipt.get("type").and_then(Value::as_str),
+            Some("a2a_receipt")
+        );
         assert_eq!(
             receipt.get("contract_id").and_then(Value::as_str),
             Some("contract.task.v1")

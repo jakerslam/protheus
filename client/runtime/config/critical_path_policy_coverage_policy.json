@@ -9,7 +9,7 @@
       "id": "error_budget_release_gate",
       "command_path": "client/runtime/systems/ops/error_budget_release_gate.ts",
       "policy_paths": [
-        "client/runtime/config/error_budget_release_gate_policy.json"
+        "validation/release_gates/policies/error_budget_release_gate_policy.json"
       ],
       "test_paths": [
         "tests/client-memory-tools/error_budget_release_gate.test.ts"

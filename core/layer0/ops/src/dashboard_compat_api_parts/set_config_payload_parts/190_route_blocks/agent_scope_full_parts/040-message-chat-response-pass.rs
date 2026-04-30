@@ -200,10 +200,8 @@ fn handle_message_chat_response_pass(
                 inline_tools_allowed,
             );
             response_text = tool_adjusted_response;
-            let allow_draft_retry_fallback = inline_tools_suppressed
-                && message_requests_workspace_plus_web_comparison(message);
             let supplemental_comparison_tools =
-                if inline_tools_allowed || allow_draft_retry_fallback {
+                if inline_tools_allowed {
                     latent_tool_candidate_completion_cards(
                         root,
                         snapshot,
@@ -211,7 +209,7 @@ fn handle_message_chat_response_pass(
                         Some(row),
                         message,
                         &response_text,
-                        allow_draft_retry_fallback,
+                        false,
                         &latent_tool_candidates,
                         &response_tools,
                     )
@@ -229,45 +227,7 @@ fn handle_message_chat_response_pass(
                 }
             }
             if inline_tools_suppressed && response_tools.is_empty() {
-                let direct_only_prompt = clean_text(
-                    &format!(
-                        "{}\n\nDirect-answer guard: unless the user explicitly requested tool execution in this turn, do not emit `<function=...>` calls. Respond directly in natural language.",
-                        AGENT_RUNTIME_SYSTEM_PROMPT
-                    ),
-                    12_000,
-                );
-                let (retry_provider, retry_model) =
-                    visible_response_recovery_model(&turn_provider, &turn_model);
-                if let Ok(retried) = crate::dashboard_provider_runtime::invoke_chat(
-                    root,
-                    &retry_provider,
-                    &retry_model,
-                    &direct_only_prompt,
-                    &active_messages,
-                    message,
-                ) {
-                    let mut retried_text = clean_chat_text(
-                        retried
-                            .get("response")
-                            .and_then(Value::as_str)
-                            .unwrap_or(""),
-                        32_000,
-                    );
-                    retried_text = strip_internal_context_metadata_prefix(&retried_text);
-                    retried_text = strip_internal_cache_control_markup(&retried_text);
-                    let (without_inline_calls, _) = extract_inline_tool_calls(&retried_text, 6);
-                    let candidate = if without_inline_calls.trim().is_empty() {
-                        retried_text
-                    } else {
-                        without_inline_calls
-                    };
-                    if !candidate.trim().is_empty() {
-                        response_text = clean_chat_text(candidate.trim(), 32_000);
-                    }
-                }
-                if response_text.trim().is_empty() {
-                    response_text.clear();
-                }
+                response_text.clear();
             }
             if response_tools.is_empty()
                 && !inline_tools_allowed
@@ -275,52 +235,7 @@ fn handle_message_chat_response_pass(
                     || response_looks_like_raw_web_artifact_dump(&response_text)
                     || response_looks_like_unsynthesized_web_snippet_dump(&response_text))
             {
-                let no_fake_tooling_prompt = clean_text(
-                    &format!(
-                        "{}\n\nNo-fake-tooling guard: if no tool call executed in this turn, do not claim web retrieval/findings. Answer directly from stable context and label uncertainty when needed.",
-                        AGENT_RUNTIME_SYSTEM_PROMPT
-                    ),
-                    12_000,
-                );
-                let (retry_provider, retry_model) =
-                    visible_response_recovery_model(&turn_provider, &turn_model);
-                if let Ok(retried) = crate::dashboard_provider_runtime::invoke_chat(
-                    root,
-                    &retry_provider,
-                    &retry_model,
-                    &no_fake_tooling_prompt,
-                    &active_messages,
-                    message,
-                ) {
-                    let mut retried_text = clean_chat_text(
-                        retried
-                            .get("response")
-                            .and_then(Value::as_str)
-                            .unwrap_or(""),
-                        32_000,
-                    );
-                    retried_text = strip_internal_context_metadata_prefix(&retried_text);
-                    retried_text = strip_internal_cache_control_markup(&retried_text);
-                    let (without_inline_calls, _) = extract_inline_tool_calls(&retried_text, 6);
-                    let candidate = if without_inline_calls.trim().is_empty() {
-                        retried_text
-                    } else {
-                        without_inline_calls
-                    };
-                    if !candidate.trim().is_empty() {
-                        response_text = clean_chat_text(candidate.trim(), 32_000);
-                    }
-                }
-                if response_text.trim().is_empty()
-                    || response_is_no_findings_placeholder(&response_text)
-                    || response_looks_like_raw_web_artifact_dump(&response_text)
-                    || response_looks_like_unsynthesized_web_snippet_dump(&response_text)
-                {
-                    // The workflow may expose this state in telemetry, but visible
-                    // chat must remain LLM-authored. Avoid replacing a bad draft
-                    // with system-written helper text.
-                    response_text.clear();
-                }
+                response_text.clear();
             }
             if let Some(ref pending) = inline_pending_confirmation {
                 let pending_tool = clean_text(
@@ -357,57 +272,6 @@ fn handle_message_chat_response_pass(
                 || workflow_response_repetition_breaker_active(&response_text)
             {
                 // Preserve LLM-authored output only; do not replace with system fallback text.
-            }
-            if response_is_unrelated_context_dump(message, &response_text) {
-                let strict_relevance_prompt = clean_text(
-                    &format!(
-                        "{}\n\nRelevance guard: answer only the latest user request. Ignore unrelated prior snippets and project templates. If the user asks for code, provide direct code first.",
-                        AGENT_RUNTIME_SYSTEM_PROMPT
-                    ),
-                    12_000,
-                );
-                let relevance_retry_messages = active_messages
-                    .iter()
-                    .rev()
-                    .take(7)
-                    .cloned()
-                    .collect::<Vec<_>>()
-                    .into_iter()
-                    .rev()
-                    .collect::<Vec<_>>();
-                let (retry_provider, retry_model) =
-                    visible_response_recovery_model(&turn_provider, &turn_model);
-                let retried = crate::dashboard_provider_runtime::invoke_chat(
-                    root,
-                    &retry_provider,
-                    &retry_model,
-                    &strict_relevance_prompt,
-                    &relevance_retry_messages,
-                    message,
-                )
-                .ok()
-                .and_then(|value| {
-                    let mut retried_text = clean_chat_text(
-                        value.get("response").and_then(Value::as_str).unwrap_or(""),
-                        32_000,
-                    );
-                    retried_text = strip_internal_context_metadata_prefix(&retried_text);
-                    retried_text = strip_internal_cache_control_markup(&retried_text);
-                    if !user_requested_internal_runtime_details(message) {
-                        retried_text = abstract_runtime_mechanics_terms(&retried_text);
-                    }
-                    if response_is_unrelated_context_dump(message, &retried_text) {
-                        None
-                    } else {
-                        let cleaned = retried_text.trim().to_string();
-                        if cleaned.is_empty() {
-                            None
-                        } else {
-                            Some(cleaned)
-                        }
-                    }
-                });
-                response_text = retried.unwrap_or_default();
             }
             let conversation_bypass_control = workflow_conversation_bypass_control_for_turn(
                 message,

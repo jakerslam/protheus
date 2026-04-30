@@ -139,7 +139,11 @@ fn to_hit(row: MemoryRow) -> RecallHit {
     let report = compression::report_for(&row.content);
     let (content, content_truncated) = wrap_external_untrusted_content(&row.content);
     let safe_id = sanitize_id_token(&row.id);
-    let fallback_id = format!("memory-{}-{}", marker_id(&row.content), row.updated_at.max(0));
+    let fallback_id = format!(
+        "memory-{}-{}",
+        marker_id(&row.content),
+        row.updated_at.max(0)
+    );
     RecallHit {
         id: if safe_id.is_empty() {
             fallback_id

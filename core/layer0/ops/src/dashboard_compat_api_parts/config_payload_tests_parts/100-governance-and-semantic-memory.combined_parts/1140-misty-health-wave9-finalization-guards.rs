@@ -1,7 +1,7 @@
 // SRS: V12-MISTY-HEALTH-WAVE9-001
 
 #[test]
-fn misty_wave9_gate_choice_prefix_is_recovered_before_visible_chat() {
+fn misty_wave9_gate_choice_prefix_is_rejected_without_system_retry() {
     let root = governance_temp_root();
     let snapshot = governance_ok_snapshot();
     let created = handle(
@@ -44,10 +44,7 @@ fn misty_wave9_gate_choice_prefix_is_recovered_before_visible_chat() {
         .get("response")
         .and_then(Value::as_str)
         .unwrap_or("");
-    assert_eq!(
-        response_text,
-        "I can answer normally and keep tool-menu choices out of visible chat."
-    );
+    assert_eq!(response_text, "");
     assert!(!response_text.starts_with("Yes,"), "{response_text}");
     assert_eq!(
         response
@@ -62,7 +59,7 @@ fn misty_wave9_gate_choice_prefix_is_recovered_before_visible_chat() {
             .pointer("/response_finalization/outcome")
             .and_then(Value::as_str)
             .unwrap_or("")
-            .contains("final_response_guard_recovered_by_llm")
+            .contains("final_response_guard_no_system_retry")
     );
 }
 

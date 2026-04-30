@@ -2,11 +2,16 @@
 // Layer ownership: core/layer0/ops (authoritative)
 
 use super::{
+    kernel_sentinel_diagnostic_authorization_model,
+    kernel_sentinel_diagnostic_executor_model,
+    kernel_sentinel_diagnostic_failure_probe_policies,
+    kernel_sentinel_diagnostic_request_model,
+    kernel_sentinel_diagnostic_result_model,
+    kernel_sentinel_targeted_regression_executor_model,
     kernel_sentinel_failure_level_taxonomy, kernel_sentinel_incident_event_model,
-    kernel_system_understanding_dossier_model,
-    KernelSentinelAuthorityClass, KernelSentinelAuthorityRule, KernelSentinelEvidenceSource,
-    KERNEL_SENTINEL_CLI_DOMAIN, KERNEL_SENTINEL_CONTRACT_VERSION, KERNEL_SENTINEL_MODULE_ID,
-    KERNEL_SENTINEL_NAME,
+    kernel_system_understanding_dossier_model, KernelSentinelAuthorityClass,
+    KernelSentinelAuthorityRule, KernelSentinelEvidenceSource, KERNEL_SENTINEL_CLI_DOMAIN,
+    KERNEL_SENTINEL_CONTRACT_VERSION, KERNEL_SENTINEL_MODULE_ID, KERNEL_SENTINEL_NAME,
 };
 use serde_json::{json, Value};
 
@@ -87,9 +92,40 @@ pub fn kernel_sentinel_contract() -> Value {
             "policy_ref": "docs/workspace/system_understanding_dossier_policy.md",
             "implementation_without_dossier_is_disallowed_when_confidence_thresholds_are_unmet": true
         },
+        "diagnostic_execution_role": {
+            "role": "kernel_owned_bounded_diagnostic_probe_authority",
+            "policy_ref": "docs/workspace/kernel_sentinel_diagnostic_execution_policy.md",
+            "diagnostic_authorization_model_type": "kernel_sentinel_diagnostic_authorization_model",
+            "diagnostic_executor_model_type": "kernel_sentinel_diagnostic_executor_model",
+            "diagnostic_failure_signature_policy_map_required": true,
+            "diagnostic_request_model_type": "kernel_sentinel_diagnostic_request_model",
+            "diagnostic_result_model_type": "kernel_sentinel_diagnostic_result_model",
+            "explicit_stop_conditions_required": true,
+            "open_ended_test_execution_allowed": false
+        },
+        "external_assimilation_role": {
+            "role": "capability_first_transfer_plan_from_shared_external_dossier",
+            "output_type": "kernel_sentinel_external_assimilation_transfer_plan",
+            "strategy": "capability_first_not_file_burn_down",
+            "comparison_and_gap_analysis_follow_in_dossier_comparison_step": true,
+            "comparison_output_type": "kernel_sentinel_external_assimilation_dossier_comparison",
+            "comparison_requires": [
+                "capability_gap_analysis",
+                "soul_fit",
+                "authority_fit",
+                "proof_burden"
+            ]
+        },
         "authority_rules": authority_rules,
         "failure_level_taxonomy": kernel_sentinel_failure_level_taxonomy(),
         "incident_event_model": kernel_sentinel_incident_event_model(),
+        "diagnostic_authorization_model": kernel_sentinel_diagnostic_authorization_model(),
+        "diagnostic_executor_model": kernel_sentinel_diagnostic_executor_model(),
+        "diagnostic_targeted_regression_executor_model":
+            kernel_sentinel_targeted_regression_executor_model(),
+        "diagnostic_failure_signature_probe_policies": kernel_sentinel_diagnostic_failure_probe_policies(),
+        "diagnostic_request_model": kernel_sentinel_diagnostic_request_model(),
+        "diagnostic_result_model": kernel_sentinel_diagnostic_result_model(),
         "system_understanding_dossier_model": kernel_system_understanding_dossier_model()
     });
     let receipt_hash = crate::deterministic_receipt_hash(&payload);

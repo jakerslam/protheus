@@ -1,7 +1,12 @@
         this.tokenCount = 0;
         this._clearTypingTimeout();
         this._clearPendingWsRequest(agentId);
-        this.setAgentLiveActivity(agentId, 'idle');
+        this.setAgentLiveActivity(agentId, {
+          activity: 'idle',
+          display_label: 'Idle',
+          source: 'shell_optimistic',
+          optimistic: true
+        });
         await this._sendPayload(
           payload.final_text,
           Array.isArray(payload.uploaded_files) ? payload.uploaded_files : [],
@@ -70,7 +75,12 @@
         self.tokenCount = 0;
         self._inflightPayload = null;
         self._clearPendingWsRequest();
-        self.setAgentLiveActivity(self.currentAgent && self.currentAgent.id ? self.currentAgent.id : '', 'idle');
+        self.setAgentLiveActivity(self.currentAgent && self.currentAgent.id ? self.currentAgent.id : '', {
+          activity: 'idle',
+          display_label: 'Idle',
+          source: 'shell_optimistic',
+          optimistic: true
+        });
         self.scheduleConversationPersist();
       }, 120000);
     },
@@ -662,14 +672,24 @@
         var keepBusyAgentId = '';
         if (pending && pending.agent_id) keepBusyAgentId = String(pending.agent_id || '').trim();
         if (!keepBusyAgentId) keepBusyAgentId = String(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '').trim();
-        if (keepBusyAgentId) this.setAgentLiveActivity(keepBusyAgentId, 'working');
+        if (keepBusyAgentId) this.setAgentLiveActivity(keepBusyAgentId, {
+          activity: 'working',
+          display_label: 'Working',
+          source: 'shell_optimistic',
+          optimistic: true
+        });
       }
       if (hasVisiblePending || hasPendingWs) return false;
       this.sending = false;
       this._responseStartedAt = 0;
       this.tokenCount = 0;
       this._clearTypingTimeout();
-      this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '', 'idle');
+      this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '', {
+        activity: 'idle',
+        display_label: 'Idle',
+        source: 'shell_optimistic',
+        optimistic: true
+      });
       return true;
     },
     _setPendingWsRequest: function(agentId, messageText, options) {
@@ -827,9 +847,9 @@
           break;
         }
         try {
-          var sessionData = await InfringAPI.get('/api/agents/' + encodeURIComponent(agentId) + '/session');
+          var sessionData = await InfringAPI.get('/api/agents/' + encodeURIComponent(agentId) + '/session?limit=80');
           if (!recoveryStillCurrent()) break;
-          var normalized = this.normalizeSessionMessages(sessionData);
+          var normalized = this.normalizeSessionMessages(sessionData, { requireWindow: true });
           var hasFreshAgentReply =
             this._pendingRequestReplyObserved(normalized, pending, startedAt) ||
             this._recentAgentReplyObserved(normalized, startedAt);
@@ -837,11 +857,14 @@
             await new Promise(function(resolve) { setTimeout(resolve, 650); });
             continue;
           }
+          var cachedMessages = typeof this.sanitizeConversationForCache === 'function'
+            ? this.sanitizeConversationForCache(normalized || [])
+            : (Array.isArray(normalized) ? normalized.slice() : []);
           if (!this.conversationCache) this.conversationCache = {};
           this.conversationCache[String(agentId)] = {
             saved_at: Date.now(),
             token_count: Number(this.contextApproxTokens || 0),
-            messages: JSON.parse(JSON.stringify(normalized || [])),
+            messages: cachedMessages,
           };
           try {
             var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
@@ -850,11 +873,11 @@
             var saveAgentChatPreview = bridge && typeof bridge.method === 'function'
               ? bridge.method('saveAgentChatPreview')
               : null;
-            if (typeof saveAgentChatPreview === 'function') saveAgentChatPreview(agentId, this.conversationCache[String(agentId)].messages);
+            if (typeof saveAgentChatPreview === 'function') saveAgentChatPreview(agentId, cachedMessages);
           } catch(_) {}
           var isActive = !!(this.currentAgent && String(this.currentAgent.id || '') === agentId);
           if (isActive) {
-            this.messages = this.mergeModelNoticesForAgent(agentId, JSON.parse(JSON.stringify(normalized || [])));
+            this.messages = this.mergeModelNoticesForAgent(agentId, this.normalizeSessionMessages({ messages: normalized || [] }));
             this.scrollToBottom();
           } else {
             this._markAgentPreviewUnread(agentId, true);
@@ -898,7 +921,12 @@
         this._pendingWsRecovering = false;
         return;
       }
-      this.setAgentLiveActivity(agentId, 'idle');
+      this.setAgentLiveActivity(agentId, {
+        activity: 'idle',
+        display_label: 'Idle',
+        source: 'shell_optimistic',
+        optimistic: true
+      });
       if (stillActiveAgent) {
         this.sending = false;
         this._responseStartedAt = 0;

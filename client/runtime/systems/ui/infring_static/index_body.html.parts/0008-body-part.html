@@ -5,57 +5,7 @@
 
     <!-- Page: Approvals -->
     <template x-if="page === 'approvals'">
-      <infring-approvals-page-shell shellprimitive="simple-page-panel" pageid="approvals" panelrole="page" routecontract="approvals" parentowneddata="true">
-      <div x-data="approvalsPage" x-init="loadData()">
-        <div class="page-header">
-          <div class="tabs mt-3" role="tablist">
-            <div class="tab" role="tab" :class="{ active: page === 'agents' }" @click="navigate('agents')">Agents</div>
-            <div class="tab" role="tab" :class="{ active: page === 'sessions' }" @click="navigate('sessions')">Sessions</div>
-            <div class="tab" role="tab" :class="{ active: page === 'approvals' }" @click="navigate('approvals')">Approvals</div>
-          </div>
-        </div>
-        <div class="page-body">
-          <div x-show="loading" class="loading-state"><div class="spinner"></div><span>Loading...</span></div>
-          <div x-show="!loading && loadError" class="error-state">
-            <span class="error-icon">!</span>
-            <p x-text="loadError"></p>
-            <button class="btn btn-ghost btn-sm" @click="loadData()">Retry</button>
-          </div>
-          <template x-if="!loading && !loadError">
-            <div>
-              <div class="filter-pills mb-4">
-                <button class="filter-pill" :class="{ active: filterStatus === 'all' }" @click="filterStatus = 'all'">All</button>
-                <button class="filter-pill" :class="{ active: filterStatus === 'pending' }" @click="filterStatus = 'pending'">Pending</button>
-                <button class="filter-pill" :class="{ active: filterStatus === 'approved' }" @click="filterStatus = 'approved'">Approved</button>
-                <button class="filter-pill" :class="{ active: filterStatus === 'rejected' }" @click="filterStatus = 'rejected'">Rejected</button>
-              </div>
-              <infring-chat-stream-shell x-show="filtered.length === 0" class="empty-state">
-                <h4>No approvals</h4>
-                <p class="hint">When agents request permission for sensitive actions, they'll appear here.</p>
-              </infring-chat-stream-shell>
-              <div class="card-grid">
-                <template x-for="a in filtered" :key="a.id">
-                  <div class="card approval-card" :class="{ approved: a.status === 'approved', rejected: a.status === 'rejected', expired: a.status === 'expired' }">
-                    <div class="flex justify-between items-center mb-2">
-                      <span class="card-header" style="margin:0" x-text="a.action"></span>
-                      <span class="badge" :class="{ 'badge-warn': a.status === 'pending', 'badge-success': a.status === 'approved', 'badge-error': a.status === 'rejected', 'badge-muted': a.status === 'expired' }" x-text="a.status"></span>
-                    </div>
-                    <div class="text-sm text-dim mb-2" x-text="a.description"></div>
-                    <div class="text-xs text-dim">Agent: <span x-text="a.agent_name"></span> &middot; <span x-text="timeAgo(a.created_at)"></span></div>
-                    <template x-if="a.status === 'pending'">
-                      <div class="approval-actions" style="display:flex;gap:8px;margin-top:12px">
-                        <button class="btn btn-success btn-sm" @click="approve(a.id)">Approve</button>
-                        <button class="btn btn-danger btn-sm" @click="reject(a.id)">Reject</button>
-                      </div>
-                    </template>
-                  </div>
-                </template>
-              </div>
-            </div>
-          </template>
-        </div>
-      </div>
-      </infring-approvals-page-shell>
+      <infring-approvals-page-shell shellprimitive="simple-page-panel" pageid="approvals" panelrole="page" routecontract="approvals" parentowneddata="false"></infring-approvals-page-shell>
     </template>
 
     <!-- Page: Workflows -->
@@ -91,141 +41,7 @@
 
         <!-- Tab: List -->
         <template x-if="wfTab === 'list'">
-        <infring-workflows-list-tab-shell shellprimitive="simple-page-panel" pageid="workflows" tabid="list" panelrole="workflow-tab" routecontract="workflows:list" parentowneddata="true">
-        <div x-data="workflowsPage">
-        <div class="page-body" x-init="loadWorkflows()">
-          <div x-show="loading" class="loading-state"><div class="spinner"></div><span>Loading workflows...</span></div>
-          <div x-show="!loading && loadError" class="error-state">
-            <span class="error-icon">!</span>
-            <p x-text="loadError"></p>
-            <button class="btn btn-ghost btn-sm" @click="loadData()">Retry</button>
-          </div>
-          <div x-show="!loading && !loadError">
-          <div class="card mb-4" style="border-left:3px solid var(--accent)">
-            <div class="font-bold" style="font-size:13px;margin-bottom:4px">What are Workflows?</div>
-            <div class="text-sm text-dim" style="line-height:1.6">
-              Workflows chain multiple agents into automated pipelines. Each step runs an agent with a prompt template,
-              passing output from one step as input to the next. Steps can run sequentially, fan out in parallel, loop, or branch conditionally.
-              <br><span style="margin-top:4px;display:inline-block">Try the <strong style="color:var(--accent);cursor:pointer" @click="$dispatch('wf-switch-tab','builder')">Visual Builder</strong> to drag and drop workflow steps.</span>
-            </div>
-          </div>
-          <div class="flex gap-2 mb-4">
-            <button class="btn btn-primary btn-sm" @click="showCreateModal = true">+ New Workflow</button>
-          </div>
-          <div class="table-wrap" x-show="workflows.length">
-            <table>
-              <thead><tr><th>Name</th><th>Steps</th><th>Created</th><th>Actions</th></tr></thead>
-              <tbody>
-                <template x-for="wf in workflows" :key="wf.id">
-                  <tr>
-                    <td><span class="font-bold" x-text="wf.name"></span><br><span class="text-xs text-dim" x-text="wf.description"></span></td>
-                    <td x-text="Array.isArray(wf.steps) ? wf.steps.length + ' step' + (wf.steps.length !== 1 ? 's' : '') : wf.steps"></td>
-                    <td class="text-xs" x-text="new Date(wf.created_at).toLocaleDateString()"></td>
-                    <td>
-                      <button class="btn btn-primary btn-sm" @click="showRunModal(wf)">Run</button>
-                      <button class="btn btn-ghost btn-sm" @click="showEditModal(wf)">Edit</button>
-                      <button class="btn btn-ghost btn-sm" @click="viewRuns(wf)">History</button>
-                      <button class="btn btn-danger btn-sm" @click="deleteWorkflow(wf)">Delete</button>
-                    </td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
-          </div>
-          <infring-chat-stream-shell class="empty-state" x-show="!workflows.length">
-            <div class="empty-state-icon">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v12M18 9a9 9 0 0 1-9 9"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/></svg>
-            </div>
-            <h3>No workflows yet</h3>
-            <p>Chain multiple agents into automated pipelines with branching, fan-out, and loops.</p>
-            <button class="btn btn-primary" @click="showCreateModal = true">Create Workflow</button>
-          </infring-chat-stream-shell>
-          </div>
-          <!-- Create modal -->
-          <template x-if="showCreateModal">
-            <div class="modal-overlay" @click.self="showCreateModal = false" @keydown.escape.window="showCreateModal = false">
-              <div class="modal">
-                <div class="modal-header"><h3>Create Workflow</h3><button class="modal-close" @click="showCreateModal = false">&times;</button></div>
-                <div class="form-group"><label>Name</label><input class="form-input" x-model="newWf.name" placeholder="my-workflow"></div>
-                <div class="form-group"><label>Description</label><input class="form-input" x-model="newWf.description" placeholder="What does this workflow do?"></div>
-                <div class="mb-4">
-                  <div class="form-group" style="margin:0"><label>Steps</label></div>
-                  <div class="text-xs text-dim mb-2">Each step runs an agent. Use <code style="color:var(--accent)">{{input}}</code> in prompts to pass the previous step's output.</div>
-                  <template x-for="(step, i) in newWf.steps" :key="i">
-                    <div class="card mt-2" style="padding:10px">
-                      <div class="flex gap-2 items-center">
-                        <span class="text-xs text-dim font-bold" x-text="'#' + (i+1)" style="width:24px"></span>
-                        <input class="form-input" style="flex:1" x-model="step.name" placeholder="Step name">
-                        <input class="form-input" style="flex:1" x-model="step.agent_name" placeholder="Agent name">
-                        <select class="form-select" style="width:120px" x-model="step.mode">
-                          <option value="sequential">Sequential</option>
-                          <option value="fan_out">Fan Out</option>
-                          <option value="conditional">Conditional</option>
-                          <option value="loop">Loop</option>
-                        </select>
-                        <button class="btn btn-danger btn-sm" @click="newWf.steps.splice(i,1)">&times;</button>
-                      </div>
-                      <input class="form-input mt-2" x-model="step.prompt" placeholder="Prompt template (use {{input}})">
-                    </div>
-                  </template>
-                  <button class="btn btn-ghost btn-sm mt-2" @click="newWf.steps.push({name:'',agent_name:'',mode:'sequential',prompt:'{{input}}'})">+ Add Step</button>
-                </div>
-                <button class="btn btn-primary btn-block" @click="createWorkflow()">Create</button>
-              </div>
-            </div>
-          </template>
-          <!-- Run modal -->
-          <template x-if="runModal">
-            <div class="modal-overlay" @click.self="runModal = null" @keydown.escape.window="runModal = null">
-              <div class="modal">
-                <div class="modal-header"><h3 x-text="'Run: ' + runModal.name"></h3><button class="modal-close" @click="runModal = null">&times;</button></div>
-                <div class="form-group"><label>Input</label><textarea class="form-textarea" x-model="runInput" placeholder="Enter workflow input..."></textarea></div>
-                <button class="btn btn-primary btn-block" @click="executeWorkflow()" :disabled="running">
-                  <span x-show="!running">Execute</span><span x-show="running">Running...</span>
-                </button>
-                <div class="card mt-4" x-show="runResult">
-                  <div class="card-header">Result</div>
-                  <pre style="font-size:11px;white-space:pre-wrap;margin-top:8px;color:var(--text-dim)" x-text="runResult"></pre>
-                </div>
-              </div>
-            </div>
-          </template>
-          <!-- Edit modal -->
-          <template x-if="editModal">
-            <div class="modal-overlay" @click.self="editModal = null" @keydown.escape.window="editModal = null">
-              <div class="modal">
-                <div class="modal-header"><h3 x-text="'Edit: ' + editModal.name"></h3><button class="modal-close" @click="editModal = null">&times;</button></div>
-                <div class="form-group"><label>Name</label><input class="form-input" x-model="editWf.name" placeholder="Workflow name"></div>
-                <div class="form-group"><label>Description</label><input class="form-input" x-model="editWf.description" placeholder="What does this workflow do?"></div>
-                <div class="mb-4">
-                  <div class="form-group" style="margin:0"><label>Steps</label></div>
-                  <div class="text-xs text-dim mb-2">Each step runs an agent. Use <code style="color:var(--accent)">{{input}}</code> in prompts to pass the previous step's output.</div>
-                  <template x-for="(step, i) in editWf.steps" :key="i">
-                    <div class="card mt-2" style="padding:10px">
-                      <div class="flex gap-2 items-center">
-                        <span class="text-xs text-dim font-bold" x-text="'#' + (i+1)" style="width:24px"></span>
-                        <input class="form-input" style="flex:1" x-model="step.name" placeholder="Step name">
-                        <input class="form-input" style="flex:1" x-model="step.agent_name" placeholder="Agent name">
-                        <select class="form-select" style="width:120px" x-model="step.mode">
-                          <option value="sequential">Sequential</option>
-                          <option value="fan_out">Fan Out</option>
-                          <option value="conditional">Conditional</option>
-                          <option value="loop">Loop</option>
-                        </select>
-                        <button class="btn btn-danger btn-sm" @click="editWf.steps.splice(i,1)">&times;</button>
-                      </div>
-                      <input class="form-input mt-2" x-model="step.prompt" placeholder="Prompt template (use {{input}})">
-                    </div>
-                  </template>
-                  <button class="btn btn-ghost btn-sm mt-2" @click="editWf.steps.push({name:'',agent_name:'',mode:'sequential',prompt:'{{input}}'})">+ Add Step</button>
-                </div>
-                <button class="btn btn-primary btn-block" @click="saveWorkflow()">Save Changes</button>
-              </div>
-            </div>
-          </template>
-        </div>
-        </div>
-        </infring-workflows-list-tab-shell>
+        <infring-workflows-list-tab-shell shellprimitive="simple-page-panel" pageid="workflows" tabid="list" panelrole="workflow-tab" routecontract="workflows:list" parentowneddata="false"></infring-workflows-list-tab-shell>
         </template>
 
         <!-- Tab: Visual Builder -->
@@ -356,11 +172,8 @@
                     <div>
                       <div class="form-group">
                         <label class="text-xs">Agent</label>
-                        <select class="form-select" x-model="selectedNode.config.agent_name" @change="applyNodeEdit()" style="font-size:11px">
+                        <select class="form-select" x-model="selectedNode.config.agent_name" x-effect="agents.length; selectedNode; renderAgentSelectOptions($el)" @change="applyNodeEdit()" style="font-size:11px">
                           <option value="">Select agent...</option>
-                          <template x-for="a in agents" :key="a.id || a.name">
-                            <option :value="a.name" x-text="a.name"></option>
-                          </template>
                         </select>
                       </div>
                       <div class="form-group">

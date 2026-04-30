@@ -24,7 +24,13 @@
     async syncDrawerAgentAfterChange() {
       if (!this.agentDrawer || !this.agentDrawer.id) return;
       try {
-        await Alpine.store('app').refreshAgents();
+        var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+          ? InfringSharedShellServices.appStore
+          : null;
+        var refreshAgents = bridge && typeof bridge.method === 'function'
+          ? bridge.method('refreshAgents')
+          : null;
+        if (typeof refreshAgents === 'function') await refreshAgents();
       } catch {}
       var refreshed = this.resolveAgent(this.agentDrawer.id);
       if (refreshed) {

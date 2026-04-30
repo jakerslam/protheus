@@ -9,15 +9,13 @@
         }
         if (!restoredFromCache && !keepCurrent && (!Array.isArray(self.messages) || !self.messages.length)) {
           var errText = String(e && e.message ? e.message : 'session_load_failed').trim();
-          self.messages = [{
-            id: ++msgId,
-            role: 'system',
-            text: 'Unable to load this agent session right now (' + errText + ').',
-            meta: '',
-            tools: [],
+          self.messages = [];
+          self.addNoticeEvent({
+            notice_label: 'Unable to load this agent session right now (' + errText + ').',
+            notice_type: 'warn',
             system_origin: 'session:load_error',
             ts: Date.now()
-          }];
+          });
         }
       }
       finally {
@@ -55,12 +53,15 @@
         var offset = Number(self._messagePageOffset || 0);
         var data = await InfringAPI.get('/api/agents/' + agentId + '/session?limit=80&offset=' + offset);
         if (!data || !data.ok) return;
-        var older = self.normalizeSessionMessages(data);
+        var messageWindow = data && data.message_window && typeof data.message_window === 'object'
+          ? data.message_window
+          : {};
+        var older = self.normalizeSessionMessages(data, { requireWindow: true });
         if (!older.length) {
           self._hasMoreMessages = false;
           return;
         }
-        self._hasMoreMessages = !!(data.has_more);
+        self._hasMoreMessages = !!(messageWindow && messageWindow.has_more);
         self._messagePageOffset = offset + older.length;
         var el = self.resolveMessagesScroller(null);
         var prevScrollHeight = el ? el.scrollHeight : 0;
@@ -311,7 +312,12 @@
         if (!pending || String(pending.agent_id || '').trim() !== targetAgentId) return;
         reconnectSyncInFlight = true;
         ensurePendingThinkingRow('Reconnected. Syncing response...');
-        self.setAgentLiveActivity(targetAgentId, 'working');
+        self.setAgentLiveActivity(targetAgentId, {
+          activity: 'working',
+          display_label: 'Working',
+          source: 'shell_optimistic',
+          optimistic: true
+        });
         Promise.resolve()
           .then(function() {
             return self.loadSessions(targetAgentId);
@@ -330,12 +336,26 @@
             reconnectSyncInFlight = false;
           });
       };
+      var appStoreBridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+        ? InfringSharedShellServices.appStore
+        : null;
+      var setWsConnected = function(connected) {
+        if (appStoreBridge && typeof appStoreBridge.set === 'function') {
+          appStoreBridge.set('wsConnected', connected === true);
+        }
+        var cs = window.InfringChatStore; if (cs && cs.wsConnected) cs.wsConnected.set(connected === true);
+      };
+      var refreshAgents = function() {
+        var method = appStoreBridge && typeof appStoreBridge.method === 'function'
+          ? appStoreBridge.method('refreshAgents')
+          : null;
+        return typeof method === 'function' ? method() : Promise.resolve(null);
+      };
 
       InfringAPI.wsConnect(targetAgentId, {
         onOpen: function() {
           if (!isLiveConnection('')) return;
-          Alpine.store('app').wsConnected = true;
-          var cs = window.InfringChatStore; if (cs && cs.wsConnected) cs.wsConnected.set(true);
+          setWsConnected(true);
           self.requestContextTelemetry(true);
           if (reconnectPending) {
             reconnectPending = false;
@@ -351,31 +371,39 @@
         },
         onReconnect: function() {
           if (!isLiveConnection('')) return;
-          Alpine.store('app').wsConnected = false;
-          var cs = window.InfringChatStore; if (cs && cs.wsConnected) cs.wsConnected.set(false);
+          setWsConnected(false);
           reconnectPending = true;
           var pending = self._pendingWsRequest;
           if (pending && pending.agent_id) {
             ensurePendingThinkingRow('Connection interrupted. Reconnecting...');
-            self.setAgentLiveActivity(pending.agent_id, 'working');
+            self.setAgentLiveActivity(pending.agent_id, {
+              activity: 'working',
+              display_label: 'Working',
+              source: 'shell_optimistic',
+              optimistic: true
+            });
           }
         },
         onClose: function() {
           if (!isLiveConnection('')) return;
-          Alpine.store('app').wsConnected = false;
-          var cs = window.InfringChatStore; if (cs && cs.wsConnected) cs.wsConnected.set(false);
+          setWsConnected(false);
           self._wsAgent = null;
           var pending = self._pendingWsRequest;
           if (self.sending && pending && pending.agent_id) {
             reconnectPending = true;
             self._clearTypingTimeout();
             ensurePendingThinkingRow('Connection interrupted. Reconnecting...');
-            self.setAgentLiveActivity(pending.agent_id, 'working');
+            self.setAgentLiveActivity(pending.agent_id, {
+              activity: 'working',
+              display_label: 'Working',
+              source: 'shell_optimistic',
+              optimistic: true
+            });
             self._recoverPendingWsRequest('ws_close');
             self.scrollToBottom();
           }
           if (self.currentAgent && self.currentAgent.id) {
-            Alpine.store('app').refreshAgents().then(function() {
+            refreshAgents().then(function() {
               var stillLive = self.resolveAgent(self.currentAgent.id);
               if (!stillLive && !self.shouldSuppressAgentInactive(self.currentAgent.id)) {
                 self.handleAgentInactive(self.currentAgent.id, 'inactive');
@@ -385,15 +413,19 @@
         },
         onError: function() {
           if (!isLiveConnection('')) return;
-          Alpine.store('app').wsConnected = false;
-          var cs = window.InfringChatStore; if (cs && cs.wsConnected) cs.wsConnected.set(false);
+          setWsConnected(false);
           self._wsAgent = null;
           var pending = self._pendingWsRequest;
           if (self.sending && pending && pending.agent_id) {
             reconnectPending = true;
             self._clearTypingTimeout();
             ensurePendingThinkingRow('Connection interrupted. Reconnecting...');
-            self.setAgentLiveActivity(pending.agent_id, 'working');
+            self.setAgentLiveActivity(pending.agent_id, {
+              activity: 'working',
+              display_label: 'Working',
+              source: 'shell_optimistic',
+              optimistic: true
+            });
             self._recoverPendingWsRequest('ws_error');
             self.scrollToBottom();
           }
@@ -444,7 +476,12 @@
       this._responseStartedAt = 0;
       this.tokenCount = 0;
       this._inflightPayload = null;
-      this.setAgentLiveActivity(targetId || (this.currentAgent && this.currentAgent.id ? this.currentAgent.id : ''), 'idle');
+      this.setAgentLiveActivity(targetId || (this.currentAgent && this.currentAgent.id ? this.currentAgent.id : ''), {
+        activity: 'idle',
+        display_label: 'Idle',
+        source: 'shell_optimistic',
+        optimistic: true
+      });
 
       if (!opts.silentNotice && noticeKey !== this._lastInactiveNoticeKey) {
         var noticeText = opts.noticeText || '';
@@ -453,7 +490,12 @@
             ? ('Agent ' + targetId + ' is now inactive (' + reasonLabel + ').')
             : ('Agent is now inactive (' + reasonLabel + ').');
         }
-        this.messages.push({ id: ++msgId, role: 'system', text: noticeText, meta: '', tools: [], system_origin: 'agent:inactive', ts: Date.now() });
+        this.addNoticeEvent({
+          notice_label: noticeText,
+          notice_type: 'warn',
+          system_origin: 'agent:inactive',
+          ts: Date.now()
+        });
         this._lastInactiveNoticeKey = noticeKey;
       }
 
@@ -471,17 +513,28 @@
       this.scrollToBottom();
       this.$nextTick(function() { self._processQueue(); });
 
-      try { Alpine.store('app').refreshAgents(); } catch(_) {}
+      try {
+        var inactiveBridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+          ? InfringSharedShellServices.appStore
+          : null;
+        var inactiveRefresh = inactiveBridge && typeof inactiveBridge.method === 'function'
+          ? inactiveBridge.method('refreshAgents')
+          : null;
+        if (typeof inactiveRefresh === 'function') inactiveRefresh();
+      } catch(_) {}
     },
 
     setAgentLiveActivity(agentId, state) {
       var id = String(agentId || '').trim();
       if (!id) return;
       try {
-        var store = Alpine.store('app');
-        if (store && typeof store.setAgentLiveActivity === 'function') {
-          store.setAgentLiveActivity(id, state);
-        }
+        var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+          ? InfringSharedShellServices.appStore
+          : null;
+        var setLiveActivity = bridge && typeof bridge.method === 'function'
+          ? bridge.method('setAgentLiveActivity')
+          : null;
+        if (typeof setLiveActivity === 'function') setLiveActivity(id, state);
       } catch(_) {}
     },
 
@@ -510,17 +563,35 @@
         return;
       }
 
-      this.setAgentLiveActivity(agentId || (this.currentAgent && this.currentAgent.id ? this.currentAgent.id : ''), 'idle');
+      this.setAgentLiveActivity(agentId || (this.currentAgent && this.currentAgent.id ? this.currentAgent.id : ''), {
+        activity: 'idle',
+        display_label: 'Idle',
+        source: 'shell_optimistic',
+        optimistic: true
+      });
       this._clearTypingTimeout();
       typeof this.clearTransientThinkingRows === 'function' ? this.clearTransientThinkingRows({ force: true }) : (this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; }));
-      this.messages.push({ id: ++msgId, role: 'system', text: result.message || 'Run cancelled', meta: '', tools: [], system_origin: 'agent:stop', ts: Date.now() });
+      this.addNoticeEvent({
+        notice_label: result.message || 'Run cancelled',
+        notice_type: 'info',
+        system_origin: 'agent:stop',
+        ts: Date.now()
+      });
       this.sending = false;
       this._responseStartedAt = 0;
       this.tokenCount = 0;
       this.scrollToBottom();
       var self = this;
       this.$nextTick(function() { self._processQueue(); });
-      try { Alpine.store('app').refreshAgents(); } catch(_) {}
+      try {
+        var stopBridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+          ? InfringSharedShellServices.appStore
+          : null;
+        var stopRefresh = stopBridge && typeof stopBridge.method === 'function'
+          ? stopBridge.method('refreshAgents')
+          : null;
+        if (typeof stopRefresh === 'function') stopRefresh();
+      } catch(_) {}
     },
 
     // Preferred naming for websocket event entrypoint.
@@ -591,14 +662,24 @@
             }
           }
           if (data.state === 'start') {
-            this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'typing');
+            this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, {
+              activity: 'typing',
+              display_label: 'Typing',
+              source: 'shell_optimistic',
+              optimistic: true
+            });
             if (!this.messages.length || !this.messages[this.messages.length - 1].thinking) {
               this.ensureLiveThinkingRow(data);
               this.scrollToBottom();
             }
             this._resetTypingTimeout();
           } else if (data.state === 'tool') {
-            this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'working');
+            this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, {
+              activity: 'working',
+              display_label: 'Working',
+              source: 'shell_optimistic',
+              optimistic: true
+            });
             var typingMsg = this.messages.length ? this.messages[this.messages.length - 1] : null;
             if (typingMsg && (typingMsg.thinking || typingMsg.streaming)) {
               typingMsg.text = '';
@@ -628,10 +709,14 @@
           break;
 
         case 'phase':
-          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'working');
+          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, {
+            activity: 'working',
+            display_label: 'Working',
+            source: 'shell_optimistic',
+            optimistic: true
+          });
           // Show tool/phase progress so the user sees the agent is working
           var phaseMsg = this.ensureLiveThinkingRow(data);
           if (phaseMsg && (phaseMsg.thinking || phaseMsg.streaming)) {
-            var phaseDetailText = String(data && data.detail ? data.detail : '').trim();
             var phasePercent = Number(
               data && data.progress_percent != null

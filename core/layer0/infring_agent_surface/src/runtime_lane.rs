@@ -3,9 +3,8 @@ use crate::capability_pack::CapabilityPackCatalog;
 use crate::merkle_receipt::{merkle_receipt_options_from_value, merkle_receipt_payload};
 use crate::provider::{ProviderClientRegistry, ProviderError};
 use crate::rbac_memory::{
-    memory_read_allowed, memory_write_allowed, permission_manifest_from_value,
-    permission_manifest_from_value_with_inheritance,
-    permission_manifest_snapshot, permission_for, PermissionTrit,
+    memory_read_allowed, memory_write_allowed, permission_for, permission_manifest_from_value,
+    permission_manifest_from_value_with_inheritance, permission_manifest_snapshot, PermissionTrit,
 };
 use crate::realtime_voice::{normalize_voice_session_request, voice_session_contract};
 use crate::runtime_state::{
@@ -77,7 +76,9 @@ impl std::fmt::Display for RuntimeLaneError {
 
 impl std::error::Error for RuntimeLaneError {}
 
-pub fn run_runtime_lane(request: RuntimeLaneRequest) -> Result<RuntimeLaneResponse, RuntimeLaneError> {
+pub fn run_runtime_lane(
+    request: RuntimeLaneRequest,
+) -> Result<RuntimeLaneResponse, RuntimeLaneError> {
     let providers = ProviderClientRegistry::with_builtin();
     run_runtime_lane_with_registry(request, &providers)
 }
@@ -548,7 +549,10 @@ fn runtime_requests_network(tools: &[String], metadata: &Value) -> bool {
     {
         return true;
     }
-    tools
-        .iter()
-        .any(|tool| matches!(tool.as_str(), "web.search" | "web.fetch" | "network.request"))
+    tools.iter().any(|tool| {
+        matches!(
+            tool.as_str(),
+            "web.search" | "web.fetch" | "network.request"
+        )
+    })
 }

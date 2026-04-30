@@ -6,11 +6,12 @@ use serde_json::{json, Value};
 use std::collections::BTreeSet;
 
 use super::{
+    build_incident_diagnostic_follow_up_request, KernelSentinelDiagnosticRequest,
     KernelSentinelFailureLevel, KernelSentinelIncidentCluster,
     KernelSentinelIncidentClusterKey, KernelSentinelIncidentEvidenceLevel,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct KernelSentinelArchitecturalIncident {
     pub cluster_key: KernelSentinelIncidentClusterKey,
     pub occurrence_count: usize,
@@ -25,6 +26,7 @@ pub struct KernelSentinelArchitecturalIncident {
     pub evidence_levels: Vec<KernelSentinelIncidentEvidenceLevel>,
     pub evidence_refs: Vec<String>,
     pub summaries: Vec<String>,
+    pub diagnostic_follow_up_request: Option<KernelSentinelDiagnosticRequest>,
 }
 
 fn root_frame_for_failure_level(level: KernelSentinelFailureLevel) -> &'static str {
@@ -210,11 +212,20 @@ pub fn synthesize_kernel_sentinel_architectural_incidents(
             let stop_patching_reasons = stop_patching_reasons(cluster, &affected_layers);
             let failure_level = if authority_shaped_residue(cluster) && cluster.highest_failure_level < KernelSentinelFailureLevel::L3PolicyTruthFailure { KernelSentinelFailureLevel::L3PolicyTruthFailure } else if source_of_truth_ambiguity(cluster) && cluster.highest_failure_level < KernelSentinelFailureLevel::L3PolicyTruthFailure { KernelSentinelFailureLevel::L3PolicyTruthFailure } else if process_ownership_invariant_breach(cluster) && cluster.highest_failure_level < KernelSentinelFailureLevel::L2BoundaryContractBreach { KernelSentinelFailureLevel::L2BoundaryContractBreach } else { cluster.highest_failure_level };
             let remediation_class = remediation_class(&KernelSentinelIncidentCluster { highest_failure_level: failure_level, ..cluster.clone() }, &affected_layers, &stop_patching_reasons);
+            let likely_root_frame = root_frame_for_failure_level(failure_level).to_string();
+            let diagnostic_follow_up_request = build_incident_diagnostic_follow_up_request(
+                cluster.occurrence_count,
+                failure_level,
+                &likely_root_frame,
+                &stop_patching_reasons,
+                &cluster.evidence_refs,
+                &cluster.summaries,
+            );
             KernelSentinelArchitecturalIncident {
                 cluster_key: cluster.key.clone(),
                 occurrence_count: cluster.occurrence_count,
                 violated_invariants: violated_invariants(cluster),
-                likely_root_frame: root_frame_for_failure_level(failure_level).to_string(),
+                likely_root_frame,
                 confidence_percent: confidence_percent(cluster),
                 affected_layers,
                 remediation_class: remediation_class.to_string(),
@@ -224,6 +235,7 @@ pub fn synthesize_kernel_sentinel_architectural_incidents(
                 evidence_levels: cluster.evidence_levels.clone(),
                 evidence_refs: cluster.evidence_refs.clone(),
                 summaries: cluster.summaries.clone(),
+                diagnostic_follow_up_request,
             }
         })
         .collect()
@@ -281,7 +293,8 @@ pub fn kernel_sentinel_architectural_issue_template(
         "structural_remediation": structural_remediation(incident),
         "acceptance_criteria": architectural_acceptance_criteria(incident),
         "evidence": incident.evidence_refs,
-        "summaries": incident.summaries
+        "summaries": incident.summaries,
+        "diagnostic_follow_up_request": incident.diagnostic_follow_up_request
     })
 }
 

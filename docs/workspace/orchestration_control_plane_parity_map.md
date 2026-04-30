@@ -2,11 +2,11 @@
 
 Status: active transition map
 Owner: orchestration
-Purpose: keep the Infring control plane understandable against OpenHands and OpenFang while preventing coordination authority from scattering into Shell/Core.
+Purpose: keep the Infring control plane understandable against OpenHands and OpenFang while preventing coordination authority from scattering into Shell or Kernel.
 
 ## Boundary Rule
 
-Core decides truth and permission.
+Kernel decides truth and permission (`core/**` is the implementation path only).
 Orchestration decides what should happen next.
 Shell shows and collects interaction.
 
@@ -18,7 +18,7 @@ Infring mapping:
 
 - OpenHands EventStream -> Infring workflow/state streams under `response_workflow`, `local/state/ops/orchestration/**`, and eval trace artifacts.
 - OpenHands action execution -> Infring typed tool-family contracts (`workspace`, `web`, `memory`, `agent`, `shell`, `browser`) with request, observation, and receipt binding.
-- OpenHands runtime/sandbox -> Infring Core/Gateway execution authority, with Orchestration only recommending and sequencing tool requests.
+- OpenHands runtime/sandbox -> Infring Kernel/Gateway execution authority, with Orchestration only recommending and sequencing tool requests.
 - OpenHands memory condenser -> Infring memory/context surfaces, with Orchestration consuming snapshots and packaging result context.
 - OpenHands UI event stream -> Infring UI harness streams (`workflow_state`, `agent_internal_notes`, `tool_trace`, `eval_trace`, `final_answer`).
 

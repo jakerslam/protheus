@@ -59,10 +59,7 @@ fn sanitize_text(raw: &str, max_len: usize) -> String {
 fn sanitize_id(raw: &str, max_len: usize) -> String {
     sanitize_text(raw, max_len)
         .chars()
-        .filter(|ch| {
-            ch.is_ascii_alphanumeric()
-                || matches!(ch, ':' | '/' | '.' | '_' | '-' | '#')
-        })
+        .filter(|ch| ch.is_ascii_alphanumeric() || matches!(ch, ':' | '/' | '.' | '_' | '-' | '#'))
         .collect::<String>()
 }
 
@@ -474,7 +471,11 @@ pub fn ingest(
         tags,
         updated_at: now_ts(),
         repetitions,
-        retention_score: clamp_retention_score(ebbinghaus::retention_score(0.0, repetitions, lambda)),
+        retention_score: clamp_retention_score(ebbinghaus::retention_score(
+            0.0,
+            repetitions,
+            lambda,
+        )),
     };
     native::upsert_memory(row.clone())?;
     Ok(row)

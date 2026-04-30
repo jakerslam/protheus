@@ -144,7 +144,7 @@ fn session_backed_agents_drive_roster_sessions_and_usage() {
     assert_eq!(
         session
             .payload
-            .get("messages")
+            .pointer("/message_window/rows")
             .and_then(Value::as_array)
             .map(|rows| rows.len()),
         Some(2)

@@ -64,7 +64,7 @@ function workflowBuilder() {
     },
 
     // ── SVG Manual Rendering ────────────────────────────
-    // Alpine.js x-for inside <svg> breaks because document.importNode
+    // Legacy x-for inside <svg> breaks because document.importNode
     // doesn't handle SVG namespace correctly. We render nodes/connections
     // manually via createElementNS and schedule re-renders reactively.
 

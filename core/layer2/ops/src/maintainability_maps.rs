@@ -12,8 +12,7 @@ pub const DEFAULT_ARCHITECTURE_MAP_PATH: &str =
     "core/local/artifacts/architecture_map_current.json";
 pub const DEFAULT_DEPENDENCY_GRAPH_PATH: &str =
     "core/local/artifacts/dependency_graph_current.json";
-pub const DEFAULT_OWNERSHIP_MAP_PATH: &str =
-    "core/local/artifacts/ownership_map_current.json";
+pub const DEFAULT_OWNERSHIP_MAP_PATH: &str = "core/local/artifacts/ownership_map_current.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct MaintainabilityPolicy {
@@ -88,9 +87,7 @@ pub fn build_maintainability_report(
     let deletion_ratio_percent = if policy.deletion_cycle_total_changes == 0 {
         100
     } else {
-        policy
-            .deletion_cycle_removed_dead_code
-            .saturating_mul(100)
+        policy.deletion_cycle_removed_dead_code.saturating_mul(100)
             / policy.deletion_cycle_total_changes
     };
     let deletion_policy = json!({
@@ -106,21 +103,24 @@ pub fn build_maintainability_report(
         .all(|root| architecture_map.iter().any(|node| node.root == *root));
     let deletion_ok = deletion_ratio_percent >= policy.deletion_ratio_min_percent;
     let dependency_ok = dependency_graph.iter().any(|edge| edge.count > 0)
-        && dependency_graph.iter().all(|edge| {
-            !edge.source_root.is_empty() && !edge.dependency_root.is_empty()
-        });
+        && dependency_graph
+            .iter()
+            .all(|edge| !edge.source_root.is_empty() && !edge.dependency_root.is_empty());
     let ownership_ok = !ownership_map.is_empty()
         && ownership_map
             .iter()
             .all(|row| !row.owner.is_empty() && !row.layer.is_empty());
-    let auto_update_ok = policy.auto_update_required_artifacts.iter().all(|artifact| {
-        matches!(
-            artifact.as_str(),
-            DEFAULT_ARCHITECTURE_MAP_PATH
-                | DEFAULT_DEPENDENCY_GRAPH_PATH
-                | DEFAULT_OWNERSHIP_MAP_PATH
-        )
-    });
+    let auto_update_ok = policy
+        .auto_update_required_artifacts
+        .iter()
+        .all(|artifact| {
+            matches!(
+                artifact.as_str(),
+                DEFAULT_ARCHITECTURE_MAP_PATH
+                    | DEFAULT_DEPENDENCY_GRAPH_PATH
+                    | DEFAULT_OWNERSHIP_MAP_PATH
+            )
+        });
     let checks = vec![
         check_row("continuous_deletion_policy_ratio_contract", deletion_ok),
         check_row("architecture_map_generation_contract", roots_present),
@@ -182,7 +182,9 @@ fn collect_source_files(root: &Path, policy: &MaintainabilityPolicy) -> Vec<Stri
 fn collect_source_files_inner(path: &Path, out: &mut Vec<String>, policy: &MaintainabilityPolicy) {
     let Ok(meta) = fs::metadata(path) else { return };
     if meta.is_dir() {
-        let Ok(entries) = fs::read_dir(path) else { return };
+        let Ok(entries) = fs::read_dir(path) else {
+            return;
+        };
         for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().to_string();
             if matches!(
@@ -201,7 +203,11 @@ fn collect_source_files_inner(path: &Path, out: &mut Vec<String>, policy: &Maint
     let Some(ext) = path.extension().and_then(|ext| ext.to_str()) else {
         return;
     };
-    if !policy.source_extensions.iter().any(|allowed| allowed == ext) {
+    if !policy
+        .source_extensions
+        .iter()
+        .any(|allowed| allowed == ext)
+    {
         return;
     }
     out.push(normalize_path(path));
@@ -340,12 +346,14 @@ mod tests {
             &policy,
             Path::new("."),
         );
-        assert!(report
-            .deletion_policy
-            .get("deletion_ratio_percent")
-            .and_then(Value::as_u64)
-            .unwrap_or(0)
-            >= u64::from(policy.deletion_ratio_min_percent));
+        assert!(
+            report
+                .deletion_policy
+                .get("deletion_ratio_percent")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+                >= u64::from(policy.deletion_ratio_min_percent)
+        );
     }
 
     #[test]
@@ -357,7 +365,10 @@ mod tests {
             Path::new("."),
         );
         assert!(report.ok);
-        assert!(report.architecture_map.iter().any(|node| node.root == "core"));
+        assert!(report
+            .architecture_map
+            .iter()
+            .any(|node| node.root == "core"));
         assert!(!report.dependency_graph.is_empty());
         assert!(report.ownership_map.iter().any(|row| row.owner == "kernel"));
     }

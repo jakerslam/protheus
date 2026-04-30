@@ -153,7 +153,12 @@ pub fn evaluate_capability_requests(
 
 pub fn default_capability_requests() -> Vec<CapabilityRequest> {
     vec![
-        request("workspace_read_granted", "operator", "read_file", &["read_file"]),
+        request(
+            "workspace_read_granted",
+            "operator",
+            "read_file",
+            &["read_file"],
+        ),
         request(
             "workspace_search_granted",
             "operator",
@@ -191,9 +196,9 @@ pub fn build_kernel_capability_guard_report(
         .iter()
         .filter(|decision| decision.request_id.ends_with("_granted"))
         .all(|decision| decision.granted);
-    let denial_ok = decisions.iter().any(|decision| {
-        !decision.granted && decision.reason == "missing_capability:mutate_state"
-    });
+    let denial_ok = decisions
+        .iter()
+        .any(|decision| !decision.granted && decision.reason == "missing_capability:mutate_state");
     let receipt_ok = decisions.iter().all(|decision| {
         decision.receipt.receipt_type == "kernel_capability_check_receipt"
             && decision.receipt.capability == decision.required_capability
@@ -205,11 +210,17 @@ pub fn build_kernel_capability_guard_report(
         && policy.receipt_requirements.include_denied_records;
     let checks = vec![
         check_row("kernel_capability_model_required_set_contract", model_ok),
-        check_row("kernel_capability_action_mapping_contract", action_mapping_ok),
+        check_row(
+            "kernel_capability_action_mapping_contract",
+            action_mapping_ok,
+        ),
         check_row("kernel_capability_pre_execution_grant_contract", grant_ok),
         check_row("kernel_capability_pre_execution_denial_contract", denial_ok),
         check_row("kernel_capability_receipt_contract", receipt_ok),
-        check_row("kernel_capability_receipt_policy_contract", receipt_policy_ok),
+        check_row(
+            "kernel_capability_receipt_policy_contract",
+            receipt_policy_ok,
+        ),
     ];
     let ok = checks
         .iter()
@@ -313,10 +324,8 @@ mod tests {
     use super::*;
 
     fn policy() -> KernelCapabilityPolicy {
-        serde_json::from_str(include_str!(
-            "../config/kernel_capability_policy.json"
-        ))
-        .expect("policy")
+        serde_json::from_str(include_str!("../config/kernel_capability_policy.json"))
+            .expect("policy")
     }
 
     #[test]

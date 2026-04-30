@@ -47,6 +47,68 @@ fn agent_create_without_name_returns_non_generic_identity_name() {
 }
 
 #[test]
+fn agents_sidebar_compact_view_skips_heavy_profile_fields() {
+    let root = agent_create_temp_root();
+    init_git_repo(root.path());
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"Compact Test","role":"analyst"}"#,
+        &agent_create_ok_snapshot(),
+    )
+    .expect("create agent");
+    assert_eq!(created.status, 200);
+    let agent_id = clean_text(
+        created
+            .payload
+            .get("agent_id")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        180,
+    );
+    assert!(!agent_id.is_empty());
+
+    let oversized_avatar = format!("data:image/svg+xml;base64,{}", "a".repeat(8192));
+    let config = serde_json::to_vec(&json!({
+        "avatar_url": oversized_avatar,
+        "system_prompt": "heavy hidden prompt"
+    }))
+    .expect("config json");
+    let configured = handle(
+        root.path(),
+        "PATCH",
+        &format!("/api/agents/{agent_id}/config"),
+        &config,
+        &agent_create_ok_snapshot(),
+    )
+    .expect("config agent");
+    assert_eq!(configured.status, 200);
+
+    let compact = handle(
+        root.path(),
+        "GET",
+        "/api/agents?view=sidebar&authority=runtime&compact=1",
+        &[],
+        &agent_create_ok_snapshot(),
+    )
+    .expect("compact sidebar agents");
+    assert_eq!(compact.status, 200);
+    let rows = compact.payload.as_array().cloned().unwrap_or_default();
+    let row = rows
+        .iter()
+        .find(|row| row.get("id").and_then(Value::as_str) == Some(agent_id.as_str()))
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    assert_eq!(row.get("avatar_url").and_then(Value::as_str), Some(""));
+    assert_eq!(row.get("system_prompt").and_then(Value::as_str), Some(""));
+    assert!(
+        row.get("sidebar_preview").is_none(),
+        "compact sidebar view must not synchronously scan session previews"
+    );
+}
+
+#[test]
 fn large_param_models_preserve_default_name_during_post_init_seed() {
     let root = agent_create_temp_root();
     init_git_repo(root.path());

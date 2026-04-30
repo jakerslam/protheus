@@ -84,7 +84,6 @@ fn eval_agent_feedback_prompt_context(root: &Path, agent_id: &str, max_items: us
         lines.join("\n")
     )
 }
-
 fn live_eval_monitor_enabled(root: &Path) -> bool {
     if let Ok(raw) = std::env::var("INFRING_LIVE_EVAL_MONITOR") {
         let v = raw.trim().to_ascii_lowercase();
@@ -183,6 +182,8 @@ fn live_eval_monitor_turn(
             .unwrap_or(""),
         120,
     );
+    let final_empty_is_pending_tool_request =
+        final_text.is_empty() && response_finalization.get("pending_tool_request").is_some();
     let repeated_response = !prev_sig.is_empty() && prev_sig == final_sig;
     let repeated_response_has_failure_shape = system_fallback
         || final_ack_only
@@ -194,11 +195,11 @@ fn live_eval_monitor_turn(
     let mut events = Vec::<Value>::new();
     if final_text.is_empty() && !route_failure_code.is_empty() {
         events.push(live_eval_issue_event(&id, "message_route_error", "warn", &format!("Live eval saw a structured message route error: {route_failure_code}."), message, response));
-    } else if final_text.is_empty() {
+    } else if final_text.is_empty() && !final_empty_is_pending_tool_request {
         events.push(live_eval_issue_event(&id, "no_response", "high", "Live eval saw an empty finalized assistant response.", message, response));
     } else if repeated_response && (!repeated_user_request || repeated_response_has_failure_shape) {
         events.push(live_eval_issue_event(&id, "repeated_response_loop", "high", "Live eval saw a repeated assistant response.", message, response));
-    } else if final_ack_only {
+    } else if final_ack_only && !final_empty_is_pending_tool_request {
         events.push(live_eval_issue_event(&id, "ack_only_final_response", "warn", "Live eval saw an ack-only final response.", message, response));
     }
     if visible_response_looks_like_internal_deliberation(&final_text) {
@@ -274,7 +275,6 @@ fn visible_response_looks_like_internal_deliberation(response: &str) -> bool {
 fn visible_response_looks_like_json_response_wrapper(response: &str) -> bool {
     normalize_response_field_json_wrapper(response).is_some()
 }
-
 fn strip_redundant_key_findings_prefix(raw: &str) -> String {
     let mut cleaned = clean_text(raw, 2_400);
     loop {

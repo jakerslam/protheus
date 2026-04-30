@@ -317,7 +317,10 @@ mod tests {
         let normalized = normalize_claim_evidence(&rows);
         assert_eq!(normalized.len(), 1);
         assert_eq!(normalized[0].claim, "deterministic decision");
-        assert_eq!(normalized[0].evidence, vec!["local/state/receipt.json".to_string()]);
+        assert_eq!(
+            normalized[0].evidence,
+            vec!["local/state/receipt.json".to_string()]
+        );
         assert_eq!(normalized[0].persona_lenses, vec!["ops_guard".to_string()]);
     }
 }

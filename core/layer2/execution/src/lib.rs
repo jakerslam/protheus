@@ -4,14 +4,14 @@ mod blob;
 mod decompose;
 mod execution_unit;
 mod graph_runtime;
+#[cfg(test)]
+mod graph_runtime_tests;
 mod importers;
 mod initiative;
 mod inversion;
 #[cfg(kani)]
 mod scheduler_kani_proofs;
 mod sprint_contract;
-#[cfg(test)]
-mod graph_runtime_tests;
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -138,9 +138,9 @@ pub use execution_unit::{
     ExecutionUnitTracker, ExecutionUnitTransitionReceipt,
 };
 pub use graph_runtime::{
-    run_graph_workflow, run_graph_workflow_json, GraphCheckpoint, GraphCheckpointStore,
-    GraphEdge, GraphExecutionInput, GraphExecutionReceipt, GraphNode, GraphNodeKind,
-    GraphRuntimeEvent, GraphWorkflowDefinition, HitlDecision, InMemoryCheckpointStore,
+    run_graph_workflow, run_graph_workflow_json, GraphCheckpoint, GraphCheckpointStore, GraphEdge,
+    GraphExecutionInput, GraphExecutionReceipt, GraphNode, GraphNodeKind, GraphRuntimeEvent,
+    GraphWorkflowDefinition, HitlDecision, InMemoryCheckpointStore,
 };
 pub use importers::{
     run_importer_generic_json_json, run_importer_generic_yaml_json, run_importer_infring_json,

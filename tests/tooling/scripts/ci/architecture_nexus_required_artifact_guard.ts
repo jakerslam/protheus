@@ -3,7 +3,7 @@ import { dirname } from 'path';
 
 const SRS_ID = 'V12-ARCH-NEXUS-REQUIRED-001';
 const LEGACY_SRS_ID = 'V11-ARCH-005';
-const DEFAULT_MANIFEST = 'tests/tooling/config/release_proof_pack_manifest.json';
+const DEFAULT_MANIFEST = 'validation/release_gates/contracts/release_proof_pack_manifest.json';
 const DEFAULT_REGISTRY = 'tests/tooling/config/tooling_gate_registry.json';
 const DEFAULT_OUT = 'core/local/artifacts/architecture_nexus_required_artifact_guard_current.json';
 const DEFAULT_REPORT = 'local/workspace/reports/ARCHITECTURE_NEXUS_REQUIRED_ARTIFACT_GUARD_CURRENT.md';
