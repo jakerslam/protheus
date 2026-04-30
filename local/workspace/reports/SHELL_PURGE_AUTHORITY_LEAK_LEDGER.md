@@ -154,7 +154,7 @@ Progress:
 
 ### SHP-AUTH-005 - Tool completion and result truth are inferred in shell
 
-Status: queued
+Status: in_progress
 Priority: P1
 Current files:
 - `client/runtime/systems/ui/infring_static/js/pages/chat_assistant_text_signal_helpers.ts`
@@ -178,6 +178,13 @@ Acceptance:
 - Shell does not contain `authoritative` completion heuristics.
 - Empty assistant text with tool receipts is represented by structured receipt state, not shell inference.
 - Regression covers success, error, blocked, low-signal, and no-output tool receipts.
+
+Progress:
+- 2026-04-30: Added Rust control-plane tool result packaging primitives in `surface/orchestration/src/control_plane/tool_result_packaging.rs`.
+- `package_tool_receipts` now owns non-authoritative packaging decisions for success, error, blocked, low-signal, no-output, running tools, and empty assistant text with receipts.
+- Tool completion is represented as structured receipt projection state; visible chat text remains allowed only when assistant text exists.
+- Core/runtime remains the intended authority for canonical tool receipts and status truth; shell should transition to rendering normalized tool receipt projections only.
+- Regression tests cover success, error, blocked, low-signal, no-output, and empty-assistant-with-receipts cases.
 
 ### SHP-AUTH-006 - System-authored chat text still exists in shell helpers
 
