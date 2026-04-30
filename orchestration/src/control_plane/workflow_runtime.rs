@@ -122,7 +122,7 @@ pub fn run_workflow_replay(fixture: &WorkflowReplayFixture) -> WorkflowReplayRep
 pub fn select_runtime_workflow(workflow_id: &str) -> Option<NormalizedWorkflowGraph> {
     registered_workflow_graphs()
         .into_iter()
-        .find(|graph| graph.workflow_id == workflow_id)
+        .find(|graph| graph.workflow_id == workflow_id && graph.runtime_selectable)
 }
 
 pub fn graph_hash(graph: &NormalizedWorkflowGraph) -> String {

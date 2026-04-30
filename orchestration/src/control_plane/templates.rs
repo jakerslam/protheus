@@ -51,53 +51,55 @@ struct WorkflowSubtemplateSpec {
 }
 
 const WORKFLOW_TEMPLATE_SPEC_CLARIFY_THEN_COORDINATE: &str =
-    include_str!("workflows/clarify_then_coordinate.workflow.json");
+    include_str!("workflows/official/clarify_then_coordinate.workflow.json");
 const WORKFLOW_TEMPLATE_SPEC_RESEARCH_SYNTHESIZE_VERIFY: &str =
-    include_str!("workflows/research_synthesize_verify.workflow.json");
+    include_str!("workflows/official/research_synthesize_verify.workflow.json");
 const WORKFLOW_TEMPLATE_SPEC_PLAN_EXECUTE_REVIEW: &str =
-    include_str!("workflows/plan_execute_review.workflow.json");
+    include_str!("workflows/official/plan_execute_review.workflow.json");
 const WORKFLOW_TEMPLATE_SPEC_DIAGNOSE_RETRY_ESCALATE: &str =
-    include_str!("workflows/diagnose_retry_escalate.workflow.json");
+    include_str!("workflows/official/diagnose_retry_escalate.workflow.json");
 const WORKFLOW_TEMPLATE_SPEC_CODEX_TOOLING_SYNTHESIS: &str =
-    include_str!("workflows/codex_tooling_synthesis.workflow.json");
+    include_str!("workflows/lab/frameworks/codex/codex_tooling_synthesis.workflow.json");
 const WORKFLOW_TEMPLATE_SPEC_FORGECODE_AGENT_COMPOSITION: &str =
-    include_str!("workflows/forgecode_agent_composition.workflow.json");
-const WORKFLOW_TEMPLATE_SPEC_FORGECODE_RAW_CAPABILITY_ASSIMILATION: &str =
-    include_str!("workflows/forgecode_raw_capability_assimilation.workflow.json");
-const WORKFLOW_TEMPLATE_SPEC_OPENHANDS_CONTROL_PLANE_ASSIMILATION: &str =
-    include_str!("workflows/openhands_control_plane_assimilation.workflow.json");
+    include_str!("workflows/lab/frameworks/forgecode/forgecode_agent_composition.workflow.json");
+const WORKFLOW_TEMPLATE_SPEC_FORGECODE_RAW_CAPABILITY_ASSIMILATION: &str = include_str!(
+    "workflows/lab/frameworks/forgecode/forgecode_raw_capability_assimilation.workflow.json"
+);
+const WORKFLOW_TEMPLATE_SPEC_OPENHANDS_CONTROL_PLANE_ASSIMILATION: &str = include_str!(
+    "workflows/lab/frameworks/openhands/openhands_control_plane_assimilation.workflow.json"
+);
 
 const WORKFLOW_TEMPLATE_SPEC_SOURCES: &[(&str, &str)] = &[
     (
-        "workflows/clarify_then_coordinate.workflow.json",
+        "workflows/official/clarify_then_coordinate.workflow.json",
         WORKFLOW_TEMPLATE_SPEC_CLARIFY_THEN_COORDINATE,
     ),
     (
-        "workflows/research_synthesize_verify.workflow.json",
+        "workflows/official/research_synthesize_verify.workflow.json",
         WORKFLOW_TEMPLATE_SPEC_RESEARCH_SYNTHESIZE_VERIFY,
     ),
     (
-        "workflows/plan_execute_review.workflow.json",
+        "workflows/official/plan_execute_review.workflow.json",
         WORKFLOW_TEMPLATE_SPEC_PLAN_EXECUTE_REVIEW,
     ),
     (
-        "workflows/diagnose_retry_escalate.workflow.json",
+        "workflows/official/diagnose_retry_escalate.workflow.json",
         WORKFLOW_TEMPLATE_SPEC_DIAGNOSE_RETRY_ESCALATE,
     ),
     (
-        "workflows/codex_tooling_synthesis.workflow.json",
+        "workflows/lab/frameworks/codex/codex_tooling_synthesis.workflow.json",
         WORKFLOW_TEMPLATE_SPEC_CODEX_TOOLING_SYNTHESIS,
     ),
     (
-        "workflows/forgecode_agent_composition.workflow.json",
+        "workflows/lab/frameworks/forgecode/forgecode_agent_composition.workflow.json",
         WORKFLOW_TEMPLATE_SPEC_FORGECODE_AGENT_COMPOSITION,
     ),
     (
-        "workflows/forgecode_raw_capability_assimilation.workflow.json",
+        "workflows/lab/frameworks/forgecode/forgecode_raw_capability_assimilation.workflow.json",
         WORKFLOW_TEMPLATE_SPEC_FORGECODE_RAW_CAPABILITY_ASSIMILATION,
     ),
     (
-        "workflows/openhands_control_plane_assimilation.workflow.json",
+        "workflows/lab/frameworks/openhands/openhands_control_plane_assimilation.workflow.json",
         WORKFLOW_TEMPLATE_SPEC_OPENHANDS_CONTROL_PLANE_ASSIMILATION,
     ),
 ];
