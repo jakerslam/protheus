@@ -117,6 +117,10 @@ pub fn control_plane_api_contract() -> ControlPlaneApiContract {
             "recovery_recommendation_envelope",
             "clarification_request_envelope",
             "result_package_projection",
+            "status_phase_projection",
+            "agent_activity_projection",
+            "thinking_bubble_projection",
+            "context_warning_projection",
         ],
         forbidden_authority_domains: &[
             "canonical_policy_truth",
