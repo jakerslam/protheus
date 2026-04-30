@@ -13,6 +13,15 @@ impl SubdomainContract for StatusPhaseProjectionContract {
     }
 }
 
+pub fn emitted_shell_projection_types() -> &'static [&'static str] {
+    &[
+        "status_phase_projection",
+        "agent_activity_projection",
+        "thinking_bubble_projection",
+        "context_warning_projection",
+    ]
+}
+
 pub fn boundary() -> SubdomainBoundary {
     SubdomainBoundary {
         id: "status_phase_projection",
@@ -28,12 +37,7 @@ pub fn boundary() -> SubdomainBoundary {
             "execution_observation_snapshot",
             "policy_scope_snapshot",
         ],
-        allowed_kernel_outputs: &[
-            "status_phase_projection",
-            "agent_activity_projection",
-            "thinking_bubble_projection",
-            "context_warning_projection",
-        ],
+        allowed_kernel_outputs: emitted_shell_projection_types(),
         message_boundaries: &[
             "status_to_shell_projection_boundary",
             "status_to_workflow_event_boundary",
@@ -395,6 +399,34 @@ mod tests {
         assert_eq!(value["source"], "core_runtime");
         assert_eq!(value["activity"], "working");
         assert_eq!(value["status_text"], "Working");
+    }
+
+    #[test]
+    fn emitted_projection_types_match_shell_envelope_outputs() {
+        let mut activity_event = backend_event(StatusEventKind::AgentActivity, "Working");
+        activity_event.source = StatusSourceAuthority::CoreRuntime;
+        activity_event.activity = Some(AgentActivityState::Working);
+        let events = [
+            backend_event(StatusEventKind::WorkflowPhase, "Planning"),
+            activity_event,
+            backend_event(StatusEventKind::ThinkingBubble, "Thinking"),
+            backend_event(StatusEventKind::ContextWarning, "Context warning"),
+        ];
+
+        let mut projection_types = events
+            .iter()
+            .map(|event| {
+                project_status_event_for_shell(event)
+                    .expect("event should export a shell projection")
+                    .projection_type
+            })
+            .collect::<Vec<_>>();
+        projection_types.sort();
+
+        let mut declared = emitted_shell_projection_types().to_vec();
+        declared.sort();
+
+        assert_eq!(projection_types, declared);
     }
 
     #[test]

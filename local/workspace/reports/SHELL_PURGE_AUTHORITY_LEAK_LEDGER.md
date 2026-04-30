@@ -436,6 +436,7 @@ Progress:
 - 2026-04-30: Added a projection-guard ratchet for the exact `phaseDetailText` status-candidate fallback so raw websocket detail text cannot spread as user-visible status truth.
 - 2026-04-30: Split status projection envelope/type definitions into `status_phase_projection_types.rs` and re-exported them from the projection module to keep the control-plane contract readable without breaking callers.
 - 2026-04-30: Declared status/phase projection outputs (`status_phase_projection`, `agent_activity_projection`, `thinking_bubble_projection`, `context_warning_projection`) in the global control-plane API contract and added a boundary regression for the previously missing thinking-bubble output.
+- 2026-04-30: Added a single emitted status projection type list and regressions proving the shell envelope outputs stay synchronized with subdomain/global control-plane contract acceptance.
 
 ## Execution Notes
 
