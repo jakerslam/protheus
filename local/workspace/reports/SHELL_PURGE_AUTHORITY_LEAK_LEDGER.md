@@ -389,7 +389,7 @@ Progress:
 
 ### SHP-AUTH-012 - Status, phase, and context labels are inferred in shell
 
-Status: queued
+Status: in_progress
 Priority: P2
 Current files:
 - `client/runtime/systems/ui/infring_static/js/pages/chat_ws_phase_event_helpers.ts`
@@ -413,6 +413,13 @@ Acceptance:
 - Shell labels identify source authority or optimistic state.
 - Context warnings come from backend event payloads, not shell-authored chat rows.
 - Regression covers phase events, thinking bubble updates, idle transition, and context warning projection.
+
+Progress:
+- 2026-04-30: Added Rust control-plane status/phase projection primitives in `surface/orchestration/src/control_plane/status_phase_projection.rs`.
+- `project_status_event` now requires backend event ids for backend-sourced status labels and explicit optimistic marking for shell-origin transient UI labels.
+- Context warnings are rejected when shell-authored, preserving backend event payloads as the source of warning text.
+- Regression tests cover workflow phase events, thinking-bubble labels, idle activity transitions, backend event id enforcement, optimistic shell labels, and context warning rejection.
+- Remaining shell transition: consume the status/phase projection envelope from backend events and remove local status/context label inference from chat helpers.
 
 ## Execution Notes
 

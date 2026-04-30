@@ -11,6 +11,7 @@ pub mod queue_coordination;
 pub mod recovery_escalation;
 pub mod result_shaping_packaging;
 pub mod security_network_migration;
+pub mod status_phase_projection;
 pub mod templates;
 pub mod terminal_coordination;
 pub mod tool_result_packaging;
@@ -358,6 +359,13 @@ pub fn subdomain_trace_contracts() -> Vec<SubdomainTraceContract> {
             receipt_metadata_sources: RECEIPT_METADATA_SOURCES,
         },
         SubdomainTraceContract {
+            trace_id: "status_phase_projection.trace",
+            subdomain_id: "status_phase_projection",
+            stage: WorkflowStage::ResultPackaging,
+            required_decision_fields: REQUIRED_DECISION_FIELDS,
+            receipt_metadata_sources: RECEIPT_METADATA_SOURCES,
+        },
+        SubdomainTraceContract {
             trace_id: "terminal_coordination.trace",
             subdomain_id: "terminal_coordination",
             stage: WorkflowStage::CoordinationSequencing,
@@ -455,6 +463,7 @@ pub fn subdomain_boundaries() -> Vec<SubdomainBoundary> {
         queue_coordination::boundary(),
         recovery_escalation::boundary(),
         security_network_migration::boundary(),
+        status_phase_projection::boundary(),
         terminal_coordination::boundary(),
         result_shaping_packaging::boundary(),
         tool_result_packaging::boundary(),
