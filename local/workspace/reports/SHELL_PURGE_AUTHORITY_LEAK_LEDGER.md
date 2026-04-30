@@ -430,6 +430,7 @@ Progress:
 - 2026-04-30: Added backend/core activity projection ingestion in `app_agent_refresh_helpers.ts` for `agent_activity_projection`, `activity_projection`, and `live_activity_projection` payloads; projected rows now land with `optimistic: false` and preserve source/display metadata.
 - 2026-04-30: Extended `infringSetAgentLiveActivity` to accept activity projection objects directly, preserving projected `source`, `display_label`, and timestamp metadata while keeping string callers as shell-optimistic transitions.
 - 2026-04-30: Added a shell projection guard ratchet preventing anonymous `{ state, ts }` live-activity rows from returning without `source`/`optimistic` projection metadata.
+- 2026-04-30: Added a Rust shell-ready status projection envelope (`projection_type`, `status_text`, `source`, `optimistic`, optional `activity`) so websocket/UI code has a canonical projection target instead of deriving labels from raw `detail` fields.
 
 ## Execution Notes
 
