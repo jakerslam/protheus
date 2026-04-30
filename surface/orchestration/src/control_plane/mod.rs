@@ -5,6 +5,7 @@ pub mod command_dispatch;
 pub mod decomposition_planning;
 pub mod intake_normalization;
 pub mod lifecycle;
+pub mod model_provider_coordination;
 pub mod queue_coordination;
 pub mod recovery_escalation;
 pub mod result_shaping_packaging;
@@ -292,6 +293,13 @@ pub fn subdomain_trace_contracts() -> Vec<SubdomainTraceContract> {
             receipt_metadata_sources: RECEIPT_METADATA_SOURCES,
         },
         SubdomainTraceContract {
+            trace_id: "model_provider_coordination.trace",
+            subdomain_id: "model_provider_coordination",
+            stage: WorkflowStage::RecoveryEscalation,
+            required_decision_fields: REQUIRED_DECISION_FIELDS,
+            receipt_metadata_sources: RECEIPT_METADATA_SOURCES,
+        },
+        SubdomainTraceContract {
             trace_id: "command_dispatch.trace",
             subdomain_id: "command_dispatch",
             stage: WorkflowStage::IntakeNormalization,
@@ -422,6 +430,7 @@ pub fn subdomain_boundaries() -> Vec<SubdomainBoundary> {
         agent_lifecycle_coordination::boundary(),
         chat_visibility::boundary(),
         intake_normalization::boundary(),
+        model_provider_coordination::boundary(),
         command_dispatch::boundary(),
         decomposition_planning::boundary(),
         workflow_graph_compilation::boundary(),
