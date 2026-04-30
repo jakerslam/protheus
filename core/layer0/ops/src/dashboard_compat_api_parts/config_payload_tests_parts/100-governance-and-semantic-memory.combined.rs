@@ -24,3 +24,12 @@ include!(
 include!(
     "100-governance-and-semantic-memory.combined_parts/1190-workflow-self-play-coverage.rs"
 );
+include!(
+    "100-governance-and-semantic-memory.combined_parts/1200-workflow-json-tool-menu-contract.rs"
+);
+include!(
+    "100-governance-and-semantic-memory.combined_parts/1210-live-eval-workflow-issue-flags.rs"
+);
+include!(
+    "100-governance-and-semantic-memory.combined_parts/1220-workflow-live-provider-self-play-smoke.rs"
+);
