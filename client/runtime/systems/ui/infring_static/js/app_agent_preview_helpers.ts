@@ -174,7 +174,10 @@ function infringSetAgentLiveActivity(page, agentId, state, options) {
   var id = String(agentId || '').trim();
   if (!id) return;
   var opts = options && typeof options === 'object' ? options : {};
-  var normalized = String(state || '').trim().toLowerCase();
+  var projection = state && typeof state === 'object' ? state : null;
+  var normalized = String(
+    projection ? (projection.state || projection.activity || '') : state || ''
+  ).trim().toLowerCase();
   if (!normalized || normalized === 'idle' || normalized === 'done' || normalized === 'stop' || normalized === 'stopped') {
     if (target.agentLiveActivity && Object.prototype.hasOwnProperty.call(target.agentLiveActivity, id)) {
       delete target.agentLiveActivity[id];
@@ -182,13 +185,16 @@ function infringSetAgentLiveActivity(page, agentId, state, options) {
     }
     return;
   }
-  var source = String(opts.source || 'shell_optimistic').trim() || 'shell_optimistic';
+  var source = String((projection && projection.source) || opts.source || 'shell_optimistic').trim() || 'shell_optimistic';
+  var ts = Number((projection && (projection.ts || projection.updated_at)) || opts.ts || Date.now());
+  if (!Number.isFinite(ts) || ts <= 0) ts = Date.now();
   target.agentLiveActivity = Object.assign({}, target.agentLiveActivity || {}, {
     [id]: {
       state: normalized,
-      ts: Date.now(),
+      ts: ts,
       source: source,
-      optimistic: source === 'shell_optimistic' || opts.optimistic === true
+      optimistic: source === 'shell_optimistic' || opts.optimistic === true || !!(projection && projection.optimistic === true),
+      display_label: String((projection && (projection.display_label || projection.status_label)) || opts.display_label || '').trim()
     }
   });
 }
