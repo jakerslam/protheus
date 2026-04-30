@@ -16,6 +16,7 @@
     "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/090-init-hooks-and-shortcuts.part01.ts",
     "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/110-failover-and-health.part01.ts",
     "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/140-session-and-ws.part01.ts",
+    "client/runtime/systems/ui/infring_static/js/pages/chat_agent_live_status_helpers.ts",
     "client/runtime/systems/ui/infring_static/js/pages/chat_context_helpers.ts",
     "client/runtime/systems/ui/infring_static/js/pages/chat_thinking_display_helpers.ts",
     "client/runtime/systems/ui/infring_static/js/pages/chat_ws_phase_event_helpers.ts",
@@ -79,6 +80,11 @@
       "id": "shell_phase_detail_label_inference",
       "description": "Shell must not infer workflow phase labels from raw detail fields; it should render backend/orchestration status projection labels.",
       "regex": "var\\s+phaseDetailText\\s*=\\s*String\\(data\\s*&&\\s*data\\.detail\\s*\\?\\s*data\\.detail\\s*:\\s*''\\)\\.trim\\(\\)"
+    },
+    {
+      "id": "shell_agent_activity_literal_transition",
+      "description": "Shell must not author agent activity truth from literal working/typing/idle transitions; it should render backend/core activity projections or explicitly optimistic state.",
+      "regex": "setAgentLiveActivity\\([^\\n]*(?:'working'|'typing'|'idle')\\)"
     }
   ],
   "allowed_legacy_occurrences": {
@@ -210,6 +216,36 @@
         "expires": "2026-05-12",
         "reason": "Legacy websocket/session path still contains system-role chat mutations while chat visibility/status projection migration is landing.",
         "replacement_plan": "Route these rows through notice/telemetry projections or final LLM output only, then remove the allowance."
+      }
+    ],
+    "shell_agent_activity_literal_transition": [
+      {
+        "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/110-failover-and-health.part01.ts",
+        "max": 5,
+        "expires": "2026-05-12",
+        "reason": "Legacy pending-response health path still maps websocket state directly to activity labels.",
+        "replacement_plan": "Consume backend/core agent_activity_projection labels and mark any shell transient display as optimistic."
+      },
+      {
+        "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/140-session-and-ws.part01.ts",
+        "max": 9,
+        "expires": "2026-05-12",
+        "reason": "Legacy websocket event path still maps typing/phase/close states directly to activity labels.",
+        "replacement_plan": "Consume backend/core agent_activity_projection labels and remove literal shell state transitions."
+      },
+      {
+        "path": "client/runtime/systems/ui/infring_static/js/pages/chat_ws_phase_event_helpers.ts",
+        "max": 1,
+        "expires": "2026-05-12",
+        "reason": "Legacy extracted phase helper mirrors the websocket phase activity transition while split work is landing.",
+        "replacement_plan": "Consume backend/core agent_activity_projection labels and remove literal shell state transitions."
+      },
+      {
+        "path": "client/runtime/systems/ui/infring_static/js/pages/chat_agent_live_status_helpers.ts",
+        "max": 1,
+        "expires": "2026-05-12",
+        "reason": "Legacy live-status helper keeps a stop/delete UI optimistic idle transition.",
+        "replacement_plan": "Mark local stop/delete UI transitions as optimistic or consume backend/core activity projection receipts."
       }
     ]
   }
