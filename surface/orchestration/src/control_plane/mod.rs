@@ -3,6 +3,7 @@ pub mod agent_lifecycle_coordination;
 pub mod chat_visibility;
 pub mod command_dispatch;
 pub mod decomposition_planning;
+pub mod hands_activation_coordination;
 pub mod intake_normalization;
 pub mod lifecycle;
 pub mod model_provider_coordination;
@@ -287,6 +288,13 @@ pub fn subdomain_trace_contracts() -> Vec<SubdomainTraceContract> {
             receipt_metadata_sources: RECEIPT_METADATA_SOURCES,
         },
         SubdomainTraceContract {
+            trace_id: "hands_activation_coordination.trace",
+            subdomain_id: "hands_activation_coordination",
+            stage: WorkflowStage::CoordinationSequencing,
+            required_decision_fields: REQUIRED_DECISION_FIELDS,
+            receipt_metadata_sources: RECEIPT_METADATA_SOURCES,
+        },
+        SubdomainTraceContract {
             trace_id: "intake_normalization.trace",
             subdomain_id: "intake_normalization",
             stage: WorkflowStage::IntakeNormalization,
@@ -437,6 +445,7 @@ pub fn subdomain_boundaries() -> Vec<SubdomainBoundary> {
     vec![
         agent_lifecycle_coordination::boundary(),
         chat_visibility::boundary(),
+        hands_activation_coordination::boundary(),
         intake_normalization::boundary(),
         model_provider_coordination::boundary(),
         command_dispatch::boundary(),

@@ -357,7 +357,7 @@ Progress:
 
 ### SHP-AUTH-011 - Hands activation/install/dependency coordination is shell-owned
 
-Status: queued
+Status: in_progress
 Priority: P2
 Current files:
 - `client/runtime/systems/ui/infring_static/js/pages/hands.ts`
@@ -379,6 +379,13 @@ Acceptance:
 - Shell no longer sequences dependency check/install/activate.
 - Activation produces durable receipt/job state.
 - Regression covers dependency missing, install failure, activation success, and deactivate receipt.
+
+Progress:
+- 2026-04-30: Added Rust control-plane Hands activation coordination primitives in `surface/orchestration/src/control_plane/hands_activation_coordination.rs`.
+- `coordinate_hands_intent` now owns non-authoritative recommendations for dependency checks, dependency installs, activation/launch, deactivation, and stats projection.
+- Activation routes through backend orchestration jobs when dependencies are satisfied, and missing dependencies route back to backend dependency checks instead of shell sequencing.
+- Core/runtime remains the intended authority for execution admission, instance truth, dependency installation effects, and durable receipts; shell should transition to wizard submission plus job/progress rendering.
+- Regression tests cover dependency missing, install failure, activation success, activation blocked by missing dependencies, deactivate receipt, and durable job receipt requirement.
 
 ### SHP-AUTH-012 - Status, phase, and context labels are inferred in shell
 
