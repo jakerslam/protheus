@@ -188,7 +188,7 @@ Progress:
 
 ### SHP-AUTH-006 - System-authored chat text still exists in shell helpers
 
-Status: queued
+Status: in_progress
 Priority: P0
 Current files:
 - `client/runtime/systems/ui/infring_static/js/pages/chat_notice_message_helpers.ts`
@@ -220,6 +220,9 @@ Progress:
 - First direct visible system-message sites were converted to notice/telemetry projection in chat recovery, slash, prompt queue, context warning, session load, fresh-init, lifecycle, and voice-transcription helpers.
 - Added Rust orchestration packaging primitives in `surface/orchestration/src/control_plane/result_shaping_packaging.rs`: runtime diagnostics package as telemetry-only by default, and only final LLM output packages as chat-visible.
 - Added a Shell projection guard semantic check: direct shell mutations that create visible `role: system` chat text now fail `ops:shell:projection:guard`; controlled violation mode proves the tripwire catches regressions.
+- Added Rust control-plane chat visibility primitives in `surface/orchestration/src/control_plane/chat_visibility.rs`.
+- `route_chat_surface_candidate` now owns non-authoritative routing for user-authored text, synthesized final LLM output, runtime diagnostics, system notices, slash outputs, and tool diagnostics.
+- Regression tests cover finalization-edge rejection, telemetry routing, notice-rail routing, and allowed user/final-LLM chat text.
 
 ### SHP-AUTH-007 - Workflow builder compiles and persists executable workflow semantics in shell
 
