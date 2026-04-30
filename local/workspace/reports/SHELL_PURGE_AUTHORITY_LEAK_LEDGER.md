@@ -429,6 +429,7 @@ Progress:
 - 2026-04-30: Marked shell-maintained live activity entries in `app_agent_preview_helpers.ts` with `source: shell_optimistic` and `optimistic: true` metadata while preserving the visible state string.
 - 2026-04-30: Added backend/core activity projection ingestion in `app_agent_refresh_helpers.ts` for `agent_activity_projection`, `activity_projection`, and `live_activity_projection` payloads; projected rows now land with `optimistic: false` and preserve source/display metadata.
 - 2026-04-30: Extended `infringSetAgentLiveActivity` to accept activity projection objects directly, preserving projected `source`, `display_label`, and timestamp metadata while keeping string callers as shell-optimistic transitions.
+- 2026-04-30: Added a shell projection guard ratchet preventing anonymous `{ state, ts }` live-activity rows from returning without `source`/`optimistic` projection metadata.
 
 ## Execution Notes
 
