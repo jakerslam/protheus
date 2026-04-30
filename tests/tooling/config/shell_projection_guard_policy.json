@@ -82,6 +82,11 @@
       "regex": "var\\s+phaseDetailText\\s*=\\s*String\\(data\\s*&&\\s*data\\.detail\\s*\\?\\s*data\\.detail\\s*:\\s*''\\)\\.trim\\(\\)"
     },
     {
+      "id": "shell_phase_detail_status_fallback",
+      "description": "Shell must not promote raw phase detail text into status candidates; it should consume display_label/status_text from orchestration projection envelopes.",
+      "regex": "\\|\\|\\s*phaseDetailText\\s*\\|\\|"
+    },
+    {
       "id": "shell_agent_activity_literal_transition",
       "description": "Shell must not author agent activity truth from literal working/typing/idle transitions; it should render backend/core activity projections or explicitly optimistic state.",
       "regex": "setAgentLiveActivity\\([^\\n]*(?:'working'|'typing'|'idle')\\)"
@@ -215,6 +220,22 @@
         "expires": "2026-05-12",
         "reason": "Legacy extracted phase helper mirrors the assembled websocket phase handler during shell split.",
         "replacement_plan": "Render the status_phase_projection envelope display_label/status_text emitted by orchestration and regenerate assembled sources."
+      }
+    ],
+    "shell_phase_detail_status_fallback": [
+      {
+        "path": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/140-session-and-ws.part01.ts",
+        "max": 1,
+        "expires": "2026-05-12",
+        "reason": "Legacy websocket phase handler still promotes raw detail text into status candidates.",
+        "replacement_plan": "Use the Rust status projection envelope display_label/status_text and reject detail-only inference."
+      },
+      {
+        "path": "client/runtime/systems/ui/infring_static/js/pages/chat_ws_phase_event_helpers.ts",
+        "max": 1,
+        "expires": "2026-05-12",
+        "reason": "Legacy extracted phase helper mirrors the assembled websocket phase handler during shell split.",
+        "replacement_plan": "Use the Rust status projection envelope display_label/status_text and regenerate assembled sources."
       }
     ],
     "shell_visible_system_chat_injection": [

@@ -433,6 +433,7 @@ Progress:
 - 2026-04-30: Added a Rust shell-ready status projection envelope (`projection_type`, `status_text`, `source`, `optimistic`, optional `activity`) so websocket/UI code has a canonical projection target instead of deriving labels from raw `detail` fields.
 - 2026-04-30: Locked status projection envelope enum serialization to stable snake_case values (`core_runtime`, `orchestration`, `working`, etc.) so shell adapters can consume projection metadata without variant-name coupling.
 - 2026-04-30: Added Rust status-label selection that accepts projection fields (`display_label`, `status_text`, `thinking_status`, stage/phase) and rejects `detail`-only status inference.
+- 2026-04-30: Added a projection-guard ratchet for the exact `phaseDetailText` status-candidate fallback so raw websocket detail text cannot spread as user-visible status truth.
 
 ## Execution Notes
 
